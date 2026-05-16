@@ -1,0 +1,19 @@
+{
+  "extends": "@total-typescript/tsconfig/bundler",
+  "compilerOptions": {
+    "target": "ES2024",
+    "lib": ["ESNext", "DOM"],
+    "types": ["bun"],
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@common/*": ["src/common/*"],
+      "@components/*": ["src/client/components/*"],
+      "@client/*": ["src/client/*"],
+      "@server/*": ["src/server/*"]
+    }
+  },
+  "exclude": ["node_modules", "build"]
+}
