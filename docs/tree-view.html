@@ -715,16 +715,17 @@
         <div class="term" data-hl="sublayout">
           <div class="viz"></div>
           <div>
-            <h3>Sub-layout</h3>
+            <h3>Block</h3>
             <p class="one-liner">
               A positioned sub-region of the chart with a known horizontal
-              extent.
+              extent and a local coordinate frame.
             </p>
             <p>
               The recursive units (<strong>Ancestor tree</strong>,
-              <strong>Couple</strong>, <strong>Descendant tree</strong>) each
-              produce a sub-layout: a width, a <strong>Pivot</strong>, and the
-              placed boxes and connectors inside.
+              <strong>Couple</strong>, <strong>Descendant tree</strong>) are
+              each a Block: a width, a <strong>Pivot</strong>, and the placed
+              boxes and connectors inside. Blocks nest — a parent Block places
+              children at offsets in its own local frame.
             </p>
           </div>
         </div>
@@ -734,12 +735,12 @@
           <div>
             <h3>Pivot</h3>
             <p class="one-liner">
-              The X coordinate at which a sub-layout attaches upward.
+              The X coordinate at which a Block attaches upward.
             </p>
             <p>
               For an Ancestor tree, the pivot is the X of the bottom person's
               box. For a Couple, the pivot is the midpoint of the Tie. For a
-              multi-child sub-layout, the pivot is the midpoint of the Bar.
+              multi-child Block, the pivot is the midpoint of the Bar.
             </p>
           </div>
         </div>
