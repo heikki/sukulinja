@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/class-methods-use-this --
-   FamilyBlock stubs throw before reaching `this` (phase 2). When FamilyBlock
-   is fully implemented in phase 4, those getters will reference `this.spec`
-   and this disable can drop. */
+   FamilyBlock stubs throw before reaching `this` (phase 4 will populate the
+   getters with `this.spec` access and drop this disable). */
 
 // Block tree types for the layout refactor.
 //
@@ -15,6 +14,9 @@
 // The render walk converts boxes into nested <g transform> groups and
 // flattens lines into one top-level edge group (preserving the box-over-
 // edge z-order called out in docs/adr/0001-tree-view-layout-architecture.md).
+//
+// DescendantUnitBlock lives in block-descendant.ts to keep this file under
+// the lint file-size limit. Phase-6 cleanup may split further.
 
 import { BOX_H, BOX_W, COUPLE_GAP, COUPLE_PITCH, ROW_H } from './helpers';
 import type { LayoutIndices, Line, PositionedPerson } from './helpers';
@@ -318,7 +320,7 @@ export function flattenBlock(
     x1: originX + l.x1,
     y1: originY + l.y1,
     x2: originX + l.x2,
-    y2: originY + l.y2
+    y2: l.y2 + originY
   }));
   for (const placed of block.children) {
     const sub = flattenBlock(
