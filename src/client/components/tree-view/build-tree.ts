@@ -354,19 +354,25 @@ function couplePlacement(
   fam: FamilyRow,
   tilt: Tilt
 ): InternalCoupleLayout {
-  // Tilted couples (paternal/maternal GPs) pin one spouse at FB-local 0 so
-  // it sits directly above the bloodline child's column; the Tie midpoint
-  // (= childAnchorX) shifts off-column and the sibship draws an L-bar.
+  // Sep widens to clear husband's right subtree extent + wife's left
+  // subtree extent. For tilted couples the inner spouse sits at FB-local
+  // 0, the outer spouse at ±sep — so deeper ancestor rows widen
+  // recursively and great-GP / great-great-GP boxes don't converge at the
+  // same chart X. See docs/tilted-gp-couples.html §4.
+  const sep = Math.max(
+    COUPLE_PITCH,
+    husbandPB.coupleRightWidth + wifePB.coupleLeftWidth + COUPLE_GAP
+  );
   if (tilt === 'left') {
     return {
       husband: {
         id: fam.husband_id!,
         external: false,
-        x: -COUPLE_PITCH,
+        x: -sep,
         block: husbandPB
       },
       wife: { id: fam.wife_id!, external: false, x: 0, block: wifePB },
-      childAnchorX: -COUPLE_PITCH / 2,
+      childAnchorX: -sep / 2,
       childAnchorY: 0,
       tieY: 0
     };
@@ -374,21 +380,12 @@ function couplePlacement(
   if (tilt === 'right') {
     return {
       husband: { id: fam.husband_id!, external: false, x: 0, block: husbandPB },
-      wife: {
-        id: fam.wife_id!,
-        external: false,
-        x: COUPLE_PITCH,
-        block: wifePB
-      },
-      childAnchorX: COUPLE_PITCH / 2,
+      wife: { id: fam.wife_id!, external: false, x: sep, block: wifePB },
+      childAnchorX: sep / 2,
       childAnchorY: 0,
       tieY: 0
     };
   }
-  const sep = Math.max(
-    COUPLE_PITCH,
-    husbandPB.coupleRightWidth + wifePB.coupleLeftWidth + COUPLE_GAP
-  );
   return {
     husband: {
       id: fam.husband_id!,
