@@ -2,7 +2,7 @@
 //
 // See docs/tree-view.html for the domain vocabulary and
 // docs/adr/0001-tree-view-layout-architecture.md for the load-bearing
-// design decisions (Sub-layout calculus, asymmetric sibship rule).
+// design decisions (Block-tree architecture, asymmetric sibship rule).
 
 import type { FamilyRow, PersonRow } from '@common/types';
 
@@ -16,28 +16,12 @@ export interface LayoutIndices {
   levels: number;
 }
 
-export interface PositionedPerson {
-  id: number;
-  x: number;
-  y: number;
-}
-
 export interface Line {
   key: string;
   x1: number;
   y1: number;
   x2: number;
   y2: number;
-}
-
-// Sub-layout: a positioned sub-region with pivot at local x=0. leftWidth /
-// rightWidth measure extent on each side of the pivot. Composers shift
-// sub-layouts to land their pivot at a target X.
-export interface SubLayout {
-  leftWidth: number;
-  rightWidth: number;
-  nodes: PositionedPerson[];
-  lines: Line[];
 }
 
 export const BOX_W = 184;
@@ -56,66 +40,23 @@ export const COUPLE_PITCH = BOX_W + COUPLE_GAP;
 export const DRAG_THRESHOLD_PX = 4;
 export const DEFAULT_FOCUS_ID = 3;
 
-export function emptyLayout(): SubLayout {
-  return { leftWidth: 0, rightWidth: 0, nodes: [], lines: [] };
-}
+// ============= Sibship packing =============
 
-export function linesOnly(lines: Line[]): SubLayout {
-  return { leftWidth: 0, rightWidth: 0, nodes: [], lines };
-}
-
-export function bareBox(personId: number, y: number): SubLayout {
-  return {
-    leftWidth: BOX_W / 2,
-    rightWidth: BOX_W / 2,
-    nodes: [{ id: personId, x: 0, y }],
-    lines: []
-  };
-}
-
-export function shiftLayout(sub: SubLayout, dx: number): SubLayout {
-  return {
-    leftWidth: sub.leftWidth - dx,
-    rightWidth: sub.rightWidth + dx,
-    nodes: sub.nodes.map((n) => ({ ...n, x: n.x + dx })),
-    lines: sub.lines.map((l) => ({
-      key: l.key,
-      x1: l.x1 + dx,
-      y1: l.y1,
-      x2: l.x2 + dx,
-      y2: l.y2
-    }))
-  };
-}
-
-export function unionLayouts(parts: SubLayout[]): SubLayout {
-  if (parts.length === 0) return emptyLayout();
-  let leftWidth = 0;
-  let rightWidth = 0;
-  const nodes: PositionedPerson[] = [];
-  const lines: Line[] = [];
-  for (const p of parts) {
-    leftWidth = Math.max(leftWidth, p.leftWidth);
-    rightWidth = Math.max(rightWidth, p.rightWidth);
-    nodes.push(...p.nodes);
-    lines.push(...p.lines);
-  }
-  return { leftWidth, rightWidth, nodes, lines };
-}
-
-// Pack a list of sub-layouts left-to-right with a fixed gap; returns the X
-// offset of each sub's pivot in the packed coord system, plus the total span.
+// Pack a list of items left-to-right with a fixed gap; returns the X offset
+// of each item's pivot in the packed coord system, plus the total span.
+// Items only need leftWidth + rightWidth — accepts any shape with those
+// fields (Block instances or anonymous pack records).
 export function packHorizontally(
-  subs: SubLayout[],
+  items: ReadonlyArray<{ leftWidth: number; rightWidth: number }>,
   gap: number
 ): { offsets: number[]; totalWidth: number } {
   const offsets: number[] = [];
   let cursor = 0;
-  for (const [i, sub] of subs.entries()) {
+  for (const [i, item] of items.entries()) {
     if (i > 0) cursor += gap;
-    cursor += sub.leftWidth;
+    cursor += item.leftWidth;
     offsets.push(cursor);
-    cursor += sub.rightWidth;
+    cursor += item.rightWidth;
   }
   return { offsets, totalWidth: cursor };
 }
@@ -158,68 +99,6 @@ export function barAndLegs(
     });
   }
   return lines;
-}
-
-// Children of a Couple, in birth order, with bar + legs. Returned pivot =
-// bar midpoint. Each child's sub-layout pivot must be the child's box X.
-// When dropFromY is provided, a vertical drop is added from (0, dropFromY)
-// down to the bar — used for half-sibships hanging from a non-Primary Child
-// anchor (e.g. a step-parent's box bottom).
-export function sibshipLayout(
-  children: Array<{ id: number; sub: SubLayout }>,
-  y: number,
-  keyPrefix: string,
-  dropFromY?: number
-): SubLayout {
-  if (children.length === 0) return emptyLayout();
-  const subs = children.map((c) => c.sub);
-  const packed = packHorizontally(subs, SIBLING_GAP);
-  const centers = packed.offsets;
-  const barMid = (centers[0]! + centers[centers.length - 1]!) / 2;
-  const localXs = centers.map((c) => c - barMid);
-
-  const nodes: PositionedPerson[] = [];
-  const lines: Line[] = [];
-  for (const [i, sub] of subs.entries()) {
-    const dx = localXs[i]!;
-    for (const n of sub.nodes) nodes.push({ ...n, x: n.x + dx });
-    for (const l of sub.lines) {
-      lines.push({
-        key: l.key,
-        x1: l.x1 + dx,
-        y1: l.y1,
-        x2: l.x2 + dx,
-        y2: l.y2
-      });
-    }
-  }
-
-  const busY = y - ROW_H / 2;
-  lines.push(
-    ...barAndLegs(
-      localXs,
-      children.map((c) => c.id),
-      y,
-      keyPrefix
-    )
-  );
-
-  if (dropFromY !== undefined) {
-    lines.push({
-      key: `${keyPrefix}-drop`,
-      x1: 0,
-      y1: dropFromY,
-      x2: 0,
-      y2: busY
-    });
-  }
-
-  return {
-    leftWidth: barMid,
-    rightWidth: packed.totalWidth - barMid,
-    nodes,
-    lines
-  };
 }
 
 // ============= Family helpers =============

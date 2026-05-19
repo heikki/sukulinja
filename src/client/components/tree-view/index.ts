@@ -2,11 +2,7 @@ import { html, LitElement, nothing, svg, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
-import type {
-  LocalPersonBox,
-  RenderGroup,
-  RenderOutput
-} from './block';
+import type { LocalPersonBox, RenderGroup, RenderOutput } from './block';
 import {
   AVATAR_CX,
   AVATAR_R,
@@ -199,11 +195,7 @@ export class TreeViewElement extends LitElement {
   // on the <g> would include text labels whose width varies by name length,
   // shifting the captured "center" inconsistently and accumulating drift over
   // back-and-forth toggles.
-  private setFocusFromClick(node: {
-    id: number;
-    x: number;
-    y: number;
-  }): void {
+  private setFocusFromClick(node: { id: number; x: number; y: number }): void {
     if (node.id === this.focusId) {
       this.query = '';
       return;

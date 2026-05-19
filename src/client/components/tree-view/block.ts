@@ -15,7 +15,7 @@
 // the lint file-size limit. Phase-6 cleanup may split further.
 
 import { BOX_H, BOX_W, COUPLE_GAP, COUPLE_PITCH, ROW_H } from './helpers';
-import type { LayoutIndices, Line, PositionedPerson } from './helpers';
+import type { LayoutIndices } from './helpers';
 
 // ============= Local render output (one Block's contribution) =============
 
@@ -245,40 +245,6 @@ export function buildAncestorBranchBlock(
   return new AncestorBranchBlock(personId, fam.id, fatherBranch, motherBranch);
 }
 
-// ============= Flat-output adapter (transitional — phase 5 will drop) =============
-
-// Walk a Block tree and produce { nodes, lines } in chart coords. Used by
-// legacy SubLayout callers during the phase-5 transition.
-export function flattenBlock(
-  block: Block,
-  originX: number,
-  originY: number
-): { nodes: PositionedPerson[]; lines: Line[] } {
-  const local = block.renderLocal();
-  const nodes: PositionedPerson[] = local.boxes.map((b) => ({
-    id: b.personId,
-    x: originX + b.x,
-    y: originY + b.y
-  }));
-  const lines: Line[] = local.lines.map((l) => ({
-    key: l.key,
-    x1: originX + l.x1,
-    y1: originY + l.y1,
-    x2: originX + l.x2,
-    y2: originY + l.y2
-  }));
-  for (const placed of block.children) {
-    const sub = flattenBlock(
-      placed.block,
-      originX + placed.offsetX,
-      originY + placed.offsetY
-    );
-    nodes.push(...sub.nodes);
-    lines.push(...sub.lines);
-  }
-  return { nodes, lines };
-}
-
 // ============= Render walk =============
 
 // A Block placed at chart-coord origin (used to drive the render walk).
@@ -330,7 +296,13 @@ interface RenderOneResult {
 }
 
 function renderOneBlock(args: RenderOneArgs): RenderOneResult {
-  const { block, relativeOffsetX, relativeOffsetY, absoluteOriginX, absoluteOriginY } = args;
+  const {
+    block,
+    relativeOffsetX,
+    relativeOffsetY,
+    absoluteOriginX,
+    absoluteOriginY
+  } = args;
   const local = block.renderLocal();
   const lines: AbsoluteLine[] = local.lines.map((l) => ({
     key: l.key,

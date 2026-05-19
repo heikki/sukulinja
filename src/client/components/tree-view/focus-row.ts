@@ -132,13 +132,10 @@ export function layoutFocusRow(
   const focusSlotIdx = leftHalfSibs.length + (haveSibship ? focusIdxInSibs : 0);
 
   // Pack using each slot's full Block width.
-  const packSubs = slots.map((s) => ({
-    leftWidth: s.block.leftWidth,
-    rightWidth: s.block.rightWidth,
-    nodes: [],
-    lines: []
-  }));
-  const { offsets } = packHorizontally(packSubs, SIBLING_GAP);
+  const { offsets } = packHorizontally(
+    slots.map((s) => s.block),
+    SIBLING_GAP
+  );
   const focusOffset = offsets[focusSlotIdx]!;
   const baseShifts = offsets.map((o) => o - focusOffset);
 
@@ -414,4 +411,3 @@ function appendSibshipLines(args: AppendSibshipLinesArgs): number {
   });
   return parentAnchorX;
 }
-

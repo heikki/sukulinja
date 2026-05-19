@@ -11,11 +11,7 @@
 // side's branch. COUPLE_PITCH is the floor for shallow trees.
 
 import { buildAncestorBranchBlock, renderChartBlocks } from './block';
-import type {
-  AncestorBranchBlock,
-  PlacedBlock,
-  RenderOutput
-} from './block';
+import type { AncestorBranchBlock, PlacedBlock, RenderOutput } from './block';
 import { layoutFocusRow } from './focus-row';
 import { BOX_W, COUPLE_GAP, COUPLE_PITCH, ROW_H } from './helpers';
 import type { LayoutIndices, Line } from './helpers';
