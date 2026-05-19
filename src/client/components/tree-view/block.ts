@@ -245,12 +245,10 @@ export function buildAncestorBranchBlock(
   return new AncestorBranchBlock(personId, fam.id, fatherBranch, motherBranch);
 }
 
-// ============= Flat-output adapter =============
+// ============= Flat-output adapter (transitional — phase 5 will drop) =============
 
-// Walk a Block tree and produce the legacy flat { nodes, lines } shape, with
-// every position translated into chart coords. originX/originY = chart pos
-// of the Block's local origin. Used during the phased refactor so consumers
-// of the old SubLayout API keep working.
+// Walk a Block tree and produce { nodes, lines } in chart coords. Used by
+// legacy SubLayout callers during the phase-5 transition.
 export function flattenBlock(
   block: Block,
   originX: number,
@@ -267,7 +265,7 @@ export function flattenBlock(
     x1: originX + l.x1,
     y1: originY + l.y1,
     x2: originX + l.x2,
-    y2: l.y2 + originY
+    y2: originY + l.y2
   }));
   for (const placed of block.children) {
     const sub = flattenBlock(
@@ -281,7 +279,90 @@ export function flattenBlock(
   return { nodes, lines };
 }
 
-// ============= Render-walk output (phase 5) =============
+// ============= Render walk =============
+
+// A Block placed at chart-coord origin (used to drive the render walk).
+export interface PlacedBlock {
+  block: Block;
+  offsetX: number;
+  offsetY: number;
+}
+
+// Walk a Block tree and emit a structured RenderGroup tree (one nested
+// transform group per Block) plus a flat list of edges in absolute coords.
+// Boxes are nested so animations and CSS scoping can target whole sub-trees;
+// edges stay flat at the top level so the box-over-edge z-order rule from
+// docs/adr/0001-tree-view-layout-architecture.md is preserved without effort.
+export function renderChartBlocks(
+  placedBlocks: readonly PlacedBlock[],
+  extraLines: readonly AbsoluteLine[]
+): RenderOutput {
+  const childGroups: RenderGroup[] = [];
+  const lines: AbsoluteLine[] = [...extraLines];
+  for (const placed of placedBlocks) {
+    const result = renderOneBlock({
+      block: placed.block,
+      relativeOffsetX: placed.offsetX,
+      relativeOffsetY: placed.offsetY,
+      absoluteOriginX: placed.offsetX,
+      absoluteOriginY: placed.offsetY
+    });
+    childGroups.push(result.group);
+    lines.push(...result.lines);
+  }
+  return {
+    rootGroup: { offsetX: 0, offsetY: 0, boxes: [], childGroups },
+    lines
+  };
+}
+
+interface RenderOneArgs {
+  block: Block;
+  relativeOffsetX: number;
+  relativeOffsetY: number;
+  absoluteOriginX: number;
+  absoluteOriginY: number;
+}
+
+interface RenderOneResult {
+  group: RenderGroup;
+  lines: AbsoluteLine[];
+}
+
+function renderOneBlock(args: RenderOneArgs): RenderOneResult {
+  const { block, relativeOffsetX, relativeOffsetY, absoluteOriginX, absoluteOriginY } = args;
+  const local = block.renderLocal();
+  const lines: AbsoluteLine[] = local.lines.map((l) => ({
+    key: l.key,
+    x1: absoluteOriginX + l.x1,
+    y1: absoluteOriginY + l.y1,
+    x2: absoluteOriginX + l.x2,
+    y2: absoluteOriginY + l.y2
+  }));
+  const childGroups: RenderGroup[] = [];
+  for (const child of block.children) {
+    const childResult = renderOneBlock({
+      block: child.block,
+      relativeOffsetX: child.offsetX,
+      relativeOffsetY: child.offsetY,
+      absoluteOriginX: absoluteOriginX + child.offsetX,
+      absoluteOriginY: absoluteOriginY + child.offsetY
+    });
+    childGroups.push(childResult.group);
+    lines.push(...childResult.lines);
+  }
+  return {
+    group: {
+      offsetX: relativeOffsetX,
+      offsetY: relativeOffsetY,
+      boxes: [...local.boxes],
+      childGroups
+    },
+    lines
+  };
+}
+
+// ============= Render-walk output =============
 
 export interface RenderGroup {
   offsetX: number;

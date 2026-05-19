@@ -2,6 +2,11 @@ import { html, LitElement, nothing, svg, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
+import type {
+  LocalPersonBox,
+  RenderGroup,
+  RenderOutput
+} from './block';
 import {
   AVATAR_CX,
   AVATAR_R,
@@ -11,9 +16,7 @@ import {
   DRAG_THRESHOLD_PX,
   SVG_HALF,
   type FamilyRow,
-  type Line,
-  type PersonRow,
-  type PositionedPerson
+  type PersonRow
 } from './helpers';
 import { buildChart, type LayoutIndices } from './layout';
 import { treeViewStyles } from './styles';
@@ -196,7 +199,11 @@ export class TreeViewElement extends LitElement {
   // on the <g> would include text labels whose width varies by name length,
   // shifting the captured "center" inconsistently and accumulating drift over
   // back-and-forth toggles.
-  private setFocusFromClick(node: PositionedPerson): void {
+  private setFocusFromClick(node: {
+    id: number;
+    x: number;
+    y: number;
+  }): void {
     if (node.id === this.focusId) {
       this.query = '';
       return;
@@ -284,23 +291,25 @@ export class TreeViewElement extends LitElement {
     };
   }
 
-  private renderNode(node: PositionedPerson) {
-    const p = this.persons.get(node.id);
+  private renderBox(box: LocalPersonBox, groupAbsX: number, groupAbsY: number) {
+    const p = this.persons.get(box.personId);
     if (p === undefined) return nothing;
-    const isFocus = node.id === this.focusId;
-    const x = node.x - BOX_W / 2;
-    const y = node.y - BOX_H / 2;
+    const isFocus = box.personId === this.focusId;
+    const x = box.x - BOX_W / 2;
+    const y = box.y - BOX_H / 2;
+    const chartX = groupAbsX + box.x;
+    const chartY = groupAbsY + box.y;
     const photoSrc = photoSrcOf(p);
     const name = truncate(formatName(p), NAME_TRUNCATE);
     const dates = formatDates(p);
     return svg`
       <g
         class="node ${isFocus ? 'focus' : ''}"
-        data-node-id=${node.id}
+        data-node-id=${box.personId}
         style="transform: translate(${x}px, ${y}px)"
         @click=${() => {
           if (this.dragMoved) return;
-          this.setFocusFromClick(node);
+          this.setFocusFromClick({ id: box.personId, x: chartX, y: chartY });
         }}
       >
         <rect class="box" x="0" y="0" width=${BOX_W} height=${BOX_H} rx="6" />
@@ -325,6 +334,36 @@ export class TreeViewElement extends LitElement {
         <text class="name" x="60" y=${BOX_H / 2 - 4}>${name}</text>
         <text class="dates" x="60" y=${BOX_H / 2 + 14}>${dates}</text>
         <rect class="hit" x="0" y="0" width=${BOX_W} height=${BOX_H} rx="6" />
+      </g>
+    `;
+  }
+
+  private renderGroup(
+    group: RenderGroup,
+    key: string,
+    parentAbsX: number,
+    parentAbsY: number
+  ): unknown {
+    const absX = parentAbsX + group.offsetX;
+    const absY = parentAbsY + group.offsetY;
+    const isRoot =
+      group.offsetX === 0 && group.offsetY === 0 && group.boxes.length === 0;
+    const children = svg`
+      ${repeat(
+        group.boxes,
+        (b) => b.personId,
+        (b) => this.renderBox(b, absX, absY)
+      )}
+      ${repeat(
+        group.childGroups,
+        (_g, i) => `${key}/${i}`,
+        (g, i) => this.renderGroup(g, `${key}/${i}`, absX, absY)
+      )}
+    `;
+    if (isRoot) return children;
+    return svg`
+      <g style="transform: translate(${group.offsetX}px, ${group.offsetY}px)">
+        ${children}
       </g>
     `;
   }
@@ -368,7 +407,7 @@ export class TreeViewElement extends LitElement {
     `;
   }
 
-  private renderCanvas(chart: { nodes: PositionedPerson[]; lines: Line[] }) {
+  private renderCanvas(chart: RenderOutput) {
     return html`
       <div
         class="canvas ${this.dragging ? 'dragging' : ''}"
@@ -400,11 +439,7 @@ export class TreeViewElement extends LitElement {
                     />`
                   )}
                 </g>
-                ${repeat(
-                  chart.nodes,
-                  (n) => n.id,
-                  (n) => this.renderNode(n)
-                )}
+                ${this.renderGroup(chart.rootGroup, 'root', 0, 0)}
               </svg>
             </div>`
           : nothing}

@@ -22,8 +22,8 @@
 // the innermost half-sib slot on each side is pushed outward if it would
 // overlap the parent-row Couple's footprint.
 
-import { flattenBlock, PersonBlock } from './block';
-import type { Block } from './block';
+import { PersonBlock } from './block';
+import type { Block, PlacedBlock } from './block';
 import { buildDescendantUnitBlock } from './block-descendant';
 import { FamilyBlock } from './block-family';
 import type { FamilyChildEntry } from './block-family';
@@ -38,13 +38,7 @@ import {
   ROW_H,
   SIBLING_GAP
 } from './helpers';
-import type {
-  FamilyRow,
-  LayoutIndices,
-  Line,
-  PositionedPerson,
-  SubLayout
-} from './helpers';
+import type { FamilyRow, LayoutIndices, Line } from './helpers';
 
 export interface StepFamPlacement {
   famId: number;
@@ -54,7 +48,12 @@ export interface StepFamPlacement {
 }
 
 export interface FocusRowResult {
-  sub: SubLayout;
+  // Each slot Block placed at chart coords (focus at (0, 0); step-fams at
+  // chart Y=-ROW_H so the step-parent lands at parent row).
+  placedSlots: PlacedBlock[];
+  // Cross-Slot flat lines: bloodline sibship bar + legs + parent drop, in
+  // chart coords.
+  lines: Line[];
   parentAnchorX: number | null;
   stepFams: StepFamPlacement[];
 }
@@ -151,11 +150,8 @@ export function layoutFocusRow(
     sep: opts.sep
   });
 
-  // Materialise each slot into chart-coord nodes + lines.
-  const allNodes: PositionedPerson[] = [];
-  const allLines: Line[] = [];
-  let minSlotLeft = 0;
-  let maxSlotRight = 0;
+  // Collect placed slot Blocks (chart-coord offsets) and cross-Slot metadata.
+  const placedSlots: PlacedBlock[] = [];
   const stepFams: StepFamPlacement[] = [];
   const siblingChartXs: number[] = [];
   const siblingIds: number[] = [];
@@ -163,12 +159,7 @@ export function layoutFocusRow(
   for (const [i, slot] of slots.entries()) {
     const slotX = slotShifts[i]!;
     const slotY = slot.kind === 'step-fam' ? -ROW_H : 0;
-    const flat = flattenBlock(slot.block, slotX, slotY);
-    allNodes.push(...flat.nodes);
-    allLines.push(...flat.lines);
-    minSlotLeft = Math.min(minSlotLeft, slotX - slot.block.leftWidth);
-    maxSlotRight = Math.max(maxSlotRight, slotX + slot.block.rightWidth);
-
+    placedSlots.push({ block: slot.block, offsetX: slotX, offsetY: slotY });
     if (slot.kind === 'bloodline') {
       siblingChartXs.push(slotX + slot.siblingX);
       siblingIds.push(slot.siblingId);
@@ -177,24 +168,18 @@ export function layoutFocusRow(
     }
   }
 
+  const lines: Line[] = [];
   let parentAnchorX: number | null = null;
   if (haveSibship) {
     parentAnchorX = appendSibshipLines({
-      lines: allLines,
+      lines,
       parentFam,
       siblingIds,
       siblingChartXs
     });
   }
 
-  const sub: SubLayout = {
-    leftWidth: -minSlotLeft,
-    rightWidth: maxSlotRight,
-    nodes: allNodes,
-    lines: allLines
-  };
-
-  return { sub, parentAnchorX, stepFams };
+  return { placedSlots, lines, parentAnchorX, stepFams };
 }
 
 // ============= Sibling slot builders =============
