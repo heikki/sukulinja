@@ -16,9 +16,9 @@
 // each step-parent box (already shifted in focus-row's output) to the
 // appropriate bloodline parent at parent row.
 
+import { buildAncestorBranchBlock, flattenBlock } from './block';
 import { layoutFocusRow, type StepFamPlacement } from './focus-row';
 import {
-  bareBox,
   BOX_H,
   BOX_W,
   COUPLE_GAP,
@@ -39,43 +39,9 @@ import type {
 
 export type { LayoutIndices } from './helpers';
 
-// Bloodline ancestor recursion. Single Couple per generation above, plus the
-// bloodline person hanging below from the Couple's Primary Tie midpoint. v1
-// scope: no aunts/uncles, no step-parents. The pivot is the bloodline
-// person's X (local x=0).
-function layoutAncestorBranch(
-  personId: number,
-  depth: number,
-  ix: LayoutIndices
-): SubLayout {
-  const y = -depth * ROW_H;
-  const personBox = bareBox(personId, y);
-  if (depth >= ix.levels) return personBox;
-  const fam = ix.parentFamByPerson.get(personId);
-  if (fam === undefined) return personBox;
-
-  const fatherSub = ancestorOrNull(fam.husband_id, depth + 1, ix);
-  const motherSub = ancestorOrNull(fam.wife_id, depth + 1, ix);
-  if (fatherSub === null && motherSub === null) return personBox;
-
-  const coupleY = -(depth + 1) * ROW_H;
-  const { sub: coupleSub, anchorY } = composeCouple({
-    fam,
-    ...coupleSides(fatherSub, motherSub),
-    y: coupleY
-  });
-
-  const dropLine: Line = {
-    key: `pdrop-${fam.id}-${personId}`,
-    x1: 0,
-    y1: anchorY,
-    x2: 0,
-    y2: y - BOX_H / 2
-  };
-
-  return unionLayouts([personBox, coupleSub, linesOnly([dropLine])]);
-}
-
+// Ancestor recursion is owned by block.ts (`buildAncestorBranchBlock`). The
+// rest of layout still consumes the legacy SubLayout shape, so we flatten
+// the Block tree into a SubLayout here at the boundary.
 function ancestorOrNull(
   personId: number | null,
   depth: number,
@@ -83,7 +49,14 @@ function ancestorOrNull(
 ): SubLayout | null {
   if (personId === null) return null;
   if (!ix.persons.has(personId)) return null;
-  return layoutAncestorBranch(personId, depth, ix);
+  const block = buildAncestorBranchBlock(personId, depth, ix);
+  const flat = flattenBlock(block, 0, -depth * ROW_H);
+  return {
+    leftWidth: block.leftWidth,
+    rightWidth: block.rightWidth,
+    nodes: flat.nodes,
+    lines: flat.lines
+  };
 }
 
 interface CoupleSide {
