@@ -40,67 +40,6 @@ export const COUPLE_PITCH = BOX_W + COUPLE_GAP;
 export const DRAG_THRESHOLD_PX = 4;
 export const DEFAULT_FOCUS_ID = 3;
 
-// ============= Sibship packing =============
-
-// Pack a list of items left-to-right with a fixed gap; returns the X offset
-// of each item's pivot in the packed coord system, plus the total span.
-// Items only need leftWidth + rightWidth — accepts any shape with those
-// fields (Block instances or anonymous pack records).
-export function packHorizontally(
-  items: ReadonlyArray<{ leftWidth: number; rightWidth: number }>,
-  gap: number
-): { offsets: number[]; totalWidth: number } {
-  const offsets: number[] = [];
-  let cursor = 0;
-  for (const [i, item] of items.entries()) {
-    if (i > 0) cursor += gap;
-    cursor += item.leftWidth;
-    offsets.push(cursor);
-    cursor += item.rightWidth;
-  }
-  return { offsets, totalWidth: cursor };
-}
-
-// Horizontal sibling bar at busY (= y - ROW_H / 2) spanning min..max(childXs),
-// plus a vertical leg from each childX down to box-top at y. Bar omitted for
-// a lone child. Coordinate system is caller's — pass local Xs for layout-local
-// composition, chart Xs for direct chart use.
-export function barAndLegs(
-  childXs: number[],
-  childIds: number[],
-  y: number,
-  keyPrefix: string
-): Line[] {
-  if (childXs.length === 0) return [];
-  const busY = y - ROW_H / 2;
-  const lines: Line[] = [];
-  if (childXs.length > 1) {
-    let minX = childXs[0]!;
-    let maxX = childXs[0]!;
-    for (const cx of childXs) {
-      if (cx < minX) minX = cx;
-      if (cx > maxX) maxX = cx;
-    }
-    lines.push({
-      key: `${keyPrefix}-bar`,
-      x1: minX,
-      y1: busY,
-      x2: maxX,
-      y2: busY
-    });
-  }
-  for (const [i, cx] of childXs.entries()) {
-    lines.push({
-      key: `${keyPrefix}-leg-${childIds[i]}`,
-      x1: cx,
-      y1: busY,
-      x2: cx,
-      y2: y - BOX_H / 2
-    });
-  }
-  return lines;
-}
-
 // ============= Family helpers =============
 
 export function otherSpouseOf(fam: FamilyRow, personId: number): number | null {
