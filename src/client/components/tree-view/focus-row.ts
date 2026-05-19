@@ -1,77 +1,55 @@
 // Focus row + descendants below + half-sibship columns from each parent's
-// other marriages.
+// other marriages, expressed as a horizontal pack of Block-tree slots.
 //
-// The row is a single horizontal pack of "row slots". Each slot is one of:
-//   - a bloodline-sibling slot (one per child of the focus's parent fam,
-//     focus's slot also carries the spouse fan + descendant subtree),
-//   - a half-sibship slot (one per non-mainFam in either bloodline parent's
-//     spouseFams — kids of mother's other husbands or father's other wives,
-//     packaged with the step-parent box at parent row so a single shift
-//     positions both).
+// Slot kinds, in pack order around Focus:
+//   - 'bloodline': one of {Focus, full sibling}, rendered as a Block at row 0.
+//     For Focus: a DescendantUnitBlock carrying the full descendant subtree.
+//     For a sibling with a primary spouse: a FamilyBlock(sibling + spouse).
+//     For a lone sibling: a PersonBlock.
+//   - 'step-fam': step-parent + half-sibs as a FamilyBlock (one adult + kids)
+//     placed at row -ROW_H so the step-parent lands at the parent row and
+//     the half-sibs at the focus row. externalSpouseRef points to the
+//     bloodline parent in the main FamilyBlock; the cross-Block Tie that
+//     reaches across is drawn by layout.ts (see stepTies there).
 //
-// Slot order follows the data's iteration order around the mainFam:
-//   - Mother's spouseFams: any fam at iteration index < B (the bloodline
-//     mainFam's index) contributes a slot to the LEFT of the bloodline
-//     siblings; index > B contributes a slot to the RIGHT. Father's
-//     spouseFams contribute symmetrically.
-//   - Within the bloodline group, individual siblings keep birth order.
+// Slot order matches the old code: half-sib slots with iter index < B (the
+// bloodline mainFam's index) go to the LEFT of bloodline siblings; iter
+// index > B goes to the RIGHT. Within the bloodline group, full siblings
+// keep birth order.
 //
-// Packing uses each slot's full sub.leftWidth/rightWidth (not row-only),
-// so each visible branch reserves its own horizontal column — focus's
-// descendant subtree, lateral siblings' primary-spouse pairs, and each
-// half-sibship slot don't share X with one another.
+// Packing uses each slot Block's full leftWidth/rightWidth (not row-only),
+// so each visible branch reserves its own horizontal column. After packing,
+// the innermost half-sib slot on each side is pushed outward if it would
+// overlap the parent-row Couple's footprint.
 
-import { layoutDescendantUnit } from './descendant';
-import { buildStepFamSlot } from './half-sibships';
+import { flattenBlock, PersonBlock } from './block';
+import type { Block } from './block';
+import { buildDescendantUnitBlock } from './block-descendant';
+import { FamilyBlock } from './block-family';
+import type { FamilyChildEntry } from './block-family';
 import {
   barAndLegs,
-  bareBox,
   BOX_W,
   COUPLE_PITCH,
   isHusbandIn,
-  linesOnly,
   otherSpouseOf,
   packHorizontally,
   presentChildren,
   ROW_H,
-  shiftLayout,
-  SIBLING_GAP,
-  unionLayouts
+  SIBLING_GAP
 } from './helpers';
-import type { FamilyRow, LayoutIndices, Line, SubLayout } from './helpers';
-
-interface BloodlineSiblingSlot {
-  kind: 'bloodline-sibling';
-  sub: SubLayout;
-  // Row-level extents (Y=0 boxes only) within sub-local coords. Used as the
-  // sibship bar's horizontal extent.
-  rowLeftX: number;
-  rowRightX: number;
-  // The bloodline sibling person at this slot.
-  siblingId: number;
-  // X of the bloodline sibling's box within sub-local coords (offset from
-  // slot pivot to the sibling box).
-  siblingX: number;
-}
-
-interface HalfSibSlot {
-  kind: 'half-sib';
-  sub: SubLayout;
-  // The non-mainFam fam this slot represents.
-  famId: number;
-  // Which bloodline parent owns the spouseFams this slot came from; tells
-  // composeBloodlineParents which parent the step-spouse should Tie back to.
-  side: 'mother' | 'father';
-  // Step-parent box X within sub-local coords (always 0 — buildStepFamSlot
-  // pivots both step-parent and half-sibship at slot-local 0).
-}
-
-type RowSlot = BloodlineSiblingSlot | HalfSibSlot;
+import type {
+  FamilyRow,
+  LayoutIndices,
+  Line,
+  PositionedPerson,
+  SubLayout
+} from './helpers';
 
 export interface StepFamPlacement {
   famId: number;
   side: 'mother' | 'father';
-  // Step-parent box X in chart coords (also the half-sib slot pivot).
+  // Step-parent box X in chart coords.
   stepX: number;
 }
 
@@ -82,12 +60,35 @@ export interface FocusRowResult {
 }
 
 export interface LayoutFocusRowOpts {
-  // Bloodline parent Couple's separation (from coupleSeparation). The
-  // parent-row Couple's full footprint at y=-ROW_H spans anchorX ± sep/2 ±
-  // BOX_W/2; half-sibship slots must clear that footprint (otherwise a
-  // step-parent box at parent row would overlap a bloodline parent box).
-  // Zero when there's no bloodline Couple (single-parent / orphan focus).
+  // Bloodline parent Couple's separation. Half-sib slots must clear the
+  // parent Couple's parent-row footprint (anchorX ± sep/2 ± BOX_W/2);
+  // zero when there's no bloodline Couple.
   sep: number;
+}
+
+interface BloodlineSlot {
+  kind: 'bloodline';
+  block: Block;
+  siblingId: number;
+  // X of the bloodline sibling within the slot Block's local frame (used to
+  // compute chart-coord siblingX for the sibship bar).
+  siblingX: number;
+}
+
+interface StepFamSlot {
+  kind: 'step-fam';
+  block: FamilyBlock;
+  famId: number;
+  side: 'mother' | 'father';
+}
+
+type RowSlot = BloodlineSlot | StepFamSlot;
+
+interface HalfSibSpec {
+  slot: StepFamSlot;
+  // Iteration index in the bloodline parent's spouseFams, relative to that
+  // parent's bloodline mainFam. Negative = left, positive = right.
+  offset: number;
 }
 
 export function layoutFocusRow(
@@ -96,12 +97,11 @@ export function layoutFocusRow(
   opts: LayoutFocusRowOpts
 ): FocusRowResult {
   const parentFam = ix.parentFamByPerson.get(focusId);
-  const focusUnit = layoutDescendantUnit(focusId, 0, ix);
-  const focusSlot: BloodlineSiblingSlot = {
-    kind: 'bloodline-sibling',
-    sub: focusUnit.sub,
-    rowLeftX: focusUnit.rowLeftX,
-    rowRightX: focusUnit.rowRightX,
+
+  const focusBlock = buildDescendantUnitBlock(focusId, 0, ix);
+  const focusSlot: BloodlineSlot = {
+    kind: 'bloodline',
+    block: focusBlock,
     siblingId: focusId,
     siblingX: 0
   };
@@ -111,14 +111,13 @@ export function layoutFocusRow(
   const focusIdxInSibs = sibIds.indexOf(focusId);
   const haveSibship = parentFam !== undefined && focusIdxInSibs !== -1;
 
-  const bloodlineSibSlots: BloodlineSiblingSlot[] = haveSibship
+  const bloodlineSlots: BloodlineSlot[] = haveSibship
     ? sibIds.map((sid, i) =>
         i === focusIdxInSibs ? focusSlot : buildSiblingSlot(sid, ix)
       )
     : [focusSlot];
 
   const halfSibSpecs = collectHalfSibSlots(parentFam, ix);
-
   const leftHalfSibs = halfSibSpecs
     .filter((s) => s.offset < 0)
     .sort((a, b) => a.offset - b.offset);
@@ -128,18 +127,15 @@ export function layoutFocusRow(
 
   const slots: RowSlot[] = [
     ...leftHalfSibs.map((s) => s.slot),
-    ...bloodlineSibSlots,
+    ...bloodlineSlots,
     ...rightHalfSibs.map((s) => s.slot)
   ];
-
   const focusSlotIdx = leftHalfSibs.length + (haveSibship ? focusIdxInSibs : 0);
 
-  // Pack using each slot's full sub.leftWidth/rightWidth — reserves the slot's
-  // full column (including descendants under focus, the spouse fan of paired
-  // siblings, and the half-sibship's row-0 spread).
+  // Pack using each slot's full Block width.
   const packSubs = slots.map((s) => ({
-    leftWidth: s.sub.leftWidth,
-    rightWidth: s.sub.rightWidth,
+    leftWidth: s.block.leftWidth,
+    rightWidth: s.block.rightWidth,
     nodes: [],
     lines: []
   }));
@@ -147,64 +143,105 @@ export function layoutFocusRow(
   const focusOffset = offsets[focusSlotIdx]!;
   const baseShifts = offsets.map((o) => o - focusOffset);
 
-  // Apply parent-row shadow: half-sib slots on either side of the bloodline
-  // group must clear the bloodline Couple's parent-row footprint (anchorX ±
-  // sep/2 ± BOX_W/2), otherwise the step-parent box at parent row would
-  // overlap a bloodline parent box. Push the innermost half-sib on each side
-  // outward by the deficit; subsequent same-side slots get the same shift
-  // so SIBLING_GAP spacing between them is preserved.
   const slotShifts = clearParentShadow({
     slots,
     baseShifts,
     bloodlineFirstIdx: leftHalfSibs.length,
-    bloodlineLastIdx: leftHalfSibs.length + bloodlineSibSlots.length - 1,
+    bloodlineLastIdx: leftHalfSibs.length + bloodlineSlots.length - 1,
     sep: opts.sep
   });
 
-  const placed = slots.map((s, i) => shiftLayout(s.sub, slotShifts[i]!));
-
-  const siblingXs: number[] = [];
-  const bloodlineSibSlotIndices: number[] = [];
+  // Materialise each slot into chart-coord nodes + lines.
+  const allNodes: PositionedPerson[] = [];
+  const allLines: Line[] = [];
+  let minSlotLeft = 0;
+  let maxSlotRight = 0;
   const stepFams: StepFamPlacement[] = [];
-  for (const [i, s] of slots.entries()) {
-    if (s.kind === 'bloodline-sibling') {
-      siblingXs.push(slotShifts[i]! + s.siblingX);
-      bloodlineSibSlotIndices.push(i);
+  const siblingChartXs: number[] = [];
+  const siblingIds: number[] = [];
+
+  for (const [i, slot] of slots.entries()) {
+    const slotX = slotShifts[i]!;
+    const slotY = slot.kind === 'step-fam' ? -ROW_H : 0;
+    const flat = flattenBlock(slot.block, slotX, slotY);
+    allNodes.push(...flat.nodes);
+    allLines.push(...flat.lines);
+    minSlotLeft = Math.min(minSlotLeft, slotX - slot.block.leftWidth);
+    maxSlotRight = Math.max(maxSlotRight, slotX + slot.block.rightWidth);
+
+    if (slot.kind === 'bloodline') {
+      siblingChartXs.push(slotX + slot.siblingX);
+      siblingIds.push(slot.siblingId);
     } else {
-      stepFams.push({ famId: s.famId, side: s.side, stepX: slotShifts[i]! });
+      stepFams.push({ famId: slot.famId, side: slot.side, stepX: slotX });
     }
   }
 
   let parentAnchorX: number | null = null;
-  const lines: Line[] = [];
   if (haveSibship) {
-    const bloodlineSlotsOnly = bloodlineSibSlotIndices.map(
-      (i) => slots[i]!
-    ) as BloodlineSiblingSlot[];
-    parentAnchorX = sibshipLines({
-      lines,
+    parentAnchorX = appendSibshipLines({
+      lines: allLines,
       parentFam,
-      slots: bloodlineSlotsOnly,
-      siblingXs
+      siblingIds,
+      siblingChartXs
     });
   }
 
-  const layout = unionLayouts([...placed, linesOnly(lines)]);
+  const sub: SubLayout = {
+    leftWidth: -minSlotLeft,
+    rightWidth: maxSlotRight,
+    nodes: allNodes,
+    lines: allLines
+  };
 
+  return { sub, parentAnchorX, stepFams };
+}
+
+// ============= Sibling slot builders =============
+
+function buildSiblingSlot(siblingId: number, ix: LayoutIndices): BloodlineSlot {
+  const fams = ix.spouseFamsByPerson.get(siblingId) ?? [];
+  const primary = fams[0];
+  const spouseId =
+    primary === undefined ? null : otherSpouseOf(primary, siblingId);
+  if (primary === undefined || spouseId === null || !ix.persons.has(spouseId)) {
+    return {
+      kind: 'bloodline',
+      block: new PersonBlock(siblingId),
+      siblingId,
+      siblingX: 0
+    };
+  }
+  const siblingOnLeft = isSiblingOnLeft(primary, siblingId, ix);
+  const husbandId = siblingOnLeft ? siblingId : spouseId;
+  const wifeId = siblingOnLeft ? spouseId : siblingId;
+  const block = new FamilyBlock({
+    famId: primary.id,
+    husbandId,
+    wifeId,
+    childEntries: [],
+    externalSpouseRef: null,
+    sibKeyPrefix: 'fbar'
+  });
   return {
-    sub: layout,
-    parentAnchorX,
-    stepFams
+    kind: 'bloodline',
+    block,
+    siblingId,
+    siblingX: siblingOnLeft ? -COUPLE_PITCH / 2 : COUPLE_PITCH / 2
   };
 }
 
-interface HalfSibSpec {
-  slot: HalfSibSlot;
-  // Iteration index relative to bloodline-mainFam's index in the same parent's
-  // spouseFams. Negative → place on left of bloodline; positive → place on
-  // right.
-  offset: number;
+function isSiblingOnLeft(
+  primary: FamilyRow,
+  siblingId: number,
+  ix: LayoutIndices
+): boolean {
+  if (isHusbandIn(primary, siblingId)) return true;
+  if (primary.wife_id === siblingId) return false;
+  return ix.persons.get(siblingId)?.sex === 'M';
 }
+
+// ============= Step-fam slot collection =============
 
 function collectHalfSibSlots(
   parentFam: FamilyRow | undefined,
@@ -225,7 +262,6 @@ function collectHalfSibSlots(
       out: specs
     });
   }
-
   if (parentFam.husband_id !== null) {
     collectFromParent({
       fams: ix.spouseFamsByPerson.get(parentFam.husband_id) ?? [],
@@ -237,75 +273,7 @@ function collectHalfSibSlots(
       out: specs
     });
   }
-
   return specs;
-}
-
-interface ClearParentShadowArgs {
-  slots: RowSlot[];
-  baseShifts: number[];
-  bloodlineFirstIdx: number;
-  bloodlineLastIdx: number;
-  sep: number;
-}
-
-// Return baseShifts adjusted so half-sib slots clear the bloodline Couple's
-// parent-row footprint. The innermost half-sib on each side is pushed outward
-// by the deficit between its natural edge and the required edge; same-side
-// neighbours follow the same shift so SIBLING_GAP spacing is preserved.
-function clearParentShadow(args: ClearParentShadowArgs): number[] {
-  const { slots, baseShifts, bloodlineFirstIdx, bloodlineLastIdx, sep } = args;
-  if (sep === 0 || bloodlineLastIdx < bloodlineFirstIdx) return baseShifts;
-
-  const anchorX = bloodlineMidpoint(
-    slots,
-    baseShifts,
-    bloodlineFirstIdx,
-    bloodlineLastIdx
-  );
-  const rightStartIdx = bloodlineLastIdx + 1;
-  const leftEndIdx = bloodlineFirstIdx - 1;
-  const shadowHalfWidth = sep / 2 + BOX_W / 2 + SIBLING_GAP;
-
-  let rightDeficit = 0;
-  if (rightStartIdx < slots.length) {
-    const naturalLeftEdge =
-      baseShifts[rightStartIdx]! - slots[rightStartIdx]!.sub.leftWidth;
-    rightDeficit = Math.max(0, anchorX + shadowHalfWidth - naturalLeftEdge);
-  }
-
-  let leftDeficit = 0;
-  if (leftEndIdx >= 0) {
-    const naturalRightEdge =
-      baseShifts[leftEndIdx]! + slots[leftEndIdx]!.sub.rightWidth;
-    leftDeficit = Math.max(0, naturalRightEdge - (anchorX - shadowHalfWidth));
-  }
-
-  if (rightDeficit === 0 && leftDeficit === 0) return baseShifts;
-
-  return baseShifts.map((shift, i) => {
-    if (i >= rightStartIdx) return shift + rightDeficit;
-    if (i <= leftEndIdx) return shift - leftDeficit;
-    return shift;
-  });
-}
-
-function bloodlineMidpoint(
-  slots: RowSlot[],
-  slotShifts: number[],
-  firstIdx: number,
-  lastIdx: number
-): number {
-  let minX = Number.POSITIVE_INFINITY;
-  let maxX = Number.NEGATIVE_INFINITY;
-  for (let i = firstIdx; i <= lastIdx; i += 1) {
-    const s = slots[i]!;
-    if (s.kind !== 'bloodline-sibling') continue;
-    const sibX = slotShifts[i]! + s.siblingX;
-    minX = Math.min(minX, sibX);
-    maxX = Math.max(maxX, sibX);
-  }
-  return (minX + maxX) / 2;
 }
 
 interface CollectFromParentArgs {
@@ -326,103 +294,131 @@ function collectFromParent(args: CollectFromParentArgs): void {
   for (let i = 0; i < fams.length; i += 1) {
     const fam = fams[i]!;
     if (seenFamIds.has(fam.id)) continue;
-    const slot = buildHalfSibRowSlot(fam, bloodlineParentId, side, ix);
-    if (slot === null) continue;
+    const block = buildStepFamBlock(fam, bloodlineParentId, side, ix);
+    if (block === null) continue;
     seenFamIds.add(fam.id);
-    out.push({ slot, offset: i - bloodlineIdx });
+    out.push({
+      slot: { kind: 'step-fam', block, famId: fam.id, side },
+      offset: i - bloodlineIdx
+    });
   }
 }
 
-function buildHalfSibRowSlot(
+function buildStepFamBlock(
   fam: FamilyRow,
   bloodlineParentId: number,
   side: 'mother' | 'father',
   ix: LayoutIndices
-): HalfSibSlot | null {
+): FamilyBlock | null {
   const stepId = otherSpouseOf(fam, bloodlineParentId);
   if (stepId === null || !ix.persons.has(stepId)) return null;
-  if (presentChildren(fam, ix).length === 0) return null;
-  const sub = buildStepFamSlot(fam, stepId, ix);
-  return { kind: 'half-sib', sub, famId: fam.id, side };
+  const kids = presentChildren(fam, ix);
+  if (kids.length === 0) return null;
+
+  const stepIsHusband = isHusbandIn(fam, stepId);
+  const husbandId = stepIsHusband ? stepId : null;
+  const wifeId = stepIsHusband ? null : stepId;
+  const childEntries: FamilyChildEntry[] = kids.map((cid) => ({
+    id: cid,
+    block: new PersonBlock(cid)
+  }));
+
+  return new FamilyBlock({
+    famId: fam.id,
+    husbandId,
+    wifeId,
+    childEntries,
+    externalSpouseRef: { personId: bloodlineParentId, side },
+    sibKeyPrefix: 'hsib'
+  });
 }
 
-function buildSiblingSlot(
-  siblingId: number,
-  ix: LayoutIndices
-): BloodlineSiblingSlot {
-  const fams = ix.spouseFamsByPerson.get(siblingId) ?? [];
-  const primary = fams[0];
-  const spouseId =
-    primary === undefined ? null : otherSpouseOf(primary, siblingId);
-  if (primary === undefined || spouseId === null || !ix.persons.has(spouseId)) {
-    return {
-      kind: 'bloodline-sibling',
-      sub: bareBox(siblingId, 0),
-      rowLeftX: -BOX_W / 2,
-      rowRightX: BOX_W / 2,
-      siblingId,
-      siblingX: 0
-    };
+// ============= Parent-row shadow clearance =============
+
+interface ClearParentShadowArgs {
+  slots: RowSlot[];
+  baseShifts: number[];
+  bloodlineFirstIdx: number;
+  bloodlineLastIdx: number;
+  sep: number;
+}
+
+// Return baseShifts adjusted so half-sib slots clear the bloodline Couple's
+// parent-row footprint. Innermost half-sib on each side gets pushed outward;
+// same-side neighbours follow so SIBLING_GAP spacing is preserved.
+function clearParentShadow(args: ClearParentShadowArgs): number[] {
+  const { slots, baseShifts, bloodlineFirstIdx, bloodlineLastIdx, sep } = args;
+  if (sep === 0 || bloodlineLastIdx < bloodlineFirstIdx) return baseShifts;
+
+  const anchorX = bloodlineMidpoint(
+    slots,
+    baseShifts,
+    bloodlineFirstIdx,
+    bloodlineLastIdx
+  );
+  const rightStartIdx = bloodlineLastIdx + 1;
+  const leftEndIdx = bloodlineFirstIdx - 1;
+  const shadowHalfWidth = sep / 2 + BOX_W / 2 + SIBLING_GAP;
+
+  let rightDeficit = 0;
+  if (rightStartIdx < slots.length) {
+    const naturalLeftEdge =
+      baseShifts[rightStartIdx]! - slots[rightStartIdx]!.block.leftWidth;
+    rightDeficit = Math.max(0, anchorX + shadowHalfWidth - naturalLeftEdge);
   }
-  // Husband-left convention: sibling sits on the left if husband in this
-  // fam, on the right if wife. Sex falls back when the fam doesn't assign
-  // either role (legacy / malformed records).
-  const siblingOnLeft = isSiblingOnLeft(primary, siblingId, ix);
-  const siblingOffset = siblingOnLeft ? -COUPLE_PITCH / 2 : COUPLE_PITCH / 2;
-  const spouseOffset = -siblingOffset;
-  const tie: Line = {
-    key: `tie-${primary.id}`,
-    x1: -COUPLE_PITCH / 2 + BOX_W / 2,
-    y1: 0,
-    x2: COUPLE_PITCH / 2 - BOX_W / 2,
-    y2: 0
-  };
-  const sub = unionLayouts([
-    shiftLayout(bareBox(siblingId, 0), siblingOffset),
-    shiftLayout(bareBox(spouseId, 0), spouseOffset),
-    linesOnly([tie])
-  ]);
-  return {
-    kind: 'bloodline-sibling',
-    sub,
-    rowLeftX: -COUPLE_PITCH / 2 - BOX_W / 2,
-    rowRightX: COUPLE_PITCH / 2 + BOX_W / 2,
-    siblingId,
-    siblingX: siblingOffset
-  };
+
+  let leftDeficit = 0;
+  if (leftEndIdx >= 0) {
+    const naturalRightEdge =
+      baseShifts[leftEndIdx]! + slots[leftEndIdx]!.block.rightWidth;
+    leftDeficit = Math.max(0, naturalRightEdge - (anchorX - shadowHalfWidth));
+  }
+
+  if (rightDeficit === 0 && leftDeficit === 0) return baseShifts;
+
+  return baseShifts.map((shift, i) => {
+    if (i >= rightStartIdx) return shift + rightDeficit;
+    if (i <= leftEndIdx) return shift - leftDeficit;
+    return shift;
+  });
 }
 
-function isSiblingOnLeft(
-  primary: FamilyRow,
-  siblingId: number,
-  ix: LayoutIndices
-): boolean {
-  if (isHusbandIn(primary, siblingId)) return true;
-  if (primary.wife_id === siblingId) return false;
-  return ix.persons.get(siblingId)?.sex === 'M';
+function bloodlineMidpoint(
+  slots: RowSlot[],
+  shifts: number[],
+  firstIdx: number,
+  lastIdx: number
+): number {
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  for (let i = firstIdx; i <= lastIdx; i += 1) {
+    const s = slots[i]!;
+    if (s.kind !== 'bloodline') continue;
+    const sibX = shifts[i]! + s.siblingX;
+    minX = Math.min(minX, sibX);
+    maxX = Math.max(maxX, sibX);
+  }
+  return (minX + maxX) / 2;
 }
 
-interface SibshipLinesArgs {
+// ============= Bloodline sibship bar + parent drop =============
+
+interface AppendSibshipLinesArgs {
   lines: Line[];
   parentFam: FamilyRow;
-  slots: BloodlineSiblingSlot[];
-  siblingXs: number[];
+  siblingIds: number[];
+  siblingChartXs: number[];
 }
 
-function sibshipLines(args: SibshipLinesArgs): number {
-  const { lines, parentFam, slots, siblingXs } = args;
+function appendSibshipLines(args: AppendSibshipLinesArgs): number {
+  const { lines, parentFam, siblingIds, siblingChartXs } = args;
   const busY = -ROW_H / 2;
-  const minSibX = Math.min(...siblingXs);
-  const maxSibX = Math.max(...siblingXs);
+  const minSibX = Math.min(...siblingChartXs);
+  const maxSibX = Math.max(...siblingChartXs);
   const parentAnchorX = (minSibX + maxSibX) / 2;
 
   lines.push(
-    ...barAndLegs(
-      siblingXs,
-      slots.map((s) => s.siblingId),
-      0,
-      `fsib-${parentFam.id}`
-    )
+    ...barAndLegs(siblingChartXs, siblingIds, 0, `fsib-${parentFam.id}`)
   );
   lines.push({
     key: `fpdrop-${parentFam.id}`,
@@ -433,3 +429,4 @@ function sibshipLines(args: SibshipLinesArgs): number {
   });
   return parentAnchorX;
 }
+

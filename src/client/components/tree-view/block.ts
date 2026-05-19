@@ -1,7 +1,3 @@
-/* eslint-disable @typescript-eslint/class-methods-use-this --
-   FamilyBlock stubs throw before reaching `this` (phase 4 will populate the
-   getters with `this.spec` access and drop this disable). */
-
 // Block tree types for the layout refactor.
 //
 // Every layout unit is a Block with:
@@ -78,6 +74,7 @@ export abstract class Block {
   abstract personLocalPos(personId: number): LocalPos | null;
 
   // Cross-Block connectors this Block declares. Default: none.
+  // eslint-disable-next-line @typescript-eslint/class-methods-use-this -- abstract-base default
   crossBlockConnectors(): readonly CrossBlockConnector[] {
     return [];
   }
@@ -208,64 +205,14 @@ export class AncestorBranchBlock extends Block {
   }
 }
 
-// ============= FamilyBlock — Couple (or lone parent) + their sibship =============
+// ============= FamilyBlock — see block-family.ts =============
 
-// When set, this FamilyBlock's "missing" adult is rendered in a different
+// When set, a FamilyBlock's "missing" adult is rendered in a different
 // FamilyBlock (the step-family case). The cross-Block Tie connector reaches
 // across to that other Block.
 export interface ExternalSpouseRef {
   personId: number;
   side: 'mother' | 'father';
-}
-
-export interface FamilyBlockSpec {
-  // The Family in the underlying data model (used for key generation).
-  famId: number;
-  // Adults: at least one of husbandId/wifeId must be non-null.
-  husbandId: number | null;
-  wifeId: number | null;
-  // The children of this Family. Each is its own Block.
-  childBlocks: readonly Block[];
-  // Step-family case: the missing adult here is rendered in another
-  // FamilyBlock; a cross-Block Tie will connect them at render time.
-  externalSpouseRef: ExternalSpouseRef | null;
-}
-
-export class FamilyBlock extends Block {
-  constructor(readonly spec: FamilyBlockSpec) {
-    super();
-  }
-
-  // Layout impls land in phase 4 (focus row + descendant).
-  get leftWidth(): number {
-    throw new Error('FamilyBlock.leftWidth: phase 4');
-  }
-  get rightWidth(): number {
-    throw new Error('FamilyBlock.rightWidth: phase 4');
-  }
-  get children(): readonly PlacedChild[] {
-    throw new Error('FamilyBlock.children: phase 4');
-  }
-  renderLocal(): LocalRenderOutput {
-    throw new Error('FamilyBlock.renderLocal: phase 4');
-  }
-  personLocalPos(personId: number): LocalPos | null {
-    throw new Error(`FamilyBlock.personLocalPos(${personId}): phase 4`);
-  }
-
-  override crossBlockConnectors(): readonly CrossBlockConnector[] {
-    if (this.spec.externalSpouseRef === null) return [];
-    const visibleParentId = this.spec.husbandId ?? this.spec.wifeId;
-    if (visibleParentId === null) return [];
-    return [
-      {
-        key: `step-tie-${this.spec.famId}`,
-        fromPersonId: visibleParentId,
-        toPersonId: this.spec.externalSpouseRef.personId,
-        style: 'step-tie'
-      }
-    ];
-  }
 }
 
 // ============= Builders =============
