@@ -1,5 +1,5 @@
 {
-  "name": "sukulinjat",
+  "name": "sukulinja",
   "module": "src/server/index.ts",
   "type": "module",
   "private": true,

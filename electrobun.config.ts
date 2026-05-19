@@ -43,8 +43,8 @@ const pathAliasPlugin = {
 
 export default {
   app: {
-    name: 'Sukulinjat',
-    identifier: 'com.sukulinjat.app',
+    name: 'Sukulinja',
+    identifier: 'com.sukulinja.app',
     version: '0.1.0'
   },
 

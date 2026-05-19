@@ -1,4 +1,4 @@
-# Sukulinjat
+# Sukulinja
 
 A desktop genealogy viewer that renders an **Hourglass chart** centered on a chosen person, with ancestors fanning up and descendants fanning down. This document defines the domain language used by the tree-view layout.
 
