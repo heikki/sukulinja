@@ -32,6 +32,18 @@ export const treeViewStyles = css`
     font: inherit;
   }
 
+  .levels {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85em;
+    color: var(--muted);
+  }
+
+  .levels input[type='range'] {
+    width: 80px;
+  }
+
   .results {
     position: absolute;
     top: calc(100% + 2px);

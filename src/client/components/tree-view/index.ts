@@ -374,6 +374,20 @@ export class TreeViewElement extends LitElement {
             this.query = (e.target as HTMLInputElement).value;
           }}
         />
+        <label class="levels">
+          Levels
+          <input
+            type="range"
+            min="1"
+            max="5"
+            step="1"
+            .value=${String(this.levels)}
+            @input=${(e: InputEvent) => {
+              this.levels = parseInt((e.target as HTMLInputElement).value, 10);
+            }}
+          />
+          <span class="meta">${this.levels}</span>
+        </label>
         ${focusPerson === undefined
           ? nothing
           : html`<span class="meta">Focus: ${formatName(focusPerson)}</span>`}
