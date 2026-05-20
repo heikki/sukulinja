@@ -23,11 +23,11 @@ import {
 } from './helpers';
 import type { FamilyRow, LayoutIndices } from './helpers';
 
-export function buildFocusPersonBlock(personId: number, ix: LayoutIndices) {
+export function buildFocusPB(personId: number, ix: LayoutIndices) {
   return buildOwnedMarriagesPB(personId, 0, ix.levels >= 1, ix);
 }
 
-export function buildDescendantKidPersonBlock(
+export function buildDescendantKidPB(
   personId: number,
   depth: number,
   ix: LayoutIndices
@@ -35,7 +35,7 @@ export function buildDescendantKidPersonBlock(
   return buildOwnedMarriagesPB(personId, depth, depth < ix.levels, ix);
 }
 
-export function buildSiblingPersonBlock(personId: number, ix: LayoutIndices) {
+export function buildSiblingPB(personId: number, ix: LayoutIndices) {
   const fams = meaningfulSpouseFams(personId, ix);
   if (fams.length === 0) return new PersonBlock(personId, null, [], null);
   const primary = fams[0]!;
@@ -116,7 +116,7 @@ function ownedKidBlocks(
 ) {
   if (!includeChildren) return [];
   return presentChildren(fam, ix).map((cid) =>
-    buildDescendantKidPersonBlock(cid, depth + 1, ix)
+    buildDescendantKidPB(cid, depth + 1, ix)
   );
 }
 

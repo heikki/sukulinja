@@ -42,24 +42,22 @@ export function packBlocks(blocks: readonly Block[]) {
   return { positions, totalWidth: cursor, barMid };
 }
 
-interface ExtentArgs {
-  husband: PersonPlacement | null;
-  wife: PersonPlacement | null;
-  kids: readonly PersonPlacement[];
-}
-
-export function computeFBExtents(args: ExtentArgs) {
+function computeFBExtents(
+  husband: PersonPlacement | null,
+  wife: PersonPlacement | null,
+  kids: readonly PersonPlacement[]
+) {
   let minX = 0;
   let maxX = 0;
-  if (args.husband !== null && args.husband.block !== null) {
-    minX = Math.min(minX, args.husband.x - args.husband.block.leftWidth);
-    maxX = Math.max(maxX, args.husband.x + args.husband.block.rightWidth);
+  if (husband !== null && husband.block !== null) {
+    minX = Math.min(minX, husband.x - husband.block.leftWidth);
+    maxX = Math.max(maxX, husband.x + husband.block.rightWidth);
   }
-  if (args.wife !== null && args.wife.block !== null) {
-    minX = Math.min(minX, args.wife.x - args.wife.block.leftWidth);
-    maxX = Math.max(maxX, args.wife.x + args.wife.block.rightWidth);
+  if (wife !== null && wife.block !== null) {
+    minX = Math.min(minX, wife.x - wife.block.leftWidth);
+    maxX = Math.max(maxX, wife.x + wife.block.rightWidth);
   }
-  for (const k of args.kids) {
+  for (const k of kids) {
     if (k.block !== null) {
       minX = Math.min(minX, k.x - k.block.leftWidth);
       maxX = Math.max(maxX, k.x + k.block.rightWidth);
@@ -68,7 +66,7 @@ export function computeFBExtents(args: ExtentArgs) {
   return { leftWidth: -minX, rightWidth: maxX };
 }
 
-interface BuildMarriageArgs {
+interface BuildMarriageFBArgs {
   famId: number;
   husband: PersonPlacement | null;
   wife: PersonPlacement | null;
@@ -77,12 +75,8 @@ interface BuildMarriageArgs {
   tieY: number;
 }
 
-function buildMarriageFamilyBlock(args: BuildMarriageArgs) {
-  const extents = computeFBExtents({
-    husband: args.husband,
-    wife: args.wife,
-    kids: args.kids
-  });
+export function buildMarriageFB(args: BuildMarriageFBArgs) {
+  const extents = computeFBExtents(args.husband, args.wife, args.kids);
   const spec: FamilyBlockSpec = {
     famId: args.famId,
     husband: args.husband,
@@ -150,7 +144,7 @@ export function buildExternalAdultFB(args: BuildExternalAdultFBArgs) {
     block: kb
   }));
 
-  return buildMarriageFamilyBlock({
+  return buildMarriageFB({
     famId: fam.id,
     husband: externalIsHusband ? externalAdult : spouseAdult,
     wife: externalIsHusband ? spouseAdult : externalAdult,
