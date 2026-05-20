@@ -24,12 +24,6 @@ interface DragOrigin {
   panY: number;
 }
 
-declare global {
-  interface Window {
-    __SUKULINJA_API__?: string;
-  }
-}
-const API_BASE = window.__SUKULINJA_API__ ?? '';
 const FOCUS_HASH_RE = /^#\/person\/(?<id>\d+)$/;
 const NAME_TRUNCATE = 22;
 const SEARCH_MIN_LEN = 2;
@@ -64,7 +58,7 @@ function truncate(s: string, max: number): string {
 
 function photoSrcOf(p: PersonRow): string | null {
   if (p.photo_path === null) return null;
-  return `${API_BASE}/media/${p.photo_path.replace(/^media\//u, '')}`;
+  return `/media/${p.photo_path.replace(/^media\//u, '')}`;
 }
 
 function searchKeyOf(p: PersonRow): string {
@@ -153,8 +147,8 @@ export class TreeViewElement extends LitElement {
 
   private async load(): Promise<void> {
     const [personsRes, familiesRes] = await Promise.all([
-      fetch(`${API_BASE}/api/persons`),
-      fetch(`${API_BASE}/api/families`)
+      fetch('/api/persons'),
+      fetch('/api/families')
     ]);
     const persons = (await personsRes.json()) as PersonRow[];
     const families = (await familiesRes.json()) as FamilyRow[];
