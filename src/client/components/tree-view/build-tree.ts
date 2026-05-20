@@ -204,6 +204,8 @@ function buildParentFamilyBlock(
     packed,
     sibIds,
     focusId,
+    faChildhood,
+    moChildhood,
     ix
   });
 
@@ -250,6 +252,8 @@ interface ParentContextArgs {
   packed: PackedBlocks;
   sibIds: number[];
   focusId: number;
+  faChildhood: FamilyBlock | null;
+  moChildhood: FamilyBlock | null;
   ix: LayoutIndices;
 }
 
@@ -294,24 +298,38 @@ function parentChartContext(args: ParentContextArgs): ParentChartContext {
       : args.packed.positions[focusIdx]! - args.packed.barMid;
   const parentOffsetX = -focusLocalX;
   const kidRow = kidRowExtents(args.kidPBs, args.packed, parentOffsetX);
-  // Step-fams span both parent and focus rows, so the bloodline footprint
-  // they must clear is the UNION of bloodline kid-row extents and the
-  // bloodline parent boxes (Fa, Mo) at parent row.
   const faChartX = parentOffsetX + (sep > 0 ? -sep / 2 : 0);
   const moChartX = parentOffsetX + (sep > 0 ? sep / 2 : 0);
+  // Step-fams span both parent and focus rows, so the bloodline footprint
+  // they must clear is the UNION of bloodline kid-row extents and Fa.PB /
+  // Mo.PB's full extents at parent row — including faChildhood /
+  // moChildhood (Aunts/Uncles at depth 1 stretch these well past Fa/Mo's
+  // own box; ADR-0002).
+  const parentRow = parentRowExtents(args, faChartX, moChartX);
+  return {
+    faChartX,
+    moChartX,
+    bloodlineLeftChart: Math.min(kidRow.leftChart, parentRow.leftChart),
+    bloodlineRightChart: Math.max(kidRow.rightChart, parentRow.rightChart)
+  };
+}
+
+function parentRowExtents(
+  args: ParentContextArgs,
+  faChartX: number,
+  moChartX: number
+): { leftChart: number; rightChart: number } {
   const faPresent =
     args.parentFam.husband_id !== null &&
     args.ix.persons.has(args.parentFam.husband_id);
   const moPresent =
     args.parentFam.wife_id !== null &&
     args.ix.persons.has(args.parentFam.wife_id);
-  const parentRowLeft = faPresent ? faChartX - BOX_W / 2 : Infinity;
-  const parentRowRight = moPresent ? moChartX + BOX_W / 2 : -Infinity;
+  const faPBLeft = Math.max(BOX_W / 2, args.faChildhood?.leftWidth ?? 0);
+  const moPBRight = Math.max(BOX_W / 2, args.moChildhood?.rightWidth ?? 0);
   return {
-    faChartX,
-    moChartX,
-    bloodlineLeftChart: Math.min(kidRow.leftChart, parentRowLeft),
-    bloodlineRightChart: Math.max(kidRow.rightChart, parentRowRight)
+    leftChart: faPresent ? faChartX - faPBLeft : Infinity,
+    rightChart: moPresent ? moChartX + moPBRight : -Infinity
   };
 }
 
