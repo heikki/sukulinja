@@ -70,10 +70,10 @@ export function renderChartBlocks(
   for (const placed of placedBlocks) {
     const result = renderOneBlock({
       block: placed.block,
-      relativeOffsetX: placed.offsetX,
-      relativeOffsetY: placed.offsetY,
-      absoluteOriginX: placed.offsetX,
-      absoluteOriginY: placed.offsetY
+      offsetX: placed.offsetX,
+      offsetY: placed.offsetY,
+      absX: placed.offsetX,
+      absY: placed.offsetY
     });
     childGroups.push(result.group);
     lines.push(...result.lines);
@@ -84,12 +84,16 @@ export function renderChartBlocks(
   };
 }
 
+// `offsetX/Y` is the group-local offset (written to group.offsetX/Y so SVG
+// transforms compose). `absX/Y` is the accumulated chart-coord origin, used
+// to translate lines into chart coords directly (lines are emitted flat at
+// the top level — see file header).
 interface RenderOneArgs {
   block: Block;
-  relativeOffsetX: number;
-  relativeOffsetY: number;
-  absoluteOriginX: number;
-  absoluteOriginY: number;
+  offsetX: number;
+  offsetY: number;
+  absX: number;
+  absY: number;
 }
 
 interface RenderOneResult {
@@ -98,33 +102,29 @@ interface RenderOneResult {
 }
 
 function renderOneBlock(args: RenderOneArgs): RenderOneResult {
-  const local = args.block.renderLocal();
+  const { block, offsetX, offsetY, absX, absY } = args;
+  const local = block.renderLocal();
   const lines: AbsoluteLine[] = local.lines.map((l) => ({
     key: l.key,
-    x1: args.absoluteOriginX + l.x1,
-    y1: args.absoluteOriginY + l.y1,
-    x2: args.absoluteOriginX + l.x2,
-    y2: args.absoluteOriginY + l.y2
+    x1: absX + l.x1,
+    y1: absY + l.y1,
+    x2: absX + l.x2,
+    y2: absY + l.y2
   }));
   const childGroups: RenderGroup[] = [];
-  for (const child of args.block.children) {
+  for (const child of block.children) {
     const childResult = renderOneBlock({
       block: child.block,
-      relativeOffsetX: child.offsetX,
-      relativeOffsetY: child.offsetY,
-      absoluteOriginX: args.absoluteOriginX + child.offsetX,
-      absoluteOriginY: args.absoluteOriginY + child.offsetY
+      offsetX: child.offsetX,
+      offsetY: child.offsetY,
+      absX: absX + child.offsetX,
+      absY: absY + child.offsetY
     });
     childGroups.push(childResult.group);
     lines.push(...childResult.lines);
   }
   return {
-    group: {
-      offsetX: args.relativeOffsetX,
-      offsetY: args.relativeOffsetY,
-      boxes: [...local.boxes],
-      childGroups
-    },
+    group: { offsetX, offsetY, boxes: local.boxes, childGroups },
     lines
   };
 }
