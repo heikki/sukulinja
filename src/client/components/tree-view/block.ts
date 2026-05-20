@@ -35,7 +35,13 @@ export abstract class Block {
 
   abstract renderLocal(): LocalRenderOutput;
 
-  abstract personLocalPos(personId: number): Point | null;
+  personLocalPos(personId: number): Point | null {
+    for (const child of this.children) {
+      const inner = child.block.personLocalPos(personId);
+      if (inner !== null) return translatePoint(child.offset, inner);
+    }
+    return null;
+  }
 
   private cachedExtents: Extents | null = null;
   get extents(): Extents {
