@@ -17,7 +17,7 @@
 //   - bare PB:     marriages = [], activeIdx = null
 
 import { Block } from './block';
-import type { LocalPersonBox, PlacedBlock } from './block';
+import type { PersonBox, PlacedBlock } from './block';
 import type { FamilyBlock } from './block-family';
 import { BOX_W, ROW_H, translatePoint } from './helpers';
 
@@ -44,7 +44,7 @@ export class PersonBlock extends Block {
   }
 
   renderLocal() {
-    const boxes: LocalPersonBox[] = [
+    const boxes: PersonBox[] = [
       { personId: this.personId, offset: { x: 0, y: 0 } }
     ];
     return { boxes, lines: [] };

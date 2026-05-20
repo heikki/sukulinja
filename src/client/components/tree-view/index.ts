@@ -3,7 +3,7 @@ import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
-import type { LocalPersonBox, RenderGroup, RenderOutput } from './block';
+import type { PersonBox, RenderGroup, RenderOutput } from './block';
 import {
   AVATAR_CX,
   AVATAR_R,
@@ -276,7 +276,7 @@ export class TreeViewElement extends LitElement {
     };
   }
 
-  private renderBox(box: LocalPersonBox, groupAbs: Point) {
+  private renderBox(box: PersonBox, groupAbs: Point) {
     const p = this.persons.get(box.personId);
     if (p === undefined) return nothing;
     const isFocus = box.personId === this.focusId;
