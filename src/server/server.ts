@@ -1,12 +1,23 @@
 import { relative, resolve } from 'node:path';
 
-import indexHtml from '@client/index.html';
 import type { FamilyRow, PersonRow } from '@common/types';
 
 import { openDb } from './db';
 
-const PROJECT_ROOT = resolve(import.meta.dir, '..', '..');
-const DEFAULT_MEDIA_BASE = resolve(PROJECT_ROOT, '..', 'myheritage-export');
+const CORS_HEADERS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'GET, OPTIONS',
+  'access-control-allow-headers': '*'
+};
+
+function withCors(res: Response): Response {
+  for (const [k, v] of Object.entries(CORS_HEADERS)) res.headers.set(k, v);
+  return res;
+}
+
+const DEFAULT_MEDIA_BASE =
+  process.env.SUKULINJA_MEDIA ??
+  resolve(import.meta.dir, '..', '..', '..', 'myheritage-export');
 
 function parseYear(date: string | null): number | null {
   if (date === null) return null;
@@ -54,7 +65,7 @@ export function createServer() {
       death_year: parseYear(r.death_date),
       photo_path: r.photo_path
     }));
-    return Response.json(out);
+    return withCors(Response.json(out));
   }
 
   const listFamilies = db.prepare(
@@ -85,30 +96,32 @@ export function createServer() {
       wife_id: f.wife_id,
       child_ids: childrenByFamily.get(f.id) ?? []
     }));
-    return Response.json(out);
+    return withCors(Response.json(out));
   }
 
   async function handleFetch(req: Request): Promise<Response> {
     const url = new URL(req.url);
+    if (req.method === 'OPTIONS') {
+      return withCors(new Response(null, { status: 204 }));
+    }
     if (!url.pathname.startsWith('/media/')) {
-      return new Response('not found', { status: 404 });
+      return withCors(new Response('not found', { status: 404 }));
     }
     const rel = decodeURIComponent(url.pathname.slice('/media/'.length));
     const fullPath = resolve(mediaRoot, rel);
     if (relative(mediaRoot, fullPath).startsWith('..')) {
-      return new Response('forbidden', { status: 403 });
+      return withCors(new Response('forbidden', { status: 403 }));
     }
     const file = Bun.file(fullPath);
     if (!(await file.exists())) {
-      return new Response('not found', { status: 404 });
+      return withCors(new Response('not found', { status: 404 }));
     }
-    return new Response(file);
+    return withCors(new Response(file));
   }
 
   return Bun.serve({
     port: 0,
     routes: {
-      '/': indexHtml,
       '/api/persons': handlePersons,
       '/api/families': handleFamilies
     },

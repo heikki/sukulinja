@@ -6,7 +6,7 @@
   "license": "Unlicense",
   "scripts": {
     "dev": "bun run --hot src/server/dev.ts",
-    "dev:app": "electrobun build && electrobun dev",
+    "dev:app": "SUKULINJA_DB=\"$PWD/data/app.db\" SUKULINJA_MEDIA=\"$PWD/../myheritage-export\" electrobun build && SUKULINJA_DB=\"$PWD/data/app.db\" SUKULINJA_MEDIA=\"$PWD/../myheritage-export\" electrobun dev",
     "build:app": "electrobun build",
     "import-ged": "bun run scripts/import-ged.ts",
     "typecheck": "tsc --noEmit",
