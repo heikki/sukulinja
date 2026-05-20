@@ -14,9 +14,8 @@ import {
   SVG_HALF,
   translatePoint
 } from './helpers';
-import type { FamilyRow, PersonRow, Point } from './helpers';
+import type { FamilyRow, LayoutIndices, PersonRow, Point } from './helpers';
 import { buildChart } from './layout';
-import type { LayoutIndices } from './layout';
 import { treeViewStyles } from './styles';
 
 interface DragOrigin {

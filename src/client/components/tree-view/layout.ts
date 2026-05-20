@@ -5,8 +5,6 @@ import type { PlacedBlock, RenderOutput } from './block';
 import { buildChartRoot } from './build-tree';
 import type { LayoutIndices } from './helpers';
 
-export type { LayoutIndices } from './helpers';
-
 export function buildChart(
   focusId: number,
   ix: LayoutIndices

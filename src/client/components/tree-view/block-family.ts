@@ -16,11 +16,11 @@
 //   - 1 internal adult (lone parent): pivot at that adult
 
 import { Block } from './block';
-import type { LocalLine, LocalRenderOutput, PlacedBlock } from './block';
+import type { Line, LocalRenderOutput, PlacedBlock } from './block';
 import { BOX_H, BOX_W, ROW_H, translatePoint } from './helpers';
 import type { Point } from './helpers';
 
-export interface AdultPlacement {
+export interface PersonPlacement {
   id: number;
   external: boolean;
   // Local X in this FB's frame.
@@ -29,18 +29,11 @@ export interface AdultPlacement {
   block: Block | null;
 }
 
-export interface KidPlacement {
-  id: number;
-  external: boolean;
-  x: number;
-  block: Block | null;
-}
-
 export interface FamilyBlockSpec {
   famId: number;
-  husband: AdultPlacement | null;
-  wife: AdultPlacement | null;
-  kids: readonly KidPlacement[];
+  husband: PersonPlacement | null;
+  wife: PersonPlacement | null;
+  kids: readonly PersonPlacement[];
   // Local Y values.
   adultY: number;
   kidY: number;
@@ -86,7 +79,7 @@ export class FamilyBlock extends Block {
   }
 
   renderLocal(): LocalRenderOutput {
-    const lines: LocalLine[] = [];
+    const lines: Line[] = [];
     if (this.spec.husband !== null && this.spec.wife !== null) {
       // Husband-left convention can be violated by ancestor step-fams (the
       // step-spouse may sit on Fa's "wrong" side to match chronological
@@ -105,7 +98,7 @@ export class FamilyBlock extends Block {
     return { boxes: [], lines };
   }
 
-  private appendSibshipLines(lines: LocalLine[]): void {
+  private appendSibshipLines(lines: Line[]): void {
     const { spec } = this;
     const busY = spec.kidY - ROW_H / 2;
     // Drop is always vertical (see CONTEXT.md "Bloodline pyramid", ADR-0001).

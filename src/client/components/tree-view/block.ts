@@ -9,7 +9,7 @@ export interface LocalPersonBox {
   pos: Point;
 }
 
-export interface LocalLine {
+export interface Line {
   key: string;
   from: Point;
   to: Point;
@@ -17,7 +17,7 @@ export interface LocalLine {
 
 export interface LocalRenderOutput {
   boxes: LocalPersonBox[];
-  lines: LocalLine[];
+  lines: Line[];
 }
 
 export interface PlacedBlock {
@@ -41,23 +41,17 @@ export interface RenderGroup {
   childGroups: RenderGroup[];
 }
 
-export interface AbsoluteLine {
-  key: string;
-  from: Point;
-  to: Point;
-}
-
 export interface RenderOutput {
   rootGroup: RenderGroup;
-  lines: AbsoluteLine[];
+  lines: Line[];
 }
 
 export function renderChartBlocks(
   placedBlocks: readonly PlacedBlock[],
-  extraLines: readonly AbsoluteLine[]
+  extraLines: readonly Line[]
 ): RenderOutput {
   const childGroups: RenderGroup[] = [];
-  const lines: AbsoluteLine[] = [...extraLines];
+  const lines: Line[] = [...extraLines];
   for (const placed of placedBlocks) {
     const result = renderOneBlock({
       block: placed.block,
@@ -85,13 +79,13 @@ interface RenderOneArgs {
 
 interface RenderOneResult {
   group: RenderGroup;
-  lines: AbsoluteLine[];
+  lines: Line[];
 }
 
 function renderOneBlock(args: RenderOneArgs): RenderOneResult {
   const { block, offset, abs } = args;
   const local = block.renderLocal();
-  const lines: AbsoluteLine[] = local.lines.map((l) => ({
+  const lines: Line[] = local.lines.map((l) => ({
     key: l.key,
     from: translatePoint(l.from, abs),
     to: translatePoint(l.to, abs)
