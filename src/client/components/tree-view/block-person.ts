@@ -19,7 +19,7 @@
 import { Block } from './block';
 import type { PersonBox, PlacedBlock } from './block';
 import type { FamilyBlock } from './block-family';
-import { BOX_W, ROW_H, translatePoint } from './helpers';
+import { BOX_W, ROW_PITCH, translatePoint } from './helpers';
 
 export class PersonBlock extends Block {
   readonly selfHalfWidth = BOX_W / 2;
@@ -38,7 +38,7 @@ export class PersonBlock extends Block {
       placed.push({ block: m, offset: { x: 0, y: 0 } });
     }
     if (childhoodFamily !== null) {
-      placed.push({ block: childhoodFamily, offset: { x: 0, y: -ROW_H } });
+      placed.push({ block: childhoodFamily, offset: { x: 0, y: -ROW_PITCH } });
     }
     this.children = placed;
   }

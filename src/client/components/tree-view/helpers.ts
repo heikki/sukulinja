@@ -31,7 +31,7 @@ export const SIBLING_GAP = 28;
 // Match SIBLING_GAP for visually uniform spacing across the row.
 export const COUPLE_GAP = 28;
 export const ROW_GAP = 70;
-export const ROW_H = BOX_H + ROW_GAP;
+export const ROW_PITCH = BOX_H + ROW_GAP;
 export const AVATAR_R = 22;
 export const AVATAR_CX = 28;
 export const SVG_HALF = 5000;
