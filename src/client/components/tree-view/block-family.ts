@@ -18,7 +18,7 @@
 import { Block } from './block';
 import type { Line, PlacedBlock } from './block';
 import { BOX_H, BOX_W, ROW_H, translatePoint } from './helpers';
-import type { Point } from './helpers';
+import type { Extents, Point } from './helpers';
 
 export interface PersonPlacement {
   id: number;
@@ -41,19 +41,16 @@ export interface FamilyBlockSpec {
   // Sibship drop origin in the local frame.
   childAnchor: Point;
   // Extents in the local frame.
-  leftWidth: number;
-  rightWidth: number;
+  extents: Extents;
 }
 
 export class FamilyBlock extends Block {
-  readonly leftWidth: number;
-  readonly rightWidth: number;
+  readonly extents: Extents;
   readonly children: readonly PlacedBlock[];
 
   constructor(readonly spec: FamilyBlockSpec) {
     super();
-    this.leftWidth = spec.leftWidth;
-    this.rightWidth = spec.rightWidth;
+    this.extents = spec.extents;
     const placed: PlacedBlock[] = [];
     if (spec.husband !== null && spec.husband.block !== null) {
       placed.push({

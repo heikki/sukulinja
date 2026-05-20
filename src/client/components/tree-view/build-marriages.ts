@@ -34,9 +34,9 @@ export function packBlocks(blocks: readonly Block[]) {
   let cursor = 0;
   for (const [i, b] of blocks.entries()) {
     if (i > 0) cursor += SIBLING_GAP;
-    cursor += b.leftWidth;
+    cursor += b.extents.left;
     positions.push(cursor);
-    cursor += b.rightWidth;
+    cursor += b.extents.right;
   }
   const barMid = (positions[0]! + positions[positions.length - 1]!) / 2;
   return { positions, totalWidth: cursor, barMid };
@@ -50,20 +50,20 @@ function computeFBExtents(
   let minX = 0;
   let maxX = 0;
   if (husband !== null && husband.block !== null) {
-    minX = Math.min(minX, husband.x - husband.block.leftWidth);
-    maxX = Math.max(maxX, husband.x + husband.block.rightWidth);
+    minX = Math.min(minX, husband.x - husband.block.extents.left);
+    maxX = Math.max(maxX, husband.x + husband.block.extents.right);
   }
   if (wife !== null && wife.block !== null) {
-    minX = Math.min(minX, wife.x - wife.block.leftWidth);
-    maxX = Math.max(maxX, wife.x + wife.block.rightWidth);
+    minX = Math.min(minX, wife.x - wife.block.extents.left);
+    maxX = Math.max(maxX, wife.x + wife.block.extents.right);
   }
   for (const k of kids) {
     if (k.block !== null) {
-      minX = Math.min(minX, k.x - k.block.leftWidth);
-      maxX = Math.max(maxX, k.x + k.block.rightWidth);
+      minX = Math.min(minX, k.x - k.block.extents.left);
+      maxX = Math.max(maxX, k.x + k.block.extents.right);
     }
   }
-  return { leftWidth: -minX, rightWidth: maxX };
+  return { left: -minX, right: maxX };
 }
 
 interface BuildMarriageFBArgs {
@@ -76,7 +76,6 @@ interface BuildMarriageFBArgs {
 }
 
 export function buildMarriageFB(args: BuildMarriageFBArgs) {
-  const extents = computeFBExtents(args.husband, args.wife, args.kids);
   const spec: FamilyBlockSpec = {
     famId: args.famId,
     husband: args.husband,
@@ -86,8 +85,7 @@ export function buildMarriageFB(args: BuildMarriageFBArgs) {
     kidY: ROW_H,
     tieY: args.tieY,
     childAnchor: args.anchor,
-    leftWidth: extents.leftWidth,
-    rightWidth: extents.rightWidth
+    extents: computeFBExtents(args.husband, args.wife, args.kids)
   };
   return new FamilyBlock(spec);
 }

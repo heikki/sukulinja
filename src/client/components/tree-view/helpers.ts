@@ -20,6 +20,11 @@ export function translatePoint(p: Point, by: Point) {
   return { x: p.x + by.x, y: p.y + by.y };
 }
 
+export interface Extents {
+  left: number;
+  right: number;
+}
+
 export const BOX_W = 184;
 export const BOX_H = 90;
 export const SIBLING_GAP = 28;
