@@ -4,7 +4,7 @@
 import { translatePoint } from './helpers';
 import type { Extents, Point } from './helpers';
 
-export interface LocalPersonBox {
+export interface PersonBox {
   personId: number;
   offset: Point;
 }
@@ -16,7 +16,7 @@ export interface Line {
 }
 
 export interface LocalRenderOutput {
-  boxes: LocalPersonBox[];
+  boxes: PersonBox[];
   lines: Line[];
 }
 
@@ -53,7 +53,7 @@ export abstract class Block {
 
 export interface RenderGroup {
   offset: Point;
-  boxes: LocalPersonBox[];
+  boxes: PersonBox[];
   childGroups: RenderGroup[];
 }
 
