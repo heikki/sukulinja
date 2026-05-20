@@ -41,11 +41,10 @@ export function buildChartRoot(
 // ============= Childhood FB + plain ancestor PB (depth ≥ 2) =============
 
 // `ancestorChartX` is the chart-X of the bloodline ancestor whose childhood
-// FB we're building. The GGP couple's Tie sits directly above the kid
-// sibship's bar midpoint (so the drop is always vertical — never an
-// L-bend); each parent's own chart-X recurses as ancestorChartX +
-// barMidFBlocal ± HALF_PITCH. Top-level callers pass -HALF_PITCH for Fa
-// and +HALF_PITCH for Mo (Fa and Mo's own chart-X relative to focus = 0).
+// FB we're building. The drop from the GGP couple's Tie to the sibship
+// bar is always vertical; the Tie's X depends on depth (see
+// `buildChildhoodFamily`). Top-level callers pass -HALF_PITCH for Fa and
+// +HALF_PITCH for Mo (Fa and Mo's own chart-X relative to focus = 0).
 const HALF_PITCH = COUPLE_PITCH / 2;
 
 function ancestorPBOrNull(
@@ -77,9 +76,16 @@ function buildChildhoodFamily(
     ancestorChartX,
     ix
   });
-  const barMidFBlocal = sibshipBarMid(kids);
-  const husbandChartX = ancestorChartX + barMidFBlocal - HALF_PITCH;
-  const wifeChartX = ancestorChartX + barMidFBlocal + HALF_PITCH;
+  // At depth 1 (multi-kid sibship with Aunts/Uncles) the Tie sits above
+  // the kid bar's midpoint — drop is vertical, no extra horizontal slack
+  // needed. At depth ≥ 2 (one kid) we revert to the symmetric-pyramid
+  // rule (Tie at chart-X = 2 * ancestorChartX, i.e. FB-local
+  // ancestorChartX) so adjacent ancestor couples don't drift into the
+  // same column at higher gens; the bar then runs horizontally from
+  // Tie X over to the kid's column.
+  const tieXFBlocal = currentDepth === 1 ? sibshipBarMid(kids) : ancestorChartX;
+  const husbandChartX = ancestorChartX + tieXFBlocal - HALF_PITCH;
+  const wifeChartX = ancestorChartX + tieXFBlocal + HALF_PITCH;
   const husbandPB = ancestorPBOrNull(
     fam.husband_id,
     parentDepth,
@@ -89,7 +95,7 @@ function buildChildhoodFamily(
   const wifePB = ancestorPBOrNull(fam.wife_id, parentDepth, wifeChartX, ix);
   if (husbandPB === null && wifePB === null) return null;
 
-  const couple = layoutInternalCouple(husbandPB, wifePB, fam, barMidFBlocal);
+  const couple = layoutInternalCouple(husbandPB, wifePB, fam, tieXFBlocal);
   const extents = computeFBExtents({
     husband: couple.husband,
     wife: couple.wife,

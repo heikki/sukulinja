@@ -118,9 +118,10 @@ export class FamilyBlock extends Block {
   private appendSibshipLines(lines: LocalLine[]): void {
     const { spec } = this;
     const busY = spec.kidY - ROW_H / 2;
-    // childAnchorX is set by the builder to the sibship's bar midpoint
-    // (see build-tree.ts), so the drop is always vertical. The bar spans
-    // just the kid Xs.
+    // Drop is always vertical (see CONTEXT.md "Bloodline pyramid", ADR-0001).
+    // The bar spans the union of childAnchorX and the kid Xs — so a
+    // one-kid sibship where the Tie sits off the kid's column (depth ≥ 2)
+    // still connects via a horizontal bar from the drop to the kid's leg.
     lines.push({
       key: `sib-${spec.famId}-drop`,
       x1: spec.childAnchorX,
@@ -128,18 +129,18 @@ export class FamilyBlock extends Block {
       x2: spec.childAnchorX,
       y2: busY
     });
-    let minKidX = spec.kids[0]!.x;
-    let maxKidX = spec.kids[0]!.x;
+    let minX = spec.childAnchorX;
+    let maxX = spec.childAnchorX;
     for (const k of spec.kids) {
-      if (k.x < minKidX) minKidX = k.x;
-      if (k.x > maxKidX) maxKidX = k.x;
+      if (k.x < minX) minX = k.x;
+      if (k.x > maxX) maxX = k.x;
     }
-    if (maxKidX > minKidX) {
+    if (maxX > minX) {
       lines.push({
         key: `sib-${spec.famId}-bar`,
-        x1: minKidX,
+        x1: minX,
         y1: busY,
-        x2: maxKidX,
+        x2: maxX,
         y2: busY
       });
     }

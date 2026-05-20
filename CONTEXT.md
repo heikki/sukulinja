@@ -60,7 +60,11 @@ The point a **Drop** to children originates. Primary marriage (or single-marriag
 Focus's column sits at chart X = 0. With uneven ancestry, the ancestor pyramid drifts left or right of Focus rather than re-centering. Everything above Focus is positioned by propagation; Focus itself is the only fixed point.
 
 **Bloodline pyramid**:
-Each ancestor **Couple** sits centered directly above its kid sibship's **Bar** midpoint — so every parent **Drop** is purely vertical, never an L-bend. Geometry is _locally symmetric_ (Tie above bar midpoint) but _globally lopsided_ when one branch has more laterals or step-fams than the other (Aunts/Uncles at depth 1 shift the GP couple's Tie outward by half the sibship's extra width). Spouse separation inside every Couple — including the chart-root parent FB — stays fixed at one COUPLE_PITCH; subtree extents grow outward (away from chart center), never inward past the Tie midpoint.
+Every parent **Drop** is purely vertical — never an L-bend. The Tie's chart-X depends on depth:
+- At depth 1 (multi-kid sibship including **Aunts/Uncles**): the Tie sits directly above the **Bar** midpoint, so the drop lands in the middle of the kid sibship. Aunts/Uncles shift the GP couple's Tie outward by half the sibship's extra width.
+- At depth ≥ 2 (one bloodline kid only): the Tie sits at chart-X = 2 × ancestorChartX (the symmetric-pyramid position), and the kid bar runs _horizontally_ from the Tie X over to the kid's column. The bar — not the drop — does the horizontal work, keeping adjacent ancestor couples on distinct chart columns.
+
+Spouse separation inside every Couple — including the chart-root parent FB — stays fixed at one COUPLE_PITCH; subtree extents grow outward (away from chart center).
 
 **Aunts/Uncles placement**:
 At depth 1, **Aunts/Uncles** share the childhood FB sibship with their bloodline sibling (Father or Mother). The bloodline sibling sits at the _inward_ end of the sibship (Father at the rightmost slot of his sibship, Mother at the leftmost slot of hers); Aunts/Uncles fan outward in birth order. The slot widens to fit them — driving the parent FB Tie outward and propagating up.
