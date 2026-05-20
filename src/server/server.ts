@@ -4,17 +4,6 @@ import type { FamilyRow, PersonRow } from '@common/types';
 
 import { openDb } from './db';
 
-const CORS_HEADERS = {
-  'access-control-allow-origin': '*',
-  'access-control-allow-methods': 'GET, OPTIONS',
-  'access-control-allow-headers': '*'
-};
-
-function withCors(res: Response): Response {
-  for (const [k, v] of Object.entries(CORS_HEADERS)) res.headers.set(k, v);
-  return res;
-}
-
 const DEFAULT_MEDIA_BASE =
   process.env.SUKULINJA_MEDIA ??
   resolve(import.meta.dir, '..', '..', '..', 'myheritage-export');
@@ -25,7 +14,11 @@ function parseYear(date: string | null): number | null {
   return m === null ? null : parseInt(m.groups!.year!, 10);
 }
 
-export function createServer() {
+export interface ApiHandlers {
+  routeApi: (req: Request, pathname: string) => Promise<Response | null>;
+}
+
+export function createApi(): ApiHandlers {
   const db = openDb();
   const mediaRoot = resolve(DEFAULT_MEDIA_BASE, 'media');
 
@@ -65,7 +58,7 @@ export function createServer() {
       death_year: parseYear(r.death_date),
       photo_path: r.photo_path
     }));
-    return withCors(Response.json(out));
+    return Response.json(out);
   }
 
   const listFamilies = db.prepare(
@@ -96,35 +89,56 @@ export function createServer() {
       wife_id: f.wife_id,
       child_ids: childrenByFamily.get(f.id) ?? []
     }));
-    return withCors(Response.json(out));
+    return Response.json(out);
   }
 
-  async function handleFetch(req: Request): Promise<Response> {
-    const url = new URL(req.url);
-    if (req.method === 'OPTIONS') {
-      return withCors(new Response(null, { status: 204 }));
-    }
-    if (!url.pathname.startsWith('/media/')) {
-      return withCors(new Response('not found', { status: 404 }));
-    }
-    const rel = decodeURIComponent(url.pathname.slice('/media/'.length));
+  async function handleMedia(pathname: string): Promise<Response> {
+    const rel = decodeURIComponent(pathname.slice('/media/'.length));
     const fullPath = resolve(mediaRoot, rel);
     if (relative(mediaRoot, fullPath).startsWith('..')) {
-      return withCors(new Response('forbidden', { status: 403 }));
+      return new Response('forbidden', { status: 403 });
     }
     const file = Bun.file(fullPath);
     if (!(await file.exists())) {
-      return withCors(new Response('not found', { status: 404 }));
+      return new Response('not found', { status: 404 });
     }
-    return withCors(new Response(file));
+    return new Response(file);
   }
 
-  return Bun.serve({
-    port: 0,
-    routes: {
-      '/api/persons': handlePersons,
-      '/api/families': handleFamilies
-    },
-    fetch: handleFetch
-  });
+  return {
+    async routeApi(req, pathname) {
+      if (pathname === '/api/persons') return handlePersons();
+      if (pathname === '/api/families') return handleFamilies();
+      if (pathname.startsWith('/media/')) return await handleMedia(pathname);
+      return null;
+    }
+  };
+}
+
+export interface StaticFetchConfig {
+  api: ApiHandlers;
+  /** Filesystem roots tried in order for static files. */
+  staticRoots: string[];
+}
+
+/**
+ * Fetch handler that routes API + media through the api handlers, then falls
+ * back to serving static files from the given roots.
+ */
+export function createStaticFetch(
+  config: StaticFetchConfig
+): (req: Request) => Promise<Response> {
+  return async (req) => {
+    const url = new URL(req.url);
+    const api = await config.api.routeApi(req, url.pathname);
+    if (api !== null) return api;
+
+    let path = decodeURIComponent(url.pathname);
+    if (path === '/') path = '/index.html';
+    for (const root of config.staticRoots) {
+      const file = Bun.file(`${root}${path}`);
+      if (file.size > 0) return new Response(file);
+    }
+    return new Response('Not Found', { status: 404 });
+  };
 }
