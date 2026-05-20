@@ -49,7 +49,7 @@ export interface RenderOutput {
 export function renderChartBlocks(
   placedBlocks: readonly PlacedBlock[],
   extraLines: readonly Line[]
-): RenderOutput {
+) {
   const childGroups: RenderGroup[] = [];
   const lines: Line[] = [...extraLines];
   for (const placed of placedBlocks) {
@@ -77,12 +77,7 @@ interface RenderOneArgs {
   abs: Point;
 }
 
-interface RenderOneResult {
-  group: RenderGroup;
-  lines: Line[];
-}
-
-function renderOneBlock(args: RenderOneArgs): RenderOneResult {
+function renderOneBlock(args: RenderOneArgs) {
   const { block, offset, abs } = args;
   const local = block.renderLocal();
   const lines: Line[] = local.lines.map((l) => ({

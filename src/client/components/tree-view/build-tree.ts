@@ -5,7 +5,6 @@
 //   Pass 2 — build Fa.PB / Mo.PB with step-fam FBs sized to clear the
 //            bloodline kid row's chart extents.
 
-import type { Block } from './block';
 import { FamilyBlock } from './block-family';
 import type { FamilyBlockSpec, PersonPlacement } from './block-family';
 import { PersonBlock } from './block-person';
@@ -28,12 +27,9 @@ import {
   presentChildren,
   ROW_H
 } from './helpers';
-import type { FamilyRow, LayoutIndices, Point } from './helpers';
+import type { FamilyRow, LayoutIndices } from './helpers';
 
-export function buildChartRoot(
-  focusId: number,
-  ix: LayoutIndices
-): Block | null {
+export function buildChartRoot(focusId: number, ix: LayoutIndices) {
   if (!ix.persons.has(focusId)) return null;
   const parentFam = ix.parentFamByPerson.get(focusId);
   if (parentFam !== undefined && ix.levels >= 1) {
@@ -55,7 +51,7 @@ function ancestorPBOrNull(
   depth: number,
   ancestorChartX: number,
   ix: LayoutIndices
-): PersonBlock | null {
+) {
   if (!isPersonKnown(parentId, ix)) return null;
   return buildPlainAncestorPB(parentId, depth, ancestorChartX, ix);
 }
@@ -68,7 +64,7 @@ interface BuildChildhoodArgs {
   ix: LayoutIndices;
 }
 
-function buildChildhoodFamily(args: BuildChildhoodArgs): FamilyBlock | null {
+function buildChildhoodFamily(args: BuildChildhoodArgs) {
   const { personId, currentDepth, ancestorChartX, ix } = args;
   const stepFamSpacer = args.stepFamSpacer ?? 0;
   if (currentDepth >= ix.levels) return null;
@@ -125,7 +121,7 @@ function buildPlainAncestorPB(
   depth: number,
   ancestorChartX: number,
   ix: LayoutIndices
-): PersonBlock {
+) {
   const childhood = buildChildhoodFamily({
     personId,
     currentDepth: depth,
@@ -135,11 +131,7 @@ function buildPlainAncestorPB(
   return new PersonBlock(personId, childhood, [], null);
 }
 
-function tieXForFB(
-  personId: number,
-  currentDepth: number,
-  ix: LayoutIndices
-): number {
+function tieXForFB(personId: number, currentDepth: number, ix: LayoutIndices) {
   // Ancestor couples land as close to chart center as the inter-couple
   // spacing allows; the bar/legs reach out to whichever kids are farther.
   // Shift magnitude follows (2^remainingAbove − 1) × HALF_PITCH so deeper
@@ -165,7 +157,7 @@ interface ChildhoodFBKidsArgs {
   ix: LayoutIndices;
 }
 
-function childhoodFBKids(args: ChildhoodFBKidsArgs): PersonPlacement[] {
+function childhoodFBKids(args: ChildhoodFBKidsArgs) {
   const { bloodlineId, fam, currentDepth, ancestorChartX, stepFamSpacer, ix } =
     args;
   const bloodlinePlacement: PersonPlacement = {
@@ -212,7 +204,7 @@ function buildParentFamilyBlock(
   focusId: number,
   parentFam: FamilyRow,
   ix: LayoutIndices
-): FamilyBlock | null {
+) {
   const sibIds = presentChildren(parentFam, ix);
   if (parentFam.husband_id === null && parentFam.wife_id === null) {
     if (sibIds.length === 0) return null;
@@ -297,7 +289,7 @@ interface ParentPBArgs {
   ix: LayoutIndices;
 }
 
-function parentPB(args: ParentPBArgs): PersonBlock | null {
+function parentPB(args: ParentPBArgs) {
   if (!isPersonKnown(args.personId, args.ix)) return null;
   return buildAncestorPBWithStepFams({
     personId: args.personId,
@@ -316,7 +308,7 @@ function childhoodForParent(
   ancestorChartX: number,
   stepFamSpacer: number,
   ix: LayoutIndices
-): FamilyBlock | null {
+) {
   if (!isPersonKnown(parentId, ix)) return null;
   return buildChildhoodFamily({
     personId: parentId,
@@ -336,7 +328,7 @@ interface AuntShiftArgs {
   ix: LayoutIndices;
 }
 
-function computeAuntShift(args: AuntShiftArgs): number {
+function computeAuntShift(args: AuntShiftArgs) {
   if (!isPersonKnown(args.parentId, args.ix)) return 0;
   const stepFams = measureStepFamsExtent(
     args.parentId,
@@ -367,14 +359,7 @@ interface ParentContextArgs {
   ix: LayoutIndices;
 }
 
-interface ParentChartContext {
-  faChartX: number;
-  moChartX: number;
-  bloodlineLeftChart: number;
-  bloodlineRightChart: number;
-}
-
-function computeParentSep(args: ParentContextArgs): number {
+function computeParentSep(args: ParentContextArgs) {
   const faPresent = isPersonKnown(args.parentFam.husband_id, args.ix);
   const moPresent = isPersonKnown(args.parentFam.wife_id, args.ix);
   if (!faPresent || !moPresent) return 0;
@@ -384,7 +369,7 @@ function computeParentSep(args: ParentContextArgs): number {
 // Bloodline footprint = union of focus's kid-row extent and Fa/Mo's own
 // boxes at the parent row (NOT Aunts/Uncles, which get pushed past the
 // step-fams via the spacer).
-function parentChartContextBase(args: ParentContextArgs): ParentChartContext {
+function parentChartContextBase(args: ParentContextArgs) {
   const sep = computeParentSep(args);
   const focusIdx = args.sibIds.indexOf(args.focusId);
   const focusLocalX =
@@ -421,7 +406,7 @@ interface AssembleParentArgs {
   sibIds: number[];
 }
 
-function assembleParentFB(args: AssembleParentArgs): FamilyBlock {
+function assembleParentFB(args: AssembleParentArgs) {
   const { parentFam, faPB, moPB, kidPBs, packed, sibIds } = args;
   const couple = layoutInternalCouple(faPB, moPB, parentFam);
   const kidXs = kidXsFromPacked(packed, couple.childAnchor.x);
@@ -451,19 +436,12 @@ function assembleParentFB(args: AssembleParentArgs): FamilyBlock {
   return new FamilyBlock(spec);
 }
 
-interface InternalCoupleLayout {
-  husband: PersonPlacement | null;
-  wife: PersonPlacement | null;
-  childAnchor: Point;
-  tieY: number;
-}
-
 function layoutInternalCouple(
   husbandPB: PersonBlock | null,
   wifePB: PersonBlock | null,
   fam: FamilyRow,
   tieXFBlocal = 0
-): InternalCoupleLayout {
+) {
   if (husbandPB !== null && wifePB !== null) {
     return couplePlacement(husbandPB, wifePB, fam, tieXFBlocal);
   }
@@ -496,7 +474,7 @@ function couplePlacement(
   wifePB: PersonBlock,
   fam: FamilyRow,
   tieXFBlocal: number
-): InternalCoupleLayout {
+) {
   // Spouse-to-spouse separation is fixed at COUPLE_PITCH. The Tie midpoint
   // sits at FB-local x = tieXFBlocal (the chart-X of the bloodline kid;
   // see ADR-0001). The bloodline kid itself stays at FB-local 0; the L-bar
