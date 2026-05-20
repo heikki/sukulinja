@@ -1,7 +1,7 @@
 // PersonBlock builders for "owned marriages" — focus, descendants, siblings.
 // These PBs own their marriages directly (active marriage's FB is in their
 // PB.children), unlike bloodline-ancestor PBs whose active marriage is
-// rendered by the parent FB above (see build-step-fams.ts).
+// rendered by the parent FB above.
 //
 // Active = chronologically most recent marriage — drawn adjacent to the
 // person; earlier marriages fan further outward in fanDir. Siblings only

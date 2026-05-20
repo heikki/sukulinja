@@ -1,7 +1,5 @@
 // Low-level FamilyBlock construction utilities — packing, extents, and the
-// final FB assembly from pre-computed adult/kid placements. Higher-level
-// step-fam logic lives in build-step-fams.ts; PB builders + parent FB
-// orchestration live in build-tree.ts.
+// final FB assembly from pre-computed adult/kid placements.
 
 import { FamilyBlock } from './block-family';
 import type { PersonPlacement } from './block-family';
@@ -112,9 +110,9 @@ export function placeInternalCouple(
 ) {
   if (husbandPB !== null && wifePB !== null) {
     // Spouse-to-spouse separation is fixed at COUPLE_PITCH. The Tie midpoint
-    // sits at FB-local x = tieXFBlocal (the chart-X of the bloodline kid;
-    // see ADR-0001). The bloodline kid itself stays at FB-local 0; the L-bar
-    // in block-family.ts handles any horizontal gap between Tie and kid.
+    // sits at FB-local x = tieXFBlocal (see ADR-0001); the bloodline kid
+    // stays at FB-local 0, and the sibship bar absorbs any gap between Tie
+    // and kid.
     return {
       husband: {
         id: fam.husband_id!,
