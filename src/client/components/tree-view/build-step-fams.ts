@@ -214,3 +214,24 @@ function isMeaningful(
     presentChildren(f, ix).length > 0 || otherSpouseOf(f, personId) !== null
   );
 }
+
+export function measureStepFamsExtent(
+  personId: number,
+  bloodlineFamId: number,
+  ix: LayoutIndices
+): number {
+  const allFams = ix.spouseFamsByPerson.get(personId) ?? [];
+  let total = 0;
+  for (const fam of allFams) {
+    if (fam.id === bloodlineFamId) continue;
+    if (!isMeaningful(fam, personId, ix)) continue;
+    const halfSibIds = presentChildren(fam, ix);
+    const kidBlocks: PersonBlock[] = halfSibIds.map(
+      (cid) => new PersonBlock(cid, null, [], null)
+    );
+    const packed = packBlocks(kidBlocks);
+    const { extentLeft, extentRight } = stepFamExtents(packed, kidBlocks);
+    total += extentLeft + extentRight + SIBLING_GAP;
+  }
+  return total;
+}
