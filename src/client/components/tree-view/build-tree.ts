@@ -20,14 +20,7 @@ import {
 } from './build-marriages';
 import { buildFocusPersonBlock, buildSiblingPersonBlock } from './build-owned';
 import { buildAncestorPBWithStepFams } from './build-step-fams';
-import {
-  BOX_H,
-  BOX_W,
-  COUPLE_GAP,
-  COUPLE_PITCH,
-  presentChildren,
-  ROW_H
-} from './helpers';
+import { BOX_H, BOX_W, COUPLE_PITCH, presentChildren, ROW_H } from './helpers';
 import type { FamilyRow, LayoutIndices } from './helpers';
 
 // ============= Top-level =============
@@ -47,35 +40,52 @@ export function buildChartRoot(
 
 // ============= Childhood FB + plain ancestor PB (depth ≥ 2) =============
 
-type Tilt = 'center' | 'left' | 'right';
+// Where the bloodline kid sits relative to its parents' Tie midpoint.
+// Positive means the kid sits right of the midpoint (couple leans left);
+// negative means the kid sits left of the midpoint (couple leans right);
+// zero means the couple straddles the kid.
+//
+// Top-level callers pass ±COUPLE_PITCH/2 (kid coincides with one spouse)
+// or 0 (kid centered), but the value is free — any numeric offset works.
+const HALF_PITCH = COUPLE_PITCH / 2;
+
+function ancestorPBOrNull(
+  parentId: number | null,
+  depth: number,
+  kidOffset: number,
+  ix: LayoutIndices
+): PersonBlock | null {
+  if (parentId === null || !ix.persons.has(parentId)) return null;
+  return buildPlainAncestorPB(parentId, depth, kidOffset, ix);
+}
 
 function buildChildhoodFamily(
   personId: number,
   currentDepth: number,
-  tilt: Tilt,
+  kidOffset: number,
   ix: LayoutIndices
 ): FamilyBlock | null {
   if (currentDepth >= ix.levels) return null;
   const fam = ix.parentFamByPerson.get(personId);
   if (fam === undefined) return null;
   const parentDepth = currentDepth + 1;
-  const husbandPB =
-    fam.husband_id !== null && ix.persons.has(fam.husband_id)
-      ? buildPlainAncestorPB(fam.husband_id, parentDepth, tilt, ix)
-      : null;
-  const wifePB =
-    fam.wife_id !== null && ix.persons.has(fam.wife_id)
-      ? buildPlainAncestorPB(fam.wife_id, parentDepth, tilt, ix)
-      : null;
+  // Outer spouse continues the lean; inner spouse's own subtree centers
+  // (there's room on both sides of an inner ancestor). For a centered
+  // couple, both subtrees centre on themselves.
+  const husbandKidOffset = kidOffset > 0 ? kidOffset : 0;
+  const wifeKidOffset = kidOffset < 0 ? kidOffset : 0;
+  const husbandPB = ancestorPBOrNull(
+    fam.husband_id,
+    parentDepth,
+    husbandKidOffset,
+    ix
+  );
+  const wifePB = ancestorPBOrNull(fam.wife_id, parentDepth, wifeKidOffset, ix);
   if (husbandPB === null && wifePB === null) return null;
 
-  const couple = layoutInternalCouple(husbandPB, wifePB, fam, tilt);
-  // Centered couples drop straight from the Tie midpoint to the kid;
-  // tilted couples have the Tie midpoint offset from the kid's column
-  // so the sibship draws an L-bar to connect.
-  const externalKidX = tilt === 'center' ? couple.childAnchorX : 0;
+  const couple = layoutInternalCouple(husbandPB, wifePB, fam, kidOffset);
   const kids: KidPlacement[] = [
-    { id: personId, external: true, x: externalKidX, block: null }
+    { id: personId, external: true, x: 0, block: null }
   ];
   const extents = computeFBExtents({
     husband: couple.husband,
@@ -101,14 +111,10 @@ function buildChildhoodFamily(
 function buildPlainAncestorPB(
   personId: number,
   depth: number,
-  tilt: Tilt,
+  kidOffset: number,
   ix: LayoutIndices
 ): PersonBlock {
-  // Tilt propagates through the ancestor chain so a whole subtree shares
-  // a slant direction — the chain spreads diagonally instead of stacking
-  // on one chart X. Which direction a subtree tilts is decided higher
-  // up, by where there is room for it.
-  const childhood = buildChildhoodFamily(personId, depth, tilt, ix);
+  const childhood = buildChildhoodFamily(personId, depth, kidOffset, ix);
   return new PersonBlock(personId, childhood, [], null);
 }
 
@@ -124,8 +130,11 @@ function buildParentFamilyBlock(
     if (sibIds.length === 0) return null;
   }
 
-  const faChildhood = childhoodForParent(parentFam.husband_id, 'left', ix);
-  const moChildhood = childhoodForParent(parentFam.wife_id, 'right', ix);
+  // Father sits to the left of focus, so his ancestor chain extends
+  // outward leftward — the kid (Father) sits to the right of his parents'
+  // Tie midpoint. Mirror sign for Mother on the right.
+  const faChildhood = childhoodForParent(parentFam.husband_id, HALF_PITCH, ix);
+  const moChildhood = childhoodForParent(parentFam.wife_id, -HALF_PITCH, ix);
 
   const kidPBs = sibIds.map((sid) =>
     sid === focusId
@@ -140,8 +149,6 @@ function buildParentFamilyBlock(
     packed,
     sibIds,
     focusId,
-    faChildhood,
-    moChildhood,
     ix
   });
 
@@ -175,11 +182,11 @@ function buildParentFamilyBlock(
 
 function childhoodForParent(
   parentId: number | null,
-  tilt: Tilt,
+  kidOffset: number,
   ix: LayoutIndices
 ): FamilyBlock | null {
   if (parentId === null || !ix.persons.has(parentId)) return null;
-  return buildChildhoodFamily(parentId, 1, tilt, ix);
+  return buildChildhoodFamily(parentId, 1, kidOffset, ix);
 }
 
 interface ParentContextArgs {
@@ -188,8 +195,6 @@ interface ParentContextArgs {
   packed: PackedBlocks;
   sibIds: number[];
   focusId: number;
-  faChildhood: FamilyBlock | null;
-  moChildhood: FamilyBlock | null;
   ix: LayoutIndices;
 }
 
@@ -208,9 +213,7 @@ function computeParentSep(args: ParentContextArgs): number {
     args.parentFam.wife_id !== null &&
     args.ix.persons.has(args.parentFam.wife_id);
   if (!faPresent || !moPresent) return 0;
-  const faCoupleRight = Math.max(BOX_W / 2, args.faChildhood?.rightWidth ?? 0);
-  const moCoupleLeft = Math.max(BOX_W / 2, args.moChildhood?.leftWidth ?? 0);
-  return Math.max(COUPLE_PITCH, faCoupleRight + moCoupleLeft + COUPLE_GAP);
+  return COUPLE_PITCH;
 }
 
 function kidRowExtents(
@@ -313,10 +316,10 @@ function layoutInternalCouple(
   husbandPB: PersonBlock | null,
   wifePB: PersonBlock | null,
   fam: FamilyRow,
-  tilt: Tilt = 'center'
+  kidOffsetFromCoupleMid = 0
 ): InternalCoupleLayout {
   if (husbandPB !== null && wifePB !== null) {
-    return couplePlacement(husbandPB, wifePB, fam, tilt);
+    return couplePlacement(husbandPB, wifePB, fam, kidOffsetFromCoupleMid);
   }
   if (husbandPB !== null) {
     return {
@@ -349,48 +352,29 @@ function couplePlacement(
   husbandPB: PersonBlock,
   wifePB: PersonBlock,
   fam: FamilyRow,
-  tilt: Tilt
+  kidOffsetFromCoupleMid: number
 ): InternalCoupleLayout {
-  // Spouse-to-spouse separation stays at COUPLE_PITCH — the box-to-box
-  // gap is fixed by the constant, not stretched per subtree width.
-  // (The Math.max below is a safety net that only kicks in if a subtree
-  // demands more room than COUPLE_PITCH allows.)
-  const sep = Math.max(
-    COUPLE_PITCH,
-    husbandPB.coupleRightWidth + wifePB.coupleLeftWidth + COUPLE_GAP
-  );
-  if (tilt === 'left') {
-    return {
-      husband: {
-        id: fam.husband_id!,
-        external: false,
-        x: -sep,
-        block: husbandPB
-      },
-      wife: { id: fam.wife_id!, external: false, x: 0, block: wifePB },
-      childAnchorX: -sep / 2,
-      childAnchorY: 0,
-      tieY: 0
-    };
-  }
-  if (tilt === 'right') {
-    return {
-      husband: { id: fam.husband_id!, external: false, x: 0, block: husbandPB },
-      wife: { id: fam.wife_id!, external: false, x: sep, block: wifePB },
-      childAnchorX: sep / 2,
-      childAnchorY: 0,
-      tieY: 0
-    };
-  }
+  // Spouse-to-spouse separation is fixed at COUPLE_PITCH. The whole
+  // couple shifts as a rigid pair against the kid's column (at FB-local 0)
+  // — kidOffsetFromCoupleMid is how far right of the couple's Tie
+  // midpoint the kid sits. Zero = centered; ±COUPLE_PITCH/2 places the
+  // kid under one spouse; other values put the kid anywhere else.
+  const sep = COUPLE_PITCH;
+  const coupleMidX = -kidOffsetFromCoupleMid;
   return {
     husband: {
       id: fam.husband_id!,
       external: false,
-      x: -sep / 2,
+      x: coupleMidX - sep / 2,
       block: husbandPB
     },
-    wife: { id: fam.wife_id!, external: false, x: sep / 2, block: wifePB },
-    childAnchorX: 0,
+    wife: {
+      id: fam.wife_id!,
+      external: false,
+      x: coupleMidX + sep / 2,
+      block: wifePB
+    },
+    childAnchorX: coupleMidX,
     childAnchorY: 0,
     tieY: 0
   };
