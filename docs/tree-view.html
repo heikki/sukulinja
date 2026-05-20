@@ -294,13 +294,15 @@
             <h3>Ancestor stack</h3>
             <p class="one-liner">Everything above the Focus row.</p>
             <p>
-              At each generation up to the <strong>Generation limit</strong>:
-              the bloodline <strong>Ancestors</strong>, each ancestor's spouses
-              (forming <strong>Couples</strong>), the ancestors' full siblings
-              (<strong>Aunts/Uncles</strong> at parent gen; great-aunts/uncles
-              deeper), and the children of any non-bloodline Couples (rendered
-              one generation below as <strong>Half-siblings</strong> of Focus or
-              half-aunts/uncles).
+              At depth 1 (Focus's parents): the bloodline pair, their
+              non-Primary spouses (forming <strong>Couples</strong>), their full
+              siblings (<strong>Aunts/Uncles</strong>), and the children of any
+              non-bloodline Couples — Focus's <strong>Half-siblings</strong> at
+              Focus row. At depth ≥ 2: only the bloodline pair; step-spouses,
+              great-aunts/uncles, and half-aunts/uncles are
+              <em>not</em> rendered. Lateral context is concentrated entirely at
+              depth 1; depth ≥ 2 is a pure bloodline pyramid. Bounded by
+              <strong>Generation limit</strong>.
             </p>
             <p class="avoid">
               Avoid: ascendancy, pedigree, ancestor tree (that's a recursive
@@ -394,14 +396,13 @@
           <div class="viz"></div>
           <div>
             <h3>Aunt/Uncle</h3>
-            <p class="one-liner">A full Sibling of an Ancestor of Focus.</p>
+            <p class="one-liner">A full Sibling of Focus's Father or Mother.</p>
             <p>
-              Siblings of Focus's parents are aunts/uncles; siblings of
-              grandparents are great-aunts/great-uncles; and so on, at every
-              ancestor generation. Rendered alongside the bloodline ancestor in
-              the same sibship, hanging from the
-              parent-<strong>Couple</strong>'s <strong>Tie</strong> one
-              generation up.
+              Rendered alongside the bloodline parent in the depth-1 childhood
+              FB sibship, hanging from the grandparent-<strong>Couple</strong>'s
+              <strong>Tie</strong>. Only Focus's own aunts/uncles render —
+              siblings of deeper bloodline ancestors (great-aunts/uncles and
+              beyond) are <em>not</em> rendered.
             </p>
             <p class="avoid">
               Avoid: treating aunts/uncles as ancestors — they're collaterals,
@@ -528,18 +529,17 @@
           <div>
             <h3>Ancestor tree</h3>
             <p class="one-liner">
-              The bloodline ancestry above a person, plus one ring of lateral
-              context at every gen.
+              The bloodline ancestry above a person, with lateral context at
+              depth 1 only.
             </p>
             <p>
-              Each generation upward contains: the bloodline
-              <strong>Ancestor</strong>, that ancestor's full siblings
-              (<strong>Aunts/Uncles</strong>), each of the ancestor's spouses (a
-              <strong>Couple</strong> per marriage), and the children of any
-              non-bloodline marriages at the generation below (Focus's
-              <strong>Half-siblings</strong> at parent gen, half-aunts/uncles
-              further up). Recursion proceeds upward through the bloodline only.
-              Bounded by <strong>Generation limit</strong>.
+              At depth 1: the bloodline <strong>Ancestor</strong>, that
+              ancestor's full siblings (<strong>Aunts/Uncles</strong>), each
+              non-Primary marriage as a <strong>Couple</strong>, and the
+              non-bloodline children — Focus's <strong>Half-siblings</strong> at
+              Focus row. At depth ≥ 2: the bloodline pair only. Recursion
+              proceeds upward through the bloodline. Bounded by
+              <strong>Generation limit</strong>.
             </p>
             <p class="avoid">
               Avoid: ancestor branch (it's a tree, not a single line), ancestor

@@ -125,10 +125,11 @@ export class FamilyBlock extends Block {
       x2: spec.childAnchorX,
       y2: busY
     });
-    // Bar spans the union of childAnchorX and the kid Xs — so a tilted GP
-    // couple, whose Tie midpoint sits off the kid's column, still
-    // connects via an L-bar (drop → horizontal → leg) instead of leaving
-    // a horizontal gap between the drop and the leg.
+    // Bar spans the union of childAnchorX and the kid Xs — so a GP couple
+    // whose Tie midpoint sits off the bloodline kid's column (the norm
+    // under the bloodline pyramid; see CONTEXT.md "Bloodline pyramid")
+    // still connects via an L-bar (drop → horizontal → leg) instead of
+    // leaving a horizontal gap between the drop and the leg.
     let minX = spec.childAnchorX;
     let maxX = spec.childAnchorX;
     for (const k of spec.kids) {
