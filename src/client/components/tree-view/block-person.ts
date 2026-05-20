@@ -19,9 +19,9 @@
 import { Block } from './block';
 import type {
   LocalPersonBox,
-  LocalPos,
   LocalRenderOutput,
-  PlacedBlock
+  PlacedBlock,
+  Point
 } from './block';
 import type { FamilyBlock } from './block-family';
 import { BOX_W, ROW_H } from './helpers';
@@ -55,27 +55,29 @@ export class PersonBlock extends Block {
     const placed: PlacedBlock[] = [];
     for (const m of marriages) {
       if (m === null) continue;
-      placed.push({ block: m, offsetX: 0, offsetY: 0 });
+      placed.push({ block: m, offset: { x: 0, y: 0 } });
     }
     if (childhoodFamily !== null) {
-      placed.push({ block: childhoodFamily, offsetX: 0, offsetY: -ROW_H });
+      placed.push({ block: childhoodFamily, offset: { x: 0, y: -ROW_H } });
     }
     this.children = placed;
   }
 
   renderLocal(): LocalRenderOutput {
-    const boxes: LocalPersonBox[] = [{ personId: this.personId, x: 0, y: 0 }];
+    const boxes: LocalPersonBox[] = [
+      { personId: this.personId, pos: { x: 0, y: 0 } }
+    ];
     return { boxes, lines: [] };
   }
 
-  personLocalPos(personId: number): LocalPos | null {
+  personLocalPos(personId: number): Point | null {
     if (personId === this.personId) return { x: 0, y: 0 };
     for (const child of this.children) {
       const inner = child.block.personLocalPos(personId);
       if (inner !== null) {
         return {
-          x: child.offsetX + inner.x,
-          y: child.offsetY + inner.y
+          x: child.offset.x + inner.x,
+          y: child.offset.y + inner.y
         };
       }
     }

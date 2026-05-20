@@ -5,7 +5,7 @@
 //   Pass 2 — build Fa.PB / Mo.PB with step-fam FBs sized to clear the
 //            bloodline kid row's chart extents.
 
-import type { Block } from './block';
+import type { Block, Point } from './block';
 import { FamilyBlock } from './block-family';
 import type {
   AdultPlacement,
@@ -117,8 +117,7 @@ function buildChildhoodFamily(args: BuildChildhoodArgs): FamilyBlock | null {
     adultY: 0,
     kidY: ROW_H,
     tieY: couple.tieY,
-    childAnchorX: couple.childAnchorX,
-    childAnchorY: couple.childAnchorY,
+    childAnchor: couple.childAnchor,
     leftWidth: extents.leftWidth,
     rightWidth: extents.rightWidth
   };
@@ -429,7 +428,7 @@ interface AssembleParentArgs {
 function assembleParentFB(args: AssembleParentArgs): FamilyBlock {
   const { parentFam, faPB, moPB, kidPBs, packed, sibIds } = args;
   const couple = layoutInternalCouple(faPB, moPB, parentFam);
-  const kidXs = kidXsFromPacked(packed, couple.childAnchorX);
+  const kidXs = kidXsFromPacked(packed, couple.childAnchor.x);
   const kids: KidPlacement[] = sibIds.map((sid, i) => ({
     id: sid,
     external: false,
@@ -449,8 +448,7 @@ function assembleParentFB(args: AssembleParentArgs): FamilyBlock {
     adultY: 0,
     kidY: ROW_H,
     tieY: couple.tieY,
-    childAnchorX: couple.childAnchorX,
-    childAnchorY: couple.childAnchorY,
+    childAnchor: couple.childAnchor,
     leftWidth: extents.leftWidth,
     rightWidth: extents.rightWidth
   };
@@ -460,8 +458,7 @@ function assembleParentFB(args: AssembleParentArgs): FamilyBlock {
 interface InternalCoupleLayout {
   husband: AdultPlacement | null;
   wife: AdultPlacement | null;
-  childAnchorX: number;
-  childAnchorY: number;
+  childAnchor: Point;
   tieY: number;
 }
 
@@ -478,8 +475,7 @@ function layoutInternalCouple(
     return {
       husband: { id: fam.husband_id!, external: false, x: 0, block: husbandPB },
       wife: null,
-      childAnchorX: 0,
-      childAnchorY: BOX_H / 2,
+      childAnchor: { x: 0, y: BOX_H / 2 },
       tieY: 0
     };
   }
@@ -487,16 +483,14 @@ function layoutInternalCouple(
     return {
       husband: null,
       wife: { id: fam.wife_id!, external: false, x: 0, block: wifePB },
-      childAnchorX: 0,
-      childAnchorY: BOX_H / 2,
+      childAnchor: { x: 0, y: BOX_H / 2 },
       tieY: 0
     };
   }
   return {
     husband: null,
     wife: null,
-    childAnchorX: 0,
-    childAnchorY: 0,
+    childAnchor: { x: 0, y: 0 },
     tieY: 0
   };
 }
@@ -525,8 +519,7 @@ function couplePlacement(
       x: tieXFBlocal + sep / 2,
       block: wifePB
     },
-    childAnchorX: tieXFBlocal,
-    childAnchorY: 0,
+    childAnchor: { x: tieXFBlocal, y: 0 },
     tieY: 0
   };
 }

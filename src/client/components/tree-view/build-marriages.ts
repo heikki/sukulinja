@@ -3,7 +3,7 @@
 // step-fam logic lives in build-step-fams.ts; PB builders + parent FB
 // orchestration live in build-tree.ts.
 
-import type { Block } from './block';
+import type { Block, Point } from './block';
 import { FamilyBlock } from './block-family';
 import type {
   AdultPlacement,
@@ -83,8 +83,7 @@ export interface BuildMarriageArgs {
   husband: AdultPlacement | null;
   wife: AdultPlacement | null;
   kids: KidPlacement[];
-  anchorX: number;
-  anchorY: number;
+  anchor: Point;
   tieY: number;
 }
 
@@ -102,8 +101,7 @@ export function buildMarriageFamilyBlock(args: BuildMarriageArgs): FamilyBlock {
     adultY: 0,
     kidY: ROW_H,
     tieY: args.tieY,
-    childAnchorX: args.anchorX,
-    childAnchorY: args.anchorY,
+    childAnchor: args.anchor,
     leftWidth: extents.leftWidth,
     rightWidth: extents.rightWidth
   };
@@ -114,8 +112,7 @@ export function buildMarriageFamilyBlock(args: BuildMarriageArgs): FamilyBlock {
 // child-anchor / tie-Y the FB will use.
 export interface SpousePlacement {
   xSpouse: number;
-  anchorX: number;
-  anchorY: number;
+  anchor: Point;
   tieY: number;
 }
 
@@ -157,7 +154,7 @@ export function buildExternalAdultFB(
               : new PersonBlock(renderedSpouseId, null, [], null)
         };
 
-  const kidXs = kidXsFromPacked(packed, placement.anchorX);
+  const kidXs = kidXsFromPacked(packed, placement.anchor.x);
   const kids: KidPlacement[] = kidBlocks.map((kb, i) => ({
     id: kb.personId,
     external: false,
@@ -170,8 +167,7 @@ export function buildExternalAdultFB(
     husband: externalIsHusband ? externalAdult : spouseAdult,
     wife: externalIsHusband ? spouseAdult : externalAdult,
     kids,
-    anchorX: placement.anchorX,
-    anchorY: placement.anchorY,
+    anchor: placement.anchor,
     tieY: placement.tieY
   });
 }

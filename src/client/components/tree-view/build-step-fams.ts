@@ -158,8 +158,7 @@ function buildSidedStepFamFB(args: BuildSidedStepFamArgs): {
     packed,
     placement: {
       xSpouse,
-      anchorX: xSpouse,
-      anchorY: BOX_H / 2,
+      anchor: { x: xSpouse, y: BOX_H / 2 },
       tieY: xSpouse >= 0 ? -NONPRIMARY_TIE_Y_OFFSET : NONPRIMARY_TIE_Y_OFFSET
     },
     ix
