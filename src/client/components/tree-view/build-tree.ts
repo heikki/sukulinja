@@ -75,8 +75,6 @@ function buildChildhoodFamily(args: BuildChildhoodArgs): FamilyBlock | null {
   const fam = ix.parentFamByPerson.get(personId);
   if (fam === undefined) return null;
   const parentDepth = currentDepth + 1;
-  // Build kids first so we know the sibship's bar midpoint — the GGP
-  // couple's Tie sits directly above it (keeping the drop vertical).
   const kids = childhoodFBKids({
     bloodlineId: personId,
     fam,
@@ -85,14 +83,11 @@ function buildChildhoodFamily(args: BuildChildhoodArgs): FamilyBlock | null {
     stepFamSpacer,
     ix
   });
-  // The Tie sits off the kid's column in the direction of the
-  // ancestor's sex (male's parents fan left, female's right). The
-  // magnitude is max(|bar midpoint|, directional shift) so depth-1
-  // sibships with wide Aunts/Uncles use the bar midpoint, while
-  // only-child cases (and depth ≥ 2) get the scaled directional shift.
-  // The directional shift itself grows with remaining levels above
-  // (ADR-0001), so the upper pyramid has horizontal room.
-  const tieXFBlocal = tieXForFB(personId, currentDepth, kids, ix);
+  // Tie sits off the bloodline kid's column in the direction of the
+  // ancestor's sex (male's parents fan left, female's right). Same rule
+  // at every depth — the bar reaches out to whichever kid is farthest.
+  // Magnitude scales with remaining levels above (ADR-0001).
+  const tieXFBlocal = tieXForFB(personId, currentDepth, ix);
   const husbandChartX = ancestorChartX + tieXFBlocal - HALF_PITCH;
   const wifeChartX = ancestorChartX + tieXFBlocal + HALF_PITCH;
   const husbandPB = ancestorPBOrNull(
@@ -144,15 +139,12 @@ function buildPlainAncestorPB(
 function tieXForFB(
   personId: number,
   currentDepth: number,
-  _kids: readonly KidPlacement[],
   ix: LayoutIndices
 ): number {
-  // Tie sits at the directional shift, regardless of how wide the kid
-  // sibship is — ancestor couples land as close to chart center as the
-  // inter-couple spacing allows, and the bar / legs reach out to whichever
-  // kids are shifted further. Shift magnitude follows (2^remainingAbove −
-  // 1) × HALF_PITCH so deeper pyramids still get exponentially more room
-  // at higher gens.
+  // Ancestor couples land as close to chart center as the inter-couple
+  // spacing allows; the bar/legs reach out to whichever kids are farther.
+  // Shift magnitude follows (2^remainingAbove − 1) × HALF_PITCH so deeper
+  // pyramids still get exponentially more room at higher gens.
   const remainingAbove = Math.max(1, ix.levels - currentDepth);
   const directional = HALF_PITCH * (2 ** remainingAbove - 1);
   const sex = ix.persons.get(personId)?.sex;

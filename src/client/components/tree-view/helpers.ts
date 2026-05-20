@@ -1,4 +1,4 @@
-// See docs/tree-view.html for the domain vocabulary.
+// See CONTEXT.md for the authoritative domain vocabulary.
 
 import type { FamilyRow, PersonRow } from '@common/types';
 
