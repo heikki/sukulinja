@@ -20,10 +20,9 @@ import { Block } from './block';
 import type { LocalPersonBox, PlacedBlock } from './block';
 import type { FamilyBlock } from './block-family';
 import { BOX_W, ROW_H, translatePoint } from './helpers';
-import type { Extents } from './helpers';
 
 export class PersonBlock extends Block {
-  readonly extents: Extents;
+  readonly selfHalfWidth = BOX_W / 2;
   readonly children: readonly PlacedBlock[];
 
   constructor(
@@ -33,19 +32,6 @@ export class PersonBlock extends Block {
     readonly activeMarriageIndex: number | null
   ) {
     super();
-    let left = BOX_W / 2;
-    let right = BOX_W / 2;
-    if (childhoodFamily !== null) {
-      left = Math.max(left, childhoodFamily.extents.left);
-      right = Math.max(right, childhoodFamily.extents.right);
-    }
-    for (const m of marriages) {
-      if (m === null) continue;
-      left = Math.max(left, m.extents.left);
-      right = Math.max(right, m.extents.right);
-    }
-    this.extents = { left, right };
-
     const placed: PlacedBlock[] = [];
     for (const m of marriages) {
       if (m === null) continue;

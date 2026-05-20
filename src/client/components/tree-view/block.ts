@@ -26,12 +26,29 @@ export interface PlacedBlock {
 }
 
 export abstract class Block {
-  abstract readonly extents: Extents;
   abstract readonly children: readonly PlacedBlock[];
+
+  // How far the block's own box reaches from its pivot (BOX_W/2 for
+  // PersonBlock; 0 for FamilyBlock, which has no own box). Folded into the
+  // extents calculation alongside children.
+  abstract readonly selfHalfWidth: number;
 
   abstract renderLocal(): LocalRenderOutput;
 
   abstract personLocalPos(personId: number): Point | null;
+
+  private cachedExtents: Extents | null = null;
+  get extents(): Extents {
+    if (this.cachedExtents !== null) return this.cachedExtents;
+    let left = this.selfHalfWidth;
+    let right = this.selfHalfWidth;
+    for (const c of this.children) {
+      left = Math.max(left, c.block.extents.left - c.offset.x);
+      right = Math.max(right, c.offset.x + c.block.extents.right);
+    }
+    this.cachedExtents = { left, right };
+    return this.cachedExtents;
+  }
 }
 
 export interface RenderGroup {
