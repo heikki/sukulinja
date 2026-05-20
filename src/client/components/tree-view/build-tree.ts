@@ -76,16 +76,14 @@ function buildChildhoodFamily(
     ancestorChartX,
     ix
   });
-  // At depth 1 (multi-kid sibship with Aunts/Uncles) the Tie sits above
-  // the kid bar's midpoint — drop is vertical, no extra horizontal slack
-  // needed. At depth ≥ 2 (one kid) the Tie shifts off the kid's column
-  // in the direction of the ancestor's sex (male's parents fan left,
-  // female's fan right). The shift grows as more levels are rendered
-  // above, so deeper pyramids have room (ADR-0001).
-  const tieXFBlocal =
-    currentDepth === 1
-      ? sibshipBarMid(kids)
-      : depthTwoPlusTieX(personId, currentDepth, ix);
+  // The Tie sits off the kid's column in the direction of the
+  // ancestor's sex (male's parents fan left, female's right). The
+  // magnitude is max(|bar midpoint|, directional shift) so depth-1
+  // sibships with wide Aunts/Uncles use the bar midpoint, while
+  // only-child cases (and depth ≥ 2) get the scaled directional shift.
+  // The directional shift itself grows with remaining levels above
+  // (ADR-0001), so the upper pyramid has horizontal room.
+  const tieXFBlocal = tieXForFB(personId, currentDepth, kids, ix);
   const husbandChartX = ancestorChartX + tieXFBlocal - HALF_PITCH;
   const wifeChartX = ancestorChartX + tieXFBlocal + HALF_PITCH;
   const husbandPB = ancestorPBOrNull(
@@ -139,19 +137,25 @@ function sibshipBarMid(kids: readonly KidPlacement[]): number {
   return (minX + maxX) / 2;
 }
 
-function depthTwoPlusTieX(
+function tieXForFB(
   personId: number,
   currentDepth: number,
+  kids: readonly KidPlacement[],
   ix: LayoutIndices
 ): number {
-  // Shift grows with remaining levels above so each generation's gen+1
-  // columns stay distinct: HALF_PITCH at the topmost rendered ancestor
-  // (looks like a centered "Tie above kid"), 3*HALF_PITCH one gen below,
-  // 7*HALF_PITCH two gens below, etc. — the (2^n − 1) sequence.
+  // Directional shift magnitude follows (2^remainingAbove − 1) × HALF_PITCH
+  // so deeper pyramids get exponentially more room.
   const remainingAbove = Math.max(1, ix.levels - currentDepth);
-  const magnitude = HALF_PITCH * (2 ** remainingAbove - 1);
+  const directional = HALF_PITCH * (2 ** remainingAbove - 1);
   const sex = ix.persons.get(personId)?.sex;
-  return sex === 'F' ? magnitude : -magnitude;
+  const barMid = sibshipBarMid(kids);
+  // For Fa branch (male), both barMid and the directional shift are
+  // negative; take the more negative. For Mo branch (female), both
+  // positive; take the more positive. For an only-child sibship at
+  // depth 1 the barMid is 0 and the directional shift wins.
+  return sex === 'F'
+    ? Math.max(barMid, directional)
+    : Math.min(barMid, -directional);
 }
 
 // Bloodline kid sits at FB-local 0 (the PB anchor). At depth 1, Aunts/Uncles
