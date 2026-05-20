@@ -42,31 +42,11 @@ export function packBlocks(extents: readonly Extents[]) {
   return { positions, totalWidth: cursor, barMid };
 }
 
-interface BuildMarriageFBArgs {
-  famId: number;
-  husband: PersonPlacement | null;
-  wife: PersonPlacement | null;
-  kids: PersonPlacement[];
-  anchor: Point;
-  tieY: number;
-}
-
-export function buildMarriageFB(args: BuildMarriageFBArgs) {
-  return new FamilyBlock({
-    famId: args.famId,
-    husband: args.husband,
-    wife: args.wife,
-    kids: args.kids,
-    tieY: args.tieY,
-    childAnchor: args.anchor
-  });
-}
-
 // Where the spouse sits relative to the externalAdult's anchor, plus the
 // child-anchor / tie-Y the FB will use.
 export interface SpousePlacement {
   xSpouse: number;
-  anchor: Point;
+  childAnchor: Point;
   tieY: number;
 }
 
@@ -106,7 +86,7 @@ export function buildExternalAdultFB(args: BuildExternalAdultFBArgs) {
               : new PersonBlock(renderedSpouseId, null, [], null)
         };
 
-  const kidXs = kidXsFromPacked(packed, placement.anchor.x);
+  const kidXs = kidXsFromPacked(packed, placement.childAnchor.x);
   const kids: PersonPlacement[] = kidBlocks.map((kb, i) => ({
     id: kb.personId,
     external: false,
@@ -114,12 +94,12 @@ export function buildExternalAdultFB(args: BuildExternalAdultFBArgs) {
     block: kb
   }));
 
-  return buildMarriageFB({
+  return new FamilyBlock({
     famId: fam.id,
     husband: externalIsHusband ? externalAdult : spouseAdult,
     wife: externalIsHusband ? spouseAdult : externalAdult,
     kids,
-    anchor: placement.anchor,
+    childAnchor: placement.childAnchor,
     tieY: placement.tieY
   });
 }

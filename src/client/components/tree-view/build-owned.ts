@@ -122,7 +122,7 @@ function ownedKidBlocks(
 
 function primarySpousePlacement(fanDir: 1 | -1) {
   const xSpouse = fanDir * COUPLE_PITCH;
-  return { xSpouse, anchor: { x: xSpouse / 2, y: 0 }, tieY: 0 };
+  return { xSpouse, childAnchor: { x: xSpouse / 2, y: 0 }, tieY: 0 };
 }
 
 function nonPrimarySpousePlacement(
@@ -136,7 +136,7 @@ function nonPrimarySpousePlacement(
   const xSpouse = fanDir * (outerEdge + COUPLE_GAP + innerClear);
   return {
     xSpouse,
-    anchor: { x: xSpouse, y: BOX_H / 2 },
+    childAnchor: { x: xSpouse, y: BOX_H / 2 },
     tieY: -NONPRIMARY_TIE_Y_OFFSET * fanDir
   };
 }
