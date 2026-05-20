@@ -78,12 +78,13 @@ function buildChildhoodFamily(
   });
   // At depth 1 (multi-kid sibship with Aunts/Uncles) the Tie sits above
   // the kid bar's midpoint — drop is vertical, no extra horizontal slack
-  // needed. At depth ≥ 2 (one kid) we revert to the symmetric-pyramid
-  // rule (Tie at chart-X = 2 * ancestorChartX, i.e. FB-local
-  // ancestorChartX) so adjacent ancestor couples don't drift into the
-  // same column at higher gens; the bar then runs horizontally from
-  // Tie X over to the kid's column.
-  const tieXFBlocal = currentDepth === 1 ? sibshipBarMid(kids) : ancestorChartX;
+  // needed. At depth ≥ 2 (one kid) the Tie shifts a HALF_PITCH off the
+  // kid's column in the direction of the ancestor's sex: male's parents
+  // fan to his left, female's to her right. This centers each Couple's
+  // great-grandparents around the Couple itself and keeps gen-3 columns
+  // distinct (see ADR-0001).
+  const tieXFBlocal =
+    currentDepth === 1 ? sibshipBarMid(kids) : depthTwoPlusTieX(personId, ix);
   const husbandChartX = ancestorChartX + tieXFBlocal - HALF_PITCH;
   const wifeChartX = ancestorChartX + tieXFBlocal + HALF_PITCH;
   const husbandPB = ancestorPBOrNull(
@@ -135,6 +136,11 @@ function sibshipBarMid(kids: readonly KidPlacement[]): number {
     if (k.x > maxX) maxX = k.x;
   }
   return (minX + maxX) / 2;
+}
+
+function depthTwoPlusTieX(personId: number, ix: LayoutIndices): number {
+  const sex = ix.persons.get(personId)?.sex;
+  return sex === 'F' ? HALF_PITCH : -HALF_PITCH;
 }
 
 // Bloodline kid sits at FB-local 0 (the PB anchor). At depth 1, Aunts/Uncles

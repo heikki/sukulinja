@@ -61,8 +61,9 @@ Focus's column sits at chart X = 0. With uneven ancestry, the ancestor pyramid d
 
 **Bloodline pyramid**:
 Every parent **Drop** is purely vertical — never an L-bend. The Tie's chart-X depends on depth:
+
 - At depth 1 (multi-kid sibship including **Aunts/Uncles**): the Tie sits directly above the **Bar** midpoint, so the drop lands in the middle of the kid sibship. Aunts/Uncles shift the GP couple's Tie outward by half the sibship's extra width.
-- At depth ≥ 2 (one bloodline kid only): the Tie sits at chart-X = 2 × ancestorChartX (the symmetric-pyramid position), and the kid bar runs _horizontally_ from the Tie X over to the kid's column. The bar — not the drop — does the horizontal work, keeping adjacent ancestor couples on distinct chart columns.
+- At depth ≥ 2 (one bloodline kid only): the Tie sits one HALF_PITCH off the kid's column in the direction set by the kid's sex — male ancestor's parents fan to his left, female's to her right. The kid bar runs _horizontally_ from the Tie X over to the kid's column; the bar — not the drop — does the horizontal work. Each ancestor Couple's great-grandparents stay centered around the Couple itself, and adjacent ancestors at the next gen up land on distinct chart columns.
 
 Spouse separation inside every Couple — including the chart-root parent FB — stays fixed at one COUPLE_PITCH; subtree extents grow outward (away from chart center).
 
