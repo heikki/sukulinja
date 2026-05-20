@@ -1,9 +1,4 @@
-// Top-level chart assembly.
-//
-// Build the chart root (either the parent FamilyBlock or — when focus has no
-// known parents within ix.levels — the focus's PersonBlock), then re-center
-// it so the focus's PersonBlock lands at chart (0, 0). All recursion lives
-// inside the block tree itself (see build-tree.ts and docs/ancestor-refactor.html).
+// Build the chart root, then re-center it so focus lands at chart (0, 0).
 
 import { renderChartBlocks } from './block';
 import type { PlacedBlock, RenderOutput } from './block';

@@ -1,9 +1,5 @@
 // Top-down builders for the block-tree layout.
 //
-// See docs/ancestor-refactor.html for the block model,
-// docs/step-fam-placement.html for how Fa/Mo step-fams are sized, and
-// docs/tilted-gp-couples.html for the tilted grandparent layout.
-//
 // Two-pass orchestration for the chart-root parent FB:
 //   Pass 1 — build bloodline kid PBs (focus + siblings) and pack them.
 //   Pass 2 — build Fa.PB / Mo.PB with step-fam FBs sized to clear the
@@ -108,9 +104,9 @@ function buildPlainAncestorPB(
   tilt: Tilt,
   ix: LayoutIndices
 ): PersonBlock {
-  // At depth ≥ 2 the tilt is preserved through the chain (paternal branch
-  // tilts left all the way up, maternal branch tilts right). See
-  // docs/tilted-gp-couples.html §4 for the levels ≥ 3 caveat.
+  // Tilt is preserved through the chain (paternal branch tilts left all the
+  // way up, maternal branch tilts right) so deeper great-GP rows don't
+  // converge at the same chart X.
   const childhood = buildChildhoodFamily(personId, depth, tilt, ix);
   return new PersonBlock(personId, childhood, [], null);
 }
@@ -357,8 +353,7 @@ function couplePlacement(
   // Sep widens to clear husband's right subtree extent + wife's left
   // subtree extent. For tilted couples the inner spouse sits at FB-local
   // 0, the outer spouse at ±sep — so deeper ancestor rows widen
-  // recursively and great-GP / great-great-GP boxes don't converge at the
-  // same chart X. See docs/tilted-gp-couples.html §4.
+  // recursively.
   const sep = Math.max(
     COUPLE_PITCH,
     husbandPB.coupleRightWidth + wifePB.coupleLeftWidth + COUPLE_GAP

@@ -151,10 +151,9 @@ export const treeViewStyles = css`
     fill: none;
   }
 
-  /* Layout snaps on focus change — only opacity is animated, for fade-in of
-     freshly-rendered nodes/edges. Transform / d are not transitioned, which
-     keeps the focus-change behaviour predictable while we work out the
-     correct combined pan + node motion. */
+  /* Focus change snaps — only opacity is animated, for fade-in of newly
+     rendered nodes and edges. The Pin keeps the focused node visually fixed
+     across the snap. */
   .node {
     animation: sl-enter var(--sl-anim-fade) ease-out both;
   }

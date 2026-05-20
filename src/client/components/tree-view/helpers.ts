@@ -1,14 +1,9 @@
-// Pure layout helpers and shared types for the tree-view component.
-//
-// See docs/tree-view.html for the domain vocabulary and
-// docs/adr/0001-tree-view-layout-architecture.md for the load-bearing
-// design decisions (Block-tree architecture, asymmetric sibship rule).
+// See docs/tree-view.html for the domain vocabulary.
 
 import type { FamilyRow, PersonRow } from '@common/types';
 
 export type { FamilyRow, PersonRow };
 
-// Indices passed to the recursive layout functions.
 export interface LayoutIndices {
   persons: Map<number, PersonRow>;
   parentFamByPerson: Map<number, FamilyRow>;
@@ -27,9 +22,7 @@ export interface Line {
 export const BOX_W = 184;
 export const BOX_H = 90;
 export const SIBLING_GAP = 28;
-// COUPLE_GAP matches SIBLING_GAP so the spacing between adjacent boxes is
-// visually uniform across the row, whether the adjacency is a Couple Tie or
-// a sibling drop.
+// Match SIBLING_GAP for visually uniform spacing across the row.
 export const COUPLE_GAP = 28;
 export const ROW_GAP = 70;
 export const ROW_H = BOX_H + ROW_GAP;
@@ -39,8 +32,6 @@ export const SVG_HALF = 5000;
 export const COUPLE_PITCH = BOX_W + COUPLE_GAP;
 export const DRAG_THRESHOLD_PX = 4;
 export const DEFAULT_FOCUS_ID = 3;
-
-// ============= Family helpers =============
 
 export function otherSpouseOf(fam: FamilyRow, personId: number): number | null {
   if (fam.husband_id === personId) return fam.wife_id;

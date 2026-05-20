@@ -130,10 +130,9 @@ export class TreeViewElement extends LitElement {
     this.panReady = true;
   }
 
-  // After a focus change, the new focus lives at SVG (0, 0). Set pan so that
-  // SVG (0, 0) appears at the captured pendingPinScreen pixel. The matching
-  // `transition: transform` on `.pan` and `.node` (same duration + easing)
-  // ensures the pinned node visually stays put across the whole transition.
+  // After a focus change, the new focus lives at SVG (0, 0). Set pan so the
+  // captured pendingPinScreen pixel coincides with the new focus — eliminating
+  // the "jump" effect on refocus.
   private applyPin(): void {
     this.pan = {
       x: this.pendingPinScreen!.x - SVG_HALF,

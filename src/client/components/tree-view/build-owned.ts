@@ -3,9 +3,9 @@
 // PB.children), unlike bloodline-ancestor PBs whose active marriage is
 // rendered by the parent FB above (see build-step-fams.ts).
 //
-// Active = chronologically most recent marriage (legacy convention has the
-// most-recent spouse adjacent). Earlier marriages fan further outward in
-// fanDir.
+// Active = chronologically most recent marriage — drawn adjacent to the
+// person; earlier marriages fan further outward in fanDir. Siblings only
+// ever render their first meaningful spouseFam.
 
 import type { AdultPlacement, FamilyBlock, KidPlacement } from './block-family';
 import { PersonBlock } from './block-person';

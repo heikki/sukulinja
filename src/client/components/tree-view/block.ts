@@ -1,21 +1,12 @@
 // Base Block class + shared types for the block-tree layout.
 //
-// Two concrete kinds (see docs/ancestor-refactor.html):
+// Two concrete kinds:
 //   - PersonBlock — exactly one person; recursion happens here, via
 //     `childhoodFamily` placed above and `marriages` placed below.
 //   - FamilyBlock — exactly one family (couple + their kids); never recurses.
 //
-// Each Block has:
-//   - a local coordinate frame (pivot at (0, 0))
-//   - leftWidth/rightWidth — extent from the pivot
-//   - children — other Blocks placed at offsets in this frame
-//   - renderLocal() — own boxes + lines in own frame
-//   - personLocalPos(id) — where a rendered person sits in own frame
-//     (returns null for external members or unknown ids)
-//
-// The render walk converts boxes into nested <g transform> groups and keeps
-// edges flat at the top level, so the box-over-edge z-order is preserved
-// without any per-Block bookkeeping.
+// The render walk keeps edges flat at the top level so box-over-edge
+// z-order is preserved without any per-Block bookkeeping.
 
 import type { Line } from './helpers';
 
@@ -60,8 +51,6 @@ export abstract class Block {
 
   abstract personLocalPos(personId: number): LocalPos | null;
 }
-
-// ============= Render walk =============
 
 export interface PlacedBlock {
   block: Block;

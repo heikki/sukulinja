@@ -4,12 +4,10 @@
 // FamilyBlock, in chronological order, with `null` at the bloodline slot
 // (the active marriage is rendered by the parent FB above).
 //
-// The step-spouse's FB-local X (xSpouse) is sized at chart-time from the
-// bloodline kid row's chart extents — see docs/step-fam-placement.html.
-// Each step-fam FB is placed at PB(parent)-local (0, 0); the FB's own
-// internal layout uses non-primary anchoring (sibship drops from the
-// step-spouse box bottom), with Tie Y offset above or below the bloodline
-// Tie to keep them visually distinct.
+// Each step-fam FB is placed at PB(parent)-local (0, 0). The step-spouse's
+// FB-local X is sized so the step-fam clears the bloodline kid row's chart
+// extents. Sibship drops from the step-spouse box bottom, and Tie Y is
+// offset slightly above/below the bloodline Tie for visual distinction.
 
 import type { AdultPlacement, FamilyBlock, KidPlacement } from './block-family';
 import { PersonBlock } from './block-person';

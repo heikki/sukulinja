@@ -51,7 +51,7 @@ A blood ascendant of Focus. Each has two bloodline parents above; the chart recu
 Husband on the left, wife on the right in every **Couple**. With multiple spouses, the shared partner sits at one end (left if husband, right if wife); marriages fan outward in chronological order with the **Primary spouse** adjacent.
 
 **Primary spouse**:
-The spouse from the earliest marriage. Sits adjacent to its partner; later marriages fan outward. Pure ordering role.
+The spouse rendered adjacent to its partner when multiple spouses exist; other marriages fan outward in chronological order. The selection rule depends on context — for an **Ancestor** it's the bloodline partner; for Focus and Descendants it's the most recent marriage. Pure layout role.
 
 **Child anchor**:
 The point a **Drop** to children originates. Primary marriage (or single-marriage **Couple**): **Tie** midpoint. Non-Primary marriage: bottom edge of the non-shared parent's box. Lone parent: bottom edge of their box.
@@ -59,7 +59,7 @@ The point a **Drop** to children originates. Primary marriage (or single-marriag
 ### Structures
 
 **Family**:
-A nuclear unit: (optional) husband + (optional) wife + zero or more children. A person is a child in at most one Family and a spouse in zero or more. Use a person's role inline ("the Family Focus is a child in").
+A nuclear unit: (optional) husband + (optional) wife + zero or more children. A person is a child in at most one Family and a spouse in zero or more.
 
 **Couple**:
 A spouse pair drawn side-by-side, joined by a horizontal **Tie**. With only one party known, degenerates to a single person with no Tie.
