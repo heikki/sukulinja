@@ -15,7 +15,7 @@ _Avoid_: Proband, ego, root, center person.
 ### The three slabs
 
 **Focus row**:
-The horizontal row at Focus's **Generation** (Y = 0). Contains Focus + full **Siblings** + Focus's **Spouses** (joined by **Ties**) plus any **Half-sibling** sibships beside it.
+The horizontal row at Focus's **Generation** (Y = 0). Contains Focus + full **Siblings** (each with their first marriage's spouse if any) + Focus's **Spouses** (joined by **Ties**) plus any **Half-sibling** sibships beside it.
 _Avoid_: Center row, sibship row, generation row.
 
 **Ancestor stack**:
@@ -35,7 +35,7 @@ Another child in the same **Family**. Children of one Family are always full sib
 Shares exactly one parent with **Focus**. Rendered at Focus's row, hanging from the non-Primary **Child anchor** of the corresponding parent-Couple (directly under the step-parent). Only Focus's own half-siblings render; half-aunts/uncles (children of step-fams at depth ≥ 2) are not rendered.
 
 **Spouse**:
-A partner in a **Family**. Rendered (forming a **Couple** joined by a **Tie**) when paired with Focus, a bloodline Ancestor, or a bloodline Descendant. Lateral relatives' spouses are not rendered. Multiple spouses fan outward in chronological order — see **Primary spouse**.
+A partner in a **Family**. Rendered (forming a **Couple** joined by a **Tie**) when paired with Focus, a bloodline Ancestor, a bloodline Descendant, or a full **Sibling** of Focus. A Sibling renders only their first meaningful marriage's spouse (no kids); Focus and Descendants render every meaningful marriage. **Aunts/Uncles** do not render any spouses. Multiple spouses fan outward in chronological order — see **Primary spouse**.
 _Avoid_: Partner (this codebase models marriage only).
 
 **Aunt/Uncle**:
@@ -48,7 +48,7 @@ A blood ascendant of Focus. Each has two bloodline parents above; the chart recu
 ### Layout rules
 
 **Husband-left convention**:
-Husband on the left, wife on the right in every **Couple**. With multiple spouses, the shared partner sits at one end (left if husband, right if wife); marriages fan outward in chronological order with the **Primary spouse** adjacent.
+Husband on the left, wife on the right in every **Couple**. With multiple spouses, the shared partner sits at one end (left if husband, right if wife); marriages fan outward in chronological order with the **Primary spouse** adjacent. Exception: depth-1 non-Primary step-spouses (the **Step-fam fan**) sit on the bloodline parent's own side regardless of sex, so the convention can be violated there. The **Tie** endpoints adapt by X order, not by husband/wife role.
 
 **Primary spouse**:
 The spouse rendered adjacent to its partner when multiple spouses exist; other marriages fan outward in chronological order. The selection rule depends on context — for an **Ancestor** it's the bloodline partner; for Focus and Descendants it's the most recent marriage. Pure layout role.
@@ -60,18 +60,17 @@ The point a **Drop** to children originates. Primary marriage (or single-marriag
 Focus's column sits at chart X = 0. With uneven ancestry, the ancestor pyramid drifts left or right of Focus rather than re-centering. Everything above Focus is positioned by propagation; Focus itself is the only fixed point.
 
 **Bloodline pyramid**:
-Every parent **Drop** is purely vertical — never an L-bend. The Tie's chart-X depends on depth:
+Every parent **Drop** is purely vertical — never an L-bend. At every depth (including depth 1, even when the sibship widens with **Aunts/Uncles**), the Tie sits off the bloodline kid's column in the direction set by the kid's sex — male ancestor's parents fan to his left, female's to her right. The kid **Bar** runs horizontally from the Tie X over to the bloodline kid's column; the bar — not the drop — does the horizontal work.
 
-- At depth 1 (multi-kid sibship including **Aunts/Uncles**): the Tie sits directly above the **Bar** midpoint, so the drop lands in the middle of the kid sibship. Aunts/Uncles shift the GP couple's Tie outward by half the sibship's extra width.
-- At depth ≥ 2 (one bloodline kid only): the Tie sits off the kid's column in the direction set by the kid's sex — male ancestor's parents fan to his left, female's to her right. The kid bar runs horizontally from the Tie X over to the kid's column; the bar — not the drop — does the horizontal work. The shift magnitude grows with how many more levels are rendered above: HALF_PITCH at the topmost ancestor row, 3 × HALF_PITCH one level lower, 7 × HALF_PITCH two levels lower — the (2^n − 1) sequence. This keeps each Couple's great-grandparents centered around the Couple itself while giving the upper pyramid enough room to keep gen+1 columns distinct.
+The shift magnitude grows with how many more levels are rendered above: HALF_PITCH at the topmost ancestor row, 3 × HALF_PITCH one level lower, 7 × HALF_PITCH two levels lower — the (2^n − 1) sequence. This places each Couple as close to chart center as the inter-couple spacing allows, keeps each Couple's great-grandparents centered around the Couple itself, and gives the upper pyramid enough room to keep gen+1 columns distinct.
 
 Spouse separation inside every Couple — including the chart-root parent FB — stays fixed at one COUPLE_PITCH; subtree extents grow outward (away from chart center).
 
 **Aunts/Uncles placement**:
-At depth 1, **Aunts/Uncles** share the childhood FB sibship with their bloodline sibling (Father or Mother). The bloodline sibling sits at the _inward_ end of the sibship (Father at the rightmost slot of his sibship, Mother at the leftmost slot of hers); Aunts/Uncles fan outward in birth order. The slot widens to fit them — driving the parent FB Tie outward and propagating up.
+At depth 1, **Aunts/Uncles** share the childhood FB sibship with their bloodline sibling (Father or Mother). The bloodline sibling sits at the _inward_ end of the sibship (Father at the rightmost slot of his sibship, Mother at the leftmost slot of hers); Aunts/Uncles fan outward in birth order, pushed past the **Step-fam fan** reservation so step-spouses and **Half-siblings** of Focus fit between the bloodline parent and the Aunts/Uncles. The GP couple's Tie position (see **Bloodline pyramid**) is independent of the sibship width — the bar reaches out to whichever Aunt/Uncle sits farthest from the Tie.
 
 **Step-fam fan**:
-Non-Primary marriages of a bloodline **Ancestor** render at depth 1 only (Fa's and Mo's). Depth ≥ 2 ancestors show their bloodline Couple only — earlier or later marriages are hidden. At depth 1, all chronologically-pre-bloodline marriages render _outside the left edge_ of the bloodline footprint (Fa + Mo + their kid sibship), and all chronologically-post-bloodline marriages render _outside the right edge_. Same hand-off rule applies to both Fa's and Mo's marriages — so Fa's later wives and Mo's later husbands both pile up on the chart's right margin (in chronological order, each one further out). The chart-root parent FB sep stays at COUPLE_PITCH.
+Non-Primary marriages of a bloodline **Ancestor** render at depth 1 only (Fa's and Mo's). Depth ≥ 2 ancestors show their bloodline Couple only — earlier or later marriages are hidden. At depth 1, each parent's non-Primary marriages fan outward on that parent's own side of the chart-root parent FB — Fa's pile up past the bloodline footprint's left edge, Mo's pile up past the right edge — regardless of whether each marriage is chronologically pre- or post-bloodline. Within each side, chronologically-adjacent marriages (one step before or after the bloodline marriage) land closest to the parent, and progressively-distant marriages fan further outward. The chart-root parent FB sep stays at COUPLE_PITCH.
 
 ### Structures
 
@@ -115,12 +114,12 @@ The maximum **Depth** rendered in each direction. Beyond it, the sub-layout beco
 
 ## Rendering scope
 
-- **Focus** + Focus's full **Siblings** + Focus's **Spouses**.
+- **Focus** + Focus's full **Siblings** (each with their first marriage's spouse, no kids) + Focus's **Spouses**.
 - Focus's bloodline **Ancestors** at every depth; depth ≥ 2 shows only the bloodline pair.
 - At depth 1 (Focus's parents): Fa/Mo's non-Primary spouses (each as a **Couple**), Fa/Mo's full siblings (**Aunts/Uncles**), and Focus's **Half-siblings** (children of those non-Primary Couples) at Focus row.
 - Focus's bloodline **Descendants** + each descendant's spouses.
 
-**Not** rendered: spouses or children of lateral relatives (no in-laws, no nieces/nephews, no cousins). Above depth 1 in the ancestor stack, even step-spouses and full siblings of bloodline ancestors are hidden.
+**Not** rendered: children of lateral relatives (no nieces/nephews, no cousins), spouses of **Aunts/Uncles**, or any second/third marriages of full Siblings. Above depth 1 in the ancestor stack, even step-spouses and full siblings of bloodline ancestors are hidden.
 
 Rule of thumb: Focus's bloodline up and down, with one ring of lateral context **at depth 1 only** of the ancestor stack. Above that, only the bloodline pair per generation.
 
