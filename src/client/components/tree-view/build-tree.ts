@@ -1,4 +1,6 @@
-// Top-down builders for the block-tree layout.
+// Top-down builders for the chart-root parent FB and the depth-1 ancestor
+// FBs (which include Aunts/Uncles). Depth ≥ 2 bloodline-only ancestry lives
+// in build-ancestor-tree.ts, called via placeAncestorCouple.
 //
 // Two-pass orchestration for the chart-root parent FB:
 //   Pass 1 — build bloodline kid PBs (focus + siblings) and pack them.
@@ -7,8 +9,10 @@
 
 import type { FamilyBlock, PersonPlacement } from './block-family';
 import { PersonBlock } from './block-person';
+import { placeAncestorCouple } from './build-ancestor-tree';
 import {
   buildMarriageFB,
+  internalCouplePlacement,
   kidXsFromPacked,
   packBlocks
 } from './build-marriages';
@@ -19,9 +23,9 @@ import {
   measureStepFamsExtent
 } from './build-step-fams';
 import {
-  BOX_H,
   BOX_W,
   COUPLE_PITCH,
+  HALF_PITCH,
   isPersonKnown,
   presentChildren
 } from './helpers';
@@ -36,115 +40,27 @@ export function buildChartRoot(focusId: number, ix: LayoutIndices) {
   return buildFocusPB(focusId, ix);
 }
 
-// `ancestorChartX` is the chart-X of the bloodline ancestor whose childhood
-// FB we're building. The drop from the GGP couple's Tie to the sibship
-// bar is always vertical; the Tie's X depends on depth (see
-// `buildChildhoodFamily`). Top-level callers pass -HALF_PITCH for Fa and
-// +HALF_PITCH for Mo (Fa and Mo's own chart-X relative to focus = 0).
-const HALF_PITCH = COUPLE_PITCH / 2;
-
-function ancestorPBOrNull(
-  parentId: number | null,
-  depth: number,
-  ancestorChartX: number,
-  ix: LayoutIndices
-) {
-  if (!isPersonKnown(parentId, ix)) return null;
-  const childhood = buildChildhoodFamily({
-    personId: parentId,
-    currentDepth: depth,
-    ancestorChartX,
-    ix
-  });
-  return new PersonBlock(parentId, childhood, [], null);
-}
-
-interface BuildChildhoodArgs {
-  personId: number;
-  currentDepth: number;
-  ancestorChartX: number;
-  stepFamSpacer?: number;
-  ix: LayoutIndices;
-}
-
-function buildChildhoodFamily(args: BuildChildhoodArgs) {
-  const { personId, currentDepth, ancestorChartX, ix } = args;
-  const stepFamSpacer = args.stepFamSpacer ?? 0;
-  if (currentDepth >= ix.levels) return null;
-  const fam = ix.parentFamByPerson.get(personId);
-  if (fam === undefined) return null;
-  const parentDepth = currentDepth + 1;
-  const kids = childhoodFBKids({
-    bloodlineId: personId,
-    fam,
-    currentDepth,
-    ancestorChartX,
-    stepFamSpacer,
-    ix
-  });
-  // Tie sits off the bloodline kid's column in the direction of the
-  // ancestor's sex (male's parents fan left, female's right). Same rule
-  // at every depth — the bar reaches out to whichever kid is farthest.
-  // Magnitude scales with remaining levels above (ADR-0001).
-  const tieXFBlocal = tieXForFB(personId, currentDepth, ix);
-  const husbandChartX = ancestorChartX + tieXFBlocal - HALF_PITCH;
-  const wifeChartX = ancestorChartX + tieXFBlocal + HALF_PITCH;
-  const husbandPB = ancestorPBOrNull(
-    fam.husband_id,
-    parentDepth,
-    husbandChartX,
-    ix
-  );
-  const wifePB = ancestorPBOrNull(fam.wife_id, parentDepth, wifeChartX, ix);
-  if (husbandPB === null && wifePB === null) return null;
-
-  const couple = layoutInternalCouple(husbandPB, wifePB, fam, tieXFBlocal);
-  return buildMarriageFB({
-    famId: fam.id,
-    husband: couple.husband,
-    wife: couple.wife,
-    kids,
-    anchor: couple.childAnchor,
-    tieY: couple.tieY
-  });
-}
-
-function tieXForFB(personId: number, currentDepth: number, ix: LayoutIndices) {
-  // Ancestor couples land as close to chart center as the inter-couple
-  // spacing allows; the bar/legs reach out to whichever kids are farther.
-  // Shift magnitude follows (2^remainingAbove − 1) × HALF_PITCH so deeper
-  // pyramids still get exponentially more room at higher gens.
-  const remainingAbove = Math.max(1, ix.levels - currentDepth);
-  const directional = HALF_PITCH * (2 ** remainingAbove - 1);
-  const sex = ix.persons.get(personId)?.sex;
-  return sex === 'F' ? directional : -directional;
-}
-
-// Bloodline kid sits at FB-local 0 (the PB anchor). At depth 1, Aunts/Uncles
-// share the sibship with the bloodline kid, fanning outward in birth order
-// (left for Fa branch, right for Mo branch); the bloodline kid sits at the
-// inward end. Aunts/Uncles are bare PBs — their own children, marriages,
-// and ancestry are out of rendering scope (CONTEXT.md, ADR-0002). At
-// depth ≥ 2 the sibship is bloodline-only.
+// At depth 1, Aunts/Uncles share the sibship with the bloodline kid, fanning
+// outward in birth order (left for Fa branch, right for Mo branch); the
+// bloodline kid sits at the inward end. Aunts/Uncles are bare PBs — their
+// own children, marriages, and ancestry are out of rendering scope
+// (CONTEXT.md, ADR-0002).
 interface ChildhoodFBKidsArgs {
   bloodlineId: number;
   fam: FamilyRow;
-  currentDepth: number;
   ancestorChartX: number;
   stepFamSpacer?: number;
   ix: LayoutIndices;
 }
 
 function childhoodFBKids(args: ChildhoodFBKidsArgs) {
-  const { bloodlineId, fam, currentDepth, ancestorChartX, stepFamSpacer, ix } =
-    args;
+  const { bloodlineId, fam, ancestorChartX, stepFamSpacer, ix } = args;
   const bloodlinePlacement: PersonPlacement = {
     id: bloodlineId,
     external: true,
     x: 0,
     block: null
   };
-  if (currentDepth !== 1) return [bloodlinePlacement];
   const sibIds = presentChildren(fam, ix);
   const auntIds = sibIds.filter((sid) => sid !== bloodlineId);
   if (auntIds.length === 0) return [bloodlinePlacement];
@@ -247,7 +163,7 @@ function buildParentFB(
     bloodlineRightChart: ctx.bloodlineRightChart,
     ix
   });
-  const couple = layoutInternalCouple(faPB, moPB, parentFam);
+  const couple = internalCouplePlacement(faPB, moPB, parentFam);
   const kidXs = kidXsFromPacked(packed, couple.childAnchor.x);
   const kids: PersonPlacement[] = sibIds.map((sid, i) => ({
     id: sid,
@@ -297,12 +213,24 @@ function childhoodForParent(
   ix: LayoutIndices
 ) {
   if (!isPersonKnown(parentId, ix)) return null;
-  return buildChildhoodFamily({
-    personId: parentId,
-    currentDepth: 1,
+  const placed = placeAncestorCouple(parentId, 1, ancestorChartX, ix);
+  if (placed === null) return null;
+  const { fam, husbandPB, wifePB, tieXFBlocal } = placed;
+  const kids = childhoodFBKids({
+    bloodlineId: parentId,
+    fam,
     ancestorChartX,
     stepFamSpacer,
     ix
+  });
+  const couple = internalCouplePlacement(husbandPB, wifePB, fam, tieXFBlocal);
+  return buildMarriageFB({
+    famId: fam.id,
+    husband: couple.husband,
+    wife: couple.wife,
+    kids,
+    anchor: couple.childAnchor,
+    tieY: couple.tieY
   });
 }
 
@@ -373,51 +301,5 @@ function parentChartContextBase(args: ParentContextArgs) {
     moChartX,
     bloodlineLeftChart: Math.min(kidRowLeft, parentRowLeft),
     bloodlineRightChart: Math.max(kidRowRight, parentRowRight)
-  };
-}
-
-function layoutInternalCouple(
-  husbandPB: PersonBlock | null,
-  wifePB: PersonBlock | null,
-  fam: FamilyRow,
-  tieXFBlocal = 0
-) {
-  if (husbandPB !== null && wifePB !== null) {
-    // Spouse-to-spouse separation is fixed at COUPLE_PITCH. The Tie midpoint
-    // sits at FB-local x = tieXFBlocal (the chart-X of the bloodline kid;
-    // see ADR-0001). The bloodline kid itself stays at FB-local 0; the L-bar
-    // in block-family.ts handles any horizontal gap between Tie and kid.
-    const half = COUPLE_PITCH / 2;
-    return {
-      husband: {
-        id: fam.husband_id!,
-        external: false,
-        x: tieXFBlocal - half,
-        block: husbandPB
-      },
-      wife: {
-        id: fam.wife_id!,
-        external: false,
-        x: tieXFBlocal + half,
-        block: wifePB
-      },
-      childAnchor: { x: tieXFBlocal, y: 0 },
-      tieY: 0
-    };
-  }
-  // Lone parent (or neither): pivot at x = 0, drop from the present adult's
-  // box bottom (BOX_H/2) so the sibship bar lines up correctly.
-  const anyPresent = husbandPB !== null || wifePB !== null;
-  return {
-    husband:
-      husbandPB === null
-        ? null
-        : { id: fam.husband_id!, external: false, x: 0, block: husbandPB },
-    wife:
-      wifePB === null
-        ? null
-        : { id: fam.wife_id!, external: false, x: 0, block: wifePB },
-    childAnchor: { x: 0, y: anyPresent ? BOX_H / 2 : 0 },
-    tieY: 0
   };
 }
