@@ -6,7 +6,7 @@ import type { Extents, Point } from './helpers';
 
 export interface LocalPersonBox {
   personId: number;
-  pos: Point;
+  offset: Point;
 }
 
 export interface Line {

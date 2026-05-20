@@ -280,9 +280,9 @@ export class TreeViewElement extends LitElement {
     const p = this.persons.get(box.personId);
     if (p === undefined) return nothing;
     const isFocus = box.personId === this.focusId;
-    const x = box.pos.x - BOX_W / 2;
-    const y = box.pos.y - BOX_H / 2;
-    const chart = translatePoint(groupAbs, box.pos);
+    const x = box.offset.x - BOX_W / 2;
+    const y = box.offset.y - BOX_H / 2;
+    const chart = translatePoint(groupAbs, box.offset);
     const photoSrc = photoSrcOf(p);
     const name = truncate(formatName(p), NAME_TRUNCATE);
     const dates = formatDates(p);

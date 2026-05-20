@@ -45,7 +45,7 @@ export class PersonBlock extends Block {
 
   renderLocal() {
     const boxes: LocalPersonBox[] = [
-      { personId: this.personId, pos: { x: 0, y: 0 } }
+      { personId: this.personId, offset: { x: 0, y: 0 } }
     ];
     return { boxes, lines: [] };
   }
