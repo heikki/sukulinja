@@ -41,11 +41,11 @@ export function buildChartRoot(
 // ============= Childhood FB + plain ancestor PB (depth ≥ 2) =============
 
 // `ancestorChartX` is the chart-X of the bloodline ancestor whose childhood
-// FB we're building, measured in the FB-local frame whose origin is that
-// ancestor's own box. By the bloodline-pyramid rule (see CONTEXT.md and
-// ADR-0001), the GGP couple's Tie sits at FB-local x = ancestorChartX, and
-// each parent's own chart-X recurses as 2*ancestorChartX ± HALF_PITCH.
-// Top-level callers pass -HALF_PITCH for Fa, +HALF_PITCH for Mo.
+// FB we're building. The GGP couple's Tie sits directly above the kid
+// sibship's bar midpoint (so the drop is always vertical — never an
+// L-bend); each parent's own chart-X recurses as ancestorChartX +
+// barMidFBlocal ± HALF_PITCH. Top-level callers pass -HALF_PITCH for Fa
+// and +HALF_PITCH for Mo (Fa and Mo's own chart-X relative to focus = 0).
 const HALF_PITCH = COUPLE_PITCH / 2;
 
 function ancestorPBOrNull(
@@ -68,11 +68,18 @@ function buildChildhoodFamily(
   const fam = ix.parentFamByPerson.get(personId);
   if (fam === undefined) return null;
   const parentDepth = currentDepth + 1;
-  // Symmetric pyramid: GGP Tie sits at chart-X = 2 * ancestorChartX (so the
-  // ancestor sits halfway between his/her own grandparents' Ties one row up,
-  // recursively). Husband and wife straddle the Tie at ± HALF_PITCH.
-  const husbandChartX = 2 * ancestorChartX - HALF_PITCH;
-  const wifeChartX = 2 * ancestorChartX + HALF_PITCH;
+  // Build kids first so we know the sibship's bar midpoint — the GGP
+  // couple's Tie sits directly above it (keeping the drop vertical).
+  const kids = childhoodFBKids({
+    bloodlineId: personId,
+    fam,
+    currentDepth,
+    ancestorChartX,
+    ix
+  });
+  const barMidFBlocal = sibshipBarMid(kids);
+  const husbandChartX = ancestorChartX + barMidFBlocal - HALF_PITCH;
+  const wifeChartX = ancestorChartX + barMidFBlocal + HALF_PITCH;
   const husbandPB = ancestorPBOrNull(
     fam.husband_id,
     parentDepth,
@@ -82,14 +89,7 @@ function buildChildhoodFamily(
   const wifePB = ancestorPBOrNull(fam.wife_id, parentDepth, wifeChartX, ix);
   if (husbandPB === null && wifePB === null) return null;
 
-  const couple = layoutInternalCouple(husbandPB, wifePB, fam, ancestorChartX);
-  const kids = childhoodFBKids({
-    bloodlineId: personId,
-    fam,
-    currentDepth,
-    ancestorChartX,
-    ix
-  });
+  const couple = layoutInternalCouple(husbandPB, wifePB, fam, barMidFBlocal);
   const extents = computeFBExtents({
     husband: couple.husband,
     wife: couple.wife,
@@ -119,6 +119,16 @@ function buildPlainAncestorPB(
 ): PersonBlock {
   const childhood = buildChildhoodFamily(personId, depth, ancestorChartX, ix);
   return new PersonBlock(personId, childhood, [], null);
+}
+
+function sibshipBarMid(kids: readonly KidPlacement[]): number {
+  let minX = kids[0]!.x;
+  let maxX = kids[0]!.x;
+  for (const k of kids) {
+    if (k.x < minX) minX = k.x;
+    if (k.x > maxX) maxX = k.x;
+  }
+  return (minX + maxX) / 2;
 }
 
 // Bloodline kid sits at FB-local 0 (the PB anchor). At depth 1, Aunts/Uncles
