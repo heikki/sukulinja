@@ -12,6 +12,6 @@ The change keeps the parts of the chart users actually use — your own parents'
 
 ## Consequences
 
-- At depth ≥ 2 the ancestor PB is the bloodline person + their childhood FB only. `buildAncestorPBWithStepFams` is called at depth 1 only; `buildPlainAncestorPB` covers all deeper gens.
-- The depth-1 step-fam fan places each parent's non-Primary marriages on that parent's own side of the chart-root parent FB: Fa's all sit past the bloodline footprint's left edge; Mo's all sit past its right edge. Chronology only determines the order within each side — chronologically-adjacent marriages land closest to the parent, more distant ones fan further out.
+- At depth ≥ 2, an Ancestor's PB carries only the bloodline person and their childhood Family — no marriages slot, no step-fams, no full siblings. Step-fam construction lives only at depth 1.
+- The depth-1 Step-fam fan places each parent's non-Primary marriages on that parent's own side of the chart-root parent FB: Fa's all sit past the bloodline footprint's left edge; Mo's all sit past its right edge. Chronology determines order within each side — chronologically-adjacent marriages land closest to the parent, more distant ones fan further out.
 - The CONTEXT.md "rule of thumb" narrows to: bloodline up and down, with one ring of laterals _at depth 1 only_ in the Ancestor stack.

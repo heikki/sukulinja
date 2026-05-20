@@ -16,6 +16,6 @@ The same rule applies at depth 1, even when the sibship widens with **Aunts/Uncl
 
 ## Consequences
 
-- `buildChildhoodFamily` derives the Tie position from `currentDepth` and the bloodline kid's sex alone — no `kidOffset` parameter, no sibship-width feedback.
-- Each Couple's Tie sits at FB-local `tieXFBlocal = ±(2^max(1, levels − depth) − 1) × HALF_PITCH`, sign by sex.
-- The kid sibship bar in `block-family.ts` spans `min(childAnchorX, kid Xs)` to `max(childAnchorX, kid Xs)` so a one-kid sibship at depth ≥ 2 still draws a horizontal segment from the Tie's drop over to the kid's leg, and a wide depth-1 sibship draws a long bar reaching from the Tie out to the farthest Aunt/Uncle.
+- The childhood-Family builder takes only the bloodline kid's depth and sex; it never inspects sibship width. The Tie's directional shift is intrinsic to the kid, not negotiated with the rest of the row.
+- Each Couple's Tie sits at the directional shift defined above (sign by the bloodline kid's sex, magnitude growing exponentially with levels remaining above). The bloodline kid itself stays on its own column.
+- The kid sibship Bar spans the union of the Child anchor X and every kid X — so a one-kid sibship at depth ≥ 2 still draws a horizontal segment from the Drop to the kid's Leg, and a wide depth-1 sibship reaches from the Tie out to the farthest Aunt/Uncle.
