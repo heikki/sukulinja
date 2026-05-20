@@ -8,6 +8,8 @@ import { FamilyBlock } from './block-family';
 import type { PersonPlacement } from './block-family';
 import { PersonBlock } from './block-person';
 import {
+  BOX_H,
+  HALF_PITCH,
   isHusbandIn,
   isPersonKnown,
   otherSpouseOf,
@@ -121,4 +123,49 @@ export function buildExternalAdultFB(args: BuildExternalAdultFBArgs) {
     anchor: placement.anchor,
     tieY: placement.tieY
   });
+}
+
+export function internalCouplePlacement(
+  husbandPB: PersonBlock | null,
+  wifePB: PersonBlock | null,
+  fam: FamilyRow,
+  tieXFBlocal = 0
+) {
+  if (husbandPB !== null && wifePB !== null) {
+    // Spouse-to-spouse separation is fixed at COUPLE_PITCH. The Tie midpoint
+    // sits at FB-local x = tieXFBlocal (the chart-X of the bloodline kid;
+    // see ADR-0001). The bloodline kid itself stays at FB-local 0; the L-bar
+    // in block-family.ts handles any horizontal gap between Tie and kid.
+    return {
+      husband: {
+        id: fam.husband_id!,
+        external: false,
+        x: tieXFBlocal - HALF_PITCH,
+        block: husbandPB
+      },
+      wife: {
+        id: fam.wife_id!,
+        external: false,
+        x: tieXFBlocal + HALF_PITCH,
+        block: wifePB
+      },
+      childAnchor: { x: tieXFBlocal, y: 0 },
+      tieY: 0
+    };
+  }
+  // Lone parent (or neither): pivot at x = 0, drop from the present adult's
+  // box bottom (BOX_H/2) so the sibship bar lines up correctly.
+  const anyPresent = husbandPB !== null || wifePB !== null;
+  return {
+    husband:
+      husbandPB === null
+        ? null
+        : { id: fam.husband_id!, external: false, x: 0, block: husbandPB },
+    wife:
+      wifePB === null
+        ? null
+        : { id: fam.wife_id!, external: false, x: 0, block: wifePB },
+    childAnchor: { x: 0, y: anyPresent ? BOX_H / 2 : 0 },
+    tieY: 0
+  };
 }

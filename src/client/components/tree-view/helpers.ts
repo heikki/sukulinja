@@ -36,6 +36,9 @@ export const AVATAR_R = 22;
 export const AVATAR_CX = 28;
 export const SVG_HALF = 5000;
 export const COUPLE_PITCH = BOX_W + COUPLE_GAP;
+// Basic column unit of the ancestor Tie shift — see `ancestorShift` and
+// ADR-0001's (2^n − 1) × HALF_PITCH formula.
+export const HALF_PITCH = COUPLE_PITCH / 2;
 export const DRAG_THRESHOLD_PX = 4;
 export const DEFAULT_FOCUS_ID = 3;
 export const NONPRIMARY_TIE_Y_OFFSET = 6;
