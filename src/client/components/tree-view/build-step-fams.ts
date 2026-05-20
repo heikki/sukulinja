@@ -12,14 +12,10 @@
 import type { FamilyBlock } from './block-family';
 import { PersonBlock } from './block-person';
 import type { BloodlineFootprint } from './bloodline-footprint';
+import { buildExternalAdultFB, packBlocks } from './build-marriages';
 import {
-  buildExternalAdultFB,
-  packBlocks,
-  type PackedBlocks
-} from './build-marriages';
-import {
+  BARE_PB_EXTENTS,
   BOX_H,
-  BOX_W,
   isMeaningfulSpouseFam,
   NONPRIMARY_TIE_Y_OFFSET,
   presentChildren,
@@ -101,24 +97,21 @@ interface BuildSidedStepFamArgs {
   ix: LayoutIndices;
 }
 
-function stepFamExtents(
-  packed: PackedBlocks,
-  kidBlocks: readonly PersonBlock[]
-) {
-  if (kidBlocks.length === 0) {
-    return { left: BOX_W / 2, right: BOX_W / 2 };
-  }
-  const left = Math.max(
-    BOX_W / 2,
-    packed.barMid - packed.positions[0]! + kidBlocks[0]!.extents.left
+// Step-fam kids are always bare PBs (half-siblings render as boxes only —
+// no marriages, no ancestry, no children), so the extent is fully
+// determined by the kid count.
+function stepFamExtents(kidCount: number) {
+  if (kidCount === 0) return BARE_PB_EXTENTS;
+  const packed = packBlocks(
+    Array.from({ length: kidCount }, () => BARE_PB_EXTENTS)
   );
-  const right = Math.max(
-    BOX_W / 2,
-    packed.positions[packed.positions.length - 1]! -
+  return {
+    left: packed.barMid - packed.positions[0]! + BARE_PB_EXTENTS.left,
+    right:
+      packed.positions[packed.positions.length - 1]! -
       packed.barMid +
-      kidBlocks[kidBlocks.length - 1]!.extents.right
-  );
-  return { left, right };
+      BARE_PB_EXTENTS.right
+  };
 }
 
 function buildSidedStepFamFB(args: BuildSidedStepFamArgs) {
@@ -127,8 +120,8 @@ function buildSidedStepFamFB(args: BuildSidedStepFamArgs) {
   const kidBlocks: PersonBlock[] = halfSibIds.map(
     (cid) => new PersonBlock(cid, null, [], null)
   );
-  const packed = packBlocks(kidBlocks);
-  const extents = stepFamExtents(packed, kidBlocks);
+  const packed = packBlocks(kidBlocks.map((k) => k.extents));
+  const extents = stepFamExtents(kidBlocks.length);
 
   const xSpouse =
     side === 'right'
@@ -164,12 +157,7 @@ export function measureStepFamsExtent(
   for (const fam of allFams) {
     if (fam.id === bloodlineFamId) continue;
     if (!isMeaningfulSpouseFam(fam, personId, ix)) continue;
-    const halfSibIds = presentChildren(fam, ix);
-    const kidBlocks: PersonBlock[] = halfSibIds.map(
-      (cid) => new PersonBlock(cid, null, [], null)
-    );
-    const packed = packBlocks(kidBlocks);
-    const extents = stepFamExtents(packed, kidBlocks);
+    const extents = stepFamExtents(presentChildren(fam, ix).length);
     total += extents.left + extents.right + SIBLING_GAP;
   }
   return total;

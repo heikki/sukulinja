@@ -23,7 +23,12 @@ import {
   buildAncestorPBWithStepFams,
   measureStepFamsExtent
 } from './build-step-fams';
-import { HALF_PITCH, isPersonKnown, presentChildren } from './helpers';
+import {
+  BARE_PB_EXTENTS,
+  HALF_PITCH,
+  isPersonKnown,
+  presentChildren
+} from './helpers';
 import type { FamilyRow, LayoutIndices } from './helpers';
 
 export function buildChartRoot(focusId: number, ix: LayoutIndices) {
@@ -62,24 +67,21 @@ function childhoodFBKids(args: ChildhoodFBKidsArgs) {
 
   const auntPBs = auntIds.map((sid) => new PersonBlock(sid, null, [], null));
   const fanLeft = ancestorChartX < 0;
-  // packBlocks needs the bloodline kid's width too — its box (rendered by
-  // the parent FB above) still occupies a column in the sibship row. Use a
-  // throwaway PB to participate in packing; the real placement is `external`
-  // with no block.
-  const bloodlineDummy = new PersonBlock(bloodlineId, null, [], null);
-  const orderedBlocks = fanLeft
-    ? [...auntPBs, bloodlineDummy]
-    : [bloodlineDummy, ...auntPBs];
-  const packed = packBlocks(orderedBlocks);
-  const bloodlineIdx = fanLeft ? orderedBlocks.length - 1 : 0;
+  // `null` marks the bloodline slot — its box is rendered by the parent FB
+  // above, but it still occupies a column in the sibship row for packing.
+  const ordered: Array<PersonBlock | null> = fanLeft
+    ? [...auntPBs, null]
+    : [null, ...auntPBs];
+  const packed = packBlocks(ordered.map((b) => b?.extents ?? BARE_PB_EXTENTS));
+  const bloodlineIdx = fanLeft ? ordered.length - 1 : 0;
   const shift = -packed.positions[bloodlineIdx]!;
   // Push Aunts/Uncles past the step-fam reservation + focus row extent
   // so step-spouses + half-siblings fit between the bloodline parent and
   // the Aunts/Uncles in chart-X space.
   const auntShift = (stepFamSpacer ?? 0) * (fanLeft ? -1 : 1);
 
-  return orderedBlocks.map((blk, i) => {
-    if (i === bloodlineIdx) return bloodlinePlacement;
+  return ordered.map((blk, i) => {
+    if (blk === null) return bloodlinePlacement;
     return {
       id: blk.personId,
       external: false,
@@ -102,7 +104,7 @@ function buildParentFB(
   const kidPBs = sibIds.map((sid) =>
     sid === focusId ? buildFocusPB(sid, ix) : buildSiblingPB(sid, ix)
   );
-  const packed = packBlocks(kidPBs);
+  const packed = packBlocks(kidPBs.map((k) => k.extents));
   const footprint = computeBloodlineFootprint({
     parentFam,
     packed,

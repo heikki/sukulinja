@@ -27,6 +27,10 @@ export interface Extents {
 
 export const BOX_W = 184;
 export const BOX_H = 90;
+// Extents of a bare PersonBlock (no children) — used when packing needs to
+// reserve a column for a person whose PB lives elsewhere (e.g. the bloodline
+// slot in a depth-1 sibship).
+export const BARE_PB_EXTENTS: Extents = { left: BOX_W / 2, right: BOX_W / 2 };
 export const SIBLING_GAP = 28;
 // Match SIBLING_GAP for visually uniform spacing across the row.
 export const COUPLE_GAP = 28;
