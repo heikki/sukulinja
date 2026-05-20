@@ -125,7 +125,7 @@ export function buildExternalAdultFB(args: BuildExternalAdultFBArgs) {
   });
 }
 
-export function internalCouplePlacement(
+export function placeInternalCouple(
   husbandPB: PersonBlock | null,
   wifePB: PersonBlock | null,
   fam: FamilyRow,

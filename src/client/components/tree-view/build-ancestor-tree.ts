@@ -6,7 +6,7 @@
 
 import type { PersonPlacement } from './block-family';
 import { PersonBlock } from './block-person';
-import { buildMarriageFB, internalCouplePlacement } from './build-marriages';
+import { buildMarriageFB, placeInternalCouple } from './build-marriages';
 import { HALF_PITCH, isPersonKnown } from './helpers';
 import type { LayoutIndices } from './helpers';
 
@@ -63,7 +63,7 @@ function buildAncestorChildhoodFB(
     x: 0,
     block: null
   };
-  const couple = internalCouplePlacement(husbandPB, wifePB, fam, tieXFBlocal);
+  const couple = placeInternalCouple(husbandPB, wifePB, fam, tieXFBlocal);
   return buildMarriageFB({
     famId: fam.id,
     husband: couple.husband,

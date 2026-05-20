@@ -12,9 +12,9 @@ import { PersonBlock } from './block-person';
 import { placeAncestorCouple } from './build-ancestor-tree';
 import {
   buildMarriageFB,
-  internalCouplePlacement,
   kidXsFromPacked,
-  packBlocks
+  packBlocks,
+  placeInternalCouple
 } from './build-marriages';
 import type { PackedBlocks } from './build-marriages';
 import { buildFocusPB, buildSiblingPB } from './build-owned';
@@ -163,7 +163,7 @@ function buildParentFB(
     bloodlineRightChart: ctx.bloodlineRightChart,
     ix
   });
-  const couple = internalCouplePlacement(faPB, moPB, parentFam);
+  const couple = placeInternalCouple(faPB, moPB, parentFam);
   const kidXs = kidXsFromPacked(packed, couple.childAnchor.x);
   const kids: PersonPlacement[] = sibIds.map((sid, i) => ({
     id: sid,
@@ -223,7 +223,7 @@ function childhoodForParent(
     stepFamSpacer,
     ix
   });
-  const couple = internalCouplePlacement(husbandPB, wifePB, fam, tieXFBlocal);
+  const couple = placeInternalCouple(husbandPB, wifePB, fam, tieXFBlocal);
   return buildMarriageFB({
     famId: fam.id,
     husband: couple.husband,
