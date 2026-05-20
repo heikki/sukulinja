@@ -3,14 +3,14 @@
 The ancestor layout makes every parent **Drop** vertical. The Tie's chart-X depends on depth:
 
 - **Depth 1** (multi-kid sibship with Aunts/Uncles): the Tie sits directly above the kid **Bar** midpoint. The drop lands in the middle of the sibship.
-- **Depth ≥ 2** (one bloodline kid only): the Tie sits one HALF_PITCH off the kid's column in the direction set by the kid's sex — males' parents fan to their left, females' to their right. The bar runs horizontally from the Tie X over to the kid's column, so the drop is still vertical but the bar does the horizontal work. This keeps each Couple's great-grandparents centered around the Couple itself, instead of stacked far off to one side.
+- **Depth ≥ 2** (one bloodline kid only): the Tie sits off the kid's column in the direction set by the kid's sex — males' parents fan to their left, females' to their right. The bar runs horizontally from the Tie X over to the kid's column, so the drop is still vertical but the bar does the horizontal work. The shift magnitude scales with remaining levels above: `(2^remainingAbove − 1) × HALF_PITCH` (so HALF_PITCH at the topmost row, 3 × HALF_PITCH one row lower, 7 × HALF_PITCH two rows lower, etc.). This keeps each Couple's great-grandparents centered around the Couple itself while giving the upper pyramid enough horizontal slack to keep gen+1 columns distinct.
 
 **Focus** is pinned at chart X = 0; the pyramid drifts left or right of Focus rather than re-centering. Within every Couple, spouse separation stays fixed at one COUPLE_PITCH and subtree extents grow strictly outward from chart center.
 
 The depth split exists because the two regimes pull in opposite directions:
 
 - At depth 1, Aunts/Uncles widen the sibship by many COUPLE_PITCHes. If we kept the symmetric-pyramid rule there, Pekka+Hilma would sit ~530px to the right of the sibship middle, producing a long L-bend that looks like a drafting error. Aligning the Tie with the bar midpoint moves them above the middle of the sibship instead.
-- At depth ≥ 2, every sibship is one kid wide (no laterals; ADR-0002). If we kept the bar-midpoint rule there, the Tie would sit directly above each kid — but adjacent ancestors then have their Mo/Fa parents collide at the next gen. Pulling each ancestor's Tie one HALF_PITCH outward (males to their left, females to their right) keeps gen-N+1 columns distinct and visually centers each Couple's great-grandparents around the Couple itself.
+- At depth ≥ 2, every sibship is one kid wide (no laterals; ADR-0002). If we kept the bar-midpoint rule there, the Tie would sit directly above each kid — but adjacent ancestors then have their Mo/Fa parents collide at the next gen. Pulling each ancestor's Tie outward by an amount scaled with remaining levels above (males to their left, females to their right) keeps gen-N+1 columns distinct at any rendered depth, and visually centers each Couple's great-grandparents around the Couple itself.
 
 ## Considered options
 
@@ -22,5 +22,5 @@ The depth split exists because the two regimes pull in opposite directions:
 ## Consequences
 
 - `kidOffset` is no longer a passed parameter — `buildChildhoodFamily` derives the Tie position from `currentDepth` and (at depth 1) the freshly-packed kid sibship.
-- Each Couple's Tie sits at FB-local `tieXFBlocal`, with `tieXFBlocal = sibshipBarMid(kids)` at depth 1 and `tieXFBlocal = sex === 'F' ? +HALF_PITCH : -HALF_PITCH` at depth ≥ 2.
+- Each Couple's Tie sits at FB-local `tieXFBlocal`, with `tieXFBlocal = sibshipBarMid(kids)` at depth 1 and `tieXFBlocal = ±(2^(levels - depth) − 1) × HALF_PITCH` (sign by sex) at depth ≥ 2.
 - The kid sibship bar in `block-family.ts` spans `min(childAnchorX, kid Xs)` to `max(childAnchorX, kid Xs)` so a one-kid sibship at depth ≥ 2 still draws a horizontal segment from the Tie's drop over to the kid's leg.

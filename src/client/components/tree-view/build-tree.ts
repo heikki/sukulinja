@@ -78,13 +78,14 @@ function buildChildhoodFamily(
   });
   // At depth 1 (multi-kid sibship with Aunts/Uncles) the Tie sits above
   // the kid bar's midpoint — drop is vertical, no extra horizontal slack
-  // needed. At depth ≥ 2 (one kid) the Tie shifts a HALF_PITCH off the
-  // kid's column in the direction of the ancestor's sex: male's parents
-  // fan to his left, female's to her right. This centers each Couple's
-  // great-grandparents around the Couple itself and keeps gen-3 columns
-  // distinct (see ADR-0001).
+  // needed. At depth ≥ 2 (one kid) the Tie shifts off the kid's column
+  // in the direction of the ancestor's sex (male's parents fan left,
+  // female's fan right). The shift grows as more levels are rendered
+  // above, so deeper pyramids have room (ADR-0001).
   const tieXFBlocal =
-    currentDepth === 1 ? sibshipBarMid(kids) : depthTwoPlusTieX(personId, ix);
+    currentDepth === 1
+      ? sibshipBarMid(kids)
+      : depthTwoPlusTieX(personId, currentDepth, ix);
   const husbandChartX = ancestorChartX + tieXFBlocal - HALF_PITCH;
   const wifeChartX = ancestorChartX + tieXFBlocal + HALF_PITCH;
   const husbandPB = ancestorPBOrNull(
@@ -138,9 +139,19 @@ function sibshipBarMid(kids: readonly KidPlacement[]): number {
   return (minX + maxX) / 2;
 }
 
-function depthTwoPlusTieX(personId: number, ix: LayoutIndices): number {
+function depthTwoPlusTieX(
+  personId: number,
+  currentDepth: number,
+  ix: LayoutIndices
+): number {
+  // Shift grows with remaining levels above so each generation's gen+1
+  // columns stay distinct: HALF_PITCH at the topmost rendered ancestor
+  // (looks like a centered "Tie above kid"), 3*HALF_PITCH one gen below,
+  // 7*HALF_PITCH two gens below, etc. — the (2^n − 1) sequence.
+  const remainingAbove = Math.max(1, ix.levels - currentDepth);
+  const magnitude = HALF_PITCH * (2 ** remainingAbove - 1);
   const sex = ix.persons.get(personId)?.sex;
-  return sex === 'F' ? HALF_PITCH : -HALF_PITCH;
+  return sex === 'F' ? magnitude : -magnitude;
 }
 
 // Bloodline kid sits at FB-local 0 (the PB anchor). At depth 1, Aunts/Uncles
