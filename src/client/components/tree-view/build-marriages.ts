@@ -10,7 +10,15 @@ import type {
   FamilyBlockSpec,
   KidPlacement
 } from './block-family';
-import { ROW_H, SIBLING_GAP } from './helpers';
+import { PersonBlock } from './block-person';
+import {
+  isHusbandIn,
+  isPersonKnown,
+  otherSpouseOf,
+  ROW_H,
+  SIBLING_GAP
+} from './helpers';
+import type { FamilyRow, LayoutIndices } from './helpers';
 
 export interface PackedBlocks {
   positions: number[];
@@ -100,4 +108,70 @@ export function buildMarriageFamilyBlock(args: BuildMarriageArgs): FamilyBlock {
     rightWidth: extents.rightWidth
   };
   return new FamilyBlock(spec);
+}
+
+// Where the spouse sits relative to the externalAdult's anchor, plus the
+// child-anchor / tie-Y the FB will use.
+export interface SpousePlacement {
+  xSpouse: number;
+  anchorX: number;
+  anchorY: number;
+  tieY: number;
+}
+
+export interface BuildExternalAdultFBArgs {
+  // The "anchor" adult — their box is rendered by an outer block, so the FB
+  // places them at local x = 0 with external = true.
+  externalAdultId: number;
+  fam: FamilyRow;
+  kidBlocks: PersonBlock[];
+  packed: PackedBlocks;
+  placement: SpousePlacement;
+  ix: LayoutIndices;
+}
+
+export function buildExternalAdultFB(
+  args: BuildExternalAdultFBArgs
+): FamilyBlock {
+  const { externalAdultId, fam, kidBlocks, packed, placement, ix } = args;
+  const otherId = otherSpouseOf(fam, externalAdultId);
+  const renderedSpouseId = isPersonKnown(otherId, ix) ? otherId : null;
+
+  const externalIsHusband = isHusbandIn(fam, externalAdultId);
+  const externalAdult: AdultPlacement = {
+    id: externalAdultId,
+    external: true,
+    x: 0,
+    block: null
+  };
+  const spouseAdult: AdultPlacement | null =
+    otherId === null
+      ? null
+      : {
+          id: otherId,
+          external: renderedSpouseId === null,
+          x: placement.xSpouse,
+          block:
+            renderedSpouseId === null
+              ? null
+              : new PersonBlock(renderedSpouseId, null, [], null)
+        };
+
+  const kidXs = kidXsFromPacked(packed, placement.anchorX);
+  const kids: KidPlacement[] = kidBlocks.map((kb, i) => ({
+    id: kb.personId,
+    external: false,
+    x: kidXs[i]!,
+    block: kb
+  }));
+
+  return buildMarriageFamilyBlock({
+    famId: fam.id,
+    husband: externalIsHusband ? externalAdult : spouseAdult,
+    wife: externalIsHusband ? spouseAdult : externalAdult,
+    kids,
+    anchorX: placement.anchorX,
+    anchorY: placement.anchorY,
+    tieY: placement.tieY
+  });
 }

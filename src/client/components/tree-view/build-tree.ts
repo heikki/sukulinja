@@ -24,7 +24,14 @@ import {
   buildAncestorPBWithStepFams,
   measureStepFamsExtent
 } from './build-step-fams';
-import { BOX_H, BOX_W, COUPLE_PITCH, presentChildren, ROW_H } from './helpers';
+import {
+  BOX_H,
+  BOX_W,
+  COUPLE_PITCH,
+  isPersonKnown,
+  presentChildren,
+  ROW_H
+} from './helpers';
 import type { FamilyRow, LayoutIndices } from './helpers';
 
 export function buildChartRoot(
@@ -53,7 +60,7 @@ function ancestorPBOrNull(
   ancestorChartX: number,
   ix: LayoutIndices
 ): PersonBlock | null {
-  if (parentId === null || !ix.persons.has(parentId)) return null;
+  if (!isPersonKnown(parentId, ix)) return null;
   return buildPlainAncestorPB(parentId, depth, ancestorChartX, ix);
 }
 
@@ -296,9 +303,7 @@ interface ParentPBArgs {
 }
 
 function parentPB(args: ParentPBArgs): PersonBlock | null {
-  if (args.personId === null || !args.ix.persons.has(args.personId)) {
-    return null;
-  }
+  if (!isPersonKnown(args.personId, args.ix)) return null;
   return buildAncestorPBWithStepFams({
     personId: args.personId,
     childhoodFamily: args.childhood,
@@ -317,7 +322,7 @@ function childhoodForParent(
   stepFamSpacer: number,
   ix: LayoutIndices
 ): FamilyBlock | null {
-  if (parentId === null || !ix.persons.has(parentId)) return null;
+  if (!isPersonKnown(parentId, ix)) return null;
   return buildChildhoodFamily({
     personId: parentId,
     currentDepth: 1,
@@ -337,7 +342,7 @@ interface AuntShiftArgs {
 }
 
 function computeAuntShift(args: AuntShiftArgs): number {
-  if (args.parentId === null || !args.ix.persons.has(args.parentId)) return 0;
+  if (!isPersonKnown(args.parentId, args.ix)) return 0;
   const stepFams = measureStepFamsExtent(
     args.parentId,
     args.bloodlineFamId,
@@ -375,12 +380,8 @@ interface ParentChartContext {
 }
 
 function computeParentSep(args: ParentContextArgs): number {
-  const faPresent =
-    args.parentFam.husband_id !== null &&
-    args.ix.persons.has(args.parentFam.husband_id);
-  const moPresent =
-    args.parentFam.wife_id !== null &&
-    args.ix.persons.has(args.parentFam.wife_id);
+  const faPresent = isPersonKnown(args.parentFam.husband_id, args.ix);
+  const moPresent = isPersonKnown(args.parentFam.wife_id, args.ix);
   if (!faPresent || !moPresent) return 0;
   return COUPLE_PITCH;
 }

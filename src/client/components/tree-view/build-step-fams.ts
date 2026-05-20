@@ -9,21 +9,18 @@
 // extents. Sibship drops from the step-spouse box bottom, and Tie Y is
 // offset slightly above/below the bloodline Tie for visual distinction.
 
-import type { AdultPlacement, FamilyBlock, KidPlacement } from './block-family';
+import type { FamilyBlock } from './block-family';
 import { PersonBlock } from './block-person';
 import {
-  buildMarriageFamilyBlock,
-  kidXsFromPacked,
+  buildExternalAdultFB,
   packBlocks,
   type PackedBlocks
 } from './build-marriages';
 import {
   BOX_H,
   BOX_W,
-  isHusbandIn,
   isMeaningfulSpouseFam,
   NONPRIMARY_TIE_Y_OFFSET,
-  otherSpouseOf,
   presentChildren,
   SIBLING_GAP
 } from './helpers';
@@ -154,52 +151,18 @@ function buildSidedStepFamFB(args: BuildSidedStepFamArgs): {
       ? parentChartX + xSpouse + extentRight
       : parentChartX + xSpouse - extentLeft;
 
-  const placement = {
-    xSpouse,
-    anchorX: xSpouse,
-    anchorY: BOX_H / 2,
-    tieY: xSpouse >= 0 ? -NONPRIMARY_TIE_Y_OFFSET : NONPRIMARY_TIE_Y_OFFSET
-  };
-
-  const otherId = otherSpouseOf(fam, personId);
-  const externalIsHusband = isHusbandIn(fam, personId);
-  const externalAdult: AdultPlacement = {
-    id: personId,
-    external: true,
-    x: 0,
-    block: null
-  };
-  const renderedSpouseId =
-    otherId !== null && ix.persons.has(otherId) ? otherId : null;
-  const spouseAdult: AdultPlacement | null =
-    otherId === null
-      ? null
-      : {
-          id: otherId,
-          external: renderedSpouseId === null,
-          x: xSpouse,
-          block:
-            renderedSpouseId === null
-              ? null
-              : new PersonBlock(renderedSpouseId, null, [], null)
-        };
-
-  const kidXs = kidXsFromPacked(packed, placement.anchorX);
-  const kids: KidPlacement[] = kidBlocks.map((kb, i) => ({
-    id: kb.personId,
-    external: false,
-    x: kidXs[i]!,
-    block: kb
-  }));
-
-  const fb = buildMarriageFamilyBlock({
-    husband: externalIsHusband ? externalAdult : spouseAdult,
-    wife: externalIsHusband ? spouseAdult : externalAdult,
-    kids,
-    famId: fam.id,
-    anchorX: placement.anchorX,
-    anchorY: placement.anchorY,
-    tieY: placement.tieY
+  const fb = buildExternalAdultFB({
+    externalAdultId: personId,
+    fam,
+    kidBlocks,
+    packed,
+    placement: {
+      xSpouse,
+      anchorX: xSpouse,
+      anchorY: BOX_H / 2,
+      tieY: xSpouse >= 0 ? -NONPRIMARY_TIE_Y_OFFSET : NONPRIMARY_TIE_Y_OFFSET
+    },
+    ix
   });
   return { fb, newOuter };
 }

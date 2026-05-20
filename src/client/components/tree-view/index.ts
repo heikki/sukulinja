@@ -44,11 +44,9 @@ function formatName(p: PersonRow): string {
 }
 
 function formatDates(p: PersonRow): string {
-  const b = p.birth_year === null ? '' : String(p.birth_year);
-  const d = p.death_year === null ? '' : String(p.death_year);
-  if (b.length === 0 && d.length === 0) return '';
-  if (b.length > 0 && d.length === 0) return `${b}–`;
-  if (b.length === 0 && d.length > 0) return `–${d}`;
+  const b = p.birth_year ?? '';
+  const d = p.death_year ?? '';
+  if (b === '' && d === '') return '';
   return `${b}–${d}`;
 }
 
