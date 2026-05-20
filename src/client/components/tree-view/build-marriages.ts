@@ -3,7 +3,6 @@
 // step-fam logic lives in build-step-fams.ts; PB builders + parent FB
 // orchestration live in build-tree.ts.
 
-import type { Block } from './block';
 import { FamilyBlock } from './block-family';
 import type { PersonPlacement } from './block-family';
 import { PersonBlock } from './block-person';
@@ -15,7 +14,7 @@ import {
   otherSpouseOf,
   SIBLING_GAP
 } from './helpers';
-import type { FamilyRow, LayoutIndices, Point } from './helpers';
+import type { Extents, FamilyRow, LayoutIndices, Point } from './helpers';
 
 export interface PackedBlocks {
   positions: number[];
@@ -27,17 +26,17 @@ export function kidXsFromPacked(packed: PackedBlocks, anchorX: number) {
   return packed.positions.map((p) => p - packed.barMid + anchorX);
 }
 
-export function packBlocks(blocks: readonly Block[]) {
-  if (blocks.length === 0) {
+export function packBlocks(extents: readonly Extents[]) {
+  if (extents.length === 0) {
     return { positions: [], totalWidth: 0, barMid: 0 };
   }
   const positions: number[] = [];
   let cursor = 0;
-  for (const [i, b] of blocks.entries()) {
+  for (const [i, e] of extents.entries()) {
     if (i > 0) cursor += SIBLING_GAP;
-    cursor += b.extents.left;
+    cursor += e.left;
     positions.push(cursor);
-    cursor += b.extents.right;
+    cursor += e.right;
   }
   const barMid = (positions[0]! + positions[positions.length - 1]!) / 2;
   return { positions, totalWidth: cursor, barMid };

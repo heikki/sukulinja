@@ -87,7 +87,7 @@ function buildOwnedMarriagesPB(
     const fam = fams[i]!;
     const isActive = off === 0;
     const kidBlocks = ownedKidBlocks(fam, depth, includeChildren, ix);
-    const packed = packBlocks(kidBlocks);
+    const packed = packBlocks(kidBlocks.map((k) => k.extents));
     const placement = isActive
       ? primarySpousePlacement(fanDir)
       : nonPrimarySpousePlacement(fanDir, outerEdge, packed);
