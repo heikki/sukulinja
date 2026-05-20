@@ -48,13 +48,12 @@ export function buildAncestorPBWithStepFams(
     () => null
   );
 
-  // All non-bloodline marriages fan outward on the parent's own side
-  // (Fa's step-spouses to Fa's left; Mo's to Mo's right). They sit past
-  // the bloodline footprint — the union of Aunts/Uncles at parent row
-  // and Focus's sibship at the kid row. Sitting past the Aunts/Uncles
-  // ensures the GP couple's vertical drop doesn't cross the step-spouse's
-  // column; sitting past the focus row keeps the half-sibship clear of
-  // Focus's full siblings.
+  // All non-bloodline marriages fan outward on the parent's own side (Fa's
+  // step-spouses to Fa's left; Mo's to Mo's right), past the footprint's
+  // outer edge — the union of the kid row's reach and Fa/Mo's own boxes.
+  // Aunts/Uncles in turn fan past the step-fams. Together these ensure the
+  // GP couple's vertical drop doesn't cross the step-spouse's column and
+  // the half-sibship stays clear of Focus's full siblings.
   const parentChartX = footprint.parentChartX(side);
   let outer = footprint.outerEdge(side);
   for (const i of nonBloodlineFanOrder(allFams.length, bloodlineIdx)) {

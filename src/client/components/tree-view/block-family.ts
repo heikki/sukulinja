@@ -1,16 +1,9 @@
-// FamilyBlock — exactly one family (couple + their kids).
+// FamilyBlock — one Couple Tie and one sibship (drop + bar + legs). Member
+// boxes belong to PersonBlocks, not this block; external members (whose PB
+// lives in an outer block) appear in the spec as `external: true, block:
+// null`, present only for the FB's own line geometry.
 //
-// The block owns:
-//   - the Couple Tie (when both adults are present in the family)
-//   - the sibship drop + bar + legs from the child anchor down to each kid
-//
-// The block does NOT draw boxes — every member's box belongs to its own
-// PersonBlock. For non-external members the PersonBlock is a placed child of
-// this FamilyBlock (so the box ends up at the right spot via the render
-// walk). External members have a known local position by construction, used
-// only for line geometry; their PersonBlock lives in some outer block.
-//
-// Pivot conventions (set by the builder, not the class):
+// Pivot conventions, set by the spec, not the class:
 //   - 2 internal adults: pivot at Tie midpoint
 //   - 1 external adult + 1 internal adult: pivot at the external adult
 //   - 1 internal adult (lone parent): pivot at that adult

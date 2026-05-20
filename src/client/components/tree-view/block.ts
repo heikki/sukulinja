@@ -28,9 +28,7 @@ export interface PlacedBlock {
 export abstract class Block {
   abstract readonly children: readonly PlacedBlock[];
 
-  // How far the block's own box reaches from its pivot (BOX_W/2 for
-  // PersonBlock; 0 for FamilyBlock, which has no own box). Folded into the
-  // extents calculation alongside children.
+  // How far the block's own box reaches from its pivot.
   abstract readonly selfHalfWidth: number;
 
   abstract renderLocal(): LocalRenderOutput;

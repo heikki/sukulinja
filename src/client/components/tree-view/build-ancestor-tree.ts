@@ -22,9 +22,8 @@ export function buildAncestorTree(
   return new PersonBlock(personId, childhood, [], null);
 }
 
-// Used by build-tree.ts at depth 1 to place the GP couple, and recursively
-// inside buildAncestorTree at depth ≥ 2. Returns null when the kid has no
-// known parents in scope or recursion would exceed the generation limit.
+// Returns null when the kid has no known parents in scope or recursion
+// would exceed the generation limit.
 export function placeAncestorCouple(
   kidId: number,
   kidDepth: number,
