@@ -70,9 +70,11 @@ function buildChildhoodFamily(
   if (husbandPB === null && wifePB === null) return null;
 
   const couple = layoutInternalCouple(husbandPB, wifePB, fam, tilt);
-  // External bloodline kid sits at the bloodline-side column. For tilted
-  // couples the bloodline kid lands directly below the pivoted GP
-  // (FB-local x = 0); for centered couples it lands under the Tie midpoint.
+  // Tilted couples pin the kid at FB-local 0 — under the inner spouse,
+  // with the other spouse shifted outward to ±sep. The Tie midpoint
+  // (= childAnchorX) is then off-column at ±sep/2, so the sibship draws
+  // an L-bar from the midpoint over to the kid. Centered couples have
+  // the kid under the Tie midpoint directly (straight drop, no L).
   const externalKidX = tilt === 'center' ? couple.childAnchorX : 0;
   const kids: KidPlacement[] = [
     { id: personId, external: true, x: externalKidX, block: null }
@@ -104,9 +106,10 @@ function buildPlainAncestorPB(
   tilt: Tilt,
   ix: LayoutIndices
 ): PersonBlock {
-  // Tilt is preserved through the chain (paternal branch tilts left all the
-  // way up, maternal branch tilts right) so deeper great-GP rows don't
-  // converge at the same chart X.
+  // Same tilt applied through every couple in the paternal subtree (and
+  // mirrored for maternal) so the whole ancestor chain spreads diagonally
+  // outward — deeper great-GP rows widen instead of stacking on the same
+  // chart X.
   const childhood = buildChildhoodFamily(personId, depth, tilt, ix);
   return new PersonBlock(personId, childhood, [], null);
 }
@@ -351,9 +354,10 @@ function couplePlacement(
   tilt: Tilt
 ): InternalCoupleLayout {
   // Sep widens to clear husband's right subtree extent + wife's left
-  // subtree extent. For tilted couples the inner spouse sits at FB-local
-  // 0, the outer spouse at ±sep — so deeper ancestor rows widen
-  // recursively.
+  // subtree extent. For tilted couples, one spouse sits at FB-local 0
+  // (inner; aligned with the kid below) and the other is pushed out to
+  // ±sep — left=husband-outward, right=wife-outward. Recursively this
+  // makes deeper ancestor rows fan further outward instead of converging.
   const sep = Math.max(
     COUPLE_PITCH,
     husbandPB.coupleRightWidth + wifePB.coupleLeftWidth + COUPLE_GAP

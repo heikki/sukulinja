@@ -126,7 +126,7 @@ export class FamilyBlock extends Block {
       y2: busY
     });
     // Bar spans the union of childAnchorX and the kid Xs — so a tilted GP
-    // couple with anchor offset from the bloodline kid's column still
+    // couple, whose Tie midpoint sits off the kid's column, still
     // connects via an L-bar (drop → horizontal → leg) instead of leaving
     // a horizontal gap between the drop and the leg.
     let minX = spec.childAnchorX;
