@@ -13,7 +13,7 @@ const fetch = createStaticFetch({ api, staticRoots: ['src/client'] });
 const server = Bun.serve({
   port: 0,
   routes: { '/': indexHtml },
-  development: false,
+  development: { hmr: true, console: true },
   fetch
 });
 
