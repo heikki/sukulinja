@@ -7,11 +7,7 @@
 
 import type { Block } from './block';
 import { FamilyBlock } from './block-family';
-import type {
-  AdultPlacement,
-  FamilyBlockSpec,
-  KidPlacement
-} from './block-family';
+import type { FamilyBlockSpec, PersonPlacement } from './block-family';
 import { PersonBlock } from './block-person';
 import {
   computeFBExtents,
@@ -169,10 +165,10 @@ interface ChildhoodFBKidsArgs {
   ix: LayoutIndices;
 }
 
-function childhoodFBKids(args: ChildhoodFBKidsArgs): KidPlacement[] {
+function childhoodFBKids(args: ChildhoodFBKidsArgs): PersonPlacement[] {
   const { bloodlineId, fam, currentDepth, ancestorChartX, stepFamSpacer, ix } =
     args;
-  const bloodlinePlacement: KidPlacement = {
+  const bloodlinePlacement: PersonPlacement = {
     id: bloodlineId,
     external: true,
     x: 0,
@@ -429,7 +425,7 @@ function assembleParentFB(args: AssembleParentArgs): FamilyBlock {
   const { parentFam, faPB, moPB, kidPBs, packed, sibIds } = args;
   const couple = layoutInternalCouple(faPB, moPB, parentFam);
   const kidXs = kidXsFromPacked(packed, couple.childAnchor.x);
-  const kids: KidPlacement[] = sibIds.map((sid, i) => ({
+  const kids: PersonPlacement[] = sibIds.map((sid, i) => ({
     id: sid,
     external: false,
     x: kidXs[i]!,
@@ -456,8 +452,8 @@ function assembleParentFB(args: AssembleParentArgs): FamilyBlock {
 }
 
 interface InternalCoupleLayout {
-  husband: AdultPlacement | null;
-  wife: AdultPlacement | null;
+  husband: PersonPlacement | null;
+  wife: PersonPlacement | null;
   childAnchor: Point;
   tieY: number;
 }

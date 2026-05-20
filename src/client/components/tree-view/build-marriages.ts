@@ -5,11 +5,7 @@
 
 import type { Block } from './block';
 import { FamilyBlock } from './block-family';
-import type {
-  AdultPlacement,
-  FamilyBlockSpec,
-  KidPlacement
-} from './block-family';
+import type { FamilyBlockSpec, PersonPlacement } from './block-family';
 import { PersonBlock } from './block-person';
 import {
   isHusbandIn,
@@ -50,9 +46,9 @@ export function packBlocks(blocks: readonly Block[]): PackedBlocks {
 }
 
 export interface ExtentArgs {
-  husband: AdultPlacement | null;
-  wife: AdultPlacement | null;
-  kids: readonly KidPlacement[];
+  husband: PersonPlacement | null;
+  wife: PersonPlacement | null;
+  kids: readonly PersonPlacement[];
 }
 
 export function computeFBExtents(args: ExtentArgs): {
@@ -80,9 +76,9 @@ export function computeFBExtents(args: ExtentArgs): {
 
 export interface BuildMarriageArgs {
   famId: number;
-  husband: AdultPlacement | null;
-  wife: AdultPlacement | null;
-  kids: KidPlacement[];
+  husband: PersonPlacement | null;
+  wife: PersonPlacement | null;
+  kids: PersonPlacement[];
   anchor: Point;
   tieY: number;
 }
@@ -135,13 +131,13 @@ export function buildExternalAdultFB(
   const renderedSpouseId = isPersonKnown(otherId, ix) ? otherId : null;
 
   const externalIsHusband = isHusbandIn(fam, externalAdultId);
-  const externalAdult: AdultPlacement = {
+  const externalAdult: PersonPlacement = {
     id: externalAdultId,
     external: true,
     x: 0,
     block: null
   };
-  const spouseAdult: AdultPlacement | null =
+  const spouseAdult: PersonPlacement | null =
     otherId === null
       ? null
       : {
@@ -155,7 +151,7 @@ export function buildExternalAdultFB(
         };
 
   const kidXs = kidXsFromPacked(packed, placement.anchor.x);
-  const kids: KidPlacement[] = kidBlocks.map((kb, i) => ({
+  const kids: PersonPlacement[] = kidBlocks.map((kb, i) => ({
     id: kb.personId,
     external: false,
     x: kidXs[i]!,
