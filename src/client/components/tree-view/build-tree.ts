@@ -70,11 +70,9 @@ function buildChildhoodFamily(
   if (husbandPB === null && wifePB === null) return null;
 
   const couple = layoutInternalCouple(husbandPB, wifePB, fam, tilt);
-  // Tilted couples pin the kid at FB-local 0 — under the inner spouse,
-  // with the other spouse shifted outward to ±sep. The Tie midpoint
-  // (= childAnchorX) is then off-column at ±sep/2, so the sibship draws
-  // an L-bar from the midpoint over to the kid. Centered couples have
-  // the kid under the Tie midpoint directly (straight drop, no L).
+  // Centered couples drop straight from the Tie midpoint to the kid;
+  // tilted couples have the Tie midpoint offset from the kid's column
+  // so the sibship draws an L-bar to connect.
   const externalKidX = tilt === 'center' ? couple.childAnchorX : 0;
   const kids: KidPlacement[] = [
     { id: personId, external: true, x: externalKidX, block: null }
@@ -106,10 +104,10 @@ function buildPlainAncestorPB(
   tilt: Tilt,
   ix: LayoutIndices
 ): PersonBlock {
-  // Same tilt applied through every couple in the paternal subtree (and
-  // mirrored for maternal) so the whole ancestor chain spreads diagonally
-  // outward — deeper great-GP rows widen instead of stacking on the same
-  // chart X.
+  // Tilt propagates through the ancestor chain so a whole subtree shares
+  // a slant direction — the chain spreads diagonally instead of stacking
+  // on one chart X. Which direction a subtree tilts is decided higher
+  // up, by where there is room for it.
   const childhood = buildChildhoodFamily(personId, depth, tilt, ix);
   return new PersonBlock(personId, childhood, [], null);
 }
@@ -353,11 +351,10 @@ function couplePlacement(
   fam: FamilyRow,
   tilt: Tilt
 ): InternalCoupleLayout {
-  // Sep widens to clear husband's right subtree extent + wife's left
-  // subtree extent. For tilted couples, one spouse sits at FB-local 0
-  // (inner; aligned with the kid below) and the other is pushed out to
-  // ±sep — left=husband-outward, right=wife-outward. Recursively this
-  // makes deeper ancestor rows fan further outward instead of converging.
+  // Spouse-to-spouse separation stays at COUPLE_PITCH — the box-to-box
+  // gap is fixed by the constant, not stretched per subtree width.
+  // (The Math.max below is a safety net that only kicks in if a subtree
+  // demands more room than COUPLE_PITCH allows.)
   const sep = Math.max(
     COUPLE_PITCH,
     husbandPB.coupleRightWidth + wifePB.coupleLeftWidth + COUPLE_GAP
