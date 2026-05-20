@@ -15,6 +15,7 @@ import type {
 import { PersonBlock } from './block-person';
 import {
   computeFBExtents,
+  kidXsFromPacked,
   packBlocks,
   type PackedBlocks
 } from './build-marriages';
@@ -25,8 +26,6 @@ import {
 } from './build-step-fams';
 import { BOX_H, BOX_W, COUPLE_PITCH, presentChildren, ROW_H } from './helpers';
 import type { FamilyRow, LayoutIndices } from './helpers';
-
-// ============= Top-level =============
 
 export function buildChartRoot(
   focusId: number,
@@ -40,8 +39,6 @@ export function buildChartRoot(
   }
   return buildFocusPersonBlock(focusId, ix);
 }
-
-// ============= Childhood FB + plain ancestor PB (depth ≥ 2) =============
 
 // `ancestorChartX` is the chart-X of the bloodline ancestor whose childhood
 // FB we're building. The drop from the GGP couple's Tie to the sibship
@@ -208,8 +205,6 @@ function childhoodFBKids(args: ChildhoodFBKidsArgs): KidPlacement[] {
     };
   });
 }
-
-// ============= Parent FB (chart root) =============
 
 function buildParentFamilyBlock(
   focusId: number,
@@ -433,9 +428,7 @@ interface AssembleParentArgs {
 function assembleParentFB(args: AssembleParentArgs): FamilyBlock {
   const { parentFam, faPB, moPB, kidPBs, packed, sibIds } = args;
   const couple = layoutInternalCouple(faPB, moPB, parentFam);
-  const kidXs = packed.positions.map(
-    (p) => p - packed.barMid + couple.childAnchorX
-  );
+  const kidXs = kidXsFromPacked(packed, couple.childAnchorX);
   const kids: KidPlacement[] = sibIds.map((sid, i) => ({
     id: sid,
     external: false,
@@ -462,8 +455,6 @@ function assembleParentFB(args: AssembleParentArgs): FamilyBlock {
   };
   return new FamilyBlock(spec);
 }
-
-// ============= Internal-couple layout =============
 
 interface InternalCoupleLayout {
   husband: AdultPlacement | null;

@@ -18,6 +18,13 @@ export interface PackedBlocks {
   barMid: number;
 }
 
+export function kidXsFromPacked(
+  packed: PackedBlocks,
+  anchorX: number
+): number[] {
+  return packed.positions.map((p) => p - packed.barMid + anchorX);
+}
+
 export function packBlocks(blocks: readonly Block[]): PackedBlocks {
   if (blocks.length === 0) {
     return { positions: [], totalWidth: 0, barMid: 0 };

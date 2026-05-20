@@ -1,16 +1,5 @@
-// Base Block class + shared types for the block-tree layout.
-//
-// Two concrete kinds:
-//   - PersonBlock — exactly one person; recursion happens here, via
-//     `childhoodFamily` placed above and `marriages` placed below.
-//   - FamilyBlock — exactly one family (couple + their kids); never recurses.
-//
 // The render walk keeps edges flat at the top level so box-over-edge
 // z-order is preserved without any per-Block bookkeeping.
-
-import type { Line } from './helpers';
-
-export type { Line };
 
 export interface LocalPersonBox {
   personId: number;
@@ -36,7 +25,7 @@ export interface LocalPos {
   y: number;
 }
 
-export interface PlacedChild {
+export interface PlacedBlock {
   block: Block;
   offsetX: number;
   offsetY: number;
@@ -45,17 +34,11 @@ export interface PlacedChild {
 export abstract class Block {
   abstract readonly leftWidth: number;
   abstract readonly rightWidth: number;
-  abstract readonly children: readonly PlacedChild[];
+  abstract readonly children: readonly PlacedBlock[];
 
   abstract renderLocal(): LocalRenderOutput;
 
   abstract personLocalPos(personId: number): LocalPos | null;
-}
-
-export interface PlacedBlock {
-  block: Block;
-  offsetX: number;
-  offsetY: number;
 }
 
 export interface RenderGroup {

@@ -11,14 +11,6 @@ export interface LayoutIndices {
   levels: number;
 }
 
-export interface Line {
-  key: string;
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-}
-
 export const BOX_W = 184;
 export const BOX_H = 90;
 export const SIBLING_GAP = 28;
@@ -32,6 +24,7 @@ export const SVG_HALF = 5000;
 export const COUPLE_PITCH = BOX_W + COUPLE_GAP;
 export const DRAG_THRESHOLD_PX = 4;
 export const DEFAULT_FOCUS_ID = 3;
+export const NONPRIMARY_TIE_Y_OFFSET = 6;
 
 export function otherSpouseOf(fam: FamilyRow, personId: number): number | null {
   if (fam.husband_id === personId) return fam.wife_id;
@@ -45,4 +38,14 @@ export function isHusbandIn(fam: FamilyRow, personId: number): boolean {
 
 export function presentChildren(fam: FamilyRow, ix: LayoutIndices): number[] {
   return fam.child_ids.filter((cid) => ix.persons.has(cid));
+}
+
+export function isMeaningfulSpouseFam(
+  fam: FamilyRow,
+  personId: number,
+  ix: LayoutIndices
+): boolean {
+  return (
+    presentChildren(fam, ix).length > 0 || otherSpouseOf(fam, personId) !== null
+  );
 }

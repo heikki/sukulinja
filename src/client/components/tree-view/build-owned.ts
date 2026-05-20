@@ -11,6 +11,7 @@ import type { AdultPlacement, FamilyBlock, KidPlacement } from './block-family';
 import { PersonBlock } from './block-person';
 import {
   buildMarriageFamilyBlock,
+  kidXsFromPacked,
   packBlocks,
   type PackedBlocks
 } from './build-marriages';
@@ -20,12 +21,12 @@ import {
   COUPLE_GAP,
   COUPLE_PITCH,
   isHusbandIn,
+  isMeaningfulSpouseFam,
+  NONPRIMARY_TIE_Y_OFFSET,
   otherSpouseOf,
   presentChildren
 } from './helpers';
 import type { FamilyRow, LayoutIndices } from './helpers';
-
-const NONPRIMARY_TIE_Y_OFFSET = 6;
 
 export function buildFocusPersonBlock(
   personId: number,
@@ -67,10 +68,7 @@ export function meaningfulSpouseFams(
   ix: LayoutIndices
 ): FamilyRow[] {
   const fams = ix.spouseFamsByPerson.get(personId) ?? [];
-  return fams.filter(
-    (f) =>
-      presentChildren(f, ix).length > 0 || otherSpouseOf(f, personId) !== null
-  );
+  return fams.filter((f) => isMeaningfulSpouseFam(f, personId, ix));
 }
 
 export function fanDirOfPerson(
@@ -200,9 +198,7 @@ function buildOwnedMarriageFB(args: BuildOwnedMarriageArgs): FamilyBlock {
               : new PersonBlock(renderedSpouseId, null, [], null)
         };
 
-  const kidXs = packed.positions.map(
-    (p) => p - packed.barMid + placement.anchorX
-  );
+  const kidXs = kidXsFromPacked(packed, placement.anchorX);
   const kids: KidPlacement[] = kidBlocks.map((kb, i) => ({
     id: kb.personId,
     external: false,
