@@ -101,9 +101,12 @@ export class TreeViewElement extends LitElement {
 
   private readonly onHashChange = (): void => {
     const id = readFocusFromHash();
-    if (id !== null && this.persons.has(id) && id !== this.focusId) {
-      this.focusId = id;
-    }
+    if (id === null || !this.persons.has(id) || id === this.focusId) return;
+    // Pan was last set to pin the previously-focused box at click position;
+    // without a fresh pin, back/forward would land the new focus at a stale
+    // offset. Recenter on the canvas instead.
+    this.pendingPinScreen = this.pinFromCanvasCenter();
+    this.focusId = id;
   };
 
   override updated(_changed: PropertyValues): void {
@@ -185,6 +188,13 @@ export class TreeViewElement extends LitElement {
     return first.done === true ? null : first.value;
   }
 
+  resetFocus(): void {
+    if (this.loading) return;
+    const def = this.pickDefaultFocus();
+    if (def === null) return;
+    this.setFocus(def, this.pinFromCanvasCenter());
+  }
+
   private setFocus(
     id: number,
     pinScreen: { x: number; y: number } | null
@@ -195,7 +205,7 @@ export class TreeViewElement extends LitElement {
     }
     if (pinScreen !== null) this.pendingPinScreen = pinScreen;
     this.focusId = id;
-    history.replaceState(null, '', `#/person/${id}`);
+    history.pushState(null, '', `#/person/${id}`);
     this.query = '';
   }
 
