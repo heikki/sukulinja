@@ -4,10 +4,6 @@ import type { FamilyRow, PersonRow } from '@common/types';
 
 import { openDb } from './db';
 
-const DEFAULT_MEDIA_BASE =
-  process.env.SUKULINJA_MEDIA ??
-  resolve(import.meta.dir, '..', '..', '..', 'myheritage-export');
-
 function parseYear(date: string | null): number | null {
   if (date === null) return null;
   const m = /(?<year>\d{4})/.exec(date);
@@ -18,9 +14,14 @@ export interface ApiHandlers {
   routeApi: (req: Request, pathname: string) => Promise<Response | null>;
 }
 
-export function createApi(): ApiHandlers {
-  const db = openDb();
-  const mediaRoot = resolve(DEFAULT_MEDIA_BASE, 'media');
+export interface ApiConfig {
+  dbPath: string;
+  mediaRoot: string;
+}
+
+export function createApi(config: ApiConfig): ApiHandlers {
+  const db = openDb(config.dbPath);
+  const mediaRoot = config.mediaRoot;
 
   const listPersons = db.prepare(`
     SELECT

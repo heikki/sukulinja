@@ -1,9 +1,4 @@
-import { resolve } from 'node:path';
 import { Database } from 'bun:sqlite';
-
-const DEFAULT_DB_PATH =
-  process.env.SUKULINJA_DB ??
-  resolve(import.meta.dir, '..', '..', 'data', 'app.db');
 
 const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS persons (
@@ -98,7 +93,7 @@ function runScript(db: Database, sql: string): void {
   for (const stmt of statements) db.run(stmt);
 }
 
-export function openDb(path = DEFAULT_DB_PATH): Database {
+export function openDb(path: string): Database {
   const db = new Database(path, { create: true });
   db.run('PRAGMA journal_mode = WAL;');
   db.run('PRAGMA foreign_keys = ON;');
