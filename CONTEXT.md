@@ -12,18 +12,22 @@ _Avoid_: Bowtie chart, kinship chart, pedigree chart.
 The single person the chart is built around. Ancestors expand upward, descendants downward.
 _Avoid_: Proband, ego, root, center person.
 
-### The three slabs
+### Horizontal regions
 
 **Focus row**:
 The horizontal row at Focus's **Generation** (Y = 0). Contains Focus + full **Siblings** (each with their first marriage's spouse if any) + Focus's **Spouses** (joined by **Ties**) plus any **Half-sibling** sibships beside it.
 _Avoid_: Center row, sibship row, generation row.
 
+**Parent row**:
+The depth-1 row, just above Focus row. The only row with full lateral context — Fa/Mo's non-Primary spouses (rendered as **Couples**) and **Aunts/Uncles** appear here alongside the bloodline Father and Mother. The **Bloodline footprint** is anchored at this row.
+_Avoid_: Depth-1 row, parental row.
+
 **Ancestor stack**:
-The slab above the focus row. At depth 1 (Focus's parents): the bloodline **Ancestor**, that ancestor's non-Primary spouses (rendered as **Couples**), full siblings (**Aunts/Uncles**), and **Half-siblings** of Focus (children of the non-Primary Couples, rendered at Focus row). At depth ≥ 2: the bloodline pair only — no step-spouses, no Aunts/Uncles, no half-relatives. Lateral context is concentrated entirely in depth 1; depth ≥ 2 is a pure bloodline pyramid. Bounded by **Generation limit**.
+The slab above Parent row, containing only the bloodline Ancestor pair at each depth (depth ≥ 2). No step-spouses, no **Aunts/Uncles**, no half-relatives — pure bloodline (ADR-0002). Bounded by **Generation limit**.
 _Avoid_: Ascendancy, pedigree, ancestor tree (that's a recursive unit).
 
 **Descendant stack**:
-The slab below the focus row. Bloodline **Descendants** and each of their spouses (**Couples**), down to **Generation limit**.
+The slab below Focus row. Bloodline **Descendants** and each of their spouses (**Couples**), down to **Generation limit**.
 _Avoid_: Descendancy, descendant tree (that's a recursive unit).
 
 ### Relatives
