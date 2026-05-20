@@ -15,14 +15,6 @@
 //   - ancestor PB: marriages = [...stepFams, null at bloodline,...] (chronological),
 //                  activeIdx = bloodline position in spouseFams
 //   - bare PB:     marriages = [], activeIdx = null
-//
-// Width split:
-//   - coupleLeftWidth / coupleRightWidth — own box + childhoodFamily only.
-//     Used by an outer FamilyBlock that places this PB as an adult, so
-//     Fa–Mo sep doesn't widen when Fa picks up step-fams (those land at
-//     chart positions sized to clear the bloodline kid row separately).
-//   - leftWidth / rightWidth — overall extent including marriages. Used
-//     for outer packing and the chart's bounding box.
 
 import { Block } from './block';
 import type {
@@ -37,8 +29,6 @@ import { BOX_W, ROW_H } from './helpers';
 export class PersonBlock extends Block {
   readonly leftWidth: number;
   readonly rightWidth: number;
-  readonly coupleLeftWidth: number;
-  readonly coupleRightWidth: number;
   readonly children: readonly PlacedBlock[];
 
   constructor(
@@ -48,24 +38,19 @@ export class PersonBlock extends Block {
     readonly activeMarriageIndex: number | null
   ) {
     super();
-    let coupleLeft = BOX_W / 2;
-    let coupleRight = BOX_W / 2;
+    let left = BOX_W / 2;
+    let right = BOX_W / 2;
     if (childhoodFamily !== null) {
-      coupleLeft = Math.max(coupleLeft, childhoodFamily.leftWidth);
-      coupleRight = Math.max(coupleRight, childhoodFamily.rightWidth);
+      left = Math.max(left, childhoodFamily.leftWidth);
+      right = Math.max(right, childhoodFamily.rightWidth);
     }
-    this.coupleLeftWidth = coupleLeft;
-    this.coupleRightWidth = coupleRight;
-
-    let leftExt = coupleLeft;
-    let rightExt = coupleRight;
     for (const m of marriages) {
       if (m === null) continue;
-      leftExt = Math.max(leftExt, m.leftWidth);
-      rightExt = Math.max(rightExt, m.rightWidth);
+      left = Math.max(left, m.leftWidth);
+      right = Math.max(right, m.rightWidth);
     }
-    this.leftWidth = leftExt;
-    this.rightWidth = rightExt;
+    this.leftWidth = left;
+    this.rightWidth = right;
 
     const placed: PlacedBlock[] = [];
     for (const m of marriages) {
