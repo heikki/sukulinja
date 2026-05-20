@@ -118,30 +118,57 @@ export class FamilyBlock extends Block {
   private appendSibshipLines(lines: LocalLine[]): void {
     const { spec } = this;
     const busY = spec.kidY - ROW_H / 2;
-    lines.push({
-      key: `sib-${spec.famId}-drop`,
-      x1: spec.childAnchorX,
-      y1: spec.childAnchorY,
-      x2: spec.childAnchorX,
-      y2: busY
-    });
-    // Bar spans the union of childAnchorX and the kid Xs — so a GP couple
-    // whose Tie midpoint sits off the bloodline kid's column (the norm
-    // under the bloodline pyramid; see CONTEXT.md "Bloodline pyramid")
-    // still connects via an L-bar (drop → horizontal → leg) instead of
-    // leaving a horizontal gap between the drop and the leg.
-    let minX = spec.childAnchorX;
-    let maxX = spec.childAnchorX;
+    let minKidX = spec.kids[0]!.x;
+    let maxKidX = spec.kids[0]!.x;
     for (const k of spec.kids) {
-      if (k.x < minX) minX = k.x;
-      if (k.x > maxX) maxX = k.x;
+      if (k.x < minKidX) minKidX = k.x;
+      if (k.x > maxKidX) maxKidX = k.x;
     }
-    if (maxX > minX) {
+    // The drop lands at the bar's midpoint, not at the Tie's X. Under the
+    // bloodline pyramid the Tie sits at chart-X = 2 * ancestorChartX
+    // (CONTEXT.md "Bloodline pyramid", ADR-0001), which is generally not
+    // above the sibship's bar midpoint — so a visible L-bend connects
+    // them. For a single-kid sibship the bar collapses and the midpoint
+    // is just that kid's column.
+    const barMid = (minKidX + maxKidX) / 2;
+    if (barMid === spec.childAnchorX) {
+      lines.push({
+        key: `sib-${spec.famId}-drop`,
+        x1: spec.childAnchorX,
+        y1: spec.childAnchorY,
+        x2: spec.childAnchorX,
+        y2: busY
+      });
+    } else {
+      const elbowY = (spec.childAnchorY + busY) / 2;
+      lines.push({
+        key: `sib-${spec.famId}-drop-1`,
+        x1: spec.childAnchorX,
+        y1: spec.childAnchorY,
+        x2: spec.childAnchorX,
+        y2: elbowY
+      });
+      lines.push({
+        key: `sib-${spec.famId}-drop-h`,
+        x1: spec.childAnchorX,
+        y1: elbowY,
+        x2: barMid,
+        y2: elbowY
+      });
+      lines.push({
+        key: `sib-${spec.famId}-drop-2`,
+        x1: barMid,
+        y1: elbowY,
+        x2: barMid,
+        y2: busY
+      });
+    }
+    if (maxKidX > minKidX) {
       lines.push({
         key: `sib-${spec.famId}-bar`,
-        x1: minX,
+        x1: minKidX,
         y1: busY,
-        x2: maxX,
+        x2: maxKidX,
         y2: busY
       });
     }
