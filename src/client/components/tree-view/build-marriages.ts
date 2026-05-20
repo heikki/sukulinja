@@ -11,7 +11,6 @@ import {
   isHusbandIn,
   isPersonKnown,
   otherSpouseOf,
-  ROW_H,
   SIBLING_GAP
 } from './helpers';
 import type { FamilyRow, LayoutIndices, Point } from './helpers';
@@ -57,8 +56,6 @@ export function buildMarriageFB(args: BuildMarriageFBArgs) {
     husband: args.husband,
     wife: args.wife,
     kids: args.kids,
-    adultY: 0,
-    kidY: ROW_H,
     tieY: args.tieY,
     childAnchor: args.anchor
   });

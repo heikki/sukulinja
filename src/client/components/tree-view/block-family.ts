@@ -34,9 +34,7 @@ export interface FamilyBlockSpec {
   husband: PersonPlacement | null;
   wife: PersonPlacement | null;
   kids: readonly PersonPlacement[];
-  // Local Y values.
-  adultY: number;
-  kidY: number;
+  // Couple-Tie Y in the local frame. Adults sit at y=0; kids at y=ROW_H.
   tieY: number;
   // Sibship drop origin in the local frame.
   childAnchor: Point;
@@ -52,20 +50,20 @@ export class FamilyBlock extends Block {
     if (spec.husband !== null && spec.husband.block !== null) {
       placed.push({
         block: spec.husband.block,
-        offset: { x: spec.husband.x, y: spec.adultY }
+        offset: { x: spec.husband.x, y: 0 }
       });
     }
     if (spec.wife !== null && spec.wife.block !== null) {
       placed.push({
         block: spec.wife.block,
-        offset: { x: spec.wife.x, y: spec.adultY }
+        offset: { x: spec.wife.x, y: 0 }
       });
     }
     for (const kid of spec.kids) {
       if (kid.block !== null) {
         placed.push({
           block: kid.block,
-          offset: { x: kid.x, y: spec.kidY }
+          offset: { x: kid.x, y: ROW_H }
         });
       }
     }
@@ -94,7 +92,7 @@ export class FamilyBlock extends Block {
 
   private appendSibshipLines(lines: Line[]) {
     const { spec } = this;
-    const busY = spec.kidY - ROW_H / 2;
+    const busY = ROW_H / 2;
     // Drop is always vertical (see CONTEXT.md "Bloodline pyramid", ADR-0001).
     // The bar spans the union of childAnchor.x and the kid Xs — so a
     // one-kid sibship where the Tie sits off the kid's column (depth ≥ 2)
@@ -121,7 +119,7 @@ export class FamilyBlock extends Block {
       lines.push({
         key: `sib-${spec.famId}-leg-${k.id}`,
         from: { x: k.x, y: busY },
-        to: { x: k.x, y: spec.kidY - BOX_H / 2 }
+        to: { x: k.x, y: ROW_H - BOX_H / 2 }
       });
     }
   }
