@@ -9,12 +9,8 @@
 
 import type { FamilyBlock } from './block-family';
 import { PersonBlock } from './block-person';
-import {
-  buildExternalAdultFB,
-  packBlocks,
-  type PackedBlocks,
-  type SpousePlacement
-} from './build-marriages';
+import { buildExternalAdultFB, packBlocks } from './build-marriages';
+import type { PackedBlocks } from './build-marriages';
 import {
   BOX_H,
   BOX_W,
@@ -27,10 +23,7 @@ import {
 } from './helpers';
 import type { FamilyRow, LayoutIndices } from './helpers';
 
-export function buildFocusPersonBlock(
-  personId: number,
-  ix: LayoutIndices
-): PersonBlock {
+export function buildFocusPersonBlock(personId: number, ix: LayoutIndices) {
   return buildOwnedMarriagesPB(personId, 0, ix.levels >= 1, ix);
 }
 
@@ -38,14 +31,11 @@ export function buildDescendantKidPersonBlock(
   personId: number,
   depth: number,
   ix: LayoutIndices
-): PersonBlock {
+) {
   return buildOwnedMarriagesPB(personId, depth, depth < ix.levels, ix);
 }
 
-export function buildSiblingPersonBlock(
-  personId: number,
-  ix: LayoutIndices
-): PersonBlock {
+export function buildSiblingPersonBlock(personId: number, ix: LayoutIndices) {
   const fams = meaningfulSpouseFams(personId, ix);
   if (fams.length === 0) return new PersonBlock(personId, null, [], null);
   const primary = fams[0]!;
@@ -62,10 +52,7 @@ export function buildSiblingPersonBlock(
   return new PersonBlock(personId, null, [fb], 0);
 }
 
-function meaningfulSpouseFams(
-  personId: number,
-  ix: LayoutIndices
-): FamilyRow[] {
+function meaningfulSpouseFams(personId: number, ix: LayoutIndices) {
   const fams = ix.spouseFamsByPerson.get(personId) ?? [];
   return fams.filter((f) => isMeaningfulSpouseFam(f, personId, ix));
 }
@@ -85,7 +72,7 @@ function buildOwnedMarriagesPB(
   depth: number,
   includeChildren: boolean,
   ix: LayoutIndices
-): PersonBlock {
+) {
   const fams = meaningfulSpouseFams(personId, ix);
   if (fams.length === 0) return new PersonBlock(personId, null, [], null);
   const fanDir = fanDirOfPerson(personId, fams, ix);
@@ -126,14 +113,14 @@ function ownedKidBlocks(
   depth: number,
   includeChildren: boolean,
   ix: LayoutIndices
-): PersonBlock[] {
+) {
   if (!includeChildren) return [];
   return presentChildren(fam, ix).map((cid) =>
     buildDescendantKidPersonBlock(cid, depth + 1, ix)
   );
 }
 
-function primarySpousePlacement(fanDir: 1 | -1): SpousePlacement {
+function primarySpousePlacement(fanDir: 1 | -1) {
   const xSpouse = fanDir * COUPLE_PITCH;
   return { xSpouse, anchor: { x: xSpouse / 2, y: 0 }, tieY: 0 };
 }
@@ -142,7 +129,7 @@ function nonPrimarySpousePlacement(
   fanDir: 1 | -1,
   outerEdge: number,
   packed: PackedBlocks
-): SpousePlacement {
+) {
   const sibInner =
     fanDir === 1 ? packed.barMid : packed.totalWidth - packed.barMid;
   const innerClear = Math.max(BOX_W / 2, sibInner);

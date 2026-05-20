@@ -14,7 +14,7 @@ import {
   SVG_HALF,
   translatePoint
 } from './helpers';
-import type { FamilyRow, LayoutIndices, PersonRow, Point } from './helpers';
+import type { FamilyRow, PersonRow, Point } from './helpers';
 import { buildChart } from './layout';
 import { treeViewStyles } from './styles';
 
@@ -28,37 +28,37 @@ const NAME_TRUNCATE = 22;
 const SEARCH_MIN_LEN = 2;
 const SEARCH_MAX_RESULTS = 50;
 
-function readFocusFromHash(): number | null {
+function readFocusFromHash() {
   const m = FOCUS_HASH_RE.exec(location.hash);
   const id = m?.groups?.id;
   if (id === undefined) return null;
   return parseInt(id, 10);
 }
 
-function formatName(p: PersonRow): string {
+function formatName(p: PersonRow) {
   const given = (p.given ?? '').trim();
   const surname = (p.surname ?? '').trim();
   const joined = [given, surname].filter((s) => s.length > 0).join(' ');
   return joined.length > 0 ? joined : '—';
 }
 
-function formatDates(p: PersonRow): string {
+function formatDates(p: PersonRow) {
   const b = p.birth_year ?? '';
   const d = p.death_year ?? '';
   if (b === '' && d === '') return '';
   return `${b}–${d}`;
 }
 
-function truncate(s: string, max: number): string {
+function truncate(s: string, max: number) {
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }
 
-function photoSrcOf(p: PersonRow): string | null {
+function photoSrcOf(p: PersonRow) {
   if (p.photo_path === null) return null;
   return `/media/${p.photo_path.replace(/^media\//u, '')}`;
 }
 
-function searchKeyOf(p: PersonRow): string {
+function searchKeyOf(p: PersonRow) {
   return `${p.given ?? ''} ${p.surname ?? ''}`.toLowerCase();
 }
 
@@ -83,7 +83,7 @@ export class TreeViewElement extends LitElement {
   private dragMoved = false;
   private pendingPinScreen: Point | null = null;
 
-  override connectedCallback(): void {
+  override connectedCallback() {
     super.connectedCallback();
     window.addEventListener('hashchange', this.onHashChange);
     window.addEventListener('mousemove', this.onMouseMove);
@@ -91,14 +91,14 @@ export class TreeViewElement extends LitElement {
     void this.load();
   }
 
-  override disconnectedCallback(): void {
+  override disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener('hashchange', this.onHashChange);
     window.removeEventListener('mousemove', this.onMouseMove);
     window.removeEventListener('mouseup', this.onMouseUp);
   }
 
-  private readonly onHashChange = (): void => {
+  private readonly onHashChange = () => {
     const id = readFocusFromHash();
     if (id === null || !this.persons.has(id) || id === this.focusId) return;
     // Pan was last set to pin the previously-focused box at click position;
@@ -108,7 +108,7 @@ export class TreeViewElement extends LitElement {
     this.focusId = id;
   };
 
-  override updated(_changed: PropertyValues): void {
+  override updated(_changed: PropertyValues) {
     if (this.loading || this.focusId === null) return;
     if (!this.panReady) {
       this.measureInitialPan();
@@ -119,7 +119,7 @@ export class TreeViewElement extends LitElement {
     }
   }
 
-  private measureInitialPan(): void {
+  private measureInitialPan() {
     const canvas = this.queryCanvas();
     if (canvas === null || canvas.clientWidth === 0) return;
     this.pan = {
@@ -132,7 +132,7 @@ export class TreeViewElement extends LitElement {
   // After a focus change, the new focus lives at SVG (0, 0). Set pan so the
   // captured pendingPinScreen pixel coincides with the new focus — eliminating
   // the "jump" effect on refocus.
-  private applyPin(): void {
+  private applyPin() {
     this.pan = {
       x: this.pendingPinScreen!.x - SVG_HALF,
       y: this.pendingPinScreen!.y - SVG_HALF
@@ -140,11 +140,11 @@ export class TreeViewElement extends LitElement {
     this.pendingPinScreen = null;
   }
 
-  private queryCanvas(): HTMLElement | null {
+  private queryCanvas() {
     return this.renderRoot.querySelector<HTMLElement>('.canvas');
   }
 
-  private async load(): Promise<void> {
+  private async load() {
     const [personsRes, familiesRes] = await Promise.all([
       fetch('/api/persons'),
       fetch('/api/families')
@@ -172,7 +172,7 @@ export class TreeViewElement extends LitElement {
     this.loading = false;
   }
 
-  private appendSpouseFam(personId: number, fam: FamilyRow): void {
+  private appendSpouseFam(personId: number, fam: FamilyRow) {
     let arr = this.spouseFamsByPerson.get(personId);
     if (arr === undefined) {
       arr = [];
@@ -181,20 +181,20 @@ export class TreeViewElement extends LitElement {
     arr.push(fam);
   }
 
-  private pickDefaultFocus(): number | null {
+  private pickDefaultFocus() {
     if (this.persons.has(DEFAULT_FOCUS_ID)) return DEFAULT_FOCUS_ID;
     const first = this.persons.keys().next();
     return first.done === true ? null : first.value;
   }
 
-  resetFocus(): void {
+  resetFocus() {
     if (this.loading) return;
     const def = this.pickDefaultFocus();
     if (def === null) return;
     this.setFocus(def, this.pinFromCanvasCenter());
   }
 
-  private setFocus(id: number, pinScreen: Point | null): void {
+  private setFocus(id: number, pinScreen: Point | null) {
     if (id === this.focusId) {
       this.query = '';
       return;
@@ -209,20 +209,20 @@ export class TreeViewElement extends LitElement {
   // on the <g> would include text labels whose width varies by name length,
   // shifting the captured "center" inconsistently and accumulating drift over
   // back-and-forth toggles.
-  private pinFromNode(node: Point): Point {
+  private pinFromNode(node: Point) {
     return {
       x: this.pan.x + node.x + SVG_HALF,
       y: this.pan.y + node.y + SVG_HALF
     };
   }
 
-  private pinFromCanvasCenter(): Point | null {
+  private pinFromCanvasCenter() {
     const canvas = this.queryCanvas();
     if (canvas === null) return null;
     return { x: canvas.clientWidth / 2, y: canvas.clientHeight / 2 };
   }
 
-  private readonly onCanvasMouseDown = (e: MouseEvent): void => {
+  private readonly onCanvasMouseDown = (e: MouseEvent) => {
     if (e.button !== 0) return;
     this.dragOrigin = {
       mouse: { x: e.clientX, y: e.clientY },
@@ -231,7 +231,7 @@ export class TreeViewElement extends LitElement {
     this.dragMoved = false;
   };
 
-  private readonly onMouseMove = (e: MouseEvent): void => {
+  private readonly onMouseMove = (e: MouseEvent) => {
     if (this.dragOrigin === null) return;
     const dx = e.clientX - this.dragOrigin.mouse.x;
     const dy = e.clientY - this.dragOrigin.mouse.y;
@@ -246,7 +246,7 @@ export class TreeViewElement extends LitElement {
     this.pan = { x: nextX, y: nextY };
   };
 
-  private readonly onMouseUp = (): void => {
+  private readonly onMouseUp = () => {
     this.dragOrigin = null;
     if (!this.dragging) return;
     setTimeout(() => {
@@ -254,7 +254,7 @@ export class TreeViewElement extends LitElement {
     }, 0);
   };
 
-  private filteredSearch(): PersonRow[] {
+  private filteredSearch() {
     const q = this.query.trim().toLowerCase();
     if (q.length < SEARCH_MIN_LEN) return [];
     const out: PersonRow[] = [];
@@ -267,7 +267,7 @@ export class TreeViewElement extends LitElement {
     return out;
   }
 
-  private indices(): LayoutIndices {
+  private indices() {
     return {
       persons: this.persons,
       parentFamByPerson: this.parentFamByPerson,

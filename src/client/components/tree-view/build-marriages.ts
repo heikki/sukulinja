@@ -22,14 +22,11 @@ export interface PackedBlocks {
   barMid: number;
 }
 
-export function kidXsFromPacked(
-  packed: PackedBlocks,
-  anchorX: number
-): number[] {
+export function kidXsFromPacked(packed: PackedBlocks, anchorX: number) {
   return packed.positions.map((p) => p - packed.barMid + anchorX);
 }
 
-export function packBlocks(blocks: readonly Block[]): PackedBlocks {
+export function packBlocks(blocks: readonly Block[]) {
   if (blocks.length === 0) {
     return { positions: [], totalWidth: 0, barMid: 0 };
   }
@@ -51,10 +48,7 @@ interface ExtentArgs {
   kids: readonly PersonPlacement[];
 }
 
-export function computeFBExtents(args: ExtentArgs): {
-  leftWidth: number;
-  rightWidth: number;
-} {
+export function computeFBExtents(args: ExtentArgs) {
   let minX = 0;
   let maxX = 0;
   if (args.husband !== null && args.husband.block !== null) {
@@ -83,7 +77,7 @@ interface BuildMarriageArgs {
   tieY: number;
 }
 
-function buildMarriageFamilyBlock(args: BuildMarriageArgs): FamilyBlock {
+function buildMarriageFamilyBlock(args: BuildMarriageArgs) {
   const extents = computeFBExtents({
     husband: args.husband,
     wife: args.wife,
@@ -123,9 +117,7 @@ interface BuildExternalAdultFBArgs {
   ix: LayoutIndices;
 }
 
-export function buildExternalAdultFB(
-  args: BuildExternalAdultFBArgs
-): FamilyBlock {
+export function buildExternalAdultFB(args: BuildExternalAdultFBArgs) {
   const { externalAdultId, fam, kidBlocks, packed, placement, ix } = args;
   const otherId = otherSpouseOf(fam, externalAdultId);
   const renderedSpouseId = isPersonKnown(otherId, ix) ? otherId : null;

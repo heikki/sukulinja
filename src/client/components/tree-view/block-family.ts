@@ -16,7 +16,7 @@
 //   - 1 internal adult (lone parent): pivot at that adult
 
 import { Block } from './block';
-import type { Line, LocalRenderOutput, PlacedBlock } from './block';
+import type { Line, PlacedBlock } from './block';
 import { BOX_H, BOX_W, ROW_H, translatePoint } from './helpers';
 import type { Point } from './helpers';
 
@@ -78,7 +78,7 @@ export class FamilyBlock extends Block {
     this.children = placed;
   }
 
-  renderLocal(): LocalRenderOutput {
+  renderLocal() {
     const lines: Line[] = [];
     if (this.spec.husband !== null && this.spec.wife !== null) {
       // Husband-left convention can be violated by ancestor step-fams (the
@@ -98,7 +98,7 @@ export class FamilyBlock extends Block {
     return { boxes: [], lines };
   }
 
-  private appendSibshipLines(lines: Line[]): void {
+  private appendSibshipLines(lines: Line[]) {
     const { spec } = this;
     const busY = spec.kidY - ROW_H / 2;
     // Drop is always vertical (see CONTEXT.md "Bloodline pyramid", ADR-0001).
@@ -132,7 +132,7 @@ export class FamilyBlock extends Block {
     }
   }
 
-  personLocalPos(personId: number): Point | null {
+  personLocalPos(personId: number) {
     for (const child of this.children) {
       const inner = child.block.personLocalPos(personId);
       if (inner !== null) return translatePoint(child.offset, inner);

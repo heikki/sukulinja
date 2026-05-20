@@ -16,7 +16,7 @@ export interface Point {
   y: number;
 }
 
-export function translatePoint(p: Point, by: Point): Point {
+export function translatePoint(p: Point, by: Point) {
   return { x: p.x + by.x, y: p.y + by.y };
 }
 
@@ -35,13 +35,13 @@ export const DRAG_THRESHOLD_PX = 4;
 export const DEFAULT_FOCUS_ID = 3;
 export const NONPRIMARY_TIE_Y_OFFSET = 6;
 
-export function otherSpouseOf(fam: FamilyRow, personId: number): number | null {
+export function otherSpouseOf(fam: FamilyRow, personId: number) {
   if (fam.husband_id === personId) return fam.wife_id;
   if (fam.wife_id === personId) return fam.husband_id;
   return null;
 }
 
-export function isHusbandIn(fam: FamilyRow, personId: number): boolean {
+export function isHusbandIn(fam: FamilyRow, personId: number) {
   return fam.husband_id === personId;
 }
 
@@ -52,7 +52,7 @@ export function isPersonKnown(
   return personId !== null && ix.persons.has(personId);
 }
 
-export function presentChildren(fam: FamilyRow, ix: LayoutIndices): number[] {
+export function presentChildren(fam: FamilyRow, ix: LayoutIndices) {
   return fam.child_ids.filter((cid) => ix.persons.has(cid));
 }
 
@@ -60,7 +60,7 @@ export function isMeaningfulSpouseFam(
   fam: FamilyRow,
   personId: number,
   ix: LayoutIndices
-): boolean {
+) {
   return (
     presentChildren(fam, ix).length > 0 || otherSpouseOf(fam, personId) !== null
   );
