@@ -141,35 +141,22 @@ function buildPlainAncestorPB(
   return new PersonBlock(personId, childhood, [], null);
 }
 
-function sibshipBarMid(kids: readonly KidPlacement[]): number {
-  let minX = kids[0]!.x;
-  let maxX = kids[0]!.x;
-  for (const k of kids) {
-    if (k.x < minX) minX = k.x;
-    if (k.x > maxX) maxX = k.x;
-  }
-  return (minX + maxX) / 2;
-}
-
 function tieXForFB(
   personId: number,
   currentDepth: number,
-  kids: readonly KidPlacement[],
+  _kids: readonly KidPlacement[],
   ix: LayoutIndices
 ): number {
-  // Directional shift magnitude follows (2^remainingAbove − 1) × HALF_PITCH
-  // so deeper pyramids get exponentially more room.
+  // Tie sits at the directional shift, regardless of how wide the kid
+  // sibship is — ancestor couples land as close to chart center as the
+  // inter-couple spacing allows, and the bar / legs reach out to whichever
+  // kids are shifted further. Shift magnitude follows (2^remainingAbove −
+  // 1) × HALF_PITCH so deeper pyramids still get exponentially more room
+  // at higher gens.
   const remainingAbove = Math.max(1, ix.levels - currentDepth);
   const directional = HALF_PITCH * (2 ** remainingAbove - 1);
   const sex = ix.persons.get(personId)?.sex;
-  const barMid = sibshipBarMid(kids);
-  // For Fa branch (male), both barMid and the directional shift are
-  // negative; take the more negative. For Mo branch (female), both
-  // positive; take the more positive. For an only-child sibship at
-  // depth 1 the barMid is 0 and the directional shift wins.
-  return sex === 'F'
-    ? Math.max(barMid, directional)
-    : Math.min(barMid, -directional);
+  return sex === 'F' ? directional : -directional;
 }
 
 // Bloodline kid sits at FB-local 0 (the PB anchor). At depth 1, Aunts/Uncles
