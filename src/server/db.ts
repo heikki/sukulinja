@@ -1,8 +1,9 @@
 import { resolve } from 'node:path';
 import { Database } from 'bun:sqlite';
 
-const PROJECT_ROOT = resolve(import.meta.dir, '..', '..');
-const DEFAULT_DB_PATH = resolve(PROJECT_ROOT, 'data', 'app.db');
+const DEFAULT_DB_PATH =
+  process.env.SUKULINJA_DB ??
+  resolve(import.meta.dir, '..', '..', 'data', 'app.db');
 
 const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS persons (
