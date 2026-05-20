@@ -7,13 +7,13 @@
 //   Pass 2 — build Fa.PB / Mo.PB with step-fam FBs sized to clear the
 //            bloodline kid row's chart extents.
 
-import type { FamilyBlock, PersonPlacement } from './block-family';
+import { FamilyBlock } from './block-family';
+import type { PersonPlacement } from './block-family';
 import { PersonBlock } from './block-person';
 import { computeBloodlineFootprint } from './bloodline-footprint';
 import type { BloodlineFootprint } from './bloodline-footprint';
 import { placeAncestorCouple } from './build-ancestor-tree';
 import {
-  buildMarriageFB,
   kidXsFromPacked,
   packBlocks,
   placeInternalCouple
@@ -162,12 +162,12 @@ function buildParentFB(
     x: kidXs[i]!,
     block: kidPBs[i]!
   }));
-  return buildMarriageFB({
+  return new FamilyBlock({
     famId: parentFam.id,
     husband: couple.husband,
     wife: couple.wife,
     kids,
-    anchor: couple.childAnchor,
+    childAnchor: couple.childAnchor,
     tieY: couple.tieY
   });
 }
@@ -211,12 +211,12 @@ function childhoodForParent(
     ix
   });
   const couple = placeInternalCouple(husbandPB, wifePB, fam, tieXFBlocal);
-  return buildMarriageFB({
+  return new FamilyBlock({
     famId: fam.id,
     husband: couple.husband,
     wife: couple.wife,
     kids,
-    anchor: couple.childAnchor,
+    childAnchor: couple.childAnchor,
     tieY: couple.tieY
   });
 }

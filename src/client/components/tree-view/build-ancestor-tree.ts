@@ -4,9 +4,10 @@
 // module is the recursive bloodline-pair-to-bloodline-pair structure above
 // that, plus the helper that depth-1 uses to place the GP couple.
 
+import { FamilyBlock } from './block-family';
 import type { PersonPlacement } from './block-family';
 import { PersonBlock } from './block-person';
-import { buildMarriageFB, placeInternalCouple } from './build-marriages';
+import { placeInternalCouple } from './build-marriages';
 import { HALF_PITCH, isPersonKnown } from './helpers';
 import type { LayoutIndices } from './helpers';
 
@@ -64,12 +65,12 @@ function buildAncestorChildhoodFB(
     block: null
   };
   const couple = placeInternalCouple(husbandPB, wifePB, fam, tieXFBlocal);
-  return buildMarriageFB({
+  return new FamilyBlock({
     famId: fam.id,
     husband: couple.husband,
     wife: couple.wife,
     kids: [bloodlineKid],
-    anchor: couple.childAnchor,
+    childAnchor: couple.childAnchor,
     tieY: couple.tieY
   });
 }
