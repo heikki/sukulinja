@@ -40,53 +40,49 @@ export function buildChartRoot(
 
 // ============= Childhood FB + plain ancestor PB (depth ≥ 2) =============
 
-// Where the bloodline kid sits relative to its parents' Tie midpoint.
-// Positive means the kid sits right of the midpoint (couple leans left);
-// negative means the kid sits left of the midpoint (couple leans right);
-// zero means the couple straddles the kid.
-//
-// Top-level callers pass ±COUPLE_PITCH/2 (kid coincides with one spouse)
-// or 0 (kid centered), but the value is free — any numeric offset works.
+// `ancestorChartX` is the chart-X of the bloodline ancestor whose childhood
+// FB we're building, measured in the FB-local frame whose origin is that
+// ancestor's own box. By the bloodline-pyramid rule (see CONTEXT.md and
+// ADR-0001), the GGP couple's Tie sits at FB-local x = ancestorChartX, and
+// each parent's own chart-X recurses as 2*ancestorChartX ± HALF_PITCH.
+// Top-level callers pass -HALF_PITCH for Fa, +HALF_PITCH for Mo.
 const HALF_PITCH = COUPLE_PITCH / 2;
 
 function ancestorPBOrNull(
   parentId: number | null,
   depth: number,
-  kidOffset: number,
+  ancestorChartX: number,
   ix: LayoutIndices
 ): PersonBlock | null {
   if (parentId === null || !ix.persons.has(parentId)) return null;
-  return buildPlainAncestorPB(parentId, depth, kidOffset, ix);
+  return buildPlainAncestorPB(parentId, depth, ancestorChartX, ix);
 }
 
 function buildChildhoodFamily(
   personId: number,
   currentDepth: number,
-  kidOffset: number,
+  ancestorChartX: number,
   ix: LayoutIndices
 ): FamilyBlock | null {
   if (currentDepth >= ix.levels) return null;
   const fam = ix.parentFamByPerson.get(personId);
   if (fam === undefined) return null;
   const parentDepth = currentDepth + 1;
-  // Outer spouse's subtree doubles outward (so their parents land at the
-  // next slot beyond the previous outermost ancestor); inner spouse keeps
-  // the same offset. With sep = COUPLE_PITCH, this places every ancestor
-  // at every depth on a distinct chart-X column, COUPLE_PITCH apart.
-  const sign = Math.sign(kidOffset);
-  const outerKidOffset = 2 * kidOffset + sign * HALF_PITCH;
-  const husbandKidOffset = kidOffset > 0 ? outerKidOffset : kidOffset;
-  const wifeKidOffset = kidOffset < 0 ? outerKidOffset : kidOffset;
+  // Symmetric pyramid: GGP Tie sits at chart-X = 2 * ancestorChartX (so the
+  // ancestor sits halfway between his/her own grandparents' Ties one row up,
+  // recursively). Husband and wife straddle the Tie at ± HALF_PITCH.
+  const husbandChartX = 2 * ancestorChartX - HALF_PITCH;
+  const wifeChartX = 2 * ancestorChartX + HALF_PITCH;
   const husbandPB = ancestorPBOrNull(
     fam.husband_id,
     parentDepth,
-    husbandKidOffset,
+    husbandChartX,
     ix
   );
-  const wifePB = ancestorPBOrNull(fam.wife_id, parentDepth, wifeKidOffset, ix);
+  const wifePB = ancestorPBOrNull(fam.wife_id, parentDepth, wifeChartX, ix);
   if (husbandPB === null && wifePB === null) return null;
 
-  const couple = layoutInternalCouple(husbandPB, wifePB, fam, kidOffset);
+  const couple = layoutInternalCouple(husbandPB, wifePB, fam, ancestorChartX);
   const kids: KidPlacement[] = [
     { id: personId, external: true, x: 0, block: null }
   ];
@@ -114,10 +110,10 @@ function buildChildhoodFamily(
 function buildPlainAncestorPB(
   personId: number,
   depth: number,
-  kidOffset: number,
+  ancestorChartX: number,
   ix: LayoutIndices
 ): PersonBlock {
-  const childhood = buildChildhoodFamily(personId, depth, kidOffset, ix);
+  const childhood = buildChildhoodFamily(personId, depth, ancestorChartX, ix);
   return new PersonBlock(personId, childhood, [], null);
 }
 
@@ -133,11 +129,11 @@ function buildParentFamilyBlock(
     if (sibIds.length === 0) return null;
   }
 
-  // Father sits to the left of focus, so his ancestor chain extends
-  // outward leftward — the kid (Father) sits to the right of his parents'
-  // Tie midpoint. Mirror sign for Mother on the right.
-  const faChildhood = childhoodForParent(parentFam.husband_id, HALF_PITCH, ix);
-  const moChildhood = childhoodForParent(parentFam.wife_id, -HALF_PITCH, ix);
+  // Father sits at chart-X = -HALF_PITCH (left of focus column 0); Mother
+  // at +HALF_PITCH. The symmetric pyramid above each is built from those
+  // chart-X values (see CONTEXT.md "Bloodline pyramid", ADR-0001).
+  const faChildhood = childhoodForParent(parentFam.husband_id, -HALF_PITCH, ix);
+  const moChildhood = childhoodForParent(parentFam.wife_id, HALF_PITCH, ix);
 
   const kidPBs = sibIds.map((sid) =>
     sid === focusId
@@ -185,11 +181,11 @@ function buildParentFamilyBlock(
 
 function childhoodForParent(
   parentId: number | null,
-  kidOffset: number,
+  ancestorChartX: number,
   ix: LayoutIndices
 ): FamilyBlock | null {
   if (parentId === null || !ix.persons.has(parentId)) return null;
-  return buildChildhoodFamily(parentId, 1, kidOffset, ix);
+  return buildChildhoodFamily(parentId, 1, ancestorChartX, ix);
 }
 
 interface ParentContextArgs {
@@ -319,10 +315,10 @@ function layoutInternalCouple(
   husbandPB: PersonBlock | null,
   wifePB: PersonBlock | null,
   fam: FamilyRow,
-  kidOffsetFromCoupleMid = 0
+  tieXFBlocal = 0
 ): InternalCoupleLayout {
   if (husbandPB !== null && wifePB !== null) {
-    return couplePlacement(husbandPB, wifePB, fam, kidOffsetFromCoupleMid);
+    return couplePlacement(husbandPB, wifePB, fam, tieXFBlocal);
   }
   if (husbandPB !== null) {
     return {
@@ -355,29 +351,27 @@ function couplePlacement(
   husbandPB: PersonBlock,
   wifePB: PersonBlock,
   fam: FamilyRow,
-  kidOffsetFromCoupleMid: number
+  tieXFBlocal: number
 ): InternalCoupleLayout {
-  // Spouse-to-spouse separation is fixed at COUPLE_PITCH. The whole
-  // couple shifts as a rigid pair against the kid's column (at FB-local 0)
-  // — kidOffsetFromCoupleMid is how far right of the couple's Tie
-  // midpoint the kid sits. Zero = centered; ±COUPLE_PITCH/2 places the
-  // kid under one spouse; other values put the kid anywhere else.
+  // Spouse-to-spouse separation is fixed at COUPLE_PITCH. The Tie midpoint
+  // sits at FB-local x = tieXFBlocal (the chart-X of the bloodline kid;
+  // see ADR-0001). The bloodline kid itself stays at FB-local 0; the L-bar
+  // in block-family.ts handles any horizontal gap between Tie and kid.
   const sep = COUPLE_PITCH;
-  const coupleMidX = -kidOffsetFromCoupleMid;
   return {
     husband: {
       id: fam.husband_id!,
       external: false,
-      x: coupleMidX - sep / 2,
+      x: tieXFBlocal - sep / 2,
       block: husbandPB
     },
     wife: {
       id: fam.wife_id!,
       external: false,
-      x: coupleMidX + sep / 2,
+      x: tieXFBlocal + sep / 2,
       block: wifePB
     },
-    childAnchorX: coupleMidX,
+    childAnchorX: tieXFBlocal,
     childAnchorY: 0,
     tieY: 0
   };
