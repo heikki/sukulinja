@@ -83,9 +83,13 @@ function buildChildhoodFamily(
   if (husbandPB === null && wifePB === null) return null;
 
   const couple = layoutInternalCouple(husbandPB, wifePB, fam, ancestorChartX);
-  const kids: KidPlacement[] = [
-    { id: personId, external: true, x: 0, block: null }
-  ];
+  const kids = childhoodFBKids({
+    bloodlineId: personId,
+    fam,
+    currentDepth,
+    ancestorChartX,
+    ix
+  });
   const extents = computeFBExtents({
     husband: couple.husband,
     wife: couple.wife,
@@ -115,6 +119,58 @@ function buildPlainAncestorPB(
 ): PersonBlock {
   const childhood = buildChildhoodFamily(personId, depth, ancestorChartX, ix);
   return new PersonBlock(personId, childhood, [], null);
+}
+
+// Bloodline kid sits at FB-local 0 (the PB anchor). At depth 1, Aunts/Uncles
+// share the sibship with the bloodline kid, fanning outward in birth order
+// (left for Fa branch, right for Mo branch); the bloodline kid sits at the
+// inward end. Aunts/Uncles are bare PBs — their own children, marriages,
+// and ancestry are out of rendering scope (CONTEXT.md, ADR-0002). At
+// depth ≥ 2 the sibship is bloodline-only.
+interface ChildhoodFBKidsArgs {
+  bloodlineId: number;
+  fam: FamilyRow;
+  currentDepth: number;
+  ancestorChartX: number;
+  ix: LayoutIndices;
+}
+
+function childhoodFBKids(args: ChildhoodFBKidsArgs): KidPlacement[] {
+  const { bloodlineId, fam, currentDepth, ancestorChartX, ix } = args;
+  const bloodlinePlacement: KidPlacement = {
+    id: bloodlineId,
+    external: true,
+    x: 0,
+    block: null
+  };
+  if (currentDepth !== 1) return [bloodlinePlacement];
+  const sibIds = presentChildren(fam, ix);
+  const auntIds = sibIds.filter((sid) => sid !== bloodlineId);
+  if (auntIds.length === 0) return [bloodlinePlacement];
+
+  const auntPBs = auntIds.map((sid) => new PersonBlock(sid, null, [], null));
+  const fanLeft = ancestorChartX < 0;
+  // packBlocks needs the bloodline kid's width too — its box (rendered by
+  // the parent FB above) still occupies a column in the sibship row. Use a
+  // throwaway PB to participate in packing; the real placement is `external`
+  // with no block.
+  const bloodlineDummy = new PersonBlock(bloodlineId, null, [], null);
+  const orderedBlocks = fanLeft
+    ? [...auntPBs, bloodlineDummy]
+    : [bloodlineDummy, ...auntPBs];
+  const packed = packBlocks(orderedBlocks);
+  const bloodlineIdx = fanLeft ? orderedBlocks.length - 1 : 0;
+  const shift = -packed.positions[bloodlineIdx]!;
+
+  return orderedBlocks.map((blk, i) => {
+    if (i === bloodlineIdx) return bloodlinePlacement;
+    return {
+      id: blk.personId,
+      external: false,
+      x: packed.positions[i]! + shift,
+      block: blk
+    };
+  });
 }
 
 // ============= Parent FB (chart root) =============
