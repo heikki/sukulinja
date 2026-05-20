@@ -20,7 +20,7 @@ import type {
   LocalLine,
   LocalPos,
   LocalRenderOutput,
-  PlacedChild
+  PlacedBlock
 } from './block';
 import { BOX_H, BOX_W, ROW_H } from './helpers';
 
@@ -60,13 +60,13 @@ export interface FamilyBlockSpec {
 export class FamilyBlock extends Block {
   readonly leftWidth: number;
   readonly rightWidth: number;
-  readonly children: readonly PlacedChild[];
+  readonly children: readonly PlacedBlock[];
 
   constructor(readonly spec: FamilyBlockSpec) {
     super();
     this.leftWidth = spec.leftWidth;
     this.rightWidth = spec.rightWidth;
-    const placed: PlacedChild[] = [];
+    const placed: PlacedBlock[] = [];
     if (spec.husband !== null && spec.husband.block !== null) {
       placed.push({
         block: spec.husband.block,

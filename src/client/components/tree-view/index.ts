@@ -81,7 +81,6 @@ export class TreeViewElement extends LitElement {
 
   private readonly parentFamByPerson = new Map<number, FamilyRow>();
   private readonly spouseFamsByPerson = new Map<number, FamilyRow[]>();
-  private readonly searchKeyByPerson = new Map<number, string>();
 
   private dragOrigin: DragOrigin | null = null;
   private dragMoved = false;
@@ -156,8 +155,6 @@ export class TreeViewElement extends LitElement {
     this.persons = new Map(persons.map((p) => [p.id, p]));
     this.parentFamByPerson.clear();
     this.spouseFamsByPerson.clear();
-    this.searchKeyByPerson.clear();
-    for (const p of persons) this.searchKeyByPerson.set(p.id, searchKeyOf(p));
     for (const f of families) {
       for (const cid of f.child_ids) this.parentFamByPerson.set(cid, f);
       if (f.husband_id !== null) this.appendSpouseFam(f.husband_id, f);
@@ -190,39 +187,38 @@ export class TreeViewElement extends LitElement {
     return first.done === true ? null : first.value;
   }
 
-  // Compute pin position directly from layout coords — using getBoundingClientRect
-  // on the <g> would include text labels whose width varies by name length,
-  // shifting the captured "center" inconsistently and accumulating drift over
-  // back-and-forth toggles.
-  private setFocusFromClick(node: { id: number; x: number; y: number }): void {
-    if (node.id === this.focusId) {
-      this.query = '';
-      return;
-    }
-    this.pendingPinScreen = {
-      x: this.pan.x + node.x + SVG_HALF,
-      y: this.pan.y + node.y + SVG_HALF
-    };
-    this.focusId = node.id;
-    history.replaceState(null, '', `#/person/${node.id}`);
-    this.query = '';
-  }
-
-  private setFocusFromSearchOrHash(id: number): void {
+  private setFocus(
+    id: number,
+    pinScreen: { x: number; y: number } | null
+  ): void {
     if (id === this.focusId) {
       this.query = '';
       return;
     }
-    const canvas = this.queryCanvas();
-    if (canvas !== null) {
-      this.pendingPinScreen = {
-        x: canvas.clientWidth / 2,
-        y: canvas.clientHeight / 2
-      };
-    }
+    if (pinScreen !== null) this.pendingPinScreen = pinScreen;
     this.focusId = id;
     history.replaceState(null, '', `#/person/${id}`);
     this.query = '';
+  }
+
+  // Compute pin position directly from layout coords — using getBoundingClientRect
+  // on the <g> would include text labels whose width varies by name length,
+  // shifting the captured "center" inconsistently and accumulating drift over
+  // back-and-forth toggles.
+  private pinFromNode(node: { x: number; y: number }): {
+    x: number;
+    y: number;
+  } {
+    return {
+      x: this.pan.x + node.x + SVG_HALF,
+      y: this.pan.y + node.y + SVG_HALF
+    };
+  }
+
+  private pinFromCanvasCenter(): { x: number; y: number } | null {
+    const canvas = this.queryCanvas();
+    if (canvas === null) return null;
+    return { x: canvas.clientWidth / 2, y: canvas.clientHeight / 2 };
   }
 
   private readonly onCanvasMouseDown = (e: MouseEvent): void => {
@@ -264,8 +260,7 @@ export class TreeViewElement extends LitElement {
     if (q.length < SEARCH_MIN_LEN) return [];
     const out: PersonRow[] = [];
     for (const p of this.persons.values()) {
-      const name = this.searchKeyByPerson.get(p.id) ?? '';
-      if (name.includes(q)) {
+      if (searchKeyOf(p).includes(q)) {
         out.push(p);
         if (out.length >= SEARCH_MAX_RESULTS) break;
       }
@@ -300,7 +295,10 @@ export class TreeViewElement extends LitElement {
         style="transform: translate(${x}px, ${y}px)"
         @click=${() => {
           if (this.dragMoved) return;
-          this.setFocusFromClick({ id: box.personId, x: chartX, y: chartY });
+          this.setFocus(
+            box.personId,
+            this.pinFromNode({ x: chartX, y: chartY })
+          );
         }}
       >
         <rect class="box" x="0" y="0" width=${BOX_W} height=${BOX_H} rx="6" />
@@ -396,7 +394,7 @@ export class TreeViewElement extends LitElement {
                 (p) => html`
                   <button
                     @click=${() => {
-                      this.setFocusFromSearchOrHash(p.id);
+                      this.setFocus(p.id, this.pinFromCanvasCenter());
                     }}
                   >
                     ${formatName(p)}

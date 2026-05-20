@@ -13,6 +13,7 @@ import type { AdultPlacement, FamilyBlock, KidPlacement } from './block-family';
 import { PersonBlock } from './block-person';
 import {
   buildMarriageFamilyBlock,
+  kidXsFromPacked,
   packBlocks,
   type PackedBlocks
 } from './build-marriages';
@@ -20,13 +21,13 @@ import {
   BOX_H,
   BOX_W,
   isHusbandIn,
+  isMeaningfulSpouseFam,
+  NONPRIMARY_TIE_Y_OFFSET,
   otherSpouseOf,
   presentChildren,
   SIBLING_GAP
 } from './helpers';
 import type { FamilyRow, LayoutIndices } from './helpers';
-
-const NONPRIMARY_TIE_Y_OFFSET = 6;
 
 export interface BuildAncestorWithStepFamsArgs {
   personId: number;
@@ -66,7 +67,7 @@ export function buildAncestorPBWithStepFams(
   let outer = startEdge;
   for (const i of nonBloodlineFanOrder(allFams.length, bloodlineIdx)) {
     const fam = allFams[i]!;
-    if (!isMeaningful(fam, personId, ix)) continue;
+    if (!isMeaningfulSpouseFam(fam, personId, ix)) continue;
     const built = buildSidedStepFamFB({
       personId,
       fam,
@@ -183,9 +184,7 @@ function buildSidedStepFamFB(args: BuildSidedStepFamArgs): {
               : new PersonBlock(renderedSpouseId, null, [], null)
         };
 
-  const kidXs = packed.positions.map(
-    (p) => p - packed.barMid + placement.anchorX
-  );
+  const kidXs = kidXsFromPacked(packed, placement.anchorX);
   const kids: KidPlacement[] = kidBlocks.map((kb, i) => ({
     id: kb.personId,
     external: false,
@@ -205,16 +204,6 @@ function buildSidedStepFamFB(args: BuildSidedStepFamArgs): {
   return { fb, newOuter };
 }
 
-function isMeaningful(
-  f: FamilyRow,
-  personId: number,
-  ix: LayoutIndices
-): boolean {
-  return (
-    presentChildren(f, ix).length > 0 || otherSpouseOf(f, personId) !== null
-  );
-}
-
 export function measureStepFamsExtent(
   personId: number,
   bloodlineFamId: number,
@@ -224,7 +213,7 @@ export function measureStepFamsExtent(
   let total = 0;
   for (const fam of allFams) {
     if (fam.id === bloodlineFamId) continue;
-    if (!isMeaningful(fam, personId, ix)) continue;
+    if (!isMeaningfulSpouseFam(fam, personId, ix)) continue;
     const halfSibIds = presentChildren(fam, ix);
     const kidBlocks: PersonBlock[] = halfSibIds.map(
       (cid) => new PersonBlock(cid, null, [], null)

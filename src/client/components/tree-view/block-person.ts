@@ -29,7 +29,7 @@ import type {
   LocalPersonBox,
   LocalPos,
   LocalRenderOutput,
-  PlacedChild
+  PlacedBlock
 } from './block';
 import type { FamilyBlock } from './block-family';
 import { BOX_W, ROW_H } from './helpers';
@@ -39,7 +39,7 @@ export class PersonBlock extends Block {
   readonly rightWidth: number;
   readonly coupleLeftWidth: number;
   readonly coupleRightWidth: number;
-  readonly children: readonly PlacedChild[];
+  readonly children: readonly PlacedBlock[];
 
   constructor(
     readonly personId: number,
@@ -67,7 +67,7 @@ export class PersonBlock extends Block {
     this.leftWidth = leftExt;
     this.rightWidth = rightExt;
 
-    const placed: PlacedChild[] = [];
+    const placed: PlacedBlock[] = [];
     for (const m of marriages) {
       if (m === null) continue;
       placed.push({ block: m, offsetX: 0, offsetY: 0 });
