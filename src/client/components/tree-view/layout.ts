@@ -16,8 +16,7 @@ export function buildChart(
   const focusPos = root.personLocalPos(focusId) ?? { x: 0, y: 0 };
   const placed: PlacedBlock = {
     block: root,
-    offsetX: -focusPos.x,
-    offsetY: -focusPos.y
+    offset: { x: -focusPos.x, y: -focusPos.y }
   };
   return renderChartBlocks([placed], []);
 }

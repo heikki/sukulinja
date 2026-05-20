@@ -1,18 +1,20 @@
 // The render walk keeps edges flat at the top level so box-over-edge
 // z-order is preserved without any per-Block bookkeeping.
 
-export interface LocalPersonBox {
-  personId: number;
+export interface Point {
   x: number;
   y: number;
 }
 
+export interface LocalPersonBox {
+  personId: number;
+  pos: Point;
+}
+
 export interface LocalLine {
   key: string;
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
+  from: Point;
+  to: Point;
 }
 
 export interface LocalRenderOutput {
@@ -20,15 +22,9 @@ export interface LocalRenderOutput {
   lines: LocalLine[];
 }
 
-export interface LocalPos {
-  x: number;
-  y: number;
-}
-
 export interface PlacedBlock {
   block: Block;
-  offsetX: number;
-  offsetY: number;
+  offset: Point;
 }
 
 export abstract class Block {
@@ -38,22 +34,19 @@ export abstract class Block {
 
   abstract renderLocal(): LocalRenderOutput;
 
-  abstract personLocalPos(personId: number): LocalPos | null;
+  abstract personLocalPos(personId: number): Point | null;
 }
 
 export interface RenderGroup {
-  offsetX: number;
-  offsetY: number;
+  offset: Point;
   boxes: LocalPersonBox[];
   childGroups: RenderGroup[];
 }
 
 export interface AbsoluteLine {
   key: string;
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
+  from: Point;
+  to: Point;
 }
 
 export interface RenderOutput {
@@ -70,30 +63,26 @@ export function renderChartBlocks(
   for (const placed of placedBlocks) {
     const result = renderOneBlock({
       block: placed.block,
-      offsetX: placed.offsetX,
-      offsetY: placed.offsetY,
-      absX: placed.offsetX,
-      absY: placed.offsetY
+      offset: placed.offset,
+      abs: placed.offset
     });
     childGroups.push(result.group);
     lines.push(...result.lines);
   }
   return {
-    rootGroup: { offsetX: 0, offsetY: 0, boxes: [], childGroups },
+    rootGroup: { offset: { x: 0, y: 0 }, boxes: [], childGroups },
     lines
   };
 }
 
-// `offsetX/Y` is the group-local offset (written to group.offsetX/Y so SVG
-// transforms compose). `absX/Y` is the accumulated chart-coord origin, used
+// `offset` is the group-local offset (written to group.offset so SVG
+// transforms compose). `abs` is the accumulated chart-coord origin, used
 // to translate lines into chart coords directly (lines are emitted flat at
 // the top level — see file header).
 interface RenderOneArgs {
   block: Block;
-  offsetX: number;
-  offsetY: number;
-  absX: number;
-  absY: number;
+  offset: Point;
+  abs: Point;
 }
 
 interface RenderOneResult {
@@ -101,30 +90,30 @@ interface RenderOneResult {
   lines: AbsoluteLine[];
 }
 
+function translatePoint(p: Point, by: Point): Point {
+  return { x: p.x + by.x, y: p.y + by.y };
+}
+
 function renderOneBlock(args: RenderOneArgs): RenderOneResult {
-  const { block, offsetX, offsetY, absX, absY } = args;
+  const { block, offset, abs } = args;
   const local = block.renderLocal();
   const lines: AbsoluteLine[] = local.lines.map((l) => ({
     key: l.key,
-    x1: absX + l.x1,
-    y1: absY + l.y1,
-    x2: absX + l.x2,
-    y2: absY + l.y2
+    from: translatePoint(l.from, abs),
+    to: translatePoint(l.to, abs)
   }));
   const childGroups: RenderGroup[] = [];
   for (const child of block.children) {
     const childResult = renderOneBlock({
       block: child.block,
-      offsetX: child.offsetX,
-      offsetY: child.offsetY,
-      absX: absX + child.offsetX,
-      absY: absY + child.offsetY
+      offset: child.offset,
+      abs: translatePoint(child.offset, abs)
     });
     childGroups.push(childResult.group);
     lines.push(...childResult.lines);
   }
   return {
-    group: { offsetX, offsetY, boxes: local.boxes, childGroups },
+    group: { offset, boxes: local.boxes, childGroups },
     lines
   };
 }

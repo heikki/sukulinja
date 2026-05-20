@@ -2,7 +2,7 @@ import { html, LitElement, nothing, svg, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
-import type { LocalPersonBox, RenderGroup, RenderOutput } from './block';
+import type { LocalPersonBox, Point, RenderGroup, RenderOutput } from './block';
 import {
   AVATAR_CX,
   AVATAR_R,
@@ -18,10 +18,8 @@ import { buildChart, type LayoutIndices } from './layout';
 import { treeViewStyles } from './styles';
 
 interface DragOrigin {
-  mouseX: number;
-  mouseY: number;
-  panX: number;
-  panY: number;
+  mouse: Point;
+  pan: Point;
 }
 
 const FOCUS_HASH_RE = /^#\/person\/(?<id>\d+)$/;
@@ -82,7 +80,7 @@ export class TreeViewElement extends LitElement {
 
   private dragOrigin: DragOrigin | null = null;
   private dragMoved = false;
-  private pendingPinScreen: { x: number; y: number } | null = null;
+  private pendingPinScreen: Point | null = null;
 
   override connectedCallback(): void {
     super.connectedCallback();
@@ -195,10 +193,7 @@ export class TreeViewElement extends LitElement {
     this.setFocus(def, this.pinFromCanvasCenter());
   }
 
-  private setFocus(
-    id: number,
-    pinScreen: { x: number; y: number } | null
-  ): void {
+  private setFocus(id: number, pinScreen: Point | null): void {
     if (id === this.focusId) {
       this.query = '';
       return;
@@ -213,17 +208,14 @@ export class TreeViewElement extends LitElement {
   // on the <g> would include text labels whose width varies by name length,
   // shifting the captured "center" inconsistently and accumulating drift over
   // back-and-forth toggles.
-  private pinFromNode(node: { x: number; y: number }): {
-    x: number;
-    y: number;
-  } {
+  private pinFromNode(node: Point): Point {
     return {
       x: this.pan.x + node.x + SVG_HALF,
       y: this.pan.y + node.y + SVG_HALF
     };
   }
 
-  private pinFromCanvasCenter(): { x: number; y: number } | null {
+  private pinFromCanvasCenter(): Point | null {
     const canvas = this.queryCanvas();
     if (canvas === null) return null;
     return { x: canvas.clientWidth / 2, y: canvas.clientHeight / 2 };
@@ -232,25 +224,23 @@ export class TreeViewElement extends LitElement {
   private readonly onCanvasMouseDown = (e: MouseEvent): void => {
     if (e.button !== 0) return;
     this.dragOrigin = {
-      mouseX: e.clientX,
-      mouseY: e.clientY,
-      panX: this.pan.x,
-      panY: this.pan.y
+      mouse: { x: e.clientX, y: e.clientY },
+      pan: { ...this.pan }
     };
     this.dragMoved = false;
   };
 
   private readonly onMouseMove = (e: MouseEvent): void => {
     if (this.dragOrigin === null) return;
-    const dx = e.clientX - this.dragOrigin.mouseX;
-    const dy = e.clientY - this.dragOrigin.mouseY;
+    const dx = e.clientX - this.dragOrigin.mouse.x;
+    const dy = e.clientY - this.dragOrigin.mouse.y;
     if (!this.dragMoved && Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) {
       this.dragMoved = true;
       this.dragging = true;
     }
     if (!this.dragMoved) return;
-    const nextX = this.dragOrigin.panX + dx;
-    const nextY = this.dragOrigin.panY + dy;
+    const nextX = this.dragOrigin.pan.x + dx;
+    const nextY = this.dragOrigin.pan.y + dy;
     if (nextX === this.pan.x && nextY === this.pan.y) return;
     this.pan = { x: nextX, y: nextY };
   };
@@ -285,14 +275,14 @@ export class TreeViewElement extends LitElement {
     };
   }
 
-  private renderBox(box: LocalPersonBox, groupAbsX: number, groupAbsY: number) {
+  private renderBox(box: LocalPersonBox, groupAbs: Point) {
     const p = this.persons.get(box.personId);
     if (p === undefined) return nothing;
     const isFocus = box.personId === this.focusId;
-    const x = box.x - BOX_W / 2;
-    const y = box.y - BOX_H / 2;
-    const chartX = groupAbsX + box.x;
-    const chartY = groupAbsY + box.y;
+    const x = box.pos.x - BOX_W / 2;
+    const y = box.pos.y - BOX_H / 2;
+    const chartX = groupAbs.x + box.pos.x;
+    const chartY = groupAbs.y + box.pos.y;
     const photoSrc = photoSrcOf(p);
     const name = truncate(formatName(p), NAME_TRUNCATE);
     const dates = formatDates(p);
@@ -338,28 +328,29 @@ export class TreeViewElement extends LitElement {
   private renderGroup(
     group: RenderGroup,
     key: string,
-    parentAbsX: number,
-    parentAbsY: number
+    parentAbs: Point
   ): unknown {
-    const absX = parentAbsX + group.offsetX;
-    const absY = parentAbsY + group.offsetY;
+    const abs: Point = {
+      x: parentAbs.x + group.offset.x,
+      y: parentAbs.y + group.offset.y
+    };
     const isRoot =
-      group.offsetX === 0 && group.offsetY === 0 && group.boxes.length === 0;
+      group.offset.x === 0 && group.offset.y === 0 && group.boxes.length === 0;
     const children = svg`
       ${repeat(
         group.boxes,
         (b) => b.personId,
-        (b) => this.renderBox(b, absX, absY)
+        (b) => this.renderBox(b, abs)
       )}
       ${repeat(
         group.childGroups,
         (_g, i) => `${key}/${i}`,
-        (g, i) => this.renderGroup(g, `${key}/${i}`, absX, absY)
+        (g, i) => this.renderGroup(g, `${key}/${i}`, abs)
       )}
     `;
     if (isRoot) return children;
     return svg`
-      <g style="transform: translate(${group.offsetX}px, ${group.offsetY}px)">
+      <g style="transform: translate(${group.offset.x}px, ${group.offset.y}px)">
         ${children}
       </g>
     `;
@@ -446,11 +437,11 @@ export class TreeViewElement extends LitElement {
                     (l) => l.key,
                     (l) => svg`<path
                       class="edge"
-                      d="M ${l.x1} ${l.y1} L ${l.x2} ${l.y2}"
+                      d="M ${l.from.x} ${l.from.y} L ${l.to.x} ${l.to.y}"
                     />`
                   )}
                 </g>
-                ${this.renderGroup(chart.rootGroup, 'root', 0, 0)}
+                ${this.renderGroup(chart.rootGroup, 'root', { x: 0, y: 0 })}
               </svg>
             </div>`
           : nothing}
