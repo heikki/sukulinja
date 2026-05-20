@@ -19,7 +19,7 @@
 import { Block } from './block';
 import type { PersonBox, PlacedBlock } from './block';
 import type { FamilyBlock } from './block-family';
-import { BOX_W, ROW_PITCH, translatePoint } from './helpers';
+import { BOX_W, ROW_PITCH } from './helpers';
 
 export class PersonBlock extends Block {
   readonly selfHalfWidth = BOX_W / 2;
@@ -50,12 +50,8 @@ export class PersonBlock extends Block {
     return { boxes, lines: [] };
   }
 
-  personLocalPos(personId: number) {
+  override personLocalPos(personId: number) {
     if (personId === this.personId) return { x: 0, y: 0 };
-    for (const child of this.children) {
-      const inner = child.block.personLocalPos(personId);
-      if (inner !== null) return translatePoint(child.offset, inner);
-    }
-    return null;
+    return super.personLocalPos(personId);
   }
 }

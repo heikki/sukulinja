@@ -17,7 +17,7 @@
 
 import { Block } from './block';
 import type { Line, PlacedBlock } from './block';
-import { BOX_H, BOX_W, ROW_PITCH, translatePoint } from './helpers';
+import { BOX_H, BOX_W, ROW_PITCH } from './helpers';
 import type { Point } from './helpers';
 
 export interface PersonPlacement {
@@ -122,13 +122,5 @@ export class FamilyBlock extends Block {
         to: { x: k.x, y: ROW_PITCH - BOX_H / 2 }
       });
     }
-  }
-
-  personLocalPos(personId: number) {
-    for (const child of this.children) {
-      const inner = child.block.personLocalPos(personId);
-      if (inner !== null) return translatePoint(child.offset, inner);
-    }
-    return null;
   }
 }
