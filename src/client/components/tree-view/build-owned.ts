@@ -62,7 +62,7 @@ export function buildSiblingPersonBlock(
   return new PersonBlock(personId, null, [fb], 0);
 }
 
-export function meaningfulSpouseFams(
+function meaningfulSpouseFams(
   personId: number,
   ix: LayoutIndices
 ): FamilyRow[] {
@@ -70,7 +70,7 @@ export function meaningfulSpouseFams(
   return fams.filter((f) => isMeaningfulSpouseFam(f, personId, ix));
 }
 
-export function fanDirOfPerson(
+function fanDirOfPerson(
   personId: number,
   fams: readonly FamilyRow[],
   ix: LayoutIndices

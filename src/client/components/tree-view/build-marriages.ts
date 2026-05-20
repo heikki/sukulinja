@@ -45,7 +45,7 @@ export function packBlocks(blocks: readonly Block[]): PackedBlocks {
   return { positions, totalWidth: cursor, barMid };
 }
 
-export interface ExtentArgs {
+interface ExtentArgs {
   husband: PersonPlacement | null;
   wife: PersonPlacement | null;
   kids: readonly PersonPlacement[];
@@ -74,7 +74,7 @@ export function computeFBExtents(args: ExtentArgs): {
   return { leftWidth: -minX, rightWidth: maxX };
 }
 
-export interface BuildMarriageArgs {
+interface BuildMarriageArgs {
   famId: number;
   husband: PersonPlacement | null;
   wife: PersonPlacement | null;
@@ -83,7 +83,7 @@ export interface BuildMarriageArgs {
   tieY: number;
 }
 
-export function buildMarriageFamilyBlock(args: BuildMarriageArgs): FamilyBlock {
+function buildMarriageFamilyBlock(args: BuildMarriageArgs): FamilyBlock {
   const extents = computeFBExtents({
     husband: args.husband,
     wife: args.wife,
@@ -112,7 +112,7 @@ export interface SpousePlacement {
   tieY: number;
 }
 
-export interface BuildExternalAdultFBArgs {
+interface BuildExternalAdultFBArgs {
   // The "anchor" adult — their box is rendered by an outer block, so the FB
   // places them at local x = 0 with external = true.
   externalAdultId: number;
