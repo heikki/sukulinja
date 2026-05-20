@@ -107,19 +107,19 @@ function stepFamExtents(
   kidBlocks: readonly PersonBlock[]
 ) {
   if (kidBlocks.length === 0) {
-    return { extentLeft: BOX_W / 2, extentRight: BOX_W / 2 };
+    return { left: BOX_W / 2, right: BOX_W / 2 };
   }
-  const extentLeft = Math.max(
+  const left = Math.max(
     BOX_W / 2,
-    packed.barMid - packed.positions[0]! + kidBlocks[0]!.leftWidth
+    packed.barMid - packed.positions[0]! + kidBlocks[0]!.extents.left
   );
-  const extentRight = Math.max(
+  const right = Math.max(
     BOX_W / 2,
     packed.positions[packed.positions.length - 1]! -
       packed.barMid +
-      kidBlocks[kidBlocks.length - 1]!.rightWidth
+      kidBlocks[kidBlocks.length - 1]!.extents.right
   );
-  return { extentLeft, extentRight };
+  return { left, right };
 }
 
 function buildSidedStepFamFB(args: BuildSidedStepFamArgs) {
@@ -129,16 +129,16 @@ function buildSidedStepFamFB(args: BuildSidedStepFamArgs) {
     (cid) => new PersonBlock(cid, null, [], null)
   );
   const packed = packBlocks(kidBlocks);
-  const { extentLeft, extentRight } = stepFamExtents(packed, kidBlocks);
+  const extents = stepFamExtents(packed, kidBlocks);
 
   const xSpouse =
     side === 'right'
-      ? outerEdge + SIBLING_GAP - parentChartX + extentLeft
-      : outerEdge - SIBLING_GAP - parentChartX - extentRight;
+      ? outerEdge + SIBLING_GAP - parentChartX + extents.left
+      : outerEdge - SIBLING_GAP - parentChartX - extents.right;
   const newOuter =
     side === 'right'
-      ? parentChartX + xSpouse + extentRight
-      : parentChartX + xSpouse - extentLeft;
+      ? parentChartX + xSpouse + extents.right
+      : parentChartX + xSpouse - extents.left;
 
   const fb = buildExternalAdultFB({
     externalAdultId: personId,
@@ -170,8 +170,8 @@ export function measureStepFamsExtent(
       (cid) => new PersonBlock(cid, null, [], null)
     );
     const packed = packBlocks(kidBlocks);
-    const { extentLeft, extentRight } = stepFamExtents(packed, kidBlocks);
-    total += extentLeft + extentRight + SIBLING_GAP;
+    const extents = stepFamExtents(packed, kidBlocks);
+    total += extents.left + extents.right + SIBLING_GAP;
   }
   return total;
 }

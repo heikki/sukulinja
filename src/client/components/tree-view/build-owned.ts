@@ -102,7 +102,7 @@ function buildOwnedMarriagesPB(
     marriages[i] = fb;
     outerEdge = Math.max(
       outerEdge,
-      fanDir === 1 ? fb.rightWidth : fb.leftWidth
+      fanDir === 1 ? fb.extents.right : fb.extents.left
     );
   }
   return new PersonBlock(personId, null, marriages, activeIdx);

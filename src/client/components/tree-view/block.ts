@@ -2,7 +2,7 @@
 // z-order is preserved without any per-Block bookkeeping.
 
 import { translatePoint } from './helpers';
-import type { Point } from './helpers';
+import type { Extents, Point } from './helpers';
 
 export interface LocalPersonBox {
   personId: number;
@@ -26,8 +26,7 @@ export interface PlacedBlock {
 }
 
 export abstract class Block {
-  abstract readonly leftWidth: number;
-  abstract readonly rightWidth: number;
+  abstract readonly extents: Extents;
   abstract readonly children: readonly PlacedBlock[];
 
   abstract renderLocal(): LocalRenderOutput;
