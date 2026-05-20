@@ -5,7 +5,7 @@
 
 import type { Block } from './block';
 import { FamilyBlock } from './block-family';
-import type { FamilyBlockSpec, PersonPlacement } from './block-family';
+import type { PersonPlacement } from './block-family';
 import { PersonBlock } from './block-person';
 import {
   isHusbandIn,
@@ -42,30 +42,6 @@ export function packBlocks(blocks: readonly Block[]) {
   return { positions, totalWidth: cursor, barMid };
 }
 
-function computeFBExtents(
-  husband: PersonPlacement | null,
-  wife: PersonPlacement | null,
-  kids: readonly PersonPlacement[]
-) {
-  let minX = 0;
-  let maxX = 0;
-  if (husband !== null && husband.block !== null) {
-    minX = Math.min(minX, husband.x - husband.block.extents.left);
-    maxX = Math.max(maxX, husband.x + husband.block.extents.right);
-  }
-  if (wife !== null && wife.block !== null) {
-    minX = Math.min(minX, wife.x - wife.block.extents.left);
-    maxX = Math.max(maxX, wife.x + wife.block.extents.right);
-  }
-  for (const k of kids) {
-    if (k.block !== null) {
-      minX = Math.min(minX, k.x - k.block.extents.left);
-      maxX = Math.max(maxX, k.x + k.block.extents.right);
-    }
-  }
-  return { left: -minX, right: maxX };
-}
-
 interface BuildMarriageFBArgs {
   famId: number;
   husband: PersonPlacement | null;
@@ -76,7 +52,7 @@ interface BuildMarriageFBArgs {
 }
 
 export function buildMarriageFB(args: BuildMarriageFBArgs) {
-  const spec: FamilyBlockSpec = {
+  return new FamilyBlock({
     famId: args.famId,
     husband: args.husband,
     wife: args.wife,
@@ -84,10 +60,8 @@ export function buildMarriageFB(args: BuildMarriageFBArgs) {
     adultY: 0,
     kidY: ROW_H,
     tieY: args.tieY,
-    childAnchor: args.anchor,
-    extents: computeFBExtents(args.husband, args.wife, args.kids)
-  };
-  return new FamilyBlock(spec);
+    childAnchor: args.anchor
+  });
 }
 
 // Where the spouse sits relative to the externalAdult's anchor, plus the
