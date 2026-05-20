@@ -16,8 +16,9 @@
 //   - 1 internal adult (lone parent): pivot at that adult
 
 import { Block } from './block';
-import type { LocalLine, LocalRenderOutput, PlacedBlock, Point } from './block';
-import { BOX_H, BOX_W, ROW_H } from './helpers';
+import type { LocalLine, LocalRenderOutput, PlacedBlock } from './block';
+import { BOX_H, BOX_W, ROW_H, translatePoint } from './helpers';
+import type { Point } from './helpers';
 
 export interface AdultPlacement {
   id: number;
@@ -141,12 +142,7 @@ export class FamilyBlock extends Block {
   personLocalPos(personId: number): Point | null {
     for (const child of this.children) {
       const inner = child.block.personLocalPos(personId);
-      if (inner !== null) {
-        return {
-          x: child.offset.x + inner.x,
-          y: child.offset.y + inner.y
-        };
-      }
+      if (inner !== null) return translatePoint(child.offset, inner);
     }
     return null;
   }

@@ -5,7 +5,7 @@
 //   Pass 2 — build Fa.PB / Mo.PB with step-fam FBs sized to clear the
 //            bloodline kid row's chart extents.
 
-import type { Block, Point } from './block';
+import type { Block } from './block';
 import { FamilyBlock } from './block-family';
 import type {
   AdultPlacement,
@@ -16,9 +16,9 @@ import { PersonBlock } from './block-person';
 import {
   computeFBExtents,
   kidXsFromPacked,
-  packBlocks,
-  type PackedBlocks
+  packBlocks
 } from './build-marriages';
+import type { PackedBlocks } from './build-marriages';
 import { buildFocusPersonBlock, buildSiblingPersonBlock } from './build-owned';
 import {
   buildAncestorPBWithStepFams,
@@ -32,7 +32,7 @@ import {
   presentChildren,
   ROW_H
 } from './helpers';
-import type { FamilyRow, LayoutIndices } from './helpers';
+import type { FamilyRow, LayoutIndices, Point } from './helpers';
 
 export function buildChartRoot(
   focusId: number,

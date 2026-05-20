@@ -17,14 +17,10 @@
 //   - bare PB:     marriages = [], activeIdx = null
 
 import { Block } from './block';
-import type {
-  LocalPersonBox,
-  LocalRenderOutput,
-  PlacedBlock,
-  Point
-} from './block';
+import type { LocalPersonBox, LocalRenderOutput, PlacedBlock } from './block';
 import type { FamilyBlock } from './block-family';
-import { BOX_W, ROW_H } from './helpers';
+import { BOX_W, ROW_H, translatePoint } from './helpers';
+import type { Point } from './helpers';
 
 export class PersonBlock extends Block {
   readonly leftWidth: number;
@@ -74,12 +70,7 @@ export class PersonBlock extends Block {
     if (personId === this.personId) return { x: 0, y: 0 };
     for (const child of this.children) {
       const inner = child.block.personLocalPos(personId);
-      if (inner !== null) {
-        return {
-          x: child.offset.x + inner.x,
-          y: child.offset.y + inner.y
-        };
-      }
+      if (inner !== null) return translatePoint(child.offset, inner);
     }
     return null;
   }

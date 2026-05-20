@@ -1,10 +1,8 @@
 // The render walk keeps edges flat at the top level so box-over-edge
 // z-order is preserved without any per-Block bookkeeping.
 
-export interface Point {
-  x: number;
-  y: number;
-}
+import { translatePoint } from './helpers';
+import type { Point } from './helpers';
 
 export interface LocalPersonBox {
   personId: number;
@@ -88,10 +86,6 @@ interface RenderOneArgs {
 interface RenderOneResult {
   group: RenderGroup;
   lines: AbsoluteLine[];
-}
-
-function translatePoint(p: Point, by: Point): Point {
-  return { x: p.x + by.x, y: p.y + by.y };
 }
 
 function renderOneBlock(args: RenderOneArgs): RenderOneResult {

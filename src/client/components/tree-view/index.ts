@@ -1,8 +1,9 @@
-import { html, LitElement, nothing, svg, type PropertyValues } from 'lit';
+import { html, LitElement, nothing, svg } from 'lit';
+import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
-import type { LocalPersonBox, Point, RenderGroup, RenderOutput } from './block';
+import type { LocalPersonBox, RenderGroup, RenderOutput } from './block';
 import {
   AVATAR_CX,
   AVATAR_R,
@@ -11,10 +12,11 @@ import {
   DEFAULT_FOCUS_ID,
   DRAG_THRESHOLD_PX,
   SVG_HALF,
-  type FamilyRow,
-  type PersonRow
+  translatePoint
 } from './helpers';
-import { buildChart, type LayoutIndices } from './layout';
+import type { FamilyRow, PersonRow, Point } from './helpers';
+import { buildChart } from './layout';
+import type { LayoutIndices } from './layout';
 import { treeViewStyles } from './styles';
 
 interface DragOrigin {
@@ -281,8 +283,7 @@ export class TreeViewElement extends LitElement {
     const isFocus = box.personId === this.focusId;
     const x = box.pos.x - BOX_W / 2;
     const y = box.pos.y - BOX_H / 2;
-    const chartX = groupAbs.x + box.pos.x;
-    const chartY = groupAbs.y + box.pos.y;
+    const chart = translatePoint(groupAbs, box.pos);
     const photoSrc = photoSrcOf(p);
     const name = truncate(formatName(p), NAME_TRUNCATE);
     const dates = formatDates(p);
@@ -293,10 +294,7 @@ export class TreeViewElement extends LitElement {
         style="transform: translate(${x}px, ${y}px)"
         @click=${() => {
           if (this.dragMoved) return;
-          this.setFocus(
-            box.personId,
-            this.pinFromNode({ x: chartX, y: chartY })
-          );
+          this.setFocus(box.personId, this.pinFromNode(chart));
         }}
       >
         <rect class="box" x="0" y="0" width=${BOX_W} height=${BOX_H} rx="6" />
@@ -330,10 +328,7 @@ export class TreeViewElement extends LitElement {
     key: string,
     parentAbs: Point
   ): unknown {
-    const abs: Point = {
-      x: parentAbs.x + group.offset.x,
-      y: parentAbs.y + group.offset.y
-    };
+    const abs = translatePoint(parentAbs, group.offset);
     const isRoot =
       group.offset.x === 0 && group.offset.y === 0 && group.boxes.length === 0;
     const children = svg`

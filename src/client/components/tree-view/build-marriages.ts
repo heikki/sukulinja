@@ -3,7 +3,7 @@
 // step-fam logic lives in build-step-fams.ts; PB builders + parent FB
 // orchestration live in build-tree.ts.
 
-import type { Block, Point } from './block';
+import type { Block } from './block';
 import { FamilyBlock } from './block-family';
 import type {
   AdultPlacement,
@@ -18,7 +18,7 @@ import {
   ROW_H,
   SIBLING_GAP
 } from './helpers';
-import type { FamilyRow, LayoutIndices } from './helpers';
+import type { FamilyRow, LayoutIndices, Point } from './helpers';
 
 export interface PackedBlocks {
   positions: number[];

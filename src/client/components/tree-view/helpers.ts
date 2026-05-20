@@ -11,6 +11,15 @@ export interface LayoutIndices {
   levels: number;
 }
 
+export interface Point {
+  x: number;
+  y: number;
+}
+
+export function translatePoint(p: Point, by: Point): Point {
+  return { x: p.x + by.x, y: p.y + by.y };
+}
+
 export const BOX_W = 184;
 export const BOX_H = 90;
 export const SIBLING_GAP = 28;
