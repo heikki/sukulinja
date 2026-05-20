@@ -7,13 +7,13 @@
 // person; earlier marriages fan further outward in fanDir. Siblings only
 // ever render their first meaningful spouseFam.
 
-import type { AdultPlacement, FamilyBlock, KidPlacement } from './block-family';
+import type { FamilyBlock } from './block-family';
 import { PersonBlock } from './block-person';
 import {
-  buildMarriageFamilyBlock,
-  kidXsFromPacked,
+  buildExternalAdultFB,
   packBlocks,
-  type PackedBlocks
+  type PackedBlocks,
+  type SpousePlacement
 } from './build-marriages';
 import {
   BOX_H,
@@ -23,7 +23,6 @@ import {
   isHusbandIn,
   isMeaningfulSpouseFam,
   NONPRIMARY_TIE_Y_OFFSET,
-  otherSpouseOf,
   presentChildren
 } from './helpers';
 import type { FamilyRow, LayoutIndices } from './helpers';
@@ -52,7 +51,7 @@ export function buildSiblingPersonBlock(
   const primary = fams[0]!;
   const fanDir = fanDirOfPerson(personId, fams, ix);
   const placement = primarySpousePlacement(fanDir);
-  const fb = buildOwnedMarriageFB({
+  const fb = buildExternalAdultFB({
     externalAdultId: personId,
     fam: primary,
     kidBlocks: [],
@@ -105,7 +104,7 @@ function buildOwnedMarriagesPB(
     const placement = isActive
       ? primarySpousePlacement(fanDir)
       : nonPrimarySpousePlacement(fanDir, outerEdge, packed);
-    const fb = buildOwnedMarriageFB({
+    const fb = buildExternalAdultFB({
       externalAdultId: personId,
       fam,
       kidBlocks,
@@ -134,13 +133,6 @@ function ownedKidBlocks(
   );
 }
 
-interface SpousePlacement {
-  xSpouse: number;
-  anchorX: number;
-  anchorY: number;
-  tieY: number;
-}
-
 function primarySpousePlacement(fanDir: 1 | -1): SpousePlacement {
   const xSpouse = fanDir * COUPLE_PITCH;
   return { xSpouse, anchorX: xSpouse / 2, anchorY: 0, tieY: 0 };
@@ -161,58 +153,4 @@ function nonPrimarySpousePlacement(
     anchorY: BOX_H / 2,
     tieY: -NONPRIMARY_TIE_Y_OFFSET * fanDir
   };
-}
-
-interface BuildOwnedMarriageArgs {
-  externalAdultId: number;
-  fam: FamilyRow;
-  kidBlocks: PersonBlock[];
-  packed: PackedBlocks;
-  placement: SpousePlacement;
-  ix: LayoutIndices;
-}
-
-function buildOwnedMarriageFB(args: BuildOwnedMarriageArgs): FamilyBlock {
-  const { externalAdultId, fam, kidBlocks, packed, placement, ix } = args;
-  const otherId = otherSpouseOf(fam, externalAdultId);
-  const renderedSpouseId =
-    otherId !== null && ix.persons.has(otherId) ? otherId : null;
-
-  const externalIsHusband = isHusbandIn(fam, externalAdultId);
-  const externalAdult: AdultPlacement = {
-    id: externalAdultId,
-    external: true,
-    x: 0,
-    block: null
-  };
-  const spouseAdult: AdultPlacement | null =
-    otherId === null
-      ? null
-      : {
-          id: otherId,
-          external: renderedSpouseId === null,
-          x: placement.xSpouse,
-          block:
-            renderedSpouseId === null
-              ? null
-              : new PersonBlock(renderedSpouseId, null, [], null)
-        };
-
-  const kidXs = kidXsFromPacked(packed, placement.anchorX);
-  const kids: KidPlacement[] = kidBlocks.map((kb, i) => ({
-    id: kb.personId,
-    external: false,
-    x: kidXs[i]!,
-    block: kb
-  }));
-
-  return buildMarriageFamilyBlock({
-    famId: fam.id,
-    husband: externalIsHusband ? externalAdult : spouseAdult,
-    wife: externalIsHusband ? spouseAdult : externalAdult,
-    kids,
-    anchorX: placement.anchorX,
-    anchorY: placement.anchorY,
-    tieY: placement.tieY
-  });
 }

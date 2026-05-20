@@ -36,6 +36,13 @@ export function isHusbandIn(fam: FamilyRow, personId: number): boolean {
   return fam.husband_id === personId;
 }
 
+export function isPersonKnown(
+  personId: number | null,
+  ix: LayoutIndices
+): personId is number {
+  return personId !== null && ix.persons.has(personId);
+}
+
 export function presentChildren(fam: FamilyRow, ix: LayoutIndices): number[] {
   return fam.child_ids.filter((cid) => ix.persons.has(cid));
 }
