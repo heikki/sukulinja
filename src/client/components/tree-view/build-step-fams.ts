@@ -34,6 +34,8 @@ export interface BuildAncestorWithStepFamsArgs {
   bloodlineFamId: number;
   parentChartX: number;
   side: 'left' | 'right';
+  bloodlineLeftChart: number;
+  bloodlineRightChart: number;
   ix: LayoutIndices;
 }
 
@@ -53,14 +55,14 @@ export function buildAncestorPBWithStepFams(
   );
 
   // All non-bloodline marriages fan outward on the parent's own side
-  // (Fa's step-spouses to Fa's left; Mo's to Mo's right). The first
-  // non-bloodline marriage lands adjacent to the parent's box; subsequent
-  // ones stack further out. Aunts/Uncles in the childhood FB are pushed
-  // past this strip via `measureStepFamsExtent`.
+  // (Fa's step-spouses to Fa's left; Mo's to Mo's right). They sit past
+  // the bloodline footprint — the union of Aunts/Uncles at parent row
+  // and Focus's sibship at the kid row. Sitting past the Aunts/Uncles
+  // ensures the GP couple's vertical drop doesn't cross the step-spouse's
+  // column; sitting past the focus row keeps the half-sibship clear of
+  // Focus's full siblings.
   const startEdge =
-    side === 'right'
-      ? args.parentChartX + BOX_W / 2
-      : args.parentChartX - BOX_W / 2;
+    side === 'right' ? args.bloodlineRightChart : args.bloodlineLeftChart;
   let outer = startEdge;
   for (const i of nonBloodlineFanOrder(allFams.length, bloodlineIdx)) {
     const fam = allFams[i]!;
@@ -94,27 +96,6 @@ function nonBloodlineFanOrder(
     if (pre >= 0) out.push(pre);
   }
   return out;
-}
-
-export function measureStepFamsExtent(
-  personId: number,
-  bloodlineFamId: number,
-  ix: LayoutIndices
-): number {
-  const allFams = ix.spouseFamsByPerson.get(personId) ?? [];
-  let total = 0;
-  for (const fam of allFams) {
-    if (fam.id === bloodlineFamId) continue;
-    if (!isMeaningful(fam, personId, ix)) continue;
-    const halfSibIds = presentChildren(fam, ix);
-    const kidBlocks: PersonBlock[] = halfSibIds.map(
-      (cid) => new PersonBlock(cid, null, [], null)
-    );
-    const packed = packBlocks(kidBlocks);
-    const { extentLeft, extentRight } = stepFamExtents(packed, kidBlocks);
-    total += extentLeft + extentRight + SIBLING_GAP;
-  }
-  return total;
 }
 
 interface BuildSidedStepFamArgs {

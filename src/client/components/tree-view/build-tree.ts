@@ -19,11 +19,8 @@ import {
   type PackedBlocks
 } from './build-marriages';
 import { buildFocusPersonBlock, buildSiblingPersonBlock } from './build-owned';
-import {
-  buildAncestorPBWithStepFams,
-  measureStepFamsExtent
-} from './build-step-fams';
-import { BOX_H, COUPLE_PITCH, presentChildren, ROW_H } from './helpers';
+import { buildAncestorPBWithStepFams } from './build-step-fams';
+import { BOX_H, BOX_W, COUPLE_PITCH, presentChildren, ROW_H } from './helpers';
 import type { FamilyRow, LayoutIndices } from './helpers';
 
 // ============= Top-level =============
@@ -64,13 +61,11 @@ interface BuildChildhoodArgs {
   personId: number;
   currentDepth: number;
   ancestorChartX: number;
-  stepFamSpacer?: number;
   ix: LayoutIndices;
 }
 
 function buildChildhoodFamily(args: BuildChildhoodArgs): FamilyBlock | null {
   const { personId, currentDepth, ancestorChartX, ix } = args;
-  const stepFamSpacer = args.stepFamSpacer ?? 0;
   if (currentDepth >= ix.levels) return null;
   const fam = ix.parentFamByPerson.get(personId);
   if (fam === undefined) return null;
@@ -82,7 +77,6 @@ function buildChildhoodFamily(args: BuildChildhoodArgs): FamilyBlock | null {
     fam,
     currentDepth,
     ancestorChartX,
-    stepFamSpacer,
     ix
   });
   // The Tie sits off the kid's column in the direction of the
@@ -183,13 +177,11 @@ interface ChildhoodFBKidsArgs {
   fam: FamilyRow;
   currentDepth: number;
   ancestorChartX: number;
-  stepFamSpacer?: number;
   ix: LayoutIndices;
 }
 
 function childhoodFBKids(args: ChildhoodFBKidsArgs): KidPlacement[] {
-  const { bloodlineId, fam, currentDepth, ancestorChartX, stepFamSpacer, ix } =
-    args;
+  const { bloodlineId, fam, currentDepth, ancestorChartX, ix } = args;
   const bloodlinePlacement: KidPlacement = {
     id: bloodlineId,
     external: true,
@@ -214,16 +206,13 @@ function childhoodFBKids(args: ChildhoodFBKidsArgs): KidPlacement[] {
   const packed = packBlocks(orderedBlocks);
   const bloodlineIdx = fanLeft ? orderedBlocks.length - 1 : 0;
   const shift = -packed.positions[bloodlineIdx]!;
-  // Step-spouses of the bloodline parent sit adjacent to the parent on
-  // the parent row — push Aunts/Uncles past them so nothing collides.
-  const auntShift = (stepFamSpacer ?? 0) * (fanLeft ? -1 : 1);
 
   return orderedBlocks.map((blk, i) => {
     if (i === bloodlineIdx) return bloodlinePlacement;
     return {
       id: blk.personId,
       external: false,
-      x: packed.positions[i]! + shift + auntShift,
+      x: packed.positions[i]! + shift,
       block: blk
     };
   });
@@ -244,18 +233,8 @@ function buildParentFamilyBlock(
   // at +HALF_PITCH. Focus's step-parents sit adjacent to Fa/Mo on the
   // parent row, so Aunts/Uncles in each childhood FB are pushed past
   // that reservation (see CONTEXT.md "Step-fam fan", ADR-0001).
-  const faChildhood = parentChildhood(
-    parentFam.husband_id,
-    -HALF_PITCH,
-    parentFam,
-    ix
-  );
-  const moChildhood = parentChildhood(
-    parentFam.wife_id,
-    HALF_PITCH,
-    parentFam,
-    ix
-  );
+  const faChildhood = childhoodForParent(parentFam.husband_id, -HALF_PITCH, ix);
+  const moChildhood = childhoodForParent(parentFam.wife_id, HALF_PITCH, ix);
   const kidPBs = sibIds.map((sid) =>
     sid === focusId
       ? buildFocusPersonBlock(sid, ix)
@@ -268,6 +247,8 @@ function buildParentFamilyBlock(
     packed,
     sibIds,
     focusId,
+    faChildhood,
+    moChildhood,
     ix
   });
   const faPB = parentPB({
@@ -276,6 +257,8 @@ function buildParentFamilyBlock(
     parentFam,
     parentChartX: ctx.faChartX,
     side: 'left',
+    bloodlineLeftChart: ctx.bloodlineLeftChart,
+    bloodlineRightChart: ctx.bloodlineRightChart,
     ix
   });
   const moPB = parentPB({
@@ -284,20 +267,11 @@ function buildParentFamilyBlock(
     parentFam,
     parentChartX: ctx.moChartX,
     side: 'right',
+    bloodlineLeftChart: ctx.bloodlineLeftChart,
+    bloodlineRightChart: ctx.bloodlineRightChart,
     ix
   });
   return assembleParentFB({ parentFam, faPB, moPB, kidPBs, packed, sibIds });
-}
-
-function parentChildhood(
-  parentId: number | null,
-  ancestorChartX: number,
-  parentFam: FamilyRow,
-  ix: LayoutIndices
-): FamilyBlock | null {
-  if (parentId === null || !ix.persons.has(parentId)) return null;
-  const spacer = measureStepFamsExtent(parentId, parentFam.id, ix);
-  return childhoodForParent(parentId, ancestorChartX, spacer, ix);
 }
 
 interface ParentPBArgs {
@@ -306,6 +280,8 @@ interface ParentPBArgs {
   parentFam: FamilyRow;
   parentChartX: number;
   side: 'left' | 'right';
+  bloodlineLeftChart: number;
+  bloodlineRightChart: number;
   ix: LayoutIndices;
 }
 
@@ -319,6 +295,8 @@ function parentPB(args: ParentPBArgs): PersonBlock | null {
     bloodlineFamId: args.parentFam.id,
     parentChartX: args.parentChartX,
     side: args.side,
+    bloodlineLeftChart: args.bloodlineLeftChart,
+    bloodlineRightChart: args.bloodlineRightChart,
     ix: args.ix
   });
 }
@@ -326,7 +304,6 @@ function parentPB(args: ParentPBArgs): PersonBlock | null {
 function childhoodForParent(
   parentId: number | null,
   ancestorChartX: number,
-  stepFamSpacer: number,
   ix: LayoutIndices
 ): FamilyBlock | null {
   if (parentId === null || !ix.persons.has(parentId)) return null;
@@ -334,7 +311,6 @@ function childhoodForParent(
     personId: parentId,
     currentDepth: 1,
     ancestorChartX,
-    stepFamSpacer,
     ix
   });
 }
@@ -345,12 +321,16 @@ interface ParentContextArgs {
   packed: PackedBlocks;
   sibIds: number[];
   focusId: number;
+  faChildhood: FamilyBlock | null;
+  moChildhood: FamilyBlock | null;
   ix: LayoutIndices;
 }
 
 interface ParentChartContext {
   faChartX: number;
   moChartX: number;
+  bloodlineLeftChart: number;
+  bloodlineRightChart: number;
 }
 
 function computeParentSep(args: ParentContextArgs): number {
@@ -372,9 +352,35 @@ function parentChartContext(args: ParentContextArgs): ParentChartContext {
       ? 0
       : args.packed.positions[focusIdx]! - args.packed.barMid;
   const parentOffsetX = -focusLocalX;
+  const faChartX = parentOffsetX + (sep > 0 ? -sep / 2 : 0);
+  const moChartX = parentOffsetX + (sep > 0 ? sep / 2 : 0);
+  const footprint = bloodlineFootprint(args, parentOffsetX, faChartX, moChartX);
+  return { faChartX, moChartX, ...footprint };
+}
+
+// Step-fams sit past this footprint — the union of focus's kid-row extents
+// and Fa/Mo's full childhood-FB widths at the parent row.
+function bloodlineFootprint(
+  args: ParentContextArgs,
+  parentOffsetX: number,
+  faChartX: number,
+  moChartX: number
+): { bloodlineLeftChart: number; bloodlineRightChart: number } {
+  const kidRowLeft =
+    args.kidPBs.length === 0 ? -BOX_W / 2 : parentOffsetX - args.packed.barMid;
+  const kidRowRight =
+    args.kidPBs.length === 0
+      ? BOX_W / 2
+      : parentOffsetX + (args.packed.totalWidth - args.packed.barMid);
+  const faPBLeft = Math.max(BOX_W / 2, args.faChildhood?.leftWidth ?? 0);
+  const moPBRight = Math.max(BOX_W / 2, args.moChildhood?.rightWidth ?? 0);
+  const parentRowLeft =
+    args.parentFam.husband_id === null ? Infinity : faChartX - faPBLeft;
+  const parentRowRight =
+    args.parentFam.wife_id === null ? -Infinity : moChartX + moPBRight;
   return {
-    faChartX: parentOffsetX + (sep > 0 ? -sep / 2 : 0),
-    moChartX: parentOffsetX + (sep > 0 ? sep / 2 : 0)
+    bloodlineLeftChart: Math.min(kidRowLeft, parentRowLeft),
+    bloodlineRightChart: Math.max(kidRowRight, parentRowRight)
   };
 }
 
