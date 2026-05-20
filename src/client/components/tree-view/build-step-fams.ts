@@ -33,15 +33,14 @@ export interface BuildAncestorWithStepFamsArgs {
   childhoodFamily: FamilyBlock | null;
   bloodlineFamId: number;
   parentChartX: number;
-  bloodlineLeftChart: number;
-  bloodlineRightChart: number;
+  side: 'left' | 'right';
   ix: LayoutIndices;
 }
 
 export function buildAncestorPBWithStepFams(
   args: BuildAncestorWithStepFamsArgs
 ): PersonBlock {
-  const { personId, childhoodFamily, bloodlineFamId, ix } = args;
+  const { personId, childhoodFamily, bloodlineFamId, side, ix } = args;
   const allFams = ix.spouseFamsByPerson.get(personId) ?? [];
   const bloodlineIdx = allFams.findIndex((f) => f.id === bloodlineFamId);
   if (bloodlineIdx === -1) {
@@ -53,39 +52,69 @@ export function buildAncestorPBWithStepFams(
     () => null
   );
 
-  let rightOuter = args.bloodlineRightChart;
-  for (let i = bloodlineIdx + 1; i < allFams.length; i += 1) {
+  // All non-bloodline marriages fan outward on the parent's own side
+  // (Fa's step-spouses to Fa's left; Mo's to Mo's right). The first
+  // non-bloodline marriage lands adjacent to the parent's box; subsequent
+  // ones stack further out. Aunts/Uncles in the childhood FB are pushed
+  // past this strip via `measureStepFamsExtent`.
+  const startEdge =
+    side === 'right'
+      ? args.parentChartX + BOX_W / 2
+      : args.parentChartX - BOX_W / 2;
+  let outer = startEdge;
+  for (const i of nonBloodlineFanOrder(allFams.length, bloodlineIdx)) {
     const fam = allFams[i]!;
     if (!isMeaningful(fam, personId, ix)) continue;
     const built = buildSidedStepFamFB({
       personId,
       fam,
-      side: 'right',
+      side,
       parentChartX: args.parentChartX,
-      outerEdge: rightOuter,
+      outerEdge: outer,
       ix
     });
     marriages[i] = built.fb;
-    rightOuter = built.newOuter;
-  }
-
-  let leftOuter = args.bloodlineLeftChart;
-  for (let j = bloodlineIdx - 1; j >= 0; j -= 1) {
-    const fam = allFams[j]!;
-    if (!isMeaningful(fam, personId, ix)) continue;
-    const built = buildSidedStepFamFB({
-      personId,
-      fam,
-      side: 'left',
-      parentChartX: args.parentChartX,
-      outerEdge: leftOuter,
-      ix
-    });
-    marriages[j] = built.fb;
-    leftOuter = built.newOuter;
+    outer = built.newOuter;
   }
 
   return new PersonBlock(personId, childhoodFamily, marriages, bloodlineIdx);
+}
+
+// Fan order: the bloodline marriage's immediate chronological neighbours
+// land adjacent to the parent, then progressively further out.
+function nonBloodlineFanOrder(
+  n: number,
+  bloodlineIdx: number
+): readonly number[] {
+  const out: number[] = [];
+  for (let step = 1; step < n; step += 1) {
+    const post = bloodlineIdx + step;
+    const pre = bloodlineIdx - step;
+    if (post < n) out.push(post);
+    if (pre >= 0) out.push(pre);
+  }
+  return out;
+}
+
+export function measureStepFamsExtent(
+  personId: number,
+  bloodlineFamId: number,
+  ix: LayoutIndices
+): number {
+  const allFams = ix.spouseFamsByPerson.get(personId) ?? [];
+  let total = 0;
+  for (const fam of allFams) {
+    if (fam.id === bloodlineFamId) continue;
+    if (!isMeaningful(fam, personId, ix)) continue;
+    const halfSibIds = presentChildren(fam, ix);
+    const kidBlocks: PersonBlock[] = halfSibIds.map(
+      (cid) => new PersonBlock(cid, null, [], null)
+    );
+    const packed = packBlocks(kidBlocks);
+    const { extentLeft, extentRight } = stepFamExtents(packed, kidBlocks);
+    total += extentLeft + extentRight + SIBLING_GAP;
+  }
+  return total;
 }
 
 interface BuildSidedStepFamArgs {
