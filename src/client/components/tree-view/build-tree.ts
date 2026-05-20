@@ -69,11 +69,14 @@ function buildChildhoodFamily(
   const fam = ix.parentFamByPerson.get(personId);
   if (fam === undefined) return null;
   const parentDepth = currentDepth + 1;
-  // Outer spouse continues the lean; inner spouse's own subtree centers
-  // (there's room on both sides of an inner ancestor). For a centered
-  // couple, both subtrees centre on themselves.
-  const husbandKidOffset = kidOffset > 0 ? kidOffset : 0;
-  const wifeKidOffset = kidOffset < 0 ? kidOffset : 0;
+  // Outer spouse's subtree doubles outward (so their parents land at the
+  // next slot beyond the previous outermost ancestor); inner spouse keeps
+  // the same offset. With sep = COUPLE_PITCH, this places every ancestor
+  // at every depth on a distinct chart-X column, COUPLE_PITCH apart.
+  const sign = Math.sign(kidOffset);
+  const outerKidOffset = 2 * kidOffset + sign * HALF_PITCH;
+  const husbandKidOffset = kidOffset > 0 ? outerKidOffset : kidOffset;
+  const wifeKidOffset = kidOffset < 0 ? outerKidOffset : kidOffset;
   const husbandPB = ancestorPBOrNull(
     fam.husband_id,
     parentDepth,
