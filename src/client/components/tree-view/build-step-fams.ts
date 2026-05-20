@@ -26,7 +26,7 @@ import {
 } from './helpers';
 import type { FamilyRow, LayoutIndices } from './helpers';
 
-export interface BuildAncestorWithStepFamsArgs {
+interface BuildAncestorWithStepFamsArgs {
   personId: number;
   childhoodFamily: FamilyBlock | null;
   bloodlineFamId: number;
