@@ -11,6 +11,7 @@
 
 import type { FamilyBlock } from './block-family';
 import { PersonBlock } from './block-person';
+import type { BloodlineFootprint } from './bloodline-footprint';
 import {
   buildExternalAdultFB,
   packBlocks,
@@ -30,17 +31,16 @@ interface BuildAncestorWithStepFamsArgs {
   personId: number;
   childhoodFamily: FamilyBlock | null;
   bloodlineFamId: number;
-  parentChartX: number;
+  footprint: BloodlineFootprint;
   side: 'left' | 'right';
-  bloodlineLeftChart: number;
-  bloodlineRightChart: number;
   ix: LayoutIndices;
 }
 
 export function buildAncestorPBWithStepFams(
   args: BuildAncestorWithStepFamsArgs
 ) {
-  const { personId, childhoodFamily, bloodlineFamId, side, ix } = args;
+  const { personId, childhoodFamily, bloodlineFamId, footprint, side, ix } =
+    args;
   const allFams = ix.spouseFamsByPerson.get(personId) ?? [];
   const bloodlineIdx = allFams.findIndex((f) => f.id === bloodlineFamId);
   if (bloodlineIdx === -1) {
@@ -59,9 +59,8 @@ export function buildAncestorPBWithStepFams(
   // ensures the GP couple's vertical drop doesn't cross the step-spouse's
   // column; sitting past the focus row keeps the half-sibship clear of
   // Focus's full siblings.
-  const startEdge =
-    side === 'right' ? args.bloodlineRightChart : args.bloodlineLeftChart;
-  let outer = startEdge;
+  const parentChartX = footprint.parentChartX(side);
+  let outer = footprint.outerEdge(side);
   for (const i of nonBloodlineFanOrder(allFams.length, bloodlineIdx)) {
     const fam = allFams[i]!;
     if (!isMeaningfulSpouseFam(fam, personId, ix)) continue;
@@ -69,7 +68,7 @@ export function buildAncestorPBWithStepFams(
       personId,
       fam,
       side,
-      parentChartX: args.parentChartX,
+      parentChartX,
       outerEdge: outer,
       ix
     });

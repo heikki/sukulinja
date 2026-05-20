@@ -69,6 +69,9 @@ Spouse separation inside every Couple — including the chart-root parent FB —
 **Aunts/Uncles placement**:
 At depth 1, **Aunts/Uncles** share the childhood FB sibship with their bloodline sibling (Father or Mother). The bloodline sibling sits at the _inward_ end of the sibship (Father at the rightmost slot of his sibship, Mother at the leftmost slot of hers); Aunts/Uncles fan outward in birth order, pushed past the **Step-fam fan** reservation so step-spouses and **Half-siblings** of Focus fit between the bloodline parent and the Aunts/Uncles. The GP couple's Tie position (see **Bloodline pyramid**) is independent of the sibship width — the bar reaches out to whichever Aunt/Uncle sits farthest from the Tie.
 
+**Bloodline footprint**:
+The depth-1 chart frame anchoring the chart-root parent FB: where Fa and Mo sit (their chart-X positions) and how far the bloodline's own rows reach left and right — the union of Focus's sibship at the kid row and Fa/Mo's own boxes at the parent row (_not_ Aunts/Uncles, which get pushed out past the footprint). **Aunts/Uncles** and the **Step-fam fan** sit past the outer edge on each side, so the footprint is what they must clear.
+
 **Step-fam fan**:
 Non-Primary marriages of a bloodline **Ancestor** render at depth 1 only (Fa's and Mo's). Depth ≥ 2 ancestors show their bloodline Couple only — earlier or later marriages are hidden. At depth 1, each parent's non-Primary marriages fan outward on that parent's own side of the chart-root parent FB — Fa's pile up past the bloodline footprint's left edge, Mo's pile up past the right edge — regardless of whether each marriage is chronologically pre- or post-bloodline. Within each side, chronologically-adjacent marriages (one step before or after the bloodline marriage) land closest to the parent, and progressively-distant marriages fan further outward. The chart-root parent FB sep stays at COUPLE_PITCH.
 
