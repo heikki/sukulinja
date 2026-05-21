@@ -6,7 +6,7 @@ import { repeat } from 'lit/directives/repeat.js';
 import type { FamilyRow, PersonRow } from '@common/types';
 
 import { buildChart } from './build';
-import type { Box, EmitOutput } from './emit';
+import type { Box, EmitOutput } from './build';
 import {
   AVATAR_CX,
   AVATAR_R,

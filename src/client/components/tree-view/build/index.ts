@@ -29,7 +29,8 @@ import {
   buildAncestorNodeWithStepFams,
   measureStepFamsExtent
 } from './step-fams';
-import { emitLayout } from '../emit';
+import { emitLayout } from './emit';
+export type { Box, EmitOutput } from './emit';
 import {
   BARE_PERSON_EXTENTS,
   HALF_PITCH,
