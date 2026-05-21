@@ -3,7 +3,7 @@ import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
-import type { PersonBox, RenderGroup, RenderOutput } from './block';
+import type { EmitOutput, PlacedPerson } from './emit';
 import {
   AVATAR_CX,
   AVATAR_R,
@@ -11,8 +11,7 @@ import {
   BOX_W,
   DEFAULT_FOCUS_ID,
   DRAG_THRESHOLD_PX,
-  SVG_HALF,
-  translatePoint
+  SVG_HALF
 } from './helpers';
 import type { FamilyRow, PersonRow, Point } from './helpers';
 import { buildChart } from './layout';
@@ -276,24 +275,24 @@ export class TreeViewElement extends LitElement {
     };
   }
 
-  private renderBox(box: PersonBox, groupAbs: Point) {
-    const p = this.persons.get(box.personId);
+  private renderPerson(person: PlacedPerson) {
+    const p = this.persons.get(person.personId);
     if (p === undefined) return nothing;
-    const isFocus = box.personId === this.focusId;
-    const x = box.offset.x - BOX_W / 2;
-    const y = box.offset.y - BOX_H / 2;
-    const chart = translatePoint(groupAbs, box.offset);
+    const isFocus = person.personId === this.focusId;
+    const tx = person.x - BOX_W / 2;
+    const ty = person.y - BOX_H / 2;
+    const chart: Point = { x: person.x, y: person.y };
     const photoSrc = photoSrcOf(p);
     const name = truncate(formatName(p), NAME_TRUNCATE);
     const dates = formatDates(p);
     return svg`
       <g
         class="node ${isFocus ? 'focus' : ''}"
-        data-node-id=${box.personId}
-        style="transform: translate(${x}px, ${y}px)"
+        data-node-id=${person.personId}
+        style="transform: translate(${tx}px, ${ty}px)"
         @click=${() => {
           if (this.dragMoved) return;
-          this.setFocus(box.personId, this.pinFromNode(chart));
+          this.setFocus(person.personId, this.pinFromNode(chart));
         }}
       >
         <rect class="box" x="0" y="0" width=${BOX_W} height=${BOX_H} rx="6" />
@@ -318,34 +317,6 @@ export class TreeViewElement extends LitElement {
         <text class="name" x="60" y=${BOX_H / 2 - 4}>${name}</text>
         <text class="dates" x="60" y=${BOX_H / 2 + 14}>${dates}</text>
         <rect class="hit" x="0" y="0" width=${BOX_W} height=${BOX_H} rx="6" />
-      </g>
-    `;
-  }
-
-  private renderGroup(
-    group: RenderGroup,
-    key: string,
-    parentAbs: Point
-  ): unknown {
-    const abs = translatePoint(parentAbs, group.offset);
-    const isRoot =
-      group.offset.x === 0 && group.offset.y === 0 && group.boxes.length === 0;
-    const children = svg`
-      ${repeat(
-        group.boxes,
-        (b) => b.personId,
-        (b) => this.renderBox(b, abs)
-      )}
-      ${repeat(
-        group.childGroups,
-        (_g, i) => `${key}/${i}`,
-        (g, i) => this.renderGroup(g, `${key}/${i}`, abs)
-      )}
-    `;
-    if (isRoot) return children;
-    return svg`
-      <g style="transform: translate(${group.offset.x}px, ${group.offset.y}px)">
-        ${children}
       </g>
     `;
   }
@@ -403,7 +374,7 @@ export class TreeViewElement extends LitElement {
     `;
   }
 
-  private renderCanvas(chart: RenderOutput) {
+  private renderCanvas(chart: EmitOutput) {
     return html`
       <div
         class="canvas ${this.dragging ? 'dragging' : ''}"
@@ -435,7 +406,11 @@ export class TreeViewElement extends LitElement {
                     />`
                   )}
                 </g>
-                ${this.renderGroup(chart.rootGroup, 'root', { x: 0, y: 0 })}
+                ${repeat(
+                  chart.persons,
+                  (p) => p.personId,
+                  (p) => this.renderPerson(p)
+                )}
               </svg>
             </div>`
           : nothing}
