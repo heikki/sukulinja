@@ -68,7 +68,7 @@ The "user" here is the developer maintaining and extending the tree-view module.
 
 - **New ADR (`0003-hybrid-layout-and-render.md`).** Captures the three-way choice (pure-nested, pure-flat, hybrid) and why hybrid wins here: extents-bubbling is load-bearing for layout; top-level ID-keyed rendering preserves DOM identity across structural changes; `external` becomes layout-internal.
 - **File header comments.** Every file in `tree-view/` has a header comment describing the module's role and the types it works with. These get rewritten to reflect the new LayoutNode/Anchor/emit vocabulary. Today's headers reference `PersonBlock`, `FamilyBlock`, `PlacedBlock`, `PersonPlacement`, and `external` — none of which survive.
-- **CONTEXT.md unchanged.** Anchor and LayoutNode are implementation-only. The domain glossary describes the *chart*, not the code, and stays as-is. ADR-0001 and ADR-0002 likewise stay untouched — they describe layout decisions that survive the refactor verbatim.
+- **CONTEXT.md unchanged.** Anchor and LayoutNode are implementation-only. The domain glossary describes the _chart_, not the code, and stays as-is. ADR-0001 and ADR-0002 likewise stay untouched — they describe layout decisions that survive the refactor verbatim.
 
 ## Testing Decisions
 
