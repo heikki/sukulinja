@@ -1,25 +1,25 @@
 // Bloodline-only Ancestor tree construction (depth ≥ 2). At depth 1, lateral
-// context (Aunts/Uncles, step-fams, Half-siblings) makes the FB no longer
+// context (Aunts/Uncles, step-fams, Half-siblings) makes the FN no longer
 // pure bloodline — that case stays in build-tree.ts (see ADR-0002). This
 // module is the recursive bloodline-pair-to-bloodline-pair structure above
 // that, plus the helper that depth-1 uses to place the GP couple.
 
-import { FamilyBlock } from './block-family';
-import type { Anchor } from './block-family';
-import { PersonBlock } from './block-person';
 import { placeInternalCouple } from './build-marriages';
 import { HALF_PITCH, isPersonKnown } from './helpers';
 import type { LayoutIndices } from './helpers';
+import { FamilyNode } from './node-family';
+import type { Anchor } from './node-family';
+import { PersonNode } from './node-person';
 
 export function buildAncestorTree(
   personId: number | null,
   depth: number,
   chartX: number,
   ix: LayoutIndices
-): PersonBlock | null {
+): PersonNode | null {
   if (!isPersonKnown(personId, ix)) return null;
-  const childhood = buildAncestorChildhoodFB(personId, depth, chartX, ix);
-  return new PersonBlock(personId, childhood, [], null);
+  const childhood = buildAncestorChildhoodFN(personId, depth, chartX, ix);
+  return new PersonNode(personId, childhood, [], null);
 }
 
 // Returns null when the kid has no known parents in scope or recursion
@@ -34,21 +34,21 @@ export function placeAncestorCouple(
   const fam = ix.parentFamByPerson.get(kidId);
   if (fam === undefined) return null;
   const kidSex = ix.persons.get(kidId)?.sex;
-  const tieXFBlocal = ancestorShift(kidSex, kidDepth, ix.levels) * HALF_PITCH;
-  const husbandChartX = kidChartX + tieXFBlocal - HALF_PITCH;
-  const wifeChartX = kidChartX + tieXFBlocal + HALF_PITCH;
-  const husbandPB = buildAncestorTree(
+  const tieXFNlocal = ancestorShift(kidSex, kidDepth, ix.levels) * HALF_PITCH;
+  const husbandChartX = kidChartX + tieXFNlocal - HALF_PITCH;
+  const wifeChartX = kidChartX + tieXFNlocal + HALF_PITCH;
+  const husbandPN = buildAncestorTree(
     fam.husband_id,
     kidDepth + 1,
     husbandChartX,
     ix
   );
-  const wifePB = buildAncestorTree(fam.wife_id, kidDepth + 1, wifeChartX, ix);
-  if (husbandPB === null && wifePB === null) return null;
-  return { fam, husbandPB, wifePB, tieXFBlocal };
+  const wifePN = buildAncestorTree(fam.wife_id, kidDepth + 1, wifeChartX, ix);
+  if (husbandPN === null && wifePN === null) return null;
+  return { fam, husbandPN, wifePN, tieXFNlocal };
 }
 
-function buildAncestorChildhoodFB(
+function buildAncestorChildhoodFN(
   kidId: number,
   kidDepth: number,
   kidChartX: number,
@@ -56,10 +56,10 @@ function buildAncestorChildhoodFB(
 ) {
   const placed = placeAncestorCouple(kidId, kidDepth, kidChartX, ix);
   if (placed === null) return null;
-  const { fam, husbandPB, wifePB, tieXFBlocal } = placed;
+  const { fam, husbandPN, wifePN, tieXFNlocal } = placed;
   const bloodlineKid: Anchor = { id: kidId, localX: 0 };
-  const couple = placeInternalCouple(husbandPB, wifePB, tieXFBlocal);
-  return new FamilyBlock({
+  const couple = placeInternalCouple(husbandPN, wifePN, tieXFNlocal);
+  return new FamilyNode({
     famId: fam.id,
     husband: couple.husband,
     wife: couple.wife,

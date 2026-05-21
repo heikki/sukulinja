@@ -1,6 +1,6 @@
-// FamilyBlock — one Couple Tie and one sibship (drop + bar + legs). Member
-// boxes belong to PersonBlocks, not this block; anchor members (whose PB
-// lives in an upstream block) appear in the spec as an `Anchor` carrying
+// FamilyNode — one Couple Tie and one sibship (drop + bar + legs). Member
+// boxes belong to PersonNodes, not this node; anchor members (whose PN
+// lives in an upstream node) appear in the spec as an `Anchor` carrying
 // only the local x needed for line geometry.
 //
 // Pivot conventions, set by the spec, not the class:
@@ -8,24 +8,24 @@
 //   - 1 anchor adult + 1 owned adult: pivot at the anchor adult
 //   - 1 owned adult (lone parent): pivot at that adult
 
-import { Block } from './block';
-import type { Line } from './block';
-import type { PersonBlock } from './block-person';
 import { BOX_H, BOX_W, ROW_PITCH } from './helpers';
 import type { Point } from './helpers';
+import { LayoutNode } from './node';
+import type { Line } from './node';
+import type { PersonNode } from './node-person';
 
-// Position-only slot for a person whose PersonBlock lives in an upstream
-// block. Carries just the id (for line keys) and the local x in this FB's
+// Position-only slot for a person whose PersonNode lives in an upstream
+// node. Carries just the id (for line keys) and the local x in this FN's
 // frame (for tie/sibship geometry).
 export interface Anchor {
   id: number;
   localX: number;
 }
 
-// Slot for a PersonBlock owned by this FB — placed as one of its children
+// Slot for a PersonNode owned by this FN — placed as one of its children
 // at the recorded local x.
 export interface OwnedPersonSlot {
-  block: PersonBlock;
+  node: PersonNode;
   localX: number;
 }
 
@@ -33,14 +33,14 @@ export type AdultSlot = OwnedPersonSlot | Anchor | null;
 export type KidSlot = OwnedPersonSlot | Anchor;
 
 function isOwned(slot: OwnedPersonSlot | Anchor): slot is OwnedPersonSlot {
-  return 'block' in slot;
+  return 'node' in slot;
 }
 
 function slotId(slot: OwnedPersonSlot | Anchor) {
-  return isOwned(slot) ? slot.block.personId : slot.id;
+  return isOwned(slot) ? slot.node.personId : slot.id;
 }
 
-export interface FamilyBlockSpec {
+export interface FamilyNodeSpec {
   famId: number;
   husband: AdultSlot;
   wife: AdultSlot;
@@ -51,26 +51,26 @@ export interface FamilyBlockSpec {
   childAnchor: Point;
 }
 
-export class FamilyBlock extends Block {
+export class FamilyNode extends LayoutNode {
   readonly selfHalfWidth = 0;
-  readonly children: readonly Block[];
+  readonly children: readonly LayoutNode[];
 
-  constructor(readonly spec: FamilyBlockSpec) {
+  constructor(readonly spec: FamilyNodeSpec) {
     super();
     const { husband, wife, kids } = spec;
-    const placed: Block[] = [];
+    const placed: LayoutNode[] = [];
     if (husband !== null && isOwned(husband)) {
-      husband.block.offset = { x: husband.localX, y: 0 };
-      placed.push(husband.block);
+      husband.node.offset = { x: husband.localX, y: 0 };
+      placed.push(husband.node);
     }
     if (wife !== null && isOwned(wife)) {
-      wife.block.offset = { x: wife.localX, y: 0 };
-      placed.push(wife.block);
+      wife.node.offset = { x: wife.localX, y: 0 };
+      placed.push(wife.node);
     }
     for (const kid of kids) {
       if (isOwned(kid)) {
-        kid.block.offset = { x: kid.localX, y: ROW_PITCH };
-        placed.push(kid.block);
+        kid.node.offset = { x: kid.localX, y: ROW_PITCH };
+        placed.push(kid.node);
       }
     }
     this.children = placed;

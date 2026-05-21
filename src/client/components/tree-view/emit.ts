@@ -1,13 +1,13 @@
 // Emit pass — walks the layout tree once with an accumulated absolute
-// offset and produces a flat ID-keyed output for rendering. PersonBlocks
-// contribute boxes (PlacedPerson); FamilyBlocks contribute lines
-// (DrawnLine). Anchor slots inside FBs participate in line geometry but
+// offset and produces a flat ID-keyed output for rendering. PersonNodes
+// contribute boxes (PlacedPerson); FamilyNodes contribute lines
+// (DrawnLine). Anchor slots inside FNs participate in line geometry but
 // don't appear in the layout tree, so they emit no PlacedPerson — the
-// box belongs to the upstream PB that owns this FB.
+// box belongs to the upstream PN that owns this FN.
 
-import type { Block } from './block';
 import { translatePoint } from './helpers';
 import type { Point } from './helpers';
+import type { LayoutNode } from './node';
 
 export interface PlacedPerson {
   personId: number;
@@ -26,7 +26,7 @@ export interface EmitOutput {
   lines: DrawnLine[];
 }
 
-export function emitLayout(root: Block, startAbs: Point): EmitOutput {
+export function emitLayout(root: LayoutNode, startAbs: Point): EmitOutput {
   const persons: PlacedPerson[] = [];
   const lines: DrawnLine[] = [];
   walk(root, startAbs, persons, lines);
@@ -34,12 +34,12 @@ export function emitLayout(root: Block, startAbs: Point): EmitOutput {
 }
 
 function walk(
-  block: Block,
+  node: LayoutNode,
   abs: Point,
   persons: PlacedPerson[],
   lines: DrawnLine[]
 ) {
-  const local = block.renderLocal();
+  const local = node.renderLocal();
   for (const box of local.boxes) {
     persons.push({
       personId: box.personId,
@@ -54,7 +54,7 @@ function walk(
       to: translatePoint(line.to, abs)
     });
   }
-  for (const child of block.children) {
+  for (const child of node.children) {
     walk(child, translatePoint(child.offset, abs), persons, lines);
   }
 }

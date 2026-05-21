@@ -1,20 +1,18 @@
-// Step-fam handling for ancestor PersonBlocks (Fa and Mo).
+// Step-fam handling for ancestor PersonNodes (Fa and Mo).
 //
-// Fa.PB.marriages keeps every non-bloodline spouseFams entry as a step-fam
-// FamilyBlock, in chronological order, with `null` at the bloodline slot
-// (the active marriage is rendered by the parent FB above).
+// Fa.PN.marriages keeps every non-bloodline spouseFams entry as a step-fam
+// FamilyNode, in chronological order, with `null` at the bloodline slot
+// (the active marriage is rendered by the parent FN above).
 //
-// Each step-fam FB is placed at PB(parent)-local (0, 0). The step-spouse's
-// FB-local X is sized so the step-fam clears the bloodline kid row's chart
+// Each step-fam FN is placed at PN(parent)-local (0, 0). The step-spouse's
+// FN-local X is sized so the step-fam clears the bloodline kid row's chart
 // extents. Sibship drops from the step-spouse box bottom, and Tie Y is
 // offset slightly above/below the bloodline Tie for visual distinction.
 
-import type { FamilyBlock } from './block-family';
-import { PersonBlock } from './block-person';
 import type { BloodlineFootprint } from './bloodline-footprint';
-import { buildAnchorAdultFB, packBlocks } from './build-marriages';
+import { buildAnchorAdultFN, packBlocks } from './build-marriages';
 import {
-  BARE_PB_EXTENTS,
+  BARE_PN_EXTENTS,
   BOX_H,
   isMeaningfulSpouseFam,
   NONPRIMARY_TIE_Y_OFFSET,
@@ -22,17 +20,19 @@ import {
   SIBLING_GAP
 } from './helpers';
 import type { FamilyRow, LayoutIndices } from './helpers';
+import type { FamilyNode } from './node-family';
+import { PersonNode } from './node-person';
 
 interface BuildAncestorWithStepFamsArgs {
   personId: number;
-  childhoodFamily: FamilyBlock | null;
+  childhoodFamily: FamilyNode | null;
   bloodlineFamId: number;
   footprint: BloodlineFootprint;
   side: 'left' | 'right';
   ix: LayoutIndices;
 }
 
-export function buildAncestorPBWithStepFams(
+export function buildAncestorPNWithStepFams(
   args: BuildAncestorWithStepFamsArgs
 ) {
   const { personId, childhoodFamily, bloodlineFamId, footprint, side, ix } =
@@ -40,10 +40,10 @@ export function buildAncestorPBWithStepFams(
   const allFams = ix.spouseFamsByPerson.get(personId) ?? [];
   const bloodlineIdx = allFams.findIndex((f) => f.id === bloodlineFamId);
   if (bloodlineIdx === -1) {
-    return new PersonBlock(personId, childhoodFamily, [], null);
+    return new PersonNode(personId, childhoodFamily, [], null);
   }
 
-  const marriages: Array<FamilyBlock | null> = Array.from(
+  const marriages: Array<FamilyNode | null> = Array.from(
     { length: allFams.length },
     () => null
   );
@@ -59,7 +59,7 @@ export function buildAncestorPBWithStepFams(
   for (const i of nonBloodlineFanOrder(allFams.length, bloodlineIdx)) {
     const fam = allFams[i]!;
     if (!isMeaningfulSpouseFam(fam, personId, ix)) continue;
-    const built = buildSidedStepFamFB({
+    const built = buildSidedStepFamFN({
       personId,
       fam,
       side,
@@ -71,7 +71,7 @@ export function buildAncestorPBWithStepFams(
     outer = built.newOuter;
   }
 
-  return new PersonBlock(personId, childhoodFamily, marriages, bloodlineIdx);
+  return new PersonNode(personId, childhoodFamily, marriages, bloodlineIdx);
 }
 
 // Fan order: the bloodline marriage's immediate chronological neighbours
@@ -96,28 +96,28 @@ interface BuildSidedStepFamArgs {
   ix: LayoutIndices;
 }
 
-// Step-fam kids are always bare PBs (half-siblings render as boxes only —
+// Step-fam kids are always bare PNs (half-siblings render as boxes only —
 // no marriages, no ancestry, no children), so the extent is fully
 // determined by the kid count.
 function stepFamExtents(kidCount: number) {
-  if (kidCount === 0) return BARE_PB_EXTENTS;
+  if (kidCount === 0) return BARE_PN_EXTENTS;
   const packed = packBlocks(
-    Array.from({ length: kidCount }, () => BARE_PB_EXTENTS)
+    Array.from({ length: kidCount }, () => BARE_PN_EXTENTS)
   );
   return {
-    left: packed.barMid - packed.positions[0]! + BARE_PB_EXTENTS.left,
+    left: packed.barMid - packed.positions[0]! + BARE_PN_EXTENTS.left,
     right:
       packed.positions[packed.positions.length - 1]! -
       packed.barMid +
-      BARE_PB_EXTENTS.right
+      BARE_PN_EXTENTS.right
   };
 }
 
-function buildSidedStepFamFB(args: BuildSidedStepFamArgs) {
+function buildSidedStepFamFN(args: BuildSidedStepFamArgs) {
   const { personId, fam, side, parentChartX, outerEdge, ix } = args;
   const halfSibIds = presentChildren(fam, ix);
-  const kidBlocks: PersonBlock[] = halfSibIds.map(
-    (cid) => new PersonBlock(cid, null, [], null)
+  const kidBlocks: PersonNode[] = halfSibIds.map(
+    (cid) => new PersonNode(cid, null, [], null)
   );
   const packed = packBlocks(kidBlocks.map((k) => k.extents));
   const extents = stepFamExtents(kidBlocks.length);
@@ -131,7 +131,7 @@ function buildSidedStepFamFB(args: BuildSidedStepFamArgs) {
       ? parentChartX + xSpouse + extents.right
       : parentChartX + xSpouse - extents.left;
 
-  const fb = buildAnchorAdultFB({
+  const fb = buildAnchorAdultFN({
     anchorAdultId: personId,
     fam,
     kidBlocks,

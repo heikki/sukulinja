@@ -1,4 +1,4 @@
-// PersonBlock — exactly one person. Recursion through the chart happens
+// PersonNode — exactly one person. Recursion through the chart happens
 // here: `childhoodFamily` (the Family this person is a child in) is placed
 // above; each non-null entry in `marriages` (Families this person is a
 // spouse in) is placed below.
@@ -6,33 +6,33 @@
 // Marriages are stored in chronological order. `activeMarriageIndex` marks
 // which one is rendered in "primary couple" style — the marriage adjacent
 // to this person in the chart. A `null` entry at the active slot means the
-// active marriage is owned by an outer Block (the bloodline-ancestor case:
-// Fa.marriages has a null at the bloodline slot because the bloodline FB
-// lives in the parent FB above). Roles:
+// active marriage is owned by an outer LayoutNode (the bloodline-ancestor case:
+// Fa.marriages has a null at the bloodline slot because the bloodline FN
+// lives in the parent FN above). Roles:
 //
-//   - focus PB:    marriages = [...all, primary at the last slot], activeIdx = last
-//   - sibling PB:  marriages = [primary],                          activeIdx = 0
-//   - ancestor PB: marriages = [...stepFams, null at bloodline,...] (chronological),
+//   - focus PN:    marriages = [...all, primary at the last slot], activeIdx = last
+//   - sibling PN:  marriages = [primary],                          activeIdx = 0
+//   - ancestor PN: marriages = [...stepFams, null at bloodline,...] (chronological),
 //                  activeIdx = bloodline position in spouseFams
-//   - bare PB:     marriages = [], activeIdx = null
+//   - bare PN:     marriages = [], activeIdx = null
 
-import { Block } from './block';
-import type { PersonBox } from './block';
-import type { FamilyBlock } from './block-family';
 import { BOX_W, ROW_PITCH } from './helpers';
+import { LayoutNode } from './node';
+import type { PersonBox } from './node';
+import type { FamilyNode } from './node-family';
 
-export class PersonBlock extends Block {
+export class PersonNode extends LayoutNode {
   readonly selfHalfWidth = BOX_W / 2;
-  readonly children: readonly Block[];
+  readonly children: readonly LayoutNode[];
 
   constructor(
     readonly personId: number,
-    readonly childhoodFamily: FamilyBlock | null,
-    readonly marriages: ReadonlyArray<FamilyBlock | null>,
+    readonly childhoodFamily: FamilyNode | null,
+    readonly marriages: ReadonlyArray<FamilyNode | null>,
     readonly activeMarriageIndex: number | null
   ) {
     super();
-    const placed: Block[] = [];
+    const placed: LayoutNode[] = [];
     for (const m of marriages) {
       if (m === null) continue;
       m.offset = { x: 0, y: 0 };

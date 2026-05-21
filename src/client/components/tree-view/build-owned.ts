@@ -1,15 +1,13 @@
-// PersonBlock builders for "owned marriages" — focus, descendants, siblings.
-// These PBs own their marriages directly (active marriage's FB is in their
-// PB.children), unlike bloodline-ancestor PBs whose active marriage is
-// rendered by the parent FB above.
+// PersonNode builders for "owned marriages" — focus, descendants, siblings.
+// These PNs own their marriages directly (active marriage's FN is in their
+// PN.children), unlike bloodline-ancestor PNs whose active marriage is
+// rendered by the parent FN above.
 //
 // Active = chronologically most recent marriage — drawn adjacent to the
 // person; earlier marriages fan further outward in fanDir. Siblings only
 // ever render their first meaningful spouseFam.
 
-import type { FamilyBlock } from './block-family';
-import { PersonBlock } from './block-person';
-import { buildAnchorAdultFB, packBlocks } from './build-marriages';
+import { buildAnchorAdultFN, packBlocks } from './build-marriages';
 import type { PackedBlocks } from './build-marriages';
 import {
   BOX_H,
@@ -22,26 +20,28 @@ import {
   presentChildren
 } from './helpers';
 import type { FamilyRow, LayoutIndices } from './helpers';
+import type { FamilyNode } from './node-family';
+import { PersonNode } from './node-person';
 
-export function buildFocusPB(personId: number, ix: LayoutIndices) {
-  return buildOwnedMarriagesPB(personId, 0, ix.levels >= 1, ix);
+export function buildFocusPN(personId: number, ix: LayoutIndices) {
+  return buildOwnedMarriagesPN(personId, 0, ix.levels >= 1, ix);
 }
 
-export function buildDescendantKidPB(
+export function buildDescendantKidPN(
   personId: number,
   depth: number,
   ix: LayoutIndices
 ) {
-  return buildOwnedMarriagesPB(personId, depth, depth < ix.levels, ix);
+  return buildOwnedMarriagesPN(personId, depth, depth < ix.levels, ix);
 }
 
-export function buildSiblingPB(personId: number, ix: LayoutIndices) {
+export function buildSiblingPN(personId: number, ix: LayoutIndices) {
   const fams = meaningfulSpouseFams(personId, ix);
-  if (fams.length === 0) return new PersonBlock(personId, null, [], null);
+  if (fams.length === 0) return new PersonNode(personId, null, [], null);
   const primary = fams[0]!;
   const fanDir = fanDirOfPerson(personId, fams, ix);
   const placement = primarySpousePlacement(fanDir);
-  const fb = buildAnchorAdultFB({
+  const fb = buildAnchorAdultFN({
     anchorAdultId: personId,
     fam: primary,
     kidBlocks: [],
@@ -49,7 +49,7 @@ export function buildSiblingPB(personId: number, ix: LayoutIndices) {
     placement,
     ix
   });
-  return new PersonBlock(personId, null, [fb], 0);
+  return new PersonNode(personId, null, [fb], 0);
 }
 
 function meaningfulSpouseFams(personId: number, ix: LayoutIndices) {
@@ -67,17 +67,17 @@ function fanDirOfPerson(
   return ix.persons.get(personId)?.sex === 'M' ? 1 : -1;
 }
 
-function buildOwnedMarriagesPB(
+function buildOwnedMarriagesPN(
   personId: number,
   depth: number,
   includeChildren: boolean,
   ix: LayoutIndices
 ) {
   const fams = meaningfulSpouseFams(personId, ix);
-  if (fams.length === 0) return new PersonBlock(personId, null, [], null);
+  if (fams.length === 0) return new PersonNode(personId, null, [], null);
   const fanDir = fanDirOfPerson(personId, fams, ix);
   const activeIdx = fams.length - 1;
-  const marriages: Array<FamilyBlock | null> = Array.from(
+  const marriages: Array<FamilyNode | null> = Array.from(
     { length: fams.length },
     () => null
   );
@@ -91,7 +91,7 @@ function buildOwnedMarriagesPB(
     const placement = isActive
       ? primarySpousePlacement(fanDir)
       : nonPrimarySpousePlacement(fanDir, outerEdge, packed);
-    const fb = buildAnchorAdultFB({
+    const fb = buildAnchorAdultFN({
       anchorAdultId: personId,
       fam,
       kidBlocks,
@@ -105,7 +105,7 @@ function buildOwnedMarriagesPB(
       fanDir === 1 ? fb.extents.right : fb.extents.left
     );
   }
-  return new PersonBlock(personId, null, marriages, activeIdx);
+  return new PersonNode(personId, null, marriages, activeIdx);
 }
 
 function ownedKidBlocks(
@@ -116,7 +116,7 @@ function ownedKidBlocks(
 ) {
   if (!includeChildren) return [];
   return presentChildren(fam, ix).map((cid) =>
-    buildDescendantKidPB(cid, depth + 1, ix)
+    buildDescendantKidPN(cid, depth + 1, ix)
   );
 }
 
