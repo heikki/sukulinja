@@ -27,9 +27,7 @@ function slotPersonId(slot: OwnedPersonSlot | Anchor) {
   return isOwned(slot) ? slot.node.personId : slot.personId;
 }
 
-// Place an owned slot's PersonNode at the slot's localX and the given row
-// y; returns the node (for adding to children) or null when the slot is
-// empty or an Anchor.
+// Returns null when the slot is empty or an Anchor (nothing to place).
 function placeOwned(slot: AdultSlot | KidSlot, y: number) {
   if (slot === null || !isOwned(slot)) return null;
   const { node, localX } = slot;

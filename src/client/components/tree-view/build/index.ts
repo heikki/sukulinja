@@ -51,8 +51,7 @@ export function buildChart(focusId: number, ix: LayoutIndices) {
   return emitLayout(root, { x: -focusPos.x, y: -focusPos.y });
 }
 
-// Locate a person's box in a LayoutNode subtree, returning their position
-// relative to `node` (or null when the person isn't in this subtree).
+// Returns null when the person isn't in this subtree.
 function getPersonPosition(node: LayoutNode, personId: number): Point | null {
   if (node instanceof PersonNode && node.personId === personId) {
     return { x: 0, y: 0 };

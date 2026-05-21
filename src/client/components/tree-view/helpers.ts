@@ -1,5 +1,3 @@
-// See CONTEXT.md for the authoritative domain vocabulary.
-
 import type { FamilyRow, PersonRow } from '@common/types';
 
 export interface LayoutIndices {
