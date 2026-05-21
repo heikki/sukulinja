@@ -2,13 +2,14 @@ import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { BrowserWindow } from 'electrobun/bun';
 
+import { DatasetRegistry } from './dataset-registry';
 import { createApi, createStaticFetch } from './server';
 
 const resourcesDir = resolve(dirname(process.argv0), '..', 'Resources');
 const viewsDir = join(resourcesDir, 'app', 'views', 'app');
 
 // In a dev build the .app lives inside <projectRoot>/build/dev-<arch>/...,
-// so we can walk back up to find the source-side data + media folders.
+// so we can walk back up to find the source-side data folder.
 function findProjectRoot(): string | null {
   const root = resolve(resourcesDir, '..', '..', '..', '..', '..');
   return existsSync(join(root, 'src', 'server')) ? root : null;
@@ -19,11 +20,8 @@ if (projectRoot === null) {
   throw new Error('Could not locate project root from .app location');
 }
 
-const api = createApi({
-  dbPath: join(projectRoot, 'data', 'app.db'),
-  // TODO: media root is hardcoded to a sibling MyHeritage export dir.
-  mediaRoot: join(projectRoot, '..', 'myheritage-export', 'media')
-});
+const registry = new DatasetRegistry(join(projectRoot, 'data'));
+const api = createApi(registry);
 const fetch = createStaticFetch({ api, staticRoots: [viewsDir] });
 const server = Bun.serve({ port: 0, fetch });
 

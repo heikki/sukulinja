@@ -31,22 +31,6 @@ body {
   color: var(--fg);
 }
 
-header {
-  padding: 0.75rem 1.5rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--card);
-}
-
-header h1 {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  cursor: pointer;
-  user-select: none;
-  display: inline-block;
-}
-
 main {
   padding: 0;
 }

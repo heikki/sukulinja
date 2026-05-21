@@ -17,6 +17,19 @@ Early prototype. The layout engine and GEDCOM importer work; UI is minimal.
 
 ```sh
 bun install
-bun run import-ged path/to/your-tree.ged   # writes data/app.db
-bun run dev:app                             # launch the desktop app
+bun run dev:app
 ```
+
+The repo ships with `data/bourbon/` pre-imported (303 individuals, 47 portraits)
+so a fresh clone has a working demo immediately. See
+[`data/NOTICE.md`](data/NOTICE.md) for attribution.
+
+To import your own GEDCOM:
+
+```sh
+bun run import-ged path/to/your-tree.ged --name family
+```
+
+Each import creates `data/<slug>/` with its own SQLite DB and a flat
+content-addressed `media/` dir. Switch between installed datasets in the app
+toolbar, or by URL: `/d/<slug>/`.

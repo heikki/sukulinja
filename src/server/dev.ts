@@ -1,18 +1,22 @@
 import { resolve } from 'node:path';
 
 import indexHtml from '../client/index.html';
+import { DatasetRegistry } from './dataset-registry';
 import { createApi, createStaticFetch } from './server';
 
-const api = createApi({
-  dbPath: resolve('data', 'app.db'),
-  // TODO: media root is hardcoded to a sibling MyHeritage export dir.
-  mediaRoot: resolve('..', 'myheritage-export', 'media')
-});
+const registry = new DatasetRegistry(resolve('data'));
+const api = createApi(registry);
 const fetch = createStaticFetch({ api, staticRoots: ['src/client'] });
 
 const server = Bun.serve({
   port: 0,
-  routes: { '/': indexHtml },
+  routes: {
+    '/': indexHtml,
+    '/d/:slug/api/*': false,
+    '/d/:slug/media/*': false,
+    '/d/:slug': indexHtml,
+    '/d/:slug/*': indexHtml
+  },
   development: { hmr: true, console: true },
   fetch
 });

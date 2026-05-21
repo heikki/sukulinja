@@ -51,7 +51,8 @@ const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS media (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     file_path TEXT UNIQUE NOT NULL,
-    format TEXT
+    format TEXT,
+    original_path TEXT
   );
 
   CREATE TABLE IF NOT EXISTS media_links (
@@ -69,9 +70,9 @@ const SCHEMA_SQL = `
   );
   CREATE INDEX IF NOT EXISTS media_links_scope_idx ON media_links(scope_type, scope_id);
 
-  CREATE TABLE IF NOT EXISTS settings (
+  CREATE TABLE IF NOT EXISTS meta (
     key TEXT PRIMARY KEY,
-    value TEXT
+    value TEXT NOT NULL
   );
 `;
 
@@ -95,7 +96,6 @@ function runScript(db: Database, sql: string): void {
 
 export function openDb(path: string): Database {
   const db = new Database(path, { create: true });
-  db.run('PRAGMA journal_mode = WAL;');
   db.run('PRAGMA foreign_keys = ON;');
   runScript(db, SCHEMA_SQL);
   return db;
