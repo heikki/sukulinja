@@ -1,18 +1,18 @@
 // Low-level FamilyNode construction utilities — packing, extents, and the
 // final FamilyNode assembly from pre-computed adult/kid placements.
 
+import type { FamilyRow } from '@common/types';
+
 import {
   BOX_H,
   HALF_PITCH,
-  isHusbandIn,
   isPersonKnown,
   otherSpouseOf,
   SIBLING_GAP
 } from './helpers';
-import type { Extents, FamilyRow, LayoutIndices, Point } from './helpers';
-import { FamilyNode } from './node-family';
-import type { AdultSlot, KidSlot } from './node-family';
-import { PersonNode } from './node-person';
+import type { Extents, LayoutIndices, Point } from './helpers';
+import { FamilyNode, PersonNode } from './nodes';
+import type { AdultSlot, KidSlot } from './nodes';
 
 export interface PackedRow {
   positions: number[];
@@ -64,7 +64,7 @@ export function buildAnchorAdultFam(args: BuildAnchorAdultArgs) {
   const otherId = otherSpouseOf(fam, anchorAdultId);
   const renderedSpouseId = isPersonKnown(otherId, ix) ? otherId : null;
 
-  const anchorIsHusband = isHusbandIn(fam, anchorAdultId);
+  const anchorIsHusband = fam.husband_id === anchorAdultId;
   const anchorAdult: AdultSlot = { personId: anchorAdultId, localX: 0 };
   const spouseAdult: AdultSlot =
     otherId === null
@@ -92,10 +92,10 @@ export function buildAnchorAdultFam(args: BuildAnchorAdultArgs) {
   });
 }
 
-export function placeInternalCouple(
+function placeInternalCouple(
   husbandNode: PersonNode | null,
   wifeNode: PersonNode | null,
-  tieXLocal = 0
+  tieXLocal: number
 ) {
   if (husbandNode !== null && wifeNode !== null) {
     // Spouse-to-spouse separation is fixed at COUPLE_PITCH. The Tie midpoint
@@ -105,8 +105,7 @@ export function placeInternalCouple(
     return {
       husband: { node: husbandNode, localX: tieXLocal - HALF_PITCH },
       wife: { node: wifeNode, localX: tieXLocal + HALF_PITCH },
-      childAnchor: { x: tieXLocal, y: 0 },
-      tieY: 0
+      childAnchor: { x: tieXLocal, y: 0 }
     };
   }
   // Lone parent (or neither): pivot at x = 0, drop from the present adult's
@@ -115,7 +114,32 @@ export function placeInternalCouple(
   return {
     husband: husbandNode === null ? null : { node: husbandNode, localX: 0 },
     wife: wifeNode === null ? null : { node: wifeNode, localX: 0 },
-    childAnchor: { x: 0, y: anyPresent ? BOX_H / 2 : 0 },
-    tieY: 0
+    childAnchor: { x: 0, y: anyPresent ? BOX_H / 2 : 0 }
   };
+}
+
+interface CoupleFamilyNodeArgs {
+  famId: number;
+  husbandNode: PersonNode | null;
+  wifeNode: PersonNode | null;
+  kids: readonly KidSlot[];
+  // Tie midpoint in the family-local frame. Defaults to 0; depth ≥ 2
+  // ancestor couples shift it per ADR-0001's (2^n − 1) × HALF_PITCH sequence.
+  tieXLocal?: number;
+}
+
+export function buildCoupleFamilyNode(args: CoupleFamilyNodeArgs) {
+  const couple = placeInternalCouple(
+    args.husbandNode,
+    args.wifeNode,
+    args.tieXLocal ?? 0
+  );
+  return new FamilyNode({
+    famId: args.famId,
+    husband: couple.husband,
+    wife: couple.wife,
+    kids: args.kids,
+    childAnchor: couple.childAnchor,
+    tieY: 0
+  });
 }

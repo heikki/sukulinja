@@ -8,6 +8,8 @@
 // person; earlier marriages fan further outward in fanDir. Siblings only
 // ever render their first meaningful spouseFam.
 
+import type { FamilyRow } from '@common/types';
+
 import { buildAnchorAdultFam, packRow } from './build-marriages';
 import type { PackedRow } from './build-marriages';
 import {
@@ -15,14 +17,13 @@ import {
   BOX_W,
   COUPLE_GAP,
   COUPLE_PITCH,
-  isHusbandIn,
   isMeaningfulSpouseFam,
   NONPRIMARY_TIE_Y_OFFSET,
   presentChildren
 } from './helpers';
-import type { FamilyRow, LayoutIndices } from './helpers';
-import type { FamilyNode } from './node-family';
-import { PersonNode } from './node-person';
+import type { LayoutIndices } from './helpers';
+import { PersonNode } from './nodes';
+import type { FamilyNode } from './nodes';
 
 export function buildFocusNode(personId: number, ix: LayoutIndices) {
   return buildOwnedMarriagesNode(personId, 0, ix.levels >= 1, ix);
@@ -63,7 +64,7 @@ function fanDirOfPerson(
   fams: readonly FamilyRow[],
   ix: LayoutIndices
 ): 1 | -1 {
-  if (fams.some((f) => isHusbandIn(f, personId))) return 1;
+  if (fams.some((f) => f.husband_id === personId)) return 1;
   if (fams.some((f) => f.wife_id === personId)) return -1;
   return ix.persons.get(personId)?.sex === 'M' ? 1 : -1;
 }

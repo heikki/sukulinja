@@ -1,41 +1,35 @@
 // Emit pass — walks the layout tree once with an accumulated absolute
 // offset and produces a flat ID-keyed output for rendering. PersonNodes
-// contribute PlacedPerson records; FamilyNodes contribute Line records.
-// Anchor slots inside a FamilyNode participate in line geometry but
-// don't appear in the layout tree, so they emit no PlacedPerson — the
-// box belongs to the upstream PersonNode that owns this FamilyNode.
+// contribute Box records; FamilyNodes contribute Line records. Anchor
+// slots inside a FamilyNode participate in line geometry but don't appear
+// in the layout tree, so they emit no Box — the box belongs to the
+// upstream PersonNode that owns this FamilyNode.
 
 import { translatePoint } from './helpers';
 import type { Point } from './helpers';
-import type { LayoutNode, Line } from './node';
-import { FamilyNode } from './node-family';
-import { PersonNode } from './node-person';
+import { FamilyNode, PersonNode } from './nodes';
+import type { LayoutNode, Line } from './nodes';
 
-export interface PlacedPerson {
+export interface Box {
   personId: number;
   pos: Point;
 }
 
 export interface EmitOutput {
-  persons: PlacedPerson[];
+  boxes: Box[];
   lines: Line[];
 }
 
 export function emitLayout(root: LayoutNode, startAbs: Point): EmitOutput {
-  const persons: PlacedPerson[] = [];
+  const boxes: Box[] = [];
   const lines: Line[] = [];
-  walk(root, startAbs, persons, lines);
-  return { persons, lines };
+  walk(root, startAbs, boxes, lines);
+  return { boxes, lines };
 }
 
-function walk(
-  node: LayoutNode,
-  abs: Point,
-  persons: PlacedPerson[],
-  lines: Line[]
-) {
+function walk(node: LayoutNode, abs: Point, boxes: Box[], lines: Line[]) {
   if (node instanceof PersonNode) {
-    persons.push({ personId: node.personId, pos: { x: abs.x, y: abs.y } });
+    boxes.push({ personId: node.personId, pos: { x: abs.x, y: abs.y } });
   } else if (node instanceof FamilyNode) {
     for (const line of node.lines()) {
       lines.push({
@@ -46,6 +40,6 @@ function walk(
     }
   }
   for (const child of node.children) {
-    walk(child, translatePoint(child.offset, abs), persons, lines);
+    walk(child, translatePoint(child.offset, abs), boxes, lines);
   }
 }
