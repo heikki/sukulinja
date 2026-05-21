@@ -11,7 +11,7 @@ import { FamilyNode } from './node-family';
 import type { Anchor } from './node-family';
 import { PersonNode } from './node-person';
 
-export function buildAncestorTree(
+function buildAncestorTree(
   personId: number | null,
   depth: number,
   chartX: number,

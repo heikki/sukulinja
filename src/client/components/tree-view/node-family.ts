@@ -24,7 +24,7 @@ export interface Anchor {
 
 // Slot for a PersonNode owned by this family — placed as one of its children
 // at the recorded local x.
-export interface OwnedPersonSlot {
+interface OwnedPersonSlot {
   node: PersonNode;
   localX: number;
 }
@@ -50,7 +50,7 @@ function placeOwned(slot: AdultSlot | KidSlot, y: number) {
   return node;
 }
 
-export interface FamilyNodeSpec {
+interface FamilyNodeSpec {
   famId: number;
   husband: AdultSlot;
   wife: AdultSlot;
