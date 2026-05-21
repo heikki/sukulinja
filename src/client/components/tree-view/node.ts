@@ -1,8 +1,10 @@
-// Block is the abstract base for the layout tree. Concrete Blocks are
-// PersonBlock (one person box) and FamilyBlock (one Couple Tie + sibship).
-// Each Block carries its own `offset` relative to its parent — set by the
-// parent during construction. The layout tree is consumed by the emit pass
-// (see emit.ts), which produces a flat ID-keyed output for rendering.
+// LayoutNode is the abstract base for the layout tree. Concrete nodes are
+// PersonNode (one person box) and FamilyNode (one Couple Tie + sibship).
+// Each LayoutNode carries its own `offset` relative to its parent — set by
+// the parent during construction. Extents bubble up the tree via the
+// `extents` getter, which composes children's extents with `selfHalfWidth`.
+// The tree is consumed by the emit pass (see emit.ts), which walks once
+// and produces a flat ID-keyed EmitOutput for rendering.
 
 import { translatePoint } from './helpers';
 import type { Extents, Point } from './helpers';
@@ -23,15 +25,15 @@ export interface LocalRenderOutput {
   lines: Line[];
 }
 
-export abstract class Block {
-  // Position relative to this Block's parent. The parent sets it during
-  // construction (FB sets its owned PBs' offsets from the slot's localX; PB
-  // sets its FB children's offsets from their row position).
+export abstract class LayoutNode {
+  // Position relative to this LayoutNode's parent. The parent sets it during
+  // construction (FN sets its owned PNs' offsets from the slot's localX; PN
+  // sets its FN children's offsets from their row position).
   offset: Point = { x: 0, y: 0 };
 
-  abstract readonly children: readonly Block[];
+  abstract readonly children: readonly LayoutNode[];
 
-  // How far the block's own box reaches from its pivot.
+  // How far this node's own box reaches from its pivot.
   abstract readonly selfHalfWidth: number;
 
   abstract renderLocal(): LocalRenderOutput;
