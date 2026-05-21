@@ -10,19 +10,21 @@
 // box bottom, and Tie Y is offset slightly above/below the bloodline Tie
 // for visual distinction.
 
+import type { FamilyRow } from '@common/types';
+
 import type { BloodlineFootprint } from './bloodline-footprint';
 import { buildAnchorAdultFam, packRow } from './build-marriages';
 import {
-  BARE_PERSON_EXTENTS,
   BOX_H,
+  BOX_W,
   isMeaningfulSpouseFam,
   NONPRIMARY_TIE_Y_OFFSET,
   presentChildren,
   SIBLING_GAP
 } from './helpers';
-import type { FamilyRow, LayoutIndices } from './helpers';
-import type { FamilyNode } from './node-family';
-import { PersonNode } from './node-person';
+import type { LayoutIndices } from './helpers';
+import { PersonNode } from './nodes';
+import type { FamilyNode } from './nodes';
 
 interface BuildAncestorWithStepFamsArgs {
   personId: number;
@@ -98,20 +100,14 @@ interface BuildSidedStepFamArgs {
 }
 
 // Step-fam kids are always bare nodes (half-siblings render as boxes only —
-// no marriages, no ancestry, no children), so the extent is fully
-// determined by the kid count.
+// no marriages, no ancestry, no children), and they sit symmetrically around
+// the step-spouse box. The footprint is the larger of the kid row's half-
+// width and the spouse box's half-width.
 function stepFamExtents(kidCount: number) {
-  if (kidCount === 0) return BARE_PERSON_EXTENTS;
-  const packed = packRow(
-    Array.from({ length: kidCount }, () => BARE_PERSON_EXTENTS)
-  );
-  return {
-    left: packed.barMid - packed.positions[0]! + BARE_PERSON_EXTENTS.left,
-    right:
-      packed.positions[packed.positions.length - 1]! -
-      packed.barMid +
-      BARE_PERSON_EXTENTS.right
-  };
+  const kidRowHalf =
+    kidCount === 0 ? 0 : (kidCount * BOX_W + (kidCount - 1) * SIBLING_GAP) / 2;
+  const half = Math.max(BOX_W / 2, kidRowHalf);
+  return { left: half, right: half };
 }
 
 function buildSidedStepFam(args: BuildSidedStepFamArgs) {

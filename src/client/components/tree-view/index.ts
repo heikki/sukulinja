@@ -3,7 +3,9 @@ import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
-import type { EmitOutput, PlacedPerson } from './emit';
+import type { FamilyRow, PersonRow } from '@common/types';
+
+import type { Box, EmitOutput } from './emit';
 import {
   AVATAR_CX,
   AVATAR_R,
@@ -13,7 +15,7 @@ import {
   DRAG_THRESHOLD_PX,
   SVG_HALF
 } from './helpers';
-import type { FamilyRow, PersonRow, Point } from './helpers';
+import type { Point } from './helpers';
 import { buildChart } from './layout';
 import { treeViewStyles } from './styles';
 
@@ -46,19 +48,6 @@ function formatDates(p: PersonRow) {
   const d = p.death_year ?? '';
   if (b === '' && d === '') return '';
   return `${b}–${d}`;
-}
-
-function truncate(s: string, max: number) {
-  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
-}
-
-function photoSrcOf(p: PersonRow) {
-  if (p.photo_path === null) return null;
-  return `/media/${p.photo_path.replace(/^media\//u, '')}`;
-}
-
-function searchKeyOf(p: PersonRow) {
-  return `${p.given ?? ''} ${p.surname ?? ''}`.toLowerCase();
 }
 
 @customElement('sl-tree-view')
@@ -258,7 +247,8 @@ export class TreeViewElement extends LitElement {
     if (q.length < SEARCH_MIN_LEN) return [];
     const out: PersonRow[] = [];
     for (const p of this.persons.values()) {
-      if (searchKeyOf(p).includes(q)) {
+      const key = `${p.given ?? ''} ${p.surname ?? ''}`.toLowerCase();
+      if (key.includes(q)) {
         out.push(p);
         if (out.length >= SEARCH_MAX_RESULTS) break;
       }
@@ -275,23 +265,30 @@ export class TreeViewElement extends LitElement {
     };
   }
 
-  private renderPerson(person: PlacedPerson) {
-    const p = this.persons.get(person.personId);
+  private renderBox(box: Box) {
+    const p = this.persons.get(box.personId);
     if (p === undefined) return nothing;
-    const isFocus = person.personId === this.focusId;
-    const tx = person.pos.x - BOX_W / 2;
-    const ty = person.pos.y - BOX_H / 2;
-    const photoSrc = photoSrcOf(p);
-    const name = truncate(formatName(p), NAME_TRUNCATE);
+    const isFocus = box.personId === this.focusId;
+    const tx = box.pos.x - BOX_W / 2;
+    const ty = box.pos.y - BOX_H / 2;
+    const photoSrc =
+      p.photo_path === null
+        ? null
+        : `/media/${p.photo_path.replace(/^media\//u, '')}`;
+    const fullName = formatName(p);
+    const name =
+      fullName.length > NAME_TRUNCATE
+        ? `${fullName.slice(0, NAME_TRUNCATE - 1)}…`
+        : fullName;
     const dates = formatDates(p);
     return svg`
       <g
         class="node ${isFocus ? 'focus' : ''}"
-        data-node-id=${person.personId}
+        data-node-id=${box.personId}
         style="transform: translate(${tx}px, ${ty}px)"
         @click=${() => {
           if (this.dragMoved) return;
-          this.setFocus(person.personId, this.pinFromNode(person.pos));
+          this.setFocus(box.personId, this.pinFromNode(box.pos));
         }}
       >
         <rect class="box" x="0" y="0" width=${BOX_W} height=${BOX_H} rx="6" />
@@ -406,9 +403,9 @@ export class TreeViewElement extends LitElement {
                   )}
                 </g>
                 ${repeat(
-                  chart.persons,
-                  (p) => p.personId,
-                  (p) => this.renderPerson(p)
+                  chart.boxes,
+                  (b) => b.personId,
+                  (b) => this.renderBox(b)
                 )}
               </svg>
             </div>`

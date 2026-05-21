@@ -2,8 +2,6 @@
 
 import type { FamilyRow, PersonRow } from '@common/types';
 
-export type { FamilyRow, PersonRow };
-
 export interface LayoutIndices {
   persons: Map<number, PersonRow>;
   parentFamByPerson: Map<number, FamilyRow>;
@@ -53,10 +51,6 @@ export function otherSpouseOf(fam: FamilyRow, personId: number) {
   if (fam.husband_id === personId) return fam.wife_id;
   if (fam.wife_id === personId) return fam.husband_id;
   return null;
-}
-
-export function isHusbandIn(fam: FamilyRow, personId: number) {
-  return fam.husband_id === personId;
 }
 
 export function isPersonKnown(

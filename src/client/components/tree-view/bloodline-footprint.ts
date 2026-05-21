@@ -3,20 +3,22 @@
 // fans get placed past the outer edge on each side, so consumers ask the
 // footprint for the relevant side rather than picking from a 4-tuple.
 
+import type { FamilyRow } from '@common/types';
+
 import type { PackedRow } from './build-marriages';
 import { BOX_W, COUPLE_PITCH, isPersonKnown } from './helpers';
-import type { FamilyRow, LayoutIndices } from './helpers';
+import type { LayoutIndices } from './helpers';
 
 export class BloodlineFootprint {
   constructor(
-    readonly faChartX: number,
-    readonly moChartX: number,
+    readonly fatherChartX: number,
+    readonly motherChartX: number,
     readonly bloodlineLeftChart: number,
     readonly bloodlineRightChart: number
   ) {}
 
   parentChartX(side: 'left' | 'right') {
-    return side === 'left' ? this.faChartX : this.moChartX;
+    return side === 'left' ? this.fatherChartX : this.motherChartX;
   }
 
   outerEdge(side: 'left' | 'right') {
@@ -45,25 +47,25 @@ export function computeBloodlineFootprint(args: ComputeArgs) {
   const focusIdx = args.sibIds.indexOf(args.focusId);
   const focusLocalX = args.packed.positions[focusIdx]! - args.packed.barMid;
   const parentOffsetX = -focusLocalX;
-  const faChartX = parentOffsetX + (sep > 0 ? -sep / 2 : 0);
-  const moChartX = parentOffsetX + (sep > 0 ? sep / 2 : 0);
+  const fatherChartX = parentOffsetX + (sep > 0 ? -sep / 2 : 0);
+  const motherChartX = parentOffsetX + (sep > 0 ? sep / 2 : 0);
   const kidRowLeft = parentOffsetX - args.packed.barMid;
   const kidRowRight =
     parentOffsetX + (args.packed.totalWidth - args.packed.barMid);
   const parentRowLeft =
-    args.parentFam.husband_id === null ? Infinity : faChartX - BOX_W / 2;
+    args.parentFam.husband_id === null ? Infinity : fatherChartX - BOX_W / 2;
   const parentRowRight =
-    args.parentFam.wife_id === null ? -Infinity : moChartX + BOX_W / 2;
+    args.parentFam.wife_id === null ? -Infinity : motherChartX + BOX_W / 2;
   return new BloodlineFootprint(
-    faChartX,
-    moChartX,
+    fatherChartX,
+    motherChartX,
     Math.min(kidRowLeft, parentRowLeft),
     Math.max(kidRowRight, parentRowRight)
   );
 }
 
 function computeParentSep(parentFam: FamilyRow, ix: LayoutIndices) {
-  const faPresent = isPersonKnown(parentFam.husband_id, ix);
-  const moPresent = isPersonKnown(parentFam.wife_id, ix);
-  return faPresent && moPresent ? COUPLE_PITCH : 0;
+  const fatherPresent = isPersonKnown(parentFam.husband_id, ix);
+  const motherPresent = isPersonKnown(parentFam.wife_id, ix);
+  return fatherPresent && motherPresent ? COUPLE_PITCH : 0;
 }

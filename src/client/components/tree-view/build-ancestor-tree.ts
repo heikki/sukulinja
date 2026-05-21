@@ -4,12 +4,11 @@
 // This module is the recursive bloodline-pair-to-bloodline-pair structure
 // above that, plus the helper that depth-1 uses to place the GP couple.
 
-import { placeInternalCouple } from './build-marriages';
+import { buildCoupleFamilyNode } from './build-marriages';
 import { HALF_PITCH, isPersonKnown } from './helpers';
 import type { LayoutIndices } from './helpers';
-import { FamilyNode } from './node-family';
-import type { Anchor } from './node-family';
-import { PersonNode } from './node-person';
+import { PersonNode } from './nodes';
+import type { Anchor } from './nodes';
 
 function buildAncestorTree(
   personId: number | null,
@@ -18,7 +17,7 @@ function buildAncestorTree(
   ix: LayoutIndices
 ): PersonNode | null {
   if (!isPersonKnown(personId, ix)) return null;
-  const childhood = buildAncestorChildhoodFN(personId, depth, chartX, ix);
+  const childhood = buildAncestorChildhoodFamily(personId, depth, chartX, ix);
   return new PersonNode(personId, childhood, [], null);
 }
 
@@ -48,7 +47,7 @@ export function placeAncestorCouple(
   return { fam, husbandNode, wifeNode, tieXLocal };
 }
 
-function buildAncestorChildhoodFN(
+function buildAncestorChildhoodFamily(
   kidId: number,
   kidDepth: number,
   kidChartX: number,
@@ -58,14 +57,12 @@ function buildAncestorChildhoodFN(
   if (placed === null) return null;
   const { fam, husbandNode, wifeNode, tieXLocal } = placed;
   const bloodlineKid: Anchor = { personId: kidId, localX: 0 };
-  const couple = placeInternalCouple(husbandNode, wifeNode, tieXLocal);
-  return new FamilyNode({
+  return buildCoupleFamilyNode({
     famId: fam.id,
-    husband: couple.husband,
-    wife: couple.wife,
+    husbandNode,
+    wifeNode,
     kids: [bloodlineKid],
-    childAnchor: couple.childAnchor,
-    tieY: couple.tieY
+    tieXLocal
   });
 }
 
