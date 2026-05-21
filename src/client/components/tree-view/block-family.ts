@@ -1,32 +1,50 @@
 // FamilyBlock — one Couple Tie and one sibship (drop + bar + legs). Member
-// boxes belong to PersonBlocks, not this block; external members (whose PB
-// lives in an outer block) appear in the spec as `external: true, block:
-// null`, present only for the FB's own line geometry.
+// boxes belong to PersonBlocks, not this block; anchor members (whose PB
+// lives in an upstream block) appear in the spec as an `Anchor` carrying
+// only the local x needed for line geometry.
 //
 // Pivot conventions, set by the spec, not the class:
-//   - 2 internal adults: pivot at Tie midpoint
-//   - 1 external adult + 1 internal adult: pivot at the external adult
-//   - 1 internal adult (lone parent): pivot at that adult
+//   - 2 owned adults: pivot at Tie midpoint
+//   - 1 anchor adult + 1 owned adult: pivot at the anchor adult
+//   - 1 owned adult (lone parent): pivot at that adult
 
 import { Block } from './block';
 import type { Line, PlacedBlock } from './block';
+import type { PersonBlock } from './block-person';
 import { BOX_H, BOX_W, ROW_PITCH } from './helpers';
 import type { Point } from './helpers';
 
-export interface PersonPlacement {
+// Position-only slot for a person whose PersonBlock lives in an upstream
+// block. Carries just the id (for line keys) and the local x in this FB's
+// frame (for tie/sibship geometry).
+export interface Anchor {
   id: number;
-  external: boolean;
-  // Local X in this FB's frame.
-  x: number;
-  // null exactly when external === true.
-  block: Block | null;
+  localX: number;
+}
+
+// Slot for a PersonBlock owned by this FB — placed as one of its children
+// at the recorded local x.
+export interface OwnedPersonSlot {
+  block: PersonBlock;
+  localX: number;
+}
+
+export type AdultSlot = OwnedPersonSlot | Anchor | null;
+export type KidSlot = OwnedPersonSlot | Anchor;
+
+function isOwned(slot: OwnedPersonSlot | Anchor): slot is OwnedPersonSlot {
+  return 'block' in slot;
+}
+
+function slotId(slot: OwnedPersonSlot | Anchor) {
+  return isOwned(slot) ? slot.block.personId : slot.id;
 }
 
 export interface FamilyBlockSpec {
   famId: number;
-  husband: PersonPlacement | null;
-  wife: PersonPlacement | null;
-  kids: readonly PersonPlacement[];
+  husband: AdultSlot;
+  wife: AdultSlot;
+  kids: readonly KidSlot[];
   // Couple-Tie Y in the local frame. Adults sit at y=0; kids at y=ROW_PITCH.
   tieY: number;
   // Sibship drop origin in the local frame.
@@ -40,23 +58,23 @@ export class FamilyBlock extends Block {
   constructor(readonly spec: FamilyBlockSpec) {
     super();
     const placed: PlacedBlock[] = [];
-    if (spec.husband !== null && spec.husband.block !== null) {
+    if (spec.husband !== null && isOwned(spec.husband)) {
       placed.push({
         block: spec.husband.block,
-        offset: { x: spec.husband.x, y: 0 }
+        offset: { x: spec.husband.localX, y: 0 }
       });
     }
-    if (spec.wife !== null && spec.wife.block !== null) {
+    if (spec.wife !== null && isOwned(spec.wife)) {
       placed.push({
         block: spec.wife.block,
-        offset: { x: spec.wife.x, y: 0 }
+        offset: { x: spec.wife.localX, y: 0 }
       });
     }
     for (const kid of spec.kids) {
-      if (kid.block !== null) {
+      if (isOwned(kid)) {
         placed.push({
           block: kid.block,
-          offset: { x: kid.x, y: ROW_PITCH }
+          offset: { x: kid.localX, y: ROW_PITCH }
         });
       }
     }
@@ -69,8 +87,8 @@ export class FamilyBlock extends Block {
       // Husband-left convention can be violated by ancestor step-fams (the
       // step-spouse may sit on Fa's "wrong" side to match chronological
       // placement) — pick endpoints by X order, not by husband/wife roles.
-      const leftX = Math.min(this.spec.husband.x, this.spec.wife.x);
-      const rightX = Math.max(this.spec.husband.x, this.spec.wife.x);
+      const leftX = Math.min(this.spec.husband.localX, this.spec.wife.localX);
+      const rightX = Math.max(this.spec.husband.localX, this.spec.wife.localX);
       lines.push({
         key: `tie-${this.spec.famId}`,
         from: { x: leftX + BOX_W / 2, y: this.spec.tieY },
@@ -98,8 +116,8 @@ export class FamilyBlock extends Block {
     let minX = spec.childAnchor.x;
     let maxX = spec.childAnchor.x;
     for (const k of spec.kids) {
-      if (k.x < minX) minX = k.x;
-      if (k.x > maxX) maxX = k.x;
+      if (k.localX < minX) minX = k.localX;
+      if (k.localX > maxX) maxX = k.localX;
     }
     if (maxX > minX) {
       lines.push({
@@ -110,9 +128,9 @@ export class FamilyBlock extends Block {
     }
     for (const k of spec.kids) {
       lines.push({
-        key: `sib-${spec.famId}-leg-${k.id}`,
-        from: { x: k.x, y: busY },
-        to: { x: k.x, y: ROW_PITCH - BOX_H / 2 }
+        key: `sib-${spec.famId}-leg-${slotId(k)}`,
+        from: { x: k.localX, y: busY },
+        to: { x: k.localX, y: ROW_PITCH - BOX_H / 2 }
       });
     }
   }

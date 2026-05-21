@@ -8,7 +8,7 @@
 //            bloodline kid row's chart extents.
 
 import { FamilyBlock } from './block-family';
-import type { PersonPlacement } from './block-family';
+import type { Anchor, KidSlot } from './block-family';
 import { PersonBlock } from './block-person';
 import { computeBloodlineFootprint } from './bloodline-footprint';
 import type { BloodlineFootprint } from './bloodline-footprint';
@@ -53,17 +53,12 @@ interface ChildhoodFBKidsArgs {
   ix: LayoutIndices;
 }
 
-function childhoodFBKids(args: ChildhoodFBKidsArgs) {
+function childhoodFBKids(args: ChildhoodFBKidsArgs): KidSlot[] {
   const { bloodlineId, fam, ancestorChartX, stepFamSpacer, ix } = args;
-  const bloodlinePlacement: PersonPlacement = {
-    id: bloodlineId,
-    external: true,
-    x: 0,
-    block: null
-  };
+  const bloodlineSlot: Anchor = { id: bloodlineId, localX: 0 };
   const sibIds = presentChildren(fam, ix);
   const auntIds = sibIds.filter((sid) => sid !== bloodlineId);
-  if (auntIds.length === 0) return [bloodlinePlacement];
+  if (auntIds.length === 0) return [bloodlineSlot];
 
   const auntPBs = auntIds.map((sid) => new PersonBlock(sid, null, [], null));
   const fanLeft = ancestorChartX < 0;
@@ -81,12 +76,10 @@ function childhoodFBKids(args: ChildhoodFBKidsArgs) {
   const auntShift = (stepFamSpacer ?? 0) * (fanLeft ? -1 : 1);
 
   return ordered.map((blk, i) => {
-    if (blk === null) return bloodlinePlacement;
+    if (blk === null) return bloodlineSlot;
     return {
-      id: blk.personId,
-      external: false,
-      x: packed.positions[i]! + shift + auntShift,
-      block: blk
+      block: blk,
+      localX: packed.positions[i]! + shift + auntShift
     };
   });
 }
@@ -154,13 +147,11 @@ function buildParentFB(
     side: 'right',
     ix
   });
-  const couple = placeInternalCouple(faPB, moPB, parentFam);
+  const couple = placeInternalCouple(faPB, moPB);
   const kidXs = kidXsFromPacked(packed, couple.childAnchor.x);
-  const kids: PersonPlacement[] = sibIds.map((sid, i) => ({
-    id: sid,
-    external: false,
-    x: kidXs[i]!,
-    block: kidPBs[i]!
+  const kids: KidSlot[] = sibIds.map((_sid, i) => ({
+    block: kidPBs[i]!,
+    localX: kidXs[i]!
   }));
   return new FamilyBlock({
     famId: parentFam.id,
@@ -210,7 +201,7 @@ function childhoodForParent(
     stepFamSpacer,
     ix
   });
-  const couple = placeInternalCouple(husbandPB, wifePB, fam, tieXFBlocal);
+  const couple = placeInternalCouple(husbandPB, wifePB, tieXFBlocal);
   return new FamilyBlock({
     famId: fam.id,
     husband: couple.husband,

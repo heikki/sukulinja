@@ -9,7 +9,7 @@
 
 import type { FamilyBlock } from './block-family';
 import { PersonBlock } from './block-person';
-import { buildExternalAdultFB, packBlocks } from './build-marriages';
+import { buildAnchorAdultFB, packBlocks } from './build-marriages';
 import type { PackedBlocks } from './build-marriages';
 import {
   BOX_H,
@@ -41,8 +41,8 @@ export function buildSiblingPB(personId: number, ix: LayoutIndices) {
   const primary = fams[0]!;
   const fanDir = fanDirOfPerson(personId, fams, ix);
   const placement = primarySpousePlacement(fanDir);
-  const fb = buildExternalAdultFB({
-    externalAdultId: personId,
+  const fb = buildAnchorAdultFB({
+    anchorAdultId: personId,
     fam: primary,
     kidBlocks: [],
     packed: packBlocks([]),
@@ -91,8 +91,8 @@ function buildOwnedMarriagesPB(
     const placement = isActive
       ? primarySpousePlacement(fanDir)
       : nonPrimarySpousePlacement(fanDir, outerEdge, packed);
-    const fb = buildExternalAdultFB({
-      externalAdultId: personId,
+    const fb = buildAnchorAdultFB({
+      anchorAdultId: personId,
       fam,
       kidBlocks,
       packed,

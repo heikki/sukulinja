@@ -2,7 +2,7 @@
 // final FB assembly from pre-computed adult/kid placements.
 
 import { FamilyBlock } from './block-family';
-import type { PersonPlacement } from './block-family';
+import type { AdultSlot, KidSlot } from './block-family';
 import { PersonBlock } from './block-person';
 import {
   BOX_H,
@@ -40,7 +40,7 @@ export function packBlocks(extents: readonly Extents[]) {
   return { positions, totalWidth: cursor, barMid };
 }
 
-// Where the spouse sits relative to the externalAdult's anchor, plus the
+// Where the spouse sits relative to the anchor adult's box, plus the
 // child-anchor / tie-Y the FB will use.
 export interface SpousePlacement {
   xSpouse: number;
@@ -48,10 +48,10 @@ export interface SpousePlacement {
   tieY: number;
 }
 
-interface BuildExternalAdultFBArgs {
-  // The "anchor" adult — their box is rendered by an outer block, so the FB
-  // places them at local x = 0 with external = true.
-  externalAdultId: number;
+interface BuildAnchorAdultFBArgs {
+  // The anchor adult — their PersonBlock is rendered by an outer block, so
+  // this FB places them at local x = 0 as an Anchor slot.
+  anchorAdultId: number;
   fam: FamilyRow;
   kidBlocks: PersonBlock[];
   packed: PackedBlocks;
@@ -59,43 +59,33 @@ interface BuildExternalAdultFBArgs {
   ix: LayoutIndices;
 }
 
-export function buildExternalAdultFB(args: BuildExternalAdultFBArgs) {
-  const { externalAdultId, fam, kidBlocks, packed, placement, ix } = args;
-  const otherId = otherSpouseOf(fam, externalAdultId);
+export function buildAnchorAdultFB(args: BuildAnchorAdultFBArgs) {
+  const { anchorAdultId, fam, kidBlocks, packed, placement, ix } = args;
+  const otherId = otherSpouseOf(fam, anchorAdultId);
   const renderedSpouseId = isPersonKnown(otherId, ix) ? otherId : null;
 
-  const externalIsHusband = isHusbandIn(fam, externalAdultId);
-  const externalAdult: PersonPlacement = {
-    id: externalAdultId,
-    external: true,
-    x: 0,
-    block: null
-  };
-  const spouseAdult: PersonPlacement | null =
+  const anchorIsHusband = isHusbandIn(fam, anchorAdultId);
+  const anchorAdult: AdultSlot = { id: anchorAdultId, localX: 0 };
+  const spouseAdult: AdultSlot =
     otherId === null
       ? null
-      : {
-          id: otherId,
-          external: renderedSpouseId === null,
-          x: placement.xSpouse,
-          block:
-            renderedSpouseId === null
-              ? null
-              : new PersonBlock(renderedSpouseId, null, [], null)
-        };
+      : renderedSpouseId === null
+        ? { id: otherId, localX: placement.xSpouse }
+        : {
+            block: new PersonBlock(renderedSpouseId, null, [], null),
+            localX: placement.xSpouse
+          };
 
   const kidXs = kidXsFromPacked(packed, placement.childAnchor.x);
-  const kids: PersonPlacement[] = kidBlocks.map((kb, i) => ({
-    id: kb.personId,
-    external: false,
-    x: kidXs[i]!,
-    block: kb
+  const kids: KidSlot[] = kidBlocks.map((kb, i) => ({
+    block: kb,
+    localX: kidXs[i]!
   }));
 
   return new FamilyBlock({
     famId: fam.id,
-    husband: externalIsHusband ? externalAdult : spouseAdult,
-    wife: externalIsHusband ? spouseAdult : externalAdult,
+    husband: anchorIsHusband ? anchorAdult : spouseAdult,
+    wife: anchorIsHusband ? spouseAdult : anchorAdult,
     kids,
     childAnchor: placement.childAnchor,
     tieY: placement.tieY
@@ -105,7 +95,6 @@ export function buildExternalAdultFB(args: BuildExternalAdultFBArgs) {
 export function placeInternalCouple(
   husbandPB: PersonBlock | null,
   wifePB: PersonBlock | null,
-  fam: FamilyRow,
   tieXFBlocal = 0
 ) {
   if (husbandPB !== null && wifePB !== null) {
@@ -114,18 +103,8 @@ export function placeInternalCouple(
     // stays at FB-local 0, and the sibship bar absorbs any gap between Tie
     // and kid.
     return {
-      husband: {
-        id: fam.husband_id!,
-        external: false,
-        x: tieXFBlocal - HALF_PITCH,
-        block: husbandPB
-      },
-      wife: {
-        id: fam.wife_id!,
-        external: false,
-        x: tieXFBlocal + HALF_PITCH,
-        block: wifePB
-      },
+      husband: { block: husbandPB, localX: tieXFBlocal - HALF_PITCH },
+      wife: { block: wifePB, localX: tieXFBlocal + HALF_PITCH },
       childAnchor: { x: tieXFBlocal, y: 0 },
       tieY: 0
     };
@@ -134,14 +113,8 @@ export function placeInternalCouple(
   // box bottom (BOX_H/2) so the sibship bar lines up correctly.
   const anyPresent = husbandPB !== null || wifePB !== null;
   return {
-    husband:
-      husbandPB === null
-        ? null
-        : { id: fam.husband_id!, external: false, x: 0, block: husbandPB },
-    wife:
-      wifePB === null
-        ? null
-        : { id: fam.wife_id!, external: false, x: 0, block: wifePB },
+    husband: husbandPB === null ? null : { block: husbandPB, localX: 0 },
+    wife: wifePB === null ? null : { block: wifePB, localX: 0 },
     childAnchor: { x: 0, y: anyPresent ? BOX_H / 2 : 0 },
     tieY: 0
   };
