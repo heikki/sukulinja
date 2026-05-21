@@ -11,8 +11,9 @@ import {
   SIBLING_GAP
 } from '../helpers';
 import type { Extents, LayoutIndices, Point } from '../helpers';
-import { FamilyNode, PersonNode } from '../nodes';
-import type { AdultSlot, KidSlot } from '../nodes';
+import { FamilyNode } from '../nodes/family-node';
+import { PersonNode } from '../nodes/person-node';
+import type { AdultSlot, KidSlot } from '../nodes/types';
 
 export interface PackedRow {
   positions: number[];

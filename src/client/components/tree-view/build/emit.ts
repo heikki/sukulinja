@@ -7,8 +7,10 @@
 
 import { translatePoint } from '../helpers';
 import type { Point } from '../helpers';
-import { FamilyNode, PersonNode } from '../nodes';
-import type { LayoutNode, Line } from '../nodes';
+import { FamilyNode } from '../nodes/family-node';
+import type { LayoutNode } from '../nodes/layout-node';
+import { PersonNode } from '../nodes/person-node';
+import type { Line } from '../nodes/types';
 
 export interface Box {
   personId: number;
