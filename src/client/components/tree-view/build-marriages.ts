@@ -42,7 +42,7 @@ export function packRow(extents: readonly Extents[]) {
 
 // Where the spouse sits relative to the anchor adult's box, plus the
 // child-anchor / tie-Y the FamilyNode will use.
-export interface SpousePlacement {
+interface SpousePlacement {
   xSpouse: number;
   childAnchor: Point;
   tieY: number;

@@ -28,7 +28,7 @@ export function buildFocusNode(personId: number, ix: LayoutIndices) {
   return buildOwnedMarriagesNode(personId, 0, ix.levels >= 1, ix);
 }
 
-export function buildDescendantKidNode(
+function buildDescendantKidNode(
   personId: number,
   depth: number,
   ix: LayoutIndices
