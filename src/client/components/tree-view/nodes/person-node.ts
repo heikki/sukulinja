@@ -31,17 +31,17 @@ export class PersonNode extends LayoutNode {
     readonly activeMarriageIndex: number | null
   ) {
     super();
-    const placed: LayoutNode[] = [];
+    const children: LayoutNode[] = [];
     for (const m of marriages) {
       // Marriage FamilyNodes are built fresh by their PersonNode owner and
       // their default offset (0, 0) is already what we want here.
-      if (m !== null) placed.push(m);
+      if (m !== null) children.push(m);
     }
     const cf = childhoodFamily;
     if (cf !== null) {
       cf.offset = { x: 0, y: -ROW_PITCH };
-      placed.push(cf);
+      children.push(cf);
     }
-    this.children = placed;
+    this.children = children;
   }
 }

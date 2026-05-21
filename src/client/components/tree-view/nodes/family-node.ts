@@ -66,16 +66,16 @@ export class FamilyNode extends LayoutNode {
     this.kids = args.kids;
     this.tieY = args.tieY;
     this.childAnchor = args.childAnchor;
-    const placed: LayoutNode[] = [];
+    const children: LayoutNode[] = [];
     for (const adult of [args.husband, args.wife]) {
       const node = placeOwned(adult, 0);
-      if (node !== null) placed.push(node);
+      if (node !== null) children.push(node);
     }
     for (const kid of args.kids) {
       const node = placeOwned(kid, ROW_PITCH);
-      if (node !== null) placed.push(node);
+      if (node !== null) children.push(node);
     }
-    this.children = placed;
+    this.children = children;
   }
 
   lines() {
