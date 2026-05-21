@@ -10,11 +10,11 @@ function parseYear(date: string | null): number | null {
   return m === null ? null : parseInt(m.groups!.year!, 10);
 }
 
-export interface ApiHandlers {
+interface ApiHandlers {
   routeApi: (req: Request, pathname: string) => Promise<Response | null>;
 }
 
-export interface ApiConfig {
+interface ApiConfig {
   dbPath: string;
   mediaRoot: string;
 }
@@ -116,7 +116,7 @@ export function createApi(config: ApiConfig): ApiHandlers {
   };
 }
 
-export interface StaticFetchConfig {
+interface StaticFetchConfig {
   api: ApiHandlers;
   /** Filesystem roots tried in order for static files. */
   staticRoots: string[];
