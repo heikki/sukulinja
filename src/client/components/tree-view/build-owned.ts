@@ -8,8 +8,8 @@
 // person; earlier marriages fan further outward in fanDir. Siblings only
 // ever render their first meaningful spouseFam.
 
-import { buildAnchorAdultFam, packBlocks } from './build-marriages';
-import type { PackedBlocks } from './build-marriages';
+import { buildAnchorAdultFam, packRow } from './build-marriages';
+import type { PackedRow } from './build-marriages';
 import {
   BOX_H,
   BOX_W,
@@ -46,7 +46,7 @@ export function buildSiblingNode(personId: number, ix: LayoutIndices) {
     anchorAdultId: personId,
     fam: primary,
     kidNodes: [],
-    packed: packBlocks([]),
+    packed: packRow([]),
     placement,
     ix
   });
@@ -88,7 +88,7 @@ function buildOwnedMarriagesNode(
     const fam = fams[i]!;
     const isActive = off === 0;
     const kidNodes = ownedKidNodes(fam, depth, includeChildren, ix);
-    const packed = packBlocks(kidNodes.map((k) => k.extents));
+    const packed = packRow(kidNodes.map((k) => k.extents));
     const placement = isActive
       ? primarySpousePlacement(fanDir)
       : nonPrimarySpousePlacement(fanDir, outerEdge, packed);
@@ -129,7 +129,7 @@ function primarySpousePlacement(fanDir: 1 | -1) {
 function nonPrimarySpousePlacement(
   fanDir: 1 | -1,
   outerEdge: number,
-  packed: PackedBlocks
+  packed: PackedRow
 ) {
   const sibInner =
     fanDir === 1 ? packed.barMid : packed.totalWidth - packed.barMid;

@@ -3,7 +3,7 @@
 // fans get placed past the outer edge on each side, so consumers ask the
 // footprint for the relevant side rather than picking from a 4-tuple.
 
-import type { PackedBlocks } from './build-marriages';
+import type { PackedRow } from './build-marriages';
 import { BOX_W, COUPLE_PITCH, isPersonKnown } from './helpers';
 import type { FamilyRow, LayoutIndices } from './helpers';
 
@@ -31,7 +31,7 @@ export class BloodlineFootprint {
 
 interface ComputeArgs {
   parentFam: FamilyRow;
-  packed: PackedBlocks;
+  packed: PackedRow;
   sibIds: number[];
   focusId: number;
   ix: LayoutIndices;
