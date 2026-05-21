@@ -13,7 +13,7 @@
 import type { FamilyRow } from '@common/types';
 
 import type { BloodlineFootprint } from './bloodline-footprint';
-import { buildAnchorAdultFam, packRow } from './build-marriages';
+import { buildAnchorAdultFam, packRow } from './marriages';
 import {
   BOX_H,
   BOX_W,
@@ -21,10 +21,10 @@ import {
   NONPRIMARY_TIE_Y_OFFSET,
   presentChildren,
   SIBLING_GAP
-} from './helpers';
-import type { LayoutIndices } from './helpers';
-import { PersonNode } from './nodes';
-import type { FamilyNode } from './nodes';
+} from '../helpers';
+import type { LayoutIndices } from '../helpers';
+import { PersonNode } from '../nodes';
+import type { FamilyNode } from '../nodes';
 
 interface BuildAncestorWithStepFamsArgs {
   personId: number;

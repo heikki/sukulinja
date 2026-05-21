@@ -5,6 +5,7 @@ import { repeat } from 'lit/directives/repeat.js';
 
 import type { FamilyRow, PersonRow } from '@common/types';
 
+import { buildChart } from './build';
 import type { Box, EmitOutput } from './emit';
 import {
   AVATAR_CX,
@@ -16,7 +17,6 @@ import {
   SVG_HALF
 } from './helpers';
 import type { Point } from './helpers';
-import { buildChart } from './layout';
 import { treeViewStyles } from './styles';
 
 interface DragOrigin {

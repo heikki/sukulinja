@@ -6,7 +6,7 @@
 //
 // Top-down builders below handle the chart-root parent FamilyNode and the
 // depth-1 ancestor FamilyNodes (which include Aunts/Uncles). Depth ≥ 2
-// bloodline-only ancestry lives in build-ancestor-tree.ts, called via
+// bloodline-only ancestry lives in ancestor-tree.ts, called via
 // placeAncestorCouple.
 //
 // Two-pass orchestration for the chart-root parent FamilyNode:
@@ -18,27 +18,27 @@ import type { FamilyRow } from '@common/types';
 
 import { computeBloodlineFootprint } from './bloodline-footprint';
 import type { BloodlineFootprint } from './bloodline-footprint';
-import { placeAncestorCouple } from './build-ancestor-tree';
+import { placeAncestorCouple } from './ancestor-tree';
 import {
   buildCoupleFamilyNode,
   kidXsFromRow,
   packRow
-} from './build-marriages';
-import { buildFocusNode, buildSiblingNode } from './build-owned';
+} from './marriages';
+import { buildFocusNode, buildSiblingNode } from './owned';
 import {
   buildAncestorNodeWithStepFams,
   measureStepFamsExtent
-} from './build-step-fams';
-import { emitLayout } from './emit';
+} from './step-fams';
+import { emitLayout } from '../emit';
 import {
   BARE_PERSON_EXTENTS,
   HALF_PITCH,
   isPersonKnown,
   presentChildren
-} from './helpers';
-import type { LayoutIndices } from './helpers';
-import { PersonNode } from './nodes';
-import type { Anchor, FamilyNode, KidSlot } from './nodes';
+} from '../helpers';
+import type { LayoutIndices } from '../helpers';
+import { PersonNode } from '../nodes';
+import type { Anchor, FamilyNode, KidSlot } from '../nodes';
 
 export function buildChart(focusId: number, ix: LayoutIndices) {
   const root = buildChartRoot(focusId, ix);
