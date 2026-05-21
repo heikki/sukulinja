@@ -1,14 +1,14 @@
 // Bloodline-only Ancestor tree construction (depth ≥ 2). At depth 1, lateral
 // context (Aunts/Uncles, step-fams, Half-siblings) makes the FamilyNode no
-// longer pure bloodline — that case stays in build-tree.ts (see ADR-0002).
+// longer pure bloodline — that case stays in build/index.ts (see ADR-0002).
 // This module is the recursive bloodline-pair-to-bloodline-pair structure
 // above that, plus the helper that depth-1 uses to place the GP couple.
 
-import { buildCoupleFamilyNode } from './build-marriages';
-import { HALF_PITCH, isPersonKnown } from './helpers';
-import type { LayoutIndices } from './helpers';
-import { PersonNode } from './nodes';
-import type { Anchor } from './nodes';
+import { buildCoupleFamilyNode } from './marriages';
+import { HALF_PITCH, isPersonKnown } from '../helpers';
+import type { LayoutIndices } from '../helpers';
+import { PersonNode } from '../nodes';
+import type { Anchor } from '../nodes';
 
 function buildAncestorTree(
   personId: number | null,

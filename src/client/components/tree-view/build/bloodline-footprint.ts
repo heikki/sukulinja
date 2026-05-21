@@ -5,9 +5,9 @@
 
 import type { FamilyRow } from '@common/types';
 
-import type { PackedRow } from './build-marriages';
-import { BOX_W, COUPLE_PITCH, isPersonKnown } from './helpers';
-import type { LayoutIndices } from './helpers';
+import type { PackedRow } from './marriages';
+import { BOX_W, COUPLE_PITCH, isPersonKnown } from '../helpers';
+import type { LayoutIndices } from '../helpers';
 
 export class BloodlineFootprint {
   constructor(

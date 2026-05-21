@@ -10,8 +10,8 @@
 
 import type { FamilyRow } from '@common/types';
 
-import { buildAnchorAdultFam, packRow } from './build-marriages';
-import type { PackedRow } from './build-marriages';
+import { buildAnchorAdultFam, packRow } from './marriages';
+import type { PackedRow } from './marriages';
 import {
   BOX_H,
   BOX_W,
@@ -20,10 +20,10 @@ import {
   isMeaningfulSpouseFam,
   NONPRIMARY_TIE_Y_OFFSET,
   presentChildren
-} from './helpers';
-import type { LayoutIndices } from './helpers';
-import { PersonNode } from './nodes';
-import type { FamilyNode } from './nodes';
+} from '../helpers';
+import type { LayoutIndices } from '../helpers';
+import { PersonNode } from '../nodes';
+import type { FamilyNode } from '../nodes';
 
 export function buildFocusNode(personId: number, ix: LayoutIndices) {
   return buildOwnedMarriagesNode(personId, 0, ix.levels >= 1, ix);

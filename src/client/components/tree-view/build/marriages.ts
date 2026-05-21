@@ -9,10 +9,10 @@ import {
   isPersonKnown,
   otherSpouseOf,
   SIBLING_GAP
-} from './helpers';
-import type { Extents, LayoutIndices, Point } from './helpers';
-import { FamilyNode, PersonNode } from './nodes';
-import type { AdultSlot, KidSlot } from './nodes';
+} from '../helpers';
+import type { Extents, LayoutIndices, Point } from '../helpers';
+import { FamilyNode, PersonNode } from '../nodes';
+import type { AdultSlot, KidSlot } from '../nodes';
 
 export interface PackedRow {
   positions: number[];
