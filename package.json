@@ -9,6 +9,7 @@
     "dev:app": "electrobun build && electrobun dev",
     "build:app": "electrobun build",
     "import-ged": "bun run scripts/import-ged.ts",
+    "test": "bun test",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "lint": "eslint ."

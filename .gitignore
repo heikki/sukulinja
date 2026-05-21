@@ -8,4 +8,10 @@ app.db
 app.db-journal
 app.db-wal
 app.db-shm
-data/
+
+# Track only the bundled bourbon demo; ignore other imports.
+data/*
+!data/bourbon/
+!data/NOTICE.md
+
+.scratch/sample-gedcoms/

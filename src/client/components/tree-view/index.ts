@@ -3,6 +3,7 @@ import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
+import { apiUrl, mediaUrl } from '@client/api';
 import type { FamilyRow, PersonRow } from '@common/types';
 
 import { buildChart } from './build';
@@ -134,8 +135,8 @@ export class TreeViewElement extends LitElement {
 
   private async load() {
     const [personsRes, familiesRes] = await Promise.all([
-      fetch('/api/persons'),
-      fetch('/api/families')
+      fetch(apiUrl('/api/persons')),
+      fetch(apiUrl('/api/families'))
     ]);
     const persons = (await personsRes.json()) as PersonRow[];
     const families = (await familiesRes.json()) as FamilyRow[];
@@ -271,10 +272,7 @@ export class TreeViewElement extends LitElement {
     const isFocus = box.personId === this.focusId;
     const tx = box.pos.x - BOX_W / 2;
     const ty = box.pos.y - BOX_H / 2;
-    const photoSrc =
-      p.photo_path === null
-        ? null
-        : `/media/${p.photo_path.replace(/^media\//u, '')}`;
+    const photoSrc = p.photo_path === null ? null : mediaUrl(p.photo_path);
     const fullName = formatName(p);
     const name =
       fullName.length > NAME_TRUNCATE

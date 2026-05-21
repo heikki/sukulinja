@@ -42,7 +42,7 @@ export const COUPLE_PITCH = BOX_W + COUPLE_GAP;
 // ADR-0001's (2^n − 1) × HALF_PITCH formula.
 export const HALF_PITCH = COUPLE_PITCH / 2;
 export const DRAG_THRESHOLD_PX = 4;
-export const DEFAULT_FOCUS_ID = 3;
+export const DEFAULT_FOCUS_ID = 1;
 export const NONPRIMARY_TIE_Y_OFFSET = 6;
 
 export function otherSpouseOf(fam: FamilyRow, personId: number) {

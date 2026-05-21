@@ -112,7 +112,13 @@ function isPrimaryFlag(obje: GedNode): number {
   return findChild(obje, '_PRIM')?.value === 'Y' ? 1 : 0;
 }
 
-export function importGedcom(db: Database, roots: GedNode[]): ImportStats {
+export type MediaResolver = (originalRelpath: string) => string | null;
+
+export function importGedcom(
+  db: Database,
+  roots: GedNode[],
+  mediaResolver: MediaResolver
+): ImportStats {
   const personXrefs = new Map<string, number>();
   const familyXrefs = new Map<string, number>();
   const stats: ImportStats = {
@@ -141,11 +147,11 @@ export function importGedcom(db: Database, roots: GedNode[]): ImportStats {
     'INSERT INTO facts (scope_type, scope_id, tag, date_text, place, value, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)'
   );
   const insertFamilyChild = db.prepare(
-    'INSERT INTO family_children (family_id, person_id, sort_order) VALUES (?, ?, ?)'
+    'INSERT OR IGNORE INTO family_children (family_id, person_id, sort_order) VALUES (?, ?, ?)'
   );
   const getMediaByPath = db.prepare('SELECT id FROM media WHERE file_path = ?');
   const insertMedia = db.prepare(
-    'INSERT INTO media (file_path, format) VALUES (?, ?) RETURNING id'
+    'INSERT INTO media (file_path, format, original_path) VALUES (?, ?, ?) RETURNING id'
   );
   const insertMediaLink = db.prepare(
     'INSERT INTO media_links (media_id, scope_type, scope_id, is_primary, title, crop_top, crop_left, crop_width, crop_height, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
@@ -206,6 +212,10 @@ export function importGedcom(db: Database, roots: GedNode[]): ImportStats {
       }
     }
 
+    // TODO: only picks up OBJE that is a direct child of INDI. OBJE nested
+    // inside event tags (BIRT/MARR/BURI/...) and top-level OBJE records
+    // referenced by pointer are not yet imported. MediaIngest mirrors this
+    // traversal to keep disk and DB in sync.
     let mediaOrder = 0;
     for (const obje of findChildren(root, 'OBJE')) {
       importMediaLink(obje, 'person', personId, mediaOrder++);
@@ -265,10 +275,16 @@ export function importGedcom(db: Database, roots: GedNode[]): ImportStats {
     stats.facts += 1;
   }
 
-  function resolveMediaId(path: string, format: string | null): number {
-    const existing = getMediaByPath.get(path) as { id: number } | null;
+  function resolveMediaId(
+    storedPath: string,
+    originalPath: string,
+    format: string | null
+  ): number {
+    const existing = getMediaByPath.get(storedPath) as { id: number } | null;
     if (existing !== null) return existing.id;
-    const res = insertMedia.get(path, format) as { id: number };
+    const res = insertMedia.get(storedPath, format, originalPath) as {
+      id: number;
+    };
     stats.media += 1;
     return res.id;
   }
@@ -281,9 +297,15 @@ export function importGedcom(db: Database, roots: GedNode[]): ImportStats {
   ): void {
     const file = findChild(obje, 'FILE');
     if (file === undefined) return;
-    const path = file.value;
-    if (path === undefined || path === '') return;
-    const mediaId = resolveMediaId(path, childValue(file, 'FORM'));
+    const originalPath = file.value;
+    if (originalPath === undefined || originalPath === '') return;
+    const storedPath = mediaResolver(originalPath);
+    if (storedPath === null) return;
+    const mediaId = resolveMediaId(
+      storedPath,
+      originalPath,
+      childValue(file, 'FORM')
+    );
 
     const crop = cropValues(file);
     insertMediaLink.run(
