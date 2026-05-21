@@ -5,20 +5,19 @@
 //
 // Marriages are stored in chronological order. `activeMarriageIndex` marks
 // which one is rendered in "primary couple" style — the marriage adjacent
-// to this person in the chart. A `null` entry at the active slot means the
-// active marriage is owned by an outer LayoutNode (the bloodline-ancestor case:
-// Fa.marriages has a null at the bloodline slot because the bloodline FN
-// lives in the parent FN above). Roles:
+// to this person in the chart. A `null` entry at the active slot means
+// the active marriage is owned by an outer FamilyNode (the bloodline-
+// ancestor case: Fa.marriages has a null at the bloodline slot because
+// the bloodline FamilyNode lives in the parent FamilyNode above). Roles:
 //
-//   - focus PN:    marriages = [...all, primary at the last slot], activeIdx = last
-//   - sibling PN:  marriages = [primary],                          activeIdx = 0
-//   - ancestor PN: marriages = [...stepFams, null at bloodline,...] (chronological),
-//                  activeIdx = bloodline position in spouseFams
-//   - bare PN:     marriages = [], activeIdx = null
+//   - focus:    marriages = [...all, primary at the last slot], activeIdx = last
+//   - sibling:  marriages = [primary],                          activeIdx = 0
+//   - ancestor: marriages = [...stepFams, null at bloodline,...] (chronological),
+//               activeIdx = bloodline position in spouseFams
+//   - bare:     marriages = [], activeIdx = null
 
 import { BOX_W, ROW_PITCH } from './helpers';
 import { LayoutNode } from './node';
-import type { PersonBox } from './node';
 import type { FamilyNode } from './node-family';
 
 export class PersonNode extends LayoutNode {
@@ -44,13 +43,6 @@ export class PersonNode extends LayoutNode {
       placed.push(cf);
     }
     this.children = placed;
-  }
-
-  renderLocal() {
-    const boxes: PersonBox[] = [
-      { personId: this.personId, offset: { x: 0, y: 0 } }
-    ];
-    return { boxes, lines: [] };
   }
 
   override personLocalPos(personId: number) {

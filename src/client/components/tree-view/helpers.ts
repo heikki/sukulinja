@@ -28,8 +28,11 @@ export interface Extents {
 export const BOX_W = 184;
 export const BOX_H = 90;
 // Extents of a bare PersonNode (no children) — used when packing reserves
-// a column for a person whose PN lives elsewhere.
-export const BARE_PN_EXTENTS: Extents = { left: BOX_W / 2, right: BOX_W / 2 };
+// a column for a person whose PersonNode lives elsewhere.
+export const BARE_PERSON_EXTENTS: Extents = {
+  left: BOX_W / 2,
+  right: BOX_W / 2
+};
 export const SIBLING_GAP = 28;
 // Match SIBLING_GAP for visually uniform spacing across the row.
 export const COUPLE_GAP = 28;

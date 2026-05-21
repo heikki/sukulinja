@@ -1,13 +1,14 @@
 // PersonNode builders for "owned marriages" — focus, descendants, siblings.
-// These PNs own their marriages directly (active marriage's FN is in their
-// PN.children), unlike bloodline-ancestor PNs whose active marriage is
-// rendered by the parent FN above.
+// These PersonNodes own their marriages directly (the active marriage's
+// FamilyNode is in PersonNode.children), unlike bloodline-ancestor
+// PersonNodes whose active marriage is rendered by the parent FamilyNode
+// above.
 //
 // Active = chronologically most recent marriage — drawn adjacent to the
 // person; earlier marriages fan further outward in fanDir. Siblings only
 // ever render their first meaningful spouseFam.
 
-import { buildAnchorAdultFN, packBlocks } from './build-marriages';
+import { buildAnchorAdultFam, packBlocks } from './build-marriages';
 import type { PackedBlocks } from './build-marriages';
 import {
   BOX_H,
@@ -23,33 +24,33 @@ import type { FamilyRow, LayoutIndices } from './helpers';
 import type { FamilyNode } from './node-family';
 import { PersonNode } from './node-person';
 
-export function buildFocusPN(personId: number, ix: LayoutIndices) {
-  return buildOwnedMarriagesPN(personId, 0, ix.levels >= 1, ix);
+export function buildFocusNode(personId: number, ix: LayoutIndices) {
+  return buildOwnedMarriagesNode(personId, 0, ix.levels >= 1, ix);
 }
 
-export function buildDescendantKidPN(
+export function buildDescendantKidNode(
   personId: number,
   depth: number,
   ix: LayoutIndices
 ) {
-  return buildOwnedMarriagesPN(personId, depth, depth < ix.levels, ix);
+  return buildOwnedMarriagesNode(personId, depth, depth < ix.levels, ix);
 }
 
-export function buildSiblingPN(personId: number, ix: LayoutIndices) {
+export function buildSiblingNode(personId: number, ix: LayoutIndices) {
   const fams = meaningfulSpouseFams(personId, ix);
   if (fams.length === 0) return new PersonNode(personId, null, [], null);
   const primary = fams[0]!;
   const fanDir = fanDirOfPerson(personId, fams, ix);
   const placement = primarySpousePlacement(fanDir);
-  const fb = buildAnchorAdultFN({
+  const familyNode = buildAnchorAdultFam({
     anchorAdultId: personId,
     fam: primary,
-    kidBlocks: [],
+    kidNodes: [],
     packed: packBlocks([]),
     placement,
     ix
   });
-  return new PersonNode(personId, null, [fb], 0);
+  return new PersonNode(personId, null, [familyNode], 0);
 }
 
 function meaningfulSpouseFams(personId: number, ix: LayoutIndices) {
@@ -67,7 +68,7 @@ function fanDirOfPerson(
   return ix.persons.get(personId)?.sex === 'M' ? 1 : -1;
 }
 
-function buildOwnedMarriagesPN(
+function buildOwnedMarriagesNode(
   personId: number,
   depth: number,
   includeChildren: boolean,
@@ -86,29 +87,29 @@ function buildOwnedMarriagesPN(
     const i = activeIdx - off;
     const fam = fams[i]!;
     const isActive = off === 0;
-    const kidBlocks = ownedKidBlocks(fam, depth, includeChildren, ix);
-    const packed = packBlocks(kidBlocks.map((k) => k.extents));
+    const kidNodes = ownedKidNodes(fam, depth, includeChildren, ix);
+    const packed = packBlocks(kidNodes.map((k) => k.extents));
     const placement = isActive
       ? primarySpousePlacement(fanDir)
       : nonPrimarySpousePlacement(fanDir, outerEdge, packed);
-    const fb = buildAnchorAdultFN({
+    const familyNode = buildAnchorAdultFam({
       anchorAdultId: personId,
       fam,
-      kidBlocks,
+      kidNodes,
       packed,
       placement,
       ix
     });
-    marriages[i] = fb;
+    marriages[i] = familyNode;
     outerEdge = Math.max(
       outerEdge,
-      fanDir === 1 ? fb.extents.right : fb.extents.left
+      fanDir === 1 ? familyNode.extents.right : familyNode.extents.left
     );
   }
   return new PersonNode(personId, null, marriages, activeIdx);
 }
 
-function ownedKidBlocks(
+function ownedKidNodes(
   fam: FamilyRow,
   depth: number,
   includeChildren: boolean,
@@ -116,7 +117,7 @@ function ownedKidBlocks(
 ) {
   if (!includeChildren) return [];
   return presentChildren(fam, ix).map((cid) =>
-    buildDescendantKidPN(cid, depth + 1, ix)
+    buildDescendantKidNode(cid, depth + 1, ix)
   );
 }
 
