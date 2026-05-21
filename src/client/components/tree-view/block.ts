@@ -20,13 +20,14 @@ export interface LocalRenderOutput {
   lines: Line[];
 }
 
-export interface PlacedBlock {
-  block: Block;
-  offset: Point;
-}
-
 export abstract class Block {
-  abstract readonly children: readonly PlacedBlock[];
+  // Position relative to this Block's parent. The parent sets it during
+  // construction (FB sets its owned PBs' offsets from the slot's localX; PB
+  // sets its FB children's offsets from their row position). The chart root
+  // gets its offset set by layout.ts to centre Focus at chart (0, 0).
+  offset: Point = { x: 0, y: 0 };
+
+  abstract readonly children: readonly Block[];
 
   // How far the block's own box reaches from its pivot.
   abstract readonly selfHalfWidth: number;
@@ -35,7 +36,7 @@ export abstract class Block {
 
   personLocalPos(personId: number): Point | null {
     for (const child of this.children) {
-      const inner = child.block.personLocalPos(personId);
+      const inner = child.personLocalPos(personId);
       if (inner !== null) return translatePoint(child.offset, inner);
     }
     return null;
@@ -47,8 +48,8 @@ export abstract class Block {
     let left = this.selfHalfWidth;
     let right = this.selfHalfWidth;
     for (const c of this.children) {
-      left = Math.max(left, c.block.extents.left - c.offset.x);
-      right = Math.max(right, c.offset.x + c.block.extents.right);
+      left = Math.max(left, c.extents.left - c.offset.x);
+      right = Math.max(right, c.offset.x + c.extents.right);
     }
     this.cachedExtents = { left, right };
     return this.cachedExtents;
@@ -67,17 +68,13 @@ export interface RenderOutput {
 }
 
 export function renderChartBlocks(
-  placedBlocks: readonly PlacedBlock[],
+  blocks: readonly Block[],
   extraLines: readonly Line[]
 ) {
   const childGroups: RenderGroup[] = [];
   const lines: Line[] = [...extraLines];
-  for (const placed of placedBlocks) {
-    const result = renderOneBlock({
-      block: placed.block,
-      offset: placed.offset,
-      abs: placed.offset
-    });
+  for (const block of blocks) {
+    const result = renderOneBlock(block, block.offset);
     childGroups.push(result.group);
     lines.push(...result.lines);
   }
@@ -87,18 +84,10 @@ export function renderChartBlocks(
   };
 }
 
-// `offset` is the group-local offset (written to group.offset so SVG
-// transforms compose). `abs` is the accumulated chart-coord origin, used
-// to translate lines into chart coords directly (lines are emitted flat at
-// the top level — see file header).
-interface RenderOneArgs {
-  block: Block;
-  offset: Point;
-  abs: Point;
-}
-
-function renderOneBlock(args: RenderOneArgs) {
-  const { block, offset, abs } = args;
+// `abs` is the accumulated chart-coord origin, used to translate lines into
+// chart coords directly (lines are emitted flat at the top level — see file
+// header). Each Block's group.offset doubles as the SVG <g> transform.
+function renderOneBlock(block: Block, abs: Point) {
   const local = block.renderLocal();
   const lines: Line[] = local.lines.map((l) => ({
     key: l.key,
@@ -107,16 +96,15 @@ function renderOneBlock(args: RenderOneArgs) {
   }));
   const childGroups: RenderGroup[] = [];
   for (const child of block.children) {
-    const childResult = renderOneBlock({
-      block: child.block,
-      offset: child.offset,
-      abs: translatePoint(child.offset, abs)
-    });
+    const childResult = renderOneBlock(
+      child,
+      translatePoint(child.offset, abs)
+    );
     childGroups.push(childResult.group);
     lines.push(...childResult.lines);
   }
   return {
-    group: { offset, boxes: local.boxes, childGroups },
+    group: { offset: block.offset, boxes: local.boxes, childGroups },
     lines
   };
 }

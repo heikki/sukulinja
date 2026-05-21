@@ -9,7 +9,7 @@
 //   - 1 owned adult (lone parent): pivot at that adult
 
 import { Block } from './block';
-import type { Line, PlacedBlock } from './block';
+import type { Line } from './block';
 import type { PersonBlock } from './block-person';
 import { BOX_H, BOX_W, ROW_PITCH } from './helpers';
 import type { Point } from './helpers';
@@ -53,29 +53,24 @@ export interface FamilyBlockSpec {
 
 export class FamilyBlock extends Block {
   readonly selfHalfWidth = 0;
-  readonly children: readonly PlacedBlock[];
+  readonly children: readonly Block[];
 
   constructor(readonly spec: FamilyBlockSpec) {
     super();
-    const placed: PlacedBlock[] = [];
-    if (spec.husband !== null && isOwned(spec.husband)) {
-      placed.push({
-        block: spec.husband.block,
-        offset: { x: spec.husband.localX, y: 0 }
-      });
+    const { husband, wife, kids } = spec;
+    const placed: Block[] = [];
+    if (husband !== null && isOwned(husband)) {
+      husband.block.offset = { x: husband.localX, y: 0 };
+      placed.push(husband.block);
     }
-    if (spec.wife !== null && isOwned(spec.wife)) {
-      placed.push({
-        block: spec.wife.block,
-        offset: { x: spec.wife.localX, y: 0 }
-      });
+    if (wife !== null && isOwned(wife)) {
+      wife.block.offset = { x: wife.localX, y: 0 };
+      placed.push(wife.block);
     }
-    for (const kid of spec.kids) {
+    for (const kid of kids) {
       if (isOwned(kid)) {
-        placed.push({
-          block: kid.block,
-          offset: { x: kid.localX, y: ROW_PITCH }
-        });
+        kid.block.offset = { x: kid.localX, y: ROW_PITCH };
+        placed.push(kid.block);
       }
     }
     this.children = placed;
