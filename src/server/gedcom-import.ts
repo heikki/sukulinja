@@ -45,7 +45,7 @@ const FAMILY_FACT_TAGS = new Set([
 
 const NAME_RE = /^(?<given>[^/]*)\/(?<surname>[^/]*)\/(?<suffix>.*)$/;
 
-export interface ImportStats {
+interface ImportStats {
   persons: number;
   families: number;
   names: number;
