@@ -5,7 +5,7 @@
 // that, plus the helper that depth-1 uses to place the GP couple.
 
 import { FamilyBlock } from './block-family';
-import type { PersonPlacement } from './block-family';
+import type { Anchor } from './block-family';
 import { PersonBlock } from './block-person';
 import { placeInternalCouple } from './build-marriages';
 import { HALF_PITCH, isPersonKnown } from './helpers';
@@ -57,13 +57,8 @@ function buildAncestorChildhoodFB(
   const placed = placeAncestorCouple(kidId, kidDepth, kidChartX, ix);
   if (placed === null) return null;
   const { fam, husbandPB, wifePB, tieXFBlocal } = placed;
-  const bloodlineKid: PersonPlacement = {
-    id: kidId,
-    external: true,
-    x: 0,
-    block: null
-  };
-  const couple = placeInternalCouple(husbandPB, wifePB, fam, tieXFBlocal);
+  const bloodlineKid: Anchor = { id: kidId, localX: 0 };
+  const couple = placeInternalCouple(husbandPB, wifePB, tieXFBlocal);
   return new FamilyBlock({
     famId: fam.id,
     husband: couple.husband,

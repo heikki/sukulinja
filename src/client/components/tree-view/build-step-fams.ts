@@ -12,7 +12,7 @@
 import type { FamilyBlock } from './block-family';
 import { PersonBlock } from './block-person';
 import type { BloodlineFootprint } from './bloodline-footprint';
-import { buildExternalAdultFB, packBlocks } from './build-marriages';
+import { buildAnchorAdultFB, packBlocks } from './build-marriages';
 import {
   BARE_PB_EXTENTS,
   BOX_H,
@@ -131,8 +131,8 @@ function buildSidedStepFamFB(args: BuildSidedStepFamArgs) {
       ? parentChartX + xSpouse + extents.right
       : parentChartX + xSpouse - extents.left;
 
-  const fb = buildExternalAdultFB({
-    externalAdultId: personId,
+  const fb = buildAnchorAdultFB({
+    anchorAdultId: personId,
     fam,
     kidBlocks,
     packed,
