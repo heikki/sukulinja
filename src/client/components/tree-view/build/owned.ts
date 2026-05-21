@@ -22,8 +22,8 @@ import {
   presentChildren
 } from '../helpers';
 import type { LayoutIndices } from '../helpers';
-import { PersonNode } from '../nodes';
-import type { FamilyNode } from '../nodes';
+import type { FamilyNode } from '../nodes/family-node';
+import { PersonNode } from '../nodes/person-node';
 
 export function buildFocusNode(personId: number, ix: LayoutIndices) {
   return buildOwnedMarriagesNode(personId, 0, ix.levels >= 1, ix);

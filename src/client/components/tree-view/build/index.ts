@@ -35,17 +35,33 @@ import {
   BARE_PERSON_EXTENTS,
   HALF_PITCH,
   isPersonKnown,
-  presentChildren
+  presentChildren,
+  translatePoint
 } from '../helpers';
-import type { LayoutIndices } from '../helpers';
-import { PersonNode } from '../nodes';
-import type { Anchor, FamilyNode, KidSlot } from '../nodes';
+import type { LayoutIndices, Point } from '../helpers';
+import type { FamilyNode } from '../nodes/family-node';
+import type { LayoutNode } from '../nodes/layout-node';
+import { PersonNode } from '../nodes/person-node';
+import type { Anchor, KidSlot } from '../nodes/types';
 
 export function buildChart(focusId: number, ix: LayoutIndices) {
   const root = buildChartRoot(focusId, ix);
   if (root === null) return null;
-  const focusPos = root.personLocalPos(focusId) ?? { x: 0, y: 0 };
+  const focusPos = getPersonPosition(root, focusId) ?? { x: 0, y: 0 };
   return emitLayout(root, { x: -focusPos.x, y: -focusPos.y });
+}
+
+// Locate a person's box in a LayoutNode subtree, returning their position
+// relative to `node` (or null when the person isn't in this subtree).
+function getPersonPosition(node: LayoutNode, personId: number): Point | null {
+  if (node instanceof PersonNode && node.personId === personId) {
+    return { x: 0, y: 0 };
+  }
+  for (const child of node.children) {
+    const inner = getPersonPosition(child, personId);
+    if (inner !== null) return translatePoint(child.offset, inner);
+  }
+  return null;
 }
 
 function buildChartRoot(focusId: number, ix: LayoutIndices) {

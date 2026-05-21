@@ -7,8 +7,8 @@
 import { buildCoupleFamilyNode } from './marriages';
 import { HALF_PITCH, isPersonKnown } from '../helpers';
 import type { LayoutIndices } from '../helpers';
-import { PersonNode } from '../nodes';
-import type { Anchor } from '../nodes';
+import { PersonNode } from '../nodes/person-node';
+import type { Anchor } from '../nodes/types';
 
 function buildAncestorTree(
   personId: number | null,

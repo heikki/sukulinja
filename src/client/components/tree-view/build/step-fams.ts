@@ -23,8 +23,8 @@ import {
   SIBLING_GAP
 } from '../helpers';
 import type { LayoutIndices } from '../helpers';
-import { PersonNode } from '../nodes';
-import type { FamilyNode } from '../nodes';
+import type { FamilyNode } from '../nodes/family-node';
+import { PersonNode } from '../nodes/person-node';
 
 interface BuildAncestorWithStepFamsArgs {
   personId: number;
