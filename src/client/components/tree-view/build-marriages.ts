@@ -14,17 +14,17 @@ import { FamilyNode } from './node-family';
 import type { AdultSlot, KidSlot } from './node-family';
 import { PersonNode } from './node-person';
 
-export interface PackedBlocks {
+export interface PackedRow {
   positions: number[];
   totalWidth: number;
   barMid: number;
 }
 
-export function kidXsFromPacked(packed: PackedBlocks, anchorX: number) {
+export function kidXsFromRow(packed: PackedRow, anchorX: number) {
   return packed.positions.map((p) => p - packed.barMid + anchorX);
 }
 
-export function packBlocks(extents: readonly Extents[]) {
+export function packRow(extents: readonly Extents[]) {
   if (extents.length === 0) {
     return { positions: [], totalWidth: 0, barMid: 0 };
   }
@@ -54,7 +54,7 @@ interface BuildAnchorAdultArgs {
   anchorAdultId: number;
   fam: FamilyRow;
   kidNodes: PersonNode[];
-  packed: PackedBlocks;
+  packed: PackedRow;
   placement: SpousePlacement;
   ix: LayoutIndices;
 }
@@ -76,7 +76,7 @@ export function buildAnchorAdultFam(args: BuildAnchorAdultArgs) {
             localX: placement.xSpouse
           };
 
-  const kidXs = kidXsFromPacked(packed, placement.childAnchor.x);
+  const kidXs = kidXsFromRow(packed, placement.childAnchor.x);
   const kids: KidSlot[] = kidNodes.map((kb, i) => ({
     node: kb,
     localX: kidXs[i]!

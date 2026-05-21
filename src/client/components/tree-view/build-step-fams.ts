@@ -11,7 +11,7 @@
 // for visual distinction.
 
 import type { BloodlineFootprint } from './bloodline-footprint';
-import { buildAnchorAdultFam, packBlocks } from './build-marriages';
+import { buildAnchorAdultFam, packRow } from './build-marriages';
 import {
   BARE_PERSON_EXTENTS,
   BOX_H,
@@ -102,7 +102,7 @@ interface BuildSidedStepFamArgs {
 // determined by the kid count.
 function stepFamExtents(kidCount: number) {
   if (kidCount === 0) return BARE_PERSON_EXTENTS;
-  const packed = packBlocks(
+  const packed = packRow(
     Array.from({ length: kidCount }, () => BARE_PERSON_EXTENTS)
   );
   return {
@@ -120,7 +120,7 @@ function buildSidedStepFam(args: BuildSidedStepFamArgs) {
   const kidNodes: PersonNode[] = halfSibIds.map(
     (cid) => new PersonNode(cid, null, [], null)
   );
-  const packed = packBlocks(kidNodes.map((k) => k.extents));
+  const packed = packRow(kidNodes.map((k) => k.extents));
   const extents = stepFamExtents(kidNodes.length);
 
   const xSpouse =

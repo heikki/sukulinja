@@ -11,11 +11,7 @@
 import { computeBloodlineFootprint } from './bloodline-footprint';
 import type { BloodlineFootprint } from './bloodline-footprint';
 import { placeAncestorCouple } from './build-ancestor-tree';
-import {
-  kidXsFromPacked,
-  packBlocks,
-  placeInternalCouple
-} from './build-marriages';
+import { kidXsFromRow, packRow, placeInternalCouple } from './build-marriages';
 import { buildFocusNode, buildSiblingNode } from './build-owned';
 import {
   buildAncestorNodeWithStepFams,
@@ -69,9 +65,7 @@ function childhoodFNKids(args: ChildhoodFNKidsArgs): KidSlot[] {
   const ordered: Array<PersonNode | null> = fanLeft
     ? [...auntNodes, null]
     : [null, ...auntNodes];
-  const packed = packBlocks(
-    ordered.map((b) => b?.extents ?? BARE_PERSON_EXTENTS)
-  );
+  const packed = packRow(ordered.map((b) => b?.extents ?? BARE_PERSON_EXTENTS));
   const bloodlineIdx = fanLeft ? ordered.length - 1 : 0;
   const shift = -packed.positions[bloodlineIdx]!;
   // Push Aunts/Uncles past the step-fam reservation + focus row extent
@@ -101,7 +95,7 @@ function buildParentFN(
   const kidNodes = sibIds.map((sid) =>
     sid === focusId ? buildFocusNode(sid, ix) : buildSiblingNode(sid, ix)
   );
-  const packed = packBlocks(kidNodes.map((k) => k.extents));
+  const packed = packRow(kidNodes.map((k) => k.extents));
   const footprint = computeBloodlineFootprint({
     parentFam,
     packed,
@@ -152,7 +146,7 @@ function buildParentFN(
     ix
   });
   const couple = placeInternalCouple(faNode, moNode);
-  const kidXs = kidXsFromPacked(packed, couple.childAnchor.x);
+  const kidXs = kidXsFromRow(packed, couple.childAnchor.x);
   const kids: KidSlot[] = sibIds.map((_sid, i) => ({
     node: kidNodes[i]!,
     localX: kidXs[i]!
