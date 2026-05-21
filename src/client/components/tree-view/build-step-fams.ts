@@ -1,18 +1,19 @@
 // Step-fam handling for ancestor PersonNodes (Fa and Mo).
 //
-// Fa.PN.marriages keeps every non-bloodline spouseFams entry as a step-fam
+// Fa.marriages keeps every non-bloodline spouseFams entry as a step-fam
 // FamilyNode, in chronological order, with `null` at the bloodline slot
-// (the active marriage is rendered by the parent FN above).
+// (the active marriage is rendered by the parent FamilyNode above).
 //
-// Each step-fam FN is placed at PN(parent)-local (0, 0). The step-spouse's
-// FN-local X is sized so the step-fam clears the bloodline kid row's chart
-// extents. Sibship drops from the step-spouse box bottom, and Tie Y is
-// offset slightly above/below the bloodline Tie for visual distinction.
+// Each step-fam FamilyNode is placed at parent-PersonNode-local (0, 0).
+// The step-spouse's family-local X is sized so the step-fam clears the
+// bloodline kid row's chart extents. Sibship drops from the step-spouse
+// box bottom, and Tie Y is offset slightly above/below the bloodline Tie
+// for visual distinction.
 
 import type { BloodlineFootprint } from './bloodline-footprint';
-import { buildAnchorAdultFN, packBlocks } from './build-marriages';
+import { buildAnchorAdultFam, packBlocks } from './build-marriages';
 import {
-  BARE_PN_EXTENTS,
+  BARE_PERSON_EXTENTS,
   BOX_H,
   isMeaningfulSpouseFam,
   NONPRIMARY_TIE_Y_OFFSET,
@@ -32,7 +33,7 @@ interface BuildAncestorWithStepFamsArgs {
   ix: LayoutIndices;
 }
 
-export function buildAncestorPNWithStepFams(
+export function buildAncestorNodeWithStepFams(
   args: BuildAncestorWithStepFamsArgs
 ) {
   const { personId, childhoodFamily, bloodlineFamId, footprint, side, ix } =
@@ -59,7 +60,7 @@ export function buildAncestorPNWithStepFams(
   for (const i of nonBloodlineFanOrder(allFams.length, bloodlineIdx)) {
     const fam = allFams[i]!;
     if (!isMeaningfulSpouseFam(fam, personId, ix)) continue;
-    const built = buildSidedStepFamFN({
+    const built = buildSidedStepFam({
       personId,
       fam,
       side,
@@ -67,7 +68,7 @@ export function buildAncestorPNWithStepFams(
       outerEdge: outer,
       ix
     });
-    marriages[i] = built.fb;
+    marriages[i] = built.familyNode;
     outer = built.newOuter;
   }
 
@@ -96,31 +97,31 @@ interface BuildSidedStepFamArgs {
   ix: LayoutIndices;
 }
 
-// Step-fam kids are always bare PNs (half-siblings render as boxes only —
+// Step-fam kids are always bare nodes (half-siblings render as boxes only —
 // no marriages, no ancestry, no children), so the extent is fully
 // determined by the kid count.
 function stepFamExtents(kidCount: number) {
-  if (kidCount === 0) return BARE_PN_EXTENTS;
+  if (kidCount === 0) return BARE_PERSON_EXTENTS;
   const packed = packBlocks(
-    Array.from({ length: kidCount }, () => BARE_PN_EXTENTS)
+    Array.from({ length: kidCount }, () => BARE_PERSON_EXTENTS)
   );
   return {
-    left: packed.barMid - packed.positions[0]! + BARE_PN_EXTENTS.left,
+    left: packed.barMid - packed.positions[0]! + BARE_PERSON_EXTENTS.left,
     right:
       packed.positions[packed.positions.length - 1]! -
       packed.barMid +
-      BARE_PN_EXTENTS.right
+      BARE_PERSON_EXTENTS.right
   };
 }
 
-function buildSidedStepFamFN(args: BuildSidedStepFamArgs) {
+function buildSidedStepFam(args: BuildSidedStepFamArgs) {
   const { personId, fam, side, parentChartX, outerEdge, ix } = args;
   const halfSibIds = presentChildren(fam, ix);
-  const kidBlocks: PersonNode[] = halfSibIds.map(
+  const kidNodes: PersonNode[] = halfSibIds.map(
     (cid) => new PersonNode(cid, null, [], null)
   );
-  const packed = packBlocks(kidBlocks.map((k) => k.extents));
-  const extents = stepFamExtents(kidBlocks.length);
+  const packed = packBlocks(kidNodes.map((k) => k.extents));
+  const extents = stepFamExtents(kidNodes.length);
 
   const xSpouse =
     side === 'right'
@@ -131,10 +132,10 @@ function buildSidedStepFamFN(args: BuildSidedStepFamArgs) {
       ? parentChartX + xSpouse + extents.right
       : parentChartX + xSpouse - extents.left;
 
-  const fb = buildAnchorAdultFN({
+  const familyNode = buildAnchorAdultFam({
     anchorAdultId: personId,
     fam,
-    kidBlocks,
+    kidNodes,
     packed,
     placement: {
       xSpouse,
@@ -143,7 +144,7 @@ function buildSidedStepFamFN(args: BuildSidedStepFamArgs) {
     },
     ix
   });
-  return { fb, newOuter };
+  return { familyNode, newOuter };
 }
 
 export function measureStepFamsExtent(

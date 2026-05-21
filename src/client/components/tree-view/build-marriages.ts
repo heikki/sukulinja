@@ -1,5 +1,5 @@
 // Low-level FamilyNode construction utilities — packing, extents, and the
-// final FN assembly from pre-computed adult/kid placements.
+// final FamilyNode assembly from pre-computed adult/kid placements.
 
 import {
   BOX_H,
@@ -41,43 +41,43 @@ export function packBlocks(extents: readonly Extents[]) {
 }
 
 // Where the spouse sits relative to the anchor adult's box, plus the
-// child-anchor / tie-Y the FN will use.
+// child-anchor / tie-Y the FamilyNode will use.
 export interface SpousePlacement {
   xSpouse: number;
   childAnchor: Point;
   tieY: number;
 }
 
-interface BuildAnchorAdultFNArgs {
+interface BuildAnchorAdultArgs {
   // The anchor adult — their PersonNode is rendered by an outer node, so
-  // this FN places them at local x = 0 as an Anchor slot.
+  // this FamilyNode places them at local x = 0 as an Anchor slot.
   anchorAdultId: number;
   fam: FamilyRow;
-  kidBlocks: PersonNode[];
+  kidNodes: PersonNode[];
   packed: PackedBlocks;
   placement: SpousePlacement;
   ix: LayoutIndices;
 }
 
-export function buildAnchorAdultFN(args: BuildAnchorAdultFNArgs) {
-  const { anchorAdultId, fam, kidBlocks, packed, placement, ix } = args;
+export function buildAnchorAdultFam(args: BuildAnchorAdultArgs) {
+  const { anchorAdultId, fam, kidNodes, packed, placement, ix } = args;
   const otherId = otherSpouseOf(fam, anchorAdultId);
   const renderedSpouseId = isPersonKnown(otherId, ix) ? otherId : null;
 
   const anchorIsHusband = isHusbandIn(fam, anchorAdultId);
-  const anchorAdult: AdultSlot = { id: anchorAdultId, localX: 0 };
+  const anchorAdult: AdultSlot = { personId: anchorAdultId, localX: 0 };
   const spouseAdult: AdultSlot =
     otherId === null
       ? null
       : renderedSpouseId === null
-        ? { id: otherId, localX: placement.xSpouse }
+        ? { personId: otherId, localX: placement.xSpouse }
         : {
             node: new PersonNode(renderedSpouseId, null, [], null),
             localX: placement.xSpouse
           };
 
   const kidXs = kidXsFromPacked(packed, placement.childAnchor.x);
-  const kids: KidSlot[] = kidBlocks.map((kb, i) => ({
+  const kids: KidSlot[] = kidNodes.map((kb, i) => ({
     node: kb,
     localX: kidXs[i]!
   }));
@@ -93,28 +93,28 @@ export function buildAnchorAdultFN(args: BuildAnchorAdultFNArgs) {
 }
 
 export function placeInternalCouple(
-  husbandPN: PersonNode | null,
-  wifePN: PersonNode | null,
-  tieXFNlocal = 0
+  husbandNode: PersonNode | null,
+  wifeNode: PersonNode | null,
+  tieXLocal = 0
 ) {
-  if (husbandPN !== null && wifePN !== null) {
+  if (husbandNode !== null && wifeNode !== null) {
     // Spouse-to-spouse separation is fixed at COUPLE_PITCH. The Tie midpoint
-    // sits at FN-local x = tieXFNlocal (see ADR-0001); the bloodline kid
-    // stays at FN-local 0, and the sibship bar absorbs any gap between Tie
+    // sits at family-local x = tieXLocal (see ADR-0001); the bloodline kid
+    // stays at family-local 0, and the sibship bar absorbs any gap between Tie
     // and kid.
     return {
-      husband: { node: husbandPN, localX: tieXFNlocal - HALF_PITCH },
-      wife: { node: wifePN, localX: tieXFNlocal + HALF_PITCH },
-      childAnchor: { x: tieXFNlocal, y: 0 },
+      husband: { node: husbandNode, localX: tieXLocal - HALF_PITCH },
+      wife: { node: wifeNode, localX: tieXLocal + HALF_PITCH },
+      childAnchor: { x: tieXLocal, y: 0 },
       tieY: 0
     };
   }
   // Lone parent (or neither): pivot at x = 0, drop from the present adult's
   // box bottom (BOX_H/2) so the sibship bar lines up correctly.
-  const anyPresent = husbandPN !== null || wifePN !== null;
+  const anyPresent = husbandNode !== null || wifeNode !== null;
   return {
-    husband: husbandPN === null ? null : { node: husbandPN, localX: 0 },
-    wife: wifePN === null ? null : { node: wifePN, localX: 0 },
+    husband: husbandNode === null ? null : { node: husbandNode, localX: 0 },
+    wife: wifeNode === null ? null : { node: wifeNode, localX: 0 },
     childAnchor: { x: 0, y: anyPresent ? BOX_H / 2 : 0 },
     tieY: 0
   };

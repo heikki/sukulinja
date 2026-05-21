@@ -279,9 +279,8 @@ export class TreeViewElement extends LitElement {
     const p = this.persons.get(person.personId);
     if (p === undefined) return nothing;
     const isFocus = person.personId === this.focusId;
-    const tx = person.x - BOX_W / 2;
-    const ty = person.y - BOX_H / 2;
-    const chart: Point = { x: person.x, y: person.y };
+    const tx = person.pos.x - BOX_W / 2;
+    const ty = person.pos.y - BOX_H / 2;
     const photoSrc = photoSrcOf(p);
     const name = truncate(formatName(p), NAME_TRUNCATE);
     const dates = formatDates(p);
@@ -292,7 +291,7 @@ export class TreeViewElement extends LitElement {
         style="transform: translate(${tx}px, ${ty}px)"
         @click=${() => {
           if (this.dragMoved) return;
-          this.setFocus(person.personId, this.pinFromNode(chart));
+          this.setFocus(person.personId, this.pinFromNode(person.pos));
         }}
       >
         <rect class="box" x="0" y="0" width=${BOX_W} height=${BOX_H} rx="6" />

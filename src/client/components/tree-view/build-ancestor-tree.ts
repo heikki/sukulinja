@@ -1,8 +1,8 @@
 // Bloodline-only Ancestor tree construction (depth ≥ 2). At depth 1, lateral
-// context (Aunts/Uncles, step-fams, Half-siblings) makes the FN no longer
-// pure bloodline — that case stays in build-tree.ts (see ADR-0002). This
-// module is the recursive bloodline-pair-to-bloodline-pair structure above
-// that, plus the helper that depth-1 uses to place the GP couple.
+// context (Aunts/Uncles, step-fams, Half-siblings) makes the FamilyNode no
+// longer pure bloodline — that case stays in build-tree.ts (see ADR-0002).
+// This module is the recursive bloodline-pair-to-bloodline-pair structure
+// above that, plus the helper that depth-1 uses to place the GP couple.
 
 import { placeInternalCouple } from './build-marriages';
 import { HALF_PITCH, isPersonKnown } from './helpers';
@@ -34,18 +34,18 @@ export function placeAncestorCouple(
   const fam = ix.parentFamByPerson.get(kidId);
   if (fam === undefined) return null;
   const kidSex = ix.persons.get(kidId)?.sex;
-  const tieXFNlocal = ancestorShift(kidSex, kidDepth, ix.levels) * HALF_PITCH;
-  const husbandChartX = kidChartX + tieXFNlocal - HALF_PITCH;
-  const wifeChartX = kidChartX + tieXFNlocal + HALF_PITCH;
-  const husbandPN = buildAncestorTree(
+  const tieXLocal = ancestorShift(kidSex, kidDepth, ix.levels) * HALF_PITCH;
+  const husbandChartX = kidChartX + tieXLocal - HALF_PITCH;
+  const wifeChartX = kidChartX + tieXLocal + HALF_PITCH;
+  const husbandNode = buildAncestorTree(
     fam.husband_id,
     kidDepth + 1,
     husbandChartX,
     ix
   );
-  const wifePN = buildAncestorTree(fam.wife_id, kidDepth + 1, wifeChartX, ix);
-  if (husbandPN === null && wifePN === null) return null;
-  return { fam, husbandPN, wifePN, tieXFNlocal };
+  const wifeNode = buildAncestorTree(fam.wife_id, kidDepth + 1, wifeChartX, ix);
+  if (husbandNode === null && wifeNode === null) return null;
+  return { fam, husbandNode, wifeNode, tieXLocal };
 }
 
 function buildAncestorChildhoodFN(
@@ -56,9 +56,9 @@ function buildAncestorChildhoodFN(
 ) {
   const placed = placeAncestorCouple(kidId, kidDepth, kidChartX, ix);
   if (placed === null) return null;
-  const { fam, husbandPN, wifePN, tieXFNlocal } = placed;
-  const bloodlineKid: Anchor = { id: kidId, localX: 0 };
-  const couple = placeInternalCouple(husbandPN, wifePN, tieXFNlocal);
+  const { fam, husbandNode, wifeNode, tieXLocal } = placed;
+  const bloodlineKid: Anchor = { personId: kidId, localX: 0 };
+  const couple = placeInternalCouple(husbandNode, wifeNode, tieXLocal);
   return new FamilyNode({
     famId: fam.id,
     husband: couple.husband,
