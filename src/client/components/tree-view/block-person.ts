@@ -17,13 +17,13 @@
 //   - bare PB:     marriages = [], activeIdx = null
 
 import { Block } from './block';
-import type { PersonBox, PlacedBlock } from './block';
+import type { PersonBox } from './block';
 import type { FamilyBlock } from './block-family';
 import { BOX_W, ROW_PITCH } from './helpers';
 
 export class PersonBlock extends Block {
   readonly selfHalfWidth = BOX_W / 2;
-  readonly children: readonly PlacedBlock[];
+  readonly children: readonly Block[];
 
   constructor(
     readonly personId: number,
@@ -32,13 +32,16 @@ export class PersonBlock extends Block {
     readonly activeMarriageIndex: number | null
   ) {
     super();
-    const placed: PlacedBlock[] = [];
+    const placed: Block[] = [];
     for (const m of marriages) {
       if (m === null) continue;
-      placed.push({ block: m, offset: { x: 0, y: 0 } });
+      m.offset = { x: 0, y: 0 };
+      placed.push(m);
     }
-    if (childhoodFamily !== null) {
-      placed.push({ block: childhoodFamily, offset: { x: 0, y: -ROW_PITCH } });
+    const cf = childhoodFamily;
+    if (cf !== null) {
+      cf.offset = { x: 0, y: -ROW_PITCH };
+      placed.push(cf);
     }
     this.children = placed;
   }
