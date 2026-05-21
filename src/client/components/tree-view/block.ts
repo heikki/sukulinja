@@ -1,5 +1,8 @@
-// The render walk keeps edges flat at the top level so box-over-edge
-// z-order is preserved without any per-Block bookkeeping.
+// Block is the abstract base for the layout tree. Concrete Blocks are
+// PersonBlock (one person box) and FamilyBlock (one Couple Tie + sibship).
+// Each Block carries its own `offset` relative to its parent — set by the
+// parent during construction. The layout tree is consumed by the emit pass
+// (see emit.ts), which produces a flat ID-keyed output for rendering.
 
 import { translatePoint } from './helpers';
 import type { Extents, Point } from './helpers';
@@ -23,8 +26,7 @@ export interface LocalRenderOutput {
 export abstract class Block {
   // Position relative to this Block's parent. The parent sets it during
   // construction (FB sets its owned PBs' offsets from the slot's localX; PB
-  // sets its FB children's offsets from their row position). The chart root
-  // gets its offset set by layout.ts to centre Focus at chart (0, 0).
+  // sets its FB children's offsets from their row position).
   offset: Point = { x: 0, y: 0 };
 
   abstract readonly children: readonly Block[];
@@ -54,57 +56,4 @@ export abstract class Block {
     this.cachedExtents = { left, right };
     return this.cachedExtents;
   }
-}
-
-export interface RenderGroup {
-  offset: Point;
-  boxes: PersonBox[];
-  childGroups: RenderGroup[];
-}
-
-export interface RenderOutput {
-  rootGroup: RenderGroup;
-  lines: Line[];
-}
-
-export function renderChartBlocks(
-  blocks: readonly Block[],
-  extraLines: readonly Line[]
-) {
-  const childGroups: RenderGroup[] = [];
-  const lines: Line[] = [...extraLines];
-  for (const block of blocks) {
-    const result = renderOneBlock(block, block.offset);
-    childGroups.push(result.group);
-    lines.push(...result.lines);
-  }
-  return {
-    rootGroup: { offset: { x: 0, y: 0 }, boxes: [], childGroups },
-    lines
-  };
-}
-
-// `abs` is the accumulated chart-coord origin, used to translate lines into
-// chart coords directly (lines are emitted flat at the top level — see file
-// header). Each Block's group.offset doubles as the SVG <g> transform.
-function renderOneBlock(block: Block, abs: Point) {
-  const local = block.renderLocal();
-  const lines: Line[] = local.lines.map((l) => ({
-    key: l.key,
-    from: translatePoint(l.from, abs),
-    to: translatePoint(l.to, abs)
-  }));
-  const childGroups: RenderGroup[] = [];
-  for (const child of block.children) {
-    const childResult = renderOneBlock(
-      child,
-      translatePoint(child.offset, abs)
-    );
-    childGroups.push(childResult.group);
-    lines.push(...childResult.lines);
-  }
-  return {
-    group: { offset: block.offset, boxes: local.boxes, childGroups },
-    lines
-  };
 }
