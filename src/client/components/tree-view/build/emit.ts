@@ -5,10 +5,10 @@
 // in the layout tree, so they emit no Box — the box belongs to the
 // upstream PersonNode that owns this FamilyNode.
 
-import { translatePoint } from './helpers';
-import type { Point } from './helpers';
-import { FamilyNode, PersonNode } from './nodes';
-import type { LayoutNode, Line } from './nodes';
+import { translatePoint } from '../helpers';
+import type { Point } from '../helpers';
+import { FamilyNode, PersonNode } from '../nodes';
+import type { LayoutNode, Line } from '../nodes';
 
 export interface Box {
   personId: number;
