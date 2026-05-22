@@ -79,12 +79,11 @@ function buildAnchored(
   anchorSide: 'husband' | 'wife'
 ): FamilyNode {
   const placement = args.placement ?? defaultPrimaryPlacement(anchorSide);
-  const anchorAdult: AdultSlot = anchoredAdultSlot(
+  const anchorAdult: AdultSlot = anchorAdultSlot(
     anchorSide === 'husband' ? args.husband : args.wife,
-    0,
-    args.ix
+    0
   );
-  const spouseAdult: AdultSlot = anchoredAdultSlot(
+  const spouseAdult: AdultSlot = spouseAdultSlot(
     anchorSide === 'husband' ? args.wife : args.husband,
     placement.xSpouse,
     args.ix
@@ -108,16 +107,24 @@ function defaultPrimaryPlacement(
   return { xSpouse, childAnchor: { x: xSpouse / 2, y: 0 }, tieY: 0 };
 }
 
-function anchoredAdultSlot(
+// Anchor side: the PersonNode lives upstream (e.g. the sibling's outer node
+// owns the FamilyNode), so the slot must stay position-only here — promoting
+// it again would emit a duplicate Box for the same personId.
+function anchorAdultSlot(arg: AdultArg, localX: number): AdultSlot {
+  if (arg === null) return null;
+  if (arg instanceof PersonNode) return { node: arg, localX };
+  return { personId: arg.personId, localX };
+}
+
+// Spouse side: no upstream PersonNode exists for this person. Promote to a
+// bare PersonNode when known so a box draws; otherwise keep position-only.
+function spouseAdultSlot(
   arg: AdultArg,
   localX: number,
   ix: LayoutIndices | undefined
 ): AdultSlot {
   if (arg === null) return null;
   if (arg instanceof PersonNode) return { node: arg, localX };
-  // `{ personId }`: either the upstream anchor or an unknown spouse. If
-  // it's in ix, render a bare PersonNode so a box draws; otherwise keep
-  // the slot position-only.
   if (ix !== undefined && isPersonKnown(arg.personId, ix)) {
     return { node: new PersonNode(arg.personId, null, [], null), localX };
   }
