@@ -84,6 +84,9 @@ Non-Primary marriages of a bloodline **Ancestor** render at **Parent row** only 
 **Family**:
 A nuclear unit: (optional) husband + (optional) wife + zero or more children. A person is a child in at most one Family and a spouse in zero or more.
 
+**Sibship**:
+The row of children of one **Family** — full **Siblings** of each other. The horizontal layout unit between the parent **Tie**/**Drop** above and each child's **Leg** below; the **Bar** spans the row.
+
 **Couple**:
 A spouse pair drawn side-by-side, joined by a horizontal **Tie**. With only one party known, degenerates to a single person with no Tie.
 

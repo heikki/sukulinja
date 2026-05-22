@@ -15,6 +15,10 @@
 //   - ancestor: marriages = [...stepFams, null at bloodline,...] (chronological),
 //               activeIdx = bloodline position in spouseFams
 //   - bare:     marriages = [], activeIdx = null
+//
+// `childhoodFamily` is settable: built bottom-up (e.g. focus-person builds
+// the focus PersonNode without childhood so the parent-row builder can read
+// its downward extents, then plugs the parent FN in via the setter).
 
 import { BOX_W, ROW_PITCH } from '../helpers';
 import type { FamilyNode } from './family-node';
@@ -22,26 +26,40 @@ import { LayoutNode } from './layout-node';
 
 export class PersonNode extends LayoutNode {
   readonly selfHalfWidth = BOX_W / 2;
-  readonly children: readonly LayoutNode[];
+
+  private _childhoodFamily: FamilyNode | null = null;
 
   constructor(
     readonly personId: number,
-    readonly childhoodFamily: FamilyNode | null,
+    childhoodFamily: FamilyNode | null,
     readonly marriages: ReadonlyArray<FamilyNode | null>,
     readonly activeMarriageIndex: number | null
   ) {
     super();
-    const children: LayoutNode[] = [];
-    for (const m of marriages) {
-      // Marriage FamilyNodes are built fresh by their PersonNode owner and
-      // their default offset (0, 0) is already what we want here.
-      if (m !== null) children.push(m);
+    if (childhoodFamily !== null) {
+      this.childhoodFamily = childhoodFamily;
     }
-    const cf = childhoodFamily;
-    if (cf !== null) {
-      cf.offset = { x: 0, y: -ROW_PITCH };
-      children.push(cf);
+  }
+
+  get childhoodFamily(): FamilyNode | null {
+    return this._childhoodFamily;
+  }
+
+  set childhoodFamily(fn: FamilyNode | null) {
+    const next = fn;
+    if (next !== null) {
+      next.offset = { x: 0, y: -ROW_PITCH };
     }
-    this.children = children;
+    this._childhoodFamily = next;
+    this.invalidateExtents();
+  }
+
+  get children(): readonly LayoutNode[] {
+    const out: LayoutNode[] = [];
+    for (const m of this.marriages) {
+      if (m !== null) out.push(m);
+    }
+    if (this._childhoodFamily !== null) out.push(this._childhoodFamily);
+    return out;
   }
 }
