@@ -31,4 +31,10 @@ export abstract class LayoutNode {
     this.cachedExtents = { left, right };
     return this.cachedExtents;
   }
+
+  // Call when children change post-construction; the cached extents would
+  // otherwise reflect the old child set.
+  protected invalidateExtents() {
+    this.cachedExtents = null;
+  }
 }
