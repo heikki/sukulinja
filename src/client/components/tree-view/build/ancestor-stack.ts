@@ -22,9 +22,10 @@ export function buildAncestorStack(
   if (fam === undefined) return null;
 
   const kidSex = ix.persons.get(kidId)?.sex;
-  // ADR-0001: tie shifts by (2^n − 1) × HALF_PITCH = ancestorShift × 0.5
-  // slots. Adults sit ± 0.5 (one HALF_PITCH) from the tie.
-  const tieXLocal = ancestorShift(kidSex, kidDepth, ix.levels) * 0.5;
+  // ancestorLevels (set by buildChart from actual depth) is what makes
+  // the pyramid compact when ancestry is shallower than the slider.
+  const effectiveLevels = ix.ancestorLevels ?? ix.levels;
+  const tieXLocal = ancestorShift(kidSex, kidDepth, effectiveLevels) * 0.5;
   const husbandChartX = kidChartX + tieXLocal - 0.5;
   const wifeChartX = kidChartX + tieXLocal + 0.5;
 
@@ -64,7 +65,7 @@ function buildAncestorPerson(
   return new PersonNode(personId, childhood, [], null);
 }
 
-// ADR-0001: signed HALF_PITCH multiplier — magnitude (2^remainingAbove − 1),
+// ADR-0001: signed half-slot multiplier — magnitude (2^remainingAbove − 1),
 // sign by kid sex (male → left/negative, female → right/positive).
 function ancestorShift(
   kidSex: string | null | undefined,

@@ -5,6 +5,9 @@ export interface LayoutIndices {
   parentFamByPerson: Map<number, FamilyRow>;
   spouseFamsByPerson: Map<number, FamilyRow[]>;
   levels: number;
+  // Set by buildChart from actual ancestor depth; sizes the pyramid shift
+  // so it doesn't reserve space for ancestors that don't exist.
+  ancestorLevels?: number;
 }
 
 export interface Point {
