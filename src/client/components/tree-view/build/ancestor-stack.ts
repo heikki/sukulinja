@@ -3,7 +3,7 @@
 // the caller (single Anchor at depth ≥ 2; full Aunts/Uncles sibship at
 // depth 1 from parent-row). Tie position follows ADR-0001.
 
-import { HALF_PITCH, isPersonKnown } from '../helpers';
+import { isPersonKnown } from '../helpers';
 import type { LayoutIndices } from '../helpers';
 import type { FamilyNode } from '../nodes/family-node';
 import { PersonNode } from '../nodes/person-node';
@@ -22,9 +22,11 @@ export function buildAncestorStack(
   if (fam === undefined) return null;
 
   const kidSex = ix.persons.get(kidId)?.sex;
-  const tieXLocal = ancestorShift(kidSex, kidDepth, ix.levels) * HALF_PITCH;
-  const husbandChartX = kidChartX + tieXLocal - HALF_PITCH;
-  const wifeChartX = kidChartX + tieXLocal + HALF_PITCH;
+  // ADR-0001: tie shifts by (2^n − 1) × HALF_PITCH = ancestorShift × 0.5
+  // slots. Adults sit ± 0.5 (one HALF_PITCH) from the tie.
+  const tieXLocal = ancestorShift(kidSex, kidDepth, ix.levels) * 0.5;
+  const husbandChartX = kidChartX + tieXLocal - 0.5;
+  const wifeChartX = kidChartX + tieXLocal + 0.5;
 
   const husbandNode = buildAncestorPerson(
     fam.husband_id,

@@ -2,12 +2,7 @@
 
 import type { FamilyRow } from '@common/types';
 
-import {
-  BOX_W,
-  COUPLE_PITCH,
-  isMeaningfulSpouseFam,
-  presentChildren
-} from '../helpers';
+import { isMeaningfulSpouseFam, presentChildren } from '../helpers';
 import type { LayoutIndices } from '../helpers';
 import type { FamilyNode } from '../nodes/family-node';
 import { PersonNode } from '../nodes/person-node';
@@ -96,7 +91,7 @@ function buildOwnedMarriages(
     () => null
   );
 
-  let outerEdge = BOX_W / 2;
+  let outerEdge = 0.5;
   for (let off = 0; off < fams.length; off += 1) {
     const i = activeIdx - off;
     const fam = fams[i]!;
@@ -151,7 +146,8 @@ function fanDirOfPerson(
 }
 
 function primaryPlacement(fanDir: 1 | -1): SpousePlacement {
-  const xSpouse = fanDir * COUPLE_PITCH;
+  // Primary spouse sits one slot (= one couple-pitch) from anchor.
+  const xSpouse = fanDir;
   return {
     xSpouse,
     childAnchor: { x: xSpouse / 2, kind: 'tie-midpoint' },
@@ -166,7 +162,7 @@ function nonPrimaryPlacement(
 ): SpousePlacement {
   const sibInner =
     fanDir === 1 ? packed.barMid : packed.totalWidth - packed.barMid;
-  const innerClear = Math.max(BOX_W / 2, sibInner);
+  const innerClear = Math.max(0.5, sibInner);
   // No explicit gap: slot footprints include half-gap padding on each
   // side, so outerEdge already sits half-a-gap past the previous box edge
   // and innerClear includes the new spouse's half-gap on its inner side.

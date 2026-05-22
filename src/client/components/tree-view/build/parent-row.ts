@@ -4,8 +4,6 @@
 import type { FamilyRow } from '@common/types';
 
 import {
-  BOX_W,
-  COUPLE_PITCH,
   isMeaningfulSpouseFam,
   isPersonKnown,
   presentChildren
@@ -115,7 +113,7 @@ class BloodlineFootprint {
 
   parentBoxEdge(side: 'left' | 'right') {
     const x = this.parentChartX(side);
-    return side === 'left' ? x - BOX_W / 2 : x + BOX_W / 2;
+    return side === 'left' ? x - 0.5 : x + 0.5;
   }
 }
 
@@ -126,7 +124,8 @@ function computeBloodlineFootprint(
 ): BloodlineFootprint {
   const fatherPresent = isPersonKnown(parentFam.husband_id, ix);
   const motherPresent = isPersonKnown(parentFam.wife_id, ix);
-  const sep = fatherPresent && motherPresent ? COUPLE_PITCH : 0;
+  // Parents are one slot (= one couple-pitch) apart when both present.
+  const sep = fatherPresent && motherPresent ? 1 : 0;
   const fatherChartX = sep > 0 ? -sep / 2 : 0;
   const motherChartX = sep > 0 ? sep / 2 : 0;
 
@@ -135,8 +134,8 @@ function computeBloodlineFootprint(
     right: focusRow.packed.totalWidth + focusRow.focusShift
   };
   const parentCoupleEdges: Extents = {
-    left: fatherPresent ? fatherChartX - BOX_W / 2 : Infinity,
-    right: motherPresent ? motherChartX + BOX_W / 2 : -Infinity
+    left: fatherPresent ? fatherChartX - 0.5 : Infinity,
+    right: motherPresent ? motherChartX + 0.5 : -Infinity
   };
   return new BloodlineFootprint(fatherChartX, motherChartX, {
     left: Math.min(focusSibshipEdges.left, parentCoupleEdges.left),
@@ -250,10 +249,7 @@ function buildChildhoodKids(
   });
 }
 
-const BARE_ANCHOR_EXTENTS: Extents = {
-  left: BOX_W / 2,
-  right: BOX_W / 2
-};
+const BARE_ANCHOR_EXTENTS: Extents = { left: 0.5, right: 0.5 };
 
 // ─────────────────────────────────────────────────────────────────────────
 // Step-fam fan (ADR-0002 — depth-1 only)
@@ -365,7 +361,7 @@ function buildSidedStepFam(
 // Symmetric half-width in slot units: at least one box (= 1 slot), wider
 // if the half-sib row demands (each kid is a 1-slot footprint).
 function stepFamSpouseExtents(kidCount: number): Extents {
-  const half = Math.max(BOX_W / 2, kidCount / 2);
+  const half = Math.max(0.5, kidCount / 2);
   return { left: half, right: half };
 }
 
