@@ -12,7 +12,7 @@ import {
   AVATAR_CX,
   AVATAR_R,
   BOX_H,
-  BOX_W,
+  BOX_W_PX,
   DEFAULT_FOCUS_ID,
   DRAG_THRESHOLD_PX,
   SVG_HALF
@@ -270,7 +270,7 @@ export class TreeViewElement extends LitElement {
     const p = this.persons.get(box.personId);
     if (p === undefined) return nothing;
     const isFocus = box.personId === this.focusId;
-    const tx = box.pos.x - BOX_W / 2;
+    const tx = box.pos.x - BOX_W_PX / 2;
     const ty = box.pos.y - BOX_H / 2;
     const photoSrc = p.photo_path === null ? null : mediaUrl(p.photo_path);
     const fullName = formatName(p);
@@ -289,7 +289,7 @@ export class TreeViewElement extends LitElement {
           this.setFocus(box.personId, this.pinFromNode(box.pos));
         }}
       >
-        <rect class="box" x="0" y="0" width=${BOX_W} height=${BOX_H} rx="6" />
+        <rect class="box" x="0" y="0" width=${BOX_W_PX} height=${BOX_H} rx="6" />
         ${
           photoSrc === null
             ? svg`<circle
@@ -310,7 +310,7 @@ export class TreeViewElement extends LitElement {
         }
         <text class="name" x="60" y=${BOX_H / 2 - 4}>${name}</text>
         <text class="dates" x="60" y=${BOX_H / 2 + 14}>${dates}</text>
-        <rect class="hit" x="0" y="0" width=${BOX_W} height=${BOX_H} rx="6" />
+        <rect class="hit" x="0" y="0" width=${BOX_W_PX} height=${BOX_H} rx="6" />
       </g>
     `;
   }

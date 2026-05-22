@@ -1,7 +1,8 @@
-// Sibship row packing: extents -> left-to-right kid pivots, separated by
-// SIBLING_GAP.
+// Sibship row packing: extents -> left-to-right kid pivots in slot units.
+// Each slot's extent includes implicit half-gap padding; adjacent slots
+// share their padding, so the inter-kid gap appears automatically without
+// any explicit gap term here.
 
-import { SIBLING_GAP } from '../helpers';
 import type { Extents } from '../helpers';
 
 export interface Sibship {
@@ -25,8 +26,7 @@ export function buildSibship(extents: readonly Extents[]): Sibship {
   }
   const positions: number[] = [];
   let cursor = 0;
-  for (const [i, e] of extents.entries()) {
-    if (i > 0) cursor += SIBLING_GAP;
+  for (const e of extents) {
     cursor += e.left;
     positions.push(cursor);
     cursor += e.right;

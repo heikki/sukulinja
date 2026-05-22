@@ -4,7 +4,6 @@ import type { FamilyRow } from '@common/types';
 
 import {
   BOX_W,
-  COUPLE_GAP,
   COUPLE_PITCH,
   isMeaningfulSpouseFam,
   presentChildren
@@ -168,7 +167,10 @@ function nonPrimaryPlacement(
   const sibInner =
     fanDir === 1 ? packed.barMid : packed.totalWidth - packed.barMid;
   const innerClear = Math.max(BOX_W / 2, sibInner);
-  const xSpouse = fanDir * (outerEdge + COUPLE_GAP + innerClear);
+  // No explicit gap: slot footprints include half-gap padding on each
+  // side, so outerEdge already sits half-a-gap past the previous box edge
+  // and innerClear includes the new spouse's half-gap on its inner side.
+  const xSpouse = fanDir * (outerEdge + innerClear);
   return {
     xSpouse,
     childAnchor: { x: xSpouse, kind: 'box-bottom' },
