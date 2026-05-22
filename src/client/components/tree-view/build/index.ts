@@ -4,18 +4,23 @@
 import { isPersonKnown } from '../helpers';
 import type { LayoutIndices } from '../helpers';
 import { emitLayout } from './emit';
+import type { EmitTheme } from './emit';
 import { buildFocusPerson } from './focus-person';
 
-export type { Box, EmitOutput } from './emit';
+export type { Box, EmitOutput, EmitTheme } from './emit';
 
-export function buildChart(focusId: number, ix: LayoutIndices) {
+export function buildChart(
+  focusId: number,
+  ix: LayoutIndices,
+  theme: EmitTheme
+) {
   if (!ix.persons.has(focusId)) return null;
   const effectiveIx: LayoutIndices = {
     ...ix,
     ancestorLevels: actualMaxAncestorDepth(focusId, ix.levels, ix)
   };
   const root = buildFocusPerson(focusId, effectiveIx);
-  return emitLayout(root, { x: 0, y: 0 });
+  return emitLayout(root, { x: 0, y: 0 }, theme);
 }
 
 // A row counts only if the parent family has at least one known adult —
