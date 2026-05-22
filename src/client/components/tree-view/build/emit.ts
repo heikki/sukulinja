@@ -5,16 +5,21 @@
 // in the layout tree, so they emit no Box — the box belongs to the
 // upstream PersonNode that owns this FamilyNode.
 //
-// Emit is also the seam where structural row-offsets (integer rowOffset on
-// each LayoutNode) and semantic tags (FamilyNode.tieKind, ChildAnchor.kind)
-// resolve to absolute pixel coordinates.
+// Emit is also the seam where the layout's structural units resolve to
+// absolute pixel coordinates:
+//   x  — slot units (1 slot = PITCH_PX). Each PersonNode's slot footprint
+//        is 1 slot wide, with implicit half-gap padding on each side.
+//        Multiplied by PITCH_PX at the leaf; tie endpoints clip to box
+//        edges via BOX_W_PX.
+//   y  — integer rowOffset (multiplied by ROW_PITCH) plus pixel offsets
+//        from semantic tags (FamilyNode.tieKind, ChildAnchor.kind).
 
 import {
   BOX_H,
-  BOX_W,
+  BOX_W_PX,
   NONPRIMARY_TIE_Y_OFFSET,
-  ROW_PITCH,
-  translatePoint
+  PITCH_PX,
+  ROW_PITCH
 } from '../helpers';
 import type { Point } from '../helpers';
 import { FamilyNode } from '../nodes/family-node';
@@ -28,6 +33,11 @@ import type {
   OwnedPersonSlot,
   TieKind
 } from '../nodes/types';
+
+// Half-box-width in slot units. Used for tie-endpoint clipping: the tie
+// stops at each adult's box edge, which sits BOX_HALF_SLOT inside the
+// adult's slot-footprint edge.
+const BOX_HALF_SLOT = BOX_W_PX / PITCH_PX / 2;
 
 export interface Box {
   personId: number;
@@ -54,13 +64,16 @@ export function emitLayout(root: LayoutNode, startAbs: Point): EmitOutput {
 
 function walk(node: LayoutNode, abs: Point, boxes: Box[], lines: Line[]) {
   if (node instanceof PersonNode) {
-    boxes.push({ personId: node.personId, pos: { x: abs.x, y: abs.y } });
+    boxes.push({
+      personId: node.personId,
+      pos: { x: abs.x * PITCH_PX, y: abs.y }
+    });
   } else if (node instanceof FamilyNode) {
     for (const line of familyLines(node)) {
       lines.push({
         key: line.key,
-        from: translatePoint(line.from, abs),
-        to: translatePoint(line.to, abs)
+        from: { x: (line.from.x + abs.x) * PITCH_PX, y: line.from.y + abs.y },
+        to: { x: (line.to.x + abs.x) * PITCH_PX, y: line.to.y + abs.y }
       });
     }
   }
@@ -74,6 +87,8 @@ function accumulate(abs: Point, offset: LayoutOffset): Point {
 }
 
 function familyLines(node: FamilyNode): Line[] {
+  // X is in slot units (walk multiplies by PITCH_PX at the leaf); Y is in
+  // pixels. Tie endpoints clip to box edges via BOX_HALF_SLOT.
   const out: Line[] = [];
   if (node.husband !== null && node.wife !== null) {
     // Husband-left convention can be violated by ancestor step-fams (the
@@ -84,8 +99,8 @@ function familyLines(node: FamilyNode): Line[] {
     const ty = tieY(node.tieKind);
     out.push({
       key: `tie-${node.famId}`,
-      from: { x: leftX + BOX_W / 2, y: ty },
-      to: { x: rightX - BOX_W / 2, y: ty }
+      from: { x: leftX + BOX_HALF_SLOT, y: ty },
+      to: { x: rightX - BOX_HALF_SLOT, y: ty }
     });
   }
   if (node.kids.length > 0) {

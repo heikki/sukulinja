@@ -8,8 +8,7 @@ import {
   COUPLE_PITCH,
   isMeaningfulSpouseFam,
   isPersonKnown,
-  presentChildren,
-  SIBLING_GAP
+  presentChildren
 } from '../helpers';
 import type { Extents, LayoutIndices } from '../helpers';
 import type { FamilyNode } from '../nodes/family-node';
@@ -336,11 +335,12 @@ function buildSidedStepFam(
   const halfSibExtents = stepFamSpouseExtents(kidNodes.length);
 
   // xSpouse is in the parent PersonNode's local frame; chart-X of the
-  // step-spouse = parentChartX + xSpouse.
+  // step-spouse = parentChartX + xSpouse. No explicit gap: adjacent slot
+  // footprints share their half-gap padding.
   const xSpouse =
     side === 'right'
-      ? outerEdge + SIBLING_GAP - parentChartX + halfSibExtents.left
-      : outerEdge - SIBLING_GAP - parentChartX - halfSibExtents.right;
+      ? outerEdge - parentChartX + halfSibExtents.left
+      : outerEdge - parentChartX - halfSibExtents.right;
   const newOuter =
     side === 'right'
       ? parentChartX + xSpouse + halfSibExtents.right
@@ -362,12 +362,10 @@ function buildSidedStepFam(
   return { familyNode, newOuter };
 }
 
-// Symmetric half-width: at least the step-spouse's own box, wider if the
-// half-sib row demands.
+// Symmetric half-width in slot units: at least one box (= 1 slot), wider
+// if the half-sib row demands (each kid is a 1-slot footprint).
 function stepFamSpouseExtents(kidCount: number): Extents {
-  const kidRowHalf =
-    kidCount === 0 ? 0 : (kidCount * BOX_W + (kidCount - 1) * SIBLING_GAP) / 2;
-  const half = Math.max(BOX_W / 2, kidRowHalf);
+  const half = Math.max(BOX_W / 2, kidCount / 2);
   return { left: half, right: half };
 }
 
@@ -382,7 +380,9 @@ function measureStepFamsExtent(
     if (fam.id === bloodlineFamId) continue;
     if (!isMeaningfulSpouseFam(fam, personId, ix)) continue;
     const extents = stepFamSpouseExtents(presentChildren(fam, ix).length);
-    total += extents.left + extents.right + SIBLING_GAP;
+    // No +gap: each step-fam contributes a slot footprint whose padding
+    // is implicit; adjacent step-fams share their half-gap padding.
+    total += extents.left + extents.right;
   }
   return total;
 }
