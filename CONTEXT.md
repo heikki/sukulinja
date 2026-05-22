@@ -111,10 +111,13 @@ Horizontal line spanning the sibship between two generations. Collapses to a poi
 **Leg**:
 Short vertical from the **Bar** to one sibling's box top. One per sibling.
 
-### Vertical structure
+### Layout units
+
+**Slot**:
+The unit of horizontal position. One slot = the distance between adults in a **Couple** (= COUPLE_PITCH; half-slot = HALF_PITCH). Each person occupies a slot footprint 1 slot wide, with implicit half-gap padding on each side; adjacent slots share their padding, so the visible gap between adjacent boxes is one full gap composed of half-padding from each neighbour. Horizontal layout reasons in slot units only — gap pixel values never appear in the layout algorithm; they're folded into the slot's footprint. Pixel resolution happens at the render seam.
 
 **Generation**:
-A horizontal row. Focus row is generation 0; above are 1↑, 2↑, …; below are 1↓, 2↓, ….
+The unit of vertical position — a horizontal row. Focus row is generation 0; above are 1↑, 2↑, …; below are 1↓, 2↓, ….
 
 **Depth**:
 Generations away from the focus row at the current recursion step. Always ≥ 0; direction (↑ vs ↓) is implicit.
