@@ -25,7 +25,7 @@ export function buildAncestorStack(
   // ancestorLevels (set by buildChart from actual depth) is what makes
   // the pyramid compact when ancestry is shallower than the slider.
   const effectiveLevels = ix.ancestorLevels ?? ix.levels;
-  const tieXLocal = ancestorShift(kidSex, kidDepth, effectiveLevels) * 0.5;
+  const tieXLocal = ancestorShift(kidSex, kidDepth, effectiveLevels);
   const husbandChartX = kidChartX + tieXLocal - 0.5;
   const wifeChartX = kidChartX + tieXLocal + 0.5;
 
@@ -65,7 +65,7 @@ function buildAncestorPerson(
   return new PersonNode(personId, childhood, [], null);
 }
 
-// ADR-0001: signed half-slot multiplier — magnitude (2^remainingAbove − 1),
+// ADR-0001: signed slot offset — magnitude (2^remainingAbove − 1) / 2,
 // sign by kid sex (male → left/negative, female → right/positive).
 function ancestorShift(
   kidSex: string | null | undefined,
@@ -73,6 +73,6 @@ function ancestorShift(
   levels: number
 ) {
   const remainingAbove = Math.max(1, levels - kidDepth);
-  const magnitude = 2 ** remainingAbove - 1;
+  const magnitude = (2 ** remainingAbove - 1) / 2;
   return kidSex === 'F' ? magnitude : -magnitude;
 }

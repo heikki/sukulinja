@@ -233,7 +233,7 @@ function buildChildhoodKids(
     ? [...auntNodes, null]
     : [null, ...auntNodes];
   const extents: Extents[] = ordered.map((b) =>
-    b === null ? BARE_ANCHOR_EXTENTS : b.extents
+    b === null ? { left: 0.5, right: 0.5 } : b.extents
   );
   const packed = buildSibship(extents);
   const bloodlineIdx = fanLeft ? ordered.length - 1 : 0;
@@ -248,8 +248,6 @@ function buildChildhoodKids(
     };
   });
 }
-
-const BARE_ANCHOR_EXTENTS: Extents = { left: 0.5, right: 0.5 };
 
 // ─────────────────────────────────────────────────────────────────────────
 // Step-fam fan (ADR-0002 — depth-1 only)
