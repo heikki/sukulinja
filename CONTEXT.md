@@ -66,9 +66,9 @@ Focus's column sits at chart X = 0. With uneven ancestry, the ancestor pyramid d
 **Bloodline pyramid**:
 Every parent **Drop** is purely vertical — never an L-bend. For every kid sibship at **Parent row** or above (including Parent row itself, where the sibship widens with **Aunts/Uncles**), the Tie sits off the bloodline kid's column in the direction set by the kid's sex — male ancestor's parents fan to his left, female's to her right. The kid **Bar** runs horizontally from the Tie X over to the bloodline kid's column; the bar — not the drop — does the horizontal work. The chart-root parent FB above Focus row is a separate case: its Tie sits centered, because **Focus pinning** fixes Focus at chart X = 0.
 
-The shift magnitude grows with how many more levels are rendered above: HALF_PITCH at the topmost ancestor row, 3 × HALF_PITCH one level lower, 7 × HALF_PITCH two levels lower — the (2^n − 1) sequence. This places each Couple as close to chart center as the inter-couple spacing allows, keeps each Couple's great-grandparents centered around the Couple itself, and gives the upper pyramid enough room to keep gen+1 columns distinct.
+The shift magnitude grows with how many more levels are rendered above: half-slot at the topmost ancestor row, 3 × half-slot one level lower, 7 × half-slot two levels lower — the (2^n − 1) sequence. This places each Couple as close to chart center as the inter-couple spacing allows, keeps each Couple's great-grandparents centered around the Couple itself, and gives the upper pyramid enough room to keep gen+1 columns distinct.
 
-Spouse separation inside every Couple — including the chart-root parent FB — stays fixed at one COUPLE_PITCH; subtree extents grow outward (away from chart center).
+Spouse separation inside every Couple — including the chart-root parent FB — stays fixed at one slot; subtree extents grow outward (away from chart center).
 
 **Aunts/Uncles placement**:
 At **Parent row**, **Aunts/Uncles** share the childhood FB sibship with their bloodline sibling (Father or Mother). The bloodline sibling sits at the _inward_ end of the sibship (Father at the rightmost slot of his sibship, Mother at the leftmost slot of hers); Aunts/Uncles fan outward in birth order, pushed past the **Step-fam fan** reservation so step-spouses and **Half-siblings** of Focus fit between the bloodline parent and the Aunts/Uncles. The GP couple's Tie position (see **Bloodline pyramid**) is independent of the sibship width — the bar reaches out to whichever Aunt/Uncle sits farthest from the Tie.
@@ -77,7 +77,7 @@ At **Parent row**, **Aunts/Uncles** share the childhood FB sibship with their bl
 The chart frame anchoring the chart-root parent FB at **Parent row**: where Fa and Mo sit (their chart-X positions) and how far the bloodline's own rows reach left and right — the union of Focus's sibship at Focus row and Fa/Mo's own boxes at Parent row (_not_ Aunts/Uncles, which get pushed out past the footprint). **Aunts/Uncles** and the **Step-fam fan** sit past the outer edge on each side, so the footprint is what they must clear.
 
 **Step-fam fan**:
-Non-Primary marriages of a bloodline **Ancestor** render at **Parent row** only (Fa's and Mo's). Ancestors above Parent row show their bloodline Couple only — earlier or later marriages are hidden. At Parent row, each parent's non-Primary marriages fan outward on that parent's own side of the chart-root parent FB — Fa's pile up past the bloodline footprint's left edge, Mo's pile up past the right edge — regardless of whether each marriage is chronologically pre- or post-bloodline. Within each side, chronologically-adjacent marriages (one step before or after the bloodline marriage) land closest to the parent, and progressively-distant marriages fan further outward. The chart-root parent FB sep stays at COUPLE_PITCH.
+Non-Primary marriages of a bloodline **Ancestor** render at **Parent row** only (Fa's and Mo's). Ancestors above Parent row show their bloodline Couple only — earlier or later marriages are hidden. At Parent row, each parent's non-Primary marriages fan outward on that parent's own side of the chart-root parent FB — Fa's pile up past the bloodline footprint's left edge, Mo's pile up past the right edge — regardless of whether each marriage is chronologically pre- or post-bloodline. Within each side, chronologically-adjacent marriages (one step before or after the bloodline marriage) land closest to the parent, and progressively-distant marriages fan further outward. The chart-root parent FB sep stays at one slot.
 
 ### Structures
 
@@ -114,7 +114,7 @@ Short vertical from the **Bar** to one sibling's box top. One per sibling.
 ### Layout units
 
 **Slot**:
-The unit of horizontal position. One slot = the distance between adults in a **Couple** (= COUPLE_PITCH; half-slot = HALF_PITCH). Each person occupies a slot footprint 1 slot wide, with implicit half-gap padding on each side; adjacent slots share their padding, so the visible gap between adjacent boxes is one full gap composed of half-padding from each neighbour. Horizontal layout reasons in slot units only — gap pixel values never appear in the layout algorithm; they're folded into the slot's footprint. Pixel resolution happens at the render seam.
+The horizontal unit. Each person occupies one slot; adjacent slots share their gap padding, so the gap between two boxes is one full gap. Couples sit one slot apart.
 
 **Generation**:
 The unit of vertical position — a horizontal row. Focus row is generation 0; above are 1↑, 2↑, …; below are 1↓, 2↓, ….
