@@ -7,7 +7,7 @@
 
 import type { FamilyRow } from '@common/types';
 
-import { HALF_PITCH, isPersonKnown, otherSpouseOf } from '../helpers';
+import { isPersonKnown, otherSpouseOf } from '../helpers';
 import type { LayoutIndices } from '../helpers';
 import { FamilyNode } from '../nodes/family-node';
 import { PersonNode } from '../nodes/person-node';
@@ -56,8 +56,8 @@ function placeCenteredCouple(
 ): CenteredCouplePlacement {
   if (husbandNode !== null && wifeNode !== null) {
     return {
-      husband: { node: husbandNode, localX: tieXLocal - HALF_PITCH },
-      wife: { node: wifeNode, localX: tieXLocal + HALF_PITCH },
+      husband: { node: husbandNode, localX: tieXLocal - 0.5 },
+      wife: { node: wifeNode, localX: tieXLocal + 0.5 },
       childAnchor: { x: tieXLocal, kind: 'tie-midpoint' }
     };
   }

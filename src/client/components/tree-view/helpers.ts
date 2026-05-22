@@ -21,19 +21,16 @@ export interface Extents {
   right: number;
 }
 
-// Horizontal units: slot. 1 slot = COUPLE_PITCH_PX = BOX_W_PX + GAP_PX in
-// pixels. Each PersonNode has a slot footprint of 1 slot wide, with
-// implicit half-gap padding on each side; adjacent slots share their
-// padding (the gap between adjacent boxes is a full gap = half-padding
-// from each neighbouring slot). Build and nodes never reference pixel
-// gap values; emit multiplies slot positions by PITCH_PX at the seam and
-// applies BOX_W_PX for tie-endpoint box-edge clipping.
-export const BOX_W = 1;
-export const COUPLE_PITCH = 1;
-export const HALF_PITCH = 0.5;
-// Extents of a bare PersonNode (no children) — used when packing reserves
-// a slot for a person whose PersonNode lives elsewhere.
-export const BARE_PERSON_EXTENTS: Extents = { left: 0.5, right: 0.5 };
+// Horizontal layout uses slot units. 1 slot = PITCH_PX in pixels = box
+// width + one gap. Each PersonNode has a slot footprint of 1 slot wide,
+// with implicit half-gap padding on each side; adjacent slots share
+// their padding (the gap between adjacent boxes is half-padding from
+// each neighbour). Build and nodes operate in literal slot values:
+//   0    — at slot origin
+//   0.5  — half-slot (= half-couple-pitch = half-person-footprint)
+//   1    — one slot (= couple-pitch = full person footprint)
+// Emit multiplies slot positions by PITCH_PX at the seam and clips tie
+// endpoints to box edges via BOX_W_PX.
 
 // Pixel constants — used by emit (and external renderers).
 export const BOX_W_PX = 184;
