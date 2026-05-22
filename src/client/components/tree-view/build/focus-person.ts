@@ -42,11 +42,10 @@ export function buildFocusPerson(
 function buildSibling(personId: number, ix: LayoutIndices): PersonNode {
   const fams = meaningfulSpouseFams(personId, ix);
   if (fams.length === 0) return new PersonNode(personId, null, [], null);
-  const primary = fams[0]!;
   const fanDir = fanDirOfPerson(personId, fams, ix);
   const familyNode = buildAnchoredFamily({
     anchorId: personId,
-    fam: primary,
+    fam: fams[0]!,
     kidNodes: [],
     placement: primaryPlacement(fanDir),
     ix
@@ -97,10 +96,10 @@ function buildOwnedMarriages(
     const fam = fams[i]!;
     const kidNodes = ownedKidNodes(fam, depth, includeChildren, ix);
     const packed = buildSibship(kidNodes.map((k) => k.extents));
-    const isActive = off === 0;
-    const placement = isActive
-      ? primaryPlacement(fanDir)
-      : nonPrimaryPlacement(fanDir, outerEdge, packed);
+    const placement =
+      off === 0
+        ? primaryPlacement(fanDir)
+        : nonPrimaryPlacement(fanDir, outerEdge, packed);
     const familyNode = buildAnchoredFamily({
       anchorId: personId,
       fam,

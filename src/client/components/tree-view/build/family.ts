@@ -63,11 +63,16 @@ function placeCenteredCouple(
   }
   // Lone parent: drop from the present adult's box bottom so the sibship
   // Bar lines up vertically with their column.
-  const anyPresent = husbandNode !== null || wifeNode !== null;
   return {
     husband: husbandNode === null ? null : { node: husbandNode, localX: 0 },
     wife: wifeNode === null ? null : { node: wifeNode, localX: 0 },
-    childAnchor: { x: 0, kind: anyPresent ? 'box-bottom' : 'tie-midpoint' }
+    childAnchor: {
+      x: 0,
+      kind:
+        husbandNode !== null || wifeNode !== null
+          ? 'box-bottom'
+          : 'tie-midpoint'
+    }
   };
 }
 
