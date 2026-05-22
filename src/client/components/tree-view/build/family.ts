@@ -7,18 +7,18 @@
 
 import type { FamilyRow } from '@common/types';
 
-import { BOX_H, HALF_PITCH, isPersonKnown, otherSpouseOf } from '../helpers';
-import type { LayoutIndices, Point } from '../helpers';
+import { HALF_PITCH, isPersonKnown, otherSpouseOf } from '../helpers';
+import type { LayoutIndices } from '../helpers';
 import { FamilyNode } from '../nodes/family-node';
 import { PersonNode } from '../nodes/person-node';
-import type { AdultSlot, KidSlot } from '../nodes/types';
+import type { AdultSlot, ChildAnchor, KidSlot, TieKind } from '../nodes/types';
 import { buildSibship } from './sibship';
 import type { Sibship } from './sibship';
 
 export interface SpousePlacement {
   xSpouse: number;
-  childAnchor: Point;
-  tieY: number;
+  childAnchor: ChildAnchor;
+  tieKind: TieKind;
 }
 
 export interface CenteredFamilyArgs {
@@ -39,20 +39,26 @@ export function buildCenteredFamily(args: CenteredFamilyArgs) {
     wife: placed.wife,
     kids: args.kids,
     childAnchor: placed.childAnchor,
-    tieY: 0
+    tieKind: 'centered'
   });
+}
+
+interface CenteredCouplePlacement {
+  husband: AdultSlot;
+  wife: AdultSlot;
+  childAnchor: ChildAnchor;
 }
 
 function placeCenteredCouple(
   husbandNode: PersonNode | null,
   wifeNode: PersonNode | null,
   tieXLocal: number
-) {
+): CenteredCouplePlacement {
   if (husbandNode !== null && wifeNode !== null) {
     return {
       husband: { node: husbandNode, localX: tieXLocal - HALF_PITCH },
       wife: { node: wifeNode, localX: tieXLocal + HALF_PITCH },
-      childAnchor: { x: tieXLocal, y: 0 }
+      childAnchor: { x: tieXLocal, kind: 'tie-midpoint' }
     };
   }
   // Lone parent: drop from the present adult's box bottom so the sibship
@@ -61,7 +67,7 @@ function placeCenteredCouple(
   return {
     husband: husbandNode === null ? null : { node: husbandNode, localX: 0 },
     wife: wifeNode === null ? null : { node: wifeNode, localX: 0 },
-    childAnchor: { x: 0, y: anyPresent ? BOX_H / 2 : 0 }
+    childAnchor: { x: 0, kind: anyPresent ? 'box-bottom' : 'tie-midpoint' }
   };
 }
 
@@ -99,7 +105,7 @@ export function buildAnchoredFamily(args: AnchoredFamilyArgs) {
     wife: anchorIsHusband ? spouseAdult : anchorAdult,
     kids,
     childAnchor: args.placement.childAnchor,
-    tieY: args.placement.tieY
+    tieKind: args.placement.tieKind
   });
 }
 

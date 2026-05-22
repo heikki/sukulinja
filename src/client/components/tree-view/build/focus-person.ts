@@ -3,12 +3,10 @@
 import type { FamilyRow } from '@common/types';
 
 import {
-  BOX_H,
   BOX_W,
   COUPLE_GAP,
   COUPLE_PITCH,
   isMeaningfulSpouseFam,
-  NONPRIMARY_TIE_Y_OFFSET,
   presentChildren
 } from '../helpers';
 import type { LayoutIndices } from '../helpers';
@@ -155,7 +153,11 @@ function fanDirOfPerson(
 
 function primaryPlacement(fanDir: 1 | -1): SpousePlacement {
   const xSpouse = fanDir * COUPLE_PITCH;
-  return { xSpouse, childAnchor: { x: xSpouse / 2, y: 0 }, tieY: 0 };
+  return {
+    xSpouse,
+    childAnchor: { x: xSpouse / 2, kind: 'tie-midpoint' },
+    tieKind: 'centered'
+  };
 }
 
 function nonPrimaryPlacement(
@@ -169,7 +171,7 @@ function nonPrimaryPlacement(
   const xSpouse = fanDir * (outerEdge + COUPLE_GAP + innerClear);
   return {
     xSpouse,
-    childAnchor: { x: xSpouse, y: BOX_H / 2 },
-    tieY: -NONPRIMARY_TIE_Y_OFFSET * fanDir
+    childAnchor: { x: xSpouse, kind: 'box-bottom' },
+    tieKind: fanDir === 1 ? 'nonprimary-right' : 'nonprimary-left'
   };
 }

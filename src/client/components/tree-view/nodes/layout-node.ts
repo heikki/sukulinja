@@ -6,13 +6,15 @@
 // The tree is consumed by the emit pass (see build/emit.ts), which walks
 // once and produces a flat ID-keyed EmitOutput for rendering.
 
-import type { Extents, Point } from '../helpers';
+import type { Extents } from '../helpers';
+import type { LayoutOffset } from './types';
 
 export abstract class LayoutNode {
-  // Position relative to this node's parent. A FamilyNode sets its owned
-  // PersonNodes' offsets from the slot's localX; a PersonNode sets its
-  // FamilyNode children's offsets from their row position.
-  offset: Point = { x: 0, y: 0 };
+  // Position relative to this node's parent. x is local pixels; rowOffset is
+  // an integer row count (emit multiplies by ROW_PITCH). A FamilyNode sets
+  // its owned PersonNodes' offsets from the slot's localX; a PersonNode sets
+  // its FamilyNode children's offsets from their row position.
+  offset: LayoutOffset = { x: 0, rowOffset: 0 };
 
   abstract readonly children: readonly LayoutNode[];
 

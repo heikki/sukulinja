@@ -8,20 +8,25 @@
 //   - 1 anchor adult + 1 owned adult: pivot at the anchor adult
 //   - 1 owned adult (lone parent): pivot at that adult
 
-import { ROW_PITCH } from '../helpers';
-import type { Point } from '../helpers';
 import { LayoutNode } from './layout-node';
-import type { AdultSlot, Anchor, KidSlot, OwnedPersonSlot } from './types';
+import type {
+  AdultSlot,
+  Anchor,
+  ChildAnchor,
+  KidSlot,
+  OwnedPersonSlot,
+  TieKind
+} from './types';
 
 function isOwned(slot: OwnedPersonSlot | Anchor): slot is OwnedPersonSlot {
   return 'node' in slot;
 }
 
 // Returns null when the slot is empty or an Anchor (nothing to place).
-function placeOwned(slot: AdultSlot | KidSlot, y: number) {
+function placeOwned(slot: AdultSlot | KidSlot, rowOffset: number) {
   if (slot === null || !isOwned(slot)) return null;
   const { node, localX } = slot;
-  node.offset = { x: localX, y };
+  node.offset = { x: localX, rowOffset };
   return node;
 }
 
@@ -30,10 +35,10 @@ interface FamilyNodeArgs {
   husband: AdultSlot;
   wife: AdultSlot;
   kids: readonly KidSlot[];
-  // Couple-Tie Y in the local frame. Adults sit at y=0; kids at y=ROW_PITCH.
-  tieY: number;
+  // Couple-Tie position (semantic). Adults sit at rowOffset 0; kids at 1.
+  tieKind: TieKind;
   // Sibship drop origin in the local frame.
-  childAnchor: Point;
+  childAnchor: ChildAnchor;
 }
 
 export class FamilyNode extends LayoutNode {
@@ -43,8 +48,8 @@ export class FamilyNode extends LayoutNode {
   readonly husband: AdultSlot;
   readonly wife: AdultSlot;
   readonly kids: readonly KidSlot[];
-  readonly tieY: number;
-  readonly childAnchor: Point;
+  readonly tieKind: TieKind;
+  readonly childAnchor: ChildAnchor;
 
   constructor(args: FamilyNodeArgs) {
     super();
@@ -52,7 +57,7 @@ export class FamilyNode extends LayoutNode {
     this.husband = args.husband;
     this.wife = args.wife;
     this.kids = args.kids;
-    this.tieY = args.tieY;
+    this.tieKind = args.tieKind;
     this.childAnchor = args.childAnchor;
     const children: LayoutNode[] = [];
     for (const adult of [args.husband, args.wife]) {
@@ -60,7 +65,7 @@ export class FamilyNode extends LayoutNode {
       if (node !== null) children.push(node);
     }
     for (const kid of args.kids) {
-      const node = placeOwned(kid, ROW_PITCH);
+      const node = placeOwned(kid, 1);
       if (node !== null) children.push(node);
     }
     this.children = children;
