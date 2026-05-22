@@ -8,7 +8,7 @@ import type { LayoutIndices } from '../helpers';
 import type { FamilyNode } from '../nodes/family-node';
 import { PersonNode } from '../nodes/person-node';
 import type { Anchor, KidSlot } from '../nodes/types';
-import { buildFamily } from './family';
+import { buildCenteredFamily } from './family';
 
 export function buildAncestorStack(
   kidId: number,
@@ -40,7 +40,7 @@ export function buildAncestorStack(
   );
   if (husbandNode === null && wifeNode === null) return null;
 
-  return buildFamily({
+  return buildCenteredFamily({
     famId: fam.id,
     husband: husbandNode,
     wife: wifeNode,
