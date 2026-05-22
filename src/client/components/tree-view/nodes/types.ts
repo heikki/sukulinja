@@ -2,14 +2,7 @@
 // referenced by more than one node file, so that no single node file has to
 // re-export scaffolding for the others.
 
-import type { Point } from '../helpers';
 import type { PersonNode } from './person-node';
-
-export interface Line {
-  key: string;
-  from: Point;
-  to: Point;
-}
 
 // Position-only slot for a person whose PersonNode lives in an upstream
 // node. Carries the personId (for line keys) and the local x in this family's
