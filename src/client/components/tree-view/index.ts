@@ -8,17 +8,67 @@ import type { FamilyRow, PersonRow } from '@common/types';
 
 import { buildChart } from './build';
 import type { Box, EmitOutput } from './build';
-import {
-  AVATAR_CX,
-  AVATAR_R,
-  BOX_H,
-  BOX_W_PX,
-  DEFAULT_FOCUS_ID,
-  DRAG_THRESHOLD_PX,
-  SVG_HALF
-} from './helpers';
+import { DEFAULT_FOCUS_ID, DRAG_THRESHOLD_PX, SVG_HALF } from './helpers';
 import type { Point } from './helpers';
 import { treeViewStyles } from './styles';
+
+// Box renderer: the dimensions/gaps that decide the slot pitch (forwarded
+// to emit via the EmitTheme fields) and the render function that paints
+// each <rect> at those dimensions. Caller composes per-box context
+// (person, focus state, click handler) at the call site.
+const boxRenderer = {
+  boxW: 184,
+  boxH: 90,
+  gapX: 28,
+  gapY: 70,
+  nonprimaryTieYOffset: 6,
+  avatarR: 22,
+  avatarCx: 28,
+  render(box: Box, person: PersonRow, isFocus: boolean, onClick: () => void) {
+    const { boxW, boxH, avatarR, avatarCx } = this;
+    const tx = box.pos.x - boxW / 2;
+    const ty = box.pos.y - boxH / 2;
+    const photoSrc =
+      person.photo_path === null ? null : mediaUrl(person.photo_path);
+    const fullName = formatName(person);
+    const name =
+      fullName.length > NAME_TRUNCATE
+        ? `${fullName.slice(0, NAME_TRUNCATE - 1)}…`
+        : fullName;
+    const dates = formatDates(person);
+    return svg`
+      <g
+        class="node ${isFocus ? 'focus' : ''}"
+        data-node-id=${box.personId}
+        style="transform: translate(${tx}px, ${ty}px)"
+        @click=${onClick}
+      >
+        <rect class="box" x="0" y="0" width=${boxW} height=${boxH} rx="6" />
+        ${
+          photoSrc === null
+            ? svg`<circle
+                class="placeholder-avatar"
+                cx=${avatarCx}
+                cy=${boxH / 2}
+                r=${avatarR}
+              />`
+            : svg`<image
+                href=${photoSrc}
+                x=${avatarCx - avatarR}
+                y=${boxH / 2 - avatarR}
+                width=${avatarR * 2}
+                height=${avatarR * 2}
+                clip-path="url(#sl-avatar)"
+                preserveAspectRatio="xMidYMid slice"
+              />`
+        }
+        <text class="name" x="60" y=${boxH / 2 - 4}>${name}</text>
+        <text class="dates" x="60" y=${boxH / 2 + 14}>${dates}</text>
+        <rect class="hit" x="0" y="0" width=${boxW} height=${boxH} rx="6" />
+      </g>
+    `;
+  }
+};
 
 interface DragOrigin {
   mouse: Point;
@@ -267,52 +317,17 @@ export class TreeViewElement extends LitElement {
   }
 
   private renderBox(box: Box) {
-    const p = this.persons.get(box.personId);
-    if (p === undefined) return nothing;
-    const isFocus = box.personId === this.focusId;
-    const tx = box.pos.x - BOX_W_PX / 2;
-    const ty = box.pos.y - BOX_H / 2;
-    const photoSrc = p.photo_path === null ? null : mediaUrl(p.photo_path);
-    const fullName = formatName(p);
-    const name =
-      fullName.length > NAME_TRUNCATE
-        ? `${fullName.slice(0, NAME_TRUNCATE - 1)}…`
-        : fullName;
-    const dates = formatDates(p);
-    return svg`
-      <g
-        class="node ${isFocus ? 'focus' : ''}"
-        data-node-id=${box.personId}
-        style="transform: translate(${tx}px, ${ty}px)"
-        @click=${() => {
-          if (this.dragMoved) return;
-          this.setFocus(box.personId, this.pinFromNode(box.pos));
-        }}
-      >
-        <rect class="box" x="0" y="0" width=${BOX_W_PX} height=${BOX_H} rx="6" />
-        ${
-          photoSrc === null
-            ? svg`<circle
-                class="placeholder-avatar"
-                cx=${AVATAR_CX}
-                cy=${BOX_H / 2}
-                r=${AVATAR_R}
-              />`
-            : svg`<image
-                href=${photoSrc}
-                x=${AVATAR_CX - AVATAR_R}
-                y=${BOX_H / 2 - AVATAR_R}
-                width=${AVATAR_R * 2}
-                height=${AVATAR_R * 2}
-                clip-path="url(#sl-avatar)"
-                preserveAspectRatio="xMidYMid slice"
-              />`
-        }
-        <text class="name" x="60" y=${BOX_H / 2 - 4}>${name}</text>
-        <text class="dates" x="60" y=${BOX_H / 2 + 14}>${dates}</text>
-        <rect class="hit" x="0" y="0" width=${BOX_W_PX} height=${BOX_H} rx="6" />
-      </g>
-    `;
+    const person = this.persons.get(box.personId);
+    if (person === undefined) return nothing;
+    return boxRenderer.render(
+      box,
+      person,
+      box.personId === this.focusId,
+      () => {
+        if (this.dragMoved) return;
+        this.setFocus(box.personId, this.pinFromNode(box.pos));
+      }
+    );
   }
 
   private renderToolbar(
@@ -387,7 +402,11 @@ export class TreeViewElement extends LitElement {
               >
                 <defs>
                   <clipPath id="sl-avatar" clipPathUnits="userSpaceOnUse">
-                    <circle cx=${AVATAR_CX} cy=${BOX_H / 2} r=${AVATAR_R} />
+                    <circle
+                      cx=${boxRenderer.avatarCx}
+                      cy=${boxRenderer.boxH / 2}
+                      r=${boxRenderer.avatarR}
+                    />
                   </clipPath>
                 </defs>
                 <g class="edges">
@@ -417,7 +436,7 @@ export class TreeViewElement extends LitElement {
     if (this.focusId === null) {
       return html`<div class="empty">No people in database.</div>`;
     }
-    const chart = buildChart(this.focusId, this.indices());
+    const chart = buildChart(this.focusId, this.indices(), boxRenderer);
     if (chart === null) {
       return html`<div class="empty">No data for selected focus.</div>`;
     }
