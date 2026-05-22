@@ -171,6 +171,7 @@ function buildAncestorPersonAtParentRow(
   const childhood = buildChildhoodFor(
     personId,
     ancestorChartX,
+    side,
     stepFamSpacer,
     ix
   );
@@ -205,18 +206,13 @@ function computeAuntShift(
 function buildChildhoodFor(
   parentId: number,
   ancestorChartX: number,
+  side: 'left' | 'right',
   stepFamSpacer: number,
   ix: LayoutIndices
 ): FamilyNode | null {
   const gpFam = ix.parentFamByPerson.get(parentId);
   if (gpFam === undefined) return null;
-  const kids = buildChildhoodKids(
-    parentId,
-    gpFam,
-    ancestorChartX,
-    stepFamSpacer,
-    ix
-  );
+  const kids = buildChildhoodKids(parentId, gpFam, side, stepFamSpacer, ix);
   return buildAncestorStack(parentId, 1, ancestorChartX, kids, ix);
 }
 
@@ -226,7 +222,7 @@ function buildChildhoodFor(
 function buildChildhoodKids(
   bloodlineId: number,
   gpFam: FamilyRow,
-  ancestorChartX: number,
+  side: 'left' | 'right',
   stepFamSpacer: number,
   ix: LayoutIndices
 ): KidSlot[] {
@@ -236,7 +232,7 @@ function buildChildhoodKids(
   if (auntIds.length === 0) return [bloodlineSlot];
 
   const auntNodes = auntIds.map((sid) => new PersonNode(sid, null, [], null));
-  const fanLeft = ancestorChartX < 0;
+  const fanLeft = side === 'left';
   // `null` = bloodline slot — rendered upstream but still packed for width.
   const ordered: Array<PersonNode | null> = fanLeft
     ? [...auntNodes, null]
