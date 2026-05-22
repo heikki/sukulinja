@@ -19,7 +19,7 @@ import type { FamilyNode } from '../nodes/family-node';
 import { PersonNode } from '../nodes/person-node';
 import type { Anchor, KidSlot } from '../nodes/types';
 import { buildAncestorStack } from './ancestor-stack';
-import { buildFamily } from './family';
+import { buildAnchoredFamily, buildCenteredFamily } from './family';
 import type { SpousePlacement } from './family';
 import { buildSibship } from './sibship';
 import type { Sibship } from './sibship';
@@ -53,7 +53,7 @@ export function buildParentRow(
     ix
   );
 
-  return buildFamily({
+  return buildCenteredFamily({
     famId: parentFam.id,
     husband: fatherNode,
     wife: motherNode,
@@ -336,7 +336,6 @@ function buildSidedStepFam(
   const kidNodes: PersonNode[] = halfSibIds.map(
     (cid) => new PersonNode(cid, null, [], null)
   );
-  const packed = buildSibship(kidNodes.map((k) => k.extents));
   const halfSibExtents = stepFamSpouseExtents(kidNodes.length);
 
   // xSpouse is in the parent PersonNode's local frame; chart-X of the
@@ -356,22 +355,10 @@ function buildSidedStepFam(
     tieY: xSpouse >= 0 ? -NONPRIMARY_TIE_Y_OFFSET : NONPRIMARY_TIE_Y_OFFSET
   };
 
-  const kidXs = packed.kidXs(placement.childAnchor.x);
-  const kids: KidSlot[] = kidNodes.map((node, i) => ({
-    node,
-    localX: kidXs[i]!
-  }));
-
-  const anchorIsHusband = fam.husband_id === personId;
-  const otherId = anchorIsHusband ? fam.wife_id : fam.husband_id;
-  const spouseArg = otherId === null ? null : { personId: otherId };
-
-  const familyNode = buildFamily({
-    famId: fam.id,
-    husband: anchorIsHusband ? { personId } : spouseArg,
-    wife: anchorIsHusband ? spouseArg : { personId },
-    anchorSide: anchorIsHusband ? 'husband' : 'wife',
-    kids,
+  const familyNode = buildAnchoredFamily({
+    anchorId: personId,
+    fam,
+    kidNodes,
     placement,
     ix
   });

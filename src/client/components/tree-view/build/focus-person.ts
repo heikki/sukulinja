@@ -9,14 +9,12 @@ import {
   COUPLE_PITCH,
   isMeaningfulSpouseFam,
   NONPRIMARY_TIE_Y_OFFSET,
-  otherSpouseOf,
   presentChildren
 } from '../helpers';
 import type { LayoutIndices } from '../helpers';
 import type { FamilyNode } from '../nodes/family-node';
 import { PersonNode } from '../nodes/person-node';
-import type { KidSlot } from '../nodes/types';
-import { buildFamily } from './family';
+import { buildAnchoredFamily } from './family';
 import type { SpousePlacement } from './family';
 import { buildParentRow } from './parent-row';
 import { buildSibship } from './sibship';
@@ -54,8 +52,8 @@ function buildSibling(personId: number, ix: LayoutIndices): PersonNode {
   if (fams.length === 0) return new PersonNode(personId, null, [], null);
   const primary = fams[0]!;
   const fanDir = fanDirOfPerson(personId, fams, ix);
-  const familyNode = buildAnchoredMarriageFN({
-    personId,
+  const familyNode = buildAnchoredFamily({
+    anchorId: personId,
     fam: primary,
     kidNodes: [],
     placement: primaryPlacement(fanDir),
@@ -111,8 +109,8 @@ function buildOwnedMarriages(
     const placement = isActive
       ? primaryPlacement(fanDir)
       : nonPrimaryPlacement(fanDir, outerEdge, packed);
-    const familyNode = buildAnchoredMarriageFN({
-      personId,
+    const familyNode = buildAnchoredFamily({
+      anchorId: personId,
       fam,
       kidNodes,
       placement,
@@ -126,39 +124,6 @@ function buildOwnedMarriages(
     );
   }
   return { marriages, activeIdx };
-}
-
-interface AnchoredMarriageArgs {
-  personId: number;
-  fam: FamilyRow;
-  kidNodes: readonly PersonNode[];
-  placement: SpousePlacement;
-  ix: LayoutIndices;
-  packed?: Sibship;
-}
-
-function buildAnchoredMarriageFN(args: AnchoredMarriageArgs): FamilyNode {
-  const packed =
-    args.packed ?? buildSibship(args.kidNodes.map((k) => k.extents));
-  const kidXs = packed.kidXs(args.placement.childAnchor.x);
-  const kids: KidSlot[] = args.kidNodes.map((node, i) => ({
-    node,
-    localX: kidXs[i]!
-  }));
-
-  const anchorIsHusband = args.fam.husband_id === args.personId;
-  const otherId = otherSpouseOf(args.fam, args.personId);
-  const spouseArg = otherId === null ? null : { personId: otherId };
-
-  return buildFamily({
-    famId: args.fam.id,
-    husband: anchorIsHusband ? { personId: args.personId } : spouseArg,
-    wife: anchorIsHusband ? spouseArg : { personId: args.personId },
-    anchorSide: anchorIsHusband ? 'husband' : 'wife',
-    kids,
-    placement: args.placement,
-    ix: args.ix
-  });
 }
 
 function ownedKidNodes(
