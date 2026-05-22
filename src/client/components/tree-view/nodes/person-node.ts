@@ -20,7 +20,7 @@
 // the focus PersonNode without childhood so the parent-row builder can read
 // its downward extents, then plugs the parent FN in via the setter).
 
-import { BOX_W, ROW_PITCH } from '../helpers';
+import { BOX_W } from '../helpers';
 import type { FamilyNode } from './family-node';
 import { LayoutNode } from './layout-node';
 
@@ -48,7 +48,7 @@ export class PersonNode extends LayoutNode {
   set childhoodFamily(fn: FamilyNode | null) {
     const next = fn;
     if (next !== null) {
-      next.offset = { x: 0, y: -ROW_PITCH };
+      next.offset = { x: 0, rowOffset: -1 };
     }
     this._childhoodFamily = next;
     this.invalidateExtents();

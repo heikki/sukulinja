@@ -4,13 +4,10 @@
 import type { FamilyRow } from '@common/types';
 
 import {
-  BOX_H,
   BOX_W,
   COUPLE_PITCH,
-  HALF_PITCH,
   isMeaningfulSpouseFam,
   isPersonKnown,
-  NONPRIMARY_TIE_Y_OFFSET,
   presentChildren,
   SIBLING_GAP
 } from '../helpers';
@@ -351,8 +348,8 @@ function buildSidedStepFam(
 
   const placement: SpousePlacement = {
     xSpouse,
-    childAnchor: { x: xSpouse, y: BOX_H / 2 },
-    tieY: xSpouse >= 0 ? -NONPRIMARY_TIE_Y_OFFSET : NONPRIMARY_TIE_Y_OFFSET
+    childAnchor: { x: xSpouse, kind: 'box-bottom' },
+    tieKind: side === 'right' ? 'nonprimary-right' : 'nonprimary-left'
   };
 
   const familyNode = buildAnchoredFamily({

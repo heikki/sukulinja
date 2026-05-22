@@ -21,3 +21,27 @@ export interface OwnedPersonSlot {
 
 export type AdultSlot = OwnedPersonSlot | Anchor | null;
 export type KidSlot = OwnedPersonSlot | Anchor;
+
+// Structural offset between layout-tree nodes. x is local pixels (horizontal
+// units are still pixel-flavored until the column-pitch abstraction lands).
+// rowOffset is an integer count of rows — emit multiplies by ROW_PITCH when
+// resolving absolute coordinates.
+export interface LayoutOffset {
+  x: number;
+  rowOffset: number;
+}
+
+// Semantic position of a FamilyNode's Couple Tie. Resolved to a y by emit.
+//   centered          → primary marriages and the chart-root parent FN
+//   nonprimary-left   → non-primary marriage fanning to the left side
+//   nonprimary-right  → non-primary marriage fanning to the right side
+export type TieKind = 'centered' | 'nonprimary-left' | 'nonprimary-right';
+
+// Semantic position of the Child anchor (see CONTEXT.md). y is determined by
+// kind; x is the local pivot to drop from.
+//   tie-midpoint  → Couple Tie midpoint (primary / centered marriages)
+//   box-bottom    → bottom edge of an adult's box (non-primary, lone parent)
+export interface ChildAnchor {
+  x: number;
+  kind: 'tie-midpoint' | 'box-bottom';
+}
