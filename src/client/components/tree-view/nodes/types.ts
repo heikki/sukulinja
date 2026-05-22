@@ -22,13 +22,12 @@ export interface OwnedPersonSlot {
 export type AdultSlot = OwnedPersonSlot | Anchor | null;
 export type KidSlot = OwnedPersonSlot | Anchor;
 
-// Structural offset between layout-tree nodes. x is local pixels (horizontal
-// units are still pixel-flavored until the column-pitch abstraction lands).
-// rowOffset is an integer count of rows — emit multiplies by ROW_PITCH when
-// resolving absolute coordinates.
+// Structural offset between layout-tree nodes, in slot units on both axes.
+// x is a float (sub-slot positions arise from sibship packing); y is an
+// integer count of generations. Pixel resolution happens at the emit seam.
 export interface LayoutOffset {
   x: number;
-  rowOffset: number;
+  y: number;
 }
 
 // Semantic position of a FamilyNode's Couple Tie. Resolved to a y by emit.

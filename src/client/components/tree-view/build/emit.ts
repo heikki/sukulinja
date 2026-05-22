@@ -6,13 +6,15 @@
 // upstream PersonNode that owns this FamilyNode.
 //
 // Emit is also the seam where the layout's structural units resolve to
-// absolute pixel coordinates:
-//   x  — slot units (1 slot = PITCH_PX). Each PersonNode's slot footprint
-//        is 1 slot wide, with implicit half-gap padding on each side.
-//        Multiplied by PITCH_PX at the leaf; tie endpoints clip to box
-//        edges via BOX_W_PX.
-//   y  — integer rowOffset (multiplied by ROW_PITCH) plus pixel offsets
-//        from semantic tags (FamilyNode.tieKind, ChildAnchor.kind).
+// absolute pixel coordinates. LayoutOffset is in slot units on both
+// axes — sub-slot x (sibship packing), integer-generation y.
+//   x  — pitch is PITCH_PX. Each PersonNode's footprint is 1 slot wide,
+//        with implicit half-gap padding on each side. Multiplied by
+//        PITCH_PX at the leaf; tie endpoints clip to box edges via
+//        BOX_W_PX.
+//   y  — pitch is ROW_PITCH. Multiplied by ROW_PITCH in accumulate;
+//        intra-family endpoints come in as pixels from familyLines via
+//        FamilyNode.tieKind and ChildAnchor.kind.
 
 import {
   BOX_H,
@@ -83,7 +85,7 @@ function walk(node: LayoutNode, abs: Point, boxes: Box[], lines: Line[]) {
 }
 
 function accumulate(abs: Point, offset: LayoutOffset): Point {
-  return { x: abs.x + offset.x, y: abs.y + offset.rowOffset * ROW_PITCH };
+  return { x: abs.x + offset.x, y: abs.y + offset.y * ROW_PITCH };
 }
 
 function familyLines(node: FamilyNode): Line[] {

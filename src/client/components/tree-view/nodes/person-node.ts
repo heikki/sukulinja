@@ -47,7 +47,7 @@ export class PersonNode extends LayoutNode {
   set childhoodFamily(fn: FamilyNode | null) {
     const next = fn;
     if (next !== null) {
-      next.offset = { x: 0, rowOffset: -1 };
+      next.offset = { x: 0, y: -1 };
     }
     this._childhoodFamily = next;
     this.invalidateExtents();

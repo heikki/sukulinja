@@ -10,11 +10,11 @@ import type { Extents } from '../helpers';
 import type { LayoutOffset } from './types';
 
 export abstract class LayoutNode {
-  // Position relative to this node's parent. x is local pixels; rowOffset is
-  // an integer row count (emit multiplies by ROW_PITCH). A FamilyNode sets
-  // its owned PersonNodes' offsets from the slot's localX; a PersonNode sets
-  // its FamilyNode children's offsets from their row position.
-  offset: LayoutOffset = { x: 0, rowOffset: 0 };
+  // Position relative to this node's parent, in slot units on both axes
+  // (see LayoutOffset). FamilyNodes place owned PersonNodes at the slot's
+  // localX with y = 0 (adults) or y = 1 (kids). PersonNodes place their
+  // childhoodFamily at y = −1 and marriages at y = 0.
+  offset: LayoutOffset = { x: 0, y: 0 };
 
   abstract readonly children: readonly LayoutNode[];
 

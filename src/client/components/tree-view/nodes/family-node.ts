@@ -23,10 +23,10 @@ function isOwned(slot: OwnedPersonSlot | Anchor): slot is OwnedPersonSlot {
 }
 
 // Returns null when the slot is empty or an Anchor (nothing to place).
-function placeOwned(slot: AdultSlot | KidSlot, rowOffset: number) {
+function placeOwned(slot: AdultSlot | KidSlot, y: number) {
   if (slot === null || !isOwned(slot)) return null;
   const { node, localX } = slot;
-  node.offset = { x: localX, rowOffset };
+  node.offset = { x: localX, y };
   return node;
 }
 
@@ -35,7 +35,7 @@ interface FamilyNodeArgs {
   husband: AdultSlot;
   wife: AdultSlot;
   kids: readonly KidSlot[];
-  // Couple-Tie position (semantic). Adults sit at rowOffset 0; kids at 1.
+  // Couple-Tie position (semantic). Resolved to a pixel y by emit.
   tieKind: TieKind;
   // Sibship drop origin in the local frame.
   childAnchor: ChildAnchor;
