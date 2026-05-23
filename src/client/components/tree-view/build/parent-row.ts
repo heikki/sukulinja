@@ -56,19 +56,12 @@ export function buildParentRow(
 }
 
 // Birth-order packing, shifted so Focus lands at family-local 0.
-interface FocusRowPacking {
-  slots: KidSlot[];
-  packed: Sibship;
-  focusIdx: number;
-  focusShift: number;
-}
-
 function packFocusRow(
   parentFam: FamilyRow,
   focusNode: PersonNode,
   siblingNodes: readonly PersonNode[],
   ix: LayoutIndices
-): FocusRowPacking {
+) {
   const focusId = focusNode.personId;
   const sibIds = presentChildren(parentFam, ix);
   const siblingsById = new Map<number, PersonNode>();
@@ -78,15 +71,14 @@ function packFocusRow(
     id === focusId ? focusNode.extents : siblingsById.get(id)!.extents
   );
   const packed = buildSibship(extents);
-  const focusIdx = sibIds.indexOf(focusId);
-  const focusShift = -packed.positions[focusIdx]!;
+  const focusShift = -packed.positions[sibIds.indexOf(focusId)]!;
   const slots: KidSlot[] = sibIds.map((id, i) => {
     const localX = packed.positions[i]! + focusShift;
     return id === focusId
       ? { personId: id, localX }
       : { node: siblingsById.get(id)!, localX };
   });
-  return { slots, packed, focusIdx, focusShift };
+  return { slots, packed, focusShift };
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -110,16 +102,11 @@ class BloodlineFootprint {
   outerEdge(side: 'left' | 'right') {
     return this.bloodlineEdges[side];
   }
-
-  parentBoxEdge(side: 'left' | 'right') {
-    const x = this.parentChartX(side);
-    return side === 'left' ? x - 0.5 : x + 0.5;
-  }
 }
 
 function computeBloodlineFootprint(
   parentFam: FamilyRow,
-  focusRow: FocusRowPacking,
+  focusRow: ReturnType<typeof packFocusRow>,
   ix: LayoutIndices
 ): BloodlineFootprint {
   const fatherPresent = isPersonKnown(parentFam.husband_id, ix);
@@ -163,13 +150,17 @@ function buildAncestorPersonAtParentRow(
     side,
     ix
   );
-  const childhood = buildChildhoodFor(
-    personId,
-    ancestorChartX,
-    side,
-    stepFamSpacer,
-    ix
-  );
+  const gpFam = ix.parentFamByPerson.get(personId);
+  const childhood =
+    gpFam === undefined
+      ? null
+      : buildAncestorStack(
+          personId,
+          1,
+          ancestorChartX,
+          buildChildhoodKids(personId, gpFam, side, stepFamSpacer, ix),
+          ix
+        );
   const stepFams = buildStepFamFan(personId, parentFam.id, footprint, side, ix);
   return new PersonNode(
     personId,
@@ -189,26 +180,14 @@ function computeAuntShift(
   ix: LayoutIndices
 ): number {
   const stepFams = measureStepFamsExtent(parentId, bloodlineFamId, ix);
-  const parentBoxEdge = footprint.parentBoxEdge(side);
+  const parentChartX = footprint.parentChartX(side);
   const outerEdge = footprint.outerEdge(side);
+  // Parent's box edge on `side` is half a slot outside parentChartX.
   const extentPastBox =
     side === 'left'
-      ? Math.max(0, parentBoxEdge - outerEdge)
-      : Math.max(0, outerEdge - parentBoxEdge);
+      ? Math.max(0, parentChartX - 0.5 - outerEdge)
+      : Math.max(0, outerEdge - (parentChartX + 0.5));
   return extentPastBox + stepFams;
-}
-
-function buildChildhoodFor(
-  parentId: number,
-  ancestorChartX: number,
-  side: 'left' | 'right',
-  stepFamSpacer: number,
-  ix: LayoutIndices
-): FamilyNode | null {
-  const gpFam = ix.parentFamByPerson.get(parentId);
-  if (gpFam === undefined) return null;
-  const kids = buildChildhoodKids(parentId, gpFam, side, stepFamSpacer, ix);
-  return buildAncestorStack(parentId, 1, ancestorChartX, kids, ix);
 }
 
 // Bloodline kid at the inward end; Aunts/Uncles fan outward in birth order,
@@ -253,18 +232,13 @@ function buildChildhoodKids(
 // Step-fam fan (ADR-0002 — depth-1 only)
 // ─────────────────────────────────────────────────────────────────────────
 
-interface StepFamFanResult {
-  marriages: Array<FamilyNode | null>;
-  bloodlineIdx: number;
-}
-
 function buildStepFamFan(
   personId: number,
   bloodlineFamId: number,
   footprint: BloodlineFootprint,
   side: 'left' | 'right',
   ix: LayoutIndices
-): StepFamFanResult {
+) {
   const allFams = ix.spouseFamsByPerson.get(personId) ?? [];
   const bloodlineIdx = allFams.findIndex((f) => f.id === bloodlineFamId);
   if (bloodlineIdx === -1) {
@@ -309,11 +283,6 @@ function nonBloodlineFanOrder(n: number, bloodlineIdx: number): number[] {
   return out;
 }
 
-interface StepFamBuilt {
-  familyNode: FamilyNode;
-  newOuter: number;
-}
-
 function buildSidedStepFam(
   personId: number,
   fam: FamilyRow,
@@ -321,7 +290,7 @@ function buildSidedStepFam(
   parentChartX: number,
   outerEdge: number,
   ix: LayoutIndices
-): StepFamBuilt {
+) {
   const halfSibIds = presentChildren(fam, ix);
   const kidNodes: PersonNode[] = halfSibIds.map(
     (cid) => new PersonNode(cid, null, [], null)

@@ -15,14 +15,6 @@ import type { Point } from '../helpers';
 import { FamilyNode } from '../nodes/family-node';
 import type { LayoutNode } from '../nodes/layout-node';
 import { PersonNode } from '../nodes/person-node';
-import type {
-  Anchor,
-  ChildAnchor,
-  KidSlot,
-  LayoutOffset,
-  OwnedPersonSlot,
-  TieKind
-} from '../nodes/types';
 
 export interface EmitTheme {
   boxW: number;
@@ -79,12 +71,11 @@ export function emitLayout(
       }
     }
     for (const child of node.children) {
-      walk(child, accumulate(abs, child.offset));
+      walk(child, {
+        x: abs.x + child.offset.x,
+        y: abs.y + child.offset.y * rowPitch
+      });
     }
-  }
-
-  function accumulate(abs: Point, offset: LayoutOffset): Point {
-    return { x: abs.x + offset.x, y: abs.y + offset.y * rowPitch };
   }
 
   function familyLines(node: FamilyNode): Line[] {
@@ -96,7 +87,12 @@ export function emitLayout(
       // placement) — pick endpoints by X order, not by husband/wife roles.
       const leftX = Math.min(node.husband.localX, node.wife.localX);
       const rightX = Math.max(node.husband.localX, node.wife.localX);
-      const ty = tieY(node.tieKind);
+      const ty =
+        node.tieKind === 'centered'
+          ? 0
+          : node.tieKind === 'nonprimary-left'
+            ? theme.nonprimaryTieYOffset
+            : -theme.nonprimaryTieYOffset;
       out.push({
         key: `tie-${node.famId}`,
         from: { x: leftX + boxHalfSlot, y: ty },
@@ -115,7 +111,7 @@ export function emitLayout(
     const busY = rowPitch / 2;
     const anchorPoint: Point = {
       x: childAnchor.x,
-      y: childAnchorY(childAnchor.kind)
+      y: childAnchor.kind === 'tie-midpoint' ? 0 : theme.boxH / 2
     };
     // Drop is always vertical (see CONTEXT.md "Bloodline pyramid", ADR-0001).
     // The bar spans the union of childAnchor.x and the kid Xs — so a
@@ -140,8 +136,9 @@ export function emitLayout(
       });
     }
     for (const k of kids) {
+      const personId = 'node' in k ? k.node.personId : k.personId;
       out.push({
-        key: `sib-${famId}-leg-${slotPersonId(k)}`,
+        key: `sib-${famId}-leg-${personId}`,
         from: { x: k.localX, y: busY },
         // Leg foot lands at the top of the kid's box: half a box down past
         // this family's tie row, then a full vertical gap.
@@ -150,34 +147,6 @@ export function emitLayout(
     }
   }
 
-  function tieY(kind: TieKind): number {
-    switch (kind) {
-      case 'centered':
-        return 0;
-      case 'nonprimary-left':
-        return theme.nonprimaryTieYOffset;
-      case 'nonprimary-right':
-        return -theme.nonprimaryTieYOffset;
-    }
-  }
-
-  function childAnchorY(kind: ChildAnchor['kind']): number {
-    switch (kind) {
-      case 'tie-midpoint':
-        return 0;
-      case 'box-bottom':
-        return theme.boxH / 2;
-    }
-  }
-
   walk(root, startAbs);
   return { boxes, lines };
-}
-
-function slotPersonId(slot: KidSlot): number {
-  return isOwned(slot) ? slot.node.personId : slot.personId;
-}
-
-function isOwned(slot: OwnedPersonSlot | Anchor): slot is OwnedPersonSlot {
-  return 'node' in slot;
 }

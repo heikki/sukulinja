@@ -53,25 +53,6 @@ function buildSibling(personId: number, ix: LayoutIndices): PersonNode {
   return new PersonNode(personId, null, [familyNode], 0);
 }
 
-function buildDescendantKid(
-  personId: number,
-  depth: number,
-  ix: LayoutIndices
-): PersonNode {
-  const { marriages, activeIdx } = buildOwnedMarriages(
-    personId,
-    depth,
-    depth < ix.levels,
-    ix
-  );
-  return new PersonNode(personId, null, marriages, activeIdx);
-}
-
-interface OwnedMarriagesResult {
-  marriages: ReadonlyArray<FamilyNode | null>;
-  activeIdx: number | null;
-}
-
 // Active (= most recent) marriage gets primary placement; earlier marriages
 // fan outward in fanDir using accumulated outerEdge.
 function buildOwnedMarriages(
@@ -79,7 +60,7 @@ function buildOwnedMarriages(
   depth: number,
   includeChildren: boolean,
   ix: LayoutIndices
-): OwnedMarriagesResult {
+): { marriages: ReadonlyArray<FamilyNode | null>; activeIdx: number | null } {
   const fams = meaningfulSpouseFams(personId, ix);
   if (fams.length === 0) return { marriages: [], activeIdx: null };
 
@@ -89,12 +70,29 @@ function buildOwnedMarriages(
     { length: fams.length },
     () => null
   );
+  const kidDepth = depth + 1;
+  const grandkidsIncluded = kidDepth < ix.levels;
 
   let outerEdge = 0.5;
   for (let off = 0; off < fams.length; off += 1) {
     const i = activeIdx - off;
     const fam = fams[i]!;
-    const kidNodes = ownedKidNodes(fam, depth, includeChildren, ix);
+    const kidNodes: PersonNode[] = includeChildren
+      ? presentChildren(fam, ix).map((cid) => {
+          const grandkids = buildOwnedMarriages(
+            cid,
+            kidDepth,
+            grandkidsIncluded,
+            ix
+          );
+          return new PersonNode(
+            cid,
+            null,
+            grandkids.marriages,
+            grandkids.activeIdx
+          );
+        })
+      : [];
     const packed = buildSibship(kidNodes.map((k) => k.extents));
     const placement =
       off === 0
@@ -115,18 +113,6 @@ function buildOwnedMarriages(
     );
   }
   return { marriages, activeIdx };
-}
-
-function ownedKidNodes(
-  fam: FamilyRow,
-  depth: number,
-  includeChildren: boolean,
-  ix: LayoutIndices
-): PersonNode[] {
-  if (!includeChildren) return [];
-  return presentChildren(fam, ix).map((cid) =>
-    buildDescendantKid(cid, depth + 1, ix)
-  );
 }
 
 function meaningfulSpouseFams(personId: number, ix: LayoutIndices) {
