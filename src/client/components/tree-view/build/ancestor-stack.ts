@@ -3,18 +3,17 @@
 // the caller (single Anchor at depth ≥ 2; full Aunts/Uncles sibship at
 // depth 1 from parent-row). Tie position follows ADR-0001.
 
-import { isPersonKnown } from '../helpers';
-import type { LayoutIndices } from '../helpers';
-import type { FamilyNode } from '../nodes/family-node';
+import type { FamilyNode, PersonSlot } from '../nodes/family-node';
 import { PersonNode } from '../nodes/person-node';
-import type { Anchor, KidSlot } from '../nodes/types';
 import { buildCenteredFamily } from './family';
+import { isPersonKnown } from './indices';
+import type { LayoutIndices } from './indices';
 
 export function buildAncestorStack(
   kidId: number,
   kidDepth: number,
   kidChartX: number,
-  kids: readonly KidSlot[],
+  kids: readonly PersonSlot[],
   ix: LayoutIndices
 ): FamilyNode | null {
   if (kidDepth >= ix.levels) return null;
@@ -60,7 +59,7 @@ function buildAncestorPerson(
   ix: LayoutIndices
 ): PersonNode | null {
   if (!isPersonKnown(personId, ix)) return null;
-  const kid: Anchor = { personId, localX: 0 };
+  const kid: PersonSlot = { node: null, personId, localX: 0 };
   const childhood = buildAncestorStack(personId, depth, chartX, [kid], ix);
   return new PersonNode(personId, childhood, [], null);
 }

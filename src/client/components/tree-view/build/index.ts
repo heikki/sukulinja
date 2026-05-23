@@ -1,13 +1,11 @@
 // Layout pipeline entry. Focus is the chart root at (0, 0); emit walks the
 // tree once and produces a flat EmitOutput.
 
-import { isPersonKnown } from '../helpers';
-import type { LayoutIndices } from '../helpers';
-import { emitLayout } from './emit';
-import type { EmitTheme } from './emit';
+import { emitLayout } from '../emit';
+import type { EmitTheme } from '../emit';
 import { buildFocusPerson } from './focus-person';
-
-export type { Box, EmitOutput, EmitTheme } from './emit';
+import { isPersonKnown } from './indices';
+import type { LayoutIndices } from './indices';
 
 export function buildChart(
   focusId: number,

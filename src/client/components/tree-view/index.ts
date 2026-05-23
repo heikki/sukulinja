@@ -7,10 +7,12 @@ import { apiUrl, mediaUrl } from '@client/api';
 import type { FamilyRow, PersonRow } from '@common/types';
 
 import { buildChart } from './build';
-import type { Box, EmitOutput } from './build';
-import { DEFAULT_FOCUS_ID, DRAG_THRESHOLD_PX, SVG_HALF } from './helpers';
-import type { Point } from './helpers';
+import type { Box, EmitOutput, Point } from './emit';
 import { treeViewStyles } from './styles';
+
+const SVG_HALF = 5000;
+const DRAG_THRESHOLD_PX = 4;
+const DEFAULT_FOCUS_ID = 1;
 
 // Box renderer: the dimensions/gaps that decide the slot pitch (forwarded
 // to emit via the EmitTheme fields) and the render function that paints

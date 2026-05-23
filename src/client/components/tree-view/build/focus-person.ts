@@ -2,12 +2,12 @@
 
 import type { FamilyRow } from '@common/types';
 
-import { isMeaningfulSpouseFam, presentChildren } from '../helpers';
-import type { LayoutIndices } from '../helpers';
 import type { FamilyNode } from '../nodes/family-node';
 import { PersonNode } from '../nodes/person-node';
 import { buildAnchoredFamily } from './family';
 import type { SpousePlacement } from './family';
+import { isMeaningfulSpouseFam, presentChildren } from './indices';
+import type { LayoutIndices } from './indices';
 import { buildParentRow } from './parent-row';
 import { buildSibship } from './sibship';
 import type { Sibship } from './sibship';

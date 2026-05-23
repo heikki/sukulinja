@@ -3,7 +3,7 @@
 // share their padding, so the inter-kid gap appears automatically without
 // any explicit gap term here.
 
-import type { Extents } from '../helpers';
+import type { Extents } from '../nodes/layout-node';
 
 export interface Sibship {
   // Pivots in the packed frame: positions[0] = extents[0].left (not 0).
