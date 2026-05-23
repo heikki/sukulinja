@@ -16,7 +16,6 @@ import {
 } from './indices';
 import type { LayoutIndices } from './indices';
 import { buildSibship } from './sibship';
-import type { Sibship } from './sibship';
 
 export function buildParentRow(
   focusNode: PersonNode,

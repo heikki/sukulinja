@@ -76,17 +76,13 @@ const SCHEMA_SQL = `
   );
 `;
 
-function runScript(db: Database, sql: string): void {
-  const statements = sql
-    .split(';')
-    .map((s) => s.trim())
-    .filter((s) => s !== '');
-  for (const stmt of statements) db.run(stmt);
-}
-
 export function openDb(path: string): Database {
   const db = new Database(path, { create: true });
   db.run('PRAGMA foreign_keys = ON;');
-  runScript(db, SCHEMA_SQL);
+  for (const stmt of SCHEMA_SQL.split(';')
+    .map((s) => s.trim())
+    .filter((s) => s !== '')) {
+    db.run(stmt);
+  }
   return db;
 }
