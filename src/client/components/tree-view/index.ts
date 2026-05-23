@@ -154,7 +154,14 @@ export class TreeViewElement extends LitElement {
       return;
     }
     if (this.pendingPinScreen !== null) {
-      this.applyPin();
+      // After a focus change, the new focus lives at SVG (0, 0). Set pan so
+      // the captured pendingPinScreen pixel coincides with the new focus —
+      // eliminating the "jump" effect on refocus.
+      this.pan = {
+        x: this.pendingPinScreen.x - SVG_HALF,
+        y: this.pendingPinScreen.y - SVG_HALF
+      };
+      this.pendingPinScreen = null;
     }
   }
 
@@ -166,17 +173,6 @@ export class TreeViewElement extends LitElement {
       y: canvas.clientHeight / 2 - SVG_HALF
     };
     this.panReady = true;
-  }
-
-  // After a focus change, the new focus lives at SVG (0, 0). Set pan so the
-  // captured pendingPinScreen pixel coincides with the new focus — eliminating
-  // the "jump" effect on refocus.
-  private applyPin() {
-    this.pan = {
-      x: this.pendingPinScreen!.x - SVG_HALF,
-      y: this.pendingPinScreen!.y - SVG_HALF
-    };
-    this.pendingPinScreen = null;
   }
 
   private queryCanvas() {
@@ -307,15 +303,6 @@ export class TreeViewElement extends LitElement {
     return out;
   }
 
-  private indices() {
-    return {
-      persons: this.persons,
-      parentFamByPerson: this.parentFamByPerson,
-      spouseFamsByPerson: this.spouseFamsByPerson,
-      levels: this.levels
-    };
-  }
-
   private renderBox(box: Box) {
     const person = this.persons.get(box.personId);
     if (person === undefined) return nothing;
@@ -436,7 +423,16 @@ export class TreeViewElement extends LitElement {
     if (this.focusId === null) {
       return html`<div class="empty">No people in database.</div>`;
     }
-    const chart = buildChart(this.focusId, this.indices(), boxRenderer);
+    const chart = buildChart(
+      this.focusId,
+      {
+        persons: this.persons,
+        parentFamByPerson: this.parentFamByPerson,
+        spouseFamsByPerson: this.spouseFamsByPerson,
+        levels: this.levels
+      },
+      boxRenderer
+    );
     if (chart === null) {
       return html`<div class="empty">No data for selected focus.</div>`;
     }

@@ -32,48 +32,35 @@ export interface CenteredFamilyArgs {
 
 export function buildCenteredFamily(args: CenteredFamilyArgs) {
   const tieXLocal = args.tieXLocal ?? 0;
-  const placed = placeCenteredCouple(args.husband, args.wife, tieXLocal);
-  return new FamilyNode({
-    famId: args.famId,
-    husband: placed.husband,
-    wife: placed.wife,
-    kids: args.kids,
-    childAnchor: placed.childAnchor,
-    tieKind: 'centered'
-  });
-}
-
-interface CenteredCouplePlacement {
-  husband: AdultSlot;
-  wife: AdultSlot;
-  childAnchor: ChildAnchor;
-}
-
-function placeCenteredCouple(
-  husbandNode: PersonNode | null,
-  wifeNode: PersonNode | null,
-  tieXLocal: number
-): CenteredCouplePlacement {
-  if (husbandNode !== null && wifeNode !== null) {
-    return {
-      husband: { node: husbandNode, localX: tieXLocal - 0.5 },
-      wife: { node: wifeNode, localX: tieXLocal + 0.5 },
-      childAnchor: { x: tieXLocal, kind: 'tie-midpoint' }
-    };
-  }
-  // Lone parent: drop from the present adult's box bottom so the sibship
-  // Bar lines up vertically with their column.
-  return {
-    husband: husbandNode === null ? null : { node: husbandNode, localX: 0 },
-    wife: wifeNode === null ? null : { node: wifeNode, localX: 0 },
-    childAnchor: {
+  const bothPresent = args.husband !== null && args.wife !== null;
+  let husband: AdultSlot;
+  let wife: AdultSlot;
+  let childAnchor: ChildAnchor;
+  if (bothPresent) {
+    husband = { node: args.husband!, localX: tieXLocal - 0.5 };
+    wife = { node: args.wife!, localX: tieXLocal + 0.5 };
+    childAnchor = { x: tieXLocal, kind: 'tie-midpoint' };
+  } else {
+    // Lone parent: drop from the present adult's box bottom so the sibship
+    // Bar lines up vertically with their column.
+    husband = args.husband === null ? null : { node: args.husband, localX: 0 };
+    wife = args.wife === null ? null : { node: args.wife, localX: 0 };
+    childAnchor = {
       x: 0,
       kind:
-        husbandNode !== null || wifeNode !== null
+        args.husband !== null || args.wife !== null
           ? 'box-bottom'
           : 'tie-midpoint'
-    }
-  };
+    };
+  }
+  return new FamilyNode({
+    famId: args.famId,
+    husband,
+    wife,
+    kids: args.kids,
+    childAnchor,
+    tieKind: 'centered'
+  });
 }
 
 export interface AnchoredFamilyArgs {

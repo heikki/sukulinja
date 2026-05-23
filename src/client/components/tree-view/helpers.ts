@@ -15,10 +15,6 @@ export interface Point {
   y: number;
 }
 
-export function translatePoint(p: Point, by: Point) {
-  return { x: p.x + by.x, y: p.y + by.y };
-}
-
 export interface Extents {
   left: number;
   right: number;
