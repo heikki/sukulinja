@@ -15,7 +15,7 @@ function validateSlug(slug: string): void {
   }
 }
 
-export interface FreshDataset {
+interface FreshDataset {
   db: Database;
   mediaDir: string;
 }

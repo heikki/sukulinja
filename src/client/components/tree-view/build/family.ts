@@ -7,11 +7,16 @@
 
 import type { FamilyRow } from '@common/types';
 
-import { isPersonKnown, otherSpouseOf } from '../helpers';
-import type { LayoutIndices } from '../helpers';
 import { FamilyNode } from '../nodes/family-node';
+import type {
+  AdultSlot,
+  ChildAnchor,
+  PersonSlot,
+  TieKind
+} from '../nodes/family-node';
 import { PersonNode } from '../nodes/person-node';
-import type { AdultSlot, ChildAnchor, KidSlot, TieKind } from '../nodes/types';
+import { isPersonKnown, otherSpouseOf } from './indices';
+import type { LayoutIndices } from './indices';
 import { buildSibship } from './sibship';
 import type { Sibship } from './sibship';
 
@@ -21,11 +26,11 @@ export interface SpousePlacement {
   tieKind: TieKind;
 }
 
-export interface CenteredFamilyArgs {
+interface CenteredFamilyArgs {
   famId: number;
   husband: PersonNode | null;
   wife: PersonNode | null;
-  kids: readonly KidSlot[];
+  kids: readonly PersonSlot[];
   // Family-local Tie X. Defaults to 0.
   tieXLocal?: number;
 }
@@ -37,14 +42,14 @@ export function buildCenteredFamily(args: CenteredFamilyArgs) {
   let wife: AdultSlot;
   let childAnchor: ChildAnchor;
   if (bothPresent) {
-    husband = { node: args.husband!, localX: tieXLocal - 0.5 };
-    wife = { node: args.wife!, localX: tieXLocal + 0.5 };
+    husband = ownedSlot(args.husband!, tieXLocal - 0.5);
+    wife = ownedSlot(args.wife!, tieXLocal + 0.5);
     childAnchor = { x: tieXLocal, kind: 'tie-midpoint' };
   } else {
     // Lone parent: drop from the present adult's box bottom so the sibship
     // Bar lines up vertically with their column.
-    husband = args.husband === null ? null : { node: args.husband, localX: 0 };
-    wife = args.wife === null ? null : { node: args.wife, localX: 0 };
+    husband = args.husband === null ? null : ownedSlot(args.husband, 0);
+    wife = args.wife === null ? null : ownedSlot(args.wife, 0);
     childAnchor = {
       x: 0,
       kind:
@@ -63,7 +68,11 @@ export function buildCenteredFamily(args: CenteredFamilyArgs) {
   });
 }
 
-export interface AnchoredFamilyArgs {
+function ownedSlot(node: PersonNode, localX: number): PersonSlot {
+  return { node, personId: node.personId, localX };
+}
+
+interface AnchoredFamilyArgs {
   anchorId: number;
   fam: FamilyRow;
   kidNodes: readonly PersonNode[];
@@ -77,14 +86,18 @@ export function buildAnchoredFamily(args: AnchoredFamilyArgs) {
   const packed =
     args.packed ?? buildSibship(args.kidNodes.map((k) => k.extents));
   const kidXs = packed.kidXs(args.placement.childAnchor.x);
-  const kids: KidSlot[] = args.kidNodes.map((node, i) => ({
-    node,
-    localX: kidXs[i]!
-  }));
+  const kids: PersonSlot[] = args.kidNodes.map((node, i) =>
+    ownedSlot(node, kidXs[i]!)
+  );
 
   const anchorIsHusband = args.fam.husband_id === args.anchorId;
   const otherId = otherSpouseOf(args.fam, args.anchorId);
-  const anchorAdult: AdultSlot = { personId: args.anchorId, localX: 0 };
+  // Anchor adult: PersonNode lives upstream — slot carries position only.
+  const anchorAdult: PersonSlot = {
+    node: null,
+    personId: args.anchorId,
+    localX: 0
+  };
   const spouseAdult = resolveSpouseSlot(
     otherId,
     args.placement.xSpouse,
@@ -110,7 +123,7 @@ function resolveSpouseSlot(
 ): AdultSlot {
   if (spouseId === null) return null;
   if (isPersonKnown(spouseId, ix)) {
-    return { node: new PersonNode(spouseId, null, [], null), localX };
+    return ownedSlot(new PersonNode(spouseId, null, [], null), localX);
   }
-  return { personId: spouseId, localX };
+  return { node: null, personId: spouseId, localX };
 }

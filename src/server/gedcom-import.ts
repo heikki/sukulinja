@@ -101,7 +101,7 @@ function cropValues(file: GedNode) {
   };
 }
 
-export type MediaResolver = (originalRelpath: string) => string | null;
+type MediaResolver = (originalRelpath: string) => string | null;
 
 export function importGedcom(
   db: Database,

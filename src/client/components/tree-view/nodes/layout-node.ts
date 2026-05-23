@@ -6,8 +6,20 @@
 // The tree is consumed by the emit pass (see build/emit.ts), which walks
 // once and produces a flat ID-keyed EmitOutput for rendering.
 
-import type { Extents } from '../helpers';
-import type { LayoutOffset } from './types';
+// Structural offset between layout-tree nodes, in slot units on both axes.
+// x is a float (sub-slot positions arise from sibship packing); y is an
+// integer count of generations. Pixel resolution happens at the emit seam.
+export interface LayoutOffset {
+  x: number;
+  y: number;
+}
+
+// Horizontal reach of a layout subtree from its pivot, in slot units. Slot
+// footprints include implicit half-gap padding (see CONTEXT.md).
+export interface Extents {
+  left: number;
+  right: number;
+}
 
 export abstract class LayoutNode {
   // Position relative to this node's parent, in slot units on both axes

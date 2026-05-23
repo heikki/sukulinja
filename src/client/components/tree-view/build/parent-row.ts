@@ -3,18 +3,18 @@
 
 import type { FamilyRow } from '@common/types';
 
+import type { FamilyNode, PersonSlot } from '../nodes/family-node';
+import type { Extents } from '../nodes/layout-node';
+import { PersonNode } from '../nodes/person-node';
+import { buildAncestorStack } from './ancestor-stack';
+import { buildAnchoredFamily, buildCenteredFamily } from './family';
+import type { SpousePlacement } from './family';
 import {
   isMeaningfulSpouseFam,
   isPersonKnown,
   presentChildren
-} from '../helpers';
-import type { Extents, LayoutIndices } from '../helpers';
-import type { FamilyNode } from '../nodes/family-node';
-import { PersonNode } from '../nodes/person-node';
-import type { Anchor, KidSlot } from '../nodes/types';
-import { buildAncestorStack } from './ancestor-stack';
-import { buildAnchoredFamily, buildCenteredFamily } from './family';
-import type { SpousePlacement } from './family';
+} from './indices';
+import type { LayoutIndices } from './indices';
 import { buildSibship } from './sibship';
 import type { Sibship } from './sibship';
 
@@ -72,11 +72,11 @@ function packFocusRow(
   );
   const packed = buildSibship(extents);
   const focusShift = -packed.positions[sibIds.indexOf(focusId)]!;
-  const slots: KidSlot[] = sibIds.map((id, i) => {
+  const slots: PersonSlot[] = sibIds.map((id, i) => {
     const localX = packed.positions[i]! + focusShift;
-    return id === focusId
-      ? { personId: id, localX }
-      : { node: siblingsById.get(id)!, localX };
+    if (id === focusId) return { node: null, personId: id, localX };
+    const node = siblingsById.get(id)!;
+    return { node, personId: id, localX };
   });
   return { slots, packed, focusShift };
 }
@@ -199,8 +199,12 @@ function buildChildhoodKids(
   side: 'left' | 'right',
   stepFamSpacer: number,
   ix: LayoutIndices
-): KidSlot[] {
-  const bloodlineSlot: Anchor = { personId: bloodlineId, localX: 0 };
+): PersonSlot[] {
+  const bloodlineSlot: PersonSlot = {
+    node: null,
+    personId: bloodlineId,
+    localX: 0
+  };
   const sibIds = presentChildren(gpFam, ix);
   const auntIds = sibIds.filter((sid) => sid !== bloodlineId);
   if (auntIds.length === 0) return [bloodlineSlot];
@@ -223,6 +227,7 @@ function buildChildhoodKids(
     if (node === null) return bloodlineSlot;
     return {
       node,
+      personId: node.personId,
       localX: packed.positions[i]! + shift + auntShift
     };
   });

@@ -76,16 +76,6 @@ const SCHEMA_SQL = `
   );
 `;
 
-const RESET_SQL = `
-  DELETE FROM media_links;
-  DELETE FROM media;
-  DELETE FROM facts;
-  DELETE FROM family_children;
-  DELETE FROM families;
-  DELETE FROM names;
-  DELETE FROM persons;
-`;
-
 function runScript(db: Database, sql: string): void {
   const statements = sql
     .split(';')
@@ -99,8 +89,4 @@ export function openDb(path: string): Database {
   db.run('PRAGMA foreign_keys = ON;');
   runScript(db, SCHEMA_SQL);
   return db;
-}
-
-export function resetData(db: Database): void {
-  runScript(db, RESET_SQL);
 }

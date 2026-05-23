@@ -4,19 +4,19 @@ import { extname, join, resolve } from 'node:path';
 
 import { findChildren, type GedNode } from './gedcom-parser';
 
-export type SkipReason = 'absolute' | 'missing';
+type SkipReason = 'absolute' | 'missing';
 
-export interface IngestSkipped {
+interface IngestSkipped {
   originalRelpath: string;
   reason: SkipReason;
 }
 
-export interface IngestResult {
+interface IngestResult {
   resolved: Map<string, string>;
   skipped: IngestSkipped[];
 }
 
-export interface IngestInput {
+interface IngestInput {
   roots: GedNode[];
   sourceDir: string;
   targetDir: string;

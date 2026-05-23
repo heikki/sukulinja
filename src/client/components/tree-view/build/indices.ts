@@ -1,3 +1,8 @@
+// LayoutIndices is the build pipeline's input: maps and counts derived from
+// the loaded persons + families that every builder reads from. The query
+// helpers below operate against that shape — used across the build/ files
+// to filter known persons, present children, and meaningful spouse fams.
+
 import type { FamilyRow, PersonRow } from '@common/types';
 
 export interface LayoutIndices {
@@ -9,31 +14,6 @@ export interface LayoutIndices {
   // so it doesn't reserve space for ancestors that don't exist.
   ancestorLevels?: number;
 }
-
-export interface Point {
-  x: number;
-  y: number;
-}
-
-export interface Extents {
-  left: number;
-  right: number;
-}
-
-// Horizontal layout uses slot units. 1 slot = box width + one gap. Each
-// PersonNode has a slot footprint of 1 slot wide, with implicit half-gap
-// padding on each side; adjacent slots share their padding (the gap
-// between adjacent boxes is half-padding from each neighbour). Build and
-// nodes operate in literal slot values:
-//   0    — at slot origin
-//   0.5  — half-slot (= half-couple-pitch = half-person-footprint)
-//   1    — one slot (= couple-pitch = full person footprint)
-// The pixel values that turn slots into screen coordinates live with the
-// box renderer (see EmitTheme); emit receives them at the seam.
-
-export const SVG_HALF = 5000;
-export const DRAG_THRESHOLD_PX = 4;
-export const DEFAULT_FOCUS_ID = 1;
 
 export function otherSpouseOf(fam: FamilyRow, personId: number) {
   if (fam.husband_id === personId) return fam.wife_id;
