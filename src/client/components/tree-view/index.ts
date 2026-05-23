@@ -352,20 +352,21 @@ export class TreeViewElement extends LitElement {
           : html`<span class="meta">Focus: ${formatName(focusPerson)}</span>`}
         ${results.length > 0
           ? html`<div class="results">
-              ${results.map(
-                (p) => html`
+              ${results.map((p) => {
+                const dates = formatDates(p);
+                return html`
                   <button
                     @click=${() => {
                       this.setFocus(p.id, this.pinFromCanvasCenter());
                     }}
                   >
                     ${formatName(p)}
-                    ${formatDates(p).length > 0
-                      ? html`<span class="meta">(${formatDates(p)})</span>`
+                    ${dates.length > 0
+                      ? html`<span class="meta">(${dates})</span>`
                       : nothing}
                   </button>
-                `
-              )}
+                `;
+              })}
             </div>`
           : nothing}
       </div>

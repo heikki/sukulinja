@@ -132,7 +132,7 @@ export function createApi(registry: DatasetRegistry): ApiHandlers {
   }
 
   return {
-    async routeApi(req, pathname) {
+    async routeApi(_req, pathname) {
       if (pathname === '/datasets') {
         return Response.json(await registry.list());
       }

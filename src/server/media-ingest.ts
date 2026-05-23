@@ -22,12 +22,6 @@ interface IngestInput {
   targetDir: string;
 }
 
-const WIN_ABS_RE = /^[A-Za-z]:[\\/]/u;
-
-function looksAbsolute(p: string): boolean {
-  return p.startsWith('/') || WIN_ABS_RE.test(p);
-}
-
 function collectFileRefs(roots: GedNode[]): string[] {
   const out: string[] = [];
   for (const root of roots) {
@@ -58,6 +52,8 @@ async function storeFile(
   return name;
 }
 
+const WIN_ABS_RE = /^[A-Za-z]:[\\/]/u;
+
 export async function ingest(input: IngestInput): Promise<IngestResult> {
   const refs = collectFileRefs(input.roots);
   const resolved = new Map<string, string>();
@@ -71,7 +67,7 @@ export async function ingest(input: IngestInput): Promise<IngestResult> {
   for (const relpath of refs) {
     if (seen.has(relpath)) continue;
     seen.add(relpath);
-    if (looksAbsolute(relpath)) {
+    if (relpath.startsWith('/') || WIN_ABS_RE.test(relpath)) {
       skipped.push({ originalRelpath: relpath, reason: 'absolute' });
       continue;
     }
