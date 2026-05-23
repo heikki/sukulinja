@@ -17,3 +17,12 @@ export interface FamilyRow {
   wife_id: number | null;
   child_ids: number[];
 }
+
+// Returned by /datasets and produced by DatasetRegistry.list().
+export interface DatasetInfo {
+  slug: string;
+  displayName: string;
+  personCount: number;
+  familyCount: number;
+  importedAt: string | null;
+}

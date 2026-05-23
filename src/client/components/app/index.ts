@@ -3,17 +3,11 @@ import { customElement, state } from 'lit/decorators.js';
 
 import '../tree-view';
 
+import type { DatasetInfo } from '@common/types';
+
 import type { TreeViewElement } from '../tree-view';
 
 const DATASET_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?=\/|$)/u;
-
-interface DatasetInfo {
-  slug: string;
-  displayName: string;
-  personCount: number;
-  familyCount: number;
-  importedAt: string | null;
-}
 
 function currentSlug(): string | null {
   const m = DATASET_RE.exec(window.location.pathname);

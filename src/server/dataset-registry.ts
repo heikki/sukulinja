@@ -3,6 +3,8 @@ import { mkdir, readdir, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import type { Database } from 'bun:sqlite';
 
+import type { DatasetInfo } from '@common/types';
+
 import { openDb } from './db';
 
 const SLUG_RE = /^[a-z0-9][a-z0-9_-]*$/u;
@@ -16,14 +18,6 @@ function validateSlug(slug: string): void {
 export interface FreshDataset {
   db: Database;
   mediaDir: string;
-}
-
-export interface DatasetInfo {
-  slug: string;
-  displayName: string;
-  personCount: number;
-  familyCount: number;
-  importedAt: string | null;
 }
 
 export class DatasetRegistry {
