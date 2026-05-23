@@ -59,10 +59,11 @@ async function main(): Promise<void> {
   });
   const t3 = performance.now();
 
-  function resolver(originalRelpath: string): string | null {
-    return ingestResult.resolved.get(originalRelpath) ?? null;
-  }
-  const stats = importGedcom(db, roots, resolver);
+  const stats = importGedcom(
+    db,
+    roots,
+    (originalRelpath) => ingestResult.resolved.get(originalRelpath) ?? null
+  );
   const t4 = performance.now();
 
   const writeMeta = db.prepare('INSERT INTO meta (key, value) VALUES (?, ?)');

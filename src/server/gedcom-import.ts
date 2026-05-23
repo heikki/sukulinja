@@ -61,13 +61,6 @@ interface NameParts {
   suffix: string | null;
 }
 
-interface CropValues {
-  top: number | null;
-  left: number | null;
-  width: number | null;
-  height: number | null;
-}
-
 function hasXref(root: GedNode): root is GedNode & { xref: string } {
   return root.xref !== undefined && root.xref !== '';
 }
@@ -95,7 +88,7 @@ function parseName(full: string): NameParts {
   };
 }
 
-function cropValues(file: GedNode): CropValues {
+function cropValues(file: GedNode) {
   const crop = findChild(file, 'CROP');
   if (crop === undefined) {
     return { top: null, left: null, width: null, height: null };
@@ -106,10 +99,6 @@ function cropValues(file: GedNode): CropValues {
     width: toInt(findChild(crop, 'WIDTH')?.value),
     height: toInt(findChild(crop, 'HEIGHT')?.value)
   };
-}
-
-function isPrimaryFlag(obje: GedNode): number {
-  return findChild(obje, '_PRIM')?.value === 'Y' ? 1 : 0;
 }
 
 export type MediaResolver = (originalRelpath: string) => string | null;
@@ -181,28 +170,20 @@ export function importGedcom(
     }
   }
 
-  function importPersonName(
-    name: GedNode,
-    personId: number,
-    sortOrder: number
-  ): void {
-    const full = name.value ?? '';
-    const parts = parseName(full);
-    insertName.run(
-      personId,
-      full,
-      parts.given,
-      parts.surname,
-      parts.suffix,
-      childValue(name, 'TYPE'),
-      sortOrder
-    );
-    stats.names += 1;
-  }
-
   function importPersonDetails(root: GedNode, personId: number): void {
     findChildren(root, 'NAME').forEach((name, i) => {
-      importPersonName(name, personId, i);
+      const full = name.value ?? '';
+      const parts = parseName(full);
+      insertName.run(
+        personId,
+        full,
+        parts.given,
+        parts.surname,
+        parts.suffix,
+        childValue(name, 'TYPE'),
+        i
+      );
+      stats.names += 1;
     });
 
     let factOrder = 0;
@@ -227,26 +208,18 @@ export function importGedcom(
     return personXrefs.get(xref) ?? null;
   }
 
-  function importFamilyChild(
-    ch: GedNode,
-    familyId: number,
-    sortOrder: number
-  ): void {
-    const xref = ch.value;
-    if (xref === undefined) return;
-    const childId = personXrefs.get(xref);
-    if (childId === undefined) return;
-    insertFamilyChild.run(familyId, childId, sortOrder);
-    stats.familyChildren += 1;
-  }
-
   function importFamilyDetails(root: GedNode, familyId: number): void {
     const husbandId = resolveParentId(findChild(root, 'HUSB')?.value);
     const wifeId = resolveParentId(findChild(root, 'WIFE')?.value);
     updateFamily.run(husbandId, wifeId, familyId);
 
     findChildren(root, 'CHIL').forEach((ch, i) => {
-      importFamilyChild(ch, familyId, i);
+      const xref = ch.value;
+      if (xref === undefined) return;
+      const childId = personXrefs.get(xref);
+      if (childId === undefined) return;
+      insertFamilyChild.run(familyId, childId, i);
+      stats.familyChildren += 1;
     });
 
     let factOrder = 0;
@@ -312,7 +285,7 @@ export function importGedcom(
       mediaId,
       scope,
       scopeId,
-      isPrimaryFlag(obje),
+      findChild(obje, '_PRIM')?.value === 'Y' ? 1 : 0,
       childValue(obje, 'TITL'),
       crop.top,
       crop.left,
