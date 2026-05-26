@@ -114,6 +114,7 @@ export const treeViewStyles = css`
     fill: var(--card);
     stroke: var(--border);
     stroke-width: 1;
+    vector-effect: non-scaling-stroke;
   }
 
   .node.focus rect.box {
@@ -152,6 +153,7 @@ export const treeViewStyles = css`
     stroke: var(--muted);
     stroke-width: 1.2;
     fill: none;
+    vector-effect: non-scaling-stroke;
   }
 
   /* Focus change snaps — only opacity is animated, for fade-in of newly
