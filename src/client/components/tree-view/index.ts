@@ -11,16 +11,18 @@ import type { Box, EmitOutput, Extents, Point } from './emit';
 import { treeViewStyles } from './styles';
 import {
   chartToScreen,
+  fitTo,
   pinChartPointAtScreen,
   zoomAt
 } from './viewport-transform';
-import type { ScaleBounds } from './viewport-transform';
+import type { FitOptions, ScaleBounds } from './viewport-transform';
 
 const SVG_MARGIN_PX = 24;
 const DRAG_THRESHOLD_PX = 4;
 const DEFAULT_FOCUS_ID = 1;
 const SCALE_BOUNDS: ScaleBounds = { minScale: 0.25, maxScale: 2 };
 const WHEEL_ZOOM_K = 0.001;
+const FIT_OPTIONS: FitOptions = { maxScale: 1, marginPx: 24 };
 
 // Box renderer: the dimensions/gaps that decide the slot pitch (forwarded
 // to emit via the EmitTheme fields) and the render function that paints
@@ -350,6 +352,28 @@ export class TreeViewElement extends LitElement {
     }, 0);
   };
 
+  private readonly onCanvasDblClick = (e: MouseEvent) => {
+    // Only fit on background dblclick — clicks on a box already focus that
+    // person and shouldn't also reset the view.
+    const path = e.composedPath();
+    if (
+      path.some((n) => n instanceof Element && n.classList.contains('node'))
+    ) {
+      return;
+    }
+    const canvas = this.queryCanvas();
+    const vbo = this.viewBoxOrigin();
+    if (canvas === null || vbo === null || this.chartExtents === null) return;
+    const next = fitTo(
+      this.chartExtents,
+      vbo,
+      { width: canvas.clientWidth, height: canvas.clientHeight },
+      FIT_OPTIONS
+    );
+    this.pan = next.pan;
+    this.scale = next.scale;
+  };
+
   private readonly onWheel = (e: WheelEvent) => {
     if (this.wheelTarget === null) return;
     e.preventDefault();
@@ -458,6 +482,7 @@ export class TreeViewElement extends LitElement {
       <div
         class="canvas ${this.dragging ? 'dragging' : ''}"
         @mousedown=${this.onCanvasMouseDown}
+        @dblclick=${this.onCanvasDblClick}
       >
         ${this.panReady
           ? html`<div
