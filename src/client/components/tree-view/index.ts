@@ -26,9 +26,6 @@ const DEFAULT_FOCUS_ID = 1;
 const SCALE_BOUNDS: ScaleBounds = { minScale: 0.25, maxScale: 2 };
 const WHEEL_ZOOM_K = 0.001;
 const FIT_OPTIONS: FitOptions = { maxScale: 1, marginPx: 24 };
-// Velocity decays as exp(-dt / tauMs); motion lasts a few tau before falling
-// below the stop threshold. minReleaseV filters out near-static mouseups
-// (no flick → no glide).
 const MOMENTUM_OPTIONS: MomentumOptions = {
   tauMs: 250,
   minV: 0.02,
