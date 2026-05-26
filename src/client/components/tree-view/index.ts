@@ -9,10 +9,18 @@ import type { FamilyRow, PersonRow } from '@common/types';
 import { buildChart } from './build';
 import type { Box, EmitOutput, Extents, Point } from './emit';
 import { treeViewStyles } from './styles';
+import {
+  chartToScreen,
+  pinChartPointAtScreen,
+  zoomAt
+} from './viewport-transform';
+import type { ScaleBounds } from './viewport-transform';
 
 const SVG_MARGIN_PX = 24;
 const DRAG_THRESHOLD_PX = 4;
 const DEFAULT_FOCUS_ID = 1;
+const SCALE_BOUNDS: ScaleBounds = { minScale: 0.25, maxScale: 2 };
+const WHEEL_ZOOM_K = 0.001;
 
 // Box renderer: the dimensions/gaps that decide the slot pitch (forwarded
 // to emit via the EmitTheme fields) and the render function that paints
@@ -114,6 +122,7 @@ export class TreeViewElement extends LitElement {
   @state() private loading = true;
   @state() private query = '';
   @state() private pan = { x: 0, y: 0 };
+  @state() private scale = 1;
   @state() private panReady = false;
   @state() private dragging = false;
 
@@ -126,6 +135,8 @@ export class TreeViewElement extends LitElement {
   // Captured during render so updated() / pin math can resolve chart-local
   // coords to canvas pixels using the same extents the SVG was sized to.
   private chartExtents: Extents | null = null;
+
+  private wheelTarget: HTMLElement | null = null;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -140,6 +151,21 @@ export class TreeViewElement extends LitElement {
     window.removeEventListener('hashchange', this.onHashChange);
     window.removeEventListener('mousemove', this.onMouseMove);
     window.removeEventListener('mouseup', this.onMouseUp);
+    if (this.wheelTarget !== null) {
+      this.wheelTarget.removeEventListener('wheel', this.onWheel);
+      this.wheelTarget = null;
+    }
+  }
+
+  private attachWheelListener() {
+    // Attach directly (not via Lit's @wheel) so we can pass passive:false —
+    // required for preventDefault to suppress page scroll. The canvas only
+    // appears once loading completes, so this can't go in firstUpdated.
+    if (this.wheelTarget !== null) return;
+    const canvas = this.queryCanvas();
+    if (canvas === null) return;
+    this.wheelTarget = canvas;
+    canvas.addEventListener('wheel', this.onWheel, { passive: false });
   }
 
   private readonly onHashChange = () => {
@@ -169,32 +195,45 @@ export class TreeViewElement extends LitElement {
 
   override updated(_changed: PropertyValues) {
     if (this.loading || this.focusId === null) return;
+    this.attachWheelListener();
     if (!this.panReady) {
       this.measureInitialPan();
       return;
     }
-    if (this.pendingPinScreen !== null && this.chartExtents !== null) {
+    const vbo = this.viewBoxOrigin();
+    if (this.pendingPinScreen !== null && vbo !== null) {
       // After a focus change, the new focus lives at chart (0, 0). Set pan so
-      // the captured pendingPinScreen pixel coincides with the new focus —
-      // eliminating the "jump" effect on refocus.
-      const { min } = this.chartExtents;
-      this.pan = {
-        x: this.pendingPinScreen.x + min.x - SVG_MARGIN_PX,
-        y: this.pendingPinScreen.y + min.y - SVG_MARGIN_PX
-      };
+      // the captured pendingPinScreen pixel coincides with the new focus at
+      // the current scale — eliminating the "jump" effect on refocus.
+      this.pan = pinChartPointAtScreen(
+        this.scale,
+        { x: 0, y: 0 },
+        this.pendingPinScreen,
+        vbo
+      );
       this.pendingPinScreen = null;
     }
+  }
+
+  private viewBoxOrigin(): Point | null {
+    if (this.chartExtents === null) return null;
+    return {
+      x: this.chartExtents.min.x - SVG_MARGIN_PX,
+      y: this.chartExtents.min.y - SVG_MARGIN_PX
+    };
   }
 
   private measureInitialPan() {
     const canvas = this.queryCanvas();
     if (canvas === null || canvas.clientWidth === 0) return;
-    if (this.chartExtents === null) return;
-    const { min } = this.chartExtents;
-    this.pan = {
-      x: canvas.clientWidth / 2 + min.x - SVG_MARGIN_PX,
-      y: canvas.clientHeight / 2 + min.y - SVG_MARGIN_PX
-    };
+    const vbo = this.viewBoxOrigin();
+    if (vbo === null) return;
+    this.pan = pinChartPointAtScreen(
+      this.scale,
+      { x: 0, y: 0 },
+      { x: canvas.clientWidth / 2, y: canvas.clientHeight / 2 },
+      vbo
+    );
     this.panReady = true;
   }
 
@@ -268,12 +307,9 @@ export class TreeViewElement extends LitElement {
   // shifting the captured "center" inconsistently and accumulating drift over
   // back-and-forth toggles.
   private pinFromNode(node: Point) {
-    if (this.chartExtents === null) return null;
-    const { min } = this.chartExtents;
-    return {
-      x: this.pan.x + node.x - min.x + SVG_MARGIN_PX,
-      y: this.pan.y + node.y - min.y + SVG_MARGIN_PX
-    };
+    const vbo = this.viewBoxOrigin();
+    if (vbo === null) return null;
+    return chartToScreen({ pan: this.pan, scale: this.scale }, node, vbo);
   }
 
   private pinFromCanvasCenter() {
@@ -312,6 +348,22 @@ export class TreeViewElement extends LitElement {
     setTimeout(() => {
       this.dragging = false;
     }, 0);
+  };
+
+  private readonly onWheel = (e: WheelEvent) => {
+    if (this.wheelTarget === null) return;
+    e.preventDefault();
+    const rect = this.wheelTarget.getBoundingClientRect();
+    const cursor = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const factor = Math.exp(-e.deltaY * WHEEL_ZOOM_K);
+    const next = zoomAt(
+      { pan: this.pan, scale: this.scale },
+      cursor,
+      factor,
+      SCALE_BOUNDS
+    );
+    this.pan = next.pan;
+    this.scale = next.scale;
   };
 
   private filteredSearch() {
@@ -410,7 +462,8 @@ export class TreeViewElement extends LitElement {
         ${this.panReady
           ? html`<div
               class="pan"
-              style="transform: translate(${this.pan.x}px, ${this.pan.y}px)"
+              style="transform: translate(${this.pan.x}px, ${this.pan
+                .y}px) scale(${this.scale})"
             >
               <svg
                 viewBox="${vbX} ${vbY} ${vbW} ${vbH}"

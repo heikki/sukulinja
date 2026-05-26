@@ -98,6 +98,9 @@ export const treeViewStyles = css`
     position: absolute;
     top: 0;
     left: 0;
+    /* Scale around the SVG's top-left so the viewport-transform math
+       (screen = pan + scale * local) holds. */
+    transform-origin: 0 0;
     will-change: transform;
   }
 
