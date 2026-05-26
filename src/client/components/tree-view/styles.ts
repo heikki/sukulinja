@@ -155,9 +155,6 @@ export const treeViewStyles = css`
     stroke-width: 1.2;
     fill: none;
     vector-effect: non-scaling-stroke;
-    /* Snap to device pixels so sub-pixel pan offsets at low zoom don't
-       cause opacity flicker on horizontal/vertical connector lines. */
-    shape-rendering: crispEdges;
   }
 
   /* Focus change snaps — only opacity is animated, for fade-in of newly
