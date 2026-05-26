@@ -472,12 +472,12 @@ export class TreeViewElement extends LitElement {
               class="pan"
               style="transform: translate(${Math.round(
                 this.pan.x
-              )}px, ${Math.round(this.pan.y)}px) scale(${this.scale})"
+              )}px, ${Math.round(this.pan.y)}px)"
             >
               <svg
                 viewBox="${vbX} ${vbY} ${vbW} ${vbH}"
-                width=${vbW}
-                height=${vbH}
+                width=${vbW * this.scale}
+                height=${vbH * this.scale}
               >
                 <defs>
                   <clipPath id="sl-avatar" clipPathUnits="userSpaceOnUse">
