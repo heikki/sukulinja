@@ -6,7 +6,7 @@
 //
 // Therefore: screen = pan + scale * (chart - viewBoxOrigin).
 
-import type { Point } from './emit';
+import type { Extents, Point } from './emit';
 
 export interface Transform {
   pan: Point;
@@ -16,6 +16,16 @@ export interface Transform {
 export interface ScaleBounds {
   minScale: number;
   maxScale: number;
+}
+
+export interface Viewport {
+  width: number;
+  height: number;
+}
+
+export interface FitOptions {
+  maxScale: number;
+  marginPx: number;
 }
 
 export function chartToScreen(
@@ -44,6 +54,35 @@ export function pinChartPointAtScreen(
   };
 }
 
+// Return the Transform that fits `extents` into `viewport`, centered, with
+// `marginPx` breathing room on each side. Scale is capped at `maxScale` so
+// small charts don't get blown up past 1:1.
+export function fitTo(
+  extents: Extents,
+  viewBoxOrigin: Point,
+  viewport: Viewport,
+  opts: FitOptions
+): Transform {
+  const contentW = extents.max.x - extents.min.x;
+  const contentH = extents.max.y - extents.min.y;
+  const availW = Math.max(0, viewport.width - opts.marginPx * 2);
+  const availH = Math.max(0, viewport.height - opts.marginPx * 2);
+  const fitScaleX = contentW > 0 ? availW / contentW : opts.maxScale;
+  const fitScaleY = contentH > 0 ? availH / contentH : opts.maxScale;
+  const scale = Math.min(fitScaleX, fitScaleY, opts.maxScale);
+  const chartCenter = {
+    x: (extents.min.x + extents.max.x) / 2,
+    y: (extents.min.y + extents.max.y) / 2
+  };
+  const pan = pinChartPointAtScreen(
+    scale,
+    chartCenter,
+    { x: viewport.width / 2, y: viewport.height / 2 },
+    viewBoxOrigin
+  );
+  return { pan, scale };
+}
+
 // Cursor-anchored zoom. Returns a new Transform with scale multiplied by
 // `factor` (clamped to bounds) and pan adjusted so the chart point
 // currently under cursorScreen remains under cursorScreen at the new scale.
@@ -55,11 +94,14 @@ export function zoomAt(
   factor: number,
   bounds: ScaleBounds
 ): Transform {
+  // Elastic bounds: if scale is already outside [minScale, maxScale] (e.g.
+  // fitTo computed a scale below minScale to fit a huge chart), the user
+  // can come back into bounds but can't drift further out. Without this,
+  // wheel-out from a sub-minScale fit would snap scale UP to minScale.
   const targetScale = t.scale * factor;
-  const newScale = Math.min(
-    bounds.maxScale,
-    Math.max(bounds.minScale, targetScale)
-  );
+  const effMin = Math.min(bounds.minScale, t.scale);
+  const effMax = Math.max(bounds.maxScale, t.scale);
+  const newScale = Math.min(effMax, Math.max(effMin, targetScale));
   // Substituting (chart - vbo) = (cursor - pan) / scale into the pin formula:
   // newPan = cursor - (newScale / oldScale) * (cursor - oldPan)
   const ratio = newScale / t.scale;

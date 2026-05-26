@@ -1,12 +1,18 @@
 import { describe, expect, test } from 'bun:test';
 
-import type { Point } from './emit';
+import type { Extents, Point } from './emit';
 import {
   chartToScreen,
+  fitTo,
   pinChartPointAtScreen,
   zoomAt
 } from './viewport-transform';
-import type { ScaleBounds, Transform } from './viewport-transform';
+import type {
+  FitOptions,
+  ScaleBounds,
+  Transform,
+  Viewport
+} from './viewport-transform';
 
 const BOUNDS: ScaleBounds = { minScale: 0.25, maxScale: 2 };
 
@@ -112,6 +118,21 @@ describe('zoomAt clamping', () => {
     expect(next.scale).toBe(BOUNDS.maxScale);
     approx(next.pan, t.pan);
   });
+
+  test('elastic min: scale below minScale stays put when zoomed further out', () => {
+    // fitTo can produce sub-minScale scales for huge charts. Wheeling out
+    // from there must not snap scale UP to minScale.
+    const t: Transform = { pan: { x: 5, y: 5 }, scale: 0.1 };
+    const next = zoomAt(t, { x: 100, y: 100 }, 0.5, BOUNDS);
+    expect(next.scale).toBe(0.1);
+    approx(next.pan, t.pan);
+  });
+
+  test('elastic min: can zoom back in toward bounds from below minScale', () => {
+    const t: Transform = { pan: { x: 5, y: 5 }, scale: 0.1 };
+    const next = zoomAt(t, { x: 100, y: 100 }, 1.5, BOUNDS);
+    expect(next.scale).toBeCloseTo(0.15, 10);
+  });
 });
 
 describe('zoomAt identity factor', () => {
@@ -120,5 +141,83 @@ describe('zoomAt identity factor', () => {
     const next = zoomAt(t, { x: 100, y: 200 }, 1, BOUNDS);
     expect(next.scale).toBe(t.scale);
     approx(next.pan, t.pan);
+  });
+});
+
+describe('fitTo', () => {
+  const OPTS: FitOptions = { maxScale: 1, marginPx: 24 };
+
+  function projectCorners(extents: Extents, vbo: Point, t: Transform) {
+    return {
+      tl: chartToScreen(t, extents.min, vbo),
+      br: chartToScreen(t, extents.max, vbo),
+      center: chartToScreen(
+        t,
+        {
+          x: (extents.min.x + extents.max.x) / 2,
+          y: (extents.min.y + extents.max.y) / 2
+        },
+        vbo
+      )
+    };
+  }
+
+  test('fits content fully inside viewport with margin (wide chart)', () => {
+    const extents: Extents = {
+      min: { x: -1000, y: -100 },
+      max: { x: 1000, y: 100 }
+    };
+    const vbo = { x: extents.min.x - 24, y: extents.min.y - 24 };
+    const viewport: Viewport = { width: 800, height: 600 };
+    const t = fitTo(extents, vbo, viewport, OPTS);
+    const c = projectCorners(extents, vbo, t);
+    // Content corners are inside viewport with at least marginPx breathing room
+    expect(c.tl.x).toBeGreaterThanOrEqual(OPTS.marginPx - 1e-6);
+    expect(c.tl.y).toBeGreaterThanOrEqual(OPTS.marginPx - 1e-6);
+    expect(c.br.x).toBeLessThanOrEqual(viewport.width - OPTS.marginPx + 1e-6);
+    expect(c.br.y).toBeLessThanOrEqual(viewport.height - OPTS.marginPx + 1e-6);
+  });
+
+  test('respects maxScale: small content not blown up past 1:1', () => {
+    const extents: Extents = {
+      min: { x: 0, y: 0 },
+      max: { x: 50, y: 30 }
+    };
+    const vbo = { x: extents.min.x - 24, y: extents.min.y - 24 };
+    const viewport: Viewport = { width: 1200, height: 800 };
+    const t = fitTo(extents, vbo, viewport, OPTS);
+    expect(t.scale).toBe(OPTS.maxScale);
+  });
+
+  test('centers content in viewport', () => {
+    const extents: Extents = {
+      min: { x: -345, y: 78 },
+      max: { x: 220, y: 444 }
+    };
+    const vbo = { x: extents.min.x - 24, y: extents.min.y - 24 };
+    const viewport: Viewport = { width: 900, height: 700 };
+    const t = fitTo(extents, vbo, viewport, OPTS);
+    const c = projectCorners(extents, vbo, t);
+    approx(c.center, { x: viewport.width / 2, y: viewport.height / 2 }, 1e-6);
+  });
+
+  test('wide chart in tall viewport fits by width; tall chart by height', () => {
+    const wide: Extents = {
+      min: { x: 0, y: 0 },
+      max: { x: 2000, y: 100 }
+    };
+    const tall: Extents = {
+      min: { x: 0, y: 0 },
+      max: { x: 100, y: 2000 }
+    };
+    const viewport: Viewport = { width: 800, height: 800 };
+    const vboW = { x: wide.min.x - 24, y: wide.min.y - 24 };
+    const vboT = { x: tall.min.x - 24, y: tall.min.y - 24 };
+    const tw = fitTo(wide, vboW, viewport, OPTS);
+    const tt = fitTo(tall, vboT, viewport, OPTS);
+    const expectedW = (viewport.width - OPTS.marginPx * 2) / 2000;
+    const expectedT = (viewport.height - OPTS.marginPx * 2) / 2000;
+    expect(tw.scale).toBeCloseTo(expectedW, 10);
+    expect(tt.scale).toBeCloseTo(expectedT, 10);
   });
 });
