@@ -470,8 +470,9 @@ export class TreeViewElement extends LitElement {
         ${this.panReady
           ? html`<div
               class="pan"
-              style="transform: translate(${this.pan.x}px, ${this.pan
-                .y}px) scale(${this.scale})"
+              style="transform: translate(${Math.round(
+                this.pan.x
+              )}px, ${Math.round(this.pan.y)}px) scale(${this.scale})"
             >
               <svg
                 viewBox="${vbX} ${vbY} ${vbW} ${vbH}"
