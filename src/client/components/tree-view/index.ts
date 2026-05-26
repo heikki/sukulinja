@@ -7,10 +7,10 @@ import { apiUrl, mediaUrl } from '@client/api';
 import type { FamilyRow, PersonRow } from '@common/types';
 
 import { buildChart } from './build';
-import type { Box, EmitOutput, Point } from './emit';
+import type { Box, EmitOutput, Extents, Point } from './emit';
 import { treeViewStyles } from './styles';
 
-const SVG_HALF = 5000;
+const SVG_MARGIN_PX = 24;
 const DRAG_THRESHOLD_PX = 4;
 const DEFAULT_FOCUS_ID = 1;
 
@@ -123,6 +123,9 @@ export class TreeViewElement extends LitElement {
   private dragOrigin: DragOrigin | null = null;
   private dragMoved = false;
   private pendingPinScreen: Point | null = null;
+  // Captured during render so updated() / pin math can resolve chart-local
+  // coords to canvas pixels using the same extents the SVG was sized to.
+  private chartExtents: Extents | null = null;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -149,19 +152,35 @@ export class TreeViewElement extends LitElement {
     this.focusId = id;
   };
 
+  override willUpdate(changed: PropertyValues) {
+    // Levels change rebuilds the chart with different extents, which would
+    // drift Focus on screen since chart (0,0) is mapped through extents.min.
+    // Capture Focus's current screen pixel so updated() re-pins it after the
+    // new chart is rendered. (Refocus already pins via setFocus; dragging /
+    // search-bar updates don't change extents and so don't need this.)
+    if (
+      changed.has('levels') &&
+      this.panReady &&
+      this.pendingPinScreen === null
+    ) {
+      this.pendingPinScreen = this.pinFromNode({ x: 0, y: 0 });
+    }
+  }
+
   override updated(_changed: PropertyValues) {
     if (this.loading || this.focusId === null) return;
     if (!this.panReady) {
       this.measureInitialPan();
       return;
     }
-    if (this.pendingPinScreen !== null) {
-      // After a focus change, the new focus lives at SVG (0, 0). Set pan so
+    if (this.pendingPinScreen !== null && this.chartExtents !== null) {
+      // After a focus change, the new focus lives at chart (0, 0). Set pan so
       // the captured pendingPinScreen pixel coincides with the new focus —
       // eliminating the "jump" effect on refocus.
+      const { min } = this.chartExtents;
       this.pan = {
-        x: this.pendingPinScreen.x - SVG_HALF,
-        y: this.pendingPinScreen.y - SVG_HALF
+        x: this.pendingPinScreen.x + min.x - SVG_MARGIN_PX,
+        y: this.pendingPinScreen.y + min.y - SVG_MARGIN_PX
       };
       this.pendingPinScreen = null;
     }
@@ -170,9 +189,11 @@ export class TreeViewElement extends LitElement {
   private measureInitialPan() {
     const canvas = this.queryCanvas();
     if (canvas === null || canvas.clientWidth === 0) return;
+    if (this.chartExtents === null) return;
+    const { min } = this.chartExtents;
     this.pan = {
-      x: canvas.clientWidth / 2 - SVG_HALF,
-      y: canvas.clientHeight / 2 - SVG_HALF
+      x: canvas.clientWidth / 2 + min.x - SVG_MARGIN_PX,
+      y: canvas.clientHeight / 2 + min.y - SVG_MARGIN_PX
     };
     this.panReady = true;
   }
@@ -247,9 +268,11 @@ export class TreeViewElement extends LitElement {
   // shifting the captured "center" inconsistently and accumulating drift over
   // back-and-forth toggles.
   private pinFromNode(node: Point) {
+    if (this.chartExtents === null) return null;
+    const { min } = this.chartExtents;
     return {
-      x: this.pan.x + node.x + SVG_HALF,
-      y: this.pan.y + node.y + SVG_HALF
+      x: this.pan.x + node.x - min.x + SVG_MARGIN_PX,
+      y: this.pan.y + node.y - min.y + SVG_MARGIN_PX
     };
   }
 
@@ -374,6 +397,11 @@ export class TreeViewElement extends LitElement {
   }
 
   private renderCanvas(chart: EmitOutput) {
+    const { min, max } = chart.extents;
+    const vbX = min.x - SVG_MARGIN_PX;
+    const vbY = min.y - SVG_MARGIN_PX;
+    const vbW = max.x - min.x + SVG_MARGIN_PX * 2;
+    const vbH = max.y - min.y + SVG_MARGIN_PX * 2;
     return html`
       <div
         class="canvas ${this.dragging ? 'dragging' : ''}"
@@ -385,10 +413,9 @@ export class TreeViewElement extends LitElement {
               style="transform: translate(${this.pan.x}px, ${this.pan.y}px)"
             >
               <svg
-                viewBox="${-SVG_HALF} ${-SVG_HALF} ${SVG_HALF * 2} ${SVG_HALF *
-                2}"
-                width=${SVG_HALF * 2}
-                height=${SVG_HALF * 2}
+                viewBox="${vbX} ${vbY} ${vbW} ${vbH}"
+                width=${vbW}
+                height=${vbH}
               >
                 <defs>
                   <clipPath id="sl-avatar" clipPathUnits="userSpaceOnUse">
@@ -439,6 +466,7 @@ export class TreeViewElement extends LitElement {
     if (chart === null) {
       return html`<div class="empty">No data for selected focus.</div>`;
     }
+    this.chartExtents = chart.extents;
     const results = this.filteredSearch();
     const focusPerson = this.persons.get(this.focusId);
     return html`${this.renderToolbar(focusPerson, results)}${this.renderCanvas(
