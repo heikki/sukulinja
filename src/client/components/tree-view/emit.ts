@@ -40,9 +40,15 @@ interface Line {
   to: Point;
 }
 
+export interface Extents {
+  min: Point;
+  max: Point;
+}
+
 export interface EmitOutput {
   boxes: Box[];
   lines: Line[];
+  extents: Extents;
 }
 
 export function emitLayout(
@@ -54,15 +60,27 @@ export function emitLayout(
   const rowPitch = theme.boxH + theme.gapY;
   // Half-box-width in slot units; used for tie-endpoint clipping.
   const boxHalfSlot = theme.boxW / slotPitch / 2;
+  const halfW = theme.boxW / 2;
+  const halfH = theme.boxH / 2;
   const boxes: Box[] = [];
   const lines: Line[] = [];
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
 
   function walk(node: LayoutNode, abs: Point) {
     if (node instanceof PersonNode) {
+      const px = abs.x * slotPitch;
+      const py = abs.y;
       boxes.push({
         personId: node.personId,
-        pos: { x: abs.x * slotPitch, y: abs.y }
+        pos: { x: px, y: py }
       });
+      if (px - halfW < minX) minX = px - halfW;
+      if (py - halfH < minY) minY = py - halfH;
+      if (px + halfW > maxX) maxX = px + halfW;
+      if (py + halfH > maxY) maxY = py + halfH;
     } else if (node instanceof FamilyNode) {
       for (const line of familyLines(node)) {
         lines.push({
@@ -152,5 +170,9 @@ export function emitLayout(
   }
 
   walk(root, startAbs);
-  return { boxes, lines };
+  return {
+    boxes,
+    lines,
+    extents: { min: { x: minX, y: minY }, max: { x: maxX, y: maxY } }
+  };
 }
