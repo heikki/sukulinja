@@ -3,11 +3,14 @@ import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
-import { apiUrl, mediaUrl } from '@client/api';
+import { apiUrl } from '@client/api';
 import type { FamilyRow, PersonRow } from '@common/types';
 
+import { boxRenderer, formatDates, formatName } from './box-renderer';
 import { buildChart } from './build';
 import type { Box, EmitOutput, Extents, Point } from './emit';
+import { startMomentumPan } from './momentum-pan';
+import type { MomentumHandle, MomentumOptions } from './momentum-pan';
 import { treeViewStyles } from './styles';
 import {
   chartToScreen,
@@ -23,63 +26,13 @@ const DEFAULT_FOCUS_ID = 1;
 const SCALE_BOUNDS: ScaleBounds = { minScale: 0.25, maxScale: 2 };
 const WHEEL_ZOOM_K = 0.001;
 const FIT_OPTIONS: FitOptions = { maxScale: 1, marginPx: 24 };
-
-// Box renderer: the dimensions/gaps that decide the slot pitch (forwarded
-// to emit via the EmitTheme fields) and the render function that paints
-// each <rect> at those dimensions. Caller composes per-box context
-// (person, focus state, click handler) at the call site.
-const boxRenderer = {
-  boxW: 184,
-  boxH: 90,
-  gapX: 28,
-  gapY: 70,
-  nonprimaryTieYOffset: 6,
-  avatarR: 22,
-  avatarCx: 28,
-  render(box: Box, person: PersonRow, isFocus: boolean, onClick: () => void) {
-    const { boxW, boxH, avatarR, avatarCx } = this;
-    const tx = box.pos.x - boxW / 2;
-    const ty = box.pos.y - boxH / 2;
-    const photoSrc =
-      person.photo_path === null ? null : mediaUrl(person.photo_path);
-    const fullName = formatName(person);
-    const name =
-      fullName.length > NAME_TRUNCATE
-        ? `${fullName.slice(0, NAME_TRUNCATE - 1)}…`
-        : fullName;
-    const dates = formatDates(person);
-    return svg`
-      <g
-        class="node ${isFocus ? 'focus' : ''}"
-        data-node-id=${box.personId}
-        style="transform: translate(${tx}px, ${ty}px)"
-        @click=${onClick}
-      >
-        <rect class="box" x="0" y="0" width=${boxW} height=${boxH} rx="6" />
-        ${
-          photoSrc === null
-            ? svg`<circle
-                class="placeholder-avatar"
-                cx=${avatarCx}
-                cy=${boxH / 2}
-                r=${avatarR}
-              />`
-            : svg`<image
-                href=${photoSrc}
-                x=${avatarCx - avatarR}
-                y=${boxH / 2 - avatarR}
-                width=${avatarR * 2}
-                height=${avatarR * 2}
-                clip-path="url(#sl-avatar)"
-                preserveAspectRatio="xMidYMid slice"
-              />`
-        }
-        <text class="name" x="60" y=${boxH / 2 - 4}>${name}</text>
-        <text class="dates" x="60" y=${boxH / 2 + 14}>${dates}</text>
-        <rect class="hit" x="0" y="0" width=${boxW} height=${boxH} rx="6" />
-      </g>
-    `;
-  }
+// Velocity decays as exp(-dt / tauMs); motion lasts a few tau before falling
+// below the stop threshold. minReleaseV filters out near-static mouseups
+// (no flick → no glide).
+const MOMENTUM_OPTIONS: MomentumOptions = {
+  tauMs: 250,
+  minV: 0.02,
+  minReleaseV: 0.3
 };
 
 interface DragOrigin {
@@ -88,7 +41,6 @@ interface DragOrigin {
 }
 
 const FOCUS_HASH_RE = /^#\/person\/(?<id>\d+)$/;
-const NAME_TRUNCATE = 22;
 const SEARCH_MIN_LEN = 2;
 const SEARCH_MAX_RESULTS = 50;
 
@@ -97,20 +49,6 @@ function readFocusFromHash() {
   const id = m?.groups?.id;
   if (id === undefined) return null;
   return parseInt(id, 10);
-}
-
-function formatName(p: PersonRow) {
-  const given = (p.given ?? '').trim();
-  const surname = (p.surname ?? '').trim();
-  const joined = [given, surname].filter((s) => s.length > 0).join(' ');
-  return joined.length > 0 ? joined : '—';
-}
-
-function formatDates(p: PersonRow) {
-  const b = p.birth_year ?? '';
-  const d = p.death_year ?? '';
-  if (b === '' && d === '') return '';
-  return `${b}–${d}`;
 }
 
 @customElement('sl-tree-view')
@@ -139,6 +77,11 @@ export class TreeViewElement extends LitElement {
   private chartExtents: Extents | null = null;
 
   private wheelTarget: HTMLElement | null = null;
+  // Two most-recent pointer samples during drag — enough to compute the
+  // release velocity for momentum pan without smoothing noise from older
+  // samples that span across direction changes.
+  private dragSamples: Array<{ t: number; x: number; y: number }> = [];
+  private momentum: MomentumHandle | null = null;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -157,6 +100,7 @@ export class TreeViewElement extends LitElement {
       this.wheelTarget.removeEventListener('wheel', this.onWheel);
       this.wheelTarget = null;
     }
+    this.cancelMomentum();
   }
 
   private attachWheelListener() {
@@ -298,6 +242,7 @@ export class TreeViewElement extends LitElement {
       this.query = '';
       return;
     }
+    this.cancelMomentum();
     if (pinScreen !== null) this.pendingPinScreen = pinScreen;
     this.focusId = id;
     history.pushState(null, '', `#/person/${id}`);
@@ -322,11 +267,13 @@ export class TreeViewElement extends LitElement {
 
   private readonly onCanvasMouseDown = (e: MouseEvent) => {
     if (e.button !== 0) return;
+    this.cancelMomentum();
     this.dragOrigin = {
       mouse: { x: e.clientX, y: e.clientY },
       pan: { ...this.pan }
     };
     this.dragMoved = false;
+    this.dragSamples = [{ t: performance.now(), x: e.clientX, y: e.clientY }];
   };
 
   private readonly onMouseMove = (e: MouseEvent) => {
@@ -340,17 +287,51 @@ export class TreeViewElement extends LitElement {
     if (!this.dragMoved) return;
     const nextX = this.dragOrigin.pan.x + dx;
     const nextY = this.dragOrigin.pan.y + dy;
+    this.dragSamples.push({
+      t: performance.now(),
+      x: e.clientX,
+      y: e.clientY
+    });
+    if (this.dragSamples.length > 2) this.dragSamples.shift();
     if (nextX === this.pan.x && nextY === this.pan.y) return;
     this.pan = { x: nextX, y: nextY };
   };
 
   private readonly onMouseUp = () => {
     this.dragOrigin = null;
-    if (!this.dragging) return;
+    if (!this.dragging) {
+      this.dragSamples = [];
+      return;
+    }
+    this.maybeStartMomentum();
+    this.dragSamples = [];
     setTimeout(() => {
       this.dragging = false;
     }, 0);
   };
+
+  private maybeStartMomentum() {
+    if (this.dragSamples.length < 2) return;
+    const [prev, last] = this.dragSamples as [
+      { t: number; x: number; y: number },
+      { t: number; x: number; y: number }
+    ];
+    const dt = last.t - prev.t;
+    if (dt <= 0) return;
+    this.momentum = startMomentumPan(
+      (last.x - prev.x) / dt,
+      (last.y - prev.y) / dt,
+      MOMENTUM_OPTIONS,
+      (dx, dy) => {
+        this.pan = { x: this.pan.x + dx, y: this.pan.y + dy };
+      }
+    );
+  }
+
+  private cancelMomentum() {
+    this.momentum?.cancel();
+    this.momentum = null;
+  }
 
   private readonly onCanvasDblClick = (e: MouseEvent) => {
     // Only fit on background dblclick — clicks on a box already focus that
@@ -364,6 +345,7 @@ export class TreeViewElement extends LitElement {
     const canvas = this.queryCanvas();
     const vbo = this.viewBoxOrigin();
     if (canvas === null || vbo === null || this.chartExtents === null) return;
+    this.cancelMomentum();
     const next = fitTo(
       this.chartExtents,
       vbo,
@@ -377,6 +359,7 @@ export class TreeViewElement extends LitElement {
   private readonly onWheel = (e: WheelEvent) => {
     if (this.wheelTarget === null) return;
     e.preventDefault();
+    this.cancelMomentum();
     const rect = this.wheelTarget.getBoundingClientRect();
     const cursor = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     const factor = Math.exp(-e.deltaY * WHEEL_ZOOM_K);
