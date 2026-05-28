@@ -16,6 +16,8 @@ import {
 } from './transform';
 import type { FitOptions, ScaleBounds } from './transform';
 
+const WHEEL_SETTLE_MS = 200;
+
 export interface Size {
   width: number;
   height: number;
@@ -25,6 +27,10 @@ export interface ViewportMeasurements {
   chartExtents: () => Extents | null;
   canvasSize: () => Size | null;
   canvasRect: () => DOMRect | null;
+  // Fires once when an interactive gesture has settled (dblclick fit lands,
+  // wheel-zoom burst finishes). Used by the host to commit view state to the
+  // URL; the viewport itself stays ignorant of URLs.
+  onSettle?: () => void;
 }
 
 export interface ViewportOptions {
@@ -61,6 +67,7 @@ export class ViewportController implements ReactiveController {
   private dragSamples: DragSample[] = [];
   private momentum: MomentumHandle | null = null;
   private canvas: HTMLElement | null = null;
+  private wheelSettleTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly host: ReactiveControllerHost,
@@ -99,6 +106,17 @@ export class ViewportController implements ReactiveController {
     window.removeEventListener('mouseup', this.onMouseUp);
     this.attachCanvas(null);
     this.cancelMomentum();
+    if (this.wheelSettleTimer !== null) {
+      clearTimeout(this.wheelSettleTimer);
+      this.wheelSettleTimer = null;
+    }
+  }
+
+  // Lets the host restore scale from URL before ensureInitialPan computes the
+  // first pin, so chart (0,0) lands centered at the URL-supplied zoom.
+  setScale(s: number) {
+    this._scale = s;
+    this.host.requestUpdate();
   }
 
   attachCanvas(el: HTMLElement | null) {
@@ -141,6 +159,7 @@ export class ViewportController implements ReactiveController {
     this._pan = next.pan;
     this._scale = next.scale;
     this.host.requestUpdate();
+    this.measurements.onSettle?.();
   };
 
   ensureInitialPan() {
@@ -250,6 +269,11 @@ export class ViewportController implements ReactiveController {
     this._pan = next.pan;
     this._scale = next.scale;
     this.host.requestUpdate();
+    if (this.wheelSettleTimer !== null) clearTimeout(this.wheelSettleTimer);
+    this.wheelSettleTimer = setTimeout(() => {
+      this.wheelSettleTimer = null;
+      this.measurements.onSettle?.();
+    }, WHEEL_SETTLE_MS);
   };
 
   private maybeStartMomentum() {

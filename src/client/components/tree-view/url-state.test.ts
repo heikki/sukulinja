@@ -58,6 +58,29 @@ describe('parseHashView', () => {
   });
 });
 
+describe('parseHashView zoom', () => {
+  test('reads zoom', () => {
+    expect(parseHashView('#/person/1?zoom=1.5', BOUNDS).zoom).toBe(1.5);
+    expect(parseHashView('#/person/1?zoom=0.87', BOUNDS).zoom).toBe(0.87);
+    expect(parseHashView('#/person/1?zoom=1', BOUNDS).zoom).toBe(1);
+  });
+
+  test('clamps out-of-range zoom', () => {
+    expect(parseHashView('#/person/1?zoom=10', BOUNDS).zoom).toBe(2);
+    expect(parseHashView('#/person/1?zoom=0.001', BOUNDS).zoom).toBe(0.25);
+  });
+
+  test('drops unparseable zoom but keeps focus', () => {
+    const parsed = parseHashView('#/person/1?zoom=abc', BOUNDS);
+    expect(parsed.focusId).toBe(1);
+    expect(parsed.zoom).toBeNull();
+  });
+
+  test('returns null for missing zoom', () => {
+    expect(parseHashView('#/person/1', BOUNDS).zoom).toBeNull();
+  });
+});
+
 describe('buildHash', () => {
   test('omits gen when equal to default', () => {
     expect(
@@ -70,10 +93,48 @@ describe('buildHash', () => {
       buildHash({ focusId: 123, gen: 3, pan: null, zoom: null }, DEFAULTS)
     ).toBe('#/person/123?gen=3');
   });
+
+  test('omits zoom when null (write-once stickiness opt-in)', () => {
+    expect(
+      buildHash({ focusId: 1, gen: 2, pan: null, zoom: null }, DEFAULTS)
+    ).toBe('#/person/1');
+  });
+
+  test('writes zoom with trailing zeros stripped', () => {
+    expect(
+      buildHash({ focusId: 1, gen: 2, pan: null, zoom: 1 }, DEFAULTS)
+    ).toBe('#/person/1?zoom=1');
+    expect(
+      buildHash({ focusId: 1, gen: 2, pan: null, zoom: 1.5 }, DEFAULTS)
+    ).toBe('#/person/1?zoom=1.5');
+  });
+
+  test('writes zoom rounded to 2 decimals', () => {
+    expect(
+      buildHash({ focusId: 1, gen: 2, pan: null, zoom: 0.875 }, DEFAULTS)
+    ).toBe('#/person/1?zoom=0.88');
+    expect(
+      buildHash({ focusId: 1, gen: 2, pan: null, zoom: 1.234 }, DEFAULTS)
+    ).toBe('#/person/1?zoom=1.23');
+  });
+
+  test('writes zoom alongside gen', () => {
+    expect(
+      buildHash({ focusId: 1, gen: 3, pan: null, zoom: 1.5 }, DEFAULTS)
+    ).toBe('#/person/1?gen=3&zoom=1.5');
+  });
 });
 
 describe('round-trip', () => {
-  const cases = ['#/person/123', '#/person/123?gen=3', '#/person/1?gen=5'];
+  const cases = [
+    '#/person/123',
+    '#/person/123?gen=3',
+    '#/person/1?gen=5',
+    '#/person/1?zoom=1',
+    '#/person/1?zoom=1.5',
+    '#/person/1?zoom=0.87',
+    '#/person/1?gen=3&zoom=1.5'
+  ];
   for (const s of cases) {
     test(s, () => {
       const parsed = parseHashView(s, BOUNDS);
@@ -83,7 +144,7 @@ describe('round-trip', () => {
           focusId: parsed.focusId!,
           gen: parsed.gen ?? DEFAULTS.gen,
           pan: null,
-          zoom: null
+          zoom: parsed.zoom
         },
         DEFAULTS
       );
