@@ -13,11 +13,19 @@ export interface MomentumHandle {
   cancel: () => void;
 }
 
+export interface MomentumHandlers {
+  // Called per RAF with the pan delta for this frame.
+  onTick: (dx: number, dy: number) => void;
+  // Called when velocity decays below minV. NOT called on explicit cancel —
+  // a new gesture is settling separately and will fire its own settle event.
+  onEnd: () => void;
+}
+
 export function startMomentumPan(
   vx: number,
   vy: number,
   options: MomentumOptions,
-  onTick: (dx: number, dy: number) => void
+  handlers: MomentumHandlers
 ): MomentumHandle | null {
   if (Math.hypot(vx, vy) < options.minReleaseV) return null;
   let raf: number | null = null;
@@ -27,12 +35,13 @@ export function startMomentumPan(
   function step(now: number) {
     const dt = now - lastT;
     lastT = now;
-    onTick(velX * dt, velY * dt);
+    handlers.onTick(velX * dt, velY * dt);
     const decay = Math.exp(-dt / options.tauMs);
     velX *= decay;
     velY *= decay;
     if (Math.hypot(velX, velY) < options.minV) {
       raf = null;
+      handlers.onEnd();
       return;
     }
     raf = requestAnimationFrame(step);
