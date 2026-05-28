@@ -93,7 +93,7 @@ export class TreeViewElement extends LitElement {
     // Levels change rebuilds the chart with different extents, which would
     // drift Focus on screen since chart (0,0) is mapped through extents.min.
     // Capture Focus's current screen pixel so the post-rebuild pin keeps it
-    // put. Refocus already supplies its own pin via setFocus / onHashChange.
+    // put.
     if (
       changed.has('levels') &&
       this.viewport.panReady &&

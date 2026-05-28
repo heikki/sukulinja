@@ -69,10 +69,7 @@ const RECT: DOMRect = {
   toJSON: () => ({})
 };
 
-// Globals stubbed per-test. Bun runs without a DOM, so we synthesize the
-// minimum the controller touches: window for the never-fired addEventListener
-// in hostConnected, performance.now for drag-sample timestamps, RAF for
-// momentum, and Element for the dblclick composedPath check.
+// Bun has no DOM by default; stub the minimum the controller touches.
 
 let mockNow = 0;
 let rafCallbacks: FrameRequestCallback[] = [];
@@ -224,27 +221,22 @@ describe('momentum sample window', () => {
   test('only the last two samples determine release velocity', () => {
     const { controller } = setup();
     controller.onMouseDown(mouse(0, 0));
-    // First move past threshold to start dragging.
     mockNow = 1010;
     controller.onMouseMove(mouse(10, 0));
-    // Slow middle phase — these samples would dilute velocity if windowed.
+    // Slow middle samples — would dilute velocity if averaged in.
     mockNow = 1110;
     controller.onMouseMove(mouse(11, 0));
     mockNow = 1210;
     controller.onMouseMove(mouse(12, 0));
-    // Fast final flick, captured by the trailing window.
+    // Fast final flick.
     mockNow = 1220;
     controller.onMouseMove(mouse(112, 0));
     const panBeforeMomentum = { ...controller.pan };
     controller.onMouseUp();
     expect(rafCallbacks.length).toBe(1);
-    // First momentum tick: dt=0 against capture time, but the tick reads
-    // the per-frame dt from performance.now relative to lastT (set inside
-    // startMomentumPan to performance.now at start). Advance and flush:
     mockNow += 16;
     flushRaf();
-    // Released velocity uses (112-12)/(1220-1210) = 10 px/ms for x.
-    // dx after one 16ms tick = 10 * 16 = 160 px before decay.
+    // v = (112-12)/(1220-1210) = 10 px/ms; first 16ms tick = 160 px pre-decay.
     expect(controller.pan.x - panBeforeMomentum.x).toBeCloseTo(160, 0);
     expect(controller.pan.y - panBeforeMomentum.y).toBeCloseTo(0, 6);
   });
@@ -282,8 +274,6 @@ describe('beginRefocus + applyPendingPin', () => {
   test('levels-change preservation: Focus stays at its current screen position across a rebuild', () => {
     const { controller, measurements } = setup();
     controller.ensureInitialPan();
-    // Simulate the willUpdate path: capture Focus's screen pos using old
-    // extents, then swap to wider extents, then applyPendingPin.
     const focusScreenBefore = controller.chartToScreen({ x: 0, y: 0 });
     expect(focusScreenBefore).not.toBeNull();
     if (focusScreenBefore === null) return;
@@ -343,7 +333,6 @@ describe('dblclick fit', () => {
     const { controller } = setup();
     controller.ensureInitialPan();
     controller.onDblClick(dblclickWithPath([]));
-    // After fit, the chart center should map to the canvas center.
     const chartCenter: Point = {
       x: (EXTENTS.min.x + EXTENTS.max.x) / 2,
       y: (EXTENTS.min.y + EXTENTS.max.y) / 2
@@ -413,7 +402,6 @@ describe('interactions', () => {
     const { controller, measurements } = setup();
     controller.ensureInitialPan();
     controller.beginRefocus({ x: 100, y: 100 });
-    // Before the first applyPendingPin runs, another refocus arrives.
     controller.beginRefocus({ x: 300, y: 200 });
     measurements.extents = {
       min: { x: -500, y: -400 },

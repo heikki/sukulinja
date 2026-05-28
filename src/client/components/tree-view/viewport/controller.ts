@@ -1,16 +1,7 @@
-// ReactiveController owning everything viewport-related for the tree-view
-// canvas: pan/scale state, drag + momentum, wheel zoom, dblclick fit,
-// initial pan, and the pin-on-refocus choreography that survives a Lit
-// rebuild. The host element wires DOM events (mousedown, dblclick) into
-// the public handlers and reads the observable state for render; window
-// listeners (mousemove, mouseup) and the passive:false wheel listener on
-// the canvas are owned here.
-//
-// Measurements (chartExtents, canvas size, canvas rect) come from a port
-// the host supplies at construction time — the controller calls back into
-// the host to read them at the moment they're needed, which makes the
-// "old extents during willUpdate / new extents during updated" timing
-// fall out naturally from when the host writes its chartExtents field.
+// Measurements are read through the host-supplied port at call time, so
+// chartExtents returns the OLD extents during willUpdate (before render
+// writes the new value) and the NEW extents during updated() — which is
+// exactly what the pin-on-refocus mechanism depends on.
 
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
@@ -168,9 +159,8 @@ export class ViewportController implements ReactiveController {
     this.host.requestUpdate();
   }
 
-  // Cancels any running momentum. If pinScreen is non-null, captures it as
-  // the screen point that chart (0,0) should land on after the next rebuild;
-  // null leaves any prior pending pin in place (caller couldn't compute one).
+  // null leaves any prior pending pin in place (the caller couldn't compute
+  // a fresh one); only a non-null Point overwrites it.
   beginRefocus(pinScreen: Point | null) {
     this.cancelMomentum();
     if (pinScreen !== null) this._pendingPinScreen = pinScreen;
@@ -196,8 +186,6 @@ export class ViewportController implements ReactiveController {
     return chartToScreen({ pan: this._pan, scale: this._scale }, p, vbo);
   }
 
-  // Public for tests and for the window-listener binding in hostConnected;
-  // the element doesn't need to wire this — the controller does it itself.
   readonly onMouseMove = (e: MouseEvent) => {
     if (this.dragOrigin === null) return;
     const dx = e.clientX - this.dragOrigin.mouse.x;
@@ -243,8 +231,8 @@ export class ViewportController implements ReactiveController {
     }, 0);
   };
 
-  // Public for tests; wired by attachCanvas with passive:false so it can
-  // preventDefault page scroll. The element doesn't bind it directly.
+  // Attached via attachCanvas with passive:false so preventDefault can
+  // suppress page scroll.
   readonly onWheel = (e: WheelEvent) => {
     if (this.canvas === null) return;
     e.preventDefault();
