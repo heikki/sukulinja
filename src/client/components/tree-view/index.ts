@@ -7,7 +7,7 @@ import { apiUrl } from '@client/api';
 import type { FamilyRow, PersonRow } from '@common/types';
 
 import { buildChart } from './build';
-import type { Box, EmitOutput, Extents, Point } from './emit';
+import type { EmitOutput, Extents, Point } from './emit';
 import {
   dims,
   formatDates,
@@ -201,18 +201,6 @@ export class TreeViewElement extends LitElement {
     return out;
   }
 
-  private renderPersonBox(box: Box) {
-    const person = this.persons.get(box.personId);
-    if (person === undefined) return nothing;
-    return renderBox(box, person, box.personId === this.focusId, () => {
-      if (this.viewport.dragMoved) return;
-      // Pin from layout coords rather than getBoundingClientRect — label
-      // widths vary by name length and would drift the captured "center"
-      // across back-and-forth toggles.
-      this.setFocus(box.personId, this.viewport.chartToScreen(box.pos));
-    });
-  }
-
   private renderToolbar(
     focusPerson: PersonRow | undefined,
     results: PersonRow[]
@@ -302,7 +290,26 @@ export class TreeViewElement extends LitElement {
                 ${repeat(
                   chart.boxes,
                   (b) => b.personId,
-                  (b) => this.renderPersonBox(b)
+                  (b) => {
+                    const person = this.persons.get(b.personId);
+                    if (person === undefined) return nothing;
+                    return renderBox(
+                      b,
+                      person,
+                      b.personId === this.focusId,
+                      () => {
+                        if (this.viewport.dragMoved) return;
+                        // Pin from layout coords rather than
+                        // getBoundingClientRect — label widths vary by
+                        // name length and would drift the captured
+                        // "center" across back-and-forth toggles.
+                        this.setFocus(
+                          b.personId,
+                          this.viewport.chartToScreen(b.pos)
+                        );
+                      }
+                    );
+                  }
                 )}
               </svg>
             </div>`
