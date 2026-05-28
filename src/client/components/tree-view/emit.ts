@@ -6,7 +6,7 @@
 // upstream PersonNode that owns this FamilyNode.
 //
 // Emit is also the seam where the layout's structural units resolve to
-// absolute pixel coordinates, using the EmitTheme passed in by the caller.
+// absolute pixel coordinates, using the Dims passed in by the caller.
 // LayoutOffset (see layout-node.ts) is in slot units on both axes —
 // sub-slot x (sibship packing), integer-generation y. Intra-family endpoints
 // come in as pixels from familyLines via FamilyNode.tieKind and
@@ -21,12 +21,12 @@ export interface Point {
   y: number;
 }
 
-export interface EmitTheme {
+export interface Dims {
   boxW: number;
   boxH: number;
   gapX: number;
   gapY: number;
-  nonprimaryTieYOffset: number;
+  tieOffset: number;
 }
 
 export interface Box {
@@ -57,14 +57,14 @@ export interface EmitOutput {
 export function emitLayout(
   root: LayoutNode,
   startAbs: Point,
-  theme: EmitTheme
+  dims: Dims
 ): EmitOutput {
-  const slotPitch = theme.boxW + theme.gapX;
-  const rowPitch = theme.boxH + theme.gapY;
+  const slotPitch = dims.boxW + dims.gapX;
+  const rowPitch = dims.boxH + dims.gapY;
   // Half-box-width in slot units; used for tie-endpoint clipping.
-  const boxHalfSlot = theme.boxW / slotPitch / 2;
-  const halfW = theme.boxW / 2;
-  const halfH = theme.boxH / 2;
+  const boxHalfSlot = dims.boxW / slotPitch / 2;
+  const halfW = dims.boxW / 2;
+  const halfH = dims.boxH / 2;
   const boxes: Box[] = [];
   const lines: DrawnLine[] = [];
   let minX = Infinity;
@@ -118,8 +118,8 @@ export function emitLayout(
         node.tieKind === 'centered'
           ? 0
           : node.tieKind === 'nonprimary-left'
-            ? theme.nonprimaryTieYOffset
-            : -theme.nonprimaryTieYOffset;
+            ? dims.tieOffset
+            : -dims.tieOffset;
       out.push({
         key: `tie-${node.famId}`,
         kind: 'tie',
@@ -139,7 +139,7 @@ export function emitLayout(
     const busY = rowPitch / 2;
     const anchorPoint: Point = {
       x: childAnchor.x,
-      y: childAnchor.kind === 'tie-midpoint' ? 0 : theme.boxH / 2
+      y: childAnchor.kind === 'tie-midpoint' ? 0 : dims.boxH / 2
     };
     // Drop is always vertical (see CONTEXT.md "Bloodline pyramid", ADR-0001).
     // The bar spans the union of childAnchor.x and the kid Xs — so a
@@ -172,7 +172,7 @@ export function emitLayout(
         from: { x: k.localX, y: busY },
         // Leg foot lands at the top of the kid's box: half a box down past
         // this family's tie row, then a full vertical gap.
-        to: { x: k.localX, y: theme.boxH / 2 + theme.gapY }
+        to: { x: k.localX, y: dims.boxH / 2 + dims.gapY }
       });
     }
   }

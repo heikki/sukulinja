@@ -1,5 +1,7 @@
 import { css } from 'lit';
 
+import { defaultRenderer } from './renderer';
+
 export const treeViewStyles = css`
   :host {
     --sl-anim-move: 350ms;
@@ -111,69 +113,5 @@ export const treeViewStyles = css`
     text-align: center;
   }
 
-  .node rect.box {
-    fill: var(--card);
-    stroke: var(--border);
-    stroke-width: 1;
-    vector-effect: non-scaling-stroke;
-  }
-
-  .node.focus rect.box {
-    stroke: var(--accent);
-    stroke-width: 2;
-  }
-
-  .node text {
-    fill: var(--fg);
-    font-size: 13px;
-  }
-
-  .node text.name {
-    font-weight: 600;
-  }
-
-  .node text.dates {
-    fill: var(--muted);
-    font-size: 11px;
-  }
-
-  .node .hit {
-    fill: transparent;
-    cursor: pointer;
-  }
-
-  .node:hover rect.box {
-    stroke: var(--accent);
-  }
-
-  .placeholder-avatar {
-    fill: var(--border);
-  }
-
-  .edge {
-    stroke: var(--muted);
-    stroke-width: 1.2;
-    fill: none;
-    vector-effect: non-scaling-stroke;
-  }
-
-  /* Focus change snaps — only opacity is animated, for fade-in of newly
-     rendered nodes and edges. The Pin keeps the focused node visually fixed
-     across the snap. */
-  .node {
-    animation: sl-enter var(--sl-anim-fade) ease-out both;
-  }
-
-  .edge {
-    animation: sl-enter var(--sl-anim-fade) ease-out both;
-  }
-
-  @keyframes sl-enter {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
+  ${defaultRenderer.styles}
 `;
