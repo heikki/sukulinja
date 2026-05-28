@@ -3,9 +3,9 @@
 // both axes — sub-slot x (sibship packing), integer-generation y;
 // intra-family endpoints come in already in pixels.
 
-import { FamilyNode } from './nodes/family-node';
-import type { LayoutNode } from './nodes/layout-node';
-import { PersonNode } from './nodes/person-node';
+import { FamilyNode } from './build/nodes/family-node';
+import type { LayoutNode } from './build/nodes/layout-node';
+import { PersonNode } from './build/nodes/person-node';
 
 export interface Point {
   x: number;

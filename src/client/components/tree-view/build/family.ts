@@ -7,16 +7,16 @@
 
 import type { FamilyRow } from '@common/types';
 
-import { FamilyNode } from '../nodes/family-node';
+import { isPersonKnown, otherSpouseOf } from './indices';
+import type { LayoutIndices } from './indices';
+import { FamilyNode } from './nodes/family-node';
 import type {
   AdultSlot,
   ChildAnchor,
   PersonSlot,
   TieKind
-} from '../nodes/family-node';
-import { PersonNode } from '../nodes/person-node';
-import { isPersonKnown, otherSpouseOf } from './indices';
-import type { LayoutIndices } from './indices';
+} from './nodes/family-node';
+import { PersonNode } from './nodes/person-node';
 import { buildSibship } from './sibship';
 import type { Sibship } from './sibship';
 
