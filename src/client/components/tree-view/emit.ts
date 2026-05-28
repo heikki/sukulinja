@@ -1,6 +1,6 @@
 // Emit pass — walks the layout tree once with an accumulated absolute
 // offset and produces a flat ID-keyed output for rendering. PersonNodes
-// contribute Box records; FamilyNodes contribute Line records. Anchor
+// contribute Box records; FamilyNodes contribute DrawnLine records. Anchor
 // slots inside a FamilyNode participate in line geometry but don't appear
 // in the layout tree, so they emit no Box — the box belongs to the
 // upstream PersonNode that owns this FamilyNode.
@@ -34,8 +34,11 @@ export interface Box {
   pos: Point;
 }
 
-interface Line {
+export type LineKind = 'tie' | 'drop' | 'bar' | 'leg';
+
+export interface DrawnLine {
   key: string;
+  kind: LineKind;
   from: Point;
   to: Point;
 }
@@ -47,7 +50,7 @@ export interface Extents {
 
 export interface EmitOutput {
   boxes: Box[];
-  lines: Line[];
+  lines: DrawnLine[];
   extents: Extents;
 }
 
@@ -63,7 +66,7 @@ export function emitLayout(
   const halfW = theme.boxW / 2;
   const halfH = theme.boxH / 2;
   const boxes: Box[] = [];
-  const lines: Line[] = [];
+  const lines: DrawnLine[] = [];
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
@@ -85,6 +88,7 @@ export function emitLayout(
       for (const line of familyLines(node)) {
         lines.push({
           key: line.key,
+          kind: line.kind,
           from: {
             x: (line.from.x + abs.x) * slotPitch,
             y: line.from.y + abs.y
@@ -101,9 +105,9 @@ export function emitLayout(
     }
   }
 
-  function familyLines(node: FamilyNode): Line[] {
+  function familyLines(node: FamilyNode): DrawnLine[] {
     // Endpoints are in family-local coords (slot units for x, pixels for y).
-    const out: Line[] = [];
+    const out: DrawnLine[] = [];
     if (node.husband !== null && node.wife !== null) {
       // Husband-left convention can be violated by ancestor step-fams (the
       // step-spouse may sit on Fa's "wrong" side to match chronological
@@ -118,6 +122,7 @@ export function emitLayout(
             : -theme.nonprimaryTieYOffset;
       out.push({
         key: `tie-${node.famId}`,
+        kind: 'tie',
         from: { x: leftX + boxHalfSlot, y: ty },
         to: { x: rightX - boxHalfSlot, y: ty }
       });
@@ -128,7 +133,7 @@ export function emitLayout(
     return out;
   }
 
-  function appendSibshipLines(node: FamilyNode, out: Line[]) {
+  function appendSibshipLines(node: FamilyNode, out: DrawnLine[]) {
     const { famId, kids, childAnchor } = node;
     // Bus sits midway between this family's tie row and the kid row.
     const busY = rowPitch / 2;
@@ -142,6 +147,7 @@ export function emitLayout(
     // still connects via a horizontal bar from the drop to the kid's leg.
     out.push({
       key: `sib-${famId}-drop`,
+      kind: 'drop',
       from: anchorPoint,
       to: { x: anchorPoint.x, y: busY }
     });
@@ -154,6 +160,7 @@ export function emitLayout(
     if (maxX > minX) {
       out.push({
         key: `sib-${famId}-bar`,
+        kind: 'bar',
         from: { x: minX, y: busY },
         to: { x: maxX, y: busY }
       });
@@ -161,6 +168,7 @@ export function emitLayout(
     for (const k of kids) {
       out.push({
         key: `sib-${famId}-leg-${k.personId}`,
+        kind: 'leg',
         from: { x: k.localX, y: busY },
         // Leg foot lands at the top of the kid's box: half a box down past
         // this family's tie row, then a full vertical gap.
