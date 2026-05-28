@@ -8,8 +8,13 @@ import type { FamilyRow, PersonRow } from '@common/types';
 
 import { buildChart } from './build';
 import type { Box, EmitOutput, Extents, Point } from './emit';
-import { defaultRenderer } from './renderer';
-import { formatDates, formatName } from './renderer/box';
+import {
+  dims,
+  formatDates,
+  formatName,
+  renderBox,
+  renderEdge
+} from './renderer';
 import { treeViewStyles } from './styles';
 import { ViewportController } from './viewport';
 import type { ViewportOptions } from './viewport';
@@ -41,7 +46,6 @@ export class TreeViewElement extends LitElement {
   static override styles = treeViewStyles;
 
   @property({ type: Number, reflect: true }) levels = 1;
-  @property({ attribute: false }) renderer = defaultRenderer;
 
   @state() private persons = new Map<number, PersonRow>();
   @state() private focusId: number | null = null;
@@ -197,21 +201,16 @@ export class TreeViewElement extends LitElement {
     return out;
   }
 
-  private renderBox(box: Box) {
+  private renderPersonBox(box: Box) {
     const person = this.persons.get(box.personId);
     if (person === undefined) return nothing;
-    return this.renderer.renderBox(
-      box,
-      person,
-      box.personId === this.focusId,
-      () => {
-        if (this.viewport.dragMoved) return;
-        // Pin from layout coords rather than getBoundingClientRect — label
-        // widths vary by name length and would drift the captured "center"
-        // across back-and-forth toggles.
-        this.setFocus(box.personId, this.viewport.chartToScreen(box.pos));
-      }
-    );
+    return renderBox(box, person, box.personId === this.focusId, () => {
+      if (this.viewport.dragMoved) return;
+      // Pin from layout coords rather than getBoundingClientRect — label
+      // widths vary by name length and would drift the captured "center"
+      // across back-and-forth toggles.
+      this.setFocus(box.personId, this.viewport.chartToScreen(box.pos));
+    });
   }
 
   private renderToolbar(
@@ -297,13 +296,13 @@ export class TreeViewElement extends LitElement {
                   ${repeat(
                     chart.lines,
                     (l) => l.key,
-                    (l) => this.renderer.renderEdge(l)
+                    (l) => renderEdge(l)
                   )}
                 </g>
                 ${repeat(
                   chart.boxes,
                   (b) => b.personId,
-                  (b) => this.renderBox(b)
+                  (b) => this.renderPersonBox(b)
                 )}
               </svg>
             </div>`
@@ -325,7 +324,7 @@ export class TreeViewElement extends LitElement {
         spouseFamsByPerson: this.spouseFamsByPerson,
         levels: this.levels
       },
-      this.renderer.dims
+      dims
     );
     if (chart === null) {
       return html`<div class="empty">No data for selected focus.</div>`;

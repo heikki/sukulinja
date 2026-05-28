@@ -1,21 +1,20 @@
-# Swappable Renderer: paint, styles, and dims in one bundle
+# Renderer module: chart paint and dims co-located
 
-The render phase (ADR-0003's third phase) is encapsulated as a single `defaultRenderer` value, passed into `TreeViewElement` as a reactive property. The bundle owns box paint (`renderBox`), edge paint (`renderEdge`), all chart CSS (`styles`), and the layout dimensions (`dims` — `boxW`/`boxH`/`gapX`/`gapY`/`tieOffset`) that emit consumes. A future visual variant (dense print layout, alternate aesthetic) is swapped by replacing the prop value, with no parent-side restructuring.
+The chart's render-phase concerns (per ADR-0003's three-phase split) live in a single `tree-view/renderer.ts` module with named exports: `dims` (consumed by emit), `styles` (chart CSS), `renderBox`, `renderEdge`, and the `formatName` / `formatDates` helpers the search-results UI also uses. `TreeViewElement` and `tree-view/styles.ts` import names directly; there is no bundle value and no renderer-related reactive state.
 
-Emit takes `Dims` as input but knows nothing about the renderer; the renderer imports `Dims` from emit. Directional dependency preserves ADR-0003's three-phase split: emit's `EmitOutput` remains the stable boundary, and a future Canvas/PDF renderer plugs in without touching layout.
+`dims` co-locates with paint because dimensions are a paint choice that emit happens to need as input. The directional dependency `renderer → emit` holds: emit owns the `Dims` type as its input contract; the renderer satisfies it and the parent (`TreeViewElement`) plumbs `dims` into the emit call.
 
-`DrawnLine` carries a `kind: 'tie' | 'drop' | 'bar' | 'leg'` field so the renderer can paint per connector kind, surfacing CONTEXT.md's connector vocabulary into the emitted output.
+`DrawnLine` carries a `kind: 'tie' | 'drop' | 'bar' | 'leg'` field so the renderer can paint per connector kind (today surfaced as a CSS class on each edge), and so CONTEXT.md's connector vocabulary reaches the emit output.
 
 ## Considered options
 
-- **Box-only swap.** Extract just `boxRenderer` into a swappable shape; leave edges, styles, dims, and animations where they were (inline in `index.ts`, in `styles.ts`, on `boxRenderer`). Rejected: a coherent visual variant isn't just the box — every other knob (edge stroke, palette, animations, slot pitch) needs to move together to constitute a different look. Half-swapped means callers can't actually produce a complete variant.
-- **Visual-only Theme (dims stay with layout).** Theme owns paint + styles; dims remain a separate layout-side concept. Rejected: dims *are* a visual choice. A dense look has smaller boxes; a roomy look has bigger ones. Forcing dims out of the bundle means the bundle can't fully describe its look, and "swap" can't change sizing — which is the most visually obvious lever.
-- **Bundle named "Theme".** Same shape, named `theme` / `Theme`. Rejected on naming grounds: "theme" connotes visual-only, but the bundle owns dims (layout-affecting). "Renderer" is honest about scope and aligns with ADR-0003's existing vocabulary ("a future renderer plugs in by consuming `EmitOutput`").
-- **Renderer (chosen).** One bundle owning the full render-phase contract: dims (emit input), styles (CSS), paint (`renderBox`, `renderEdge`). Reactive prop on `TreeViewElement`; default supplied so callers without preferences don't think about it.
+- **Box-only renderer; edges inline.** Keep `box-renderer.ts`'s shape, leave edges as inline `<path>` in `index.ts`. Rejected: boxes and edges are both paint concerns and were already living in separate places. Co-locating them as one module makes the chart's visual identity readable in one file.
+- **Visual-only "theme" with dims kept on the layout side.** Theme owns paint + styles; dims remain a separate emit-side concept. Rejected: dims are a paint choice (a dense look has smaller boxes; a roomy one has bigger). Forcing them out of the paint module splits a single decision across two files.
+- **Bundle the render-phase exports into `defaultRenderer` + reactive `renderer` prop on `TreeViewElement`.** Considered (and shipped briefly) as preparation for runtime renderer-swap — e.g., a user-selected visual variant. Reverted: with only one concrete renderer planned and no runtime-swap UX in flight, the bundle was overdesign — extra ceremony at every call site (`this.renderer.X`) for an affordance not in use. Restoring it is mechanical if a swap requirement emerges; until then, named imports stand on their own.
 
 ## Consequences
 
-- Changing renderer invalidates layout — emit re-runs because dims may have changed. Fine: renderer swaps are user-driven (settings preference), not per-frame.
-- No `Renderer` TypeScript interface is defined while only one concrete renderer exists. The prop's type is `typeof defaultRenderer`; extracting an interface is the trigger for a second renderer landing.
-- Avatar clipping moves from an SVG `<defs><clipPath>` block in `index.ts` to CSS `clip-path: circle(50%)` inside the renderer's `styles`. No `defs?()` slot on the bundle yet — a future renderer needing SVG defs adds it then.
-- `box-renderer.ts` is removed; its responsibilities split between `renderer/box.ts` (paint + formatters) and `renderer/index.ts` (dims, styles, edge paint, bundle assembly). `EmitTheme` in `emit.ts` renames to `Dims`.
+- Avatar clipping moves from an SVG `<defs><clipPath>` block in `index.ts` to CSS `clip-path: circle(50%)` on `.avatar-img` inside the renderer's `styles`. No SVG defs are allocated at the chart level.
+- `box-renderer.ts` is removed; `EmitTheme` (in `emit.ts`) renames to `Dims`; `nonprimaryTieYOffset` renames to `tieOffset`.
+- No `Renderer` TypeScript interface. With one module and named imports, the contract is structural; an interface is the trigger if a second renderer ever lands.
+- The class's private `renderBox` method on `TreeViewElement` renamed to `renderPersonBox` to avoid colliding with the imported `renderBox` function. The method exists because it adds the per-call wiring (person lookup, focus comparison, click handler with viewport pin) that the pure paint function shouldn't know about.
