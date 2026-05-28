@@ -1,16 +1,7 @@
-// Emit pass — walks the layout tree once with an accumulated absolute
-// offset and produces a flat ID-keyed output for rendering. PersonNodes
-// contribute Box records; FamilyNodes contribute DrawnLine records. Anchor
-// slots inside a FamilyNode participate in line geometry but don't appear
-// in the layout tree, so they emit no Box — the box belongs to the
-// upstream PersonNode that owns this FamilyNode.
-//
-// Emit is also the seam where the layout's structural units resolve to
-// absolute pixel coordinates, using the Dims passed in by the caller.
-// LayoutOffset (see layout-node.ts) is in slot units on both axes —
-// sub-slot x (sibship packing), integer-generation y. Intra-family endpoints
-// come in as pixels from familyLines via FamilyNode.tieKind and
-// ChildAnchor.kind (see family-node.ts).
+// The seam where layout's slot-unit / generation-unit offsets resolve to
+// absolute pixels. LayoutOffset (see layout-node.ts) is in slot units on
+// both axes — sub-slot x (sibship packing), integer-generation y;
+// intra-family endpoints come in already in pixels.
 
 import { FamilyNode } from './nodes/family-node';
 import type { LayoutNode } from './nodes/layout-node';
@@ -38,6 +29,7 @@ export type LineKind = 'tie' | 'drop' | 'bar' | 'leg';
 
 export interface DrawnLine {
   key: string;
+  // Tagged for paint-side dispatch; emit itself doesn't read this.
   kind: LineKind;
   from: Point;
   to: Point;
@@ -61,7 +53,6 @@ export function emitLayout(
 ): EmitOutput {
   const slotPitch = dims.boxW + dims.gapX;
   const rowPitch = dims.boxH + dims.gapY;
-  // Half-box-width in slot units; used for tie-endpoint clipping.
   const boxHalfSlot = dims.boxW / slotPitch / 2;
   const halfW = dims.boxW / 2;
   const halfH = dims.boxH / 2;
@@ -135,7 +126,6 @@ export function emitLayout(
 
   function appendSibshipLines(node: FamilyNode, out: DrawnLine[]) {
     const { famId, kids, childAnchor } = node;
-    // Bus sits midway between this family's tie row and the kid row.
     const busY = rowPitch / 2;
     const anchorPoint: Point = {
       x: childAnchor.x,
@@ -170,8 +160,6 @@ export function emitLayout(
         key: `sib-${famId}-leg-${k.personId}`,
         kind: 'leg',
         from: { x: k.localX, y: busY },
-        // Leg foot lands at the top of the kid's box: half a box down past
-        // this family's tie row, then a full vertical gap.
         to: { x: k.localX, y: dims.boxH / 2 + dims.gapY }
       });
     }

@@ -1,7 +1,3 @@
-// Chart paint: the dimensions emit consumes plus the SVG paint for each
-// placed Box and each DrawnLine. Avatar clipping is CSS (.avatar-img),
-// so no SVG <defs> clipPath is allocated at the chart level.
-
 import { css, svg } from 'lit';
 
 import { mediaUrl } from '@client/api';
@@ -13,6 +9,8 @@ const NAME_TRUNCATE = 22;
 const avatarR = 22;
 const avatarCx = 28;
 
+// Lives with paint because dim choices are paint choices; emit receives
+// them as a parameter rather than reaching back here.
 export const dims = {
   boxW: 184,
   boxH: 90,
