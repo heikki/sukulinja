@@ -1,6 +1,6 @@
 import { css } from 'lit';
 
-import { defaultRenderer } from './renderer';
+import { styles as rendererStyles } from './renderer';
 
 export const treeViewStyles = css`
   :host {
@@ -113,5 +113,5 @@ export const treeViewStyles = css`
     text-align: center;
   }
 
-  ${defaultRenderer.styles}
+  ${rendererStyles}
 `;
