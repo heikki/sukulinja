@@ -68,6 +68,8 @@ Every parent **Drop** is purely vertical — never an L-bend. For every kid sibs
 
 The shift magnitude grows with how many more levels are rendered above: half-slot at the topmost ancestor row, 3 × half-slot one level lower, 7 × half-slot two levels lower — the (2^n − 1) sequence. This places each Couple as close to chart center as the inter-couple spacing allows, keeps each Couple's great-grandparents centered around the Couple itself, and gives the upper pyramid enough room to keep gen+1 columns distinct.
 
+That magnitude assumes the Couple's sibling subtree fans the opposite way to counterweight it. When one parent's bloodline ancestry is empty, there is no counterweight, so the shift collapses to a half-slot and the lone pyramid tucks back over its bloodline child rather than drifting off (ADR-0005). A shallow-but-nonempty sibling still gets the full shift.
+
 Spouse separation inside every Couple — including the chart-root parent FB — stays fixed at one slot; subtree extents grow outward (away from chart center).
 
 **Aunts/Uncles placement**:
