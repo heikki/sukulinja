@@ -34,7 +34,7 @@ export const treeViewStyles = css`
     font: inherit;
   }
 
-  .levels {
+  .gen {
     display: inline-flex;
     align-items: center;
     gap: 0.4rem;
@@ -42,7 +42,7 @@ export const treeViewStyles = css`
     color: var(--muted);
   }
 
-  .levels input[type='range'] {
+  .gen input[type='range'] {
     width: 80px;
   }
 
