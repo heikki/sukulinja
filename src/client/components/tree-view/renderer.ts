@@ -21,10 +21,9 @@ export function formatDates(p: PersonRow) {
   return `${b} – ${d}`;
 }
 
-// foreignObject HTML rasterizes at the SVG's pixel scale and then gets
-// re-sampled by the viewport's CSS transform — fine at 1:1, blurry under
-// fit-scale. Native SVG <text> stays vector through the whole pipeline,
-// so wrapping is done manually here.
+// Manual split so wrapping can use SVG <tspan>: foreignObject HTML
+// rasterizes at the SVG's pixel scale and looks blurry under viewport
+// fit-scale, while <text>/<tspan> stays vector through the pipeline.
 function wrapName(name: string): string[] {
   if (name.length <= NAME_MAX_CHARS) return [name];
   const words = name.split(' ');
@@ -66,9 +65,8 @@ function avatar(p: PersonRow, cx: number, cy: number, r: number) {
       />
     `;
   }
-  // Inscribed ellipse for the shoulders fits inside the bg-circle by
-  // geometry (touches it only at the bottom point) — no SVG clipPath
-  // needed.
+  // The shoulder ellipse touches the bg-circle only at its bottom point;
+  // anywhere else it sits inside, so no clipPath is needed.
   const headR = r * 0.32;
   const headCy = cy - r * 0.22;
   return svg`
@@ -113,7 +111,6 @@ export function renderBox(
   const avatarCy = 14 + avatarR;
   const lines = wrapName(formatName(person));
   const dates = formatDates(person);
-  // Center the name + dates block vertically in the space below the avatar.
   const textRegionTop = avatarCy + avatarR + 10;
   const textRegionBottom = boxH - 14;
   const textRegionCenter = (textRegionTop + textRegionBottom) / 2;
