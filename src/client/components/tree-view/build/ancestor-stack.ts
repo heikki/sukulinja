@@ -3,11 +3,11 @@
 // the caller (single Anchor at depth ≥ 2; full Aunts/Uncles sibship at
 // depth 1 from parent-row). Tie position follows ADR-0001.
 
-import type { FamilyNode, PersonSlot } from '../nodes/family-node';
-import { PersonNode } from '../nodes/person-node';
 import { buildCenteredFamily } from './family';
 import { isPersonKnown } from './indices';
 import type { LayoutIndices } from './indices';
+import type { FamilyNode, PersonSlot } from './nodes/family-node';
+import { PersonNode } from './nodes/person-node';
 
 export function buildAncestorStack(
   kidId: number,

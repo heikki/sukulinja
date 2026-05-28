@@ -3,9 +3,6 @@
 
 import type { FamilyRow } from '@common/types';
 
-import type { FamilyNode, PersonSlot } from '../nodes/family-node';
-import type { Extents } from '../nodes/layout-node';
-import { PersonNode } from '../nodes/person-node';
 import { buildAncestorStack } from './ancestor-stack';
 import { buildAnchoredFamily, buildCenteredFamily } from './family';
 import type { SpousePlacement } from './family';
@@ -15,6 +12,9 @@ import {
   presentChildren
 } from './indices';
 import type { LayoutIndices } from './indices';
+import type { FamilyNode, PersonSlot } from './nodes/family-node';
+import type { Extents } from './nodes/layout-node';
+import { PersonNode } from './nodes/person-node';
 import { buildSibship } from './sibship';
 
 export function buildParentRow(
