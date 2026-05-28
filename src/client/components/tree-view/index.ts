@@ -16,11 +16,15 @@ import {
   renderEdge
 } from './renderer';
 import { treeViewStyles } from './styles';
+import { buildHash, parseHashView } from './url-state';
+import type { Bounds, Defaults } from './url-state';
 import { ViewportController } from './viewport';
 import type { ViewportOptions } from './viewport';
 
 const SVG_MARGIN_PX = 24;
 const DEFAULT_FOCUS_ID = 1;
+const DEFAULT_GEN = 2;
+const MAX_GEN = 5;
 const VIEWPORT_OPTIONS: ViewportOptions = {
   scaleBounds: { minScale: 0.25, maxScale: 2 },
   wheelZoomK: 0.001,
@@ -30,22 +34,21 @@ const VIEWPORT_OPTIONS: ViewportOptions = {
   svgMarginPx: SVG_MARGIN_PX
 };
 
-const FOCUS_HASH_RE = /^#\/person\/(?<id>\d+)$/;
+const URL_BOUNDS: Bounds = {
+  maxGen: MAX_GEN,
+  minZoom: VIEWPORT_OPTIONS.scaleBounds.minScale,
+  maxZoom: VIEWPORT_OPTIONS.scaleBounds.maxScale
+};
+const URL_DEFAULTS: Defaults = { gen: DEFAULT_GEN };
+
 const SEARCH_MIN_LEN = 2;
 const SEARCH_MAX_RESULTS = 50;
-
-function readFocusFromHash() {
-  const m = FOCUS_HASH_RE.exec(location.hash);
-  const id = m?.groups?.id;
-  if (id === undefined) return null;
-  return parseInt(id, 10);
-}
 
 @customElement('sl-tree-view')
 export class TreeViewElement extends LitElement {
   static override styles = treeViewStyles;
 
-  @property({ type: Number, reflect: true }) levels = 1;
+  @property({ type: Number, reflect: true }) gen = DEFAULT_GEN;
 
   @state() private persons = new Map<number, PersonRow>();
   @state() private focusId: number | null = null;
@@ -86,7 +89,10 @@ export class TreeViewElement extends LitElement {
   }
 
   private readonly onHashChange = () => {
-    const id = readFocusFromHash();
+    const parsed = parseHashView(location.hash, URL_BOUNDS);
+    const nextGen = parsed.gen ?? DEFAULT_GEN;
+    if (nextGen !== this.gen) this.gen = nextGen;
+    const id = parsed.focusId;
     if (id === null || !this.persons.has(id) || id === this.focusId) return;
     // Pan was last set to pin the previously-focused box at click position;
     // without a fresh pin, back/forward would land the new focus at a stale
@@ -96,12 +102,12 @@ export class TreeViewElement extends LitElement {
   };
 
   override willUpdate(changed: PropertyValues) {
-    // Levels change rebuilds the chart with different extents, which would
-    // drift Focus on screen since chart (0,0) is mapped through extents.min.
+    // Gen change rebuilds the chart with different extents, which would drift
+    // Focus on screen since chart (0,0) is mapped through extents.min.
     // Capture Focus's current screen pixel so the post-rebuild pin keeps it
     // put.
     if (
-      changed.has('levels') &&
+      changed.has('gen') &&
       this.viewport.panReady &&
       !this.viewport.hasPendingPin
     ) {
@@ -143,13 +149,23 @@ export class TreeViewElement extends LitElement {
       if (f.wife_id !== null) this.appendSpouseFam(f.wife_id, f);
     }
 
-    const hashId = readFocusFromHash();
-    if (hashId !== null && this.persons.has(hashId)) {
-      this.focusId = hashId;
+    const parsed = parseHashView(location.hash, URL_BOUNDS);
+    if (parsed.gen !== null) this.gen = parsed.gen;
+    if (parsed.focusId !== null && this.persons.has(parsed.focusId)) {
+      this.focusId = parsed.focusId;
     } else {
       const def = this.pickDefaultFocus();
       this.focusId = def;
-      if (def !== null) history.replaceState(null, '', `#/person/${def}`);
+      if (def !== null) {
+        history.replaceState(
+          null,
+          '',
+          buildHash(
+            { focusId: def, gen: this.gen, pan: null, zoom: null },
+            URL_DEFAULTS
+          )
+        );
+      }
     }
     this.loading = false;
   }
@@ -183,8 +199,27 @@ export class TreeViewElement extends LitElement {
     }
     this.viewport.beginRefocus(pinScreen);
     this.focusId = id;
-    history.pushState(null, '', `#/person/${id}`);
+    history.pushState(
+      null,
+      '',
+      buildHash(
+        { focusId: id, gen: this.gen, pan: null, zoom: null },
+        URL_DEFAULTS
+      )
+    );
     this.query = '';
+  }
+
+  private writeUrl() {
+    if (this.focusId === null) return;
+    history.replaceState(
+      null,
+      '',
+      buildHash(
+        { focusId: this.focusId, gen: this.gen, pan: null, zoom: null },
+        URL_DEFAULTS
+      )
+    );
   }
 
   private filteredSearch() {
@@ -215,19 +250,22 @@ export class TreeViewElement extends LitElement {
             this.query = (e.target as HTMLInputElement).value;
           }}
         />
-        <label class="levels">
+        <label class="gen">
           Levels
           <input
             type="range"
             min="1"
-            max="5"
+            max=${MAX_GEN}
             step="1"
-            .value=${String(this.levels)}
+            .value=${String(this.gen)}
             @input=${(e: InputEvent) => {
-              this.levels = parseInt((e.target as HTMLInputElement).value, 10);
+              this.gen = parseInt((e.target as HTMLInputElement).value, 10);
+            }}
+            @change=${() => {
+              this.writeUrl();
             }}
           />
-          <span class="meta">${this.levels}</span>
+          <span class="meta">${this.gen}</span>
         </label>
         ${focusPerson === undefined
           ? nothing
@@ -329,7 +367,7 @@ export class TreeViewElement extends LitElement {
         persons: this.persons,
         parentFamByPerson: this.parentFamByPerson,
         spouseFamsByPerson: this.spouseFamsByPerson,
-        levels: this.levels
+        levels: this.gen
       },
       dims
     );

@@ -146,7 +146,7 @@ export class AppElement extends LitElement {
         <h1 @click=${this.onTitleClick}>Sukulinja</h1>
         ${this.renderSwitcher()}
       </header>
-      <main><sl-tree-view levels="2"></sl-tree-view></main>
+      <main><sl-tree-view></sl-tree-view></main>
     `;
   }
 
