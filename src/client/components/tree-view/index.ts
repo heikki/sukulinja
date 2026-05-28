@@ -67,6 +67,7 @@ export class TreeViewElement extends LitElement {
   // to equal the auto-fit value. Avoids equality-comparing floats against
   // canvas-derived defaults.
   private hasUserZoom = false;
+  private hasUserPan = false;
 
   private readonly viewport = new ViewportController(
     this,
@@ -81,6 +82,7 @@ export class TreeViewElement extends LitElement {
       canvasRect: () => this.queryCanvas()?.getBoundingClientRect() ?? null,
       onSettle: () => {
         this.hasUserZoom = true;
+        this.hasUserPan = true;
         this.writeUrl();
       }
     },
@@ -106,12 +108,18 @@ export class TreeViewElement extends LitElement {
       this.viewport.setScale(parsed.zoom);
       this.hasUserZoom = true;
     }
+    if (parsed.pan !== null) {
+      this.viewport.setPan(parsed.pan);
+      this.hasUserPan = true;
+    }
     const id = parsed.focusId;
     if (id === null || !this.persons.has(id) || id === this.focusId) return;
     // Pan was last set to pin the previously-focused box at click position;
     // without a fresh pin, back/forward would land the new focus at a stale
-    // offset. Recenter on the canvas instead.
-    this.viewport.beginRefocus(this.canvasCenter());
+    // offset. Recenter on the canvas — unless the URL itself supplies a pan,
+    // in which case the stored pan is authoritative and recentering would
+    // clobber it.
+    if (parsed.pan === null) this.viewport.beginRefocus(this.canvasCenter());
     this.focusId = id;
   };
 
@@ -125,7 +133,11 @@ export class TreeViewElement extends LitElement {
       this.viewport.panReady &&
       !this.viewport.hasPendingPin
     ) {
-      this.viewport.beginRefocus(this.viewport.chartToScreen({ x: 0, y: 0 }));
+      // Silent: every slider @input ticks gen, and we don't want the URL to
+      // settle until the slider's @change fires on release.
+      this.viewport.beginRefocus(this.viewport.chartToScreen({ x: 0, y: 0 }), {
+        silent: true
+      });
     }
   }
 
@@ -176,6 +188,10 @@ export class TreeViewElement extends LitElement {
       this.viewport.setScale(parsed.zoom);
       this.hasUserZoom = true;
     }
+    if (parsed.pan !== null) {
+      this.viewport.setPan(parsed.pan);
+      this.hasUserPan = true;
+    }
     if (parsed.focusId !== null && this.persons.has(parsed.focusId)) {
       this.focusId = parsed.focusId;
       return;
@@ -216,7 +232,21 @@ export class TreeViewElement extends LitElement {
     }
     this.viewport.beginRefocus(pinScreen);
     this.focusId = id;
-    history.pushState(null, '', this.buildCurrentHash(id));
+    // Two-step: push carries focus+gen+zoom only. The pin lands in updated()
+    // and onSettle's writeUrl follows up with a replaceState that adds pan.
+    history.pushState(
+      null,
+      '',
+      buildHash(
+        {
+          focusId: id,
+          gen: this.gen,
+          pan: null,
+          zoom: this.hasUserZoom ? this.viewport.scale : null
+        },
+        URL_DEFAULTS
+      )
+    );
     this.query = '';
   }
 
@@ -230,7 +260,7 @@ export class TreeViewElement extends LitElement {
       {
         focusId,
         gen: this.gen,
-        pan: null,
+        pan: this.hasUserPan ? this.viewport.pan : null,
         zoom: this.hasUserZoom ? this.viewport.scale : null
       },
       URL_DEFAULTS
@@ -276,7 +306,10 @@ export class TreeViewElement extends LitElement {
             @input=${(e: InputEvent) => {
               this.gen = parseInt((e.target as HTMLInputElement).value, 10);
             }}
-            @change=${() => {
+            @change=${async () => {
+              // Wait for the silent gen-change pin to land in updated()
+              // before snapshotting pan into the URL.
+              await this.updateComplete;
               this.writeUrl();
             }}
           />

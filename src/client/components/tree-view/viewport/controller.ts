@@ -62,6 +62,10 @@ export class ViewportController implements ReactiveController {
   // the box click handler can suppress a focus change that follows a drag.
   private _dragMoved = false;
   private _pendingPinScreen: Point | null = null;
+  // Silent pins skip the onSettle notification — used by gen-change reflow
+  // where every slider step pins chart (0,0) on screen, but the URL write
+  // should wait for the slider's @change (release), not every @input tick.
+  private _pendingPinSilent = false;
 
   private dragOrigin: DragOrigin | null = null;
   private dragSamples: DragSample[] = [];
@@ -116,6 +120,14 @@ export class ViewportController implements ReactiveController {
   // first pin, so chart (0,0) lands centered at the URL-supplied zoom.
   setScale(s: number) {
     this._scale = s;
+    this.host.requestUpdate();
+  }
+
+  // Lets the host restore pan from URL; marks panReady so ensureInitialPan
+  // doesn't clobber the restored value with a fresh canvas-center pin.
+  setPan(p: Point) {
+    this._pan = { ...p };
+    this._panReady = true;
     this.host.requestUpdate();
   }
 
@@ -179,10 +191,13 @@ export class ViewportController implements ReactiveController {
   }
 
   // null leaves any prior pending pin in place (the caller couldn't compute
-  // a fresh one); only a non-null Point overwrites it.
-  beginRefocus(pinScreen: Point | null) {
+  // a fresh one); only a non-null Point overwrites it. `silent` suppresses
+  // onSettle when the pin lands — used for reflow pins (gen change) where
+  // the URL write should follow the slider release, not every input tick.
+  beginRefocus(pinScreen: Point | null, opts?: { silent?: boolean }) {
     this.cancelMomentum();
     if (pinScreen !== null) this._pendingPinScreen = pinScreen;
+    if (opts?.silent === true) this._pendingPinSilent = true;
   }
 
   applyPendingPin() {
@@ -196,7 +211,10 @@ export class ViewportController implements ReactiveController {
       vbo
     );
     this._pendingPinScreen = null;
+    const silent = this._pendingPinSilent;
+    this._pendingPinSilent = false;
     this.host.requestUpdate();
+    if (!silent) this.measurements.onSettle?.();
   }
 
   chartToScreen(p: Point): Point | null {
@@ -242,6 +260,10 @@ export class ViewportController implements ReactiveController {
     }
     this.maybeStartMomentum();
     this.dragSamples = [];
+    // When no momentum kicked in (short drag or low release velocity), the
+    // gesture has settled at mouseup. Momentum's own onEnd handles the
+    // animated case.
+    if (this.momentum === null) this.measurements.onSettle?.();
     // Defer clearing `dragging` so the canvas's CSS class survives long
     // enough for the click event on a box to know a drag just ended.
     setTimeout(() => {
@@ -285,9 +307,15 @@ export class ViewportController implements ReactiveController {
       (last.x - prev.x) / dt,
       (last.y - prev.y) / dt,
       this.options.momentumOptions,
-      (dx, dy) => {
-        this._pan = { x: this._pan.x + dx, y: this._pan.y + dy };
-        this.host.requestUpdate();
+      {
+        onTick: (dx, dy) => {
+          this._pan = { x: this._pan.x + dx, y: this._pan.y + dy };
+          this.host.requestUpdate();
+        },
+        onEnd: () => {
+          this.momentum = null;
+          this.measurements.onSettle?.();
+        }
       }
     );
   }

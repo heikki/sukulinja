@@ -58,6 +58,35 @@ describe('parseHashView', () => {
   });
 });
 
+describe('parseHashView pan', () => {
+  test('reads pan as integer x,y', () => {
+    expect(parseHashView('#/person/1?pan=120,-80', BOUNDS).pan).toEqual({
+      x: 120,
+      y: -80
+    });
+    expect(parseHashView('#/person/1?pan=-80,-120', BOUNDS).pan).toEqual({
+      x: -80,
+      y: -120
+    });
+    expect(parseHashView('#/person/1?pan=0,-80', BOUNDS).pan).toEqual({
+      x: 0,
+      y: -80
+    });
+  });
+
+  test('drops unparseable or partial pan but keeps focus', () => {
+    expect(parseHashView('#/person/1?pan=foo', BOUNDS).pan).toBeNull();
+    expect(parseHashView('#/person/1?pan=120', BOUNDS).pan).toBeNull();
+    expect(parseHashView('#/person/1?pan=1.5,2', BOUNDS).pan).toBeNull();
+    expect(parseHashView('#/person/1?pan=a,b', BOUNDS).pan).toBeNull();
+    expect(parseHashView('#/person/1?pan=foo', BOUNDS).focusId).toBe(1);
+  });
+
+  test('returns null for missing pan', () => {
+    expect(parseHashView('#/person/1', BOUNDS).pan).toBeNull();
+  });
+});
+
 describe('parseHashView zoom', () => {
   test('reads zoom', () => {
     expect(parseHashView('#/person/1?zoom=1.5', BOUNDS).zoom).toBe(1.5);
@@ -123,6 +152,41 @@ describe('buildHash', () => {
       buildHash({ focusId: 1, gen: 3, pan: null, zoom: 1.5 }, DEFAULTS)
     ).toBe('#/person/1?gen=3&zoom=1.5');
   });
+
+  test('omits pan when null', () => {
+    expect(
+      buildHash({ focusId: 1, gen: 2, pan: null, zoom: null }, DEFAULTS)
+    ).toBe('#/person/1');
+  });
+
+  test('writes pan rounded to integers', () => {
+    expect(
+      buildHash(
+        { focusId: 1, gen: 2, pan: { x: 120, y: -80 }, zoom: null },
+        DEFAULTS
+      )
+    ).toBe('#/person/1?pan=120,-80');
+    expect(
+      buildHash(
+        { focusId: 1, gen: 2, pan: { x: 120.4, y: -79.6 }, zoom: null },
+        DEFAULTS
+      )
+    ).toBe('#/person/1?pan=120,-80');
+  });
+
+  test('emits gen, pan, zoom in canonical order', () => {
+    expect(
+      buildHash(
+        {
+          focusId: 1,
+          gen: 3,
+          pan: { x: 10, y: 20 },
+          zoom: 1.5
+        },
+        DEFAULTS
+      )
+    ).toBe('#/person/1?gen=3&pan=10,20&zoom=1.5');
+  });
 });
 
 describe('round-trip', () => {
@@ -133,7 +197,11 @@ describe('round-trip', () => {
     '#/person/1?zoom=1',
     '#/person/1?zoom=1.5',
     '#/person/1?zoom=0.87',
-    '#/person/1?gen=3&zoom=1.5'
+    '#/person/1?gen=3&zoom=1.5',
+    '#/person/1?pan=120,-80',
+    '#/person/1?pan=0,-80',
+    '#/person/1?pan=-80,-120',
+    '#/person/123?gen=3&pan=120,-80&zoom=1.5'
   ];
   for (const s of cases) {
     test(s, () => {
@@ -143,7 +211,7 @@ describe('round-trip', () => {
         {
           focusId: parsed.focusId!,
           gen: parsed.gen ?? DEFAULTS.gen,
-          pan: null,
+          pan: parsed.pan,
           zoom: parsed.zoom
         },
         DEFAULTS

@@ -58,6 +58,19 @@ function formatZoom(z: number): string {
   return z.toFixed(2).replace(/\.?0+$/u, '');
 }
 
+function parsePan(raw: string | null): Point | null {
+  if (raw === null) return null;
+  const parts = raw.split(',');
+  if (parts.length !== 2) return null;
+  const [xs, ys] = parts as [string, string];
+  if (!INT_RE.test(xs) || !INT_RE.test(ys)) return null;
+  return { x: parseInt(xs, 10), y: parseInt(ys, 10) };
+}
+
+function formatPan(p: Point): string {
+  return `${Math.round(p.x)},${Math.round(p.y)}`;
+}
+
 export function parseHashView(hash: string, bounds: Bounds): ParsedView {
   const m = FOCUS_HASH_RE.exec(hash);
   if (m === null) return { ...EMPTY };
@@ -66,8 +79,7 @@ export function parseHashView(hash: string, bounds: Bounds): ParsedView {
   return {
     focusId,
     gen: parseGen(params.get('gen'), bounds.maxGen),
-    // Pan slot reserved for slice 03.
-    pan: null,
+    pan: parsePan(params.get('pan')),
     zoom: parseZoom(params.get('zoom'), bounds.minZoom, bounds.maxZoom)
   };
 }
@@ -78,6 +90,7 @@ export function parseHashView(hash: string, bounds: Bounds): ParsedView {
 export function buildHash(view: BuildView, defaults: Defaults): string {
   const parts: string[] = [];
   if (view.gen !== defaults.gen) parts.push(`gen=${view.gen}`);
+  if (view.pan !== null) parts.push(`pan=${formatPan(view.pan)}`);
   if (view.zoom !== null) parts.push(`zoom=${formatZoom(view.zoom)}`);
   return parts.length === 0
     ? `#/person/${view.focusId}`
