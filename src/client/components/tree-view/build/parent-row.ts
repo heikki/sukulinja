@@ -7,6 +7,7 @@ import { buildAncestorStack } from './ancestor-stack';
 import { buildAnchoredFamily, buildCenteredFamily } from './family';
 import type { SpousePlacement } from './family';
 import {
+  hasKnownAncestry,
   isMeaningfulSpouseFam,
   isPersonKnown,
   presentChildren
@@ -31,19 +32,26 @@ export function buildParentRow(
   const focusRow = packFocusRow(parentFam, focusNode, siblingNodes, ix);
   const footprint = computeBloodlineFootprint(parentFam, focusRow, ix);
 
+  // Each parent's ancestor pyramid collapses toward center when the other parent
+  // has no ancestry to counterweight it (the lopsided-ancestry case, ADR-0001).
+  const fatherHasAnc = hasKnownAncestry(parentFam.husband_id, ix);
+  const motherHasAnc = hasKnownAncestry(parentFam.wife_id, ix);
+
   const fatherNode = buildAncestorPersonAtParentRow(
     parentFam.husband_id,
     parentFam,
     footprint,
     'left',
-    ix
+    ix,
+    !motherHasAnc
   );
   const motherNode = buildAncestorPersonAtParentRow(
     parentFam.wife_id,
     parentFam,
     footprint,
     'right',
-    ix
+    ix,
+    !fatherHasAnc
   );
 
   return buildCenteredFamily({
@@ -138,7 +146,8 @@ function buildAncestorPersonAtParentRow(
   parentFam: FamilyRow,
   footprint: BloodlineFootprint,
   side: 'left' | 'right',
-  ix: LayoutIndices
+  ix: LayoutIndices,
+  siblingEmpty: boolean
 ): PersonNode | null {
   if (!isPersonKnown(personId, ix)) return null;
   const ancestorChartX = footprint.parentChartX(side);
@@ -158,7 +167,8 @@ function buildAncestorPersonAtParentRow(
           1,
           ancestorChartX,
           buildChildhoodKids(personId, gpFam, side, stepFamSpacer, ix),
-          ix
+          ix,
+          siblingEmpty
         );
   const stepFams = buildStepFamFan(personId, parentFam.id, footprint, side, ix);
   return new PersonNode(
