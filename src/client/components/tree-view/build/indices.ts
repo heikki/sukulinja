@@ -32,6 +32,16 @@ export function presentChildren(fam: FamilyRow, ix: LayoutIndices) {
   return fam.child_ids.filter((cid) => ix.persons.has(cid));
 }
 
+// A person has bloodline ancestry if their parent Family lists at least one
+// known adult — matches buildAncestorStack's render rule (a couple with both
+// adults unknown occupies no row).
+export function hasKnownAncestry(personId: number | null, ix: LayoutIndices) {
+  if (!isPersonKnown(personId, ix)) return false;
+  const fam = ix.parentFamByPerson.get(personId);
+  if (fam === undefined) return false;
+  return isPersonKnown(fam.husband_id, ix) || isPersonKnown(fam.wife_id, ix);
+}
+
 export function isMeaningfulSpouseFam(
   fam: FamilyRow,
   personId: number,
