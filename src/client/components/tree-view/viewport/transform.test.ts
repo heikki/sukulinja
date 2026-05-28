@@ -1,18 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 
-import type { Extents, Point } from './emit';
+import type { Extents, Point } from '../emit';
 import {
   chartToScreen,
   fitTo,
   pinChartPointAtScreen,
   zoomAt
-} from './viewport-transform';
-import type {
-  FitOptions,
-  ScaleBounds,
-  Transform,
-  Viewport
-} from './viewport-transform';
+} from './transform';
+import type { FitOptions, ScaleBounds, Transform, Viewport } from './transform';
 
 const BOUNDS: ScaleBounds = { minScale: 0.25, maxScale: 2 };
 

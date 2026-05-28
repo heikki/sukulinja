@@ -6,7 +6,7 @@
 //
 // Therefore: screen = pan + scale * (chart - viewBoxOrigin).
 
-import type { Extents, Point } from './emit';
+import type { Extents, Point } from '../emit';
 
 export interface Transform {
   pan: Point;

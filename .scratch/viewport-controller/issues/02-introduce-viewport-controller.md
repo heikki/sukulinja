@@ -23,7 +23,7 @@ class ViewportController implements ReactiveController {
   constructor(
     host: ReactiveControllerHost,
     measurements: ViewportMeasurements,
-    options: ViewportOptions,
+    options: ViewportOptions
   );
 
   // ReactiveController lifecycle — attach/detach window mousemove/mouseup
