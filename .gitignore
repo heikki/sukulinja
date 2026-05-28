@@ -13,5 +13,3 @@ app.db-shm
 data/*
 !data/bourbon/
 !data/NOTICE.md
-
-.scratch/sample-gedcoms/
