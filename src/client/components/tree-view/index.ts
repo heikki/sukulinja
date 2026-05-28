@@ -62,6 +62,12 @@ export class TreeViewElement extends LitElement {
   // coords to canvas pixels using the same extents the SVG was sized to.
   private chartExtents: Extents | null = null;
 
+  // Sticky flag: once the user has expressed a zoom (URL-supplied or
+  // settled-after-gesture), the URL keeps emitting `zoom` even if it happens
+  // to equal the auto-fit value. Avoids equality-comparing floats against
+  // canvas-derived defaults.
+  private hasUserZoom = false;
+
   private readonly viewport = new ViewportController(
     this,
     {
@@ -72,7 +78,11 @@ export class TreeViewElement extends LitElement {
           ? null
           : { width: c.clientWidth, height: c.clientHeight };
       },
-      canvasRect: () => this.queryCanvas()?.getBoundingClientRect() ?? null
+      canvasRect: () => this.queryCanvas()?.getBoundingClientRect() ?? null,
+      onSettle: () => {
+        this.hasUserZoom = true;
+        this.writeUrl();
+      }
     },
     VIEWPORT_OPTIONS
   );
@@ -92,6 +102,10 @@ export class TreeViewElement extends LitElement {
     const parsed = parseHashView(location.hash, URL_BOUNDS);
     const nextGen = parsed.gen ?? DEFAULT_GEN;
     if (nextGen !== this.gen) this.gen = nextGen;
+    if (parsed.zoom !== null && parsed.zoom !== this.viewport.scale) {
+      this.viewport.setScale(parsed.zoom);
+      this.hasUserZoom = true;
+    }
     const id = parsed.focusId;
     if (id === null || !this.persons.has(id) || id === this.focusId) return;
     // Pan was last set to pin the previously-focused box at click position;
@@ -149,25 +163,28 @@ export class TreeViewElement extends LitElement {
       if (f.wife_id !== null) this.appendSpouseFam(f.wife_id, f);
     }
 
+    this.restoreFromHash();
+    this.loading = false;
+  }
+
+  private restoreFromHash() {
     const parsed = parseHashView(location.hash, URL_BOUNDS);
     if (parsed.gen !== null) this.gen = parsed.gen;
+    // Pre-pin: applying scale before ensureInitialPan so chart (0,0) lands at
+    // canvas center using the URL-supplied zoom, not the default 1.
+    if (parsed.zoom !== null) {
+      this.viewport.setScale(parsed.zoom);
+      this.hasUserZoom = true;
+    }
     if (parsed.focusId !== null && this.persons.has(parsed.focusId)) {
       this.focusId = parsed.focusId;
-    } else {
-      const def = this.pickDefaultFocus();
-      this.focusId = def;
-      if (def !== null) {
-        history.replaceState(
-          null,
-          '',
-          buildHash(
-            { focusId: def, gen: this.gen, pan: null, zoom: null },
-            URL_DEFAULTS
-          )
-        );
-      }
+      return;
     }
-    this.loading = false;
+    const def = this.pickDefaultFocus();
+    this.focusId = def;
+    if (def !== null) {
+      history.replaceState(null, '', this.buildCurrentHash(def));
+    }
   }
 
   private appendSpouseFam(personId: number, fam: FamilyRow) {
@@ -199,26 +216,24 @@ export class TreeViewElement extends LitElement {
     }
     this.viewport.beginRefocus(pinScreen);
     this.focusId = id;
-    history.pushState(
-      null,
-      '',
-      buildHash(
-        { focusId: id, gen: this.gen, pan: null, zoom: null },
-        URL_DEFAULTS
-      )
-    );
+    history.pushState(null, '', this.buildCurrentHash(id));
     this.query = '';
   }
 
   private writeUrl() {
     if (this.focusId === null) return;
-    history.replaceState(
-      null,
-      '',
-      buildHash(
-        { focusId: this.focusId, gen: this.gen, pan: null, zoom: null },
-        URL_DEFAULTS
-      )
+    history.replaceState(null, '', this.buildCurrentHash(this.focusId));
+  }
+
+  private buildCurrentHash(focusId: number) {
+    return buildHash(
+      {
+        focusId,
+        gen: this.gen,
+        pan: null,
+        zoom: this.hasUserZoom ? this.viewport.scale : null
+      },
+      URL_DEFAULTS
     );
   }
 
