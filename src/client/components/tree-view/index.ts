@@ -9,33 +9,20 @@ import type { FamilyRow, PersonRow } from '@common/types';
 import { boxRenderer, formatDates, formatName } from './box-renderer';
 import { buildChart } from './build';
 import type { Box, EmitOutput, Extents, Point } from './emit';
-import { startMomentumPan } from './momentum-pan';
-import type { MomentumHandle, MomentumOptions } from './momentum-pan';
 import { treeViewStyles } from './styles';
-import {
-  chartToScreen,
-  fitTo,
-  pinChartPointAtScreen,
-  zoomAt
-} from './viewport-transform';
-import type { FitOptions, ScaleBounds } from './viewport-transform';
+import { ViewportController } from './viewport';
+import type { ViewportOptions } from './viewport';
 
 const SVG_MARGIN_PX = 24;
-const DRAG_THRESHOLD_PX = 4;
 const DEFAULT_FOCUS_ID = 1;
-const SCALE_BOUNDS: ScaleBounds = { minScale: 0.25, maxScale: 2 };
-const WHEEL_ZOOM_K = 0.001;
-const FIT_OPTIONS: FitOptions = { maxScale: 1, marginPx: 24 };
-const MOMENTUM_OPTIONS: MomentumOptions = {
-  tauMs: 250,
-  minV: 0.02,
-  minReleaseV: 0.3
+const VIEWPORT_OPTIONS: ViewportOptions = {
+  scaleBounds: { minScale: 0.25, maxScale: 2 },
+  wheelZoomK: 0.001,
+  fitOptions: { maxScale: 1, marginPx: 24 },
+  momentumOptions: { tauMs: 250, minV: 0.02, minReleaseV: 0.3 },
+  dragThresholdPx: 4,
+  svgMarginPx: SVG_MARGIN_PX
 };
-
-interface DragOrigin {
-  mouse: Point;
-  pan: Point;
-}
 
 const FOCUS_HASH_RE = /^#\/person\/(?<id>\d+)$/;
 const SEARCH_MIN_LEN = 2;
@@ -58,57 +45,38 @@ export class TreeViewElement extends LitElement {
   @state() private focusId: number | null = null;
   @state() private loading = true;
   @state() private query = '';
-  @state() private pan = { x: 0, y: 0 };
-  @state() private scale = 1;
-  @state() private panReady = false;
-  @state() private dragging = false;
 
   private readonly parentFamByPerson = new Map<number, FamilyRow>();
   private readonly spouseFamsByPerson = new Map<number, FamilyRow[]>();
 
-  private dragOrigin: DragOrigin | null = null;
-  private dragMoved = false;
-  private pendingPinScreen: Point | null = null;
-  // Captured during render so updated() / pin math can resolve chart-local
+  // Captured during render so the viewport port can resolve chart-local
   // coords to canvas pixels using the same extents the SVG was sized to.
   private chartExtents: Extents | null = null;
 
-  private wheelTarget: HTMLElement | null = null;
-  // Two most-recent pointer samples during drag — enough to compute the
-  // release velocity for momentum pan without smoothing noise from older
-  // samples that span across direction changes.
-  private dragSamples: Array<{ t: number; x: number; y: number }> = [];
-  private momentum: MomentumHandle | null = null;
+  private readonly viewport = new ViewportController(
+    this,
+    {
+      chartExtents: () => this.chartExtents,
+      canvasSize: () => {
+        const c = this.queryCanvas();
+        return c === null
+          ? null
+          : { width: c.clientWidth, height: c.clientHeight };
+      },
+      canvasRect: () => this.queryCanvas()?.getBoundingClientRect() ?? null
+    },
+    VIEWPORT_OPTIONS
+  );
 
   override connectedCallback() {
     super.connectedCallback();
     window.addEventListener('hashchange', this.onHashChange);
-    window.addEventListener('mousemove', this.onMouseMove);
-    window.addEventListener('mouseup', this.onMouseUp);
     void this.load();
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener('hashchange', this.onHashChange);
-    window.removeEventListener('mousemove', this.onMouseMove);
-    window.removeEventListener('mouseup', this.onMouseUp);
-    if (this.wheelTarget !== null) {
-      this.wheelTarget.removeEventListener('wheel', this.onWheel);
-      this.wheelTarget = null;
-    }
-    this.cancelMomentum();
-  }
-
-  private attachWheelListener() {
-    // Attach directly (not via Lit's @wheel) so we can pass passive:false —
-    // required for preventDefault to suppress page scroll. The canvas only
-    // appears once loading completes, so this can't go in firstUpdated.
-    if (this.wheelTarget !== null) return;
-    const canvas = this.queryCanvas();
-    if (canvas === null) return;
-    this.wheelTarget = canvas;
-    canvas.addEventListener('wheel', this.onWheel, { passive: false });
   }
 
   private readonly onHashChange = () => {
@@ -117,71 +85,39 @@ export class TreeViewElement extends LitElement {
     // Pan was last set to pin the previously-focused box at click position;
     // without a fresh pin, back/forward would land the new focus at a stale
     // offset. Recenter on the canvas instead.
-    this.pendingPinScreen = this.pinFromCanvasCenter();
+    this.viewport.beginRefocus(this.canvasCenter());
     this.focusId = id;
   };
 
   override willUpdate(changed: PropertyValues) {
     // Levels change rebuilds the chart with different extents, which would
     // drift Focus on screen since chart (0,0) is mapped through extents.min.
-    // Capture Focus's current screen pixel so updated() re-pins it after the
-    // new chart is rendered. (Refocus already pins via setFocus; dragging /
-    // search-bar updates don't change extents and so don't need this.)
+    // Capture Focus's current screen pixel so the post-rebuild pin keeps it
+    // put. Refocus already supplies its own pin via setFocus / onHashChange.
     if (
       changed.has('levels') &&
-      this.panReady &&
-      this.pendingPinScreen === null
+      this.viewport.panReady &&
+      !this.viewport.hasPendingPin
     ) {
-      this.pendingPinScreen = this.pinFromNode({ x: 0, y: 0 });
+      this.viewport.beginRefocus(this.viewport.chartToScreen({ x: 0, y: 0 }));
     }
   }
 
   override updated(_changed: PropertyValues) {
     if (this.loading || this.focusId === null) return;
-    this.attachWheelListener();
-    if (!this.panReady) {
-      this.measureInitialPan();
-      return;
-    }
-    const vbo = this.viewBoxOrigin();
-    if (this.pendingPinScreen !== null && vbo !== null) {
-      // After a focus change, the new focus lives at chart (0, 0). Set pan so
-      // the captured pendingPinScreen pixel coincides with the new focus at
-      // the current scale — eliminating the "jump" effect on refocus.
-      this.pan = pinChartPointAtScreen(
-        this.scale,
-        { x: 0, y: 0 },
-        this.pendingPinScreen,
-        vbo
-      );
-      this.pendingPinScreen = null;
-    }
-  }
-
-  private viewBoxOrigin(): Point | null {
-    if (this.chartExtents === null) return null;
-    return {
-      x: this.chartExtents.min.x - SVG_MARGIN_PX,
-      y: this.chartExtents.min.y - SVG_MARGIN_PX
-    };
-  }
-
-  private measureInitialPan() {
-    const canvas = this.queryCanvas();
-    if (canvas === null || canvas.clientWidth === 0) return;
-    const vbo = this.viewBoxOrigin();
-    if (vbo === null) return;
-    this.pan = pinChartPointAtScreen(
-      this.scale,
-      { x: 0, y: 0 },
-      { x: canvas.clientWidth / 2, y: canvas.clientHeight / 2 },
-      vbo
-    );
-    this.panReady = true;
+    this.viewport.attachCanvas(this.queryCanvas());
+    this.viewport.ensureInitialPan();
+    this.viewport.applyPendingPin();
   }
 
   private queryCanvas() {
     return this.renderRoot.querySelector<HTMLElement>('.canvas');
+  }
+
+  private canvasCenter(): Point | null {
+    const canvas = this.queryCanvas();
+    if (canvas === null) return null;
+    return { x: canvas.clientWidth / 2, y: canvas.clientHeight / 2 };
   }
 
   private async load() {
@@ -231,7 +167,7 @@ export class TreeViewElement extends LitElement {
     if (this.loading) return;
     const def = this.pickDefaultFocus();
     if (def === null) return;
-    this.setFocus(def, this.pinFromCanvasCenter());
+    this.setFocus(def, this.canvasCenter());
   }
 
   private setFocus(id: number, pinScreen: Point | null) {
@@ -239,136 +175,11 @@ export class TreeViewElement extends LitElement {
       this.query = '';
       return;
     }
-    this.cancelMomentum();
-    if (pinScreen !== null) this.pendingPinScreen = pinScreen;
+    this.viewport.beginRefocus(pinScreen);
     this.focusId = id;
     history.pushState(null, '', `#/person/${id}`);
     this.query = '';
   }
-
-  // Compute pin position directly from layout coords — using getBoundingClientRect
-  // on the <g> would include text labels whose width varies by name length,
-  // shifting the captured "center" inconsistently and accumulating drift over
-  // back-and-forth toggles.
-  private pinFromNode(node: Point) {
-    const vbo = this.viewBoxOrigin();
-    if (vbo === null) return null;
-    return chartToScreen({ pan: this.pan, scale: this.scale }, node, vbo);
-  }
-
-  private pinFromCanvasCenter() {
-    const canvas = this.queryCanvas();
-    if (canvas === null) return null;
-    return { x: canvas.clientWidth / 2, y: canvas.clientHeight / 2 };
-  }
-
-  private readonly onCanvasMouseDown = (e: MouseEvent) => {
-    if (e.button !== 0) return;
-    this.cancelMomentum();
-    this.dragOrigin = {
-      mouse: { x: e.clientX, y: e.clientY },
-      pan: { ...this.pan }
-    };
-    this.dragMoved = false;
-    this.dragSamples = [{ t: performance.now(), x: e.clientX, y: e.clientY }];
-  };
-
-  private readonly onMouseMove = (e: MouseEvent) => {
-    if (this.dragOrigin === null) return;
-    const dx = e.clientX - this.dragOrigin.mouse.x;
-    const dy = e.clientY - this.dragOrigin.mouse.y;
-    if (!this.dragMoved && Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) {
-      this.dragMoved = true;
-      this.dragging = true;
-    }
-    if (!this.dragMoved) return;
-    const nextX = this.dragOrigin.pan.x + dx;
-    const nextY = this.dragOrigin.pan.y + dy;
-    this.dragSamples.push({
-      t: performance.now(),
-      x: e.clientX,
-      y: e.clientY
-    });
-    if (this.dragSamples.length > 2) this.dragSamples.shift();
-    if (nextX === this.pan.x && nextY === this.pan.y) return;
-    this.pan = { x: nextX, y: nextY };
-  };
-
-  private readonly onMouseUp = () => {
-    this.dragOrigin = null;
-    if (!this.dragging) {
-      this.dragSamples = [];
-      return;
-    }
-    this.maybeStartMomentum();
-    this.dragSamples = [];
-    setTimeout(() => {
-      this.dragging = false;
-    }, 0);
-  };
-
-  private maybeStartMomentum() {
-    if (this.dragSamples.length < 2) return;
-    const [prev, last] = this.dragSamples as [
-      { t: number; x: number; y: number },
-      { t: number; x: number; y: number }
-    ];
-    const dt = last.t - prev.t;
-    if (dt <= 0) return;
-    this.momentum = startMomentumPan(
-      (last.x - prev.x) / dt,
-      (last.y - prev.y) / dt,
-      MOMENTUM_OPTIONS,
-      (dx, dy) => {
-        this.pan = { x: this.pan.x + dx, y: this.pan.y + dy };
-      }
-    );
-  }
-
-  private cancelMomentum() {
-    this.momentum?.cancel();
-    this.momentum = null;
-  }
-
-  private readonly onCanvasDblClick = (e: MouseEvent) => {
-    // Only fit on background dblclick — clicks on a box already focus that
-    // person and shouldn't also reset the view.
-    const path = e.composedPath();
-    if (
-      path.some((n) => n instanceof Element && n.classList.contains('node'))
-    ) {
-      return;
-    }
-    const canvas = this.queryCanvas();
-    const vbo = this.viewBoxOrigin();
-    if (canvas === null || vbo === null || this.chartExtents === null) return;
-    this.cancelMomentum();
-    const next = fitTo(
-      this.chartExtents,
-      vbo,
-      { width: canvas.clientWidth, height: canvas.clientHeight },
-      FIT_OPTIONS
-    );
-    this.pan = next.pan;
-    this.scale = next.scale;
-  };
-
-  private readonly onWheel = (e: WheelEvent) => {
-    if (this.wheelTarget === null) return;
-    e.preventDefault();
-    this.cancelMomentum();
-    const rect = this.wheelTarget.getBoundingClientRect();
-    const cursor = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    const factor = Math.exp(-e.deltaY * WHEEL_ZOOM_K);
-    const next = zoomAt(
-      { pan: this.pan, scale: this.scale },
-      cursor,
-      factor,
-      SCALE_BOUNDS
-    );
-    this.pan = next.pan;
-    this.scale = next.scale;
-  };
 
   private filteredSearch() {
     const q = this.query.trim().toLowerCase();
@@ -392,8 +203,11 @@ export class TreeViewElement extends LitElement {
       person,
       box.personId === this.focusId,
       () => {
-        if (this.dragMoved) return;
-        this.setFocus(box.personId, this.pinFromNode(box.pos));
+        if (this.viewport.dragMoved) return;
+        // Pin from layout coords rather than getBoundingClientRect — label
+        // widths vary by name length and would drift the captured "center"
+        // across back-and-forth toggles.
+        this.setFocus(box.personId, this.viewport.chartToScreen(box.pos));
       }
     );
   }
@@ -436,7 +250,7 @@ export class TreeViewElement extends LitElement {
                 return html`
                   <button
                     @click=${() => {
-                      this.setFocus(p.id, this.pinFromCanvasCenter());
+                      this.setFocus(p.id, this.canvasCenter());
                     }}
                   >
                     ${formatName(p)}
@@ -458,23 +272,24 @@ export class TreeViewElement extends LitElement {
     const vbY = min.y - SVG_MARGIN_PX;
     const vbW = max.x - min.x + SVG_MARGIN_PX * 2;
     const vbH = max.y - min.y + SVG_MARGIN_PX * 2;
+    const { pan, scale, panReady, dragging } = this.viewport;
     return html`
       <div
-        class="canvas ${this.dragging ? 'dragging' : ''}"
-        @mousedown=${this.onCanvasMouseDown}
-        @dblclick=${this.onCanvasDblClick}
+        class="canvas ${dragging ? 'dragging' : ''}"
+        @mousedown=${this.viewport.onMouseDown}
+        @dblclick=${this.viewport.onDblClick}
       >
-        ${this.panReady
+        ${panReady
           ? html`<div
               class="pan"
-              style="transform: translate(${Math.round(
-                this.pan.x
-              )}px, ${Math.round(this.pan.y)}px)"
+              style="transform: translate(${Math.round(pan.x)}px, ${Math.round(
+                pan.y
+              )}px)"
             >
               <svg
                 viewBox="${vbX} ${vbY} ${vbW} ${vbH}"
-                width=${vbW * this.scale}
-                height=${vbH * this.scale}
+                width=${vbW * scale}
+                height=${vbH * scale}
               >
                 <defs>
                   <clipPath id="sl-avatar" clipPathUnits="userSpaceOnUse">
