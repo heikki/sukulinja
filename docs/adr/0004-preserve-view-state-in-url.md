@@ -1,0 +1,30 @@
+# View state lives in the URL hash, written on settle
+
+The chart's view state — **Focus**, **Generation limit**, pan, and zoom — is encoded into the URL hash as `#/person/<id>?gen=N&pan=X,Y&zoom=Z`. Only Focus is `pushState`d; gen, pan, and zoom write through `replaceState`. None of the three new params appear in the URL until the viewer has actually expressed a non-default view, so a fresh-dataset visit stays at `#/person/<id>`.
+
+The four pieces are written from a single seam in `tree-view`. A small pure module (`url-state`) owns parse/build with bounded clamping, drop-on-error, and write-once stickiness for pan and zoom; the viewport exposes an `onSettle` notification that fires after a wheel-zoom burst (200ms debounce), a dblclick fit lands, a drag's momentum decays, or a refocus pin applies. The viewport itself stays ignorant of URLs.
+
+Focus pushes a hash entry; the refocus pin's subsequent `onSettle` follows up with a `replaceState` that adds pan. This two-step "push focus+gen+zoom, then replace +pan" path matches the actual data-flow — the new pan is computed inside `updated()` after `pushState`, not synchronously — and ends each history entry with the post-pin pan so Back/Forward restores it.
+
+Gen-change reflow pins (every slider `@input` step) use a silent variant of the pin that suppresses `onSettle`; the slider's `@change` (release) awaits `updateComplete` and writes once. Sticky `hasUserPan` / `hasUserZoom` flags decide whether `buildHash` includes each param — toggled on by URL load or by a non-silent settle, kept on for the rest of the session.
+
+## Considered options
+
+- **A real query string (`?gen=N#/person/<id>`).** Rejected: splits view state across two URL regions, easy for tools (and humans) to slice off one half; hits the server and shows up in access logs; needs both `hashchange` and `popstate` to re-sync.
+- **Hash path segments (`#/person/123/g/2/p/120,-80/z/0.85`).** Rejected: order-sensitive, awkward to evolve when adding a fifth param, and breaks the existing `#/person/<id>` route shape.
+- **A single packed view token (`#/v/123,2,120,-80,0.85`).** Rejected: compact but positional; URL is unreadable, debugging requires a decoder, and renaming or removing any field is a breaking encoding change.
+- **Hash with query suffix (`#/person/<id>?gen=N&pan=X,Y&zoom=Z`) — chosen.** Keeps the existing route; orthogonal params that are independently easy to add, drop, and round-trip; all state stays in the hash so nothing leaks to the server.
+- **Write all four on every change, including the initial auto-fit.** Rejected: fresh-dataset URLs would immediately grow `?pan=…&zoom=…` even when the viewer hasn't expressed anything, and pan/zoom computed from the sender's canvas size land off-screen on a recipient with a smaller window. Keeps the write path simpler at the cost of dishonest URLs.
+- **`pushState` for every interaction so Back undoes drags and zoom changes.** Rejected: a single wheel scroll or drag would explode the history stack and bury legitimate Focus navigation under viewport noise. The chosen rule — push only for Focus, `replaceState` for gen/pan/zoom — keeps the back/forward stack readable.
+- **Strip pan and zoom when they equal the auto-fit values.** Rejected: the auto-fit values are floats derived from canvas size; equality-comparing them at write time is brittle, and a layout-affecting browser resize would flip the comparison after the fact. Write-once stickiness avoids the float compare entirely; `gen`, which has a clean integer default, is the only param that strips.
+- **Write the URL on every `@input` tick of the gen slider.** Rejected: the slider drag fires 1–5 input events per gesture; one URL write per gesture is the right unit of "settle". The slider's `@change` (release) awaits `updateComplete` so the silent gen-pin lands before the snapshot.
+- **One push that already includes the post-pin pan.** Rejected: the new pan is computed inside `applyPendingPin` during the next `updated()` cycle, not synchronously inside the click handler. Trying to compute it synchronously would duplicate the pin math; trying to defer the `pushState` to the next frame risks the navigation entry never being created at all. Two writes (`pushState` then `replaceState`) is honest about the data-flow.
+- **URL-encode `pan` as `pan=x%2Cy` via `URLSearchParams.toString()`.** Rejected for the build side: comma is RFC-legal in query strings and far more readable un-encoded. Parsing still uses `URLSearchParams` (it decodes either form), but building assembles parts by hand.
+
+## Consequences
+
+- `url-state.ts` is the single source of encoding rules. Any change to precision, clamping, default-stripping, or canonical param order goes through `parseHashView` / `buildHash` and its sibling test file; tree-view treats the hash as an opaque string round-tripped through that module.
+- The viewport's settle surface (`onSettle` plus the `silent` knob on `beginRefocus`) is reusable for any future "URL captures view state" need without coupling the viewport to URLs. Adding a 5th param later means extending `url-state`, lifting the relevant value through `buildCurrentHash`, and (if it changes during a gesture) triggering `onSettle` from the right place.
+- Refocus is now a two-write operation, but only the `pushState` creates a history entry. The follow-up `replaceState` modifies that same entry in place, so the back/forward stack still has one entry per click — and each entry carries the post-pin pan so navigating to it restores the same view.
+- Once pan or zoom appear in the URL during a session they keep being emitted, even if the underlying value happens to drift back to the auto-fit. This makes URLs slightly more verbose than strict-minimum but eliminates a class of "the URL disagrees with the view" bugs that would otherwise come from float equality.
+- Shared links in the wild lock in the encoding. The param keys (`gen`, `pan`, `zoom`), the comma-separated integer `pan=x,y` shape, and the two-decimal trailing-zero-stripped zoom format are now part of the project's external contract.
