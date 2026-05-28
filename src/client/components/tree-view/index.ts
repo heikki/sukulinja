@@ -1,4 +1,4 @@
-import { html, LitElement, nothing, svg } from 'lit';
+import { html, LitElement, nothing } from 'lit';
 import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
@@ -6,9 +6,10 @@ import { repeat } from 'lit/directives/repeat.js';
 import { apiUrl } from '@client/api';
 import type { FamilyRow, PersonRow } from '@common/types';
 
-import { boxRenderer, formatDates, formatName } from './box-renderer';
 import { buildChart } from './build';
 import type { Box, EmitOutput, Extents, Point } from './emit';
+import { defaultRenderer } from './renderer';
+import { formatDates, formatName } from './renderer/box';
 import { treeViewStyles } from './styles';
 import { ViewportController } from './viewport';
 import type { ViewportOptions } from './viewport';
@@ -40,6 +41,7 @@ export class TreeViewElement extends LitElement {
   static override styles = treeViewStyles;
 
   @property({ type: Number, reflect: true }) levels = 1;
+  @property({ attribute: false }) renderer = defaultRenderer;
 
   @state() private persons = new Map<number, PersonRow>();
   @state() private focusId: number | null = null;
@@ -198,7 +200,7 @@ export class TreeViewElement extends LitElement {
   private renderBox(box: Box) {
     const person = this.persons.get(box.personId);
     if (person === undefined) return nothing;
-    return boxRenderer.render(
+    return this.renderer.renderBox(
       box,
       person,
       box.personId === this.focusId,
@@ -291,23 +293,11 @@ export class TreeViewElement extends LitElement {
                 width=${vbW * scale}
                 height=${vbH * scale}
               >
-                <defs>
-                  <clipPath id="sl-avatar" clipPathUnits="userSpaceOnUse">
-                    <circle
-                      cx=${boxRenderer.avatarCx}
-                      cy=${boxRenderer.boxH / 2}
-                      r=${boxRenderer.avatarR}
-                    />
-                  </clipPath>
-                </defs>
                 <g class="edges">
                   ${repeat(
                     chart.lines,
                     (l) => l.key,
-                    (l) => svg`<path
-                      class="edge"
-                      d="M ${l.from.x} ${l.from.y} L ${l.to.x} ${l.to.y}"
-                    />`
+                    (l) => this.renderer.renderEdge(l)
                   )}
                 </g>
                 ${repeat(
@@ -335,7 +325,7 @@ export class TreeViewElement extends LitElement {
         spouseFamsByPerson: this.spouseFamsByPerson,
         levels: this.levels
       },
-      boxRenderer
+      this.renderer.dims
     );
     if (chart === null) {
       return html`<div class="empty">No data for selected focus.</div>`;
