@@ -14,17 +14,6 @@ function currentSlug(): string | null {
   return m === null ? null : m.groups!.slug!;
 }
 
-function renderEmpty() {
-  return html`
-    <header><h1>Sukulinja</h1></header>
-    <div class="center">
-      <h2>No datasets yet</h2>
-      <p>Import a GEDCOM file to get started:</p>
-      <p><code>bun run import-ged path/to/family.ged</code></p>
-    </div>
-  `;
-}
-
 @customElement('sl-app')
 export class AppElement extends LitElement {
   static override styles = css`
@@ -47,8 +36,13 @@ export class AppElement extends LitElement {
       cursor: pointer;
       user-select: none;
     }
-    select {
+    .toolbar {
       margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    select {
       padding: 0.25rem 0.5rem;
       background: var(--card);
       color: var(--fg);
@@ -99,10 +93,33 @@ export class AppElement extends LitElement {
       color: var(--muted);
       font-size: 0.85em;
     }
+    button.import {
+      padding: 0.25rem 0.75rem;
+      background: var(--card);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font: inherit;
+      cursor: pointer;
+    }
+    button.import:hover:not(:disabled) {
+      border-color: var(--accent);
+    }
+    button.import:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+    .error {
+      color: #c0392b;
+      font-size: 0.85em;
+      margin-top: 0.75rem;
+    }
   `;
 
   @state() private datasets: DatasetInfo[] | null = null;
   @state() private readonly slug: string | null = currentSlug();
+  @state() private importing = false;
+  @state() private importError: string | null = null;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -132,19 +149,100 @@ export class AppElement extends LitElement {
       ?.resetFocus();
   };
 
+  private readonly onImportClick = () => {
+    this.renderRoot
+      .querySelector<HTMLInputElement>('input[type=file]')
+      ?.click();
+  };
+
+  private readonly onFileChange = (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (file !== undefined) void this.importFile(file);
+  };
+
+  private async importFile(file: File) {
+    this.importing = true;
+    this.importError = null;
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      const res = await fetch('/import', { method: 'POST', body });
+      if (!res.ok) {
+        const msg = await res.text();
+        this.importError = msg === '' ? `import failed (${res.status})` : msg;
+        return;
+      }
+      const info = (await res.json()) as DatasetInfo;
+      window.location.assign(`/d/${info.slug}/`);
+    } catch (err) {
+      this.importError = err instanceof Error ? err.message : 'import failed';
+    } finally {
+      this.importing = false;
+    }
+  }
+
+  private renderImportButton() {
+    return html`<button
+      class="import"
+      ?disabled=${this.importing}
+      @click=${this.onImportClick}
+    >
+      ${this.importing ? 'Importing…' : 'Import GEDCOM'}
+    </button>`;
+  }
+
   override render() {
+    return html`
+      <input
+        type="file"
+        accept=".ged,.gedcom"
+        hidden
+        @change=${this.onFileChange}
+      />
+      ${this.renderScreen()}
+    `;
+  }
+
+  private renderScreen() {
     if (this.slug !== null) return this.renderDatasetView();
     if (this.datasets === null) return nothing;
-    if (this.datasets.length === 0) return renderEmpty();
+    if (this.datasets.length === 0) return this.renderEmpty();
     if (this.datasets.length === 1) return nothing;
     return this.renderChooser();
+  }
+
+  private renderEmpty() {
+    return html`
+      <header><h1>Sukulinja</h1></header>
+      <div class="center">
+        <h2>No datasets yet</h2>
+        <p>Import a MyHeritage (or any) GEDCOM file to get started.</p>
+        ${this.renderImportButton()}
+        ${this.importing
+          ? html`<p class="muted">
+              Importing… this can take a minute while photos download.
+            </p>`
+          : nothing}
+        ${this.importError === null
+          ? nothing
+          : html`<p class="error">${this.importError}</p>`}
+        <p class="muted">
+          Or from a terminal:
+          <code>bun run import-ged path/to/family.ged</code>
+        </p>
+      </div>
+    `;
   }
 
   private renderDatasetView() {
     return html`
       <header>
         <h1 @click=${this.onTitleClick}>Sukulinja</h1>
-        ${this.renderSwitcher()}
+        <div class="toolbar">
+          ${this.renderSwitcher()} ${this.renderImportButton()}
+        </div>
       </header>
       <main><sl-tree-view></sl-tree-view></main>
     `;
@@ -184,6 +282,10 @@ export class AppElement extends LitElement {
             `
           )}
         </ul>
+        <p style="margin-top: 1.5rem">${this.renderImportButton()}</p>
+        ${this.importError === null
+          ? nothing
+          : html`<p class="error">${this.importError}</p>`}
       </div>
     `;
   }

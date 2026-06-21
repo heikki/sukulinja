@@ -2,101 +2,62 @@ import { basename, dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { DatasetRegistry } from '@server/dataset-registry';
-import { importGedcom } from '@server/gedcom-import';
-import {
-  childValue,
-  findChild,
-  parseGedcom,
-  type GedNode
-} from '@server/gedcom-parser';
-import { ingest } from '@server/media-ingest';
-
-function slugFromFilename(name: string): string {
-  return name
-    .replace(/\.ged(?:com)?$/iu, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/gu, '-')
-    .replace(/^-+|-+$/gu, '');
-}
-
-function readGedcomVersion(roots: GedNode[]): string | null {
-  const head = roots.find((r) => r.tag === 'HEAD');
-  if (head === undefined) return null;
-  const gedc = findChild(head, 'GEDC');
-  if (gedc === undefined) return null;
-  return childValue(gedc, 'VERS');
-}
+import { importDataset, slugFromFilename } from '@server/import-dataset';
 
 async function main(): Promise<void> {
   const { positionals, values } = parseArgs({
     args: process.argv.slice(2),
-    options: { name: { type: 'string' } },
+    options: {
+      'name': { type: 'string' },
+      'myheritage': { type: 'boolean' },
+      'keep-cutouts': { type: 'boolean' }
+    },
     allowPositionals: true
   });
   const input = positionals[0];
   if (input === undefined) {
-    console.error('usage: bun run import-ged <path-to.ged> [--name <slug>]');
+    console.error(
+      'usage: bun run import-ged <path-to.ged> [--name <slug>] [--myheritage] [--keep-cutouts]'
+    );
     process.exit(2);
   }
   const inputAbs = resolve(input);
-  const sourceDir = dirname(inputAbs);
   const slug = values.name ?? slugFromFilename(basename(inputAbs));
 
   const registry = new DatasetRegistry(resolve('data'));
 
   const t0 = performance.now();
   const text = await Bun.file(inputAbs).text();
-  const t1 = performance.now();
-  const roots = parseGedcom(text);
-  const t2 = performance.now();
-
-  const { db, mediaDir } = await registry.createFresh(slug);
-
-  const ingestResult = await ingest({
-    roots,
-    sourceDir,
-    targetDir: mediaDir
+  const outcome = await importDataset({
+    registry,
+    slug,
+    text,
+    sourceDir: dirname(inputAbs),
+    sourceFilename: basename(inputAbs),
+    forceMyHeritage: values.myheritage === true,
+    keepCutouts: values['keep-cutouts'] === true,
+    log: (m) => {
+      console.log(m);
+    }
   });
-  const t3 = performance.now();
+  const ms = (performance.now() - t0).toFixed(0);
 
-  const stats = importGedcom(
-    db,
-    roots,
-    (originalRelpath) => ingestResult.resolved.get(originalRelpath) ?? null
-  );
-  const t4 = performance.now();
-
-  const writeMeta = db.prepare('INSERT INTO meta (key, value) VALUES (?, ?)');
-  writeMeta.run('display_name', slug);
-  writeMeta.run('source_filename', basename(inputAbs));
-  writeMeta.run('imported_at', new Date().toISOString());
-  const version = readGedcomVersion(roots);
-  if (version !== null) writeMeta.run('gedcom_version', version);
-
-  db.close();
-
-  function ms(n: number): string {
-    return n.toFixed(0);
+  console.log(`dataset: ${slug} (${ms} ms)`);
+  const mh = outcome.myheritage;
+  if (mh !== null) {
+    const failedNote = mh.failed > 0 ? `, ${mh.failed} failed` : '';
+    console.log(
+      `  myheritage: ${mh.downloaded}/${mh.urls} downloaded, ${mh.stripped} cutouts stripped, ${mh.dropped} tags dropped${failedNote}`
+    );
   }
-  console.log(`dataset: ${slug}`);
-  console.log(
-    `  read:   ${ms(t1 - t0)} ms (${(text.length / 1024).toFixed(0)} KB)`
-  );
-  console.log(
-    `  parse:  ${ms(t2 - t1)} ms (${roots.length} top-level records)`
-  );
-  console.log(
-    `  media:  ${ms(t3 - t2)} ms (${ingestResult.resolved.size} copied, ${ingestResult.skipped.length} skipped)`
-  );
-  console.log(`  import: ${ms(t4 - t3)} ms`);
-  console.log('stats:', stats);
-  if (ingestResult.skipped.length > 0) {
-    console.log('skipped media:');
-    for (const s of ingestResult.skipped.slice(0, 10)) {
+  console.log('stats:', outcome.stats);
+  if (outcome.skipped.length > 0) {
+    console.log(`skipped media: ${outcome.skipped.length}`);
+    for (const s of outcome.skipped.slice(0, 10)) {
       console.log(`  [${s.reason}] ${s.originalRelpath}`);
     }
-    if (ingestResult.skipped.length > 10) {
-      console.log(`  ... and ${ingestResult.skipped.length - 10} more`);
+    if (outcome.skipped.length > 10) {
+      console.log(`  ... and ${outcome.skipped.length - 10} more`);
     }
   }
 }
