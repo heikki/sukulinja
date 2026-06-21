@@ -6,7 +6,7 @@ import { findChildren, type GedNode } from './gedcom-parser';
 
 type SkipReason = 'absolute' | 'missing';
 
-interface IngestSkipped {
+export interface IngestSkipped {
   originalRelpath: string;
   reason: SkipReason;
 }

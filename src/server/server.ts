@@ -4,6 +4,7 @@ import type { Database } from 'bun:sqlite';
 import type { FamilyRow, PersonRow } from '@common/types';
 
 import type { DatasetRegistry } from './dataset-registry';
+import { importDataset, slugFromFilename } from './import-dataset';
 
 const DATASET_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?<rest>\/.*)?$/u;
 
@@ -110,6 +111,38 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
   };
 }
 
+async function handleImport(
+  req: Request,
+  registry: DatasetRegistry
+): Promise<Response> {
+  const form = await req.formData().catch(() => null);
+  if (form === null) {
+    return new Response('expected multipart/form-data', { status: 400 });
+  }
+  const file = form.get('file');
+  if (!(file instanceof File)) {
+    return new Response('missing file field', { status: 400 });
+  }
+  const nameField = form.get('name');
+  const rawName =
+    typeof nameField === 'string' && nameField.trim() !== ''
+      ? nameField
+      : file.name;
+  const slug = slugFromFilename(rawName);
+  try {
+    const outcome = await importDataset({
+      registry,
+      slug,
+      text: await file.text(),
+      sourceFilename: file.name
+    });
+    return Response.json(outcome.info);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'import failed';
+    return new Response(message, { status: 400 });
+  }
+}
+
 export function createApi(registry: DatasetRegistry): ApiHandlers {
   const handlersBySlug = new Map<string, DatasetHandlers>();
 
@@ -132,7 +165,14 @@ export function createApi(registry: DatasetRegistry): ApiHandlers {
   }
 
   return {
-    async routeApi(_req, pathname) {
+    async routeApi(req, pathname) {
+      if (pathname === '/import') {
+        if (req.method !== 'POST') {
+          return new Response('method not allowed', { status: 405 });
+        }
+        handlersBySlug.clear();
+        return await handleImport(req, registry);
+      }
       if (pathname === '/datasets') {
         return Response.json(await registry.list());
       }
