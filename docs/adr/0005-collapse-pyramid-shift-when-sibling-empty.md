@@ -19,7 +19,7 @@ Resolves `.scratch/ancestor-pyramid-sparse-shift`.
 ## Considered options
 
 - **Per-subtree depth** (size the shift from this branch's own filled depth, not
-  the chart-wide max). Rejected: a deep-but-lopsided line genuinely *is* that deep,
+  the chart-wide max). Rejected: a deep-but-lopsided line genuinely _is_ that deep,
   so per-subtree depth equals the global max and the shift is identical — it does
   not move the repro at all. A prototype confirmed byte-for-byte parity with
   today's behaviour on the empty-maternal case.
@@ -41,5 +41,5 @@ Resolves `.scratch/ancestor-pyramid-sparse-shift`.
   keeps the full directional shift).
 - The collapse is **binary** and the collapsed magnitude is a flat half-slot
   regardless of the filled side's depth: the lone pyramid sits directly over its
-  bloodline child. A shallow-*but-nonempty* sibling still gets the full ADR-0001
+  bloodline child. A shallow-_but-nonempty_ sibling still gets the full ADR-0001
   shift; that over-fan is left open as lower-impact than the empty-sibling case.
