@@ -1,7 +1,7 @@
 Status: needs-triage
 
-> *Filed by AI while scoping GEDCOM export. Export is deferred until the storage
-> model below is decided.*
+> _Filed by AI while scoping GEDCOM export. Export is deferred until the storage
+> model below is decided._
 
 # Export needs a faithful source — SQLite is a lossy display projection
 
@@ -19,7 +19,7 @@ but silently drop genealogical data.
 
 Audited against the real MyHeritage export (`../myheritage-export/export.ged`):
 
-**Survives** (so these are *not* the problem):
+**Survives** (so these are _not_ the problem):
 
 - Dates including qualifiers — `ABT`/`EST`/`BEF`/`AFT`/`BET…AND` are inline in
   the DATE value and stored verbatim in `facts.date_text`. (This tree:
@@ -46,11 +46,11 @@ faithful source to export from at all.
 - **A — Persist canonical (recommended).** Store the cleaned GEDCOM-7 at import
   (e.g. `data/<slug>/source.ged`); keep SQLite as the display projection.
   Export serves the canonical → lossless by construction, small change, and
-  lossless *today* since there's no in-app editing yet. When editing lands,
+  lossless _today_ since there's no in-app editing yet. When editing lands,
   edits reconcile back into the canonical.
 - **B — Expand the schema** with tables for sources, notes, addresses, and
   arbitrary facts so SQLite is near-lossless; export reconstructs from the DB.
-  Larger, never-finished work; still risks gaps. Only worth it where the *UI*
+  Larger, never-finished work; still risks gaps. Only worth it where the _UI_
   needs to render that data (a display concern, separate from export).
 
 Note A and B aren't exclusive: A makes export correct; B is driven by features

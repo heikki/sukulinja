@@ -1,6 +1,6 @@
 Status: needs-triage
 
-> *Filed by AI from a "what's next" codebase survey.*
+> _Filed by AI from a "what's next" codebase survey._
 
 # Surface fetch failures instead of hanging on a blank/Loading screen
 
