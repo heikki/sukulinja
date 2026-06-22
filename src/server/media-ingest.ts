@@ -3,6 +3,11 @@ import { mkdir } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
 
 import { findChildren, type GedNode } from './gedcom-parser';
+import { runPool } from './pool';
+
+// Each worker reads a whole file into memory to hash it, so keep the in-flight
+// count well under the OS file-handle limit and bounded in memory.
+const DEFAULT_CONCURRENCY = 8;
 
 type SkipReason = 'absolute' | 'missing';
 
@@ -20,6 +25,8 @@ interface IngestInput {
   roots: GedNode[];
   sourceDir: string;
   targetDir: string;
+  concurrency?: number;
+  log?: (msg: string) => void;
 }
 
 function collectFileRefs(roots: GedNode[]): string[] {
@@ -80,17 +87,27 @@ export async function ingest(input: IngestInput): Promise<IngestResult> {
     arr.push(relpath);
   }
 
-  await Promise.all(
-    [...sourceToRelpaths.entries()].map(async ([sourceAbsPath, relpaths]) => {
-      if (!(await Bun.file(sourceAbsPath).exists())) {
+  const log = input.log ?? (() => undefined);
+  const entries = [...sourceToRelpaths.entries()];
+  log(`Storing ${entries.length} media files…`);
+  let done = 0;
+  await runPool(
+    entries,
+    input.concurrency ?? DEFAULT_CONCURRENCY,
+    async ([sourceAbsPath, relpaths]) => {
+      if (await Bun.file(sourceAbsPath).exists()) {
+        const name = await storeFile(sourceAbsPath, input.targetDir);
+        for (const r of relpaths) resolved.set(r, name);
+      } else {
         for (const r of relpaths) {
           skipped.push({ originalRelpath: r, reason: 'missing' });
         }
-        return;
       }
-      const name = await storeFile(sourceAbsPath, input.targetDir);
-      for (const r of relpaths) resolved.set(r, name);
-    })
+      done += 1;
+      if (done % 25 === 0 || done === entries.length) {
+        log(`Stored ${done}/${entries.length} media files`);
+      }
+    }
   );
 
   return { resolved, skipped };
