@@ -17,14 +17,19 @@
 
 import { mkdir } from 'node:fs/promises';
 import { basename, join } from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 
 import { findChild } from './gedcom-parser';
 import type { GedNode } from './gedcom-parser';
+import { runPool } from './pool';
 
 const REFERER = 'https://www.myheritage.com/';
 const UA = 'Mozilla/5.0';
-const TIMEOUT_MS = 120_000;
-const RETRIES = 2;
+// Per-attempt wall-clock deadline. mhcache.com rate-limits bursts by accepting
+// the connection, sending headers, then stalling the body — so this must be a
+// hard timeout the worker honours even if the body read ignores an abort.
+const TIMEOUT_MS = 20_000;
+const RETRIES = 1;
 const DEFAULT_CONCURRENCY = 4;
 
 const FORM_MIME: Record<string, string> = {
@@ -220,49 +225,65 @@ function assignNames(urls: string[]): Map<string, string> {
 
 export type Downloader = (url: string, dest: string) => Promise<string>;
 
+// Settle `task`, but give up after `ms` and throw instead. This is the part
+// that actually frees a stuck pool worker: `AbortController` alone isn't enough
+// because a stalled response-body read doesn't reliably observe the abort, so we
+// stop waiting on the promise regardless of whether the read ever unblocks.
+async function withTimeout<T>(task: Promise<T>, ms: number): Promise<T> {
+  // Either side that loses the race keeps running; swallow its eventual
+  // settlement so a late rejection isn't reported as an unhandled rejection.
+  task.catch(() => undefined);
+  const ac = new AbortController();
+  const timeout = (async (): Promise<never> => {
+    await delay(ms, undefined, { signal: ac.signal });
+    throw new Error(`timed out after ${ms}ms`);
+  })();
+  timeout.catch(() => undefined);
+  try {
+    return await Promise.race([task, timeout]);
+  } finally {
+    ac.abort(); // cancels the pending delay when the task wins
+  }
+}
+
+async function fetchToFile(
+  url: string,
+  dest: string,
+  signal: AbortSignal
+): Promise<string> {
+  const res = await fetch(url, {
+    headers: { 'User-Agent': UA, 'Referer': REFERER },
+    signal
+  });
+  if (!res.ok) return `fail(${res.status})`;
+  await Bun.write(dest, res);
+  return 'ok';
+}
+
 async function downloadDefault(url: string, dest: string): Promise<string> {
   const existing = Bun.file(dest);
   if ((await existing.exists()) && existing.size > 0) return 'skip';
   let last = 'fail';
   /* eslint-disable no-await-in-loop -- retries are inherently sequential; each attempt must finish before the next */
   for (let attempt = 0; attempt <= RETRIES; attempt += 1) {
+    // Signal the abort as a courtesy (frees the socket when honoured); the
+    // withTimeout race is what guarantees the worker moves on either way.
+    const controller = new AbortController();
     try {
-      const res = await fetch(url, {
-        headers: { 'User-Agent': UA, 'Referer': REFERER },
-        signal: AbortSignal.timeout(TIMEOUT_MS)
-      });
-      if (!res.ok) {
-        last = `fail(${res.status})`;
-        continue;
-      }
-      await Bun.write(dest, res);
-      return 'ok';
+      const status = await withTimeout(
+        fetchToFile(url, dest, controller.signal),
+        TIMEOUT_MS
+      );
+      if (status === 'ok') return 'ok';
+      last = status;
     } catch (err) {
       last = `fail(${err instanceof Error ? err.message : String(err)})`;
+    } finally {
+      controller.abort();
     }
   }
   /* eslint-enable no-await-in-loop */
   return last;
-}
-
-async function runPool<T>(
-  items: T[],
-  concurrency: number,
-  worker: (item: T) => Promise<void>
-): Promise<void> {
-  let next = 0;
-  async function run(): Promise<void> {
-    // Each pool worker pulls items one at a time, so awaiting in the loop is the
-    // point — it bounds concurrency to the number of workers.
-    while (next < items.length) {
-      const i = next;
-      next += 1;
-      // eslint-disable-next-line no-await-in-loop -- bounding concurrency to the worker count is the point
-      await worker(items[i]!);
-    }
-  }
-  const workers = Math.max(1, Math.min(concurrency, items.length));
-  await Promise.all(Array.from({ length: workers }, run));
 }
 
 function rewriteLocalPaths(
@@ -340,6 +361,8 @@ export async function convertMyHeritage(
 
   if (urls.length > 0) {
     await mkdir(stagingDir, { recursive: true });
+    log(`Downloading ${urls.length} photos…`);
+    let done = 0;
     await runPool(urls, concurrency, async (url) => {
       const status = await download(url, join(stagingDir, names.get(url)!));
       if (status === 'ok' || status === 'skip') {
@@ -348,6 +371,8 @@ export async function convertMyHeritage(
         failed.push(url);
         log(`  FAIL ${status}  ${url}`);
       }
+      done += 1;
+      log(`Downloaded ${done}/${urls.length} photos`);
     });
   }
 
