@@ -21,9 +21,12 @@ if (projectRoot === null) {
 }
 
 const registry = new DatasetRegistry(join(projectRoot, 'data'));
+void registry.sweepStaging(); // clear staging dirs left by interrupted imports
 const api = createApi(registry);
 const fetch = createStaticFetch({ api, staticRoots: [viewsDir] });
-const server = Bun.serve({ port: 0, fetch });
+// A GEDCOM import streams progress while photos download; bump the idle timeout
+// to its max so a quiet stretch between downloads doesn't drop the connection.
+const server = Bun.serve({ port: 0, idleTimeout: 255, fetch });
 
 void new BrowserWindow({
   title: 'Sukulinja',

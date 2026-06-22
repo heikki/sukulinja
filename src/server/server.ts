@@ -1,10 +1,13 @@
-import { relative, resolve } from 'node:path';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { dirname, join, relative, resolve } from 'node:path';
 import type { Database } from 'bun:sqlite';
 
 import type { FamilyRow, PersonRow } from '@common/types';
 
 import type { DatasetRegistry } from './dataset-registry';
 import { importDataset, slugFromFilename } from './import-dataset';
+import { runPool } from './pool';
 
 const DATASET_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?<rest>\/.*)?$/u;
 
@@ -111,6 +114,36 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
   };
 }
 
+// A relative path is safe to write under our temp dir only if it can't escape
+// it (no absolute path, no `..` segment) — uploaded names are untrusted.
+function safeRelPath(rel: string): string | null {
+  if (rel === '' || rel.startsWith('/') || rel.split('/').includes('..')) {
+    return null;
+  }
+  return rel;
+}
+
+// Folder uploads ship the media alongside the GEDCOM as `media`/`mediaPath`
+// field pairs. Write them to a temp dir (preserving relative layout) and return
+// it as the importer's sourceDir; the caller removes it once the import is done.
+// Returns null for a plain single-file upload (no media → no local sourceDir).
+async function stageUploadedMedia(form: FormData): Promise<string | null> {
+  const files = form.getAll('media');
+  const paths = form.getAll('mediaPath');
+  if (files.length === 0) return null;
+  const dir = await mkdtemp(join(tmpdir(), 'sukulinja-upload-'));
+  const items = files.map((f, i) => ({ f, rel: paths[i] }));
+  await runPool(items, 8, async ({ f, rel }) => {
+    if (!(f instanceof File) || typeof rel !== 'string') return;
+    const safe = safeRelPath(rel);
+    if (safe === null) return;
+    const dest = join(dir, safe);
+    await mkdir(dirname(dest), { recursive: true });
+    await Bun.write(dest, f);
+  });
+  return dir;
+}
+
 async function handleImport(
   req: Request,
   registry: DatasetRegistry
@@ -126,21 +159,82 @@ async function handleImport(
   const nameField = form.get('name');
   const rawName =
     typeof nameField === 'string' && nameField.trim() !== ''
-      ? nameField
+      ? nameField.trim()
       : file.name;
+  // Keep the readable name (accents/casing) for display; the slug is derived.
+  const displayName = rawName.replace(/\.ged(?:com)?$/iu, '').trim();
   const slug = slugFromFilename(rawName);
+  const text = await file.text();
+  const sourceFilename = file.name;
+  const sourceDir = await stageUploadedMedia(form);
+
+  // Stream the import as newline-delimited JSON: a series of {type:'log'}
+  // progress lines, then a terminal {type:'done', info} or {type:'error'}.
+  // Headers are already sent by the time the import runs, so failures surface
+  // as an error event in the body rather than an HTTP status.
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const enc = new TextEncoder();
+      function send(event: unknown): void {
+        controller.enqueue(enc.encode(`${JSON.stringify(event)}\n`));
+      }
+      try {
+        const outcome = await importDataset({
+          registry,
+          slug,
+          displayName,
+          text,
+          sourceFilename,
+          sourceDir: sourceDir ?? undefined,
+          log: (message) => {
+            send({ type: 'log', message });
+          }
+        });
+        send({ type: 'done', info: outcome.info });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'import failed';
+        send({ type: 'error', message });
+      } finally {
+        controller.close();
+        if (sourceDir !== null) {
+          await rm(sourceDir, { recursive: true, force: true });
+        }
+      }
+    }
+  });
+  return new Response(stream, {
+    headers: { 'content-type': 'application/x-ndjson' }
+  });
+}
+
+async function handleDeleteDataset(
+  registry: DatasetRegistry,
+  handlersBySlug: Map<string, DatasetHandlers>,
+  slug: string
+): Promise<Response> {
   try {
-    const outcome = await importDataset({
-      registry,
-      slug,
-      text: await file.text(),
-      sourceFilename: file.name
-    });
-    return Response.json(outcome.info);
+    handlersBySlug.delete(slug);
+    const existed = await registry.delete(slug);
+    return existed
+      ? new Response(null, { status: 204 })
+      : new Response('dataset not found', { status: 404 });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'import failed';
+    const message = err instanceof Error ? err.message : 'delete failed';
     return new Response(message, { status: 400 });
   }
+}
+
+async function routeDataset(
+  handlers: DatasetHandlers,
+  rest: string,
+  mediaRoot: string
+): Promise<Response | null> {
+  if (rest === '/api/persons') return handlers.handlePersons();
+  if (rest === '/api/families') return handlers.handleFamilies();
+  if (rest.startsWith('/media/')) {
+    return await handlers.handleMedia(rest, mediaRoot);
+  }
+  return null;
 }
 
 export function createApi(registry: DatasetRegistry): ApiHandlers {
@@ -176,6 +270,13 @@ export function createApi(registry: DatasetRegistry): ApiHandlers {
       if (pathname === '/datasets') {
         return Response.json(await registry.list());
       }
+      if (pathname.startsWith('/datasets/')) {
+        if (req.method !== 'DELETE') {
+          return new Response('method not allowed', { status: 405 });
+        }
+        const slug = pathname.slice('/datasets/'.length);
+        return await handleDeleteDataset(registry, handlersBySlug, slug);
+      }
       const m = DATASET_RE.exec(pathname);
       if (m === null) return null;
       const slug = m.groups!.slug!;
@@ -184,12 +285,7 @@ export function createApi(registry: DatasetRegistry): ApiHandlers {
       if (handlers === null) {
         return new Response('dataset not found', { status: 404 });
       }
-      if (rest === '/api/persons') return handlers.handlePersons();
-      if (rest === '/api/families') return handlers.handleFamilies();
-      if (rest.startsWith('/media/')) {
-        return await handlers.handleMedia(rest, registry.mediaDir(slug));
-      }
-      return null;
+      return await routeDataset(handlers, rest, registry.mediaDir(slug));
     }
   };
 }

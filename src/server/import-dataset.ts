@@ -17,13 +17,7 @@ import { ingest } from './media-ingest';
 import type { IngestSkipped } from './media-ingest';
 import { convertMyHeritage, isMyHeritageExport } from './myheritage';
 
-export function slugFromFilename(name: string): string {
-  return name
-    .replace(/\.ged(?:com)?$/iu, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/gu, '-')
-    .replace(/^-+|-+$/gu, '');
-}
+export { slugFromFilename } from '@common/slug';
 
 function readGedcomVersion(roots: GedNode[]): string | null {
   const head = roots.find((r) => r.tag === 'HEAD');
@@ -44,6 +38,9 @@ export interface MyHeritageSummary {
 export interface ImportRequest {
   registry: DatasetRegistry;
   slug: string;
+  // Human-readable name shown in the UI; keeps accents/casing the slug drops.
+  // Falls back to the slug when omitted (e.g. the CLI).
+  displayName?: string;
   text: string;
   sourceFilename: string;
   // Dir for resolving local (relative) media references. Omit for uploads that
@@ -64,59 +61,84 @@ export interface ImportOutcome {
 export async function importDataset(
   req: ImportRequest
 ): Promise<ImportOutcome> {
+  const log = req.log ?? (() => undefined);
+  log('Parsing GEDCOM…');
   const roots = parseGedcom(req.text);
-  const { db, mediaDir } = await req.registry.createFresh(req.slug);
 
-  // Default to a path that won't exist, so an upload's local media refs simply
-  // resolve as "missing" rather than accidentally matching files in the cwd.
-  let sourceDir = req.sourceDir ?? join(tmpdir(), 'sukulinja-no-local-media');
-  let staging: string | null = null;
-  let myheritage: MyHeritageSummary | null = null;
+  // Build the dataset in a staging dir; publish it (commit) only once the whole
+  // import succeeds, so a network drop or error mid-download never leaves a
+  // half-imported dataset visible. Any failure discards the staged work.
+  const workspace = await req.registry.createStaging(req.slug);
+  try {
+    const { db, mediaDir } = workspace;
 
-  if (req.forceMyHeritage === true || isMyHeritageExport(roots)) {
-    staging = await mkdtemp(join(tmpdir(), 'myheritage-'));
-    const conv = await convertMyHeritage(roots, {
-      stagingDir: staging,
-      keepCutouts: req.keepCutouts ?? false,
-      log: req.log
+    // Default to a path that won't exist, so an upload's local media refs simply
+    // resolve as "missing" rather than accidentally matching files in the cwd.
+    let sourceDir = req.sourceDir ?? join(tmpdir(), 'sukulinja-no-local-media');
+    let mediaStaging: string | null = null;
+    let myheritage: MyHeritageSummary | null = null;
+
+    if (req.forceMyHeritage === true || isMyHeritageExport(roots)) {
+      mediaStaging = await mkdtemp(join(tmpdir(), 'myheritage-'));
+      const conv = await convertMyHeritage(roots, {
+        stagingDir: mediaStaging,
+        keepCutouts: req.keepCutouts ?? false,
+        log
+      });
+      sourceDir = mediaStaging;
+      myheritage = {
+        downloaded: conv.downloaded,
+        urls: conv.urls,
+        stripped: conv.stripped,
+        dropped: conv.dropped,
+        failed: conv.failed.length
+      };
+    }
+
+    log('Processing media…');
+    const ingestResult = await ingest({
+      roots,
+      sourceDir,
+      targetDir: mediaDir,
+      log
     });
-    sourceDir = staging;
-    myheritage = {
-      downloaded: conv.downloaded,
-      urls: conv.urls,
-      stripped: conv.stripped,
-      dropped: conv.dropped,
-      failed: conv.failed.length
+    if (mediaStaging !== null) {
+      await rm(mediaStaging, { recursive: true, force: true });
+    }
+
+    log('Writing database…');
+    const stats = importGedcom(
+      db,
+      roots,
+      (rel) => ingestResult.resolved.get(rel) ?? null
+    );
+
+    const displayName = req.displayName ?? req.slug;
+    const importedAt = new Date().toISOString();
+    const writeMeta = db.prepare('INSERT INTO meta (key, value) VALUES (?, ?)');
+    writeMeta.run('display_name', displayName);
+    writeMeta.run('source_filename', req.sourceFilename);
+    writeMeta.run('imported_at', importedAt);
+    const version = readGedcomVersion(roots);
+    if (version !== null) writeMeta.run('gedcom_version', version);
+
+    log('Finishing…');
+    await workspace.commit();
+
+    return {
+      info: {
+        slug: req.slug,
+        displayName,
+        personCount: stats.persons,
+        familyCount: stats.families,
+        importedAt
+      },
+      stats,
+      skipped: ingestResult.skipped,
+      myheritage
     };
+  } catch (err) {
+    await workspace.discard();
+    throw err;
   }
-
-  const ingestResult = await ingest({ roots, sourceDir, targetDir: mediaDir });
-  if (staging !== null) await rm(staging, { recursive: true, force: true });
-
-  const stats = importGedcom(
-    db,
-    roots,
-    (rel) => ingestResult.resolved.get(rel) ?? null
-  );
-
-  const importedAt = new Date().toISOString();
-  const writeMeta = db.prepare('INSERT INTO meta (key, value) VALUES (?, ?)');
-  writeMeta.run('display_name', req.slug);
-  writeMeta.run('source_filename', req.sourceFilename);
-  writeMeta.run('imported_at', importedAt);
-  const version = readGedcomVersion(roots);
-  if (version !== null) writeMeta.run('gedcom_version', version);
-
-  return {
-    info: {
-      slug: req.slug,
-      displayName: req.slug,
-      personCount: stats.persons,
-      familyCount: stats.families,
-      importedAt
-    },
-    stats,
-    skipped: ingestResult.skipped,
-    myheritage
-  };
 }
