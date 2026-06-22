@@ -218,13 +218,6 @@ export class TreeViewElement extends LitElement {
     return first.done === true ? null : first.value;
   }
 
-  resetFocus() {
-    if (this.loading) return;
-    const def = this.pickDefaultFocus();
-    if (def === null) return;
-    this.setFocus(def, this.canvasCenter());
-  }
-
   private setFocus(id: number, pinScreen: Point | null) {
     if (id === this.focusId) {
       this.query = '';
@@ -281,20 +274,39 @@ export class TreeViewElement extends LitElement {
     return out;
   }
 
-  private renderToolbar(
-    focusPerson: PersonRow | undefined,
-    results: PersonRow[]
-  ) {
+  private renderToolbar(results: PersonRow[]) {
     return html`
       <div class="toolbar">
-        <input
-          type="search"
-          placeholder="Find person…"
-          .value=${this.query}
-          @input=${(e: InputEvent) => {
-            this.query = (e.target as HTMLInputElement).value;
-          }}
-        />
+        <slot name="brand"></slot>
+        <div class="search">
+          <input
+            type="search"
+            placeholder="Find person…"
+            .value=${this.query}
+            @input=${(e: InputEvent) => {
+              this.query = (e.target as HTMLInputElement).value;
+            }}
+          />
+          ${results.length > 0
+            ? html`<div class="results">
+                ${results.map((p) => {
+                  const dates = formatDates(p);
+                  return html`
+                    <button
+                      @click=${() => {
+                        this.setFocus(p.id, this.canvasCenter());
+                      }}
+                    >
+                      ${formatName(p)}
+                      ${dates.length > 0
+                        ? html`<span class="meta">(${dates})</span>`
+                        : nothing}
+                    </button>
+                  `;
+                })}
+              </div>`
+            : nothing}
+        </div>
         <label class="gen">
           Levels
           <input
@@ -315,28 +327,6 @@ export class TreeViewElement extends LitElement {
           />
           <span class="meta">${this.gen}</span>
         </label>
-        ${focusPerson === undefined
-          ? nothing
-          : html`<span class="meta">Focus: ${formatName(focusPerson)}</span>`}
-        ${results.length > 0
-          ? html`<div class="results">
-              ${results.map((p) => {
-                const dates = formatDates(p);
-                return html`
-                  <button
-                    @click=${() => {
-                      this.setFocus(p.id, this.canvasCenter());
-                    }}
-                  >
-                    ${formatName(p)}
-                    ${dates.length > 0
-                      ? html`<span class="meta">(${dates})</span>`
-                      : nothing}
-                  </button>
-                `;
-              })}
-            </div>`
-          : nothing}
       </div>
     `;
   }
@@ -405,6 +395,13 @@ export class TreeViewElement extends LitElement {
   }
 
   override render() {
+    // The toolbar always renders so the dataset name / home link (slot="brand")
+    // stays visible through the loading and empty states; the body below swaps.
+    const results = this.loading ? [] : this.filteredSearch();
+    return html`${this.renderToolbar(results)}${this.renderBody()}`;
+  }
+
+  private renderBody() {
     if (this.loading) return html`<div class="empty">Loading…</div>`;
     if (this.focusId === null) {
       return html`<div class="empty">No people in database.</div>`;
@@ -423,10 +420,6 @@ export class TreeViewElement extends LitElement {
       return html`<div class="empty">No data for selected focus.</div>`;
     }
     this.chartExtents = chart.extents;
-    const results = this.filteredSearch();
-    const focusPerson = this.persons.get(this.focusId);
-    return html`${this.renderToolbar(focusPerson, results)}${this.renderCanvas(
-      chart
-    )}`;
+    return this.renderCanvas(chart);
   }
 }

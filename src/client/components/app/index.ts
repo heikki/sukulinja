@@ -1,11 +1,19 @@
-import { css, html, LitElement, nothing } from 'lit';
+import { html, LitElement, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
 import '../tree-view';
 
+import { slugFromFilename } from '@common/slug';
 import type { DatasetInfo } from '@common/types';
 
-import type { TreeViewElement } from '../tree-view';
+import { folderOf, relativeToBase, stripExtension } from './helpers';
+import type { UploadMedia } from './helpers';
+import { appStyles } from './styles';
+
+type ImportEvent =
+  | { type: 'log'; message: string }
+  | { type: 'error'; message: string }
+  | { type: 'done'; info: DatasetInfo };
 
 const DATASET_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?=\/|$)/u;
 
@@ -16,110 +24,19 @@ function currentSlug(): string | null {
 
 @customElement('sl-app')
 export class AppElement extends LitElement {
-  static override styles = css`
-    :host {
-      display: block;
-    }
-    header {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      padding: 0.75rem 1.5rem;
-      border-bottom: 1px solid var(--border);
-      background: var(--card);
-    }
-    h1 {
-      margin: 0;
-      font-size: 1.1rem;
-      font-weight: 600;
-      letter-spacing: -0.01em;
-      cursor: pointer;
-      user-select: none;
-    }
-    .toolbar {
-      margin-left: auto;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    select {
-      padding: 0.25rem 0.5rem;
-      background: var(--card);
-      color: var(--fg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      font: inherit;
-    }
-    .center {
-      max-width: 32rem;
-      margin: 4rem auto;
-      padding: 1.5rem;
-      text-align: center;
-    }
-    .center h2 {
-      margin: 0 0 0.5rem;
-      font-size: 1.3rem;
-    }
-    .center p {
-      color: var(--muted);
-      margin: 0 0 1.5rem;
-    }
-    .center code {
-      background: var(--bg);
-      padding: 0.15rem 0.4rem;
-      border-radius: 4px;
-      border: 1px solid var(--border);
-    }
-    ul.chooser {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      display: grid;
-      gap: 0.5rem;
-    }
-    ul.chooser a {
-      display: block;
-      padding: 0.75rem 1rem;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: var(--card);
-      color: var(--fg);
-      text-decoration: none;
-    }
-    ul.chooser a:hover {
-      border-color: var(--accent);
-    }
-    .muted {
-      color: var(--muted);
-      font-size: 0.85em;
-    }
-    button.import {
-      padding: 0.25rem 0.75rem;
-      background: var(--card);
-      color: var(--fg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      font: inherit;
-      cursor: pointer;
-    }
-    button.import:hover:not(:disabled) {
-      border-color: var(--accent);
-    }
-    button.import:disabled {
-      opacity: 0.6;
-      cursor: default;
-    }
-    .error {
-      color: #c0392b;
-      font-size: 0.85em;
-      margin-top: 0.75rem;
-    }
-  `;
+  static override styles = appStyles;
 
   @state() private datasets: DatasetInfo[] | null = null;
   @state() private readonly slug: string | null = currentSlug();
+  @state() private pendingImport: File | null = null;
+  @state() private pendingMedia: UploadMedia[] = [];
+  @state() private importNameInput = '';
   @state() private importing = false;
+  @state() private importStatus: string | null = null;
   @state() private importError: string | null = null;
+  @state() private pendingDelete: DatasetInfo | null = null;
+  @state() private deleting = false;
+  @state() private deleteError: string | null = null;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -128,80 +45,309 @@ export class AppElement extends LitElement {
 
   private async loadDatasets() {
     const res = await fetch('/datasets');
-    const list = (await res.json()) as DatasetInfo[];
-    this.datasets = list;
-    if (this.slug === null && list.length === 1) {
-      window.location.replace(`/d/${list[0]!.slug}/`);
-    }
+    this.datasets = (await res.json()) as DatasetInfo[];
   }
 
-  private readonly onSwitcherChange = (e: Event) => {
-    const target = e.target as HTMLSelectElement;
-    const next = target.value;
-    if (next !== '' && next !== this.slug) {
-      window.location.assign(`/d/${next}/`);
-    }
+  // Import a single GEDCOM file (no local media; MyHeritage URL media still
+  // downloads server-side).
+  private readonly onImportFileClick = () => {
+    this.renderRoot.querySelector<HTMLInputElement>('#file-input')?.click();
   };
 
-  private readonly onTitleClick = () => {
-    this.renderRoot
-      .querySelector<TreeViewElement>('sl-tree-view')
-      ?.resetFocus();
-  };
-
-  private readonly onImportClick = () => {
-    this.renderRoot
-      .querySelector<HTMLInputElement>('input[type=file]')
-      ?.click();
+  // Import a whole folder: the GEDCOM plus its sibling image directories.
+  private readonly onImportFolderClick = () => {
+    this.renderRoot.querySelector<HTMLInputElement>('#folder-input')?.click();
   };
 
   private readonly onFileChange = (e: Event) => {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
-    if (file !== undefined) void this.importFile(file);
+    if (file === undefined) return;
+    this.openImportDialog(file, [], stripExtension(file.name));
   };
 
-  private async importFile(file: File) {
+  // A folder upload carries the GEDCOM's sibling media so local FILE references
+  // resolve. Find the .ged, then ship every other file relative to its folder.
+  private readonly onFolderChange = (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    const all = input.files === null ? [] : Array.from(input.files);
+    input.value = '';
+    if (all.length === 0) return;
+    const ged = all.find((f) => /\.ged(?:com)?$/iu.test(f.name));
+    if (ged === undefined) {
+      this.importError = 'No .ged or .gedcom file found in that folder.';
+      return;
+    }
+    const base = folderOf(ged.webkitRelativePath);
+    const media: UploadMedia[] = [];
+    for (const f of all) {
+      if (f === ged) continue;
+      const relPath = relativeToBase(f.webkitRelativePath, base);
+      if (relPath !== null) media.push({ file: f, relPath });
+    }
+    const defaultName = base === '' ? stripExtension(ged.name) : base;
+    this.openImportDialog(ged, media, defaultName);
+  };
+
+  private openImportDialog(file: File, media: UploadMedia[], name: string) {
+    this.pendingImport = file;
+    this.pendingMedia = media;
+    this.importNameInput = name;
+    this.importStatus = null;
+    this.importError = null;
+  }
+
+  private readonly onImportNameInput = (e: Event) => {
+    this.importNameInput = (e.target as HTMLInputElement).value;
+  };
+
+  private readonly onImportKeydown = (e: KeyboardEvent) => {
+    if (e.key === 'Enter') this.confirmImport();
+  };
+
+  private readonly cancelImport = () => {
+    if (this.importing) return;
+    this.pendingImport = null;
+    this.pendingMedia = [];
+  };
+
+  private readonly confirmImport = () => {
+    const file = this.pendingImport;
+    if (file === null) return;
+    const name = this.importNameInput.trim();
+    // Send the readable name; the server keeps it for display and derives the
+    // slug. Guard against names that slugify to nothing (e.g. only punctuation).
+    if (name === '' || slugFromFilename(name) === '') return;
+    void this.importFile(file, name);
+  };
+
+  private async importFile(file: File, name: string) {
     this.importing = true;
+    this.importStatus = 'Uploading…';
     this.importError = null;
     try {
       const body = new FormData();
       body.append('file', file);
+      body.append('name', name);
+      for (const m of this.pendingMedia) {
+        body.append('media', m.file);
+        body.append('mediaPath', m.relPath);
+      }
       const res = await fetch('/import', { method: 'POST', body });
-      if (!res.ok) {
+      if (!res.ok || res.body === null) {
         const msg = await res.text();
         this.importError = msg === '' ? `import failed (${res.status})` : msg;
         return;
       }
-      const info = (await res.json()) as DatasetInfo;
-      window.location.assign(`/d/${info.slug}/`);
+      const info = await this.consumeImportStream(res.body);
+      if (info !== null) window.location.assign(`/d/${info.slug}/`);
     } catch (err) {
       this.importError = err instanceof Error ? err.message : 'import failed';
     } finally {
       this.importing = false;
+      this.importStatus = null;
     }
   }
 
+  // Read the newline-delimited JSON progress stream, updating the live status
+  // line. Returns the imported dataset on success, or null after recording an
+  // error event (the import streams 200 even when it ultimately fails).
+  private async consumeImportStream(
+    body: ReadableStream<Uint8Array>
+  ): Promise<DatasetInfo | null> {
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let done: DatasetInfo | null = null;
+    for (;;) {
+      // eslint-disable-next-line no-await-in-loop -- the stream is read sequentially, one chunk at a time
+      const chunk = await reader.read();
+      buffer += decoder.decode(chunk.value ?? new Uint8Array(), {
+        stream: !chunk.done
+      });
+      let nl = buffer.indexOf('\n');
+      while (nl !== -1) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (line !== '') {
+          const event = JSON.parse(line) as ImportEvent;
+          if (event.type === 'log') this.importStatus = event.message;
+          else if (event.type === 'error') this.importError = event.message;
+          else done = event.info;
+        }
+        nl = buffer.indexOf('\n');
+      }
+      if (chunk.done) break;
+    }
+    return done;
+  }
+
+  private readonly requestDelete = (dataset: DatasetInfo) => {
+    this.pendingDelete = dataset;
+    this.deleteError = null;
+  };
+
+  private readonly cancelDelete = () => {
+    if (this.deleting) return;
+    this.pendingDelete = null;
+  };
+
+  private readonly confirmDelete = async () => {
+    const target = this.pendingDelete;
+    if (target === null) return;
+    this.deleting = true;
+    this.deleteError = null;
+    try {
+      const res = await fetch(`/datasets/${target.slug}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const msg = await res.text();
+        this.deleteError = msg === '' ? `delete failed (${res.status})` : msg;
+        return;
+      }
+      this.pendingDelete = null;
+      if (target.slug === this.slug) {
+        window.location.assign('/');
+        return;
+      }
+      await this.loadDatasets();
+    } catch (err) {
+      this.deleteError = err instanceof Error ? err.message : 'delete failed';
+    } finally {
+      this.deleting = false;
+    }
+  };
+
+  private renderImportDialog() {
+    const file = this.pendingImport;
+    if (file === null) return nothing;
+    const slug = slugFromFilename(this.importNameInput);
+    return html`
+      <div class="overlay" @click=${this.cancelImport}>
+        <div
+          class="dialog"
+          role="dialog"
+          @click=${(e: Event) => {
+            e.stopPropagation();
+          }}
+        >
+          <h2>Import dataset</h2>
+          <p class="muted">
+            From <code>${file.name}</code>${this.pendingMedia.length > 0
+              ? ` + ${this.pendingMedia.length} media file${
+                  this.pendingMedia.length === 1 ? '' : 's'
+                }`
+              : nothing}
+          </p>
+          <label class="field">
+            Name
+            <input
+              type="text"
+              .value=${this.importNameInput}
+              ?disabled=${this.importing}
+              @input=${this.onImportNameInput}
+              @keydown=${this.onImportKeydown}
+            />
+          </label>
+          <p class="muted">Saved as <code>${slug === '' ? '…' : slug}</code></p>
+          ${this.importing && this.importStatus !== null
+            ? html`<p class="muted">${this.importStatus}</p>`
+            : nothing}
+          ${this.importError === null
+            ? nothing
+            : html`<p class="error">${this.importError}</p>`}
+          <div class="actions">
+            <button @click=${this.cancelImport} ?disabled=${this.importing}>
+              Cancel
+            </button>
+            <button
+              class="primary"
+              @click=${this.confirmImport}
+              ?disabled=${this.importing || slug === ''}
+            >
+              ${this.importing ? 'Importing…' : 'Import'}
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   private renderImportButton() {
-    return html`<button
-      class="import"
-      ?disabled=${this.importing}
-      @click=${this.onImportClick}
-    >
-      ${this.importing ? 'Importing…' : 'Import GEDCOM'}
-    </button>`;
+    return html`
+      <button
+        class="import"
+        ?disabled=${this.importing}
+        @click=${this.onImportFileClick}
+      >
+        ${this.importing ? 'Importing…' : 'Import GEDCOM file'}
+      </button>
+      <button
+        class="import"
+        ?disabled=${this.importing}
+        title="Pick a folder containing the GEDCOM and its image folders"
+        @click=${this.onImportFolderClick}
+      >
+        Import GEDCOM folder
+      </button>
+    `;
   }
 
   override render() {
     return html`
       <input
+        id="file-input"
         type="file"
         accept=".ged,.gedcom"
         hidden
         @change=${this.onFileChange}
       />
-      ${this.renderScreen()}
+      <input
+        id="folder-input"
+        type="file"
+        webkitdirectory
+        hidden
+        @change=${this.onFolderChange}
+      />
+      ${this.renderScreen()} ${this.renderImportDialog()}
+      ${this.renderDeleteDialog()}
+    `;
+  }
+
+  private renderDeleteDialog() {
+    const target = this.pendingDelete;
+    if (target === null) return nothing;
+    return html`
+      <div class="overlay" @click=${this.cancelDelete}>
+        <div
+          class="dialog"
+          role="alertdialog"
+          @click=${(e: Event) => {
+            e.stopPropagation();
+          }}
+        >
+          <h2>Delete dataset?</h2>
+          <p>
+            <strong>${target.displayName}</strong> (${target.personCount}
+            people) will be permanently removed. This can't be undone.
+          </p>
+          ${this.deleteError === null
+            ? nothing
+            : html`<p class="error">${this.deleteError}</p>`}
+          <div class="actions">
+            <button @click=${this.cancelDelete} ?disabled=${this.deleting}>
+              Cancel
+            </button>
+            <button
+              class="danger"
+              @click=${this.confirmDelete}
+              ?disabled=${this.deleting}
+            >
+              ${this.deleting ? 'Deleting…' : 'Delete'}
+            </button>
+          </div>
+        </div>
+      </div>
     `;
   }
 
@@ -209,7 +355,6 @@ export class AppElement extends LitElement {
     if (this.slug !== null) return this.renderDatasetView();
     if (this.datasets === null) return nothing;
     if (this.datasets.length === 0) return this.renderEmpty();
-    if (this.datasets.length === 1) return nothing;
     return this.renderChooser();
   }
 
@@ -220,14 +365,6 @@ export class AppElement extends LitElement {
         <h2>No datasets yet</h2>
         <p>Import a MyHeritage (or any) GEDCOM file to get started.</p>
         ${this.renderImportButton()}
-        ${this.importing
-          ? html`<p class="muted">
-              Importing… this can take a minute while photos download.
-            </p>`
-          : nothing}
-        ${this.importError === null
-          ? nothing
-          : html`<p class="error">${this.importError}</p>`}
         <p class="muted">
           Or from a terminal:
           <code>bun run import-ged path/to/family.ged</code>
@@ -237,29 +374,23 @@ export class AppElement extends LitElement {
   }
 
   private renderDatasetView() {
+    const current = this.datasets?.find((d) => d.slug === this.slug);
+    const name = current?.displayName ?? this.slug ?? '';
+    // The dataset name lives in the tree-view's own toolbar (slot="brand"),
+    // standing in for "Sukulinja" and doubling as the link back to the chooser.
     return html`
-      <header>
-        <h1 @click=${this.onTitleClick}>Sukulinja</h1>
-        <div class="toolbar">
-          ${this.renderSwitcher()} ${this.renderImportButton()}
-        </div>
-      </header>
-      <main><sl-tree-view></sl-tree-view></main>
-    `;
-  }
-
-  private renderSwitcher() {
-    const list = this.datasets;
-    if (list === null || list.length < 2) return nothing;
-    return html`
-      <select @change=${this.onSwitcherChange}>
-        ${list.map(
-          (d) =>
-            html`<option value=${d.slug} ?selected=${d.slug === this.slug}>
-              ${d.displayName}
-            </option>`
-        )}
-      </select>
+      <sl-tree-view>
+        <button
+          slot="brand"
+          class="brand"
+          title="Back to datasets"
+          @click=${() => {
+            window.location.assign('/');
+          }}
+        >
+          Sukulinja · ${name}
+        </button>
+      </sl-tree-view>
     `;
   }
 
@@ -278,14 +409,20 @@ export class AppElement extends LitElement {
                     ${d.personCount} people · ${d.familyCount} families
                   </div>
                 </a>
+                <button
+                  class="delete"
+                  title="Delete dataset"
+                  @click=${() => {
+                    this.requestDelete(d);
+                  }}
+                >
+                  Delete
+                </button>
               </li>
             `
           )}
         </ul>
         <p style="margin-top: 1.5rem">${this.renderImportButton()}</p>
-        ${this.importError === null
-          ? nothing
-          : html`<p class="error">${this.importError}</p>`}
       </div>
     `;
   }

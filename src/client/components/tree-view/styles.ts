@@ -9,23 +9,32 @@ export const treeViewStyles = css`
     --sl-ease: cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 48px);
+    height: 100vh;
   }
 
+  /* Bar metrics kept in sync with the chooser's header (app styles) so the
+     title doesn't shift between the chooser and a tree view. */
   .toolbar {
     position: relative;
     display: flex;
     gap: 0.5rem;
     align-items: center;
+    min-height: 3.25rem;
+    box-sizing: border-box;
     padding: 0.5rem 1rem;
     background: var(--card);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
   }
 
+  .search {
+    position: relative;
+    margin-left: auto;
+    width: min(420px, 45vw);
+  }
+
   input[type='search'] {
-    flex: 1;
-    max-width: 420px;
+    width: 100%;
     padding: 0.4rem 0.7rem;
     border: 1px solid var(--border);
     border-radius: 6px;
@@ -49,8 +58,8 @@ export const treeViewStyles = css`
   .results {
     position: absolute;
     top: calc(100% + 2px);
-    left: 1rem;
-    width: min(420px, calc(100% - 2rem));
+    left: 0;
+    width: 100%;
     max-height: 320px;
     overflow-y: auto;
     background: var(--card);
