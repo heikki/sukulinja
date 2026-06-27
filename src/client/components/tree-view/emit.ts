@@ -21,14 +21,31 @@ export interface Dims {
 }
 
 export interface Box {
+  // Stable per-instance id: the path of node ids from the root. Unique even
+  // under pedigree collapse, where one person is emitted as several boxes
+  // (same personId). Used for keyed render and to match a box across a relayout.
+  key: string;
   personId: number;
   pos: Point;
 }
 
 export type LineKind = 'tie' | 'drop' | 'bar' | 'leg';
 
-export interface DrawnLine {
+// Family-local line before the walk anchors it: the bare key identifies the
+// line within its family; `key` on DrawnLine prefixes it with the family's path.
+interface RawLine {
   key: string;
+  kind: LineKind;
+  from: Point;
+  to: Point;
+}
+
+export interface DrawnLine {
+  // Path-prefixed, unique per instance (see Box.key); used as the render key.
+  key: string;
+  // The bare family-local key, shared by both instances of a collapsed family;
+  // used to match an edge across a relayout that re-roots the chart.
+  baseKey: string;
   // Tagged for paint-side dispatch; emit itself doesn't read this.
   kind: LineKind;
   from: Point;
@@ -44,6 +61,13 @@ export interface EmitOutput {
   boxes: Box[];
   lines: DrawnLine[];
   extents: Extents;
+}
+
+// Per-node discriminator for the unique path key (see Box.key).
+function nodeKey(node: LayoutNode): string {
+  if (node instanceof PersonNode) return `p${node.personId}`;
+  if (node instanceof FamilyNode) return `f${node.famId}`;
+  return 'n';
 }
 
 export function emitLayout(
@@ -63,11 +87,15 @@ export function emitLayout(
   let maxX = -Infinity;
   let maxY = -Infinity;
 
-  function walk(node: LayoutNode, abs: Point) {
+  function walk(node: LayoutNode, abs: Point, path: string) {
+    // Each owned PersonNode / FamilyNode has a unique parent and its siblings
+    // carry distinct ids, so this chain is a unique, relayout-stable path.
+    const nodePath = path === '' ? nodeKey(node) : `${path}/${nodeKey(node)}`;
     if (node instanceof PersonNode) {
       const px = abs.x * slotPitch;
       const py = abs.y;
       boxes.push({
+        key: nodePath,
         personId: node.personId,
         pos: { x: px, y: py }
       });
@@ -78,7 +106,8 @@ export function emitLayout(
     } else if (node instanceof FamilyNode) {
       for (const line of familyLines(node)) {
         lines.push({
-          key: line.key,
+          key: `${nodePath}/${line.key}`,
+          baseKey: line.key,
           kind: line.kind,
           from: {
             x: (line.from.x + abs.x) * slotPitch,
@@ -89,16 +118,20 @@ export function emitLayout(
       }
     }
     for (const child of node.children) {
-      walk(child, {
-        x: abs.x + child.offset.x,
-        y: abs.y + child.offset.y * rowPitch
-      });
+      walk(
+        child,
+        {
+          x: abs.x + child.offset.x,
+          y: abs.y + child.offset.y * rowPitch
+        },
+        nodePath
+      );
     }
   }
 
-  function familyLines(node: FamilyNode): DrawnLine[] {
+  function familyLines(node: FamilyNode): RawLine[] {
     // Endpoints are in family-local coords (slot units for x, pixels for y).
-    const out: DrawnLine[] = [];
+    const out: RawLine[] = [];
     if (node.husband !== null && node.wife !== null) {
       // Husband-left convention can be violated by ancestor step-fams (the
       // step-spouse may sit on Fa's "wrong" side to match chronological
@@ -124,7 +157,7 @@ export function emitLayout(
     return out;
   }
 
-  function appendSibshipLines(node: FamilyNode, out: DrawnLine[]) {
+  function appendSibshipLines(node: FamilyNode, out: RawLine[]) {
     const { famId, kids, childAnchor } = node;
     const busY = rowPitch / 2;
     const anchorPoint: Point = {
@@ -165,7 +198,7 @@ export function emitLayout(
     }
   }
 
-  walk(root, startAbs);
+  walk(root, startAbs, '');
   return {
     boxes,
     lines,
