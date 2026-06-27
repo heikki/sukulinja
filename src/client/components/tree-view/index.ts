@@ -8,6 +8,8 @@ import type { FamilyRow, PersonRow } from '@common/types';
 
 import { buildChart } from './build';
 import type { EmitOutput, Extents, Point } from './emit';
+import { animateMove, captureFirstScreen } from './move';
+import type { BoxGeom, EdgeGeom, FirstScreen } from './move';
 import {
   dims,
   formatDates,
@@ -54,6 +56,10 @@ function sameSet<T>(a: Set<T>, b: Set<T>) {
   return true;
 }
 
+function prefersReducedMotion() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 @customElement('sl-tree-view')
 export class TreeViewElement extends LitElement {
   static override styles = treeViewStyles;
@@ -85,6 +91,27 @@ export class TreeViewElement extends LitElement {
   private enteringBoxIds = new Set<number>();
   private enteringEdgeKeys = new Set<string>();
   private enterClearTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // FLIP move state. boxPos / edgeGeom hold the on-screen chart's geometry so
+  // the next refocus can read each surviving card's and edge's old screen spot
+  // before the layout changes; flipFirst stashes those spots until the pinned
+  // layout has settled, when runMoveAnimation slides each card and morphs each
+  // edge from old → new. moveAnims tracks the in-flight Web Animations so a
+  // rapid refocus can cancel them.
+  private boxPos = new Map<string, BoxGeom>();
+  private edgeGeom = new Map<string, EdgeGeom>();
+  private flipFirst: FirstScreen | null = null;
+  private movePending = false;
+  // True when the pending move matches items by uid (a pure levels change keeps
+  // the tree rooted); false when it must fall back to personId/baseKey (refocus
+  // re-roots, so uids change). Set with flipFirst in captureFlipFirst.
+  private moveByKey = false;
+  private moveAnims: Animation[] = [];
+  // uids of the cards currently sliding. They render first (painted behind) so
+  // stationary cards stay on top as movers pass under them. A move generation
+  // guards the async clear against a superseding move.
+  private movingKeys = new Set<string>();
+  private moveGen = 0;
 
   // Sticky flag: once the user has expressed a zoom (URL-supplied or
   // settled-after-gesture), the URL keeps emitting `zoom` even if it happens
@@ -123,6 +150,7 @@ export class TreeViewElement extends LitElement {
     super.disconnectedCallback();
     window.removeEventListener('hashchange', this.onHashChange);
     if (this.enterClearTimer !== null) clearTimeout(this.enterClearTimer);
+    for (const anim of this.moveAnims) anim.cancel();
   }
 
   private readonly onHashChange = () => {
@@ -164,13 +192,83 @@ export class TreeViewElement extends LitElement {
         silent: true
       });
     }
+    if (changed.has('focusId') || changed.has('gen')) {
+      this.captureFlipFirst(changed);
+    }
+  }
+
+  // FLIP "First": before the new layout renders, record each on-screen card's
+  // current screen position. The DOM and viewport still reflect the old chart
+  // here (render commits in update(), the pin lands in updated()), so
+  // chartToScreen maps through the old pan/extents. Runs for both refocus and a
+  // levels (gen) change; skipped on the very first focus (no previous chart).
+  private captureFlipFirst(changed: PropertyValues) {
+    if (changed.has('focusId') && changed.get('focusId') === null) return;
+    if (
+      !this.viewport.panReady ||
+      this.boxPos.size === 0 ||
+      prefersReducedMotion()
+    ) {
+      return;
+    }
+    // A pure levels change keeps the chart rooted, so uids are stable and match
+    // exactly; any focus change re-roots, so match by personId/baseKey instead.
+    this.moveByKey = changed.has('gen') && !changed.has('focusId');
+    this.flipFirst = captureFirstScreen(
+      this.boxPos,
+      this.edgeGeom,
+      (p) => this.viewport.chartToScreen(p),
+      this.moveByKey
+    );
+    this.movePending = true;
   }
 
   override updated(_changed: PropertyValues) {
     if (this.loading || this.focusId === null) return;
     this.viewport.attachCanvas(this.queryCanvas());
     this.viewport.ensureInitialPan();
+    // The pin shifts pan to keep the focused card fixed; capturing FLIP "Last"
+    // before it lands would offset every card by the pin delta. When a pin was
+    // pending it applies here and schedules one more render, so defer the move
+    // to that next updated() (hadPin === false) where the DOM is final.
+    const hadPin = this.viewport.hasPendingPin;
     this.viewport.applyPendingPin();
+    if (this.movePending && !hadPin) this.runMoveAnimation();
+  }
+
+  // FLIP "Last" + "Play": now that the pinned layout has settled, slide each
+  // surviving card from where it was (flipFirst) to where it landed and morph
+  // each surviving edge to match. New cards/edges fade in instead (no entry in
+  // flipFirst). Cancel any in-flight move so a rapid refocus doesn't stack.
+  private runMoveAnimation() {
+    const first = this.flipFirst;
+    this.flipFirst = null;
+    this.movePending = false;
+    if (first === null) return;
+    for (const anim of this.moveAnims) anim.cancel();
+    const result = animateMove(
+      {
+        root: this.renderRoot,
+        boxPos: this.boxPos,
+        edgeGeom: this.edgeGeom,
+        toScreen: (p) => this.viewport.chartToScreen(p),
+        scale: this.viewport.scale
+      },
+      first,
+      this.moveByKey
+    );
+    this.moveAnims = result.anims;
+    this.movingKeys = result.movingBoxKeys;
+    if (this.movingKeys.size === 0) return;
+    // Re-render so the sliders sort behind the stationary cards, then clear once
+    // the move ends (unless a newer move has taken over).
+    const gen = ++this.moveGen;
+    this.requestUpdate();
+    void Promise.allSettled(this.moveAnims.map((a) => a.finished)).then(() => {
+      if (this.moveGen !== gen) return;
+      this.movingKeys = new Set();
+      this.requestUpdate();
+    });
   }
 
   private queryCanvas() {
@@ -361,8 +459,10 @@ export class TreeViewElement extends LitElement {
   // render, drags), keeping any in-flight fade running rather than restarting
   // it. A timer drops the class once the fade is done.
   private refreshEntering(chart: EmitOutput) {
+    // Track "new person / new family" by personId / baseKey (relayout-invariant)
+    // so a refocus, which changes every uid, doesn't fade the whole chart.
     const boxIds = new Set(chart.boxes.map((b) => b.personId));
-    const edgeKeys = new Set(chart.lines.map((l) => l.key));
+    const edgeKeys = new Set(chart.lines.map((l) => l.baseKey));
     if (
       sameSet(boxIds, this.prevBoxIds) &&
       sameSet(edgeKeys, this.prevEdgeKeys)
@@ -372,6 +472,8 @@ export class TreeViewElement extends LitElement {
     this.enteringBoxIds = new Set(
       [...boxIds].filter((id) => !this.prevBoxIds.has(id))
     );
+    // Genuinely new edges fade in; surviving ones morph their geometry in
+    // runMoveAnimation rather than fading.
     this.enteringEdgeKeys = new Set(
       [...edgeKeys].filter((k) => !this.prevEdgeKeys.has(k))
     );
@@ -398,10 +500,33 @@ export class TreeViewElement extends LitElement {
     const vbW = max.x - min.x + SVG_MARGIN_PX * 2;
     const vbH = max.y - min.y + SVG_MARGIN_PX * 2;
     const { pan, scale, panReady, dragging } = this.viewport;
+    // Keep the on-screen chart's geometry, keyed by unique uid, so the next
+    // relayout can read each card's and edge's old spot (captureFlipFirst)
+    // before it is replaced.
+    this.boxPos = new Map(
+      chart.boxes.map((b) => [b.key, { pos: b.pos, personId: b.personId }])
+    );
+    this.edgeGeom = new Map(
+      chart.lines.map((l) => [
+        l.key,
+        { from: l.from, to: l.to, baseKey: l.baseKey }
+      ])
+    );
     // Refresh the entering sets only once nodes actually paint and only when
     // the layout has changed — the pin's extra render and drag re-renders keep
     // the same ids, so the in-flight fade is preserved rather than restarted.
     if (panReady) this.refreshEntering(chart);
+    // While a move runs, paint the sliders first (behind) so the stationary
+    // cards stay on top as movers pass under them. Stable sort keeps each
+    // group's order otherwise.
+    const boxes =
+      this.movingKeys.size === 0
+        ? chart.boxes
+        : [...chart.boxes].sort(
+            (a, b) =>
+              (this.movingKeys.has(a.key) ? 0 : 1) -
+              (this.movingKeys.has(b.key) ? 0 : 1)
+          );
     return html`
       <div
         class="canvas ${dragging ? 'dragging' : ''}"
@@ -424,12 +549,12 @@ export class TreeViewElement extends LitElement {
                   ${repeat(
                     chart.lines,
                     (l) => l.key,
-                    (l) => renderEdge(l, this.enteringEdgeKeys.has(l.key))
+                    (l) => renderEdge(l, this.enteringEdgeKeys.has(l.baseKey))
                   )}
                 </g>
                 ${repeat(
-                  chart.boxes,
-                  (b) => b.personId,
+                  boxes,
+                  (b) => b.key,
                   (b) => {
                     const person = this.persons.get(b.personId);
                     if (person === undefined) return nothing;

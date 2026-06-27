@@ -116,6 +116,13 @@ export const treeViewStyles = css`
     will-change: transform;
   }
 
+  /* The viewBox/width snap to the new extents the instant a relayout commits,
+     but cards slide in from their old spots over the move. Don't clip them to
+     the (possibly smaller) new box mid-slide — .canvas still bounds the view. */
+  .pan svg {
+    overflow: visible;
+  }
+
   .empty {
     padding: 2rem;
     color: var(--muted);

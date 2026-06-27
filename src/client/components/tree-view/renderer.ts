@@ -79,6 +79,7 @@ function avatar(p: PersonRow, cx: number, cy: number, r: number) {
 export function renderEdge(line: DrawnLine, isNew: boolean) {
   return svg`<path
     class="edge ${line.kind} ${isNew ? 'enter' : ''}"
+    data-edge-key=${line.key}
     d="M ${line.from.x} ${line.from.y} L ${line.to.x} ${line.to.y}"
   />`;
 }
@@ -126,7 +127,7 @@ export function renderBox(
   return svg`
     <g
       class="node ${focus ? 'focus' : ''} ${entering ? 'enter' : ''}"
-      data-node-id=${box.personId}
+      data-box-key=${box.key}
       style="transform: translate(${tx}px, ${ty}px)"
       @click=${onClick}
     >
@@ -205,6 +206,15 @@ export const styles = css`
     }
     to {
       opacity: 1;
+    }
+  }
+
+  /* The card-move slide and edge cross-fade are Web Animations that already
+     bail under reduced motion; drop the enter-fade here to match. */
+  @media (prefers-reduced-motion: reduce) {
+    .node.enter,
+    .edge.enter {
+      animation: none;
     }
   }
 `;
