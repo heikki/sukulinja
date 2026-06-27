@@ -76,9 +76,9 @@ function avatar(p: PersonRow, cx: number, cy: number, r: number) {
   `;
 }
 
-export function renderEdge(line: DrawnLine) {
+export function renderEdge(line: DrawnLine, isNew: boolean) {
   return svg`<path
-    class="edge ${line.kind}"
+    class="edge ${line.kind} ${isNew ? 'enter' : ''}"
     d="M ${line.from.x} ${line.from.y} L ${line.to.x} ${line.to.y}"
   />`;
 }
@@ -101,9 +101,10 @@ const DATES_BASELINE_OFFSET = 9;
 export function renderBox(
   box: Box,
   person: PersonRow,
-  isFocus: boolean,
+  state: { focus: boolean; entering: boolean },
   onClick: () => void
 ) {
+  const { focus, entering } = state;
   const { boxW, boxH } = dims;
   const tx = box.pos.x - boxW / 2;
   const ty = box.pos.y - boxH / 2;
@@ -124,7 +125,7 @@ export function renderBox(
     DATES_BASELINE_OFFSET;
   return svg`
     <g
-      class="node ${isFocus ? 'focus' : ''}"
+      class="node ${focus ? 'focus' : ''} ${entering ? 'enter' : ''}"
       data-node-id=${box.personId}
       style="transform: translate(${tx}px, ${ty}px)"
       @click=${onClick}
@@ -190,11 +191,12 @@ export const styles = css`
     vector-effect: non-scaling-stroke;
   }
 
-  /* Focus change snaps — only opacity is animated, for fade-in of newly
-     rendered nodes and edges. The Pin keeps the focused node visually fixed
-     across the snap. */
-  .node,
-  .edge {
+  /* Focus change snaps. Only nodes and edges that are newly on screen carry
+     the .enter class and fade in; cards that persist across the snap stay put
+     (the Pin keeps the focused card visually fixed). Existing cards must not
+     fade in or out — the fade is reserved for genuinely new ones. */
+  .node.enter,
+  .edge.enter {
     animation: sl-enter var(--sl-anim-fade) ease-out both;
   }
   @keyframes sl-enter {

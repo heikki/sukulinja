@@ -44,6 +44,16 @@ const URL_DEFAULTS: Defaults = { gen: DEFAULT_GEN };
 const SEARCH_MIN_LEN = 2;
 const SEARCH_MAX_RESULTS = 50;
 
+// Matches --sl-anim-fade; after this the enter-fade is done and the .enter
+// class can be dropped so the next layout change starts clean.
+const ENTER_FADE_MS = 200;
+
+function sameSet<T>(a: Set<T>, b: Set<T>) {
+  if (a.size !== b.size) return false;
+  for (const x of a) if (!b.has(x)) return false;
+  return true;
+}
+
 @customElement('sl-tree-view')
 export class TreeViewElement extends LitElement {
   static override styles = treeViewStyles;
@@ -61,6 +71,20 @@ export class TreeViewElement extends LitElement {
   // Captured during render so the viewport port can resolve chart-local
   // coords to canvas pixels using the same extents the SVG was sized to.
   private chartExtents: Extents | null = null;
+
+  // Ids/keys on screen at the last *layout change*, so the next change can tell
+  // which boxes/edges are genuinely new. Existing cards must not re-animate, so
+  // only the ones absent here get the enter-fade. Empty until the first paint,
+  // so the initial chart fades in.
+  private prevBoxIds = new Set<number>();
+  private prevEdgeKeys = new Set<string>();
+
+  // The boxes/edges currently playing the enter-fade. Held across the extra
+  // render the pin triggers (applyPendingPin → requestUpdate) so the fade isn't
+  // cut off, then cleared by a timer once it has run its course.
+  private enteringBoxIds = new Set<number>();
+  private enteringEdgeKeys = new Set<string>();
+  private enterClearTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Sticky flag: once the user has expressed a zoom (URL-supplied or
   // settled-after-gesture), the URL keeps emitting `zoom` even if it happens
@@ -98,6 +122,7 @@ export class TreeViewElement extends LitElement {
   override disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener('hashchange', this.onHashChange);
+    if (this.enterClearTimer !== null) clearTimeout(this.enterClearTimer);
   }
 
   private readonly onHashChange = () => {
@@ -331,6 +356,41 @@ export class TreeViewElement extends LitElement {
     `;
   }
 
+  // Marks boxes/edges that appeared since the last layout as "entering" so they
+  // alone get the fade. No-ops when the id-set is unchanged (the pin's extra
+  // render, drags), keeping any in-flight fade running rather than restarting
+  // it. A timer drops the class once the fade is done.
+  private refreshEntering(chart: EmitOutput) {
+    const boxIds = new Set(chart.boxes.map((b) => b.personId));
+    const edgeKeys = new Set(chart.lines.map((l) => l.key));
+    if (
+      sameSet(boxIds, this.prevBoxIds) &&
+      sameSet(edgeKeys, this.prevEdgeKeys)
+    ) {
+      return;
+    }
+    this.enteringBoxIds = new Set(
+      [...boxIds].filter((id) => !this.prevBoxIds.has(id))
+    );
+    this.enteringEdgeKeys = new Set(
+      [...edgeKeys].filter((k) => !this.prevEdgeKeys.has(k))
+    );
+    this.prevBoxIds = boxIds;
+    this.prevEdgeKeys = edgeKeys;
+
+    if (this.enterClearTimer !== null) clearTimeout(this.enterClearTimer);
+    if (this.enteringBoxIds.size === 0 && this.enteringEdgeKeys.size === 0) {
+      this.enterClearTimer = null;
+      return;
+    }
+    this.enterClearTimer = setTimeout(() => {
+      this.enterClearTimer = null;
+      this.enteringBoxIds = new Set();
+      this.enteringEdgeKeys = new Set();
+      this.requestUpdate();
+    }, ENTER_FADE_MS);
+  }
+
   private renderCanvas(chart: EmitOutput) {
     const { min, max } = chart.extents;
     const vbX = min.x - SVG_MARGIN_PX;
@@ -338,6 +398,10 @@ export class TreeViewElement extends LitElement {
     const vbW = max.x - min.x + SVG_MARGIN_PX * 2;
     const vbH = max.y - min.y + SVG_MARGIN_PX * 2;
     const { pan, scale, panReady, dragging } = this.viewport;
+    // Refresh the entering sets only once nodes actually paint and only when
+    // the layout has changed — the pin's extra render and drag re-renders keep
+    // the same ids, so the in-flight fade is preserved rather than restarted.
+    if (panReady) this.refreshEntering(chart);
     return html`
       <div
         class="canvas ${dragging ? 'dragging' : ''}"
@@ -360,7 +424,7 @@ export class TreeViewElement extends LitElement {
                   ${repeat(
                     chart.lines,
                     (l) => l.key,
-                    (l) => renderEdge(l)
+                    (l) => renderEdge(l, this.enteringEdgeKeys.has(l.key))
                   )}
                 </g>
                 ${repeat(
@@ -372,7 +436,10 @@ export class TreeViewElement extends LitElement {
                     return renderBox(
                       b,
                       person,
-                      b.personId === this.focusId,
+                      {
+                        focus: b.personId === this.focusId,
+                        entering: this.enteringBoxIds.has(b.personId)
+                      },
                       () => {
                         if (this.viewport.dragMoved) return;
                         // Pin from layout coords rather than
