@@ -108,7 +108,7 @@ Horizontal segment between husband and wife inside a **Couple**, at row-center Y
 Vertical line from the **Child anchor** down to the **Bar**. Top of the drop/bar/leg trio.
 
 **Bar**:
-Horizontal line spanning the sibship between two generations. Collapses to a point with a single child.
+Horizontal line spanning the sibship between two generations. Collapses to a (still-emitted) zero-length point with a single child — invisible at rest, but kept as a stable element so the **Transition** can morph it as the sibship widens or narrows.
 
 **Leg**:
 Short vertical from the **Bar** to one sibling's box top. One per sibling.
