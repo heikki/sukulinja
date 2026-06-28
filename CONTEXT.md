@@ -138,8 +138,42 @@ The maximum **Depth** rendered in each direction. Beyond it, the sub-layout beco
 
 Rule of thumb: Focus's bloodline up and down, with one ring of lateral context at **Parent row** only.
 
+## Transition
+
+Motion vocabulary for animating between two **Hourglass charts**. Distinct from the static layout language above: these name what moves, not what's drawn.
+
+**Relayout**:
+A rebuild of the chart triggered by a **Focus** change or a **Generation limit** change. The set of boxes and edges shifts; the **Transition** animates the difference.
+_Avoid_: rerender, redraw (those are per-frame, not per-rebuild).
+
+**Transition**:
+The animated change from the previous chart to the next across a **Relayout**, in three phases — **Leave**, **Move**, **Enter**. The **Schedule** decides their timing: a staggered out → move → in.
+_Avoid_: animation (too generic — reserve for one element's tween).
+
+**Move**:
+The phase animating boxes and edges present in both charts from their old position to their new one (FLIP). Measured in screen space: the **Pin** holds **Focus** fixed while everything else shifts around it. While a Move runs, the sliders paint behind the stationary cards. When a Back/Forward step restores a different zoom, the Move also eases each card's size from the old scale to the new (scaling about its centre, so the slide still lands); edges are points and need no scaling, and the **Leave** ghosts scale the same way so they fade at their old size.
+
+**Enter**:
+The phase fading in boxes and edges new to the next chart.
+
+**Leave**:
+The phase fading out boxes and edges absent from the next chart, as **Ghosts** — copies retained past the data, since the live elements are deleted on **Relayout**.
+
+**Pin**:
+Holds **Focus** at a fixed screen pixel across a **Relayout** so the **Move** is coherent (and so Back/Forward restores the view, ADR-0004). Owned by the viewport, not the Transition.
+_Avoid_: anchor, lock.
+
+**Box key**:
+A box's stable per-instance identity — the path of node ids from the chart root down to it (e.g. `p242/f68/…/p686`). Unique even under pedigree collapse (one person drawn as several boxes) and stable across a **Generation limit** **Relayout**. Edges carry the path-prefixed key plus a **base key** (the bare family-local key), shared by both copies of a collapsed **Family**.
+_Avoid_: id (ambiguous with personId).
+
+**Schedule**:
+The policy assigning each **Transition** phase its timing — each of the **Leave**/**Enter** fades and the **Move** slide a delay/duration/easing. The Transition's _when_, kept separate from the **Planner**'s _what_ (ADR-0006). A single `transitionSchedule` (staggered Leave → Move → Enter); the swappable-Schedule seam is kept in shape so the choreography can be re-timed without touching the Planner even though only one ships. The **Enter** fade's delay spans the whole **Move**, so newcomers appear only once the slide has landed — the stagger is a plain CSS `animation-delay`, no JS gate.
+_Avoid_: timeline (implementation detail).
+
 ## Flagged ambiguities
 
 - **"Tree"** is overloaded between recursive data structures (**Ancestor tree** / **Descendant tree**) and chart regions (**Ancestor stack** / **Descendant stack**). Disambiguate by adjective.
 - A **Family** is one record but takes two roles relative to any person: the family they are a child in vs. one of the families they are a spouse in. Roles, not separate kinds.
 - **Depth** is a count from Focus row in the recursion; **Parent row** / **Ancestor stack** / **Descendant stack** name spatial regions. Parent row is depth 1; the Ancestor stack starts at depth 2.
+- **"Move"** is the **Transition** phase for persisting boxes — not the file `move.ts`, nor a general verb. **"Transition"** is the chart-level choreography across a **Relayout**, not a CSS `transition`.

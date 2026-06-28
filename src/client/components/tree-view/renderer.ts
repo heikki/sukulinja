@@ -76,9 +76,15 @@ function avatar(p: PersonRow, cx: number, cy: number, r: number) {
   `;
 }
 
-export function renderEdge(line: DrawnLine, isNew: boolean) {
+// An entering item fades in via .enter; the fade is delayed (per the Schedule's
+// enter delay) so newcomers arrive only once the Move has landed.
+function enterClass(isNew: boolean) {
+  return isNew ? 'enter' : '';
+}
+
+export function renderEdge(line: DrawnLine, isNew: boolean, ghost = false) {
   return svg`<path
-    class="edge ${line.kind} ${isNew ? 'enter' : ''}"
+    class="edge ${line.kind} ${enterClass(isNew)} ${ghost ? 'ghost' : ''}"
     data-edge-key=${line.key}
     d="M ${line.from.x} ${line.from.y} L ${line.to.x} ${line.to.y}"
   />`;
@@ -102,10 +108,14 @@ const DATES_BASELINE_OFFSET = 9;
 export function renderBox(
   box: Box,
   person: PersonRow,
-  state: { focus: boolean; entering: boolean },
-  onClick: () => void
+  state: {
+    focus: boolean;
+    entering: boolean;
+    ghost?: boolean;
+  },
+  onClick?: () => void
 ) {
-  const { focus, entering } = state;
+  const { focus, entering, ghost = false } = state;
   const { boxW, boxH } = dims;
   const tx = box.pos.x - boxW / 2;
   const ty = box.pos.y - boxH / 2;
@@ -126,7 +136,7 @@ export function renderBox(
     DATES_BASELINE_OFFSET;
   return svg`
     <g
-      class="node ${focus ? 'focus' : ''} ${entering ? 'enter' : ''}"
+      class="node ${focus ? 'focus' : ''} ${enterClass(entering)} ${ghost ? 'ghost' : ''}"
       data-box-key=${box.key}
       style="transform: translate(${tx}px, ${ty}px)"
       @click=${onClick}
@@ -198,7 +208,8 @@ export const styles = css`
      fade in or out — the fade is reserved for genuinely new ones. */
   .node.enter,
   .edge.enter {
-    animation: sl-enter var(--sl-anim-fade) ease-out both;
+    animation: sl-enter var(--sl-enter-duration) var(--sl-enter-easing)
+      var(--sl-enter-delay) both;
   }
   @keyframes sl-enter {
     from {
@@ -215,6 +226,24 @@ export const styles = css`
     .node.enter,
     .edge.enter {
       animation: none;
+    }
+  }
+
+  /* Departing boxes/edges are re-rendered as a non-interactive ghost layer
+     that holds them at their last screen spot and fades them out, so a relayout
+     that drops items doesn't snap them away. The controller skips the layer
+     entirely under reduced motion, so the items just vanish. */
+  .ghosts {
+    pointer-events: none;
+    animation: sl-leave var(--sl-leave-duration) var(--sl-leave-easing)
+      var(--sl-leave-delay) both;
+  }
+  @keyframes sl-leave {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
     }
   }
 `;

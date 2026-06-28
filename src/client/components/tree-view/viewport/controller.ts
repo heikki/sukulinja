@@ -66,6 +66,13 @@ export class ViewportController implements ReactiveController {
   // where every slider step pins chart (0,0) on screen, but the URL write
   // should wait for the slider's @change (release), not every @input tick.
   private _pendingPinSilent = false;
+  // A back/forward viewport restore, held until updated() instead of mutating
+  // synchronously. The Transition captures its FLIP "First" through the live
+  // pan/scale in the host's willUpdate; changing them on hashchange would snapshot
+  // the new viewport and flatten the slide. Deferring mirrors the pin's lifecycle
+  // so a back/forward focus change animates like a click.
+  private _pendingPan: Point | null = null;
+  private _pendingScale: number | null = null;
 
   private dragOrigin: DragOrigin | null = null;
   private dragSamples: DragSample[] = [];
@@ -99,6 +106,15 @@ export class ViewportController implements ReactiveController {
   get hasPendingPin() {
     return this._pendingPinScreen !== null;
   }
+  // Any deferred viewport mutation — pin or URL restore — that updated() must land
+  // before the Move plays, and that suppresses the gen-reflow pin.
+  get hasPendingViewport() {
+    return (
+      this._pendingPinScreen !== null ||
+      this._pendingPan !== null ||
+      this._pendingScale !== null
+    );
+  }
 
   hostConnected() {
     window.addEventListener('mousemove', this.onMouseMove);
@@ -128,6 +144,18 @@ export class ViewportController implements ReactiveController {
   setPan(p: Point) {
     this._pan = { ...p };
     this._panReady = true;
+    this.host.requestUpdate();
+  }
+
+  // Back/forward restore: stash the URL's pan/zoom to land in applyPendingViewport
+  // after the FLIP capture, rather than setPan/setScale's synchronous mutation.
+  restoreViewportDeferred(pan: Point | null, scale: number | null) {
+    if (pan === null && scale === null) return;
+    if (pan !== null) {
+      this._pendingPan = { ...pan };
+      this._panReady = true;
+    }
+    if (scale !== null) this._pendingScale = scale;
     this.host.requestUpdate();
   }
 
@@ -198,6 +226,29 @@ export class ViewportController implements ReactiveController {
     this.cancelMomentum();
     if (pinScreen !== null) this._pendingPinScreen = pinScreen;
     if (opts?.silent === true) this._pendingPinSilent = true;
+  }
+
+  // Land every deferred viewport mutation for this relayout: the URL restore
+  // first, then the pin (which recomputes pan from a screen point, so it must win
+  // if both are somehow pending). The host gates the Move on hasPendingViewport so
+  // it plays only once these have settled.
+  applyPendingViewport() {
+    this.applyPendingRestore();
+    this.applyPendingPin();
+  }
+
+  private applyPendingRestore() {
+    if (this._pendingPan === null && this._pendingScale === null) return;
+    if (this._pendingScale !== null) {
+      this._scale = this._pendingScale;
+      this._pendingScale = null;
+    }
+    if (this._pendingPan !== null) {
+      this._pan = { ...this._pendingPan };
+      this._pendingPan = null;
+    }
+    this._panReady = true;
+    this.host.requestUpdate();
   }
 
   applyPendingPin() {

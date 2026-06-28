@@ -4,9 +4,15 @@ import { styles as rendererStyles } from './renderer';
 
 export const treeViewStyles = css`
   :host {
-    --sl-anim-move: 350ms;
-    --sl-anim-fade: 200ms;
-    --sl-ease: cubic-bezier(0.4, 0, 0.2, 1);
+    /* Enter/Leave fade timing — defaults; the element overrides these per the
+       active Schedule on .canvas, and they cascade into the svg. Move timing is
+       JS-side (Web Animations), so it has no variables here. */
+    --sl-enter-delay: 0ms;
+    --sl-enter-duration: 200ms;
+    --sl-enter-easing: ease-out;
+    --sl-leave-delay: 0ms;
+    --sl-leave-duration: 200ms;
+    --sl-leave-easing: ease-in;
     display: flex;
     flex-direction: column;
     height: 100vh;
