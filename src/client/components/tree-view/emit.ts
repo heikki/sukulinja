@@ -180,14 +180,16 @@ export function emitLayout(
       if (k.localX < minX) minX = k.localX;
       if (k.localX > maxX) maxX = k.localX;
     }
-    if (maxX > minX) {
-      out.push({
-        key: `sib-${famId}-bar`,
-        kind: 'bar',
-        from: { x: minX, y: busY },
-        to: { x: maxX, y: busY }
-      });
-    }
+    // Emit the bar even when it collapses to a point (a single kid under a
+    // centered Tie): a zero-length segment is invisible with the default butt
+    // linecap, but it gives the Transition a stable, keyed element to morph as
+    // the sibship widens or narrows across a relayout.
+    out.push({
+      key: `sib-${famId}-bar`,
+      kind: 'bar',
+      from: { x: minX, y: busY },
+      to: { x: maxX, y: busY }
+    });
     for (const k of kids) {
       out.push({
         key: `sib-${famId}-leg-${k.personId}`,
