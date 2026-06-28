@@ -30,7 +30,16 @@ export function buildParentRow(
   }
 
   const focusRow = packFocusRow(parentFam, focusNode, siblingNodes, ix);
-  const footprint = computeBloodlineFootprint(parentFam, focusRow, ix);
+  // Centre the parent Tie/Drop on the Focus sibship's Bar, not over Focus's
+  // column: Focus stays pinned at chart 0 while the parents (and the ancestor
+  // pyramids stacked on them) shift to sit above the middle of the row.
+  const sibCenter = focusRow.packed.barMid + focusRow.focusShift;
+  const footprint = computeBloodlineFootprint(
+    parentFam,
+    focusRow,
+    sibCenter,
+    ix
+  );
 
   // Each parent's ancestor pyramid collapses toward center when the other parent
   // has no ancestry to counterweight it (the lopsided-ancestry case, ADR-0001).
@@ -58,7 +67,9 @@ export function buildParentRow(
     famId: parentFam.id,
     husband: fatherNode,
     wife: motherNode,
-    kids: focusRow.slots
+    kids: focusRow.slots,
+    tieXLocal: sibCenter,
+    loneDropXLocal: sibCenter
   });
 }
 
@@ -114,14 +125,16 @@ class BloodlineFootprint {
 function computeBloodlineFootprint(
   parentFam: FamilyRow,
   focusRow: ReturnType<typeof packFocusRow>,
+  sibCenter: number,
   ix: LayoutIndices
 ): BloodlineFootprint {
   const fatherPresent = isPersonKnown(parentFam.husband_id, ix);
   const motherPresent = isPersonKnown(parentFam.wife_id, ix);
-  // Parents are one slot (= one couple-pitch) apart when both present.
+  // Parents are one slot (= one couple-pitch) apart when both present, sitting
+  // either side of the sibship midpoint; a lone parent lands on it.
   const sep = fatherPresent && motherPresent ? 1 : 0;
-  const fatherChartX = sep > 0 ? -sep / 2 : 0;
-  const motherChartX = sep > 0 ? sep / 2 : 0;
+  const fatherChartX = sibCenter - sep / 2;
+  const motherChartX = sibCenter + sep / 2;
 
   const focusSibshipEdges: Extents = {
     left: focusRow.focusShift,
