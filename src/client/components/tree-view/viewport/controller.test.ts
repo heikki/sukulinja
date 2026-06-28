@@ -291,6 +291,41 @@ describe('beginRefocus + applyPendingPin', () => {
   });
 });
 
+describe('restoreViewportDeferred + applyPendingViewport', () => {
+  test('holds pan/scale until applyPendingViewport so the FLIP capture sees the old viewport', () => {
+    const { controller } = setup();
+    controller.ensureInitialPan();
+    const panBefore = { ...controller.pan };
+    const scaleBefore = controller.scale;
+
+    controller.restoreViewportDeferred({ x: 123, y: -45 }, 1.5);
+    // Deferred: nothing moves yet, but the pending state gates the Move.
+    expect(controller.pan).toEqual(panBefore);
+    expect(controller.scale).toBe(scaleBefore);
+    expect(controller.hasPendingViewport).toBe(true);
+
+    controller.applyPendingViewport();
+    expect(controller.pan).toEqual({ x: 123, y: -45 });
+    expect(controller.scale).toBe(1.5);
+    expect(controller.hasPendingViewport).toBe(false);
+  });
+
+  test('a pending restore counts toward hasPendingViewport but not hasPendingPin', () => {
+    const { controller } = setup();
+    controller.ensureInitialPan();
+    controller.restoreViewportDeferred({ x: 10, y: 20 }, null);
+    expect(controller.hasPendingViewport).toBe(true);
+    expect(controller.hasPendingPin).toBe(false);
+  });
+
+  test('null pan and null scale leave nothing pending', () => {
+    const { controller } = setup();
+    controller.ensureInitialPan();
+    controller.restoreViewportDeferred(null, null);
+    expect(controller.hasPendingViewport).toBe(false);
+  });
+});
+
 describe('wheel zoom', () => {
   test('zooms toward cursor; pan/scale match zoomAt contract', () => {
     const { controller } = setup();

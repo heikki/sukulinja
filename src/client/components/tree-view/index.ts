@@ -1,4 +1,4 @@
-import { html, LitElement, nothing } from 'lit';
+import { html, LitElement, nothing, svg } from 'lit';
 import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
@@ -8,8 +8,6 @@ import type { FamilyRow, PersonRow } from '@common/types';
 
 import { buildChart } from './build';
 import type { EmitOutput, Extents, Point } from './emit';
-import { animateMove, captureFirstScreen } from './move';
-import type { BoxGeom, EdgeGeom, FirstScreen } from './move';
 import {
   dims,
   formatDates,
@@ -18,8 +16,10 @@ import {
   renderEdge
 } from './renderer';
 import { treeViewStyles } from './styles';
+import { TransitionController } from './transition';
+import type { RelayoutKind, Schedule } from './transition';
 import { buildHash, parseHashView } from './url-state';
-import type { Bounds, Defaults } from './url-state';
+import type { Bounds, Defaults, ParsedView } from './url-state';
 import { ViewportController } from './viewport';
 import type { ViewportOptions } from './viewport';
 
@@ -46,18 +46,19 @@ const URL_DEFAULTS: Defaults = { gen: DEFAULT_GEN };
 const SEARCH_MIN_LEN = 2;
 const SEARCH_MAX_RESULTS = 50;
 
-// Matches --sl-anim-fade; after this the enter-fade is done and the .enter
-// class can be dropped so the next layout change starts clean.
-const ENTER_FADE_MS = 200;
-
-function sameSet<T>(a: Set<T>, b: Set<T>) {
-  if (a.size !== b.size) return false;
-  for (const x of a) if (!b.has(x)) return false;
-  return true;
-}
-
-function prefersReducedMotion() {
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+// Mirror the active Schedule's Enter/Leave timing into the CSS custom properties
+// the fade animations read (Move timing is applied JS-side). Set on .canvas so
+// it cascades into the svg's .node/.edge/.ghosts.
+function scheduleVars(schedule: Schedule) {
+  const { enter, leave } = schedule;
+  return [
+    `--sl-enter-delay:${enter.delay}ms`,
+    `--sl-enter-duration:${enter.duration}ms`,
+    `--sl-enter-easing:${enter.easing}`,
+    `--sl-leave-delay:${leave.delay}ms`,
+    `--sl-leave-duration:${leave.duration}ms`,
+    `--sl-leave-easing:${leave.easing}`
+  ].join(';');
 }
 
 @customElement('sl-tree-view')
@@ -77,41 +78,6 @@ export class TreeViewElement extends LitElement {
   // Captured during render so the viewport port can resolve chart-local
   // coords to canvas pixels using the same extents the SVG was sized to.
   private chartExtents: Extents | null = null;
-
-  // Ids/keys on screen at the last *layout change*, so the next change can tell
-  // which boxes/edges are genuinely new. Existing cards must not re-animate, so
-  // only the ones absent here get the enter-fade. Empty until the first paint,
-  // so the initial chart fades in.
-  private prevBoxIds = new Set<number>();
-  private prevEdgeKeys = new Set<string>();
-
-  // The boxes/edges currently playing the enter-fade. Held across the extra
-  // render the pin triggers (applyPendingPin → requestUpdate) so the fade isn't
-  // cut off, then cleared by a timer once it has run its course.
-  private enteringBoxIds = new Set<number>();
-  private enteringEdgeKeys = new Set<string>();
-  private enterClearTimer: ReturnType<typeof setTimeout> | null = null;
-
-  // FLIP move state. boxPos / edgeGeom hold the on-screen chart's geometry so
-  // the next refocus can read each surviving card's and edge's old screen spot
-  // before the layout changes; flipFirst stashes those spots until the pinned
-  // layout has settled, when runMoveAnimation slides each card and morphs each
-  // edge from old → new. moveAnims tracks the in-flight Web Animations so a
-  // rapid refocus can cancel them.
-  private boxPos = new Map<string, BoxGeom>();
-  private edgeGeom = new Map<string, EdgeGeom>();
-  private flipFirst: FirstScreen | null = null;
-  private movePending = false;
-  // True when the pending move matches items by uid (a pure levels change keeps
-  // the tree rooted); false when it must fall back to personId/baseKey (refocus
-  // re-roots, so uids change). Set with flipFirst in captureFlipFirst.
-  private moveByKey = false;
-  private moveAnims: Animation[] = [];
-  // uids of the cards currently sliding. They render first (painted behind) so
-  // stationary cards stay on top as movers pass under them. A move generation
-  // guards the async clear against a superseding move.
-  private movingKeys = new Set<string>();
-  private moveGen = 0;
 
   // Sticky flag: once the user has expressed a zoom (URL-supplied or
   // settled-after-gesture), the URL keeps emitting `zoom` even if it happens
@@ -140,6 +106,13 @@ export class TreeViewElement extends LitElement {
     VIEWPORT_OPTIONS
   );
 
+  private readonly transition = new TransitionController(this, {
+    toScreen: (p) => this.viewport.chartToScreen(p),
+    scale: () => this.viewport.scale,
+    root: () => this.renderRoot,
+    panReady: () => this.viewport.panReady
+  });
+
   override connectedCallback() {
     super.connectedCallback();
     window.addEventListener('hashchange', this.onHashChange);
@@ -149,32 +122,37 @@ export class TreeViewElement extends LitElement {
   override disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener('hashchange', this.onHashChange);
-    if (this.enterClearTimer !== null) clearTimeout(this.enterClearTimer);
-    for (const anim of this.moveAnims) anim.cancel();
   }
 
   private readonly onHashChange = () => {
     const parsed = parseHashView(location.hash, URL_BOUNDS);
     const nextGen = parsed.gen ?? DEFAULT_GEN;
     if (nextGen !== this.gen) this.gen = nextGen;
-    if (parsed.zoom !== null && parsed.zoom !== this.viewport.scale) {
-      this.viewport.setScale(parsed.zoom);
-      this.hasUserZoom = true;
-    }
-    if (parsed.pan !== null) {
-      this.viewport.setPan(parsed.pan);
-      this.hasUserPan = true;
-    }
+    this.restoreViewportFromHash(parsed);
+
     const id = parsed.focusId;
     if (id === null || !this.persons.has(id) || id === this.focusId) return;
-    // Pan was last set to pin the previously-focused box at click position;
-    // without a fresh pin, back/forward would land the new focus at a stale
-    // offset. Recenter on the canvas — unless the URL itself supplies a pan,
-    // in which case the stored pan is authoritative and recentering would
-    // clobber it.
+    // No stored pan means the prior box was pinned at its click position; pin the
+    // new focus at canvas center so back/forward doesn't land it at that stale
+    // offset. With a stored pan the deferred restore above is authoritative.
     if (parsed.pan === null) this.viewport.beginRefocus(this.canvasCenter());
     this.focusId = id;
   };
+
+  // Defer the URL's pan/zoom to updated() (applyPendingViewport) rather than
+  // mutating the viewport now: the Transition captures its FLIP "First" through
+  // the live pan/scale in willUpdate, so an eager change would snapshot the new
+  // viewport and flatten the slide. The click path defers the same way via the
+  // pending pin, so a back/forward focus change animates like a click.
+  private restoreViewportFromHash(parsed: ParsedView) {
+    const nextZoom =
+      parsed.zoom !== null && parsed.zoom !== this.viewport.scale
+        ? parsed.zoom
+        : null;
+    if (nextZoom !== null) this.hasUserZoom = true;
+    if (parsed.pan !== null) this.hasUserPan = true;
+    this.viewport.restoreViewportDeferred(parsed.pan, nextZoom);
+  }
 
   override willUpdate(changed: PropertyValues) {
     // Gen change rebuilds the chart with different extents, which would drift
@@ -184,7 +162,7 @@ export class TreeViewElement extends LitElement {
     if (
       changed.has('gen') &&
       this.viewport.panReady &&
-      !this.viewport.hasPendingPin
+      !this.viewport.hasPendingViewport
     ) {
       // Silent: every slider @input ticks gen, and we don't want the URL to
       // settle until the slider's @change fires on release.
@@ -193,82 +171,38 @@ export class TreeViewElement extends LitElement {
       });
     }
     if (changed.has('focusId') || changed.has('gen')) {
-      this.captureFlipFirst(changed);
+      this.captureRelayout(changed);
     }
   }
 
-  // FLIP "First": before the new layout renders, record each on-screen card's
-  // current screen position. The DOM and viewport still reflect the old chart
-  // here (render commits in update(), the pin lands in updated()), so
-  // chartToScreen maps through the old pan/extents. Runs for both refocus and a
-  // levels (gen) change; skipped on the very first focus (no previous chart).
-  private captureFlipFirst(changed: PropertyValues) {
-    if (changed.has('focusId') && changed.get('focusId') === null) return;
-    if (
-      !this.viewport.panReady ||
-      this.boxPos.size === 0 ||
-      prefersReducedMotion()
-    ) {
-      return;
-    }
-    // A pure levels change keeps the chart rooted, so uids are stable and match
-    // exactly; any focus change re-roots, so match by personId/baseKey instead.
-    this.moveByKey = changed.has('gen') && !changed.has('focusId');
-    this.flipFirst = captureFirstScreen(
-      this.boxPos,
-      this.edgeGeom,
-      (p) => this.viewport.chartToScreen(p),
-      this.moveByKey
-    );
-    this.movePending = true;
+  // Snapshot the on-screen chart before a Focus or Generation Relayout so the
+  // Transition can animate from it. A levels change keeps the chart rooted (a
+  // Generation Relayout; match by unique key); any focus change re-roots (a
+  // Focus Relayout; match by personId/baseKey). Skip the very first focus — no
+  // previous chart to move from. The DOM and viewport still reflect the old
+  // chart here (render commits in update(), the pin lands in updated()), so the
+  // controller's capture maps through the old pan/extents.
+  private captureRelayout(changed: PropertyValues) {
+    const firstFocus =
+      changed.has('focusId') && changed.get('focusId') === null;
+    if (firstFocus) return;
+    const kind: RelayoutKind =
+      changed.has('gen') && !changed.has('focusId') ? 'generation' : 'focus';
+    this.transition.capture(kind);
   }
 
   override updated(_changed: PropertyValues) {
     if (this.loading || this.focusId === null) return;
     this.viewport.attachCanvas(this.queryCanvas());
     this.viewport.ensureInitialPan();
-    // The pin shifts pan to keep the focused card fixed; capturing FLIP "Last"
-    // before it lands would offset every card by the pin delta. When a pin was
-    // pending it applies here and schedules one more render, so defer the move
-    // to that next updated() (hadPin === false) where the DOM is final.
-    const hadPin = this.viewport.hasPendingPin;
-    this.viewport.applyPendingPin();
-    if (this.movePending && !hadPin) this.runMoveAnimation();
-  }
-
-  // FLIP "Last" + "Play": now that the pinned layout has settled, slide each
-  // surviving card from where it was (flipFirst) to where it landed and morph
-  // each surviving edge to match. New cards/edges fade in instead (no entry in
-  // flipFirst). Cancel any in-flight move so a rapid refocus doesn't stack.
-  private runMoveAnimation() {
-    const first = this.flipFirst;
-    this.flipFirst = null;
-    this.movePending = false;
-    if (first === null) return;
-    for (const anim of this.moveAnims) anim.cancel();
-    const result = animateMove(
-      {
-        root: this.renderRoot,
-        boxPos: this.boxPos,
-        edgeGeom: this.edgeGeom,
-        toScreen: (p) => this.viewport.chartToScreen(p),
-        scale: this.viewport.scale
-      },
-      first,
-      this.moveByKey
-    );
-    this.moveAnims = result.anims;
-    this.movingKeys = result.movingBoxKeys;
-    if (this.movingKeys.size === 0) return;
-    // Re-render so the sliders sort behind the stationary cards, then clear once
-    // the move ends (unless a newer move has taken over).
-    const gen = ++this.moveGen;
-    this.requestUpdate();
-    void Promise.allSettled(this.moveAnims.map((a) => a.finished)).then(() => {
-      if (this.moveGen !== gen) return;
-      this.movingKeys = new Set();
-      this.requestUpdate();
-    });
+    // A pending viewport mutation (the click pin, or a back/forward pan/zoom
+    // restore) shifts pan to land the new layout; playing the Move before it lands
+    // would offset every card by that delta. Applying it here schedules one more
+    // render, so defer the move to that next updated() (deferred === false) where
+    // the viewport is final. settle() no-ops when there is no captured move.
+    const deferred = this.viewport.hasPendingViewport;
+    this.viewport.applyPendingViewport();
+    if (!deferred) this.transition.settle();
   }
 
   private queryCanvas() {
@@ -454,45 +388,6 @@ export class TreeViewElement extends LitElement {
     `;
   }
 
-  // Marks boxes/edges that appeared since the last layout as "entering" so they
-  // alone get the fade. No-ops when the id-set is unchanged (the pin's extra
-  // render, drags), keeping any in-flight fade running rather than restarting
-  // it. A timer drops the class once the fade is done.
-  private refreshEntering(chart: EmitOutput) {
-    // Track "new person / new family" by personId / baseKey (relayout-invariant)
-    // so a refocus, which changes every uid, doesn't fade the whole chart.
-    const boxIds = new Set(chart.boxes.map((b) => b.personId));
-    const edgeKeys = new Set(chart.lines.map((l) => l.baseKey));
-    if (
-      sameSet(boxIds, this.prevBoxIds) &&
-      sameSet(edgeKeys, this.prevEdgeKeys)
-    ) {
-      return;
-    }
-    this.enteringBoxIds = new Set(
-      [...boxIds].filter((id) => !this.prevBoxIds.has(id))
-    );
-    // Genuinely new edges fade in; surviving ones morph their geometry in
-    // runMoveAnimation rather than fading.
-    this.enteringEdgeKeys = new Set(
-      [...edgeKeys].filter((k) => !this.prevEdgeKeys.has(k))
-    );
-    this.prevBoxIds = boxIds;
-    this.prevEdgeKeys = edgeKeys;
-
-    if (this.enterClearTimer !== null) clearTimeout(this.enterClearTimer);
-    if (this.enteringBoxIds.size === 0 && this.enteringEdgeKeys.size === 0) {
-      this.enterClearTimer = null;
-      return;
-    }
-    this.enterClearTimer = setTimeout(() => {
-      this.enterClearTimer = null;
-      this.enteringBoxIds = new Set();
-      this.enteringEdgeKeys = new Set();
-      this.requestUpdate();
-    }, ENTER_FADE_MS);
-  }
-
   private renderCanvas(chart: EmitOutput) {
     const { min, max } = chart.extents;
     const vbX = min.x - SVG_MARGIN_PX;
@@ -500,36 +395,36 @@ export class TreeViewElement extends LitElement {
     const vbW = max.x - min.x + SVG_MARGIN_PX * 2;
     const vbH = max.y - min.y + SVG_MARGIN_PX * 2;
     const { pan, scale, panReady, dragging } = this.viewport;
-    // Keep the on-screen chart's geometry, keyed by unique uid, so the next
-    // relayout can read each card's and edge's old spot (captureFlipFirst)
-    // before it is replaced.
-    this.boxPos = new Map(
-      chart.boxes.map((b) => [b.key, { pos: b.pos, personId: b.personId }])
-    );
-    this.edgeGeom = new Map(
-      chart.lines.map((l) => [
-        l.key,
-        { from: l.from, to: l.to, baseKey: l.baseKey }
-      ])
-    );
-    // Refresh the entering sets only once nodes actually paint and only when
-    // the layout has changed — the pin's extra render and drag re-renders keep
-    // the same ids, so the in-flight fade is preserved rather than restarted.
-    if (panReady) this.refreshEntering(chart);
-    // While a move runs, paint the sliders first (behind) so the stationary
-    // cards stay on top as movers pass under them. Stable sort keeps each
-    // group's order otherwise.
-    const boxes =
-      this.movingKeys.size === 0
-        ? chart.boxes
-        : [...chart.boxes].sort(
+    // Hand the on-screen chart to the Transition so the next relayout can read
+    // each card's and edge's old spot before it is replaced, and mark new
+    // boxes/edges as entering. The pin's extra render and drag re-renders keep
+    // the same ids, so an in-flight fade is preserved rather than restarted.
+    this.transition.retainChart(chart);
+    if (panReady) this.transition.refreshEntering(chart);
+    // Entering cards render as a stable trailing block the paint-order sort
+    // never reorders — reordering an SVG node restarts its CSS fade, so a
+    // sorted entering card would flash each time a Move starts and ends. The
+    // rest sort the sliders first (painted behind) so stationary cards stay on
+    // top as movers pass under them; those carry no fade, and movers slide via
+    // Web Animations, which survive a same-parent reorder. A stable sort keeps
+    // each group's order otherwise.
+    const movingKeys = this.transition.movingKeys;
+    const enteringIds = this.transition.enteringBoxIds;
+    const entering = chart.boxes.filter((b) => enteringIds.has(b.personId));
+    const rest = chart.boxes.filter((b) => !enteringIds.has(b.personId));
+    const sortedRest =
+      movingKeys.size === 0
+        ? rest
+        : [...rest].sort(
             (a, b) =>
-              (this.movingKeys.has(a.key) ? 0 : 1) -
-              (this.movingKeys.has(b.key) ? 0 : 1)
+              (movingKeys.has(a.key) ? 0 : 1) - (movingKeys.has(b.key) ? 0 : 1)
           );
+    const boxes = [...sortedRest, ...entering];
+    const leaving = this.transition.leaving;
     return html`
       <div
         class="canvas ${dragging ? 'dragging' : ''}"
+        style=${scheduleVars(this.transition.schedule)}
         @mousedown=${this.viewport.onMouseDown}
         @dblclick=${this.viewport.onDblClick}
       >
@@ -545,11 +440,16 @@ export class TreeViewElement extends LitElement {
                 width=${vbW * scale}
                 height=${vbH * scale}
               >
+                ${this.renderGhosts(leaving)}
                 <g class="edges">
                   ${repeat(
                     chart.lines,
                     (l) => l.key,
-                    (l) => renderEdge(l, this.enteringEdgeKeys.has(l.baseKey))
+                    (l) =>
+                      renderEdge(
+                        l,
+                        this.transition.enteringEdgeKeys.has(l.baseKey)
+                      )
                   )}
                 </g>
                 ${repeat(
@@ -563,7 +463,7 @@ export class TreeViewElement extends LitElement {
                       person,
                       {
                         focus: b.personId === this.focusId,
-                        entering: this.enteringBoxIds.has(b.personId)
+                        entering: this.transition.enteringBoxIds.has(b.personId)
                       },
                       () => {
                         if (this.viewport.dragMoved) return;
@@ -583,6 +483,35 @@ export class TreeViewElement extends LitElement {
             </div>`
           : nothing}
       </div>
+    `;
+  }
+
+  // Departing boxes/edges, drawn through the normal renderers so they look
+  // identical to live cards, in a non-interactive layer translated so each lands
+  // back at its last screen spot while it fades out.
+  private renderGhosts(leaving: TransitionController['leaving']) {
+    if (leaving.boxes.length === 0 && leaving.edges.length === 0) {
+      return nothing;
+    }
+    const { x, y } = leaving.offset;
+    // Scale about the SVG user origin (chart 0,0 = LEAVE_REF) the offset lands, so
+    // a zoom-changing back/forward step fades the ghosts at their old size.
+    return svg`
+      <g
+        class="ghosts"
+        style="transform: translate(${x}px, ${y}px) scale(${leaving.scale}); transform-origin: 0 0"
+      >
+        ${leaving.edges.map((l) => renderEdge(l, false, true))}
+        ${leaving.boxes.map((b) => {
+          const person = this.persons.get(b.personId);
+          if (person === undefined) return nothing;
+          return renderBox(b, person, {
+            focus: false,
+            entering: false,
+            ghost: true
+          });
+        })}
+      </g>
     `;
   }
 

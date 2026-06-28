@@ -1,0 +1,21 @@
+# Separate the Transition's Planner (what moves) from its Schedule (when)
+
+The chart-to-chart **Transition** is split into two independent concerns behind the `TransitionController`. The **Planner** (`transition/planner.ts`) is pure: given the previous and next **Hourglass chart**, the **Relayout** kind, and a chart→screen mapping, it decides _what_ happens to each box and edge — `captureFirst` + `planMove` pair survivors into the **Move** set with from→to screen positions, `planEnter` names the boxes/edges new since the last layout, and `planLeave` names the departing **Ghosts**. It carries no timing. The **Schedule** (`transition/schedule.ts`) is the orthogonal policy that assigns each phase its timing — a delay/duration/easing for each of the **Leave** and **Enter** fades and the **Move** slide — and is the only place _when_ lives. It stays separate from the Planner so the choreography can be retuned without touching the geometry.
+
+The two never reference each other. `applyMove` drives the Move through the Schedule's `move` timing via Web Animations, as a two-keyframe from→to slide; the element mirrors the Schedule's `enter` / `leave` timings into CSS custom properties (`--sl-enter-*`, `--sl-leave-*`) that the fade animations read. The **Enter** fade's delay is set to span the whole Move (its delay plus duration), so newcomers fade in only once survivors have slid into place — the staggered "fade out → slide → fade in" beat falls out of a plain CSS `animation-delay`, with no JS orchestration. The controller composes the two: it asks the Planner _what_, reads _when_ off the Schedule, and owns the lifecycle (capture, the pin handshake, cancellation, the clear timers, whose durations come from the Schedule).
+
+A single `transitionSchedule` ships. The split is kept regardless of how many schedules exist — it is the boundary that keeps _when_ out of the pure, tested geometry, so should the feel ever need to vary (by viewport or user preference) a swappable Schedule can be reintroduced without touching the Planner.
+
+## Considered options
+
+- **One module that decides what-and-when together.** The pre-split shape: timing constants sat inside the apply/render code next to the matching geometry. Rejected: changing the feel meant editing the same code that computes geometry, and there was no way to swap the whole choreography atomically — it would have been an `if` threaded through every phase rather than a value you pass.
+- **Fold timing into the plan** (each move item / ghost carries its own delay/duration/easing). Rejected: the Planner is pure and unit-tested on geometry alone (two charts + a fake mapping → asserted sets); lacing timing through every plan item would couple the tested core to a policy that has nothing to do with _what_ moves, and would force the Planner to know about all phases at once.
+- **Drive Enter/Leave through Web Animations too, so Apply runs all three phases.** Tempting for uniformity, but Enter/Leave are declarative CSS fades keyed off a class — the browser already manages mount, the pin's extra render, and reduced-motion suppression for free. Rewriting them as imperative WAAPI would re-implement that bookkeeping by hand. Rejected: instead the Schedule reaches both worlds — JS timing for the Move, CSS variables for the fades — and stays the single source of _when_.
+- **Planner / Schedule split (chosen).** _What_ is pure, testable, and timing-free; _when_ is a value the controller reads. Re-timing the entire Transition is a Schedule edit that never touches the Planner.
+
+## Consequences
+
+- Tuning the choreography means editing `schedule.ts` — never the Planner or the apply/render geometry. `transitionSchedule` is pinned by a test (the Leave-before-Move stagger and the Move's easing and duration), so an edit can't silently drift the feel.
+- The Schedule spans two animation mechanisms (Web Animations for the Move, CSS custom properties for the fades); it sets all three phases, and the element emits the CSS variables from it.
+- Adding a phase is additive: a new pure Planner function plus a `PhaseTiming` field, set on the Schedule.
+- The clear-timer lifespans (`delay + duration`) are derived from the active Schedule, so a delayed Enter that starts late is held for its full, delayed lifespan rather than a hardcoded window.
