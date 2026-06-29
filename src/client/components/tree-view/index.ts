@@ -6,6 +6,7 @@ import { repeat } from 'lit/directives/repeat.js';
 import { apiUrl } from '@client/api';
 import type { FamilyRow, PersonRow } from '@common/types';
 
+import { onAvatarReady } from './avatar-cache';
 import { buildChart } from './build';
 import type { EmitOutput, Extents, Point } from './emit';
 import {
@@ -86,6 +87,9 @@ export class TreeViewElement extends LitElement {
   private hasUserZoom = false;
   private hasUserPan = false;
 
+  // Avatars crop in-browser off-render; repaint when each lands. See avatar-cache.
+  private avatarUnsub: (() => void) | null = null;
+
   private readonly viewport = new ViewportController(
     this,
     {
@@ -116,12 +120,17 @@ export class TreeViewElement extends LitElement {
   override connectedCallback() {
     super.connectedCallback();
     window.addEventListener('hashchange', this.onHashChange);
+    this.avatarUnsub = onAvatarReady(() => {
+      this.requestUpdate();
+    });
     void this.load();
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener('hashchange', this.onHashChange);
+    this.avatarUnsub?.();
+    this.avatarUnsub = null;
   }
 
   private readonly onHashChange = () => {

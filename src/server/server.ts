@@ -36,21 +36,31 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
       p.sex,
       (SELECT date_text FROM facts WHERE scope_type='person' AND scope_id=p.id AND tag='BIRT' LIMIT 1) AS birth_date,
       (SELECT date_text FROM facts WHERE scope_type='person' AND scope_id=p.id AND tag='DEAT' LIMIT 1) AS death_date,
-      (
-        SELECT m.file_path FROM media_links ml
-        JOIN media m ON m.id = ml.media_id
-        WHERE ml.scope_type='person' AND ml.scope_id=p.id
-        ORDER BY ml.is_primary DESC, ml.sort_order ASC
-        LIMIT 1
-      ) AS photo_path
+      m.file_path AS photo_path,
+      ml.crop_top,
+      ml.crop_left,
+      ml.crop_width,
+      ml.crop_height
     FROM persons p
     LEFT JOIN names n ON n.person_id = p.id AND n.sort_order = 0
+    LEFT JOIN media_links ml ON ml.id = (
+      SELECT ml2.id FROM media_links ml2
+      JOIN media m2 ON m2.id = ml2.media_id
+      WHERE ml2.scope_type='person' AND ml2.scope_id=p.id
+      ORDER BY ml2.is_primary DESC, ml2.sort_order ASC, ml2.id ASC
+      LIMIT 1
+    )
+    LEFT JOIN media m ON m.id = ml.media_id
     ORDER BY n.surname COLLATE NOCASE, n.given COLLATE NOCASE
   `);
 
-  type ListRow = Omit<PersonRow, 'birth_year' | 'death_year'> & {
+  type ListRow = Omit<PersonRow, 'birth_year' | 'death_year' | 'crop'> & {
     birth_date: string | null;
     death_date: string | null;
+    crop_top: number | null;
+    crop_left: number | null;
+    crop_width: number | null;
+    crop_height: number | null;
   };
 
   const listFamilies = db.prepare(
@@ -70,7 +80,19 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
         sex: r.sex,
         birth_year: parseYear(r.birth_date),
         death_year: parseYear(r.death_date),
-        photo_path: r.photo_path
+        photo_path: r.photo_path,
+        crop:
+          r.crop_top !== null &&
+          r.crop_left !== null &&
+          r.crop_width !== null &&
+          r.crop_height !== null
+            ? {
+                top: r.crop_top,
+                left: r.crop_left,
+                width: r.crop_width,
+                height: r.crop_height
+              }
+            : null
       }));
       return Response.json(out);
     },

@@ -3,6 +3,7 @@ import { css, svg } from 'lit';
 import { mediaUrl } from '@client/api';
 import type { PersonRow } from '@common/types';
 
+import { avatarUrl } from './avatar-cache';
 import type { Box, DrawnLine } from './emit';
 
 const NAME_MAX_CHARS = 14;
@@ -50,20 +51,29 @@ function wrapName(name: string): string[] {
   return [line1, line2];
 }
 
+function photoAvatar(href: string, cx: number, cy: number, r: number) {
+  return svg`
+    <image
+      class="avatar-img"
+      href=${href}
+      x=${cx - r}
+      y=${cy - r}
+      width=${r * 2}
+      height=${r * 2}
+      preserveAspectRatio="xMidYMid slice"
+    />
+  `;
+}
+
 function avatar(p: PersonRow, cx: number, cy: number, r: number) {
-  const photoSrc = p.photo_path === null ? null : mediaUrl(p.photo_path);
-  if (photoSrc !== null) {
-    return svg`
-      <image
-        class="avatar-img"
-        href=${photoSrc}
-        x=${cx - r}
-        y=${cy - r}
-        width=${r * 2}
-        height=${r * 2}
-        preserveAspectRatio="xMidYMid slice"
-      />
-    `;
+  if (p.photo_path !== null && p.crop !== null) {
+    // The marked face is cropped in-browser (see avatar-cache) so it renders
+    // sharp and the crop stays adjustable. Until the bitmap lands we show the
+    // silhouette rather than the whole, uncropped photo.
+    const cropped = avatarUrl(p);
+    if (cropped !== null) return photoAvatar(cropped, cx, cy, r);
+  } else if (p.photo_path !== null) {
+    return photoAvatar(mediaUrl(p.photo_path), cx, cy, r);
   }
   // The shoulder ellipse touches the bg-circle only at its bottom point;
   // anywhere else it sits inside, so no clipPath is needed.
@@ -101,6 +111,7 @@ export const dims = {
 };
 
 const avatarR = 28;
+const AVATAR_TOP_INSET = 14;
 const NAME_LINE_HEIGHT = 14;
 const DATES_GAP = 4;
 const DATES_BASELINE_OFFSET = 9;
@@ -120,7 +131,7 @@ export function renderBox(
   const tx = box.pos.x - boxW / 2;
   const ty = box.pos.y - boxH / 2;
   const cx = boxW / 2;
-  const avatarCy = 14 + avatarR;
+  const avatarCy = AVATAR_TOP_INSET + avatarR;
   const lines = wrapName(formatName(person));
   const dates = formatDates(person);
   const textRegionTop = avatarCy + avatarR + 10;
