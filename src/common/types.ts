@@ -1,5 +1,14 @@
 export type Scope = 'person' | 'family';
 
+// A face rectangle marked in the source photo, in the original image's pixel
+// space. Used to crop the avatar to the marked area instead of the whole image.
+export interface PhotoCrop {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
 // API row shapes returned by /api/persons and /api/families.
 export interface PersonRow {
   id: number;
@@ -9,6 +18,7 @@ export interface PersonRow {
   birth_year: number | null;
   death_year: number | null;
   photo_path: string | null;
+  crop: PhotoCrop | null;
 }
 
 export interface FamilyRow {
