@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { BrowserWindow } from 'electrobun/bun';
+import { BrowserWindow } from 'electrobun/main';
 
 import { DatasetRegistry } from './dataset-registry';
 import { createApi, createStaticFetch } from './server';
