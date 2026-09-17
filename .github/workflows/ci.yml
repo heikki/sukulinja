@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    # The desktop build targets macOS only, so check on what it ships for.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      # Electrobun 2.x projects its SDK into .hutch/devkit, which is generated
+      # rather than committed; typecheck resolves `electrobun/*` there, so this
+      # has to run before tsc — see docs/adr/0007.
+      - run: bun run sync
+      # Not `format -- --check`: prettier takes --write and --check together,
+      # rewrites the files, and exits 0 — which would never fail a build.
+      - run: bun run format:check
+      - run: bun run lint
+      - run: bun run typecheck
+      - run: bun run test
