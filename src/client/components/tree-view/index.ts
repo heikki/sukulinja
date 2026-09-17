@@ -353,25 +353,29 @@ export class TreeViewElement extends LitElement {
               this.query = (e.target as HTMLInputElement).value;
             }}
           />
-          ${results.length > 0
-            ? html`<div class="results">
-                ${results.map((p) => {
-                  const dates = formatDates(p);
-                  return html`
-                    <button
-                      @click=${() => {
-                        this.setFocus(p.id, this.canvasCenter());
-                      }}
-                    >
-                      ${formatName(p)}
-                      ${dates.length > 0
-                        ? html`<span class="meta">(${dates})</span>`
-                        : nothing}
-                    </button>
-                  `;
-                })}
-              </div>`
-            : nothing}
+          ${
+            results.length > 0
+              ? html`<div class="results">
+                  ${results.map((p) => {
+                    const dates = formatDates(p);
+                    return html`
+                      <button
+                        @click=${() => {
+                          this.setFocus(p.id, this.canvasCenter());
+                        }}
+                      >
+                        ${formatName(p)}
+                        ${
+                          dates.length > 0
+                            ? html`<span class="meta">(${dates})</span>`
+                            : nothing
+                        }
+                      </button>
+                    `;
+                  })}
+                </div>`
+              : nothing
+          }
         </div>
         <label class="gen">
           Levels
@@ -437,60 +441,64 @@ export class TreeViewElement extends LitElement {
         @mousedown=${this.viewport.onMouseDown}
         @dblclick=${this.viewport.onDblClick}
       >
-        ${panReady
-          ? html`<div
-              class="pan"
-              style="transform: translate(${Math.round(pan.x)}px, ${Math.round(
-                pan.y
-              )}px)"
-            >
-              <svg
-                viewBox="${vbX} ${vbY} ${vbW} ${vbH}"
-                width=${vbW * scale}
-                height=${vbH * scale}
+        ${
+          panReady
+            ? html`<div
+                class="pan"
+                style="transform: translate(${Math.round(pan.x)}px, ${Math.round(
+                  pan.y
+                )}px)"
               >
-                ${this.renderGhosts(leaving)}
-                <g class="edges">
+                <svg
+                  viewBox="${vbX} ${vbY} ${vbW} ${vbH}"
+                  width=${vbW * scale}
+                  height=${vbH * scale}
+                >
+                  ${this.renderGhosts(leaving)}
+                  <g class="edges">
+                    ${repeat(
+                      chart.lines,
+                      (l) => l.key,
+                      (l) =>
+                        renderEdge(
+                          l,
+                          this.transition.enteringEdgeKeys.has(l.baseKey)
+                        )
+                    )}
+                  </g>
                   ${repeat(
-                    chart.lines,
-                    (l) => l.key,
-                    (l) =>
-                      renderEdge(
-                        l,
-                        this.transition.enteringEdgeKeys.has(l.baseKey)
-                      )
+                    boxes,
+                    (b) => b.key,
+                    (b) => {
+                      const person = this.persons.get(b.personId);
+                      if (person === undefined) return nothing;
+                      return renderBox(
+                        b,
+                        person,
+                        {
+                          focus: b.personId === this.focusId,
+                          entering: this.transition.enteringBoxIds.has(
+                            b.personId
+                          )
+                        },
+                        () => {
+                          if (this.viewport.dragMoved) return;
+                          // Pin from layout coords rather than
+                          // getBoundingClientRect — label widths vary by
+                          // name length and would drift the captured
+                          // "center" across back-and-forth toggles.
+                          this.setFocus(
+                            b.personId,
+                            this.viewport.chartToScreen(b.pos)
+                          );
+                        }
+                      );
+                    }
                   )}
-                </g>
-                ${repeat(
-                  boxes,
-                  (b) => b.key,
-                  (b) => {
-                    const person = this.persons.get(b.personId);
-                    if (person === undefined) return nothing;
-                    return renderBox(
-                      b,
-                      person,
-                      {
-                        focus: b.personId === this.focusId,
-                        entering: this.transition.enteringBoxIds.has(b.personId)
-                      },
-                      () => {
-                        if (this.viewport.dragMoved) return;
-                        // Pin from layout coords rather than
-                        // getBoundingClientRect — label widths vary by
-                        // name length and would drift the captured
-                        // "center" across back-and-forth toggles.
-                        this.setFocus(
-                          b.personId,
-                          this.viewport.chartToScreen(b.pos)
-                        );
-                      }
-                    );
-                  }
-                )}
-              </svg>
-            </div>`
-          : nothing}
+                </svg>
+              </div>`
+            : nothing
+        }
       </div>
     `;
   }

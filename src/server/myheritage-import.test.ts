@@ -66,10 +66,9 @@ test('downloaded MyHeritage photo imports with format and crop', async () => {
   importGedcom(db, roots, (rel) => ingestResult.resolved.get(rel) ?? null);
 
   const media = db
-    .query<
-      { format: string; original_path: string },
-      []
-    >('SELECT format, original_path FROM media')
+    .query<{ format: string; original_path: string }, []>(
+      'SELECT format, original_path FROM media'
+    )
     .get();
   expect(media?.format).toBe('image/jpeg');
   expect(media?.original_path).toBe('photo.jpg');

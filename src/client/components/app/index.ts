@@ -233,11 +233,13 @@ export class AppElement extends LitElement {
         >
           <h2>Import dataset</h2>
           <p class="muted">
-            From <code>${file.name}</code>${this.pendingMedia.length > 0
-              ? ` + ${this.pendingMedia.length} media file${
-                  this.pendingMedia.length === 1 ? '' : 's'
-                }`
-              : nothing}
+            From <code>${file.name}</code>${
+              this.pendingMedia.length > 0
+                ? ` + ${this.pendingMedia.length} media file${
+                    this.pendingMedia.length === 1 ? '' : 's'
+                  }`
+                : nothing
+            }
           </p>
           <label class="field">
             Name
@@ -250,12 +252,16 @@ export class AppElement extends LitElement {
             />
           </label>
           <p class="muted">Saved as <code>${slug === '' ? '…' : slug}</code></p>
-          ${this.importing && this.importStatus !== null
-            ? html`<p class="muted">${this.importStatus}</p>`
-            : nothing}
-          ${this.importError === null
-            ? nothing
-            : html`<p class="error">${this.importError}</p>`}
+          ${
+            this.importing && this.importStatus !== null
+              ? html`<p class="muted">${this.importStatus}</p>`
+              : nothing
+          }
+          ${
+            this.importError === null
+              ? nothing
+              : html`<p class="error">${this.importError}</p>`
+          }
           <div class="actions">
             <button @click=${this.cancelImport} ?disabled=${this.importing}>
               Cancel
@@ -331,9 +337,11 @@ export class AppElement extends LitElement {
             <strong>${target.displayName}</strong> (${target.personCount}
             people) will be permanently removed. This can't be undone.
           </p>
-          ${this.deleteError === null
-            ? nothing
-            : html`<p class="error">${this.deleteError}</p>`}
+          ${
+            this.deleteError === null
+              ? nothing
+              : html`<p class="error">${this.deleteError}</p>`
+          }
           <div class="actions">
             <button @click=${this.cancelDelete} ?disabled=${this.deleting}>
               Cancel
