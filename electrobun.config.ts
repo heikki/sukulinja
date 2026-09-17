@@ -1,45 +1,4 @@
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
 import type { ElectrobunConfig } from 'electrobun';
-
-const baseDir = resolve('.');
-
-function resolveWithExtensions(basePath: string): string {
-  for (const ext of ['.ts', '.tsx', '.js', '/index.ts', '/index.js']) {
-    const candidate = basePath + ext;
-    if (existsSync(candidate)) return candidate;
-  }
-  return basePath;
-}
-
-const ALIASES: Array<{ prefix: string; target: string }> = [
-  { prefix: '@common/', target: 'src/common' },
-  { prefix: '@components/', target: 'src/client/components' },
-  { prefix: '@client/', target: 'src/client' },
-  { prefix: '@server/', target: 'src/server' }
-];
-
-const pathAliasPlugin = {
-  name: 'tsconfig-paths',
-  setup(build: {
-    onResolve: (
-      opts: { filter: RegExp },
-      cb: (args: { path: string }) => { path: string }
-    ) => void;
-  }) {
-    for (const { prefix, target } of ALIASES) {
-      const filter = new RegExp(`^${prefix.replace('/', '\\/')}`);
-      build.onResolve(
-        { filter },
-        (args: { path: string }): { path: string } => ({
-          path: resolveWithExtensions(
-            resolve(baseDir, target, args.path.replace(prefix, ''))
-          )
-        })
-      );
-    }
-  }
-};
 
 export default {
   app: {
@@ -53,15 +12,19 @@ export default {
   },
 
   build: {
+    // Not the 2.x default of 'cottontail': the server process serves the client
+    // from Bun.serve with a raised idleTimeout (src/server/index.ts) and talks
+    // to bun:sqlite, so it is not portable JavaScript. Electrobun packages its
+    // own pinned Bun for this — see docs/adr/0007.
+    mainProcess: 'bun',
+
     bun: {
-      entrypoint: 'src/server/index.ts',
-      plugins: [pathAliasPlugin]
+      entrypoint: 'src/server/index.ts'
     },
 
     views: {
       app: {
-        entrypoint: 'src/client/index.ts',
-        plugins: [pathAliasPlugin]
+        entrypoint: 'src/client/index.ts'
       }
     },
 
