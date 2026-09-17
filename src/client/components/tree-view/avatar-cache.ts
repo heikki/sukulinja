@@ -24,7 +24,9 @@ const listeners = new Set<() => void>();
 // Re-render hook: fires (coalesced to once per microtask) when avatars land.
 export function onAvatarReady(listener: () => void) {
   listeners.add(listener);
-  return () => listeners.delete(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
 // Collapse a burst of completions into a single repaint, and run via microtask

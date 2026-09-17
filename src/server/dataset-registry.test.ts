@@ -26,10 +26,9 @@ describe('createFresh', () => {
     expect(mediaDir).toBe(join(root, 'foo', 'media'));
 
     const row = db
-      .query<
-        { name: string },
-        []
-      >("SELECT name FROM sqlite_schema WHERE type='table' AND name='meta'")
+      .query<{ name: string }, []>(
+        "SELECT name FROM sqlite_schema WHERE type='table' AND name='meta'"
+      )
       .get();
     expect(row?.name).toBe('meta');
   });
