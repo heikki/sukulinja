@@ -4,7 +4,11 @@ import type { FamilyRow } from '@common/types';
 
 import { buildAnchoredFamily } from './family';
 import type { SpousePlacement } from './family';
-import { isMeaningfulSpouseFam, presentChildren } from './indices';
+import {
+  hasKnownAncestry,
+  isMeaningfulSpouseFam,
+  presentChildren
+} from './indices';
 import type { LayoutIndices } from './indices';
 import type { FamilyNode } from './nodes/family-node';
 import { PersonNode } from './nodes/person-node';
@@ -28,6 +32,8 @@ export function buildFocusPerson(
   if (parentFam === undefined || ix.levels < 1) return focus;
 
   const sibIds = presentChildren(parentFam, ix);
+  // A parent Family with no known parent and no Sibling has nothing to draw.
+  if (!hasKnownAncestry(focusId, ix) && sibIds.length <= 1) return focus;
   const siblings = sibIds
     .filter((id) => id !== focusId)
     .map((id) => buildSibling(id, ix));

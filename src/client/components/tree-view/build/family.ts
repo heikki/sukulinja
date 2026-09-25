@@ -88,13 +88,6 @@ interface AnchoredFamilyArgs {
 }
 
 export function buildAnchoredFamily(args: AnchoredFamilyArgs) {
-  const packed =
-    args.packed ?? buildSibship(args.kidNodes.map((k) => k.extents));
-  const kidXs = packed.kidXs(args.placement.childAnchor.x);
-  const kids: PersonSlot[] = args.kidNodes.map((node, i) =>
-    ownedSlot(node, kidXs[i]!)
-  );
-
   const anchorIsHusband = args.fam.husband_id === args.anchorId;
   const otherId = otherSpouseOf(args.fam, args.anchorId);
   // Anchor adult: PersonNode lives upstream — slot carries position only.
@@ -108,13 +101,28 @@ export function buildAnchoredFamily(args: AnchoredFamilyArgs) {
     args.placement.xSpouse,
     args.ix
   );
+  // A primary marriage with no spouse to draw is a lone parent (CONTEXT.md
+  // "Child anchor"): the Drop leaves the anchor's own box and the kids centre
+  // under it, rather than hanging from the midpoint of a Tie that isn't there.
+  const noSpouseBox = spouseAdult === null || spouseAdult.node === null;
+  const childAnchor: ChildAnchor =
+    noSpouseBox && args.placement.childAnchor.kind === 'tie-midpoint'
+      ? { x: 0, kind: 'box-bottom' }
+      : args.placement.childAnchor;
+
+  const packed =
+    args.packed ?? buildSibship(args.kidNodes.map((k) => k.extents));
+  const kidXs = packed.kidXs(childAnchor.x);
+  const kids: PersonSlot[] = args.kidNodes.map((node, i) =>
+    ownedSlot(node, kidXs[i]!)
+  );
 
   return new FamilyNode({
     famId: args.fam.id,
     husband: anchorIsHusband ? anchorAdult : spouseAdult,
     wife: anchorIsHusband ? spouseAdult : anchorAdult,
     kids,
-    childAnchor: args.placement.childAnchor,
+    childAnchor,
     tieKind: args.placement.tieKind
   });
 }

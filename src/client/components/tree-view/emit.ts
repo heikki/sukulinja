@@ -84,7 +84,7 @@ interface FamilyPlace {
 // Box keys of a family's member slots. An owned slot's box is a child of the
 // family node; a slot without a node is the upstream PersonNode the family hangs
 // from (its parent). An unknown person has no box and no key.
-function slotKeys(slots: Array<PersonSlot | null>, place: FamilyPlace) {
+function slotKeys(slots: ReadonlyArray<PersonSlot | null>, place: FamilyPlace) {
   const keys: string[] = [];
   for (const slot of slots) {
     if (slot === null) continue;
@@ -175,12 +175,18 @@ export function emitLayout(
   function familyLines(node: FamilyNode, place: FamilyPlace): RawLine[] {
     // Endpoints are in family-local coords (slot units for x, pixels for y).
     const out: RawLine[] = [];
-    if (node.husband !== null && node.wife !== null) {
+    const { husband, wife } = node;
+    // A Tie joins two drawn boxes; a spouse known only by id has none.
+    if (
+      husband !== null &&
+      wife !== null &&
+      slotKeys([husband, wife], place).length === 2
+    ) {
       // Husband-left convention can be violated by ancestor step-fams (the
       // step-spouse may sit on Fa's "wrong" side to match chronological
       // placement) — pick endpoints by X order, not by husband/wife roles.
-      const leftX = Math.min(node.husband.localX, node.wife.localX);
-      const rightX = Math.max(node.husband.localX, node.wife.localX);
+      const leftX = Math.min(husband.localX, wife.localX);
+      const rightX = Math.max(husband.localX, wife.localX);
       const ty =
         node.tieKind === 'centered'
           ? 0
@@ -194,16 +200,15 @@ export function emitLayout(
           { x: leftX + boxHalfSlot, y: ty },
           { x: rightX - boxHalfSlot, y: ty }
         ],
-        attach: slotKeys([node.husband, node.wife], place)
+        attach: slotKeys([husband, wife], place)
       });
     }
-    if (node.kids.length > 0) {
-      out.push(sibshipLine(node, place));
-    }
+    const sibship = sibshipLine(node, place);
+    if (sibship !== null) out.push(sibship);
     return out;
   }
 
-  function sibshipLine(node: FamilyNode, place: FamilyPlace): RawLine {
+  function sibshipLine(node: FamilyNode, place: FamilyPlace): RawLine | null {
     const { famId, husband, wife, kids, childAnchor } = node;
     const busY = rowPitch / 2;
     // Drop is always vertical (see CONTEXT.md "Bloodline pyramid", ADR-0001).
@@ -211,14 +216,29 @@ export function emitLayout(
     // sibship where the Tie sits off the kid's column (depth ≥ 2) still
     // connects via a horizontal run from the Drop to the kid's Leg.
     const anchorX = childAnchor.x;
+    const parents = slotKeys([husband, wife], place);
+    // A Drop needs something drawn to hang from: the parent box at its column,
+    // or a Tie between two boxes. Without it (unknown parents, or the empty
+    // slot of an unknown spouse) its top sits on the Bar, leaving just Bar and
+    // Legs — and a lone kid, nothing to join, gets no connector at all.
+    const hangsFrom =
+      childAnchor.kind === 'box-bottom'
+        ? [husband, wife].filter((a) => a?.localX === childAnchor.x)
+        : [husband, wife];
+    const hasDrop =
+      hangsFrom.length > 0 &&
+      slotKeys(hangsFrom, place).length === hangsFrom.length;
+    if (kids.length < (hasDrop ? 1 : 2)) return null;
+    const anchorY = hasDrop
+      ? childAnchor.kind === 'tie-midpoint'
+        ? 0
+        : dims.boxH / 2
+      : busY;
     return {
       key: `sib-${famId}`,
       kind: 'sibship',
       points: [
-        {
-          x: anchorX,
-          y: childAnchor.kind === 'tie-midpoint' ? 0 : dims.boxH / 2
-        },
+        { x: anchorX, y: anchorY },
         { x: anchorX, y: busY },
         ...kids.map((k) => ({ x: k.localX, y: dims.boxH / 2 + dims.gapY }))
       ],
@@ -226,7 +246,7 @@ export function emitLayout(
       // (see DrawnLine.attach). Both parents, whichever the Drop hangs from:
       // the anchor moves between a parent's box and the Tie as a marriage
       // turns primary or not across a relayout, but the connector is the same.
-      attach: slotKeys([husband, wife, ...kids], place)
+      attach: [...parents, ...slotKeys(kids, place)]
     };
   }
 
