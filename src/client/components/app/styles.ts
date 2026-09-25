@@ -8,6 +8,7 @@ export const appStyles = css`
      doesn't shift when moving between the chooser and a tree view. */
   header {
     display: flex;
+    justify-content: space-between;
     align-items: center;
     gap: 1rem;
     min-height: 3.25rem;
@@ -89,7 +90,7 @@ export const appStyles = css`
     cursor: default;
   }
   .error {
-    color: #c0392b;
+    color: var(--danger);
     font-size: 0.85em;
     margin-top: 0.75rem;
   }
@@ -104,8 +105,8 @@ export const appStyles = css`
     cursor: pointer;
   }
   button.delete:hover {
-    color: #c0392b;
-    border-color: #c0392b;
+    color: var(--danger);
+    border-color: var(--danger);
   }
   button.brand {
     padding: 0;
@@ -129,7 +130,7 @@ export const appStyles = css`
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.45);
+    background: var(--scrim);
     z-index: 10;
   }
   .dialog {
@@ -168,14 +169,14 @@ export const appStyles = css`
     cursor: default;
   }
   .dialog button.danger {
-    background: #c0392b;
-    border-color: #c0392b;
-    color: #fff;
+    background: var(--danger);
+    border-color: var(--danger);
+    color: var(--on-danger);
   }
   .dialog button.primary {
     background: var(--accent);
     border-color: var(--accent);
-    color: #fff;
+    color: var(--on-accent);
   }
   .dialog .field {
     display: flex;
