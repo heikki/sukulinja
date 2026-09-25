@@ -6,16 +6,13 @@ import { repeat } from 'lit/directives/repeat.js';
 import { apiUrl } from '@client/api';
 import type { FamilyRow, PersonRow } from '@common/types';
 
+import '../person-search';
+
+import type { PickEvent } from '../person-search';
 import { onAvatarReady } from './avatar-cache';
 import { buildChart } from './build';
 import type { EmitOutput, Extents, Point } from './emit';
-import {
-  dims,
-  formatDates,
-  formatName,
-  renderBox,
-  renderEdge
-} from './renderer';
+import { dims, renderBox, renderEdge } from './renderer';
 import { treeViewStyles } from './styles';
 import { TransitionController } from './transition';
 import type { RelayoutKind, Schedule } from './transition';
@@ -44,9 +41,6 @@ const URL_BOUNDS: Bounds = {
 };
 const URL_DEFAULTS: Defaults = { gen: DEFAULT_GEN };
 
-const SEARCH_MIN_LEN = 2;
-const SEARCH_MAX_RESULTS = 50;
-
 // Mirror the active Schedule's Enter/Leave timing into the CSS custom properties
 // the fade animations read (Move timing is applied JS-side). Set on .canvas so
 // it cascades into the svg's .node/.edge/.ghosts.
@@ -71,7 +65,6 @@ export class TreeViewElement extends LitElement {
   @state() private persons = new Map<number, PersonRow>();
   @state() private focusId: number | null = null;
   @state() private loading = true;
-  @state() private query = '';
 
   private readonly parentFamByPerson = new Map<number, FamilyRow>();
   private readonly spouseFamsByPerson = new Map<number, FamilyRow[]>();
@@ -285,10 +278,7 @@ export class TreeViewElement extends LitElement {
   }
 
   private setFocus(id: number, pinScreen: Point | null) {
-    if (id === this.focusId) {
-      this.query = '';
-      return;
-    }
+    if (id === this.focusId) return;
     this.viewport.beginRefocus(pinScreen);
     this.focusId = id;
     // Two-step: push carries focus+gen+zoom only. The pin lands in updated()
@@ -306,7 +296,6 @@ export class TreeViewElement extends LitElement {
         URL_DEFAULTS
       )
     );
-    this.query = '';
   }
 
   private writeUrl() {
@@ -326,57 +315,16 @@ export class TreeViewElement extends LitElement {
     );
   }
 
-  private filteredSearch() {
-    const q = this.query.trim().toLowerCase();
-    if (q.length < SEARCH_MIN_LEN) return [];
-    const out: PersonRow[] = [];
-    for (const p of this.persons.values()) {
-      const key = `${p.given ?? ''} ${p.surname ?? ''}`.toLowerCase();
-      if (key.includes(q)) {
-        out.push(p);
-        if (out.length >= SEARCH_MAX_RESULTS) break;
-      }
-    }
-    return out;
-  }
-
-  private renderToolbar(results: PersonRow[]) {
+  private renderToolbar() {
     return html`
       <div class="toolbar">
         <slot name="brand"></slot>
-        <div class="search">
-          <input
-            type="search"
-            placeholder="Find person…"
-            .value=${this.query}
-            @input=${(e: InputEvent) => {
-              this.query = (e.target as HTMLInputElement).value;
-            }}
-          />
-          ${
-            results.length > 0
-              ? html`<div class="results">
-                  ${results.map((p) => {
-                    const dates = formatDates(p);
-                    return html`
-                      <button
-                        @click=${() => {
-                          this.setFocus(p.id, this.canvasCenter());
-                        }}
-                      >
-                        ${formatName(p)}
-                        ${
-                          dates.length > 0
-                            ? html`<span class="meta">(${dates})</span>`
-                            : nothing
-                        }
-                      </button>
-                    `;
-                  })}
-                </div>`
-              : nothing
-          }
-        </div>
+        <sl-person-search
+          .persons=${this.persons}
+          @pick=${(e: PickEvent) => {
+            this.setFocus(e.detail.id, this.canvasCenter());
+          }}
+        ></sl-person-search>
         <label class="gen">
           Levels
           <input
@@ -532,8 +480,7 @@ export class TreeViewElement extends LitElement {
   override render() {
     // The toolbar always renders so the dataset name / home link (slot="brand")
     // stays visible through the loading and empty states; the body below swaps.
-    const results = this.loading ? [] : this.filteredSearch();
-    return html`${this.renderToolbar(results)}${this.renderBody()}`;
+    return html`${this.renderToolbar()}${this.renderBody()}`;
   }
 
   private renderBody() {
