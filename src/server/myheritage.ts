@@ -6,6 +6,8 @@
 // other app understands. This module transforms such an export in place so the
 // existing media-ingest + gedcom-import pipeline can consume it:
 //
+//   - drop the synthetic "Unassociated photos" person MyHeritage parks untagged
+//     photos under (before downloading, so its photos aren't fetched)
 //   - download every referenced image into a flat staging dir and rewrite the
 //     FILE value to the local name (failed downloads keep the remote URL so a
 //     re-run retries them)
@@ -63,6 +65,10 @@ const DROP_TAGS_ALWAYS = new Set([
   '2\tEMAIL'
 ]);
 
+// The fixed ID of the "Unassociated photos" person: a bucket for photos nobody
+// is tagged in, not someone in the tree.
+const UNASSOCIATED_PHOTOS_XREF = '@I88888888@';
+
 // Only meaningful while their sibling cutout OBJE still exists.
 const DROP_TAGS_WHEN_STRIPPING = new Set([
   '2\t_PRIM_CUTOUT',
@@ -76,6 +82,15 @@ const DROP_TAGS_WHEN_STRIPPING = new Set([
 
 function isCutout(obje: GedNode): boolean {
   return obje.children.some((c) => c.tag === '_CUTOUT' && c.value === 'Y');
+}
+
+export function dropUnassociatedPhotos(roots: GedNode[]) {
+  const i = roots.findIndex(
+    (r) => r.tag === 'INDI' && r.xref === UNASSOCIATED_PHOTOS_XREF
+  );
+  if (i === -1) return false;
+  roots.splice(i, 1);
+  return true;
 }
 
 export function stripCutouts(roots: GedNode[]) {
@@ -346,6 +361,7 @@ export async function convertMyHeritage(
   const download = options.download ?? downloadDefault;
   const log = options.log ?? noop;
 
+  dropUnassociatedPhotos(roots);
   const strip = !keepCutouts;
   const stripped = strip ? stripCutouts(roots) : 0;
 

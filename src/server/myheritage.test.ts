@@ -9,6 +9,7 @@ import {
   collectFileUrls,
   convertMyHeritage,
   dropTags,
+  dropUnassociatedPhotos,
   isMyHeritageExport,
   pruneEmptyLeaves,
   stripCutouts,
@@ -39,6 +40,17 @@ function obje(file: string, ...extra: GedNode[]): GedNode {
 function indi(...children: GedNode[]): GedNode {
   return node(0, 'INDI', undefined, children);
 }
+
+describe('dropUnassociatedPhotos', () => {
+  test('removes the @I88888888@ photo-bucket person, keeps real people', () => {
+    const bucket = { ...indi(obje('a.jpg')), xref: '@I88888888@' };
+    const person = { ...indi(obje('b.jpg')), xref: '@I500001@' };
+    const roots = [person, bucket];
+    expect(dropUnassociatedPhotos(roots)).toBe(true);
+    expect(roots).toEqual([person]);
+    expect(dropUnassociatedPhotos(roots)).toBe(false);
+  });
+});
 
 describe('stripCutouts', () => {
   test('removes OBJE blocks flagged _CUTOUT Y, keeps the rest', () => {
