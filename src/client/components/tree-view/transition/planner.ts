@@ -1,18 +1,21 @@
 // The pure core of the Transition: given the previous and next Hourglass chart and
-// the Relayout kind, work out which boxes and edges survive and where each slides
-// from → to in screen space. Knows *what* moves, never *when* (the controller) and
-// never touches the DOM (apply.ts).
+// the Relayout kind, decide for every box and edge whether it slides (Move), fades
+// in (Enter) or fades out as a Ghost (Leave), and where each slider goes from → to
+// in screen space. Knows *what* moves, never *when* (the Schedule) and never
+// touches the DOM (apply.ts).
 //
 // FLIP runs in two moments with two viewports: captureFirst snapshots old screen
-// positions through the *old* viewport before the layout changes; planMove pairs
-// them against the settled new layout through the *new* viewport.
+// positions through the *old* viewport before the layout changes; planTransition
+// pairs them against the settled new layout through the *new* viewport.
 //
-// Items carry a unique per-instance `key` (the path) so pedigree-collapse
-// duplicates stay apart. Matching across the relayout uses a *match key*: a
-// Generation Relayout keeps the tree rooted (key used directly); a Focus Relayout
-// re-roots, so it falls back to the relayout-invariant personId / baseKey.
+// Pairing is one-to-one between instances. Items carry a unique per-instance `key`
+// (the path); a *match key* groups the candidates: a Generation Relayout keeps the
+// tree rooted (the key itself), a Focus Relayout re-roots, so it falls back to the
+// relayout-invariant personId / baseKey. A group can hold several instances on
+// either side (pedigree collapse, or one person drawn in two roles), so each
+// instance pairs with its nearest counterpart on screen; the rest enter or leave.
 
-import type { Box, DrawnLine, EmitOutput, Point } from '../emit';
+import type { Box, DrawnLine, EmitOutput, LineKind, Point } from '../emit';
 
 // Focus = focus change (re-roots, match by personId/baseKey); Generation = level
 // change (rooted, match by unique key).
@@ -22,11 +25,18 @@ export type RelayoutKind = 'focus' | 'generation';
 // (pan/extents/scale). Returns null before the viewport can resolve it.
 export type ToScreen = (p: Point) => Point | null;
 
-// Old screen positions captured before the relayout, keyed by match key. Edge
-// endpoints are kept as a screen-space segment.
+// A card's on-screen footprint, in screen pixels.
+export interface CardSize {
+  width: number;
+  height: number;
+}
+
+// Old screen positions captured before the relayout, keyed by instance key,
+// alongside the chart they were read from. An edge's are its points.
 export interface FirstScreen {
+  chart: EmitOutput;
   boxes: Map<string, Point>;
-  edges: Map<string, { from: Point; to: Point }>;
+  edges: Map<string, Point[]>;
 }
 
 // A surviving box: its new unique key (to find the element) plus where it slides
@@ -37,13 +47,14 @@ export interface BoxMove {
   to: Point;
 }
 
-// A surviving edge: its new unique key, the new chart-local endpoints (the morph
-// target), and the old → new screen-space endpoints.
+// A surviving edge: its new unique key and kind, the new chart-local points
+// (the slide target), and each point's old → new screen position.
 export interface EdgeMove {
   key: string;
-  local: { from: Point; to: Point };
-  from: { from: Point; to: Point };
-  to: { from: Point; to: Point };
+  kind: LineKind;
+  local: Point[];
+  from: Point[];
+  to: Point[];
 }
 
 export interface MovePlan {
@@ -51,133 +62,271 @@ export interface MovePlan {
   edges: EdgeMove[];
 }
 
-function boxMatchKey(key: string, personId: number, byKey: boolean) {
-  return byKey ? key : `p${personId}`;
+// Instance keys of the next chart's boxes/edges that fade in.
+export interface EnterPlan {
+  boxKeys: Set<string>;
+  edgeKeys: Set<string>;
 }
 
-function edgeMatchKey(key: string, baseKey: string, byKey: boolean) {
-  return byKey ? key : baseKey;
+// The previous chart's boxes/edges that fade out as Ghosts, with their old
+// chart-local geometry intact.
+export interface LeavePlan {
+  boxes: Box[];
+  edges: DrawnLine[];
+}
+
+// Every item lands in exactly one phase: a next-chart item either moves (and has
+// an old → new pair) or enters; a prev-chart item either moves or leaves.
+export interface TransitionPlan {
+  move: MovePlan;
+  enter: EnterPlan;
+  leave: LeavePlan;
+  // Old key → new key of every sliding survivor, so state tied to an old
+  // instance (an Enter fade still running) can follow it across the relayout.
+  pairs: { boxes: Map<string, string>; edges: Map<string, string> };
 }
 
 // FLIP "First": snapshot every on-screen card and edge endpoint in screen space,
 // read through the old viewport before the layout changes.
 export function captureFirst(
   prev: EmitOutput,
-  kind: RelayoutKind,
   toScreen: ToScreen
 ): FirstScreen {
-  const byKey = kind === 'generation';
   const boxes = new Map<string, Point>();
   for (const b of prev.boxes) {
     const s = toScreen(b.pos);
-    if (s !== null) boxes.set(boxMatchKey(b.key, b.personId, byKey), s);
+    if (s !== null) boxes.set(b.key, s);
   }
-  const edges = new Map<string, { from: Point; to: Point }>();
+  const edges = new Map<string, Point[]>();
   for (const l of prev.lines) {
-    const from = toScreen(l.from);
-    const to = toScreen(l.to);
-    if (from !== null && to !== null) {
-      edges.set(edgeMatchKey(l.key, l.baseKey, byKey), { from, to });
-    }
+    const s = pointsToScreen(l.points, toScreen);
+    if (s !== null) edges.set(l.key, s);
   }
-  return { boxes, edges };
+  return { chart: prev, boxes, edges };
 }
 
-// FLIP "Last": pair the settled new layout against the captured old positions.
-// A box/edge present in both is a mover with from (old screen) → to (new
-// screen); one absent from `first` is new (it fades in — the Enter phase) and is
-// skipped here.
-export function planMove(
+// How to read the new layout: the Relayout kind, the chart→screen mapping under
+// the settled (new) viewport, and the on-screen card size.
+export interface PlanContext {
+  kind: RelayoutKind;
+  toScreen: ToScreen;
+  card: CardSize;
+}
+
+// FLIP "Last": pair the settled new layout against the captured old positions and
+// split every item into Move / Enter / Leave.
+export function planTransition(
   first: FirstScreen,
   next: EmitOutput,
-  kind: RelayoutKind,
-  toScreen: ToScreen
-): MovePlan {
+  { kind, toScreen, card }: PlanContext
+): TransitionPlan {
   const byKey = kind === 'generation';
-  const boxes: BoxMove[] = [];
-  for (const b of next.boxes) {
-    const from = first.boxes.get(boxMatchKey(b.key, b.personId, byKey));
-    if (from === undefined) continue;
-    const to = toScreen(b.pos);
-    if (to === null) continue;
-    boxes.push({ key: b.key, from, to });
-  }
-  const edges: EdgeMove[] = [];
-  for (const l of next.lines) {
-    const from = first.edges.get(edgeMatchKey(l.key, l.baseKey, byKey));
-    if (from === undefined) continue;
-    const toFrom = toScreen(l.from);
-    const toTo = toScreen(l.to);
-    if (toFrom === null || toTo === null) continue;
-    edges.push({
-      key: l.key,
-      local: { from: l.from, to: l.to },
-      from,
-      to: { from: toFrom, to: toTo }
-    });
-  }
-  return { boxes, edges };
-}
+  const prev = first.chart;
 
-// A chart's relayout-invariant identity: persons by id, family edges by base
-// key. Pedigree-collapse duplicates (same personId, several boxes) and the two
-// instances of a collapsed family fold to one entry each, so a re-rooting Focus
-// Relayout still recognises who/what survived.
-export interface ChartIds {
-  boxIds: Set<number>;
-  edgeKeys: Set<string>;
-}
-
-export function emptyChartIds(): ChartIds {
-  return { boxIds: new Set(), edgeKeys: new Set() };
-}
-
-export function chartIds(chart: EmitOutput): ChartIds {
-  return {
-    boxIds: new Set(chart.boxes.map((b) => b.personId)),
-    edgeKeys: new Set(chart.lines.map((l) => l.baseKey))
-  };
-}
-
-// The Enter set: persons / families present in `next` but absent from the last
-// layout. Keyed by identity (not the per-instance key) so a Focus Relayout, which
-// re-keys every instance, fades only genuinely-new items rather than the whole
-// chart.
-export function planEnter(next: ChartIds, prev: ChartIds): ChartIds {
-  return {
-    boxIds: new Set([...next.boxIds].filter((id) => !prev.boxIds.has(id))),
-    edgeKeys: new Set([...next.edgeKeys].filter((k) => !prev.edgeKeys.has(k)))
-  };
-}
-
-// The Leave set: the previous chart's boxes and edges absent from `next`, with
-// their old chart-local geometry intact so the controller can render them as
-// fading Ghosts. Matched the same way as Move — by unique key on a Generation
-// Relayout, by personId / baseKey on a Focus Relayout — so an item that merely
-// re-keys (and so really survives) is not mistaken for a departure.
-export interface LeavePlan {
-  boxes: Box[];
-  edges: DrawnLine[];
-}
-
-export function planLeave(
-  prev: EmitOutput,
-  next: EmitOutput,
-  kind: RelayoutKind
-): LeavePlan {
-  const byKey = kind === 'generation';
-  const nextBoxes = new Set(
-    next.boxes.map((b) => boxMatchKey(b.key, b.personId, byKey))
+  const boxTo = screenMap(next.boxes, (b) => toScreen(b.pos));
+  const boxPairs = pairNearest(
+    prev.boxes.filter((b) => first.boxes.has(b.key)),
+    next.boxes.filter((b) => boxTo.has(b.key)),
+    (b) => (byKey ? b.key : `p${b.personId}`),
+    (o, n) => dist(first.boxes.get(o.key)!, boxTo.get(n.key)!)
   );
-  const nextEdges = new Set(
-    next.lines.map((l) => edgeMatchKey(l.key, l.baseKey, byKey))
+  for (const k of collisions(boxPairs, first.boxes, boxTo, card)) {
+    boxPairs.delete(k);
+  }
+
+  const edgeTo = screenMap(next.lines, (l) =>
+    pointsToScreen(l.points, toScreen)
   );
+  const edgePairs = pairNearest(
+    prev.lines.filter((l) => first.edges.has(l.key)),
+    next.lines.filter((l) => edgeTo.has(l.key)),
+    (l) => (byKey ? l.key : l.baseKey),
+    (o, n) => {
+      if (!connected(o, n, boxPairs)) return null;
+      const a = first.edges.get(o.key)!;
+      const b = edgeTo.get(n.key)!;
+      // Points slide pairwise, so the shapes must match point for point.
+      if (a.length !== b.length) return null;
+      return a.reduce((sum, p, i) => sum + dist(p, b[i]!), 0);
+    }
+  );
+
+  const nextBoxes = new Map(next.boxes.map((b) => [b.key, b]));
+  const nextLines = new Map(next.lines.map((l) => [l.key, l]));
+  const movedBoxes = new Set(boxPairs.values());
+  const movedEdges = new Set(edgePairs.values());
   return {
-    boxes: prev.boxes.filter(
-      (b) => !nextBoxes.has(boxMatchKey(b.key, b.personId, byKey))
-    ),
-    edges: prev.lines.filter(
-      (l) => !nextEdges.has(edgeMatchKey(l.key, l.baseKey, byKey))
-    )
+    move: {
+      boxes: [...boxPairs].map(([o, n]) => ({
+        key: n,
+        from: first.boxes.get(o)!,
+        to: boxTo.get(n)!
+      })),
+      edges: [...edgePairs].map(([o, n]) => {
+        const l = nextLines.get(n)!;
+        return {
+          key: n,
+          kind: l.kind,
+          local: l.points,
+          from: first.edges.get(o)!,
+          to: edgeTo.get(n)!
+        };
+      })
+    },
+    enter: {
+      boxKeys: new Set([...nextBoxes.keys()].filter((k) => !movedBoxes.has(k))),
+      edgeKeys: new Set([...nextLines.keys()].filter((k) => !movedEdges.has(k)))
+    },
+    leave: {
+      boxes: prev.boxes.filter((b) => !boxPairs.has(b.key)),
+      edges: prev.lines.filter((l) => !edgePairs.has(l.key))
+    },
+    pairs: { boxes: boxPairs, edges: edgePairs }
   };
+}
+
+// Every item on a first paint fades in.
+export function enterAll(chart: EmitOutput): EnterPlan {
+  return {
+    boxKeys: new Set(chart.boxes.map((b) => b.key)),
+    edgeKeys: new Set(chart.lines.map((l) => l.key))
+  };
+}
+
+// An edge slides only with the boxes it touches: pairing its old and new instance
+// must carry each old attached box onto a new attached one, else the slide would
+// leave it dangling from a card that fades instead.
+function connected(
+  o: DrawnLine,
+  n: DrawnLine,
+  boxPairs: ReadonlyMap<string, string>
+) {
+  return (
+    o.attach.length === n.attach.length &&
+    o.attach.every((k) => n.attach.includes(boxPairs.get(k) ?? ''))
+  );
+}
+
+function pointsToScreen(points: Point[], toScreen: ToScreen) {
+  const out: Point[] = [];
+  for (const p of points) {
+    const s = toScreen(p);
+    if (s === null) return null;
+    out.push(s);
+  }
+  return out;
+}
+
+function dist(a: Point, b: Point) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function screenMap<T extends { key: string }, S>(
+  items: T[],
+  toScreen: (item: T) => S | null
+) {
+  const out = new Map<string, S>();
+  for (const item of items) {
+    const s = toScreen(item);
+    if (s !== null) out.set(item.key, s);
+  }
+  return out;
+}
+
+// One-to-one pairing within each match-key group, nearest first. `cost` returns
+// null for a pair that must not form. Almost every group is a single instance on
+// each side; the greedy sort only matters for the few that repeat.
+function pairNearest<T extends { key: string }>(
+  olds: T[],
+  news: T[],
+  matchKey: (item: T) => string,
+  cost: (o: T, n: T) => number | null
+) {
+  const groups = new Map<string, { olds: T[]; news: T[] }>();
+  for (const o of olds) groupOf(groups, matchKey(o)).olds.push(o);
+  for (const n of news) groupOf(groups, matchKey(n)).news.push(n);
+  const pairs = new Map<string, string>();
+  for (const g of groups.values()) {
+    const candidates: Array<{ o: T; n: T; c: number }> = [];
+    for (const o of g.olds) {
+      for (const n of g.news) {
+        const c = cost(o, n);
+        if (c !== null) candidates.push({ o, n, c });
+      }
+    }
+    candidates.sort((a, b) => a.c - b.c);
+    const taken = new Set<string>();
+    for (const { o, n } of candidates) {
+      if (pairs.has(o.key) || taken.has(n.key)) continue;
+      pairs.set(o.key, n.key);
+      taken.add(n.key);
+    }
+  }
+  return pairs;
+}
+
+function groupOf<T>(groups: Map<string, { olds: T[]; news: T[] }>, k: string) {
+  let g = groups.get(k);
+  if (g === undefined) {
+    g = { olds: [], news: [] };
+    groups.set(k, g);
+  }
+  return g;
+}
+
+// Survivors whose slide would pass through another survivor's card. All slides
+// share one easing, so two cards' separation moves along a straight line from
+// its old to its new value; they collide when that line enters the zone where
+// the cards overlap. Farthest travellers go first: each one that still collides
+// with a remaining slider is dropped (its old key returned), so the long jumps
+// fade out and back in while the short, local slides keep moving.
+function collisions(
+  pairs: Map<string, string>,
+  from: Map<string, Point>,
+  to: Map<string, Point>,
+  card: CardSize
+) {
+  const sliders = [...pairs].map(([o, n]) => {
+    const a = from.get(o)!;
+    const b = to.get(n)!;
+    return { key: o, from: a, delta: { x: b.x - a.x, y: b.y - a.y } };
+  });
+  sliders.sort(
+    (p, q) =>
+      Math.hypot(q.delta.x, q.delta.y) - Math.hypot(p.delta.x, p.delta.y)
+  );
+  const dropped = new Set<string>();
+  for (const p of sliders) {
+    const hit = sliders.some(
+      (q) =>
+        q !== p &&
+        !dropped.has(q.key) &&
+        passesThrough(
+          { x: q.from.x - p.from.x, y: q.from.y - p.from.y },
+          { x: q.delta.x - p.delta.x, y: q.delta.y - p.delta.y },
+          card
+        )
+    );
+    if (hit) dropped.add(p.key);
+  }
+  return dropped;
+}
+
+// Does the separation `start + s·step` (s ∈ [0, 1]) enter the open overlap zone
+// |x| < width, |y| < height?
+function passesThrough(start: Point, step: Point, card: CardSize) {
+  const x = overlapSpan(start.x, step.x, card.width);
+  const y = overlapSpan(start.y, step.y, card.height);
+  if (x === null || y === null) return false;
+  return Math.max(x.lo, y.lo, 0) < Math.min(x.hi, y.hi, 1);
+}
+
+// The span of s where |start + s·step| < reach.
+function overlapSpan(start: number, step: number, reach: number) {
+  if (step === 0) {
+    return Math.abs(start) < reach ? { lo: -Infinity, hi: Infinity } : null;
+  }
+  const a = (-reach - start) / step;
+  const b = (reach - start) / step;
+  return { lo: Math.min(a, b), hi: Math.max(a, b) };
 }

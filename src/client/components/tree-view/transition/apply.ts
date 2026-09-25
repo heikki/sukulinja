@@ -1,8 +1,10 @@
-// The impure edge of the Transition: run a MovePlan against the live DOM via Web
-// Animations + the `d`-morph, each endpoint sliding from its old spot to its new
-// over the Move's duration/easing. Kept thin so the Planner stays pure — this
+// The impure edge of the Transition: run a MovePlan against the live DOM, each
+// card and edge endpoint sliding from its old spot to its new over the Move's
+// duration/easing. Kept thin so the Planner stays pure — this
 // layer only queries elements and starts animations.
 
+import { edgePath } from '../connectors';
+import type { LineKind, Point } from '../emit';
 import { dims } from '../renderer';
 import type { MovePlan } from './planner';
 import type { PhaseTiming } from './schedule';
@@ -70,18 +72,26 @@ export interface MoveCtx {
 }
 
 export interface ApplyResult {
-  // Started animations, so the controller can cancel them on the next relayout
-  // and watch them finish.
+  // The Move's animations, so the controller can watch them finish.
   anims: Animation[];
   // Keys of the sliding cards, so the controller paints them behind the
   // stationary ones for the move.
   movingKeys: Set<string>;
+  // Stop the Move at once, cards and edges, so a newer relayout can take over.
+  cancel: () => void;
 }
 
 export function applyMove(plan: MovePlan, ctx: MoveCtx): ApplyResult {
   const cards = slideCards(plan, ctx);
-  const edges = morphEdges(plan, ctx);
-  return { anims: [...cards.anims, ...edges], movingKeys: cards.keys };
+  const edges = slideEdges(plan, ctx);
+  return {
+    anims: edges === null ? cards.anims : [...cards.anims, edges.driver],
+    movingKeys: cards.keys,
+    cancel: () => {
+      for (const anim of cards.anims) anim.cancel();
+      edges?.cancel();
+    }
+  };
 }
 
 // The <g> transform lives in SVG user space, so the screen delta is divided by
@@ -120,39 +130,95 @@ function slideCards(plan: MovePlan, ctx: MoveCtx) {
   return { anims, keys };
 }
 
-// Each endpoint slides from where it visually was (newLocal + (oldScreen −
+interface EdgeTween {
+  el: Element;
+  kind: LineKind;
+  from: Point[];
+  to: Point[];
+  // The path Lit rendered (the slide's end), and the last one written here.
+  final: string;
+  written: string;
+}
+
+function lerp(a: Point, b: Point, t: number) {
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+}
+
+// Each point slides from where it visually was (newLocal + (oldScreen −
 // newScreen) / scale) to its new local spot, so the line tracks the cards.
-function morphEdges(plan: MovePlan, ctx: MoveCtx) {
+//
+// The path is rebuilt from the interpolated points every frame rather than
+// animated: WebKit (the macOS app's WKWebView) can't animate `d`, and a
+// transform-stretched path smears there (ADR-0009); rebuilding also keeps rounded
+// corners round mid-slide. Progress comes from a target-less Web Animation on the
+// Move's own timing, so each frame's eased progress matches the cards'.
+function slideEdges(plan: MovePlan, ctx: MoveCtx) {
   const { root, scale, timing } = ctx;
   const elements = liveElements(root, '.edge:not(.ghost)', 'data-edge-key');
-  const anims: Animation[] = [];
+  const tweens: EdgeTween[] = [];
   for (const e of plan.edges) {
     const el = elements.get(e.key);
     if (el === undefined) continue;
-    const fx = (e.from.from.x - e.to.from.x) / scale;
-    const fy = (e.from.from.y - e.to.from.y) / scale;
-    const tx = (e.from.to.x - e.to.to.x) / scale;
-    const ty = (e.from.to.y - e.to.to.y) / scale;
-    // Skip the edge only when both endpoints are at rest.
-    if (!moved(fx, fy) && !moved(tx, ty)) continue;
-    const a0 = { x: e.local.from.x + fx, y: e.local.from.y + fy };
-    const b0 = { x: e.local.to.x + tx, y: e.local.to.y + ty };
-    anims.push(
-      el.animate(
-        [
-          { d: `path("M ${a0.x} ${a0.y} L ${b0.x} ${b0.y}")` },
-          {
-            d: `path("M ${e.local.from.x} ${e.local.from.y} L ${e.local.to.x} ${e.local.to.y}")`
-          }
-        ],
-        {
-          delay: timing.delay,
-          duration: timing.duration,
-          easing: timing.easing,
-          fill: 'backwards'
-        }
-      )
-    );
+    const from = e.local.map((p, i) => ({
+      x: p.x + (e.from[i]!.x - e.to[i]!.x) / scale,
+      y: p.y + (e.from[i]!.y - e.to[i]!.y) / scale
+    }));
+    // Skip the edge only when every point is at rest.
+    if (!from.some((p, i) => moved(p.x - e.local[i]!.x, p.y - e.local[i]!.y))) {
+      continue;
+    }
+    const final = el.getAttribute('d') ?? edgePath(e.kind, e.local);
+    tweens.push({ el, kind: e.kind, from, to: e.local, final, written: final });
   }
-  return anims;
+  if (tweens.length === 0) return null;
+
+  const driver = new Animation(
+    new KeyframeEffect(null, null, {
+      delay: timing.delay,
+      duration: timing.duration,
+      easing: timing.easing,
+      // Report 0 through the delay and 1 once done, never null.
+      fill: 'both'
+    }),
+    document.timeline
+  );
+  let stopped = false;
+  function write(t: number) {
+    for (const tw of tweens) {
+      tw.written = edgePath(
+        tw.kind,
+        tw.from.map((p, i) => lerp(p, tw.to[i]!, t))
+      );
+      tw.el.setAttribute('d', tw.written);
+    }
+  }
+  // Put every line back on its rendered path — unless a newer render already
+  // replaced it, which Lit does only when the path changed.
+  function restore() {
+    for (const tw of tweens) {
+      if (tw.el.getAttribute('d') === tw.written) {
+        tw.el.setAttribute('d', tw.final);
+      }
+    }
+  }
+  function frame() {
+    if (stopped) return;
+    if (driver.playState === 'finished') {
+      restore();
+      return;
+    }
+    write(driver.effect?.getComputedTiming().progress ?? 0);
+    requestAnimationFrame(frame);
+  }
+  driver.play();
+  write(0);
+  requestAnimationFrame(frame);
+  return {
+    driver,
+    cancel: () => {
+      stopped = true;
+      driver.cancel();
+      restore();
+    }
+  };
 }

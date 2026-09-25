@@ -4,6 +4,7 @@ import { mediaUrl } from '@client/api';
 import type { PersonRow } from '@common/types';
 
 import { avatarUrl } from './avatar-cache';
+import { edgePath } from './connectors';
 import type { Box, DrawnLine } from './emit';
 
 const NAME_MAX_CHARS = 14;
@@ -96,7 +97,7 @@ export function renderEdge(line: DrawnLine, isNew: boolean, ghost = false) {
   return svg`<path
     class="edge ${line.kind} ${enterClass(isNew)} ${ghost ? 'ghost' : ''}"
     data-edge-key=${line.key}
-    d="M ${line.from.x} ${line.from.y} L ${line.to.x} ${line.to.y}"
+    d=${edgePath(line.kind, line.points)}
   />`;
 }
 

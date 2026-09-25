@@ -408,12 +408,10 @@ export class TreeViewElement extends LitElement {
     const vbW = max.x - min.x + SVG_MARGIN_PX * 2;
     const vbH = max.y - min.y + SVG_MARGIN_PX * 2;
     const { pan, scale, panReady, dragging } = this.viewport;
-    // Hand the on-screen chart to the Transition so the next relayout can read
-    // each card's and edge's old spot before it is replaced, and mark new
-    // boxes/edges as entering. The pin's extra render and drag re-renders keep
-    // the same ids, so an in-flight fade is preserved rather than restarted.
-    this.transition.retainChart(chart);
-    if (panReady) this.transition.refreshEntering(chart);
+    // Hand the painted chart to the Transition so the next relayout can read
+    // each card's and edge's old spot before it is replaced. Which items fade in
+    // is the Transition's call, made once the relayout's pin has settled.
+    if (panReady) this.transition.retainChart(chart);
     // Entering cards render as a stable trailing block the paint-order sort
     // never reorders — reordering an SVG node restarts its CSS fade, so a
     // sorted entering card would flash each time a Move starts and ends. The
@@ -422,9 +420,9 @@ export class TreeViewElement extends LitElement {
     // Web Animations, which survive a same-parent reorder. A stable sort keeps
     // each group's order otherwise.
     const movingKeys = this.transition.movingKeys;
-    const enteringIds = this.transition.enteringBoxIds;
-    const entering = chart.boxes.filter((b) => enteringIds.has(b.personId));
-    const rest = chart.boxes.filter((b) => !enteringIds.has(b.personId));
+    const enteringKeys = this.transition.enteringBoxKeys;
+    const entering = chart.boxes.filter((b) => enteringKeys.has(b.key));
+    const rest = chart.boxes.filter((b) => !enteringKeys.has(b.key));
     const sortedRest =
       movingKeys.size === 0
         ? rest
@@ -462,7 +460,7 @@ export class TreeViewElement extends LitElement {
                       (l) =>
                         renderEdge(
                           l,
-                          this.transition.enteringEdgeKeys.has(l.baseKey)
+                          this.transition.enteringEdgeKeys.has(l.key)
                         )
                     )}
                   </g>
@@ -477,9 +475,7 @@ export class TreeViewElement extends LitElement {
                         person,
                         {
                           focus: b.personId === this.focusId,
-                          entering: this.transition.enteringBoxIds.has(
-                            b.personId
-                          )
+                          entering: enteringKeys.has(b.key)
                         },
                         () => {
                           if (this.viewport.dragMoved) return;

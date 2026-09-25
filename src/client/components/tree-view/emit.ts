@@ -4,6 +4,7 @@
 // intra-family endpoints come in already in pixels.
 
 import { FamilyNode } from './build/nodes/family-node';
+import type { PersonSlot } from './build/nodes/family-node';
 import type { LayoutNode } from './build/nodes/layout-node';
 import { PersonNode } from './build/nodes/person-node';
 
@@ -29,15 +30,17 @@ export interface Box {
   pos: Point;
 }
 
-export type LineKind = 'tie' | 'drop' | 'bar' | 'leg';
+// A Tie, or a sibship's whole connector — its Drop, Bar and Legs drawn as one
+// path so the outer turns can round (see connectors.ts).
+export type LineKind = 'tie' | 'sibship';
 
 // Family-local line before the walk anchors it: the bare key identifies the
 // line within its family; `key` on DrawnLine prefixes it with the family's path.
 interface RawLine {
   key: string;
   kind: LineKind;
-  from: Point;
-  to: Point;
+  points: Point[];
+  attach: string[];
 }
 
 export interface DrawnLine {
@@ -48,8 +51,15 @@ export interface DrawnLine {
   baseKey: string;
   // Tagged for paint-side dispatch; emit itself doesn't read this.
   kind: LineKind;
-  from: Point;
-  to: Point;
+  // The geometry the path is drawn from. A Tie: its two ends. A sibship: the
+  // Drop's top, a point on the Bar (its height), then each Leg's foot in kid
+  // order. The Transition slides a line by moving these points.
+  points: Point[];
+  // Keys of the boxes this line connects: a Tie's spouses; for a sibship's
+  // Drop, Bar and Legs — one connector — the parents it hangs from and every
+  // kid. The Transition slides a line only when all of these slide, so a
+  // connector fades out and back in with any part of it that does.
+  attach: string[];
 }
 
 export interface Extents {
@@ -61,6 +71,33 @@ export interface EmitOutput {
   boxes: Box[];
   lines: DrawnLine[];
   extents: Extents;
+}
+
+// Where a FamilyNode sits in the walk: its own path, and the path and node of
+// the parent it hangs from.
+interface FamilyPlace {
+  nodePath: string;
+  path: string;
+  parent: LayoutNode | null;
+}
+
+// Box keys of a family's member slots. An owned slot's box is a child of the
+// family node; a slot without a node is the upstream PersonNode the family hangs
+// from (its parent). An unknown person has no box and no key.
+function slotKeys(slots: Array<PersonSlot | null>, place: FamilyPlace) {
+  const keys: string[] = [];
+  for (const slot of slots) {
+    if (slot === null) continue;
+    if (slot.node !== null) {
+      keys.push(`${place.nodePath}/p${slot.personId}`);
+    } else if (
+      place.parent instanceof PersonNode &&
+      place.parent.personId === slot.personId
+    ) {
+      keys.push(place.path);
+    }
+  }
+  return keys;
 }
 
 // Per-node discriminator for the unique path key (see Box.key).
@@ -87,7 +124,12 @@ export function emitLayout(
   let maxX = -Infinity;
   let maxY = -Infinity;
 
-  function walk(node: LayoutNode, abs: Point, path: string) {
+  function walk(
+    node: LayoutNode,
+    abs: Point,
+    path: string,
+    parent: LayoutNode | null
+  ) {
     // Each owned PersonNode / FamilyNode has a unique parent and its siblings
     // carry distinct ids, so this chain is a unique, relayout-stable path.
     const nodePath = path === '' ? nodeKey(node) : `${path}/${nodeKey(node)}`;
@@ -104,16 +146,16 @@ export function emitLayout(
       if (px + halfW > maxX) maxX = px + halfW;
       if (py + halfH > maxY) maxY = py + halfH;
     } else if (node instanceof FamilyNode) {
-      for (const line of familyLines(node)) {
+      for (const line of familyLines(node, { nodePath, path, parent })) {
         lines.push({
           key: `${nodePath}/${line.key}`,
           baseKey: line.key,
           kind: line.kind,
-          from: {
-            x: (line.from.x + abs.x) * slotPitch,
-            y: line.from.y + abs.y
-          },
-          to: { x: (line.to.x + abs.x) * slotPitch, y: line.to.y + abs.y }
+          attach: line.attach,
+          points: line.points.map((p) => ({
+            x: (p.x + abs.x) * slotPitch,
+            y: p.y + abs.y
+          }))
         });
       }
     }
@@ -124,12 +166,13 @@ export function emitLayout(
           x: abs.x + child.offset.x,
           y: abs.y + child.offset.y * rowPitch
         },
-        nodePath
+        nodePath,
+        node
       );
     }
   }
 
-  function familyLines(node: FamilyNode): RawLine[] {
+  function familyLines(node: FamilyNode, place: FamilyPlace): RawLine[] {
     // Endpoints are in family-local coords (slot units for x, pixels for y).
     const out: RawLine[] = [];
     if (node.husband !== null && node.wife !== null) {
@@ -147,60 +190,47 @@ export function emitLayout(
       out.push({
         key: `tie-${node.famId}`,
         kind: 'tie',
-        from: { x: leftX + boxHalfSlot, y: ty },
-        to: { x: rightX - boxHalfSlot, y: ty }
+        points: [
+          { x: leftX + boxHalfSlot, y: ty },
+          { x: rightX - boxHalfSlot, y: ty }
+        ],
+        attach: slotKeys([node.husband, node.wife], place)
       });
     }
     if (node.kids.length > 0) {
-      appendSibshipLines(node, out);
+      out.push(sibshipLine(node, place));
     }
     return out;
   }
 
-  function appendSibshipLines(node: FamilyNode, out: RawLine[]) {
-    const { famId, kids, childAnchor } = node;
+  function sibshipLine(node: FamilyNode, place: FamilyPlace): RawLine {
+    const { famId, husband, wife, kids, childAnchor } = node;
     const busY = rowPitch / 2;
-    const anchorPoint: Point = {
-      x: childAnchor.x,
-      y: childAnchor.kind === 'tie-midpoint' ? 0 : dims.boxH / 2
-    };
     // Drop is always vertical (see CONTEXT.md "Bloodline pyramid", ADR-0001).
-    // The bar spans the union of childAnchor.x and the kid Xs — so a
-    // one-kid sibship where the Tie sits off the kid's column (depth ≥ 2)
-    // still connects via a horizontal bar from the drop to the kid's leg.
-    out.push({
-      key: `sib-${famId}-drop`,
-      kind: 'drop',
-      from: anchorPoint,
-      to: { x: anchorPoint.x, y: busY }
-    });
-    let minX = anchorPoint.x;
-    let maxX = anchorPoint.x;
-    for (const k of kids) {
-      if (k.localX < minX) minX = k.localX;
-      if (k.localX > maxX) maxX = k.localX;
-    }
-    // Emit the bar even when it collapses to a point (a single kid under a
-    // centered Tie): a zero-length segment is invisible with the default butt
-    // linecap, but it gives the Transition a stable, keyed element to morph as
-    // the sibship widens or narrows across a relayout.
-    out.push({
-      key: `sib-${famId}-bar`,
-      kind: 'bar',
-      from: { x: minX, y: busY },
-      to: { x: maxX, y: busY }
-    });
-    for (const k of kids) {
-      out.push({
-        key: `sib-${famId}-leg-${k.personId}`,
-        kind: 'leg',
-        from: { x: k.localX, y: busY },
-        to: { x: k.localX, y: dims.boxH / 2 + dims.gapY }
-      });
-    }
+    // The Bar spans the union of childAnchor.x and the kid Xs — so a one-kid
+    // sibship where the Tie sits off the kid's column (depth ≥ 2) still
+    // connects via a horizontal run from the Drop to the kid's Leg.
+    const anchorX = childAnchor.x;
+    return {
+      key: `sib-${famId}`,
+      kind: 'sibship',
+      points: [
+        {
+          x: anchorX,
+          y: childAnchor.kind === 'tie-midpoint' ? 0 : dims.boxH / 2
+        },
+        { x: anchorX, y: busY },
+        ...kids.map((k) => ({ x: k.localX, y: dims.boxH / 2 + dims.gapY }))
+      ],
+      // Drop, Bar and Legs are one connector between the couple and the kids
+      // (see DrawnLine.attach). Both parents, whichever the Drop hangs from:
+      // the anchor moves between a parent's box and the Tie as a marriage
+      // turns primary or not across a relayout, but the connector is the same.
+      attach: slotKeys([husband, wife, ...kids], place)
+    };
   }
 
-  walk(root, startAbs, '');
+  walk(root, startAbs, '', null);
   return {
     boxes,
     lines,
