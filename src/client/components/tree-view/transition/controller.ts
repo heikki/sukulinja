@@ -1,24 +1,26 @@
-// Owns the chart-to-chart Transition's three phases. Move: capture the FLIP
-// "First" before the relayout, play the slide once the Pin has settled, cancel an
-// in-flight Move when a newer relayout supersedes it. Enter: flag boxes/edges new
-// since the last layout so they fade in. Leave: render departing boxes/edges as
-// ghosts and fade them out. The pure Planner decides *what*; this decides *when*,
-// driving the Move via apply.ts and Enter/Leave via CSS classes. It never owns the
+// Owns the chart-to-chart Transition's three phases. Capture the FLIP "First"
+// before the relayout; once the Pin has settled, ask the Planner for one plan that
+// puts every box and edge in exactly one phase, then play it. Move: slide the
+// survivors, cancelling an in-flight Move a newer relayout supersedes. Enter: flag
+// the newcomers so they fade in. Leave: render the departures as ghosts and fade
+// them out. The pure Planner decides *what*; the Schedule decides *when*; this
+// drives the Move via apply.ts and Enter/Leave via CSS classes. It never owns the
 // Pin (ADR-0004): the element sequences applyPendingPin() then settle().
 
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
 import type { Box, DrawnLine, EmitOutput, Point } from '../emit';
+import { dims } from '../renderer';
 import { applyMove } from './apply';
-import {
-  captureFirst,
-  chartIds,
-  emptyChartIds,
-  planEnter,
-  planLeave,
-  planMove
+import type { ApplyResult } from './apply';
+import { captureFirst, enterAll, planTransition } from './planner';
+import type {
+  EnterPlan,
+  FirstScreen,
+  LeavePlan,
+  RelayoutKind,
+  ToScreen
 } from './planner';
-import type { ChartIds, FirstScreen, RelayoutKind, ToScreen } from './planner';
 import { transitionSchedule } from './schedule';
 import type { Schedule } from './schedule';
 
@@ -59,19 +61,12 @@ function prefersReducedMotion() {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-function sameSet<T>(a: ReadonlySet<T>, b: ReadonlySet<T>) {
-  if (a.size !== b.size) return false;
-  for (const x of a) if (!b.has(x)) return false;
-  return true;
-}
-
 // Captured before the new layout renders (through the *old* viewport) and consumed
-// once by settle(): the FLIP "First" positions, the old chart and a reference
+// once by settle(): the FLIP "First" positions (with the old chart), a reference
 // point for the Leave phase, and the Relayout kind. One unit, so the lifecycle is
 // a single null-check.
 interface Pending {
   first: FirstScreen;
-  prevChart: EmitOutput;
   captureRef: Point | null;
   // The viewport scale at capture. A back/forward step can restore a different
   // zoom, so the Move eases each card's size from this old scale to the new one.
@@ -89,19 +84,18 @@ export class TransitionController implements ReactiveController {
   private chart: EmitOutput | null = null;
   // The capture snapshot, consumed by settle(); null when no relayout is in flight.
   private pending: Pending | null = null;
-  private anims: Animation[] = [];
+  // The Move in flight, cancelled when a newer relayout supersedes it.
+  private move: ApplyResult | null = null;
   // Keys of the sliding cards. They render behind the stationary ones so movers
   // pass under them.
   private _movingKeys = new Set<string>();
   // Guards the async clear against a superseding move.
   private moveGen = 0;
 
-  // Enter phase. prevIds is the last layout's identity set — the baseline the next
-  // change diffs against. The entering sets are the new items currently fading,
-  // dropped by a timer once the fade is done; CSS owns the fade, its delay, and
-  // reduced-motion suppression.
-  private prevIds: ChartIds = emptyChartIds();
-  private _enteringBoxIds: ReadonlySet<number> = new Set();
+  // Enter phase. The instance keys of the items currently fading in, dropped by a
+  // timer once the fade is done; CSS owns the fade, its delay, and reduced-motion
+  // suppression.
+  private _enteringBoxKeys: ReadonlySet<string> = new Set();
   private _enteringEdgeKeys: ReadonlySet<string> = new Set();
   private enterClearTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -123,8 +117,8 @@ export class TransitionController implements ReactiveController {
     return this._movingKeys;
   }
 
-  get enteringBoxIds(): ReadonlySet<number> {
-    return this._enteringBoxIds;
+  get enteringBoxKeys(): ReadonlySet<string> {
+    return this._enteringBoxKeys;
   }
 
   get enteringEdgeKeys(): ReadonlySet<string> {
@@ -140,46 +134,29 @@ export class TransitionController implements ReactiveController {
   }
 
   hostDisconnected() {
-    for (const anim of this.anims) anim.cancel();
+    this.move?.cancel();
     if (this.enterClearTimer !== null) clearTimeout(this.enterClearTimer);
     if (this.leaveClearTimer !== null) clearTimeout(this.leaveClearTimer);
   }
 
-  // Each render hands over the painted chart, so the next capture can read its
-  // on-screen geometry.
+  // Each painted render hands over the chart, so the next capture can read its
+  // on-screen geometry. The first one fades the whole chart in.
   retainChart(chart: EmitOutput) {
+    if (this.chart === null) this.setEntering(enterAll(chart));
     this.chart = chart;
   }
 
-  // Flag boxes/edges new since the last layout so they alone fade in. No-ops when
-  // the identity set is unchanged (pin re-render, drags) so an in-flight fade keeps
-  // running. Call only once nodes actually paint.
-  refreshEntering(chart: EmitOutput) {
-    const ids = chartIds(chart);
-    if (
-      sameSet(ids.boxIds, this.prevIds.boxIds) &&
-      sameSet(ids.edgeKeys, this.prevIds.edgeKeys)
-    ) {
-      return;
-    }
-    const entering = planEnter(ids, this.prevIds);
-    this._enteringBoxIds = entering.boxIds;
+  // Flag the items that fade in, and drop the flags once the fade has fully run so
+  // the next change starts clean.
+  private setEntering(entering: EnterPlan) {
+    this._enteringBoxKeys = entering.boxKeys;
     this._enteringEdgeKeys = entering.edgeKeys;
-    this.prevIds = ids;
-    this.scheduleEnterClear();
-  }
-
-  // Drop the entering flags once the fade has fully run, so the next change starts
-  // clean. Reset whenever the entering set changes.
-  private scheduleEnterClear() {
     if (this.enterClearTimer !== null) clearTimeout(this.enterClearTimer);
-    if (this._enteringBoxIds.size === 0 && this._enteringEdgeKeys.size === 0) {
-      this.enterClearTimer = null;
-      return;
-    }
+    this.enterClearTimer = null;
+    if (entering.boxKeys.size === 0 && entering.edgeKeys.size === 0) return;
     this.enterClearTimer = setTimeout(() => {
       this.enterClearTimer = null;
-      this._enteringBoxIds = new Set();
+      this._enteringBoxKeys = new Set();
       this._enteringEdgeKeys = new Set();
       this.host.requestUpdate();
     }, fadeLifespan(this._schedule.enter));
@@ -198,42 +175,57 @@ export class TransitionController implements ReactiveController {
     }
     this.pending = {
       kind,
-      first: captureFirst(this.chart, kind, this.port.toScreen),
-      prevChart: this.chart,
+      first: captureFirst(this.chart, this.port.toScreen),
       captureRef: this.port.toScreen(LEAVE_REF),
       captureScale: this.port.scale()
     };
   }
 
   // FLIP "Last" + "Play": with the pinned layout settled, slide each survivor from
-  // where it was to where it landed (edges morph to match). Cancels any in-flight
-  // move so a rapid relayout doesn't stack.
+  // where it was to where it landed (edges follow their cards), fade the newcomers
+  // in and the departures out. Cancels any in-flight move so a rapid relayout
+  // doesn't stack.
   settle() {
     const pending = this.pending;
     this.pending = null;
     if (pending === null || this.chart === null) return;
-    for (const anim of this.anims) anim.cancel();
-    const plan = planMove(
-      pending.first,
-      this.chart,
-      pending.kind,
-      this.port.toScreen
-    );
-    const result = applyMove(plan, {
+    this.move?.cancel();
+    // Overlap is judged at the larger of the two zooms, so a zoom-changing step
+    // never lets a slide graze a card.
+    const cardScale = Math.max(this.port.scale(), pending.captureScale);
+    const plan = planTransition(pending.first, this.chart, {
+      kind: pending.kind,
+      toScreen: this.port.toScreen,
+      card: { width: dims.boxW * cardScale, height: dims.boxH * cardScale }
+    });
+    this.setEntering({
+      boxKeys: carryOver(
+        plan.enter.boxKeys,
+        this._enteringBoxKeys,
+        plan.pairs.boxes
+      ),
+      edgeKeys: carryOver(
+        plan.enter.edgeKeys,
+        this._enteringEdgeKeys,
+        plan.pairs.edges
+      )
+    });
+    const move = applyMove(plan.move, {
       root: this.port.root(),
       scale: this.port.scale(),
       fromScale: pending.captureScale,
       timing: this._schedule.move
     });
-    this.anims = result.anims;
-    this._movingKeys = result.movingKeys;
-    this.playLeave(pending);
+    this.move = move;
+    this._movingKeys = move.movingKeys;
+    this.playLeave(plan.leave, pending);
+    // Re-render so the entering flags and the Ghost layer paint, and the sliders
+    // sort behind the stationary cards.
+    this.host.requestUpdate();
     const gen = ++this.moveGen;
     if (this._movingKeys.size === 0) return;
-    // Re-render so the sliders sort behind the stationary cards, then clear once
-    // the move ends (unless a newer one took over).
-    this.host.requestUpdate();
-    void Promise.allSettled(this.anims.map((a) => a.finished)).then(() => {
+    // Clear the sliders once the move ends (unless a newer one took over).
+    void Promise.allSettled(move.anims.map((a) => a.finished)).then(() => {
       if (this.moveGen !== gen) return;
       this._movingKeys = new Set();
       this.host.requestUpdate();
@@ -243,12 +235,7 @@ export class TransitionController implements ReactiveController {
   // Render the dropped items as Ghosts at their last screen spot and schedule the
   // layer to clear once the fade is done. Always installs a fresh layer (possibly
   // empty) and cancels any prior timer, so a superseding relayout replaces cleanly.
-  private playLeave(pending: Pending) {
-    const { boxes, edges } = planLeave(
-      pending.prevChart,
-      this.chart!,
-      pending.kind
-    );
+  private playLeave({ boxes, edges }: LeavePlan, pending: Pending) {
     this._leaving = {
       boxes,
       edges,
@@ -257,7 +244,6 @@ export class TransitionController implements ReactiveController {
     };
     if (this.leaveClearTimer !== null) clearTimeout(this.leaveClearTimer);
     this.leaveClearTimer = null;
-    this.host.requestUpdate();
     if (boxes.length === 0 && edges.length === 0) return;
     this.leaveClearTimer = setTimeout(() => {
       this.leaveClearTimer = null;
@@ -279,4 +265,20 @@ export class TransitionController implements ReactiveController {
       y: (captureRef.y - now.y) / scale
     };
   }
+}
+
+// The relayout's newcomers, plus any survivor whose Enter fade from an earlier
+// relayout is still running (followed to its new key), so a rapid run of
+// relayouts doesn't snap a half-faded card to full opacity.
+function carryOver(
+  entering: Set<string>,
+  stillFading: ReadonlySet<string>,
+  pairs: Map<string, string>
+) {
+  const out = new Set(entering);
+  for (const key of stillFading) {
+    const next = pairs.get(key);
+    if (next !== undefined) out.add(next);
+  }
+  return out;
 }

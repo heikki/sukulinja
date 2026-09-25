@@ -1,22 +1,19 @@
 export { TransitionController } from './controller';
 export type { TransitionPort } from './controller';
 
-export {
-  captureFirst,
-  chartIds,
-  planEnter,
-  planLeave,
-  planMove
-} from './planner';
+export { captureFirst, enterAll, planTransition } from './planner';
 export type {
   BoxMove,
-  ChartIds,
+  CardSize,
   EdgeMove,
+  EnterPlan,
   FirstScreen,
   LeavePlan,
   MovePlan,
+  PlanContext,
   RelayoutKind,
-  ToScreen
+  ToScreen,
+  TransitionPlan
 } from './planner';
 
 export { applyMove } from './apply';

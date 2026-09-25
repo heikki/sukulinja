@@ -108,10 +108,13 @@ Horizontal segment between husband and wife inside a **Couple**, at row-center Y
 Vertical line from the **Child anchor** down to the **Bar**. Top of the drop/bar/leg trio.
 
 **Bar**:
-Horizontal line spanning the sibship between two generations. Collapses to a (still-emitted) zero-length point with a single child — invisible at rest, but kept as a stable element so the **Transition** can morph it as the sibship widens or narrows.
+Horizontal line spanning the sibship between two generations. Collapses to a point with a single child directly below the **Drop**.
 
 **Leg**:
 Short vertical from the **Bar** to one sibling's box top. One per sibling.
+
+**Sibship connector**:
+A sibship's **Drop**, **Bar** and **Legs**, drawn as one path. Where the Bar ends in the only vertical meeting it there — an outermost Leg, or a Drop at the Bar's end (the **Bloodline pyramid**'s bends) — the line turns a rounded corner; T-junctions stay square. It is also the unit the **Transition** moves: it slides only while its parents and every kid slide.
 
 ### Layout units
 
@@ -151,13 +154,20 @@ The animated change from the previous chart to the next across a **Relayout**, i
 _Avoid_: animation (too generic — reserve for one element's tween).
 
 **Move**:
-The phase animating boxes and edges present in both charts from their old position to their new one (FLIP). Measured in screen space: the **Pin** holds **Focus** fixed while everything else shifts around it. While a Move runs, the sliders paint behind the stationary cards. When a Back/Forward step restores a different zoom, the Move also eases each card's size from the old scale to the new (scaling about its centre, so the slide still lands); edges are points and need no scaling, and the **Leave** ghosts scale the same way so they fade at their old size.
+The phase animating the boxes and edges **Pairing** carries across the two charts from their old position to their new one (FLIP). Measured in screen space: the **Pin** holds **Focus** fixed while everything else shifts around it. A line slides only when every box it connects slides — a Tie's spouses, or a **Sibship connector**'s parents and all its kids — so lines stay joined to their cards throughout; its path is rebuilt from the moving points each frame, so rounded corners stay round. While a Move runs, the sliders paint behind the stationary cards. When a Back/Forward step restores a different zoom, the Move also eases each card's size from the old scale to the new (scaling about its centre, so the slide still lands); edges are points and need no scaling, and the **Leave** ghosts scale the same way so they fade at their old size.
 
 **Enter**:
-The phase fading in boxes and edges new to the next chart.
+The phase fading in the next chart's boxes and edges that don't Move — new to the chart, an extra copy of a repeated person, or the arriving half of a **Jump**.
 
 **Leave**:
-The phase fading out boxes and edges absent from the next chart, as **Ghosts** — copies retained past the data, since the live elements are deleted on **Relayout**.
+The phase fading out the previous chart's boxes and edges that don't Move, as **Ghosts** — copies retained past the data, since the live elements are deleted on **Relayout**.
+
+**Pairing**:
+How the Transition matches the previous chart's box and edge instances to the next's: one-to-one within a match key — the **Box key** on a Generation Relayout, the personId / base key on a Focus Relayout — nearest on screen first. A person drawn more times in one chart than the other pairs what it can; the extras enter or leave. Every box and edge lands in exactly one phase (ADR-0008).
+
+**Jump**:
+A paired box whose slide would pass through another card. It doesn't Move: it leaves as a Ghost and re-enters at its new spot, and so do the lines connecting it — its **Tie**, and the **Sibship connector** it belongs to or hangs from. When slides conflict the farther traveller jumps — typically **Aunts/Uncles** switching sides of their bloodline sibling as **Focus** steps between generations.
+_Avoid_: cross-fade (names the look, not the rule).
 
 **Pin**:
 Holds **Focus** at a fixed screen pixel across a **Relayout** so the **Move** is coherent (and so Back/Forward restores the view, ADR-0004). Owned by the viewport, not the Transition.
