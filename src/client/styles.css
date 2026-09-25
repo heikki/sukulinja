@@ -1,24 +1,41 @@
 :root {
+  /* Every colour token resolves through light-dark() against color-scheme:
+     both schemes by default, so the OS appearance decides; a pinned choice
+     (html[data-theme], set from the appearance toggle) narrows it to one.
+     Native controls and scrollbars follow color-scheme too. */
   color-scheme: light dark;
   font-family:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --bg: #fafafa;
-  --fg: #1a1a1a;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --card: #fff;
-  --accent: #1a4f8a;
+  --bg: light-dark(#fafafa, #0e0e10);
+  --fg: light-dark(#1a1a1a, #f4f4f5);
+  --muted: light-dark(#6b7280, #9ca3af);
+  --border: light-dark(#e5e7eb, #2a2a2e);
+  --card: light-dark(#fff, #18181b);
+  --accent: light-dark(#1a4f8a, #7aa8d6);
+  /* Text on an --accent / --danger fill. */
+  --on-accent: light-dark(#fff, #0e0e10);
+  --danger: light-dark(#c0392b, #e5675a);
+  --on-danger: light-dark(#fff, #0e0e10);
+  /* Dims the page behind a dialog; shadow under floating panels. */
+  --scrim: light-dark(rgb(0 0 0 / 45%), rgb(0 0 0 / 60%));
+  --shadow: light-dark(rgb(0 0 0 / 12%), rgb(0 0 0 / 50%));
+  /* The chart: card outlines, the connecting lines between them, and the
+     Focus card's ring. Kept close in weight so neither reads as the louder
+     layer. */
+  --card-border: light-dark(#d4d8de, #3a3a41);
+  --line: light-dark(#bcc2ca, #4f525b);
+  --focus-ring: light-dark(#5a8ac4, #5f8cbf);
+  /* The placeholder avatar for a person without a photo. */
+  --silhouette-bg: light-dark(#e5e7eb, #3f3f46);
+  --silhouette: light-dark(#9ca3af, #71717a);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0e0e10;
-    --fg: #f4f4f5;
-    --muted: #9ca3af;
-    --border: #2a2a2e;
-    --card: #18181b;
-    --accent: #7aa8d6;
-  }
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
 }
 
 * {

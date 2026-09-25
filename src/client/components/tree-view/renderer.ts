@@ -173,20 +173,20 @@ export const styles = css`
     image-rendering: -webkit-optimize-contrast;
   }
   .silhouette-bg {
-    fill: #e5e7eb;
+    fill: var(--silhouette-bg);
   }
   .silhouette {
-    fill: #9ca3af;
+    fill: var(--silhouette);
   }
 
   .node .box {
     fill: var(--card);
-    stroke: var(--border);
+    stroke: var(--card-border);
     stroke-width: 1.5;
   }
   .node.focus .box {
-    stroke: var(--accent);
-    stroke-width: 2.5;
+    stroke: var(--focus-ring);
+    stroke-width: 2;
   }
   .node .hit {
     fill: transparent;
@@ -208,7 +208,7 @@ export const styles = css`
   }
 
   .edge {
-    stroke: var(--muted);
+    stroke: var(--line);
     stroke-width: 1.2;
     fill: none;
     vector-effect: non-scaling-stroke;

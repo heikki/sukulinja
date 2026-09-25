@@ -397,6 +397,7 @@ export class TreeViewElement extends LitElement {
           />
           <span class="meta">${this.gen}</span>
         </label>
+        <slot name="actions"></slot>
       </div>
     `;
   }

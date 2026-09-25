@@ -1,6 +1,7 @@
 import { html, LitElement, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
+import '../theme-toggle';
 import '../tree-view';
 
 import { slugFromFilename } from '@common/slug';
@@ -368,7 +369,10 @@ export class AppElement extends LitElement {
 
   private renderEmpty() {
     return html`
-      <header><h1>Sukulinja</h1></header>
+      <header>
+        <h1>Sukulinja</h1>
+        <sl-theme-toggle></sl-theme-toggle>
+      </header>
       <div class="center">
         <h2>No datasets yet</h2>
         <p>Import a MyHeritage (or any) GEDCOM file to get started.</p>
@@ -398,13 +402,17 @@ export class AppElement extends LitElement {
         >
           Sukulinja · ${name}
         </button>
+        <sl-theme-toggle slot="actions"></sl-theme-toggle>
       </sl-tree-view>
     `;
   }
 
   private renderChooser() {
     return html`
-      <header><h1>Sukulinja</h1></header>
+      <header>
+        <h1>Sukulinja</h1>
+        <sl-theme-toggle></sl-theme-toggle>
+      </header>
       <div class="center">
         <h2>Pick a dataset</h2>
         <ul class="chooser">
