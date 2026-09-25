@@ -33,20 +33,9 @@ export const treeViewStyles = css`
     flex-shrink: 0;
   }
 
-  .search {
-    position: relative;
+  sl-person-search {
     margin-left: auto;
     width: min(420px, 45vw);
-  }
-
-  input[type='search'] {
-    width: 100%;
-    padding: 0.4rem 0.7rem;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--bg);
-    color: var(--fg);
-    font: inherit;
   }
 
   .gen {
@@ -59,43 +48,6 @@ export const treeViewStyles = css`
 
   .gen input[type='range'] {
     width: 80px;
-  }
-
-  .results {
-    position: absolute;
-    top: calc(100% + 2px);
-    left: 0;
-    width: 100%;
-    max-height: 320px;
-    overflow-y: auto;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    box-shadow: 0 4px 12px var(--shadow);
-    z-index: 20;
-  }
-
-  .results button {
-    display: block;
-    width: 100%;
-    text-align: left;
-    padding: 0.4rem 0.6rem;
-    background: transparent;
-    color: var(--fg);
-    border: 0;
-    border-bottom: 1px solid var(--border);
-    font: inherit;
-    cursor: pointer;
-  }
-
-  .results button:hover {
-    background: var(--bg);
-  }
-
-  .results .meta {
-    color: var(--muted);
-    font-size: 0.85em;
-    margin-left: 0.4em;
   }
 
   .canvas {
