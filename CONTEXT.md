@@ -58,7 +58,7 @@ Husband on the left, wife on the right in every **Couple**. With multiple spouse
 The spouse rendered adjacent to its partner when multiple spouses exist; other marriages fan outward in chronological order. The selection rule depends on context — for an **Ancestor** it's the bloodline partner; for Focus and Descendants it's the most recent marriage. Pure layout role.
 
 **Child anchor**:
-The point a **Drop** to children originates. Primary marriage (or single-marriage **Couple**): **Tie** midpoint. Non-Primary marriage: bottom edge of the non-shared parent's box. Lone parent: bottom edge of their box.
+The point a **Drop** to children originates. Primary marriage (or single-marriage **Couple**): **Tie** midpoint. Non-Primary marriage: bottom edge of the non-shared parent's box. Lone parent — including a Primary marriage whose spouse is unknown — bottom edge of their box.
 
 **Focus pinning**:
 Focus's column sits at chart X = 0. With uneven ancestry, the ancestor pyramid drifts left or right of Focus rather than re-centering. Everything above Focus is positioned by propagation; Focus itself is the only fixed point.
@@ -114,7 +114,7 @@ Horizontal line spanning the sibship between two generations. Collapses to a poi
 Short vertical from the **Bar** to one sibling's box top. One per sibling.
 
 **Sibship connector**:
-A sibship's **Drop**, **Bar** and **Legs**, drawn as one path. Where the Bar ends in the only vertical meeting it there — an outermost Leg, or a Drop at the Bar's end (the **Bloodline pyramid**'s bends) — the line turns a rounded corner; T-junctions stay square. It is also the unit the **Transition** moves: it slides only while its parents and every kid slide.
+A sibship's **Drop**, **Bar** and **Legs**, drawn as one path. The Drop is drawn only when it hangs from something drawn — a parent's box or a Tie; Siblings whose parents are unknown keep just their Bar and Legs, and a lone child with nothing to hang from gets no connector. Where the Bar ends in the only vertical meeting it there — an outermost Leg, or a Drop at the Bar's end (the **Bloodline pyramid**'s bends) — the line turns a rounded corner; T-junctions stay square. It is also the unit the **Transition** moves: it slides only while its parents and every kid slide.
 
 ### Layout units
 

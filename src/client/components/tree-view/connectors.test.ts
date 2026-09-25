@@ -55,6 +55,20 @@ describe('edgePath', () => {
     expect(arcs(d)).toBe(0);
   });
 
+  test('Siblings with no parent get a Bar and Legs but no Drop', () => {
+    // The Drop's top sits on the Bar: nothing to hang from.
+    const d = edgePath('sibship', [
+      { x: 50, y: 100 },
+      { x: 50, y: 100 },
+      { x: 0, y: 130 },
+      { x: 100, y: 130 }
+    ]);
+
+    expect(d).toBe(
+      'M 0 130 L 0 120 A 20 20 0 0 1 20 100 L 80 100 A 20 20 0 0 1 100 120 L 100 130'
+    );
+  });
+
   test('a Drop and a Leg meeting the same Bar end make a square T there', () => {
     // Drop straight over the leftmost kid; the Bar turns only at its right end.
     const d = edgePath('sibship', [

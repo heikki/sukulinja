@@ -25,10 +25,10 @@ interface Vertical {
 function sibshipPath(points: readonly Point[]) {
   const [anchor, bus, ...kids] = points;
   if (anchor === undefined || bus === undefined) return '';
-  const verticals: Vertical[] = [anchor, ...kids].map((end) => ({
-    x: end.x,
-    end
-  }));
+  // A Drop whose top sits on the Bar (no parent to hang from) isn't drawn.
+  const verticals: Vertical[] = [anchor, ...kids]
+    .filter((end) => end.y !== bus.y)
+    .map((end) => ({ x: end.x, end }));
   const xs = verticals.map((v) => v.x);
   const minX = Math.min(...xs);
   const maxX = Math.max(...xs);
