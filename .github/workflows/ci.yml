@@ -18,10 +18,6 @@ jobs:
         with:
           bun-version: 1.4.2
       - run: bun install --frozen-lockfile
-      # Electrobun 2.x projects its SDK into .hutch/devkit, which is generated
-      # rather than committed; typecheck resolves `electrobun/*` there, so this
-      # has to run before tsc — see docs/adr/0007.
-      - run: bun run sync
       # Not `format -- --check`: prettier takes --write and --check together,
       # rewrites the files, and exits 0 — which would never fail a build.
       - run: bun run format:check

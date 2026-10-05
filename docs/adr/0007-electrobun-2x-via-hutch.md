@@ -16,7 +16,7 @@ Electrobun 2.x bundles through Cottontail rather than `Bun.build()`, and Cottont
 
 Hutch projects the SDK into a generated `.hutch/devkit/` sysroot, and the npm `electrobun` package is a bootstrap for the toolchain. Consequences worth knowing:
 
-- `.hutch/` is generated and gitignored. `bun run sync` creates it, and **typecheck needs it** — without it `electrobun/*` imports don't resolve and `tsc` fails.
+- `.hutch/` is generated and gitignored. `electrobun sync` creates it, and **typecheck needs it** — `postinstall` runs it on every `bun install`, or `electrobun/*` imports don't resolve and `tsc` fails with TS7016.
 - `tsconfig.json` maps `electrobun` and `electrobun/main` into the devkit through `paths` rather than extending `.hutch/devkit/tsconfig.json`, because that file sets its own `baseUrl` and a child's `paths` block replaces rather than merges — extending it would silently re-root every `@common/*` and `@client/*` alias inside `.hutch/devkit/`.
 - The 1.16.0 SDK shipped raw `.ts` that imported the untyped `three` and indexed Bun's FFI pointers in ways newer `@types/bun` rejects, so `tsc` reported errors from inside `node_modules`. Those are gone with the SDK move; nothing in this repo imports three.
 - `hutch.config.ts` declares `packageManager: 'bun'`. Hutch's built-in resolver would otherwise own dependencies and write its own `hutch.lock`, ignoring `bun.lock` entirely.
@@ -36,7 +36,7 @@ The plugin also anchored itself to `resolve('.')`, which would have broken regar
 
 ## Consequences
 
-- A fresh clone must run `bun run sync` before `bun run typecheck` or either build script. `bun dev` — the plain server path, which never imports `electrobun/*` — is unaffected.
+- `bun install` leaves a fresh clone ready to typecheck, because `postinstall` runs the sync. The build scripts generate `.hutch/` themselves, and `bun dev` — the plain server path, which never imports `electrobun/*` — never needed it.
 - The alias list lives in exactly one place, `tsconfig.json`. Adding an alias is a one-line edit that both the typechecker and the bundler pick up.
 - `electrobun.config.ts` must stay serializable: no functions, and nothing read off the ambient environment or the working directory. Values that have to be computed belong in the build script.
 - The build warns that `icon.iconset` is missing. The app ships without an icon, as it did under 1.x; setting `mac.icons` is the fix when one exists.

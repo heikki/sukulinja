@@ -1,35 +1,24 @@
 # Sukulinja
 
-A desktop genealogy editor.
+DIY genealogy editor, early prototype — currently an hourglass family tree chart for GEDCOM files, with portraits.
 
-Electrobun + Bun + Lit, SQLite-backed. Import a GEDCOM, pick a focus, explore.
+Portraits come from the image files beside the GEDCOM, or are downloaded from a MyHeritage export.
 
-## Status
+![Sukulinja](screenshot.png)
 
-Early prototype. The layout engine and GEDCOM importer work; UI is minimal.
+## Setup
 
-## Prerequisites
+Requires [Bun](https://bun.sh/); the desktop app is macOS only.
 
-- [Bun](https://bun.sh/) ≥ 1.3
-- macOS (the Electrobun desktop build currently targets macOS only)
-
-## Quick start
-
-```sh
+```bash
 bun install
-bun dev
+bun dev       # serve the app in a browser
+bun dev:app   # or build and open it as a desktop app
 ```
 
-The repo ships with `data/bourbon/` pre-imported, so a fresh clone has a working
-demo immediately. See [`data/NOTICE.md`](data/NOTICE.md) for attribution.
+The repo ships with a House of Bourbon demo dataset in `data/bourbon/`, so a fresh clone has something to show.
 
-## Desktop app
+## Docs
 
-Electrobun keeps its SDK in a generated `.hutch/` sysroot, so `bun run sync`
-once per clone before building the app or running `bun run typecheck`
-(see [ADR-0007](docs/adr/0007-electrobun-2x-via-hutch.md)):
-
-```sh
-bun run sync
-bun run dev:app
-```
+- [CONTEXT](CONTEXT.md) — terms and relationships
+- [ADR](docs/adr/) — architectural decisions
