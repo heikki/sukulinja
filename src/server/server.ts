@@ -328,6 +328,9 @@ export function createStaticFetch(
     let path = decodeURIComponent(url.pathname);
     const m = DATASET_RE.exec(path);
     if (m !== null) path = m.groups!.rest ?? '/';
+    // index.html links its assets relatively, so the page at /d/<slug> asks
+    // for them one level up, as /d/<asset>.
+    else if (path.startsWith('/d/')) path = path.slice('/d'.length);
     if (path === '/') path = '/index.html';
     for (const root of config.staticRoots) {
       const file = Bun.file(`${root}${path}`);
