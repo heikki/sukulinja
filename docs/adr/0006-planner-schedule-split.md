@@ -4,7 +4,7 @@ The chart-to-chart **Transition** is split into two independent concerns behind 
 
 The two never reference each other. `applyMove` drives the Move through the Schedule's `move` timing via Web Animations, as a two-keyframe from→to slide (edges follow on the same timing, frame by frame — ADR-0009); the element mirrors the Schedule's `enter` / `leave` timings into CSS custom properties (`--sl-enter-*`, `--sl-leave-*`) that the fade animations read. The **Enter** fade's delay is set to span the whole Move (its delay plus duration), so newcomers fade in only once survivors have slid into place — the staggered "fade out → slide → fade in" beat falls out of a plain CSS `animation-delay`, with no JS orchestration. The controller composes the two: it asks the Planner _what_, reads _when_ off the Schedule, and owns the lifecycle (capture, the pin handshake, cancellation, the clear timers, whose durations come from the Schedule).
 
-A single `transitionSchedule` ships. The split is kept regardless of how many schedules exist — it is the boundary that keeps _when_ out of the pure, tested geometry, so should the feel ever need to vary (by viewport or user preference) a swappable Schedule can be reintroduced without touching the Planner.
+A single `transitionSchedule` ships, taking the farthest survivor's screen travel so the Move's duration scales with distance (floored, then capped) and the Enter delay spans whatever it comes to; the controller derives it per relayout from the Planner's plan. The split is kept regardless of how many schedules exist — it is the boundary that keeps _when_ out of the pure, tested geometry, so should the feel ever need to vary (by viewport or user preference) a swappable Schedule can be reintroduced without touching the Planner.
 
 ## Considered options
 
@@ -15,7 +15,7 @@ A single `transitionSchedule` ships. The split is kept regardless of how many sc
 
 ## Consequences
 
-- Tuning the choreography means editing `schedule.ts` — never the Planner or the apply/render geometry. `transitionSchedule` is pinned by a test (the Leave-before-Move stagger and the Move's easing and duration), so an edit can't silently drift the feel.
+- Tuning the choreography means editing `schedule.ts` — never the Planner or the apply/render geometry. `transitionSchedule` is pinned by a test (the Leave-before-Move stagger, the Move's easing, its duration floor, growth and cap, and the Enter delay spanning it), so an edit can't silently drift the feel.
 - The Schedule spans two animation mechanisms (Web Animations for the Move, CSS custom properties for the fades); it sets all three phases, and the element emits the CSS variables from it.
 - Adding a phase is additive: a new pure Planner function plus a `PhaseTiming` field, set on the Schedule.
 - The clear-timer lifespans (`delay + duration`) are derived from the active Schedule, so a delayed Enter that starts late is held for its full, delayed lifespan rather than a hardcoded window.

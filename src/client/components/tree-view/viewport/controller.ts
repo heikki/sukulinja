@@ -221,6 +221,7 @@ export class ViewportController implements ReactiveController {
       { x: size.width / 2, y: size.height / 2 },
       vbo
     );
+    this.applyNudge(vbo);
     this._panReady = true;
     this.host.requestUpdate();
   }
@@ -283,12 +284,14 @@ export class ViewportController implements ReactiveController {
 
   private applyNudge(vbo: Point) {
     const region = this.measurements.comfortRegion?.() ?? null;
+    const chart = this.measurements.chartExtents();
     const size = this.measurements.canvasSize();
-    if (region === null || size === null) return;
+    if (region === null || chart === null || size === null) return;
     this._pan = nudgeIntoView(
       { pan: this._pan, scale: this._scale },
       {
         region,
+        chart,
         focus: { x: 0, y: 0 },
         viewBoxOrigin: vbo,
         canvas: size,
