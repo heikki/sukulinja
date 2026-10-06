@@ -18,6 +18,15 @@ bun dev:app   # or build and open it as a desktop app
 
 The repo ships with a House of Bourbon demo dataset in `data/bourbon/`, so a fresh clone has something to show.
 
+To install it as a signed app in `/Applications`:
+
+```bash
+bun run cert --create   # once: a self-signed code-signing identity
+bun run install:app
+```
+
+The installed app keeps its datasets under `~/Library/Application Support/Sukulinja/data/`, apart from the checkout's `data/`, so it starts empty.
+
 ## Docs
 
 - [CONTEXT](CONTEXT.md) — terms and relationships
