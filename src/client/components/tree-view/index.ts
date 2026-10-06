@@ -11,6 +11,7 @@ import '../person-search';
 import type { PickEvent } from '../person-search';
 import { onAvatarReady } from './avatar-cache';
 import { buildChart } from './build';
+import { otherSpouseOf } from './build/indices';
 import type { Box, EmitOutput, Extents, Point } from './emit';
 import { dims, renderBox, renderEdge } from './renderer';
 import { treeViewStyles } from './styles';
@@ -19,7 +20,7 @@ import type { RelayoutKind, Schedule } from './transition';
 import { buildHash, parseHashView } from './url-state';
 import type { Bounds, Defaults, ParsedView } from './url-state';
 import { ViewportController } from './viewport';
-import type { ViewportOptions } from './viewport';
+import type { Comfort, ViewportOptions } from './viewport';
 
 const SVG_MARGIN_PX = 24;
 const DEFAULT_FOCUS_ID = 1;
@@ -56,14 +57,9 @@ function scheduleVars(schedule: Schedule) {
   ].join(';');
 }
 
-// Comfort region: the Focus row plus the Parent row (or Focus's row alone), from
-// the chart's boxes. Focus sits at chart y = 0.
-function comfortRegion(boxes: Box[]): Extents | null {
-  const rowPitch = dims.boxH + dims.gapY;
-  const rows = boxes.filter((b) => b.pos.y <= 0 && b.pos.y >= -rowPitch);
-  if (rows.length === 0) return null;
-  const xs = rows.map((b) => b.pos.x);
-  const ys = rows.map((b) => b.pos.y);
+function boundsOf(boxes: Box[]): Extents {
+  const xs = boxes.map((b) => b.pos.x);
+  const ys = boxes.map((b) => b.pos.y);
   return {
     min: {
       x: Math.min(...xs) - dims.boxW / 2,
@@ -74,6 +70,18 @@ function comfortRegion(boxes: Box[]): Extents | null {
       y: Math.max(...ys) + dims.boxH / 2
     }
   };
+}
+
+// Comfort region: the Focus row plus the Parent row (or Focus's row alone), from
+// the chart's boxes, and its core: the Focus row's boxes for Focus and their
+// spouses. Focus sits at chart y = 0.
+function comfortOf(boxes: Box[], coreIds: ReadonlySet<number>): Comfort | null {
+  const rowPitch = dims.boxH + dims.gapY;
+  const rows = boxes.filter((b) => b.pos.y <= 0 && b.pos.y >= -rowPitch);
+  if (rows.length === 0) return null;
+  const core = rows.filter((b) => b.pos.y === 0 && coreIds.has(b.personId));
+  const region = boundsOf(rows);
+  return { region, core: core.length === 0 ? region : boundsOf(core) };
 }
 
 @customElement('sl-tree-view')
@@ -92,7 +100,7 @@ export class TreeViewElement extends LitElement {
   // Captured during render so the viewport port can resolve chart-local
   // coords to canvas pixels using the same extents the SVG was sized to.
   private chartExtents: Extents | null = null;
-  private chartComfort: Extents | null = null;
+  private chartComfort: Comfort | null = null;
 
   // Sticky flag: once the user has expressed a zoom (URL-supplied or
   // settled-after-gesture), the URL keeps emitting `zoom` even if it happens
@@ -115,7 +123,7 @@ export class TreeViewElement extends LitElement {
           : { width: c.clientWidth, height: c.clientHeight };
       },
       canvasRect: () => this.queryCanvas()?.getBoundingClientRect() ?? null,
-      comfortRegion: () => this.chartComfort,
+      comfort: () => this.chartComfort,
       onSettle: () => {
         this.hasUserZoom = true;
         this.hasUserPan = true;
@@ -233,6 +241,16 @@ export class TreeViewElement extends LitElement {
 
   private queryCanvas() {
     return this.renderRoot.querySelector<HTMLElement>('.canvas');
+  }
+
+  // Focus and every spouse they have.
+  private coreIds(focusId: number) {
+    const ids = new Set([focusId]);
+    for (const fam of this.spouseFamsByPerson.get(focusId) ?? []) {
+      const spouse = otherSpouseOf(fam, focusId);
+      if (spouse !== null) ids.add(spouse);
+    }
+    return ids;
   }
 
   private canvasCenter(): Point | null {
@@ -529,7 +547,7 @@ export class TreeViewElement extends LitElement {
       return html`<div class="empty">No data for selected focus.</div>`;
     }
     this.chartExtents = chart.extents;
-    this.chartComfort = comfortRegion(chart.boxes);
+    this.chartComfort = comfortOf(chart.boxes, this.coreIds(this.focusId));
     return this.renderCanvas(chart);
   }
 }

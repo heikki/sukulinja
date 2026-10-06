@@ -24,13 +24,21 @@ export interface Size {
   height: number;
 }
 
+// What a refocus Nudge keeps on screen, in chart coords: the Comfort region, and
+// inside it the core (Focus and their spouses) that must stay visible even when
+// the region is too large to fit.
+export interface Comfort {
+  region: Extents;
+  core: Extents;
+}
+
 export interface ViewportMeasurements {
   chartExtents: () => Extents | null;
   canvasSize: () => Size | null;
   canvasRect: () => DOMRect | null;
   // The Comfort region of the current chart, in chart coords; a refocus Nudge
   // keeps it on screen. Absent or null means no Nudge.
-  comfortRegion?: () => Extents | null;
+  comfort?: () => Comfort | null;
   // Fires once when an interactive gesture has settled (dblclick fit lands,
   // wheel-zoom burst finishes). Used by the host to commit view state to the
   // URL; the viewport itself stays ignorant of URLs.
@@ -283,15 +291,16 @@ export class ViewportController implements ReactiveController {
   }
 
   private applyNudge(vbo: Point) {
-    const region = this.measurements.comfortRegion?.() ?? null;
+    const comfort = this.measurements.comfort?.() ?? null;
     const chart = this.measurements.chartExtents();
     const size = this.measurements.canvasSize();
-    if (region === null || chart === null || size === null) return;
+    if (comfort === null || chart === null || size === null) return;
     this._pan = nudgeIntoView(
       { pan: this._pan, scale: this._scale },
       {
-        region,
+        region: comfort.region,
         chart,
+        core: comfort.core,
         focus: { x: 0, y: 0 },
         viewBoxOrigin: vbo,
         canvas: size,

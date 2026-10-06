@@ -1,5 +1,10 @@
 export { ViewportController } from './controller';
-export type { Size, ViewportMeasurements, ViewportOptions } from './controller';
+export type {
+  Comfort,
+  Size,
+  ViewportMeasurements,
+  ViewportOptions
+} from './controller';
 
 export {
   chartToScreen,
