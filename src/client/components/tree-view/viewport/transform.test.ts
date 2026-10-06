@@ -225,10 +225,16 @@ describe('nudgeIntoView', () => {
   function region(min: Point, max: Point): Extents {
     return { min, max };
   }
-  function nudge(t: Transform, r: Extents, chart: Extents = r) {
+  function nudge(
+    t: Transform,
+    r: Extents,
+    chart: Extents = r,
+    core: Extents = { min: focus, max: focus }
+  ) {
     return nudgeIntoView(t, {
       region: r,
       chart,
+      core,
       focus,
       viewBoxOrigin: vbo,
       canvas,
@@ -307,6 +313,44 @@ describe('nudgeIntoView', () => {
       region({ x: 0, y: 0 }, { x: 200, y: 400 })
     );
     approx(next, { x: 50, y: 100 });
+  });
+
+  describe('when the region is too wide to fit', () => {
+    // Focus x=100 (screen 100 at pan 0); the region and chart both dwarf the
+    // 800 px canvas, so Focus would be centred at screen 400 (pan x = 300).
+    const wide = region({ x: 0, y: 0 }, { x: 3000, y: 200 });
+    const chart = region({ x: -2000, y: 0 }, { x: 5000, y: 200 });
+    const t: Transform = { pan: { x: 0, y: 50 }, scale: 1 };
+
+    test('keeps a core reaching far left on screen, not centred away', () => {
+      // Core 0..300 would land at screen 100..400 once Focus is centred, so
+      // it is fine; widen it left: a spouse at x -500 would land at -100.
+      const core = region({ x: -500, y: 0 }, { x: 150, y: 200 });
+      const next = nudge(t, wide, chart, core);
+      // Centred pan 300 puts the core at screen -200..450; its left edge is
+      // pulled back to the 24 px margin: pan 300 + 224 = 524.
+      approx(next, { x: 524, y: 50 });
+    });
+
+    test('keeps a core reaching far right on screen', () => {
+      const core = region({ x: 50, y: 0 }, { x: 700, y: 200 });
+      const next = nudge(t, wide, chart, core);
+      // Centred pan 300 puts the core at screen 350..1000; its right edge is
+      // pulled back to 776: pan 300 - 224 = 76.
+      approx(next, { x: 76, y: 50 });
+    });
+
+    test('leaves Focus centred when the core already fits', () => {
+      const core = region({ x: 0, y: 0 }, { x: 200, y: 200 });
+      const next = nudge(t, wide, chart, core);
+      approx(next, { x: 300, y: 50 });
+    });
+
+    test('leaves Focus centred when even the core is too wide', () => {
+      const core = region({ x: -600, y: 0 }, { x: 600, y: 200 });
+      const next = nudge(t, wide, chart, core);
+      approx(next, { x: 300, y: 50 });
+    });
   });
 
   test('never changes scale', () => {
