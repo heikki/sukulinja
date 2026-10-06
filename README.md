@@ -1,4 +1,4 @@
-# Sukulinja
+# <img src="resources/icon.iconset/icon_128x128.png" alt="" width="40" align="top">&ensp;Sukulinja
 
 DIY genealogy editor, early prototype — currently an hourglass family tree chart for GEDCOM files, with portraits.
 
