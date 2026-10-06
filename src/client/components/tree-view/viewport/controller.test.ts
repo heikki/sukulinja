@@ -323,7 +323,7 @@ describe('refocus nudge', () => {
 
   test('centres the comfort region on an axis the pin would clip', () => {
     const { controller, measurements } = setup(TALL);
-    measurements.comfortData = { region: REGION, core: FOCUS_BOX };
+    measurements.comfortData = { region: REGION, cores: [FOCUS_BOX] };
     controller.ensureInitialPan();
     // Pin Focus near the top edge: the parent row would clip.
     controller.beginRefocus({ x: 400, y: 60 }, { nudge: true });
@@ -334,7 +334,7 @@ describe('refocus nudge', () => {
 
   test('pulls the chart down when it ends above empty canvas', () => {
     const { controller, measurements } = setup(ENDS_BELOW_FOCUS);
-    measurements.comfortData = { region: REGION, core: FOCUS_BOX };
+    measurements.comfortData = { region: REGION, cores: [FOCUS_BOX] };
     controller.ensureInitialPan();
     controller.beginRefocus({ x: 400, y: 300 }, { nudge: true });
     controller.applyPendingViewport();
@@ -344,7 +344,7 @@ describe('refocus nudge', () => {
 
   test('leaves the pin alone when everything already fits', () => {
     const { controller, measurements } = setup(TALL);
-    measurements.comfortData = { region: REGION, core: FOCUS_BOX };
+    measurements.comfortData = { region: REGION, cores: [FOCUS_BOX] };
     controller.ensureInitialPan();
     controller.beginRefocus({ x: 400, y: 300 }, { nudge: true });
     controller.applyPendingViewport();
@@ -364,7 +364,7 @@ describe('refocus nudge', () => {
     const { controller, measurements } = setup(wide);
     measurements.comfortData = {
       region: { min: { x: -3300, y: -140 }, max: { x: 60, y: 70 } },
-      core: { min: { x: -600, y: -70 }, max: { x: 55, y: 70 } }
+      cores: [{ min: { x: -600, y: -70 }, max: { x: 55, y: 70 } }]
     };
     controller.ensureInitialPan();
     controller.beginRefocus({ x: 400, y: 300 }, { nudge: true });
@@ -375,7 +375,7 @@ describe('refocus nudge', () => {
 
   test('a pin without nudge (gen change) is not nudged', () => {
     const { controller, measurements } = setup(TALL);
-    measurements.comfortData = { region: REGION, core: FOCUS_BOX };
+    measurements.comfortData = { region: REGION, cores: [FOCUS_BOX] };
     controller.ensureInitialPan();
     controller.beginRefocus({ x: 400, y: 60 }, { silent: true });
     controller.applyPendingViewport();
@@ -504,7 +504,7 @@ describe('initial pan', () => {
     const { controller, measurements } = setup(chart);
     measurements.comfortData = {
       region: { min: { x: -100, y: -140 }, max: { x: 100, y: 70 } },
-      core: { min: { x: -55, y: -70 }, max: { x: 55, y: 70 } }
+      cores: [{ min: { x: -55, y: -70 }, max: { x: 55, y: 70 } }]
     };
     controller.ensureInitialPan();
     // Nothing below Focus row: its bottom edge settles on the bottom margin.

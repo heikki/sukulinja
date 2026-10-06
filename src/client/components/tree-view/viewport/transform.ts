@@ -122,7 +122,7 @@ interface Span {
 interface AxisSpan {
   region: Span;
   chart: Span;
-  core: Span;
+  cores: Span[];
   anchor: number;
 }
 
@@ -136,17 +136,16 @@ function pullInside(span: Span, shift: number, size: number, margin: number) {
 }
 
 // Shift that keeps the region on screen. A region that clips is centred. One too
-// large to fit centres Focus's anchor, then pulls the core (Focus and spouses)
-// back inside the margins when it fits, so the clip falls on the rest of the
-// row, not on a spouse.
+// large to fit centres Focus's anchor, then pulls the first core that fits back
+// inside the margins, so the clip falls on the rest of the row, not on the part
+// that matters most.
 function regionShift(span: AxisSpan, size: number, margin: number) {
-  const { region, core, anchor } = span;
+  const { region, cores, anchor } = span;
   const room = size - margin * 2;
   if (region.high - region.low > room) {
     const shift = size / 2 - anchor;
-    return core.high - core.low <= room
-      ? pullInside(core, shift, size, margin)
-      : shift;
+    const core = cores.find((c) => c.high - c.low <= room);
+    return core === undefined ? shift : pullInside(core, shift, size, margin);
   }
   if (region.low >= margin && region.high <= size - margin) return 0;
   return size / 2 - (region.low + region.high) / 2;
@@ -181,9 +180,9 @@ export interface NudgeTarget {
   // The whole chart's extents, so the Nudge can avoid leaving the canvas empty
   // on one side while the other side is clipped.
   chart: Extents;
-  // Focus and their spouses: kept on screen first when the region is too large
-  // to fit an axis.
-  core: Extents;
+  // What to keep on screen first when the region is too large to fit an axis,
+  // most preferred first; the first that fits an axis is used.
+  cores: Extents[];
   // Chart point kept centred on an axis the region is too large for.
   focus: Point;
   viewBoxOrigin: Point;
@@ -194,7 +193,7 @@ export interface NudgeTarget {
 // The pan that keeps the region, and as much of the chart as fits, on the
 // canvas, padded by marginPx. Scale is untouched.
 export function nudgeIntoView(t: Transform, target: NudgeTarget): Point {
-  const { region, chart, core, focus, viewBoxOrigin, canvas, marginPx } =
+  const { region, chart, cores, focus, viewBoxOrigin, canvas, marginPx } =
     target;
   function place(p: Point) {
     return chartToScreen(t, p, viewBoxOrigin);
@@ -203,8 +202,8 @@ export function nudgeIntoView(t: Transform, target: NudgeTarget): Point {
   const rHi = place(region.max);
   const cLo = place(chart.min);
   const cHi = place(chart.max);
-  const kLo = place(core.min);
-  const kHi = place(core.max);
+  const coresLo = cores.map((c) => place(c.min));
+  const coresHi = cores.map((c) => place(c.max));
   const at = place(focus);
   return {
     x: nudgeAxis(
@@ -212,7 +211,10 @@ export function nudgeIntoView(t: Transform, target: NudgeTarget): Point {
       {
         region: { low: rLo.x, high: rHi.x },
         chart: { low: cLo.x, high: cHi.x },
-        core: { low: kLo.x, high: kHi.x },
+        cores: cores.map((_, i) => ({
+          low: coresLo[i]!.x,
+          high: coresHi[i]!.x
+        })),
         anchor: at.x
       },
       canvas.width,
@@ -223,7 +225,10 @@ export function nudgeIntoView(t: Transform, target: NudgeTarget): Point {
       {
         region: { low: rLo.y, high: rHi.y },
         chart: { low: cLo.y, high: cHi.y },
-        core: { low: kLo.y, high: kHi.y },
+        cores: cores.map((_, i) => ({
+          low: coresLo[i]!.y,
+          high: coresHi[i]!.y
+        })),
         anchor: at.y
       },
       canvas.height,

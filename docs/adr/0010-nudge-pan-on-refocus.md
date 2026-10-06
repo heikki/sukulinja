@@ -9,17 +9,19 @@ The Nudge is a pure function of the post-Pin transform, the region in chart coor
 
 Rules:
 
-- **Pan only.** Zoom is never touched. If the region overflows an axis, Focus's column is centred on that axis and the extremes clip — but the **Core** (Focus and their spouses) is pulled back inside the margins first when it fits, so the clip lands on siblings and the Parent row rather than on a spouse. Without this a Focus row thousands of px wide, with a spouse a few hundred px to one side, centred Focus and pushed that spouse off screen while the opposite side sat empty.
+- **Pan only.** Zoom is never touched. If the region overflows an axis, Focus's column is centred on that axis and the extremes clip — but the **Core** is pulled back inside the margins first when it fits — Focus, their spouses and all descendants, falling back to Focus and spouses alone — so the clip lands on siblings and the Parent row rather than on a spouse or a child's branch. Without this a Focus row thousands of px wide, with a spouse a few hundred px to one side, centred Focus and pushed that spouse off screen while the opposite side sat empty.
 - **Focus changes and the first view only.** Opening a dataset centres Focus and then nudges the same way; a pan or zoom from the URL still wins there, and the initial pan is not written to the URL. A **Generation limit** change keeps its silent pin; the view must not shift under the slider.
 - **A pan restored from the URL wins.** Back/Forward and shared links land exactly the stored pan (ADR-0004); the Nudge runs only when none is pending.
 - **Zero nudge is a no-op.** An axis that fits is untouched, so a click that clips nothing moves nothing; no extra pan and no extra settle.
 - **Same URL path as the Pin.** The nudged pan is written by the Pin's `onSettle` follow-up `replaceState`, so the push-then-replace flow and one-entry-per-click history are unchanged.
+- **The Planner judges travel without the Nudge.** The Nudge shifts every card alike on screen, but ADR-0008 pairs repeated cards "nearest first" and lets the "farthest traveller" jump; both were measured in absolute screen px, which used to equal travel relative to the Pin's still card. The viewport now reports the Nudge's shift (read once per settle) and the Planner subtracts it from both, so a Nudge never changes which cards slide or jump. Without it the clicked card itself could fade out and back in, because its Nudge shift made it look like the farthest traveller.
 - **Timing is the Schedule's.** The Move's duration scales with the farthest survivor's travel, which includes the Nudge, so a long Nudge glides instead of snapping.
 
 ## Considered options
 
 - **Always recenter on the new Focus.** Rejected: every click moves the clicked box, even when the chart already fits, so stable clicks are lost.
 - **Shift only until the clipped edge reaches the margin.** Rejected: it leaves the region hard against one edge with a wide empty band opposite; centring the clipped axis balances it.
+- **Protect Focus and spouses only.** Rejected: it stopped as soon as a spouse touched the margin, leaving that marriage's children cut off while the opposite side sat empty; descendants are the next thing worth showing.
 - **Centre Focus on an overflowing axis and stop.** Rejected: on a very wide row it clips a spouse as readily as a distant cousin, though the couple fits easily.
 - **Consider the Comfort region alone.** Rejected: two rows nearly always fit, so nothing ran while the ancestors above were cut off and the canvas below Focus row sat empty. The whole chart's extents let the Nudge see both.
 - **Fit the whole chart (`fitTo`).** Rejected: changes zoom, which is the viewer's.

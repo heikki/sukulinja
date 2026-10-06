@@ -73,15 +73,18 @@ function boundsOf(boxes: Box[]): Extents {
 }
 
 // Comfort region: the Focus row plus the Parent row (or Focus's row alone), from
-// the chart's boxes, and its core: the Focus row's boxes for Focus and their
-// spouses. Focus sits at chart y = 0.
+// the chart's boxes. Its cores, most preferred first: Focus and their spouses
+// with every descendant below, then Focus and their spouses alone. Focus sits
+// at chart y = 0.
 function comfortOf(boxes: Box[], coreIds: ReadonlySet<number>): Comfort | null {
   const rowPitch = dims.boxH + dims.gapY;
   const rows = boxes.filter((b) => b.pos.y <= 0 && b.pos.y >= -rowPitch);
   if (rows.length === 0) return null;
-  const core = rows.filter((b) => b.pos.y === 0 && coreIds.has(b.personId));
   const region = boundsOf(rows);
-  return { region, core: core.length === 0 ? region : boundsOf(core) };
+  const couple = rows.filter((b) => b.pos.y === 0 && coreIds.has(b.personId));
+  if (couple.length === 0) return { region, cores: [region] };
+  const family = [...couple, ...boxes.filter((b) => b.pos.y > 0)];
+  return { region, cores: [boundsOf(family), boundsOf(couple)] };
 }
 
 @customElement('sl-tree-view')
@@ -137,7 +140,8 @@ export class TreeViewElement extends LitElement {
     toScreen: (p) => this.viewport.chartToScreen(p),
     scale: () => this.viewport.scale,
     root: () => this.renderRoot,
-    panReady: () => this.viewport.panReady
+    panReady: () => this.viewport.panReady,
+    camera: () => this.viewport.takeNudgeShift()
   });
 
   override connectedCallback() {
