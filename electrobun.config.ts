@@ -35,6 +35,7 @@ export default {
 
     mac: {
       defaultRenderer: 'native',
+      icons: 'resources/icon.iconset',
       // install:app copies the .app bundle straight to /Applications, so the
       // disk image a stable build would otherwise wrap it in is never used.
       createDmg: false,
