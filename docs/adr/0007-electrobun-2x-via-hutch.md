@@ -39,4 +39,3 @@ The plugin also anchored itself to `resolve('.')`, which would have broken regar
 - `bun install` leaves a fresh clone ready to typecheck, because `postinstall` runs the sync. The build scripts generate `.hutch/` themselves, and `bun dev` — the plain server path, which never imports `electrobun/*` — never needed it.
 - The alias list lives in exactly one place, `tsconfig.json`. Adding an alias is a one-line edit that both the typechecker and the bundler pick up.
 - `electrobun.config.ts` must stay serializable: no functions, and nothing read off the ambient environment or the working directory. Values that have to be computed belong in the build script.
-- The build warns that `icon.iconset` is missing. The app ships without an icon, as it did under 1.x; setting `mac.icons` is the fix when one exists.
