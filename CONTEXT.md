@@ -170,8 +170,15 @@ A paired box whose slide would pass through another card. It doesn't Move: it le
 _Avoid_: cross-fade (names the look, not the rule).
 
 **Pin**:
-Holds **Focus** at a fixed screen pixel across a **Relayout** so the **Move** is coherent (and so Back/Forward restores the view, ADR-0004). Owned by the viewport, not the Transition.
+Holds **Focus** at a fixed screen pixel across a **Relayout** so the **Move** is coherent (and so Back/Forward restores the view, ADR-0004). Owned by the viewport, not the Transition. A **Nudge** may shift the pinned result when the new chart would not fit.
 _Avoid_: anchor, lock.
+
+**Nudge**:
+The minimal corrective pan applied on top of the **Pin** after a Focus **Relayout** when the **Comfort region** would fall outside the canvas. Zero when the region already fits — then the Pin stands untouched. Never changes zoom, and yields to a pan restored from the URL (ADR-0010). The survivors' **Move** carries it, so the view travels with the slide rather than jumping.
+_Avoid_: recenter, auto-pan, scroll.
+
+**Comfort region**:
+The rectangle a **Nudge** tries to keep on screen: the **Focus row** plus the **Parent row**, or the Focus row alone when Focus has no parents. Padded by the canvas margin. When it is too large for an axis, Focus's own column is centred on that axis and the region's extremes clip.
 
 **Box key**:
 A box's stable per-instance identity — the path of node ids from the chart root down to it (e.g. `p242/f68/…/p686`). Unique even under pedigree collapse (one person drawn as several boxes) and stable across a **Generation limit** **Relayout**. Edges carry the path-prefixed key plus a **base key** (the bare family-local key), shared by both copies of a collapsed **Family**.
