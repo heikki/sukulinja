@@ -41,12 +41,13 @@ function plan(
   prev: EmitOutput,
   next: EmitOutput,
   kind: RelayoutKind,
-  toScreen: ToScreen = screen
+  { toScreen = screen, camera }: { toScreen?: ToScreen; camera?: Point } = {}
 ): TransitionPlan {
   return planTransition(captureFirst(prev, toScreen), next, {
     kind,
     toScreen,
-    card: CARD
+    card: CARD,
+    camera
   });
 }
 
@@ -139,6 +140,24 @@ describe('planTransition — boxes', () => {
     expect([...enter.boxKeys]).toEqual(['far']);
   });
 
+  test('pairs a repeated person by the slide left after the camera moved', () => {
+    // The viewport moved 150 px right, so a copy that "slid" 100 px right really
+    // moved 50 px less than that shift; the copy 30 px left moved 180 px against
+    // it. Nearest in the chart's frame is the first copy, not the second.
+    const prev = chart([box('old', 5, { x: 0, y: 0 })]);
+    const next = chart([
+      box('right', 5, { x: 100, y: 0 }),
+      box('left', 5, { x: -30, y: 0 })
+    ]);
+
+    const { move, enter } = plan(prev, next, 'focus', {
+      camera: { x: 150, y: 0 }
+    });
+
+    expect(move.boxes.map((b) => b.key)).toEqual(['right']);
+    expect([...enter.boxKeys]).toEqual(['left']);
+  });
+
   test('a long slide that would cross another card fades instead', () => {
     // Person 2 jumps from the right of person 1 to its left along the same row,
     // passing through it. The far traveller leaves and re-enters; the short one
@@ -157,6 +176,29 @@ describe('planTransition — boxes', () => {
     expect(move.boxes.map((b) => b.key)).toEqual(['b1']);
     expect([...enter.boxKeys]).toEqual(['b2']);
     expect(leave.boxes.map((b) => b.key)).toEqual(['a2']);
+  });
+
+  test('judges the far traveller in the camera frame, not on screen', () => {
+    // The viewport also moved 200 px right (a Nudge), so every card slides at
+    // least that far on screen. Relative to the camera only a3 travels, 160 px
+    // left through a2: a3 is the one to fade, and a1 and a2 slide.
+    const prev = chart([
+      box('a1', 1, { x: 0, y: 0 }),
+      box('a2', 2, { x: 100, y: 0 }),
+      box('a3', 3, { x: 200, y: 0 })
+    ]);
+    const next = chart([
+      box('b1', 1, { x: 200, y: 0 }),
+      box('b2', 2, { x: 300, y: 0 }),
+      box('b3', 3, { x: 240, y: 0 })
+    ]);
+
+    const { move, leave } = plan(prev, next, 'focus', {
+      camera: { x: 200, y: 0 }
+    });
+
+    expect(move.boxes.map((b) => b.key)).toEqual(['b1', 'b2']);
+    expect(leave.boxes.map((b) => b.key)).toEqual(['a3']);
   });
 
   test('slides that keep their order in a row all move', () => {

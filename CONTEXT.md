@@ -181,7 +181,7 @@ _Avoid_: recenter, auto-pan, scroll.
 The rectangle a **Nudge** tries to keep on screen: the **Focus row** plus the **Parent row**, or the Focus row alone when Focus has no parents. Padded by the canvas margin. When it is too large for an axis, Focus's own column is centred on that axis and the region's extremes clip — except that the **Core** is first pulled back inside the margins when it fits.
 
 **Core**:
-Focus and their **Spouses** on the **Focus row**: the part of the **Comfort region** a **Nudge** never lets off screen while it can fit. Siblings and the **Parent row** are what clips instead.
+The part of the **Comfort region** a **Nudge** protects when the region is too wide: Focus, their **Spouses** and every **Descendant** below — or, if that is too wide, Focus and their Spouses alone. Siblings and the **Parent row** are what clips instead.
 
 **Box key**:
 A box's stable per-instance identity — the path of node ids from the chart root down to it (e.g. `p242/f68/…/p686`). Unique even under pedigree collapse (one person drawn as several boxes) and stable across a **Generation limit** **Relayout**. Edges carry the path-prefixed key plus a **base key** (the bare family-local key), shared by both copies of a collapsed **Family**.

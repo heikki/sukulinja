@@ -25,11 +25,11 @@ export interface Size {
 }
 
 // What a refocus Nudge keeps on screen, in chart coords: the Comfort region, and
-// inside it the core (Focus and their spouses) that must stay visible even when
-// the region is too large to fit.
+// the cores that must stay visible even when the region is too large to fit,
+// most preferred first.
 export interface Comfort {
   region: Extents;
-  core: Extents;
+  cores: Extents[];
 }
 
 export interface ViewportMeasurements {
@@ -81,6 +81,9 @@ export class ViewportController implements ReactiveController {
   // Set by a Focus refocus: after the pin lands, nudge the pan so the Comfort
   // region is on screen. Gen-change pins leave it off.
   private _pendingNudge = false;
+  // How far the last pin's Nudge moved the pan, on screen. The Transition ranks
+  // travel without it (takeNudgeShift); cleared once read.
+  private _nudgeShift: Point = { x: 0, y: 0 };
   // A back/forward viewport restore, held until updated() instead of mutating
   // synchronously. The Transition captures its FLIP "First" through the live
   // pan/scale in the host's willUpdate; changing them on hashchange would snapshot
@@ -282,7 +285,9 @@ export class ViewportController implements ReactiveController {
       vbo
     );
     this._pendingPinScreen = null;
+    const pinned = this._pan;
     if (this._pendingNudge) this.applyNudge(vbo);
+    this._nudgeShift = { x: this._pan.x - pinned.x, y: this._pan.y - pinned.y };
     this._pendingNudge = false;
     const silent = this._pendingPinSilent;
     this._pendingPinSilent = false;
@@ -300,13 +305,21 @@ export class ViewportController implements ReactiveController {
       {
         region: comfort.region,
         chart,
-        core: comfort.core,
+        cores: comfort.cores,
         focus: { x: 0, y: 0 },
         viewBoxOrigin: vbo,
         canvas: size,
         marginPx: this.options.fitOptions.marginPx
       }
     );
+  }
+
+  // The screen shift the last pin's Nudge applied to every card, then forgotten:
+  // zero unless a Nudge just ran.
+  takeNudgeShift(): Point {
+    const shift = this._nudgeShift;
+    this._nudgeShift = { x: 0, y: 0 };
+    return shift;
   }
 
   chartToScreen(p: Point): Point | null {

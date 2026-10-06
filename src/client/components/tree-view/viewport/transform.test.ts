@@ -229,12 +229,12 @@ describe('nudgeIntoView', () => {
     t: Transform,
     r: Extents,
     chart: Extents = r,
-    core: Extents = { min: focus, max: focus }
+    ...cores: Extents[]
   ) {
     return nudgeIntoView(t, {
       region: r,
       chart,
-      core,
+      cores: cores.length > 0 ? cores : [{ min: focus, max: focus }],
       focus,
       viewBoxOrigin: vbo,
       canvas,
@@ -350,6 +350,23 @@ describe('nudgeIntoView', () => {
       const core = region({ x: -600, y: 0 }, { x: 600, y: 200 });
       const next = nudge(t, wide, chart, core);
       approx(next, { x: 300, y: 50 });
+    });
+
+    test('prefers the larger core when it fits', () => {
+      const family = region({ x: -600, y: 0 }, { x: 150, y: 400 });
+      const core = region({ x: -100, y: 0 }, { x: 150, y: 200 });
+      const next = nudge(t, wide, chart, family, core);
+      // Centred pan 300 puts the family at screen -300..450; pulled to the
+      // margin: pan 300 + 324 = 624. (The smaller core alone would stay at 300.)
+      approx(next, { x: 624, y: 50 });
+    });
+
+    test('falls back to the next core when the larger one is too wide', () => {
+      const family = region({ x: -1500, y: 0 }, { x: 150, y: 400 });
+      const core = region({ x: -500, y: 0 }, { x: 150, y: 200 });
+      const next = nudge(t, wide, chart, family, core);
+      // The family (1650 wide) cannot fit; the core can: -200 → margin 24.
+      approx(next, { x: 524, y: 50 });
     });
   });
 

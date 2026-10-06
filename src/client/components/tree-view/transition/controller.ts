@@ -33,6 +33,8 @@ export interface TransitionPort {
   root: () => ParentNode;
   // False before the first pan lands; capture no-ops until then.
   panReady: () => boolean;
+  // The screen shift a Nudge just gave every card, read once per settle.
+  camera: () => Point;
 }
 
 // The Ghost layer: the relayout's departing boxes/edges at their old chart-local
@@ -199,7 +201,8 @@ export class TransitionController implements ReactiveController {
     const plan = planTransition(pending.first, this.chart, {
       kind: pending.kind,
       toScreen: this.port.toScreen,
-      card: { width: dims.boxW * cardScale, height: dims.boxH * cardScale }
+      card: { width: dims.boxW * cardScale, height: dims.boxH * cardScale },
+      camera: this.port.camera()
     });
     this._schedule = transitionSchedule(farthestTravel(plan.move));
     this.setEntering({

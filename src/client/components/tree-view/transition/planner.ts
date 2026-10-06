@@ -111,6 +111,10 @@ export interface PlanContext {
   kind: RelayoutKind;
   toScreen: ToScreen;
   card: CardSize;
+  // How far the viewport itself moved on screen (a Nudge), shared by every
+  // card. Travel is ranked without it, so the far traveller is judged in the
+  // chart's frame, as it was when the Pin held a card still.
+  camera?: Point;
 }
 
 // FLIP "Last": pair the settled new layout against the captured old positions and
@@ -118,7 +122,7 @@ export interface PlanContext {
 export function planTransition(
   first: FirstScreen,
   next: EmitOutput,
-  { kind, toScreen, card }: PlanContext
+  { kind, toScreen, card, camera = { x: 0, y: 0 } }: PlanContext
 ): TransitionPlan {
   const byKey = kind === 'generation';
   const prev = first.chart;
@@ -128,9 +132,10 @@ export function planTransition(
     prev.boxes.filter((b) => first.boxes.has(b.key)),
     next.boxes.filter((b) => boxTo.has(b.key)),
     (b) => (byKey ? b.key : `p${b.personId}`),
-    (o, n) => dist(first.boxes.get(o.key)!, boxTo.get(n.key)!)
+    (o, n) => dist(first.boxes.get(o.key)!, boxTo.get(n.key)!, camera)
   );
-  for (const k of collisions(boxPairs, first.boxes, boxTo, card)) {
+  const motion = { from: first.boxes, to: boxTo, card, camera };
+  for (const k of collisions(boxPairs, motion)) {
     boxPairs.delete(k);
   }
 
@@ -147,7 +152,7 @@ export function planTransition(
       const b = edgeTo.get(n.key)!;
       // Points slide pairwise, so the shapes must match point for point.
       if (a.length !== b.length) return null;
-      return a.reduce((sum, p, i) => sum + dist(p, b[i]!), 0);
+      return a.reduce((sum, p, i) => sum + dist(p, b[i]!, camera), 0);
     }
   );
 
@@ -217,8 +222,9 @@ function pointsToScreen(points: Point[], toScreen: ToScreen) {
   return out;
 }
 
-function dist(a: Point, b: Point) {
-  return Math.hypot(a.x - b.x, a.y - b.y);
+// How far a → b slid, less the camera's own shift.
+function dist(a: Point, b: Point, camera: Point) {
+  return Math.hypot(a.x - b.x + camera.x, a.y - b.y + camera.y);
 }
 
 function screenMap<T extends { key: string }, S>(
@@ -277,24 +283,29 @@ function groupOf<T>(groups: Map<string, { olds: T[]; news: T[] }>, k: string) {
 // Survivors whose slide would pass through another survivor's card. All slides
 // share one easing, so two cards' separation moves along a straight line from
 // its old to its new value; they collide when that line enters the zone where
-// the cards overlap. Farthest travellers go first: each one that still collides
-// with a remaining slider is dropped (its old key returned), so the long jumps
-// fade out and back in while the short, local slides keep moving.
-function collisions(
-  pairs: Map<string, string>,
-  from: Map<string, Point>,
-  to: Map<string, Point>,
-  card: CardSize
-) {
+// the cards overlap. Farthest travellers go first (measured against the camera):
+// each one that still collides with a remaining slider is dropped (its old key
+// returned), so the long jumps fade out and back in while the short, local
+// slides keep moving.
+interface Motion {
+  from: Map<string, Point>;
+  to: Map<string, Point>;
+  card: CardSize;
+  camera: Point;
+}
+
+function collisions(pairs: Map<string, string>, motion: Motion) {
+  const { from, to, card, camera } = motion;
   const sliders = [...pairs].map(([o, n]) => {
     const a = from.get(o)!;
     const b = to.get(n)!;
     return { key: o, from: a, delta: { x: b.x - a.x, y: b.y - a.y } };
   });
-  sliders.sort(
-    (p, q) =>
-      Math.hypot(q.delta.x, q.delta.y) - Math.hypot(p.delta.x, p.delta.y)
-  );
+  // Rank travel in the camera's frame: a Nudge shifts every card alike.
+  function travel(s: { delta: Point }) {
+    return Math.hypot(s.delta.x - camera.x, s.delta.y - camera.y);
+  }
+  sliders.sort((p, q) => travel(q) - travel(p));
   const dropped = new Set<string>();
   for (const p of sliders) {
     const hit = sliders.some(
