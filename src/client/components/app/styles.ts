@@ -37,53 +37,78 @@ export const appStyles = css`
     color: var(--muted);
     margin: 0 0 1.5rem;
   }
-  .center code {
-    background: var(--bg);
-    padding: 0.15rem 0.4rem;
-    border-radius: 4px;
-    border: 1px solid var(--border);
+  .page {
+    max-width: 36rem;
+    margin: 3rem auto;
+    padding: 0 1.5rem;
+  }
+  .page-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .page-head h2 {
+    margin: 0;
+    font-size: 1.3rem;
+    letter-spacing: -0.01em;
+  }
+  .import-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
   }
   ul.chooser {
     list-style: none;
     padding: 0;
     margin: 0;
-    display: grid;
-    gap: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    overflow: hidden;
   }
   ul.chooser li {
     display: flex;
-    align-items: stretch;
-    gap: 0.5rem;
+    align-items: center;
+  }
+  ul.chooser li + li {
+    border-top: 1px solid var(--border);
+  }
+  ul.chooser li:hover {
+    background: color-mix(in srgb, var(--accent) 8%, var(--card));
   }
   ul.chooser a {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
     flex: 1;
-    text-align: left;
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--card);
+    min-width: 0;
+    padding: 0.8rem 1rem;
     color: var(--fg);
     text-decoration: none;
   }
-  ul.chooser a:hover {
-    border-color: var(--accent);
+  ul.chooser .name {
+    font-weight: 600;
   }
   .muted {
     color: var(--muted);
     font-size: 0.85em;
   }
   button.import {
-    padding: 0.25rem 0.75rem;
+    padding: 0.4rem 0.85rem;
     background: var(--card);
     color: var(--fg);
     border: 1px solid var(--border);
-    border-radius: 4px;
+    border-radius: 6px;
     font: inherit;
+    font-size: 0.9rem;
     cursor: pointer;
   }
   button.import:hover:not(:disabled) {
     border-color: var(--accent);
+    color: var(--accent);
   }
   button.import:disabled {
     opacity: 0.6;
@@ -95,14 +120,22 @@ export const appStyles = css`
     margin-top: 0.75rem;
   }
   button.delete {
-    align-self: center;
-    padding: 0.25rem 0.75rem;
-    background: var(--card);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    margin-right: 0.6rem;
+    padding: 0;
+    background: none;
     color: var(--muted);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    font: inherit;
+    border: 1px solid transparent;
+    border-radius: 6px;
     cursor: pointer;
+  }
+  button.delete svg {
+    width: 1rem;
+    height: 1rem;
   }
   button.delete:hover {
     color: var(--danger);
