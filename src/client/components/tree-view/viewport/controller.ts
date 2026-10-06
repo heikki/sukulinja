@@ -11,6 +11,7 @@ import type { MomentumHandle, MomentumOptions } from './momentum';
 import {
   chartToScreen,
   fitTo,
+  nudgeIntoView,
   pinChartPointAtScreen,
   zoomAt
 } from './transform';
@@ -27,6 +28,9 @@ export interface ViewportMeasurements {
   chartExtents: () => Extents | null;
   canvasSize: () => Size | null;
   canvasRect: () => DOMRect | null;
+  // The Comfort region of the current chart, in chart coords; a refocus Nudge
+  // keeps it on screen. Absent or null means no Nudge.
+  comfortRegion?: () => Extents | null;
   // Fires once when an interactive gesture has settled (dblclick fit lands,
   // wheel-zoom burst finishes). Used by the host to commit view state to the
   // URL; the viewport itself stays ignorant of URLs.
@@ -66,6 +70,9 @@ export class ViewportController implements ReactiveController {
   // where every slider step pins chart (0,0) on screen, but the URL write
   // should wait for the slider's @change (release), not every @input tick.
   private _pendingPinSilent = false;
+  // Set by a Focus refocus: after the pin lands, nudge the pan so the Comfort
+  // region is on screen. Gen-change pins leave it off.
+  private _pendingNudge = false;
   // A back/forward viewport restore, held until updated() instead of mutating
   // synchronously. The Transition captures its FLIP "First" through the live
   // pan/scale in the host's willUpdate; changing them on hashchange would snapshot
@@ -222,10 +229,14 @@ export class ViewportController implements ReactiveController {
   // a fresh one); only a non-null Point overwrites it. `silent` suppresses
   // onSettle when the pin lands — used for reflow pins (gen change) where
   // the URL write should follow the slider release, not every input tick.
-  beginRefocus(pinScreen: Point | null, opts?: { silent?: boolean }) {
+  beginRefocus(
+    pinScreen: Point | null,
+    opts?: { silent?: boolean; nudge?: boolean }
+  ) {
     this.cancelMomentum();
     if (pinScreen !== null) this._pendingPinScreen = pinScreen;
     if (opts?.silent === true) this._pendingPinSilent = true;
+    if (opts?.nudge === true) this._pendingNudge = true;
   }
 
   // Land every deferred viewport mutation for this relayout: the URL restore
@@ -262,10 +273,28 @@ export class ViewportController implements ReactiveController {
       vbo
     );
     this._pendingPinScreen = null;
+    if (this._pendingNudge) this.applyNudge(vbo);
+    this._pendingNudge = false;
     const silent = this._pendingPinSilent;
     this._pendingPinSilent = false;
     this.host.requestUpdate();
     if (!silent) this.measurements.onSettle?.();
+  }
+
+  private applyNudge(vbo: Point) {
+    const region = this.measurements.comfortRegion?.() ?? null;
+    const size = this.measurements.canvasSize();
+    if (region === null || size === null) return;
+    this._pan = nudgeIntoView(
+      { pan: this._pan, scale: this._scale },
+      {
+        region,
+        focus: { x: 0, y: 0 },
+        viewBoxOrigin: vbo,
+        canvas: size,
+        marginPx: this.options.fitOptions.marginPx
+      }
+    );
   }
 
   chartToScreen(p: Point): Point | null {

@@ -4,6 +4,7 @@ import type { Extents, Point } from '../emit';
 import {
   chartToScreen,
   fitTo,
+  nudgeIntoView,
   pinChartPointAtScreen,
   zoomAt
 } from './transform';
@@ -214,5 +215,64 @@ describe('fitTo', () => {
     const expectedT = (viewport.height - OPTS.marginPx * 2) / 2000;
     expect(tw.scale).toBeCloseTo(expectedW, 10);
     expect(tt.scale).toBeCloseTo(expectedT, 10);
+  });
+});
+
+describe('nudgeIntoView', () => {
+  const vbo = { x: 0, y: 0 };
+  const canvas: Viewport = { width: 800, height: 600 };
+  const focus = { x: 100, y: 100 };
+  function region(min: Point, max: Point): Extents {
+    return { min, max };
+  }
+  function nudge(t: Transform, r: Extents) {
+    return nudgeIntoView(t, {
+      region: r,
+      focus,
+      viewBoxOrigin: vbo,
+      canvas,
+      marginPx: 24
+    });
+  }
+
+  test('returns the pan untouched when the region already fits', () => {
+    const t: Transform = { pan: { x: 50, y: 50 }, scale: 1 };
+    const next = nudge(t, region({ x: 0, y: 0 }, { x: 200, y: 200 }));
+    approx(next, t.pan);
+  });
+
+  test('shifts the least that brings an overflowing edge to the margin', () => {
+    // Region spans screen x -30..170 and y 560..760: left clips, bottom clips.
+    const t: Transform = { pan: { x: -30, y: 560 }, scale: 1 };
+    const next = nudge(t, region({ x: 0, y: 0 }, { x: 200, y: 200 }));
+    approx(next, { x: 24, y: 376 });
+  });
+
+  test('shifts the right and top edges the same way', () => {
+    // Region spans screen x 700..900 and y -50..150.
+    const t: Transform = { pan: { x: 700, y: -50 }, scale: 1 };
+    const next = nudge(t, region({ x: 0, y: 0 }, { x: 200, y: 200 }));
+    approx(next, { x: 576, y: 24 });
+  });
+
+  test('measures the region at the current scale', () => {
+    // 200 chart px at 2x is 400 screen px; right edge at 600+400 = 1000.
+    const t: Transform = { pan: { x: 600, y: 50 }, scale: 2 };
+    const next = nudge(t, region({ x: 0, y: 0 }, { x: 200, y: 100 }));
+    approx(next, { x: 376, y: 50 });
+  });
+
+  test('centres Focus on an axis the region is too large for', () => {
+    // 1000 chart px wide in an 800 px canvas: x cannot fit, y can.
+    const t: Transform = { pan: { x: 10, y: 50 }, scale: 1 };
+    const next = nudge(t, region({ x: 0, y: 0 }, { x: 1000, y: 200 }));
+    // Focus x=100 lands at canvas centre 400 → pan.x = 300; y untouched.
+    approx(next, { x: 300, y: 50 });
+  });
+
+  test('never changes scale', () => {
+    const t: Transform = { pan: { x: -500, y: 900 }, scale: 0.5 };
+    const next = nudge(t, region({ x: 0, y: 0 }, { x: 200, y: 200 }));
+    expect(Number.isFinite(next.x) && Number.isFinite(next.y)).toBe(true);
   });
 });
