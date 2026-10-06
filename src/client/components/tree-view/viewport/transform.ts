@@ -113,3 +113,53 @@ export function zoomAt(
     }
   };
 }
+
+interface AxisSpan {
+  low: number;
+  high: number;
+  anchor: number;
+}
+
+// Shift along one axis the least that brings the span inside [margin, size -
+// margin]; when it cannot fit, centre its anchor instead so the clip falls
+// evenly on the region's far edges.
+function nudgeAxis(pan: number, span: AxisSpan, size: number, margin: number) {
+  const { low, high, anchor } = span;
+  if (high - low > size - margin * 2) return pan + size / 2 - anchor;
+  if (low < margin) return pan + (margin - low);
+  if (high > size - margin) return pan - (high - (size - margin));
+  return pan;
+}
+
+export interface NudgeTarget {
+  // Chart-coord rectangle to bring on screen.
+  region: Extents;
+  // Chart point kept centred on an axis the region is too large for.
+  focus: Point;
+  viewBoxOrigin: Point;
+  canvas: Viewport;
+  marginPx: number;
+}
+
+// The pan that brings the region inside the canvas, padded by marginPx, with
+// the smallest shift per axis. Scale is untouched.
+export function nudgeIntoView(t: Transform, target: NudgeTarget): Point {
+  const { region, focus, viewBoxOrigin, canvas, marginPx } = target;
+  const lo = chartToScreen(t, region.min, viewBoxOrigin);
+  const hi = chartToScreen(t, region.max, viewBoxOrigin);
+  const at = chartToScreen(t, focus, viewBoxOrigin);
+  return {
+    x: nudgeAxis(
+      t.pan.x,
+      { low: lo.x, high: hi.x, anchor: at.x },
+      canvas.width,
+      marginPx
+    ),
+    y: nudgeAxis(
+      t.pan.y,
+      { low: lo.y, high: hi.y, anchor: at.y },
+      canvas.height,
+      marginPx
+    )
+  };
+}

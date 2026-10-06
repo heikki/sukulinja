@@ -11,7 +11,7 @@ import '../person-search';
 import type { PickEvent } from '../person-search';
 import { onAvatarReady } from './avatar-cache';
 import { buildChart } from './build';
-import type { EmitOutput, Extents, Point } from './emit';
+import type { Box, EmitOutput, Extents, Point } from './emit';
 import { dims, renderBox, renderEdge } from './renderer';
 import { treeViewStyles } from './styles';
 import { TransitionController } from './transition';
@@ -56,6 +56,26 @@ function scheduleVars(schedule: Schedule) {
   ].join(';');
 }
 
+// Comfort region: the Focus row plus the Parent row (or Focus's row alone), from
+// the chart's boxes. Focus sits at chart y = 0.
+function comfortRegion(boxes: Box[]): Extents | null {
+  const rowPitch = dims.boxH + dims.gapY;
+  const rows = boxes.filter((b) => b.pos.y <= 0 && b.pos.y >= -rowPitch);
+  if (rows.length === 0) return null;
+  const xs = rows.map((b) => b.pos.x);
+  const ys = rows.map((b) => b.pos.y);
+  return {
+    min: {
+      x: Math.min(...xs) - dims.boxW / 2,
+      y: Math.min(...ys) - dims.boxH / 2
+    },
+    max: {
+      x: Math.max(...xs) + dims.boxW / 2,
+      y: Math.max(...ys) + dims.boxH / 2
+    }
+  };
+}
+
 @customElement('sl-tree-view')
 export class TreeViewElement extends LitElement {
   static override styles = treeViewStyles;
@@ -72,6 +92,7 @@ export class TreeViewElement extends LitElement {
   // Captured during render so the viewport port can resolve chart-local
   // coords to canvas pixels using the same extents the SVG was sized to.
   private chartExtents: Extents | null = null;
+  private chartComfort: Extents | null = null;
 
   // Sticky flag: once the user has expressed a zoom (URL-supplied or
   // settled-after-gesture), the URL keeps emitting `zoom` even if it happens
@@ -94,6 +115,7 @@ export class TreeViewElement extends LitElement {
           : { width: c.clientWidth, height: c.clientHeight };
       },
       canvasRect: () => this.queryCanvas()?.getBoundingClientRect() ?? null,
+      comfortRegion: () => this.chartComfort,
       onSettle: () => {
         this.hasUserZoom = true;
         this.hasUserPan = true;
@@ -137,7 +159,9 @@ export class TreeViewElement extends LitElement {
     // No stored pan means the prior box was pinned at its click position; pin the
     // new focus at canvas center so back/forward doesn't land it at that stale
     // offset. With a stored pan the deferred restore above is authoritative.
-    if (parsed.pan === null) this.viewport.beginRefocus(this.canvasCenter());
+    if (parsed.pan === null) {
+      this.viewport.beginRefocus(this.canvasCenter(), { nudge: true });
+    }
     this.focusId = id;
   };
 
@@ -279,7 +303,7 @@ export class TreeViewElement extends LitElement {
 
   private setFocus(id: number, pinScreen: Point | null) {
     if (id === this.focusId) return;
-    this.viewport.beginRefocus(pinScreen);
+    this.viewport.beginRefocus(pinScreen, { nudge: true });
     this.focusId = id;
     // Two-step: push carries focus+gen+zoom only. The pin lands in updated()
     // and onSettle's writeUrl follows up with a replaceState that adds pan.
@@ -502,6 +526,7 @@ export class TreeViewElement extends LitElement {
       return html`<div class="empty">No data for selected focus.</div>`;
     }
     this.chartExtents = chart.extents;
+    this.chartComfort = comfortRegion(chart.boxes);
     return this.renderCanvas(chart);
   }
 }

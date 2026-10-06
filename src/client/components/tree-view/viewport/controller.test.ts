@@ -32,6 +32,10 @@ class FakeMeasurements implements ViewportMeasurements {
   extents: Extents | null = null;
   size: Size | null = null;
   rect: DOMRect | null = null;
+  comfort: Extents | null = null;
+  comfortRegion() {
+    return this.comfort;
+  }
   chartExtents() {
     return this.extents;
   }
@@ -288,6 +292,46 @@ describe('beginRefocus + applyPendingPin', () => {
     if (focusScreenAfter === null) return;
     expect(focusScreenAfter.x).toBeCloseTo(focusScreenBefore.x, 6);
     expect(focusScreenAfter.y).toBeCloseTo(focusScreenBefore.y, 6);
+  });
+});
+
+describe('refocus nudge', () => {
+  // Chart (0,0) maps to screen (pan - vbo*scale); vbo = (-224, -174).
+  const REGION: Extents = {
+    min: { x: -100, y: -200 },
+    max: { x: 100, y: 70 }
+  };
+
+  test('shifts the pinned pan so the comfort region is on screen', () => {
+    const { controller, measurements } = setup();
+    measurements.comfort = REGION;
+    controller.ensureInitialPan();
+    // Pin Focus near the top edge: the parent row (y -200) would clip.
+    controller.beginRefocus({ x: 400, y: 60 }, { nudge: true });
+    controller.applyPendingViewport();
+    const top = controller.chartToScreen(REGION.min);
+    expect(top?.y).toBeCloseTo(24);
+  });
+
+  test('leaves the pin alone when the region already fits', () => {
+    const { controller, measurements } = setup();
+    measurements.comfort = REGION;
+    controller.ensureInitialPan();
+    controller.beginRefocus({ x: 400, y: 300 }, { nudge: true });
+    controller.applyPendingViewport();
+    expect(controller.chartToScreen({ x: 0, y: 0 })).toEqual({
+      x: 400,
+      y: 300
+    });
+  });
+
+  test('a pin without nudge (gen change) is not nudged', () => {
+    const { controller, measurements } = setup();
+    measurements.comfort = REGION;
+    controller.ensureInitialPan();
+    controller.beginRefocus({ x: 400, y: 60 }, { silent: true });
+    controller.applyPendingViewport();
+    expect(controller.chartToScreen({ x: 0, y: 0 })).toEqual({ x: 400, y: 60 });
   });
 });
 
