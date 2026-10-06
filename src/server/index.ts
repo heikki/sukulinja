@@ -1,3 +1,4 @@
+import { cpSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { ApplicationMenu, BrowserWindow, Utils } from 'electrobun/main';
 
@@ -31,6 +32,15 @@ const dataDir = isDev
 // its own inside the checkout's data folder, which is gitignored and where the
 // registry only looks at directories.
 const stateDir = isDev ? dataDir : supportDir;
+
+// An installed app's first launch gets the bundled demo, so it has something
+// to show. Keyed on the data folder not existing rather than on it being
+// empty: deleting the demo later must not bring it back.
+function seedDemo() {
+  if (isDev || existsSync(dataDir)) return;
+  cpSync(join(resourcesDir, 'app', 'demo'), dataDir, { recursive: true });
+}
+seedDemo();
 
 const registry = new DatasetRegistry(dataDir);
 void registry.sweepStaging(); // clear staging dirs left by interrupted imports

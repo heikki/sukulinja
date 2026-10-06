@@ -30,7 +30,11 @@ export default {
 
     copy: {
       'src/client/index.html': 'views/app/index.html',
-      'src/client/styles.css': 'views/app/styles.css'
+      'src/client/styles.css': 'views/app/styles.css',
+      // The demo dataset an installed app starts with — see seedDemo in
+      // src/server/index.ts.
+      'data/bourbon': 'demo/bourbon',
+      'data/NOTICE.md': 'demo/NOTICE.md'
     },
 
     mac: {
