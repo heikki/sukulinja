@@ -81,6 +81,19 @@ export const treeViewStyles = css`
     overflow: visible;
   }
 
+  /* Departing items fade in a canvas-sized layer under the chart: the chart's SVG
+     snaps to the new, possibly much smaller, extents and WebKit clips what
+     overflows it. */
+  .ghost-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+
   .empty {
     padding: 2rem;
     color: var(--muted);
