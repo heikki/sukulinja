@@ -24,8 +24,3 @@ brew install openssl   # one-time
 bun cert --create      # one-time: create a self-signed code-signing cert
 bun install:app        # build, sign, and copy to /Applications
 ```
-
-## Docs
-
-- [CONTEXT](CONTEXT.md) — terms and relationships
-- [ADR](docs/adr/) — architectural decisions
