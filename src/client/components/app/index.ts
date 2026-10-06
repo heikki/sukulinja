@@ -1,4 +1,4 @@
-import { html, LitElement, nothing } from 'lit';
+import { html, LitElement, nothing, svg } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
 import '../theme-toggle';
@@ -10,6 +10,19 @@ import type { DatasetInfo } from '@common/types';
 import { folderOf, relativeToBase, stripExtension } from './helpers';
 import type { UploadMedia } from './helpers';
 import { appStyles } from './styles';
+
+const TRASH_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
+  ${svg`
+    <path
+      d="M 2.5 4.5 H 13.5 M 6 4.5 V 3 H 10 V 4.5 M 4 4.5 L 4.6 13 H 11.4 L 12 4.5 M 6.75 7 V 10.5 M 9.25 7 V 10.5"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.3"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  `}
+</svg>`;
 
 type ImportEvent =
   | { type: 'log'; message: string }
@@ -282,21 +295,23 @@ export class AppElement extends LitElement {
 
   private renderImportButton() {
     return html`
-      <button
-        class="import"
-        ?disabled=${this.importing}
-        @click=${this.onImportFileClick}
-      >
-        ${this.importing ? 'Importing…' : 'Import GEDCOM file'}
-      </button>
-      <button
-        class="import"
-        ?disabled=${this.importing}
-        title="Pick a folder containing the GEDCOM and its image folders"
-        @click=${this.onImportFolderClick}
-      >
-        Import GEDCOM folder
-      </button>
+      <div class="import-actions">
+        <button
+          class="import"
+          ?disabled=${this.importing}
+          @click=${this.onImportFileClick}
+        >
+          ${this.importing ? 'Importing…' : 'Import GEDCOM file'}
+        </button>
+        <button
+          class="import"
+          ?disabled=${this.importing}
+          title="Pick a folder containing the GEDCOM and its image folders"
+          @click=${this.onImportFolderClick}
+        >
+          Import GEDCOM folder
+        </button>
+      </div>
     `;
   }
 
@@ -377,10 +392,6 @@ export class AppElement extends LitElement {
         <h2>No datasets yet</h2>
         <p>Import a MyHeritage (or any) GEDCOM file to get started.</p>
         ${this.renderImportButton()}
-        <p class="muted">
-          Or from a terminal:
-          <code>bun run import-ged path/to/family.ged</code>
-        </p>
       </div>
     `;
   }
@@ -413,32 +424,35 @@ export class AppElement extends LitElement {
         <h1>Sukulinja</h1>
         <sl-theme-toggle></sl-theme-toggle>
       </header>
-      <div class="center">
-        <h2>Pick a dataset</h2>
+      <div class="page">
+        <div class="page-head">
+          <h2>Datasets</h2>
+          ${this.renderImportButton()}
+        </div>
         <ul class="chooser">
           ${this.datasets!.map(
             (d) => html`
               <li>
                 <a href=${`/d/${d.slug}/`}>
-                  ${d.displayName}
-                  <div class="muted">
+                  <span class="name">${d.displayName}</span>
+                  <span class="muted">
                     ${d.personCount} people · ${d.familyCount} families
-                  </div>
+                  </span>
                 </a>
                 <button
                   class="delete"
                   title="Delete dataset"
+                  aria-label=${`Delete ${d.displayName}`}
                   @click=${() => {
                     this.requestDelete(d);
                   }}
                 >
-                  Delete
+                  ${TRASH_ICON}
                 </button>
               </li>
             `
           )}
         </ul>
-        <p style="margin-top: 1.5rem">${this.renderImportButton()}</p>
       </div>
     `;
   }
