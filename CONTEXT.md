@@ -174,7 +174,7 @@ Holds **Focus** at a fixed screen pixel across a **Relayout** so the **Move** is
 _Avoid_: anchor, lock.
 
 **Nudge**:
-The minimal corrective pan applied on top of the **Pin** after a Focus **Relayout** when the **Comfort region** would fall outside the canvas. Zero when the region already fits — then the Pin stands untouched. Never changes zoom, and yields to a pan restored from the URL (ADR-0010). The survivors' **Move** carries it, so the view travels with the slide rather than jumping.
+The corrective pan applied on top of the **Pin** after a Focus **Relayout**, and on top of the centred Focus when a dataset first opens. On an axis where the whole chart fits the canvas, it centres the chart if any edge clips. On an axis where the chart is too large, it centres the **Comfort region** if that clips, then pulls the chart so its edge never leaves empty canvas on one side while the other side is clipped. Zero on an axis where nothing clips or leaves a gap — then the Pin stands untouched. Never changes zoom, and yields to a pan restored from the URL (ADR-0010). The survivors' **Move** carries it, so the view travels with the slide rather than jumping.
 _Avoid_: recenter, auto-pan, scroll.
 
 **Comfort region**:
@@ -185,7 +185,7 @@ A box's stable per-instance identity — the path of node ids from the chart roo
 _Avoid_: id (ambiguous with personId).
 
 **Schedule**:
-The policy assigning each **Transition** phase its timing — each of the **Leave**/**Enter** fades and the **Move** slide a delay/duration/easing. The Transition's _when_, kept separate from the **Planner**'s _what_ (ADR-0006). A single `transitionSchedule` (staggered Leave → Move → Enter); the swappable-Schedule seam is kept in shape so the choreography can be re-timed without touching the Planner even though only one ships. The **Enter** fade's delay spans the whole **Move**, so newcomers appear only once the slide has landed — the stagger is a plain CSS `animation-delay`, no JS gate.
+The policy assigning each **Transition** phase its timing — each of the **Leave**/**Enter** fades and the **Move** slide a delay/duration/easing. The Transition's _when_, kept separate from the **Planner**'s _what_ (ADR-0006). A single `transitionSchedule` (staggered Leave → Move → Enter), parameterised by how far the farthest survivor travels: the **Move** lengthens with distance (floor and cap) so a long slide glides instead of snapping, and the Enter delay follows it. The swappable-Schedule seam is kept in shape so the choreography can be re-timed without touching the Planner. The **Enter** fade's delay spans the whole **Move**, so newcomers appear only once the slide has landed — the stagger is a plain CSS `animation-delay`, no JS gate.
 _Avoid_: timeline (implementation detail).
 
 ## Flagged ambiguities

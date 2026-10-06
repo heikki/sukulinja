@@ -296,25 +296,44 @@ describe('beginRefocus + applyPendingPin', () => {
 });
 
 describe('refocus nudge', () => {
-  // Chart (0,0) maps to screen (pan - vbo*scale); vbo = (-224, -174).
+  // vbo = chart min - 24. Focus row is chart y 0; the region is it plus the
+  // parent row above.
   const REGION: Extents = {
-    min: { x: -100, y: -200 },
+    min: { x: -100, y: -140 },
     max: { x: 100, y: 70 }
   };
+  const TALL: Extents = {
+    min: { x: -200, y: -1000 },
+    max: { x: 200, y: 1000 }
+  };
+  const ENDS_BELOW_FOCUS: Extents = {
+    min: { x: -200, y: -1000 },
+    max: { x: 200, y: 150 }
+  };
 
-  test('shifts the pinned pan so the comfort region is on screen', () => {
-    const { controller, measurements } = setup();
+  test('centres the comfort region on an axis the pin would clip', () => {
+    const { controller, measurements } = setup(TALL);
     measurements.comfort = REGION;
     controller.ensureInitialPan();
-    // Pin Focus near the top edge: the parent row (y -200) would clip.
+    // Pin Focus near the top edge: the parent row would clip.
     controller.beginRefocus({ x: 400, y: 60 }, { nudge: true });
     controller.applyPendingViewport();
-    const top = controller.chartToScreen(REGION.min);
-    expect(top?.y).toBeCloseTo(24);
+    // 210 chart px tall in a 600 px canvas: centred leaves 195 px above.
+    expect(controller.chartToScreen(REGION.min)?.y).toBeCloseTo(195);
   });
 
-  test('leaves the pin alone when the region already fits', () => {
-    const { controller, measurements } = setup();
+  test('pulls the chart down when it ends above empty canvas', () => {
+    const { controller, measurements } = setup(ENDS_BELOW_FOCUS);
+    measurements.comfort = REGION;
+    controller.ensureInitialPan();
+    controller.beginRefocus({ x: 400, y: 300 }, { nudge: true });
+    controller.applyPendingViewport();
+    // Nothing below Focus row: its bottom edge settles on the bottom margin.
+    expect(controller.chartToScreen(ENDS_BELOW_FOCUS.max)?.y).toBeCloseTo(576);
+  });
+
+  test('leaves the pin alone when everything already fits', () => {
+    const { controller, measurements } = setup(TALL);
     measurements.comfort = REGION;
     controller.ensureInitialPan();
     controller.beginRefocus({ x: 400, y: 300 }, { nudge: true });
@@ -326,7 +345,7 @@ describe('refocus nudge', () => {
   });
 
   test('a pin without nudge (gen change) is not nudged', () => {
-    const { controller, measurements } = setup();
+    const { controller, measurements } = setup(TALL);
     measurements.comfort = REGION;
     controller.ensureInitialPan();
     controller.beginRefocus({ x: 400, y: 60 }, { silent: true });
@@ -446,6 +465,21 @@ describe('initial pan', () => {
     if (focusScreen === null) return;
     expect(focusScreen.x).toBeCloseTo(SIZE.width / 2, 6);
     expect(focusScreen.y).toBeCloseTo(SIZE.height / 2, 6);
+  });
+
+  test('nudges the centred Focus so a chart ending below it fills the canvas', () => {
+    const chart: Extents = {
+      min: { x: -200, y: -1000 },
+      max: { x: 200, y: 150 }
+    };
+    const { controller, measurements } = setup(chart);
+    measurements.comfort = {
+      min: { x: -100, y: -140 },
+      max: { x: 100, y: 70 }
+    };
+    controller.ensureInitialPan();
+    // Nothing below Focus row: its bottom edge settles on the bottom margin.
+    expect(controller.chartToScreen(chart.max)?.y).toBeCloseTo(576);
   });
 
   test('idempotent: a second call does not move pan', () => {

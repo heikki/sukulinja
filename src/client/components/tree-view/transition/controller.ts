@@ -18,6 +18,7 @@ import type {
   EnterPlan,
   FirstScreen,
   LeavePlan,
+  MovePlan,
   RelayoutKind,
   ToScreen
 } from './planner';
@@ -77,7 +78,8 @@ interface Pending {
 export class TransitionController implements ReactiveController {
   // The timing policy: Move reads it; the element mirrors Enter/Leave timings into
   // CSS custom properties.
-  private readonly _schedule: Schedule = transitionSchedule;
+  // Re-derived each settle from how far the survivors travel.
+  private _schedule: Schedule = transitionSchedule(0);
 
   // The chart currently painted on screen, so the next relayout can read each
   // card's old spot. The new chart commits between capture and settle.
@@ -198,6 +200,7 @@ export class TransitionController implements ReactiveController {
       toScreen: this.port.toScreen,
       card: { width: dims.boxW * cardScale, height: dims.boxH * cardScale }
     });
+    this._schedule = transitionSchedule(farthestTravel(plan.move));
     this.setEntering({
       boxKeys: carryOver(
         plan.enter.boxKeys,
@@ -265,6 +268,14 @@ export class TransitionController implements ReactiveController {
       y: (captureRef.y - now.y) / scale
     };
   }
+}
+
+// How far the farthest-travelling surviving card slides, in screen px.
+function farthestTravel({ boxes }: MovePlan) {
+  return Math.max(
+    0,
+    ...boxes.map((b) => Math.hypot(b.to.x - b.from.x, b.to.y - b.from.y))
+  );
 }
 
 // The relayout's newcomers, plus any survivor whose Enter fade from an earlier

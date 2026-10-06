@@ -114,26 +114,47 @@ export function zoomAt(
   };
 }
 
-interface AxisSpan {
+interface Span {
   low: number;
   high: number;
+}
+
+interface AxisSpan {
+  region: Span;
+  chart: Span;
   anchor: number;
 }
 
-// Shift along one axis the least that brings the span inside [margin, size -
-// margin]; when it cannot fit, centre its anchor instead so the clip falls
-// evenly on the region's far edges.
+// One axis of the Nudge. A chart that fits inside [margin, size - margin] is
+// left alone unless an edge clips, then centred whole. A chart too large to fit
+// keeps its region on screen — centred if it clips, or Focus's anchor centred if
+// the region itself is too large — then is pulled so the chart's edge never
+// leaves empty canvas on one side while the other side is clipped.
 function nudgeAxis(pan: number, span: AxisSpan, size: number, margin: number) {
-  const { low, high, anchor } = span;
-  if (high - low > size - margin * 2) return pan + size / 2 - anchor;
-  if (low < margin) return pan + (margin - low);
-  if (high > size - margin) return pan - (high - (size - margin));
-  return pan;
+  const { region, chart, anchor } = span;
+  const room = size - margin * 2;
+  if (chart.high - chart.low <= room) {
+    if (chart.low >= margin && chart.high <= size - margin) return pan;
+    return pan + size / 2 - (chart.low + chart.high) / 2;
+  }
+  let shift = 0;
+  if (region.high - region.low > room) shift = size / 2 - anchor;
+  else if (region.low < margin || region.high > size - margin) {
+    shift = size / 2 - (region.low + region.high) / 2;
+  }
+  const low = chart.low + shift;
+  const high = chart.high + shift;
+  if (low > margin) shift -= low - margin;
+  else if (high < size - margin) shift += size - margin - high;
+  return pan + shift;
 }
 
 export interface NudgeTarget {
-  // Chart-coord rectangle to bring on screen.
+  // Chart-coord rectangle to keep on screen.
   region: Extents;
+  // The whole chart's extents, so the Nudge can avoid leaving the canvas empty
+  // on one side while the other side is clipped.
+  chart: Extents;
   // Chart point kept centred on an axis the region is too large for.
   focus: Point;
   viewBoxOrigin: Point;
@@ -141,23 +162,36 @@ export interface NudgeTarget {
   marginPx: number;
 }
 
-// The pan that brings the region inside the canvas, padded by marginPx, with
-// the smallest shift per axis. Scale is untouched.
+// The pan that keeps the region, and as much of the chart as fits, on the
+// canvas, padded by marginPx. Scale is untouched.
 export function nudgeIntoView(t: Transform, target: NudgeTarget): Point {
-  const { region, focus, viewBoxOrigin, canvas, marginPx } = target;
-  const lo = chartToScreen(t, region.min, viewBoxOrigin);
-  const hi = chartToScreen(t, region.max, viewBoxOrigin);
-  const at = chartToScreen(t, focus, viewBoxOrigin);
+  const { region, chart, focus, viewBoxOrigin, canvas, marginPx } = target;
+  function place(p: Point) {
+    return chartToScreen(t, p, viewBoxOrigin);
+  }
+  const rLo = place(region.min);
+  const rHi = place(region.max);
+  const cLo = place(chart.min);
+  const cHi = place(chart.max);
+  const at = place(focus);
   return {
     x: nudgeAxis(
       t.pan.x,
-      { low: lo.x, high: hi.x, anchor: at.x },
+      {
+        region: { low: rLo.x, high: rHi.x },
+        chart: { low: cLo.x, high: cHi.x },
+        anchor: at.x
+      },
       canvas.width,
       marginPx
     ),
     y: nudgeAxis(
       t.pan.y,
-      { low: lo.y, high: hi.y, anchor: at.y },
+      {
+        region: { low: rLo.y, high: rHi.y },
+        chart: { low: cLo.y, high: cHi.y },
+        anchor: at.y
+      },
       canvas.height,
       marginPx
     )
