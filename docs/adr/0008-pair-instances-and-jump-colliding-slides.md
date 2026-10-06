@@ -21,3 +21,4 @@ Enter is decided with the rest of the plan, at settle, by instance key, rather t
 
 - The plan's `pairs` (old key → new key) let an Enter fade still running from a rapid previous Relayout follow its card rather than snapping to full opacity.
 - Generation Relayouts are rooted and never re-order a row: a sweep of every focus in the Bourbon sample at 1↔2↔3↔5 levels produced no jumps, so level changes slide exactly as before.
+- Ghosts are drawn in their own canvas-sized overlay under the chart, anchored at the old chart origin's screen spot and old scale, not inside the chart's SVG. That SVG snaps to the new chart's extents, and WebKit (the macOS app) clips what overflows it even with `overflow: visible`, so ghosts outside a smaller new chart would be cut off mid-fade.

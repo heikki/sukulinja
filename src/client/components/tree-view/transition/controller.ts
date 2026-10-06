@@ -36,21 +36,22 @@ export interface TransitionPort {
 }
 
 // The Ghost layer: the relayout's departing boxes/edges at their old chart-local
-// geometry, plus the offset and scale that land a ghost back at its last screen
-// spot. Scale is the old-over-new zoom ratio — 1 unless a back/forward step
-// restored a different zoom — applied about LEAVE_REF so the offset still lands.
+// geometry, plus the screen spot of the old chart origin and the old scale that
+// land a ghost back where it was last seen. The layer is drawn in its own
+// canvas-sized overlay, not inside the chart's SVG, so the new chart's (possibly
+// much smaller) extents can't clip it.
 export interface LeaveLayer {
   boxes: Box[];
   edges: DrawnLine[];
-  offset: Point;
+  origin: Point;
   scale: number;
 }
 
 function emptyLeaveLayer(): LeaveLayer {
-  return { boxes: [], edges: [], offset: { x: 0, y: 0 }, scale: 1 };
+  return { boxes: [], edges: [], origin: { x: 0, y: 0 }, scale: 1 };
 }
 
-// Frame-shift reference: any fixed chart point works; the origin is convenient.
+// Capture reference: the chart origin, whose old screen spot anchors the Ghost layer.
 const LEAVE_REF: Point = { x: 0, y: 0 };
 
 // A phase's full span: once delay + duration has elapsed, its fade is done.
@@ -239,12 +240,11 @@ export class TransitionController implements ReactiveController {
   // layer to clear once the fade is done. Always installs a fresh layer (possibly
   // empty) and cancels any prior timer, so a superseding relayout replaces cleanly.
   private playLeave({ boxes, edges }: LeavePlan, pending: Pending) {
-    this._leaving = {
-      boxes,
-      edges,
-      offset: this.frameShift(pending.captureRef),
-      scale: pending.captureScale / this.port.scale()
-    };
+    const { captureRef } = pending;
+    this._leaving =
+      captureRef === null
+        ? emptyLeaveLayer()
+        : { boxes, edges, origin: captureRef, scale: pending.captureScale };
     if (this.leaveClearTimer !== null) clearTimeout(this.leaveClearTimer);
     this.leaveClearTimer = null;
     if (boxes.length === 0 && edges.length === 0) return;
@@ -253,20 +253,6 @@ export class TransitionController implements ReactiveController {
       this._leaving = emptyLeaveLayer();
       this.host.requestUpdate();
     }, fadeLifespan(this._schedule.leave));
-  }
-
-  // How far the old frame's origin (LEAVE_REF) moved (user units) under the
-  // relayout + pin. Added to a ghost's old local position, it lands LEAVE_REF back
-  // at its last screen spot; the layer's scale (applied about LEAVE_REF) carries
-  // any zoom change, so this offset stays a pure translation.
-  private frameShift(captureRef: Point | null) {
-    const now = this.port.toScreen(LEAVE_REF);
-    if (captureRef === null || now === null) return { x: 0, y: 0 };
-    const scale = this.port.scale();
-    return {
-      x: (captureRef.x - now.x) / scale,
-      y: (captureRef.y - now.y) / scale
-    };
   }
 }
 
