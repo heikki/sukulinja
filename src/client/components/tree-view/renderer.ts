@@ -6,6 +6,7 @@ import type { PersonRow } from '@common/types';
 import { avatarUrl } from './avatar-cache';
 import { edgePath } from './connectors';
 import type { Box, DrawnLine } from './emit';
+import { silhouette, silhouetteStyles } from './silhouette';
 
 const NAME_MAX_CHARS = 14;
 
@@ -76,15 +77,7 @@ function avatar(p: PersonRow, cx: number, cy: number, r: number) {
   } else if (p.photo_path !== null) {
     return photoAvatar(mediaUrl(p.photo_path), cx, cy, r);
   }
-  // The shoulder ellipse touches the bg-circle only at its bottom point;
-  // anywhere else it sits inside, so no clipPath is needed.
-  const headR = r * 0.32;
-  const headCy = cy - r * 0.22;
-  return svg`
-    <circle class="silhouette-bg" cx=${cx} cy=${cy} r=${r} />
-    <circle class="silhouette" cx=${cx} cy=${headCy} r=${headR} />
-    <ellipse class="silhouette" cx=${cx} cy=${cy + r * 0.5} rx=${r * 0.7} ry=${r * 0.5} />
-  `;
+  return silhouette(p.sex, cx, cy, r);
 }
 
 // An entering item fades in via .enter; the fade is delayed (per the Schedule's
@@ -172,12 +165,7 @@ export const styles = css`
     clip-path: circle(50%);
     image-rendering: -webkit-optimize-contrast;
   }
-  .silhouette-bg {
-    fill: var(--silhouette-bg);
-  }
-  .silhouette {
-    fill: var(--silhouette);
-  }
+  ${silhouetteStyles}
 
   .node .box {
     fill: var(--card);

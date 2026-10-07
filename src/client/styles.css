@@ -25,9 +25,14 @@
   --card-border: light-dark(#d4d8de, #3a3a41);
   --line: light-dark(#bcc2ca, #4f525b);
   --focus-ring: light-dark(#5a8ac4, #5f8cbf);
-  /* The placeholder avatar for a person without a photo. */
+  /* The placeholder avatar for a person without a photo. The tones keep one
+     order in both schemes (hair darkest, skin lightest) so the bust reads as
+     the same drawing in each. */
   --silhouette-bg: light-dark(#e5e7eb, #3f3f46);
-  --silhouette: light-dark(#9ca3af, #71717a);
+  --silhouette-skin: light-dark(#c6cbd3, #8d8d98);
+  --silhouette-shade: light-dark(#b0b6c0, #777782);
+  --silhouette-clothing: light-dark(#9ca3af, #63636d);
+  --silhouette-hair: light-dark(#7c8492, #1f1f23);
 }
 
 :root[data-theme='light'] {
