@@ -36,3 +36,56 @@ export interface DatasetInfo {
   familyCount: number;
   importedAt: string | null;
 }
+
+// Returned by /api/persons/:id — what the Focus panel shows.
+export interface PersonDetails {
+  id: number;
+  name: string | null;
+  sex: string | null;
+  facts: FactRow[];
+  citations: CitationRow[];
+}
+
+// A person's own fact, or a fact of a marriage they're in (with the spouse).
+export interface FactRow {
+  tag: string;
+  date: string | null;
+  place: string | null;
+  // ADDR, for events recorded with an address rather than a place.
+  address: string | null;
+  value: string | null;
+  spouse: string | null;
+}
+
+export interface CitationRow {
+  id: number;
+  // Title of the cited source record, e.g. a MyHeritage collection.
+  source: string | null;
+  // PAGE as recorded; `url` repeats it when it is a link.
+  page: string | null;
+  url: string | null;
+  // A MyHeritage record citation read into its fields; null for others,
+  // which show `text` as recorded.
+  record: RecordView | null;
+  text: string | null;
+  // Cites a Finnish church book, so a scan may be found for it.
+  churchBook: boolean;
+}
+
+export interface RecordView {
+  // Whom (or which couple) the record is about.
+  name: string;
+  fields: RecordField[];
+  household: HouseholdMember[];
+}
+
+export interface RecordField {
+  label: string;
+  value: string;
+}
+
+export interface HouseholdMember {
+  relation: string | null;
+  name: string;
+  born: string | null;
+}

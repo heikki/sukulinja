@@ -90,6 +90,20 @@ function parseName(full: string): NameParts {
   };
 }
 
+const ADDRESS_PARTS = ['ADR1', 'ADR2', 'ADR3', 'CITY', 'STAE', 'POST', 'CTRY'];
+
+// An event's ADDR, its lines joined. MyHeritage records residences this way
+// rather than with PLAC.
+function addressOf(node: GedNode) {
+  const addr = findChild(node, 'ADDR');
+  if (addr === undefined) return null;
+  const parts = [
+    addr.value,
+    ...ADDRESS_PARTS.map((tag) => childValue(addr, tag))
+  ].filter((x) => x !== undefined && x !== null && x.trim() !== '');
+  return parts.length === 0 ? null : parts.join(', ');
+}
+
 function cropValues(file: GedNode) {
   const crop = findChild(file, 'CROP');
   if (crop === undefined) {
@@ -138,7 +152,7 @@ export function importGedcom(
     'INSERT INTO names (person_id, full_text, given, surname, suffix, name_type, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)'
   );
   const insertFact = db.prepare(
-    'INSERT INTO facts (scope_type, scope_id, tag, date_text, place, value, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO facts (scope_type, scope_id, tag, date_text, place, address, value, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
   );
   const insertFamilyChild = db.prepare(
     'INSERT OR IGNORE INTO family_children (family_id, person_id, sort_order) VALUES (?, ?, ?)'
@@ -287,6 +301,7 @@ export function importGedcom(
       node.tag,
       childValue(node, 'DATE'),
       childValue(node, 'PLAC'),
+      addressOf(node),
       node.value ?? null,
       order
     );

@@ -7,6 +7,7 @@ import type { FamilyRow, PersonRow } from '@common/types';
 
 import type { DatasetRegistry } from './dataset-registry';
 import { importDataset, slugFromFilename } from './import-dataset';
+import { createPersonDetails } from './person-details';
 import { runPool } from './pool';
 
 const DATASET_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?<rest>\/.*)?$/u;
@@ -24,6 +25,7 @@ interface ApiHandlers {
 interface DatasetHandlers {
   handlePersons: () => Response;
   handleFamilies: () => Response;
+  handlePerson: (id: number) => Response;
   handleMedia: (rest: string, mediaRoot: string) => Promise<Response>;
 }
 
@@ -69,6 +71,7 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
   const listFamilyChildren = db.prepare(
     'SELECT family_id, person_id FROM family_children ORDER BY family_id, sort_order'
   );
+  const personDetails = createPersonDetails(db);
 
   return {
     handlePersons() {
@@ -119,6 +122,13 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
         child_ids: childrenByFamily.get(f.id) ?? []
       }));
       return Response.json(out);
+    },
+
+    handlePerson(id) {
+      const details = personDetails(id);
+      return details === null
+        ? new Response('person not found', { status: 404 })
+        : Response.json(details);
     },
 
     async handleMedia(rest, mediaRoot) {
@@ -253,6 +263,8 @@ async function routeDataset(
 ): Promise<Response | null> {
   if (rest === '/api/persons') return handlers.handlePersons();
   if (rest === '/api/families') return handlers.handleFamilies();
+  const person = /^\/api\/persons\/(?<id>\d+)$/.exec(rest);
+  if (person !== null) return handlers.handlePerson(Number(person.groups!.id));
   if (rest.startsWith('/media/')) {
     return await handlers.handleMedia(rest, mediaRoot);
   }

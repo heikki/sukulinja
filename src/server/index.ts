@@ -1,6 +1,10 @@
 import { cpSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { ApplicationMenu, BrowserWindow, Utils } from 'electrobun/main';
+import Electrobun, {
+  ApplicationMenu,
+  BrowserWindow,
+  Utils
+} from 'electrobun/main';
 
 import { DatasetRegistry } from './dataset-registry';
 import { createApi, createStaticFetch } from './server';
@@ -93,7 +97,7 @@ ApplicationMenu.setApplicationMenu([
 ]);
 
 interface ElectrobunEvent {
-  data?: { action?: string };
+  data?: { action?: string; detail?: string | { url?: string } };
 }
 
 // Electrobun delivers the action under `event.data`, not the standard
@@ -101,6 +105,14 @@ interface ElectrobunEvent {
 ApplicationMenu.on('application-menu-clicked', (event: unknown) => {
   const action = (event as ElectrobunEvent).data?.action ?? '';
   if (action === 'quit') process.exit(0);
+});
+
+// A target=_blank link (a source's record or scan) opens in the default
+// browser; the webview has no windows of its own to open.
+Electrobun.events.on('new-window-open', (event: unknown) => {
+  const detail = (event as ElectrobunEvent).data?.detail;
+  const url = typeof detail === 'string' ? detail : detail?.url;
+  if (url !== undefined && /^https?:/.test(url)) Utils.openExternal(url);
 });
 
 const savedFrame = loadWindowFrame(stateDir);

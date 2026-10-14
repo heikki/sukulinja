@@ -42,6 +42,7 @@ const SCHEMA_SQL = `
     tag TEXT NOT NULL,
     date_text TEXT,
     place TEXT,
+    address TEXT,
     value TEXT,
     sort_order INTEGER NOT NULL DEFAULT 0
   );
@@ -95,6 +96,21 @@ const SCHEMA_SQL = `
   );
 `;
 
+// Columns added after datasets already existed; CREATE TABLE IF NOT EXISTS
+// leaves an older table as it was.
+const ADDED_COLUMNS = [{ table: 'facts', column: 'address', type: 'TEXT' }];
+
+function addMissingColumns(db: Database) {
+  for (const { table, column, type } of ADDED_COLUMNS) {
+    const columns = db
+      .query<{ name: string }, []>(`PRAGMA table_info(${table})`)
+      .all();
+    if (!columns.some((c) => c.name === column)) {
+      db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
+    }
+  }
+}
+
 export function openDb(path: string): Database {
   const db = new Database(path, { create: true });
   db.run('PRAGMA foreign_keys = ON;');
@@ -103,5 +119,6 @@ export function openDb(path: string): Database {
     .filter((s) => s !== '')) {
     db.run(stmt);
   }
+  addMissingColumns(db);
   return db;
 }
