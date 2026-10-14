@@ -70,6 +70,8 @@ export interface CitationRow {
   text: string | null;
   // Cites a Finnish church book, so a scan may be found for it.
   churchBook: boolean;
+  // The church-book page cited, which a scan correction places.
+  citedPage: number | null;
 }
 
 export interface RecordView {

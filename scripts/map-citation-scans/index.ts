@@ -13,14 +13,13 @@ import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import type { Scan, ScanResolution } from '@common/types';
+import { loadAnchors } from '@server/citation-scans/anchors';
 import { CACHE_DIR } from '@server/citation-scans/astia';
 import { resolveCitation } from '@server/citation-scans/locate';
-import type { Anchors } from '@server/citation-scans/locate';
 import type { Citation } from '@server/citation-scans/record';
 
 import { churchCitations } from './citations';
 
-const ANCHORS_FILE = resolve('src/server/citation-scans/anchors.json');
 const OUT_FILE = resolve('data/citation-scans.json');
 const CHECKLIST_FILE = resolve('data/citation-scans-checklist.md');
 
@@ -114,7 +113,7 @@ async function main() {
     return;
   }
 
-  const anchors = (await Bun.file(ANCHORS_FILE).json()) as Anchors;
+  const anchors = await loadAnchors();
   const resolutions = await Promise.all(
     citations.map((c) => resolveCitation(c, anchors))
   );

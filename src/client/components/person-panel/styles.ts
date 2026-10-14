@@ -108,6 +108,64 @@ export const personPanelStyles = css`
     margin-top: 0.5rem;
   }
 
+  button.link {
+    margin-top: 0.35rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+
+  button.link:hover {
+    color: var(--accent);
+  }
+
+  .correction {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+  }
+
+  .correction p {
+    flex-basis: 100%;
+    margin: 0;
+  }
+
+  .correction input {
+    flex: 1;
+    min-width: 6rem;
+    padding: 0.3rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+  }
+
+  .correction button {
+    padding: 0.3rem 0.7rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--card);
+    color: var(--fg);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .correction button[type='submit'] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+  }
+
+  .error {
+    color: var(--danger);
+  }
+
   a {
     color: var(--accent);
     text-decoration: none;

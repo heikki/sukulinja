@@ -29,27 +29,39 @@ function linkOf(page: string | null) {
   return page !== null && /^https?:/.test(page) ? page : null;
 }
 
-// The first year of the church book cited, for ordering; others sort last.
-function bookYear(url: string | null, text: string | null) {
-  if (url === null) return Infinity;
-  return parseCitation(url, text ?? '').years?.from ?? Infinity;
+function churchCitationOf(url: string | null, text: string) {
+  const collection = url === null ? null : collectionOf(url);
+  return url !== null &&
+    collection !== null &&
+    CHURCH_COLLECTIONS.has(collection)
+    ? parseCitation(url, text)
+    : null;
 }
 
+// A MyHeritage record is read into its fields; others keep their text.
+function contentOf(url: string | null, text: string | null) {
+  if (url?.includes('myheritage.') === true) {
+    return { record: readRecord(text ?? ''), text: null };
+  }
+  return {
+    record: null,
+    text: text === null ? null : citationText(text).trim()
+  };
+}
+
+// A church book's first year orders it; other sources sort last.
 function toCitation(row: CitationDbRow): CitationRow & { year: number } {
   const url = linkOf(row.page);
-  const collection = url === null ? null : collectionOf(url);
-  const churchBook = collection !== null && CHURCH_COLLECTIONS.has(collection);
-  const myHeritage = url?.includes('myheritage.') === true;
-  const text = row.text ?? '';
+  const book = churchCitationOf(url, row.text ?? '');
   return {
     id: row.id,
     source: row.source,
     page: row.page,
     url,
-    record: myHeritage ? readRecord(text) : null,
-    text: myHeritage || row.text === null ? null : citationText(text).trim(),
-    churchBook,
-    year: churchBook ? bookYear(url, row.text) : Infinity
+    ...contentOf(url, row.text),
+    churchBook: book !== null,
+    citedPage: book?.page ?? null,
+    year: book?.years?.from ?? Infinity
   };
 }
 

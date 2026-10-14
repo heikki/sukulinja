@@ -86,7 +86,8 @@ function renderScans(scan: ScanResolution | undefined, pending: boolean) {
 function renderCitation(
   c: CitationRow,
   scan: ScanResolution | undefined,
-  pending: boolean
+  pending: boolean,
+  correction: unknown
 ) {
   return html`
     <article class="source">
@@ -110,6 +111,7 @@ function renderCitation(
               </div>
             `
       }
+      ${correction}
     </article>
   `;
 }
@@ -126,6 +128,9 @@ export class PersonPanelElement extends LitElement {
   @state() private error: string | null = null;
   @state() private scans = new Map<number, ScanResolution>();
   @state() private scansPending = false;
+  // The citation whose scan is being corrected, and what went wrong.
+  @state() private correcting: number | null = null;
+  @state() private correctionError: string | null = null;
 
   private scanAbort: AbortController | null = null;
 
@@ -151,18 +156,21 @@ export class PersonPanelElement extends LitElement {
       if (request !== this.request) return;
       this.details = details;
       this.error = null;
-      void this.loadScans(id);
+      this.correcting = null;
+      void this.loadScans(id, false);
     } catch (err) {
       if (request !== this.request) return;
       this.error = err instanceof Error ? err.message : 'failed to load';
     }
   }
 
-  // One streamed request per person; refocusing aborts it.
-  private async loadScans(id: number) {
+  // One streamed request per person; refocusing aborts it. A reload after a
+  // correction keeps the links shown until their new ones arrive.
+  private async loadScans(id: number, keep: boolean) {
+    this.scanAbort?.abort();
     const abort = new AbortController();
     this.scanAbort = abort;
-    this.scans = new Map();
+    if (!keep) this.scans = new Map();
     this.scansPending = true;
     try {
       const res = await fetch(apiUrl(`/api/persons/${id}/scans`), {
@@ -178,6 +186,86 @@ export class PersonPanelElement extends LitElement {
     } finally {
       if (!abort.signal.aborted) this.scansPending = false;
     }
+  }
+
+  // An image number in the linked volume, or an Astia viewer link to any
+  // image of the candidate volumes. The server saves it as an anchor for the
+  // cited page, which also moves nearby citations; they're reloaded.
+  private async correct(c: CitationRow, scan: Scan, input: string) {
+    const where = input.trim();
+    const body = /^\d+$/.test(where)
+      ? { volumeId: scan.volumeId, image: Number(where) }
+      : { url: where };
+    const res = await fetch(apiUrl(`/api/citations/${c.id}/scans`), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body)
+    }).catch(() => null);
+    if (res === null) {
+      this.correctionError = 'The app is not responding.';
+      return;
+    }
+    if (!res.ok) {
+      this.correctionError = await res.text();
+      return;
+    }
+    const { citationId, ...resolution } = (await res.json()) as CitationScans;
+    this.scans = new Map(this.scans).set(citationId, resolution);
+    this.correcting = null;
+    if (this.personId !== null) void this.loadScans(this.personId, true);
+  }
+
+  private renderCorrection(c: CitationRow, scan: ScanResolution | undefined) {
+    if (c.citedPage === null || scan === undefined || !('scans' in scan)) {
+      return nothing;
+    }
+    const first = scan.scans[0];
+    if (first === undefined) return nothing;
+    if (this.correcting !== c.id) {
+      return html`
+        <button
+          class="link"
+          @click=${() => {
+            this.correcting = c.id;
+            this.correctionError = null;
+          }}
+        >
+          Wrong image?
+        </button>
+      `;
+    }
+    return html`
+      <form
+        class="correction"
+        @submit=${(e: SubmitEvent) => {
+          e.preventDefault();
+          const input = (e.target as HTMLFormElement).elements.namedItem(
+            'where'
+          ) as HTMLInputElement;
+          void this.correct(c, first, input.value);
+        }}
+      >
+        <p class="muted">
+          Where is page ${c.citedPage}? Give the image number in
+          ${first.volume}, or paste the Astia link of the right image.
+        </p>
+        <input name="where" required autofocus placeholder="e.g. 107" />
+        <button type="submit">Save</button>
+        <button
+          type="button"
+          @click=${() => {
+            this.correcting = null;
+          }}
+        >
+          Cancel
+        </button>
+        ${
+          this.correctionError === null
+            ? nothing
+            : html`<p class="error">${this.correctionError}</p>`
+        }
+      </form>
+    `;
   }
 
   override render() {
@@ -210,7 +298,12 @@ export class PersonPanelElement extends LitElement {
             : html`
                 <h3>Sources · ${d.citations.length}</h3>
                 ${d.citations.map((c) =>
-                  renderCitation(c, this.scans.get(c.id), this.scansPending)
+                  renderCitation(
+                    c,
+                    this.scans.get(c.id),
+                    this.scansPending,
+                    this.renderCorrection(c, this.scans.get(c.id))
+                  )
                 )}
               `
         }
