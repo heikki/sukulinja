@@ -12,9 +12,10 @@ import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
+import type { Scan, ScanResolution } from '@common/types';
 import { CACHE_DIR } from '@server/citation-scans/astia';
 import { resolveCitation } from '@server/citation-scans/locate';
-import type { Anchors, Resolution, Scan } from '@server/citation-scans/locate';
+import type { Anchors } from '@server/citation-scans/locate';
 import type { Citation } from '@server/citation-scans/record';
 
 import { churchCitations } from './citations';
@@ -30,7 +31,7 @@ function printTally(keys: string[]) {
   for (const [k, n] of sorted) console.log(`${String(n).padStart(6)}  ${k}`);
 }
 
-function resolutionKey(c: Citation, r: Resolution) {
+function resolutionKey(c: Citation, r: ScanResolution) {
   if ('error' in r) return `${c.collection} ✗ ${r.error}`;
   const ambiguous = r.scans.length > 1 ? ' (split volume)' : '';
   return `${c.collection} ${r.scans[0]!.method}${ambiguous}`;
@@ -45,7 +46,7 @@ interface ChecklistEntry {
 // Cited volumes without an anchor, most-cited first: those where a page was
 // estimated, and those where the estimate ran past the volume's end. Each
 // links to an image to read, so checking it is one click.
-function checklist(citations: Citation[], resolutions: Resolution[]) {
+function checklist(citations: Citation[], resolutions: ScanResolution[]) {
   const byVolume = new Map<string, ChecklistEntry>();
   citations.forEach((c, i) => {
     const r = resolutions[i]!;

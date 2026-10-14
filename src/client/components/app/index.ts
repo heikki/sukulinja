@@ -4,6 +4,7 @@ import { customElement, state } from 'lit/decorators.js';
 import '../theme-toggle';
 import '../tree-view';
 
+import { readNdjson } from '@client/ndjson';
 import { slugFromFilename } from '@common/slug';
 import type { DatasetInfo } from '@common/types';
 
@@ -170,30 +171,13 @@ export class AppElement extends LitElement {
   private async consumeImportStream(
     body: ReadableStream<Uint8Array>
   ): Promise<DatasetInfo | null> {
-    const reader = body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
     let done: DatasetInfo | null = null;
-    for (;;) {
-      // eslint-disable-next-line no-await-in-loop -- the stream is read sequentially, one chunk at a time
-      const chunk = await reader.read();
-      buffer += decoder.decode(chunk.value ?? new Uint8Array(), {
-        stream: !chunk.done
-      });
-      let nl = buffer.indexOf('\n');
-      while (nl !== -1) {
-        const line = buffer.slice(0, nl).trim();
-        buffer = buffer.slice(nl + 1);
-        if (line !== '') {
-          const event = JSON.parse(line) as ImportEvent;
-          if (event.type === 'log') this.importStatus = event.message;
-          else if (event.type === 'error') this.importError = event.message;
-          else done = event.info;
-        }
-        nl = buffer.indexOf('\n');
-      }
-      if (chunk.done) break;
-    }
+    await readNdjson(body, (raw) => {
+      const event = raw as ImportEvent;
+      if (event.type === 'log') this.importStatus = event.message;
+      else if (event.type === 'error') this.importError = event.message;
+      else done = event.info;
+    });
     return done;
   }
 

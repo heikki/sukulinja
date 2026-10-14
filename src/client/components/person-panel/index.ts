@@ -3,7 +3,16 @@ import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { apiUrl } from '@client/api';
-import type { CitationRow, PersonDetails, RecordView } from '@common/types';
+import { readNdjson } from '@client/ndjson';
+import type {
+  CitationRow,
+  CitationScans,
+  PersonDetails,
+  RecordView,
+  Scan,
+  ScanMethod,
+  ScanResolution
+} from '@common/types';
 
 import { factLabel, factText } from './helpers';
 import { personPanelStyles } from './styles';
@@ -41,7 +50,44 @@ function renderRecord(r: RecordView) {
   `;
 }
 
-function renderCitation(c: CitationRow) {
+const SCAN_LABELS: Record<ScanMethod, string> = {
+  anchored: 'Scan',
+  estimated: 'Scan (approximate)',
+  volume: 'Volume'
+};
+
+function renderScan(s: Scan, i: number, all: Scan[]) {
+  const part = all.length > 1 ? ` ${i + 1}/${all.length}` : '';
+  return html`
+    <a
+      href=${s.url}
+      target="_blank"
+      rel="noopener"
+      title=${`${s.volume}, image ${s.image}`}
+    >
+      ${SCAN_LABELS[s.method]}${part} ↗
+    </a>
+  `;
+}
+
+// Scans arrive after the panel renders; until then the link is pending.
+function renderScans(scan: ScanResolution | undefined, pending: boolean) {
+  if (scan === undefined) {
+    return html`<span class="muted">
+      ${pending ? 'Finding scan…' : 'Scan unavailable'}
+    </span>`;
+  }
+  if ('error' in scan) {
+    return html`<span class="muted" title=${scan.error}>No scan found</span>`;
+  }
+  return scan.scans.map(renderScan);
+}
+
+function renderCitation(
+  c: CitationRow,
+  scan: ScanResolution | undefined,
+  pending: boolean
+) {
   return html`
     <article class="source">
       ${
@@ -60,6 +106,7 @@ function renderCitation(c: CitationRow) {
           : html`
               <div class="links">
                 <a href=${c.url} target="_blank" rel="noopener">Record ↗</a>
+                ${c.churchBook ? renderScans(scan, pending) : nothing}
               </div>
             `
       }
@@ -77,6 +124,10 @@ export class PersonPanelElement extends LitElement {
 
   @state() private details: PersonDetails | null = null;
   @state() private error: string | null = null;
+  @state() private scans = new Map<number, ScanResolution>();
+  @state() private scansPending = false;
+
+  private scanAbort: AbortController | null = null;
 
   // Refocusing fast can return answers out of order; only the latest counts.
   private request = 0;
@@ -88,6 +139,7 @@ export class PersonPanelElement extends LitElement {
   private async load() {
     const id = this.personId;
     const request = ++this.request;
+    this.scanAbort?.abort();
     if (id === null) {
       this.details = null;
       return;
@@ -99,9 +151,32 @@ export class PersonPanelElement extends LitElement {
       if (request !== this.request) return;
       this.details = details;
       this.error = null;
+      void this.loadScans(id);
     } catch (err) {
       if (request !== this.request) return;
       this.error = err instanceof Error ? err.message : 'failed to load';
+    }
+  }
+
+  // One streamed request per person; refocusing aborts it.
+  private async loadScans(id: number) {
+    const abort = new AbortController();
+    this.scanAbort = abort;
+    this.scans = new Map();
+    this.scansPending = true;
+    try {
+      const res = await fetch(apiUrl(`/api/persons/${id}/scans`), {
+        signal: abort.signal
+      });
+      if (!res.ok || res.body === null) throw new Error(String(res.status));
+      await readNdjson(res.body, (raw) => {
+        const { citationId, ...scan } = raw as CitationScans;
+        this.scans = new Map(this.scans).set(citationId, scan);
+      });
+    } catch {
+      // Unresolved citations show as unavailable once pending clears.
+    } finally {
+      if (!abort.signal.aborted) this.scansPending = false;
     }
   }
 
@@ -134,7 +209,9 @@ export class PersonPanelElement extends LitElement {
             ? nothing
             : html`
                 <h3>Sources · ${d.citations.length}</h3>
-                ${d.citations.map((c) => renderCitation(c))}
+                ${d.citations.map((c) =>
+                  renderCitation(c, this.scans.get(c.id), this.scansPending)
+                )}
               `
         }
       </div>

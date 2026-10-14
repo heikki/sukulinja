@@ -5,6 +5,8 @@ import type { Database } from 'bun:sqlite';
 
 import type { FamilyRow, PersonRow } from '@common/types';
 
+import { setCacheDir } from './citation-scans/astia';
+import { isChurchBook, resolveScans } from './citation-scans/scans';
 import type { DatasetRegistry } from './dataset-registry';
 import { importDataset, slugFromFilename } from './import-dataset';
 import { createPersonDetails } from './person-details';
@@ -26,6 +28,7 @@ interface DatasetHandlers {
   handlePersons: () => Response;
   handleFamilies: () => Response;
   handlePerson: (id: number) => Response;
+  handlePersonScans: (id: number) => Response;
   handleMedia: (rest: string, mediaRoot: string) => Promise<Response>;
 }
 
@@ -72,6 +75,13 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
     'SELECT family_id, person_id FROM family_children ORDER BY family_id, sort_order'
   );
   const personDetails = createPersonDetails(db);
+  const listCitations = db.prepare<
+    { id: number; page: string | null; text: string | null },
+    [number]
+  >(
+    `SELECT id, page, text FROM citations
+     WHERE scope_type = 'person' AND scope_id = ? ORDER BY sort_order`
+  );
 
   return {
     handlePersons() {
@@ -129,6 +139,39 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
       return details === null
         ? new Response('person not found', { status: 404 })
         : Response.json(details);
+    },
+
+    // One line per church-book citation as its scans resolve. Astia is slow
+    // and throttled, so a person's citations share one streamed request
+    // rather than holding a connection each.
+    handlePersonScans(id) {
+      const rows = listCitations
+        .all(id)
+        .filter((r): r is typeof r & { page: string } => isChurchBook(r.page));
+      let open = true;
+      const enc = new TextEncoder();
+      const stream = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          await Promise.all(
+            rows.map(async (r) => {
+              const line = {
+                citationId: r.id,
+                ...(await resolveScans(r.page, r.text))
+              };
+              if (open) {
+                controller.enqueue(enc.encode(`${JSON.stringify(line)}\n`));
+              }
+            })
+          );
+          if (open) controller.close();
+        },
+        cancel() {
+          open = false;
+        }
+      });
+      return new Response(stream, {
+        headers: { 'content-type': 'application/x-ndjson' }
+      });
     },
 
     async handleMedia(rest, mediaRoot) {
@@ -263,8 +306,13 @@ async function routeDataset(
 ): Promise<Response | null> {
   if (rest === '/api/persons') return handlers.handlePersons();
   if (rest === '/api/families') return handlers.handleFamilies();
-  const person = /^\/api\/persons\/(?<id>\d+)$/.exec(rest);
-  if (person !== null) return handlers.handlePerson(Number(person.groups!.id));
+  const person = /^\/api\/persons\/(?<id>\d+)(?<scans>\/scans)?$/.exec(rest);
+  if (person !== null) {
+    const id = Number(person.groups!.id);
+    return person.groups!.scans === undefined
+      ? handlers.handlePerson(id)
+      : handlers.handlePersonScans(id);
+  }
   if (rest.startsWith('/media/')) {
     return await handlers.handleMedia(rest, mediaRoot);
   }
@@ -272,6 +320,8 @@ async function routeDataset(
 }
 
 export function createApi(registry: DatasetRegistry): ApiHandlers {
+  // Beside the datasets; the registry lists only slug-named folders.
+  setCacheDir(join(registry.root, '.astia-cache'));
   const handlersBySlug = new Map<string, DatasetHandlers>();
 
   function tryOpen(slug: string): Database | null {
