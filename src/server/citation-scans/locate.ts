@@ -49,25 +49,31 @@ export type Anchors = Record<string, { title?: string; anchors: Anchor[] }>;
 // ---------------------------------------------------------------- volumes
 
 function overlap(a: Years, b: Years) {
-  return Math.min(a.to, b.to) - Math.max(a.from, b.from) + 1;
+  return Math.max(0, Math.min(a.to, b.to) - Math.max(a.from, b.from) + 1);
 }
 
-// Exact year range first, then volumes containing the cited range, then the
-// best partial overlap (MyHeritage and Astia sometimes disagree by a year).
+function partsOverlap(v: Volume, years: Years) {
+  return v.parts.reduce((sum, p) => sum + overlap(p, years), 0);
+}
+
+// Exact year range first (MyHeritage cites a volume's whole span), then
+// volumes with a part containing the cited range, then the best partial
+// overlap (MyHeritage and Astia sometimes disagree by a year). Parts leave
+// out a span's gaps.
 function candidateVolumes(volumes: Volume[], kind: BookKind, years: Years) {
   const sameKind = volumes.filter((v) => v.kind === kind && v.years !== null);
   const exact = sameKind.filter(
     (v) => v.years!.from === years.from && v.years!.to === years.to
   );
   if (exact.length > 0) return exact;
-  const containing = sameKind.filter(
-    (v) => v.years!.from <= years.from && v.years!.to >= years.to
+  const containing = sameKind.filter((v) =>
+    v.parts.some((p) => p.from <= years.from && p.to >= years.to)
   );
   if (containing.length > 0) return containing;
-  const best = Math.max(0, ...sameKind.map((v) => overlap(v.years!, years)));
+  const best = Math.max(0, ...sameKind.map((v) => partsOverlap(v, years)));
   return best === 0
     ? []
-    : sameKind.filter((v) => overlap(v.years!, years) === best);
+    : sameKind.filter((v) => partsOverlap(v, years) === best);
 }
 
 // Old spellings use W for V ("Wehmais", "Wäätämönsalmi").

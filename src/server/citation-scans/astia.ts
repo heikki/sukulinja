@@ -37,7 +37,9 @@ interface Unit {
 
 export interface Volume extends Unit {
   kind: BookKind | null;
+  // The whole span, and the ranges it holds: a span with gaps lists them.
   years: Years | null;
+  parts: Years[];
 }
 
 // ---------------------------------------------------------------- fetching
@@ -138,11 +140,39 @@ export function viewerUrl(volumeId: string, fileId: string) {
   return `${ASTIA}/viewer/?fileId=${fileId}&aineistoId=${volumeId}`;
 }
 
+const RANGE = /(?<from>1[5-9]\d\d)\s*-\s*(?<to>1[5-9]\d\d)/g;
+
+function toYears(groups: Record<string, string> | undefined) {
+  return { from: Number(groups!.from), to: Number(groups!.to) };
+}
+
+// "I Aa:3 Pää- ja rippikirjat, 1766-1771, 1788-1789 kylät Hankamäki-Orala
+// (1766-1789)": the bracketed range at the end spans the whole volume; the
+// ones before it are its parts.
+export function volumeYears(label: string) {
+  const span = /\((?<from>1[5-9]\d\d)\s*-\s*(?<to>1[5-9]\d\d)\)\s*$/.exec(
+    label
+  );
+  if (span === null) {
+    const years = yearRange(label);
+    return { years, parts: years === null ? [] : [years] };
+  }
+  const listed = [...label.slice(0, span.index).matchAll(RANGE)].map((m) =>
+    toYears(m.groups)
+  );
+  const years = toYears(span.groups);
+  return { years, parts: listed.length > 0 ? listed : [years] };
+}
+
 async function crawlSeries(id: string): Promise<Volume[]> {
   const units = await readUnit(id);
   const volumes = units
     .filter((u) => u.level === 'file')
-    .map((u) => ({ ...u, kind: bookKind(u.label), years: yearRange(u.label) }));
+    .map((u) => ({
+      ...u,
+      kind: bookKind(u.label),
+      ...volumeYears(u.label)
+    }));
   const series = units.filter(
     (u) => u.level !== 'file' && !SKIP_SERIES.test(u.label)
   );
