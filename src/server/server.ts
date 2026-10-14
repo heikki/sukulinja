@@ -5,8 +5,13 @@ import type { Database } from 'bun:sqlite';
 
 import type { FamilyRow, PersonRow } from '@common/types';
 
-import { setCacheDir } from './citation-scans/astia';
-import { isChurchBook, resolveScans } from './citation-scans/scans';
+import {
+  correctScan,
+  isChurchBook,
+  resolveScans,
+  useDataFolder
+} from './citation-scans/scans';
+import type { Correction } from './citation-scans/scans';
 import type { DatasetRegistry } from './dataset-registry';
 import { importDataset, slugFromFilename } from './import-dataset';
 import { createPersonDetails } from './person-details';
@@ -29,6 +34,7 @@ interface DatasetHandlers {
   handleFamilies: () => Response;
   handlePerson: (id: number) => Response;
   handlePersonScans: (id: number) => Response;
+  handleCorrection: (id: number, correction: Correction) => Promise<Response>;
   handleMedia: (rest: string, mediaRoot: string) => Promise<Response>;
 }
 
@@ -75,6 +81,10 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
     'SELECT family_id, person_id FROM family_children ORDER BY family_id, sort_order'
   );
   const personDetails = createPersonDetails(db);
+  const getCitation = db.prepare<
+    { page: string | null; text: string | null },
+    [number]
+  >('SELECT page, text FROM citations WHERE id = ?');
   const listCitations = db.prepare<
     { id: number; page: string | null; text: string | null },
     [number]
@@ -172,6 +182,17 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
       return new Response(stream, {
         headers: { 'content-type': 'application/x-ndjson' }
       });
+    },
+
+    async handleCorrection(id, correction) {
+      const row = getCitation.get(id);
+      if (row === null || !isChurchBook(row.page)) {
+        return new Response('citation not found', { status: 404 });
+      }
+      const result = await correctScan(row.page, row.text, correction);
+      return 'rejected' in result
+        ? new Response(result.rejected, { status: 400 })
+        : Response.json({ citationId: id, ...result });
     },
 
     async handleMedia(rest, mediaRoot) {
@@ -299,7 +320,35 @@ async function handleDeleteDataset(
   }
 }
 
+// `{ url }` or `{ volumeId, image }`; anything else is rejected.
+async function readCorrection(req: Request): Promise<Correction | null> {
+  const body = (await req.json().catch(() => null)) as Record<
+    string,
+    unknown
+  > | null;
+  if (typeof body?.url === 'string') return { url: body.url };
+  if (typeof body?.volumeId === 'string' && typeof body.image === 'number') {
+    return { volumeId: body.volumeId, image: body.image };
+  }
+  return null;
+}
+
+async function routeCorrection(
+  req: Request,
+  handlers: DatasetHandlers,
+  id: number
+) {
+  if (req.method !== 'POST') {
+    return new Response('method not allowed', { status: 405 });
+  }
+  const correction = await readCorrection(req);
+  return correction === null
+    ? new Response('expected { url } or { volumeId, image }', { status: 400 })
+    : await handlers.handleCorrection(id, correction);
+}
+
 async function routeDataset(
+  req: Request,
   handlers: DatasetHandlers,
   rest: string,
   mediaRoot: string
@@ -313,6 +362,10 @@ async function routeDataset(
       ? handlers.handlePerson(id)
       : handlers.handlePersonScans(id);
   }
+  const citation = /^\/api\/citations\/(?<id>\d+)\/scans$/.exec(rest);
+  if (citation !== null) {
+    return await routeCorrection(req, handlers, Number(citation.groups!.id));
+  }
   if (rest.startsWith('/media/')) {
     return await handlers.handleMedia(rest, mediaRoot);
   }
@@ -320,8 +373,7 @@ async function routeDataset(
 }
 
 export function createApi(registry: DatasetRegistry): ApiHandlers {
-  // Beside the datasets; the registry lists only slug-named folders.
-  setCacheDir(join(registry.root, '.astia-cache'));
+  useDataFolder(registry.root);
   const handlersBySlug = new Map<string, DatasetHandlers>();
 
   function tryOpen(slug: string): Database | null {
@@ -369,7 +421,7 @@ export function createApi(registry: DatasetRegistry): ApiHandlers {
       if (handlers === null) {
         return new Response('dataset not found', { status: 404 });
       }
-      return await routeDataset(handlers, rest, registry.mediaDir(slug));
+      return await routeDataset(req, handlers, rest, registry.mediaDir(slug));
     }
   };
 }

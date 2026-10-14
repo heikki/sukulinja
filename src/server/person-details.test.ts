@@ -95,7 +95,8 @@ test('serves facts in date order and church books first', () => {
           household: []
         },
         text: null,
-        churchBook: true
+        churchBook: true,
+        citedPage: 139
       },
       {
         id: 1,
@@ -104,7 +105,8 @@ test('serves facts in date order and church books first', () => {
         url: null,
         record: null,
         text: 'Family bible',
-        churchBook: false
+        churchBook: false,
+        citedPage: null
       }
     ]
   });

@@ -38,7 +38,7 @@ const PARISH_ARCHIVE: Record<string, string> = {
   'Sääminki': '1231967062'
 };
 
-interface Anchor {
+export interface Anchor {
   image: number;
   pages: number[];
   note?: string;
