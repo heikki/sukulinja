@@ -20,10 +20,17 @@ export interface Citation {
   page: number | null;
   // Village and farm names, used to pick among volumes split by village.
   places: string[];
+  // MyHeritage's record number in the collection, which names the film.
+  recordId: number | null;
 }
 
 export function collectionOf(url: string) {
   return /collection-(?<c>\d+)/.exec(url)?.groups?.c ?? null;
+}
+
+function recordIdOf(url: string) {
+  const id = /[?&]itemId=(?<id>\d+)/.exec(url)?.groups?.id;
+  return id === undefined ? null : Number(id);
 }
 
 // Some citations are HTML, some escaped once more on top of that.
@@ -101,7 +108,8 @@ function parseRippiCitation(url: string, text: string): Citation {
     places: [
       ...named.filter((x) => x !== null),
       ...residencePlaces(text, parish)
-    ]
+    ],
+    recordId: recordIdOf(url)
   };
 }
 
@@ -122,7 +130,9 @@ function parseIndexCitation(
     kind: event === undefined ? null : indexKind(event.ev!),
     years: event === undefined ? null : yearRange(event.date!),
     page: null,
-    places: []
+    places: [],
+    // Numbered in another collection; the films are known by rippi records.
+    recordId: null
   };
 }
 

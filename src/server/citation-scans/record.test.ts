@@ -87,7 +87,8 @@ describe('parseCitation', () => {
       kind: 'rippi',
       years: { from: 1794, to: 1808 },
       page: 139,
-      places: ['Kylämaa', 'No. 3', 'No. 3', 'Kylämaa']
+      places: ['Kylämaa', 'No. 3', 'No. 3', 'Kylämaa'],
+      recordId: 1
     });
   });
 });

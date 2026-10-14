@@ -51,17 +51,19 @@ test('reads local anchors over the shipped ones', async () => {
   expect(shipped[volumeId as keyof typeof shipped].anchors[0]).toEqual(first);
 });
 
-test('merges village lists from local files over shipped ones', async () => {
+test('merges village lists and record ranges from local files', async () => {
+  const records = [{ from: 10, to: 20 }];
   await Bun.write(
     join(dir, 'anchors.local.json'),
     JSON.stringify({
-      v: { anchors: [{ image: 2, pages: [3] }], villages: ['Kylä'] }
+      v: { anchors: [{ image: 2, pages: [3] }], villages: ['Kylä'], records }
     })
   );
   setLocalFolder(dir);
   expect((await loadAnchors()).v).toEqual({
     anchors: [{ image: 2, pages: [3] }],
-    villages: ['Kylä']
+    villages: ['Kylä'],
+    records
   });
 });
 

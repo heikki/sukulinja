@@ -37,22 +37,29 @@ function withAnchor(anchors: Anchor[], anchor: Anchor) {
   return [...anchors.filter((a) => !clashes(a)), anchor].sort(byImage);
 }
 
+function union<T>(a: T[] = [], b: T[] = []) {
+  return [...new Set([...a, ...b])];
+}
+
+type VolumeAnchors = Anchors[string];
+
+function mergeVolume(base: VolumeAnchors | undefined, local: VolumeAnchors) {
+  let anchors = base?.anchors ?? [];
+  for (const a of local.anchors) anchors = withAnchor(anchors, a);
+  const villages = union(base?.villages, local.villages);
+  const records = union(base?.records, local.records);
+  return {
+    ...(base ?? local),
+    anchors,
+    ...(villages.length > 0 ? { villages } : {}),
+    ...(records.length > 0 ? { records } : {})
+  };
+}
+
 function merge(base: Anchors, local: Anchors) {
   const out: Anchors = { ...base };
   for (const [volumeId, volume] of Object.entries(local)) {
-    let anchors = out[volumeId]?.anchors ?? [];
-    for (const a of volume.anchors) anchors = withAnchor(anchors, a);
-    const villages = [
-      ...new Set([
-        ...(out[volumeId]?.villages ?? []),
-        ...(volume.villages ?? [])
-      ])
-    ];
-    out[volumeId] = {
-      ...(out[volumeId] ?? volume),
-      anchors,
-      ...(villages.length > 0 ? { villages } : {})
-    };
+    out[volumeId] = mergeVolume(out[volumeId], volume);
   }
   return out;
 }

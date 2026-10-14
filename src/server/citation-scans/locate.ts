@@ -7,6 +7,12 @@
 // the page number, an anchor gives the number as cited and a `note` says
 // what's written. Without an anchor we guess from the spot checks so far:
 // rippikirjat number spreads, lastenkirjat pages.
+//
+// Which volume a citation is in comes from its book's years, then the
+// villages and page numbers. Where that's known exactly, a volume lists the
+// MyHeritage records on its film: MyHeritage numbers each film's records in
+// one block, in image order, and blocks don't overlap, so a record seen on a
+// film places every record numbered around it there too.
 
 import type { Scan, ScanMethod, ScanResolution } from '@common/types';
 
@@ -44,11 +50,23 @@ export interface Anchor {
   note?: string;
 }
 
-// Per volume: the anchors read in it, and the villages found in it where a
-// book is split in parts without village ranges in their labels.
+// MyHeritage record numbers, both ends included.
+export interface RecordRange {
+  from: number;
+  to: number;
+}
+
+// Per volume: the anchors read in it, the villages found in it where a book
+// is split in parts without village ranges in their labels, and the records
+// on its film.
 export type Anchors = Record<
   string,
-  { title?: string; anchors: Anchor[]; villages?: string[] }
+  {
+    title?: string;
+    anchors: Anchor[];
+    villages?: string[];
+    records?: RecordRange[];
+  }
 >;
 
 // A record placed by hand on an image, for a citation naming no page or
@@ -89,6 +107,20 @@ function candidateVolumes(volumes: Volume[], kind: BookKind, years: Years) {
   return best === 0
     ? []
     : sameKind.filter((v) => partsOverlap(v, years) === best);
+}
+
+// The volume whose film holds the record, whatever book the citation names.
+function filmedIn(
+  volumes: Volume[],
+  recordId: number | null,
+  anchors: Anchors
+) {
+  if (recordId === null) return [];
+  return volumes.filter((v) =>
+    (anchors[v.id]?.records ?? []).some(
+      (r) => r.from <= recordId && recordId <= r.to
+    )
+  );
 }
 
 // Old spellings use W for V ("Wehmais", "Wäätämönsalmi").
@@ -260,6 +292,14 @@ async function placedScan(p: Placement): Promise<Scan> {
   };
 }
 
+async function volumesFor(c: Citation, archiveId: string, anchors: Anchors) {
+  const volumes = await archiveVolumes(archiveId);
+  const filmed = filmedIn(volumes, c.recordId, anchors);
+  return filmed.length > 0
+    ? filmed
+    : candidateVolumes(volumes, c.kind!, c.years!);
+}
+
 export async function resolveCitation(
   c: Citation,
   anchors: Anchors,
@@ -272,11 +312,7 @@ export async function resolveCitation(
   }
   const archiveId = PARISH_ARCHIVE[c.parish];
   if (archiveId === undefined) return { error: `no archive for ${c.parish}` };
-  const candidates = candidateVolumes(
-    await archiveVolumes(archiveId),
-    c.kind,
-    c.years
-  );
+  const candidates = await volumesFor(c, archiveId, anchors);
   if (candidates.length === 0) return { error: 'no matching volume' };
   const digitized = candidates.filter((v) => v.digitized);
   if (digitized.length === 0) return { error: 'not digitized' };
