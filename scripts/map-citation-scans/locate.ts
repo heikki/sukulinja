@@ -133,8 +133,15 @@ function defaultNumbering(kind: BookKind): Numbering {
     : { image: 1, first: 1, pagesPerImage: 1 };
 }
 
-// The anchor with the highest number at or below `page`, else the lowest.
-function anchorNumbering(anchors: Anchor[], page: number) {
+function imageFor(n: Numbering, page: number) {
+  return n.image + Math.floor((page - n.first) / n.pagesPerImage);
+}
+
+// Between two anchors a page is placed proportionally, which spreads
+// unnumbered or inserted leaves over the gap; elsewhere it's counted from
+// the nearest anchor. Anchors out of image order (a misread page, see
+// above) are only counted from.
+function anchoredImage(anchors: Anchor[], page: number) {
   const numbered = anchors
     .filter((a) => a.pages.length > 0)
     .map((a) => ({
@@ -143,11 +150,18 @@ function anchorNumbering(anchors: Anchor[], page: number) {
       pagesPerImage: a.pages.length
     }))
     .sort((a, b) => a.first - b.first);
-  return numbered.filter((n) => n.first <= page).at(-1) ?? numbered[0] ?? null;
-}
-
-function imageFor(n: Numbering, page: number) {
-  return n.image + Math.floor((page - n.first) / n.pagesPerImage);
+  const lo = numbered.filter((n) => n.first <= page).at(-1);
+  const hi = numbered.find((n) => n.first > page);
+  if (lo === undefined || hi === undefined) {
+    const only = lo ?? hi;
+    return only === undefined ? null : imageFor(only, page);
+  }
+  if (page < lo.first + lo.pagesPerImage) return lo.image;
+  if (hi.image > lo.image) {
+    const share = (page - lo.first) / (hi.first - lo.first);
+    return lo.image + Math.floor(share * (hi.image - lo.image));
+  }
+  return imageFor(page - lo.first <= hi.first - page ? lo : hi, page);
 }
 
 interface Located {
@@ -166,9 +180,8 @@ async function locate(
   if (c.page === null) {
     return { volume: v, files, image: null, method: 'volume' };
   }
-  const anchored = anchorNumbering(anchors[v.id]?.anchors ?? [], c.page);
-  const numbering = anchored ?? defaultNumbering(c.kind!);
-  const image = imageFor(numbering, c.page);
+  const anchored = anchoredImage(anchors[v.id]?.anchors ?? [], c.page);
+  const image = anchored ?? imageFor(defaultNumbering(c.kind!), c.page);
   const inside = image >= 1 && image <= files.length;
   return {
     volume: v,
