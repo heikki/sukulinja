@@ -89,3 +89,23 @@ export interface HouseholdMember {
   name: string;
   born: string | null;
 }
+
+// How a scan's image was found: from page numbers read off the volume
+// (anchored), guessed from the book type (estimated), or not at all — the
+// link opens the volume.
+export type ScanMethod = 'anchored' | 'estimated' | 'volume';
+
+// One Astia image a citation may be on; a volume split in parts can give
+// one per part.
+export interface Scan {
+  volumeId: string;
+  volume: string;
+  image: number;
+  url: string;
+  method: ScanMethod;
+}
+
+export type ScanResolution = { scans: Scan[] } | { error: string };
+
+// A line of /api/persons/:id/scans, streamed as each citation resolves.
+export type CitationScans = { citationId: number } & ScanResolution;

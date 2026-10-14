@@ -16,6 +16,13 @@ const SERVER_ERROR_BACKOFF_MS = 5000;
 const MAX_ATTEMPTS = 6;
 export const CACHE_DIR = resolve('data/.astia-cache');
 
+// The app keeps the cache in its data folder; the script uses CACHE_DIR.
+let cacheDir = CACHE_DIR;
+
+export function setCacheDir(dir: string) {
+  cacheDir = dir;
+}
+
 // Series under the population-register archive that can't hold the books
 // we look for; skipping them keeps the crawl small.
 const SKIP_SERIES =
@@ -52,12 +59,14 @@ function fetchJson(path: string) {
   if (hit === undefined) {
     hit = cachedFetch(key, path);
     inflight.set(key, hit);
+    // A failure isn't cached: the app keeps running, and Astia comes back.
+    hit.catch(() => inflight.delete(key));
   }
   return hit;
 }
 
 async function cachedFetch(key: string, path: string) {
-  const cached = Bun.file(join(CACHE_DIR, `${key}.json`));
+  const cached = Bun.file(join(cacheDir, `${key}.json`));
   if (await cached.exists()) return (await cached.json()) as unknown;
   const body = await throttled(() => request(path, 1));
   await Bun.write(cached, body);
@@ -152,6 +161,7 @@ export function archiveVolumes(archiveId: string) {
       return register === undefined ? [] : crawlSeries(register.id);
     });
     volumesByArchive.set(archiveId, hit);
+    hit.catch(() => volumesByArchive.delete(archiveId));
   }
   return hit;
 }

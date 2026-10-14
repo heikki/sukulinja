@@ -8,6 +8,8 @@
 // what's written. Without an anchor we guess from the spot checks so far:
 // rippikirjat number spreads, lastenkirjat pages.
 
+import type { Scan, ScanMethod, ScanResolution } from '@common/types';
+
 import { archiveVolumes, viewerUrl, volumeImages } from './astia';
 import type { Volume } from './astia';
 import type { Citation } from './record';
@@ -43,18 +45,6 @@ interface Anchor {
 }
 
 export type Anchors = Record<string, { title?: string; anchors: Anchor[] }>;
-
-export type Method = 'anchored' | 'estimated' | 'volume';
-
-export interface Scan {
-  volumeId: string;
-  volume: string;
-  image: number;
-  url: string;
-  method: Method;
-}
-
-export type Resolution = { scans: Scan[] } | { error: string };
 
 // ---------------------------------------------------------------- volumes
 
@@ -168,7 +158,7 @@ interface Located {
   volume: Volume;
   files: string[];
   image: number | null;
-  method: Method;
+  method: ScanMethod;
 }
 
 async function locate(
@@ -222,7 +212,7 @@ function toScan(l: Located): Scan {
 export async function resolveCitation(
   c: Citation,
   anchors: Anchors
-): Promise<Resolution> {
+): Promise<ScanResolution> {
   if (c.parish === null || c.kind === null || c.years === null) {
     return { error: 'unparsed' };
   }
