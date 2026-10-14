@@ -53,6 +53,8 @@ export interface ImportStats {
   media: number;
   mediaLinks: number;
   familyChildren: number;
+  sources: number;
+  citations: number;
 }
 
 interface NameParts {
@@ -110,6 +112,7 @@ export function importGedcom(
 ): ImportStats {
   const personXrefs = new Map<string, number>();
   const familyXrefs = new Map<string, number>();
+  const sourceXrefs = new Map<string, number>();
   const stats: ImportStats = {
     persons: 0,
     families: 0,
@@ -117,7 +120,9 @@ export function importGedcom(
     facts: 0,
     media: 0,
     mediaLinks: 0,
-    familyChildren: 0
+    familyChildren: 0,
+    sources: 0,
+    citations: 0
   };
 
   const insertPerson = db.prepare(
@@ -138,6 +143,12 @@ export function importGedcom(
   const insertFamilyChild = db.prepare(
     'INSERT OR IGNORE INTO family_children (family_id, person_id, sort_order) VALUES (?, ?, ?)'
   );
+  const insertSource = db.prepare(
+    'INSERT INTO sources (xref, title, publisher) VALUES (?, ?, ?)'
+  );
+  const insertCitation = db.prepare(
+    'INSERT INTO citations (scope_type, scope_id, source_id, page, quality, text, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  );
   const getMediaByPath = db.prepare('SELECT id FROM media WHERE file_path = ?');
   const insertMedia = db.prepare(
     'INSERT INTO media (file_path, format, original_path) VALUES (?, ?, ?) RETURNING id'
@@ -156,6 +167,14 @@ export function importGedcom(
       const res = insertFamily.run(root.xref);
       familyXrefs.set(root.xref, Number(res.lastInsertRowid));
       stats.families += 1;
+    } else if (root.tag === 'SOUR') {
+      const res = insertSource.run(
+        root.xref,
+        childValue(root, 'TITL'),
+        childValue(root, 'PUBL')
+      );
+      sourceXrefs.set(root.xref, Number(res.lastInsertRowid));
+      stats.sources += 1;
     }
   }
 
@@ -193,6 +212,8 @@ export function importGedcom(
       }
     }
 
+    importCitations(root, 'person', personId);
+
     // TODO: only picks up OBJE that is a direct child of INDI. OBJE nested
     // inside event tags (BIRT/MARR/BURI/...) and top-level OBJE records
     // referenced by pointer are not yet imported. MediaIngest mirrors this
@@ -228,6 +249,30 @@ export function importGedcom(
         insertFactRow('family', familyId, child, factOrder++);
       }
     }
+    importCitations(root, 'family', familyId);
+  }
+
+  // A citation either points to a source record (`SOUR @S1@`) or describes
+  // its source inline (`SOUR <text>`); the inline text stands in for DATA/TEXT
+  // when there is none.
+  function importCitations(root: GedNode, scope: Scope, scopeId: number) {
+    findChildren(root, 'SOUR').forEach((sour, i) => {
+      const pointer = /^@[^@]+@$/.test(sour.value ?? '');
+      const data = findChild(sour, 'DATA');
+      const text =
+        (data === undefined ? null : childValue(data, 'TEXT')) ??
+        (pointer ? null : (sour.value ?? null));
+      insertCitation.run(
+        scope,
+        scopeId,
+        pointer ? (sourceXrefs.get(sour.value!) ?? null) : null,
+        childValue(sour, 'PAGE'),
+        toInt(childValue(sour, 'QUAY') ?? undefined),
+        text,
+        i
+      );
+      stats.citations += 1;
+    });
   }
 
   function insertFactRow(

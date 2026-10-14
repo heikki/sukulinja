@@ -43,10 +43,21 @@ export function parseGedcom(text: string): GedNode[] {
     stack.length = level + 1;
   }
 
+  // MyHeritage writes raw newlines inside TEXT values, so some lines carry no
+  // level number. They continue the deepest open value, as a CONT would.
+  function appendStray(raw: string): void {
+    const node = stack.at(-1);
+    if (node === undefined) return;
+    node.value = `${node.value ?? ''}\n${raw.trim()}`;
+  }
+
   for (const raw of lines) {
     if (raw === '') continue;
     const m = LINE_RE.exec(raw);
-    if (m === null) continue;
+    if (m === null) {
+      appendStray(raw);
+      continue;
+    }
     const g = m.groups!;
     const line: ParsedLine = {
       level: parseInt(g.level!, 10),

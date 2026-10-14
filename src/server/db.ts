@@ -70,6 +70,25 @@ const SCHEMA_SQL = `
   );
   CREATE INDEX IF NOT EXISTS media_links_scope_idx ON media_links(scope_type, scope_id);
 
+  CREATE TABLE IF NOT EXISTS sources (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    xref TEXT UNIQUE NOT NULL,
+    title TEXT,
+    publisher TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS citations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scope_type TEXT NOT NULL CHECK (scope_type IN ('person','family')),
+    scope_id INTEGER NOT NULL,
+    source_id INTEGER REFERENCES sources(id) ON DELETE SET NULL,
+    page TEXT,
+    quality INTEGER,
+    text TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX IF NOT EXISTS citations_scope_idx ON citations(scope_type, scope_id);
+
   CREATE TABLE IF NOT EXISTS meta (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
