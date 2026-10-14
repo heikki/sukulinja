@@ -12,7 +12,8 @@
       },
       {
         "image": 51,
-        "pages": [49]
+        "pages": [49],
+        "note": "page numbers start over later in the volume; records seen there are placed by image"
       }
     ],
     "records": [
@@ -152,8 +153,18 @@
         "pages": [89, 90]
       },
       {
+        "image": 59,
+        "pages": [115, 116]
+      },
+      {
         "image": 66,
         "pages": [129, 130]
+      }
+    ],
+    "records": [
+      {
+        "from": 31684173,
+        "to": 31686861
       }
     ]
   },
@@ -187,6 +198,12 @@
       {
         "image": 165,
         "pages": [332, 333]
+      }
+    ],
+    "records": [
+      {
+        "from": 25072480,
+        "to": 25077660
       }
     ]
   },
@@ -336,6 +353,10 @@
         "pages": [7]
       },
       {
+        "image": 9,
+        "pages": [8]
+      },
+      {
         "image": 85,
         "pages": [83]
       },
@@ -362,6 +383,12 @@
       {
         "image": 601,
         "pages": [601]
+      }
+    ],
+    "records": [
+      {
+        "from": 17557786,
+        "to": 17565341
       }
     ]
   },
@@ -546,6 +573,12 @@
         "image": 263,
         "pages": [263]
       }
+    ],
+    "records": [
+      {
+        "from": 8503373,
+        "to": 8507997
+      }
     ]
   },
   "1202453741": {
@@ -713,7 +746,7 @@
     ],
     "records": [
       {
-        "from": 8374025,
+        "from": 8367093,
         "to": 8375124
       }
     ]
@@ -732,6 +765,16 @@
       {
         "image": 64,
         "pages": [126, 127]
+      },
+      {
+        "image": 70,
+        "pages": [138, 139]
+      }
+    ],
+    "records": [
+      {
+        "from": 9442063,
+        "to": 9443701
       }
     ]
   },
@@ -763,6 +806,10 @@
         "pages": [253]
       },
       {
+        "image": 279,
+        "pages": [266]
+      },
+      {
         "image": 299,
         "pages": [286]
       },
@@ -773,6 +820,12 @@
       {
         "image": 351,
         "pages": [337]
+      }
+    ],
+    "records": [
+      {
+        "from": 28704892,
+        "to": 28708663
       }
     ]
   },
@@ -845,6 +898,12 @@
       {
         "image": 480,
         "pages": [463]
+      }
+    ],
+    "records": [
+      {
+        "from": 7849734,
+        "to": 7853735
       }
     ]
   },
@@ -1109,6 +1168,12 @@
         "image": 601,
         "pages": [583]
       }
+    ],
+    "records": [
+      {
+        "from": 10604222,
+        "to": 10609581
+      }
     ]
   },
   "1213194750": {
@@ -1144,6 +1209,12 @@
         "image": 502,
         "pages": [469]
       }
+    ],
+    "records": [
+      {
+        "from": 28046538,
+        "to": 28049289
+      }
     ]
   },
   "1225912873": {
@@ -1156,6 +1227,10 @@
       {
         "image": 67,
         "pages": [397]
+      },
+      {
+        "image": 69,
+        "pages": [399]
       },
       {
         "image": 95,
@@ -1176,6 +1251,12 @@
       {
         "image": 314,
         "pages": [633]
+      }
+    ],
+    "records": [
+      {
+        "from": 6874883,
+        "to": 6878849
       }
     ]
   },
@@ -1246,6 +1327,12 @@
         "image": 394,
         "pages": [375]
       }
+    ],
+    "records": [
+      {
+        "from": 19521651,
+        "to": 19528827
+      }
     ]
   },
   "1225974304": {
@@ -1301,6 +1388,12 @@
       {
         "image": 420,
         "pages": [396]
+      }
+    ],
+    "records": [
+      {
+        "from": 19559005,
+        "to": 19561045
       }
     ]
   },
@@ -1465,8 +1558,13 @@
     "title": "Hirvensalmi I Aa:8 Rippikirja II, 300-598 (1853-1864)",
     "anchors": [
       {
-        "image": 468,
-        "pages": [468]
+        "image": 182,
+        "pages": [468],
+        "note": "the book is filmed twice; images 300-574 repeat it"
+      },
+      {
+        "image": 299,
+        "pages": [596]
       }
     ],
     "records": [
@@ -1690,8 +1788,18 @@
         "pages": [753]
       },
       {
+        "image": 289,
+        "pages": [756]
+      },
+      {
         "image": 387,
         "pages": [853]
+      }
+    ],
+    "records": [
+      {
+        "from": 664222,
+        "to": 665862
       }
     ]
   },
@@ -2123,12 +2231,22 @@
     "title": "Pieksämäki I Aa:17 Pää- ja rippikirjat, I Heikolankangas - Pieksämäki (1837-1849)",
     "anchors": [
       {
+        "image": 12,
+        "pages": [10]
+      },
+      {
         "image": 19,
         "pages": [17]
       },
       {
         "image": 157,
         "pages": [148]
+      }
+    ],
+    "records": [
+      {
+        "from": 10554952,
+        "to": 10557252
       }
     ]
   },
@@ -2203,6 +2321,10 @@
         "pages": [5]
       },
       {
+        "image": 6,
+        "pages": [6]
+      },
+      {
         "image": 84,
         "pages": [84]
       },
@@ -2213,6 +2335,12 @@
       {
         "image": 179,
         "pages": [180]
+      }
+    ],
+    "records": [
+      {
+        "from": 23970629,
+        "to": 23974078
       }
     ]
   },
@@ -2866,6 +2994,10 @@
         "pages": [37]
       },
       {
+        "image": 97,
+        "pages": [85]
+      },
+      {
         "image": 98,
         "pages": [86]
       },
@@ -2888,6 +3020,12 @@
       {
         "image": 429,
         "pages": [416]
+      }
+    ],
+    "records": [
+      {
+        "from": 26148505,
+        "to": 26153971
       }
     ]
   },
@@ -3089,6 +3227,16 @@
       {
         "image": 180,
         "pages": [1615]
+      },
+      {
+        "image": 184,
+        "pages": [1619]
+      }
+    ],
+    "records": [
+      {
+        "from": 30191907,
+        "to": 30193006
       }
     ]
   },
@@ -3158,8 +3306,18 @@
         "pages": [61]
       },
       {
+        "image": 70,
+        "pages": [66]
+      },
+      {
         "image": 80,
         "pages": [76]
+      }
+    ],
+    "records": [
+      {
+        "from": 16970339,
+        "to": 16970340
       }
     ]
   },
@@ -3187,6 +3345,16 @@
       {
         "image": 140,
         "pages": [1516]
+      },
+      {
+        "image": 146,
+        "pages": [1522]
+      }
+    ],
+    "records": [
+      {
+        "from": 3179133,
+        "to": 3179187
       }
     ]
   },
@@ -3217,8 +3385,18 @@
     "title": "Mikkeli Maaseurakunta I Aa:22 Pää- ja rippikirjat II (1828-1838)",
     "anchors": [
       {
+        "image": 249,
+        "pages": [668]
+      },
+      {
         "image": 255,
         "pages": [674]
+      }
+    ],
+    "records": [
+      {
+        "from": 23896914,
+        "to": 23896919
       }
     ]
   },
@@ -3314,6 +3492,81 @@
       {
         "from": 8483514,
         "to": 8483514
+      }
+    ]
+  },
+  "1854577571": {
+    "title": "Mikkeli Maaseurakunta I Aa:16 Pää- ja rippikirjat I (1806-1816)",
+    "anchors": [],
+    "records": [
+      {
+        "from": 13797348,
+        "to": 13798681
+      }
+    ]
+  },
+  "1854950260": {
+    "title": "Mikkeli Maaseurakunta I Ab:5 Lastenkirjat I (1801-1816)",
+    "anchors": [],
+    "records": [
+      {
+        "from": 12898669,
+        "to": 12898669
+      }
+    ]
+  },
+  "1854968173": {
+    "title": "Mikkeli Maaseurakunta I Ab:6 Lastenkirjat II (1801-1816)",
+    "anchors": [],
+    "records": [
+      {
+        "from": 21243463,
+        "to": 21250058
+      }
+    ]
+  },
+  "1854934418": {
+    "title": "Mikkeli Maaseurakunta I Ab:3 Lastenkirjat I (1785-1800)",
+    "anchors": [],
+    "records": [
+      {
+        "from": 13322488,
+        "to": 13328184
+      }
+    ]
+  },
+  "1854941046": {
+    "title": "Mikkeli Maaseurakunta I Ab:4 Lastenkirjat II (1785-1800)",
+    "anchors": [],
+    "records": [
+      {
+        "from": 27824717,
+        "to": 27825667
+      }
+    ]
+  },
+  "1854718279": {
+    "title": "Mikkeli Maaseurakunta I Aa:23 Pää- ja rippikirjat III (1828-1838)",
+    "anchors": [
+      {
+        "image": 41,
+        "pages": [35]
+      }
+    ],
+    "records": [
+      {
+        "from": 22998619,
+        "to": 22998620
+      }
+    ]
+  },
+  "1854930029": {
+    "title": "Mikkeli Maaseurakunta I Ab:2 Lastenkirjat II (1770-1785)",
+    "anchors": [],
+    "records": [
+      {
+        "from": 27572251,
+        "to": 27572251
       }
     ]
   }
