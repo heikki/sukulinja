@@ -14,7 +14,8 @@
         "image": 51,
         "pages": [49]
       }
-    ]
+    ],
+    "records": [{ "from": 23506601, "to": 23511654 }]
   },
   "1202460399": {
     "title": "Haukivuori I Aa:5 Pää- ja rippikirjat (1849-1858)",
@@ -63,7 +64,8 @@
         "image": 230,
         "pages": [245]
       }
-    ]
+    ],
+    "records": [{ "from": 29820, "to": 33025 }]
   },
   "1202482461": {
     "title": "Haukivuori I Aa:7 Pää- ja rippikirjat (1870-1879)",
@@ -112,7 +114,8 @@
         "image": 309,
         "pages": [310]
       }
-    ]
+    ],
+    "records": [{ "from": 25441237, "to": 25446622 }]
   },
   "1202500497": {
     "title": "Haukivuori I Ab:2 Lastenkirjat (1820-1839)",
@@ -133,7 +136,8 @@
         "image": 66,
         "pages": [129, 130]
       }
-    ]
+    ],
+    "records": [{ "from": 31684173, "to": 31686861 }]
   },
   "1202521089": {
     "title": "Haukivuori I Ab:5 Lastenkirjat (1867-1879)",
@@ -166,7 +170,8 @@
         "image": 165,
         "pages": [332, 333]
       }
-    ]
+    ],
+    "records": [{ "from": 25072480, "to": 25077660 }]
   },
   "1225540436": {
     "title": "Pieksämäki I Aa:5 Pää- ja rippikirjat (1757-1768)",
@@ -235,7 +240,8 @@
         "image": 464,
         "pages": [436]
       }
-    ]
+    ],
+    "records": [{ "from": 18313657, "to": 18322277 }]
   },
   "1225616258": {
     "title": "Pieksämäki I Aa:8 Pää- ja rippikirjat (1783-1790)",
@@ -292,7 +298,8 @@
         "image": 487,
         "pages": [469]
       }
-    ]
+    ],
+    "records": [{ "from": 27254369, "to": 27261415 }]
   },
   "1854864089": {
     "title": "Mikkeli mlk I Aa:30 Pää- ja rippikirjat I (1870-1879)",
@@ -395,7 +402,8 @@
         "pages": [351]
       }
     ],
-    "villages": ["Hällinmäki", "Haukivuori", "Pohjälax", "Häckilä"]
+    "villages": ["Hällinmäki", "Haukivuori", "Pohjälax", "Häckilä"],
+    "records": [{ "from": 18340487, "to": 18346871 }]
   },
   "1225595021": {
     "title": "Pieksämäki I Aa:7 Pää- ja rippikirjat, II (1769-1780)",
@@ -467,7 +475,8 @@
       "Hangamäki",
       "Kylmänmäki",
       "Petkäsmäki"
-    ]
+    ],
+    "records": [{ "from": 26087151, "to": 26092421 }]
   },
   "1202469484": {
     "title": "Haukivuori I Aa:6 Pää- ja rippikirjat (1859-1869)",
@@ -500,7 +509,8 @@
         "image": 263,
         "pages": [263]
       }
-    ]
+    ],
+    "records": [{ "from": 8503373, "to": 8507997 }]
   },
   "1202453741": {
     "title": "Haukivuori I Aa:4 Pää- ja rippikirjat (1837-1848)",
@@ -554,7 +564,8 @@
         "image": 89,
         "pages": [164, 165]
       }
-    ]
+    ],
+    "records": [{ "from": 30659178, "to": 30662717 }]
   },
   "1202449642": {
     "title": "Haukivuori I Aa:3 Pää- ja rippikirjat (1821-1837)",
@@ -670,7 +681,8 @@
         "image": 64,
         "pages": [126, 127]
       }
-    ]
+    ],
+    "records": [{ "from": 9442063, "to": 9443701 }]
   },
   "1854625711": {
     "title": "Mikkeli Maaseurakunta I Aa:18 Pää- ja rippikirjat I, kylät Alamaa - Närvälä (1817-1827)",
@@ -711,7 +723,8 @@
         "image": 351,
         "pages": [337]
       }
-    ]
+    ],
+    "records": [{ "from": 28704892, "to": 28708663 }]
   },
   "1213113024": {
     "title": "Kangasniemi I Aa:13 Pää- ja rippikirjat II (1849-1858)",
@@ -773,7 +786,8 @@
         "image": 480,
         "pages": [463]
       }
-    ]
+    ],
+    "records": [{ "from": 7849734, "to": 7853735 }]
   },
   "1213029618": {
     "title": "Kangasniemi I Aa:7 Pää- ja rippikirjat (1804-1814)",
@@ -815,7 +829,8 @@
         "image": 418,
         "pages": [790, 791]
       }
-    ]
+    ],
+    "records": [{ "from": 22230194, "to": 22233162 }]
   },
   "1202514481": {
     "title": "Haukivuori I Ab:4 Lastenkirjat (1852-1866)",
@@ -865,7 +880,8 @@
         "image": 420,
         "pages": [793, 794]
       }
-    ]
+    ],
+    "records": [{ "from": 22017480, "to": 22038613 }]
   },
   "1213055580": {
     "title": "Kangasniemi I Aa:9 Pää- ja rippikirjat (1826-1837)",
@@ -890,7 +906,8 @@
         "image": 358,
         "pages": [341]
       }
-    ]
+    ],
+    "records": [{ "from": 25430312, "to": 25435664 }]
   },
   "1213011210": {
     "title": "Kangasniemi I Aa:5 Pää- ja rippikirjat (1790-1796)",
@@ -940,7 +957,8 @@
         "image": 91,
         "pages": [89]
       }
-    ]
+    ],
+    "records": [{ "from": 23848655, "to": 23849404 }]
   },
   "1213065882": {
     "title": "Kangasniemi I Aa:10 Pää- ja rippikirjat I (1838-1848)",
@@ -1002,7 +1020,8 @@
         "image": 601,
         "pages": [583]
       }
-    ]
+    ],
+    "records": [{ "from": 10604222, "to": 10609581 }]
   },
   "1213194750": {
     "title": "Kangasniemi I Ab:4 Lastenkirjat (1826-1841)",
@@ -1037,7 +1056,8 @@
         "image": 502,
         "pages": [469]
       }
-    ]
+    ],
+    "records": [{ "from": 28046538, "to": 28049289 }]
   },
   "1225912873": {
     "title": "Pieksämäki I Aa:22 Pää- ja rippikirjat, II Maavesi - Siikamäki (1859-1868)",
@@ -1096,7 +1116,8 @@
         "image": 318,
         "pages": [691]
       }
-    ]
+    ],
+    "records": [{ "from": 21375304, "to": 21379132 }]
   },
   "1225694808": {
     "title": "Pieksämäki I Aa:11 Pää- ja rippikirjat (1804-1814)",
@@ -1133,7 +1154,8 @@
         "image": 394,
         "pages": [375]
       }
-    ]
+    ],
+    "records": [{ "from": 19521651, "to": 19528827 }]
   },
   "1225974304": {
     "title": "Pieksämäki I Ab:5 Lastenkirja (1800-1813)",
@@ -1162,7 +1184,8 @@
         "image": 164,
         "pages": [312, 313]
       }
-    ]
+    ],
+    "records": [{ "from": 15833161, "to": 15838153 }]
   },
   "1225763073": {
     "title": "Pieksämäki I Aa:15 Pää- ja rippikirjat, I Armisvesi - Pieksämäki (1827-1837)",
@@ -1183,7 +1206,8 @@
         "image": 420,
         "pages": [396]
       }
-    ]
+    ],
+    "records": [{ "from": 19559005, "to": 19561045 }]
   },
   "1225717466": {
     "title": "Pieksämäki I Aa:13 Pää- ja rippikirjat, I Armisvesi - Pyhitty (1816-1826)",
@@ -1292,7 +1316,8 @@
         "image": 336,
         "pages": [319]
       }
-    ]
+    ],
+    "records": [{ "from": 26742878, "to": 26748330 }]
   },
   "1193010521": {
     "title": "Rautalampi I Aa:4 Rippikirja (1767-1772)",
@@ -1400,7 +1425,8 @@
         "image": 389,
         "pages": [371]
       }
-    ]
+    ],
+    "records": [{ "from": 1719301, "to": 1726036 }]
   },
   "1225668336": {
     "title": "Pieksämäki I Aa:10 Pää- ja rippikirjat (1799-1803)",
@@ -1433,7 +1459,8 @@
         "image": 252,
         "pages": [233]
       }
-    ]
+    ],
+    "records": [{ "from": 3271879, "to": 3276096 }]
   },
   "1194675758": {
     "title": "Hankasalmi Rippikirja (1844-1854)",
@@ -1467,7 +1494,8 @@
         "image": 292,
         "pages": [280]
       }
-    ]
+    ],
+    "records": [{ "from": 4664977, "to": 4666076 }]
   },
   "1855063557": {
     "title": "Mikkeli Maaseurakunta I Ab:10 Lastenkirjat I (1847-1858)",
@@ -1484,7 +1512,8 @@
         "image": 204,
         "pages": [386, 387]
       }
-    ]
+    ],
+    "records": [{ "from": 18833100, "to": 18837683 }]
   },
   "1213223341": {
     "title": "Kangasniemi I Ab:6 Lastenkirjat (1851-1858)",
@@ -1732,7 +1761,8 @@
         "pages": [139]
       }
     ],
-    "villages": ["Keckola"]
+    "villages": ["Keckola"],
+    "records": [{ "from": 11886024, "to": 11886222 }]
   },
   "1203518004": {
     "title": "Hirvensalmi I Aa:2 Rippikirja II (1818-1828)",
@@ -1754,7 +1784,8 @@
         "pages": [140]
       }
     ],
-    "villages": ["Soikala"]
+    "villages": ["Soikala"],
+    "records": [{ "from": 23648813, "to": 23648819 }]
   },
   "1854890136": {
     "title": "Mikkeli Maaseurakunta I Aa:31 Pää- ja rippikirjat II, kylät Rahula - Wäätämönsalmi, Hirvensalmi, Juva, Kangasniemi, Ristiina (1870-1879)",
@@ -1859,7 +1890,8 @@
         "image": 390,
         "pages": [767]
       }
-    ]
+    ],
+    "records": [{ "from": 17766198, "to": 17772601 }]
   },
   "1852833627": {
     "title": "Kirvu I Aa:24 Rippikirjat, Meskala - Vorniola, rautatien virkamiehet, Inkilän saha (1900-1909)",
@@ -1914,7 +1946,8 @@
         "image": 501,
         "pages": [896, 897]
       }
-    ]
+    ],
+    "records": [{ "from": 11848148, "to": 11865518 }]
   },
   "1854479365": {
     "title": "Mikkeli Maaseurakunta I Aa:7 Pää- ja rippikirjat II (1764-1769)",
@@ -1932,7 +1965,8 @@
         "pages": [86]
       }
     ],
-    "villages": ["Kyrkobyn", "Ohsticofvi"]
+    "villages": ["Kyrkobyn", "Ohsticofvi"],
+    "records": [{ "from": 3223713, "to": 3224218 }]
   },
   "1854910375": {
     "title": "Mikkeli Maaseurakunta I Aa:32 Pää- ja rippikirjat III, tilattomat A - Ö (1870-1879)",
@@ -2005,7 +2039,8 @@
         "image": 247,
         "pages": [462, 463]
       }
-    ]
+    ],
+    "records": [{ "from": 11180200, "to": 11185142 }]
   },
   "1212341958": {
     "title": "Juva I Aa:10 Pää- ja rippikirjat I (1806-1814)",
@@ -2089,7 +2124,8 @@
         "pages": [29]
       }
     ],
-    "villages": ["Tåifwola"]
+    "villages": ["Tåifwola"],
+    "records": [{ "from": 29832352, "to": 29832363 }]
   },
   "1203522564": {
     "title": "Hirvensalmi I Aa:3 Rippikirja I (1829-1840)",
@@ -2132,7 +2168,8 @@
         "pages": [147]
       }
     ],
-    "villages": ["Soikala Torpare"]
+    "villages": ["Soikala Torpare"],
+    "records": [{ "from": 26068654, "to": 26068672 }]
   },
   "1213005232": {
     "title": "Kangasniemi I Aa:4 Pää- ja rippikirjat, 1781-1787, 1788-1789 kylät Pölläkkämäki-Äkryntaipale (1781-1789)",
@@ -2188,7 +2225,8 @@
         "image": 410,
         "pages": [789]
       }
-    ]
+    ],
+    "records": [{ "from": 24100118, "to": 24105158 }]
   },
   "1212396627": {
     "title": "Juva I Aa:17 Pää- ja rippikirjat I (1834-1844)",
@@ -2236,7 +2274,8 @@
         "image": 81,
         "pages": [76]
       }
-    ]
+    ],
+    "records": [{ "from": 5469245, "to": 5469469 }]
   },
   "1193029304": {
     "title": "Rautalampi I Aa:6 Rippikirja (1781-1785)",
@@ -2285,7 +2324,8 @@
         "pages": [281]
       }
     ],
-    "villages": ["Kaartilanranta"]
+    "villages": ["Kaartilanranta"],
+    "records": [{ "from": 19507701, "to": 19511808 }]
   },
   "1232077281": {
     "title": "Sääminki I Aa:13 Rippikirja, II (1854-1863)",
@@ -2335,7 +2375,8 @@
         "image": 474,
         "pages": [946]
       }
-    ]
+    ],
+    "records": [{ "from": 32754038, "to": 32760351 }]
   },
   "1213232290": {
     "title": "Kangasniemi I Ab:7 Lastenkirjat (1861-1869)",
@@ -2348,7 +2389,8 @@
         "image": 142,
         "pages": [265, 266]
       }
-    ]
+    ],
+    "records": [{ "from": 598001, "to": 598005 }]
   },
   "1856083518": {
     "title": "Mäntyharju I Aa:1 Pää- ja rippikirjat (1733-1738)",
@@ -2473,7 +2515,8 @@
         "image": 71,
         "pages": [306, 307]
       }
-    ]
+    ],
+    "records": [{ "from": 32959691, "to": 32964629 }]
   },
   "1854687551": {
     "title": "Mikkeli Maaseurakunta I Aa:21 Pää- ja rippikirjat I (1828-1838)",
@@ -2605,7 +2648,8 @@
         "pages": [133]
       }
     ],
-    "villages": ["Hangamäki"]
+    "villages": ["Hangamäki"],
+    "records": [{ "from": 8914214, "to": 8914275 }]
   },
   "1193020653": {
     "title": "Rautalampi I Aa:5 Rippikirja (1773-1778)",
@@ -2671,7 +2715,8 @@
         "image": 180,
         "pages": [1615]
       }
-    ]
+    ],
+    "records": [{ "from": 30191907, "to": 30193006 }]
   },
   "1200902653": {
     "title": "Antrea I Aa:27 Rippikirjat (1890-1899)",
@@ -2706,7 +2751,8 @@
         "image": 82,
         "pages": [70]
       }
-    ]
+    ],
+    "records": [{ "from": 19437976, "to": 19438279 }]
   },
   "1852810011": {
     "title": "Kirvu I Aa:23 Rippikirjat (1900-1909)",
@@ -2748,7 +2794,7 @@
     ]
   },
   "1193110858": {
-    "title": "",
+    "title": "Rautalampi I Aa:13 Rippikirja II (1822-1831)",
     "anchors": [
       {
         "image": 102,
@@ -2757,13 +2803,14 @@
     ]
   },
   "1200944126": {
-    "title": "",
+    "title": "Antrea I Aa:30 Rippikirjat, Tilattomat A - Ö (1890-1899)",
     "anchors": [
       {
         "image": 140,
         "pages": [1516]
       }
-    ]
+    ],
+    "records": [{ "from": 3179133, "to": 3179187 }]
   },
   "1225502331": {
     "title": "I Aa:2 Pää- ja rippikirjat (1736-1744)",
@@ -2780,15 +2827,17 @@
         "image": 219,
         "pages": [204]
       }
-    ]
+    ],
+    "records": [{ "from": 9933958, "to": 9943686 }]
   },
   "1854708773": {
-    "title": "",
+    "title": "Mikkeli Maaseurakunta I Aa:22 Pää- ja rippikirjat II (1828-1838)",
     "anchors": [
       {
         "image": 255,
         "pages": [674]
       }
-    ]
+    ],
+    "records": [{ "from": 23896914, "to": 23896919 }]
   }
 }
