@@ -24,8 +24,16 @@
         "pages": [62]
       },
       {
+        "image": 100,
+        "pages": [96]
+      },
+      {
         "image": 128,
         "pages": [135]
+      },
+      {
+        "image": 143,
+        "pages": [150]
       },
       {
         "image": 155,
@@ -171,6 +179,10 @@
       {
         "image": 287,
         "pages": [274]
+      },
+      {
+        "image": 377,
+        "pages": [362]
       },
       {
         "image": 416,
@@ -330,6 +342,10 @@
         "pages": [97]
       },
       {
+        "image": 100,
+        "pages": [100]
+      },
+      {
         "image": 118,
         "pages": [118]
       }
@@ -338,6 +354,10 @@
   "1225953415": {
     "title": "Pieksämäki I Ab:3 Lastenkirja (1757-1772)",
     "anchors": [
+      {
+        "image": 10,
+        "pages": [14, 15]
+      },
       {
         "image": 17,
         "pages": [26, 27]
@@ -356,8 +376,16 @@
     "title": "Haukivuori I Aa:3 Pää- ja rippikirjat (1821-1837)",
     "anchors": [
       {
+        "image": 5,
+        "pages": [3]
+      },
+      {
         "image": 50,
         "pages": [47]
+      },
+      {
+        "image": 65,
+        "pages": [62]
       },
       {
         "image": 70,
@@ -404,6 +432,10 @@
       {
         "image": 4,
         "pages": [725]
+      },
+      {
+        "image": 56,
+        "pages": [775]
       },
       {
         "image": 125,
@@ -744,6 +776,10 @@
       {
         "image": 301,
         "pages": [620]
+      },
+      {
+        "image": 314,
+        "pages": [633]
       }
     ]
   },
@@ -798,6 +834,10 @@
     "title": "Pieksämäki I Ab:5 Lastenkirja (1800-1813)",
     "anchors": [
       {
+        "image": 12,
+        "pages": [18, 19]
+      },
+      {
         "image": 15,
         "pages": [22, 23]
       },
@@ -817,6 +857,10 @@
       {
         "image": 193,
         "pages": [183]
+      },
+      {
+        "image": 206,
+        "pages": [195]
       },
       {
         "image": 420,
@@ -881,6 +925,10 @@
       {
         "image": 463,
         "pages": [439]
+      },
+      {
+        "image": 482,
+        "pages": [458]
       }
     ]
   },
@@ -907,6 +955,10 @@
       {
         "image": 19,
         "pages": [13]
+      },
+      {
+        "image": 25,
+        "pages": [19]
       }
     ]
   },
@@ -934,6 +986,10 @@
       {
         "image": 74,
         "pages": [144, 145]
+      },
+      {
+        "image": 75,
+        "pages": [146, 147]
       }
     ]
   },
@@ -976,6 +1032,10 @@
         "pages": [21]
       },
       {
+        "image": 36,
+        "pages": [33]
+      },
+      {
         "image": 87,
         "pages": [82]
       },
@@ -999,6 +1059,10 @@
       {
         "image": 26,
         "pages": [22]
+      },
+      {
+        "image": 54,
+        "pages": [44]
       },
       {
         "image": 206,
@@ -1055,6 +1119,18 @@
       {
         "image": 122,
         "pages": [217, 218]
+      },
+      {
+        "image": 136,
+        "pages": [241, 242]
+      },
+      {
+        "image": 138,
+        "pages": [243, 244]
+      },
+      {
+        "image": 140,
+        "pages": [246, 247]
       }
     ]
   },
@@ -1173,6 +1249,10 @@
       {
         "image": 139,
         "pages": [135]
+      },
+      {
+        "image": 143,
+        "pages": [139]
       },
       {
         "image": 260,
@@ -1598,6 +1678,10 @@
       {
         "image": 108,
         "pages": [94]
+      },
+      {
+        "image": 133,
+        "pages": [119]
       }
     ]
   },
@@ -1766,6 +1850,10 @@
   "1856083518": {
     "title": "Mäntyharju I Aa:1 Pää- ja rippikirjat (1733-1738)",
     "anchors": [
+      {
+        "image": 151,
+        "pages": [152]
+      },
       {
         "image": 152,
         "pages": [153]
@@ -1971,6 +2059,10 @@
       {
         "image": 284,
         "pages": [942]
+      },
+      {
+        "image": 306,
+        "pages": [963]
       }
     ]
   },
