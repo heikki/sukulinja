@@ -43,17 +43,17 @@ function union<T>(a: T[] = [], b: T[] = []) {
 
 type VolumeAnchors = Anchors[string];
 
+const LISTS = ['villages', 'records', 'seen'] as const;
+
 function mergeVolume(base: VolumeAnchors | undefined, local: VolumeAnchors) {
   let anchors = base?.anchors ?? [];
   for (const a of local.anchors) anchors = withAnchor(anchors, a);
-  const villages = union(base?.villages, local.villages);
-  const records = union(base?.records, local.records);
-  return {
-    ...(base ?? local),
-    anchors,
-    ...(villages.length > 0 ? { villages } : {}),
-    ...(records.length > 0 ? { records } : {})
-  };
+  const out: VolumeAnchors = { ...(base ?? local), anchors };
+  for (const key of LISTS) {
+    const list = union<unknown>(base?.[key], local[key]);
+    if (list.length > 0) Object.assign(out, { [key]: list });
+  }
+  return out;
 }
 
 function merge(base: Anchors, local: Anchors) {
