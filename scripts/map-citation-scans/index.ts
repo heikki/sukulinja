@@ -5,19 +5,21 @@
 //
 // Writes data/citation-scans.json (one entry per citation) and
 // data/citation-scans-checklist.md (cited volumes still lacking an anchor;
-// see locate.ts). Astia responses are cached under data/.astia-cache.
+// see src/server/citation-scans/locate.ts). Astia responses are cached
+// under data/.astia-cache.
 
 import { mkdir } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { CACHE_DIR } from './astia';
-import { churchCitations } from './citations';
-import type { Citation } from './citations';
-import { resolveCitation } from './locate';
-import type { Anchors, Resolution, Scan } from './locate';
+import { CACHE_DIR } from '@server/citation-scans/astia';
+import { resolveCitation } from '@server/citation-scans/locate';
+import type { Anchors, Resolution, Scan } from '@server/citation-scans/locate';
+import type { Citation } from '@server/citation-scans/record';
 
-const ANCHORS_FILE = join(import.meta.dir, 'anchors.json');
+import { churchCitations } from './citations';
+
+const ANCHORS_FILE = resolve('src/server/citation-scans/anchors.json');
 const OUT_FILE = resolve('data/citation-scans.json');
 const CHECKLIST_FILE = resolve('data/citation-scans-checklist.md');
 
@@ -65,7 +67,7 @@ function checklist(citations: Citation[], resolutions: Resolution[]) {
     '',
     'Open the link and read the number(s) written at the top of the image.',
     'Some books number each spread once (one number), others each page (two).',
-    'Add to `scripts/map-citation-scans/anchors.json`:',
+    'Add to `src/server/citation-scans/anchors.json`:',
     '',
     '    "<volume id>": { "anchors": [{ "image": <image>, "pages": [<n>] }] }',
     '    "<volume id>": { "anchors": [{ "image": <image>, "pages": [<left>, <right>] }] }',

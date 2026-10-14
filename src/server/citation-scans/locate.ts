@@ -10,7 +10,7 @@
 
 import { archiveVolumes, viewerUrl, volumeImages } from './astia';
 import type { Volume } from './astia';
-import type { Citation } from './citations';
+import type { Citation } from './record';
 import type { BookKind, Years } from './text';
 
 // Astia fonds ("… seurakunnan arkisto") per parish as MyHeritage and
