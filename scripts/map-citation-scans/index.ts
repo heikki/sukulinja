@@ -13,7 +13,7 @@ import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import type { Scan, ScanResolution } from '@common/types';
-import { loadAnchors } from '@server/citation-scans/anchors';
+import { loadAnchors, loadPlacements } from '@server/citation-scans/anchors';
 import { CACHE_DIR } from '@server/citation-scans/astia';
 import { resolveCitation } from '@server/citation-scans/locate';
 import type { Citation } from '@server/citation-scans/record';
@@ -114,8 +114,9 @@ async function main() {
   }
 
   const anchors = await loadAnchors();
+  const placements = await loadPlacements();
   const resolutions = await Promise.all(
-    citations.map((c) => resolveCitation(c, anchors))
+    citations.map((c) => resolveCitation(c, anchors, placements))
   );
   const results = citations.map((c, i) => ({ ...c, ...resolutions[i] }));
   await Bun.write(OUT_FILE, `${JSON.stringify(results, null, 2)}\n`);

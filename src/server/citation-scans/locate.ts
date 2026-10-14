@@ -46,6 +46,16 @@ export interface Anchor {
 
 export type Anchors = Record<string, { title?: string; anchors: Anchor[] }>;
 
+// A record placed by hand on an image, for a citation naming no page or
+// found in a volume the citation's book doesn't match.
+export interface Placement {
+  volumeId: string;
+  volume: string;
+  image: number;
+}
+
+export type Placements = Record<string, Placement>;
+
 // ---------------------------------------------------------------- volumes
 
 function overlap(a: Years, b: Years) {
@@ -215,10 +225,30 @@ function toScan(l: Located): Scan {
   };
 }
 
+// The parish's population-register volumes, for checking a placement.
+export async function parishVolumes(parish: string | null) {
+  const archiveId = parish === null ? undefined : PARISH_ARCHIVE[parish];
+  return archiveId === undefined ? [] : await archiveVolumes(archiveId);
+}
+
+async function placedScan(p: Placement): Promise<Scan> {
+  const files = await volumeImages(p.volumeId);
+  return {
+    volumeId: p.volumeId,
+    volume: p.volume,
+    image: p.image,
+    url: viewerUrl(p.volumeId, files[p.image - 1]!),
+    method: 'placed'
+  };
+}
+
 export async function resolveCitation(
   c: Citation,
-  anchors: Anchors
+  anchors: Anchors,
+  placements: Placements = {}
 ): Promise<ScanResolution> {
+  const placed = placements[c.url];
+  if (placed !== undefined) return { scans: [await placedScan(placed)] };
   if (c.parish === null || c.kind === null || c.years === null) {
     return { error: 'unparsed' };
   }
