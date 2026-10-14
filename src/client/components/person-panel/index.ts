@@ -53,6 +53,7 @@ function renderRecord(r: RecordView) {
 const SCAN_LABELS: Record<ScanMethod, string> = {
   anchored: 'Scan',
   estimated: 'Scan (approximate)',
+  placed: 'Scan',
   volume: 'Volume'
 };
 
@@ -114,6 +115,25 @@ function renderCitation(
       ${correction}
     </article>
   `;
+}
+
+// A volume-only link has no image to be wrong yet.
+function correctLabel(first: Scan | null) {
+  return first === null || first.method === 'volume'
+    ? 'Find the image'
+    : 'Wrong image?';
+}
+
+function correctionPrompt(c: CitationRow, first: Scan | null) {
+  const where =
+    c.citedPage === null
+      ? 'Where is this record?'
+      : `Where is page ${c.citedPage}?`;
+  const how =
+    first === null
+      ? 'Paste the Astia link of the right image'
+      : `Give the image number in ${first.volume}, or paste the Astia link of the right image`;
+  return `${where} ${how} — any of the parish's books.`;
 }
 
 // The Focus person's events and sources, beside the chart. Links open
@@ -191,10 +211,15 @@ export class PersonPanelElement extends LitElement {
   // An image number in the linked volume, or an Astia viewer link to any
   // image of the candidate volumes. The server saves it as an anchor for the
   // cited page, which also moves nearby citations; they're reloaded.
-  private async correct(c: CitationRow, scan: Scan, input: string) {
+  private async correct(c: CitationRow, scan: Scan | null, input: string) {
     const where = input.trim();
-    const body = /^\d+$/.test(where)
-      ? { volumeId: scan.volumeId, image: Number(where) }
+    const number = /^\d+$/.test(where);
+    if (number && scan === null) {
+      this.correctionError = 'Paste the Astia link of the image.';
+      return;
+    }
+    const body = number
+      ? { volumeId: scan!.volumeId, image: Number(where) }
       : { url: where };
     const res = await fetch(apiUrl(`/api/citations/${c.id}/scans`), {
       method: 'POST',
@@ -216,11 +241,8 @@ export class PersonPanelElement extends LitElement {
   }
 
   private renderCorrection(c: CitationRow, scan: ScanResolution | undefined) {
-    if (c.citedPage === null || scan === undefined || !('scans' in scan)) {
-      return nothing;
-    }
-    const first = scan.scans[0];
-    if (first === undefined) return nothing;
+    if (!c.churchBook || scan === undefined) return nothing;
+    const first = 'scans' in scan ? (scan.scans[0] ?? null) : null;
     if (this.correcting !== c.id) {
       return html`
         <button
@@ -230,7 +252,7 @@ export class PersonPanelElement extends LitElement {
             this.correctionError = null;
           }}
         >
-          Wrong image?
+          ${correctLabel(first)}
         </button>
       `;
     }
@@ -245,11 +267,13 @@ export class PersonPanelElement extends LitElement {
           void this.correct(c, first, input.value);
         }}
       >
-        <p class="muted">
-          Where is page ${c.citedPage}? Give the image number in
-          ${first.volume}, or paste the Astia link of the right image.
-        </p>
-        <input name="where" required autofocus placeholder="e.g. 107" />
+        <p class="muted">${correctionPrompt(c, first)}</p>
+        <input
+          name="where"
+          required
+          autofocus
+          placeholder=${first === null ? 'Astia link' : 'e.g. 107'}
+        />
         <button type="submit">Save</button>
         <button
           type="button"

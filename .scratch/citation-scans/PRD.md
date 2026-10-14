@@ -29,9 +29,13 @@ can be corrected in the app, and the correction fixes nearby citations too.
   new parish can take a while; the panel shows the sources at once and the
   scan links when they arrive.
 - **Corrections in the first version.** "It's actually image N" (or a pasted
-  Astia URL) saves an anchor for the cited page. Corrections live in a local
-  overlay beside the datasets, applied over the anchors that ship with the
-  app; the mapper script reads both.
+  Astia URL) saves an anchor for the cited page when the image is in a
+  volume the citation already links, so nearby citations move too. A record
+  naming no page, or found in another volume of the same parish, is placed
+  on that image by itself, keyed by its MyHeritage record URL so it survives
+  re-imports. Both live in local files beside the datasets
+  (`anchors.local.json`, `placements.local.json`), read over the anchors
+  that ship with the app; the mapper script reads them too.
 - **Citations are stored raw.** `PAGE`, `QUAY` and `DATA/TEXT` go into the DB
   as recorded; parsing (parish, book, page, household) happens when serving.
   Storage stays lossless for a later export, and parser fixes need no

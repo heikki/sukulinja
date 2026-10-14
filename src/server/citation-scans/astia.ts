@@ -128,12 +128,28 @@ async function readUnit(id: string) {
   }));
 }
 
+async function volumeFiles(volumeId: string) {
+  return (await fetchJson(`ws/aineisto/digitoidut.php?id=${volumeId}`)) as {
+    isot?: XmlNode[];
+    pienet?: XmlNode[];
+  };
+}
+
 // File ids of the volume's full-size images, in viewer order.
 export async function volumeImages(volumeId: string) {
-  const json = (await fetchJson(
-    `ws/aineisto/digitoidut.php?id=${volumeId}`
-  )) as { isot?: XmlNode[] };
+  const json = await volumeFiles(volumeId);
   return (json.isot ?? []).map((f) => childValue(f, 'URL'));
+}
+
+// The image a viewer link's file is: the viewer names files from either
+// list Astia gives, full size or small, both in image order.
+export async function imageOfFile(volumeId: string, fileId: string) {
+  const json = await volumeFiles(volumeId);
+  for (const list of [json.isot ?? [], json.pienet ?? []]) {
+    const i = list.findIndex((f) => childValue(f, 'URL') === fileId);
+    if (i >= 0) return i + 1;
+  }
+  return null;
 }
 
 export function viewerUrl(volumeId: string, fileId: string) {

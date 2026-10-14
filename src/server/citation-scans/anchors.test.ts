@@ -3,14 +3,20 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, test } from 'bun:test';
 
-import { addLocalAnchor, loadAnchors, setLocalAnchorsFile } from './anchors';
+import {
+  addLocalAnchor,
+  loadAnchors,
+  loadPlacements,
+  setLocalFolder,
+  setPlacement
+} from './anchors';
 import shipped from './anchors.json';
 
 let dir = '';
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'anchors-'));
-  setLocalAnchorsFile(join(dir, 'anchors.local.json'));
+  setLocalFolder(dir);
 });
 afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
@@ -43,4 +49,14 @@ test('reads local anchors over the shipped ones', async () => {
     anchors: [{ image: 3, pages: [5, 6] }]
   });
   expect(shipped[volumeId as keyof typeof shipped].anchors[0]).toEqual(first);
+});
+
+test('places a record by hand, and takes it back', async () => {
+  const record =
+    'https://www.myheritage.fi/research/collection-10509/x?itemId=1';
+  const placement = { volumeId: 'v', volume: 'I Aa:3', image: 203 };
+  await setPlacement(record, placement);
+  expect(await loadPlacements()).toEqual({ [record]: placement });
+  await setPlacement(record, null);
+  expect(await loadPlacements()).toEqual({});
 });

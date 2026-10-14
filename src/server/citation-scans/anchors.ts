@@ -1,18 +1,21 @@
-// The anchors placement reads (see locate.ts): those that ship with the app
-// in anchors.json, with corrections made in the app read over them from a
-// local file in the data folder. A newer anchor replaces any on the same
-// image or claiming one of its pages, so re-correcting a page moves it.
+// What placement reads (see locate.ts). Anchors ship with the app in
+// anchors.json; corrections made in the app go to local files in the data
+// folder: anchors read over the shipped ones, and records placed by hand.
+// A newer anchor replaces any on the same image or claiming one of its
+// pages, so re-correcting a page moves it.
 
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import shipped from './anchors.json';
-import type { Anchor, Anchors } from './locate';
+import type { Anchor, Anchors, Placement, Placements } from './locate';
 
 let localFile = resolve('data/anchors.local.json');
+let placementsFile = resolve('data/placements.local.json');
 let merged: Promise<Anchors> | null = null;
 
-export function setLocalAnchorsFile(path: string) {
-  localFile = path;
+export function setLocalFolder(dir: string) {
+  localFile = join(dir, 'anchors.local.json');
+  placementsFile = join(dir, 'placements.local.json');
   merged = null;
 }
 
@@ -61,4 +64,23 @@ export async function addLocalAnchor(
   };
   await Bun.write(localFile, `${JSON.stringify(local, null, 2)}\n`);
   merged = null;
+}
+
+// Keyed by the citation's MyHeritage record URL, which survives re-imports.
+export async function loadPlacements() {
+  const file = Bun.file(placementsFile);
+  return (await file.exists()) ? ((await file.json()) as Placements) : {};
+}
+
+export async function setPlacement(
+  record: string,
+  placement: Placement | null
+) {
+  const others = Object.entries(await loadPlacements()).filter(
+    ([key]) => key !== record
+  );
+  const placements = Object.fromEntries(
+    placement === null ? others : [...others, [record, placement]]
+  );
+  await Bun.write(placementsFile, `${JSON.stringify(placements, null, 2)}\n`);
 }

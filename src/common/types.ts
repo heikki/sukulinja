@@ -93,9 +93,9 @@ export interface HouseholdMember {
 }
 
 // How a scan's image was found: from page numbers read off the volume
-// (anchored), guessed from the book type (estimated), or not at all — the
-// link opens the volume.
-export type ScanMethod = 'anchored' | 'estimated' | 'volume';
+// (anchored), guessed from the book type (estimated), by hand for this
+// record (placed), or not at all — the link opens the volume.
+export type ScanMethod = 'anchored' | 'estimated' | 'placed' | 'volume';
 
 // One Astia image a citation may be on; a volume split in parts can give
 // one per part.
