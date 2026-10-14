@@ -44,7 +44,12 @@ export interface Anchor {
   note?: string;
 }
 
-export type Anchors = Record<string, { title?: string; anchors: Anchor[] }>;
+// Per volume: the anchors read in it, and the villages found in it where a
+// book is split in parts without village ranges in their labels.
+export type Anchors = Record<
+  string,
+  { title?: string; anchors: Anchor[]; villages?: string[] }
+>;
 
 // A record placed by hand on an image, for a citation naming no page or
 // found in a volume the citation's book doesn't match.
@@ -114,10 +119,22 @@ function inRange(place: string, range: { from: string; to: string }) {
   );
 }
 
-// Among volumes split by village, keep those whose range covers one of the
-// citation's place names; if none does, the split can't be decided here.
-function narrowByVillage(volumes: Volume[], places: string[]) {
+// Among volumes split by village, keep those known to hold one of the
+// citation's place names, else those whose range covers one; if none does,
+// the split can't be decided here.
+function narrowByVillage(
+  volumes: Volume[],
+  places: string[],
+  anchors: Anchors
+) {
   if (volumes.length < 2) return volumes;
+  const keys = places.map(placeKey);
+  const known = volumes.filter((v) =>
+    (anchors[v.id]?.villages ?? []).some((name) =>
+      keys.includes(placeKey(name))
+    )
+  );
+  if (known.length > 0) return known;
   const matches = volumes.filter((v) => {
     const range = villageRange(v.label);
     return range !== null && places.some((p) => inRange(p, range));
@@ -200,7 +217,7 @@ async function locate(
 // Pick the volumes to link. An anchored volume whose numbering doesn't
 // reach the cited page isn't the one cited: split volumes often continue one
 // page sequence (I: 1–600, II: 601–1200), and that beats the village guess.
-function pickVolumes(located: Located[], places: string[]) {
+function pickVolumes(located: Located[], places: string[], anchors: Anchors) {
   const reachable = located.filter(
     (l) => !(l.method === 'anchored' && l.image === null)
   );
@@ -208,7 +225,8 @@ function pickVolumes(located: Located[], places: string[]) {
   const byVillage = new Set(
     narrowByVillage(
       pool.map((l) => l.volume),
-      places
+      places,
+      anchors
     )
   );
   return pool.filter((l) => byVillage.has(l.volume));
@@ -267,5 +285,5 @@ export async function resolveCitation(
   );
   const withImages = located.filter((l) => l.files.length > 0);
   if (withImages.length === 0) return { error: 'no images' };
-  return { scans: pickVolumes(withImages, c.places).map(toScan) };
+  return { scans: pickVolumes(withImages, c.places, anchors).map(toScan) };
 }

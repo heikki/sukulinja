@@ -42,7 +42,17 @@ function merge(base: Anchors, local: Anchors) {
   for (const [volumeId, volume] of Object.entries(local)) {
     let anchors = out[volumeId]?.anchors ?? [];
     for (const a of volume.anchors) anchors = withAnchor(anchors, a);
-    out[volumeId] = { ...(out[volumeId] ?? volume), anchors };
+    const villages = [
+      ...new Set([
+        ...(out[volumeId]?.villages ?? []),
+        ...(volume.villages ?? [])
+      ])
+    ];
+    out[volumeId] = {
+      ...(out[volumeId] ?? volume),
+      anchors,
+      ...(villages.length > 0 ? { villages } : {})
+    };
   }
   return out;
 }
