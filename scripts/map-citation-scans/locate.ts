@@ -3,8 +3,10 @@
 // Astia knows only image order, so a cited page is turned into an image via
 // anchors (anchors.json): what's written on one image, read off the scan by
 // hand. One number means the book numbers spreads (`pages: [77]`); two mean
-// it numbers pages (`pages: [40, 41]`). Without an anchor we guess from the
-// spot checks so far: rippikirjat number spreads, lastenkirjat pages.
+// it numbers pages (`pages: [40, 41]`). Where MyHeritage's indexer misread
+// the page number, an anchor gives the number as cited and a `note` says
+// what's written. Without an anchor we guess from the spot checks so far:
+// rippikirjat number spreads, lastenkirjat pages.
 
 import { archiveVolumes, viewerUrl, volumeImages } from './astia';
 import type { Volume } from './astia';
@@ -37,6 +39,7 @@ const PARISH_ARCHIVE: Record<string, string> = {
 interface Anchor {
   image: number;
   pages: number[];
+  note?: string;
 }
 
 export type Anchors = Record<string, { title?: string; anchors: Anchor[] }>;
