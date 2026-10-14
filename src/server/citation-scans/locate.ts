@@ -12,7 +12,10 @@
 // villages and page numbers. Where that's known exactly, a volume lists the
 // MyHeritage records on its film: MyHeritage numbers each film's records in
 // one block, in image order, and blocks don't overlap, so a record seen on a
-// film places every record numbered around it there too.
+// film places every record numbered around it there too. A record seen this
+// way is on a known image: MyHeritage's scan of it was matched by eye to the
+// same scan in Astia (the two share their photographs, but not always their
+// image numbers).
 
 import type { Scan, ScanMethod, ScanResolution } from '@common/types';
 
@@ -56,9 +59,15 @@ export interface RecordRange {
   to: number;
 }
 
+// A MyHeritage record whose scan is this image.
+export interface SeenRecord {
+  record: number;
+  image: number;
+}
+
 // Per volume: the anchors read in it, the villages found in it where a book
-// is split in parts without village ranges in their labels, and the records
-// on its film.
+// is split in parts without village ranges in their labels, the records on
+// its film, and the images of those seen.
 export type Anchors = Record<
   string,
   {
@@ -66,6 +75,7 @@ export type Anchors = Record<
     anchors: Anchor[];
     villages?: string[];
     records?: RecordRange[];
+    seen?: SeenRecord[];
   }
 >;
 
@@ -226,12 +236,20 @@ interface Located {
   method: ScanMethod;
 }
 
+function seenImage(v: Volume, c: Citation, anchors: Anchors) {
+  return anchors[v.id]?.seen?.find((r) => r.record === c.recordId)?.image;
+}
+
 async function locate(
   v: Volume,
   c: Citation,
   anchors: Anchors
 ): Promise<Located> {
   const files = await volumeImages(v.id);
+  const seen = seenImage(v, c, anchors);
+  if (seen !== undefined) {
+    return { volume: v, files, image: seen, method: 'placed' };
+  }
   if (c.page === null) {
     return { volume: v, files, image: null, method: 'volume' };
   }
