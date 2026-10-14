@@ -20,6 +20,10 @@
         "pages": [9]
       },
       {
+        "image": 36,
+        "pages": [32]
+      },
+      {
         "image": 66,
         "pages": [62]
       },
@@ -40,6 +44,10 @@
         "pages": [165]
       },
       {
+        "image": 214,
+        "pages": [229]
+      },
+      {
         "image": 230,
         "pages": [245]
       }
@@ -48,6 +56,10 @@
   "1202482461": {
     "title": "Haukivuori I Aa:7 Pää- ja rippikirjat (1870-1879)",
     "anchors": [
+      {
+        "image": 17,
+        "pages": [15]
+      },
       {
         "image": 50,
         "pages": [48]
@@ -61,8 +73,16 @@
         "pages": [96]
       },
       {
+        "image": 124,
+        "pages": [122]
+      },
+      {
         "image": 158,
         "pages": [156]
+      },
+      {
+        "image": 216,
+        "pages": [213]
       },
       {
         "image": 245,
@@ -80,6 +100,10 @@
       {
         "image": 6,
         "pages": [9, 10]
+      },
+      {
+        "image": 28,
+        "pages": [53, 54]
       },
       {
         "image": 46,
@@ -144,6 +168,14 @@
         "pages": [217]
       },
       {
+        "image": 256,
+        "pages": [240]
+      },
+      {
+        "image": 299,
+        "pages": [282]
+      },
+      {
         "image": 340,
         "pages": [322]
       },
@@ -161,12 +193,24 @@
     "title": "Pieksämäki I Aa:8 Pää- ja rippikirjat (1783-1790)",
     "anchors": [
       {
+        "image": 8,
+        "pages": [4]
+      },
+      {
         "image": 35,
         "pages": [31]
       },
       {
+        "image": 60,
+        "pages": [54]
+      },
+      {
         "image": 92,
         "pages": [85]
+      },
+      {
+        "image": 116,
+        "pages": [106]
       },
       {
         "image": 144,
@@ -243,12 +287,24 @@
         "pages": [38]
       },
       {
+        "image": 68,
+        "pages": [64]
+      },
+      {
         "image": 85,
         "pages": [86]
       },
       {
+        "image": 129,
+        "pages": [129]
+      },
+      {
         "image": 173,
         "pages": [167]
+      },
+      {
+        "image": 230,
+        "pages": [222]
       },
       {
         "image": 274,
@@ -280,8 +336,16 @@
         "pages": [80]
       },
       {
+        "image": 131,
+        "pages": [128]
+      },
+      {
         "image": 169,
         "pages": [164]
+      },
+      {
+        "image": 229,
+        "pages": [224]
       },
       {
         "image": 270,
@@ -315,6 +379,10 @@
       {
         "image": 143,
         "pages": [143]
+      },
+      {
+        "image": 191,
+        "pages": [190]
       },
       {
         "image": 218,
@@ -396,6 +464,10 @@
         "pages": [91]
       },
       {
+        "image": 116,
+        "pages": [113]
+      },
+      {
         "image": 145,
         "pages": [142]
       }
@@ -446,12 +518,20 @@
         "pages": [879]
       },
       {
+        "image": 203,
+        "pages": [922]
+      },
+      {
         "image": 320,
         "pages": [1037]
       },
       {
         "image": 389,
         "pages": [1102]
+      },
+      {
+        "image": 587,
+        "pages": [1294]
       },
       {
         "image": 656,
@@ -482,6 +562,14 @@
       {
         "image": 99,
         "pages": [86]
+      },
+      {
+        "image": 120,
+        "pages": [107]
+      },
+      {
+        "image": 162,
+        "pages": [149]
       },
       {
         "image": 205,
@@ -601,8 +689,16 @@
         "pages": [106, 107]
       },
       {
+        "image": 127,
+        "pages": [292, 293]
+      },
+      {
         "image": 151,
         "pages": [340, 341]
+      },
+      {
+        "image": 204,
+        "pages": [454, 455]
       },
       {
         "image": 224,
@@ -660,14 +756,30 @@
         "pages": [107]
       },
       {
+        "image": 166,
+        "pages": [150]
+      },
+      {
+        "image": 203,
+        "pages": [185]
+      },
+      {
         "image": 319,
         "pages": [289]
+      },
+      {
+        "image": 342,
+        "pages": [312]
       }
     ]
   },
   "1225527944": {
     "title": "Pieksämäki I Aa:4 Pää- ja rippikirjat (1750-1756)",
     "anchors": [
+      {
+        "image": 46,
+        "pages": [45]
+      },
       {
         "image": 79,
         "pages": [77]
@@ -709,6 +821,10 @@
       {
         "image": 112,
         "pages": [106]
+      },
+      {
+        "image": 190,
+        "pages": [181]
       },
       {
         "image": 223,
@@ -762,6 +878,10 @@
         "pages": [376]
       },
       {
+        "image": 67,
+        "pages": [397]
+      },
+      {
         "image": 95,
         "pages": [424]
       },
@@ -809,6 +929,10 @@
     "title": "Pieksämäki I Aa:11 Pää- ja rippikirjat (1804-1814)",
     "anchors": [
       {
+        "image": 14,
+        "pages": [12]
+      },
+      {
         "image": 38,
         "pages": [36]
       },
@@ -827,6 +951,10 @@
       {
         "image": 372,
         "pages": [354]
+      },
+      {
+        "image": 394,
+        "pages": [375]
       }
     ]
   },
@@ -880,6 +1008,10 @@
         "pages": [137]
       },
       {
+        "image": 353,
+        "pages": [336]
+      },
+      {
         "image": 396,
         "pages": [378]
       }
@@ -900,6 +1032,10 @@
       {
         "image": 5,
         "pages": [8, 9]
+      },
+      {
+        "image": 21,
+        "pages": [36, 37]
       }
     ]
   },
@@ -919,8 +1055,16 @@
         "pages": [268]
       },
       {
+        "image": 310,
+        "pages": [289]
+      },
+      {
         "image": 393,
         "pages": [379]
+      },
+      {
+        "image": 416,
+        "pages": [396]
       },
       {
         "image": 463,
@@ -935,6 +1079,10 @@
   "1225901712": {
     "title": "Pieksämäki I Aa:21 Pää- ja rippikirjat, I Haapakoski - Längelmäki (1859-1868)",
     "anchors": [
+      {
+        "image": 28,
+        "pages": [24]
+      },
       {
         "image": 51,
         "pages": [46]
@@ -1063,6 +1211,14 @@
       {
         "image": 54,
         "pages": [44]
+      },
+      {
+        "image": 112,
+        "pages": [99]
+      },
+      {
+        "image": 136,
+        "pages": [124]
       },
       {
         "image": 206,
@@ -1232,6 +1388,10 @@
       {
         "image": 288,
         "pages": [523, 524]
+      },
+      {
+        "image": 304,
+        "pages": [551, 552]
       }
     ]
   },
@@ -1389,6 +1549,10 @@
         "pages": [957]
       },
       {
+        "image": 454,
+        "pages": [1059]
+      },
+      {
         "image": 475,
         "pages": [1080]
       }
@@ -1397,6 +1561,10 @@
   "1854722994": {
     "title": "Mikkeli Maaseurakunta I Aa:24 Pää- ja rippikirjat I, kylät Alamaa - Vanhamäki (1847-1858)",
     "anchors": [
+      {
+        "image": 158,
+        "pages": [155]
+      },
       {
         "image": 190,
         "pages": [186]
@@ -1480,8 +1648,16 @@
     "title": "Pieksämäki I Ab:8 Lastenkirja (1852-1862)",
     "anchors": [
       {
+        "image": 19,
+        "pages": [32, 33]
+      },
+      {
         "image": 63,
         "pages": [114, 115]
+      },
+      {
+        "image": 130,
+        "pages": [226, 227]
       },
       {
         "image": 174,
@@ -1500,6 +1676,10 @@
   "1854479365": {
     "title": "Mikkeli Maaseurakunta I Aa:7 Pää- ja rippikirjat II (1764-1769)",
     "anchors": [
+      {
+        "image": 62,
+        "pages": [60]
+      },
       {
         "image": 86,
         "pages": [84]
@@ -1533,6 +1713,10 @@
       {
         "image": 84,
         "pages": [158, 159]
+      },
+      {
+        "image": 97,
+        "pages": [184, 185]
       }
     ]
   },
@@ -1646,6 +1830,10 @@
     "title": "Hirvensalmi I Aa:3 Rippikirja I (1829-1840)",
     "anchors": [
       {
+        "image": 62,
+        "pages": [60]
+      },
+      {
         "image": 110,
         "pages": [107]
       },
@@ -1665,6 +1853,14 @@
       {
         "image": 29,
         "pages": [28]
+      },
+      {
+        "image": 60,
+        "pages": [59]
+      },
+      {
+        "image": 110,
+        "pages": [109]
       },
       {
         "image": 148,
@@ -1722,6 +1918,10 @@
       {
         "image": 251,
         "pages": [225]
+      },
+      {
+        "image": 277,
+        "pages": [246]
       }
     ]
   },
@@ -1749,6 +1949,10 @@
       {
         "image": 57,
         "pages": [33]
+      },
+      {
+        "image": 81,
+        "pages": [76]
       }
     ]
   },
@@ -1758,6 +1962,10 @@
       {
         "image": 26,
         "pages": [22]
+      },
+      {
+        "image": 57,
+        "pages": [49]
       }
     ]
   },
@@ -1872,6 +2080,10 @@
         "pages": [691]
       },
       {
+        "image": 269,
+        "pages": [864]
+      },
+      {
         "image": 303,
         "pages": [898]
       },
@@ -1923,6 +2135,10 @@
       {
         "image": 26,
         "pages": [26]
+      },
+      {
+        "image": 61,
+        "pages": [62]
       }
     ]
   },
@@ -1959,6 +2175,10 @@
   "1854687551": {
     "title": "Mikkeli Maaseurakunta I Aa:21 Pää- ja rippikirjat I (1828-1838)",
     "anchors": [
+      {
+        "image": 47,
+        "pages": [37]
+      },
       {
         "image": 98,
         "pages": [86]
@@ -2082,6 +2302,10 @@
   "1193020653": {
     "title": "Rautalampi I Aa:5 Rippikirja (1773-1778)",
     "anchors": [
+      {
+        "image": 37,
+        "pages": [32]
+      },
       {
         "image": 59,
         "pages": [51]
