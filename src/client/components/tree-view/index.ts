@@ -6,6 +6,10 @@ import { repeat } from 'lit/directives/repeat.js';
 import { apiUrl } from '@client/api';
 import type { FamilyRow, PersonRow } from '@common/types';
 
+import '../person-panel';
+
+import { detailsOpen, setDetailsOpen } from '../person-panel/helpers';
+
 import '../person-search';
 
 import type { PickEvent } from '../person-search';
@@ -87,6 +91,14 @@ function comfortOf(boxes: Box[], coreIds: ReadonlySet<number>): Comfort | null {
   return { region, cores: [boundsOf(family), boundsOf(couple)] };
 }
 
+// A window with a side column: toggles the Focus details panel.
+const DETAILS_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
+  ${svg`
+    <rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5" />
+    <path d="M 10 3 V 13" stroke="currentColor" stroke-width="1.5" />
+  `}
+</svg>`;
+
 @customElement('sl-tree-view')
 export class TreeViewElement extends LitElement {
   static override styles = treeViewStyles;
@@ -96,6 +108,7 @@ export class TreeViewElement extends LitElement {
   @state() private persons = new Map<number, PersonRow>();
   @state() private focusId: number | null = null;
   @state() private loading = true;
+  @state() private details = detailsOpen();
 
   private readonly parentFamByPerson = new Map<number, FamilyRow>();
   private readonly spouseFamsByPerson = new Map<number, FamilyRow[]>();
@@ -391,6 +404,17 @@ export class TreeViewElement extends LitElement {
           />
           <span class="meta">${this.gen}</span>
         </label>
+        <button
+          class="icon ${this.details ? 'on' : ''}"
+          title=${this.details ? 'Hide details' : 'Show details'}
+          aria-pressed=${this.details}
+          @click=${() => {
+            this.details = !this.details;
+            setDetailsOpen(this.details);
+          }}
+        >
+          ${DETAILS_ICON}
+        </button>
         <slot name="actions"></slot>
       </div>
     `;
@@ -552,6 +576,17 @@ export class TreeViewElement extends LitElement {
     }
     this.chartExtents = chart.extents;
     this.chartComfort = comfortOf(chart.boxes, this.coreIds(this.focusId));
-    return this.renderCanvas(chart);
+    return html`
+      <div class="main">
+        ${this.renderCanvas(chart)}
+        ${
+          this.details
+            ? html`<sl-person-panel
+                .personId=${this.focusId}
+              ></sl-person-panel>`
+            : nothing
+        }
+      </div>
+    `;
   }
 }
