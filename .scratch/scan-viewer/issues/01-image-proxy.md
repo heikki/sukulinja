@@ -17,7 +17,9 @@ Part of `../PRD.md`.
   has gone away (aborted) is dropped. It sends one request at a time with
   no gap between them, as Astia's own ZIP download does
   (`viewer/fileDownloader.js` fetches the selected Images back to back).
-  Keep Astia's User-Agent and the retry of transient failures.
+  Keep Astia's User-Agent. Someone is waiting, so an Image retries a blip
+  briefly (3 attempts, 0.5 s then 1 s) and gives up rather than wait out a
+  429 or a long Retry-After. The crawl keeps its patience.
 - Fetched Images are written to a disk cache in the data folder beside
   `.astia-cache` (e.g. `.astia-images/`), shared by every dataset. After
   each write, the least-recently viewed Images are dropped until the cache
