@@ -37,6 +37,14 @@ export async function shrinkImageCache() {
   await prune(null);
 }
 
+// Whether a Volume's full-size Image is on disk already: a bulk job paces
+// only the fetches that reach Astia.
+export async function isImageCached(volumeId: string, image: number) {
+  const fileId = (await volumeImages(volumeId))[image - 1];
+  if (fileId === undefined) return false;
+  return await Bun.file(join(cacheDir, `${fileId}.jpg`)).exists();
+}
+
 export async function clearImageCache() {
   const files = await cachedFiles();
   await Promise.all(files.map((f) => rm(f.path, { force: true })));
