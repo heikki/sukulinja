@@ -73,6 +73,9 @@ A Volume's span of Record numbers. Overrides choosing the Volume by years.
 **Seen record**:
 A record whose Image is known exactly: its MyHeritage Frame matched by eye to an Image, or the record marked in the **Scan viewer**. One outside its Volume's **Record range** extends the nearest one to it, unless another Volume's range lies between.
 
+**Reader**:
+The vision model behind three questions about one Image: the Page numbers written on it, the earliest and latest entry dates on it, and whether a named person is written on it. "Unreadable" is an answer it can give. Only scripts ask it; the app never calls a model.
+
 **Provenance**:
 Who saved an Anchor, Seen record or Placement: by hand (everything shipped, and every mark made in the Scan viewer) or by the vision model. A hand correction always wins over a vision one.
 
