@@ -35,7 +35,7 @@ export const treeViewStyles = css`
 
   sl-person-search {
     margin-left: auto;
-    width: min(420px, 45vw);
+    width: min(320px, 45vw);
   }
 
   /* The chart and, beside it, the Focus details panel. */
