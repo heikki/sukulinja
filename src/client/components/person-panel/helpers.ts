@@ -1,4 +1,4 @@
-import type { FactRow } from '@common/types';
+import type { FactRow, Scan, ScanMethod } from '@common/types';
 
 const FACT_LABELS: Record<string, string> = {
   BIRT: 'Birth',
@@ -77,4 +77,31 @@ export function siteName(url: string) {
   if (host === null) return 'Record';
   const known = SITE_NAMES.find(([re]) => re.test(host));
   return known?.[1] ?? host.replace(/^www\./, '');
+}
+
+// Opens in the Scan viewer, so no ↗: that marks links leaving the app.
+const SCAN_LABELS: Record<ScanMethod, string> = {
+  anchored: 'Astia',
+  estimated: 'Astia (approximate)',
+  placed: 'Astia',
+  volume: 'Astia volume'
+};
+
+function isVisionMatch(scan: Scan) {
+  return scan.method === 'placed' && scan.by === 'vision';
+}
+
+// A link the vision model matched says so, to be trusted accordingly.
+export function scanLabel(scan: Scan) {
+  return isVisionMatch(scan)
+    ? 'Astia (vision match)'
+    : SCAN_LABELS[scan.method];
+}
+
+export function scanTitle(scans: Scan[]) {
+  const where = scans.map((s) => `${s.volume}, image ${s.image}`);
+  const vision = scans.some(isVisionMatch)
+    ? ['Matched by the vision model: mark the right Image to correct it.']
+    : [];
+  return [...where, ...vision].join('\n');
 }

@@ -6,6 +6,7 @@ import {
   clampImage,
   groupVolumes,
   imageUrl,
+  linkLabel,
   markOffer,
   neighbours
 } from './helpers';
@@ -102,4 +103,17 @@ test('prefetches the Image ahead first', () => {
   expect(neighbours(1, 10, 1)).toEqual([2]);
   expect(neighbours(10, 10, 1)).toEqual([9]);
   expect(neighbours(10, null, 1)).toEqual([11, 9]);
+});
+
+test('says a link was matched by the vision model', () => {
+  const link: Scan = {
+    volumeId: 'v1',
+    volume: 'I Aa:5',
+    image: 18,
+    url: '',
+    method: 'placed'
+  };
+  expect(linkLabel(link)).toBe('Placed link');
+  expect(linkLabel({ ...link, by: 'vision' })).toBe('Vision match');
+  expect(linkLabel({ ...link, method: 'anchored' })).toBe('Anchored link');
 });
