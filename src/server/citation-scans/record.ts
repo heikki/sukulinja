@@ -22,6 +22,27 @@ export interface ChurchBookRef {
   places: string[];
   // MyHeritage's record number in the collection, which names the film.
   recordId: number | null;
+  // Whom the record is about: the rippikirja record's principal, or the
+  // person (or couple) an index entry names.
+  name: string | null;
+  // An index reference's event date, as precise as the text gives it:
+  // YYYY-MM-DD, YYYY-MM or YYYY. Null for rippikirja references.
+  date: string | null;
+  // The principal as the record's household table lists them, to tell them
+  // from namesakes on the scan: many are named by first name alone. Null
+  // where the record has no such row, and for index references.
+  household: Household | null;
+}
+
+export interface Household {
+  born: string | null;
+  // Relation to the household head, as MyHeritage writes it ("Tytär").
+  relation: string | null;
+  // The household head, or failing one someone listed in full beside them.
+  with: string | null;
+  // The whole table, in the book's order, the principal among them: whom to
+  // look for on the scan around them.
+  members: HouseholdMember[];
 }
 
 export function collectionOf(url: string) {
@@ -92,7 +113,28 @@ function residencePlaces(text: string, parish: string | null) {
   return end > 0 ? parts.slice(0, end) : [];
 }
 
-function parseRippiRef(url: string, text: string): ChurchBookRef {
+// The principal's row in the household table, and who heads it. A table
+// without a head ("Perheenpää") is part of a household, such as a married
+// son's family; its first member named in full stands in.
+function householdOf(raw: string, name: string | null): Household | null {
+  const members = readHousehold(decodeFully(raw));
+  const self = members.find((m) => m.name === name);
+  if (self === undefined) return null;
+  const head = members.find((m) => m.relation === 'Perheenpää');
+  const beside =
+    head !== undefined && head !== self
+      ? head
+      : members.find((m) => m !== self && /\s/.test(m.name));
+  return {
+    born: self.born,
+    relation: self.relation,
+    with: beside?.name ?? null,
+    members
+  };
+}
+
+function parseRippiRef(url: string, text: string, raw: string): ChurchBookRef {
+  const name = recordName(text);
   const book = field(text, 'Kirja');
   const rawParish = field(text, 'Hallintoalue');
   const parish = rawParish === null ? null : stripParens(rawParish);
@@ -109,7 +151,10 @@ function parseRippiRef(url: string, text: string): ChurchBookRef {
       ...named.filter((x) => x !== null),
       ...residencePlaces(text, parish)
     ],
-    recordId: recordIdOf(url)
+    recordId: recordIdOf(url),
+    name,
+    date: null,
+    household: householdOf(raw, name)
   };
 }
 
@@ -132,8 +177,47 @@ function parseIndexRef(
     page: null,
     places: [],
     // Numbered in another collection; the films are known by rippi records.
-    recordId: null
+    recordId: null,
+    name: recordName(text),
+    date: event === undefined ? null : isoDate(event.date!),
+    household: null
   };
+}
+
+const MONTHS = [
+  'tammi',
+  'helmi',
+  'maalis',
+  'huhti',
+  'touko',
+  'kesä',
+  'heinä',
+  'elo',
+  'syys',
+  'loka',
+  'marras',
+  'joulu'
+];
+
+// "29. Marras 1829" → "1829-11-29", "Marras 1829" → "1829-11", "1829" →
+// "1829": Finnish month names, as MyHeritage writes them, sometimes with
+// the "-kuu" ending.
+export function isoDate(text: string) {
+  const m =
+    /(?:(?<day>\d{1,2})\.\s*)?(?:(?<month>\p{L}+)\s+)?(?<year>1[5-9]\d\d)/u.exec(
+      text
+    )?.groups;
+  if (m === undefined) return null;
+  const word = m.month?.toLowerCase();
+  const month = MONTHS.findIndex((name) => word?.startsWith(name) === true);
+  if (month < 0) return m.year!;
+  const ym = `${m.year}-${String(month + 1).padStart(2, '0')}`;
+  return m.day === undefined ? ym : `${ym}-${m.day.padStart(2, '0')}`;
+}
+
+function recordName(text: string) {
+  const name = readFields(text).name;
+  return name === '' ? null : name;
 }
 
 function indexKind(event: string): BookKind {
@@ -144,7 +228,7 @@ export function parseChurchBookRef(url: string, raw: string) {
   const collection = collectionOf(url) ?? '?';
   const text = citationText(raw);
   return collection === RIPPI_COLLECTION
-    ? parseRippiRef(url, text)
+    ? parseRippiRef(url, text, raw)
     : parseIndexRef(url, collection, text);
 }
 

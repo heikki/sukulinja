@@ -5,13 +5,21 @@ import { join } from 'node:path';
 import { afterAll, afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
 
 import { loadAnchors, loadPlacements } from './anchors';
-import { correctScan, resolveScans, useDataFolder } from './scans';
+import { parseChurchBookRef } from './record';
+import {
+  correctScan,
+  matchCandidates,
+  resolveScans,
+  useDataFolder
+} from './scans';
 
-// Juva's parish archive, with two rippikirja Volumes of 20 Images each.
+// Juva's parish archive: two rippikirja Volumes and a baptism one, of 20
+// Images each.
 const ARCHIVE = '1212295491';
 const VOLUMES = {
   'juva-1': 'I Aa:1 Pää- ja rippikirjat (1790-1796)',
-  'juva-2': 'I Aa:2 Pää- ja rippikirjat (1797-1803)'
+  'juva-2': 'I Aa:2 Pää- ja rippikirjat (1797-1803)',
+  'juva-3': 'I C:1 Syntyneiden ja kastettujen luettelot (1790-1810)'
 };
 const IMAGES = 20;
 
@@ -189,5 +197,21 @@ test('a hand marking replaces a vision match', async () => {
   await correctScan(marked.page, marked.text, { volumeId: 'juva-1', image: 7 });
   expect(await scanOf(marked)).toEqual([
     expect.objectContaining({ image: 7, method: 'placed', by: 'hand' })
+  ]);
+});
+
+test('the matcher searches the Volumes a reference links', async () => {
+  const index = parseChurchBookRef(
+    'https://www.myheritage.fi/research/collection-30233/x?itemId=9',
+    'Juho Esimerkki\nRistiäiset: 29. Marras 1795 - Juva, Mikkeli, Finland'
+  );
+  expect(await matchCandidates(index)).toEqual([
+    { volumeId: 'juva-3', volume: VOLUMES['juva-3'], images: 20, start: null }
+  ]);
+  const rippi = citation(5000, '1790 - 1796', 12);
+  expect(
+    await matchCandidates(parseChurchBookRef(rippi.page, rippi.text))
+  ).toEqual([
+    { volumeId: 'juva-1', volume: VOLUMES['juva-1'], images: 20, start: 12 }
   ]);
 });

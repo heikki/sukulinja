@@ -10,17 +10,21 @@ import { createHash } from 'node:crypto';
 import { rename } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import type { Household } from './record';
+
 export interface ImageRef {
   volumeId: string;
   image: number;
 }
 
 // Who to look for: the name as the tree or the citation has it, with the
-// event date (YYYY-MM-DD, or a shorter prefix) and village where known.
+// event date (YYYY-MM-DD, or a shorter prefix), village, and household
+// where known.
 export interface Person {
   name: string;
   date?: string | null;
   village?: string | null;
+  household?: Household | null;
 }
 
 export interface Unreadable {
@@ -34,15 +38,35 @@ export type PagesReading = { pages: number[] } | Unreadable;
 // The earliest and latest entry dates on the Image, as YYYY-MM-DD.
 export type DatesReading = { earliest: string; latest: string } | Unreadable;
 
+// Where an entry is on the Image, in fractions of its width and height, so
+// it holds at any size the scan is shown.
+export interface Box {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
 // Whether the person is written on the Image, and how sure the model is,
-// from 0 to 1.
-export type EntryReading = { found: boolean; confidence: number } | Unreadable;
+// from 0 to 1; where found, the birth year written beside them (null when
+// none is) and where their entry is.
+export type EntryReading =
+  | {
+      found: boolean;
+      confidence: number;
+      bornYear?: number | null;
+      box?: Box | null;
+    }
+  | Unreadable;
 
 export type Question = 'pages' | 'dates' | 'entry';
 
 export interface Reader {
   // The model answering each question; a reading is cached per model.
   models: Record<Question, string>;
+  // A question's version, changed when what it asks changes, so readings
+  // made before are asked again.
+  versions?: Partial<Record<Question, string>>;
   pageNumbers: (at: ImageRef) => Promise<PagesReading>;
   dates: (at: ImageRef) => Promise<DatesReading>;
   findEntry: (at: ImageRef, person: Person) => Promise<EntryReading>;
@@ -50,6 +74,26 @@ export interface Reader {
 
 export function isUnreadable(reading: object): reading is Unreadable {
   return 'unreadable' in reading;
+}
+
+function yearOf(text: string | null | undefined) {
+  const year = /1[5-9]\d\d/.exec(text ?? '')?.[0];
+  return year === undefined ? null : Number(year);
+}
+
+// Books written years apart can disagree on a birth year by one.
+const BIRTH_YEAR_SLACK = 1;
+
+// Whether a reading confirms the person: found, and where both the record
+// and the scan give a birth year, the same one. Two people of one name are
+// told apart by when they were born, whatever the model concluded.
+export function confirms(person: Person, reading: EntryReading) {
+  if (isUnreadable(reading) || !reading.found) return false;
+  const known = yearOf(person.household?.born);
+  const read = reading.bornYear ?? null;
+  return known === null || read === null
+    ? true
+    : Math.abs(known - read) <= BIRTH_YEAR_SLACK;
 }
 
 // ---------------------------------------------------------------- cache
@@ -65,7 +109,12 @@ export function cachedReader(reader: Reader, dir: string): Reader {
     read: () => Promise<T>
   ) {
     const model = reader.models[question];
-    const key = JSON.stringify([question, model, person]);
+    const version = reader.versions?.[question];
+    const key = JSON.stringify(
+      version === undefined
+        ? [question, model, person]
+        : [question, model, version, person]
+    );
     const hash = createHash('sha1').update(key).digest('hex').slice(0, 16);
     const path = join(dir, at.volumeId, `${at.image}-${question}-${hash}.json`);
     const file = Bun.file(path);
@@ -81,6 +130,7 @@ export function cachedReader(reader: Reader, dir: string): Reader {
   }
   return {
     models: reader.models,
+    ...(reader.versions === undefined ? {} : { versions: reader.versions }),
     pageNumbers: async (at) =>
       await cached(at, 'pages', null, async () => await reader.pageNumbers(at)),
     dates: async (at) =>

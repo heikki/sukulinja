@@ -81,3 +81,12 @@ test('another model, or another person asked about, reads again', async () => {
   await reader.findEntry({ volumeId: 'v', image: 4 }, { name: 'Anna Malli' });
   expect(asked).toEqual(['entry 4 Anna Malli']);
 });
+
+test('a question asked differently reads again; the others stay cached', async () => {
+  await readAll(cachedReader(fakeReader('m1'), dir));
+  asked = [];
+  await readAll(
+    cachedReader({ ...fakeReader('m1'), versions: { entry: '2' } }, dir)
+  );
+  expect(asked).toEqual(['entry 4 Liisa Malli', 'entry 4 Matti Esimerkki']);
+});

@@ -1,15 +1,19 @@
 // The real Reader: Claude reads one Astia Image per request and answers in a
 // fixed JSON shape (structured outputs). Credentials come from the
-// environment or an `ant auth login` profile, never from the repo.
+// environment or an `ant auth login` profile, never from the repo; with only
+// OPENROUTER_API_KEY set, requests go through OpenRouter's Anthropic-shaped
+// endpoint instead.
 //
 // A refusal reads as unreadable, so one declined Image doesn't stop a run;
 // so does an answer that doesn't fit its shape. Haiku has no server-side
-// fallback, so its requests carry none; other models fall back on a decline
-// to the model the API picks for it.
+// fallback, so its requests carry none; on the Claude API other models fall
+// back on a decline to the model the API picks for it. OpenRouter takes no
+// such fallback, so there a decline stays unreadable.
 
 import Anthropic from '@anthropic-ai/sdk';
 
 import type {
+  Box,
   DatesReading,
   EntryReading,
   ImageRef,
@@ -20,13 +24,19 @@ import type {
 } from '@server/citation-scans/reader';
 
 import { pacedImage } from './images';
+import type { Scan } from './images';
 
 type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
+// Changed with what a question asks, so readings made before are asked
+// again: find-entry gained the birth year and the entry's box, then the
+// household table.
+const VERSIONS: Partial<Record<Question, string>> = { entry: '3' };
 
 export const DEFAULT_MODELS: Record<Question, string> = {
   pages: 'claude-haiku-5-5',
   dates: 'claude-haiku-5-5',
-  entry: 'claude-sonnet-5-5'
+  entry: 'claude-haiku-5-5'
 };
 
 const DEFAULT_EFFORT: Record<Question, Effort> = {
@@ -69,23 +79,62 @@ The year is often written only at the top of the page or of a section and holds 
 
 If you can't read at least one complete date with its year, answer readable: false and leave the dates empty.`;
 
+function householdLines(person: Person) {
+  const h = person.household ?? null;
+  if (h === null) return [];
+  return [
+    h.born === null ? null : `Born: ${h.born}`,
+    h.relation === null
+      ? null
+      : `Relation to the household head: ${h.relation}`,
+    h.with === null ? null : `Listed in the household of, or with: ${h.with}`
+  ];
+}
+
+// The household as the record lists it, the person marked: the household
+// is found by its head and members, and the person by their place in it.
+// Nothing where the person is listed alone.
+export function householdTable(person: Person) {
+  const members = person.household?.members ?? [];
+  if (members.length < 2) return '';
+  const rows = members.map((m) => {
+    const born = m.born === null ? '' : `, born ${m.born}`;
+    const self = m.name === person.name ? '  ← this person' : '';
+    return `- ${m.relation ?? '?'}: ${m.name}${born}${self}`;
+  });
+  return `
+The household as the record lists it, in the book's order:
+${rows.join('\n')}
+Look for this household on the image, and for this person in it.
+`;
+}
+
 function entryPrompt(person: Person) {
   const known = [
     `Name: ${person.name}`,
     (person.date ?? null) === null ? null : `Date of the event: ${person.date}`,
-    (person.village ?? null) === null ? null : `Village: ${person.village}`
+    (person.village ?? null) === null ? null : `Village: ${person.village}`,
+    ...householdLines(person)
   ].filter((line) => line !== null);
   return `Is this person written on this image?
 
 ${known.join('\n')}
-
+${householdTable(person)}
 The name may be written differently from how it is given here, and still be the same person:
 - Swedish and Finnish forms of a name: Johan for Juho, Henrik for Heikki, Matts for Matti, Maria for Maija, Carl for Kalle, Gustaf for Kustaa.
 - A patronymic instead of, or as well as, a surname: Johansson, Johansdotter, Juhonpoika, Juhontytär.
 - A farm or house name standing for the surname, or no surname at all.
 - Old spellings: W for V, e for ä, doubled or single letters, abbreviations, Latin forms.
 
+The surname, patronymic or farm name must still be the same name: Korhoin, Korhoinen and Korhonen are one name written differently, but Korhoin and Orain are two different names. A matching first name with a surname that only looks similar is not the person; nor is a common first name (Maria, Margareta, Johan) with no surname to go by, unless the household or birth date given below matches too.
+
+Communion and children's books list people by household: the head first, then the wife, children and others, each with a birth date. A person given by first name alone is someone in such a household: look for the household named above, and answer found only if this person is listed in it, with a matching birth date where one is written. The relation is in Finnish (Perheenpää head, Vaimo wife, Poika son, Tytär daughter, Veli brother, Sisar sister, Vävy son-in-law, Miniä daughter-in-law).
+
 The person's entry may continue from or onto another image; answer found if the person's own name is on this one. Don't confirm on a first name alone, or on a similar name that belongs to someone else: answer found only when you can read the person's name on the image, and give how sure you are as a confidence from 0 to 1.
+
+If you find the person, also give:
+- born_year: the birth year written beside them in the book, as four digits; 0 if none is written. Read it from the scan, not from what's given above.
+- box: the rectangle around their entry (their name and the rest of their line) in pixels of this image, x and y its top-left corner. All zeros if not found.
 
 If the writing is too faint or damaged to tell, answer readable: false.`;
 }
@@ -116,19 +165,45 @@ const SCHEMAS: Record<Question, Record<string, unknown>> = {
     properties: {
       readable: { type: 'boolean' },
       found: { type: 'boolean' },
-      confidence: { type: 'number' }
+      confidence: { type: 'number' },
+      born_year: { type: 'integer' },
+      box: {
+        type: 'object',
+        properties: {
+          x: { type: 'integer' },
+          y: { type: 'integer' },
+          width: { type: 'integer' },
+          height: { type: 'integer' }
+        },
+        required: ['x', 'y', 'width', 'height'],
+        additionalProperties: false
+      }
     },
-    required: ['readable', 'found', 'confidence'],
+    required: ['readable', 'found', 'confidence', 'born_year', 'box'],
     additionalProperties: false
   }
 };
 
 const UNREADABLE = { unreadable: true } as const;
 
+// The answer a response carries, or null for a refusal or one out of shape.
+function parsed(response: Anthropic.Beta.BetaMessage): unknown {
+  if (response.stop_reason !== 'end_turn') return null;
+  const text = response.content.find((b) => b.type === 'text')?.text;
+  try {
+    return text === undefined ? null : (JSON.parse(text) as unknown);
+  } catch {
+    return null;
+  }
+}
+
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 function toPages(json: { readable: boolean; pages: number[] }): PagesReading {
-  const pages = json.pages.filter((p) => Number.isInteger(p) && p > 0);
+  // A book numbering spreads may write the number on both pages.
+  const pages = [
+    ...new Set(json.pages.filter((p) => Number.isInteger(p) && p > 0))
+  ];
   return json.readable && pages.length > 0 ? { pages } : UNREADABLE;
 }
 
@@ -146,14 +221,40 @@ function toDates(json: {
     : { earliest: latest, latest: earliest };
 }
 
-function toEntry(json: {
+interface EntryJson {
   readable: boolean;
   found: boolean;
   confidence: number;
-}): EntryReading {
+  born_year: number;
+  box: { x: number; y: number; width: number; height: number };
+}
+
+function clamp01(n: number) {
+  return Math.min(1, Math.max(0, n));
+}
+
+// The entry's box in pixels of the scan as sent, as fractions of it; none
+// where it's empty or the person wasn't found.
+function toBox(json: EntryJson, scan: Scan): Box | null {
+  const { x, y, width, height } = json.box;
+  if (!json.found || width <= 0 || height <= 0) return null;
+  return {
+    left: clamp01(x / scan.width),
+    top: clamp01(y / scan.height),
+    width: clamp01(width / scan.width),
+    height: clamp01(height / scan.height)
+  };
+}
+
+function toEntry(json: EntryJson, scan: Scan): EntryReading {
   if (!json.readable) return UNREADABLE;
-  const confidence = Math.min(1, Math.max(0, json.confidence));
-  return { found: json.found, confidence };
+  const year = json.born_year;
+  return {
+    found: json.found,
+    confidence: clamp01(json.confidence),
+    bornYear: json.found && year >= 1500 && year < 2000 ? year : null,
+    box: toBox(json, scan)
+  };
 }
 
 function mediaType(bytes: Uint8Array) {
@@ -163,8 +264,9 @@ function mediaType(bytes: Uint8Array) {
 export interface ClaudeReaderOptions {
   models?: Partial<Record<Question, string>>;
   effort?: Partial<Record<Question, Effort>>;
-  // The Image's bytes; by default fetched through the image cache, paced.
-  image?: (at: ImageRef) => Promise<Uint8Array>;
+  // The Image, scaled to send; by default fetched through the image cache,
+  // paced.
+  image?: (at: ImageRef) => Promise<Scan>;
   client?: Anthropic;
 }
 
@@ -172,11 +274,44 @@ export interface ClaudeReader extends Reader {
   spend: () => Record<string, Spend>;
 }
 
+const OPENROUTER = 'https://openrouter.ai/api';
+
+// Where requests go: the Claude API with its own credentials, or OpenRouter
+// when its key is the only one there is.
+function connect() {
+  const env = process.env;
+  const anthropic =
+    env.ANTHROPIC_API_KEY !== undefined ||
+    env.ANTHROPIC_AUTH_TOKEN !== undefined;
+  const openRouterKey = env.OPENROUTER_API_KEY;
+  if (anthropic || openRouterKey === undefined) {
+    return { client: new Anthropic(), openRouter: false };
+  }
+  const client = new Anthropic({
+    apiKey: null,
+    authToken: openRouterKey,
+    baseURL: OPENROUTER
+  });
+  return { client, openRouter: true };
+}
+
+// OpenRouter names models "anthropic/claude-sonnet-5.5".
+function openRouterModel(model: string) {
+  return `anthropic/${model.replace(/-(?<major>\d+)-(?<minor>\d+)$/, '-$<major>.$<minor>')}`;
+}
+
+function claudeModel(served: string) {
+  return served.replace(/^anthropic\//, '').replace(/\./g, '-');
+}
+
 export function claudeReader(options: ClaudeReaderOptions = {}): ClaudeReader {
   const models = { ...DEFAULT_MODELS, ...options.models };
   const effort = { ...DEFAULT_EFFORT, ...options.effort };
   const image = options.image ?? pacedImage;
-  const client = options.client ?? new Anthropic();
+  const { client, openRouter } =
+    options.client === undefined
+      ? connect()
+      : { client: options.client, openRouter: false };
   const spent = new Map<string, Spend>();
 
   function record(model: string, usage: Anthropic.Beta.BetaUsage) {
@@ -202,13 +337,15 @@ export function claudeReader(options: ClaudeReaderOptions = {}): ClaudeReader {
     spent.set(model, s);
   }
 
-  // The parsed answer, or null for a refusal or an answer out of shape.
-  async function ask<T>(question: Question, at: ImageRef, prompt: string) {
-    const bytes = await image(at);
+  // The parsed answer, or null for a refusal or an answer out of shape, and
+  // the size of the Image the model saw.
+  async function ask(question: Question, at: ImageRef, prompt: string) {
+    const scan = await image(at);
+    const { bytes } = scan;
     const model = models[question];
-    const fallback = !model.startsWith('claude-haiku');
+    const fallback = !openRouter && !model.startsWith('claude-haiku');
     const response = await client.beta.messages.create({
-      model,
+      model: openRouter ? openRouterModel(model) : model,
       max_tokens: 16000,
       system: SYSTEM,
       output_config: {
@@ -238,42 +375,29 @@ export function claudeReader(options: ClaudeReaderOptions = {}): ClaudeReader {
         }
       ]
     });
-    record(response.model, response.usage);
-    if (response.stop_reason !== 'end_turn') return null;
-    const text = response.content.find((b) => b.type === 'text')?.text;
-    try {
-      return text === undefined ? null : (JSON.parse(text) as T);
-    } catch {
-      return null;
-    }
+    record(claudeModel(response.model), response.usage);
+    return { json: parsed(response), scan };
   }
 
   return {
     models,
+    versions: VERSIONS,
     spend: () => Object.fromEntries(spent),
     pageNumbers: async (at) => {
-      const json = await ask<Parameters<typeof toPages>[0]>(
-        'pages',
-        at,
-        PAGES_PROMPT
-      );
-      return json === null ? UNREADABLE : toPages(json);
+      const { json } = await ask('pages', at, PAGES_PROMPT);
+      return json === null
+        ? UNREADABLE
+        : toPages(json as Parameters<typeof toPages>[0]);
     },
     dates: async (at) => {
-      const json = await ask<Parameters<typeof toDates>[0]>(
-        'dates',
-        at,
-        DATES_PROMPT
-      );
-      return json === null ? UNREADABLE : toDates(json);
+      const { json } = await ask('dates', at, DATES_PROMPT);
+      return json === null
+        ? UNREADABLE
+        : toDates(json as Parameters<typeof toDates>[0]);
     },
     findEntry: async (at, person) => {
-      const json = await ask<Parameters<typeof toEntry>[0]>(
-        'entry',
-        at,
-        entryPrompt(person)
-      );
-      return json === null ? UNREADABLE : toEntry(json);
+      const { json, scan } = await ask('entry', at, entryPrompt(person));
+      return json === null ? UNREADABLE : toEntry(json as EntryJson, scan);
     }
   };
 }

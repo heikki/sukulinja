@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { parseChurchBookRef, readRecord } from './record';
+import { isoDate, parseChurchBookRef, readRecord } from './record';
 
 const URL =
   'https://www.myheritage.fi/research/collection-10509/x?itemId=1&action=showRecord';
@@ -88,7 +88,85 @@ describe('parseChurchBookRef', () => {
       years: { from: 1794, to: 1808 },
       page: 139,
       places: ['Kylämaa', 'No. 3', 'No. 3', 'Kylämaa'],
-      recordId: 1
+      recordId: 1,
+      name: 'Matti Esimerkki',
+      date: null,
+      household: {
+        born: '1757',
+        relation: 'Perheenpää',
+        with: 'Liisa Malli',
+        members: [
+          { relation: 'Perheenpää', name: 'Matti Esimerkki', born: '1757' },
+          { relation: 'Vaimo', name: 'Liisa Malli', born: 'Touko 1760' },
+          { relation: 'Tytär', name: 'Anna', born: '22. Heinä 1784' }
+        ]
+      }
     });
+  });
+
+  test('places a principal named by first name alone in their household', () => {
+    const daughter = PLAIN.replace(/^Matti Esimerkki/, 'Anna');
+    expect(parseChurchBookRef(URL, daughter)).toMatchObject({
+      name: 'Anna',
+      household: {
+        born: '22. Heinä 1784',
+        relation: 'Tytär',
+        with: 'Matti Esimerkki'
+      }
+    });
+  });
+
+  test('reads the principal of an HTML record', () => {
+    expect(parseChurchBookRef(URL, HTML).name).toBe('Anna Malli');
+  });
+
+  test('reads an index entry: its event, the person and the full date', () => {
+    const baptism = [
+      'Juho Esimerkki',
+      'Sukupuoli: Mies',
+      'Ristiäiset: 29. Marras 1829 - Pitäjä, Lääni, Finland',
+      'Syntymä: 21. Marras 1829',
+      'Isä: Matti Esimerkki',
+      'Äiti: Liisa Malli'
+    ].join('\n');
+    const url =
+      'https://www.myheritage.fi/research/collection-30233/x?itemId=7';
+    expect(parseChurchBookRef(url, baptism)).toEqual({
+      url,
+      collection: '30233',
+      parish: 'Pitäjä',
+      kind: 'kastetut',
+      years: { from: 1829, to: 1829 },
+      page: null,
+      places: [],
+      recordId: null,
+      name: 'Juho Esimerkki',
+      date: '1829-11-29',
+      household: null
+    });
+  });
+
+  test('reads a marriage entry glued together in HTML', () => {
+    const marriage =
+      'Matti Esimerkki ja Liisa Malli&lt;br&gt;Avioliitto: 3. Heinäkuu 1845 - Pitäjä, Finland&lt;br&gt;Puoliso: Liisa Malli';
+    const ref = parseChurchBookRef(
+      'https://www.myheritage.fi/research/collection-30200/x?itemId=8',
+      marriage
+    );
+    expect(ref).toMatchObject({
+      kind: 'vihityt',
+      name: 'Matti Esimerkki ja Liisa Malli',
+      date: '1845-07-03'
+    });
+  });
+});
+
+describe('isoDate', () => {
+  test('reads a date to the precision written', () => {
+    expect(isoDate('29. Marras 1829')).toBe('1829-11-29');
+    expect(isoDate('1. Tammi 1801')).toBe('1801-01-01');
+    expect(isoDate('Joulu 1799')).toBe('1799-12');
+    expect(isoDate('noin 1799')).toBe('1799');
+    expect(isoDate('tuntematon')).toBeNull();
   });
 });

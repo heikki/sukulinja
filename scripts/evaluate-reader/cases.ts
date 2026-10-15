@@ -1,18 +1,26 @@
 // What the evaluation asks, and how its answers are scored. The questions
 // come from what's known by hand: Anchors give the Page numbers on their
-// Images, and Seen records the person on theirs. Each person is asked about
+// Images, Placements of index references the dates on theirs, and Seen
+// records the person on theirs. Each person is asked about
 // on their own Image, and a decoy, someone recorded elsewhere in the
 // Volume, on the same Image: a Reader confirming decoys can't be trusted
 // to save matches.
 
-import type { Anchors } from '@server/citation-scans/locate';
+import type { Anchors, Placements } from '@server/citation-scans/locate';
+import { dayRange } from '@server/citation-scans/matcher';
 import type { ImageRef, Person, Reader } from '@server/citation-scans/reader';
+import type { ChurchBookRef } from '@server/citation-scans/record';
 
 import type { EntryTally, Tally } from '../vision/gate';
 
 export interface PageCase {
   at: ImageRef;
   pages: number[];
+}
+
+export interface DateCase {
+  at: ImageRef;
+  date: string;
 }
 
 export interface EntryCase {
@@ -41,6 +49,23 @@ export function pageCases(anchors: Anchors, limit = Infinity) {
       .filter((a) => isHand(a) && a.note === undefined && a.pages.length > 0)
       .map((a) => ({ at: { volumeId, image: a.image }, pages: a.pages }))
   );
+  return spread(cases, limit);
+}
+
+// Baptism and marriage index references placed by hand: the cited date is
+// on the Image each was placed on. `refs` holds the dataset's references by
+// record URL.
+export function dateCases(
+  placements: Placements,
+  refs: Map<string, ChurchBookRef>,
+  limit = Infinity
+) {
+  const cases = Object.entries(placements).flatMap(([url, p]) => {
+    const ref = refs.get(url);
+    const indexed = ref?.kind === 'kastetut' || ref?.kind === 'vihityt';
+    if (!isHand(p) || !indexed || ref.date === null) return [];
+    return [{ at: { volumeId: p.volumeId, image: p.image }, date: ref.date }];
+  });
   return spread(cases, limit);
 }
 
@@ -99,6 +124,22 @@ export async function scorePages(reader: Reader, cases: PageCase[]) {
     if ('unreadable' in reading) tally.unreadable += 1;
     else if (sameList(reading.pages, c.pages)) tally.exact += 1;
     else tally.wrong += 1;
+  }
+  return tally;
+}
+
+// Exact when the dates read cover the cited one.
+export async function scoreDates(reader: Reader, cases: DateCase[]) {
+  const tally = emptyTally();
+  for (const c of cases) {
+    // eslint-disable-next-line no-await-in-loop -- one Image at a time
+    const reading = await reader.dates(c.at);
+    const cited = dayRange(c.date);
+    tally.questions += 1;
+    if ('unreadable' in reading) tally.unreadable += 1;
+    else if (reading.earliest <= cited.to && cited.from <= reading.latest) {
+      tally.exact += 1;
+    } else tally.wrong += 1;
   }
   return tally;
 }

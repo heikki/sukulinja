@@ -76,6 +76,9 @@ A record whose Image is known exactly: its MyHeritage Frame matched by eye to an
 **Reader**:
 The vision model behind three questions about one Image: the Page numbers written on it, the earliest and latest entry dates on it, and whether a named person is written on it. "Unreadable" is an answer it can give. Only scripts ask it; the app never calls a model.
 
+**Confirmation**:
+Finding the person's name on the Image a search landed on, or on the Images around it. Only a confirmed match is saved.
+
 **Provenance**:
 Who saved an Anchor, Seen record or Placement: by hand (everything shipped, and every mark made in the Scan viewer) or by the vision model. A hand correction always wins over a vision one.
 
