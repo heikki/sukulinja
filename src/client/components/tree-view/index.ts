@@ -7,17 +7,24 @@ import { apiUrl } from '@client/api';
 import type { FamilyRow, PersonRow } from '@common/types';
 
 import '../person-panel';
+import '../side-dock';
 
-import { detailsOpen, setDetailsOpen } from '../person-panel/helpers';
+import {
+  detailsOpen,
+  detailsWidth,
+  setDetailsOpen,
+  setDetailsWidth
+} from '../person-panel/helpers';
 
 import '../person-search';
 
 import type { PickEvent } from '../person-search';
+import type { OpenChangeEvent, WidthChangeEvent } from '../side-dock';
 import { onAvatarReady } from './avatar-cache';
 import { buildChart } from './build';
 import { otherSpouseOf } from './build/indices';
 import type { Box, EmitOutput, Extents, Point } from './emit';
-import { dims, renderBox, renderEdge } from './renderer';
+import { dims, formatName, renderBox, renderEdge } from './renderer';
 import { treeViewStyles } from './styles';
 import { TransitionController } from './transition';
 import type { RelayoutKind, Schedule } from './transition';
@@ -91,14 +98,6 @@ function comfortOf(boxes: Box[], coreIds: ReadonlySet<number>): Comfort | null {
   return { region, cores: [boundsOf(family), boundsOf(couple)] };
 }
 
-// A window with a side column: toggles the Focus details panel.
-const DETAILS_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
-  ${svg`
-    <rect x="1.75" y="2.75" width="12.5" height="10.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5" />
-    <path d="M 6 3 V 13" stroke="currentColor" stroke-width="1.5" />
-  `}
-</svg>`;
-
 @customElement('sl-tree-view')
 export class TreeViewElement extends LitElement {
   static override styles = treeViewStyles;
@@ -109,6 +108,7 @@ export class TreeViewElement extends LitElement {
   @state() private focusId: number | null = null;
   @state() private loading = true;
   @state() private details = detailsOpen();
+  @state() private detailsWidth = detailsWidth();
 
   private readonly parentFamByPerson = new Map<number, FamilyRow>();
   private readonly spouseFamsByPerson = new Map<number, FamilyRow[]>();
@@ -117,12 +117,6 @@ export class TreeViewElement extends LitElement {
   // coords to canvas pixels using the same extents the SVG was sized to.
   private chartExtents: Extents | null = null;
   private chartComfort: Comfort | null = null;
-
-  // The canvas's left edge before a details toggle: the panel sits left of the
-  // canvas, so opening or closing it moves the canvas origin that pan is
-  // measured from. updated() shifts pan by the difference to hold the chart
-  // still on screen.
-  private canvasLeftBeforeToggle: number | null = null;
 
   // Sticky flag: once the user has expressed a zoom (URL-supplied or
   // settled-after-gesture), the URL keeps emitting `zoom` even if it happens
@@ -149,6 +143,9 @@ export class TreeViewElement extends LitElement {
       onSettle: () => {
         this.hasUserZoom = true;
         this.hasUserPan = true;
+        this.writeUrl();
+      },
+      onHold: () => {
         this.writeUrl();
       }
     },
@@ -230,10 +227,6 @@ export class TreeViewElement extends LitElement {
     if (changed.has('focusId') || changed.has('gen')) {
       this.captureRelayout(changed);
     }
-    if (changed.has('details') && this.viewport.panReady) {
-      this.canvasLeftBeforeToggle =
-        this.queryCanvas()?.getBoundingClientRect().left ?? null;
-    }
   }
 
   // Snapshot the on-screen chart before a Focus or Generation Relayout so the
@@ -256,7 +249,6 @@ export class TreeViewElement extends LitElement {
     if (this.loading || this.focusId === null) return;
     this.viewport.attachCanvas(this.queryCanvas());
     this.viewport.ensureInitialPan();
-    this.holdChartAcrossToggle();
     // A pending viewport mutation (the click pin, or a back/forward pan/zoom
     // restore) shifts pan to land the new layout; playing the Move before it lands
     // would offset every card by that delta. Applying it here schedules one more
@@ -265,16 +257,6 @@ export class TreeViewElement extends LitElement {
     const deferred = this.viewport.hasPendingViewport;
     this.viewport.applyPendingViewport();
     if (!deferred) this.transition.settle();
-  }
-
-  private holdChartAcrossToggle() {
-    const before = this.canvasLeftBeforeToggle;
-    this.canvasLeftBeforeToggle = null;
-    const after = this.queryCanvas()?.getBoundingClientRect().left;
-    if (before === null || after === undefined || after === before) return;
-    const { pan } = this.viewport;
-    this.viewport.setPan({ x: pan.x + before - after, y: pan.y });
-    this.writeUrl();
   }
 
   private queryCanvas() {
@@ -399,17 +381,6 @@ export class TreeViewElement extends LitElement {
     return html`
       <div class="toolbar">
         <slot name="brand"></slot>
-        <button
-          class="icon ${this.details ? 'on' : ''}"
-          title=${this.details ? 'Hide details' : 'Show details'}
-          aria-pressed=${this.details}
-          @click=${() => {
-            this.details = !this.details;
-            setDetailsOpen(this.details);
-          }}
-        >
-          ${DETAILS_ICON}
-        </button>
         <sl-person-search
           .persons=${this.persons}
           @pick=${(e: PickEvent) => {
@@ -438,6 +409,29 @@ export class TreeViewElement extends LitElement {
         </label>
         <slot name="actions"></slot>
       </div>
+    `;
+  }
+
+  private renderDock() {
+    const focus =
+      this.focusId === null ? undefined : this.persons.get(this.focusId);
+    return html`
+      <sl-side-dock
+        label="details"
+        heading=${focus === undefined ? '' : formatName(focus)}
+        ?open=${this.details}
+        .width=${this.detailsWidth}
+        @open-change=${(e: OpenChangeEvent) => {
+          this.details = e.detail;
+          setDetailsOpen(e.detail);
+        }}
+        @width-change=${(e: WidthChangeEvent) => {
+          this.detailsWidth = e.detail;
+          setDetailsWidth(e.detail);
+        }}
+      >
+        <sl-person-panel .personId=${this.focusId}></sl-person-panel>
+      </sl-side-dock>
     `;
   }
 
@@ -598,16 +592,7 @@ export class TreeViewElement extends LitElement {
     this.chartExtents = chart.extents;
     this.chartComfort = comfortOf(chart.boxes, this.coreIds(this.focusId));
     return html`
-      <div class="main">
-        ${
-          this.details
-            ? html`<sl-person-panel
-                .personId=${this.focusId}
-              ></sl-person-panel>`
-            : nothing
-        }
-        ${this.renderCanvas(chart)}
-      </div>
+      <div class="main">${this.renderDock()} ${this.renderCanvas(chart)}</div>
     `;
   }
 }

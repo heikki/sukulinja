@@ -50,31 +50,6 @@ export const treeViewStyles = css`
     width: 80px;
   }
 
-  .icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    padding: 0;
-    background: var(--card);
-    color: var(--muted);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    cursor: pointer;
-  }
-
-  .icon:hover,
-  .icon.on {
-    color: var(--accent);
-    border-color: var(--accent);
-  }
-
-  .icon svg {
-    width: 1rem;
-    height: 1rem;
-  }
-
   /* The chart and, beside it, the Focus details panel. */
   .main {
     flex: 1;

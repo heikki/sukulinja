@@ -47,6 +47,8 @@ export function factText(fact: FactRow) {
 // Kept in a cookie for the reason appearance.ts gives: the app's origin
 // changes every launch, and cookies are scoped by host alone.
 const COOKIE = 'sl-details';
+const WIDTH_COOKIE = 'sl-details-width';
+const DEFAULT_WIDTH_PX = 380;
 const YEAR_S = 365 * 24 * 60 * 60;
 
 export function detailsOpen() {
@@ -57,4 +59,18 @@ export function setDetailsOpen(open: boolean) {
   document.cookie = open
     ? `${COOKIE}=; path=/; max-age=0; samesite=lax`
     : `${COOKIE}=closed; path=/; max-age=${YEAR_S}; samesite=lax`;
+}
+
+export function detailsWidth() {
+  const prefix = `${WIDTH_COOKIE}=`;
+  const raw = document.cookie
+    .split('; ')
+    .find((c) => c.startsWith(prefix))
+    ?.slice(prefix.length);
+  const w = Number(raw);
+  return raw === undefined || !Number.isFinite(w) ? DEFAULT_WIDTH_PX : w;
+}
+
+export function setDetailsWidth(px: number) {
+  document.cookie = `${WIDTH_COOKIE}=${Math.round(px)}; path=/; max-age=${YEAR_S}; samesite=lax`;
 }
