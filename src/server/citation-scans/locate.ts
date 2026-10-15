@@ -13,9 +13,9 @@
 // MyHeritage records on its film: MyHeritage numbers each film's records in
 // one block, in image order, and blocks don't overlap, so a record seen on a
 // film places every record numbered around it there too. A record seen this
-// way is on a known image: MyHeritage's scan of it was matched by eye to the
-// same scan in Astia (the two share their photographs, but not always their
-// image numbers).
+// way is on a known image: MyHeritage's scan of it was matched by eye to
+// Astia's — mostly the same scan under another image number, sometimes a
+// different photograph of the same page, matched by what's written on it.
 
 import type { Scan, ScanMethod, ScanResolution } from '@common/types';
 
