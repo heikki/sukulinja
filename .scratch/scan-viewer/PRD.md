@@ -30,9 +30,9 @@ text prompt.
   that reference. Refocusing closes it.
 - **Where it opens.** Anchored, Estimated and Placed links open on their
   Image, and a Volume link on Image 1. Each candidate of a Split reference
-  has its own link. A reference that resolved to no scan (`no matching
-  volume`, `not digitized`, `no images`) gets "Find the image", which opens
-  the viewer on the parish's Volumes with none chosen. A reference whose
+  has its own link. A reference that resolved to no scan
+  (`no matching volume`, `not digitized`, `no images`) gets "Find the
+  image", which opens the viewer on the parish's Volumes with none chosen. A reference whose
   parish has no archive, or that wouldn't parse, gets no link.
 - **Navigation.** Prev/next, a typed image number, and a Volume switcher
   listing every digitized Volume of the parish's population register. The

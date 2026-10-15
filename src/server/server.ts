@@ -5,6 +5,7 @@ import type { Database } from 'bun:sqlite';
 
 import type { FamilyRow, PersonRow } from '@common/types';
 
+import { astiaImage } from './citation-scans/images';
 import {
   correctScan,
   isChurchBook,
@@ -18,6 +19,8 @@ import { createPersonDetails } from './person-details';
 import { runPool } from './pool';
 
 const DATASET_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?<rest>\/.*)?$/u;
+const ASTIA_IMAGE_RE =
+  /^\/astia\/volumes\/(?<volumeId>\d+)\/images\/(?<n>\d+)$/u;
 
 function parseYear(date: string | null): number | null {
   if (date === null) return null;
@@ -372,6 +375,33 @@ async function routeDataset(
   return null;
 }
 
+// An Image of an Astia Volume, shared by every dataset; `?size=thumb` gives
+// the 250px one. An Image never changes, so the webview may keep it.
+async function routeAstiaImage(req: Request, pathname: string) {
+  const m = ASTIA_IMAGE_RE.exec(pathname);
+  if (m === null) return null;
+  if (req.method !== 'GET') {
+    return new Response('method not allowed', { status: 405 });
+  }
+  const thumb = new URL(req.url).searchParams.get('size') === 'thumb';
+  const size = thumb ? 'thumb' : 'full';
+  const { volumeId, n } = m.groups!;
+  // undefined: Astia couldn't be reached; null: the Volume has no such Image.
+  const path = await astiaImage(volumeId!, Number(n), size, req.signal).catch(
+    () => undefined
+  );
+  if (path === undefined) {
+    return new Response('Astia unavailable', { status: 502 });
+  }
+  if (path === null) return new Response('image not found', { status: 404 });
+  return new Response(Bun.file(path), {
+    headers: {
+      'Content-Type': 'image/jpeg',
+      'Cache-Control': 'max-age=31536000, immutable'
+    }
+  });
+}
+
 export function createApi(registry: DatasetRegistry): ApiHandlers {
   useDataFolder(registry.root);
   const handlersBySlug = new Map<string, DatasetHandlers>();
@@ -413,6 +443,8 @@ export function createApi(registry: DatasetRegistry): ApiHandlers {
         const slug = pathname.slice('/datasets/'.length);
         return await handleDeleteDataset(registry, handlersBySlug, slug);
       }
+      const image = await routeAstiaImage(req, pathname);
+      if (image !== null) return image;
       const m = DATASET_RE.exec(pathname);
       if (m === null) return null;
       const slug = m.groups!.slug!;

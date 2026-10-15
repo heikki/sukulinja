@@ -12,8 +12,20 @@ const ASTIA = 'https://astia.narc.fi/uusiastia';
 const USER_AGENT = 'sukulinja-citation-mapper/0.1';
 const REQUEST_GAP_MS = 1000;
 const BACKOFF_MS = 30_000;
-const SERVER_ERROR_BACKOFF_MS = 5000;
-const MAX_ATTEMPTS = 6;
+
+// How long a request keeps trying: its attempts, the first wait after a
+// server error (doubling after each), and the longest wait worth making —
+// a 429's backoff or a Retry-After past it ends the request.
+interface Patience {
+  attempts: number;
+  waitMs: number;
+  maxWaitMs: number;
+}
+
+// The crawl runs unattended, so it rides out an outage.
+const CRAWL: Patience = { attempts: 6, waitMs: 5000, maxWaitMs: Infinity };
+// The Scan viewer is waiting: retry a blip, give up on an outage.
+const VIEWER: Patience = { attempts: 3, waitMs: 500, maxWaitMs: 2000 };
 export const CACHE_DIR = resolve('data/.astia-cache');
 
 // The app keeps the cache in its data folder; the script uses CACHE_DIR.
@@ -70,36 +82,54 @@ function fetchJson(path: string) {
 async function cachedFetch(key: string, path: string) {
   const cached = Bun.file(join(cacheDir, `${key}.json`));
   if (await cached.exists()) return (await cached.json()) as unknown;
-  const body = await throttled(() => request(path, 1));
+  const bytes = await throttled(() => request(path, CRAWL, 1));
+  const body = bytes === null ? '{}' : new TextDecoder().decode(bytes);
   await Bun.write(cached, body);
   return JSON.parse(body) as unknown;
 }
 
+function isBlank(bytes: Uint8Array) {
+  return bytes.every((b) => b === 0x20 || (b >= 0x09 && b <= 0x0d));
+}
+
 // Astia answers the odd request with a transient 500 or an empty 200;
 // retry those as well as 429s. An empty body that persists means "nothing
-// here" and comes back as `{}`.
-async function request(path: string, attempt: number): Promise<string> {
+// here" and comes back as null.
+async function request(
+  path: string,
+  patience: Patience,
+  attempt: number
+): Promise<Uint8Array | null> {
   const res = await fetch(`${ASTIA}/${path}`, {
     headers: { 'User-Agent': USER_AGENT }
   });
-  const body = res.ok ? await res.text() : '';
-  const empty = res.ok && body.trim() === '';
-  const retryable = res.status === 429 || res.status >= 500 || empty;
-  if (retryable && attempt < MAX_ATTEMPTS) {
-    await backOff(res, attempt, empty ? 'empty response' : String(res.status));
-    return await request(path, attempt + 1);
+  const body = res.ok ? await res.bytes() : new Uint8Array();
+  const empty = res.ok && isBlank(body);
+  const wait = retryWait(res, empty, patience, attempt);
+  if (wait !== null) {
+    const why = empty ? 'empty response' : String(res.status);
+    console.log(`  ${why} on ${res.url}, waiting ${Math.round(wait / 1000)}s`);
+    await Bun.sleep(wait);
+    return await request(path, patience, attempt + 1);
   }
-  if (empty) return '{}';
+  if (empty) return null;
   if (!res.ok) throw new Error(`${res.status} ${path}`);
   return body;
 }
 
-async function backOff(res: Response, attempt: number, why: string) {
+// How long to wait before trying again, or null to stop here.
+function retryWait(
+  res: Response,
+  empty: boolean,
+  patience: Patience,
+  attempt: number
+) {
+  const retryable = res.status === 429 || res.status >= 500 || empty;
+  if (!retryable || attempt >= patience.attempts) return null;
   const retryAfter = Number(res.headers.get('Retry-After'));
-  const base = res.status === 429 ? BACKOFF_MS : SERVER_ERROR_BACKOFF_MS;
+  const base = res.status === 429 ? BACKOFF_MS : patience.waitMs;
   const wait = retryAfter > 0 ? retryAfter * 1000 : base * 2 ** (attempt - 1);
-  console.log(`  ${why} on ${res.url}, waiting ${Math.round(wait / 1000)}s`);
-  await Bun.sleep(wait);
+  return wait <= patience.maxWaitMs ? wait : null;
 }
 
 // ---------------------------------------------------------------- endpoints
@@ -135,10 +165,24 @@ async function volumeFiles(volumeId: string) {
   };
 }
 
-// File ids of the volume's full-size images, in viewer order.
-export async function volumeImages(volumeId: string) {
+export type ImageSize = 'full' | 'thumb';
+
+// File ids of the volume's images, in viewer order: full size, or the 250px
+// thumbnails Astia lists beside them.
+export async function volumeImages(volumeId: string, size: ImageSize = 'full') {
   const json = await volumeFiles(volumeId);
-  return (json.isot ?? []).map((f) => childValue(f, 'URL'));
+  const files = size === 'full' ? json.isot : json.pienet;
+  return (files ?? []).map((f) => childValue(f, 'URL'));
+}
+
+// One image file, as Astia's viewer fetches it, for someone waiting on it.
+// Not throttled: Astia's own ZIP download fetches images back to back, so
+// callers queue them as they see fit.
+export async function imageBytes(volumeId: string, fileId: string) {
+  const path = `ws/getFile.php?fileId=${fileId}&aineistoId=${volumeId}`;
+  const body = await request(path, VIEWER, 1);
+  if (body === null) throw new Error(`empty image ${path}`);
+  return body;
 }
 
 // The image a viewer link's file is: the viewer names files from either

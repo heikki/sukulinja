@@ -13,14 +13,16 @@ import {
   setPlacement
 } from './anchors';
 import { imageOfFile, setCacheDir, volumeImages } from './astia';
+import { setImageCacheDir } from './images';
 import { parishVolumes, resolveChurchBookRef } from './locate';
 import { CHURCH_COLLECTIONS, collectionOf, parseChurchBookRef } from './record';
 import type { ChurchBookRef } from './record';
 
-// Astia's cache and the local corrections live beside the datasets; the
-// registry lists only slug-named folders, so neither shows as a dataset.
+// Astia's caches and the local corrections live beside the datasets; the
+// registry lists only slug-named folders, so none shows as a dataset.
 export function useDataFolder(root: string) {
   setCacheDir(join(root, '.astia-cache'));
+  setImageCacheDir(join(root, '.astia-images'));
   setLocalFolder(root);
 }
 
