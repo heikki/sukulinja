@@ -1,13 +1,15 @@
 // How well each model reads, before trusting it with the data: asks the
-// Reader about Images whose Page numbers and records are known by hand (the
-// shipped Anchors and Seen records), and reports exact, wrong and
+// Reader about Images whose Page numbers, dates and records are known by
+// hand (the shipped Anchors and Seen records, and index references placed
+// in the app), and reports exact, wrong and
 // unreadable rates and the cost per reading, per question and model.
 //
 //   bun run scripts/evaluate-reader/index.ts --dataset <slug>
 //     [--data <folder>] [--limit <n>]
-//     [--pages-models <model,…>] [--entry-models <model,…>]
+//     [--pages-models <model,…>] [--dates-models <model,…>]
+//     [--entry-models <model,…>]
 //
-// Names come from the dataset's citations of the Seen records. Results are
+// Names and dates come from the dataset's citations. Results are
 // recorded in <data>/vision-evaluation.json, which the runner's gate reads;
 // every reading is cached under <data>/.vision-readings, so a re-run only
 // pays for what's new. Credentials come from ANTHROPIC_API_KEY or an
@@ -17,39 +19,57 @@ import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { Database } from 'bun:sqlite';
 
+import { loadPlacements } from '@server/citation-scans/anchors';
 import shipped from '@server/citation-scans/anchors.json';
 import type { Anchors } from '@server/citation-scans/locate';
 import { cachedReader } from '@server/citation-scans/reader';
 import type { Question, Reader } from '@server/citation-scans/reader';
-import { readRecord, RIPPI_COLLECTION } from '@server/citation-scans/record';
+import {
+  CHURCH_COLLECTIONS,
+  parseChurchBookRef,
+  RIPPI_COLLECTION
+} from '@server/citation-scans/record';
+import type { ChurchBookRef } from '@server/citation-scans/record';
 import { useDataFolder } from '@server/citation-scans/scans';
 
 import { claudeReader, DEFAULT_MODELS } from '../vision/claude-reader';
 import type { Spend } from '../vision/claude-reader';
 import { gateRefusal, loadEvaluation, recordEvaluation } from '../vision/gate';
 import type { EntryTally, Evaluation, Tally } from '../vision/gate';
-import { entryCases, pageCases, scoreEntries, scorePages } from './cases';
+import {
+  dateCases,
+  entryCases,
+  pageCases,
+  scoreDates,
+  scoreEntries,
+  scorePages
+} from './cases';
 
 const USAGE =
-  'usage: bun run scripts/evaluate-reader/index.ts --dataset <slug> [--data <folder>] [--limit <n>] [--pages-models <m,…>] [--entry-models <m,…>]';
+  'usage: bun run scripts/evaluate-reader/index.ts --dataset <slug> [--data <folder>] [--limit <n>] [--pages-models <m,…>] [--dates-models <m,…>] [--entry-models <m,…>]';
 
-// The principal of each rippikirja record the dataset cites, by Record
-// number.
-function recordNames(dbPath: string) {
+// The dataset's Church-book references by record URL, and the principal of
+// each rippikirja record by Record number.
+function datasetRefs(dbPath: string) {
   const db = new Database(dbPath, { readonly: true });
   const rows = db
     .query<{ page: string; text: string | null }, []>(
-      `SELECT page, text FROM citations WHERE page LIKE '%collection-${RIPPI_COLLECTION}%'`
+      `SELECT page, text FROM citations WHERE page LIKE '%myheritage%collection-%'`
     )
     .all();
   db.close();
+  const refs = new Map<string, ChurchBookRef>();
   const names = new Map<number, string>();
   for (const row of rows) {
-    const id = /[?&]itemId=(?<id>\d+)/.exec(row.page)?.groups?.id;
-    const name = readRecord(row.text ?? '').name.trim();
-    if (id !== undefined && name !== '') names.set(Number(id), name);
+    const ref = parseChurchBookRef(row.page, row.text ?? '');
+    if (!CHURCH_COLLECTIONS.has(ref.collection)) continue;
+    refs.set(ref.url, ref);
+    const principal = ref.collection === RIPPI_COLLECTION ? ref.name : null;
+    if (ref.recordId !== null && principal !== null) {
+      names.set(ref.recordId, principal);
+    }
   }
-  return names;
+  return { refs, names };
 }
 
 function models(list: string | undefined, fallback: string) {
@@ -160,6 +180,7 @@ async function main() {
       'dataset': { type: 'string' },
       'limit': { type: 'string' },
       'pages-models': { type: 'string' },
+      'dates-models': { type: 'string' },
       'entry-models': { type: 'string' }
     }
   });
@@ -172,15 +193,17 @@ async function main() {
   const limit = values.limit === undefined ? Infinity : Number(values.limit);
   const anchors = shipped as Anchors;
 
-  const names = recordNames(join(root, values.dataset, 'db.sqlite'));
+  const { refs, names } = datasetRefs(join(root, values.dataset, 'db.sqlite'));
   const pages = pageCases(anchors, limit);
+  const dates = dateCases(await loadPlacements(), refs, limit);
   const entries = entryCases(anchors, names, limit);
   const decoys = entries.filter((c) => !c.there).length;
   console.log(
-    `${pages.length} Page-number questions; ${entries.length} find-entry questions (${decoys} decoys)`
+    `${pages.length} Page-number questions; ${dates.length} date questions; ${entries.length} find-entry questions (${decoys} decoys)`
   );
 
   const pageModels = models(values['pages-models'], DEFAULT_MODELS.pages);
+  const dateModels = models(values['dates-models'], DEFAULT_MODELS.dates);
   const entryModels = models(values['entry-models'], DEFAULT_MODELS.entry);
   const { results, lines, spentInAll } = await runAll(root, [
     ...pageModels.map((model) => ({
@@ -188,6 +211,12 @@ async function main() {
       model,
       cases: pages.length,
       score: async (reader: Reader) => await scorePages(reader, pages)
+    })),
+    ...dateModels.map((model) => ({
+      question: 'dates' as const,
+      model,
+      cases: dates.length,
+      score: async (reader: Reader) => await scoreDates(reader, dates)
     })),
     ...entryModels.map((model) => ({
       question: 'entry' as const,

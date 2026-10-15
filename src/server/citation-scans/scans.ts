@@ -16,6 +16,7 @@ import {
 import { setCacheDir, volumeImages } from './astia';
 import { setImageCacheDir } from './images';
 import { parishVolumes, resolveChurchBookRef } from './locate';
+import type { Candidate } from './matcher';
 import { CHURCH_COLLECTIONS, collectionOf, parseChurchBookRef } from './record';
 import type { ChurchBookRef } from './record';
 import { useScanCacheSettings } from './scan-cache';
@@ -65,6 +66,22 @@ async function linkedImages(ref: ChurchBookRef) {
   const matched = await resolveChurchBookRef(ref, await loadAnchors());
   const scans = 'scans' in matched ? matched.scans : [];
   return new Map(scans.map((s) => [s.volumeId, s.image]));
+}
+
+// The Volumes the existing resolution links a reference to, by the Book it
+// cites, with each one's Image count and the Image it links if any: where
+// the matcher searches.
+export async function matchCandidates(ref: ChurchBookRef) {
+  const resolved = await resolveChurchBookRef(ref, await loadAnchors());
+  if ('error' in resolved) return [];
+  return await Promise.all(
+    resolved.scans.map(async (s): Promise<Candidate> => ({
+      volumeId: s.volumeId,
+      volume: s.volume,
+      images: (await volumeImages(s.volumeId)).length,
+      start: s.method === 'volume' ? null : s.image
+    }))
+  );
 }
 
 // The parish's digitized Volumes a reference could be marked in.

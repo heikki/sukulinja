@@ -5,10 +5,18 @@ import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { Anchors } from '@server/citation-scans/locate';
 import type { Reader } from '@server/citation-scans/reader';
+import { parseChurchBookRef } from '@server/citation-scans/record';
 
 import { gateRefusal, MIN_DECOYS, recordEvaluation } from '../vision/gate';
 import type { EntryTally } from '../vision/gate';
-import { entryCases, pageCases, scoreEntries, scorePages } from './cases';
+import {
+  dateCases,
+  entryCases,
+  pageCases,
+  scoreDates,
+  scoreEntries,
+  scorePages
+} from './cases';
 
 // One Volume with hand Anchors and Seen records, and a vision match and a
 // misread page that the evaluation leaves out.
@@ -113,6 +121,61 @@ test('asks about each hand Seen record and a decoy on its Image', async () => {
     unreadable: 0,
     decoys: 2,
     falseConfirmations: 1
+  });
+});
+
+function indexUrl(n: number) {
+  return `https://www.myheritage.fi/research/collection-30233/x?itemId=${n}`;
+}
+
+function baptism(n: number, date: string) {
+  return parseChurchBookRef(
+    indexUrl(n),
+    `Juho Esimerkki\nRistiäiset: ${date} - Pitäjä, Finland`
+  );
+}
+
+function placed(image: number, by?: 'vision') {
+  return {
+    volumeId: 'c',
+    volume: 'I C:1',
+    image,
+    ...(by === undefined ? {} : { by })
+  };
+}
+
+test('asks about index references placed by hand', async () => {
+  const refs = new Map(
+    [baptism(1, '29. Marras 1829'), baptism(2, '3. Touko 1830')].map((r) => [
+      r.url,
+      r
+    ])
+  );
+  const cases = dateCases(
+    {
+      [indexUrl(1)]: placed(50),
+      [indexUrl(2)]: placed(60, 'vision'),
+      x: placed(70)
+    },
+    refs
+  );
+  expect(cases).toEqual([
+    { at: { volumeId: 'c', image: 50 }, date: '1829-11-29' }
+  ]);
+  const reader: Reader = {
+    ...fakeReader(),
+    dates: async ({ image }) =>
+      await Promise.resolve(
+        image === 50
+          ? { earliest: '1829-11-20', latest: '1829-12-04' }
+          : { unreadable: true }
+      )
+  };
+  expect(await scoreDates(reader, cases)).toEqual({
+    questions: 1,
+    exact: 1,
+    wrong: 0,
+    unreadable: 0
   });
 });
 
