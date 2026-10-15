@@ -3,7 +3,7 @@ import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { live } from 'lit/directives/live.js';
 
-import { fitTo, startMomentumPan, zoomAt } from '@client/pan-zoom';
+import { fitTo, Pinch, startMomentumPan, zoomAt } from '@client/pan-zoom';
 import type {
   MomentumHandle,
   Point,
@@ -67,6 +67,11 @@ export class ScanViewerElement extends LitElement {
   private natural: Viewport | null = null;
   private drag: Drag | null = null;
   private momentum: MomentumHandle | null = null;
+  private readonly pinch = new Pinch({
+    onZoom: (factor, at) => {
+      this.zoomBy(factor, at);
+    }
+  });
   private linksAbort: AbortController | null = null;
 
   override connectedCallback() {
@@ -146,11 +151,18 @@ export class ScanViewerElement extends LitElement {
     return fitTo(extents, ORIGIN, size, FIT);
   }
 
-  private cursorOf(e: MouseEvent): Point {
+  private toStage(client: Point): Point {
     const rect = this.renderRoot
       .querySelector<HTMLElement>('.stage')!
       .getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    return { x: client.x - rect.left, y: client.y - rect.top };
+  }
+
+  // At a point in client coordinates; stops a pan's glide, not a pinch's.
+  private zoomBy(factor: number, at: Point) {
+    if (this.view === null) return;
+    this.stopPan();
+    this.view = zoomAt(this.view, this.toStage(at), factor, SCALE_BOUNDS);
   }
 
   private readonly onLoad = (e: Event) => {
@@ -161,6 +173,9 @@ export class ScanViewerElement extends LitElement {
     this.natural = size;
     if (!same || this.view === null) this.view = this.fitted();
     this.loading = 'shown';
+    // Shown fitted, a scan is drawn from a scaled-down decode; decoding it at
+    // full size now keeps the first zoom in from stalling on that.
+    img.decode().catch(() => undefined);
   };
 
   private readonly onError = () => {
@@ -169,10 +184,10 @@ export class ScanViewerElement extends LitElement {
 
   private readonly onWheel = (e: WheelEvent) => {
     e.preventDefault();
-    if (this.view === null) return;
-    this.stopMomentum();
-    const factor = Math.exp(-e.deltaY * WHEEL_ZOOM_K);
-    this.view = zoomAt(this.view, this.cursorOf(e), factor, SCALE_BOUNDS);
+    if (this.pinch.wheel(e)) return;
+    this.pinch.cancel();
+    const at = { x: e.clientX, y: e.clientY };
+    this.zoomBy(Math.exp(-e.deltaY * WHEEL_ZOOM_K), at);
   };
 
   // Toggles between the whole Image and 100% at the pointer.
@@ -185,7 +200,7 @@ export class ScanViewerElement extends LitElement {
         ? fit
         : zoomAt(
             this.view,
-            this.cursorOf(e),
+            this.toStage({ x: e.clientX, y: e.clientY }),
             1 / this.view.scale,
             SCALE_BOUNDS
           );
@@ -250,9 +265,15 @@ export class ScanViewerElement extends LitElement {
     });
   }
 
-  private stopMomentum() {
+  private stopPan() {
     this.momentum?.cancel();
     this.momentum = null;
+  }
+
+  // Both glides: a new gesture takes over from either.
+  private stopMomentum() {
+    this.stopPan();
+    this.pinch.cancel();
   }
 
   // ←/→ step through the Volume unless typing an image number; Esc closes.
@@ -387,6 +408,9 @@ export class ScanViewerElement extends LitElement {
         class="stage ${this.dragging ? 'dragging' : ''}"
         @mousedown=${this.onMouseDown}
         @wheel=${this.onWheel}
+        @gesturestart=${this.pinch.onGestureStart}
+        @gesturechange=${this.pinch.onGestureChange}
+        @gestureend=${this.pinch.onGestureEnd}
         @dblclick=${this.onDblClick}
       >
         <img

@@ -8,6 +8,7 @@ import type { ReactiveController, ReactiveControllerHost } from 'lit';
 import {
   chartToScreen,
   fitTo,
+  Pinch,
   pinChartPointAtScreen,
   startMomentumPan,
   zoomAt
@@ -106,6 +107,15 @@ export class ViewportController implements ReactiveController {
   private dragOrigin: DragOrigin | null = null;
   private dragSamples: DragSample[] = [];
   private momentum: MomentumHandle | null = null;
+  // A pinch settles, like a wheel burst, once it has eased to a stop.
+  private readonly pinch = new Pinch({
+    onZoom: (factor, at) => {
+      this.zoomBy(factor, at);
+    },
+    onEnd: () => {
+      this.measurements.onSettle?.();
+    }
+  });
   private canvas: HTMLElement | null = null;
   private wheelSettleTimer: ReturnType<typeof setTimeout> | null = null;
   // A column beside the canvas (the details dock) moves the canvas origin when it
@@ -203,12 +213,24 @@ export class ViewportController implements ReactiveController {
     if (this.canvas === el) return;
     if (this.canvas !== null) {
       this.canvas.removeEventListener('wheel', this.onWheel);
+      this.canvas.removeEventListener(
+        'gesturestart',
+        this.pinch.onGestureStart
+      );
+      this.canvas.removeEventListener(
+        'gesturechange',
+        this.pinch.onGestureChange
+      );
+      this.canvas.removeEventListener('gestureend', this.pinch.onGestureEnd);
     }
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
     this.canvas = el;
     if (el !== null) {
       el.addEventListener('wheel', this.onWheel, { passive: false });
+      el.addEventListener('gesturestart', this.pinch.onGestureStart);
+      el.addEventListener('gesturechange', this.pinch.onGestureChange);
+      el.addEventListener('gestureend', this.pinch.onGestureEnd);
       this.canvasLeft = this.measurements.canvasRect()?.left ?? null;
       this.resizeObserver = new ResizeObserver(this.holdOnOriginMove);
       this.resizeObserver.observe(el);
@@ -424,20 +446,10 @@ export class ViewportController implements ReactiveController {
   readonly onWheel = (e: WheelEvent) => {
     if (this.canvas === null) return;
     e.preventDefault();
+    if (this.pinch.wheel(e)) return;
     this.cancelMomentum();
-    const rect = this.measurements.canvasRect();
-    if (rect === null) return;
-    const cursor = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     const factor = Math.exp(-e.deltaY * this.options.wheelZoomK);
-    const next = zoomAt(
-      { pan: this._pan, scale: this._scale },
-      cursor,
-      factor,
-      this.options.scaleBounds
-    );
-    this._pan = next.pan;
-    this._scale = next.scale;
-    this.host.requestUpdate();
+    this.zoomBy(factor, { x: e.clientX, y: e.clientY });
     if (this.wheelSettleTimer !== null) clearTimeout(this.wheelSettleTimer);
     this.wheelSettleTimer = setTimeout(() => {
       this.wheelSettleTimer = null;
@@ -467,9 +479,32 @@ export class ViewportController implements ReactiveController {
     );
   }
 
-  private cancelMomentum() {
+  // Zoom at a point in client coordinates. Stops a pan's glide, not a
+  // pinch's.
+  private zoomBy(factor: number, at: Point) {
+    const rect = this.measurements.canvasRect();
+    if (rect === null) return;
+    this.cancelPan();
+    const next = zoomAt(
+      { pan: this._pan, scale: this._scale },
+      { x: at.x - rect.left, y: at.y - rect.top },
+      factor,
+      this.options.scaleBounds
+    );
+    this._pan = next.pan;
+    this._scale = next.scale;
+    this.host.requestUpdate();
+  }
+
+  private cancelPan() {
     this.momentum?.cancel();
     this.momentum = null;
+  }
+
+  // Both glides: a new gesture or a refocus takes over from either.
+  private cancelMomentum() {
+    this.cancelPan();
+    this.pinch.cancel();
   }
 
   private viewBoxOrigin(): Point | null {

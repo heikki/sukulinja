@@ -14,4 +14,6 @@ export type {
 } from './transform';
 
 export { startMomentumPan } from './momentum';
+export { Pinch, PINCH_OPTIONS } from './pinch';
+export type { PinchHandlers, PinchOptions } from './pinch';
 export type { MomentumHandle, MomentumOptions } from './momentum';
