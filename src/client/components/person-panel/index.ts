@@ -10,11 +10,10 @@ import type {
   PersonDetails,
   RecordView,
   Scan,
-  ScanMethod,
   ScanResolution
 } from '@common/types';
 
-import { factLabel, factText, siteName } from './helpers';
+import { factLabel, factText, scanLabel, scanTitle, siteName } from './helpers';
 import { personPanelStyles } from './styles';
 
 function renderRecord(r: RecordView) {
@@ -58,14 +57,6 @@ export interface ScanOpen {
 }
 
 export type ScanOpenEvent = CustomEvent<ScanOpen>;
-
-// Opens in the Scan viewer, so no ↗: that marks links leaving the app.
-const SCAN_LABELS: Record<ScanMethod, string> = {
-  anchored: 'Astia',
-  estimated: 'Astia (approximate)',
-  placed: 'Astia',
-  volume: 'Astia volume'
-};
 
 // Resolving found the parish's books but not the Image, so it can be looked
 // for by hand. Other errors (no archive, unparsed, Astia down) can't.
@@ -127,8 +118,8 @@ function renderScans(
   const split = scan.scans.length > 1;
   return renderOpen(
     { citation: c, scan: first },
-    split ? `Astia (${scan.scans.length} Volumes)` : SCAN_LABELS[first.method],
-    scan.scans.map((s) => `${s.volume}, image ${s.image}`).join('\n'),
+    split ? `Astia (${scan.scans.length} Volumes)` : scanLabel(first),
+    scanTitle(scan.scans),
     viewing !== null && viewing.scan !== null
   );
 }

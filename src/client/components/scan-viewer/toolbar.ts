@@ -11,7 +11,7 @@ import type {
   Scan
 } from '@common/types';
 
-import { groupVolumes, LINK_LABELS, MARK_HINTS, markOffer } from './helpers';
+import { groupVolumes, linkLabel, MARK_HINTS, markOffer } from './helpers';
 import { controlStyles, scanToolbarStyles } from './styles';
 
 // A mark saved: the reference's links resolved again, and the one in the
@@ -191,7 +191,7 @@ export class ScanToolbarElement extends LitElement {
     if (link === null) return html`<span class="muted">No link</span>`;
     const inVolume = link.volumeId === shown.id;
     if (inVolume && (link.method === 'volume' || link.image === this.image)) {
-      return html`<span class="muted">${LINK_LABELS[link.method]}</span>`;
+      return html`<span class="muted">${linkLabel(link)}</span>`;
     }
     return html`
       <button
@@ -216,7 +216,7 @@ export class ScanToolbarElement extends LitElement {
       this.volumes
     );
     if (offer === 'linked') {
-      return html`<span class="linked">✓ ${LINK_LABELS[link!.method]}</span>`;
+      return html`<span class="linked">✓ ${linkLabel(link!)}</span>`;
     }
     const note = this.error ?? (offer === 'unknown' ? null : MARK_HINTS[offer]);
     return html`

@@ -8,6 +8,13 @@ export const LINK_LABELS: Record<ScanMethod, string> = {
   volume: 'Volume only'
 };
 
+// A Placed link the vision model matched rather than a person.
+export function linkLabel(link: Scan) {
+  return link.method === 'placed' && link.by === 'vision'
+    ? 'Vision match'
+    : LINK_LABELS[link.method];
+}
+
 // Image numbers run 1..count; before the count is known, only from 1.
 export function clampImage(n: number, count: number | null) {
   const high = count ?? Infinity;
