@@ -18,6 +18,7 @@ import '../settings';
 
 import type { ScanOpen, ScanOpenEvent } from '../person-panel';
 import type { PickEvent } from '../person-search';
+import type { ScanMarkedEvent } from '../scan-viewer';
 import type { GenerationsChangeEvent } from '../settings';
 import type { OpenChangeEvent, WidthChangeEvent } from '../side-dock';
 import { onAvatarReady } from './avatar-cache';
@@ -419,14 +420,26 @@ export class TreeViewElement extends LitElement {
     `;
   }
 
+  // The dock shows the reference's new links, and the viewer follows the one
+  // in the marked Volume.
+  private readonly onScanMarked = (e: ScanMarkedEvent) => {
+    const { resolved, link } = e.detail;
+    this.renderRoot.querySelector('sl-person-panel')?.takeScans(resolved);
+    if (this.scanOpen !== null && link !== null) {
+      this.scanOpen = { ...this.scanOpen, scan: link };
+    }
+  };
+
   private renderScanViewer() {
     if (this.scanOpen === null) return nothing;
     return html`
       <sl-scan-viewer
+        .citation=${this.scanOpen.citation}
         .scan=${this.scanOpen.scan}
         @scan-close=${() => {
           this.scanOpen = null;
         }}
+        @scan-marked=${this.onScanMarked}
       ></sl-scan-viewer>
     `;
   }

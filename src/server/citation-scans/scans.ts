@@ -12,7 +12,7 @@ import {
   setLocalFolder,
   setPlacement
 } from './anchors';
-import { imageOfFile, setCacheDir, volumeImages } from './astia';
+import { setCacheDir, volumeImages } from './astia';
 import { setImageCacheDir } from './images';
 import { parishVolumes, resolveChurchBookRef } from './locate';
 import { CHURCH_COLLECTIONS, collectionOf, parseChurchBookRef } from './record';
@@ -46,19 +46,37 @@ export async function resolveScans(
   }
 }
 
-// Where the user says the record is: an image of the volume linked first,
-// or an Astia viewer link (which names its volume and file).
-export type Correction = { volumeId: string; image: number } | { url: string };
+// The Image the user marks as where the record is, in any Volume of the
+// parish.
+export interface Correction {
+  volumeId: string;
+  image: number;
+}
 
 export type CorrectionResult = ScanResolution | { rejected: string };
 
-async function imageOfLink(link: string) {
-  const url = URL.canParse(link) ? new URL(link) : null;
-  const fileId = url?.searchParams.get('fileId') ?? null;
-  const volumeId = url?.searchParams.get('aineistoId') ?? null;
-  if (fileId === null || volumeId === null) return null;
-  const image = await imageOfFile(volumeId, fileId);
-  return image === null ? null : { volumeId, image };
+// The Volumes the reference links by the Book it cites, not by an earlier
+// placement: marking an Image in one of them saves an anchor.
+async function linkedVolumeIds(ref: ChurchBookRef) {
+  const matched = await resolveChurchBookRef(ref, await loadAnchors());
+  return new Set(
+    'scans' in matched ? matched.scans.map((s) => s.volumeId) : []
+  );
+}
+
+// The parish's Volumes a reference could be marked in, the ones it links
+// marked.
+export async function citationVolumes(page: string, text: string | null) {
+  const ref = parseChurchBookRef(page, text ?? '');
+  const [volumes, linked] = await Promise.all([
+    parishVolumes(ref.parish),
+    linkedVolumeIds(ref)
+  ]);
+  return volumes.map((v) => ({
+    id: v.id,
+    label: v.label,
+    linked: linked.has(v.id)
+  }));
 }
 
 // A volume numbered by page carries two numbers per image; the new anchor
@@ -96,12 +114,9 @@ async function save(
 export async function correctScan(
   page: string,
   text: string | null,
-  correction: Correction
+  target: Correction
 ): Promise<CorrectionResult> {
   const ref = parseChurchBookRef(page, text ?? '');
-  const target =
-    'url' in correction ? await imageOfLink(correction.url) : correction;
-  if (target === null) return { rejected: "That isn't an Astia image link." };
   const volume = (await parishVolumes(ref.parish)).find(
     (v) => v.id === target.volumeId
   );
@@ -116,11 +131,7 @@ export async function correctScan(
   ) {
     return { rejected: `The volume has images 1–${count}.` };
   }
-  // Linked by the book it cites, not by an earlier placement.
-  const matched = await resolveChurchBookRef(ref, await loadAnchors());
-  const linked =
-    'scans' in matched &&
-    matched.scans.some((s) => s.volumeId === target.volumeId);
+  const linked = (await linkedVolumeIds(ref)).has(target.volumeId);
   await save(ref, target, volume.label, linked);
   return await resolveScans(page, text);
 }

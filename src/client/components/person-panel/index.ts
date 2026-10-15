@@ -115,25 +115,6 @@ function renderScans(
   );
 }
 
-// A volume-only link has no image to be wrong yet.
-function correctLabel(first: Scan | null) {
-  return first === null || first.method === 'volume'
-    ? 'Find the image'
-    : 'Wrong image?';
-}
-
-function correctionPrompt(c: CitationRow, first: Scan | null) {
-  const where =
-    c.citedPage === null
-      ? 'Where is this record?'
-      : `Where is page ${c.citedPage}?`;
-  const how =
-    first === null
-      ? 'Paste the Astia link of the right image'
-      : `Give the image number in ${first.volume}, or paste the Astia link of the right image`;
-  return `${where} ${how} — any of the parish's books.`;
-}
-
 // The Focus person's events and sources, beside the chart. Record links open
 // outside the app (the desktop shell hands target=_blank to the browser);
 // Scan links ask for the Scan viewer with a `scan-open` event, and the source
@@ -149,9 +130,6 @@ export class PersonPanelElement extends LitElement {
   @state() private error: string | null = null;
   @state() private scans = new Map<number, ScanResolution>();
   @state() private scansPending = false;
-  // The citation whose scan is being corrected, and what went wrong.
-  @state() private correcting: number | null = null;
-  @state() private correctionError: string | null = null;
 
   private scanAbort: AbortController | null = null;
   private shownId: number | null = null;
@@ -199,7 +177,6 @@ export class PersonPanelElement extends LitElement {
       if (request !== this.request) return;
       this.details = details;
       this.error = null;
-      this.correcting = null;
       void this.loadScans(id, false);
     } catch (err) {
       if (request !== this.request) return;
@@ -208,7 +185,7 @@ export class PersonPanelElement extends LitElement {
   }
 
   // One streamed request per person; refocusing aborts it. A reload after a
-  // correction keeps the links shown until their new ones arrive.
+  // mark keeps the links shown until their new ones arrive.
   private async loadScans(id: number, keep: boolean) {
     this.scanAbort?.abort();
     const abort = new AbortController();
@@ -231,88 +208,12 @@ export class PersonPanelElement extends LitElement {
     }
   }
 
-  // An image number in the linked volume, or an Astia viewer link to any
-  // image of the candidate volumes. The server saves it as an anchor for the
-  // cited page, which also moves nearby citations; they're reloaded.
-  private async correct(c: CitationRow, scan: Scan | null, input: string) {
-    const where = input.trim();
-    const number = /^\d+$/.test(where);
-    if (number && scan === null) {
-      this.correctionError = 'Paste the Astia link of the image.';
-      return;
-    }
-    const body = number
-      ? { volumeId: scan!.volumeId, image: Number(where) }
-      : { url: where };
-    const res = await fetch(apiUrl(`/api/citations/${c.id}/scans`), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body)
-    }).catch(() => null);
-    if (res === null) {
-      this.correctionError = 'The app is not responding.';
-      return;
-    }
-    if (!res.ok) {
-      this.correctionError = await res.text();
-      return;
-    }
-    const { citationId, ...resolution } = (await res.json()) as CitationScans;
-    this.scans = new Map(this.scans).set(citationId, resolution);
-    this.correcting = null;
+  // A reference marked in the Scan viewer, resolved again. Its anchor can
+  // move the person's other references in the Volume too, so they reload.
+  takeScans(resolved: CitationScans) {
+    const { citationId, ...scan } = resolved;
+    this.scans = new Map(this.scans).set(citationId, scan);
     if (this.personId !== null) void this.loadScans(this.personId, true);
-  }
-
-  private renderCorrection(c: CitationRow, scan: ScanResolution | undefined) {
-    if (!c.churchBook || scan === undefined) return nothing;
-    const first = 'scans' in scan ? (scan.scans[0] ?? null) : null;
-    if (this.correcting !== c.id) {
-      return html`
-        <button
-          class="link"
-          @click=${() => {
-            this.correcting = c.id;
-            this.correctionError = null;
-          }}
-        >
-          ${correctLabel(first)}
-        </button>
-      `;
-    }
-    return html`
-      <form
-        class="correction"
-        @submit=${(e: SubmitEvent) => {
-          e.preventDefault();
-          const input = (e.target as HTMLFormElement).elements.namedItem(
-            'where'
-          ) as HTMLInputElement;
-          void this.correct(c, first, input.value);
-        }}
-      >
-        <p class="muted">${correctionPrompt(c, first)}</p>
-        <input
-          name="where"
-          required
-          autofocus
-          placeholder=${first === null ? 'Astia link' : 'e.g. 107'}
-        />
-        <button type="submit">Save</button>
-        <button
-          type="button"
-          @click=${() => {
-            this.correcting = null;
-          }}
-        >
-          Cancel
-        </button>
-        ${
-          this.correctionError === null
-            ? nothing
-            : html`<p class="error">${this.correctionError}</p>`
-        }
-      </form>
-    `;
   }
 
   private renderCitation(c: CitationRow) {
@@ -348,7 +249,6 @@ export class PersonPanelElement extends LitElement {
                 </div>
               `
         }
-        ${this.renderCorrection(c, scan)}
       </article>
     `;
   }

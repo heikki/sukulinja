@@ -111,3 +111,11 @@ export type ScanResolution = { scans: Scan[] } | { error: string };
 
 // A line of /api/persons/:id/scans, streamed as each citation resolves.
 export type CitationScans = { citationId: number } & ScanResolution;
+
+// A line of /api/citations/:id/volumes: a Volume of the reference's parish,
+// `linked` when the reference links it by the Book it cites.
+export interface CitationVolume {
+  id: string;
+  label: string;
+  linked: boolean;
+}

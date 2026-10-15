@@ -185,17 +185,6 @@ export async function imageBytes(volumeId: string, fileId: string) {
   return body;
 }
 
-// The image a viewer link's file is: the viewer names files from either
-// list Astia gives, full size or small, both in image order.
-export async function imageOfFile(volumeId: string, fileId: string) {
-  const json = await volumeFiles(volumeId);
-  for (const list of [json.isot ?? [], json.pienet ?? []]) {
-    const i = list.findIndex((f) => childValue(f, 'URL') === fileId);
-    if (i >= 0) return i + 1;
-  }
-  return null;
-}
-
 export function viewerUrl(volumeId: string, fileId: string) {
   return `${ASTIA}/viewer/?fileId=${fileId}&aineistoId=${volumeId}`;
 }

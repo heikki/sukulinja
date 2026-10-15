@@ -1,7 +1,6 @@
 import { html, LitElement, nothing } from 'lit';
 import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { live } from 'lit/directives/live.js';
 
 import { fitTo, Pinch, startMomentumPan, zoomAt } from '@client/pan-zoom';
 import type {
@@ -11,10 +10,14 @@ import type {
   Transform,
   Viewport
 } from '@client/pan-zoom';
-import type { Scan } from '@common/types';
+import type { CitationRow, Scan } from '@common/types';
 
-import { clampImage, imageUrl, LINK_LABELS } from './helpers';
-import { scanViewerStyles } from './styles';
+import { clampImage, imageUrl } from './helpers';
+import { controlStyles, scanViewerStyles } from './styles';
+
+import './toolbar';
+
+export type { ScanMarked, ScanMarkedEvent } from './toolbar';
 
 // The chart's feel (tree-view's VIEWPORT_OPTIONS), with room to zoom from a
 // whole spread down to a page's detail.
@@ -43,14 +46,16 @@ interface Drag {
 type Loading = 'loading' | 'shown' | 'failed';
 
 // The Scan viewer: an Image of a Church-book reference's Volume over the
-// chart, to step through and zoom into. It opens on the Image the reference
-// links (`scan`); a new `scan` moves it there. The record itself stays in the
-// dock, marked there, so the toolbar holds only what moves through the
-// Volume. Asks to close with a `scan-close` event.
+// chart, to step through, zoom into, and mark as where the record is. It
+// opens on the Image the reference (`citation`) links (`scan`); a new `scan`
+// moves it there. The record itself stays in the dock, marked there, so the
+// toolbar holds only moving through the Volume and marking. Asks to close
+// with a `scan-close` event; a mark reports with `scan-marked`.
 @customElement('sl-scan-viewer')
 export class ScanViewerElement extends LitElement {
-  static override styles = scanViewerStyles;
+  static override styles = [controlStyles, scanViewerStyles];
 
+  @property({ attribute: false }) citation: CitationRow | null = null;
   @property({ attribute: false }) scan: Scan | null = null;
 
   @state() private image = 1;
@@ -93,12 +98,15 @@ export class ScanViewerElement extends LitElement {
   override willUpdate(changed: PropertyValues<this>) {
     const scan = this.scan;
     if (!changed.has('scan') || scan === null) return;
-    if (changed.get('scan')?.volumeId !== scan.volumeId) {
-      this.natural = null;
-      this.view = null;
-      void this.loadLinks(scan.volumeId);
+    if (changed.get('scan')?.volumeId === scan.volumeId) {
+      // A mark hands back the link to the Image already shown.
+      this.show(scan.image);
+      return;
     }
-    this.image = clampImage(scan.image, this.links?.length ?? null);
+    this.natural = null;
+    this.view = null;
+    void this.loadLinks(scan.volumeId);
+    this.image = clampImage(scan.image, null);
     this.loading = 'loading';
     this.retry = 0;
   }
@@ -290,87 +298,20 @@ export class ScanViewerElement extends LitElement {
 
   // ------------------------------------------------------------ render
 
-  // Where the shown Image stands to the reference's link.
-  private renderLink(scan: Scan) {
-    if (scan.method === 'volume' || this.image === scan.image) {
-      return html`<span class="muted">${LINK_LABELS[scan.method]}</span>`;
-    }
+  private renderToolbar(scan: Scan) {
     return html`
-      <button
-        class="plain"
-        @click=${() => {
-          this.show(scan.image);
+      <sl-scan-toolbar
+        .citation=${this.citation}
+        .link=${scan}
+        .image=${this.image}
+        .count=${this.links?.length ?? null}
+        .astia=${this.links?.[this.image - 1] ?? null}
+        ?ready=${this.loading === 'shown'}
+        ?busy=${this.loading === 'loading' && this.view !== null}
+        @scan-show=${(e: CustomEvent<number>) => {
+          this.show(e.detail);
         }}
-      >
-        Back to the link (${scan.image})
-      </button>
-    `;
-  }
-
-  private renderHeader(scan: Scan) {
-    const count = this.links?.length ?? null;
-    const astia = this.links?.[this.image - 1];
-    return html`
-      <header>
-        <button
-          title="Previous image (←)"
-          aria-label="Previous image"
-          ?disabled=${this.image <= 1}
-          @click=${() => {
-            this.show(this.image - 1);
-          }}
-        >
-          ‹
-        </button>
-        <label title=${scan.volume}>
-          Image
-          <input
-            type="number"
-            min="1"
-            max=${count ?? nothing}
-            .value=${live(String(this.image))}
-            @change=${(e: Event) => {
-              const input = e.target as HTMLInputElement;
-              this.show(Number(input.value));
-              input.value = String(this.image);
-            }}
-          />
-          ${count === null ? nothing : html`of ${count}`}
-        </label>
-        <button
-          title="Next image (→)"
-          aria-label="Next image"
-          ?disabled=${count !== null && this.image >= count}
-          @click=${() => {
-            this.show(this.image + 1);
-          }}
-        >
-          ›
-        </button>
-        ${this.renderLink(scan)}
-        ${
-          this.loading === 'loading' && this.view !== null
-            ? html`<span class="muted">Loading…</span>`
-            : nothing
-        }
-        <span class="spacer"></span>
-        ${
-          astia === undefined
-            ? nothing
-            : html`<a href=${astia} target="_blank" rel="noopener">
-                Open in Astia ↗
-              </a>`
-        }
-        <button
-          title="Close (Esc)"
-          aria-label="Close"
-          @click=${() => {
-            this.close();
-          }}
-        >
-          ✕
-        </button>
-      </header>
+      ></sl-scan-toolbar>
     `;
   }
 
@@ -430,7 +371,7 @@ export class ScanViewerElement extends LitElement {
   override render() {
     const scan = this.scan;
     if (scan === null) return nothing;
-    return html` ${this.renderHeader(scan)} ${this.renderStage(scan)} `;
+    return html` ${this.renderToolbar(scan)} ${this.renderStage(scan)} `;
   }
 }
 

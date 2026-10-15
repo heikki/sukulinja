@@ -49,15 +49,17 @@ text prompt.
   there (and its active Scan link, for a Split reference), scrolled into
   view, with its household open to compare against the page. The viewer
   doesn't repeat it: its toolbar is one row, ‹ Image N of M ›, the link's
-  Scan method or "Back to the link", "Open in Astia ↗" for the shown Image,
-  and close. The Volume label is the counter's tooltip.
+  Scan method or "Back to the link", "The record is here" with what it
+  will do, "Open in Astia ↗" for the shown Image, and close. The Volume
+  label is the counter's tooltip.
 - **Marking is the only correction.** "The record is here" goes through the
   existing `POST …/citations/<id>/scans`, so its rules don't change: when the
   reference has a page and the Volume is one it links, the mark saves an
-  Anchor; otherwise it saves a Placement. One line under the button says
+  Anchor; otherwise it saves a Placement. A note beside the button says
   which: "Also moves nearby references in this Volume" or "Places only this
-  record". The viewer stays open, and the button reads "✓ Linked here" when
-  the shown Image is the link and its method is Placed or Anchored. An
+  record". The viewer stays open, and the button gives way to a ✓ and the
+  link's method ("✓ Anchored link") when the shown Image is the link and
+  its method is Placed or Anchored. An
   Estimated link is still offered, since marking turns it into an Anchor.
   The panel's "Wrong image?" / "Find the image" text prompt goes away, and
   so does pasting an Astia URL (the Volume switcher covers it).
