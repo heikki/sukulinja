@@ -20,6 +20,17 @@ export function imageUrl(volumeId: string, n: number, retry: number) {
   return retry === 0 ? url : `${url}?retry=${retry}`;
 }
 
+// Astia's 250px thumbnail of an Image.
+export function thumbUrl(volumeId: string, n: number) {
+  return `/astia/volumes/${volumeId}/images/${n}?size=thumb`;
+}
+
+// The Images beside `n` that exist, the one ahead of `step` first.
+export function neighbours(n: number, count: number | null, step: 1 | -1) {
+  const beside = [n + step, n - step];
+  return beside.filter((i) => i >= 1 && (count === null || i <= count));
+}
+
 export interface Shown {
   volumeId: string;
   image: number;

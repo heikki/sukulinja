@@ -113,6 +113,20 @@ test('fetches the latest request first', async () => {
   expect(fetched).toEqual(['103-f9', '103-f1', '103-f6', '103-f5']);
 });
 
+test("a thumbnail doesn't wait behind full Images", async () => {
+  await open('104', 9);
+  hold = Promise.withResolvers();
+  const first = open('104', 1);
+  await until(() => fetched.length === 2);
+  const second = open('104', 2);
+  const thumb = astiaImage('104', 2, 'thumb', new AbortController().signal);
+  await until(() => fetched.length === 3);
+  expect(fetched).toEqual(['104-f9', '104-f1', '104-t2']);
+  hold.resolve();
+  await Promise.all([first, second, thumb]);
+  expect(fetched).toEqual(['104-f9', '104-f1', '104-t2', '104-f2']);
+});
+
 test('drops a queued request whose client has gone', async () => {
   await open('104', 9);
   hold = Promise.withResolvers();
