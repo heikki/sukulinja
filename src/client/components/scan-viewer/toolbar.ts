@@ -50,8 +50,6 @@ export class ScanToolbarElement extends LitElement {
   @property({ attribute: false }) astia: string | null = null;
   // The shown Image has loaded, so it can be marked.
   @property({ type: Boolean }) ready = false;
-  // A next Image is on its way while the last one stays shown.
-  @property({ type: Boolean }) busy = false;
 
   @state() private saving = false;
   @state() private error: string | null = null;
@@ -260,7 +258,6 @@ export class ScanToolbarElement extends LitElement {
       ${this.renderSwitcher()}
       ${volume === null ? nothing : this.renderShown(citation, volume)}
       <span class="spacer"></span>
-      ${this.busy ? html`<span class="muted">Loading…</span>` : nothing}
       ${
         this.astia === null || volume === null
           ? nothing

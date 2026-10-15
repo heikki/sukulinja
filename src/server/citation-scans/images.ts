@@ -1,6 +1,8 @@
-// Astia's Images for the Scan viewer, served through the app. They're
-// fetched one at a time, the latest request first, and kept in a disk cache
-// capped by size that drops the least recently viewed first.
+// Astia's Images for the Scan viewer, served through the app. Full-size ones
+// are fetched one at a time, the latest request first; thumbnails, a few KB
+// each, go straight away, so one never waits behind a full Image. All are
+// kept in a disk cache capped by size that drops the least recently viewed
+// first.
 
 import { readdir, rename, rm, stat, utimes } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
@@ -159,6 +161,10 @@ export async function astiaImage(
   if (fileId === undefined) return null;
   const path = join(cacheDir, `${fileId}.jpg`);
   if (await touch(path)) return path;
-  await inLane(fileId, () => download(volumeId, fileId, path), signal);
+  if (size === 'thumb') {
+    await download(volumeId, fileId, path);
+  } else {
+    await inLane(fileId, () => download(volumeId, fileId, path), signal);
+  }
   return path;
 }

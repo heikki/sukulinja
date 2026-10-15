@@ -99,9 +99,28 @@ export const scanViewerStyles = css`
     will-change: transform;
   }
 
-  /* Hidden until fitted, so a new Image doesn't flash at full size. */
-  .stage img.unfitted {
-    visibility: hidden;
+  /* Loading out of sight, or waiting for its turn to show. */
+  .stage img.hidden {
+    opacity: 0;
+  }
+
+  /* The full Image arriving over its blurred thumbnail. */
+  .stage img.fade {
+    transition: opacity 0.35s ease-out;
+  }
+
+  /* A thumbnail is a 250px image scaled up thirtyfold: blurred, its pixels
+     read as a soft preview. */
+  .stage img.thumb {
+    filter: blur(1.5px);
+  }
+
+  .frame {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+    background: var(--card);
   }
 
   .note {
@@ -118,6 +137,43 @@ export const scanViewerStyles = css`
 
   .note button {
     pointer-events: auto;
+  }
+
+  .loading {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.8rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--card) 85%, transparent);
+    color: var(--fg);
+    box-shadow: 0 1px 6px rgb(0 0 0 / 0.2);
+  }
+
+  .loading::before {
+    content: '';
+    width: 0.8rem;
+    height: 0.8rem;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  .loading.later {
+    animation: appear 0.2s ease-out 0.15s both;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(1turn);
+    }
+  }
+
+  @keyframes appear {
+    from {
+      opacity: 0;
+    }
   }
 `;
 

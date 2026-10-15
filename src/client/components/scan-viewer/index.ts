@@ -13,7 +13,10 @@ import type {
 } from '@client/pan-zoom';
 import type { CitationRow, CitationVolume, Scan } from '@common/types';
 
-import { clampImage, imageUrl } from './helpers';
+import { frameForFull, frameForThumb, layers } from './frame';
+import type { Frame, Loading } from './frame';
+import { clampImage, imageUrl, neighbours, thumbUrl } from './helpers';
+import { Prefetch } from './prefetch';
 import { controlStyles, scanViewerStyles } from './styles';
 
 import './toolbar';
@@ -27,6 +30,9 @@ const WHEEL_ZOOM_K = 0.001;
 const FIT = { maxScale: 1, marginPx: 16 };
 const MOMENTUM = { tauMs: 250, minV: 0.02, minReleaseV: 0.3 };
 const DRAG_THRESHOLD_PX = 4;
+// A thumbnail seen for less than this gives way at once: the full Image was
+// nearly there, and a fade would only flash the blur.
+const FADE_AFTER_MS = 100;
 const ORIGIN: Point = { x: 0, y: 0 };
 
 interface Sample {
@@ -43,8 +49,6 @@ interface Drag {
   // The last two pointer samples, for the release velocity.
   samples: Sample[];
 }
-
-type Loading = 'loading' | 'shown' | 'failed';
 
 // A Volume being shown: the link's, or one picked in the switcher.
 interface Shown {
@@ -75,14 +79,23 @@ export class ScanViewerElement extends LitElement {
   @state() private links: string[] | null = null;
   @state() private loading: Loading = 'loading';
   @state() private retry = 0;
+  // The shown Image's thumbnail, once loaded: shown blurred until the full
+  // Image arrives.
+  @state() private thumb: Viewport | null = null;
+  // The full Image fading in over the thumbnail.
+  @state() private fading = false;
+  @state() private frame: Frame | null = null;
   // Null until the first Image of the Volume is fitted.
   @state() private view: Transform | null = null;
   @state() private dragging = false;
 
   // The Image last shown in each Volume of this reference, to go back to.
   private readonly left = new Map<string, number>();
-  // The loaded Image's size: the next keeps the view when it matches.
-  private natural: Viewport | null = null;
+  private readonly prefetch = new Prefetch();
+  // Which way the last step went, for which neighbour to prefetch first.
+  private step: 1 | -1 = 1;
+  // When the shown Image's thumbnail appeared.
+  private thumbAt = 0;
   private drag: Drag | null = null;
   private momentum: MomentumHandle | null = null;
   private readonly pinch = new Pinch({
@@ -108,6 +121,7 @@ export class ScanViewerElement extends LitElement {
     this.stopMomentum();
     this.linksAbort?.abort();
     this.volumesAbort?.abort();
+    this.prefetch.keep([]);
   }
 
   override willUpdate(changed: PropertyValues<this>) {
@@ -168,12 +182,15 @@ export class ScanViewerElement extends LitElement {
   private open(volume: Shown, image: number) {
     if (this.volume !== null) this.left.set(this.volume.id, this.image);
     this.volume = volume;
-    this.natural = null;
+    this.frame = null;
     this.view = null;
+    this.prefetch.keep([]);
     void this.loadLinks(volume.id);
     this.image = clampImage(image, null);
     this.loading = 'loading';
     this.retry = 0;
+    this.thumb = null;
+    this.fading = false;
   }
 
   // Back where it was left, else on the reference's Image, else the first.
@@ -188,9 +205,25 @@ export class ScanViewerElement extends LitElement {
   private show(n: number) {
     const next = clampImage(n, this.links?.length ?? null);
     if (next === this.image) return;
+    this.step = next < this.image ? -1 : 1;
     this.image = next;
     this.loading = 'loading';
     this.retry = 0;
+    this.thumb = null;
+    this.fading = false;
+    const id = this.volume?.id;
+    if (id === undefined) return;
+    // The one now shown may already be on its way; the rest aren't wanted.
+    const near = [next, ...neighbours(next, null, 1)];
+    this.prefetch.keep(near.map((i) => imageUrl(id, i, 0)));
+  }
+
+  private prefetchNeighbours() {
+    const id = this.volume?.id;
+    if (id === undefined) return;
+    const count = this.links?.length ?? null;
+    const near = neighbours(this.image, count, this.step);
+    this.prefetch.want(near.map((i) => imageUrl(id, i, 0)));
   }
 
   private close() {
@@ -215,7 +248,7 @@ export class ScanViewerElement extends LitElement {
 
   private fitted() {
     const size = this.stageSize();
-    const image = this.natural;
+    const image = this.frame?.size ?? null;
     if (size === null || image === null) return null;
     const extents = { min: ORIGIN, max: { x: image.width, y: image.height } };
     return fitTo(extents, ORIGIN, size, FIT);
@@ -235,14 +268,32 @@ export class ScanViewerElement extends LitElement {
     this.view = zoomAt(this.view, this.toStage(at), factor, SCALE_BOUNDS);
   }
 
+  private readonly onThumbLoad = (e: Event) => {
+    const img = e.target as HTMLImageElement;
+    const size = { width: img.naturalWidth, height: img.naturalHeight };
+    const { frame, fit } = frameForThumb(this.frame, size);
+    this.frame = frame;
+    if (fit || this.view === null) this.view = this.fitted();
+    this.thumb = size;
+    this.thumbAt = performance.now();
+  };
+
   private readonly onLoad = (e: Event) => {
     const img = e.target as HTMLImageElement;
     const size = { width: img.naturalWidth, height: img.naturalHeight };
-    const same =
-      this.natural?.width === size.width && this.natural.height === size.height;
-    this.natural = size;
-    if (!same || this.view === null) this.view = this.fitted();
+    const { frame, fit, rescale } = frameForFull(this.frame, size);
+    this.frame = frame;
+    const view = this.view;
+    if (fit || view === null) {
+      this.view = this.fitted();
+    } else if (rescale !== 1) {
+      this.view = { ...view, scale: view.scale * rescale };
+    }
+    // Over a thumbnail it fades in; a cached one just appears.
+    this.fading =
+      this.thumb !== null && performance.now() - this.thumbAt > FADE_AFTER_MS;
     this.loading = 'shown';
+    this.prefetchNeighbours();
     // Shown fitted, a scan is drawn from a scaled-down decode; decoding it at
     // full size now keeps the first zoom in from stalling on that.
     img.decode().catch(() => undefined);
@@ -371,7 +422,6 @@ export class ScanViewerElement extends LitElement {
         .count=${this.links?.length ?? null}
         .astia=${this.links?.[this.image - 1] ?? null}
         ?ready=${this.loading === 'shown'}
-        ?busy=${this.loading === 'loading' && this.view !== null}
         @scan-show=${(e: CustomEvent<number>) => {
           this.show(e.detail);
         }}
@@ -402,19 +452,57 @@ export class ScanViewerElement extends LitElement {
         </div>
       `;
     }
-    if (this.loading === 'loading' && this.view === null) {
-      return html`<div class="note">Loading image…</div>`;
-    }
-    return nothing;
+    if (this.loading !== 'loading') return nothing;
+    // Over the last Image or the thumbnail, it waits a moment before showing,
+    // so a cached Image doesn't flash it.
+    return html`
+      <div class="note">
+        <span class="loading ${this.view === null ? '' : 'later'}">
+          Loading image…
+        </span>
+      </div>
+    `;
+  }
+
+  private renderImages(volume: Shown) {
+    const { frame } = this;
+    const { thumb, loading, fading } = this;
+    const shown = layers(this.view, frame, { thumb, loading, fading });
+    return html`
+      ${
+        shown.frame === null || frame === null
+          ? nothing
+          : html`<div
+              class="frame"
+              style="width: ${frame.size.width}px; height: ${
+                frame.size.height
+              }px; transform: ${shown.frame}"
+            ></div>`
+      }
+      <img
+        class="thumb ${shown.thumb === null ? 'hidden' : ''}"
+        src=${thumbUrl(volume.id, this.image)}
+        alt=""
+        draggable="false"
+        style=${shown.thumb === null ? '' : `transform: ${shown.thumb}`}
+        @load=${this.onThumbLoad}
+      />
+      <img
+        class=${shown.full === null ? 'hidden' : shown.fade ? 'fade' : ''}
+        src=${imageUrl(volume.id, this.image, this.retry)}
+        alt=${`Image ${this.image}`}
+        draggable="false"
+        style=${shown.frame === null ? '' : `transform: ${shown.frame}`}
+        @load=${this.onLoad}
+        @error=${this.onError}
+        @transitionend=${() => {
+          this.fading = false;
+        }}
+      />
+    `;
   }
 
   private renderStage(volume: Shown) {
-    const v = this.view;
-    const hidden = v === null || this.loading === 'failed';
-    const style =
-      v === null
-        ? ''
-        : `transform: translate(${v.pan.x}px, ${v.pan.y}px) scale(${v.scale})`;
     return html`
       <div
         class="stage ${this.dragging ? 'dragging' : ''}"
@@ -425,16 +513,7 @@ export class ScanViewerElement extends LitElement {
         @gestureend=${this.pinch.onGestureEnd}
         @dblclick=${this.onDblClick}
       >
-        <img
-          class=${hidden ? 'unfitted' : ''}
-          src=${imageUrl(volume.id, this.image, this.retry)}
-          alt=${`Image ${this.image}`}
-          draggable="false"
-          style=${style}
-          @load=${this.onLoad}
-          @error=${this.onError}
-        />
-        ${this.renderNote()}
+        ${this.renderImages(volume)} ${this.renderNote()}
       </div>
     `;
   }

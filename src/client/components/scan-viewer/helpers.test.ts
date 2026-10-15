@@ -2,7 +2,13 @@ import { expect, test } from 'bun:test';
 
 import type { CitationVolume, Scan } from '@common/types';
 
-import { clampImage, groupVolumes, imageUrl, markOffer } from './helpers';
+import {
+  clampImage,
+  groupVolumes,
+  imageUrl,
+  markOffer,
+  neighbours
+} from './helpers';
 
 test('keeps an image number inside the Volume', () => {
   expect(clampImage(0, 354)).toBe(1);
@@ -88,4 +94,12 @@ test('lists linked Volumes first, then by Book kind and years', () => {
     ['Baptisms', ['kaste']],
     ['Other', ['muu', 'muu-a', 'muu-b']]
   ]);
+});
+
+test('prefetches the Image ahead first', () => {
+  expect(neighbours(5, 10, 1)).toEqual([6, 4]);
+  expect(neighbours(5, 10, -1)).toEqual([4, 6]);
+  expect(neighbours(1, 10, 1)).toEqual([2]);
+  expect(neighbours(10, 10, 1)).toEqual([9]);
+  expect(neighbours(10, null, 1)).toEqual([11, 9]);
 });
