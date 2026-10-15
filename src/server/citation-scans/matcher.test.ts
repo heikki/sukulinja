@@ -17,9 +17,14 @@ interface Volume {
   dates?: (image: number) => DatesReading;
   pages?: (image: number) => PagesReading;
   names: Record<number, string[]>;
+  // The birth year written beside a name, by Image.
+  born?: Record<number, Record<string, number>>;
   // Images whose writing is too faint to find anyone on.
   faint?: Set<number>;
 }
+
+// Where the fake Reader says every entry it finds is.
+const BOX = { left: 0.1, top: 0.2, width: 0.3, height: 0.05 };
 
 // A baptism Volume of `images` Images, each covering ten days from New
 // Year 1820, so Image n holds 1820-01-01 + 10 (n - 1) days onwards.
@@ -65,7 +70,12 @@ function fakeReader(volumes: Record<string, Volume>) {
         return await Promise.resolve({ unreadable: true });
       }
       const found = (v.names[image] ?? []).includes(name);
-      return await Promise.resolve({ found, confidence: 0.9 });
+      return await Promise.resolve({
+        found,
+        confidence: 0.9,
+        bornYear: v.born?.[image]?.[name] ?? null,
+        box: found ? BOX : null
+      });
     }
   };
   return { reader, asked };
@@ -100,7 +110,9 @@ describe('date search', () => {
       confirmed: true,
       volumeId: 'b',
       volume: 'b label',
-      image: 137
+      image: 137,
+      onCitedPage: false,
+      box: BOX
     });
   });
 
@@ -326,7 +338,9 @@ describe('page search', () => {
       confirmed: true,
       volumeId: 'r',
       volume: 'r label',
-      image: 124
+      image: 124,
+      onCitedPage: true,
+      box: BOX
     });
   });
 
@@ -344,6 +358,51 @@ describe('page search', () => {
     ).toMatchObject({ confirmed: true, image: 45 });
   });
 
+  test("counts a spread's number written on both pages once", async () => {
+    const { reader } = fakeReader({
+      r: numbered((i) => [i - 4, i - 4], { 124: [MATTI] })
+    });
+    expect(
+      await matchRef(rippi(MATTI, 120), [at('r', 300, 120)], reader)
+    ).toMatchObject({ confirmed: true, image: 124, onCitedPage: true });
+  });
+
+  test('tells namesakes apart by the birth year written beside them', async () => {
+    // Two daughters named Anna on neighbouring spreads; the record's was
+    // born in 1784, the one on the cited page in 1791.
+    const { reader } = fakeReader({
+      r: {
+        ...numbered((i) => i - 4, { 124: ['Anna'], 125: ['Anna'] }),
+        born: { 124: { Anna: 1791 }, 125: { Anna: 1784 } }
+      }
+    });
+    const anna = {
+      ...rippi('Anna', 120),
+      household: {
+        born: '22. Heinä 1784',
+        relation: 'Tytär',
+        with: MATTI,
+        members: []
+      }
+    };
+    expect(await matchRef(anna, [at('r', 300, 120)], reader)).toMatchObject({
+      confirmed: true,
+      image: 125,
+      onCitedPage: false
+    });
+    // A year off is still the same person: books disagree by that much.
+    const { reader: lenient } = fakeReader({
+      r: {
+        ...numbered((i) => i - 4, { 124: ['Anna'] }),
+        born: { 124: { Anna: 1785 } }
+      }
+    });
+    expect(await matchRef(anna, [at('r', 300, 120)], lenient)).toMatchObject({
+      confirmed: true,
+      image: 124
+    });
+  });
+
   test('finds a misread cited page on the Images around it', async () => {
     // Cited as page 120, but the entry is on page 122.
     const { reader } = fakeReader({
@@ -351,7 +410,7 @@ describe('page search', () => {
     });
     expect(
       await matchRef(rippi(MATTI, 120), [at('r', 300, 120)], reader)
-    ).toMatchObject({ confirmed: true, image: 126 });
+    ).toMatchObject({ confirmed: true, image: 126, onCitedPage: false });
   });
 
   test('stays in the numbering that starts over, near the Anchors', async () => {

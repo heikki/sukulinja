@@ -17,25 +17,20 @@
 
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { Database } from 'bun:sqlite';
 
 import { loadPlacements } from '@server/citation-scans/anchors';
 import shipped from '@server/citation-scans/anchors.json';
 import type { Anchors } from '@server/citation-scans/locate';
 import { cachedReader } from '@server/citation-scans/reader';
 import type { Question, Reader } from '@server/citation-scans/reader';
-import {
-  CHURCH_COLLECTIONS,
-  parseChurchBookRef,
-  RIPPI_COLLECTION
-} from '@server/citation-scans/record';
-import type { ChurchBookRef } from '@server/citation-scans/record';
 import { useDataFolder } from '@server/citation-scans/scans';
 
 import { claudeReader, DEFAULT_MODELS } from '../vision/claude-reader';
 import type { Spend } from '../vision/claude-reader';
+import { datasetRefs, principals } from '../vision/dataset';
 import { gateRefusal, loadEvaluation, recordEvaluation } from '../vision/gate';
 import type { EntryTally, Evaluation, Tally } from '../vision/gate';
+import type { Confirmation } from './cases';
 import {
   dateCases,
   entryCases,
@@ -47,30 +42,6 @@ import {
 
 const USAGE =
   'usage: bun run scripts/evaluate-reader/index.ts --dataset <slug> [--data <folder>] [--limit <n>] [--pages-models <m,…>] [--dates-models <m,…>] [--entry-models <m,…>]';
-
-// The dataset's Church-book references by record URL, and the principal of
-// each rippikirja record by Record number.
-function datasetRefs(dbPath: string) {
-  const db = new Database(dbPath, { readonly: true });
-  const rows = db
-    .query<{ page: string; text: string | null }, []>(
-      `SELECT page, text FROM citations WHERE page LIKE '%myheritage%collection-%'`
-    )
-    .all();
-  db.close();
-  const refs = new Map<string, ChurchBookRef>();
-  const names = new Map<number, string>();
-  for (const row of rows) {
-    const ref = parseChurchBookRef(row.page, row.text ?? '');
-    if (!CHURCH_COLLECTIONS.has(ref.collection)) continue;
-    refs.set(ref.url, ref);
-    const principal = ref.collection === RIPPI_COLLECTION ? ref.name : null;
-    if (ref.recordId !== null && principal !== null) {
-      names.set(ref.recordId, principal);
-    }
-  }
-  return { refs, names };
-}
 
 function models(list: string | undefined, fallback: string) {
   return (list ?? fallback)
@@ -160,6 +131,27 @@ async function runAll(root: string, runs: Run[]) {
   return { results, lines, spentInAll };
 }
 
+// What requiring a confidence would trade: the people still confirmed,
+// against the decoys still let through.
+function printThresholds(
+  model: string,
+  found: Confirmation[],
+  known: number,
+  decoys: number
+) {
+  console.log(`\n${model}: confirmed at a minimum confidence`);
+  console.log('| Minimum | People confirmed | Decoys confirmed |');
+  console.log('|---|---|---|');
+  for (const min of [0, 0.5, 0.7, 0.8, 0.9]) {
+    const kept = found.filter((f) => f.confidence >= min);
+    const people = kept.filter((f) => f.there).length;
+    const wrong = kept.length - people;
+    console.log(
+      `| ${min} | ${people}/${known} (${percent(people, known)}) | ${wrong}/${decoys} (${percent(wrong, decoys)}) |`
+    );
+  }
+}
+
 async function printGate(root: string, entryModels: string[]) {
   for (const model of entryModels) {
     // eslint-disable-next-line no-await-in-loop -- a line per model
@@ -193,15 +185,18 @@ async function main() {
   const limit = values.limit === undefined ? Infinity : Number(values.limit);
   const anchors = shipped as Anchors;
 
-  const { refs, names } = datasetRefs(join(root, values.dataset, 'db.sqlite'));
+  const refs = datasetRefs(join(root, values.dataset, 'db.sqlite'));
+  const names = principals(refs);
   const pages = pageCases(anchors, limit);
-  const dates = dateCases(await loadPlacements(), refs, limit);
+  const byUrl = new Map(refs.map((r) => [r.url, r]));
+  const dates = dateCases(await loadPlacements(), byUrl, limit);
   const entries = entryCases(anchors, names, limit);
   const decoys = entries.filter((c) => !c.there).length;
   console.log(
     `${pages.length} Page-number questions; ${dates.length} date questions; ${entries.length} find-entry questions (${decoys} decoys)`
   );
 
+  const thresholds: Array<() => void> = [];
   const pageModels = models(values['pages-models'], DEFAULT_MODELS.pages);
   const dateModels = models(values['dates-models'], DEFAULT_MODELS.dates);
   const entryModels = models(values['entry-models'], DEFAULT_MODELS.entry);
@@ -222,7 +217,14 @@ async function main() {
       question: 'entry' as const,
       model,
       cases: entries.length,
-      score: async (reader: Reader) => await scoreEntries(reader, entries)
+      score: async (reader: Reader) => {
+        const found: Confirmation[] = [];
+        const tally = await scoreEntries(reader, entries, found);
+        thresholds.push(() => {
+          printThresholds(model, found, entries.length - decoys, decoys);
+        });
+        return tally;
+      }
     }))
   ]);
   await recordEvaluation(root, results);
@@ -237,6 +239,8 @@ async function main() {
     ].join('\n')
   );
   console.log(`spent this run: ${dollars(spentInAll, 2)}`);
+  for (const print of thresholds) print();
+  console.log('');
   await printGate(root, entryModels);
   console.log(`recorded in ${join(root, 'vision-evaluation.json')}`);
 }

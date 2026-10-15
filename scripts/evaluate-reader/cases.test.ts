@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { Anchors } from '@server/citation-scans/locate';
-import type { Reader } from '@server/citation-scans/reader';
+import type { Person, Reader } from '@server/citation-scans/reader';
 import { parseChurchBookRef } from '@server/citation-scans/record';
 
 import { gateRefusal, MIN_DECOYS, recordEvaluation } from '../vision/gate';
@@ -18,10 +18,11 @@ import {
   scorePages
 } from './cases';
 
-// One Volume with hand Anchors and Seen records, and a vision match and a
-// misread page that the evaluation leaves out.
+// Two parishes' Volumes with hand Anchors and Seen records, and a vision
+// match and a misread page that the evaluation leaves out.
 const ANCHORS: Anchors = {
   v: {
+    title: 'Pitäjä I Aa:1 Rippikirja (1790-1796)',
     anchors: [
       { image: 10, pages: [8] },
       { image: 20, pages: [18] },
@@ -31,17 +32,21 @@ const ANCHORS: Anchors = {
     records: [{ from: 1000, to: 2000 }],
     seen: [
       { record: 1100, image: 10 },
-      { record: 1500, image: 20 },
       { record: 1600, image: 30, by: 'vision' }
     ]
+  },
+  w: {
+    title: 'Naapuri I Aa:1 Rippikirja (1790-1796)',
+    anchors: [],
+    seen: [{ record: 1500, image: 20 }]
   }
 };
 
-const NAMES = new Map([
-  [1100, 'Matti Esimerkki'],
-  [1500, 'Liisa Malli'],
-  [1600, 'Anna Malli'],
-  [1900, 'Juho Kylä']
+const PEOPLE = new Map<number, Person>([
+  [1100, { name: 'Matti Esimerkki' }],
+  [1500, { name: 'Liisa Malli' }],
+  [1600, { name: 'Anna Malli' }],
+  [1900, { name: 'Juho Kylä' }]
 ]);
 
 // Reads Image n as page n - 2 except Image 20, unreadable; finds the names
@@ -89,8 +94,8 @@ test('asks about hand Anchors read as cited', async () => {
   });
 });
 
-test('asks about each hand Seen record and a decoy on its Image', async () => {
-  const cases = entryCases(ANCHORS, NAMES);
+test('asks about each hand Seen record and a decoy from another parish', async () => {
+  const cases = entryCases(ANCHORS, PEOPLE);
   expect(cases).toEqual([
     {
       at: { volumeId: 'v', image: 10 },
@@ -103,12 +108,12 @@ test('asks about each hand Seen record and a decoy on its Image', async () => {
       there: false
     },
     {
-      at: { volumeId: 'v', image: 20 },
+      at: { volumeId: 'w', image: 20 },
       person: { name: 'Liisa Malli' },
       there: true
     },
     {
-      at: { volumeId: 'v', image: 20 },
+      at: { volumeId: 'w', image: 20 },
       person: { name: 'Matti Esimerkki' },
       there: false
     }
@@ -181,7 +186,7 @@ test('asks about index references placed by hand', async () => {
 
 test('limits a run to a spread of cases', () => {
   expect(pageCases(ANCHORS, 1)).toHaveLength(1);
-  expect(entryCases(ANCHORS, NAMES, 1)).toHaveLength(2);
+  expect(entryCases(ANCHORS, PEOPLE, 1)).toHaveLength(2);
 });
 
 function entryResult(tally: Partial<EntryTally>) {
