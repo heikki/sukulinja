@@ -25,9 +25,9 @@ export const treeViewStyles = css`
     display: flex;
     gap: 0.5rem;
     align-items: center;
-    min-height: 3.25rem;
+    min-height: 3.375rem;
     box-sizing: border-box;
-    padding: 0.5rem 1rem;
+    padding: 0.5rem 1rem 0.5rem 1.1rem;
     background: var(--card);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
