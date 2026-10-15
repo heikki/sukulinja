@@ -56,27 +56,30 @@ export interface Correction {
 export type CorrectionResult = ScanResolution | { rejected: string };
 
 // The Volumes the reference links by the Book it cites, not by an earlier
-// placement: marking an Image in one of them saves an anchor.
-async function linkedVolumeIds(ref: ChurchBookRef) {
+// placement, with its Image in each: marking an Image in one of them saves
+// an anchor.
+async function linkedImages(ref: ChurchBookRef) {
   const matched = await resolveChurchBookRef(ref, await loadAnchors());
-  return new Set(
-    'scans' in matched ? matched.scans.map((s) => s.volumeId) : []
-  );
+  const scans = 'scans' in matched ? matched.scans : [];
+  return new Map(scans.map((s) => [s.volumeId, s.image]));
 }
 
-// The parish's Volumes a reference could be marked in, the ones it links
-// marked.
+// The parish's digitized Volumes a reference could be marked in.
 export async function citationVolumes(page: string, text: string | null) {
   const ref = parseChurchBookRef(page, text ?? '');
   const [volumes, linked] = await Promise.all([
     parishVolumes(ref.parish),
-    linkedVolumeIds(ref)
+    linkedImages(ref)
   ]);
-  return volumes.map((v) => ({
-    id: v.id,
-    label: v.label,
-    linked: linked.has(v.id)
-  }));
+  return volumes
+    .filter((v) => v.digitized)
+    .map((v) => ({
+      id: v.id,
+      label: v.label,
+      kind: v.kind,
+      years: v.years,
+      image: linked.get(v.id) ?? null
+    }));
 }
 
 // A volume numbered by page carries two numbers per image; the new anchor
@@ -131,7 +134,7 @@ export async function correctScan(
   ) {
     return { rejected: `The volume has images 1–${count}.` };
   }
-  const linked = (await linkedVolumeIds(ref)).has(target.volumeId);
+  const linked = (await linkedImages(ref)).has(target.volumeId);
   await save(ref, target, volume.label, linked);
   return await resolveScans(page, text);
 }

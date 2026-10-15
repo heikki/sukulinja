@@ -80,6 +80,11 @@ export const scanViewerStyles = css`
     user-select: none;
   }
 
+  .blank {
+    position: relative;
+    flex: 1;
+  }
+
   .stage.dragging {
     cursor: grabbing;
   }
@@ -127,6 +132,18 @@ export const scanToolbarStyles = css`
     background: var(--card);
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
+  }
+
+  select {
+    max-width: 18rem;
+    min-width: 8rem;
+    padding: 0.15rem 0.35rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+    text-overflow: ellipsis;
   }
 
   .sep {

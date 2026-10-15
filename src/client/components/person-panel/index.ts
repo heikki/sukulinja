@@ -14,7 +14,7 @@ import type {
   ScanResolution
 } from '@common/types';
 
-import { factLabel, factText } from './helpers';
+import { factLabel, factText, siteName } from './helpers';
 import { personPanelStyles } from './styles';
 
 function renderRecord(r: RecordView) {
@@ -51,56 +51,59 @@ function renderRecord(r: RecordView) {
 }
 
 // A Scan link asks for the Scan viewer on that scan of the citation's
-// Church-book reference.
+// Church-book reference; "Find the image" asks for it with none.
 export interface ScanOpen {
   citation: CitationRow;
-  scan: Scan;
+  scan: Scan | null;
 }
 
 export type ScanOpenEvent = CustomEvent<ScanOpen>;
 
+// Opens in the Scan viewer, so no ↗: that marks links leaving the app.
 const SCAN_LABELS: Record<ScanMethod, string> = {
-  anchored: 'Scan',
-  estimated: 'Scan (approximate)',
-  placed: 'Scan',
-  volume: 'Volume'
+  anchored: 'Astia',
+  estimated: 'Astia (approximate)',
+  placed: 'Astia',
+  volume: 'Astia volume'
 };
 
-// `viewing`: the scan of this citation the Scan viewer shows, if any.
-function renderScan(
-  c: CitationRow,
-  s: Scan,
-  part: string,
-  viewing: Scan | null
+// Resolving found the parish's books but not the Image, so it can be looked
+// for by hand. Other errors (no archive, unparsed, Astia down) can't.
+const FINDABLE = new Set(['no matching volume', 'not digitized', 'no images']);
+
+function renderOpen(
+  open: ScanOpen,
+  label: string,
+  title: string,
+  current: boolean
 ) {
-  const current = viewing?.volumeId === s.volumeId;
   return html`
     <button
       class="scan"
-      title=${`${s.volume}, image ${s.image}`}
+      title=${title}
       aria-current=${current ? 'true' : nothing}
       @click=${(e: Event) => {
-        const detail: ScanOpen = { citation: c, scan: s };
         e.currentTarget!.dispatchEvent(
           new CustomEvent('scan-open', {
-            detail,
+            detail: open,
             bubbles: true,
             composed: true
           })
         );
       }}
     >
-      ${SCAN_LABELS[s.method]}${part}
+      ${label}
     </button>
   `;
 }
 
 // Scans arrive after the panel renders; until then the link is pending.
+// `viewing`: what the Scan viewer shows of this citation, if anything.
 function renderScans(
   c: CitationRow,
   scan: ScanResolution | undefined,
   pending: boolean,
-  viewing: Scan | null
+  viewing: ScanOpen | null
 ) {
   if (scan === undefined) {
     return html`<span class="muted">
@@ -108,11 +111,40 @@ function renderScans(
     </span>`;
   }
   if ('error' in scan) {
-    return html`<span class="muted" title=${scan.error}>No scan found</span>`;
+    return FINDABLE.has(scan.error)
+      ? renderOpen(
+          { citation: c, scan: null },
+          'Find the image',
+          `No scan found: ${scan.error}`,
+          viewing?.scan === null
+        )
+      : html`<span class="muted" title=${scan.error}>No scan found</span>`;
   }
-  return scan.scans.map((s, i, all) =>
-    renderScan(c, s, all.length > 1 ? ` ${i + 1}/${all.length}` : '', viewing)
+  // A Split reference opens on its first candidate; the viewer's switcher
+  // lists the others first.
+  const [first] = scan.scans;
+  if (first === undefined) return nothing;
+  const split = scan.scans.length > 1;
+  return renderOpen(
+    { citation: c, scan: first },
+    split ? `Astia (${scan.scans.length} Volumes)` : SCAN_LABELS[first.method],
+    scan.scans.map((s) => `${s.volume}, image ${s.image}`).join('\n'),
+    viewing !== null && viewing.scan !== null
   );
+}
+
+// A Church-book reference names itself; other sources go by their title,
+// or failing that what they say.
+function headingOf(c: CitationRow) {
+  return c.reference ?? c.source ?? c.text ?? c.page ?? 'Source';
+}
+
+function renderBody(c: CitationRow, heading: string) {
+  if (c.record !== null) return renderRecord(c.record);
+  const text = c.text ?? c.page;
+  return text === null || text === heading
+    ? nothing
+    : html`<p class="text">${text}</p>`;
 }
 
 // The Focus person's events and sources, beside the chart. Record links open
@@ -130,6 +162,8 @@ export class PersonPanelElement extends LitElement {
   @state() private error: string | null = null;
   @state() private scans = new Map<number, ScanResolution>();
   @state() private scansPending = false;
+  // The source shown in full; the others show only their heading and links.
+  @state() private selected: number | null = null;
 
   private scanAbort: AbortController | null = null;
   private shownId: number | null = null;
@@ -151,8 +185,8 @@ export class PersonPanelElement extends LitElement {
     this.scrollTop = 0;
   }
 
-  // The source in the Scan viewer, scrolled to with its household open for
-  // comparing against the page.
+  // The source in the Scan viewer, scrolled to; if it is expanded, with its
+  // household open for comparing against the page.
   private revealViewing() {
     const id = this.viewing?.citation.id;
     if (id === undefined) return;
@@ -177,6 +211,7 @@ export class PersonPanelElement extends LitElement {
       if (request !== this.request) return;
       this.details = details;
       this.error = null;
+      this.selected = null;
       void this.loadScans(id, false);
     } catch (err) {
       if (request !== this.request) return;
@@ -216,36 +251,42 @@ export class PersonPanelElement extends LitElement {
     if (this.personId !== null) void this.loadScans(this.personId, true);
   }
 
+  // Collapsed to its heading and links unless selected. Opening it in the
+  // Scan viewer marks it but leaves it as it is.
   private renderCitation(c: CitationRow) {
     const scan = this.scans.get(c.id);
-    const viewing =
-      this.viewing?.citation.id === c.id ? this.viewing.scan : null;
+    const viewing = this.viewing?.citation.id === c.id ? this.viewing : null;
+    const open = this.selected === c.id;
+    const heading = headingOf(c);
     return html`
       <article
         class="source ${viewing === null ? '' : 'viewing'}"
         data-citation=${c.id}
       >
-        ${
-          c.source === null
-            ? nothing
-            : html`<div class="caption">${c.source}</div>`
-        }
-        ${
-          c.record === null
-            ? html`<p class="text">${c.text ?? c.page ?? ''}</p>`
-            : renderRecord(c.record)
-        }
+        <button
+          class="head"
+          aria-expanded=${open ? 'true' : 'false'}
+          title=${c.reference === null ? heading : (c.source ?? heading)}
+          @click=${() => {
+            this.selected = open ? null : c.id;
+          }}
+        >
+          <span>${heading}</span>
+        </button>
+        ${open ? renderBody(c, heading) : nothing}
         ${
           c.url === null
             ? nothing
             : html`
                 <div class="links">
-                  <a href=${c.url} target="_blank" rel="noopener">Record ↗</a>
                   ${
                     c.churchBook
                       ? renderScans(c, scan, this.scansPending, viewing)
                       : nothing
                   }
+                  <a href=${c.url} target="_blank" rel="noopener">
+                    ${siteName(c.url)} ↗
+                  </a>
                 </div>
               `
         }

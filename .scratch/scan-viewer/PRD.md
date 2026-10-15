@@ -29,8 +29,9 @@ text prompt.
   Clicking another source's Scan link in the dock switches the viewer to
   that reference. Refocusing closes it.
 - **Where it opens.** Anchored, Estimated and Placed links open on their
-  Image, and a Volume link on Image 1. Each candidate of a Split reference
-  has its own link. A reference that resolved to no scan
+  Image, and a Volume link on Image 1. A Split reference has one link,
+  "Astia (N Volumes)", opening its first candidate; the switcher lists the
+  candidates first. A reference that resolved to no scan
   (`no matching volume`, `not digitized`, `no images`) gets "Find the
   image", which opens the viewer on the parish's Volumes with none chosen. A reference whose
   parish has no archive, or that wouldn't parse, gets no link.
@@ -46,7 +47,7 @@ text prompt.
   somewhere shared. The chart's `ViewportController` is tied to the chart
   and stays there.
 - **The record stays in the dock.** The source being viewed is marked
-  there (and its active Scan link, for a Split reference), scrolled into
+  there, scrolled into
   view, with its household open to compare against the page. The viewer
   doesn't repeat it: its toolbar is one row, ‹ Image N of M ›, the link's
   Scan method or "Back to the link", "The record is here" with what it

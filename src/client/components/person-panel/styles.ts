@@ -72,9 +72,40 @@ export const personPanelStyles = css`
     background: var(--accent);
   }
 
-  .caption {
-    font-size: 0.75rem;
+  /* The source's heading, which shows or hides the rest of it. */
+  button.head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--fg);
+    font: inherit;
+    font-weight: 500;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  button.head::before {
+    content: '▸';
+    flex: none;
+    font-size: 0.7rem;
     color: var(--muted);
+    transition: transform 0.15s;
+  }
+
+  button.head[aria-expanded='true']::before {
+    transform: rotate(90deg);
+  }
+
+  button.head:hover {
+    color: var(--accent);
+  }
+
+  .source .who {
+    margin-top: 0.5rem;
   }
 
   .who {
@@ -119,6 +150,11 @@ export const personPanelStyles = css`
     flex-wrap: wrap;
     gap: 0.4rem 1rem;
     margin-top: 0.5rem;
+  }
+
+  /* Links leaving the app keep to the right, apart from the in-app ones. */
+  .links a {
+    margin-left: auto;
   }
 
   button.scan {

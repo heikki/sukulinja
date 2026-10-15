@@ -1,4 +1,4 @@
-import type { Scan, ScanMethod } from '@common/types';
+import type { BookKind, CitationVolume, Scan, ScanMethod } from '@common/types';
 
 // How the reference's link to an Image was found, said of the link.
 export const LINK_LABELS: Record<ScanMethod, string> = {
@@ -35,14 +35,61 @@ export const MARK_HINTS: Record<'anchor' | 'placement', string> = {
 // page in a Volume it links by its Book; otherwise a Placement. Unknown until
 // the Volumes it links arrive.
 export function markOffer(
-  link: Scan,
+  link: Scan | null,
   shown: Shown,
   hasPage: boolean,
-  linked: ReadonlySet<string> | null
+  volumes: CitationVolume[] | null
 ) {
-  const sure = link.method === 'placed' || link.method === 'anchored';
+  if (link !== null && isSure(link, shown)) return 'linked';
+  if (volumes === null) return 'unknown';
+  const linked = volumes.some(
+    (v) => v.id === shown.volumeId && v.image !== null
+  );
+  return hasPage && linked ? 'anchor' : 'placement';
+}
+
+// The shown Image is the link, found by hand or from Anchors.
+function isSure(link: Scan, shown: Shown) {
   const here = link.volumeId === shown.volumeId && link.image === shown.image;
-  if (sure && here) return 'linked';
-  if (linked === null) return 'unknown';
-  return hasPage && linked.has(shown.volumeId) ? 'anchor' : 'placement';
+  return here && (link.method === 'placed' || link.method === 'anchored');
+}
+
+const KINDS: Array<{ kind: BookKind | null; label: string }> = [
+  { kind: 'rippi', label: 'Communion books' },
+  { kind: 'lasten', label: "Children's books" },
+  { kind: 'kastetut', label: 'Baptisms' },
+  { kind: 'vihityt', label: 'Marriages' },
+  { kind: null, label: 'Other' }
+];
+
+export interface VolumeGroup {
+  label: string;
+  volumes: CitationVolume[];
+}
+
+function firstYear(v: CitationVolume) {
+  return v.years?.from ?? Infinity;
+}
+
+function byYears(a: CitationVolume, b: CitationVolume) {
+  const from = { a: firstYear(a), b: firstYear(b) };
+  if (from.a === from.b) return a.label.localeCompare(b.label);
+  return from.a < from.b ? -1 : 1;
+}
+
+// The switcher's list: the Volumes the reference links first, then the rest
+// by Book kind, each group in order of years.
+export function groupVolumes(volumes: CitationVolume[]) {
+  const linked = volumes.filter((v) => v.image !== null);
+  const rest = volumes.filter((v) => v.image === null);
+  const groups: VolumeGroup[] = [
+    { label: 'Linked by this reference', volumes: linked },
+    ...KINDS.map(({ kind, label }) => ({
+      label,
+      volumes: rest.filter((v) => v.kind === kind)
+    }))
+  ];
+  return groups
+    .map((g) => ({ ...g, volumes: [...g.volumes].sort(byYears) }))
+    .filter((g) => g.volumes.length > 0);
 }
