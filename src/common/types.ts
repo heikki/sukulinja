@@ -61,6 +61,9 @@ export interface CitationRow {
   id: number;
   // Title of the cited source record, e.g. a MyHeritage collection.
   source: string | null;
+  // A Church-book reference in brief, which names the source better than
+  // its collection: "Haukivuori · Communion book 1821–1837 · p. 2".
+  reference: string | null;
   // PAGE as recorded; `url` repeats it when it is a link.
   page: string | null;
   url: string | null;
@@ -112,10 +115,22 @@ export type ScanResolution = { scans: Scan[] } | { error: string };
 // A line of /api/persons/:id/scans, streamed as each citation resolves.
 export type CitationScans = { citationId: number } & ScanResolution;
 
-// A line of /api/citations/:id/volumes: a Volume of the reference's parish,
-// `linked` when the reference links it by the Book it cites.
+// The kind of church book: rippikirja (communion book), lastenkirja
+// (children's book), baptisms or marriages.
+export type BookKind = 'rippi' | 'lasten' | 'kastetut' | 'vihityt';
+
+export interface Years {
+  from: number;
+  to: number;
+}
+
+// A line of /api/citations/:id/volumes: a digitized Volume of the
+// reference's parish. `image` is the reference's Image in it when the
+// reference links it by the Book it cites, null otherwise.
 export interface CitationVolume {
   id: string;
   label: string;
-  linked: boolean;
+  kind: BookKind | null;
+  years: Years | null;
+  image: number | null;
 }

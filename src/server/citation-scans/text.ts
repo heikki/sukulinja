@@ -1,9 +1,6 @@
-export type BookKind = 'rippi' | 'lasten' | 'kastetut' | 'vihityt';
+import type { BookKind, Years } from '@common/types';
 
-export interface Years {
-  from: number;
-  to: number;
-}
+export type { BookKind, Years } from '@common/types';
 
 export function decodeEntities(s: string) {
   return s

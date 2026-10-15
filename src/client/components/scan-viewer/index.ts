@@ -2,6 +2,7 @@ import { html, LitElement, nothing } from 'lit';
 import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
+import { apiUrl } from '@client/api';
 import { fitTo, Pinch, startMomentumPan, zoomAt } from '@client/pan-zoom';
 import type {
   MomentumHandle,
@@ -10,7 +11,7 @@ import type {
   Transform,
   Viewport
 } from '@client/pan-zoom';
-import type { CitationRow, Scan } from '@common/types';
+import type { CitationRow, CitationVolume, Scan } from '@common/types';
 
 import { clampImage, imageUrl } from './helpers';
 import { controlStyles, scanViewerStyles } from './styles';
@@ -45,12 +46,19 @@ interface Drag {
 
 type Loading = 'loading' | 'shown' | 'failed';
 
-// The Scan viewer: an Image of a Church-book reference's Volume over the
+// A Volume being shown: the link's, or one picked in the switcher.
+interface Shown {
+  id: string;
+  label: string;
+}
+
+// The Scan viewer: an Image of a Church-book reference's Volumes over the
 // chart, to step through, zoom into, and mark as where the record is. It
-// opens on the Image the reference (`citation`) links (`scan`); a new `scan`
-// moves it there. The record itself stays in the dock, marked there, so the
-// toolbar holds only moving through the Volume and marking. Asks to close
-// with a `scan-close` event; a mark reports with `scan-marked`.
+// opens on the Image the reference (`citation`) links (`scan`), and a new
+// `scan` moves it there; without one, it waits for a Volume to be picked.
+// The record itself stays in the dock, marked there, so the toolbar holds
+// only moving through the Volumes and marking. Asks to close with a
+// `scan-close` event; a mark reports with `scan-marked`.
 @customElement('sl-scan-viewer')
 export class ScanViewerElement extends LitElement {
   static override styles = [controlStyles, scanViewerStyles];
@@ -58,6 +66,9 @@ export class ScanViewerElement extends LitElement {
   @property({ attribute: false }) citation: CitationRow | null = null;
   @property({ attribute: false }) scan: Scan | null = null;
 
+  // The parish's Volumes for the switcher; null until they arrive.
+  @state() private volumes: CitationVolume[] | null = null;
+  @state() private volume: Shown | null = null;
   @state() private image = 1;
   // Astia's viewer link for each Image of the Volume, which also gives their
   // count; null until it arrives.
@@ -68,6 +79,8 @@ export class ScanViewerElement extends LitElement {
   @state() private view: Transform | null = null;
   @state() private dragging = false;
 
+  // The Image last shown in each Volume of this reference, to go back to.
+  private readonly left = new Map<string, number>();
   // The loaded Image's size: the next keeps the view when it matches.
   private natural: Viewport | null = null;
   private drag: Drag | null = null;
@@ -78,6 +91,7 @@ export class ScanViewerElement extends LitElement {
     }
   });
   private linksAbort: AbortController | null = null;
+  private volumesAbort: AbortController | null = null;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -93,22 +107,45 @@ export class ScanViewerElement extends LitElement {
     window.removeEventListener('keydown', this.onKeyDown);
     this.stopMomentum();
     this.linksAbort?.abort();
+    this.volumesAbort?.abort();
   }
 
   override willUpdate(changed: PropertyValues<this>) {
-    const scan = this.scan;
-    if (!changed.has('scan') || scan === null) return;
-    if (changed.get('scan')?.volumeId === scan.volumeId) {
-      // A mark hands back the link to the Image already shown.
-      this.show(scan.image);
+    const id = this.citation?.id;
+    if (changed.has('citation') && changed.get('citation')?.id !== id) {
+      this.left.clear();
+      if (id !== undefined) void this.loadVolumes(id);
+    }
+    if (changed.has('scan')) this.follow(this.scan);
+  }
+
+  // To the link's Image; a mark hands back the link to the Image shown.
+  private follow(scan: Scan | null) {
+    if (scan === null) {
+      this.volume = null;
       return;
     }
-    this.natural = null;
-    this.view = null;
-    void this.loadLinks(scan.volumeId);
-    this.image = clampImage(scan.image, null);
-    this.loading = 'loading';
-    this.retry = 0;
+    if (this.volume?.id === scan.volumeId) {
+      this.show(scan.image);
+    } else {
+      this.open({ id: scan.volumeId, label: scan.volume }, scan.image);
+    }
+  }
+
+  private async loadVolumes(id: number) {
+    this.volumesAbort?.abort();
+    const abort = new AbortController();
+    this.volumesAbort = abort;
+    this.volumes = null;
+    try {
+      const res = await fetch(apiUrl(`/api/citations/${id}/volumes`), {
+        signal: abort.signal
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      this.volumes = (await res.json()) as CitationVolume[];
+    } catch {
+      // Without them there's nothing to switch to, and marking can't say how.
+    }
   }
 
   private async loadLinks(volumeId: string) {
@@ -128,6 +165,26 @@ export class ScanViewerElement extends LitElement {
     }
   }
 
+  private open(volume: Shown, image: number) {
+    if (this.volume !== null) this.left.set(this.volume.id, this.image);
+    this.volume = volume;
+    this.natural = null;
+    this.view = null;
+    void this.loadLinks(volume.id);
+    this.image = clampImage(image, null);
+    this.loading = 'loading';
+    this.retry = 0;
+  }
+
+  // Back where it was left, else on the reference's Image, else the first.
+  private switchTo(id: string) {
+    const volume = this.volumes?.find((v) => v.id === id);
+    if (volume === undefined || id === this.volume?.id) return;
+    const link = this.scan?.volumeId === id ? this.scan.image : null;
+    const image = this.left.get(id) ?? link ?? volume.image ?? 1;
+    this.open(volume, image);
+  }
+
   private show(n: number) {
     const next = clampImage(n, this.links?.length ?? null);
     if (next === this.image) return;
@@ -141,6 +198,11 @@ export class ScanViewerElement extends LitElement {
       new CustomEvent('scan-close', { bubbles: true, composed: true })
     );
   }
+
+  // A mark can change which Volumes the reference links, and where.
+  private readonly onMarked = () => {
+    if (this.citation !== null) void this.loadVolumes(this.citation.id);
+  };
 
   // ------------------------------------------------------------ view
 
@@ -298,11 +360,13 @@ export class ScanViewerElement extends LitElement {
 
   // ------------------------------------------------------------ render
 
-  private renderToolbar(scan: Scan) {
+  private renderToolbar() {
     return html`
       <sl-scan-toolbar
         .citation=${this.citation}
-        .link=${scan}
+        .link=${this.scan}
+        .volumes=${this.volumes}
+        .volume=${this.volume}
         .image=${this.image}
         .count=${this.links?.length ?? null}
         .astia=${this.links?.[this.image - 1] ?? null}
@@ -311,6 +375,13 @@ export class ScanViewerElement extends LitElement {
         @scan-show=${(e: CustomEvent<number>) => {
           this.show(e.detail);
         }}
+        @scan-volume=${(e: CustomEvent<string>) => {
+          this.switchTo(e.detail);
+        }}
+        @scan-link=${() => {
+          this.follow(this.scan);
+        }}
+        @scan-marked=${this.onMarked}
       ></sl-scan-toolbar>
     `;
   }
@@ -337,7 +408,7 @@ export class ScanViewerElement extends LitElement {
     return nothing;
   }
 
-  private renderStage(scan: Scan) {
+  private renderStage(volume: Shown) {
     const v = this.view;
     const hidden = v === null || this.loading === 'failed';
     const style =
@@ -356,7 +427,7 @@ export class ScanViewerElement extends LitElement {
       >
         <img
           class=${hidden ? 'unfitted' : ''}
-          src=${imageUrl(scan.volumeId, this.image, this.retry)}
+          src=${imageUrl(volume.id, this.image, this.retry)}
           alt=${`Image ${this.image}`}
           draggable="false"
           style=${style}
@@ -369,9 +440,17 @@ export class ScanViewerElement extends LitElement {
   }
 
   override render() {
-    const scan = this.scan;
-    if (scan === null) return nothing;
-    return html` ${this.renderToolbar(scan)} ${this.renderStage(scan)} `;
+    if (this.citation === null) return nothing;
+    return html`
+      ${this.renderToolbar()}
+      ${
+        this.volume === null
+          ? html`<div class="blank">
+              <div class="note">Pick a Volume of the parish to look in.</div>
+            </div>`
+          : this.renderStage(this.volume)
+      }
+    `;
   }
 }
 

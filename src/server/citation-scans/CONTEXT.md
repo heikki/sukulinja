@@ -54,7 +54,7 @@ How sure a link is, best first:
 - **Estimated** — guessed from the Book's usual numbering.
 - **Volume** — the Volume is known but not the Image; the link opens the Volume.
 
-A Church-book reference whose Volume can't be told apart gets one link per candidate: it is **Split**.
+A Church-book reference whose Volume can't be told apart has several candidate Volumes: it is **Split**.
 
 ### Through MyHeritage
 

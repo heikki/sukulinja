@@ -3,7 +3,7 @@ import { expect, test } from 'bun:test';
 import { openDb } from './db';
 import { importGedcom } from './gedcom-import';
 import { parseGedcom } from './gedcom-parser';
-import { createPersonDetails } from './person-details';
+import { createPersonDetails, describeRef } from './person-details';
 
 const RIPPI =
   'https://www.myheritage.fi/research/collection-10509/x?itemId=1&action=showRecord';
@@ -84,6 +84,7 @@ test('serves facts in date order and church books first', () => {
       {
         id: 2,
         source: 'Suomalaiset rippi- ja lastenkirjat, 1657-1915',
+        reference: 'Communion book 1794–1808\u00a0· p.\u00a0139',
         page: RIPPI,
         url: RIPPI,
         record: {
@@ -101,6 +102,7 @@ test('serves facts in date order and church books first', () => {
       {
         id: 1,
         source: null,
+        reference: null,
         page: null,
         url: null,
         record: null,
@@ -111,4 +113,24 @@ test('serves facts in date order and church books first', () => {
     ]
   });
   expect(createPersonDetails(db)(99)).toBeNull();
+});
+
+test('names a church-book reference by what it gives', () => {
+  const ref = {
+    url: RIPPI,
+    collection: '30233',
+    parish: 'Pitäjä',
+    kind: 'kastetut' as const,
+    years: { from: 1830, to: 1830 },
+    page: null,
+    places: [],
+    recordId: null
+  };
+  expect(describeRef(ref)).toBe('Pitäjä\u00a0· Baptisms 1830');
+  expect(describeRef({ ...ref, kind: 'lasten', years: null, page: 2 })).toBe(
+    "Pitäjä\u00a0· Children's book\u00a0· p.\u00a02"
+  );
+  expect(
+    describeRef({ ...ref, parish: null, kind: null, years: null })
+  ).toBeNull();
 });

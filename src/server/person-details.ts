@@ -3,7 +3,12 @@
 
 import type { Database } from 'bun:sqlite';
 
-import type { CitationRow, FactRow, PersonDetails } from '@common/types';
+import type {
+  BookKind,
+  CitationRow,
+  FactRow,
+  PersonDetails
+} from '@common/types';
 
 import {
   CHURCH_COLLECTIONS,
@@ -12,6 +17,7 @@ import {
   parseChurchBookRef,
   readRecord
 } from './citation-scans/record';
+import type { ChurchBookRef } from './citation-scans/record';
 
 interface CitationDbRow {
   id: number;
@@ -38,6 +44,31 @@ function churchBookRefOf(url: string | null, text: string) {
     : null;
 }
 
+const BOOK_NAMES: Record<BookKind, string> = {
+  rippi: 'Communion book',
+  lasten: "Children's book",
+  kastetut: 'Baptisms',
+  vihityt: 'Marriages'
+};
+
+// Parish · book and years · page, of what the reference gives. Lines break
+// only after a dot.
+export function describeRef(ref: ChurchBookRef) {
+  const { from, to } = ref.years ?? { from: null, to: null };
+  const years =
+    from === null ? null : from === to ? `${from}` : `${from}–${to}`;
+  const book = [ref.kind === null ? null : BOOK_NAMES[ref.kind], years]
+    .filter((s) => s !== null)
+    .join(' ');
+  const parts = [
+    ref.parish,
+    book,
+    ref.page === null ? '' : `p.\u00a0${ref.page}`
+  ];
+  const named = parts.filter((s) => s !== null && s !== '');
+  return named.length === 0 ? null : named.join('\u00a0· ');
+}
+
 // A MyHeritage record is read into its fields; others keep their text.
 function contentOf(url: string | null, text: string | null) {
   if (url?.includes('myheritage.') === true) {
@@ -56,6 +87,7 @@ function toCitation(row: CitationDbRow): CitationRow & { year: number } {
   return {
     id: row.id,
     source: row.source,
+    reference: book === null ? null : describeRef(book),
     page: row.page,
     url,
     ...contentOf(url, row.text),

@@ -6,10 +6,11 @@ Part of `../PRD.md`. Needs 02 (and 03 for marking in another Volume).
 
 ## What
 
-- `GET /d/<slug>/api/citations/<id>/volumes` (added in 03 for the mark's
-  hint) lists the parish's Volumes from `parishVolumes` with id, label and
-  whether the reference links it. Add Book kind, years and image count, and
-  keep to the digitized ones.
+- `GET /d/<slug>/api/citations/<id>/volumes` lists the parish's digitized
+  Volumes from `parishVolumes` with id, label, Book kind, years, and the
+  reference's Image in each Volume it links. No image count: Astia's
+  listing doesn't give one, and asking each Volume would take a throttled
+  request apiece; the viewer learns it on opening the Volume.
 - The viewer's Volume switcher lists them grouped by Book kind and sorted
   by years, with the linked Volumes first and marked.
 - A switched-to Volume opens on the reference's Image if the reference
