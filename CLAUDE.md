@@ -12,4 +12,4 @@ Canonical strings: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-h
 
 ### Domain docs
 
-Single-context layout: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+Multi-context layout: `CONTEXT-MAP.md` at the repo root points at each context's `CONTEXT.md`; ADRs in `docs/adr/`. See `docs/agents/domain.md`.
