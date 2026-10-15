@@ -15,10 +15,10 @@ import { parseArgs } from 'node:util';
 import type { Scan, ScanResolution } from '@common/types';
 import { loadAnchors, loadPlacements } from '@server/citation-scans/anchors';
 import { CACHE_DIR } from '@server/citation-scans/astia';
-import { resolveCitation } from '@server/citation-scans/locate';
-import type { Citation } from '@server/citation-scans/record';
+import { resolveChurchBookRef } from '@server/citation-scans/locate';
+import type { ChurchBookRef } from '@server/citation-scans/record';
 
-import { churchCitations } from './citations';
+import { churchBookRefs } from './citations';
 
 const OUT_FILE = resolve('data/citation-scans.json');
 const CHECKLIST_FILE = resolve('data/citation-scans-checklist.md');
@@ -30,7 +30,7 @@ function printTally(keys: string[]) {
   for (const [k, n] of sorted) console.log(`${String(n).padStart(6)}  ${k}`);
 }
 
-function resolutionKey(c: Citation, r: ScanResolution) {
+function resolutionKey(c: ChurchBookRef, r: ScanResolution) {
   if ('error' in r) return `${c.collection} ✗ ${r.error}`;
   const ambiguous = r.scans.length > 1 ? ' (split volume)' : '';
   return `${c.collection} ${r.scans[0]!.method}${ambiguous}`;
@@ -45,9 +45,9 @@ interface ChecklistEntry {
 // Cited volumes without an anchor, most-cited first: those where a page was
 // estimated, and those where the estimate ran past the volume's end. Each
 // links to an image to read, so checking it is one click.
-function checklist(citations: Citation[], resolutions: ScanResolution[]) {
+function checklist(refs: ChurchBookRef[], resolutions: ScanResolution[]) {
   const byVolume = new Map<string, ChecklistEntry>();
-  citations.forEach((c, i) => {
+  refs.forEach((c, i) => {
     const r = resolutions[i]!;
     if ('error' in r || c.page === null) return;
     for (const scan of r.scans) {
@@ -100,12 +100,12 @@ async function main() {
   }
   await mkdir(CACHE_DIR, { recursive: true });
 
-  const citations = churchCitations(await Bun.file(resolve(input)).text());
-  console.log(`${citations.length} church-record citations`);
+  const refs = churchBookRefs(await Bun.file(resolve(input)).text());
+  console.log(`${refs.length} church-book references`);
 
   if (values['dry-run'] === true) {
     printTally(
-      citations.map(
+      refs.map(
         (c) =>
           `${c.collection} ${c.kind ?? '?'} ${c.parish ?? '?'}${c.page === null ? '' : ' +page'}`
       )
@@ -116,12 +116,12 @@ async function main() {
   const anchors = await loadAnchors();
   const placements = await loadPlacements();
   const resolutions = await Promise.all(
-    citations.map((c) => resolveCitation(c, anchors, placements))
+    refs.map((c) => resolveChurchBookRef(c, anchors, placements))
   );
-  const results = citations.map((c, i) => ({ ...c, ...resolutions[i] }));
+  const results = refs.map((c, i) => ({ ...c, ...resolutions[i] }));
   await Bun.write(OUT_FILE, `${JSON.stringify(results, null, 2)}\n`);
-  await Bun.write(CHECKLIST_FILE, checklist(citations, resolutions));
-  printTally(citations.map((c, i) => resolutionKey(c, resolutions[i]!)));
+  await Bun.write(CHECKLIST_FILE, checklist(refs, resolutions));
+  printTally(refs.map((c, i) => resolutionKey(c, resolutions[i]!)));
   console.log(`wrote ${OUT_FILE}\nwrote ${CHECKLIST_FILE}`);
 }
 

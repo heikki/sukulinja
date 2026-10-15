@@ -13,9 +13,9 @@ import {
   setPlacement
 } from './anchors';
 import { imageOfFile, setCacheDir, volumeImages } from './astia';
-import { parishVolumes, resolveCitation } from './locate';
-import { CHURCH_COLLECTIONS, collectionOf, parseCitation } from './record';
-import type { Citation } from './record';
+import { parishVolumes, resolveChurchBookRef } from './locate';
+import { CHURCH_COLLECTIONS, collectionOf, parseChurchBookRef } from './record';
+import type { ChurchBookRef } from './record';
 
 // Astia's cache and the local corrections live beside the datasets; the
 // registry lists only slug-named folders, so neither shows as a dataset.
@@ -34,8 +34,8 @@ export async function resolveScans(
   text: string | null
 ): Promise<ScanResolution> {
   try {
-    return await resolveCitation(
-      parseCitation(page, text ?? ''),
+    return await resolveChurchBookRef(
+      parseChurchBookRef(page, text ?? ''),
       await loadAnchors(),
       await loadPlacements()
     );
@@ -70,24 +70,24 @@ async function pagesFor(volumeId: string, page: number, kind: string | null) {
   return twoPages ? [page, page + 1] : [page];
 }
 
-// A cited page found in a volume the citation already links is an anchor,
-// which moves the volume's other citations near it too. A record naming no
+// A cited page found in a volume the reference already links is an anchor,
+// which moves the volume's other references near it too. A record naming no
 // page, or found in another volume of the parish, is placed on its own.
 async function save(
-  citation: Citation,
+  ref: ChurchBookRef,
   target: { volumeId: string; image: number },
   volume: string,
   linked: boolean
 ) {
-  if (citation.page !== null && linked) {
-    await setPlacement(citation.url, null);
+  if (ref.page !== null && linked) {
+    await setPlacement(ref.url, null);
     await addLocalAnchor(target.volumeId, volume, {
       image: target.image,
-      pages: await pagesFor(target.volumeId, citation.page, citation.kind),
+      pages: await pagesFor(target.volumeId, ref.page, ref.kind),
       note: 'placed by hand in the app'
     });
   } else {
-    await setPlacement(citation.url, { ...target, volume });
+    await setPlacement(ref.url, { ...target, volume });
   }
 }
 
@@ -96,11 +96,11 @@ export async function correctScan(
   text: string | null,
   correction: Correction
 ): Promise<CorrectionResult> {
-  const citation = parseCitation(page, text ?? '');
+  const ref = parseChurchBookRef(page, text ?? '');
   const target =
     'url' in correction ? await imageOfLink(correction.url) : correction;
   if (target === null) return { rejected: "That isn't an Astia image link." };
-  const volume = (await parishVolumes(citation.parish)).find(
+  const volume = (await parishVolumes(ref.parish)).find(
     (v) => v.id === target.volumeId
   );
   if (volume === undefined) {
@@ -115,10 +115,10 @@ export async function correctScan(
     return { rejected: `The volume has images 1–${count}.` };
   }
   // Linked by the book it cites, not by an earlier placement.
-  const matched = await resolveCitation(citation, await loadAnchors());
+  const matched = await resolveChurchBookRef(ref, await loadAnchors());
   const linked =
     'scans' in matched &&
     matched.scans.some((s) => s.volumeId === target.volumeId);
-  await save(citation, target, volume.label, linked);
+  await save(ref, target, volume.label, linked);
   return await resolveScans(page, text);
 }
