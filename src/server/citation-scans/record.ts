@@ -1,6 +1,6 @@
 // MyHeritage record citations: the transcription MyHeritage keeps in a
 // citation's DATA/TEXT, read back into its fields for display, and into the
-// parish, book, years and page it cites for mapping to a scan.
+// church-book reference it points to, for mapping to a scan.
 
 import type { HouseholdMember, RecordField, RecordView } from '@common/types';
 
@@ -11,7 +11,7 @@ import type { BookKind, Years } from './text';
 export const RIPPI_COLLECTION = '10509';
 export const CHURCH_COLLECTIONS = new Set([RIPPI_COLLECTION, '30233', '30200']);
 
-export interface Citation {
+export interface ChurchBookRef {
   url: string;
   collection: string;
   parish: string | null;
@@ -92,7 +92,7 @@ function residencePlaces(text: string, parish: string | null) {
   return end > 0 ? parts.slice(0, end) : [];
 }
 
-function parseRippiCitation(url: string, text: string): Citation {
+function parseRippiRef(url: string, text: string): ChurchBookRef {
   const book = field(text, 'Kirja');
   const rawParish = field(text, 'Hallintoalue');
   const parish = rawParish === null ? null : stripParens(rawParish);
@@ -114,11 +114,11 @@ function parseRippiCitation(url: string, text: string): Citation {
 }
 
 // FamilySearch-derived indexes: "Ristiäiset: 29. Marras 1829 - Mikkeli, …"
-function parseIndexCitation(
+function parseIndexRef(
   url: string,
   collection: string,
   text: string
-): Citation {
+): ChurchBookRef {
   const event =
     /(?<ev>Ristiäiset|Syntymä|Avioliitto|Kaste)\s*:\s*(?<date>[^\n]*?)\s+-\s+(?<place>[^,\n]+)/.exec(
       text
@@ -140,12 +140,12 @@ function indexKind(event: string): BookKind {
   return event === 'Avioliitto' ? 'vihityt' : 'kastetut';
 }
 
-export function parseCitation(url: string, raw: string) {
+export function parseChurchBookRef(url: string, raw: string) {
   const collection = collectionOf(url) ?? '?';
   const text = citationText(raw);
   return collection === RIPPI_COLLECTION
-    ? parseRippiCitation(url, text)
-    : parseIndexCitation(url, collection, text);
+    ? parseRippiRef(url, text)
+    : parseIndexRef(url, collection, text);
 }
 
 // ---------------------------------------------------------------- display

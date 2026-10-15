@@ -1,4 +1,4 @@
-// Citation → Astia volume → image.
+// Church-book reference → Astia volume → image.
 //
 // Astia knows only image order, so a cited page is turned into an image via
 // anchors (anchors.json): what's written on one image, read off the scan by
@@ -8,7 +8,7 @@
 // what's written. Without an anchor we guess from the spot checks so far:
 // rippikirjat number spreads, lastenkirjat pages.
 //
-// Which volume a citation is in comes from its book's years, then the
+// Which volume a reference is in comes from its book's years, then the
 // villages and page numbers. Where that's known exactly, a volume lists the
 // MyHeritage records on its film: MyHeritage numbers each film's records in
 // one block, in image order, and blocks don't overlap, so a record seen on a
@@ -21,7 +21,7 @@ import type { Scan, ScanMethod, ScanResolution } from '@common/types';
 
 import { archiveVolumes, viewerUrl, volumeImages } from './astia';
 import type { Volume } from './astia';
-import type { Citation } from './record';
+import type { ChurchBookRef } from './record';
 import type { BookKind, Years } from './text';
 
 // Astia fonds ("… seurakunnan arkisto") per parish as MyHeritage and
@@ -79,8 +79,8 @@ export type Anchors = Record<
   }
 >;
 
-// A record placed by hand on an image, for a citation naming no page or
-// found in a volume the citation's book doesn't match.
+// A record placed by hand on an image, for a reference naming no page or
+// found in a volume its book doesn't match.
 export interface Placement {
   volumeId: string;
   volume: string;
@@ -119,7 +119,7 @@ function candidateVolumes(volumes: Volume[], kind: BookKind, years: Years) {
     : sameKind.filter((v) => partsOverlap(v, years) === best);
 }
 
-// The volume whose film holds the record, whatever book the citation names.
+// The volume whose film holds the record, whatever book the reference names.
 function filmedIn(
   volumes: Volume[],
   recordId: number | null,
@@ -162,7 +162,7 @@ function inRange(place: string, range: { from: string; to: string }) {
 }
 
 // Among volumes split by village, keep those known to hold one of the
-// citation's place names, else those whose range covers one; if none does,
+// reference's place names, else those whose range covers one; if none does,
 // the split can't be decided here.
 function narrowByVillage(
   volumes: Volume[],
@@ -236,25 +236,25 @@ interface Located {
   method: ScanMethod;
 }
 
-function seenImage(v: Volume, c: Citation, anchors: Anchors) {
-  return anchors[v.id]?.seen?.find((r) => r.record === c.recordId)?.image;
+function seenImage(v: Volume, ref: ChurchBookRef, anchors: Anchors) {
+  return anchors[v.id]?.seen?.find((r) => r.record === ref.recordId)?.image;
 }
 
 async function locate(
   v: Volume,
-  c: Citation,
+  ref: ChurchBookRef,
   anchors: Anchors
 ): Promise<Located> {
   const files = await volumeImages(v.id);
-  const seen = seenImage(v, c, anchors);
+  const seen = seenImage(v, ref, anchors);
   if (seen !== undefined) {
     return { volume: v, files, image: seen, method: 'placed' };
   }
-  if (c.page === null) {
+  if (ref.page === null) {
     return { volume: v, files, image: null, method: 'volume' };
   }
-  const anchored = anchoredImage(anchors[v.id]?.anchors ?? [], c.page);
-  const image = anchored ?? imageFor(defaultNumbering(c.kind!), c.page);
+  const anchored = anchoredImage(anchors[v.id]?.anchors ?? [], ref.page);
+  const image = anchored ?? imageFor(defaultNumbering(ref.kind!), ref.page);
   const inside = image >= 1 && image <= files.length;
   return {
     volume: v,
@@ -310,34 +310,38 @@ async function placedScan(p: Placement): Promise<Scan> {
   };
 }
 
-async function volumesFor(c: Citation, archiveId: string, anchors: Anchors) {
+async function volumesFor(
+  ref: ChurchBookRef,
+  archiveId: string,
+  anchors: Anchors
+) {
   const volumes = await archiveVolumes(archiveId);
-  const filmed = filmedIn(volumes, c.recordId, anchors);
+  const filmed = filmedIn(volumes, ref.recordId, anchors);
   return filmed.length > 0
     ? filmed
-    : candidateVolumes(volumes, c.kind!, c.years!);
+    : candidateVolumes(volumes, ref.kind!, ref.years!);
 }
 
-export async function resolveCitation(
-  c: Citation,
+export async function resolveChurchBookRef(
+  ref: ChurchBookRef,
   anchors: Anchors,
   placements: Placements = {}
 ): Promise<ScanResolution> {
-  const placed = placements[c.url];
+  const placed = placements[ref.url];
   if (placed !== undefined) return { scans: [await placedScan(placed)] };
-  if (c.parish === null || c.kind === null || c.years === null) {
+  if (ref.parish === null || ref.kind === null || ref.years === null) {
     return { error: 'unparsed' };
   }
-  const archiveId = PARISH_ARCHIVE[c.parish];
-  if (archiveId === undefined) return { error: `no archive for ${c.parish}` };
-  const candidates = await volumesFor(c, archiveId, anchors);
+  const archiveId = PARISH_ARCHIVE[ref.parish];
+  if (archiveId === undefined) return { error: `no archive for ${ref.parish}` };
+  const candidates = await volumesFor(ref, archiveId, anchors);
   if (candidates.length === 0) return { error: 'no matching volume' };
   const digitized = candidates.filter((v) => v.digitized);
   if (digitized.length === 0) return { error: 'not digitized' };
   const located = await Promise.all(
-    digitized.map((v) => locate(v, c, anchors))
+    digitized.map((v) => locate(v, ref, anchors))
   );
   const withImages = located.filter((l) => l.files.length > 0);
   if (withImages.length === 0) return { error: 'no images' };
-  return { scans: pickVolumes(withImages, c.places, anchors).map(toScan) };
+  return { scans: pickVolumes(withImages, ref.places, anchors).map(toScan) };
 }

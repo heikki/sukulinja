@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { parseCitation, readRecord } from './record';
+import { parseChurchBookRef, readRecord } from './record';
 
 const URL =
   'https://www.myheritage.fi/research/collection-10509/x?itemId=1&action=showRecord';
@@ -78,9 +78,9 @@ describe('readRecord', () => {
   });
 });
 
-describe('parseCitation', () => {
+describe('parseChurchBookRef', () => {
   test('reads the cited book, years, page and places', () => {
-    expect(parseCitation(URL, PLAIN)).toEqual({
+    expect(parseChurchBookRef(URL, PLAIN)).toEqual({
       url: URL,
       collection: '10509',
       parish: 'Pitäjä',

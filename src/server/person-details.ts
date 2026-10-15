@@ -9,7 +9,7 @@ import {
   CHURCH_COLLECTIONS,
   citationText,
   collectionOf,
-  parseCitation,
+  parseChurchBookRef,
   readRecord
 } from './citation-scans/record';
 
@@ -29,12 +29,12 @@ function linkOf(page: string | null) {
   return page !== null && /^https?:/.test(page) ? page : null;
 }
 
-function churchCitationOf(url: string | null, text: string) {
+function churchBookRefOf(url: string | null, text: string) {
   const collection = url === null ? null : collectionOf(url);
   return url !== null &&
     collection !== null &&
     CHURCH_COLLECTIONS.has(collection)
-    ? parseCitation(url, text)
+    ? parseChurchBookRef(url, text)
     : null;
 }
 
@@ -52,7 +52,7 @@ function contentOf(url: string | null, text: string | null) {
 // A church book's first year orders it; other sources sort last.
 function toCitation(row: CitationDbRow): CitationRow & { year: number } {
   const url = linkOf(row.page);
-  const book = churchCitationOf(url, row.text ?? '');
+  const book = churchBookRefOf(url, row.text ?? '');
   return {
     id: row.id,
     source: row.source,
