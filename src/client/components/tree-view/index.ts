@@ -9,12 +9,7 @@ import type { FamilyRow, PersonRow } from '@common/types';
 import '../person-panel';
 import '../side-dock';
 
-import {
-  detailsOpen,
-  detailsWidth,
-  setDetailsOpen,
-  setDetailsWidth
-} from '../person-panel/helpers';
+import { detailsWidth, setDetailsWidth } from '../person-panel/helpers';
 
 import '../person-search';
 
@@ -107,7 +102,8 @@ export class TreeViewElement extends LitElement {
   @state() private persons = new Map<number, PersonRow>();
   @state() private focusId: number | null = null;
   @state() private loading = true;
-  @state() private details = detailsOpen();
+  // Closed on entering a dataset; opening it lasts only for this visit.
+  @state() private details = false;
   @state() private detailsWidth = detailsWidth();
 
   private readonly parentFamByPerson = new Map<number, FamilyRow>();
@@ -423,7 +419,6 @@ export class TreeViewElement extends LitElement {
         .width=${this.detailsWidth}
         @open-change=${(e: OpenChangeEvent) => {
           this.details = e.detail;
-          setDetailsOpen(e.detail);
         }}
         @width-change=${(e: WidthChangeEvent) => {
           this.detailsWidth = e.detail;
