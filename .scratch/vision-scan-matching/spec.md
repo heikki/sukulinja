@@ -74,13 +74,15 @@ The bulk pass runs as a script, unattended and resumable, against the same data 
 ## Implementation Decisions
 
 **The Reader (new seam).** A small interface puts the vision model behind three questions about one Image of a Volume:
-- *page numbers*: the Page numbers written on it, or unreadable;
-- *dates*: the earliest and latest entry dates on it, for baptism and marriage books, or unreadable;
-- *find entry*: whether a named person, with an optional date and village, is written on it, plus a confidence. The match is spelling-tolerant (Swedish and Finnish name forms, patronymics, W for V).
+
+- _page numbers_: the Page numbers written on it, or unreadable;
+- _dates_: the earliest and latest entry dates on it, for baptism and marriage books, or unreadable;
+- _find entry_: whether a named person, with an optional date and village, is written on it, plus a confidence. The match is spelling-tolerant (Swedish and Finnish name forms, patronymics, W for V).
 
 Answers are structured. "Unreadable" and "not found" are first-class answers, never errors. The matcher depends only on this interface.
 
 **The real Reader** calls the Claude API through the official TypeScript SDK and uses structured outputs:
+
 - Page number and date questions default to Claude Haiku 5.5 at low effort.
 - Find-entry defaults to Claude Sonnet 5.5.
 - The final choices come from the evaluation, and the models are configurable.
@@ -90,22 +92,26 @@ Answers are structured. "Unreadable" and "not found" are first-class answers, ne
 **Reading cache.** Every Reader answer is cached on disk in the data folder, beside the Astia caches. It is keyed by Volume, Image, question (including the name asked about) and model. A changed model re-reads; a re-run doesn't.
 
 **The matcher.** It takes a Church-book reference and the candidate Volumes from the existing resolution, and returns either a confirmed Image or an unconfirmed outcome with a reason and the last Image it tried.
-- *Page search*, for references with a Page number: start at the Image the current Anchored or Estimated method gives. Read its Page number, jump by the difference, and repeat. Reads are capped (a small number, e.g. 6) before giving up as "didn't converge". A reading that contradicts the Volume's numbering direction, as when numbering starts over, is treated as a signal to stay near the Anchors rather than to jump.
-- *Date search*, for baptism and marriage index references: binary search over the Volume's Images by the dates read, to the Image whose range covers the cited date.
-- *Confirmation*: run find-entry on the Image the search landed on. If the person isn't there, check its neighbours (±1 for continuations and Retakes, then a small window for misread pages). Only a find-entry "found" confirms.
-- *Split references*: search each candidate Volume. The one where the person is found wins. More than one find leaves the reference unconfirmed as ambiguous.
+
+- _Page search_, for references with a Page number: start at the Image the current Anchored or Estimated method gives. Read its Page number, jump by the difference, and repeat. Reads are capped (a small number, e.g. 6) before giving up as "didn't converge". A reading that contradicts the Volume's numbering direction, as when numbering starts over, is treated as a signal to stay near the Anchors rather than to jump.
+- _Date search_, for baptism and marriage index references: binary search over the Volume's Images by the dates read, to the Image whose range covers the cited date.
+- _Confirmation_: run find-entry on the Image the search landed on. If the person isn't there, check its neighbours (±1 for continuations and Retakes, then a small window for misread pages). Only a find-entry "found" confirms.
+- _Split references_: search each candidate Volume. The one where the person is found wins. More than one find leaves the reference unconfirmed as ambiguous.
 - Rippikirja references with no Page number are out of scope (see below). The matcher reports them as unsupported.
 
 **Church-book reference gains two fields.** These are parsed in the existing record parser:
+
 - the record's person name: for rippikirjat, the record's principal from the transcription; for index references, from the citation text;
 - the full event date for index references, at day precision where the text gives it, with Finnish month names parsed ("29. Marras 1829").
 
 **Provenance on saved corrections.** Seen records, Placements and Anchors carry `by: "hand" | "vision"`. A missing value means hand, which covers everything that ships with the app and every existing local file.
+
 - A vision save never replaces or removes a hand entry for the same record, URL, Image or page.
 - A hand save replaces a vision entry.
 - The anchors store's existing merge of local over shipped stays as it is, with this rule added.
 
 **Saving a confirmed match.**
+
 - With a Record number: a local Seen record for that Volume, plus an Anchor for the matched page when the reference has one.
 - Without one: a Placement keyed by the record URL.
 
@@ -116,6 +122,7 @@ Answers are structured. "Unreadable" and "not found" are first-class answers, ne
 **Scan provenance in the API.** A Placed scan carries `by`, so the source panel can mark vision matches. The Scan method itself is unchanged: a vision match is Placed.
 
 **The runner.** This is a script, beside the existing citation-mapping script.
+
 - It reads a dataset's church-book citations from its database.
 - It runs the matcher on every reference that isn't already Placed and saves confirmed matches into a given data folder (default: the repo's). Those are the same local files the app reads.
 - Options: data folder, dataset, parish/Volume filter, limit, dry run.
@@ -125,6 +132,7 @@ Answers are structured. "Unreadable" and "not found" are first-class answers, ne
 **Astia load.** The runner fetches full-size Images through the existing image cache, one at a time with a gap like the metadata crawl. Interactive Scan viewer fetches are unchanged.
 
 **The evaluation script.**
+
 - It samples Images with hand Anchors and hand Seen records from the shipped anchors.
 - It asks the Reader the matching questions, including find-entry for a known name and for a decoy name from elsewhere in the Volume.
 - It reports exact, wrong and unreadable rates and cost, per question and model.
