@@ -42,6 +42,10 @@ A Volume whose Images hold the book twice, as if filmed twice; the copies drift 
 **Placement**:
 A Church-book reference put on an Image by hand in the app, for one with no page or in a Volume its Book doesn't match.
 
+**Scan viewer**:
+Where the app shows an Image, opened from a Church-book reference's link. You step through the Volume's Images there and mark the one the record is on, which saves an Anchor or a Placement.
+_Avoid_: record viewer (a record is MyHeritage's), Astia viewer (Astia's own site).
+
 **Scan method**:
 How sure a link is, best first:
 
