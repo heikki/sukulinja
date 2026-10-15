@@ -25,6 +25,18 @@ const TRASH_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
   `}
 </svg>`;
 
+// A dialog's failure: what failed, then the server's message, which can be a
+// long raw path or stack line — hence wrapped anywhere and scrollable.
+function errorNote(title: string, message: string | null) {
+  if (message === null) return nothing;
+  return html`
+    <div class="error" role="alert">
+      <strong>${title}</strong>
+      <span class="message">${message}</span>
+    </div>
+  `;
+}
+
 type ImportEvent =
   | { type: 'log'; message: string }
   | { type: 'error'; message: string }
@@ -49,6 +61,8 @@ export class AppElement extends LitElement {
   @state() private importing = false;
   @state() private importStatus: string | null = null;
   @state() private importError: string | null = null;
+  // A pick that can't become an import, shown on the page: no dialog is open.
+  @state() private pickError: string | null = null;
   @state() private pendingDelete: DatasetInfo | null = null;
   @state() private deleting = false;
   @state() private deleteError: string | null = null;
@@ -66,11 +80,13 @@ export class AppElement extends LitElement {
   // Import a single GEDCOM file (no local media; MyHeritage URL media still
   // downloads server-side).
   private readonly onImportFileClick = () => {
+    this.pickError = null;
     this.renderRoot.querySelector<HTMLInputElement>('#file-input')?.click();
   };
 
   // Import a whole folder: the GEDCOM plus its sibling image directories.
   private readonly onImportFolderClick = () => {
+    this.pickError = null;
     this.renderRoot.querySelector<HTMLInputElement>('#folder-input')?.click();
   };
 
@@ -91,7 +107,7 @@ export class AppElement extends LitElement {
     if (all.length === 0) return;
     const ged = all.find((f) => /\.ged(?:com)?$/iu.test(f.name));
     if (ged === undefined) {
-      this.importError = 'No .ged or .gedcom file found in that folder.';
+      this.pickError = 'No .ged or .gedcom file found in that folder.';
       return;
     }
     const base = folderOf(ged.webkitRelativePath);
@@ -220,25 +236,20 @@ export class AppElement extends LitElement {
     const file = this.pendingImport;
     if (file === null) return nothing;
     const slug = slugFromFilename(this.importNameInput);
+    // Names that slugify alike share a folder, so importing one replaces the
+    // other — the only time the slug is worth surfacing.
+    const replaces = this.datasets?.find((d) => d.slug === slug);
     return html`
       <div class="overlay" @click=${this.cancelImport}>
         <div
-          class="dialog"
+          class="dialog import-dialog"
           role="dialog"
+          aria-labelledby="import-title"
           @click=${(e: Event) => {
             e.stopPropagation();
           }}
         >
-          <h2>Import dataset</h2>
-          <p class="muted">
-            From <code>${file.name}</code>${
-              this.pendingMedia.length > 0
-                ? ` + ${this.pendingMedia.length} media file${
-                    this.pendingMedia.length === 1 ? '' : 's'
-                  }`
-                : nothing
-            }
-          </p>
+          <h2 id="import-title" title=${file.name}>Import ${file.name}</h2>
           <label class="field">
             Name
             <input
@@ -248,18 +259,23 @@ export class AppElement extends LitElement {
               @input=${this.onImportNameInput}
               @keydown=${this.onImportKeydown}
             />
+            ${
+              replaces === undefined
+                ? nothing
+                : html`<span class="hint">
+                    Replaces the existing dataset
+                    <strong>${replaces.displayName}</strong>.
+                  </span>`
+            }
           </label>
-          <p class="muted">Saved as <code>${slug === '' ? '…' : slug}</code></p>
           ${
             this.importing && this.importStatus !== null
-              ? html`<p class="muted">${this.importStatus}</p>`
+              ? html`<p class="status" title=${this.importStatus}>
+                  ${this.importStatus}
+                </p>`
               : nothing
           }
-          ${
-            this.importError === null
-              ? nothing
-              : html`<p class="error">${this.importError}</p>`
-          }
+          ${errorNote('Import failed', this.importError)}
           <div class="actions">
             <button @click=${this.cancelImport} ?disabled=${this.importing}>
               Cancel
@@ -269,12 +285,17 @@ export class AppElement extends LitElement {
               @click=${this.confirmImport}
               ?disabled=${this.importing || slug === ''}
             >
-              ${this.importing ? 'Importing…' : 'Import'}
+              ${this.importLabel(replaces !== undefined)}
             </button>
           </div>
         </div>
       </div>
     `;
+  }
+
+  private importLabel(replacing: boolean) {
+    if (this.importing) return 'Importing…';
+    return replacing ? 'Replace' : 'Import';
   }
 
   private renderImportButton() {
@@ -337,11 +358,7 @@ export class AppElement extends LitElement {
             <strong>${target.displayName}</strong> (${target.personCount}
             people) will be permanently removed. This can't be undone.
           </p>
-          ${
-            this.deleteError === null
-              ? nothing
-              : html`<p class="error">${this.deleteError}</p>`
-          }
+          ${errorNote('Delete failed', this.deleteError)}
           <div class="actions">
             <button @click=${this.cancelDelete} ?disabled=${this.deleting}>
               Cancel
@@ -376,6 +393,7 @@ export class AppElement extends LitElement {
         <h2>No datasets yet</h2>
         <p>Import a MyHeritage (or any) GEDCOM file to get started.</p>
         ${this.renderImportButton()}
+        ${errorNote("Can't import that folder", this.pickError)}
       </div>
     `;
   }
@@ -413,6 +431,7 @@ export class AppElement extends LitElement {
           <h2>Datasets</h2>
           ${this.renderImportButton()}
         </div>
+        ${errorNote("Can't import that folder", this.pickError)}
         <ul class="chooser">
           ${this.datasets!.map(
             (d) => html`
