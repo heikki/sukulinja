@@ -84,7 +84,7 @@ Answers are structured. "Unreadable" and "not found" are first-class answers, ne
 **The real Reader** calls the Claude API through the official TypeScript SDK and uses structured outputs:
 
 - Page number and date questions default to Claude Haiku 5.5 at low effort.
-- Find-entry defaults to Claude Sonnet 5.5.
+- Find-entry defaults to Claude Haiku 5.5 at high effort. It is given the household as the record lists it, in the book's order, with the person marked. In the evaluation, the household took Haiku from 78% to 88% of people found, with no decoys; Sonnet 5.5 found 95% but let decoys through, at about 14 times the cost.
 - The final choices come from the evaluation, and the models are configurable.
 - A `refusal` stop reason maps to unreadable. Haiku 5.5 requests carry no `fallbacks` parameter.
 - Whether to crop and scale Images, for example the top strip for page numbers, is decided by the evaluation.
@@ -95,7 +95,7 @@ Answers are structured. "Unreadable" and "not found" are first-class answers, ne
 
 - _Page search_, for references with a Page number: start at the Image the current Anchored or Estimated method gives. Read its Page number, jump by the difference, and repeat. Reads are capped (a small number, e.g. 6) before giving up as "didn't converge". A reading that contradicts the Volume's numbering direction, as when numbering starts over, is treated as a signal to stay near the Anchors rather than to jump.
 - _Date search_, for baptism and marriage index references: binary search over the Volume's Images by the dates read, to the Image whose range covers the cited date.
-- _Confirmation_: run find-entry on the Image the search landed on. If the person isn't there, check its neighbours (±1 for continuations and Retakes, then a small window for misread pages). Only a find-entry "found" confirms.
+- _Confirmation_: run find-entry on the Image the search landed on. If the person isn't there, check its neighbours (±1 for continuations and Retakes, then a small window for misread pages). Only a find-entry "found" confirms, and where both the record and the scan give a birth year, they must agree within a year: namesakes are told apart by when they were born.
 - _Split references_: search each candidate Volume. The one where the person is found wins. More than one find leaves the reference unconfirmed as ambiguous.
 - Rippikirja references with no Page number are out of scope (see below). The matcher reports them as unsupported.
 
@@ -134,7 +134,7 @@ Answers are structured. "Unreadable" and "not found" are first-class answers, ne
 **The evaluation script.**
 
 - It samples Images with hand Anchors and hand Seen records from the shipped anchors.
-- It asks the Reader the matching questions, including find-entry for a known name and for a decoy name from elsewhere in the Volume.
+- It asks the Reader the matching questions, including find-entry for a known name and for a decoy: a person from another parish's books. A decoy from the same Volume may well be written on the Image too, as families recur page after page.
 - It reports exact, wrong and unreadable rates and cost, per question and model.
 
 **Gate.** The runner refuses to write anything (dry run is allowed) until an evaluation has shown a find-entry false-confirmation rate of 1% or less for the configured model. The result is recorded in the data folder.
@@ -175,7 +175,7 @@ Answers are structured. "Unreadable" and "not found" are first-class answers, ne
 
 ## Further Notes
 
-- **Rough cost of a full pass over today's tree:** about $5 of Haiku reads for searching, and about $40–80 of Sonnet reads for name checks. That's roughly 15–20k Image fetches from Astia, about 6 hours at one a second, so run it overnight or over several nights. The evaluation costs well under $1. Prices are Claude API first-party rates as of October 2026.
+- **Rough cost of a full pass over today's tree:** about $5 of Haiku reads for searching, and about as much again for name checks. That's roughly 15–20k Image fetches from Astia, about 6 hours at one a second, so run it overnight or over several nights. The evaluation costs well under $1. Prices are Claude API first-party rates as of October 2026.
 - **Suggested order of slices:**
   1. Hand marking saves Seen records and extends Record ranges, with provenance. This is useful on its own, without any model.
   2. The Reader and the evaluation script.

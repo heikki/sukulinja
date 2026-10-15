@@ -8,6 +8,7 @@
 
 import type { Anchors, Placements } from '@server/citation-scans/locate';
 import { dayRange } from '@server/citation-scans/matcher';
+import { confirms } from '@server/citation-scans/reader';
 import type { ImageRef, Person, Reader } from '@server/citation-scans/reader';
 import type { ChurchBookRef } from '@server/citation-scans/record';
 
@@ -69,41 +70,40 @@ export function dateCases(
   return spread(cases, limit);
 }
 
-// Records far enough apart in number to be on different Frames.
-const DECOY_DISTANCE = 200;
+// The parish a Volume's title starts with ("Haukivuori I Aa:1 …").
+function parishOf(anchors: Anchors, volumeId: string) {
+  return anchors[volumeId]?.title?.split(' ')[0] ?? volumeId;
+}
 
-// For each hand Seen record whose principal is named, the person on their
-// Image, and a decoy there: another Seen record of the Volume on another
-// Image, or failing that a record numbered well away from it in the
-// Volume's Record range.
+// For each hand Seen record whose principal is known, the person on their
+// Image, and a decoy there: the next such person from another parish's
+// books. A decoy from the same Volume may well be written on the Image too,
+// as families recur page after page; one from another parish can't be, yet
+// bears the same kind of name. Each is asked about as the pass would ask,
+// with their household.
 export function entryCases(
   anchors: Anchors,
-  names: Map<number, string>,
+  people: Map<number, Person>,
   limit = Infinity
 ) {
-  const cases: EntryCase[][] = [];
-  for (const [volumeId, v] of Object.entries(anchors)) {
-    const seen = (v.seen ?? []).filter((s) => isHand(s) && names.has(s.record));
-    const inRange = [...names.keys()].filter((record) =>
-      (v.records ?? []).some((r) => r.from <= record && record <= r.to)
-    );
-    for (const s of seen) {
-      const name = names.get(s.record)!;
-      const other =
-        seen.find((o) => o.image !== s.image && names.get(o.record) !== name)
-          ?.record ??
-        inRange.find(
-          (r) =>
-            Math.abs(r - s.record) >= DECOY_DISTANCE && names.get(r) !== name
-        );
-      const at = { volumeId, image: s.image };
-      const pair: EntryCase[] = [{ at, person: { name }, there: true }];
-      if (other !== undefined) {
-        pair.push({ at, person: { name: names.get(other)! }, there: false });
-      }
-      cases.push(pair);
+  const known = Object.entries(anchors).flatMap(([volumeId, v]) =>
+    (v.seen ?? [])
+      .filter((s) => isHand(s) && people.has(s.record))
+      .map((s) => ({
+        at: { volumeId, image: s.image },
+        parish: parishOf(anchors, volumeId),
+        person: people.get(s.record)!
+      }))
+  );
+  const cases = known.map((k, i) => {
+    const pair: EntryCase[] = [{ at: k.at, person: k.person, there: true }];
+    const rest = [...known.slice(i + 1), ...known.slice(0, i)];
+    const decoy = rest.find((o) => o.parish !== k.parish);
+    if (decoy !== undefined) {
+      pair.push({ at: k.at, person: decoy.person, there: false });
     }
-  }
+    return pair;
+  });
   return spread(cases, limit).flat();
 }
 
@@ -122,7 +122,7 @@ export async function scorePages(reader: Reader, cases: PageCase[]) {
     const reading = await reader.pageNumbers(c.at);
     tally.questions += 1;
     if ('unreadable' in reading) tally.unreadable += 1;
-    else if (sameList(reading.pages, c.pages)) tally.exact += 1;
+    else if (sameList([...new Set(reading.pages)], c.pages)) tally.exact += 1;
     else tally.wrong += 1;
   }
   return tally;
@@ -144,7 +144,17 @@ export async function scoreDates(reader: Reader, cases: DateCase[]) {
   return tally;
 }
 
-export async function scoreEntries(reader: Reader, cases: EntryCase[]) {
+// A "found", with whether the person is really there.
+export interface Confirmation {
+  there: boolean;
+  confidence: number;
+}
+
+export async function scoreEntries(
+  reader: Reader,
+  cases: EntryCase[],
+  found: Confirmation[] = []
+) {
   const tally: EntryTally = {
     ...emptyTally(),
     decoys: 0,
@@ -153,11 +163,15 @@ export async function scoreEntries(reader: Reader, cases: EntryCase[]) {
   for (const c of cases) {
     // eslint-disable-next-line no-await-in-loop -- one Image at a time
     const reading = await reader.findEntry(c.at, c.person);
+    const confirmed = confirms(c.person, reading);
+    if (confirmed && !('unreadable' in reading)) {
+      found.push({ there: c.there, confidence: reading.confidence });
+    }
     tally.questions += 1;
     if (!c.there) tally.decoys += 1;
     if ('unreadable' in reading) {
       tally.unreadable += 1;
-    } else if (reading.found === c.there) {
+    } else if (confirmed === c.there) {
       tally.exact += 1;
     } else {
       tally.wrong += 1;

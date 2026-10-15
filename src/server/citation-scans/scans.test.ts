@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -12,60 +11,9 @@ import {
   resolveScans,
   useDataFolder
 } from './scans';
-
-// Juva's parish archive: two rippikirja Volumes and a baptism one, of 20
-// Images each.
-const ARCHIVE = '1212295491';
-const VOLUMES = {
-  'juva-1': 'I Aa:1 Pää- ja rippikirjat (1790-1796)',
-  'juva-2': 'I Aa:2 Pää- ja rippikirjat (1797-1803)',
-  'juva-3': 'I C:1 Syntyneiden ja kastettujen luettelot (1790-1810)'
-};
-const IMAGES = 20;
+import { rippiCitation as citation, seedParish, VOLUMES } from './test-parish';
 
 let dir = '';
-
-function unit(id: string, level: string, label: string) {
-  return {
-    name: 'UNIT',
-    children: [
-      { name: 'ID', tagData: id },
-      { name: 'TASO', tagData: level },
-      { name: 'LABEL', tagData: label },
-      { name: 'DIGI', tagData: 'true' }
-    ]
-  };
-}
-
-function file(id: string) {
-  return { name: 'FILE', children: [{ name: 'URL', tagData: id }] };
-}
-
-// Astia's answers, put in its disk cache so no request goes out.
-async function cacheAstia(cacheDir: string) {
-  const answers: Record<string, unknown> = {
-    [`ws/aineisto/readOne.php?id=${ARCHIVE}`]: {
-      sisaltyvat: [unit('juva-register', 'series', 'I VÄESTÖREKISTERIARKISTO')]
-    },
-    'ws/aineisto/readOne.php?id=juva-register': {
-      sisaltyvat: Object.entries(VOLUMES).map(([id, label]) =>
-        unit(id, 'file', label)
-      )
-    }
-  };
-  for (const id of Object.keys(VOLUMES)) {
-    const ns = Array.from({ length: IMAGES }, (_, i) => i + 1);
-    answers[`ws/aineisto/digitoidut.php?id=${id}`] = {
-      isot: ns.map((n) => file(`${id}-f${n}`)),
-      pienet: ns.map((n) => file(`${id}-t${n}`))
-    };
-  }
-  for (const [path, body] of Object.entries(answers)) {
-    const key = createHash('sha1').update(path).digest('hex');
-    // eslint-disable-next-line no-await-in-loop -- a handful of small files
-    await Bun.write(join(cacheDir, `${key}.json`), JSON.stringify(body));
-  }
-}
 
 const astia = spyOn(globalThis, 'fetch').mockImplementation((() => {
   throw new Error('no requests to Astia in these tests');
@@ -73,7 +21,7 @@ const astia = spyOn(globalThis, 'fetch').mockImplementation((() => {
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'scans-'));
-  await cacheAstia(join(dir, '.astia-cache'));
+  await seedParish(dir);
   useDataFolder(dir);
 });
 afterEach(async () => {
@@ -82,18 +30,6 @@ afterEach(async () => {
 afterAll(() => {
   astia.mockRestore();
 });
-
-// A rippikirja citation in the shape MyHeritage writes, with made-up people.
-function citation(record: number, years: string, page: number | null) {
-  return {
-    page: `https://www.myheritage.fi/research/collection-10509/x?itemId=${record}&action=showRecord`,
-    text: [
-      'Matti Esimerkki',
-      `Kirja:Rippikirja, ${years}`,
-      `Hallintoalue:Juva${page === null ? '' : `Sivu:${page}`}`
-    ].join('\n')
-  };
-}
 
 async function writeLocal(anchors: unknown) {
   await Bun.write(join(dir, 'anchors.local.json'), JSON.stringify(anchors));

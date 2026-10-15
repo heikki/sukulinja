@@ -26,6 +26,7 @@ import type {
 
 import { archiveVolumes, viewerUrl, volumeImages } from './astia';
 import type { Volume } from './astia';
+import type { Box } from './reader';
 import type { ChurchBookRef } from './record';
 import type { BookKind, Years } from './text';
 
@@ -72,6 +73,8 @@ export interface SeenRecord {
   record: number;
   image: number;
   by?: Provenance;
+  // Where on the Image the entry is, where the vision model said.
+  box?: Box;
 }
 
 // Per volume: the anchors read in it, the villages found in it where a book
@@ -95,6 +98,7 @@ export interface Placement {
   volume: string;
   image: number;
   by?: Provenance;
+  box?: Box;
 }
 
 export type Placements = Record<string, Placement>;

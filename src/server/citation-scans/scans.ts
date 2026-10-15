@@ -17,6 +17,7 @@ import { setCacheDir, volumeImages } from './astia';
 import { setImageCacheDir } from './images';
 import { parishVolumes, resolveChurchBookRef } from './locate';
 import type { Candidate } from './matcher';
+import type { Box } from './reader';
 import { CHURCH_COLLECTIONS, collectionOf, parseChurchBookRef } from './record';
 import type { ChurchBookRef } from './record';
 import { useScanCacheSettings } from './scan-cache';
@@ -140,6 +141,48 @@ async function save(
       record: ref.recordId,
       image: target.image,
       by: 'hand'
+    });
+  }
+}
+
+// A match the vision model confirmed, saved the way a hand correction is,
+// marked as the model's: a Seen record for a record with a Record number,
+// else a Placement. The cited page becomes an Anchor only where the model
+// read it on that very Image. A hand entry is never replaced.
+export async function saveVisionMatch(
+  ref: ChurchBookRef,
+  match: {
+    volumeId: string;
+    volume: string;
+    image: number;
+    onCitedPage: boolean;
+    box: Box | null;
+  }
+) {
+  const { volumeId, volume, image } = match;
+  const box = match.box === null ? {} : { box: match.box };
+  if (ref.recordId === null) {
+    await setPlacement(ref.url, {
+      volumeId,
+      volume,
+      image,
+      by: 'vision',
+      ...box
+    });
+    return;
+  }
+  await addLocalSeen(volumeId, volume, {
+    record: ref.recordId,
+    image,
+    by: 'vision',
+    ...box
+  });
+  if (ref.page !== null && match.onCitedPage) {
+    await addLocalAnchor(volumeId, volume, {
+      image,
+      pages: await pagesFor(volumeId, ref.page, ref.kind),
+      note: 'read by the vision model',
+      by: 'vision'
     });
   }
 }

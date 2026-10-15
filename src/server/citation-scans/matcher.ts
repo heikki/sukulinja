@@ -6,7 +6,8 @@
 // next Image, sit on a Retake, or be one or two Images off where the
 // search misread. Only a find-entry "found" confirms. A reference with
 // several candidate Volumes is searched in each, and the one the person is
-// found in wins; found in more than one, it stays unconfirmed.
+// found in wins; found in more than one, it stays unconfirmed. Where the
+// record and the scan both give a birth year, they must agree.
 //
 // Date search, for baptism and marriage index references: these books run
 // in date order, so a binary search over the Volume's Images by the dates
@@ -19,7 +20,8 @@
 // other copy of a Doubled volume) isn't followed: the search stays at the
 // start, near the Anchors, and Confirmation looks around it.
 
-import type { DatesReading, PagesReading, Person, Reader } from './reader';
+import { confirms } from './reader';
+import type { Box, DatesReading, PagesReading, Person, Reader } from './reader';
 import type { ChurchBookRef } from './record';
 
 // A Volume the existing resolution offers for the reference, with its
@@ -41,7 +43,17 @@ export type Unconfirmed =
   | 'unsupported';
 
 export type Match =
-  | { confirmed: true; volumeId: string; volume: string; image: number }
+  | {
+      confirmed: true;
+      volumeId: string;
+      volume: string;
+      image: number;
+      // Whether page search read the cited Page number on this very Image,
+      // so it can stand as an Anchor.
+      onCitedPage: boolean;
+      // Where on the Image the entry is, where the Reader said.
+      box: Box | null;
+    }
   | {
       confirmed: false;
       reason: Unconfirmed;
@@ -59,7 +71,9 @@ const UNREADABLE_PROBES = 8;
 // How far from the landing Image a Confirmation looks.
 const WINDOW = 3;
 
-type Landing = { image: number } | { reason: Unconfirmed; image: number };
+type Landing =
+  | { image: number; onCitedPage?: boolean; box?: Box | null }
+  | { reason: Unconfirmed; image: number };
 
 // ---------------------------------------------------------------- dates
 
@@ -149,7 +163,9 @@ async function readPagesNear(
       image: n
     });
     if (!('unreadable' in reading)) {
-      return { read: { image: n, pages: reading.pages }, reads };
+      // A spread's number written on both pages counts once.
+      const pages = [...new Set(reading.pages)];
+      return { read: { image: n, pages }, reads };
     }
   }
   return { read: null, reads };
@@ -187,7 +203,9 @@ async function pageSearch(
     const read = near.read;
     // Unreadable here: the start is still the best guess to confirm at.
     if (read === null) return { image: prev?.image ?? start };
-    if (read.pages.includes(page)) return { image: read.image };
+    if (read.pages.includes(page)) {
+      return { image: read.image, onCitedPage: true };
+    }
     if (prev !== null && contradicts(prev, read)) return { image: start };
     const next = target(read, page, c.images);
     // Between the pages of two Images, or at the Volume's end.
@@ -223,7 +241,7 @@ async function confirm(
     );
     if ('unreadable' in entry) continue;
     readable = true;
-    if (entry.found) return { image };
+    if (confirms(person, entry)) return { image, box: entry.box ?? null };
   }
   return { reason: readable ? 'name not found' : 'unreadable', image: landed };
 }
@@ -249,9 +267,12 @@ async function matchIn(
     return { reason: 'unsupported', image: c.start ?? 1 };
   }
   const landed = await searching;
-  return 'reason' in landed
-    ? landed
-    : await confirm(reader, c, landed.image, person);
+  if ('reason' in landed) return landed;
+  const confirmed = await confirm(reader, c, landed.image, person);
+  if ('reason' in confirmed) return confirmed;
+  const onCitedPage =
+    landed.onCitedPage === true && confirmed.image === landed.image;
+  return { image: confirmed.image, onCitedPage, box: confirmed.box ?? null };
 }
 
 interface Outcome {
@@ -289,7 +310,8 @@ export async function matchRef(
   const person: Person = {
     name: ref.name,
     date: ref.date,
-    village: ref.places[0] ?? null
+    village: ref.places[0] ?? null,
+    household: ref.household
   };
   const outcomes: Outcome[] = [];
   for (const c of candidates) {
@@ -297,7 +319,16 @@ export async function matchRef(
     outcomes.push({ c, landing: await matchIn(reader, ref, c, person) });
   }
   const found = outcomes.filter((o) => !('reason' in o.landing));
-  if (found.length === 1) return { confirmed: true, ...at(found[0]!) };
+  if (found.length === 1) {
+    const [only] = found as [Outcome];
+    const landing = only.landing as { onCitedPage?: boolean; box?: Box | null };
+    return {
+      confirmed: true,
+      ...at(only),
+      onCitedPage: landing.onCitedPage === true,
+      box: landing.box ?? null
+    };
+  }
   if (found.length > 1) {
     return { confirmed: false, reason: 'ambiguous', ...at(found[0]!) };
   }
