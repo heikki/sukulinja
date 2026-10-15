@@ -50,6 +50,15 @@ function renderRecord(r: RecordView) {
   `;
 }
 
+// A Scan link asks for the Scan viewer on that scan of the citation's
+// Church-book reference.
+export interface ScanOpen {
+  citation: CitationRow;
+  scan: Scan;
+}
+
+export type ScanOpenEvent = CustomEvent<ScanOpen>;
+
 const SCAN_LABELS: Record<ScanMethod, string> = {
   anchored: 'Scan',
   estimated: 'Scan (approximate)',
@@ -57,22 +66,42 @@ const SCAN_LABELS: Record<ScanMethod, string> = {
   volume: 'Volume'
 };
 
-function renderScan(s: Scan, i: number, all: Scan[]) {
-  const part = all.length > 1 ? ` ${i + 1}/${all.length}` : '';
+// `viewing`: the scan of this citation the Scan viewer shows, if any.
+function renderScan(
+  c: CitationRow,
+  s: Scan,
+  part: string,
+  viewing: Scan | null
+) {
+  const current = viewing?.volumeId === s.volumeId;
   return html`
-    <a
-      href=${s.url}
-      target="_blank"
-      rel="noopener"
+    <button
+      class="scan"
       title=${`${s.volume}, image ${s.image}`}
+      aria-current=${current ? 'true' : nothing}
+      @click=${(e: Event) => {
+        const detail: ScanOpen = { citation: c, scan: s };
+        e.currentTarget!.dispatchEvent(
+          new CustomEvent('scan-open', {
+            detail,
+            bubbles: true,
+            composed: true
+          })
+        );
+      }}
     >
-      ${SCAN_LABELS[s.method]}${part} ↗
-    </a>
+      ${SCAN_LABELS[s.method]}${part}
+    </button>
   `;
 }
 
 // Scans arrive after the panel renders; until then the link is pending.
-function renderScans(scan: ScanResolution | undefined, pending: boolean) {
+function renderScans(
+  c: CitationRow,
+  scan: ScanResolution | undefined,
+  pending: boolean,
+  viewing: Scan | null
+) {
   if (scan === undefined) {
     return html`<span class="muted">
       ${pending ? 'Finding scan…' : 'Scan unavailable'}
@@ -81,40 +110,9 @@ function renderScans(scan: ScanResolution | undefined, pending: boolean) {
   if ('error' in scan) {
     return html`<span class="muted" title=${scan.error}>No scan found</span>`;
   }
-  return scan.scans.map(renderScan);
-}
-
-function renderCitation(
-  c: CitationRow,
-  scan: ScanResolution | undefined,
-  pending: boolean,
-  correction: unknown
-) {
-  return html`
-    <article class="source">
-      ${
-        c.source === null
-          ? nothing
-          : html`<div class="caption">${c.source}</div>`
-      }
-      ${
-        c.record === null
-          ? html`<p class="text">${c.text ?? c.page ?? ''}</p>`
-          : renderRecord(c.record)
-      }
-      ${
-        c.url === null
-          ? nothing
-          : html`
-              <div class="links">
-                <a href=${c.url} target="_blank" rel="noopener">Record ↗</a>
-                ${c.churchBook ? renderScans(scan, pending) : nothing}
-              </div>
-            `
-      }
-      ${correction}
-    </article>
-  `;
+  return scan.scans.map((s, i, all) =>
+    renderScan(c, s, all.length > 1 ? ` ${i + 1}/${all.length}` : '', viewing)
+  );
 }
 
 // A volume-only link has no image to be wrong yet.
@@ -136,13 +134,16 @@ function correctionPrompt(c: CitationRow, first: Scan | null) {
   return `${where} ${how} — any of the parish's books.`;
 }
 
-// The Focus person's events and sources, beside the chart. Links open
-// outside the app (the desktop shell hands target=_blank to the browser).
+// The Focus person's events and sources, beside the chart. Record links open
+// outside the app (the desktop shell hands target=_blank to the browser);
+// Scan links ask for the Scan viewer with a `scan-open` event, and the source
+// it shows (`viewing`) is marked and brought into view.
 @customElement('sl-person-panel')
 export class PersonPanelElement extends LitElement {
   static override styles = personPanelStyles;
 
   @property({ type: Number }) personId: number | null = null;
+  @property({ attribute: false }) viewing: ScanOpen | null = null;
 
   @state() private details: PersonDetails | null = null;
   @state() private error: string | null = null;
@@ -164,11 +165,23 @@ export class PersonPanelElement extends LitElement {
 
   // Start a new person at the top. Waits for their details rather than the
   // personId change, so the stale view doesn't jump before it's replaced.
-  override updated() {
+  override updated(changed: PropertyValues<this>) {
+    if (changed.has('viewing')) this.revealViewing();
     const id = this.details?.id ?? null;
     if (id === this.shownId) return;
     this.shownId = id;
     this.scrollTop = 0;
+  }
+
+  // The source in the Scan viewer, scrolled to with its household open for
+  // comparing against the page.
+  private revealViewing() {
+    const id = this.viewing?.citation.id;
+    if (id === undefined) return;
+    const source = this.renderRoot.querySelector(`[data-citation="${id}"]`);
+    source?.scrollIntoView({ block: 'nearest' });
+    const household = source?.querySelector('details');
+    if (household !== null && household !== undefined) household.open = true;
   }
 
   private async load() {
@@ -302,6 +315,44 @@ export class PersonPanelElement extends LitElement {
     `;
   }
 
+  private renderCitation(c: CitationRow) {
+    const scan = this.scans.get(c.id);
+    const viewing =
+      this.viewing?.citation.id === c.id ? this.viewing.scan : null;
+    return html`
+      <article
+        class="source ${viewing === null ? '' : 'viewing'}"
+        data-citation=${c.id}
+      >
+        ${
+          c.source === null
+            ? nothing
+            : html`<div class="caption">${c.source}</div>`
+        }
+        ${
+          c.record === null
+            ? html`<p class="text">${c.text ?? c.page ?? ''}</p>`
+            : renderRecord(c.record)
+        }
+        ${
+          c.url === null
+            ? nothing
+            : html`
+                <div class="links">
+                  <a href=${c.url} target="_blank" rel="noopener">Record ↗</a>
+                  ${
+                    c.churchBook
+                      ? renderScans(c, scan, this.scansPending, viewing)
+                      : nothing
+                  }
+                </div>
+              `
+        }
+        ${this.renderCorrection(c, scan)}
+      </article>
+    `;
+  }
+
   override render() {
     if (this.error !== null) {
       return html`<div class="body muted">Couldn't load: ${this.error}</div>`;
@@ -330,14 +381,7 @@ export class PersonPanelElement extends LitElement {
             ? nothing
             : html`
                 <h3>Sources · ${d.citations.length}</h3>
-                ${d.citations.map((c) =>
-                  renderCitation(
-                    c,
-                    this.scans.get(c.id),
-                    this.scansPending,
-                    this.renderCorrection(c, this.scans.get(c.id))
-                  )
-                )}
+                ${d.citations.map((c) => this.renderCitation(c))}
               `
         }
       </div>

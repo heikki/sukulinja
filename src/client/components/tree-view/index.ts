@@ -8,6 +8,7 @@ import { preferredGenerations } from '@client/generations';
 import type { FamilyRow, PersonRow } from '@common/types';
 
 import '../person-panel';
+import '../scan-viewer';
 import '../side-dock';
 
 import { detailsWidth, setDetailsWidth } from '../person-panel/helpers';
@@ -15,6 +16,7 @@ import { detailsWidth, setDetailsWidth } from '../person-panel/helpers';
 import '../person-search';
 import '../settings';
 
+import type { ScanOpen, ScanOpenEvent } from '../person-panel';
 import type { PickEvent } from '../person-search';
 import type { GenerationsChangeEvent } from '../settings';
 import type { OpenChangeEvent, WidthChangeEvent } from '../side-dock';
@@ -104,6 +106,9 @@ export class TreeViewElement extends LitElement {
   // Closed on entering a dataset; opening it lasts only for this visit.
   @state() private details = false;
   @state() private detailsWidth = detailsWidth();
+  // The scan the Scan viewer shows over the chart; it belongs to Focus, so a
+  // refocus closes it.
+  @state() private scanOpen: ScanOpen | null = null;
 
   private readonly parentFamByPerson = new Map<number, FamilyRow>();
   private readonly spouseFamsByPerson = new Map<number, FamilyRow[]>();
@@ -202,6 +207,7 @@ export class TreeViewElement extends LitElement {
   }
 
   override willUpdate(changed: PropertyValues) {
+    if (changed.has('focusId')) this.scanOpen = null;
     // Gen change rebuilds the chart with different extents, which would drift
     // Focus on screen since chart (0,0) is mapped through extents.min.
     // Capture Focus's current screen pixel so the post-rebuild pin keeps it
@@ -401,9 +407,27 @@ export class TreeViewElement extends LitElement {
           this.detailsWidth = e.detail;
           setDetailsWidth(e.detail);
         }}
+        @scan-open=${(e: ScanOpenEvent) => {
+          this.scanOpen = e.detail;
+        }}
       >
-        <sl-person-panel .personId=${this.focusId}></sl-person-panel>
+        <sl-person-panel
+          .personId=${this.focusId}
+          .viewing=${this.scanOpen}
+        ></sl-person-panel>
       </sl-side-dock>
+    `;
+  }
+
+  private renderScanViewer() {
+    if (this.scanOpen === null) return nothing;
+    return html`
+      <sl-scan-viewer
+        .scan=${this.scanOpen.scan}
+        @scan-close=${() => {
+          this.scanOpen = null;
+        }}
+      ></sl-scan-viewer>
     `;
   }
 
@@ -564,7 +588,12 @@ export class TreeViewElement extends LitElement {
     this.chartExtents = chart.extents;
     this.chartComfort = comfortOf(chart.boxes, this.coreIds(this.focusId));
     return html`
-      <div class="main">${this.renderDock()} ${this.renderCanvas(chart)}</div>
+      <div class="main">
+        ${this.renderDock()}
+        <div class="chart-area">
+          ${this.renderCanvas(chart)} ${this.renderScanViewer()}
+        </div>
+      </div>
     `;
   }
 }

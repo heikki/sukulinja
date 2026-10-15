@@ -45,6 +45,14 @@ export const treeViewStyles = css`
     min-height: 0;
   }
 
+  /* The chart, with the Scan viewer laid over it when open. */
+  .chart-area {
+    position: relative;
+    flex: 1;
+    display: flex;
+    min-width: 0;
+  }
+
   .canvas {
     flex: 1;
     overflow: hidden;

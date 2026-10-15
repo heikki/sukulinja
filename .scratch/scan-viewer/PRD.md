@@ -45,12 +45,12 @@ text prompt.
   closes. Reuses the chart's `transform` and `momentum` modules, moved
   somewhere shared. The chart's `ViewportController` is tied to the chart
   and stays there.
-- **Around the Image.** The header shows the person's name, the Church-book
-  reference (parish, Book, page), the Volume label, "Image N of M", the Scan
-  method, and "Open in Astia ↗" for the shown Image. A side caption shows
-  the MyHeritage transcription to compare against. It is open by default,
-  and its state is kept in a cookie, like Appearance and Generations
-  (`localStorage` is lost each launch).
+- **The record stays in the dock.** The source being viewed is marked
+  there (and its active Scan link, for a Split reference), scrolled into
+  view, with its household open to compare against the page. The viewer
+  doesn't repeat it: its toolbar is one row, ‹ Image N of M ›, the link's
+  Scan method or "Back to the link", "Open in Astia ↗" for the shown Image,
+  and close. The Volume label is the counter's tooltip.
 - **Marking is the only correction.** "The record is here" goes through the
   existing `POST …/citations/<id>/scans`, so its rules don't change: when the
   reference has a page and the Volume is one it links, the mark saves an

@@ -55,6 +55,23 @@ export const personPanelStyles = css`
     border-top: 1px solid var(--border);
   }
 
+  /* The source the Scan viewer shows: an accent bar in the gutter, so the
+     text doesn't shift. */
+  .source.viewing {
+    position: relative;
+  }
+
+  .source.viewing::before {
+    content: '';
+    position: absolute;
+    top: 0.75rem;
+    bottom: 0.75rem;
+    left: -0.65rem;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--accent);
+  }
+
   .caption {
     font-size: 0.75rem;
     color: var(--muted);
@@ -102,6 +119,23 @@ export const personPanelStyles = css`
     flex-wrap: wrap;
     gap: 0.4rem 1rem;
     margin-top: 0.5rem;
+  }
+
+  button.scan {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  button.scan:hover {
+    text-decoration: underline;
+  }
+
+  button.scan[aria-current] {
+    font-weight: 600;
   }
 
   button.link {

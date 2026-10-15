@@ -5,6 +5,7 @@ import type { Database } from 'bun:sqlite';
 
 import type { FamilyRow, PersonRow } from '@common/types';
 
+import { imageLinks } from './citation-scans/astia';
 import { astiaImage } from './citation-scans/images';
 import {
   correctScan,
@@ -19,8 +20,8 @@ import { createPersonDetails } from './person-details';
 import { runPool } from './pool';
 
 const DATASET_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?<rest>\/.*)?$/u;
-const ASTIA_IMAGE_RE =
-  /^\/astia\/volumes\/(?<volumeId>\d+)\/images\/(?<n>\d+)$/u;
+const ASTIA_RE =
+  /^\/astia\/volumes\/(?<volumeId>\d+)\/images(?:\/(?<n>\d+))?$/u;
 
 function parseYear(date: string | null): number | null {
   if (date === null) return null;
@@ -375,19 +376,34 @@ async function routeDataset(
   return null;
 }
 
-// An Image of an Astia Volume, shared by every dataset; `?size=thumb` gives
-// the 250px one. An Image never changes, so the webview may keep it.
-async function routeAstiaImage(req: Request, pathname: string) {
-  const m = ASTIA_IMAGE_RE.exec(pathname);
+// An Astia Volume's Images, shared by every dataset: their Astia viewer
+// links in order, or one Image itself.
+async function routeAstia(req: Request, pathname: string) {
+  const m = ASTIA_RE.exec(pathname);
   if (m === null) return null;
   if (req.method !== 'GET') {
     return new Response('method not allowed', { status: 405 });
   }
+  const { volumeId, n } = m.groups!;
+  return n === undefined
+    ? await handleImageLinks(volumeId!)
+    : await handleAstiaImage(req, volumeId!, Number(n));
+}
+
+async function handleImageLinks(volumeId: string) {
+  const links = await imageLinks(volumeId).catch(() => null);
+  return links === null
+    ? new Response('Astia unavailable', { status: 502 })
+    : Response.json(links);
+}
+
+// `?size=thumb` gives the 250px one. An Image never changes, so the webview
+// may keep it.
+async function handleAstiaImage(req: Request, volumeId: string, n: number) {
   const thumb = new URL(req.url).searchParams.get('size') === 'thumb';
   const size = thumb ? 'thumb' : 'full';
-  const { volumeId, n } = m.groups!;
   // undefined: Astia couldn't be reached; null: the Volume has no such Image.
-  const path = await astiaImage(volumeId!, Number(n), size, req.signal).catch(
+  const path = await astiaImage(volumeId, n, size, req.signal).catch(
     () => undefined
   );
   if (path === undefined) {
@@ -443,8 +459,8 @@ export function createApi(registry: DatasetRegistry): ApiHandlers {
         const slug = pathname.slice('/datasets/'.length);
         return await handleDeleteDataset(registry, handlersBySlug, slug);
       }
-      const image = await routeAstiaImage(req, pathname);
-      if (image !== null) return image;
+      const astia = await routeAstia(req, pathname);
+      if (astia !== null) return astia;
       const m = DATASET_RE.exec(pathname);
       if (m === null) return null;
       const slug = m.groups!.slug!;
