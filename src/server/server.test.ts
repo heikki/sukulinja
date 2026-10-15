@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
@@ -80,5 +80,47 @@ describe('Astia Images', () => {
     } finally {
       astia.mockRestore();
     }
+  });
+});
+
+describe('Scan cache setting', () => {
+  const GB = 1024 ** 3;
+
+  async function send(method: string, body?: unknown) {
+    const res = await fetch(
+      new Request('http://localhost/settings/scan-cache', {
+        method,
+        body: body === undefined ? undefined : JSON.stringify(body)
+      })
+    );
+    return {
+      status: res.status,
+      body: (await res.json().catch(() => null)) as unknown
+    };
+  }
+
+  test('changes the cap, keeps it for the install, and clears', async () => {
+    const images = join(root, 'data', '.astia-images');
+    await mkdir(images, { recursive: true });
+    await writeFile(join(images, 'a.jpg'), new Uint8Array(1000));
+    expect(await send('GET')).toEqual({
+      status: 200,
+      body: { cap: 2 * GB, used: 1000, caps: [GB, 2 * GB, 5 * GB, 10 * GB] }
+    });
+    expect((await send('PUT', { cap: 3 * GB })).status).toBe(400);
+    expect((await send('PUT', { cap: 5 * GB })).body).toMatchObject({
+      cap: 5 * GB,
+      used: 1000
+    });
+    const saved = await readFile(join(root, 'data', 'settings.local.json'));
+    expect(JSON.parse(saved.toString())).toEqual({ scanCacheBytes: 5 * GB });
+    // As after a restart: the cap is read back from the data folder.
+    fetch = createStaticFetch({
+      api: createApi(new DatasetRegistry(join(root, 'data'))),
+      staticRoots: [root]
+    });
+    expect((await send('GET')).body).toMatchObject({ cap: 5 * GB });
+    expect((await send('DELETE')).body).toMatchObject({ used: 0 });
+    await send('PUT', { cap: 2 * GB });
   });
 });

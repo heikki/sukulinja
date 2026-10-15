@@ -4,7 +4,14 @@ import { join } from 'node:path';
 import { afterAll, afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
 
 import { setCacheDir } from './astia';
-import { astiaImage, setImageCacheCap, setImageCacheDir } from './images';
+import {
+  astiaImage,
+  clearImageCache,
+  imageCacheUsed,
+  setImageCacheCap,
+  setImageCacheDir,
+  shrinkImageCache
+} from './images';
 
 const IMAGES = 10;
 const IMAGE_BYTES = 1000;
@@ -170,6 +177,21 @@ test('drops the least recently viewed Images past the cap', async () => {
   await open('106', 3);
   const cached = await readdir(join(dir, 'images'));
   expect(cached.sort()).toEqual(['106-f1.jpg', '106-f3.jpg']);
+});
+
+test('shrinks to a lowered cap at once, and clears', async () => {
+  expect(await imageCacheUsed()).toBe(0);
+  await open('109', 1);
+  await Bun.sleep(5);
+  await open('109', 2);
+  await Bun.sleep(5);
+  await open('109', 3);
+  expect(await imageCacheUsed()).toBe(3 * IMAGE_BYTES);
+  setImageCacheCap(1.5 * IMAGE_BYTES);
+  await shrinkImageCache();
+  expect(await readdir(join(dir, 'images'))).toEqual(['109-f3.jpg']);
+  await clearImageCache();
+  expect(await imageCacheUsed()).toBe(0);
 });
 
 test('retries a failing Image briefly, then gives up', async () => {

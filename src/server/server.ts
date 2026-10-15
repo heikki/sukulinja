@@ -7,6 +7,7 @@ import type { FamilyRow, PersonRow } from '@common/types';
 
 import { imageLinks } from './citation-scans/astia';
 import { astiaImage } from './citation-scans/images';
+import { routeScanCache } from './citation-scans/scan-cache';
 import {
   citationVolumes,
   correctScan,
@@ -434,6 +435,13 @@ async function handleAstiaImage(req: Request, volumeId: string, n: number) {
   });
 }
 
+// Routes outside any dataset, shared by them all: Astia's Images and the
+// cache they're kept in.
+async function routeShared(req: Request, pathname: string) {
+  if (pathname === '/settings/scan-cache') return await routeScanCache(req);
+  return await routeAstia(req, pathname);
+}
+
 export function createApi(registry: DatasetRegistry): ApiHandlers {
   useDataFolder(registry.root);
   const handlersBySlug = new Map<string, DatasetHandlers>();
@@ -475,8 +483,8 @@ export function createApi(registry: DatasetRegistry): ApiHandlers {
         const slug = pathname.slice('/datasets/'.length);
         return await handleDeleteDataset(registry, handlersBySlug, slug);
       }
-      const astia = await routeAstia(req, pathname);
-      if (astia !== null) return astia;
+      const shared = await routeShared(req, pathname);
+      if (shared !== null) return shared;
       const m = DATASET_RE.exec(pathname);
       if (m === null) return null;
       const slug = m.groups!.slug!;

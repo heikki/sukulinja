@@ -10,7 +10,7 @@ import { join, resolve } from 'node:path';
 import { imageBytes, volumeImages } from './astia';
 import type { ImageSize } from './astia';
 
-const DEFAULT_CAP_BYTES = 500 * 1024 * 1024;
+const DEFAULT_CAP_BYTES = 2 * 1024 ** 3;
 
 let cacheDir = resolve('data/.astia-images');
 let capBytes = DEFAULT_CAP_BYTES;
@@ -21,6 +21,25 @@ export function setImageCacheDir(dir: string) {
 
 export function setImageCacheCap(bytes: number) {
   capBytes = bytes;
+}
+
+export function imageCacheCap() {
+  return capBytes;
+}
+
+// The space the cached Images take, in bytes.
+export async function imageCacheUsed() {
+  return totalSize(await cachedFiles());
+}
+
+// Down to the cap, as after a fetch; for a cap just lowered.
+export async function shrinkImageCache() {
+  await prune(null);
+}
+
+export async function clearImageCache() {
+  const files = await cachedFiles();
+  await Promise.all(files.map((f) => rm(f.path, { force: true })));
 }
 
 // ---------------------------------------------------------------- the lane
@@ -117,18 +136,33 @@ async function touch(path: string) {
   }
 }
 
+// The cached Images; none before the first is fetched. One removed while
+// they're listed is left out.
+async function cachedFiles() {
+  const names = await readdir(cacheDir).catch(() => []);
+  const files = await Promise.all(
+    names
+      .filter((name) => name.endsWith('.jpg'))
+      .map(async (name) => {
+        const path = join(cacheDir, name);
+        const info = await stat(path).catch(() => null);
+        return info === null
+          ? null
+          : { path, size: info.size, viewed: info.mtimeMs };
+      })
+  );
+  return files.filter((f) => f !== null);
+}
+
+function totalSize(files: Array<{ size: number }>) {
+  return files.reduce((sum, f) => sum + f.size, 0);
+}
+
 // Drops the least recently viewed files until the cache fits its cap; the
 // file just fetched stays even when it alone is over.
-async function prune(keep: string) {
-  const names = (await readdir(cacheDir)).filter((n) => n.endsWith('.jpg'));
-  const files = await Promise.all(
-    names.map(async (name) => {
-      const path = join(cacheDir, name);
-      const { size, mtimeMs } = await stat(path);
-      return { path, size, viewed: mtimeMs };
-    })
-  );
-  let total = files.reduce((sum, f) => sum + f.size, 0);
+async function prune(keep: string | null) {
+  const files = await cachedFiles();
+  let total = totalSize(files);
   const dropped: string[] = [];
   for (const f of files.sort((a, b) => a.viewed - b.viewed)) {
     if (total <= capBytes) break;

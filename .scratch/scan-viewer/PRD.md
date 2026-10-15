@@ -82,7 +82,7 @@ text prompt.
 - **Scan cache is a setting.** The cap is a property of the install, so it
   is kept on the server in the data folder, beside `anchors.local.json`.
   Settings gets a Scan cache row with the space used, a size choice
-  (250 MB / 500 MB / 1 GB / 2 GB, default 500 MB) and Clear.
+  (1 / 2 / 5 / 10 GB, default 2 GB; a full Image is about 4 MB) and Clear.
 
 ## Slices
 
