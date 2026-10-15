@@ -12,7 +12,6 @@ export type Appearance = 'system' | 'light' | 'dark';
 
 const COOKIE = 'sl-appearance';
 const YEAR_S = 365 * 24 * 60 * 60;
-const CYCLE: readonly Appearance[] = ['system', 'light', 'dark'];
 
 export function currentAppearance(): Appearance {
   const theme = document.documentElement.dataset.theme;
@@ -28,8 +27,4 @@ export function setAppearance(appearance: Appearance) {
     root.dataset.theme = appearance;
     document.cookie = `${COOKIE}=${appearance}; path=/; max-age=${YEAR_S}; samesite=lax`;
   }
-}
-
-export function nextAppearance(appearance: Appearance) {
-  return CYCLE[(CYCLE.indexOf(appearance) + 1) % CYCLE.length]!;
 }

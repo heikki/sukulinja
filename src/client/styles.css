@@ -1,7 +1,7 @@
 :root {
   /* Every colour token resolves through light-dark() against color-scheme:
      both schemes by default, so the OS appearance decides; a pinned choice
-     (html[data-theme], set from the appearance toggle) narrows it to one.
+     (html[data-theme], set from Settings) narrows it to one.
      Native controls and scrollbars follow color-scheme too. */
   color-scheme: light dark;
   font-family:

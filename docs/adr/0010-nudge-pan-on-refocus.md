@@ -10,7 +10,7 @@ The Nudge is a pure function of the post-Pin transform, the region in chart coor
 Rules:
 
 - **Pan only.** Zoom is never touched. If the region overflows an axis, Focus's column is centred on that axis and the extremes clip — but the **Core** is pulled back inside the margins first when it fits — Focus, their spouses and all descendants, falling back to Focus and spouses alone — so the clip lands on siblings and the Parent row rather than on a spouse or a child's branch. Without this a Focus row thousands of px wide, with a spouse a few hundred px to one side, centred Focus and pushed that spouse off screen while the opposite side sat empty.
-- **Focus changes and the first view only.** Opening a dataset centres Focus and then nudges the same way; a pan or zoom from the URL still wins there, and the initial pan is not written to the URL. A **Generation limit** change keeps its silent pin; the view must not shift under the slider.
+- **Focus changes and the first view only.** Opening a dataset centres Focus and then nudges the same way; a pan or zoom from the URL still wins there, and the initial pan is not written to the URL. A **Generation limit** change keeps its silent pin; the view must not shift while the viewer changes Generations.
 - **A pan restored from the URL wins.** Back/Forward and shared links land exactly the stored pan (ADR-0004); the Nudge runs only when none is pending.
 - **Zero nudge is a no-op.** An axis that fits is untouched, so a click that clips nothing moves nothing; no extra pan and no extra settle.
 - **Same URL path as the Pin.** The nudged pan is written by the Pin's `onSettle` follow-up `replaceState`, so the push-then-replace flow and one-entry-per-click history are unchanged.

@@ -128,7 +128,8 @@ The unit of vertical position — a horizontal row. Focus row is generation 0; a
 Generations away from the focus row at the current recursion step. Always ≥ 0; direction (↑ vs ↓) is implicit.
 
 **Generation limit**:
-The maximum **Depth** rendered in each direction. Beyond it, the sub-layout becomes a single box.
+The maximum **Depth** rendered in each direction. Beyond it, the sub-layout becomes a single box. Labelled **Generations** for the viewer.
+_Avoid_: Levels.
 
 ## Rendering scope
 
