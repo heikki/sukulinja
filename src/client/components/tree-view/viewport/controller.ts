@@ -5,17 +5,23 @@
 
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
-import type { Extents, Point } from '../emit';
-import { startMomentumPan } from './momentum';
-import type { MomentumHandle, MomentumOptions } from './momentum';
 import {
   chartToScreen,
   fitTo,
-  nudgeIntoView,
   pinChartPointAtScreen,
+  startMomentumPan,
   zoomAt
-} from './transform';
-import type { FitOptions, ScaleBounds } from './transform';
+} from '@client/pan-zoom';
+import type {
+  Extents,
+  FitOptions,
+  MomentumHandle,
+  MomentumOptions,
+  Point,
+  ScaleBounds
+} from '@client/pan-zoom';
+
+import { nudgeIntoView } from './nudge';
 
 const WHEEL_SETTLE_MS = 200;
 // A held pan reaches the URL once the canvas has stopped moving, not every frame

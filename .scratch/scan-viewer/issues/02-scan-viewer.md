@@ -14,11 +14,13 @@ Part of `../PRD.md`. Needs 01.
   `tree-view/viewport/` to a shared place both use. `ViewportController`
   stays with the chart.
 - Prev/next buttons and a typed image number, kept within 1..M.
-- The header shows the person's name, the Church-book reference (parish,
-  Book, page), the Volume label, "Image N of M", the Scan method, and "Open
-  in Astia ↗" (the viewer URL of the shown Image, opened in the browser). A
-  side caption shows the MyHeritage transcription (`RecordView`). It is open
-  by default, and its state is kept in an `sl-scan-caption` cookie.
+- A one-row toolbar: ‹ Image N of M › (the Volume label as tooltip), the
+  link's Scan method or "Back to the link (N)", "Open in Astia ↗" (the
+  viewer URL of the shown Image, from `GET /astia/volumes/<id>/images`), and
+  close.
+- The dock marks the source being viewed and its active Scan link, scrolls
+  it into view and opens its household; the viewer doesn't repeat the
+  record.
 - The panel's Scan links open the viewer instead of Astia. Anchored,
   Estimated and Placed links open on their Image, and a Volume link on
   Image 1. Each candidate of a Split reference opens on its own Volume.
@@ -31,4 +33,4 @@ Part of `../PRD.md`. Needs 01.
 - The 12 spot-checked citations in `data/citation-scans-spotcheck.md` open
   on their verified Images.
 - Stepping past either end of a Volume is impossible.
-- Closing and reopening the app keeps the caption's open/closed state.
+- The viewed source is marked in the dock, and only that one.

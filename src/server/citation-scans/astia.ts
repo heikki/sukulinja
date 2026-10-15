@@ -200,6 +200,11 @@ export function viewerUrl(volumeId: string, fileId: string) {
   return `${ASTIA}/viewer/?fileId=${fileId}&aineistoId=${volumeId}`;
 }
 
+// Astia's viewer link for each of the volume's images, in order.
+export async function imageLinks(volumeId: string) {
+  return (await volumeImages(volumeId)).map((f) => viewerUrl(volumeId, f));
+}
+
 const RANGE = /(?<from>1[5-9]\d\d)\s*-\s*(?<to>1[5-9]\d\d)/g;
 
 function toYears(groups: Record<string, string> | undefined) {

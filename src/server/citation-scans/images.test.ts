@@ -103,9 +103,11 @@ test('fetches the latest request first', async () => {
   hold = Promise.withResolvers();
   const first = open('103', 1);
   await until(() => fetched.length === 2);
+  // Each first looks in the cache on disk; let 5 reach the queue before 6.
   const five = open('103', 5);
+  await Bun.sleep(50);
   const six = open('103', 6);
-  await Bun.sleep(10);
+  await Bun.sleep(50);
   hold.resolve();
   await Promise.all([first, five, six]);
   expect(fetched).toEqual(['103-f9', '103-f1', '103-f6', '103-f5']);

@@ -3,15 +3,14 @@
 // both axes — sub-slot x (sibship packing), integer-generation y;
 // intra-family endpoints come in already in pixels.
 
+import type { Extents, Point } from '@client/pan-zoom';
+
 import { FamilyNode } from './build/nodes/family-node';
 import type { PersonSlot } from './build/nodes/family-node';
 import type { LayoutNode } from './build/nodes/layout-node';
 import { PersonNode } from './build/nodes/person-node';
 
-export interface Point {
-  x: number;
-  y: number;
-}
+export type { Extents, Point };
 
 export interface Dims {
   boxW: number;
@@ -60,11 +59,6 @@ export interface DrawnLine {
   // kid. The Transition slides a line only when all of these slide, so a
   // connector fades out and back in with any part of it that does.
   attach: string[];
-}
-
-export interface Extents {
-  min: Point;
-  max: Point;
 }
 
 export interface EmitOutput {

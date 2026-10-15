@@ -50,7 +50,9 @@ describe('Astia Images', () => {
 
   function fakeAstia(input: string | URL | Request) {
     const url = new URL(input instanceof Request ? input.url : input);
-    if (url.searchParams.get('aineistoId') === '202') {
+    const volumeId =
+      url.searchParams.get('aineistoId') ?? url.searchParams.get('id');
+    if (volumeId === '202') {
       return Promise.resolve(new Response('', { status: 404 }));
     }
     if (url.pathname.endsWith('/digitoidut.php')) {
@@ -72,6 +74,9 @@ describe('Astia Images', () => {
       expect((await res.bytes()).length).toBe(2);
       expect((await get('/astia/volumes/201/images/3')).status).toBe(404);
       expect((await get('/astia/volumes/202/images/1')).status).toBe(502);
+      const links = await get('/astia/volumes/201/images');
+      expect(((await links.json()) as string[]).length).toBe(2);
+      expect((await get('/astia/volumes/202/images')).status).toBe(502);
     } finally {
       astia.mockRestore();
     }
