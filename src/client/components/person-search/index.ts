@@ -4,6 +4,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 
 import type { PersonRow } from '@common/types';
 
+import type { Point } from '../tree-view/emit';
 import { formatDates, formatName } from '../tree-view/renderer';
 
 const MIN_LEN = 2;
@@ -23,15 +24,41 @@ export class PersonSearchElement extends LitElement {
       position: relative;
     }
 
+    /* Same height and frame as the Settings gear beside it, so the bar reads
+       as one quiet row rather than a form field. */
     input {
       width: 100%;
+      height: 2rem;
       box-sizing: border-box;
-      padding: 0.4rem 0.7rem;
+      padding: 0 0.6rem 0 1.85rem;
       border: 1px solid var(--border);
       border-radius: 6px;
-      background: var(--bg);
-      color: var(--fg);
+      background: var(--card);
+      color: var(--muted);
       font: inherit;
+      font-size: 0.875rem;
+      appearance: none;
+    }
+
+    input::placeholder {
+      color: var(--muted);
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--accent);
+      color: var(--fg);
+    }
+
+    .icon {
+      position: absolute;
+      top: 50%;
+      left: 0.6rem;
+      width: 0.875rem;
+      height: 0.875rem;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
     }
 
     .results {
@@ -58,6 +85,7 @@ export class PersonSearchElement extends LitElement {
       border: 0;
       border-bottom: 1px solid var(--border);
       font: inherit;
+      font-size: 0.875rem;
       cursor: pointer;
     }
 
@@ -92,6 +120,39 @@ export class PersonSearchElement extends LitElement {
     return out;
   }
 
+  // WebKit fires a mousemove when the list scrolls under a resting pointer, so
+  // hover only takes the highlight once the pointer has actually moved — else
+  // arrowing past the fold snaps back to whatever row is under the mouse.
+  private pointer: Point = { x: NaN, y: NaN };
+
+  private hover(e: MouseEvent, i: number) {
+    if (e.clientX === this.pointer.x && e.clientY === this.pointer.y) return;
+    this.pointer = { x: e.clientX, y: e.clientY };
+    this.active = i;
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
+    document.addEventListener('keydown', this.onDocumentKeydown);
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    document.removeEventListener('keydown', this.onDocumentKeydown);
+  }
+
+  // ⌘F (Ctrl+F elsewhere) jumps to the search, in place of the browser's
+  // find-in-page, which can't see into the chart's SVG anyway.
+  private readonly onDocumentKeydown = (e: KeyboardEvent) => {
+    if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
+    if (e.key.toLowerCase() !== 'f') return;
+    const input = this.renderRoot.querySelector('input');
+    if (input === null) return;
+    e.preventDefault();
+    input.focus();
+    input.select();
+  };
+
   private pick(id: number) {
     this.query = '';
     this.dispatchEvent(new CustomEvent('pick', { detail: { id } }));
@@ -107,6 +168,11 @@ export class PersonSearchElement extends LitElement {
     if (e.key === 'Escape') {
       if (this.query === '') return;
       e.preventDefault();
+      this.query = '';
+      return;
+    }
+    // Let focus move on, but don't leave the list hanging open behind it.
+    if (e.key === 'Tab') {
       this.query = '';
       return;
     }
@@ -149,6 +215,22 @@ export class PersonSearchElement extends LitElement {
     const results = this.results();
     const open = results.length > 0;
     return html`
+      <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
+        <circle
+          cx="7"
+          cy="7"
+          r="4.5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+        />
+        <path
+          d="M10.5 10.5 14 14"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+        />
+      </svg>
       <input
         type="search"
         placeholder="Find person…"
@@ -163,7 +245,18 @@ export class PersonSearchElement extends LitElement {
       />
       ${
         open
-          ? html`<div class="results" id="results" role="listbox">
+          ? html`<div
+              class="results"
+              id="results"
+              role="listbox"
+              tabindex="-1"
+              @mousedown=${(e: MouseEvent) => {
+                // Focus stays in the input, where the arrow keys are handled:
+                // clicks here don't take it, and tabindex -1 stops WebKit
+                // making the scrolling list a Tab stop.
+                e.preventDefault();
+              }}
+            >
               ${results.map((p, i) => {
                 const dates = formatDates(p);
                 return html`
@@ -172,8 +265,8 @@ export class PersonSearchElement extends LitElement {
                     role="option"
                     tabindex="-1"
                     aria-selected=${i === this.active ? 'true' : 'false'}
-                    @mousemove=${() => {
-                      this.active = i;
+                    @mousemove=${(e: MouseEvent) => {
+                      this.hover(e, i);
                     }}
                     @click=${() => {
                       this.pick(p.id);
