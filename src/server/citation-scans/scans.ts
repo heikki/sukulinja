@@ -17,6 +17,7 @@ import { setImageCacheDir } from './images';
 import { parishVolumes, resolveChurchBookRef } from './locate';
 import { CHURCH_COLLECTIONS, collectionOf, parseChurchBookRef } from './record';
 import type { ChurchBookRef } from './record';
+import { useScanCacheSettings } from './scan-cache';
 
 // Astia's caches and the local corrections live beside the datasets; the
 // registry lists only slug-named folders, so none shows as a dataset.
@@ -24,6 +25,7 @@ export function useDataFolder(root: string) {
   setCacheDir(join(root, '.astia-cache'));
   setImageCacheDir(join(root, '.astia-images'));
   setLocalFolder(root);
+  useScanCacheSettings(root);
 }
 
 export function isChurchBook(page: string | null): page is string {

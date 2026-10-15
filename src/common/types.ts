@@ -134,3 +134,11 @@ export interface CitationVolume {
   years: Years | null;
   image: number | null;
 }
+
+// GET /settings/scan-cache: how much space Astia's Images may take (`cap`)
+// and take now (`used`), in bytes, and the caps to choose from.
+export interface ScanCacheStatus {
+  cap: number;
+  used: number;
+  caps: number[];
+}
