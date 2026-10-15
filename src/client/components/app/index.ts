@@ -378,6 +378,18 @@ export class AppElement extends LitElement {
 
   private renderScreen() {
     if (this.slug !== null) return this.renderDatasetView();
+    // The header renders before the dataset list arrives, so the bar is up
+    // from the first paint rather than popping in over a blank page.
+    return html`
+      <header>
+        <h1>Sukulinja</h1>
+        <sl-theme-toggle></sl-theme-toggle>
+      </header>
+      ${this.renderLanding()}
+    `;
+  }
+
+  private renderLanding() {
     if (this.datasets === null) return nothing;
     if (this.datasets.length === 0) return this.renderEmpty();
     return this.renderChooser();
@@ -385,10 +397,6 @@ export class AppElement extends LitElement {
 
   private renderEmpty() {
     return html`
-      <header>
-        <h1>Sukulinja</h1>
-        <sl-theme-toggle></sl-theme-toggle>
-      </header>
       <div class="center">
         <h2>No datasets yet</h2>
         <p>Import a MyHeritage (or any) GEDCOM file to get started.</p>
@@ -399,8 +407,14 @@ export class AppElement extends LitElement {
   }
 
   private renderDatasetView() {
-    const current = this.datasets?.find((d) => d.slug === this.slug);
-    const name = current?.displayName ?? this.slug ?? '';
+    // The name joins once the dataset list has loaded, rather than standing in
+    // with the slug and then changing; the slug is only the fallback for a
+    // dataset the list doesn't have.
+    const name =
+      this.datasets === null
+        ? null
+        : (this.datasets.find((d) => d.slug === this.slug)?.displayName ??
+          this.slug);
     // The dataset name lives in the tree-view's own toolbar (slot="brand"),
     // standing in for "Sukulinja" and doubling as the link back to the chooser.
     return html`
@@ -413,7 +427,7 @@ export class AppElement extends LitElement {
             window.location.assign('/');
           }}
         >
-          Sukulinja · ${name}
+          ${name === null ? 'Sukulinja' : `Sukulinja · ${name}`}
         </button>
         <sl-theme-toggle slot="actions"></sl-theme-toggle>
       </sl-tree-view>
@@ -422,10 +436,6 @@ export class AppElement extends LitElement {
 
   private renderChooser() {
     return html`
-      <header>
-        <h1>Sukulinja</h1>
-        <sl-theme-toggle></sl-theme-toggle>
-      </header>
       <div class="page">
         <div class="page-head">
           <h2>Datasets</h2>
