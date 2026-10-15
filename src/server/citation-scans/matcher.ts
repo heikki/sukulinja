@@ -11,8 +11,15 @@
 // Date search, for baptism and marriage index references: these books run
 // in date order, so a binary search over the Volume's Images by the dates
 // read on them closes in on the Image whose range covers the cited date.
+//
+// Page search, for references with a Page number: from the Image the
+// Anchored or Estimated method gives, read its Page number and jump by the
+// difference, until it lands on the cited page. A reading that contradicts
+// the jump just made (numbering that starts over, a misread number, the
+// other copy of a Doubled volume) isn't followed: the search stays at the
+// start, near the Anchors, and Confirmation looks around it.
 
-import type { DatesReading, Person, Reader } from './reader';
+import type { DatesReading, PagesReading, Person, Reader } from './reader';
 import type { ChurchBookRef } from './record';
 
 // A Volume the existing resolution offers for the reference, with its
@@ -113,6 +120,84 @@ async function dateSearch(
   return { image: Math.min(Math.max(lo, 1), c.images) };
 }
 
+// ---------------------------------------------------------------- pages
+
+// Page readings a search may make in one Volume before giving up.
+const MAX_PAGE_READS = 6;
+// How far a reading may stray from where the last one put it, in pages.
+const PAGE_SLACK = 3;
+
+interface PageRead {
+  image: number;
+  pages: number[];
+}
+
+async function readPagesNear(
+  reader: Reader,
+  c: Candidate,
+  image: number
+): Promise<{ read: PageRead | null; reads: number }> {
+  const tries = [image, image + 1, image - 1].filter(
+    (n) => n >= 1 && n <= c.images
+  );
+  let reads = 0;
+  for (const n of tries) {
+    reads += 1;
+    // eslint-disable-next-line no-await-in-loop -- each try waits on the last
+    const reading: PagesReading = await reader.pageNumbers({
+      volumeId: c.volumeId,
+      image: n
+    });
+    if (!('unreadable' in reading)) {
+      return { read: { image: n, pages: reading.pages }, reads };
+    }
+  }
+  return { read: null, reads };
+}
+
+// Where the cited page should be, counted from one reading.
+function target(read: PageRead, page: number, images: number) {
+  const first = Math.min(...read.pages);
+  const jump = Math.floor((page - first) / read.pages.length);
+  return Math.min(Math.max(read.image + jump, 1), images);
+}
+
+// Whether a reading disagrees with the one before: the pages it shows
+// aren't about where the jump between them put them.
+function contradicts(prev: PageRead, read: PageRead) {
+  const perImage = prev.pages.length;
+  const expected =
+    Math.min(...prev.pages) + (read.image - prev.image) * perImage;
+  return Math.abs(Math.min(...read.pages) - expected) > PAGE_SLACK * perImage;
+}
+
+async function pageSearch(
+  reader: Reader,
+  c: Candidate,
+  page: number
+): Promise<Landing> {
+  const start = c.start ?? Math.ceil(c.images / 2);
+  let image = start;
+  let prev: PageRead | null = null;
+  let reads = 0;
+  while (reads < MAX_PAGE_READS) {
+    // eslint-disable-next-line no-await-in-loop -- each jump follows a reading
+    const near = await readPagesNear(reader, c, image);
+    reads += near.reads;
+    const read = near.read;
+    // Unreadable here: the start is still the best guess to confirm at.
+    if (read === null) return { image: prev?.image ?? start };
+    if (read.pages.includes(page)) return { image: read.image };
+    if (prev !== null && contradicts(prev, read)) return { image: start };
+    const next = target(read, page, c.images);
+    // Between the pages of two Images, or at the Volume's end.
+    if (next === read.image) return { image: read.image };
+    prev = read;
+    image = next;
+  }
+  return { reason: 'did not converge', image };
+}
+
 // ---------------------------------------------------------------- confirmation
 
 function around(image: number, images: number) {
@@ -148,6 +233,8 @@ async function confirm(
 function search(reader: Reader, ref: ChurchBookRef, c: Candidate) {
   const indexed = ref.kind === 'kastetut' || ref.kind === 'vihityt';
   if (indexed && ref.date !== null) return dateSearch(reader, c, ref.date);
+  if (!indexed && ref.page !== null) return pageSearch(reader, c, ref.page);
+  // A rippikirja reference with no page needs a village map: not yet.
   return null;
 }
 
