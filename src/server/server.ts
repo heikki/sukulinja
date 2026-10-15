@@ -8,6 +8,7 @@ import type { FamilyRow, PersonRow } from '@common/types';
 import { imageLinks } from './citation-scans/astia';
 import { astiaImage } from './citation-scans/images';
 import {
+  citationVolumes,
   correctScan,
   isChurchBook,
   resolveScans,
@@ -39,6 +40,7 @@ interface DatasetHandlers {
   handlePerson: (id: number) => Response;
   handlePersonScans: (id: number) => Response;
   handleCorrection: (id: number, correction: Correction) => Promise<Response>;
+  handleCitationVolumes: (id: number) => Promise<Response>;
   handleMedia: (rest: string, mediaRoot: string) => Promise<Response>;
 }
 
@@ -199,6 +201,18 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
         : Response.json({ citationId: id, ...result });
     },
 
+    async handleCitationVolumes(id) {
+      const row = getCitation.get(id);
+      if (row === null || !isChurchBook(row.page)) {
+        return new Response('citation not found', { status: 404 });
+      }
+      try {
+        return Response.json(await citationVolumes(row.page, row.text));
+      } catch {
+        return new Response('Astia unavailable', { status: 502 });
+      }
+    },
+
     async handleMedia(rest, mediaRoot) {
       const rel = decodeURIComponent(rest.slice('/media/'.length));
       const fullPath = resolve(mediaRoot, rel);
@@ -324,17 +338,15 @@ async function handleDeleteDataset(
   }
 }
 
-// `{ url }` or `{ volumeId, image }`; anything else is rejected.
+// `{ volumeId, image }`; anything else is rejected.
 async function readCorrection(req: Request): Promise<Correction | null> {
   const body = (await req.json().catch(() => null)) as Record<
     string,
     unknown
   > | null;
-  if (typeof body?.url === 'string') return { url: body.url };
-  if (typeof body?.volumeId === 'string' && typeof body.image === 'number') {
-    return { volumeId: body.volumeId, image: body.image };
-  }
-  return null;
+  return typeof body?.volumeId === 'string' && typeof body.image === 'number'
+    ? { volumeId: body.volumeId, image: body.image }
+    : null;
 }
 
 async function routeCorrection(
@@ -347,7 +359,7 @@ async function routeCorrection(
   }
   const correction = await readCorrection(req);
   return correction === null
-    ? new Response('expected { url } or { volumeId, image }', { status: 400 })
+    ? new Response('expected { volumeId, image }', { status: 400 })
     : await handlers.handleCorrection(id, correction);
 }
 
@@ -366,9 +378,13 @@ async function routeDataset(
       ? handlers.handlePerson(id)
       : handlers.handlePersonScans(id);
   }
-  const citation = /^\/api\/citations\/(?<id>\d+)\/scans$/.exec(rest);
+  const citation =
+    /^\/api\/citations\/(?<id>\d+)\/(?<what>scans|volumes)$/.exec(rest);
   if (citation !== null) {
-    return await routeCorrection(req, handlers, Number(citation.groups!.id));
+    const id = Number(citation.groups!.id);
+    return citation.groups!.what === 'scans'
+      ? await routeCorrection(req, handlers, id)
+      : await handlers.handleCitationVolumes(id);
   }
   if (rest.startsWith('/media/')) {
     return await handlers.handleMedia(rest, mediaRoot);

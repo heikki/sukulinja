@@ -1,32 +1,7 @@
 import { css } from 'lit';
 
-export const scanViewerStyles = css`
-  /* Covers the chart, not the dock: the dock still shows whose source it is. */
-  :host {
-    position: absolute;
-    inset: 0;
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    background: var(--bg);
-    font-size: 0.875rem;
-    line-height: 1.4;
-  }
-
-  header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.4rem 0.75rem;
-    background: var(--card);
-    border-bottom: 1px solid var(--border);
-    white-space: nowrap;
-  }
-
-  .spacer {
-    flex: 1;
-  }
-
+// Buttons, fields and links, shared by the viewer and its toolbar.
+export const controlStyles = css`
   .muted {
     color: var(--muted);
   }
@@ -81,6 +56,20 @@ export const scanViewerStyles = css`
   a:hover {
     text-decoration: underline;
   }
+`;
+
+export const scanViewerStyles = css`
+  /* Covers the chart, not the dock: the dock still shows whose source it is. */
+  :host {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    font-size: 0.875rem;
+    line-height: 1.4;
+  }
 
   .stage {
     position: relative;
@@ -124,5 +113,57 @@ export const scanViewerStyles = css`
 
   .note button {
     pointer-events: auto;
+  }
+`;
+
+// One row; the mark's note gives way first when it is narrow.
+export const scanToolbarStyles = css`
+  :host {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.25rem;
+    padding: 0.3rem 0.75rem;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  .sep {
+    align-self: stretch;
+    width: 1px;
+    margin: 0.15rem 0.25rem;
+    background: var(--border);
+  }
+
+  .spacer {
+    flex: 1;
+  }
+
+  button.primary {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+
+  button.primary:hover:not(:disabled) {
+    color: var(--on-accent);
+    filter: brightness(1.1);
+  }
+
+  .linked {
+    color: var(--accent);
+  }
+
+  .note {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+
+  .note.error {
+    color: var(--danger);
   }
 `;
