@@ -43,7 +43,7 @@ A Volume whose Images hold the book twice, as if filmed twice; the copies drift 
 A Church-book reference put on an Image by hand in the app, for one with no page or in a Volume its Book doesn't match.
 
 **Scan viewer**:
-Where the app shows an Image, opened from a Church-book reference's link. You step through the Volume's Images there and mark the one the record is on, which saves an Anchor or a Placement.
+Where the app shows an Image, opened from a Church-book reference's link. You step through the Volume's Images there and mark the one the record is on, which saves an Anchor or a Placement, and a **Seen record** when the reference has a Record number.
 _Avoid_: record viewer (a record is MyHeritage's), Astia viewer (Astia's own site).
 
 **Scan method**:
@@ -71,7 +71,10 @@ MyHeritage's id for a record in the collection. Each Film's records form one unb
 A Volume's span of Record numbers. Overrides choosing the Volume by years.
 
 **Seen record**:
-A record whose MyHeritage Frame was matched by eye to an Image, so its Image is known exactly.
+A record whose Image is known exactly: its MyHeritage Frame matched by eye to an Image, or the record marked in the **Scan viewer**. One outside its Volume's **Record range** extends the nearest one to it, unless another Volume's range lies between.
+
+**Provenance**:
+Who saved an Anchor, Seen record or Placement: by hand (everything shipped, and every mark made in the Scan viewer) or by the vision model. A hand correction always wins over a vision one.
 
 **Same scan** / **Different photograph**:
 Whether a Seen record's Frame is the very scan Astia holds (same framing, shadows, blots) or a separate filming of the same page, matched by its content — page number, or village, house and household where the book has no page numbers.

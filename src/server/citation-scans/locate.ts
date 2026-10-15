@@ -17,7 +17,12 @@
 // Astia's — mostly the same scan under another image number, sometimes a
 // different photograph of the same page, matched by what's written on it.
 
-import type { Scan, ScanMethod, ScanResolution } from '@common/types';
+import type {
+  Provenance,
+  Scan,
+  ScanMethod,
+  ScanResolution
+} from '@common/types';
 
 import { archiveVolumes, viewerUrl, volumeImages } from './astia';
 import type { Volume } from './astia';
@@ -47,10 +52,13 @@ const PARISH_ARCHIVE: Record<string, string> = {
   'Sääminki': '1231967062'
 };
 
+// Corrections say who made them; a missing `by` is by hand, which covers
+// everything shipped and every local file written before the vision model.
 export interface Anchor {
   image: number;
   pages: number[];
   note?: string;
+  by?: Provenance;
 }
 
 // MyHeritage record numbers, both ends included.
@@ -63,6 +71,7 @@ export interface RecordRange {
 export interface SeenRecord {
   record: number;
   image: number;
+  by?: Provenance;
 }
 
 // Per volume: the anchors read in it, the villages found in it where a book
@@ -85,6 +94,7 @@ export interface Placement {
   volumeId: string;
   volume: string;
   image: number;
+  by?: Provenance;
 }
 
 export type Placements = Record<string, Placement>;
@@ -234,10 +244,11 @@ interface Located {
   files: string[];
   image: number | null;
   method: ScanMethod;
+  by?: Provenance;
 }
 
-function seenImage(v: Volume, ref: ChurchBookRef, anchors: Anchors) {
-  return anchors[v.id]?.seen?.find((r) => r.record === ref.recordId)?.image;
+function seenRecord(v: Volume, ref: ChurchBookRef, anchors: Anchors) {
+  return anchors[v.id]?.seen?.find((r) => r.record === ref.recordId);
 }
 
 async function locate(
@@ -246,9 +257,10 @@ async function locate(
   anchors: Anchors
 ): Promise<Located> {
   const files = await volumeImages(v.id);
-  const seen = seenImage(v, ref, anchors);
+  const seen = seenRecord(v, ref, anchors);
   if (seen !== undefined) {
-    return { volume: v, files, image: seen, method: 'placed' };
+    const by = seen.by ?? 'hand';
+    return { volume: v, files, image: seen.image, method: 'placed', by };
   }
   if (ref.page === null) {
     return { volume: v, files, image: null, method: 'volume' };
@@ -284,13 +296,14 @@ function pickVolumes(located: Located[], places: string[], anchors: Anchors) {
 
 function toScan(l: Located): Scan {
   const image = l.image ?? 1;
-  return {
+  const scan: Scan = {
     volumeId: l.volume.id,
     volume: l.volume.label,
     image,
     url: viewerUrl(l.volume.id, l.files[image - 1]!),
     method: l.image === null ? 'volume' : l.method
   };
+  return l.by === undefined ? scan : { ...scan, by: l.by };
 }
 
 // The parish's population-register volumes, for checking a placement.
@@ -306,7 +319,8 @@ async function placedScan(p: Placement): Promise<Scan> {
     volume: p.volume,
     image: p.image,
     url: viewerUrl(p.volumeId, files[p.image - 1]!),
-    method: 'placed'
+    method: 'placed',
+    by: p.by ?? 'hand'
   };
 }
 

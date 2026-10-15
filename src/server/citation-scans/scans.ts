@@ -7,6 +7,7 @@ import type { ScanResolution } from '@common/types';
 
 import {
   addLocalAnchor,
+  addLocalSeen,
   loadAnchors,
   loadPlacements,
   setLocalFolder,
@@ -98,6 +99,8 @@ async function pagesFor(volumeId: string, page: number, kind: string | null) {
 // A cited page found in a volume the reference already links is an anchor,
 // which moves the volume's other references near it too. A record naming no
 // page, or found in another volume of the parish, is placed on its own.
+// Either way a record with a Record number is seen there, which extends
+// the volume's record range so the records numbered around it follow.
 async function save(
   ref: ChurchBookRef,
   target: { volumeId: string; image: number },
@@ -109,10 +112,18 @@ async function save(
     await addLocalAnchor(target.volumeId, volume, {
       image: target.image,
       pages: await pagesFor(target.volumeId, ref.page, ref.kind),
-      note: 'placed by hand in the app'
+      note: 'placed by hand in the app',
+      by: 'hand'
     });
   } else {
-    await setPlacement(ref.url, { ...target, volume });
+    await setPlacement(ref.url, { ...target, volume, by: 'hand' });
+  }
+  if (ref.recordId !== null) {
+    await addLocalSeen(target.volumeId, volume, {
+      record: ref.recordId,
+      image: target.image,
+      by: 'hand'
+    });
   }
 }
 

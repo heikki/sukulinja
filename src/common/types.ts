@@ -96,9 +96,12 @@ export interface HouseholdMember {
 }
 
 // How a scan's image was found: from page numbers read off the volume
-// (anchored), guessed from the book type (estimated), by hand for this
+// (anchored), guessed from the book type (estimated), exactly for this
 // record (placed), or not at all — the link opens the volume.
 export type ScanMethod = 'anchored' | 'estimated' | 'placed' | 'volume';
+
+// Who saved a correction: marked by hand, or matched by the vision model.
+export type Provenance = 'hand' | 'vision';
 
 // One Astia image a citation may be on; a volume split in parts can give
 // one per part.
@@ -108,6 +111,8 @@ export interface Scan {
   image: number;
   url: string;
   method: ScanMethod;
+  // Set on a placed scan: whether a person or the vision model placed it.
+  by?: Provenance;
 }
 
 export type ScanResolution = { scans: Scan[] } | { error: string };
