@@ -9,23 +9,23 @@ export const appStyles = css`
     min-height: 100vh;
   }
   /* Bar metrics kept in sync with .toolbar in tree-view styles so the title
-     doesn't shift when moving between the chooser and a tree view. */
+     doesn't shift when moving between the chooser and a tree view; both match
+     the details panel's header (side-dock styles) in height, inset and type. */
   header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 1rem;
-    min-height: 3.25rem;
+    min-height: 3.375rem;
     box-sizing: border-box;
-    padding: 0.5rem 1rem;
+    padding: 0.5rem 1rem 0.5rem 1.1rem;
     border-bottom: 1px solid var(--border);
     background: var(--card);
   }
   h1 {
     margin: 0;
-    font-size: 1.05rem;
+    font-size: 1.15rem;
     font-weight: 600;
-    letter-spacing: -0.01em;
   }
   .center {
     width: 100%;
@@ -147,21 +147,27 @@ export const appStyles = css`
     color: var(--danger);
     border-color: var(--danger);
   }
+  /* Hovers like the details panel's header: a tint behind unchanged text,
+     bleeding to the bar's top, bottom and left edges. The negative margins
+     undo the toolbar's padding; the matching left padding keeps the text on
+     the bar's inset. */
   button.brand {
-    padding: 0;
-    margin-right: 0.5rem;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    padding: 0 1rem 0 1.1rem;
+    margin: -0.5rem 0 -0.5rem -1.1rem;
     background: none;
     border: none;
     font: inherit;
-    font-size: 1.05rem;
+    font-size: 1.15rem;
     font-weight: 600;
-    letter-spacing: -0.01em;
     color: var(--fg);
     cursor: pointer;
     white-space: nowrap;
   }
   button.brand:hover {
-    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 8%, var(--card));
   }
   .overlay {
     position: fixed;
