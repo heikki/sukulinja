@@ -3,11 +3,8 @@ import { css } from 'lit';
 export const personPanelStyles = css`
   :host {
     display: block;
-    width: 380px;
-    flex-shrink: 0;
     overflow-y: auto;
     background: var(--card);
-    border-right: 1px solid var(--border);
     font-size: 0.875rem;
     line-height: 1.4;
   }
@@ -20,11 +17,6 @@ export const personPanelStyles = css`
     opacity: 0.55;
   }
 
-  h2 {
-    margin: 0;
-    font-size: 1.15rem;
-  }
-
   h3 {
     margin: 1.4rem 0 0.5rem;
     font-size: 0.75rem;
@@ -32,6 +24,10 @@ export const personPanelStyles = css`
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--muted);
+  }
+
+  h3:first-child {
+    margin-top: 0;
   }
 
   .muted {

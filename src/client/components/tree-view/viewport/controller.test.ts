@@ -97,6 +97,18 @@ class FakeElement {
   }
 }
 
+// attachCanvas observes the canvas; the hold it drives is covered in
+// controller-hold.test.ts.
+class FakeResizeObserver {
+  observed = 0;
+  observe() {
+    this.observed += 1;
+  }
+  disconnect() {
+    this.observed = 0;
+  }
+}
+
 beforeEach(() => {
   mockNow = 1000;
   rafCallbacks = [];
@@ -119,6 +131,7 @@ beforeEach(() => {
     rafCancels += 1;
   };
   g.Element = FakeElement;
+  g.ResizeObserver = FakeResizeObserver;
 });
 
 afterEach(() => {
@@ -128,6 +141,7 @@ afterEach(() => {
   delete g.requestAnimationFrame;
   delete g.cancelAnimationFrame;
   delete g.Element;
+  delete g.ResizeObserver;
 });
 
 function setup(extents: Extents | null = EXTENTS, size: Size | null = SIZE) {

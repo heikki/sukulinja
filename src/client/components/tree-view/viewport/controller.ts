@@ -18,6 +18,9 @@ import {
 import type { FitOptions, ScaleBounds } from './transform';
 
 const WHEEL_SETTLE_MS = 200;
+// A held pan reaches the URL once the canvas has stopped moving, not every frame
+// of a slide: WebKit throttles replaceState.
+const HOLD_SETTLE_MS = 250;
 
 export interface Size {
   width: number;
@@ -43,6 +46,8 @@ export interface ViewportMeasurements {
   // wheel-zoom burst finishes). Used by the host to commit view state to the
   // URL; the viewport itself stays ignorant of URLs.
   onSettle?: () => void;
+  // Fires once the canvas origin has stopped moving after a hold shifted pan.
+  onHold?: () => void;
 }
 
 export interface ViewportOptions {
@@ -97,6 +102,13 @@ export class ViewportController implements ReactiveController {
   private momentum: MomentumHandle | null = null;
   private canvas: HTMLElement | null = null;
   private wheelSettleTimer: ReturnType<typeof setTimeout> | null = null;
+  // A column beside the canvas (the details dock) moves the canvas origin when it
+  // slides or resizes. Each canvas resize shifts pan by how far the left edge
+  // moved, holding the chart still on screen; the observer runs after layout
+  // and before paint, so no frame shows the jump.
+  private resizeObserver: ResizeObserver | null = null;
+  private canvasLeft: number | null = null;
+  private holdSettleTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly host: ReactiveControllerHost,
@@ -148,6 +160,10 @@ export class ViewportController implements ReactiveController {
       clearTimeout(this.wheelSettleTimer);
       this.wheelSettleTimer = null;
     }
+    if (this.holdSettleTimer !== null) {
+      clearTimeout(this.holdSettleTimer);
+      this.holdSettleTimer = null;
+    }
   }
 
   // Lets the host restore scale from URL before ensureInitialPan computes the
@@ -182,11 +198,31 @@ export class ViewportController implements ReactiveController {
     if (this.canvas !== null) {
       this.canvas.removeEventListener('wheel', this.onWheel);
     }
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
     this.canvas = el;
     if (el !== null) {
       el.addEventListener('wheel', this.onWheel, { passive: false });
+      this.canvasLeft = this.measurements.canvasRect()?.left ?? null;
+      this.resizeObserver = new ResizeObserver(this.holdOnOriginMove);
+      this.resizeObserver.observe(el);
     }
   }
+
+  private readonly holdOnOriginMove = () => {
+    const before = this.canvasLeft;
+    const after = this.measurements.canvasRect()?.left ?? null;
+    this.canvasLeft = after;
+    if (before === null || after === null || after === before) return;
+    if (!this._panReady) return;
+    this._pan = { x: this._pan.x + before - after, y: this._pan.y };
+    this.host.requestUpdate();
+    if (this.holdSettleTimer !== null) clearTimeout(this.holdSettleTimer);
+    this.holdSettleTimer = setTimeout(() => {
+      this.holdSettleTimer = null;
+      this.measurements.onHold?.();
+    }, HOLD_SETTLE_MS);
+  };
 
   readonly onMouseDown = (e: MouseEvent) => {
     if (e.button !== 0) return;

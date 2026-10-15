@@ -153,12 +153,22 @@ export class PersonPanelElement extends LitElement {
   @state() private correctionError: string | null = null;
 
   private scanAbort: AbortController | null = null;
+  private shownId: number | null = null;
 
   // Refocusing fast can return answers out of order; only the latest counts.
   private request = 0;
 
   override willUpdate(changed: PropertyValues<this>) {
     if (changed.has('personId')) void this.load();
+  }
+
+  // Start a new person at the top. Waits for their details rather than the
+  // personId change, so the stale view doesn't jump before it's replaced.
+  override updated() {
+    const id = this.details?.id ?? null;
+    if (id === this.shownId) return;
+    this.shownId = id;
+    this.scrollTop = 0;
   }
 
   private async load() {
@@ -301,7 +311,6 @@ export class PersonPanelElement extends LitElement {
     const stale = d.id !== this.personId;
     return html`
       <div class="body ${stale ? 'stale' : ''}">
-        <h2>${d.name ?? '—'}</h2>
         ${
           d.facts.length === 0
             ? nothing
