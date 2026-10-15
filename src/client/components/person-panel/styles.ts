@@ -7,7 +7,7 @@ export const personPanelStyles = css`
     flex-shrink: 0;
     overflow-y: auto;
     background: var(--card);
-    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
     font-size: 0.875rem;
     line-height: 1.4;
   }
