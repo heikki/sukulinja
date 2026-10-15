@@ -4,6 +4,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import { apiUrl } from '@client/api';
+import { preferredGenerations } from '@client/generations';
 import type { FamilyRow, PersonRow } from '@common/types';
 
 import '../person-panel';
@@ -12,8 +13,10 @@ import '../side-dock';
 import { detailsWidth, setDetailsWidth } from '../person-panel/helpers';
 
 import '../person-search';
+import '../settings';
 
 import type { PickEvent } from '../person-search';
+import type { GenerationsChangeEvent } from '../settings';
 import type { OpenChangeEvent, WidthChangeEvent } from '../side-dock';
 import { onAvatarReady } from './avatar-cache';
 import { buildChart } from './build';
@@ -24,14 +27,12 @@ import { treeViewStyles } from './styles';
 import { TransitionController } from './transition';
 import type { RelayoutKind, Schedule } from './transition';
 import { buildHash, parseHashView } from './url-state';
-import type { Bounds, Defaults, ParsedView } from './url-state';
+import type { Bounds, ParsedView } from './url-state';
 import { ViewportController } from './viewport';
 import type { Comfort, ViewportOptions } from './viewport';
 
 const SVG_MARGIN_PX = 24;
 const DEFAULT_FOCUS_ID = 1;
-const DEFAULT_GEN = 2;
-const MAX_GEN = 5;
 const VIEWPORT_OPTIONS: ViewportOptions = {
   scaleBounds: { minScale: 0.25, maxScale: 2 },
   wheelZoomK: 0.001,
@@ -42,11 +43,9 @@ const VIEWPORT_OPTIONS: ViewportOptions = {
 };
 
 const URL_BOUNDS: Bounds = {
-  maxGen: MAX_GEN,
   minZoom: VIEWPORT_OPTIONS.scaleBounds.minScale,
   maxZoom: VIEWPORT_OPTIONS.scaleBounds.maxScale
 };
-const URL_DEFAULTS: Defaults = { gen: DEFAULT_GEN };
 
 // Mirror the active Schedule's Enter/Leave timing into the CSS custom properties
 // the fade animations read (Move timing is applied JS-side). Set on .canvas so
@@ -97,7 +96,7 @@ function comfortOf(boxes: Box[], coreIds: ReadonlySet<number>): Comfort | null {
 export class TreeViewElement extends LitElement {
   static override styles = treeViewStyles;
 
-  @property({ type: Number, reflect: true }) gen = DEFAULT_GEN;
+  @property({ type: Number, reflect: true }) gen = preferredGenerations();
 
   @state() private persons = new Map<number, PersonRow>();
   @state() private focusId: number | null = null;
@@ -174,8 +173,6 @@ export class TreeViewElement extends LitElement {
 
   private readonly onHashChange = () => {
     const parsed = parseHashView(location.hash, URL_BOUNDS);
-    const nextGen = parsed.gen ?? DEFAULT_GEN;
-    if (nextGen !== this.gen) this.gen = nextGen;
     this.restoreViewportFromHash(parsed);
 
     const id = parsed.focusId;
@@ -214,8 +211,8 @@ export class TreeViewElement extends LitElement {
       this.viewport.panReady &&
       !this.viewport.hasPendingViewport
     ) {
-      // Silent: every slider @input ticks gen, and we don't want the URL to
-      // settle until the slider's @change fires on release.
+      // Silent: the Generations handler writes the URL itself once the change
+      // has landed.
       this.viewport.beginRefocus(this.viewport.chartToScreen({ x: 0, y: 0 }), {
         silent: true
       });
@@ -226,7 +223,7 @@ export class TreeViewElement extends LitElement {
   }
 
   // Snapshot the on-screen chart before a Focus or Generation Relayout so the
-  // Transition can animate from it. A levels change keeps the chart rooted (a
+  // Transition can animate from it. A Generation limit change keeps the chart rooted (a
   // Generation Relayout; match by unique key); any focus change re-roots (a
   // Focus Relayout; match by personId/baseKey). Skip the very first focus — no
   // previous chart to move from. The DOM and viewport still reflect the old
@@ -298,7 +295,6 @@ export class TreeViewElement extends LitElement {
 
   private restoreFromHash() {
     const parsed = parseHashView(location.hash, URL_BOUNDS);
-    if (parsed.gen !== null) this.gen = parsed.gen;
     // Pre-pin: applying scale before ensureInitialPan so chart (0,0) lands at
     // canvas center using the URL-supplied zoom, not the default 1.
     if (parsed.zoom !== null) {
@@ -339,20 +335,16 @@ export class TreeViewElement extends LitElement {
     if (id === this.focusId) return;
     this.viewport.beginRefocus(pinScreen, { nudge: true });
     this.focusId = id;
-    // Two-step: push carries focus+gen+zoom only. The pin lands in updated()
+    // Two-step: push carries focus+zoom only. The pin lands in updated()
     // and onSettle's writeUrl follows up with a replaceState that adds pan.
     history.pushState(
       null,
       '',
-      buildHash(
-        {
-          focusId: id,
-          gen: this.gen,
-          pan: null,
-          zoom: this.hasUserZoom ? this.viewport.scale : null
-        },
-        URL_DEFAULTS
-      )
+      buildHash({
+        focusId: id,
+        pan: null,
+        zoom: this.hasUserZoom ? this.viewport.scale : null
+      })
     );
   }
 
@@ -362,15 +354,11 @@ export class TreeViewElement extends LitElement {
   }
 
   private buildCurrentHash(focusId: number) {
-    return buildHash(
-      {
-        focusId,
-        gen: this.gen,
-        pan: this.hasUserPan ? this.viewport.pan : null,
-        zoom: this.hasUserZoom ? this.viewport.scale : null
-      },
-      URL_DEFAULTS
-    );
+    return buildHash({
+      focusId,
+      pan: this.hasUserPan ? this.viewport.pan : null,
+      zoom: this.hasUserZoom ? this.viewport.scale : null
+    });
   }
 
   private renderToolbar() {
@@ -383,27 +371,16 @@ export class TreeViewElement extends LitElement {
             this.setFocus(e.detail.id, this.canvasCenter());
           }}
         ></sl-person-search>
-        <label class="gen">
-          Levels
-          <input
-            type="range"
-            min="1"
-            max=${MAX_GEN}
-            step="1"
-            .value=${String(this.gen)}
-            @input=${(e: InputEvent) => {
-              this.gen = parseInt((e.target as HTMLInputElement).value, 10);
-            }}
-            @change=${async () => {
-              // Wait for the silent gen-change pin to land in updated()
-              // before snapshotting pan into the URL.
-              await this.updateComplete;
-              this.writeUrl();
-            }}
-          />
-          <span class="meta">${this.gen}</span>
-        </label>
-        <slot name="actions"></slot>
+        <sl-settings
+          .generations=${this.gen}
+          @generations-change=${async (e: GenerationsChangeEvent) => {
+            this.gen = e.detail;
+            // Wait for the silent gen-change pin to land in updated() before
+            // snapshotting pan into the URL.
+            await this.updateComplete;
+            this.writeUrl();
+          }}
+        ></sl-settings>
       </div>
     `;
   }

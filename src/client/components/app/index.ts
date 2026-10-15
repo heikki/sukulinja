@@ -1,7 +1,7 @@
 import { html, LitElement, nothing, svg } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
-import '../theme-toggle';
+import '../settings';
 import '../tree-view';
 
 import { readNdjson } from '@client/ndjson';
@@ -383,7 +383,7 @@ export class AppElement extends LitElement {
     return html`
       <header>
         <h1>Sukulinja</h1>
-        <sl-theme-toggle></sl-theme-toggle>
+        <sl-settings></sl-settings>
       </header>
       ${this.renderLanding()}
     `;
@@ -429,7 +429,6 @@ export class AppElement extends LitElement {
         >
           ${name === null ? 'Sukulinja' : `Sukulinja · ${name}`}
         </button>
-        <sl-theme-toggle slot="actions"></sl-theme-toggle>
       </sl-tree-view>
     `;
   }

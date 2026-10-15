@@ -79,9 +79,9 @@ export class ViewportController implements ReactiveController {
   // the box click handler can suppress a focus change that follows a drag.
   private _dragMoved = false;
   private _pendingPinScreen: Point | null = null;
-  // Silent pins skip the onSettle notification — used by gen-change reflow
-  // where every slider step pins chart (0,0) on screen, but the URL write
-  // should wait for the slider's @change (release), not every @input tick.
+  // Silent pins skip the onSettle notification — used by gen-change reflow,
+  // which pins chart (0,0) on screen and whose caller writes the URL itself
+  // once the change has landed.
   private _pendingPinSilent = false;
   // Set by a Focus refocus: after the pin lands, nudge the pan so the Comfort
   // region is on screen. Gen-change pins leave it off.
@@ -275,8 +275,8 @@ export class ViewportController implements ReactiveController {
 
   // null leaves any prior pending pin in place (the caller couldn't compute
   // a fresh one); only a non-null Point overwrites it. `silent` suppresses
-  // onSettle when the pin lands — used for reflow pins (gen change) where
-  // the URL write should follow the slider release, not every input tick.
+  // onSettle when the pin lands — used for reflow pins (gen change), whose
+  // caller writes the URL itself.
   beginRefocus(
     pinScreen: Point | null,
     opts?: { silent?: boolean; nudge?: boolean }

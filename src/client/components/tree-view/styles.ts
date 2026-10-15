@@ -38,18 +38,6 @@ export const treeViewStyles = css`
     width: min(420px, 45vw);
   }
 
-  .gen {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.85em;
-    color: var(--muted);
-  }
-
-  .gen input[type='range'] {
-    width: 80px;
-  }
-
   /* The chart and, beside it, the Focus details panel. */
   .main {
     flex: 1;
