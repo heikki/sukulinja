@@ -6,9 +6,9 @@ import type { Bounds } from './url-state';
 const BOUNDS: Bounds = { minZoom: 0.25, maxZoom: 2 };
 
 describe('parseHashView', () => {
-  test('reads focus from minimal hash', () => {
+  test('reads root from minimal hash', () => {
     expect(parseHashView('#/person/123', BOUNDS)).toEqual({
-      focusId: 123,
+      rootId: 123,
       selectedId: null,
       pan: null,
       zoom: null
@@ -17,13 +17,13 @@ describe('parseHashView', () => {
 
   test('returns nulls for non-matching hash', () => {
     expect(parseHashView('#foo', BOUNDS)).toEqual({
-      focusId: null,
+      rootId: null,
       selectedId: null,
       pan: null,
       zoom: null
     });
     expect(parseHashView('', BOUNDS)).toEqual({
-      focusId: null,
+      rootId: null,
       selectedId: null,
       pan: null,
       zoom: null
@@ -32,7 +32,7 @@ describe('parseHashView', () => {
 
   test('ignores unknown query params, including a legacy gen', () => {
     expect(parseHashView('#/person/7?gen=3&junk=foo&zoom=1.5', BOUNDS)).toEqual(
-      { focusId: 7, selectedId: null, pan: null, zoom: 1.5 }
+      { rootId: 7, selectedId: null, pan: null, zoom: 1.5 }
     );
   });
 });
@@ -53,12 +53,12 @@ describe('parseHashView pan', () => {
     });
   });
 
-  test('drops unparseable or partial pan but keeps focus', () => {
+  test('drops unparseable or partial pan but keeps root', () => {
     expect(parseHashView('#/person/1?pan=foo', BOUNDS).pan).toBeNull();
     expect(parseHashView('#/person/1?pan=120', BOUNDS).pan).toBeNull();
     expect(parseHashView('#/person/1?pan=1.5,2', BOUNDS).pan).toBeNull();
     expect(parseHashView('#/person/1?pan=a,b', BOUNDS).pan).toBeNull();
-    expect(parseHashView('#/person/1?pan=foo', BOUNDS).focusId).toBe(1);
+    expect(parseHashView('#/person/1?pan=foo', BOUNDS).rootId).toBe(1);
   });
 
   test('returns null for missing pan', () => {
@@ -78,9 +78,9 @@ describe('parseHashView zoom', () => {
     expect(parseHashView('#/person/1?zoom=0.001', BOUNDS).zoom).toBe(0.25);
   });
 
-  test('drops unparseable zoom but keeps focus', () => {
+  test('drops unparseable zoom but keeps root', () => {
     const parsed = parseHashView('#/person/1?zoom=abc', BOUNDS);
-    expect(parsed.focusId).toBe(1);
+    expect(parsed.rootId).toBe(1);
     expect(parsed.zoom).toBeNull();
   });
 
@@ -91,51 +91,51 @@ describe('parseHashView zoom', () => {
 
 describe('buildHash', () => {
   test('omits zoom when null (write-once stickiness opt-in)', () => {
-    expect(buildHash({ focusId: 1, pan: null, zoom: null })).toBe('#/person/1');
+    expect(buildHash({ rootId: 1, pan: null, zoom: null })).toBe('#/person/1');
   });
 
   test('writes zoom with trailing zeros stripped', () => {
-    expect(buildHash({ focusId: 1, pan: null, zoom: 1 })).toBe(
+    expect(buildHash({ rootId: 1, pan: null, zoom: 1 })).toBe(
       '#/person/1?zoom=1'
     );
-    expect(buildHash({ focusId: 1, pan: null, zoom: 1.5 })).toBe(
+    expect(buildHash({ rootId: 1, pan: null, zoom: 1.5 })).toBe(
       '#/person/1?zoom=1.5'
     );
   });
 
   test('writes zoom rounded to 2 decimals', () => {
-    expect(buildHash({ focusId: 1, pan: null, zoom: 0.875 })).toBe(
+    expect(buildHash({ rootId: 1, pan: null, zoom: 0.875 })).toBe(
       '#/person/1?zoom=0.88'
     );
-    expect(buildHash({ focusId: 1, pan: null, zoom: 1.234 })).toBe(
+    expect(buildHash({ rootId: 1, pan: null, zoom: 1.234 })).toBe(
       '#/person/1?zoom=1.23'
     );
   });
 
   test('omits pan when null', () => {
-    expect(buildHash({ focusId: 1, pan: null, zoom: null })).toBe('#/person/1');
+    expect(buildHash({ rootId: 1, pan: null, zoom: null })).toBe('#/person/1');
   });
 
   test('writes pan rounded to integers', () => {
-    expect(buildHash({ focusId: 1, pan: { x: 120, y: -80 }, zoom: null })).toBe(
+    expect(buildHash({ rootId: 1, pan: { x: 120, y: -80 }, zoom: null })).toBe(
       '#/person/1?pan=120,-80'
     );
     expect(
-      buildHash({ focusId: 1, pan: { x: 120.4, y: -79.6 }, zoom: null })
+      buildHash({ rootId: 1, pan: { x: 120.4, y: -79.6 }, zoom: null })
     ).toBe('#/person/1?pan=120,-80');
   });
 
-  test('writes the selection only when it is not Focus', () => {
-    expect(
-      buildHash({ focusId: 1, selectedId: 1, pan: null, zoom: null })
-    ).toBe('#/person/1');
-    expect(buildHash({ focusId: 1, selectedId: 9, pan: null, zoom: 1 })).toBe(
+  test('writes the selection only when it is not Root', () => {
+    expect(buildHash({ rootId: 1, selectedId: 1, pan: null, zoom: null })).toBe(
+      '#/person/1'
+    );
+    expect(buildHash({ rootId: 1, selectedId: 9, pan: null, zoom: 1 })).toBe(
       '#/person/1?sel=9&zoom=1'
     );
   });
 
   test('emits pan, zoom in canonical order', () => {
-    expect(buildHash({ focusId: 1, pan: { x: 10, y: 20 }, zoom: 1.5 })).toBe(
+    expect(buildHash({ rootId: 1, pan: { x: 10, y: 20 }, zoom: 1.5 })).toBe(
       '#/person/1?pan=10,20&zoom=1.5'
     );
   });
@@ -156,9 +156,9 @@ describe('round-trip', () => {
   for (const s of cases) {
     test(s, () => {
       const parsed = parseHashView(s, BOUNDS);
-      expect(parsed.focusId).not.toBeNull();
+      expect(parsed.rootId).not.toBeNull();
       const rebuilt = buildHash({
-        focusId: parsed.focusId!,
+        rootId: parsed.rootId!,
         selectedId: parsed.selectedId,
         pan: parsed.pan,
         zoom: parsed.zoom

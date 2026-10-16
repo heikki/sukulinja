@@ -50,7 +50,7 @@ export function chartToScreen(
 
 // Given a known scale, return the pan that makes chartPoint land at
 // screenPoint. Used by both the wheel-zoom anchor-preservation and the
-// existing pin-on-refocus behavior.
+// existing pin-on-re-root behavior.
 export function pinChartPointAtScreen(
   scale: number,
   chartPoint: Point,

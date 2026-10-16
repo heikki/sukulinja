@@ -4,7 +4,7 @@ The ancestor layout makes every parent **Drop** purely vertical at every depth. 
 
 The same rule applies at depth 1, even when the sibship widens with **Aunts/Uncles**: the Tie stays at the directional shift and the bar reaches out to whichever Aunt/Uncle sits farthest from the Tie. This places each Couple as close to chart center as the inter-couple spacing allows, keeps each Couple's great-grandparents centered around the Couple itself, and gives the upper pyramid enough horizontal slack to keep gen-N+1 columns distinct.
 
-**Focus** is pinned at chart X = 0; the pyramid drifts left or right of Focus rather than re-centering. Within every Couple, spouse separation stays fixed at one slot and subtree extents grow strictly outward from chart center.
+**Root** is pinned at chart X = 0; the pyramid drifts left or right of Root rather than re-centering. Within every Couple, spouse separation stays fixed at one slot and subtree extents grow strictly outward from chart center.
 
 _Refined by ADR-0005: the magnitude collapses to a half-slot when the Couple's sibling subtree is empty (lopsided ancestry has no counterweight to spread against)._
 

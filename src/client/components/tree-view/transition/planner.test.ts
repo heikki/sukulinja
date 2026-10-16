@@ -52,7 +52,7 @@ function plan(
 }
 
 describe('planTransition — boxes', () => {
-  test('Focus relayout pairs survivors by personId; from old → to new', () => {
+  test('Root relayout pairs survivors by personId; from old → to new', () => {
     // Re-rooting changes every key, so survivors must match by personId.
     const prev = chart([
       box('a', 10, { x: 0, y: 0 }),
@@ -63,7 +63,7 @@ describe('planTransition — boxes', () => {
       box('d', 20, { x: 110, y: 0 })
     ]);
 
-    const { move, pairs } = plan(prev, next, 'focus');
+    const { move, pairs } = plan(prev, next, 'root');
 
     expect(move.boxes).toEqual([
       { key: 'c', from: { x: 1000, y: 2000 }, to: { x: 1010, y: 2000 } },
@@ -85,7 +85,7 @@ describe('planTransition — boxes', () => {
       box('new', 30, { x: 100, y: 0 })
     ]);
 
-    const { move, enter, leave } = plan(prev, next, 'focus');
+    const { move, enter, leave } = plan(prev, next, 'root');
 
     expect(move.boxes.map((b) => b.key)).toEqual(['c']);
     expect([...enter.boxKeys]).toEqual(['new']);
@@ -112,7 +112,7 @@ describe('planTransition — boxes', () => {
     ]);
   });
 
-  test('Focus relayout pairs a repeated person one-to-one, nearest first', () => {
+  test('Root relayout pairs a repeated person one-to-one, nearest first', () => {
     // Person 5 is drawn twice before and once after. The nearer old instance
     // slides; the other fades out instead of vanishing or sharing the slide.
     const prev = chart([
@@ -121,7 +121,7 @@ describe('planTransition — boxes', () => {
     ]);
     const next = chart([box('only', 5, { x: 520, y: 0 })]);
 
-    const { move, leave } = plan(prev, next, 'focus');
+    const { move, leave } = plan(prev, next, 'root');
 
     expect(move.boxes.map((b) => [b.key, b.from.x])).toEqual([['only', 1500]]);
     expect(leave.boxes.map((b) => b.key)).toEqual(['far']);
@@ -134,7 +134,7 @@ describe('planTransition — boxes', () => {
       box('near', 5, { x: 520, y: 0 })
     ]);
 
-    const { move, enter } = plan(prev, next, 'focus');
+    const { move, enter } = plan(prev, next, 'root');
 
     expect(move.boxes.map((b) => b.key)).toEqual(['near']);
     expect([...enter.boxKeys]).toEqual(['far']);
@@ -150,7 +150,7 @@ describe('planTransition — boxes', () => {
       box('left', 5, { x: -30, y: 0 })
     ]);
 
-    const { move, enter } = plan(prev, next, 'focus', {
+    const { move, enter } = plan(prev, next, 'root', {
       camera: { x: 150, y: 0 }
     });
 
@@ -171,7 +171,7 @@ describe('planTransition — boxes', () => {
       box('b2', 2, { x: -300, y: -100 })
     ]);
 
-    const { move, enter, leave } = plan(prev, next, 'focus');
+    const { move, enter, leave } = plan(prev, next, 'root');
 
     expect(move.boxes.map((b) => b.key)).toEqual(['b1']);
     expect([...enter.boxKeys]).toEqual(['b2']);
@@ -193,7 +193,7 @@ describe('planTransition — boxes', () => {
       box('b3', 3, { x: 240, y: 0 })
     ]);
 
-    const { move, leave } = plan(prev, next, 'focus', {
+    const { move, leave } = plan(prev, next, 'root', {
       camera: { x: 200, y: 0 }
     });
 
@@ -211,7 +211,7 @@ describe('planTransition — boxes', () => {
       box('b2', 2, { x: -200, y: -100 })
     ]);
 
-    const { move } = plan(prev, next, 'focus');
+    const { move } = plan(prev, next, 'root');
 
     expect(move.boxes.map((b) => b.key)).toEqual(['b1', 'b2']);
   });
@@ -250,7 +250,7 @@ describe('planTransition — edges', () => {
     ]);
   });
 
-  test('Focus relayout matches edges by baseKey across re-rooted keys', () => {
+  test('Root relayout matches edges by baseKey across re-rooted keys', () => {
     const prev = chart(
       [],
       [tie('old/tie', 'tie-1', { x: 0, y: 0 }, { x: 80, y: 0 })]
@@ -260,7 +260,7 @@ describe('planTransition — edges', () => {
       [tie('new/tie', 'tie-1', { x: 0, y: 0 }, { x: 80, y: 0 })]
     );
 
-    const { move } = plan(prev, next, 'focus');
+    const { move } = plan(prev, next, 'root');
 
     expect(move.edges.map((e) => e.key)).toEqual(['new/tie']);
   });
@@ -292,7 +292,7 @@ describe('planTransition — edges', () => {
       ]
     );
 
-    const { move, enter, leave } = plan(prev, next, 'focus');
+    const { move, enter, leave } = plan(prev, next, 'root');
 
     expect(move.edges).toEqual([]);
     expect([...enter.edgeKeys]).toEqual(['b/tie']);
@@ -332,7 +332,7 @@ describe('planTransition — edges', () => {
       )
     );
 
-    const { move, enter, leave } = plan(prev, next, 'focus');
+    const { move, enter, leave } = plan(prev, next, 'root');
 
     expect(move.boxes.map((b) => b.key)).toEqual(['b1', 'b2']);
     expect(move.edges).toEqual([]);

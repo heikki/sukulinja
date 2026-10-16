@@ -265,12 +265,12 @@ describe('momentum sample window', () => {
   });
 });
 
-describe('beginRefocus + applyPendingPin', () => {
+describe('beginReroot + applyPendingPin', () => {
   test('after rebuild swaps extents, pinned chart point lands on the captured screen point', () => {
     const { controller, measurements } = setup();
     controller.ensureInitialPan();
     const pinScreen: Point = { x: 200, y: 150 };
-    controller.beginRefocus(pinScreen);
+    controller.beginReroot(pinScreen);
     expect(controller.hasPendingPin).toBe(true);
     measurements.extents = {
       min: { x: -500, y: -400 },
@@ -285,44 +285,44 @@ describe('beginRefocus + applyPendingPin', () => {
     expect(resolved.y).toBeCloseTo(pinScreen.y, 6);
   });
 
-  test('beginRefocus(null) preserves any prior pending pin (caller had no fresh point)', () => {
+  test('beginReroot(null) preserves any prior pending pin (caller had no fresh point)', () => {
     const { controller } = setup();
     controller.ensureInitialPan();
-    controller.beginRefocus({ x: 100, y: 100 });
+    controller.beginReroot({ x: 100, y: 100 });
     expect(controller.hasPendingPin).toBe(true);
-    controller.beginRefocus(null);
+    controller.beginReroot(null);
     expect(controller.hasPendingPin).toBe(true);
   });
 
-  test('levels-change preservation: Focus stays at its current screen position across a rebuild', () => {
+  test('levels-change preservation: Root stays at its current screen position across a rebuild', () => {
     const { controller, measurements } = setup();
     controller.ensureInitialPan();
-    const focusScreenBefore = controller.chartToScreen({ x: 0, y: 0 });
-    expect(focusScreenBefore).not.toBeNull();
-    if (focusScreenBefore === null) return;
-    controller.beginRefocus(focusScreenBefore);
+    const rootScreenBefore = controller.chartToScreen({ x: 0, y: 0 });
+    expect(rootScreenBefore).not.toBeNull();
+    if (rootScreenBefore === null) return;
+    controller.beginReroot(rootScreenBefore);
     measurements.extents = {
       min: { x: -1000, y: -800 },
       max: { x: 1200, y: 900 }
     };
     controller.applyPendingPin();
-    const focusScreenAfter = controller.chartToScreen({ x: 0, y: 0 });
-    expect(focusScreenAfter).not.toBeNull();
-    if (focusScreenAfter === null) return;
-    expect(focusScreenAfter.x).toBeCloseTo(focusScreenBefore.x, 6);
-    expect(focusScreenAfter.y).toBeCloseTo(focusScreenBefore.y, 6);
+    const rootScreenAfter = controller.chartToScreen({ x: 0, y: 0 });
+    expect(rootScreenAfter).not.toBeNull();
+    if (rootScreenAfter === null) return;
+    expect(rootScreenAfter.x).toBeCloseTo(rootScreenBefore.x, 6);
+    expect(rootScreenAfter.y).toBeCloseTo(rootScreenBefore.y, 6);
   });
 });
 
-describe('refocus nudge', () => {
-  // vbo = chart min - 24. Focus row is chart y 0; the region is it plus the
+describe('re-root nudge', () => {
+  // vbo = chart min - 24. Root row is chart y 0; the region is it plus the
   // parent row above.
   const REGION: Extents = {
     min: { x: -100, y: -140 },
     max: { x: 100, y: 70 }
   };
-  // Focus alone: the core of a Focus with no spouses.
-  const FOCUS_BOX: Extents = {
+  // Root alone: the core of a Root with no spouses.
+  const ROOT_BOX: Extents = {
     min: { x: -55, y: -70 },
     max: { x: 55, y: 70 }
   };
@@ -330,37 +330,37 @@ describe('refocus nudge', () => {
     min: { x: -200, y: -1000 },
     max: { x: 200, y: 1000 }
   };
-  const ENDS_BELOW_FOCUS: Extents = {
+  const ENDS_BELOW_ROOT: Extents = {
     min: { x: -200, y: -1000 },
     max: { x: 200, y: 150 }
   };
 
   test('centres the comfort region on an axis the pin would clip', () => {
     const { controller, measurements } = setup(TALL);
-    measurements.comfortData = { region: REGION, cores: [FOCUS_BOX] };
+    measurements.comfortData = { region: REGION, cores: [ROOT_BOX] };
     controller.ensureInitialPan();
-    // Pin Focus near the top edge: the parent row would clip.
-    controller.beginRefocus({ x: 400, y: 60 }, { nudge: true });
+    // Pin Root near the top edge: the parent row would clip.
+    controller.beginReroot({ x: 400, y: 60 }, { nudge: true });
     controller.applyPendingViewport();
     // 210 chart px tall in a 600 px canvas: centred leaves 195 px above.
     expect(controller.chartToScreen(REGION.min)?.y).toBeCloseTo(195);
   });
 
   test('pulls the chart down when it ends above empty canvas', () => {
-    const { controller, measurements } = setup(ENDS_BELOW_FOCUS);
-    measurements.comfortData = { region: REGION, cores: [FOCUS_BOX] };
+    const { controller, measurements } = setup(ENDS_BELOW_ROOT);
+    measurements.comfortData = { region: REGION, cores: [ROOT_BOX] };
     controller.ensureInitialPan();
-    controller.beginRefocus({ x: 400, y: 300 }, { nudge: true });
+    controller.beginReroot({ x: 400, y: 300 }, { nudge: true });
     controller.applyPendingViewport();
-    // Nothing below Focus row: its bottom edge settles on the bottom margin.
-    expect(controller.chartToScreen(ENDS_BELOW_FOCUS.max)?.y).toBeCloseTo(576);
+    // Nothing below Root row: its bottom edge settles on the bottom margin.
+    expect(controller.chartToScreen(ENDS_BELOW_ROOT.max)?.y).toBeCloseTo(576);
   });
 
   test('leaves the pin alone when everything already fits', () => {
     const { controller, measurements } = setup(TALL);
-    measurements.comfortData = { region: REGION, cores: [FOCUS_BOX] };
+    measurements.comfortData = { region: REGION, cores: [ROOT_BOX] };
     controller.ensureInitialPan();
-    controller.beginRefocus({ x: 400, y: 300 }, { nudge: true });
+    controller.beginReroot({ x: 400, y: 300 }, { nudge: true });
     controller.applyPendingViewport();
     expect(controller.chartToScreen({ x: 0, y: 0 })).toEqual({
       x: 400,
@@ -368,8 +368,8 @@ describe('refocus nudge', () => {
     });
   });
 
-  test('keeps a spouse on screen when the Focus row is far too wide', () => {
-    // A row thousands of px wide: centring Focus alone would push a spouse 600
+  test('keeps a spouse on screen when the Root row is far too wide', () => {
+    // A row thousands of px wide: centring Root alone would push a spouse 600
     // px to its left off the 800 px canvas, though the pair fits.
     const wide: Extents = {
       min: { x: -4000, y: -1000 },
@@ -381,7 +381,7 @@ describe('refocus nudge', () => {
       cores: [{ min: { x: -600, y: -70 }, max: { x: 55, y: 70 } }]
     };
     controller.ensureInitialPan();
-    controller.beginRefocus({ x: 400, y: 300 }, { nudge: true });
+    controller.beginReroot({ x: 400, y: 300 }, { nudge: true });
     controller.applyPendingViewport();
     expect(controller.chartToScreen({ x: -600, y: 0 })?.x).toBeCloseTo(24);
     expect(controller.chartToScreen({ x: 55, y: 0 })?.x).toBeLessThan(776);
@@ -389,9 +389,9 @@ describe('refocus nudge', () => {
 
   test('a pin without nudge (gen change) is not nudged', () => {
     const { controller, measurements } = setup(TALL);
-    measurements.comfortData = { region: REGION, cores: [FOCUS_BOX] };
+    measurements.comfortData = { region: REGION, cores: [ROOT_BOX] };
     controller.ensureInitialPan();
-    controller.beginRefocus({ x: 400, y: 60 }, { silent: true });
+    controller.beginReroot({ x: 400, y: 60 }, { silent: true });
     controller.applyPendingViewport();
     expect(controller.chartToScreen({ x: 0, y: 0 })).toEqual({ x: 400, y: 60 });
   });
@@ -498,19 +498,19 @@ describe('dblclick fit', () => {
 });
 
 describe('initial pan', () => {
-  test('places Focus at canvas center; flips panReady', () => {
+  test('places Root at canvas center; flips panReady', () => {
     const { controller } = setup();
     expect(controller.panReady).toBe(false);
     controller.ensureInitialPan();
     expect(controller.panReady).toBe(true);
-    const focusScreen = controller.chartToScreen({ x: 0, y: 0 });
-    expect(focusScreen).not.toBeNull();
-    if (focusScreen === null) return;
-    expect(focusScreen.x).toBeCloseTo(SIZE.width / 2, 6);
-    expect(focusScreen.y).toBeCloseTo(SIZE.height / 2, 6);
+    const rootScreen = controller.chartToScreen({ x: 0, y: 0 });
+    expect(rootScreen).not.toBeNull();
+    if (rootScreen === null) return;
+    expect(rootScreen.x).toBeCloseTo(SIZE.width / 2, 6);
+    expect(rootScreen.y).toBeCloseTo(SIZE.height / 2, 6);
   });
 
-  test('nudges the centred Focus so a chart ending below it fills the canvas', () => {
+  test('nudges the centred Root so a chart ending below it fills the canvas', () => {
     const chart: Extents = {
       min: { x: -200, y: -1000 },
       max: { x: 200, y: 150 }
@@ -521,7 +521,7 @@ describe('initial pan', () => {
       cores: [{ min: { x: -55, y: -70 }, max: { x: 55, y: 70 } }]
     };
     controller.ensureInitialPan();
-    // Nothing below Focus row: its bottom edge settles on the bottom margin.
+    // Nothing below Root row: its bottom edge settles on the bottom margin.
     expect(controller.chartToScreen(chart.max)?.y).toBeCloseTo(576);
   });
 
@@ -541,24 +541,24 @@ describe('initial pan', () => {
 });
 
 describe('interactions', () => {
-  test('beginRefocus mid-drag cancels momentum but leaves drag state alone', () => {
+  test('beginReroot mid-drag cancels momentum but leaves drag state alone', () => {
     const { controller } = setup();
     controller.ensureInitialPan();
     controller.onMouseDown(mouse(0, 0));
     mockNow = 1010;
     controller.onMouseMove(mouse(20, 0));
     expect(controller.dragging).toBe(true);
-    controller.beginRefocus({ x: 100, y: 100 });
-    // Mid-drag refocus should not abort the drag; only mouseup ends it.
+    controller.beginReroot({ x: 100, y: 100 });
+    // Mid-drag re-root should not abort the drag; only mouseup ends it.
     expect(controller.dragging).toBe(true);
     expect(controller.hasPendingPin).toBe(true);
   });
 
-  test('refocus → rebuild → refocus: pending pin uses the latest target', () => {
+  test('re-root → rebuild → re-root: pending pin uses the latest target', () => {
     const { controller, measurements } = setup();
     controller.ensureInitialPan();
-    controller.beginRefocus({ x: 100, y: 100 });
-    controller.beginRefocus({ x: 300, y: 200 });
+    controller.beginReroot({ x: 100, y: 100 });
+    controller.beginReroot({ x: 300, y: 200 });
     measurements.extents = {
       min: { x: -500, y: -400 },
       max: { x: 100, y: 50 }

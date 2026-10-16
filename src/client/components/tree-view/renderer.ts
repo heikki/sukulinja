@@ -173,7 +173,7 @@ export const styles = css`
     stroke: var(--card-border);
     stroke-width: 1.5;
   }
-  /* The person the dock shows; Focus needs no mark, the layout places them. */
+  /* The person the dock shows; Root needs no mark, the layout places them. */
   .node.selected .box {
     stroke: var(--selected-card);
     stroke-width: 2;
@@ -204,9 +204,9 @@ export const styles = css`
     vector-effect: non-scaling-stroke;
   }
 
-  /* Focus change snaps. Only nodes and edges that are newly on screen carry
+  /* Root change snaps. Only nodes and edges that are newly on screen carry
      the .enter class and fade in; cards that persist across the snap stay put
-     (the Pin keeps the focused card visually fixed). Existing cards must not
+     (the Pin keeps Root's card visually fixed). Existing cards must not
      fade in or out — the fade is reserved for genuinely new ones. */
   .node.enter,
   .edge.enter {

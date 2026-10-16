@@ -10,16 +10,16 @@
 //
 // Pairing is one-to-one between instances. Items carry a unique per-instance `key`
 // (the path); a *match key* groups the candidates: a Generation Relayout keeps the
-// tree rooted (the key itself), a Focus Relayout re-roots, so it falls back to the
+// tree rooted (the key itself), a Root Relayout re-roots, so it falls back to the
 // relayout-invariant personId / baseKey. A group can hold several instances on
 // either side (pedigree collapse, or one person drawn in two roles), so each
 // instance pairs with its nearest counterpart on screen; the rest enter or leave.
 
 import type { Box, DrawnLine, EmitOutput, LineKind, Point } from '../emit';
 
-// Focus = focus change (re-roots, match by personId/baseKey); Generation = level
+// Root = root change (re-roots, match by personId/baseKey); Generation = level
 // change (rooted, match by unique key).
-export type RelayoutKind = 'focus' | 'generation';
+export type RelayoutKind = 'root' | 'generation';
 
 // Maps a chart-local point to a screen pixel under the *current* viewport
 // (pan/extents/scale). Returns null before the viewport can resolve it.

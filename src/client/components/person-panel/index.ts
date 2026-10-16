@@ -183,7 +183,7 @@ function renderRelative(r: Relative, ask: (event: string, id: number) => void) {
   </button>`;
 }
 
-// The Focus person's family, events and sources, beside the chart, the
+// The selected person's family, events and sources, beside the chart, the
 // details announced with `details-load` as they arrive. A relative's row
 // asks for them with `pick`, and for the chart built around them with
 // `center`. Record links open outside the app (the desktop
@@ -209,7 +209,7 @@ export class PersonPanelElement extends LitElement {
   private scanAbort: AbortController | null = null;
   private shownId: number | null = null;
 
-  // Refocusing fast can return answers out of order; only the latest counts.
+  // Selecting fast can return answers out of order; only the latest counts.
   private request = 0;
 
   override connectedCallback() {
@@ -311,8 +311,8 @@ export class PersonPanelElement extends LitElement {
     }
   }
 
-  // One streamed request per person; refocusing aborts it. A reload after a
-  // mark keeps the scans known until their new ones arrive.
+  // One streamed request per person; selecting someone else aborts it. A
+  // reload after a mark keeps the scans known until their new ones arrive.
   private async loadScans(id: number, keep: boolean) {
     this.scanAbort?.abort();
     const abort = new AbortController();

@@ -1,7 +1,7 @@
 // Measurements are read through the host-supplied port at call time, so
 // chartExtents returns the OLD extents during willUpdate (before render
 // writes the new value) and the NEW extents during updated() — which is
-// exactly what the pin-on-refocus mechanism depends on.
+// exactly what the pin-on-re-root mechanism depends on.
 
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
@@ -34,7 +34,7 @@ export interface Size {
   height: number;
 }
 
-// What a refocus Nudge keeps on screen, in chart coords: the Comfort region, and
+// What a re-root Nudge keeps on screen, in chart coords: the Comfort region, and
 // the cores that must stay visible even when the region is too large to fit,
 // most preferred first.
 export interface Comfort {
@@ -46,7 +46,7 @@ export interface ViewportMeasurements {
   chartExtents: () => Extents | null;
   canvasSize: () => Size | null;
   canvasRect: () => DOMRect | null;
-  // The Comfort region of the current chart, in chart coords; a refocus Nudge
+  // The Comfort region of the current chart, in chart coords; a re-root Nudge
   // keeps it on screen. Absent or null means no Nudge.
   comfort?: () => Comfort | null;
   // Fires once when an interactive gesture has settled (dblclick fit lands,
@@ -83,14 +83,14 @@ export class ViewportController implements ReactiveController {
   private _panReady = false;
   private _dragging = false;
   // dragMoved persists past mouseup; reset only on the next mousedown so
-  // the box click handler can suppress a focus change that follows a drag.
+  // the box click handler can suppress a root change that follows a drag.
   private _dragMoved = false;
   private _pendingPinScreen: Point | null = null;
   // Silent pins skip the onSettle notification — used by gen-change reflow,
   // which pins chart (0,0) on screen and whose caller writes the URL itself
   // once the change has landed.
   private _pendingPinSilent = false;
-  // Set by a Focus refocus: after the pin lands, nudge the pan so the Comfort
+  // Set by a re-root: after the pin lands, nudge the pan so the Comfort
   // region is on screen. Gen-change pins leave it off.
   private _pendingNudge = false;
   // How far the last pin's Nudge moved the pan, on screen. The Transition ranks
@@ -100,7 +100,7 @@ export class ViewportController implements ReactiveController {
   // synchronously. The Transition captures its FLIP "First" through the live
   // pan/scale in the host's willUpdate; changing them on hashchange would snapshot
   // the new viewport and flatten the slide. Deferring mirrors the pin's lifecycle
-  // so a back/forward focus change animates like a click.
+  // so a back/forward root change animates like a click.
   private _pendingPan: Point | null = null;
   private _pendingScale: number | null = null;
 
@@ -265,7 +265,7 @@ export class ViewportController implements ReactiveController {
 
   readonly onDblClick = (e: MouseEvent) => {
     // Skip dblclick fit when the user clicked a person box — that interaction
-    // already focuses them and shouldn't also reset the viewport.
+    // already selects them and shouldn't also reset the viewport.
     const path = e.composedPath();
     if (
       path.some((n) => n instanceof Element && n.classList.contains('node'))
@@ -305,7 +305,7 @@ export class ViewportController implements ReactiveController {
   // a fresh one); only a non-null Point overwrites it. `silent` suppresses
   // onSettle when the pin lands — used for reflow pins (gen change), whose
   // caller writes the URL itself.
-  beginRefocus(
+  beginReroot(
     pinScreen: Point | null,
     opts?: { silent?: boolean; nudge?: boolean }
   ) {
@@ -370,7 +370,7 @@ export class ViewportController implements ReactiveController {
         region: comfort.region,
         chart,
         cores: comfort.cores,
-        focus: { x: 0, y: 0 },
+        root: { x: 0, y: 0 },
         viewBoxOrigin: vbo,
         canvas: size,
         marginPx: this.options.fitOptions.marginPx
@@ -501,7 +501,7 @@ export class ViewportController implements ReactiveController {
     this.momentum = null;
   }
 
-  // Both glides: a new gesture or a refocus takes over from either.
+  // Both glides: a new gesture or a re-root takes over from either.
   private cancelMomentum() {
     this.cancelPan();
     this.pinch.cancel();

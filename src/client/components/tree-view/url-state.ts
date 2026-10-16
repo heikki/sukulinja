@@ -1,8 +1,8 @@
 import type { Point } from './emit';
 
 export interface ParsedView {
-  focusId: number | null;
-  // The person the dock shows, when not Focus.
+  rootId: number | null;
+  // The person the dock shows, when not Root.
   selectedId: number | null;
   pan: Point | null;
   zoom: number | null;
@@ -14,18 +14,18 @@ export interface Bounds {
 }
 
 export interface BuildView {
-  focusId: number;
-  // Written only when it isn't Focus.
+  rootId: number;
+  // Written only when it isn't Root.
   selectedId?: number | null;
   pan: Point | null;
   zoom: number | null;
 }
 
-const FOCUS_HASH_RE = /^#\/person\/(?<id>\d+)(?:\?(?<query>.*))?$/u;
+const ROOT_HASH_RE = /^#\/person\/(?<id>\d+)(?:\?(?<query>.*))?$/u;
 const INT_RE = /^-?\d+$/u;
 const FLOAT_RE = /^-?\d+(?:\.\d+)?$/u;
 const EMPTY: ParsedView = {
-  focusId: null,
+  rootId: null,
   selectedId: null,
   pan: null,
   zoom: null
@@ -67,12 +67,12 @@ function formatPan(p: Point): string {
 }
 
 export function parseHashView(hash: string, bounds: Bounds): ParsedView {
-  const m = FOCUS_HASH_RE.exec(hash);
+  const m = ROOT_HASH_RE.exec(hash);
   if (m === null) return { ...EMPTY };
-  const focusId = parseInt(m.groups!.id!, 10);
+  const rootId = parseInt(m.groups!.id!, 10);
   const params = new URLSearchParams(m.groups?.query ?? '');
   return {
-    focusId,
+    rootId,
     selectedId: parseId(params.get('sel')),
     pan: parsePan(params.get('pan')),
     zoom: parseZoom(params.get('zoom'), bounds.minZoom, bounds.maxZoom)
@@ -84,11 +84,11 @@ export function parseHashView(hash: string, bounds: Bounds): ParsedView {
 // readable than `%2C`.
 export function buildHash(view: BuildView): string {
   const parts: string[] = [];
-  const sel = view.selectedId ?? view.focusId;
-  if (sel !== view.focusId) parts.push(`sel=${sel}`);
+  const sel = view.selectedId ?? view.rootId;
+  if (sel !== view.rootId) parts.push(`sel=${sel}`);
   if (view.pan !== null) parts.push(`pan=${formatPan(view.pan)}`);
   if (view.zoom !== null) parts.push(`zoom=${formatZoom(view.zoom)}`);
   return parts.length === 0
-    ? `#/person/${view.focusId}`
-    : `#/person/${view.focusId}?${parts.join('&')}`;
+    ? `#/person/${view.rootId}`
+    : `#/person/${view.rootId}?${parts.join('&')}`;
 }

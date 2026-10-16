@@ -40,7 +40,7 @@ export interface DatasetInfo {
   importedAt: string | null;
 }
 
-// Returned by /api/persons/:id — what the Focus panel shows.
+// Returned by /api/persons/:id — what the person panel shows.
 export interface PersonDetails {
   id: number;
   name: string | null;

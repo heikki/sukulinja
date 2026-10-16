@@ -1,4 +1,4 @@
-// What the Focus panel shows for one person: their facts, the facts of their
+// What the person panel shows for one person: their facts, the facts of their
 // marriages, and their citations, MyHeritage records read into fields.
 
 import type { Database } from 'bun:sqlite';
