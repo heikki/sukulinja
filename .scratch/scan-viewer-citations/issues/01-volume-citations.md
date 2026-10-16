@@ -44,3 +44,18 @@ tests do (`test-parish.ts`):
 - A correction shows in the next answer.
 - Another parish's citations are never resolved (no Astia request for its
   Volumes).
+
+## Comments
+
+Landed as `src/server/volume-citations.ts` (the query and its cache) over
+`volumeScans` in `scans.ts`; rows are `VolumeCitation` in `@common/types`.
+
+- The Volume's parish is found by looking for it in the archives of the
+  dataset's cited parishes, most cited first, stopping at the first that
+  holds it. An archive already crawled costs no request; only references of
+  that archive's parishes (spelling variants included) are resolved.
+- The vision pass saves from a script, another process, so the cache and
+  `loadAnchors` both key on the local files' modification stamp
+  (`localStamp`) instead of being told: a save shows in the next answer
+  without restarting the app, here and in the source panel's links.
+- A Placed `Scan` now carries its `box`.

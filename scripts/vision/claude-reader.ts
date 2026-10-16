@@ -12,8 +12,8 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 
+import type { Box } from '@common/types';
 import type {
-  Box,
   DatesReading,
   EntryReading,
   ImageRef,

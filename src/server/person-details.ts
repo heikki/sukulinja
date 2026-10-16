@@ -19,7 +19,7 @@ import {
 } from './citation-scans/record';
 import type { ChurchBookRef } from './citation-scans/record';
 
-interface CitationDbRow {
+export interface CitationDbRow {
   id: number;
   source: string | null;
   page: string | null;
@@ -81,7 +81,7 @@ function contentOf(url: string | null, text: string | null) {
 }
 
 // A church book's first year orders it; other sources sort last.
-function toCitation(row: CitationDbRow): CitationRow & { year: number } {
+export function toCitation(row: CitationDbRow): CitationRow & { year: number } {
   const url = linkOf(row.page);
   const book = churchBookRefOf(url, row.text ?? '');
   return {

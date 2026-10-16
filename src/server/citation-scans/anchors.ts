@@ -8,7 +8,11 @@
 // A correction by hand always wins: one matched by the vision model never
 // replaces a hand one (shipped ones count as by hand), and a hand one
 // replaces it.
+//
+// The vision pass saves from a script while the app runs, so what's read
+// is kept only while the local files are unchanged.
 
+import { stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
 import shipped from './anchors.json';
@@ -23,12 +27,24 @@ import type {
 
 let localFile = resolve('data/anchors.local.json');
 let placementsFile = resolve('data/placements.local.json');
-let merged: Promise<Anchors> | null = null;
+let merged: { stamp: string; anchors: Promise<Anchors> } | null = null;
 
 export function setLocalFolder(dir: string) {
   localFile = join(dir, 'anchors.local.json');
   placementsFile = join(dir, 'placements.local.json');
   merged = null;
+}
+
+async function fileStamp(path: string) {
+  const info = await stat(path).catch(() => null);
+  return info === null ? '-' : `${info.mtimeMs}:${info.size}`;
+}
+
+// Changes whenever a correction or a vision save writes the local anchors
+// or placements, from this process or another.
+export async function localStamp() {
+  const stamps = await Promise.all([localFile, placementsFile].map(fileStamp));
+  return stamps.join(' ');
 }
 
 async function readLocal() {
@@ -124,9 +140,12 @@ function merge(base: Anchors, local: Anchors) {
   return out;
 }
 
-export function loadAnchors() {
-  merged ??= readLocal().then((local) => merge(shipped, local));
-  return merged;
+export async function loadAnchors() {
+  const stamp = await fileStamp(localFile);
+  if (merged?.stamp !== stamp) {
+    merged = { stamp, anchors: readLocal().then((l) => merge(shipped, l)) };
+  }
+  return await merged.anchors;
 }
 
 export async function addLocalAnchor(

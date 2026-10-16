@@ -3,7 +3,7 @@
 
 import { join } from 'node:path';
 
-import type { ScanResolution } from '@common/types';
+import type { Box, Scan, ScanResolution } from '@common/types';
 
 import {
   addLocalAnchor,
@@ -13,11 +13,10 @@ import {
   setLocalFolder,
   setPlacement
 } from './anchors';
-import { setCacheDir, volumeImages } from './astia';
+import { archiveVolumes, setCacheDir, volumeImages } from './astia';
 import { setImageCacheDir } from './images';
-import { parishVolumes, resolveChurchBookRef } from './locate';
+import { parishArchive, parishVolumes, resolveChurchBookRef } from './locate';
 import type { Candidate } from './matcher';
-import type { Box } from './reader';
 import { CHURCH_COLLECTIONS, collectionOf, parseChurchBookRef } from './record';
 import type { ChurchBookRef } from './record';
 import { useScanCacheSettings } from './scan-cache';
@@ -49,6 +48,65 @@ export async function resolveScans(
   } catch {
     return { error: 'Astia unavailable' };
   }
+}
+
+// The parish archive holding the Volume, looked for among the archives of
+// the parishes given, most cited first; an archive already crawled costs no
+// request. Null when none holds it; an archive that can't be read is passed
+// over, and throws only if the Volume isn't found elsewhere.
+async function archiveOf(volumeId: string, parishes: Array<string | null>) {
+  const cited = new Map<string, number>();
+  for (const p of parishes) {
+    const archive = parishArchive(p);
+    if (archive !== null) cited.set(archive, (cited.get(archive) ?? 0) + 1);
+  }
+  const order = [...cited.keys()].sort((a, b) => cited.get(b)! - cited.get(a)!);
+  let failed: Error | null = null;
+  for (const archive of order) {
+    try {
+      // eslint-disable-next-line no-await-in-loop -- stop at the first holding it
+      const volumes = await archiveVolumes(archive);
+      if (volumes.some((v) => v.id === volumeId)) return archive;
+    } catch (err) {
+      failed = err instanceof Error ? err : new Error(String(err));
+    }
+  }
+  if (failed !== null) throw failed;
+  return null;
+}
+
+// Where in the Volume a reference resolves.
+export interface VolumeScan {
+  scan: Scan;
+  // One of several candidate Volumes.
+  split: boolean;
+}
+
+// Each reference's Scan in the Volume, or null for one resolving elsewhere;
+// null for them all when the Volume is in none of their parishes. Only the
+// Volume's parish's references are resolved: another parish's would crawl
+// its Volumes from Astia.
+export async function volumeScans(volumeId: string, refs: ChurchBookRef[]) {
+  const archive = await archiveOf(
+    volumeId,
+    refs.map((r) => r.parish)
+  );
+  if (archive === null) return null;
+  const [anchors, placements] = await Promise.all([
+    loadAnchors(),
+    loadPlacements()
+  ]);
+  return await Promise.all(
+    refs.map(async (ref): Promise<VolumeScan | null> => {
+      if (parishArchive(ref.parish) !== archive) return null;
+      const resolved = await resolveChurchBookRef(ref, anchors, placements);
+      if ('error' in resolved) return null;
+      const scan = resolved.scans.find((s) => s.volumeId === volumeId);
+      return scan === undefined
+        ? null
+        : { scan, split: resolved.scans.length > 1 };
+    })
+  );
 }
 
 // The Image the user marks as where the record is, in any Volume of the

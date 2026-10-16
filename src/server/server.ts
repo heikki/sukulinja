@@ -20,6 +20,7 @@ import type { DatasetRegistry } from './dataset-registry';
 import { importDataset, slugFromFilename } from './import-dataset';
 import { createPersonDetails } from './person-details';
 import { runPool } from './pool';
+import { createVolumeCitations } from './volume-citations';
 
 const DATASET_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?<rest>\/.*)?$/u;
 const ASTIA_RE =
@@ -42,6 +43,7 @@ interface DatasetHandlers {
   handlePersonScans: (id: number) => Response;
   handleCorrection: (id: number, correction: Correction) => Promise<Response>;
   handleCitationVolumes: (id: number) => Promise<Response>;
+  handleVolumeCitations: (volumeId: string) => Promise<Response>;
   handleMedia: (rest: string, mediaRoot: string) => Promise<Response>;
 }
 
@@ -88,6 +90,7 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
     'SELECT family_id, person_id FROM family_children ORDER BY family_id, sort_order'
   );
   const personDetails = createPersonDetails(db);
+  const volumeCitations = createVolumeCitations(db);
   const getCitation = db.prepare<
     { page: string | null; text: string | null },
     [number]
@@ -209,6 +212,19 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
       }
       try {
         return Response.json(await citationVolumes(row.page, row.text));
+      } catch {
+        return new Response('Astia unavailable', { status: 502 });
+      }
+    },
+
+    async handleVolumeCitations(volumeId) {
+      try {
+        const rows = await volumeCitations(volumeId);
+        return rows === null
+          ? new Response("volume not in the dataset's parishes", {
+              status: 404
+            })
+          : Response.json(rows);
       } catch {
         return new Response('Astia unavailable', { status: 502 });
       }
@@ -386,6 +402,10 @@ async function routeDataset(
     return citation.groups!.what === 'scans'
       ? await routeCorrection(req, handlers, id)
       : await handlers.handleCitationVolumes(id);
+  }
+  const volume = /^\/api\/volumes\/(?<id>[^/]+)\/citations$/.exec(rest);
+  if (volume !== null) {
+    return await handlers.handleVolumeCitations(volume.groups!.id!);
   }
   if (rest.startsWith('/media/')) {
     return await handlers.handleMedia(rest, mediaRoot);

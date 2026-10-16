@@ -18,6 +18,7 @@
 // different photograph of the same page, matched by what's written on it.
 
 import type {
+  Box,
   Provenance,
   Scan,
   ScanMethod,
@@ -26,7 +27,6 @@ import type {
 
 import { archiveVolumes, viewerUrl, volumeImages } from './astia';
 import type { Volume } from './astia';
-import type { Box } from './reader';
 import type { ChurchBookRef } from './record';
 import type { BookKind, Years } from './text';
 
@@ -249,10 +249,21 @@ interface Located {
   image: number | null;
   method: ScanMethod;
   by?: Provenance;
+  box?: Box;
 }
 
 function seenRecord(v: Volume, ref: ChurchBookRef, anchors: Anchors) {
   return anchors[v.id]?.seen?.find((r) => r.record === ref.recordId);
+}
+
+// A Seen record's Image, who saw it there, and where on it.
+function seenAt(seen: SeenRecord) {
+  const at = {
+    image: seen.image,
+    method: 'placed' as const,
+    by: seen.by ?? 'hand'
+  };
+  return seen.box === undefined ? at : { ...at, box: seen.box };
 }
 
 async function locate(
@@ -262,10 +273,7 @@ async function locate(
 ): Promise<Located> {
   const files = await volumeImages(v.id);
   const seen = seenRecord(v, ref, anchors);
-  if (seen !== undefined) {
-    const by = seen.by ?? 'hand';
-    return { volume: v, files, image: seen.image, method: 'placed', by };
-  }
+  if (seen !== undefined) return { volume: v, files, ...seenAt(seen) };
   if (ref.page === null) {
     return { volume: v, files, image: null, method: 'volume' };
   }
@@ -307,13 +315,21 @@ function toScan(l: Located): Scan {
     url: viewerUrl(l.volume.id, l.files[image - 1]!),
     method: l.image === null ? 'volume' : l.method
   };
-  return l.by === undefined ? scan : { ...scan, by: l.by };
+  if (l.by !== undefined) scan.by = l.by;
+  if (l.box !== undefined) scan.box = l.box;
+  return scan;
+}
+
+// The Astia fonds of the parish, however it's spelled; null for one not
+// looked up.
+export function parishArchive(parish: string | null) {
+  return parish === null ? null : (PARISH_ARCHIVE[parish] ?? null);
 }
 
 // The parish's population-register volumes, for checking a placement.
 export async function parishVolumes(parish: string | null) {
-  const archiveId = parish === null ? undefined : PARISH_ARCHIVE[parish];
-  return archiveId === undefined ? [] : await archiveVolumes(archiveId);
+  const archiveId = parishArchive(parish);
+  return archiveId === null ? [] : await archiveVolumes(archiveId);
 }
 
 async function placedScan(p: Placement): Promise<Scan> {
@@ -324,7 +340,8 @@ async function placedScan(p: Placement): Promise<Scan> {
     image: p.image,
     url: viewerUrl(p.volumeId, files[p.image - 1]!),
     method: 'placed',
-    by: p.by ?? 'hand'
+    by: p.by ?? 'hand',
+    ...(p.box === undefined ? {} : { box: p.box })
   };
 }
 
