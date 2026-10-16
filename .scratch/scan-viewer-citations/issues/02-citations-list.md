@@ -36,3 +36,13 @@ Part of `../spec.md`. Needs 01.
   marking then saves for their citation.
 - Marking an Image moves the row to the Placed group at once.
 - The panel collapses and stays out of the scan's way.
+
+## Comments
+
+Landed as `sl-scan-people` (`scan-viewer/people.ts`) beside the stage, with
+the grouping and labels in `scan-viewer/citations.ts`. Placed rows are listed
+in the order written on the Image where their box is known. Picking a row
+sends `scan-person` with the person and their link on the Image shown; the
+tree view refocuses on them and keeps the viewer open on it
+(`scanFollowing`), where a refocus otherwise closes it. The panel's collapsed
+state lasts the visit.

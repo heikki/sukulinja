@@ -18,13 +18,14 @@ import '../settings';
 
 import type { ScanOpen, ScanOpenEvent } from '../person-panel';
 import type { PickEvent } from '../person-search';
-import type { ScanMarkedEvent } from '../scan-viewer';
+import type { ScanMarkedEvent, ScanPersonEvent } from '../scan-viewer';
 import type { GenerationsChangeEvent } from '../settings';
 import type { OpenChangeEvent, WidthChangeEvent } from '../side-dock';
 import { onAvatarReady } from './avatar-cache';
 import { buildChart } from './build';
 import { otherSpouseOf } from './build/indices';
-import type { Box, EmitOutput, Extents, Point } from './emit';
+import { comfortOf } from './comfort';
+import type { EmitOutput, Extents, Point } from './emit';
 import { dims, formatName, renderBox, renderEdge } from './renderer';
 import { treeViewStyles } from './styles';
 import { TransitionController } from './transition';
@@ -65,36 +66,6 @@ function scheduleVars(schedule: Schedule) {
   ].join(';');
 }
 
-function boundsOf(boxes: Box[]): Extents {
-  const xs = boxes.map((b) => b.pos.x);
-  const ys = boxes.map((b) => b.pos.y);
-  return {
-    min: {
-      x: Math.min(...xs) - dims.boxW / 2,
-      y: Math.min(...ys) - dims.boxH / 2
-    },
-    max: {
-      x: Math.max(...xs) + dims.boxW / 2,
-      y: Math.max(...ys) + dims.boxH / 2
-    }
-  };
-}
-
-// Comfort region: the Focus row plus the Parent row (or Focus's row alone), from
-// the chart's boxes. Its cores, most preferred first: Focus and their spouses
-// with every descendant below, then Focus and their spouses alone. Focus sits
-// at chart y = 0.
-function comfortOf(boxes: Box[], coreIds: ReadonlySet<number>): Comfort | null {
-  const rowPitch = dims.boxH + dims.gapY;
-  const rows = boxes.filter((b) => b.pos.y <= 0 && b.pos.y >= -rowPitch);
-  if (rows.length === 0) return null;
-  const region = boundsOf(rows);
-  const couple = rows.filter((b) => b.pos.y === 0 && coreIds.has(b.personId));
-  if (couple.length === 0) return { region, cores: [region] };
-  const family = [...couple, ...boxes.filter((b) => b.pos.y > 0)];
-  return { region, cores: [boundsOf(family), boundsOf(couple)] };
-}
-
 @customElement('sl-tree-view')
 export class TreeViewElement extends LitElement {
   static override styles = treeViewStyles;
@@ -110,6 +81,9 @@ export class TreeViewElement extends LitElement {
   // The scan the Scan viewer shows over the chart; it belongs to Focus, so a
   // refocus closes it.
   @state() private scanOpen: ScanOpen | null = null;
+  // A person picked in the Scan viewer: refocusing on them keeps it open, on
+  // their citation.
+  private scanFollowing: ScanOpen | null = null;
 
   private readonly parentFamByPerson = new Map<number, FamilyRow>();
   private readonly spouseFamsByPerson = new Map<number, FamilyRow[]>();
@@ -208,7 +182,9 @@ export class TreeViewElement extends LitElement {
   }
 
   override willUpdate(changed: PropertyValues) {
-    if (changed.has('focusId')) this.scanOpen = null;
+    if (changed.has('focusId')) {
+      [this.scanOpen, this.scanFollowing] = [this.scanFollowing, null];
+    }
     // Gen change rebuilds the chart with different extents, which would drift
     // Focus on screen since chart (0,0) is mapped through extents.min.
     // Capture Focus's current screen pixel so the post-rebuild pin keeps it
@@ -430,12 +406,26 @@ export class TreeViewElement extends LitElement {
     }
   };
 
+  // The chart and the dock move to them, and the viewer goes on with their
+  // citation, so a mark saves for it.
+  private readonly onScanPerson = (e: ScanPersonEvent) => {
+    const { personId, open } = e.detail;
+    if (personId === this.focusId) {
+      this.scanOpen = open;
+    } else {
+      this.scanFollowing = open;
+      this.setFocus(personId, this.canvasCenter());
+    }
+  };
+
   private renderScanViewer() {
     if (this.scanOpen === null) return nothing;
     return html`
       <sl-scan-viewer
         .citation=${this.scanOpen.citation}
         .scan=${this.scanOpen.scan}
+        .persons=${this.persons}
+        @scan-person=${this.onScanPerson}
         @scan-close=${() => {
           this.scanOpen = null;
         }}

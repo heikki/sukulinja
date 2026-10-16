@@ -15,6 +15,13 @@ export function linkLabel(link: Scan) {
     : LINK_LABELS[link.method];
 }
 
+// A JSON answer; a failed one throws.
+export async function getJson<T>(url: string, signal: AbortSignal) {
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw new Error(String(res.status));
+  return (await res.json()) as T;
+}
+
 // Image numbers run 1..count; before the count is known, only from 1.
 export function clampImage(n: number, count: number | null) {
   const high = count ?? Infinity;

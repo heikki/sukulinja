@@ -71,9 +71,17 @@ export const scanViewerStyles = css`
     line-height: 1.4;
   }
 
+  /* The scan, and the people linked to it beside. */
+  .body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+  }
+
   .stage {
     position: relative;
     flex: 1;
+    min-width: 0;
     overflow: hidden;
     cursor: grab;
     touch-action: none;
@@ -238,5 +246,96 @@ export const scanToolbarStyles = css`
 
   .note.error {
     color: var(--danger);
+  }
+`;
+
+// A column beside the scan; collapsed, a strip with the button to bring it
+// back.
+export const scanPeopleStyles = css`
+  :host {
+    display: flex;
+    flex-direction: column;
+    width: 16rem;
+    min-height: 0;
+    background: var(--card);
+    border-left: 1px solid var(--border);
+  }
+
+  :host([collapsed]) {
+    width: auto;
+    padding: 0.4rem 0.3rem;
+  }
+
+  .head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.4rem 0.5rem 0.4rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  h2 {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  .list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.25rem 0 0.75rem;
+  }
+
+  h3 {
+    margin: 0.6rem 0.75rem 0.2rem;
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  p {
+    margin: 0.6rem 0.75rem;
+  }
+
+  button.row {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding: 0.3rem 0.75rem;
+    border: 0;
+    border-left: 3px solid transparent;
+    border-radius: 0;
+    background: none;
+    text-align: left;
+  }
+
+  button.row:hover {
+    background: var(--bg);
+    color: var(--fg);
+  }
+
+  button.row.current {
+    border-left-color: var(--accent);
+    background: var(--bg);
+  }
+
+  .name {
+    font-weight: 500;
+  }
+
+  .row .muted {
+    font-size: 0.8rem;
+  }
+
+  button.toggle {
+    padding: 0 0.45rem;
   }
 `;
