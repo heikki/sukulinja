@@ -115,6 +115,56 @@ export const personPanelStyles = css`
     overflow-wrap: anywhere;
   }
 
+  /* Each household after the first, ruled off from the one before. */
+  .family + .family {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+  }
+
+  /* A person of the household, their relation in a column of its own so
+     the names line up; tinted across the panel's width, as a source is,
+     as clicking picks them. */
+  .relative {
+    display: flex;
+    gap: 0.75rem;
+    width: calc(100% + 2.2rem);
+    margin: 0 -1.1rem;
+    padding: 0.3rem 1.1rem;
+    border: 0;
+    background: none;
+    color: var(--fg);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .relative:hover {
+    background: color-mix(in srgb, var(--accent) 7%, var(--card));
+  }
+
+  .relative:focus-visible {
+    outline-offset: -2px;
+  }
+
+  .relation {
+    flex: none;
+    width: 5.5rem;
+    color: var(--muted);
+  }
+
+  .person {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .life {
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+
   /* A group of sources, named as written: set apart from the sections'
      small capitals. */
   /* 1.2rem above each: the first's margin merges with the section body's,

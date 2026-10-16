@@ -73,8 +73,6 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
   `);
 
   type ListRow = Omit<PersonRow, 'birth_year' | 'death_year' | 'crop'> & {
-    birth_date: string | null;
-    death_date: string | null;
     crop_top: number | null;
     crop_left: number | null;
     crop_width: number | null;
@@ -111,6 +109,8 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
         sex: r.sex,
         birth_year: parseYear(r.birth_date),
         death_year: parseYear(r.death_date),
+        birth_date: r.birth_date,
+        death_date: r.death_date,
         photo_path: r.photo_path,
         crop:
           r.crop_top !== null &&
