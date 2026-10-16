@@ -1,3 +1,4 @@
+import { gedcomDate } from '@common/dates';
 import type { CitationRow, FactRow, Scan, ScanResolution } from '@common/types';
 
 import { methodHint, methodLabel, splitLabel } from '../scan-viewer/citations';
@@ -36,10 +37,11 @@ export function factLabel(fact: FactRow) {
   return FACT_LABELS[fact.tag] ?? fact.tag;
 }
 
-// Date, place, address and value as recorded, joined; a marriage names the
-// spouse.
+// The date, read, then place, address and value as recorded, joined; a
+// marriage names the spouse.
 export function factText(fact: FactRow) {
-  const parts = [fact.date, fact.place, fact.address, fact.value].filter(
+  const date = fact.date === null ? null : gedcomDate(fact.date);
+  const parts = [date, fact.place, fact.address, fact.value].filter(
     (x) => x !== null && x !== ''
   );
   if (fact.spouse !== null) parts.push(`with ${fact.spouse}`);

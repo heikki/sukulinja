@@ -3,6 +3,7 @@
 
 import type { Database } from 'bun:sqlite';
 
+import { isoDate } from '@common/dates';
 import type {
   BookKind,
   CitationRow,
@@ -69,23 +70,10 @@ export function describeRef(ref: ChurchBookRef) {
   return named.length === 0 ? null : named.join('\u00a0· ');
 }
 
-const MONTH_NAMES = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(
-  ' '
-);
-
-// "1761-03-03" as "3 Mar 1761", as precise as it's given.
-function dayText(date: string) {
-  const [year, month, day] = date.split('-');
-  const name = month === undefined ? null : MONTH_NAMES[Number(month) - 1];
-  return [day === undefined ? null : String(Number(day)), name, year]
-    .filter((s) => s !== null && s !== undefined)
-    .join(' ');
-}
-
 // Where in its Volume the reference points: the page, else the entry's date.
 export function entryOf(ref: ChurchBookRef) {
   if (ref.page !== null) return `p.\u00a0${ref.page}`;
-  return ref.date === null ? null : dayText(ref.date);
+  return ref.date === null ? null : isoDate(ref.date);
 }
 
 // A MyHeritage record is read into its fields; others keep their text.
