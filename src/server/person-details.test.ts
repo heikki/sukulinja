@@ -117,6 +117,25 @@ test('serves facts in date order and church books first', () => {
   expect(createPersonDetails(db)(99)).toBeNull();
 });
 
+test('serves birth first and death last, whatever their dates', () => {
+  const gedcom = [
+    '0 @I1@ INDI',
+    '1 NAME Matti /Esimerkki/',
+    '1 BURI',
+    '2 DATE 1820',
+    '1 DEAT',
+    '1 RESI',
+    '2 DATE 1750',
+    '1 BIRT',
+    '1 OCCU Torppari',
+    ''
+  ].join('\n');
+  const db = openDb(':memory:');
+  importGedcom(db, parseGedcom(gedcom), () => null);
+  const tags = createPersonDetails(db)(1)?.facts.map((f) => f.tag);
+  expect(tags).toEqual(['BIRT', 'RESI', 'OCCU', 'DEAT', 'BURI']);
+});
+
 test('names a church-book reference by what it gives', () => {
   const ref = {
     url: RIPPI,

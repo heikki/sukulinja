@@ -32,6 +32,20 @@ function yearOf(date: string | null) {
   return m === null ? Infinity : Number(m[0]);
 }
 
+// Birth opens a life and death closes it, burial after; the rest run
+// between them by date.
+const LIFE_ORDER: Record<string, number> = {
+  BIRT: 0,
+  DEAT: 2,
+  BURI: 3,
+  CREM: 3
+};
+
+function byLife(a: FactRow, b: FactRow) {
+  const order = (LIFE_ORDER[a.tag] ?? 1) - (LIFE_ORDER[b.tag] ?? 1);
+  return order === 0 ? yearOf(a.date) - yearOf(b.date) : order;
+}
+
 function linkOf(page: string | null) {
   return page !== null && /^https?:/.test(page) ? page : null;
 }
@@ -154,8 +168,9 @@ export function createPersonDetails(db: Database) {
     return parts.length === 0 ? null : parts.join(' ');
   }
 
-  // Facts and church books run in date order; undated ones keep their
-  // recorded order after the dated.
+  // Facts run from birth to death, those between in date order; church
+  // books in date order. Undated ones keep their recorded order after the
+  // dated.
   return (id: number): PersonDetails | null => {
     const p = person.get(id);
     if (p === null) return null;
@@ -166,7 +181,7 @@ export function createPersonDetails(db: Database) {
         ...f,
         spouse: fullName(spouseGiven, spouseSurname)
       }))
-    ].sort((a, b) => yearOf(a.date) - yearOf(b.date));
+    ].sort(byLife);
     const cited = citations
       .all(id)
       .map(toCitation)
