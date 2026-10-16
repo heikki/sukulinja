@@ -153,10 +153,8 @@ export interface Years {
 export interface VolumeCitation {
   personId: number;
   citation: CitationRow;
-  image: number | null;
-  method: ScanMethod;
-  by?: Provenance;
-  box?: Box;
+  // The citation's link into this Volume, as the person panel resolves it.
+  scan: Scan;
   split: boolean;
 }
 

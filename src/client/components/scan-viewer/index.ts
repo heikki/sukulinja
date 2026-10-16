@@ -254,7 +254,7 @@ export class ScanViewerElement extends LitElement {
   private readonly onPick = (e: CustomEvent<VolumeCitation>) => {
     const row = e.detail;
     if (this.volume === null) return;
-    const scan = pickedScan(row, this.volume, this.image, this.links);
+    const scan = pickedScan(row, this.image, this.links);
     const open = { citation: row.citation, scan };
     const detail: ScanPerson = { personId: row.personId, open };
     this.dispatchEvent(
