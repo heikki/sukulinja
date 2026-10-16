@@ -158,6 +158,20 @@ async function readUnit(id: string) {
   }));
 }
 
+// The archive's title as Astia gives it ("Pieksämäen seurakunnan
+// arkisto"); null when Astia can't say.
+export async function archiveTitle(archiveId: string) {
+  try {
+    const json = (await fetchJson(
+      `ws/aineisto/readOne.php?id=${archiveId}`
+    )) as { titles?: string };
+    const title = json.titles ?? '';
+    return title === '' ? null : decodeEntities(title);
+  } catch {
+    return null;
+  }
+}
+
 async function volumeFiles(volumeId: string) {
   return (await fetchJson(`ws/aineisto/digitoidut.php?id=${volumeId}`)) as {
     isot?: XmlNode[];

@@ -97,15 +97,17 @@ export const personPanelStyles = css`
     overflow-wrap: anywhere;
   }
 
+  /* A group of sources, named as written: set apart from the sections'
+     small capitals. */
   h4 {
-    margin: 0.9rem 0 0.25rem;
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: var(--muted);
+    margin: 1.25rem 0 0.25rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--fg);
   }
 
   h4:first-child {
-    margin-top: 0;
+    margin-top: 0.25rem;
   }
 
   /* A source, tinted across the panel's width when clicking it does
@@ -113,11 +115,12 @@ export const personPanelStyles = css`
   .source {
     position: relative;
     margin: 0 -1.1rem;
-    padding: 0.6rem 1.1rem;
+    padding: 0.45rem 1.1rem;
   }
 
-  .source + .source {
-    border-top: 1px solid var(--border);
+  /* Under a group's heading, its sources step in. */
+  h4 ~ .source {
+    padding-left: 1.85rem;
   }
 
   .source.active {
@@ -144,26 +147,41 @@ export const personPanelStyles = css`
     background: var(--accent);
   }
 
+  /* The source's lines, and its chevron centred beside them. */
   .top {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 0.5rem;
   }
 
-  button.title {
+  .lines {
     flex: 1;
+    min-width: 0;
+  }
+
+  button.title {
+    display: block;
+    width: 100%;
     min-width: 0;
     padding: 0;
     border: 0;
     background: none;
-    color: var(--fg);
+    color: color-mix(in srgb, var(--fg) 80%, var(--muted));
     font: inherit;
-    font-weight: 500;
+    font-size: 0.825rem;
     text-align: left;
     cursor: inherit;
   }
 
+  /* A Volume's name stays on one line. */
+  .linked button.title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   button.title[aria-current] {
+    color: var(--fg);
     font-weight: 600;
   }
 
@@ -236,8 +254,22 @@ export const personPanelStyles = css`
     white-space: nowrap;
   }
 
+  /* The entry at the left, how its Image was found at the right. */
   .status {
-    margin-top: 0.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.2rem;
+  }
+
+  /* Under the Volume's name, in a quieter tone. */
+  .entry {
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+
+  .status .chip {
+    margin-left: auto;
   }
 
   .chip {
@@ -248,8 +280,10 @@ export const personPanelStyles = css`
     color: var(--muted);
   }
 
-  a.site {
-    display: inline-block;
+  .sites {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
     margin-top: 0.5rem;
   }
 

@@ -6,8 +6,8 @@ import type { PersonRow, VolumeCitation } from '@common/types';
 import { formatName } from '../tree-view/renderer';
 import { boxKey, groupCitations, SPLIT_NOTE } from './citations';
 import { markedIn, saveMark } from './helpers';
+import type { ScanMarked } from './helpers';
 import { controlStyles, scanPeopleStyles } from './styles';
-import type { ScanMarked } from './toolbar';
 
 // Collapsed or not for the rest of the visit, across Volumes and citations.
 let collapsed = false;

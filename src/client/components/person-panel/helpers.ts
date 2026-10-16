@@ -1,4 +1,4 @@
-import type { FactRow, Scan, ScanResolution } from '@common/types';
+import type { CitationRow, FactRow, Scan, ScanResolution } from '@common/types';
 
 import { methodHint, methodLabel, splitLabel } from '../scan-viewer/citations';
 
@@ -81,50 +81,47 @@ export function siteName(url: string) {
   return known?.[1] ?? host.replace(/^www\./, '');
 }
 
-// Opens in the Scan viewer, so no ↗: that marks links leaving the app.
-// Resolving found the parish's books but not the Image, so it can be looked
-// for by hand. Other errors (no archive, unparsed, Astia down) can't.
+// Resolving found the parish's books but not the Image. Other errors (no
+// archive, unparsed, Astia down) found no books to look in.
 const FINDABLE = new Set(['no matching volume', 'not digitized', 'no images']);
 
 // A church-book source's scan, in brief: how its Image was found, in the
-// Scan viewer's words, or why there's none; the tooltip says where. Opening the source shows `target`:
-// the Scan viewer on its scan, on none to look for the Image (`scan: null`),
-// or nothing (null).
+// Scan viewer's words, or why there's none; the tooltip says where. Opening
+// the source shows `scan` in the Scan viewer, if there is one.
 export interface ScanStatus {
   label: string;
   title: string;
-  target: { scan: Scan | null } | null;
+  scan: Scan | null;
 }
 
 // Scans arrive after the panel renders; until then the status is pending. A
-// Split reference opens on its first candidate; the viewer's switcher lists
-// the others first.
+// Split reference opens on its first candidate.
 export function scanStatus(
   resolution: ScanResolution | undefined,
   pending: boolean
 ): ScanStatus {
   if (resolution === undefined) {
     const label = pending ? 'Finding scan…' : 'Scan unavailable';
-    return { label, title: '', target: null };
+    return { label, title: '', scan: null };
   }
   if ('error' in resolution) {
     const findable = FINDABLE.has(resolution.error);
     return {
       label: findable ? 'Not found' : 'No scan',
       title: findable
-        ? "The parish's books were found but not the Image: open the source to look for it."
+        ? "The parish's books were found but not the Image."
         : `No scan could be found (${resolution.error}).`,
-      target: findable ? { scan: null } : null
+      scan: null
     };
   }
   const { scans } = resolution;
   const [first] = scans;
-  if (first === undefined) return { label: 'No scan', title: '', target: null };
+  if (first === undefined) return { label: 'No scan', title: '', scan: null };
   const label = methodLabel(first.method, first.by);
   return {
     label: scans.length > 1 ? splitLabel(label) : label,
     title: scanTitle(scans),
-    target: { scan: first }
+    scan: first
   };
 }
 
@@ -139,4 +136,65 @@ export function scanTitle(scans: Scan[]) {
   const where = scans.map((s) => `${s.volume}, image ${s.image}`);
   const hint = first === undefined ? [] : [methodHint(first.method, first.by)];
   return [...hint, ...split, ...where].join('\n');
+}
+
+// Sources under one heading: an archive's (`linked`), the church books'
+// with no Volume, or the others'. Named only when there's a church book
+// among them.
+export interface SourceGroup {
+  label: string | null;
+  rows: CitationRow[];
+  linked: boolean;
+}
+
+function firstScan(resolution: ScanResolution | undefined) {
+  return resolution !== undefined && 'scans' in resolution
+    ? (resolution.scans[0] ?? null)
+    : null;
+}
+
+// The heading a source goes under: the archive of the Volume it links (a
+// Split reference's first), else the church books' or the others'.
+function headingFor(c: CitationRow, scans: Map<number, ScanResolution>) {
+  const scan = c.churchBook ? firstScan(scans.get(c.id)) : null;
+  if (scan === null) {
+    return { label: c.churchBook ? 'Church books' : 'Other', scan };
+  }
+  return { label: scan.archive ?? 'Church books', scan };
+}
+
+// The sources by the archive whose Volume they link, in the order the
+// server sends them (church books by year, the others last); a Volume's
+// references together, by page.
+export function groupSources(
+  citations: CitationRow[],
+  scans: Map<number, ScanResolution>
+) {
+  const groups = new Map<string, SourceGroup>();
+  const volumeOrder = new Map<string, number>();
+  const placeOf = new Map<number, [number, number]>();
+  for (const c of citations) {
+    const { label, scan } = headingFor(c, scans);
+    const linked = scan !== null;
+    const key = `${linked}:${label}`;
+    const group = groups.get(key) ?? { label, rows: [], linked };
+    group.rows.push(c);
+    groups.set(key, group);
+    if (scan === null) continue;
+    if (!volumeOrder.has(scan.volumeId)) {
+      volumeOrder.set(scan.volumeId, volumeOrder.size);
+    }
+    placeOf.set(c.id, [volumeOrder.get(scan.volumeId)!, c.citedPage ?? 0]);
+  }
+  function byPlace(a: CitationRow, b: CitationRow) {
+    const [va, pa] = placeOf.get(a.id) ?? [0, 0];
+    const [vb, pb] = placeOf.get(b.id) ?? [0, 0];
+    return va === vb ? pa - pb : va - vb;
+  }
+  const named = citations.some((c) => c.churchBook);
+  return [...groups.values()].map((g) => ({
+    ...g,
+    label: named ? g.label : null,
+    rows: g.linked ? g.rows.toSorted(byPlace) : g.rows
+  }));
 }

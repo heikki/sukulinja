@@ -64,6 +64,9 @@ export interface CitationRow {
   // A Church-book reference in brief, which names the source better than
   // its collection: "Haukivuori · Pää- ja rippikirjat 1821–1837 · p. 2".
   reference: string | null;
+  // Where in its Volume a Church-book reference points: its page, "p. 135",
+  // or failing one the date of its entry, "3 Mar 1761".
+  entry: string | null;
   // PAGE as recorded; `url` repeats it when it is a link.
   page: string | null;
   url: string | null;
@@ -124,6 +127,9 @@ export interface Scan {
   by?: Provenance;
   // Set on a placed scan where the vision model said where the entry is.
   box?: Box;
+  // The archive the Volume is in, by its title in Astia: "Pieksämäen
+  // seurakunnan arkisto". Unset when Astia can't say.
+  archive?: string;
 }
 
 export type ScanResolution = { scans: Scan[] } | { error: string };
@@ -152,17 +158,6 @@ export interface VolumeCitation {
   by?: Provenance;
   box?: Box;
   split: boolean;
-}
-
-// A line of /api/citations/:id/volumes: a digitized Volume of the
-// reference's parish. `image` is the reference's Image in it when the
-// reference links it by the Book it cites, null otherwise.
-export interface CitationVolume {
-  id: string;
-  label: string;
-  kind: BookKind | null;
-  years: Years | null;
-  image: number | null;
 }
 
 // GET /settings/scan-cache: how much space Astia's Images may take (`cap`)

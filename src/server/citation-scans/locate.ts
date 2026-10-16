@@ -25,7 +25,7 @@ import type {
   ScanResolution
 } from '@common/types';
 
-import { archiveVolumes, viewerUrl, volumeImages } from './astia';
+import { archiveTitle, archiveVolumes, viewerUrl, volumeImages } from './astia';
 import type { Volume } from './astia';
 import type { ChurchBookRef } from './record';
 import type { BookKind, Years } from './text';
@@ -357,10 +357,27 @@ async function volumesFor(
     : candidateVolumes(volumes, ref.kind!, ref.years!);
 }
 
+// The links, each saying whose archive its Volume is in.
+async function withArchive(scans: Scan[], parish: string | null) {
+  const archiveId = parishArchive(parish);
+  const archive = archiveId === null ? null : await archiveTitle(archiveId);
+  return archive === null ? scans : scans.map((s) => ({ ...s, archive }));
+}
+
 export async function resolveChurchBookRef(
   ref: ChurchBookRef,
   anchors: Anchors,
   placements: Placements = {}
+): Promise<ScanResolution> {
+  const resolved = await resolveScans(ref, anchors, placements);
+  if ('error' in resolved) return resolved;
+  return { scans: await withArchive(resolved.scans, ref.parish) };
+}
+
+async function resolveScans(
+  ref: ChurchBookRef,
+  anchors: Anchors,
+  placements: Placements
 ): Promise<ScanResolution> {
   const placed = placements[ref.url];
   if (placed !== undefined) return { scans: [await placedScan(placed)] };
