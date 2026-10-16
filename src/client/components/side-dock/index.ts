@@ -21,7 +21,7 @@ export type OpenChangeEvent = CustomEvent<boolean>;
 export type WidthChangeEvent = CustomEvent<number>;
 
 // A collapsible column at the chart's left edge. Open, it shows a header (the
-// `heading`, clicked to collapse) over its scrolling content, at `width` with a
+// `header` slot, or the `heading`; clicked to collapse) over its scrolling content, at `width` with a
 // resize edge; collapsed, a slim rail showing the `heading`, clicked to open. The dock animates its own width between the two, so it is
 // controlled: it asks via `open-change` / `width-change` (on drag release) and
 // the host sets `open` / `width` back.
@@ -119,7 +119,9 @@ export class SideDockElement extends LitElement {
             this.request(false);
           }}
         >
-          <span class="heading">${this.heading}</span>
+          <slot name="header">
+            <span class="heading">${this.heading}</span>
+          </slot>
           <span class="chevron" aria-hidden="true">‹</span>
         </button>
         <slot></slot>

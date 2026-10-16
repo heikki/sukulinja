@@ -13,6 +13,8 @@ import type {
   ScanResolution
 } from '@common/types';
 
+import './header';
+
 import { factLabel, factText, scanLabel, scanTitle, siteName } from './helpers';
 import { personPanelStyles } from './styles';
 
@@ -130,6 +132,11 @@ function headingOf(c: CitationRow) {
   return c.reference ?? c.source ?? c.text ?? c.page ?? 'Source';
 }
 
+// Each section open or not for the rest of the visit, across people; at
+// first only the sources are.
+const opened = { events: false, sources: true };
+type Section = keyof typeof opened;
+
 function renderBody(c: CitationRow, heading: string) {
   if (c.record !== null) return renderRecord(c.record);
   const text = c.text ?? c.page;
@@ -138,10 +145,13 @@ function renderBody(c: CitationRow, heading: string) {
     : html`<p class="text">${text}</p>`;
 }
 
-// The Focus person's events and sources, beside the chart. Record links open
-// outside the app (the desktop shell hands target=_blank to the browser);
-// Scan links ask for the Scan viewer with a `scan-open` event, and the source
-// it shows (`viewing`) is marked and brought into view.
+export type DetailsLoadEvent = CustomEvent<PersonDetails>;
+
+// The Focus person's events and sources, beside the chart, announced with
+// `details-load` as they arrive. Record links open outside the app (the
+// desktop shell hands target=_blank to the browser); Scan links ask for the
+// Scan viewer with a `scan-open` event, and the source it shows (`viewing`)
+// is marked and brought into view.
 @customElement('sl-person-panel')
 export class PersonPanelElement extends LitElement {
   static override styles = personPanelStyles;
@@ -169,18 +179,24 @@ export class PersonPanelElement extends LitElement {
   // Start a new person at the top. Waits for their details rather than the
   // personId change, so the stale view doesn't jump before it's replaced.
   override updated(changed: PropertyValues<this>) {
-    if (changed.has('viewing')) this.revealViewing();
+    if (changed.has('viewing')) void this.revealViewing();
     const id = this.details?.id ?? null;
     if (id === this.shownId) return;
     this.shownId = id;
     this.scrollTop = 0;
   }
 
-  // The source in the Scan viewer, scrolled to; if it is expanded, with its
-  // household open for comparing against the page.
-  private revealViewing() {
+  // The source in the Scan viewer, scrolled to, opening Sources if need be;
+  // if it is expanded, with its household open for comparing against the
+  // page.
+  private async revealViewing() {
     const id = this.viewing?.citation.id;
     if (id === undefined) return;
+    if (!opened.sources) {
+      opened.sources = true;
+      this.requestUpdate();
+      await this.updateComplete;
+    }
     const source = this.renderRoot.querySelector(`[data-citation="${id}"]`);
     source?.scrollIntoView({ block: 'nearest' });
     const household = source?.querySelector('details');
@@ -202,6 +218,7 @@ export class PersonPanelElement extends LitElement {
       if (request !== this.request) return;
       this.details = details;
       this.error = null;
+      this.dispatchEvent(new CustomEvent('details-load', { detail: details }));
       this.selected = null;
       void this.loadScans(id, false);
     } catch (err) {
@@ -285,6 +302,32 @@ export class PersonPanelElement extends LitElement {
     `;
   }
 
+  // A heading that shows or hides what follows it.
+  private renderSection(
+    section: Section,
+    label: string,
+    content: () => unknown
+  ) {
+    const open = opened[section];
+    return html`
+      <section>
+        <h3>
+          <button
+            class="toggle"
+            aria-expanded=${open ? 'true' : 'false'}
+            @click=${() => {
+              opened[section] = !open;
+              this.requestUpdate();
+            }}
+          >
+            ${label}
+          </button>
+        </h3>
+        ${open ? html`<div class="section-body">${content()}</div>` : nothing}
+      </section>
+    `;
+  }
+
   override render() {
     if (this.error !== null) {
       return html`<div class="body muted">Couldn't load: ${this.error}</div>`;
@@ -297,24 +340,27 @@ export class PersonPanelElement extends LitElement {
         ${
           d.facts.length === 0
             ? nothing
-            : html`
-                <h3>Events</h3>
-                <dl>
-                  ${d.facts.map(
-                    (f) =>
-                      html`<dt>${factLabel(f)}</dt>
-                        <dd>${factText(f)}</dd>`
-                  )}
-                </dl>
-              `
+            : this.renderSection(
+                'events',
+                `Events · ${d.facts.length}`,
+                () =>
+                  html`<dl>
+                    ${d.facts.map(
+                      (f) =>
+                        html`<dt>${factLabel(f)}</dt>
+                          <dd>${factText(f)}</dd>`
+                    )}
+                  </dl>`
+              )
         }
         ${
           d.citations.length === 0
             ? nothing
-            : html`
-                <h3>Sources · ${d.citations.length}</h3>
-                ${d.citations.map((c) => this.renderCitation(c))}
-              `
+            : this.renderSection(
+                'sources',
+                `Sources · ${d.citations.length}`,
+                () => d.citations.map((c) => this.renderCitation(c))
+              )
         }
       </div>
     `;

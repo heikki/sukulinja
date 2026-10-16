@@ -45,8 +45,12 @@ export const sideDockStyles = css`
     overflow-wrap: anywhere;
   }
 
+  slot[name='header']::slotted(*) {
+    flex: 1;
+  }
+
   /* The content scrolls under the fixed header. */
-  ::slotted(*) {
+  slot:not([name])::slotted(*) {
     flex: 1;
     min-height: 0;
   }
