@@ -29,8 +29,9 @@ export interface ChurchBookRef {
   // YYYY-MM-DD, YYYY-MM or YYYY. Null for rippikirja references.
   date: string | null;
   // The principal as the record's household table lists them, to tell them
-  // from namesakes on the scan: many are named by first name alone. Null
-  // where the record has no such row, and for index references.
+  // from namesakes on the scan: many are named by first name alone. Where
+  // the table gives no birth date, or there's no table, the record's own;
+  // null where it has neither, and for index references.
   household: Household | null;
   // The others an index entry names, by their part in it: for a baptism,
   // the child and the parents. The person cited may be any of them. Empty
@@ -142,6 +143,22 @@ function householdOf(raw: string, name: string | null): Household | null {
   };
 }
 
+// Where the household table gives no birth date for the principal, or
+// there's no table, the record's own still tells them from a namesake on
+// the scan.
+function withBorn(household: Household | null, text: string) {
+  if (household?.born !== null && household?.born !== undefined) {
+    return household;
+  }
+  const born = readFields(text).fields.find(
+    (f) => f.label === 'Syntymäpäivä' || f.label === 'Syntymäaika'
+  )?.value;
+  if (born === undefined || born === '') return household;
+  return household === null
+    ? { born, relation: null, with: null, members: [] }
+    : { ...household, born };
+}
+
 function parseRippiRef(url: string, text: string, raw: string): ChurchBookRef {
   const name = recordName(text);
   const book = field(text, 'Kirja');
@@ -163,7 +180,7 @@ function parseRippiRef(url: string, text: string, raw: string): ChurchBookRef {
     recordId: recordIdOf(url),
     name,
     date: null,
-    household: householdOf(raw, name),
+    household: withBorn(householdOf(raw, name), text),
     named: []
   };
 }
