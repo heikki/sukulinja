@@ -62,7 +62,7 @@ export interface CitationRow {
   // Title of the cited source record, e.g. a MyHeritage collection.
   source: string | null;
   // A Church-book reference in brief, which names the source better than
-  // its collection: "Haukivuori · Communion book 1821–1837 · p. 2".
+  // its collection: "Haukivuori · Pää- ja rippikirjat 1821–1837 · p. 2".
   reference: string | null;
   // PAGE as recorded; `url` repeats it when it is a link.
   page: string | null;

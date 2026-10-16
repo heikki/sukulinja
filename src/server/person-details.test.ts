@@ -84,7 +84,7 @@ test('serves facts in date order and church books first', () => {
       {
         id: 2,
         source: 'Suomalaiset rippi- ja lastenkirjat, 1657-1915',
-        reference: 'Communion book 1794–1808\u00a0· p.\u00a0139',
+        reference: 'Pää- ja rippikirjat 1794–1808\u00a0· p.\u00a0139',
         page: RIPPI,
         url: RIPPI,
         record: {
@@ -130,9 +130,11 @@ test('names a church-book reference by what it gives', () => {
     household: null,
     named: []
   };
-  expect(describeRef(ref)).toBe('Pitäjä\u00a0· Baptisms 1830');
+  expect(describeRef(ref)).toBe(
+    'Pitäjä\u00a0· Syntyneiden ja kastettujen luettelot 1830'
+  );
   expect(describeRef({ ...ref, kind: 'lasten', years: null, page: 2 })).toBe(
-    "Pitäjä\u00a0· Children's book\u00a0· p.\u00a02"
+    'Pitäjä\u00a0· Lastenkirjat\u00a0· p.\u00a02'
   );
   expect(
     describeRef({ ...ref, parish: null, kind: null, years: null })

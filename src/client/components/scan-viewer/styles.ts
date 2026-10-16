@@ -287,12 +287,16 @@ export const scanPeopleStyles = css`
   }
 
   h3 {
-    margin: 0.6rem 0.75rem 0.2rem;
+    margin: 1.1rem 0.75rem 0.25rem;
     color: var(--muted);
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+  }
+
+  h3:first-child {
+    margin-top: 0.6rem;
   }
 
   ul {
@@ -342,6 +346,34 @@ export const scanPeopleStyles = css`
 
   button.toggle {
     padding: 0 0.45rem;
+  }
+
+  li {
+    position: relative;
+  }
+
+  /* Shown on the row hovered or focused, and on the viewer's own. */
+  button.confirm {
+    position: absolute;
+    top: 50%;
+    right: 0.6rem;
+    transform: translateY(-50%);
+    padding: 0.1rem 0.5rem;
+    font-size: 0.75rem;
+    visibility: hidden;
+  }
+
+  li:hover button.confirm,
+  li:focus-within button.confirm,
+  li:has(.current) button.confirm,
+  button.confirm:disabled {
+    visibility: visible;
+  }
+
+  .refused {
+    margin: 0 0.75rem 0.3rem;
+    color: var(--danger);
+    font-size: 0.8rem;
   }
 `;
 

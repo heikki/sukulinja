@@ -45,10 +45,10 @@ function churchBookRefOf(url: string | null, text: string) {
 }
 
 const BOOK_NAMES: Record<BookKind, string> = {
-  rippi: 'Communion book',
-  lasten: "Children's book",
-  kastetut: 'Baptisms',
-  vihityt: 'Marriages'
+  rippi: 'Pää- ja rippikirjat',
+  lasten: 'Lastenkirjat',
+  kastetut: 'Syntyneiden ja kastettujen luettelot',
+  vihityt: 'Vihittyjen luettelot'
 };
 
 // Parish · book and years · page, of what the reference gives. Lines break

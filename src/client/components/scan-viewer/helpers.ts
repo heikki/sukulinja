@@ -1,18 +1,18 @@
-import type { BookKind, CitationVolume, Scan, ScanMethod } from '@common/types';
+import { apiUrl } from '@client/api';
+import type {
+  BookKind,
+  CitationScans,
+  CitationVolume,
+  Scan
+} from '@common/types';
+
+import { methodLabel } from './citations';
 
 // How the reference's link to an Image was found, said of the link.
-export const LINK_LABELS: Record<ScanMethod, string> = {
-  placed: 'Placed link',
-  anchored: 'Anchored link',
-  estimated: 'Estimated link',
-  volume: 'Volume only'
-};
-
-// A Placed link the vision model matched rather than a person.
 export function linkLabel(link: Scan) {
-  return link.method === 'placed' && link.by === 'vision'
-    ? 'Vision match'
-    : LINK_LABELS[link.method];
+  const label = methodLabel(link.method, link.by);
+  const own = link.method === 'volume' || link.by === 'vision';
+  return own ? label : `${label} link`;
 }
 
 // One JSON request at a time: asking again aborts the last one.
@@ -72,7 +72,7 @@ export const MARK_HINTS: Record<'anchor' | 'placement', string> = {
 };
 
 // What marking the shown Image would do: nothing when it is already the
-// link, found by hand or from Anchors; an Anchor when the reference names a
+// link; an Anchor when the reference names a
 // page in a Volume it links by its Book; otherwise a Placement. Unknown until
 // the Volumes it links arrive.
 export function markOffer(
@@ -89,17 +89,51 @@ export function markOffer(
   return hasPage && linked ? 'anchor' : 'placement';
 }
 
-// The shown Image is the link, found by hand or from Anchors.
+// The shown Image is the link, placed or counted from Anchors; a vision
+// match there is confirmed from the people beside the scan.
 function isSure(link: Scan, shown: Shown) {
   const here = link.volumeId === shown.volumeId && link.image === shown.image;
   return here && (link.method === 'placed' || link.method === 'anchored');
 }
 
+export function isVerified(link: Pick<Scan, 'method' | 'by'>) {
+  return link.method === 'placed' && link.by !== 'vision';
+}
+
+// Saves by hand where a citation's record is: the reference's scans
+// resolved again, or why they couldn't be saved.
+export async function saveMark(
+  citationId: number,
+  target: Shown
+): Promise<{ resolved: CitationScans } | { error: string }> {
+  try {
+    const res = await fetch(apiUrl(`/api/citations/${citationId}/scans`), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(target)
+    });
+    if (!res.ok) return { error: await res.text() };
+    return { resolved: (await res.json()) as CitationScans };
+  } catch {
+    return { error: 'The app is not responding.' };
+  }
+}
+
+// What a saved mark reports: the resolved scans, and the link in the
+// Volume marked.
+export function markedIn(resolved: CitationScans, volumeId: string) {
+  const scans = 'scans' in resolved ? resolved.scans : [];
+  return {
+    resolved,
+    link: scans.find((s) => s.volumeId === volumeId) ?? null
+  };
+}
+
 const KINDS: Array<{ kind: BookKind | null; label: string }> = [
-  { kind: 'rippi', label: 'Communion books' },
-  { kind: 'lasten', label: "Children's books" },
-  { kind: 'kastetut', label: 'Baptisms' },
-  { kind: 'vihityt', label: 'Marriages' },
+  { kind: 'rippi', label: 'Pää- ja rippikirjat' },
+  { kind: 'lasten', label: 'Lastenkirjat' },
+  { kind: 'kastetut', label: 'Syntyneiden ja kastettujen luettelot' },
+  { kind: 'vihityt', label: 'Vihittyjen luettelot' },
   { kind: null, label: 'Other' }
 ];
 

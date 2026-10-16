@@ -1,4 +1,6 @@
-import type { FactRow, Scan, ScanMethod } from '@common/types';
+import type { FactRow, Scan, ScanResolution } from '@common/types';
+
+import { methodHint, methodLabel, splitLabel } from '../scan-viewer/citations';
 
 const FACT_LABELS: Record<string, string> = {
   BIRT: 'Birth',
@@ -80,28 +82,61 @@ export function siteName(url: string) {
 }
 
 // Opens in the Scan viewer, so no ↗: that marks links leaving the app.
-const SCAN_LABELS: Record<ScanMethod, string> = {
-  anchored: 'Astia',
-  estimated: 'Astia (approximate)',
-  placed: 'Astia',
-  volume: 'Astia volume'
-};
+// Resolving found the parish's books but not the Image, so it can be looked
+// for by hand. Other errors (no archive, unparsed, Astia down) can't.
+const FINDABLE = new Set(['no matching volume', 'not digitized', 'no images']);
 
-function isVisionMatch(scan: Scan) {
-  return scan.method === 'placed' && scan.by === 'vision';
+// A church-book source's scan, in brief: how its Image was found, in the
+// Scan viewer's words, or why there's none; the tooltip says where. Opening the source shows `target`:
+// the Scan viewer on its scan, on none to look for the Image (`scan: null`),
+// or nothing (null).
+export interface ScanStatus {
+  label: string;
+  title: string;
+  target: { scan: Scan | null } | null;
 }
 
-// A link the vision model matched says so, to be trusted accordingly.
-export function scanLabel(scan: Scan) {
-  return isVisionMatch(scan)
-    ? 'Astia (vision match)'
-    : SCAN_LABELS[scan.method];
+// Scans arrive after the panel renders; until then the status is pending. A
+// Split reference opens on its first candidate; the viewer's switcher lists
+// the others first.
+export function scanStatus(
+  resolution: ScanResolution | undefined,
+  pending: boolean
+): ScanStatus {
+  if (resolution === undefined) {
+    const label = pending ? 'Finding scan…' : 'Scan unavailable';
+    return { label, title: '', target: null };
+  }
+  if ('error' in resolution) {
+    const findable = FINDABLE.has(resolution.error);
+    return {
+      label: findable ? 'Not found' : 'No scan',
+      title: findable
+        ? "The parish's books were found but not the Image: open the source to look for it."
+        : `No scan could be found (${resolution.error}).`,
+      target: findable ? { scan: null } : null
+    };
+  }
+  const { scans } = resolution;
+  const [first] = scans;
+  if (first === undefined) return { label: 'No scan', title: '', target: null };
+  const label = methodLabel(first.method, first.by);
+  return {
+    label: scans.length > 1 ? splitLabel(label) : label,
+    title: scanTitle(scans),
+    target: { scan: first }
+  };
 }
 
+// What the status means, then where: each candidate Volume of a Split
+// reference, which opens on the first.
 export function scanTitle(scans: Scan[]) {
+  const [first] = scans;
+  const split =
+    scans.length > 1
+      ? ['The reference fits several Volumes; it opens on the first.']
+      : [];
   const where = scans.map((s) => `${s.volume}, image ${s.image}`);
-  const vision = scans.some(isVisionMatch)
-    ? ['Matched by the vision model: mark the right Image to correct it.']
-    : [];
-  return [...where, ...vision].join('\n');
+  const hint = first === undefined ? [] : [methodHint(first.method, first.by)];
+  return [...hint, ...split, ...where].join('\n');
 }

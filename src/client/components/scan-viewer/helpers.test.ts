@@ -60,6 +60,8 @@ test('offers to mark what the link is not sure of', () => {
   expect(markOffer({ ...link, method: 'anchored' }, at18, true, volumes)).toBe(
     'linked'
   );
+  const vision = { ...link, method: 'placed' as const, by: 'vision' as const };
+  expect(markOffer(vision, at18, true, volumes)).toBe('linked');
   expect(markOffer({ ...link, method: 'placed' }, at18, true, null)).toBe(
     'linked'
   );
@@ -90,9 +92,9 @@ test('lists linked Volumes first, then by Book kind and years', () => {
   ]);
   expect(groups.map((g) => [g.label, g.volumes.map((v) => v.id)])).toEqual([
     ['Linked by this reference', ['linked']],
-    ['Communion books', ['rippi1', 'rippi2']],
-    ["Children's books", ['lasten']],
-    ['Baptisms', ['kaste']],
+    ['Pää- ja rippikirjat', ['rippi1', 'rippi2']],
+    ['Lastenkirjat', ['lasten']],
+    ['Syntyneiden ja kastettujen luettelot', ['kaste']],
     ['Other', ['muu', 'muu-a', 'muu-b']]
   ]);
 });
@@ -113,7 +115,8 @@ test('says a link was matched by the vision model', () => {
     url: '',
     method: 'placed'
   };
-  expect(linkLabel(link)).toBe('Placed link');
+  expect(linkLabel(link)).toBe('Verified link');
   expect(linkLabel({ ...link, by: 'vision' })).toBe('Vision match');
-  expect(linkLabel({ ...link, method: 'anchored' })).toBe('Anchored link');
+  expect(linkLabel({ ...link, method: 'anchored' })).toBe('Estimated link');
+  expect(linkLabel({ ...link, method: 'volume' })).toBe('Volume only');
 });

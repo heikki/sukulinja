@@ -174,6 +174,23 @@ async function pagesFor(volumeId: string, page: number, kind: string | null) {
   return twoPages ? [page, page + 1] : [page];
 }
 
+// Where on the Image the vision model said the entry is, when its match is
+// on the Image now marked: confirming the match by hand keeps it.
+async function matchedBox(
+  ref: ChurchBookRef,
+  target: { volumeId: string; image: number }
+) {
+  const saved =
+    ref.recordId === null
+      ? (await loadPlacements())[ref.url]
+      : (await loadAnchors())[target.volumeId]?.seen?.find(
+          (s) => s.record === ref.recordId
+        );
+  if (saved?.image !== target.image || saved.box === undefined) return {};
+  const inVolume = !('volumeId' in saved) || saved.volumeId === target.volumeId;
+  return inVolume ? { box: saved.box } : {};
+}
+
 // A cited page found in a volume the reference already links is an anchor,
 // which moves the volume's other references near it too. A record naming no
 // page, or found in another volume of the parish, is placed on its own.
@@ -185,6 +202,7 @@ async function save(
   volume: string,
   linked: boolean
 ) {
+  const box = await matchedBox(ref, target);
   if (ref.page !== null && linked) {
     await setPlacement(ref.url, null);
     await addLocalAnchor(target.volumeId, volume, {
@@ -194,13 +212,14 @@ async function save(
       by: 'hand'
     });
   } else {
-    await setPlacement(ref.url, { ...target, volume, by: 'hand' });
+    await setPlacement(ref.url, { ...target, volume, by: 'hand', ...box });
   }
   if (ref.recordId !== null) {
     await addLocalSeen(target.volumeId, volume, {
       record: ref.recordId,
       image: target.image,
-      by: 'hand'
+      by: 'hand',
+      ...box
     });
   }
 }
