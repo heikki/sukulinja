@@ -212,7 +212,8 @@ export const scanToolbarStyles = css`
   }
 `;
 
-// Floating over the foot of the scan, centred.
+// Floating over the foot of the scan, centred, and as wide whatever the
+// Volume: the count keeps room for four digits.
 export const scanNavStyles = css`
   :host {
     position: absolute;
@@ -229,6 +230,29 @@ export const scanNavStyles = css`
     box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
     white-space: nowrap;
     cursor: auto;
+  }
+
+  /* A held arrow key's button: a quiet press, not the hover's accent. */
+  button.pressed:not(:disabled) {
+    background: color-mix(in srgb, var(--fg) 10%, var(--card));
+  }
+
+  /* Four digits, without the spinner: the arrows beside it step. */
+  input {
+    width: calc(4ch + 0.8rem);
+    appearance: textfield;
+    font-variant-numeric: tabular-nums;
+  }
+
+  input::-webkit-inner-spin-button,
+  input::-webkit-outer-spin-button {
+    margin: 0;
+    appearance: none;
+  }
+
+  .count {
+    min-width: 7ch;
+    font-variant-numeric: tabular-nums;
   }
 `;
 
