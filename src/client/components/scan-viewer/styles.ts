@@ -181,11 +181,13 @@ export const scanViewerStyles = css`
 `;
 
 // One row, the Volume named in full.
+// One row: the title, shortened with an ellipsis where it must be, and
+// close.
 export const scanToolbarStyles = css`
   :host {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.75rem;
     min-height: 2.25rem;
     padding: 0.3rem 0.75rem;
     background: var(--card);
@@ -194,19 +196,31 @@ export const scanToolbarStyles = css`
   }
 
   .volume {
-    flex: none;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-weight: 500;
   }
+`;
 
-  .sep {
-    align-self: stretch;
-    width: 1px;
-    margin: 0.15rem 0.25rem;
-    background: var(--border);
-  }
-
-  .spacer {
-    flex: 1;
+// Floating over the foot of the scan, centred.
+export const scanNavStyles = css`
+  :host {
+    position: absolute;
+    bottom: 1rem;
+    left: 50%;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.5rem;
+    transform: translateX(-50%);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--card) 92%, transparent);
+    box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+    white-space: nowrap;
+    cursor: auto;
   }
 `;
 
@@ -223,22 +237,67 @@ export const scanPeopleStyles = css`
   }
 
   :host([collapsed]) {
-    width: auto;
-    padding: 0.4rem 0.3rem;
+    width: 2rem;
   }
 
-  .head {
+  /* The whole header hides the list; the chevron marks it as a control. */
+  button.head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 0.4rem 0.5rem 0.4rem 0.75rem;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 0;
     border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    background: var(--card);
+    color: var(--fg);
+    text-align: left;
+    cursor: pointer;
   }
 
   h2 {
+    flex: 1;
     margin: 0;
     font-size: 0.875rem;
     font-weight: 600;
+  }
+
+  .chevron {
+    color: var(--muted);
+    font-size: 1rem;
+  }
+
+  button.head:hover,
+  button.rail:hover {
+    background: color-mix(in srgb, var(--accent) 8%, var(--card));
+  }
+
+  button.head:hover .chevron,
+  button.rail:hover {
+    color: var(--accent);
+  }
+
+  button.rail {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
+    border: 0;
+    border-radius: 0;
+    background: var(--card);
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  .rail-heading {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--fg);
+    white-space: nowrap;
   }
 
   .list {
@@ -303,10 +362,6 @@ export const scanPeopleStyles = css`
 
   .row .muted {
     font-size: 0.8rem;
-  }
-
-  button.toggle {
-    padding: 0 0.45rem;
   }
 
   li {

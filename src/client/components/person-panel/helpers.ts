@@ -125,17 +125,16 @@ export function scanStatus(
   };
 }
 
-// What the status means, then where: each candidate Volume of a Split
-// reference, which opens on the first.
+// What the status means, and for a Split reference that it opens on the
+// first of its Volumes.
 export function scanTitle(scans: Scan[]) {
   const [first] = scans;
   const split =
     scans.length > 1
       ? ['The reference fits several Volumes; it opens on the first.']
       : [];
-  const where = scans.map((s) => `${s.volume}, image ${s.image}`);
   const hint = first === undefined ? [] : [methodHint(first.method, first.by)];
-  return [...hint, ...split, ...where].join('\n');
+  return [...hint, ...split].join('\n');
 }
 
 // Sources under one heading: an archive's (`linked`), the church books'

@@ -419,9 +419,8 @@ export class TreeViewElement extends LitElement {
   private readonly onScanMarked = (e: ScanMarkedEvent) => {
     const { resolved, link } = e.detail;
     this.renderRoot.querySelector('sl-person-panel')?.takeScans(resolved);
-    const open = this.scanOpen;
-    if (open?.citation.id === resolved.citationId && link !== null) {
-      this.scanOpen = { ...open, scan: link };
+    if (this.scanOpen?.citation.id === resolved.citationId && link !== null) {
+      this.scanOpen = { ...this.scanOpen, scan: link };
     }
   };
 
