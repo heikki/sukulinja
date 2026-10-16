@@ -47,6 +47,12 @@ export function methodHint(method: ScanMethod, by?: Provenance) {
   return methodOf(method, by).hint;
 }
 
+// A Volume's name without the archive's code for it ("I Aa:8"), which the
+// archive's name stands in for: "Pää- ja rippikirjat (1783-1790)".
+export function volumeTitle(label: string) {
+  return label.replace(/^[IVX]+\s+[A-Za-z]+:\s*\d+[a-z]?\s+/u, '');
+}
+
 // A Split reference's row says it may be elsewhere.
 export const SPLIT_NOTE = 'one of several Volumes';
 

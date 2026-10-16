@@ -88,11 +88,6 @@ export const scanViewerStyles = css`
     user-select: none;
   }
 
-  .blank {
-    position: relative;
-    flex: 1;
-  }
-
   .stage.dragging {
     cursor: grabbing;
   }
@@ -185,7 +180,7 @@ export const scanViewerStyles = css`
   }
 `;
 
-// One row; the mark's note gives way first when it is narrow.
+// One row, the Volume named in full.
 export const scanToolbarStyles = css`
   :host {
     display: flex;
@@ -198,16 +193,9 @@ export const scanToolbarStyles = css`
     white-space: nowrap;
   }
 
-  select {
-    max-width: 18rem;
-    min-width: 8rem;
-    padding: 0.15rem 0.35rem;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--bg);
-    color: var(--fg);
-    font: inherit;
-    text-overflow: ellipsis;
+  .volume {
+    flex: none;
+    font-weight: 500;
   }
 
   .sep {
@@ -219,33 +207,6 @@ export const scanToolbarStyles = css`
 
   .spacer {
     flex: 1;
-  }
-
-  button.primary {
-    border-color: var(--accent);
-    background: var(--accent);
-    color: var(--on-accent);
-  }
-
-  button.primary:hover:not(:disabled) {
-    color: var(--on-accent);
-    filter: brightness(1.1);
-  }
-
-  .linked {
-    color: var(--accent);
-  }
-
-  .note {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    color: var(--muted);
-    font-size: 0.8rem;
-  }
-
-  .note.error {
-    color: var(--danger);
   }
 `;
 

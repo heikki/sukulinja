@@ -3,7 +3,7 @@ import { expect, test } from 'bun:test';
 import { openDb } from './db';
 import { importGedcom } from './gedcom-import';
 import { parseGedcom } from './gedcom-parser';
-import { createPersonDetails, describeRef } from './person-details';
+import { createPersonDetails, describeRef, entryOf } from './person-details';
 
 const RIPPI =
   'https://www.myheritage.fi/research/collection-10509/x?itemId=1&action=showRecord';
@@ -85,6 +85,7 @@ test('serves facts in date order and church books first', () => {
         id: 2,
         source: 'Suomalaiset rippi- ja lastenkirjat, 1657-1915',
         reference: 'Pää- ja rippikirjat 1794–1808\u00a0· p.\u00a0139',
+        entry: 'p.\u00a0139',
         page: RIPPI,
         url: RIPPI,
         record: {
@@ -103,6 +104,7 @@ test('serves facts in date order and church books first', () => {
         id: 1,
         source: null,
         reference: null,
+        entry: null,
         page: null,
         url: null,
         record: null,
@@ -139,4 +141,8 @@ test('names a church-book reference by what it gives', () => {
   expect(
     describeRef({ ...ref, parish: null, kind: null, years: null })
   ).toBeNull();
+  expect(entryOf({ ...ref, date: '1761-03-03' })).toBe('3 Mar 1761');
+  expect(entryOf({ ...ref, date: '1761-03' })).toBe('Mar 1761');
+  expect(entryOf({ ...ref, date: '1761', page: 12 })).toBe('p.\u00a012');
+  expect(entryOf(ref)).toBeNull();
 });

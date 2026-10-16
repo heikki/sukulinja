@@ -9,7 +9,6 @@ import { imageLinks } from './citation-scans/astia';
 import { astiaImage } from './citation-scans/images';
 import { routeScanCache } from './citation-scans/scan-cache';
 import {
-  citationVolumes,
   correctScan,
   isChurchBook,
   resolveScans,
@@ -42,7 +41,6 @@ interface DatasetHandlers {
   handlePerson: (id: number) => Response;
   handlePersonScans: (id: number) => Response;
   handleCorrection: (id: number, correction: Correction) => Promise<Response>;
-  handleCitationVolumes: (id: number) => Promise<Response>;
   handleVolumeCitations: (volumeId: string) => Promise<Response>;
   handleMedia: (rest: string, mediaRoot: string) => Promise<Response>;
 }
@@ -203,18 +201,6 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
       return 'rejected' in result
         ? new Response(result.rejected, { status: 400 })
         : Response.json({ citationId: id, ...result });
-    },
-
-    async handleCitationVolumes(id) {
-      const row = getCitation.get(id);
-      if (row === null || !isChurchBook(row.page)) {
-        return new Response('citation not found', { status: 404 });
-      }
-      try {
-        return Response.json(await citationVolumes(row.page, row.text));
-      } catch {
-        return new Response('Astia unavailable', { status: 502 });
-      }
     },
 
     async handleVolumeCitations(volumeId) {
@@ -395,13 +381,9 @@ async function routeDataset(
       ? handlers.handlePerson(id)
       : handlers.handlePersonScans(id);
   }
-  const citation =
-    /^\/api\/citations\/(?<id>\d+)\/(?<what>scans|volumes)$/.exec(rest);
+  const citation = /^\/api\/citations\/(?<id>\d+)\/scans$/.exec(rest);
   if (citation !== null) {
-    const id = Number(citation.groups!.id);
-    return citation.groups!.what === 'scans'
-      ? await routeCorrection(req, handlers, id)
-      : await handlers.handleCitationVolumes(id);
+    return await routeCorrection(req, handlers, Number(citation.groups!.id));
   }
   const volume = /^\/api\/volumes\/(?<id>[^/]+)\/citations$/.exec(rest);
   if (volume !== null) {

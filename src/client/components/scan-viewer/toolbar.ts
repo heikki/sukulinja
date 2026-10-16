@@ -1,141 +1,27 @@
 import { html, LitElement, nothing } from 'lit';
-import type { PropertyValues } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { customElement, property } from 'lit/decorators.js';
 import { live } from 'lit/directives/live.js';
 
-import type {
-  CitationRow,
-  CitationScans,
-  CitationVolume,
-  Scan
-} from '@common/types';
+import type { Scan } from '@common/types';
 
-import { methodHint } from './citations';
-import {
-  groupVolumes,
-  isVerified,
-  linkLabel,
-  MARK_HINTS,
-  markedIn,
-  markOffer,
-  saveMark
-} from './helpers';
+import { volumeTitle } from './citations';
 import { controlStyles, scanToolbarStyles } from './styles';
 
-// A mark saved: the reference's links resolved again, and the one in the
-// marked Volume for the viewer to follow.
-export interface ScanMarked {
-  resolved: CitationScans;
-  link: Scan | null;
-}
-
-export type ScanMarkedEvent = CustomEvent<ScanMarked>;
-
-interface Shown {
-  id: string;
-  label: string;
-}
-
-// The Scan viewer's one row: which Volume, where in it, where the
-// reference's link stands to the shown Image, marking it as where the
-// record is, and leaving. Asks the viewer for an Image with `scan-show`, a
-// Volume with `scan-volume` and the link with `scan-link`; a saved mark is
-// reported with `scan-marked`, and close with `scan-close`, both to the
-// viewer's host.
+// The Scan viewer's one row: the link's Volume, where in it, and leaving.
+// Asks the viewer for an Image with `scan-show`; close is reported with
+// `scan-close` to the viewer's host.
 @customElement('sl-scan-toolbar')
 export class ScanToolbarElement extends LitElement {
   static override styles = [controlStyles, scanToolbarStyles];
 
-  @property({ attribute: false }) citation: CitationRow | null = null;
-  // The reference's link, if it has one.
+  // The reference's link, whose Volume is shown.
   @property({ attribute: false }) link: Scan | null = null;
-  // The parish's Volumes, once known, and the one shown, if any.
-  @property({ attribute: false }) volumes: CitationVolume[] | null = null;
-  @property({ attribute: false }) volume: Shown | null = null;
   @property({ type: Number }) image = 1;
-  // The Volume's Image count, and Astia's link to the shown one, once known.
+  // The Volume's Image count, once known.
   @property({ attribute: false }) count: number | null = null;
-  @property({ attribute: false }) astia: string | null = null;
-  // The shown Image has loaded, so it can be marked.
-  @property({ type: Boolean }) ready = false;
-
-  @state() private saving = false;
-  @state() private error: string | null = null;
-
-  override willUpdate(changed: PropertyValues<this>) {
-    const moved =
-      changed.has('citation') || changed.has('volume') || changed.has('image');
-    if (moved) this.error = null;
-  }
 
   private ask(type: string, detail?: unknown) {
     this.dispatchEvent(new CustomEvent(type, { detail }));
-  }
-
-  private emit(type: string, detail?: unknown) {
-    this.dispatchEvent(
-      new CustomEvent(type, { detail, bubbles: true, composed: true })
-    );
-  }
-
-  private async mark(citation: CitationRow, volumeId: string) {
-    this.saving = true;
-    this.error = null;
-    const saved = await saveMark(citation.id, { volumeId, image: this.image });
-    this.saving = false;
-    if ('error' in saved) {
-      this.error = saved.error;
-      return;
-    }
-    const detail: ScanMarked = markedIn(saved.resolved, volumeId);
-    this.emit('scan-marked', detail);
-  }
-
-  // Grouped as `groupVolumes` says; the shown Volume is listed even before
-  // the list arrives, and a prompt stands in until one is picked.
-  private renderSwitcher() {
-    const shown = this.volume;
-    const groups = groupVolumes(this.volumes ?? []);
-    const listed = groups.some((g) =>
-      g.volumes.some((v) => v.id === shown?.id)
-    );
-    return html`
-      <select
-        title=${shown?.label ?? 'Pick a Volume'}
-        aria-label="Volume"
-        @change=${(e: Event) => {
-          this.ask('scan-volume', (e.target as HTMLSelectElement).value);
-        }}
-      >
-        ${
-          shown === null
-            ? html`<option value="" disabled .selected=${true}>
-                ${this.volumes === null ? 'Finding Volumes…' : 'Pick a Volume'}
-              </option>`
-            : nothing
-        }
-        ${
-          shown === null || listed
-            ? nothing
-            : html`<option value=${shown.id} .selected=${true}>
-                ${shown.label}
-              </option>`
-        }
-        ${groups.map(
-          (g) => html`
-            <optgroup label=${g.label}>
-              ${g.volumes.map(
-                (v) => html`
-                  <option value=${v.id} .selected=${v.id === shown?.id}>
-                    ${v.label}
-                  </option>
-                `
-              )}
-            </optgroup>
-          `
-        )}
-      </select>
-    `;
   }
 
   private renderNav() {
@@ -179,99 +65,24 @@ export class ScanToolbarElement extends LitElement {
     `;
   }
 
-  // The link's method on its own Image, the way back to it elsewhere.
-  private renderLink(link: Scan | null, shown: Shown) {
-    if (link === null) return html`<span class="muted">No link</span>`;
-    const inVolume = link.volumeId === shown.id;
-    if (inVolume && (link.method === 'volume' || link.image === this.image)) {
-      return html`<span class="muted" title=${methodHint(link.method, link.by)}
-        >${linkLabel(link)}</span
-      >`;
-    }
-    return html`
-      <button
-        class="plain"
-        title=${`${link.volume}, image ${link.image}`}
-        @click=${() => {
-          this.ask('scan-link');
-        }}
-      >
-        Back to the link${inVolume ? ` (${link.image})` : ''}
-      </button>
-    `;
-  }
-
-  // Marking, or how the link on the shown Image was found: a ✓ when a
-  // person marked it. A vision match is confirmed from the people beside
-  // the scan.
-  private renderMark(citation: CitationRow, shown: Shown) {
-    const { link } = this;
-    const offer = markOffer(
-      link,
-      { volumeId: shown.id, image: this.image },
-      citation.citedPage !== null,
-      this.volumes
-    );
-    if (offer === 'linked') {
-      const verified = isVerified(link!);
-      return html`<span
-        class=${verified ? 'linked' : 'muted'}
-        title=${methodHint(link!.method, link!.by)}
-        >${verified ? '✓ ' : ''}${linkLabel(link!)}</span
-      >`;
-    }
-    const note = this.error ?? (offer === 'unknown' ? null : MARK_HINTS[offer]);
-    return html`
-      ${this.renderLink(link, shown)}
-      <span class="sep"></span>
-      <button
-        class="primary"
-        ?disabled=${!this.ready || this.saving}
-        @click=${() => {
-          void this.mark(citation, shown.id);
-        }}
-      >
-        The record is here
-      </button>
-      ${
-        note === null
-          ? nothing
-          : html`<span
-              class="note ${this.error === null ? '' : 'error'}"
-              title=${note}
-              >${note}</span
-            >`
-      }
-    `;
-  }
-
-  private renderShown(citation: CitationRow, shown: Shown) {
-    return html`
-      ${this.renderNav()}
-      <span class="sep"></span>
-      ${this.renderMark(citation, shown)}
-    `;
-  }
-
   override render() {
-    const { citation, volume } = this;
-    if (citation === null) return nothing;
+    const { link } = this;
+    if (link === null) return nothing;
     return html`
-      ${this.renderSwitcher()}
-      ${volume === null ? nothing : this.renderShown(citation, volume)}
+      <span class="volume">
+        ${link.archive === undefined ? nothing : `${link.archive} · `}
+        ${volumeTitle(link.volume)}
+      </span>
+      <span class="sep"></span>
+      ${this.renderNav()}
       <span class="spacer"></span>
-      ${
-        this.astia === null || volume === null
-          ? nothing
-          : html`<a href=${this.astia} target="_blank" rel="noopener">
-              Open in Astia ↗
-            </a>`
-      }
       <button
         title="Close (Esc)"
         aria-label="Close"
         @click=${() => {
-          this.emit('scan-close');
+          this.dispatchEvent(
+            new CustomEvent('scan-close', { bubbles: true, composed: true })
+          );
         }}
       >
         ✕

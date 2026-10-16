@@ -87,6 +87,9 @@ export class TreeViewElement extends LitElement {
   // The scan the Scan viewer shows over the chart; it belongs to Focus, so a
   // refocus closes it.
   @state() private scanOpen: ScanOpen | null = null;
+  // The Scan viewer has moved off the link's Image, so the dock doesn't
+  // mark its source as shown; opening the source again goes back.
+  @state() private scanAway = false;
   // A person picked in the Scan viewer: refocusing on them keeps it open, on
   // their citation.
   private scanFollowing: ScanOpen | null = null;
@@ -401,7 +404,7 @@ export class TreeViewElement extends LitElement {
         ></sl-person-header>
         <sl-person-panel
           .personId=${this.focusId}
-          .viewing=${this.scanOpen}
+          .viewing=${this.scanAway ? null : this.scanOpen}
           @details-load=${(e: DetailsLoadEvent) => {
             this.focusDetails = e.detail;
           }}
@@ -446,6 +449,9 @@ export class TreeViewElement extends LitElement {
           this.scanOpen = null;
         }}
         @scan-marked=${this.onScanMarked}
+        @scan-away=${(e: CustomEvent<boolean>) => {
+          this.scanAway = e.detail;
+        }}
       ></sl-scan-viewer>
     `;
   }

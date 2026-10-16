@@ -13,7 +13,6 @@ import type {
 } from '@client/pan-zoom';
 import type {
   CitationRow,
-  CitationVolume,
   PersonRow,
   Scan,
   VolumeCitation
@@ -33,7 +32,7 @@ import './people';
 import './toolbar';
 
 export type { ScanPerson, ScanPersonEvent } from './citations';
-export type { ScanMarked, ScanMarkedEvent } from './toolbar';
+export type { ScanMarked, ScanMarkedEvent } from './helpers';
 
 // The chart's feel (tree-view's VIEWPORT_OPTIONS), with room to zoom from a
 // whole spread down to a page's detail.
@@ -62,21 +61,20 @@ interface Drag {
   samples: Sample[];
 }
 
-// A Volume being shown: the link's, or one picked in the switcher.
+// The link's Volume, being shown.
 interface Shown {
   id: string;
   label: string;
 }
 
-// The Scan viewer: an Image of a Church-book reference's Volumes over the
-// chart, to step through, zoom into, and mark as where the record is. It
-// opens on the Image the reference (`citation`) links (`scan`), and a new
-// `scan` moves it there; without one, it waits for a Volume to be picked.
-// The record itself stays in the dock, marked there, so the toolbar holds
-// only moving through the Volumes and marking. Asks to close with a
-// `scan-close` event; a mark reports with `scan-marked`. Beside the scan,
-// the people of the tree (`persons`) linked to the Image shown; picking one
-// asks to go on with their citation with `scan-person`.
+// The Scan viewer: the Image a Church-book reference (`citation`) links
+// (`scan`) over the chart, in its Volume to step through and zoom into; a
+// new `scan` moves it there. The record itself stays in the dock, marked
+// there, so the toolbar holds only moving through the Volume. Asks to close
+// with a `scan-close` event. Beside the scan, the people of the tree
+// (`persons`) linked to the Image shown; picking one asks to go on with
+// their citation with `scan-person`, and confirming one's vision match
+// reports with `scan-marked`.
 @customElement('sl-scan-viewer')
 export class ScanViewerElement extends LitElement {
   static override styles = [controlStyles, scanViewerStyles];
@@ -85,8 +83,6 @@ export class ScanViewerElement extends LitElement {
   @property({ attribute: false }) scan: Scan | null = null;
   @property({ attribute: false }) persons = new Map<number, PersonRow>();
 
-  // The parish's Volumes for the switcher; null until they arrive.
-  @state() private volumes: CitationVolume[] | null = null;
   @state() private volume: Shown | null = null;
   @state() private image = 1;
   // Astia's viewer link for each Image of the Volume, which also gives their
@@ -109,9 +105,10 @@ export class ScanViewerElement extends LitElement {
   // The key of the entry picked out, on the scan and in the list.
   @state() private hovered: string | null = null;
 
-  // The Image last shown in each Volume of this reference, to go back to.
-  private readonly left = new Map<string, number>();
   private readonly prefetch = new Prefetch();
+  // The Image shown isn't the link's; unknown until first shown, so a new
+  // viewer always says.
+  private away: boolean | null = null;
   // Which way the last step went, for which neighbour to prefetch first.
   private step: 1 | -1 = 1;
   // When the shown Image's thumbnail appeared.
@@ -124,7 +121,6 @@ export class ScanViewerElement extends LitElement {
     }
   });
   private readonly linksReq = new Latest();
-  private readonly volumesReq = new Latest();
   private readonly citationsReq = new Latest();
 
   override connectedCallback() {
@@ -141,21 +137,35 @@ export class ScanViewerElement extends LitElement {
     window.removeEventListener('keydown', this.onKeyDown);
     this.stopMomentum();
     this.linksReq.stop();
-    this.volumesReq.stop();
     this.citationsReq.stop();
     this.prefetch.keep([]);
   }
 
   override willUpdate(changed: PropertyValues<this>) {
-    const id = this.citation?.id;
-    if (changed.has('citation') && changed.get('citation')?.id !== id) {
-      this.left.clear();
-      if (id !== undefined) void this.loadVolumes(id);
-    }
     if (changed.has('scan')) this.follow(this.scan);
   }
 
-  // To the link's Image; a mark hands back the link to the Image shown.
+  // Says with `scan-away` whenever it leaves the link's Image, or comes
+  // back to it; a link to the Volume alone holds anywhere in it.
+  override updated() {
+    const link = this.scan;
+    const away =
+      link !== null &&
+      (this.volume?.id !== link.volumeId ||
+        (link.method !== 'volume' && this.image !== link.image));
+    if (away === this.away) return;
+    this.away = away;
+    this.dispatchEvent(
+      new CustomEvent('scan-away', {
+        detail: away,
+        bubbles: true,
+        composed: true
+      })
+    );
+  }
+
+  // To the link's Image; a confirmation hands back the link to the Image
+  // shown.
   private follow(scan: Scan | null) {
     if (scan === null) {
       this.volume = null;
@@ -168,15 +178,7 @@ export class ScanViewerElement extends LitElement {
     }
   }
 
-  // Without them there's nothing to switch to, and marking can't say how.
-  private async loadVolumes(id: number) {
-    this.volumes = null;
-    const url = apiUrl(`/api/citations/${id}/volumes`);
-    const volumes = await this.volumesReq.get<CitationVolume[]>(url);
-    if (volumes !== undefined) this.volumes = volumes;
-  }
-
-  // Without the list the count stays unknown and Astia unlinked.
+  // Without the list the count stays unknown.
   private async loadLinks(volumeId: string) {
     this.links = null;
     const url = `/astia/volumes/${volumeId}/images`;
@@ -196,7 +198,6 @@ export class ScanViewerElement extends LitElement {
   }
 
   private open(volume: Shown, image: number) {
-    if (this.volume !== null) this.left.set(this.volume.id, this.image);
     this.volume = volume;
     this.frame = null;
     this.view = null;
@@ -210,15 +211,6 @@ export class ScanViewerElement extends LitElement {
     this.thumb = null;
     this.hovered = null;
     this.fading = false;
-  }
-
-  // Back where it was left, else on the reference's Image, else the first.
-  private switchTo(id: string) {
-    const volume = this.volumes?.find((v) => v.id === id);
-    if (volume === undefined || id === this.volume?.id) return;
-    const link = this.scan?.volumeId === id ? this.scan.image : null;
-    const image = this.left.get(id) ?? link ?? volume.image ?? 1;
-    this.open(volume, image);
   }
 
   private show(n: number) {
@@ -252,10 +244,8 @@ export class ScanViewerElement extends LitElement {
     );
   }
 
-  // A mark can change which Volumes the reference links, and where, and
-  // moves its row, and an Anchor its neighbours'.
+  // A confirmation moves its row, and an Anchor its neighbours'.
   private readonly onMarked = () => {
-    if (this.citation !== null) void this.loadVolumes(this.citation.id);
     if (this.volume !== null) void this.loadCitations(this.volume.id);
   };
 
@@ -447,24 +437,12 @@ export class ScanViewerElement extends LitElement {
   private renderToolbar() {
     return html`
       <sl-scan-toolbar
-        .citation=${this.citation}
         .link=${this.scan}
-        .volumes=${this.volumes}
-        .volume=${this.volume}
         .image=${this.image}
         .count=${this.links?.length ?? null}
-        .astia=${this.links?.[this.image - 1] ?? null}
-        ?ready=${this.loading === 'shown'}
         @scan-show=${(e: CustomEvent<number>) => {
           this.show(e.detail);
         }}
-        @scan-volume=${(e: CustomEvent<string>) => {
-          this.switchTo(e.detail);
-        }}
-        @scan-link=${() => {
-          this.follow(this.scan);
-        }}
-        @scan-marked=${this.onMarked}
       ></sl-scan-toolbar>
     `;
   }
@@ -571,18 +549,12 @@ export class ScanViewerElement extends LitElement {
   }
 
   override render() {
-    if (this.citation === null) return nothing;
+    if (this.citation === null || this.volume === null) return nothing;
     return html`
       ${this.renderToolbar()}
-      ${
-        this.volume === null
-          ? html`<div class="blank">
-              <div class="note">Pick a Volume of the parish to look in.</div>
-            </div>`
-          : html`<div class="body">
-              ${this.renderStage(this.volume)} ${this.renderPeople()}
-            </div>`
-      }
+      <div class="body">
+        ${this.renderStage(this.volume)} ${this.renderPeople()}
+      </div>
     `;
   }
 }

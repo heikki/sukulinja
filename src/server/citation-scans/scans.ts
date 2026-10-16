@@ -145,24 +145,6 @@ export async function matchCandidates(ref: ChurchBookRef) {
   );
 }
 
-// The parish's digitized Volumes a reference could be marked in.
-export async function citationVolumes(page: string, text: string | null) {
-  const ref = parseChurchBookRef(page, text ?? '');
-  const [volumes, linked] = await Promise.all([
-    parishVolumes(ref.parish),
-    linkedImages(ref)
-  ]);
-  return volumes
-    .filter((v) => v.digitized)
-    .map((v) => ({
-      id: v.id,
-      label: v.label,
-      kind: v.kind,
-      years: v.years,
-      image: linked.get(v.id) ?? null
-    }));
-}
-
 // A volume numbered by page carries two numbers per image; the new anchor
 // follows the ones already read in that volume, or the book type.
 async function pagesFor(volumeId: string, page: number, kind: string | null) {

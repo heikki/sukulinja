@@ -13,10 +13,18 @@ import type {
   ScanResolution
 } from '@common/types';
 
+import { volumeTitle } from '../scan-viewer/citations';
+
 import './header';
 
-import { factLabel, factText, scanStatus, siteName } from './helpers';
-import type { ScanStatus } from './helpers';
+import {
+  factLabel,
+  factText,
+  groupSources,
+  scanStatus,
+  siteName
+} from './helpers';
+import type { ScanStatus, SourceGroup } from './helpers';
 import { personPanelStyles } from './styles';
 
 function renderRecord(r: RecordView) {
@@ -51,10 +59,10 @@ function renderRecord(r: RecordView) {
 }
 
 // Opening a church-book source asks for the Scan viewer on that scan of its
-// reference, or on none to look for the Image.
+// reference.
 export interface ScanOpen {
   citation: CitationRow;
-  scan: Scan | null;
+  scan: Scan;
 }
 
 export type ScanOpenEvent = CustomEvent<ScanOpen>;
@@ -70,27 +78,39 @@ function renderFold(open: boolean, fold: () => void) {
   ></button>`;
 }
 
-function renderStatus(status: ScanStatus | null) {
+// Where in its Volume the reference points, if it links one, and how.
+function renderStatus(status: ScanStatus | null, entry: string | null) {
   if (status === null) return nothing;
   return html`<div class="status">
+    ${entry === null ? nothing : html`<span class="entry">${entry}</span>`}
     <span class="chip" title=${status.title}>${status.label}</span>
   </div>`;
 }
 
-// What the source records, then a link to the record on its own site.
-function renderDetails(body: unknown, url: string | null) {
+function renderSite(href: string, label: string) {
+  return html`<a href=${href} target="_blank" rel="noopener">${label} ↗</a>`;
+}
+
+// What the source records, then links to the record on its own site and to
+// its scan in Astia.
+function renderDetails(body: unknown, url: string | null, scan: Scan | null) {
+  const astia = scan === null || scan.url === '' ? null : scan.url;
+  const links = [
+    url === null ? null : renderSite(url, `Open on ${siteName(url)}`),
+    astia === null ? null : renderSite(astia, 'Open in Astia')
+  ].filter((l) => l !== null);
   return html`
     <div class="record">
       ${body}
-      ${
-        url === null
-          ? nothing
-          : html`<a class="site" href=${url} target="_blank" rel="noopener">
-              Open on ${siteName(url)} ↗
-            </a>`
-      }
+      ${links.length === 0 ? nothing : html`<div class="sites">${links}</div>`}
     </div>
   `;
+}
+
+// Whether folding the source out shows anything: what it records, or a
+// link to it.
+function hasDetails(body: unknown, url: string | null, scan: Scan | null) {
+  return body !== nothing || url !== null || scan !== null;
 }
 
 // A Church-book reference names itself; other sources go by their title,
@@ -103,6 +123,25 @@ function headingOf(c: CitationRow) {
 // first only the sources are.
 const opened = { events: false, sources: true };
 type Section = keyof typeof opened;
+
+// Where in the Volume it links the reference points; nothing unlinked.
+function linkedEntry(c: CitationRow, scan: Scan | null) {
+  return scan === null ? null : c.entry;
+}
+
+// A source clicking opens (`active`), the one the Scan viewer shows
+// (`viewing`), and one titled by the Volume it links (`linked`).
+function sourceClass(flags: Record<string, boolean>) {
+  const on = Object.entries(flags).filter(([, v]) => v);
+  return ['source', ...on.map(([k]) => k)].join(' ');
+}
+
+// Under its archive, a Church-book reference goes by the Volume it links,
+// named as Astia names it but for its code: "Pää- ja rippikirjat
+// (1783-1790)".
+function titleText(c: CitationRow, scan: Scan | null) {
+  return scan === null ? headingOf(c) : volumeTitle(scan.volume);
+}
 
 // A Church-book reference's tooltip names its collection.
 function titleOf(c: CitationRow, heading: string) {
@@ -227,10 +266,12 @@ export class PersonPanelElement extends LitElement {
     if (this.personId !== null) void this.loadScans(this.personId, true);
   }
 
-  private openScan(citation: CitationRow, scan: Scan | null) {
+  // Each opening is a new link, so the viewer goes back to it even when
+  // it's showing this source already.
+  private openScan(citation: CitationRow, scan: Scan) {
     this.dispatchEvent(
       new CustomEvent<ScanOpen>('scan-open', {
-        detail: { citation, scan },
+        detail: { citation, scan: { ...scan } },
         bubbles: true,
         composed: true
       })
@@ -238,16 +279,11 @@ export class PersonPanelElement extends LitElement {
   }
 
   // What clicking the source does: open its scan if it is a church book
-  // that has one or can be looked for, else show or hide its record.
-  private actionOf(
-    c: CitationRow,
-    status: ScanStatus | null,
-    foldable: boolean
-  ) {
-    const target = status?.target ?? null;
-    if (target !== null) {
+  // that has one, else show or hide its record.
+  private actionOf(c: CitationRow, scan: Scan | null, foldable: boolean) {
+    if (scan !== null) {
       return () => {
-        this.openScan(c, target.scan);
+        this.openScan(c, scan);
       };
     }
     if (!foldable) return null;
@@ -260,24 +296,26 @@ export class PersonPanelElement extends LitElement {
     this.selected = this.selected === id ? null : id;
   }
 
+  private statusOf(c: CitationRow) {
+    if (!c.churchBook) return null;
+    return scanStatus(this.scans.get(c.id), this.scansPending);
+  }
+
   // Clicking a church-book source opens its scan; clicking another shows or
   // hides what it records, as its chevron does for both. Its record shows
   // only when selected, and opening it in the Scan viewer leaves it as it is.
   private renderCitation(c: CitationRow) {
     const viewing = this.viewing?.citation.id === c.id;
-    const status = c.churchBook
-      ? scanStatus(this.scans.get(c.id), this.scansPending)
-      : null;
+    const status = this.statusOf(c);
     const heading = headingOf(c);
     const body = renderBody(c, heading);
-    const foldable = body !== nothing || c.url !== null;
+    const scan = status?.scan ?? null;
+    const foldable = hasDetails(body, c.url, scan);
     const open = this.selected === c.id && foldable;
-    const act = this.actionOf(c, status, foldable);
+    const act = this.actionOf(c, scan, foldable);
     return html`
       <article
-        class="source ${act === null ? '' : 'active'} ${
-          viewing ? 'viewing' : ''
-        }"
+        class=${sourceClass({ active: act !== null, viewing, linked: scan !== null })}
         data-citation=${c.id}
         @click=${(e: Event) => {
           const on = e.target as Element;
@@ -285,14 +323,17 @@ export class PersonPanelElement extends LitElement {
         }}
       >
         <div class="top">
-          <button
-            class="title"
-            ?disabled=${act === null}
-            aria-current=${viewing ? 'true' : nothing}
-            title=${titleOf(c, heading)}
-          >
-            ${heading}
-          </button>
+          <div class="lines">
+            <button
+              class="title"
+              ?disabled=${act === null}
+              aria-current=${viewing ? 'true' : nothing}
+              title=${scan === null ? titleOf(c, heading) : scan.volume}
+            >
+              ${titleText(c, scan)}
+            </button>
+            ${renderStatus(status, linkedEntry(c, scan))}
+          </div>
           ${
             foldable
               ? renderFold(open, () => {
@@ -301,29 +342,20 @@ export class PersonPanelElement extends LitElement {
               : nothing
           }
         </div>
-        ${open ? renderDetails(body, c.url) : nothing} ${renderStatus(status)}
+        ${open ? renderDetails(body, c.url, scan) : nothing}
       </article>
     `;
   }
 
-  private renderGroup(label: string | null, rows: CitationRow[]) {
-    if (rows.length === 0) return nothing;
+  private renderGroup(g: SourceGroup) {
     return html`
-      ${label === null ? nothing : html`<h4>${label} · ${rows.length}</h4>`}
-      ${rows.map((c) => this.renderCitation(c))}
+      ${g.label === null ? nothing : html`<h4>${g.label}</h4>`}
+      ${g.rows.map((c) => this.renderCitation(c))}
     `;
   }
 
-  // Church books first, in date order as the server sends them, then the
-  // others; named apart only when there are both.
   private renderSources(citations: CitationRow[]) {
-    const books = citations.filter((c) => c.churchBook);
-    const others = citations.filter((c) => !c.churchBook);
-    const named = books.length > 0 && others.length > 0;
-    return [
-      this.renderGroup(named ? 'Church books' : null, books),
-      this.renderGroup(named ? 'Other' : null, others)
-    ];
+    return groupSources(citations, this.scans).map((g) => this.renderGroup(g));
   }
 
   // A heading that shows or hides what follows it.
@@ -366,7 +398,7 @@ export class PersonPanelElement extends LitElement {
             ? nothing
             : this.renderSection(
                 'events',
-                `Events · ${d.facts.length}`,
+                'Events',
                 () =>
                   html`<dl>
                     ${d.facts.map(
@@ -380,10 +412,8 @@ export class PersonPanelElement extends LitElement {
         ${
           d.citations.length === 0
             ? nothing
-            : this.renderSection(
-                'sources',
-                `Sources · ${d.citations.length}`,
-                () => this.renderSources(d.citations)
+            : this.renderSection('sources', 'Sources', () =>
+                this.renderSources(d.citations)
               )
         }
       </div>
