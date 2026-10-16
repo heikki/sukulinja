@@ -4,7 +4,7 @@ Clicking a card used to make its person **Focus**: a **Relayout** rebuilt the **
 
 Who the chart is built around and who the dock shows are now separate. The **Selected person** is the one the dock shows:
 
-- **A click selects.** The card is tinted, the dock moves to the person, and the chart stays as it is.
+- **A click selects.** The card is ringed, the dock moves to the person, and the chart stays as it is.
 - **A double-click makes Focus.** It also selects, so the dock and the chart agree again. It works the same on a row of the dock's Family list, whose people may not be drawn at all.
 - **Search makes Focus.** Picking someone there is a jump elsewhere, not a look at someone on screen.
 - **The dock's own picks select.** A click on a row in the Family list, or on a person in the Scan viewer's list, selects them.
@@ -23,4 +23,5 @@ Who the chart is built around and who the dock shows are now separate. The **Sel
 ## Consequences
 
 - The click that starts a double-click selects first and writes that into the current history entry, so Back from the new chart returns to the old one with the double-clicked person selected.
-- The Focus card's ring has its own colour token, `--focus-card`; it had shared `--focus-ring`, which keyboard focus rings redefine after Tab, and lost its outline then.
+- Only the selected card is marked, with the ring the Focus card used to have. Focus needs no mark of its own: the layout places them, and every way of making someone Focus selects them too. Two marks on different cards, or stacked on one, read as neither.
+- The ring has its own colour token, `--selected-card`; the Focus ring had shared `--focus-ring`, which keyboard focus rings redefine after Tab, and lost its outline then.

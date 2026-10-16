@@ -114,14 +114,13 @@ export function renderBox(
   box: Box,
   person: PersonRow,
   state: {
-    focus: boolean;
     selected?: boolean;
     entering: boolean;
     ghost?: boolean;
   },
   on?: { click: () => void; dblclick: () => void }
 ) {
-  const { focus, selected = false, entering, ghost = false } = state;
+  const { selected = false, entering, ghost = false } = state;
   const { boxW, boxH } = dims;
   const tx = box.pos.x - boxW / 2;
   const ty = box.pos.y - boxH / 2;
@@ -142,7 +141,7 @@ export function renderBox(
     DATES_BASELINE_OFFSET;
   return svg`
     <g
-      class="node ${focus ? 'focus' : ''} ${selected ? 'selected' : ''} ${enterClass(entering)} ${ghost ? 'ghost' : ''}"
+      class="node ${selected ? 'selected' : ''} ${enterClass(entering)} ${ghost ? 'ghost' : ''}"
       data-box-key=${box.key}
       style="transform: translate(${tx}px, ${ty}px)"
       @click=${on?.click}
@@ -174,13 +173,10 @@ export const styles = css`
     stroke: var(--card-border);
     stroke-width: 1.5;
   }
-  .node.focus .box {
-    stroke: var(--focus-card);
-    stroke-width: 2;
-  }
-  /* The person the dock shows, tinted whether or not they're Focus. */
+  /* The person the dock shows; Focus needs no mark, the layout places them. */
   .node.selected .box {
-    fill: var(--selected-card);
+    stroke: var(--selected-card);
+    stroke-width: 2;
   }
   .node .hit {
     fill: transparent;

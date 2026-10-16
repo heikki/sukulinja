@@ -559,7 +559,6 @@ export class TreeViewElement extends LitElement {
                         b,
                         person,
                         {
-                          focus: b.personId === this.focusId,
                           selected: b.personId === this.selectedId,
                           entering: enteringKeys.has(b.key)
                         },
