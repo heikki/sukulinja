@@ -149,31 +149,22 @@ export class ScanPeopleElement extends LitElement {
     );
   }
 
+  // As the person dock does: the whole header hides the list, and hidden,
+  // a rail with the heading brings it back.
   override render() {
     if (collapsed) {
       return html`
-        <button
-          class="toggle"
-          title="Show the people here"
-          aria-label="Show the people here"
-          @click=${this.toggle}
-        >
-          ‹
+        <button class="rail" title="Show the people here" @click=${this.toggle}>
+          <span aria-hidden="true">‹</span>
+          <span class="rail-heading">People here</span>
         </button>
       `;
     }
     return html`
-      <div class="head">
+      <button class="head" title="Hide the people here" @click=${this.toggle}>
         <h2>People here</h2>
-        <button
-          class="toggle"
-          title="Hide the people here"
-          aria-label="Hide the people here"
-          @click=${this.toggle}
-        >
-          ›
-        </button>
-      </div>
+        <span class="chevron" aria-hidden="true">›</span>
+      </button>
       <div class="list">${this.renderList()}</div>
     `;
   }

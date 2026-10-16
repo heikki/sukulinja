@@ -28,6 +28,7 @@ import { Prefetch } from './prefetch';
 import { controlStyles, scanViewerStyles } from './styles';
 
 import './entries';
+import './nav';
 import './people';
 import './toolbar';
 
@@ -70,7 +71,8 @@ interface Shown {
 // The Scan viewer: the Image a Church-book reference (`citation`) links
 // (`scan`) over the chart, in its Volume to step through and zoom into; a
 // new `scan` moves it there. The record itself stays in the dock, marked
-// there, so the toolbar holds only moving through the Volume. Asks to close
+// there, so the toolbar only names the Volume, and the Image controls float
+// over the scan. Asks to close
 // with a `scan-close` event. Beside the scan, the people of the tree
 // (`persons`) linked to the Image shown; picking one asks to go on with
 // their citation with `scan-person`, and confirming one's vision match
@@ -435,16 +437,7 @@ export class ScanViewerElement extends LitElement {
   // ------------------------------------------------------------ render
 
   private renderToolbar() {
-    return html`
-      <sl-scan-toolbar
-        .link=${this.scan}
-        .image=${this.image}
-        .count=${this.links?.length ?? null}
-        @scan-show=${(e: CustomEvent<number>) => {
-          this.show(e.detail);
-        }}
-      ></sl-scan-toolbar>
-    `;
+    return html` <sl-scan-toolbar .link=${this.scan}></sl-scan-toolbar> `;
   }
 
   private renderNote() {
@@ -527,6 +520,13 @@ export class ScanViewerElement extends LitElement {
       >
         ${this.renderImages(volume)} ${this.renderEntries()}
         ${this.renderNote()}
+        <sl-scan-nav
+          .image=${this.image}
+          .count=${this.links?.length ?? null}
+          @scan-show=${(e: CustomEvent<number>) => {
+            this.show(e.detail);
+          }}
+        ></sl-scan-nav>
       </div>
     `;
   }

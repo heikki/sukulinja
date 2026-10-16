@@ -28,7 +28,7 @@ function label(s: Scan) {
   return scanStatus({ scans: [s] }, false).label;
 }
 
-test('says how a scan was found, what that means, and where', () => {
+test('says how a scan was found, and what that means', () => {
   expect(label(scan)).toBe('Verified');
   expect(label({ ...scan, by: 'hand' })).toBe('Verified');
   expect(label({ ...scan, method: 'anchored' })).toBe('Estimated');
@@ -37,10 +37,10 @@ test('says how a scan was found, what that means, and where', () => {
   const vision = { ...scan, by: 'vision' as const };
   expect(label(vision)).toBe('Vision match');
   expect(scanStatus({ scans: [scan] }, false).title).toBe(
-    'A person marked this record on this Image.\nI Aa:5, image 18'
+    'A person marked this record on this Image.'
   );
   expect(scanStatus({ scans: [vision] }, false).title).toMatch(
-    /^The vision model found the name on this Image\..*\nI Aa:5, image 18$/
+    /^The vision model found the name on this Image\.[^\n]*$/
   );
 });
 
