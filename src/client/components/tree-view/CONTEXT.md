@@ -5,25 +5,25 @@ A desktop genealogy viewer that renders an **Hourglass chart** centered on a cho
 ## Language
 
 **Hourglass chart**:
-The overall layout: a **Focus** with ancestors stacked above and descendants stacked below. Name is historical — multi-spouse fans and lateral relatives can widen any row.
+The overall layout: a **Root** with ancestors stacked above and descendants stacked below. Name is historical — multi-spouse fans and lateral relatives can widen any row.
 _Avoid_: Bowtie chart, kinship chart, pedigree chart.
 
-**Focus**:
-The single person the chart is built around. Ancestors expand upward, descendants downward.
-_Avoid_: Proband, ego, root, center person.
+**Root**:
+The single person the chart is built around, and the top of its layout tree. Ancestors expand upward, descendants downward. Making someone else Root re-roots the chart.
+_Avoid_: Focus (keyboard focus owns that word), proband, ego, center person.
 
 **Selected person**:
-The person the details dock shows, the only card the chart marks, with a ring. Clicking a card, or a relative in the dock's Family list, selects its person without a **Relayout**; double-clicking either makes them **Focus** too, as selecting someone the chart doesn't draw does (ADR-0011). Focus is selected on becoming Focus; afterwards the two may differ.
-_Avoid_: Active person, current person; "focused" for the selected one.
+The person the details dock shows, the only card the chart marks, with a ring. Clicking a card, or a relative in the dock's Family list, selects its person without a **Relayout**; double-clicking either makes them **Root** too, as selecting someone the chart doesn't draw does (ADR-0011). Root is selected on becoming Root; afterwards the two may differ.
+_Avoid_: Active person, current person, focused person.
 
 ### Horizontal regions
 
-**Focus row**:
-The horizontal row at Focus's **Generation** (Y = 0). Contains Focus + full **Siblings** (each with their first marriage's spouse if any) + Focus's **Spouses** (joined by **Ties**) plus any **Half-sibling** sibships beside it.
+**Root row**:
+The horizontal row at Root's **Generation** (Y = 0). Contains Root + full **Siblings** (each with their first marriage's spouse if any) + Root's **Spouses** (joined by **Ties**) plus any **Half-sibling** sibships beside it.
 _Avoid_: Center row, sibship row, generation row.
 
 **Parent row**:
-The depth-1 row, just above Focus row. The only row with full lateral context — Fa/Mo's non-Primary spouses (rendered as **Couples**) and **Aunts/Uncles** appear here alongside the bloodline Father and Mother. The **Bloodline footprint** is anchored at this row.
+The depth-1 row, just above Root row. The only row with full lateral context — Fa/Mo's non-Primary spouses (rendered as **Couples**) and **Aunts/Uncles** appear here alongside the bloodline Father and Mother. The **Bloodline footprint** is anchored at this row.
 _Avoid_: Depth-1 row, parental row.
 
 **Ancestor stack**:
@@ -31,7 +31,7 @@ The slab above Parent row, containing only the bloodline Ancestor pair at each d
 _Avoid_: Ascendancy, pedigree, ancestor tree (that's a recursive unit).
 
 **Descendant stack**:
-The slab below Focus row. Bloodline **Descendants** and each of their spouses (**Couples**), down to **Generation limit**.
+The slab below Root row. Bloodline **Descendants** and each of their spouses (**Couples**), down to **Generation limit**.
 _Avoid_: Descendancy, descendant tree (that's a recursive unit).
 
 ### Relatives
@@ -40,18 +40,18 @@ _Avoid_: Descendancy, descendant tree (that's a recursive unit).
 Another child in the same **Family**. Children of one Family are always full siblings; cross-Family is a **Half-sibling**.
 
 **Half-sibling**:
-Shares exactly one parent with **Focus**. Rendered at Focus's row, hanging from the non-Primary **Child anchor** of the corresponding parent-Couple (directly under the step-parent). Only Focus's own half-siblings render; half-aunts/uncles (children of step-fams that would belong above **Parent row**) are not rendered.
+Shares exactly one parent with **Root**. Rendered at Root's row, hanging from the non-Primary **Child anchor** of the corresponding parent-Couple (directly under the step-parent). Only Root's own half-siblings render; half-aunts/uncles (children of step-fams that would belong above **Parent row**) are not rendered.
 
 **Spouse**:
-A partner in a **Family**. Rendered (forming a **Couple** joined by a **Tie**) when paired with Focus, a bloodline Ancestor, a bloodline Descendant, or a full **Sibling** of Focus. A Sibling renders only their first meaningful marriage's spouse (no kids); Focus and Descendants render every meaningful marriage. **Aunts/Uncles** do not render any spouses. Multiple spouses fan outward in chronological order — see **Primary spouse**.
+A partner in a **Family**. Rendered (forming a **Couple** joined by a **Tie**) when paired with Root, a bloodline Ancestor, a bloodline Descendant, or a full **Sibling** of Root. A Sibling renders only their first meaningful marriage's spouse (no kids); Root and Descendants render every meaningful marriage. **Aunts/Uncles** do not render any spouses. Multiple spouses fan outward in chronological order — see **Primary spouse**.
 _Avoid_: Partner (this codebase models marriage only).
 
 **Aunt/Uncle**:
-A full **Sibling** of Focus's **Father** or **Mother**. Rendered alongside the bloodline parent at **Parent row** (in Fa or Mo's childhood FB sibship). Siblings of deeper bloodline ancestors (great-aunts/uncles and beyond) are not rendered.
+A full **Sibling** of Root's **Father** or **Mother**. Rendered alongside the bloodline parent at **Parent row** (in Fa or Mo's childhood FB sibship). Siblings of deeper bloodline ancestors (great-aunts/uncles and beyond) are not rendered.
 _Avoid_: Treating them as ancestors — they're collaterals.
 
 **Ancestor**:
-A blood ascendant of Focus. Each has two bloodline parents above; the chart recurses through them.
+A blood ascendant of Root. Each has two bloodline parents above; the chart recurses through them.
 
 ### Layout rules
 
@@ -59,16 +59,16 @@ A blood ascendant of Focus. Each has two bloodline parents above; the chart recu
 Husband on the left, wife on the right in every **Couple**. With multiple spouses, the shared partner sits at one end (left if husband, right if wife); marriages fan outward in chronological order with the **Primary spouse** adjacent. Exception: non-Primary step-spouses at **Parent row** (the **Step-fam fan**) sit on the bloodline parent's own side regardless of sex, so the convention can be violated there. The **Tie** endpoints adapt by X order, not by husband/wife role.
 
 **Primary spouse**:
-The spouse rendered adjacent to its partner when multiple spouses exist; other marriages fan outward in chronological order. The selection rule depends on context — for an **Ancestor** it's the bloodline partner; for Focus and Descendants it's the most recent marriage. Pure layout role.
+The spouse rendered adjacent to its partner when multiple spouses exist; other marriages fan outward in chronological order. The selection rule depends on context — for an **Ancestor** it's the bloodline partner; for Root and Descendants it's the most recent marriage. Pure layout role.
 
 **Child anchor**:
 The point a **Drop** to children originates. Primary marriage (or single-marriage **Couple**): **Tie** midpoint. Non-Primary marriage: bottom edge of the non-shared parent's box. Lone parent — including a Primary marriage whose spouse is unknown — bottom edge of their box.
 
-**Focus pinning**:
-Focus's column sits at chart X = 0. With uneven ancestry, the ancestor pyramid drifts left or right of Focus rather than re-centering. Everything above Focus is positioned by propagation; Focus itself is the only fixed point.
+**Root pinning**:
+Root's column sits at chart X = 0. With uneven ancestry, the ancestor pyramid drifts left or right of Root rather than re-centering. Everything above Root is positioned by propagation; Root itself is the only fixed point.
 
 **Bloodline pyramid**:
-Every parent **Drop** is purely vertical — never an L-bend. For every kid sibship at **Parent row** or above (including Parent row itself, where the sibship widens with **Aunts/Uncles**), the Tie sits off the bloodline kid's column in the direction set by the kid's sex — male ancestor's parents fan to his left, female's to her right. The kid **Bar** runs horizontally from the Tie X over to the bloodline kid's column; the bar — not the drop — does the horizontal work. The chart-root parent FB above Focus row is a separate case: its Tie centres on the Focus sibship's **Bar**, so the parents (and the pyramids stacked on them) shift to sit above the middle of the row and the Drop lands on the Bar's midpoint. **Focus pinning** still fixes Focus's own column at chart X = 0; the parents move relative to it.
+Every parent **Drop** is purely vertical — never an L-bend. For every kid sibship at **Parent row** or above (including Parent row itself, where the sibship widens with **Aunts/Uncles**), the Tie sits off the bloodline kid's column in the direction set by the kid's sex — male ancestor's parents fan to his left, female's to her right. The kid **Bar** runs horizontally from the Tie X over to the bloodline kid's column; the bar — not the drop — does the horizontal work. The chart-root parent FB above Root row is a separate case: its Tie centres on the Root sibship's **Bar**, so the parents (and the pyramids stacked on them) shift to sit above the middle of the row and the Drop lands on the Bar's midpoint. **Root pinning** still fixes Root's own column at chart X = 0; the parents move relative to it.
 
 The shift magnitude grows with how many more levels are rendered above: half-slot at the topmost ancestor row, 3 × half-slot one level lower, 7 × half-slot two levels lower — the (2^n − 1) sequence. This places each Couple as close to chart center as the inter-couple spacing allows, keeps each Couple's great-grandparents centered around the Couple itself, and gives the upper pyramid enough room to keep gen+1 columns distinct.
 
@@ -77,10 +77,10 @@ That magnitude assumes the Couple's sibling subtree fans the opposite way to cou
 Spouse separation inside every Couple — including the chart-root parent FB — stays fixed at one slot; subtree extents grow outward (away from chart center).
 
 **Aunts/Uncles placement**:
-At **Parent row**, **Aunts/Uncles** share the childhood FB sibship with their bloodline sibling (Father or Mother). The bloodline sibling sits at the _inward_ end of the sibship (Father at the rightmost slot of his sibship, Mother at the leftmost slot of hers); Aunts/Uncles fan outward in birth order, pushed past the **Step-fam fan** reservation so step-spouses and **Half-siblings** of Focus fit between the bloodline parent and the Aunts/Uncles. The GP couple's Tie position (see **Bloodline pyramid**) is independent of the sibship width — the bar reaches out to whichever Aunt/Uncle sits farthest from the Tie.
+At **Parent row**, **Aunts/Uncles** share the childhood FB sibship with their bloodline sibling (Father or Mother). The bloodline sibling sits at the _inward_ end of the sibship (Father at the rightmost slot of his sibship, Mother at the leftmost slot of hers); Aunts/Uncles fan outward in birth order, pushed past the **Step-fam fan** reservation so step-spouses and **Half-siblings** of Root fit between the bloodline parent and the Aunts/Uncles. The GP couple's Tie position (see **Bloodline pyramid**) is independent of the sibship width — the bar reaches out to whichever Aunt/Uncle sits farthest from the Tie.
 
 **Bloodline footprint**:
-The chart frame anchoring the chart-root parent FB at **Parent row**: where Fa and Mo sit (their chart-X positions, centred on the sibship midpoint — see **Bloodline pyramid**) and how far the bloodline's own rows reach left and right — the union of Focus's sibship at Focus row and Fa/Mo's own boxes at Parent row (_not_ Aunts/Uncles, which get pushed out past the footprint). **Aunts/Uncles** and the **Step-fam fan** sit past the outer edge on each side, so the footprint is what they must clear.
+The chart frame anchoring the chart-root parent FB at **Parent row**: where Fa and Mo sit (their chart-X positions, centred on the sibship midpoint — see **Bloodline pyramid**) and how far the bloodline's own rows reach left and right — the union of Root's sibship at Root row and Fa/Mo's own boxes at Parent row (_not_ Aunts/Uncles, which get pushed out past the footprint). **Aunts/Uncles** and the **Step-fam fan** sit past the outer edge on each side, so the footprint is what they must clear.
 
 **Step-fam fan**:
 Non-Primary marriages of a bloodline **Ancestor** render at **Parent row** only (Fa's and Mo's). Ancestors above Parent row show their bloodline Couple only — earlier or later marriages are hidden. At Parent row, each parent's non-Primary marriages fan outward on that parent's own side of the chart-root parent FB — Fa's pile up past the bloodline footprint's left edge, Mo's pile up past the right edge — regardless of whether each marriage is chronologically pre- or post-bloodline. Within each side, chronologically-adjacent marriages (one step before or after the bloodline marriage) land closest to the parent, and progressively-distant marriages fan further outward. The chart-root parent FB sep stays at one slot.
@@ -97,7 +97,7 @@ The row of children of one **Family** — full **Siblings** of each other. The h
 A spouse pair drawn side-by-side, joined by a horizontal **Tie**. With only one party known, degenerates to a single person with no Tie.
 
 **Ancestor tree**:
-The bloodline ancestry above a person. At depth 1, includes lateral context (Aunts/Uncles, step-spouses, Half-siblings of Focus); at depth ≥ 2, the bloodline pair only. Recurses upward through the bloodline only. Bounded by **Generation limit**.
+The bloodline ancestry above a person. At depth 1, includes lateral context (Aunts/Uncles, step-spouses, Half-siblings of Root); at depth ≥ 2, the bloodline pair only. Recurses upward through the bloodline only. Bounded by **Generation limit**.
 _Avoid_: Ancestor branch (it's a tree), ancestor line.
 
 **Descendant tree**:
@@ -126,10 +126,10 @@ A sibship's **Drop**, **Bar** and **Legs**, drawn as one path. The Drop is drawn
 The horizontal unit. Each person occupies one slot; adjacent slots share their gap padding, so the gap between two boxes is one full gap. Couples sit one slot apart.
 
 **Generation**:
-The unit of vertical position — a horizontal row. Focus row is generation 0; above are 1↑, 2↑, …; below are 1↓, 2↓, ….
+The unit of vertical position — a horizontal row. Root row is generation 0; above are 1↑, 2↑, …; below are 1↓, 2↓, ….
 
 **Depth**:
-Generations away from the focus row at the current recursion step. Always ≥ 0; direction (↑ vs ↓) is implicit.
+Generations away from the root row at the current recursion step. Always ≥ 0; direction (↑ vs ↓) is implicit.
 
 **Generation limit**:
 The maximum **Depth** rendered in each direction. Beyond it, the sub-layout becomes a single box. Labelled **Generations** for the viewer.
@@ -137,21 +137,21 @@ _Avoid_: Levels.
 
 ## Rendering scope
 
-- **Focus row**: Focus + full **Siblings** (each with their first marriage's spouse, no kids) + Focus's **Spouses** + Focus's **Half-siblings** (hanging from step-fam Couples at Parent row).
+- **Root row**: Root + full **Siblings** (each with their first marriage's spouse, no kids) + Root's **Spouses** + Root's **Half-siblings** (hanging from step-fam Couples at Parent row).
 - **Parent row**: Fa and Mo, their non-Primary spouses (each as a **Couple**), and their full siblings (**Aunts/Uncles**).
 - **Ancestor stack**: the bloodline Couple at each depth — no laterals.
 - **Descendant stack**: bloodline **Descendants** + each descendant's spouses.
 
 **Not** rendered: children of lateral relatives (no nieces/nephews, no cousins), spouses of **Aunts/Uncles**, second/third marriages of full Siblings, or any step-spouses / lateral siblings above Parent row.
 
-Rule of thumb: Focus's bloodline up and down, with one ring of lateral context at **Parent row** only.
+Rule of thumb: Root's bloodline up and down, with one ring of lateral context at **Parent row** only.
 
 ## Transition
 
 Motion vocabulary for animating between two **Hourglass charts**. Distinct from the static layout language above: these name what moves, not what's drawn.
 
 **Relayout**:
-A rebuild of the chart triggered by a **Focus** change or a **Generation limit** change. The set of boxes and edges shifts; the **Transition** animates the difference.
+A rebuild of the chart triggered by a **Root** change or a **Generation limit** change. The set of boxes and edges shifts; the **Transition** animates the difference.
 _Avoid_: rerender, redraw (those are per-frame, not per-rebuild).
 
 **Transition**:
@@ -159,7 +159,7 @@ The animated change from the previous chart to the next across a **Relayout**, i
 _Avoid_: animation (too generic — reserve for one element's tween).
 
 **Move**:
-The phase animating the boxes and edges **Pairing** carries across the two charts from their old position to their new one (FLIP). Measured in screen space: the **Pin** holds **Focus** fixed while everything else shifts around it. A line slides only when every box it connects slides — a Tie's spouses, or a **Sibship connector**'s parents and all its kids — so lines stay joined to their cards throughout; its path is rebuilt from the moving points each frame, so rounded corners stay round. While a Move runs, the sliders paint behind the stationary cards. When a Back/Forward step restores a different zoom, the Move also eases each card's size from the old scale to the new (scaling about its centre, so the slide still lands); edges are points and need no scaling, and the **Leave** ghosts scale the same way so they fade at their old size.
+The phase animating the boxes and edges **Pairing** carries across the two charts from their old position to their new one (FLIP). Measured in screen space: the **Pin** holds **Root** fixed while everything else shifts around it. A line slides only when every box it connects slides — a Tie's spouses, or a **Sibship connector**'s parents and all its kids — so lines stay joined to their cards throughout; its path is rebuilt from the moving points each frame, so rounded corners stay round. While a Move runs, the sliders paint behind the stationary cards. When a Back/Forward step restores a different zoom, the Move also eases each card's size from the old scale to the new (scaling about its centre, so the slide still lands); edges are points and need no scaling, and the **Leave** ghosts scale the same way so they fade at their old size.
 
 **Enter**:
 The phase fading in the next chart's boxes and edges that don't Move — new to the chart, an extra copy of a repeated person, or the arriving half of a **Jump**.
@@ -168,25 +168,25 @@ The phase fading in the next chart's boxes and edges that don't Move — new to 
 The phase fading out the previous chart's boxes and edges that don't Move, as **Ghosts** — copies retained past the data, since the live elements are deleted on **Relayout**.
 
 **Pairing**:
-How the Transition matches the previous chart's box and edge instances to the next's: one-to-one within a match key — the **Box key** on a Generation Relayout, the personId / base key on a Focus Relayout — nearest on screen first. A person drawn more times in one chart than the other pairs what it can; the extras enter or leave. Every box and edge lands in exactly one phase (ADR-0008).
+How the Transition matches the previous chart's box and edge instances to the next's: one-to-one within a match key — the **Box key** on a Generation Relayout, the personId / base key on a Root Relayout — nearest on screen first. A person drawn more times in one chart than the other pairs what it can; the extras enter or leave. Every box and edge lands in exactly one phase (ADR-0008).
 
 **Jump**:
-A paired box whose slide would pass through another card. It doesn't Move: it leaves as a Ghost and re-enters at its new spot, and so do the lines connecting it — its **Tie**, and the **Sibship connector** it belongs to or hangs from. When slides conflict the farther traveller jumps — typically **Aunts/Uncles** switching sides of their bloodline sibling as **Focus** steps between generations.
+A paired box whose slide would pass through another card. It doesn't Move: it leaves as a Ghost and re-enters at its new spot, and so do the lines connecting it — its **Tie**, and the **Sibship connector** it belongs to or hangs from. When slides conflict the farther traveller jumps — typically **Aunts/Uncles** switching sides of their bloodline sibling as **Root** steps between generations.
 _Avoid_: cross-fade (names the look, not the rule).
 
 **Pin**:
-Holds **Focus** at a fixed screen pixel across a **Relayout** so the **Move** is coherent (and so Back/Forward restores the view, ADR-0004). Owned by the viewport, not the Transition. A **Nudge** may shift the pinned result when the new chart would not fit.
+Holds **Root** at a fixed screen pixel across a **Relayout** so the **Move** is coherent (and so Back/Forward restores the view, ADR-0004). Owned by the viewport, not the Transition. A **Nudge** may shift the pinned result when the new chart would not fit.
 _Avoid_: anchor, lock.
 
 **Nudge**:
-The corrective pan applied on top of the **Pin** after a Focus **Relayout**, and on top of the centred Focus when a dataset first opens. On an axis where the whole chart fits the canvas, it centres the chart if any edge clips. On an axis where the chart is too large, it centres the **Comfort region** if that clips, then pulls the chart so its edge never leaves empty canvas on one side while the other side is clipped. Zero on an axis where nothing clips or leaves a gap — then the Pin stands untouched. Never changes zoom, and yields to a pan restored from the URL (ADR-0010). The survivors' **Move** carries it, so the view travels with the slide rather than jumping.
+The corrective pan applied on top of the **Pin** after a Root **Relayout**, and on top of the centred Root when a dataset first opens. On an axis where the whole chart fits the canvas, it centres the chart if any edge clips. On an axis where the chart is too large, it centres the **Comfort region** if that clips, then pulls the chart so its edge never leaves empty canvas on one side while the other side is clipped. Zero on an axis where nothing clips or leaves a gap — then the Pin stands untouched. Never changes zoom, and yields to a pan restored from the URL (ADR-0010). The survivors' **Move** carries it, so the view travels with the slide rather than jumping.
 _Avoid_: recenter, auto-pan, scroll.
 
 **Comfort region**:
-The rectangle a **Nudge** tries to keep on screen: the **Focus row** plus the **Parent row**, or the Focus row alone when Focus has no parents. Padded by the canvas margin. When it is too large for an axis, Focus's own column is centred on that axis and the region's extremes clip — except that the **Core** is first pulled back inside the margins when it fits.
+The rectangle a **Nudge** tries to keep on screen: the **Root row** plus the **Parent row**, or the Root row alone when Root has no parents. Padded by the canvas margin. When it is too large for an axis, Root's own column is centred on that axis and the region's extremes clip — except that the **Core** is first pulled back inside the margins when it fits.
 
 **Core**:
-The part of the **Comfort region** a **Nudge** protects when the region is too wide: Focus, their **Spouses** and every **Descendant** below — or, if that is too wide, Focus and their Spouses alone. Siblings and the **Parent row** are what clips instead.
+The part of the **Comfort region** a **Nudge** protects when the region is too wide: Root, their **Spouses** and every **Descendant** below — or, if that is too wide, Root and their Spouses alone. Siblings and the **Parent row** are what clips instead.
 
 **Box key**:
 A box's stable per-instance identity — the path of node ids from the chart root down to it (e.g. `p242/f68/…/p686`). Unique even under pedigree collapse (one person drawn as several boxes) and stable across a **Generation limit** **Relayout**. Edges carry the path-prefixed key plus a **base key** (the bare family-local key), shared by both copies of a collapsed **Family**.
@@ -200,5 +200,5 @@ _Avoid_: timeline (implementation detail).
 
 - **"Tree"** is overloaded between recursive data structures (**Ancestor tree** / **Descendant tree**) and chart regions (**Ancestor stack** / **Descendant stack**). Disambiguate by adjective.
 - A **Family** is one record but takes two roles relative to any person: the family they are a child in vs. one of the families they are a spouse in. Roles, not separate kinds.
-- **Depth** is a count from Focus row in the recursion; **Parent row** / **Ancestor stack** / **Descendant stack** name spatial regions. Parent row is depth 1; the Ancestor stack starts at depth 2.
+- **Depth** is a count from Root row in the recursion; **Parent row** / **Ancestor stack** / **Descendant stack** name spatial regions. Parent row is depth 1; the Ancestor stack starts at depth 2.
 - **"Move"** is the **Transition** phase for persisting boxes — not the file `move.ts`, nor a general verb. **"Transition"** is the chart-level choreography across a **Relayout**, not a CSS `transition`.

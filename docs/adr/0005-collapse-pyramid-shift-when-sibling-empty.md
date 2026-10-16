@@ -4,7 +4,7 @@ ADR-0001 sizes each ancestor couple's directional Tie shift for a balanced binar
 pyramid: `(2^max(1, levels − depth) − 1) × half-slot`. That magnitude assumes the
 couple's sibling subtree fans the opposite way and counterweights it. When one
 parent has no bloodline ancestry, the counterweight never materialises: the lone
-pyramid drifts far off **Focus**'s column — the deeper the filled side, the worse
+pyramid drifts far off **Root**'s column — the deeper the filled side, the worse
 (a 4-deep paternal line with an empty maternal side lands the grandparents ~3.5
 slots left of the father, the whole pyramid hanging off to one side).
 

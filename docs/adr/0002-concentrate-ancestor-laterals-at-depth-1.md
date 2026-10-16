@@ -1,6 +1,6 @@
 # Concentrate ancestor laterals at depth 1
 
-All lateral context in the **Ancestor stack** — Aunts/Uncles, non-Primary spouses (step-fams), and Half-siblings — renders only at depth 1 (Focus's parents). Depth ≥ 2 ancestors render their bloodline Couple alone: no step-spouses, no full siblings, no half-relatives. This narrows the previous CONTEXT.md promise of "one ring of lateral context per generation" to "one ring at depth 1 only."
+All lateral context in the **Ancestor stack** — Aunts/Uncles, non-Primary spouses (step-fams), and Half-siblings — renders only at depth 1 (Root's parents). Depth ≥ 2 ancestors render their bloodline Couple alone: no step-spouses, no full siblings, no half-relatives. This narrows the previous CONTEXT.md promise of "one ring of lateral context per generation" to "one ring at depth 1 only."
 
 The change keeps the parts of the chart users actually use — your own parents' siblings, your half-siblings, your parents' other marriages — visible at full detail, and removes the upper-pyramid noise (great-great-uncles, a great-grandfather's third wife) that bloats charts without adding to the user's mental model. It also dovetails with the new bloodline pyramid (see ADR-0001): with no laterals at depth ≥ 2 the pyramid is genuinely pure recursion of `{bloodline Couple → two parent Couples}`, and the "outward-only subtree extent" rule is automatically satisfied above depth 1.
 

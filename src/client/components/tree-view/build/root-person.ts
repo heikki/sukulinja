@@ -1,4 +1,4 @@
-// Focus's PersonNode (chart root) and its downward subtree.
+// Root's PersonNode, the top of the layout tree, and its downward subtree.
 
 import type { FamilyRow } from '@common/types';
 
@@ -16,32 +16,29 @@ import { buildParentRow } from './parent-row';
 import { buildSibship } from './sibship';
 import type { Sibship } from './sibship';
 
-export function buildFocusPerson(
-  focusId: number,
-  ix: LayoutIndices
-): PersonNode {
-  const downward = buildOwnedMarriages(focusId, 0, ix.levels >= 1, ix);
-  const focus = new PersonNode(
-    focusId,
+export function buildRootPerson(rootId: number, ix: LayoutIndices): PersonNode {
+  const downward = buildOwnedMarriages(rootId, 0, ix.levels >= 1, ix);
+  const root = new PersonNode(
+    rootId,
     null,
     downward.marriages,
     downward.activeIdx
   );
 
-  const parentFam = ix.parentFamByPerson.get(focusId);
-  if (parentFam === undefined || ix.levels < 1) return focus;
+  const parentFam = ix.parentFamByPerson.get(rootId);
+  if (parentFam === undefined || ix.levels < 1) return root;
 
   const sibIds = presentChildren(parentFam, ix);
   // A parent Family with no known parent and no Sibling has nothing to draw.
-  if (!hasKnownAncestry(focusId, ix) && sibIds.length <= 1) return focus;
+  if (!hasKnownAncestry(rootId, ix) && sibIds.length <= 1) return root;
   const siblings = sibIds
-    .filter((id) => id !== focusId)
+    .filter((id) => id !== rootId)
     .map((id) => buildSibling(id, ix));
 
-  // childhoodFamily is still null here, so focus.extents reflects only the
+  // childhoodFamily is still null here, so root.extents reflects only the
   // downward subtree — what parent-row wants for sibship packing.
-  focus.childhoodFamily = buildParentRow(focus, siblings, ix);
-  return focus;
+  root.childhoodFamily = buildParentRow(root, siblings, ix);
+  return root;
 }
 
 // First spouseFam only, no kids — per CONTEXT.md "Spouse".

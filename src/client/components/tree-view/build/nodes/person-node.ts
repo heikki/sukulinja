@@ -10,14 +10,14 @@
 // ancestor case: Fa.marriages has a null at the bloodline slot because
 // the bloodline FamilyNode lives in the parent FamilyNode above). Roles:
 //
-//   - focus:    marriages = [...all, primary at the last slot], activeIdx = last
+//   - root:     marriages = [...all, primary at the last slot], activeIdx = last
 //   - sibling:  marriages = [primary],                          activeIdx = 0
 //   - ancestor: marriages = [...stepFams, null at bloodline,...] (chronological),
 //               activeIdx = bloodline position in spouseFams
 //   - bare:     marriages = [], activeIdx = null
 //
-// `childhoodFamily` is settable: built bottom-up (e.g. focus-person builds
-// the focus PersonNode without childhood so the parent-row builder can read
+// `childhoodFamily` is settable: built bottom-up (e.g. root-person builds
+// the root PersonNode without childhood so the parent-row builder can read
 // its downward extents, then plugs the parent FN in via the setter).
 
 import type { FamilyNode } from './family-node';

@@ -2,7 +2,7 @@
 //   buildCenteredFamily — both adults owned here, Tie at tieXLocal.
 //     Used for the chart-root parent FN and ancestor childhood Families.
 //   buildAnchoredFamily — one adult (anchorId) anchored at localX=0, spouse
-//     fans to placement.xSpouse. Used for Focus's marriages, descendant
+//     fans to placement.xSpouse. Used for Root's marriages, descendant
 //     marriages, and the parent-row Step-fam fan.
 
 import type { FamilyRow } from '@common/types';
@@ -34,7 +34,7 @@ interface CenteredFamilyArgs {
   // Family-local Tie X. Defaults to 0.
   tieXLocal?: number;
   // Family-local X for a lone parent's box and Drop. Defaults to 0 (the
-  // bloodline kid's column). The chart-root parent row passes the Focus
+  // bloodline kid's column). The chart-root parent row passes the Root
   // sibship midpoint so a single parent centres on the Bar like a Couple does.
   loneDropXLocal?: number;
 }

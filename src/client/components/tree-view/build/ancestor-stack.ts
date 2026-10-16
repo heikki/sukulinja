@@ -17,7 +17,7 @@ export function buildAncestorStack(
   ix: LayoutIndices,
   // True when kidId's spouse at this couple has no bloodline ancestry — the
   // shift collapses (see ancestorShift) so a lone pyramid doesn't drift off
-  // Focus's column with nothing on the other side to counterweight it.
+  // Root's column with nothing on the other side to counterweight it.
   siblingEmpty = false
 ): FamilyNode | null {
   if (kidDepth >= ix.levels) return null;
@@ -92,7 +92,7 @@ function buildAncestorPerson(
 // kid sex (male → left/negative, female → right/positive). That magnitude sizes
 // the pyramid for a balanced subtree fanning the opposite way to counterweight
 // it; when the sibling ancestry is empty there's nothing to balance, so the lone
-// pyramid would hang far off Focus's column. Collapse to the minimum half-slot
+// pyramid would hang far off Root's column. Collapse to the minimum half-slot
 // in that case, tucking it back over the bloodline child.
 function ancestorShift(
   kidSex: string | null | undefined,

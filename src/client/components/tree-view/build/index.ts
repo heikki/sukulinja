@@ -1,19 +1,19 @@
-// Layout pipeline entry. Focus is the chart root at (0, 0); emit walks the
+// Layout pipeline entry. Root sits at chart (0, 0); emit walks the
 // tree once and produces a flat EmitOutput.
 
 import { emitLayout } from '../emit';
 import type { Dims } from '../emit';
-import { buildFocusPerson } from './focus-person';
 import { isPersonKnown } from './indices';
 import type { LayoutIndices } from './indices';
+import { buildRootPerson } from './root-person';
 
-export function buildChart(focusId: number, ix: LayoutIndices, dims: Dims) {
-  if (!ix.persons.has(focusId)) return null;
+export function buildChart(rootId: number, ix: LayoutIndices, dims: Dims) {
+  if (!ix.persons.has(rootId)) return null;
   const effectiveIx: LayoutIndices = {
     ...ix,
-    ancestorLevels: actualMaxAncestorDepth(focusId, ix.levels, ix)
+    ancestorLevels: actualMaxAncestorDepth(rootId, ix.levels, ix)
   };
-  const root = buildFocusPerson(focusId, effectiveIx);
+  const root = buildRootPerson(rootId, effectiveIx);
   return emitLayout(root, { x: 0, y: 0 }, dims);
 }
 

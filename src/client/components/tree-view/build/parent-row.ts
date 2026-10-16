@@ -19,24 +19,24 @@ import { PersonNode } from './nodes/person-node';
 import { buildSibship } from './sibship';
 
 export function buildParentRow(
-  focusNode: PersonNode,
+  rootNode: PersonNode,
   siblingNodes: readonly PersonNode[],
   ix: LayoutIndices
 ): FamilyNode {
-  const focusId = focusNode.personId;
-  const parentFam = ix.parentFamByPerson.get(focusId);
+  const rootId = rootNode.personId;
+  const parentFam = ix.parentFamByPerson.get(rootId);
   if (parentFam === undefined) {
-    throw new Error(`buildParentRow: focus ${focusId} has no parent family`);
+    throw new Error(`buildParentRow: root ${rootId} has no parent family`);
   }
 
-  const focusRow = packFocusRow(parentFam, focusNode, siblingNodes, ix);
-  // Centre the parent Tie/Drop on the Focus sibship's Bar, not over Focus's
-  // column: Focus stays pinned at chart 0 while the parents (and the ancestor
+  const rootRow = packRootRow(parentFam, rootNode, siblingNodes, ix);
+  // Centre the parent Tie/Drop on the Root sibship's Bar, not over Root's
+  // column: Root stays pinned at chart 0 while the parents (and the ancestor
   // pyramids stacked on them) shift to sit above the middle of the row.
-  const sibCenter = focusRow.packed.barMid + focusRow.focusShift;
+  const sibCenter = rootRow.packed.barMid + rootRow.rootShift;
   const footprint = computeBloodlineFootprint(
     parentFam,
-    focusRow,
+    rootRow,
     sibCenter,
     ix
   );
@@ -67,45 +67,45 @@ export function buildParentRow(
     famId: parentFam.id,
     husband: fatherNode,
     wife: motherNode,
-    kids: focusRow.slots,
+    kids: rootRow.slots,
     tieXLocal: sibCenter,
     loneDropXLocal: sibCenter
   });
 }
 
-// Birth-order packing, shifted so Focus lands at family-local 0.
-function packFocusRow(
+// Birth-order packing, shifted so Root lands at family-local 0.
+function packRootRow(
   parentFam: FamilyRow,
-  focusNode: PersonNode,
+  rootNode: PersonNode,
   siblingNodes: readonly PersonNode[],
   ix: LayoutIndices
 ) {
-  const focusId = focusNode.personId;
+  const rootId = rootNode.personId;
   const sibIds = presentChildren(parentFam, ix);
   const siblingsById = new Map<number, PersonNode>();
   for (const s of siblingNodes) siblingsById.set(s.personId, s);
 
   const extents: Extents[] = sibIds.map((id) =>
-    id === focusId ? focusNode.extents : siblingsById.get(id)!.extents
+    id === rootId ? rootNode.extents : siblingsById.get(id)!.extents
   );
   const packed = buildSibship(extents);
-  const focusShift = -packed.positions[sibIds.indexOf(focusId)]!;
+  const rootShift = -packed.positions[sibIds.indexOf(rootId)]!;
   const slots: PersonSlot[] = sibIds.map((id, i) => {
-    const localX = packed.positions[i]! + focusShift;
-    if (id === focusId) return { node: null, personId: id, localX };
+    const localX = packed.positions[i]! + rootShift;
+    if (id === rootId) return { node: null, personId: id, localX };
     const node = siblingsById.get(id)!;
     return { node, personId: id, localX };
   });
-  return { slots, packed, focusShift };
+  return { slots, packed, rootShift };
 }
 
 // ─────────────────────────────────────────────────────────────────────────
 // Bloodline footprint
 // ─────────────────────────────────────────────────────────────────────────
 
-// Fa/Mo chart-X and the leftmost/rightmost reach of {focus row sibship,
+// Fa/Mo chart-X and the leftmost/rightmost reach of {root row sibship,
 // Fa box, Mo box}. Aunts/Uncles and Step-fam fans must clear the outer
-// edges. Focus is pinned at chart X = 0.
+// edges. Root is pinned at chart X = 0.
 class BloodlineFootprint {
   constructor(
     private readonly fatherChartX: number,
@@ -124,7 +124,7 @@ class BloodlineFootprint {
 
 function computeBloodlineFootprint(
   parentFam: FamilyRow,
-  focusRow: ReturnType<typeof packFocusRow>,
+  rootRow: ReturnType<typeof packRootRow>,
   sibCenter: number,
   ix: LayoutIndices
 ): BloodlineFootprint {
@@ -136,17 +136,17 @@ function computeBloodlineFootprint(
   const fatherChartX = sibCenter - sep / 2;
   const motherChartX = sibCenter + sep / 2;
 
-  const focusSibshipEdges: Extents = {
-    left: focusRow.focusShift,
-    right: focusRow.packed.totalWidth + focusRow.focusShift
+  const rootSibshipEdges: Extents = {
+    left: rootRow.rootShift,
+    right: rootRow.packed.totalWidth + rootRow.rootShift
   };
   const parentCoupleEdges: Extents = {
     left: fatherPresent ? fatherChartX - 0.5 : Infinity,
     right: motherPresent ? motherChartX + 0.5 : -Infinity
   };
   return new BloodlineFootprint(fatherChartX, motherChartX, {
-    left: Math.min(focusSibshipEdges.left, parentCoupleEdges.left),
-    right: Math.max(focusSibshipEdges.right, parentCoupleEdges.right)
+    left: Math.min(rootSibshipEdges.left, parentCoupleEdges.left),
+    right: Math.max(rootSibshipEdges.right, parentCoupleEdges.right)
   });
 }
 
@@ -192,7 +192,7 @@ function buildAncestorPersonAtParentRow(
   );
 }
 
-// Aunts/Uncles must clear the footprint outer edge (focus row may reach past
+// Aunts/Uncles must clear the footprint outer edge (root row may reach past
 // the parent's box, esp. with descendants) plus the Step-fam fan reservation.
 function computeAuntShift(
   parentId: number,
@@ -213,7 +213,7 @@ function computeAuntShift(
 }
 
 // Bloodline kid at the inward end; Aunts/Uncles fan outward in birth order,
-// past the step-fam reservation so step-spouses + Focus's Half-siblings fit
+// past the step-fam reservation so step-spouses + Root's Half-siblings fit
 // between bloodline parent and Aunts/Uncles. See CONTEXT.md.
 function buildChildhoodKids(
   bloodlineId: number,

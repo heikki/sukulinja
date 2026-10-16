@@ -38,7 +38,7 @@ export const treeViewStyles = css`
     width: min(320px, 45vw);
   }
 
-  /* The chart and, beside it, the Focus details panel. */
+  /* The chart and, beside it, the selected person's details panel. */
   .main {
     flex: 1;
     display: flex;

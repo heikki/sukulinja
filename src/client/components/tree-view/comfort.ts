@@ -1,4 +1,4 @@
-// Where the chart should keep Focus in view, from its boxes.
+// Where the chart should keep Root in view, from its boxes.
 
 import type { Box, Extents } from './emit';
 import { dims } from './renderer';
@@ -19,9 +19,9 @@ function boundsOf(boxes: Box[]): Extents {
   };
 }
 
-// Comfort region: the Focus row plus the Parent row (or Focus's row alone), from
-// the chart's boxes. Its cores, most preferred first: Focus and their spouses
-// with every descendant below, then Focus and their spouses alone. Focus sits
+// Comfort region: the Root row plus the Parent row (or Root's row alone), from
+// the chart's boxes. Its cores, most preferred first: Root and their spouses
+// with every descendant below, then Root and their spouses alone. Root sits
 // at chart y = 0.
 export function comfortOf(
   boxes: Box[],

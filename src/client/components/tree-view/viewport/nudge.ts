@@ -1,4 +1,4 @@
-// The refocus Nudge: the pan that keeps what matters of the chart on the
+// The re-root Nudge: the pan that keeps what matters of the chart on the
 // canvas. Pure geometry over the pan-zoom transform.
 
 import { chartToScreen } from '@client/pan-zoom';
@@ -26,7 +26,7 @@ function pullInside(span: Span, shift: number, size: number, margin: number) {
 }
 
 // Shift that keeps the region on screen. A region that clips is centred. One too
-// large to fit centres Focus's anchor, then pulls the first core that fits back
+// large to fit centres Root's anchor, then pulls the first core that fits back
 // inside the margins, so the clip falls on the rest of the row, not on the part
 // that matters most.
 function regionShift(span: AxisSpan, size: number, margin: number) {
@@ -74,7 +74,7 @@ export interface NudgeTarget {
   // most preferred first; the first that fits an axis is used.
   cores: Extents[];
   // Chart point kept centred on an axis the region is too large for.
-  focus: Point;
+  root: Point;
   viewBoxOrigin: Point;
   canvas: Viewport;
   marginPx: number;
@@ -83,7 +83,7 @@ export interface NudgeTarget {
 // The pan that keeps the region, and as much of the chart as fits, on the
 // canvas, padded by marginPx. Scale is untouched.
 export function nudgeIntoView(t: Transform, target: NudgeTarget): Point {
-  const { region, chart, cores, focus, viewBoxOrigin, canvas, marginPx } =
+  const { region, chart, cores, root, viewBoxOrigin, canvas, marginPx } =
     target;
   function place(p: Point) {
     return chartToScreen(t, p, viewBoxOrigin);
@@ -94,7 +94,7 @@ export function nudgeIntoView(t: Transform, target: NudgeTarget): Point {
   const cHi = place(chart.max);
   const coresLo = cores.map((c) => place(c.min));
   const coresHi = cores.map((c) => place(c.max));
-  const at = place(focus);
+  const at = place(root);
   return {
     x: nudgeAxis(
       t.pan.x,

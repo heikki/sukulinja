@@ -1,7 +1,7 @@
 // Momentum pan: exponential-decay velocity drives a RAF loop that calls
 // onTick with the per-frame pan delta. Returns null if the release velocity
 // is below the minimum (no flick → no glide); otherwise returns a handle
-// the caller invokes to interrupt the animation (new drag, wheel, refocus).
+// the caller invokes to interrupt the animation (new drag, wheel, re-root).
 
 export interface MomentumOptions {
   tauMs: number;

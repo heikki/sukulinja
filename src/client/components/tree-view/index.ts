@@ -41,7 +41,7 @@ import { ViewportController } from './viewport';
 import type { Comfort, ViewportOptions } from './viewport';
 
 const SVG_MARGIN_PX = 24;
-const DEFAULT_FOCUS_ID = 1;
+const DEFAULT_ROOT_ID = 1;
 const VIEWPORT_OPTIONS: ViewportOptions = {
   scaleBounds: { minScale: 0.25, maxScale: 2 },
   wheelZoomK: 0.001,
@@ -63,8 +63,8 @@ export class TreeViewElement extends LitElement {
   @property({ type: Number, reflect: true }) gen = preferredGenerations();
 
   @state() private persons = new Map<number, PersonRow>();
-  @state() private focusId: number | null = null;
-  // The person the dock shows: Focus, or anyone picked since without
+  @state() private rootId: number | null = null;
+  // The person the dock shows: Root, or anyone picked since without
   // rebuilding the chart.
   @state() private selectedId: number | null = null;
   @state() private loading = true;
@@ -155,24 +155,24 @@ export class TreeViewElement extends LitElement {
     const parsed = parseHashView(location.hash, URL_BOUNDS);
     this.restoreViewportFromHash(parsed);
 
-    const id = parsed.focusId;
+    const id = parsed.rootId;
     if (id === null || !this.persons.has(id)) return;
     this.selectedId = this.knownOr(parsed.selectedId, id);
-    if (id === this.focusId) return;
+    if (id === this.rootId) return;
     // No stored pan means the prior box was pinned at its click position; pin the
-    // new focus at canvas center so back/forward doesn't land it at that stale
+    // new root at canvas center so back/forward doesn't land it at that stale
     // offset. With a stored pan the deferred restore above is authoritative.
     if (parsed.pan === null) {
-      this.viewport.beginRefocus(this.canvasCenter(), { nudge: true });
+      this.viewport.beginReroot(this.canvasCenter(), { nudge: true });
     }
-    this.focusId = id;
+    this.rootId = id;
   };
 
   // Defer the URL's pan/zoom to updated() (applyPendingViewport) rather than
   // mutating the viewport now: the Transition captures its FLIP "First" through
   // the live pan/scale in willUpdate, so an eager change would snapshot the new
   // viewport and flatten the slide. The click path defers the same way via the
-  // pending pin, so a back/forward focus change animates like a click.
+  // pending pin, so a back/forward root change animates like a click.
   private restoreViewportFromHash(parsed: ParsedView) {
     const nextZoom =
       parsed.zoom !== null && parsed.zoom !== this.viewport.scale
@@ -188,8 +188,8 @@ export class TreeViewElement extends LitElement {
       [this.scanOpen, this.scanFollowing] = [this.scanFollowing, null];
     }
     // Gen change rebuilds the chart with different extents, which would drift
-    // Focus on screen since chart (0,0) is mapped through extents.min.
-    // Capture Focus's current screen pixel so the post-rebuild pin keeps it
+    // Root on screen since chart (0,0) is mapped through extents.min.
+    // Capture Root's current screen pixel so the post-rebuild pin keeps it
     // put.
     if (
       changed.has('gen') &&
@@ -198,33 +198,32 @@ export class TreeViewElement extends LitElement {
     ) {
       // Silent: the Generations handler writes the URL itself once the change
       // has landed.
-      this.viewport.beginRefocus(this.viewport.chartToScreen({ x: 0, y: 0 }), {
+      this.viewport.beginReroot(this.viewport.chartToScreen({ x: 0, y: 0 }), {
         silent: true
       });
     }
-    if (changed.has('focusId') || changed.has('gen')) {
+    if (changed.has('rootId') || changed.has('gen')) {
       this.captureRelayout(changed);
     }
   }
 
-  // Snapshot the on-screen chart before a Focus or Generation Relayout so the
+  // Snapshot the on-screen chart before a Root or Generation Relayout so the
   // Transition can animate from it. A Generation limit change keeps the chart rooted (a
-  // Generation Relayout; match by unique key); any focus change re-roots (a
-  // Focus Relayout; match by personId/baseKey). Skip the very first focus — no
+  // Generation Relayout; match by unique key); any root change re-roots (a
+  // Root Relayout; match by personId/baseKey). Skip the very first root — no
   // previous chart to move from. The DOM and viewport still reflect the old
   // chart here (render commits in update(), the pin lands in updated()), so the
   // controller's capture maps through the old pan/extents.
   private captureRelayout(changed: PropertyValues) {
-    const firstFocus =
-      changed.has('focusId') && changed.get('focusId') === null;
-    if (firstFocus) return;
+    const firstRoot = changed.has('rootId') && changed.get('rootId') === null;
+    if (firstRoot) return;
     const kind: RelayoutKind =
-      changed.has('gen') && !changed.has('focusId') ? 'generation' : 'focus';
+      changed.has('gen') && !changed.has('rootId') ? 'generation' : 'root';
     this.transition.capture(kind);
   }
 
   override updated(_changed: PropertyValues) {
-    if (this.loading || this.focusId === null) return;
+    if (this.loading || this.rootId === null) return;
     this.viewport.attachCanvas(this.queryCanvas());
     this.viewport.ensureInitialPan();
     // A pending viewport mutation (the click pin, or a back/forward pan/zoom
@@ -241,11 +240,11 @@ export class TreeViewElement extends LitElement {
     return this.renderRoot.querySelector<HTMLElement>('.canvas');
   }
 
-  // Focus and every spouse they have.
-  private coreIds(focusId: number) {
-    const ids = new Set([focusId]);
-    for (const fam of this.spouseFamsByPerson.get(focusId) ?? []) {
-      const spouse = otherSpouseOf(fam, focusId);
+  // Root and every spouse they have.
+  private coreIds(rootId: number) {
+    const ids = new Set([rootId]);
+    for (const fam of this.spouseFamsByPerson.get(rootId) ?? []) {
+      const spouse = otherSpouseOf(fam, rootId);
       if (spouse !== null) ids.add(spouse);
     }
     return ids;
@@ -290,13 +289,13 @@ export class TreeViewElement extends LitElement {
       this.viewport.setPan(parsed.pan);
       this.hasUserPan = true;
     }
-    if (parsed.focusId !== null && this.persons.has(parsed.focusId)) {
-      this.focusId = parsed.focusId;
-      this.selectedId = this.knownOr(parsed.selectedId, parsed.focusId);
+    if (parsed.rootId !== null && this.persons.has(parsed.rootId)) {
+      this.rootId = parsed.rootId;
+      this.selectedId = this.knownOr(parsed.selectedId, parsed.rootId);
       return;
     }
-    const def = this.pickDefaultFocus();
-    this.focusId = def;
+    const def = this.pickDefaultRoot();
+    this.rootId = def;
     this.selectedId = def;
     if (def !== null) {
       history.replaceState(null, '', this.buildCurrentHash(def));
@@ -323,28 +322,28 @@ export class TreeViewElement extends LitElement {
     return id !== null && this.persons.has(id) ? id : fallback;
   }
 
-  private pickDefaultFocus() {
-    if (this.persons.has(DEFAULT_FOCUS_ID)) return DEFAULT_FOCUS_ID;
+  private pickDefaultRoot() {
+    if (this.persons.has(DEFAULT_ROOT_ID)) return DEFAULT_ROOT_ID;
     const first = this.persons.keys().next();
     return first.done === true ? null : first.value;
   }
 
   // The chart is rebuilt around them, and the dock shows them.
-  private setFocus(id: number, pinScreen: Point | null) {
-    if (id === this.focusId) {
+  private setRoot(id: number, pinScreen: Point | null) {
+    if (id === this.rootId) {
       this.select(id);
       return;
     }
-    this.viewport.beginRefocus(pinScreen, { nudge: true });
-    this.focusId = id;
+    this.viewport.beginReroot(pinScreen, { nudge: true });
+    this.rootId = id;
     this.selectedId = id;
-    // Two-step: push carries focus+zoom only. The pin lands in updated()
+    // Two-step: push carries root+zoom only. The pin lands in updated()
     // and onSettle's writeUrl follows up with a replaceState that adds pan.
     history.pushState(
       null,
       '',
       buildHash({
-        focusId: id,
+        rootId: id,
         pan: null,
         zoom: this.hasUserZoom ? this.viewport.scale : null
       })
@@ -356,7 +355,7 @@ export class TreeViewElement extends LitElement {
   private select(id: number) {
     if (id === this.selectedId) return;
     if (!this.drawnIds.has(id)) {
-      this.setFocus(id, this.canvasCenter());
+      this.setRoot(id, this.canvasCenter());
       return;
     }
     this.selectedId = id;
@@ -364,13 +363,13 @@ export class TreeViewElement extends LitElement {
   }
 
   private writeUrl() {
-    if (this.focusId === null) return;
-    history.replaceState(null, '', this.buildCurrentHash(this.focusId));
+    if (this.rootId === null) return;
+    history.replaceState(null, '', this.buildCurrentHash(this.rootId));
   }
 
-  private buildCurrentHash(focusId: number) {
+  private buildCurrentHash(rootId: number) {
     return buildHash({
-      focusId,
+      rootId,
       selectedId: this.selectedId,
       pan: this.hasUserPan ? this.viewport.pan : null,
       zoom: this.hasUserZoom ? this.viewport.scale : null
@@ -384,7 +383,7 @@ export class TreeViewElement extends LitElement {
         <sl-person-search
           .persons=${this.persons}
           @pick=${(e: PickEvent) => {
-            this.setFocus(e.detail.id, this.canvasCenter());
+            this.setRoot(e.detail.id, this.canvasCenter());
           }}
         ></sl-person-search>
         <sl-settings
@@ -434,7 +433,7 @@ export class TreeViewElement extends LitElement {
             this.select(e.detail.id);
           }}
           @center=${(e: PickEvent) => {
-            this.setFocus(e.detail.id, this.canvasCenter());
+            this.setRoot(e.detail.id, this.canvasCenter());
           }}
           @details-load=${(e: DetailsLoadEvent) => {
             this.selectedDetails = e.detail;
@@ -573,7 +572,7 @@ export class TreeViewElement extends LitElement {
                             // getBoundingClientRect — label widths vary by
                             // name length and would drift the captured
                             // "center" across back-and-forth toggles.
-                            this.setFocus(
+                            this.setRoot(
                               b.personId,
                               this.viewport.chartToScreen(b.pos)
                             );
@@ -598,16 +597,16 @@ export class TreeViewElement extends LitElement {
 
   private renderBody() {
     if (this.loading) return html`<div class="empty">Loading…</div>`;
-    if (this.focusId === null) {
+    if (this.rootId === null) {
       return html`<div class="empty">No people in database.</div>`;
     }
-    const chart = buildChart(this.focusId, this.indices, dims);
+    const chart = buildChart(this.rootId, this.indices, dims);
     if (chart === null) {
-      return html`<div class="empty">No data for selected focus.</div>`;
+      return html`<div class="empty">No data for this person.</div>`;
     }
     this.chartExtents = chart.extents;
     this.drawnIds = new Set(chart.boxes.map((b) => b.personId));
-    this.chartComfort = comfortOf(chart.boxes, this.coreIds(this.focusId));
+    this.chartComfort = comfortOf(chart.boxes, this.coreIds(this.rootId));
     return html`
       <div class="main">
         ${this.renderDock()}
