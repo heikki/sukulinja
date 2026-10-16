@@ -12,6 +12,7 @@ import { matchRef } from '@server/citation-scans/matcher';
 import type { Match, Unconfirmed } from '@server/citation-scans/matcher';
 import { cachedReader } from '@server/citation-scans/reader';
 import type { Reader } from '@server/citation-scans/reader';
+import { RIPPI_COLLECTION } from '@server/citation-scans/record';
 import type { ChurchBookRef } from '@server/citation-scans/record';
 import {
   matchCandidates,
@@ -21,12 +22,17 @@ import {
 
 import { gateRefusal } from '../vision/gate';
 
+export type Books = 'rippikirjat' | 'index';
+
 export interface RunOptions {
   root: string;
   refs: ChurchBookRef[];
   reader: Reader;
   dryRun?: boolean;
   parish?: string;
+  // Only rippikirja references (searched by page), or only index
+  // references (searched by date).
+  books?: Books;
   // An Astia Volume id: only references with it among their candidates.
   volume?: string;
   // How many references to match at most.
@@ -158,15 +164,23 @@ async function settle(
   return { key, tried: true, saved: false, entry };
 }
 
+// Whether the run leaves the reference out by its parish or books.
+function leftOut(options: RunOptions, ref: ChurchBookRef) {
+  const rippi = ref.collection === RIPPI_COLLECTION;
+  const books = options.books;
+  return (
+    (options.parish !== undefined && ref.parish !== options.parish) ||
+    (books !== undefined && rippi !== (books === 'rippikirjat'))
+  );
+}
+
 async function matchOne(
   options: RunOptions,
   reader: Reader,
   ref: ChurchBookRef,
   n: number
 ): Promise<Done> {
-  if (options.parish !== undefined && ref.parish !== options.parish) {
-    return LEFT_OUT;
-  }
+  if (leftOut(options, ref)) return LEFT_OUT;
   const skip = await skipped(ref);
   if (skip !== null) return skip;
   const candidates = await matchCandidates(ref);

@@ -3,8 +3,8 @@
 // Placements in the data folder, where the app reads them.
 //
 //   bun run scripts/match-citation-scans/index.ts --dataset <slug>
-//     [--data <folder>] [--parish <name>] [--volume <Astia id>]
-//     [--limit <n>] [--dry-run]
+//     [--data <folder>] [--books rippikirjat|index] [--parish <name>]
+//     [--volume <Astia id>] [--limit <n>] [--dry-run]
 //     [--pages-model <m>] [--dates-model <m>] [--entry-model <m>]
 //
 // Unattended and resumable: every reading is cached under
@@ -22,9 +22,10 @@ import { claudeReader } from '../vision/claude-reader';
 import type { Spend } from '../vision/claude-reader';
 import { datasetRefs } from '../vision/dataset';
 import { reviewMarkdown, runMatching } from './run';
+import type { Books } from './run';
 
 const USAGE =
-  'usage: bun run scripts/match-citation-scans/index.ts --dataset <slug> [--data <folder>] [--parish <name>] [--volume <id>] [--limit <n>] [--dry-run] [--pages-model <m>] [--dates-model <m>] [--entry-model <m>]';
+  'usage: bun run scripts/match-citation-scans/index.ts --dataset <slug> [--data <folder>] [--books rippikirjat|index] [--parish <name>] [--volume <id>] [--limit <n>] [--dry-run] [--pages-model <m>] [--dates-model <m>] [--entry-model <m>]';
 
 function printTally(keys: string[]) {
   const tally = new Map<string, number>();
@@ -47,12 +48,24 @@ function given<T extends Record<string, unknown>>(options: T) {
   ) as { [K in keyof T]?: Exclude<T[K], undefined> };
 }
 
+function isBooks(value: string): value is Books {
+  return value === 'rippikirjat' || value === 'index';
+}
+
+function booksOption(value: string | undefined) {
+  if (value === undefined) return undefined;
+  if (isBooks(value)) return value;
+  console.error(USAGE);
+  process.exit(2);
+}
+
 async function main() {
   const { values } = parseArgs({
     args: process.argv.slice(2),
     options: {
       'data': { type: 'string' },
       'dataset': { type: 'string' },
+      'books': { type: 'string' },
       'parish': { type: 'string' },
       'volume': { type: 'string' },
       'limit': { type: 'string' },
@@ -66,6 +79,7 @@ async function main() {
     console.error(USAGE);
     process.exit(2);
   }
+  const books = booksOption(values.books);
   const root = resolve(values.data ?? 'data');
   const dryRun = values['dry-run'] === true;
   const refs = datasetRefs(join(root, values.dataset, 'db.sqlite'));
@@ -84,6 +98,7 @@ async function main() {
     reader: claude,
     dryRun,
     ...given({
+      books,
       parish: values.parish,
       volume: values.volume,
       limit: values.limit === undefined ? undefined : Number(values.limit)
