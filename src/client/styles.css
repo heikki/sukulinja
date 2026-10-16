@@ -22,12 +22,11 @@
   --scrim: light-dark(rgb(0 0 0 / 45%), rgb(0 0 0 / 60%));
   --shadow: light-dark(rgb(0 0 0 / 12%), rgb(0 0 0 / 50%));
   /* The chart: card outlines, the connecting lines between them, and the
-     Focus card's ring. Kept close in weight so neither reads as the louder
-     layer. The selected card, the one the dock shows, is tinted. */
+     ring of the selected card, the one the dock shows. Kept close in weight
+     so neither reads as the louder layer. */
   --card-border: light-dark(#d4d8de, #3a3a41);
   --line: light-dark(#bcc2ca, #4f525b);
-  --focus-card: light-dark(#5a8ac4, #5f8cbf);
-  --selected-card: color-mix(in srgb, var(--accent) 14%, var(--card));
+  --selected-card: light-dark(#5a8ac4, #5f8cbf);
   /* The placeholder avatar for a person without a photo. The tones keep one
      order in both schemes (hair darkest, skin lightest) so the bust reads as
      the same drawing in each. */

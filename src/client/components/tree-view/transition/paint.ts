@@ -46,7 +46,6 @@ export function renderGhosts(
           const person = persons.get(b.personId);
           if (person === undefined) return nothing;
           return renderBox(b, person, {
-            focus: false,
             entering: false,
             ghost: true
           });
