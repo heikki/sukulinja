@@ -20,6 +20,7 @@ import type {
 
 import { pickedScan } from './citations';
 import type { ScanPerson } from './citations';
+import { EdgeWatch } from './edge-watch';
 import { entriesShown, frameForFull, frameForThumb, layers } from './frame';
 import type { Frame, Loading } from './frame';
 import { clampImage, imageUrl, Latest, neighbours, thumbUrl } from './helpers';
@@ -122,6 +123,13 @@ export class ScanViewerElement extends LitElement {
       this.zoomBy(factor, at);
     }
   });
+  // The scan stays put on screen when the dock beside the viewer moves its
+  // edge.
+  private readonly edge = new EdgeWatch((dx) => {
+    if (this.view === null) return;
+    const { pan } = this.view;
+    this.view = { ...this.view, pan: { x: pan.x - dx, y: pan.y } };
+  });
   private readonly linksReq = new Latest();
   private readonly citationsReq = new Latest();
 
@@ -138,6 +146,7 @@ export class ScanViewerElement extends LitElement {
     window.removeEventListener('mouseup', this.onMouseUp);
     window.removeEventListener('keydown', this.onKeyDown);
     this.stopMomentum();
+    this.edge.watch(null);
     this.linksReq.stop();
     this.citationsReq.stop();
     this.prefetch.keep([]);
@@ -147,9 +156,11 @@ export class ScanViewerElement extends LitElement {
     if (changed.has('scan')) this.follow(this.scan);
   }
 
-  // Says with `scan-away` whenever it leaves the link's Image, or comes
-  // back to it; a link to the Volume alone holds anywhere in it.
+  // Watches the scan's edge once there is one, and says with `scan-away`
+  // whenever it leaves the link's Image, or comes back to it; a link to the
+  // Volume alone holds anywhere in it.
   override updated() {
+    this.edge.watch(this.renderRoot.querySelector('.stage'));
     const link = this.scan;
     const away =
       link !== null &&

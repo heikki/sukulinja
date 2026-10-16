@@ -99,15 +99,17 @@ export const personPanelStyles = css`
 
   /* A group of sources, named as written: set apart from the sections'
      small capitals. */
+  /* 1.2rem above each, counting the section's gap before the first and
+     the row padding before the rest. */
   h4 {
-    margin: 1.25rem 0 0.25rem;
+    margin: 0.75rem 0 0.5rem;
     font-size: 0.85rem;
     font-weight: 600;
     color: var(--fg);
   }
 
   h4:first-child {
-    margin-top: 0.25rem;
+    margin-top: 0.6rem;
   }
 
   /* A source, tinted across the panel's width when clicking it does
