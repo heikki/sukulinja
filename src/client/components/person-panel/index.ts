@@ -317,9 +317,13 @@ export class PersonPanelElement extends LitElement {
       <article
         class=${sourceClass({ active: act !== null, viewing, linked: scan !== null })}
         data-citation=${c.id}
-        @click=${(e: Event) => {
+        @click=${(e: MouseEvent) => {
           const on = e.target as Element;
-          if (on.closest('a, .fold, .record') === null) act?.();
+          if (on.closest('a, .fold, .record') !== null) return;
+          act?.();
+          // A pointer leaves no focus behind, so the arrow keys stepping the
+          // Scan viewer don't ring the source; a key press keeps it.
+          if (e.detail > 0) on.closest('button')?.blur();
         }}
       >
         <div class="top">
