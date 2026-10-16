@@ -197,10 +197,31 @@ export const scanToolbarStyles = css`
     align-items: center;
     gap: 0.75rem;
     min-height: 2.25rem;
-    padding: 0.3rem 0.75rem;
+    padding: 0.125rem 0.5rem 0.125rem 0.75rem;
     background: var(--card);
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
+  }
+
+  /* In line with the app's settings button above, 0.5rem in. */
+  button.close {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border-color: transparent;
+    background: none;
+    color: var(--muted);
+  }
+
+  /* Bare, it shows it's a button on hover. */
+  button.close:hover {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--fg) 8%, transparent);
+    color: var(--fg);
   }
 
   .volume {
@@ -268,8 +289,9 @@ export const scanPeopleStyles = css`
     border-left: 1px solid var(--border);
   }
 
+  /* Closed, a rail as narrow as the person dock's on the other side. */
   :host([collapsed]) {
-    width: 2rem;
+    width: 2.5rem;
   }
 
   /* The whole header hides the list; the chevron marks it as a control. */
@@ -277,7 +299,7 @@ export const scanPeopleStyles = css`
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
+    padding: 0.5rem 0 0.5rem 0.75rem;
     border: 0;
     border-bottom: 1px solid var(--border);
     border-radius: 0;
@@ -294,14 +316,21 @@ export const scanPeopleStyles = css`
     font-weight: 600;
   }
 
+  /* Where the closed rail's chevron is: centred in its width. */
   .chevron {
+    width: 2.5rem;
     color: var(--muted);
     font-size: 1rem;
+    text-align: center;
   }
 
+  /* Hovered as the person dock's header and rail are: a tint, the chevron
+     in accent, the text and edge as they were. */
   button.head:hover,
   button.rail:hover {
+    border-color: var(--border);
     background: color-mix(in srgb, var(--accent) 8%, var(--card));
+    color: var(--fg);
   }
 
   button.head:hover .chevron,
@@ -315,7 +344,8 @@ export const scanPeopleStyles = css`
     flex-direction: column;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.75rem 0;
+    /* Its chevron where the open header's is. */
+    padding: 0.625rem 0 0.75rem;
     border: 0;
     border-radius: 0;
     background: var(--card);

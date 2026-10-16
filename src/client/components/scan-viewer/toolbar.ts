@@ -23,6 +23,7 @@ export class ScanToolbarElement extends LitElement {
     return html`
       <span class="volume" title=${title}>${title}</span>
       <button
+        class="close"
         title="Close (Esc)"
         aria-label="Close"
         @click=${() => {
