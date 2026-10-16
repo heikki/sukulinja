@@ -1,4 +1,4 @@
-Status: needs-triage
+Status: ready-for-agent
 
 # Citations on the Image in the Scan viewer
 
@@ -24,7 +24,7 @@ Browsing a Volume then shows, page by page, everyone I've already tied to it.
 1. As a researcher, I want to see which people in my tree are on the Image I'm looking at, so that I know whom I've already linked on this page.
 2. As a researcher, I want Placed citations told apart from Anchored or Estimated ones, so that I know which are certain.
 3. As a researcher, I want vision matches told apart from hand ones, as in the source panel, so that I know how much to trust them.
-4. As a researcher, I want to open a person from that list in the tree, so that I can go from a household on the page to the family in the chart.
+4. As a researcher, I want to open a person from that list in the tree, and have the viewer switch to their citation, so that I can go from a household on the page to the family in the chart and fix each member's link without leaving the scan.
 5. As a researcher, I want each person's entry marked on the scan where its position is known, so that I can find them on a crowded spread at a glance.
 6. As a researcher, I want the list to follow me as I step through the Volume, so that browsing a book shows what's on each page.
 7. As a researcher, I want this to work in any Volume of the parish, not only the one the opened citation links, so that switching Volumes keeps showing what I know.
@@ -34,16 +34,20 @@ Browsing a Volume then shows, page by page, everyone I've already tied to it.
 
 **The Volume's citations.** A new query answers, for one Volume of a dataset, every church-book citation whose resolution lands in it, with its Image, Scan method and `by`. It reuses the existing resolution (`resolveChurchBookRef`) over the dataset's citations, so it agrees with the links the source panel shows. It is computed per Volume on demand and kept until a correction or a re-import changes it. The Scan viewer asks for it when a Volume opens and filters by the Image on screen.
 
+- Only the citations whose parish is the Volume's are resolved: parsing is offline, but resolving a reference of another parish would crawl that parish's Volumes from Astia.
+- One row per person and record. People citing the same record (a baptism cited by the child and both parents) each get a row, and share its Image and position.
 - A **Split** reference appears in each of its candidate Volumes, marked as one of several.
 - A reference resolved only to the **Volume** (no Image) is listed for the Volume as a whole, not on any Image.
 
-**Entry positions.** A position is a rectangle on the Image in fractions of its width and height (so it survives the scan being shown at any size), stored with the Seen record or Placement it belongs to:
+**Entry positions.** A position is a `Box` on the Image in fractions of its width and height (so it survives the scan being shown at any size), stored with the Seen record or Placement it belongs to:
 
-- The vision model reports it: the find-entry answer gains the bounding box of the person's entry, and a vision match saves it. (This lands with the vision pass's birth-year check, which changes that answer anyway; see `.scratch/vision-scan-matching/`.)
-- A hand mark has no position at first. Marking could later let me click the entry on the scan rather than just the Image, saving its position too.
+- The vision model reports it, and a vision match saves it. This landed with the vision pass (`saveVisionMatch`), so the first full pass collects them.
+- A hand mark has no position. A hand correction replaces a vision entry whole, its position with it. Marking could later let me click the entry on the scan rather than just the Image, saving its position too.
 - Anchored and Estimated citations have no position.
 
-**In the Scan viewer.** A list beside or over the scan, grouped Placed, then probably here, each row with the person's name, the citation's page, its method and `by`, opening the person on click. Boxes on the scan for entries with a position, highlighted with their row on hover.
+**In the Scan viewer.** A collapsible side panel in the viewer, beside the scan, grouped Placed, then probably here, then the Volume as a whole. Each row has the person's name, the citation's page, its method and `by`. Boxes on the scan for entries with a position, highlighted with their row on hover.
+
+**Clicking a row** focuses that person in the chart and switches the viewer to their citation: the dock shows their sources with this one marked as viewed, and the toolbar's Mark applies to them. The viewer stays on the Image shown.
 
 ## Testing Decisions
 
