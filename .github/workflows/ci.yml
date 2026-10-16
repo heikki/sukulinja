@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.4.2
+          bun-version: 1.4.3
       - run: bun install --frozen-lockfile
       # Not `format -- --check`: prettier takes --write and --check together,
       # rewrites the files, and exits 0 — which would never fail a build.
