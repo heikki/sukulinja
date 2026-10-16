@@ -1,6 +1,7 @@
 // Test support: a scripted Volume read by a fake Reader, so matcher tests
 // say what each Image reads as and who is on it, without a model.
 
+import type { Candidate } from './matcher';
 import type { DatesReading, PagesReading, Reader } from './reader';
 
 export const DAY = 24 * 60 * 60 * 1000;
@@ -78,4 +79,15 @@ export function fakeReader(volumes: Record<string, Volume>) {
     }
   };
   return { reader, asked };
+}
+
+// A candidate Volume of `images` Images, labelled after its id.
+export function candidate(volumeId: string, images: number): Candidate {
+  return {
+    volumeId,
+    volume: `${volumeId} label`,
+    images,
+    years: null,
+    start: null
+  };
 }

@@ -31,8 +31,8 @@ type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 // Changed with what a question asks, so readings made before are asked
 // again: find-entry gained the birth year and the entry's box, then the
-// household table; dates gained the register.
-const VERSIONS: Partial<Record<Question, string>> = { dates: '2', entry: '3' };
+// household table; dates gained the register, then dates in any register.
+const VERSIONS: Partial<Record<Question, string>> = { dates: '3', entry: '3' };
 
 export const DEFAULT_MODELS: Record<Question, string> = {
   pages: 'claude-haiku-5-5',
@@ -74,13 +74,15 @@ Leave out numbers that aren't the book's page numbering: archive stamps, film or
 
 If no page number is legible, answer readable: false with no pages.`;
 
-const DATES_PROMPT = `This image is from a baptism or marriage register, whose entries run in date order. Give the earliest and the latest date of the entries on it, as YYYY-MM-DD: for baptisms, any birth or baptism date written for an entry; for marriages, the marriage (or banns) dates.
+const DATES_PROMPT = `This image is from a parish register, whose entries run in date order. One book may hold several registers one after another: baptisms, marriages, deaths and burials, moves.
 
-Also say which register the entries are in: baptisms (births and baptisms), marriages (marriages or banns, often headed Copulati or Vihityt), or other (burials, communicants, moves, an index, a title page). One book may hold several registers one after another.
+Say which register the entries on this image are in: baptisms (births and baptisms), marriages (marriages or banns, often headed Copulati or Vihityt), or other (deaths and burials, often headed Döde or Kuolleet; communicants, moves, an index, a title page).
+
+Give the earliest and the latest date of the entries on it, as YYYY-MM-DD, whatever the register: for baptisms, any birth or baptism date written for an entry; for marriages, the marriage (or banns) dates; for deaths, the death or burial dates. Give the dates of the entries actually written on this image, not the span of the year or section they belong to.
 
 The year is often written only at the top of the page or of a section and holds for the entries below it; month names may be in Swedish, Finnish or Latin, or abbreviated.
 
-If you can't read at least one complete date with its year, answer readable: false and leave the dates empty.`;
+If you can't read at least one complete date with its year, leave the dates empty: on a page of baptisms or marriages, answer readable: false; on a page of another register, answer readable: true with its register. If you can't tell the register either, answer readable: false.`;
 
 function householdLines(person: Person) {
   const h = person.household ?? null;
@@ -239,8 +241,12 @@ function toDates(json: {
   register: Register;
 }): DatesReading {
   const { earliest, latest, register } = json;
-  if (!json.readable || !ISO_DATE.test(earliest) || !ISO_DATE.test(latest)) {
-    return UNREADABLE;
+  if (!json.readable) return UNREADABLE;
+  if (!ISO_DATE.test(earliest) || !ISO_DATE.test(latest)) {
+    // Another register's page tells the search to pass it, dated or not.
+    return register === 'other'
+      ? { earliest: '', latest: '', register }
+      : UNREADABLE;
   }
   return earliest <= latest
     ? { earliest, latest, register }
