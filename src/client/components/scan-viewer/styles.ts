@@ -1,7 +1,9 @@
 import { css } from 'lit';
 
+import { focusRingStyles } from '@client/focus-ring';
+
 // Buttons, fields and links, shared by the viewer and its toolbar.
-export const controlStyles = css`
+const controls = css`
   .muted {
     color: var(--muted);
   }
@@ -58,6 +60,10 @@ export const controlStyles = css`
   }
 `;
 
+// What every part of the viewer with controls takes: the shared focus ring,
+// then the controls themselves.
+export const controlStyles = [focusRingStyles, controls];
+
 export const scanViewerStyles = css`
   /* Covers the chart, not the dock: the dock still shows whose source it is. */
   :host {
@@ -69,6 +75,8 @@ export const scanViewerStyles = css`
     background: var(--bg);
     font-size: 0.875rem;
     line-height: 1.4;
+    /* Covering the chart, it's plain where focus is: no ring. */
+    outline: none;
   }
 
   /* The scan, and the people linked to it beside. */

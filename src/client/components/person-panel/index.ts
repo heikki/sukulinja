@@ -3,6 +3,7 @@ import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { apiUrl } from '@client/api';
+import { focusRingStyles } from '@client/focus-ring';
 import { readNdjson } from '@client/ndjson';
 import type {
   CitationRow,
@@ -13,6 +14,7 @@ import type {
   ScanResolution
 } from '@common/types';
 
+import type { ScanCloseEvent, ScanStepEvent } from '../scan-viewer';
 import { volumeTitle } from '../scan-viewer/citations';
 
 import './header';
@@ -165,7 +167,7 @@ export type DetailsLoadEvent = CustomEvent<PersonDetails>;
 // is marked and brought into view.
 @customElement('sl-person-panel')
 export class PersonPanelElement extends LitElement {
-  static override styles = personPanelStyles;
+  static override styles = [focusRingStyles, personPanelStyles];
 
   @property({ type: Number }) personId: number | null = null;
   @property({ attribute: false }) viewing: ScanOpen | null = null;
@@ -182,6 +184,54 @@ export class PersonPanelElement extends LitElement {
 
   // Refocusing fast can return answers out of order; only the latest counts.
   private request = 0;
+
+  override connectedCallback() {
+    super.connectedCallback();
+    window.addEventListener('scan-step', this.onStep);
+    window.addEventListener('scan-close', this.onClose);
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    window.removeEventListener('scan-step', this.onStep);
+    window.removeEventListener('scan-close', this.onClose);
+  }
+
+  // The Scan viewer closing hands focus back to the source it showed,
+  // where that can be seen.
+  private readonly onClose = (e: Event) => {
+    const { citationId } = (e as ScanCloseEvent).detail;
+    if (!this.sourcesShown()) return;
+    const source = this.renderRoot.querySelector(
+      `[data-citation="${citationId}"] button.title`
+    );
+    if (source instanceof HTMLElement) source.focus({ preventScroll: true });
+  };
+
+  // Whether the sources can be seen: their section is open, and so is the
+  // dock holding the panel.
+  private sourcesShown() {
+    const dock = this.closest('sl-side-dock');
+    return opened.sources && (dock === null || dock.open);
+  }
+
+  // The Scan viewer asks for the source before or after the one it shows:
+  // the next in the list with a scan, none past either end. Only while
+  // the list can be seen, so the step is one the person can follow.
+  private readonly onStep = (e: Event) => {
+    if (!this.sourcesShown()) return;
+    const { citationId, step } = (e as ScanStepEvent).detail;
+    const citations = this.details?.citations ?? [];
+    const linked = groupSources(citations, this.scans).flatMap((g) =>
+      g.rows.flatMap((c) => {
+        const scan = this.statusOf(c)?.scan ?? null;
+        return scan === null ? [] : [{ c, scan }];
+      })
+    );
+    const at = linked.findIndex((l) => l.c.id === citationId);
+    const next = at < 0 ? undefined : linked[at + step];
+    if (next !== undefined) this.openScan(next.c, next.scan);
+  };
 
   override willUpdate(changed: PropertyValues<this>) {
     if (changed.has('personId')) void this.load();
@@ -317,13 +367,9 @@ export class PersonPanelElement extends LitElement {
       <article
         class=${sourceClass({ active: act !== null, viewing, linked: scan !== null })}
         data-citation=${c.id}
-        @click=${(e: MouseEvent) => {
+        @click=${(e: Event) => {
           const on = e.target as Element;
-          if (on.closest('a, .fold, .record') !== null) return;
-          act?.();
-          // A pointer leaves no focus behind, so the arrow keys stepping the
-          // Scan viewer don't ring the source; a key press keeps it.
-          if (e.detail > 0) on.closest('button')?.blur();
+          if (on.closest('a, .fold, .record') === null) act?.();
         }}
       >
         <div class="top">

@@ -16,6 +16,8 @@
   --on-accent: light-dark(#fff, #0e0e10);
   --danger: light-dark(#c0392b, #e5675a);
   --on-danger: light-dark(#fff, #0e0e10);
+  /* No focus ring until focus is moved from the keyboard (focus-ring.ts). */
+  --focus-ring: none;
   /* Dims the page behind a dialog; shadow under floating panels. */
   --scrim: light-dark(rgb(0 0 0 / 45%), rgb(0 0 0 / 60%));
   --shadow: light-dark(rgb(0 0 0 / 12%), rgb(0 0 0 / 50%));
@@ -33,6 +35,15 @@
   --silhouette-shade: light-dark(#b0b6c0, #777782);
   --silhouette-clothing: light-dark(#9ca3af, #63636d);
   --silhouette-hair: light-dark(#7c8492, #1f1f23);
+}
+
+:root[data-focus-rings] {
+  --focus-ring: 2px solid var(--accent);
+}
+
+:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
 }
 
 :root[data-theme='light'] {

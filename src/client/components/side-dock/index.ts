@@ -2,6 +2,8 @@ import { html, LitElement, nothing } from 'lit';
 import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
+import { focusRingStyles } from '@client/focus-ring';
+
 import { sideDockStyles } from './styles';
 
 const RAIL_PX = 40;
@@ -27,7 +29,7 @@ export type WidthChangeEvent = CustomEvent<number>;
 // the host sets `open` / `width` back.
 @customElement('sl-side-dock')
 export class SideDockElement extends LitElement {
-  static override styles = sideDockStyles;
+  static override styles = [focusRingStyles, sideDockStyles];
 
   @property({ type: Boolean, reflect: true }) open = false;
   @property({ type: Number }) width = 380;

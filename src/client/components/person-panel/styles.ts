@@ -30,12 +30,16 @@ export const personPanelStyles = css`
     border-bottom: 1px solid var(--border);
   }
 
+  /* The heading's band is as tall open as closed. */
   .section-body {
-    margin-top: 0.6rem;
+    margin-top: 0.85rem;
   }
 
+  /* Spans the band, so its focus ring can. */
   h3 {
-    margin: 0;
+    position: relative;
+    margin: 0 -1.1rem;
+    padding: 0 1.1rem;
     font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.04em;
@@ -77,6 +81,20 @@ export const personPanelStyles = css`
     color: var(--fg);
   }
 
+  /* The whole heading band rings when its toggle has focus. */
+  button.toggle:focus-visible {
+    outline: none;
+  }
+
+  h3:has(button.toggle:focus-visible)::after {
+    content: '';
+    position: absolute;
+    inset: -0.85rem 0;
+    outline: var(--focus-ring);
+    outline-offset: -2px;
+    pointer-events: none;
+  }
+
   .muted {
     color: var(--muted);
   }
@@ -99,8 +117,8 @@ export const personPanelStyles = css`
 
   /* A group of sources, named as written: set apart from the sections'
      small capitals. */
-  /* 1.2rem above each, counting the section's gap before the first and
-     the row padding before the rest. */
+  /* 1.2rem above each: the first's margin merges with the section body's,
+     and the rest count the padding of the row above. */
   h4 {
     margin: 0.75rem 0 0.5rem;
     font-size: 0.85rem;
@@ -109,7 +127,7 @@ export const personPanelStyles = css`
   }
 
   h4:first-child {
-    margin-top: 0.6rem;
+    margin-top: 1.2rem;
   }
 
   /* A source, tinted across the panel's width when clicking it does
@@ -180,6 +198,16 @@ export const personPanelStyles = css`
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  /* The whole source rings when its title has focus. */
+  button.title:focus-visible {
+    outline: none;
+  }
+
+  .source:has(button.title:focus-visible) {
+    outline: var(--focus-ring);
+    outline-offset: -2px;
   }
 
   button.title[aria-current] {
