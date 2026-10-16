@@ -12,10 +12,13 @@
 // Date search, for baptism and marriage index references: these books run
 // in date order, so a binary search over the Volume's Images by the dates
 // read on them closes in on the Image whose range covers the cited date.
-// One Volume may hold another register before or after the one cited (its
-// marriages ahead of its baptisms), in date order of its own, so only
-// readings of the cited register steer the search; nor does a date outside
-// the Volume's years, which is a misread.
+// One Volume may hold other registers before or after the one cited (its
+// marriages and deaths ahead of its baptisms), each in one stretch in date
+// order of its own, so only readings of the cited register steer the
+// search, and the stretch of another register between the probe and such a
+// reading is left out. Nor does a misread steer it: a date outside the
+// Volume's years, or a range of more than a year, where a spread holds
+// weeks or months.
 //
 // Page search, for references with a Page number: from the Image the
 // Anchored or Estimated method gives, read its Page number and jump by the
@@ -115,18 +118,25 @@ const REGISTERS: Partial<Record<BookKind, Register>> = {
 
 type Dated = Exclude<DatesReading, { unreadable: true }>;
 
+// A reading spanning more months than this is a misread.
+const MAX_SPAN_MONTHS = 12;
+
 function yearOf(date: string) {
   return Number(date.slice(0, 4));
 }
 
-// Whether a reading can steer the search: of the cited register, and within
-// the Volume's years.
-function steers(dates: Dated, register: Register, years: Years | null) {
-  if (dates.register !== register) return false;
-  return (
+function monthsOf(date: string) {
+  return yearOf(date) * 12 + Number(date.slice(5, 7));
+}
+
+// Whether a reading of the cited register can steer the search: within the
+// Volume's years, and over no more than a year.
+function steers(dates: Dated, years: Years | null) {
+  const inYears =
     years === null ||
-    (yearOf(dates.earliest) >= years.from && yearOf(dates.latest) <= years.to)
-  );
+    (yearOf(dates.earliest) >= years.from && yearOf(dates.latest) <= years.to);
+  const span = monthsOf(dates.latest) - monthsOf(dates.earliest);
+  return inYears && span <= MAX_SPAN_MONTHS;
 }
 
 // Where a step of the search reads: around `mid` within lo–hi, for the
@@ -139,22 +149,41 @@ interface Step {
   readsLeft: number;
 }
 
-// The reading nearest `mid` that can steer the search, giving up after a
-// run of unreadable Images or once the reads left are spent.
+// The reading nearest `mid` that can steer the search, and the Images read
+// as another register on the way; giving up after a run of unreadable
+// Images or once the reads left are spent.
 async function readDatesNear(reader: Reader, c: Candidate, step: Step) {
   let reads = 0;
   let unreadable = 0;
+  const foreign: number[] = [];
   for (const image of probes(step.mid, step.lo, step.hi)) {
     if (unreadable === UNREADABLE_PROBES || reads === step.readsLeft) break;
     reads += 1;
     // eslint-disable-next-line no-await-in-loop -- each probe waits on the last
     const dates = await reader.dates({ volumeId: c.volumeId, image });
     if ('unreadable' in dates) unreadable += 1;
-    else if (steers(dates, step.register, c.years)) {
-      return { read: { image, dates }, reads };
+    else if (dates.register !== step.register) foreign.push(image);
+    else if (steers(dates, c.years)) {
+      return { read: { image, dates }, reads, foreign };
     }
   }
-  return { read: null, reads };
+  return { read: null, reads, foreign };
+}
+
+// lo–hi without the other registers read between `mid` and the reading at
+// `image`: the cited register is one stretch, holding `image`, so it starts
+// after the nearest of them below it, or ends before the nearest above.
+function withoutForeign(
+  range: { lo: number; hi: number },
+  image: number,
+  foreign: number[]
+) {
+  const below = foreign.filter((f) => f < image);
+  const above = foreign.filter((f) => f > image);
+  return {
+    lo: below.length === 0 ? range.lo : Math.max(range.lo, ...below) + 1,
+    hi: above.length === 0 ? range.hi : Math.min(range.hi, ...above) - 1
+  };
 }
 
 async function dateSearch(
@@ -183,6 +212,7 @@ async function dateSearch(
     if (reads >= MAX_READS) {
       return { reason: 'did not converge', image: read.image };
     }
+    ({ lo, hi } = withoutForeign({ lo, hi }, read.image, near.foreign));
     const { earliest, latest } = read.dates;
     if (cited.to < earliest) hi = read.image - 1;
     else if (cited.from > latest) lo = read.image + 1;

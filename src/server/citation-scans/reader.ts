@@ -40,7 +40,8 @@ export type PagesReading = { pages: number[] } | Unreadable;
 // marriages and its baptisms one after the other, each in date order.
 export type Register = 'baptisms' | 'marriages' | 'other';
 
-// The earliest and latest entry dates on the Image, as YYYY-MM-DD.
+// The earliest and latest entry dates on the Image, as YYYY-MM-DD; empty on
+// an Image of another register whose dates can't be read.
 export type DatesReading =
   { earliest: string; latest: string; register: Register } | Unreadable;
 
