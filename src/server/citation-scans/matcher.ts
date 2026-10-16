@@ -27,11 +27,10 @@
 // other copy of a Doubled volume) isn't followed: the search stays at the
 // start, near the Anchors, and Confirmation looks around it.
 
-import type { BookKind, Years } from '@common/types';
+import type { BookKind, Box, Years } from '@common/types';
 
 import { confirms } from './reader';
 import type {
-  Box,
   DatesReading,
   PagesReading,
   Person,

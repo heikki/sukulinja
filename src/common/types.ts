@@ -103,6 +103,15 @@ export type ScanMethod = 'anchored' | 'estimated' | 'placed' | 'volume';
 // Who saved a correction: marked by hand, or matched by the vision model.
 export type Provenance = 'hand' | 'vision';
 
+// Where an entry is on an Image, in fractions of its width and height, so
+// it holds at any size the scan is shown.
+export interface Box {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
 // One Astia image a citation may be on; a volume split in parts can give
 // one per part.
 export interface Scan {
@@ -113,6 +122,8 @@ export interface Scan {
   method: ScanMethod;
   // Set on a placed scan: whether a person or the vision model placed it.
   by?: Provenance;
+  // Set on a placed scan where the vision model said where the entry is.
+  box?: Box;
 }
 
 export type ScanResolution = { scans: Scan[] } | { error: string };
@@ -127,6 +138,20 @@ export type BookKind = 'rippi' | 'lasten' | 'kastetut' | 'vihityt';
 export interface Years {
   from: number;
   to: number;
+}
+
+// A row of /api/volumes/:id/citations: one person's church-book citation
+// that resolves into the Volume. `image` is null for one resolved only to
+// the Volume as a whole (method `volume`); `split` marks one of several
+// candidate Volumes; `box` is where the entry is, where known.
+export interface VolumeCitation {
+  personId: number;
+  citation: CitationRow;
+  image: number | null;
+  method: ScanMethod;
+  by?: Provenance;
+  box?: Box;
+  split: boolean;
 }
 
 // A line of /api/citations/:id/volumes: a digitized Volume of the

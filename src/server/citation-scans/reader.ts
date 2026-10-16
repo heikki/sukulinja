@@ -10,6 +10,8 @@ import { createHash } from 'node:crypto';
 import { rename } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import type { Box } from '@common/types';
+
 import type { EntryName, Household } from './record';
 
 export interface ImageRef {
@@ -44,15 +46,6 @@ export type Register = 'baptisms' | 'marriages' | 'other';
 // an Image of another register whose dates can't be read.
 export type DatesReading =
   { earliest: string; latest: string; register: Register } | Unreadable;
-
-// Where an entry is on the Image, in fractions of its width and height, so
-// it holds at any size the scan is shown.
-export interface Box {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-}
 
 // Whether the person is written on the Image, and how sure the model is,
 // from 0 to 1; where found, the birth year written beside them and the
