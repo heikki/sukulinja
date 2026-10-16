@@ -16,6 +16,7 @@ import {
 
 import { recordEvaluation } from '../vision/gate';
 import { reviewMarkdown, runMatching } from './run';
+import type { Books } from './run';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -126,7 +127,9 @@ async function passEvaluation(falseConfirmations = 0) {
   });
 }
 
-async function run(options: { dryRun?: boolean; limit?: number } = {}) {
+async function run(
+  options: { dryRun?: boolean; limit?: number; books?: Books } = {}
+) {
   const { reader, asked } = scans();
   const result = await runMatching({
     root: dir,
@@ -266,6 +269,19 @@ test('a dry run reports what it would save, and writes nothing', async () => {
   expect(await Bun.file(join(dir, 'anchors.local.json')).exists()).toBe(false);
   expect(await scanOf(MATTI)).toEqual([
     expect.objectContaining({ method: 'estimated' })
+  ]);
+});
+
+test('limits a run to rippikirja or index references', async () => {
+  await passEvaluation();
+  const rippi = await run({ books: 'rippikirjat', dryRun: true });
+  expect('outcomes' in rippi.result && rippi.result.outcomes).not.toContain(
+    'kastetut confirmed'
+  );
+  expect(rippi.asked.some((a) => a.startsWith('dates'))).toBe(false);
+  const index = await run({ books: 'index', dryRun: true });
+  expect('outcomes' in index.result && index.result.outcomes).toEqual([
+    'kastetut confirmed'
   ]);
 });
 
