@@ -1,4 +1,4 @@
-import { html, LitElement, nothing, svg } from 'lit';
+import { html, LitElement, nothing } from 'lit';
 import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
@@ -33,7 +33,8 @@ import type { EmitOutput, Extents, Point } from './emit';
 import { dims, formatName, renderBox, renderEdge } from './renderer';
 import { treeViewStyles } from './styles';
 import { TransitionController } from './transition';
-import type { RelayoutKind, Schedule } from './transition';
+import type { RelayoutKind } from './transition';
+import { renderGhosts, scheduleVars } from './transition/paint';
 import { buildHash, parseHashView } from './url-state';
 import type { Bounds, ParsedView } from './url-state';
 import { ViewportController } from './viewport';
@@ -55,21 +56,6 @@ const URL_BOUNDS: Bounds = {
   maxZoom: VIEWPORT_OPTIONS.scaleBounds.maxScale
 };
 
-// Mirror the active Schedule's Enter/Leave timing into the CSS custom properties
-// the fade animations read (Move timing is applied JS-side). Set on .canvas so
-// it cascades into the svg's .node/.edge/.ghosts.
-function scheduleVars(schedule: Schedule) {
-  const { enter, leave } = schedule;
-  return [
-    `--sl-enter-delay:${enter.delay}ms`,
-    `--sl-enter-duration:${enter.duration}ms`,
-    `--sl-enter-easing:${enter.easing}`,
-    `--sl-leave-delay:${leave.delay}ms`,
-    `--sl-leave-duration:${leave.duration}ms`,
-    `--sl-leave-easing:${leave.easing}`
-  ].join(';');
-}
-
 @customElement('sl-tree-view')
 export class TreeViewElement extends LitElement {
   static override styles = treeViewStyles;
@@ -78,19 +64,22 @@ export class TreeViewElement extends LitElement {
 
   @state() private persons = new Map<number, PersonRow>();
   @state() private focusId: number | null = null;
+  // The person the dock shows: Focus, or anyone picked since without
+  // rebuilding the chart.
+  @state() private selectedId: number | null = null;
   @state() private loading = true;
   // Closed on entering a dataset; opening it lasts only for this visit.
   @state() private details = false;
   @state() private detailsWidth = detailsWidth();
-  // The Focus person's, or the last one's until theirs arrive.
-  @state() private focusDetails: PersonDetails | null = null;
-  // The scan the Scan viewer shows over the chart; it belongs to Focus, so a
-  // refocus closes it.
+  // The selected person's, or the last one's until theirs arrive.
+  @state() private selectedDetails: PersonDetails | null = null;
+  // The scan the Scan viewer shows over the chart; it belongs to the
+  // selected person, so selecting another closes it.
   @state() private scanOpen: ScanOpen | null = null;
   // The Scan viewer has moved off the link's Image, so the dock doesn't
   // mark its source as shown; opening the source again goes back.
   @state() private scanAway = false;
-  // A person picked in the Scan viewer: refocusing on them keeps it open, on
+  // A person picked in the Scan viewer: selecting them keeps it open, on
   // their citation.
   private scanFollowing: ScanOpen | null = null;
 
@@ -165,7 +154,9 @@ export class TreeViewElement extends LitElement {
     this.restoreViewportFromHash(parsed);
 
     const id = parsed.focusId;
-    if (id === null || !this.persons.has(id) || id === this.focusId) return;
+    if (id === null || !this.persons.has(id)) return;
+    this.selectedId = this.knownOr(parsed.selectedId, id);
+    if (id === this.focusId) return;
     // No stored pan means the prior box was pinned at its click position; pin the
     // new focus at canvas center so back/forward doesn't land it at that stale
     // offset. With a stored pan the deferred restore above is authoritative.
@@ -191,7 +182,7 @@ export class TreeViewElement extends LitElement {
   }
 
   override willUpdate(changed: PropertyValues) {
-    if (changed.has('focusId')) {
+    if (changed.has('selectedId')) {
       [this.scanOpen, this.scanFollowing] = [this.scanFollowing, null];
     }
     // Gen change rebuilds the chart with different extents, which would drift
@@ -299,10 +290,12 @@ export class TreeViewElement extends LitElement {
     }
     if (parsed.focusId !== null && this.persons.has(parsed.focusId)) {
       this.focusId = parsed.focusId;
+      this.selectedId = this.knownOr(parsed.selectedId, parsed.focusId);
       return;
     }
     const def = this.pickDefaultFocus();
     this.focusId = def;
+    this.selectedId = def;
     if (def !== null) {
       history.replaceState(null, '', this.buildCurrentHash(def));
     }
@@ -323,16 +316,26 @@ export class TreeViewElement extends LitElement {
     arr.push(fam);
   }
 
+  // The person, if the dataset has them, or else the fallback.
+  private knownOr(id: number | null, fallback: number) {
+    return id !== null && this.persons.has(id) ? id : fallback;
+  }
+
   private pickDefaultFocus() {
     if (this.persons.has(DEFAULT_FOCUS_ID)) return DEFAULT_FOCUS_ID;
     const first = this.persons.keys().next();
     return first.done === true ? null : first.value;
   }
 
+  // The chart is rebuilt around them, and the dock shows them.
   private setFocus(id: number, pinScreen: Point | null) {
-    if (id === this.focusId) return;
+    if (id === this.focusId) {
+      this.select(id);
+      return;
+    }
     this.viewport.beginRefocus(pinScreen, { nudge: true });
     this.focusId = id;
+    this.selectedId = id;
     // Two-step: push carries focus+zoom only. The pin lands in updated()
     // and onSettle's writeUrl follows up with a replaceState that adds pan.
     history.pushState(
@@ -346,6 +349,13 @@ export class TreeViewElement extends LitElement {
     );
   }
 
+  // The dock shows them; the chart stays as it is.
+  private select(id: number) {
+    if (id === this.selectedId) return;
+    this.selectedId = id;
+    this.writeUrl();
+  }
+
   private writeUrl() {
     if (this.focusId === null) return;
     history.replaceState(null, '', this.buildCurrentHash(this.focusId));
@@ -354,6 +364,7 @@ export class TreeViewElement extends LitElement {
   private buildCurrentHash(focusId: number) {
     return buildHash({
       focusId,
+      selectedId: this.selectedId,
       pan: this.hasUserPan ? this.viewport.pan : null,
       zoom: this.hasUserZoom ? this.viewport.scale : null
     });
@@ -384,12 +395,12 @@ export class TreeViewElement extends LitElement {
   }
 
   private renderDock() {
-    const focus =
-      this.focusId === null ? undefined : this.persons.get(this.focusId);
+    const id = this.selectedId;
+    const selected = id === null ? undefined : this.persons.get(id);
     return html`
       <sl-side-dock
         label="details"
-        heading=${focus === undefined ? '' : formatName(focus)}
+        heading=${selected === undefined ? '' : formatName(selected)}
         ?open=${this.details}
         .width=${this.detailsWidth}
         @open-change=${(e: OpenChangeEvent) => {
@@ -405,18 +416,21 @@ export class TreeViewElement extends LitElement {
       >
         <sl-person-header
           slot="header"
-          .person=${focus ?? null}
-          .details=${this.focusDetails}
+          .person=${selected ?? null}
+          .details=${this.selectedDetails}
         ></sl-person-header>
         <sl-person-panel
-          .personId=${this.focusId}
+          .personId=${id}
           .indices=${this.indices}
           .viewing=${this.scanAway ? null : this.scanOpen}
           @pick=${(e: PickEvent) => {
+            this.select(e.detail.id);
+          }}
+          @center=${(e: PickEvent) => {
             this.setFocus(e.detail.id, this.canvasCenter());
           }}
           @details-load=${(e: DetailsLoadEvent) => {
-            this.focusDetails = e.detail;
+            this.selectedDetails = e.detail;
           }}
         ></sl-person-panel>
       </sl-side-dock>
@@ -434,15 +448,15 @@ export class TreeViewElement extends LitElement {
     }
   };
 
-  // The chart and the dock move to them, and the viewer goes on with their
-  // citation, so a mark saves for it.
+  // The dock moves to them, and the viewer goes on with their citation, so
+  // a mark saves for it.
   private readonly onScanPerson = (e: ScanPersonEvent) => {
     const { personId, open } = e.detail;
-    if (personId === this.focusId) {
+    if (personId === this.selectedId) {
       this.scanOpen = open;
     } else {
       this.scanFollowing = open;
-      this.setFocus(personId, this.canvasCenter());
+      this.select(personId);
     }
   };
 
@@ -503,7 +517,7 @@ export class TreeViewElement extends LitElement {
         @mousedown=${this.viewport.onMouseDown}
         @dblclick=${this.viewport.onDblClick}
       >
-        ${panReady ? this.renderGhosts(leaving) : nothing}
+        ${panReady ? renderGhosts(leaving, this.persons) : nothing}
         ${
           panReady
             ? html`<div
@@ -539,18 +553,25 @@ export class TreeViewElement extends LitElement {
                         person,
                         {
                           focus: b.personId === this.focusId,
+                          selected: b.personId === this.selectedId,
                           entering: enteringKeys.has(b.key)
                         },
-                        () => {
-                          if (this.viewport.dragMoved) return;
-                          // Pin from layout coords rather than
-                          // getBoundingClientRect — label widths vary by
-                          // name length and would drift the captured
-                          // "center" across back-and-forth toggles.
-                          this.setFocus(
-                            b.personId,
-                            this.viewport.chartToScreen(b.pos)
-                          );
+                        {
+                          click: () => {
+                            if (this.viewport.dragMoved) return;
+                            this.select(b.personId);
+                          },
+                          dblclick: () => {
+                            if (this.viewport.dragMoved) return;
+                            // Pin from layout coords rather than
+                            // getBoundingClientRect — label widths vary by
+                            // name length and would drift the captured
+                            // "center" across back-and-forth toggles.
+                            this.setFocus(
+                              b.personId,
+                              this.viewport.chartToScreen(b.pos)
+                            );
+                          }
                         }
                       );
                     }
@@ -560,38 +581,6 @@ export class TreeViewElement extends LitElement {
             : nothing
         }
       </div>
-    `;
-  }
-
-  // Departing boxes/edges, drawn through the normal renderers so they look
-  // identical to live cards, in a non-interactive overlay that holds each at its
-  // last screen spot while it fades out.
-  private renderGhosts(leaving: TransitionController['leaving']) {
-    if (leaving.boxes.length === 0 && leaving.edges.length === 0) {
-      return nothing;
-    }
-    const { x, y } = leaving.origin;
-    // A canvas-sized overlay under the chart: the ghosts sit at their last screen
-    // spot whatever the new chart's extents are. Chart 0,0 lands at the captured
-    // origin; the old scale keeps them at their old size.
-    return svg`
-      <svg class="ghost-layer">
-        <g
-          class="ghosts"
-          style="transform: translate(${x}px, ${y}px) scale(${leaving.scale}); transform-origin: 0 0"
-        >
-          ${leaving.edges.map((l) => renderEdge(l, false, true))}
-          ${leaving.boxes.map((b) => {
-            const person = this.persons.get(b.personId);
-            if (person === undefined) return nothing;
-            return renderBox(b, person, {
-              focus: false,
-              entering: false,
-              ghost: true
-            });
-          })}
-        </g>
-      </svg>
     `;
   }
 
