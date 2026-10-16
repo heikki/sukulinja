@@ -1,5 +1,7 @@
 import { css } from 'lit';
 
+import { silhouetteStyles } from '../tree-view/silhouette';
+
 export const personPanelStyles = css`
   :host {
     display: block;
@@ -10,15 +12,39 @@ export const personPanelStyles = css`
   }
 
   .body {
-    padding: 1rem 1.1rem 2rem;
+    padding: 0 1.1rem 2rem;
+  }
+
+  .body.muted {
+    padding-top: 1rem;
   }
 
   .body.stale {
     opacity: 0.55;
   }
 
+  /* Sections are banded across the panel's full width. */
+  section {
+    margin: 0 -1.1rem;
+    padding: 0.85rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-body {
+    margin-top: 0.6rem;
+  }
+
+  .section-body > .source:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .section-body > .source:first-child.viewing::before {
+    top: 0;
+  }
+
   h3 {
-    margin: 1.4rem 0 0.5rem;
+    margin: 0;
     font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.04em;
@@ -26,8 +52,38 @@ export const personPanelStyles = css`
     color: var(--muted);
   }
 
-  h3:first-child {
-    margin-top: 0;
+  /* A section heading that shows or hides the section, its chevron at the
+     far right as on the dock's header. */
+  button.toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  button.toggle::after {
+    content: '›';
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1;
+    transition: transform 0.15s;
+  }
+
+  button.toggle[aria-expanded='true']::after {
+    transform: rotate(90deg);
+  }
+
+  button.toggle:hover {
+    color: var(--fg);
   }
 
   .muted {
@@ -183,3 +239,52 @@ export const personPanelStyles = css`
     text-decoration: underline;
   }
 `;
+
+export const personHeaderStyles = [
+  silhouetteStyles,
+  css`
+    :host {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+      min-width: 0;
+    }
+
+    .portrait {
+      flex: none;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .who {
+      min-width: 0;
+    }
+
+    .name {
+      font-size: 1.15rem;
+      font-weight: 600;
+      line-height: 1.3;
+      overflow-wrap: anywhere;
+    }
+
+    dl {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      gap: 0 0.6rem;
+      margin: 0.2rem 0 0;
+      font-size: 0.8rem;
+      line-height: 1.4;
+    }
+
+    dt {
+      color: var(--muted);
+    }
+
+    dd {
+      margin: 0;
+      overflow-wrap: anywhere;
+    }
+  `
+];

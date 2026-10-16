@@ -5,7 +5,7 @@ import { repeat } from 'lit/directives/repeat.js';
 
 import { apiUrl } from '@client/api';
 import { preferredGenerations } from '@client/generations';
-import type { FamilyRow, PersonRow } from '@common/types';
+import type { FamilyRow, PersonDetails, PersonRow } from '@common/types';
 
 import '../person-panel';
 import '../scan-viewer';
@@ -16,7 +16,11 @@ import { detailsWidth, setDetailsWidth } from '../person-panel/helpers';
 import '../person-search';
 import '../settings';
 
-import type { ScanOpen, ScanOpenEvent } from '../person-panel';
+import type {
+  DetailsLoadEvent,
+  ScanOpen,
+  ScanOpenEvent
+} from '../person-panel';
 import type { PickEvent } from '../person-search';
 import type { ScanMarkedEvent, ScanPersonEvent } from '../scan-viewer';
 import type { GenerationsChangeEvent } from '../settings';
@@ -78,6 +82,8 @@ export class TreeViewElement extends LitElement {
   // Closed on entering a dataset; opening it lasts only for this visit.
   @state() private details = false;
   @state() private detailsWidth = detailsWidth();
+  // The Focus person's, or the last one's until theirs arrive.
+  @state() private focusDetails: PersonDetails | null = null;
   // The scan the Scan viewer shows over the chart; it belongs to Focus, so a
   // refocus closes it.
   @state() private scanOpen: ScanOpen | null = null;
@@ -388,9 +394,17 @@ export class TreeViewElement extends LitElement {
           this.scanOpen = e.detail;
         }}
       >
+        <sl-person-header
+          slot="header"
+          .person=${focus ?? null}
+          .details=${this.focusDetails}
+        ></sl-person-header>
         <sl-person-panel
           .personId=${this.focusId}
           .viewing=${this.scanOpen}
+          @details-load=${(e: DetailsLoadEvent) => {
+            this.focusDetails = e.detail;
+          }}
         ></sl-person-panel>
       </sl-side-dock>
     `;
