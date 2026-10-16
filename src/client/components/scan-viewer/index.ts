@@ -11,16 +11,26 @@ import type {
   Transform,
   Viewport
 } from '@client/pan-zoom';
-import type { CitationRow, CitationVolume, Scan } from '@common/types';
+import type {
+  CitationRow,
+  CitationVolume,
+  PersonRow,
+  Scan,
+  VolumeCitation
+} from '@common/types';
 
+import { pickedScan } from './citations';
+import type { ScanPerson } from './citations';
 import { frameForFull, frameForThumb, layers } from './frame';
 import type { Frame, Loading } from './frame';
-import { clampImage, imageUrl, neighbours, thumbUrl } from './helpers';
+import { clampImage, getJson, imageUrl, neighbours, thumbUrl } from './helpers';
 import { Prefetch } from './prefetch';
 import { controlStyles, scanViewerStyles } from './styles';
 
+import './people';
 import './toolbar';
 
+export type { ScanPerson, ScanPersonEvent } from './citations';
 export type { ScanMarked, ScanMarkedEvent } from './toolbar';
 
 // The chart's feel (tree-view's VIEWPORT_OPTIONS), with room to zoom from a
@@ -62,13 +72,16 @@ interface Shown {
 // `scan` moves it there; without one, it waits for a Volume to be picked.
 // The record itself stays in the dock, marked there, so the toolbar holds
 // only moving through the Volumes and marking. Asks to close with a
-// `scan-close` event; a mark reports with `scan-marked`.
+// `scan-close` event; a mark reports with `scan-marked`. Beside the scan,
+// the people of the tree (`persons`) linked to the Image shown; picking one
+// asks to go on with their citation with `scan-person`.
 @customElement('sl-scan-viewer')
 export class ScanViewerElement extends LitElement {
   static override styles = [controlStyles, scanViewerStyles];
 
   @property({ attribute: false }) citation: CitationRow | null = null;
   @property({ attribute: false }) scan: Scan | null = null;
+  @property({ attribute: false }) persons = new Map<number, PersonRow>();
 
   // The parish's Volumes for the switcher; null until they arrive.
   @state() private volumes: CitationVolume[] | null = null;
@@ -88,6 +101,9 @@ export class ScanViewerElement extends LitElement {
   // Null until the first Image of the Volume is fitted.
   @state() private view: Transform | null = null;
   @state() private dragging = false;
+  // The shown Volume's citations; null until they arrive.
+  @state() private citations: VolumeCitation[] | null = null;
+  @state() private citationsFailed = false;
 
   // The Image last shown in each Volume of this reference, to go back to.
   private readonly left = new Map<string, number>();
@@ -105,6 +121,7 @@ export class ScanViewerElement extends LitElement {
   });
   private linksAbort: AbortController | null = null;
   private volumesAbort: AbortController | null = null;
+  private citationsAbort: AbortController | null = null;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -121,6 +138,7 @@ export class ScanViewerElement extends LitElement {
     this.stopMomentum();
     this.linksAbort?.abort();
     this.volumesAbort?.abort();
+    this.citationsAbort?.abort();
     this.prefetch.keep([]);
   }
 
@@ -152,11 +170,8 @@ export class ScanViewerElement extends LitElement {
     this.volumesAbort = abort;
     this.volumes = null;
     try {
-      const res = await fetch(apiUrl(`/api/citations/${id}/volumes`), {
-        signal: abort.signal
-      });
-      if (!res.ok) throw new Error(String(res.status));
-      this.volumes = (await res.json()) as CitationVolume[];
+      const url = apiUrl(`/api/citations/${id}/volumes`);
+      this.volumes = await getJson<CitationVolume[]>(url, abort.signal);
     } catch {
       // Without them there's nothing to switch to, and marking can't say how.
     }
@@ -168,14 +183,24 @@ export class ScanViewerElement extends LitElement {
     this.linksAbort = abort;
     this.links = null;
     try {
-      const res = await fetch(`/astia/volumes/${volumeId}/images`, {
-        signal: abort.signal
-      });
-      if (!res.ok) throw new Error(String(res.status));
-      this.links = (await res.json()) as string[];
+      const url = `/astia/volumes/${volumeId}/images`;
+      this.links = await getJson<string[]>(url, abort.signal);
       this.image = clampImage(this.image, this.links.length);
     } catch {
       // Without the list the count stays unknown and Astia unlinked.
+    }
+  }
+
+  private async loadCitations(volumeId: string) {
+    this.citationsAbort?.abort();
+    const abort = new AbortController();
+    this.citationsAbort = abort;
+    this.citationsFailed = false;
+    try {
+      const url = apiUrl(`/api/volumes/${volumeId}/citations`);
+      this.citations = await getJson<VolumeCitation[]>(url, abort.signal);
+    } catch {
+      if (!abort.signal.aborted) this.citationsFailed = true;
     }
   }
 
@@ -185,7 +210,9 @@ export class ScanViewerElement extends LitElement {
     this.frame = null;
     this.view = null;
     this.prefetch.keep([]);
+    this.citations = null;
     void this.loadLinks(volume.id);
+    void this.loadCitations(volume.id);
     this.image = clampImage(image, null);
     this.loading = 'loading';
     this.retry = 0;
@@ -232,9 +259,22 @@ export class ScanViewerElement extends LitElement {
     );
   }
 
-  // A mark can change which Volumes the reference links, and where.
+  // A mark can change which Volumes the reference links, and where, and
+  // moves its row, and an Anchor its neighbours'.
   private readonly onMarked = () => {
     if (this.citation !== null) void this.loadVolumes(this.citation.id);
+    if (this.volume !== null) void this.loadCitations(this.volume.id);
+  };
+
+  private readonly onPick = (e: CustomEvent<VolumeCitation>) => {
+    const row = e.detail;
+    if (this.volume === null) return;
+    const scan = pickedScan(row, this.volume, this.image, this.links);
+    const open = { citation: row.citation, scan };
+    const detail: ScanPerson = { personId: row.personId, open };
+    this.dispatchEvent(
+      new CustomEvent('scan-person', { detail, bubbles: true, composed: true })
+    );
   };
 
   // ------------------------------------------------------------ view
@@ -518,6 +558,19 @@ export class ScanViewerElement extends LitElement {
     `;
   }
 
+  private renderPeople() {
+    return html`
+      <sl-scan-people
+        .rows=${this.citations}
+        .image=${this.image}
+        .persons=${this.persons}
+        .current=${this.citation?.id ?? null}
+        ?failed=${this.citationsFailed}
+        @scan-pick=${this.onPick}
+      ></sl-scan-people>
+    `;
+  }
+
   override render() {
     if (this.citation === null) return nothing;
     return html`
@@ -527,7 +580,9 @@ export class ScanViewerElement extends LitElement {
           ? html`<div class="blank">
               <div class="note">Pick a Volume of the parish to look in.</div>
             </div>`
-          : this.renderStage(this.volume)
+          : html`<div class="body">
+              ${this.renderStage(this.volume)} ${this.renderPeople()}
+            </div>`
       }
     `;
   }
