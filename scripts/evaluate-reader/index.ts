@@ -1,8 +1,9 @@
 // How well each model reads, before trusting it with the data: asks the
 // Reader about Images whose Page numbers, dates and records are known by
 // hand (the shipped Anchors and Seen records, and index references placed
-// in the app), and reports exact, wrong and
-// unreadable rates and the cost per reading, per question and model.
+// in the app), and reports exact, wrong and unreadable rates and the cost
+// per reading, per question and model; find-entry also for rippikirja and
+// index references apart.
 //
 //   bun run scripts/evaluate-reader/index.ts --dataset <slug>
 //     [--data <folder>] [--limit <n>]
@@ -34,6 +35,7 @@ import type { Confirmation } from './cases';
 import {
   dateCases,
   entryCases,
+  indexEntryCases,
   pageCases,
   scoreDates,
   scoreEntries,
@@ -65,6 +67,17 @@ function totals(spend: Record<string, Spend>) {
     ? null
     : all.reduce((sum, s) => sum + s.dollars!, 0);
   return { calls, spent };
+}
+
+function sum(a: EntryTally, b: EntryTally): EntryTally {
+  return {
+    questions: a.questions + b.questions,
+    exact: a.exact + b.exact,
+    wrong: a.wrong + b.wrong,
+    unreadable: a.unreadable + b.unreadable,
+    decoys: a.decoys + b.decoys,
+    falseConfirmations: a.falseConfirmations + b.falseConfirmations
+  };
 }
 
 function row(question: Question, model: string, tally: Tally, cost: string) {
@@ -190,13 +203,16 @@ async function main() {
   const pages = pageCases(anchors, limit);
   const byUrl = new Map(refs.map((r) => [r.url, r]));
   const dates = dateCases(await loadPlacements(), byUrl, limit);
-  const entries = entryCases(anchors, names, limit);
+  const rippiEntries = entryCases(anchors, names, limit);
+  const indexEntries = indexEntryCases(await loadPlacements(), byUrl, limit);
+  const entries = [...rippiEntries, ...indexEntries];
   const decoys = entries.filter((c) => !c.there).length;
   console.log(
-    `${pages.length} Page-number questions; ${dates.length} date questions; ${entries.length} find-entry questions (${decoys} decoys)`
+    `${pages.length} Page-number questions; ${dates.length} date questions; ${entries.length} find-entry questions (${indexEntries.length} on index references; ${decoys} decoys)`
   );
 
   const thresholds: Array<() => void> = [];
+  const apart: string[] = [];
   const pageModels = models(values['pages-models'], DEFAULT_MODELS.pages);
   const dateModels = models(values['dates-models'], DEFAULT_MODELS.dates);
   const entryModels = models(values['entry-models'], DEFAULT_MODELS.entry);
@@ -219,7 +235,13 @@ async function main() {
       cases: entries.length,
       score: async (reader: Reader) => {
         const found: Confirmation[] = [];
-        const tally = await scoreEntries(reader, entries, found);
+        const rippi = await scoreEntries(reader, rippiEntries, found);
+        const index = await scoreEntries(reader, indexEntries, found);
+        apart.push(
+          row('entry', `${model}, rippikirjat`, rippi, ''),
+          row('entry', `${model}, index`, index, '')
+        );
+        const tally = sum(rippi, index);
         thresholds.push(() => {
           printThresholds(model, found, entries.length - decoys, decoys);
         });
@@ -235,6 +257,7 @@ async function main() {
       '| Question | Model | Asked | Exact | Wrong | Unreadable | False confirmations | Per reading |',
       '|---|---|---|---|---|---|---|---|',
       ...lines,
+      ...apart,
       ''
     ].join('\n')
   );

@@ -227,6 +227,49 @@ describe('date search', () => {
   });
 });
 
+describe('the date written for the entry', () => {
+  function written(dates: Record<number, Record<string, string | null>>) {
+    const names = Object.fromEntries(
+      Object.entries(dates).map(([image, byName]) => [
+        image,
+        Object.keys(byName)
+      ])
+    );
+    const { volume, images } = baptisms(400, names);
+    const { reader } = fakeReader({ b: { ...volume, written: dates } });
+    return async () =>
+      await matchRef(
+        baptism('Juho Esimerkki', CITED),
+        [candidate('b', images)],
+        reader
+      );
+  }
+
+  test('confirms an entry written within days of the cited date', async () => {
+    const match = written({ 137: { 'Juho Esimerkki': '1823-09-29' } });
+    expect(await match()).toMatchObject({ confirmed: true, image: 137 });
+  });
+
+  test("doesn't confirm one written months away, or with no date read", async () => {
+    for (const date of ['1823-03-02', null]) {
+      const match = written({ 137: { 'Juho Esimerkki': date } });
+      // eslint-disable-next-line no-await-in-loop -- one Volume at a time
+      expect(await match()).toMatchObject({
+        confirmed: false,
+        reason: 'name not found'
+      });
+    }
+  });
+
+  test('passes a namesake months away for the entry beside it', async () => {
+    const match = written({
+      138: { 'Juho Esimerkki': '1824-01-10' },
+      136: { 'Juho Esimerkki': '1823-09-20' }
+    });
+    expect(await match()).toMatchObject({ confirmed: true, image: 136 });
+  });
+});
+
 describe('unconfirmed', () => {
   test('a name not on the Images around the date', async () => {
     const { volume, images } = baptisms(400, { 300: ['Juho Esimerkki'] });

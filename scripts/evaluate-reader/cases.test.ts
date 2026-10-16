@@ -12,6 +12,7 @@ import type { EntryTally } from '../vision/gate';
 import {
   dateCases,
   entryCases,
+  indexEntryCases,
   pageCases,
   scoreDates,
   scoreEntries,
@@ -186,6 +187,46 @@ test('asks about index references placed by hand', async () => {
     wrong: 0,
     unreadable: 0
   });
+});
+
+test("asks about each index reference's entry, and a decoy from the same family", () => {
+  // A parent's citations of three children's baptisms: the decoy for one is
+  // another child placed at least two Images away.
+  function child(n: number, date: string, name: string) {
+    return parseChurchBookRef(
+      indexUrl(n),
+      `Matti Esimerkki\nRistiäiset: ${date} - Pitäjä, Finland\nIsä: Matti Esimerkki\nLapsi: ${name}`
+    );
+  }
+  const refs = new Map(
+    [
+      child(1, '2. Helmi 1830', 'Juho Esimerkki'),
+      child(2, '9. Helmi 1830', 'Anna Esimerkki'),
+      child(3, '5. Touko 1832', 'Liisa Esimerkki')
+    ].map((r) => [r.url, r])
+  );
+  const cases = indexEntryCases(
+    {
+      [indexUrl(1)]: placed(50),
+      [indexUrl(2)]: placed(51),
+      [indexUrl(3)]: placed(80)
+    },
+    refs
+  );
+  const asked = cases.map((c) => ({
+    image: c.at.image,
+    child: c.person.named?.find((n) => n.relation === 'child')?.name,
+    date: c.person.date,
+    there: c.there
+  }));
+  expect(asked).toEqual([
+    { image: 50, child: 'Juho Esimerkki', date: '1830-02-02', there: true },
+    { image: 50, child: 'Liisa Esimerkki', date: '1832-05-05', there: false },
+    { image: 51, child: 'Anna Esimerkki', date: '1830-02-09', there: true },
+    { image: 51, child: 'Liisa Esimerkki', date: '1832-05-05', there: false },
+    { image: 80, child: 'Liisa Esimerkki', date: '1832-05-05', there: true },
+    { image: 80, child: 'Juho Esimerkki', date: '1830-02-02', there: false }
+  ]);
 });
 
 test('limits a run to a spread of cases', () => {

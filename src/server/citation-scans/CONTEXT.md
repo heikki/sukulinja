@@ -11,6 +11,10 @@ A reference in the tree to where a fact comes from, from any source.
 The parish, **Book**, years and page a Citation points to in the church books, with the villages and farms it names. Read from a Citation; what scan linking works on. A reference read through MyHeritage also carries a **Record number**.
 _Avoid_: citation (the broader thing it's read from).
 
+**Index reference**:
+A Church-book reference to an entry in MyHeritage's baptism or marriage index, which FamilySearch's volunteers transcribed from the registers. It gives the event's date and the people the entry names (the child and parents, or the couple), but no page and no usable Record number, so it's found by searching the register's dates. The person cited may be any of them: a parent's citation of a child's baptism names the parent.
+_Avoid_: index (alone; an index is also a book's own list of names).
+
 ### Church books and scans
 
 **Book**:

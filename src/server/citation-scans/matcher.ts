@@ -388,6 +388,19 @@ const REVIEW_ORDER: Unconfirmed[] = [
   'unsupported'
 ];
 
+// Whom the Reader looks for: the person a reference names, with what else
+// it knows of them. `named` only where there are any, so a rippikirja
+// reference asks as before, and its cached readings hold.
+export function personOf(ref: ChurchBookRef, name: string): Person {
+  return {
+    name,
+    date: ref.date,
+    village: ref.places[0] ?? null,
+    household: ref.household,
+    ...(ref.named.length > 0 ? { named: ref.named } : {})
+  };
+}
+
 export async function matchRef(
   ref: ChurchBookRef,
   candidates: Candidate[],
@@ -399,15 +412,7 @@ export async function matchRef(
   if (ref.name === null) {
     return { confirmed: false, reason: 'no name' };
   }
-  // `named` only where there are any, so a rippikirja reference asks as
-  // before, and its cached readings hold.
-  const person: Person = {
-    name: ref.name,
-    date: ref.date,
-    village: ref.places[0] ?? null,
-    household: ref.household,
-    ...(ref.named.length > 0 ? { named: ref.named } : {})
-  };
+  const person = personOf(ref, ref.name);
   const outcomes: Outcome[] = [];
   for (const c of candidates) {
     // eslint-disable-next-line no-await-in-loop -- one Volume at a time
