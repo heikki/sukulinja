@@ -1,21 +1,24 @@
 import { html, LitElement, nothing } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 
 import type { PersonRow, VolumeCitation } from '@common/types';
 
 import { formatName } from '../tree-view/renderer';
-import { boxKey, citationLabel, citedAs, groupCitations } from './citations';
+import { boxKey, groupCitations, SPLIT_NOTE } from './citations';
+import { markedIn, saveMark } from './helpers';
 import { controlStyles, scanPeopleStyles } from './styles';
+import type { ScanMarked } from './toolbar';
 
 // Collapsed or not for the rest of the visit, across Volumes and citations.
 let collapsed = false;
 
 // Beside the scan: the people of the tree whose citations link the Image
-// shown, grouped as `groupCitations` says, and those known only to be in
-// the Volume. Clicking one asks for them with `scan-pick`; the citation the
+// shown, grouped as `groupCitations` says. Clicking one asks for them with `scan-pick`; the citation the
 // viewer is on (`current`) is marked. Hovering a row with an entry on the
 // scan names the entry's key with `scan-hover`, and rows of the entry picked
-// out there (`hovered`) are highlighted.
+// out there (`hovered`) are highlighted. A vision match can be confirmed
+// from its row, saved as marking its Image by hand would be, and reported
+// with `scan-marked`.
 @customElement('sl-scan-people')
 export class ScanPeopleElement extends LitElement {
   static override styles = [controlStyles, scanPeopleStyles];
@@ -27,6 +30,12 @@ export class ScanPeopleElement extends LitElement {
   @property({ attribute: false }) current: number | null = null;
   @property({ attribute: false }) hovered: string | null = null;
   @property({ type: Boolean }) failed = false;
+  // The Volume shown, which a confirmation marks.
+  @property({ attribute: false }) volumeId: string | null = null;
+
+  // The citation being confirmed, and the last one that couldn't be.
+  @state() private confirming: number | null = null;
+  @state() private refused: { id: number; error: string } | null = null;
 
   private readonly nameOf = (row: VolumeCitation) => {
     const person = this.persons.get(row.personId);
@@ -50,6 +59,48 @@ export class ScanPeopleElement extends LitElement {
     this.dispatchEvent(new CustomEvent('scan-hover', { detail: key }));
   }
 
+  private async confirm(row: VolumeCitation) {
+    const { volumeId } = this;
+    if (volumeId === null || row.image === null) return;
+    this.confirming = row.citation.id;
+    this.refused = null;
+    const saved = await saveMark(row.citation.id, {
+      volumeId,
+      image: row.image
+    });
+    this.confirming = null;
+    if ('error' in saved) {
+      this.refused = { id: row.citation.id, error: saved.error };
+      return;
+    }
+    const detail: ScanMarked = markedIn(saved.resolved, volumeId);
+    this.dispatchEvent(
+      new CustomEvent('scan-marked', { detail, bubbles: true, composed: true })
+    );
+  }
+
+  private renderConfirm(row: VolumeCitation) {
+    if (row.image === null || row.by !== 'vision') return nothing;
+    const id = row.citation.id;
+    return html`
+      <button
+        class="confirm"
+        title="Mark this Image as where the record is"
+        ?disabled=${this.confirming !== null}
+        @click=${() => {
+          void this.confirm(row);
+        }}
+      >
+        ${this.confirming === id ? 'Saving…' : 'Confirm'}
+      </button>
+      ${
+        this.refused?.id === id
+          ? html`<p class="refused">${this.refused.error}</p>`
+          : nothing
+      }
+    `;
+  }
+
   private renderRow(row: VolumeCitation) {
     const current = row.citation.id === this.current;
     const key = row.box === undefined ? null : boxKey(row.box);
@@ -71,8 +122,9 @@ export class ScanPeopleElement extends LitElement {
           }}
         >
           <span class="name">${this.nameOf(row)}</span>
-          <span class="muted">${citedAs(row)} · ${citationLabel(row)}</span>
+          ${row.split ? html`<span class="muted">${SPLIT_NOTE}</span>` : nothing}
         </button>
+        ${this.renderConfirm(row)}
       </li>
     `;
   }

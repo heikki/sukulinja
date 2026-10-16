@@ -15,7 +15,8 @@ import type {
 
 import './header';
 
-import { factLabel, factText, scanLabel, scanTitle, siteName } from './helpers';
+import { factLabel, factText, scanStatus, siteName } from './helpers';
+import type { ScanStatus } from './helpers';
 import { personPanelStyles } from './styles';
 
 function renderRecord(r: RecordView) {
@@ -32,27 +33,25 @@ function renderRecord(r: RecordView) {
       r.household.length === 0
         ? nothing
         : html`
-            <details>
-              <summary>Household · ${r.household.length}</summary>
-              <table>
-                ${r.household.map(
-                  (m) => html`
-                    <tr>
-                      <td>${m.relation ?? ''}</td>
-                      <td>${m.name}</td>
-                      <td>${m.born ?? ''}</td>
-                    </tr>
-                  `
-                )}
-              </table>
-            </details>
+            <div class="household">Household · ${r.household.length}</div>
+            <table>
+              ${r.household.map(
+                (m) => html`
+                  <tr>
+                    <td>${m.relation ?? ''}</td>
+                    <td>${m.name}</td>
+                    <td>${m.born ?? ''}</td>
+                  </tr>
+                `
+              )}
+            </table>
           `
     }
   `;
 }
 
-// A Scan link asks for the Scan viewer on that scan of the citation's
-// Church-book reference; "Find the image" asks for it with none.
+// Opening a church-book source asks for the Scan viewer on that scan of its
+// reference, or on none to look for the Image.
 export interface ScanOpen {
   citation: CitationRow;
   scan: Scan | null;
@@ -60,70 +59,38 @@ export interface ScanOpen {
 
 export type ScanOpenEvent = CustomEvent<ScanOpen>;
 
-// Resolving found the parish's books but not the Image, so it can be looked
-// for by hand. Other errors (no archive, unparsed, Astia down) can't.
-const FINDABLE = new Set(['no matching volume', 'not digitized', 'no images']);
-
-function renderOpen(
-  open: ScanOpen,
-  label: string,
-  title: string,
-  current: boolean
-) {
-  return html`
-    <button
-      class="scan"
-      title=${title}
-      aria-current=${current ? 'true' : nothing}
-      @click=${(e: Event) => {
-        e.currentTarget!.dispatchEvent(
-          new CustomEvent('scan-open', {
-            detail: open,
-            bubbles: true,
-            composed: true
-          })
-        );
-      }}
-    >
-      ${label}
-    </button>
-  `;
+function renderFold(open: boolean, fold: () => void) {
+  const label = open ? 'Hide the record' : 'Show the record';
+  return html`<button
+    class="fold"
+    aria-expanded=${open ? 'true' : 'false'}
+    aria-label=${label}
+    title=${label}
+    @click=${fold}
+  ></button>`;
 }
 
-// Scans arrive after the panel renders; until then the link is pending.
-// `viewing`: what the Scan viewer shows of this citation, if anything.
-function renderScans(
-  c: CitationRow,
-  scan: ScanResolution | undefined,
-  pending: boolean,
-  viewing: ScanOpen | null
-) {
-  if (scan === undefined) {
-    return html`<span class="muted">
-      ${pending ? 'Finding scan…' : 'Scan unavailable'}
-    </span>`;
-  }
-  if ('error' in scan) {
-    return FINDABLE.has(scan.error)
-      ? renderOpen(
-          { citation: c, scan: null },
-          'Find the image',
-          `No scan found: ${scan.error}`,
-          viewing?.scan === null
-        )
-      : html`<span class="muted" title=${scan.error}>No scan found</span>`;
-  }
-  // A Split reference opens on its first candidate; the viewer's switcher
-  // lists the others first.
-  const [first] = scan.scans;
-  if (first === undefined) return nothing;
-  const split = scan.scans.length > 1;
-  return renderOpen(
-    { citation: c, scan: first },
-    split ? `Astia (${scan.scans.length} Volumes)` : scanLabel(first),
-    scanTitle(scan.scans),
-    viewing !== null && viewing.scan !== null
-  );
+function renderStatus(status: ScanStatus | null) {
+  if (status === null) return nothing;
+  return html`<div class="status">
+    <span class="chip" title=${status.title}>${status.label}</span>
+  </div>`;
+}
+
+// What the source records, then a link to the record on its own site.
+function renderDetails(body: unknown, url: string | null) {
+  return html`
+    <div class="record">
+      ${body}
+      ${
+        url === null
+          ? nothing
+          : html`<a class="site" href=${url} target="_blank" rel="noopener">
+              Open on ${siteName(url)} ↗
+            </a>`
+      }
+    </div>
+  `;
 }
 
 // A Church-book reference names itself; other sources go by their title,
@@ -136,6 +103,11 @@ function headingOf(c: CitationRow) {
 // first only the sources are.
 const opened = { events: false, sources: true };
 type Section = keyof typeof opened;
+
+// A Church-book reference's tooltip names its collection.
+function titleOf(c: CitationRow, heading: string) {
+  return c.reference === null ? heading : (c.source ?? heading);
+}
 
 function renderBody(c: CitationRow, heading: string) {
   if (c.record !== null) return renderRecord(c.record);
@@ -186,9 +158,7 @@ export class PersonPanelElement extends LitElement {
     this.scrollTop = 0;
   }
 
-  // The source in the Scan viewer, scrolled to, opening Sources if need be;
-  // if it is expanded, with its household open for comparing against the
-  // page.
+  // The source in the Scan viewer, scrolled to, opening Sources if need be.
   private async revealViewing() {
     const id = this.viewing?.citation.id;
     if (id === undefined) return;
@@ -199,8 +169,6 @@ export class PersonPanelElement extends LitElement {
     }
     const source = this.renderRoot.querySelector(`[data-citation="${id}"]`);
     source?.scrollIntoView({ block: 'nearest' });
-    const household = source?.querySelector('details');
-    if (household !== null && household !== undefined) household.open = true;
   }
 
   private async load() {
@@ -228,7 +196,7 @@ export class PersonPanelElement extends LitElement {
   }
 
   // One streamed request per person; refocusing aborts it. A reload after a
-  // mark keeps the links shown until their new ones arrive.
+  // mark keeps the scans known until their new ones arrive.
   private async loadScans(id: number, keep: boolean) {
     this.scanAbort?.abort();
     const abort = new AbortController();
@@ -259,47 +227,103 @@ export class PersonPanelElement extends LitElement {
     if (this.personId !== null) void this.loadScans(this.personId, true);
   }
 
-  // Collapsed to its heading and links unless selected. Opening it in the
-  // Scan viewer marks it but leaves it as it is.
+  private openScan(citation: CitationRow, scan: Scan | null) {
+    this.dispatchEvent(
+      new CustomEvent<ScanOpen>('scan-open', {
+        detail: { citation, scan },
+        bubbles: true,
+        composed: true
+      })
+    );
+  }
+
+  // What clicking the source does: open its scan if it is a church book
+  // that has one or can be looked for, else show or hide its record.
+  private actionOf(
+    c: CitationRow,
+    status: ScanStatus | null,
+    foldable: boolean
+  ) {
+    const target = status?.target ?? null;
+    if (target !== null) {
+      return () => {
+        this.openScan(c, target.scan);
+      };
+    }
+    if (!foldable) return null;
+    return () => {
+      this.fold(c.id);
+    };
+  }
+
+  private fold(id: number) {
+    this.selected = this.selected === id ? null : id;
+  }
+
+  // Clicking a church-book source opens its scan; clicking another shows or
+  // hides what it records, as its chevron does for both. Its record shows
+  // only when selected, and opening it in the Scan viewer leaves it as it is.
   private renderCitation(c: CitationRow) {
-    const scan = this.scans.get(c.id);
-    const viewing = this.viewing?.citation.id === c.id ? this.viewing : null;
-    const open = this.selected === c.id;
+    const viewing = this.viewing?.citation.id === c.id;
+    const status = c.churchBook
+      ? scanStatus(this.scans.get(c.id), this.scansPending)
+      : null;
     const heading = headingOf(c);
+    const body = renderBody(c, heading);
+    const foldable = body !== nothing || c.url !== null;
+    const open = this.selected === c.id && foldable;
+    const act = this.actionOf(c, status, foldable);
     return html`
       <article
-        class="source ${viewing === null ? '' : 'viewing'}"
+        class="source ${act === null ? '' : 'active'} ${
+          viewing ? 'viewing' : ''
+        }"
         data-citation=${c.id}
+        @click=${(e: Event) => {
+          const on = e.target as Element;
+          if (on.closest('a, .fold, .record') === null) act?.();
+        }}
       >
-        <button
-          class="head"
-          aria-expanded=${open ? 'true' : 'false'}
-          title=${c.reference === null ? heading : (c.source ?? heading)}
-          @click=${() => {
-            this.selected = open ? null : c.id;
-          }}
-        >
-          <span>${heading}</span>
-        </button>
-        ${open ? renderBody(c, heading) : nothing}
-        ${
-          c.url === null
-            ? nothing
-            : html`
-                <div class="links">
-                  ${
-                    c.churchBook
-                      ? renderScans(c, scan, this.scansPending, viewing)
-                      : nothing
-                  }
-                  <a href=${c.url} target="_blank" rel="noopener">
-                    ${siteName(c.url)} ↗
-                  </a>
-                </div>
-              `
-        }
+        <div class="top">
+          <button
+            class="title"
+            ?disabled=${act === null}
+            aria-current=${viewing ? 'true' : nothing}
+            title=${titleOf(c, heading)}
+          >
+            ${heading}
+          </button>
+          ${
+            foldable
+              ? renderFold(open, () => {
+                  this.fold(c.id);
+                })
+              : nothing
+          }
+        </div>
+        ${open ? renderDetails(body, c.url) : nothing} ${renderStatus(status)}
       </article>
     `;
+  }
+
+  private renderGroup(label: string | null, rows: CitationRow[]) {
+    if (rows.length === 0) return nothing;
+    return html`
+      ${label === null ? nothing : html`<h4>${label} · ${rows.length}</h4>`}
+      ${rows.map((c) => this.renderCitation(c))}
+    `;
+  }
+
+  // Church books first, in date order as the server sends them, then the
+  // others; named apart only when there are both.
+  private renderSources(citations: CitationRow[]) {
+    const books = citations.filter((c) => c.churchBook);
+    const others = citations.filter((c) => !c.churchBook);
+    const named = books.length > 0 && others.length > 0;
+    return [
+      this.renderGroup(named ? 'Church books' : null, books),
+      this.renderGroup(named ? 'Other' : null, others)
+    ];
   }
 
   // A heading that shows or hides what follows it.
@@ -359,7 +383,7 @@ export class PersonPanelElement extends LitElement {
             : this.renderSection(
                 'sources',
                 `Sources · ${d.citations.length}`,
-                () => d.citations.map((c) => this.renderCitation(c))
+                () => this.renderSources(d.citations)
               )
         }
       </div>

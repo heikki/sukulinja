@@ -1,37 +1,61 @@
-import type { Box, CitationRow, Scan, VolumeCitation } from '@common/types';
+import type {
+  Box,
+  CitationRow,
+  Provenance,
+  Scan,
+  ScanMethod,
+  VolumeCitation
+} from '@common/types';
 
-// How a row's link to the Image was found, said of the row.
-const METHOD_LABELS: Record<VolumeCitation['method'], string> = {
-  placed: 'Placed',
-  anchored: 'Anchored',
-  estimated: 'Estimated',
-  volume: 'Volume only'
+// How a link to the Image was found, in the words the person panel and the
+// Scan viewer share: a person marked it there (Placed by hand), the vision
+// model did (Placed by the model), or it was worked out (Anchored and
+// Estimated alike), with what that means.
+const METHODS: Record<ScanMethod, { label: string; hint: string }> = {
+  placed: {
+    label: 'Verified',
+    hint: 'A person marked this record on this Image.'
+  },
+  anchored: {
+    label: 'Estimated',
+    hint: "Counted from page numbers read in this Volume; the record itself isn't checked."
+  },
+  estimated: {
+    label: 'Estimated',
+    hint: 'Guessed from the usual pages per Image for this kind of book; often a few Images off.'
+  },
+  volume: {
+    label: 'Volume only',
+    hint: 'The citation names no page, so only the Volume is known.'
+  }
 };
 
-// The method, a vision match told apart, and a Split marked as one of
-// several Volumes.
-export function citationLabel(row: VolumeCitation) {
-  const method =
-    row.method === 'placed' && row.by === 'vision'
-      ? 'Vision match'
-      : METHOD_LABELS[row.method];
-  return row.split ? `${method} · one of several Volumes` : method;
+const VISION = {
+  label: 'Vision match',
+  hint: 'The vision model found the name on this Image. Not checked yet: confirm it, or mark the right Image.'
+};
+
+function methodOf(method: ScanMethod, by?: Provenance) {
+  return method === 'placed' && by === 'vision' ? VISION : METHODS[method];
 }
 
-// The cited page: every row is in the Volume shown, so its parish and Book
-// go without saying. A reference naming no page says what it is.
-export function citedAs(row: VolumeCitation) {
-  const { citedPage, reference } = row.citation;
-  return citedPage === null ? (reference ?? '') : `p.\u00a0${citedPage}`;
+export function methodLabel(method: ScanMethod, by?: Provenance) {
+  return methodOf(method, by).label;
 }
 
-export interface CitationGroup {
-  label: string;
-  rows: VolumeCitation[];
+export function methodHint(method: ScanMethod, by?: Provenance) {
+  return methodOf(method, by).hint;
 }
 
-// Placed entries in the order they're written on the Image, where the
-// model said where; the rest by name.
+// A Split reference's row says it may be elsewhere.
+export const SPLIT_NOTE = 'one of several Volumes';
+
+export function splitLabel(method: string) {
+  return `${method} · ${SPLIT_NOTE}`;
+}
+
+// Entries in the order they're written on the Image, where the model said
+// where; the rest by name.
 function byPlace(nameOf: (row: VolumeCitation) => string) {
   return (a: VolumeCitation, b: VolumeCitation) => {
     const top = (a.box?.top ?? Infinity) - (b.box?.top ?? Infinity);
@@ -40,23 +64,24 @@ function byPlace(nameOf: (row: VolumeCitation) => string) {
   };
 }
 
-// The Volume's rows for the Image shown: Placed ones, then those probably
-// here (Anchored and Estimated), then those known only to be in the Volume.
+const STATUSES = ['Verified', 'Vision match', 'Estimated'];
+
+// The Volume's rows linking the Image shown, grouped by status: Verified,
+// then Vision matches left to confirm, then Estimated ones. Those known only
+// to be in the Volume aren't known to be here, so they're left out.
 export function groupCitations(
   rows: VolumeCitation[],
   image: number,
   nameOf: (row: VolumeCitation) => string
 ) {
-  const here = rows.filter((r) => r.image === image);
-  const groups: CitationGroup[] = [
-    { label: 'Placed', rows: here.filter((r) => r.method === 'placed') },
-    { label: 'Probably here', rows: here.filter((r) => r.method !== 'placed') },
-    { label: 'In this Volume', rows: rows.filter((r) => r.image === null) }
-  ];
+  const shown = rows.filter((r) => r.image === image);
   const order = byPlace(nameOf);
-  return groups
-    .map((g) => ({ ...g, rows: g.rows.toSorted(order) }))
-    .filter((g) => g.rows.length > 0);
+  return STATUSES.map((label) => ({
+    label,
+    rows: shown
+      .filter((r) => methodLabel(r.method, r.by) === label)
+      .toSorted(order)
+  })).filter((g) => g.rows.length > 0);
 }
 
 // A person picked beside the scan: the viewer is to go on with their

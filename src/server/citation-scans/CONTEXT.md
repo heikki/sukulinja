@@ -18,7 +18,7 @@ _Avoid_: index (alone; an index is also a book's own list of names).
 ### Church books and scans
 
 **Book**:
-The kind of church book referenced — rippikirja (communion book), lastenkirja (children's book), baptisms or marriages — with the years it covers. A Book may span several **Volumes** or share one.
+The kind of church book referenced — rippikirja (communion book), lastenkirja (children's book), kastetut (baptisms) or vihityt (marriages); the app calls them by their Astia series names (Pää- ja rippikirjat, Lastenkirjat, Syntyneiden ja kastettujen luettelot, Vihittyjen luettelot) — with the years it covers. A Book may span several **Volumes** or share one.
 
 **Volume**:
 One book in Astia, with its own Astia id and label (e.g. "I Aa:5 Pää- ja rippikirjat (1790-1796)"). The unit a link points into.
@@ -88,7 +88,7 @@ The vision model behind three questions about one Image: the Page numbers writte
 Finding the person's name on the Image a search landed on, or on the Images around it. Only a confirmed match is saved.
 
 **Vision match**:
-A Seen record or Placement the vision model saved after a Confirmation, as opposed to one marked by hand. It is Placed all the same, and the source panel and Scan viewer say it's a vision match.
+A Seen record or Placement the vision model saved after a Confirmation, as opposed to one marked by hand. It is Placed all the same, and the source panel and Scan viewer say it's a vision match. Marking its own Image in the Scan viewer confirms it: it is saved again by hand, keeping where the model said the entry is.
 
 **Provenance**:
 Who saved an Anchor, Seen record or Placement: by hand (everything shipped, and every mark made in the Scan viewer) or by the vision model. A hand correction always wins over a vision one.

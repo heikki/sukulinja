@@ -34,15 +34,6 @@ export const personPanelStyles = css`
     margin-top: 0.6rem;
   }
 
-  .section-body > .source:first-child {
-    padding-top: 0;
-    border-top: 0;
-  }
-
-  .section-body > .source:first-child.viewing::before {
-    top: 0;
-  }
-
   h3 {
     margin: 0;
     font-size: 0.75rem;
@@ -106,34 +97,62 @@ export const personPanelStyles = css`
     overflow-wrap: anywhere;
   }
 
+  h4 {
+    margin: 0.9rem 0 0.25rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--muted);
+  }
+
+  h4:first-child {
+    margin-top: 0;
+  }
+
+  /* A source, tinted across the panel's width when clicking it does
+     something. */
   .source {
-    padding: 0.75rem 0;
+    position: relative;
+    margin: 0 -1.1rem;
+    padding: 0.6rem 1.1rem;
+  }
+
+  .source + .source {
     border-top: 1px solid var(--border);
   }
 
-  /* The source the Scan viewer shows: an accent bar in the gutter, so the
-     text doesn't shift. */
+  .source.active {
+    cursor: pointer;
+  }
+
+  .source.active:hover {
+    background: color-mix(in srgb, var(--accent) 7%, var(--card));
+  }
+
+  /* The source the Scan viewer shows, marked as "People here" marks the
+     viewer's own: an accent bar at the edge on the page background. */
   .source.viewing {
-    position: relative;
+    background: var(--bg);
   }
 
   .source.viewing::before {
     content: '';
     position: absolute;
-    top: 0.75rem;
-    bottom: 0.75rem;
-    left: -0.65rem;
+    top: 0;
+    bottom: 0;
+    left: 0;
     width: 3px;
-    border-radius: 2px;
     background: var(--accent);
   }
 
-  /* The source's heading, which shows or hides the rest of it. */
-  button.head {
+  .top {
     display: flex;
-    align-items: baseline;
-    gap: 0.4rem;
-    width: 100%;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  button.title {
+    flex: 1;
+    min-width: 0;
     padding: 0;
     border: 0;
     background: none;
@@ -141,23 +160,43 @@ export const personPanelStyles = css`
     font: inherit;
     font-weight: 500;
     text-align: left;
+    cursor: inherit;
+  }
+
+  button.title[aria-current] {
+    font-weight: 600;
+  }
+
+  /* Shows or hides what the source records. */
+  button.fold {
+    flex: none;
+    width: 1.25rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 1rem;
+    line-height: 1.25;
     cursor: pointer;
   }
 
-  button.head::before {
-    content: '▸';
-    flex: none;
-    font-size: 0.7rem;
-    color: var(--muted);
+  button.fold::after {
+    content: '›';
+    display: inline-block;
     transition: transform 0.15s;
   }
 
-  button.head[aria-expanded='true']::before {
+  button.fold[aria-expanded='true']::after {
     transform: rotate(90deg);
   }
 
-  button.head:hover {
+  button.fold:hover {
     color: var(--accent);
+  }
+
+  .record {
+    cursor: auto;
   }
 
   .source .who {
@@ -175,12 +214,8 @@ export const personPanelStyles = css`
     overflow-wrap: anywhere;
   }
 
-  details {
-    margin-top: 0.5rem;
-  }
-
-  summary {
-    cursor: pointer;
+  .household {
+    margin-top: 0.6rem;
     color: var(--muted);
   }
 
@@ -201,33 +236,21 @@ export const personPanelStyles = css`
     white-space: nowrap;
   }
 
-  .links {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem 1rem;
+  .status {
+    margin-top: 0.4rem;
+  }
+
+  .chip {
+    padding: 0.05rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    background: color-mix(in srgb, var(--fg) 8%, transparent);
+    color: var(--muted);
+  }
+
+  a.site {
+    display: inline-block;
     margin-top: 0.5rem;
-  }
-
-  /* Links leaving the app keep to the right, apart from the in-app ones. */
-  .links a {
-    margin-left: auto;
-  }
-
-  button.scan {
-    padding: 0;
-    border: 0;
-    background: none;
-    color: var(--accent);
-    font: inherit;
-    cursor: pointer;
-  }
-
-  button.scan:hover {
-    text-decoration: underline;
-  }
-
-  button.scan[aria-current] {
-    font-weight: 600;
   }
 
   a {

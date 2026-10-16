@@ -561,7 +561,9 @@ export class ScanViewerElement extends LitElement {
         .persons=${this.persons}
         .current=${this.citation?.id ?? null}
         .hovered=${this.hovered}
+        .volumeId=${this.volume?.id ?? null}
         ?failed=${this.citationsFailed}
+        @scan-marked=${this.onMarked}
         @scan-pick=${this.onPick}
         @scan-hover=${this.onHover}
       ></sl-scan-people>

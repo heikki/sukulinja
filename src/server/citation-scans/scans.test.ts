@@ -136,6 +136,45 @@ test('a hand marking replaces a vision match', async () => {
   ]);
 });
 
+test('confirming a vision match by hand keeps its box', async () => {
+  const box = { left: 0.1, top: 0.4, width: 0.5, height: 0.05 };
+  await writeLocal({
+    'juva-1': {
+      anchors: [],
+      seen: [{ record: 5000, image: 4, by: 'vision', box }]
+    }
+  });
+  const marked = citation(5000, '1790 - 1796', 12);
+  await correctScan(marked.page, marked.text, { volumeId: 'juva-1', image: 4 });
+  expect(await scanOf(marked)).toEqual([
+    expect.objectContaining({ image: 4, method: 'placed', by: 'hand', box })
+  ]);
+});
+
+test('a vision placement confirmed by hand keeps its box', async () => {
+  const box = { left: 0.1, top: 0.4, width: 0.5, height: 0.05 };
+  // Vision placements are of references with no Record number.
+  const cited = citation(5000, '1790 - 1796', null);
+  const marked = { ...cited, page: cited.page.replace('itemId=5000&', '') };
+  await Bun.write(
+    join(dir, 'placements.local.json'),
+    JSON.stringify({
+      [marked.page]: {
+        volumeId: 'juva-2',
+        volume: VOLUMES['juva-2'],
+        image: 3,
+        by: 'vision',
+        box
+      }
+    })
+  );
+  useDataFolder(dir);
+  await correctScan(marked.page, marked.text, { volumeId: 'juva-2', image: 3 });
+  expect(Object.values(await loadPlacements())).toEqual([
+    { volumeId: 'juva-2', volume: VOLUMES['juva-2'], image: 3, by: 'hand', box }
+  ]);
+});
+
 test('the matcher searches the Volumes a reference links', async () => {
   const index = parseChurchBookRef(
     'https://www.myheritage.fi/research/collection-30233/x?itemId=9',

@@ -3,7 +3,6 @@ import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { live } from 'lit/directives/live.js';
 
-import { apiUrl } from '@client/api';
 import type {
   CitationRow,
   CitationScans,
@@ -11,7 +10,16 @@ import type {
   Scan
 } from '@common/types';
 
-import { groupVolumes, linkLabel, MARK_HINTS, markOffer } from './helpers';
+import { methodHint } from './citations';
+import {
+  groupVolumes,
+  isVerified,
+  linkLabel,
+  MARK_HINTS,
+  markedIn,
+  markOffer,
+  saveMark
+} from './helpers';
 import { controlStyles, scanToolbarStyles } from './styles';
 
 // A mark saved: the reference's links resolved again, and the one in the
@@ -71,31 +79,16 @@ export class ScanToolbarElement extends LitElement {
   }
 
   private async mark(citation: CitationRow, volumeId: string) {
-    const target = { volumeId, image: this.image };
     this.saving = true;
     this.error = null;
-    try {
-      const res = await fetch(apiUrl(`/api/citations/${citation.id}/scans`), {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(target)
-      });
-      if (!res.ok) {
-        this.error = await res.text();
-        return;
-      }
-      const resolved = (await res.json()) as CitationScans;
-      const scans = 'scans' in resolved ? resolved.scans : [];
-      const detail: ScanMarked = {
-        resolved,
-        link: scans.find((s) => s.volumeId === volumeId) ?? null
-      };
-      this.emit('scan-marked', detail);
-    } catch {
-      this.error = 'The app is not responding.';
-    } finally {
-      this.saving = false;
+    const saved = await saveMark(citation.id, { volumeId, image: this.image });
+    this.saving = false;
+    if ('error' in saved) {
+      this.error = saved.error;
+      return;
     }
+    const detail: ScanMarked = markedIn(saved.resolved, volumeId);
+    this.emit('scan-marked', detail);
   }
 
   // Grouped as `groupVolumes` says; the shown Volume is listed even before
@@ -191,7 +184,9 @@ export class ScanToolbarElement extends LitElement {
     if (link === null) return html`<span class="muted">No link</span>`;
     const inVolume = link.volumeId === shown.id;
     if (inVolume && (link.method === 'volume' || link.image === this.image)) {
-      return html`<span class="muted">${linkLabel(link)}</span>`;
+      return html`<span class="muted" title=${methodHint(link.method, link.by)}
+        >${linkLabel(link)}</span
+      >`;
     }
     return html`
       <button
@@ -206,7 +201,9 @@ export class ScanToolbarElement extends LitElement {
     `;
   }
 
-  // Marking, or the ✓ of a link already found by hand or from Anchors.
+  // Marking, or how the link on the shown Image was found: a ✓ when a
+  // person marked it. A vision match is confirmed from the people beside
+  // the scan.
   private renderMark(citation: CitationRow, shown: Shown) {
     const { link } = this;
     const offer = markOffer(
@@ -216,7 +213,12 @@ export class ScanToolbarElement extends LitElement {
       this.volumes
     );
     if (offer === 'linked') {
-      return html`<span class="linked">✓ ${linkLabel(link!)}</span>`;
+      const verified = isVerified(link!);
+      return html`<span
+        class=${verified ? 'linked' : 'muted'}
+        title=${methodHint(link!.method, link!.by)}
+        >${verified ? '✓ ' : ''}${linkLabel(link!)}</span
+      >`;
     }
     const note = this.error ?? (offer === 'unknown' ? null : MARK_HINTS[offer]);
     return html`

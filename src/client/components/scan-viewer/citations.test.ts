@@ -2,7 +2,12 @@ import { expect, test } from 'bun:test';
 
 import type { VolumeCitation } from '@common/types';
 
-import { citationLabel, citedAs, entriesOn, groupCitations } from './citations';
+import {
+  entriesOn,
+  groupCitations,
+  methodLabel,
+  splitLabel
+} from './citations';
 
 function row(
   personId: number,
@@ -15,7 +20,7 @@ function row(
     citation: {
       id: personId * 10,
       source: null,
-      reference: 'Juva · Communion book 1790–1796 · p. 12',
+      reference: 'Juva · Pää- ja rippikirjat 1790–1796 · p. 12',
       page: null,
       url: null,
       record: null,
@@ -50,7 +55,7 @@ function shown(rows: VolumeCitation[], image: number) {
   }));
 }
 
-test("groups the Image's rows by how they were found", () => {
+test("groups the Image's rows by status", () => {
   const rows = [
     row(1, 7, 'anchored'),
     row(2, 7, 'placed', { by: 'hand' }),
@@ -60,17 +65,14 @@ test("groups the Image's rows by how they were found", () => {
     row(6, 7, 'placed', { by: 'vision' })
   ];
   expect(shown(rows, 7)).toEqual([
-    { label: 'Placed', people: ['Liisa', 'Pekka'] },
-    { label: 'Probably here', people: ['Anna', 'Matti'] },
-    { label: 'In this Volume', people: ['Kaisa'] }
+    { label: 'Verified', people: ['Liisa'] },
+    { label: 'Vision match', people: ['Pekka'] },
+    { label: 'Estimated', people: ['Anna', 'Matti'] }
   ]);
-  expect(shown(rows, 8)).toEqual([
-    { label: 'Placed', people: ['Juho'] },
-    { label: 'In this Volume', people: ['Kaisa'] }
-  ]);
+  expect(shown(rows, 8)).toEqual([{ label: 'Vision match', people: ['Juho'] }]);
 });
 
-test('lists Placed entries in the order written on the Image', () => {
+test('lists entries in the order written on the Image', () => {
   function at(top: number) {
     return { left: 0, top, width: 1, height: 0.05 };
   }
@@ -80,30 +82,19 @@ test('lists Placed entries in the order written on the Image', () => {
     row(3, 7, 'placed', { by: 'vision', box: at(0.2) })
   ];
   expect(shown(rows, 7)).toEqual([
-    { label: 'Placed', people: ['Anna', 'Matti', 'Liisa'] }
+    { label: 'Verified', people: ['Liisa'] },
+    { label: 'Vision match', people: ['Anna', 'Matti'] }
   ]);
 });
 
-test('says how a row was found, and that a Split may be elsewhere', () => {
-  expect(citationLabel(row(1, 7, 'placed', { by: 'vision' }))).toBe(
-    'Vision match'
-  );
-  expect(citationLabel(row(1, 7, 'placed', { by: 'hand' }))).toBe('Placed');
-  expect(citationLabel(row(1, 7, 'estimated', { split: true }))).toBe(
-    'Estimated · one of several Volumes'
-  );
-  expect(citationLabel(row(1, null, 'volume'))).toBe('Volume only');
-});
-
-test('names the cited page, or the reference where there is none', () => {
-  expect(citedAs(row(1, 7, 'anchored'))).toBe('p. 12');
-  const unpaged = row(1, null, 'volume');
-  unpaged.citation = {
-    ...unpaged.citation,
-    citedPage: null,
-    reference: 'Juva · Baptisms 1790–1810'
-  };
-  expect(citedAs(unpaged)).toBe('Juva · Baptisms 1790–1810');
+test('says how a link was found, and that a Split may be elsewhere', () => {
+  expect(methodLabel('placed', 'vision')).toBe('Vision match');
+  expect(methodLabel('placed', 'hand')).toBe('Verified');
+  expect(methodLabel('placed')).toBe('Verified');
+  expect(methodLabel('anchored')).toBe('Estimated');
+  expect(methodLabel('estimated')).toBe('Estimated');
+  expect(methodLabel('volume')).toBe('Volume only');
+  expect(splitLabel('Estimated')).toBe('Estimated · one of several Volumes');
 });
 
 test('marks one entry per Box on the Image, shared by those it records', () => {

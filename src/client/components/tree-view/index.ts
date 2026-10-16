@@ -411,12 +411,14 @@ export class TreeViewElement extends LitElement {
   }
 
   // The dock shows the reference's new links, and the viewer follows the one
-  // in the marked Volume.
+  // in the marked Volume when the mark was for its citation (one confirmed
+  // beside the scan may be another's).
   private readonly onScanMarked = (e: ScanMarkedEvent) => {
     const { resolved, link } = e.detail;
     this.renderRoot.querySelector('sl-person-panel')?.takeScans(resolved);
-    if (this.scanOpen !== null && link !== null) {
-      this.scanOpen = { ...this.scanOpen, scan: link };
+    const open = this.scanOpen;
+    if (open?.citation.id === resolved.citationId && link !== null) {
+      this.scanOpen = { ...open, scan: link };
     }
   };
 
