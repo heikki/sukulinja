@@ -87,19 +87,17 @@ test('places a record by hand, and takes it back', async () => {
 });
 
 test('a vision match never replaces a hand correction', async () => {
-  const [volumeId, volume] = Object.entries(shipped).find(
-    ([, v]) => 'seen' in v
-  )!;
+  const [volumeId, volume] = Object.entries(shipped)[0]!;
   const first = volume.anchors[0]!;
-  const shippedSeen = (volume as { seen: SeenRecord[] }).seen;
-  const seen = shippedSeen[0]!;
+  const seen: SeenRecord = { record: 77, image: 5, by: 'hand' };
   await addLocalAnchor(volumeId, 'ignored', {
     image: first.image,
     pages: [999],
     by: 'vision'
   });
+  await addLocalSeen(volumeId, 'ignored', seen);
   await addLocalSeen(volumeId, 'ignored', {
-    record: seen.record,
+    ...seen,
     image: seen.image + 1,
     by: 'vision'
   });
@@ -116,7 +114,7 @@ test('a vision match never replaces a hand correction', async () => {
 
   const anchors = await loadAnchors();
   expect(anchors[volumeId]!.anchors).toEqual(volume.anchors);
-  expect(anchors[volumeId]!.seen).toEqual(shippedSeen);
+  expect(anchors[volumeId]!.seen).toEqual([seen]);
   expect(await loadPlacements()).toEqual({ [record]: hand });
 });
 
