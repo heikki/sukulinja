@@ -206,8 +206,11 @@ export class SettingsElement extends LitElement {
     if (!e.composedPath().includes(this)) this.open = false;
   };
 
+  // Marked handled, or WKWebView hands Escape on to macOS, which beeps.
   private readonly onDocumentKeydown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') this.open = false;
+    if (e.key !== 'Escape' || !this.open) return;
+    e.preventDefault();
+    this.open = false;
   };
 
   override updated(changed: PropertyValues) {
