@@ -117,6 +117,23 @@ describe('parseChurchBookRef', () => {
     });
   });
 
+  test("knows a principal's birth date from the record without a table", () => {
+    const alone = PLAIN.replace(/\nKatso talouden jäseniä.*$/s, '');
+    expect(parseChurchBookRef(URL, alone).household).toEqual({
+      born: '1757',
+      relation: null,
+      with: null,
+      members: []
+    });
+    const undated = PLAIN.replace('Matti Esimerkki; 1757', 'Matti Esimerkki; ');
+    expect(parseChurchBookRef(URL, undated).household).toMatchObject({
+      born: '1757',
+      relation: 'Perheenpää'
+    });
+    const unborn = alone.replace('Syntymäpäivä: 1757', '');
+    expect(parseChurchBookRef(URL, unborn).household).toBeNull();
+  });
+
   test('reads the principal of an HTML record', () => {
     expect(parseChurchBookRef(URL, HTML).name).toBe('Anna Malli');
   });
