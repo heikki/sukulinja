@@ -90,6 +90,8 @@ export class TreeViewElement extends LitElement {
   // coords to canvas pixels using the same extents the SVG was sized to.
   private chartExtents: Extents | null = null;
   private chartComfort: Comfort | null = null;
+  // Who the chart draws, so selecting anyone else rebuilds it around them.
+  private drawnIds = new Set<number>();
 
   // Sticky flag: once the user has expressed a zoom (URL-supplied or
   // settled-after-gesture), the URL keeps emitting `zoom` even if it happens
@@ -349,9 +351,14 @@ export class TreeViewElement extends LitElement {
     );
   }
 
-  // The dock shows them; the chart stays as it is.
+  // The dock shows them; the chart stays as it is if it draws them, and is
+  // built around them if not.
   private select(id: number) {
     if (id === this.selectedId) return;
+    if (!this.drawnIds.has(id)) {
+      this.setFocus(id, this.canvasCenter());
+      return;
+    }
     this.selectedId = id;
     this.writeUrl();
   }
@@ -600,6 +607,7 @@ export class TreeViewElement extends LitElement {
       return html`<div class="empty">No data for selected focus.</div>`;
     }
     this.chartExtents = chart.extents;
+    this.drawnIds = new Set(chart.boxes.map((b) => b.personId));
     this.chartComfort = comfortOf(chart.boxes, this.coreIds(this.focusId));
     return html`
       <div class="main">

@@ -13,7 +13,7 @@ The single person the chart is built around. Ancestors expand upward, descendant
 _Avoid_: Proband, ego, root, center person.
 
 **Selected person**:
-The person the details dock shows, marked in the chart by a tinted card. Clicking a card, or a relative in the dock's Family list, selects its person without a **Relayout**; double-clicking either makes them **Focus** too (ADR-0011). Focus is selected on becoming Focus; afterwards the two may differ.
+The person the details dock shows, marked in the chart by a tinted card. Clicking a card, or a relative in the dock's Family list, selects its person without a **Relayout**; double-clicking either makes them **Focus** too, as selecting someone the chart doesn't draw does (ADR-0011). Focus is selected on becoming Focus; afterwards the two may differ.
 _Avoid_: Active person, current person; "focused" for the selected one.
 
 ### Horizontal regions
