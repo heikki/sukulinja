@@ -317,9 +317,14 @@ export const scanPeopleStyles = css`
     text-align: left;
   }
 
-  button.row:hover {
+  button.row:hover,
+  button.row.hovered {
     background: var(--bg);
     color: var(--fg);
+  }
+
+  button.row.hovered .name {
+    color: var(--accent);
   }
 
   button.row.current {
@@ -337,5 +342,35 @@ export const scanPeopleStyles = css`
 
   button.toggle {
     padding: 0 0.45rem;
+  }
+`;
+
+// Over the stage, letting presses through but on the boxes themselves. Red
+// stands out on the grey scans. At rest only the entry of the citation the
+// viewer is on shows; the others show when hovered, here or by their row.
+export const scanEntriesStyles = css`
+  :host {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .entry {
+    position: absolute;
+    box-sizing: border-box;
+    border: 2px solid transparent;
+    border-radius: 3px;
+    pointer-events: auto;
+    cursor: pointer;
+  }
+
+  .entry.current {
+    border-color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
+  }
+
+  .entry.hovered {
+    border-color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 25%, transparent);
   }
 `;

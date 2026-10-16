@@ -24,3 +24,15 @@ Part of `../spec.md`. Needs 02.
   tested beside `frame.test.ts`.
 - On a Volume with vision matches, boxes sit on their entries at any zoom,
   and hovering a row picks out its box.
+
+## Comments
+
+Landed as `sl-scan-entries` (`scan-viewer/entries.ts`), an overlay on the
+stage. Boxes are placed in stage pixels by `boxOnStage` rather than
+transformed with the Image, so their outline keeps one width at any zoom;
+`entriesShown` holds them back until the full Image is shown. Rows sharing a
+Box are one entry (`entriesOn`, keyed by `boxKey`), and clicking it picks its
+first row. Presses bubble to the stage, so drags and pinches still pan and
+zoom; a press that moves past the viewer's drag threshold isn't a click. The
+viewer's loaders share a `Latest` request helper, and its loading note moved
+to `note.ts`, to keep it under the line limit.

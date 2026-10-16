@@ -1,4 +1,4 @@
-import type { CitationRow, Scan, VolumeCitation } from '@common/types';
+import type { Box, CitationRow, Scan, VolumeCitation } from '@common/types';
 
 // How a row's link to the Image was found, said of the row.
 const METHOD_LABELS: Record<VolumeCitation['method'], string> = {
@@ -88,4 +88,29 @@ export function pickedScan(
   if (row.by !== undefined) scan.by = row.by;
   if (row.box !== undefined) scan.box = row.box;
   return scan;
+}
+
+// Names an entry's Box: people citing one record share it.
+export function boxKey(box: Box) {
+  return `${box.left} ${box.top} ${box.width} ${box.height}`;
+}
+
+export interface Entry {
+  key: string;
+  box: Box;
+  rows: VolumeCitation[];
+}
+
+// The entries marked on the Image shown: one per Box, with the rows of
+// everyone it records.
+export function entriesOn(rows: VolumeCitation[], image: number) {
+  const entries = new Map<string, Entry>();
+  for (const row of rows) {
+    if (row.image !== image || row.box === undefined) continue;
+    const key = boxKey(row.box);
+    const entry = entries.get(key) ?? { key, box: row.box, rows: [] };
+    entry.rows.push(row);
+    entries.set(key, entry);
+  }
+  return [...entries.values()];
 }

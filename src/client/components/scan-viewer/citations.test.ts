@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 
 import type { VolumeCitation } from '@common/types';
 
-import { citationLabel, citedAs, groupCitations } from './citations';
+import { citationLabel, citedAs, entriesOn, groupCitations } from './citations';
 
 function row(
   personId: number,
@@ -104,4 +104,22 @@ test('names the cited page, or the reference where there is none', () => {
     reference: 'Juva · Baptisms 1790–1810'
   };
   expect(citedAs(unpaged)).toBe('Juva · Baptisms 1790–1810');
+});
+
+test('marks one entry per Box on the Image, shared by those it records', () => {
+  const box = { left: 0.1, top: 0.4, width: 0.3, height: 0.03 };
+  const other = { ...box, top: 0.6 };
+  const rows = [
+    row(1, 7, 'placed', { by: 'vision', box }),
+    row(2, 7, 'placed', { by: 'vision', box }),
+    row(3, 7, 'placed', { by: 'vision', box: other }),
+    row(4, 8, 'placed', { by: 'vision', box }),
+    row(5, 7, 'placed', { by: 'hand' })
+  ];
+  expect(
+    entriesOn(rows, 7).map((e) => ({ box: e.box, people: e.rows.map(nameOf) }))
+  ).toEqual([
+    { box, people: ['Matti', 'Liisa'] },
+    { box: other, people: ['Anna'] }
+  ]);
 });

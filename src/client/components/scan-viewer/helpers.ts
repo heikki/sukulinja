@@ -15,11 +15,27 @@ export function linkLabel(link: Scan) {
     : LINK_LABELS[link.method];
 }
 
-// A JSON answer; a failed one throws.
-export async function getJson<T>(url: string, signal: AbortSignal) {
-  const res = await fetch(url, { signal });
-  if (!res.ok) throw new Error(String(res.status));
-  return (await res.json()) as T;
+// One JSON request at a time: asking again aborts the last one.
+export class Latest {
+  private abort: AbortController | null = null;
+
+  // The answer; null when it failed, undefined when a later ask took over.
+  async get<T>(url: string) {
+    this.stop();
+    const abort = new AbortController();
+    this.abort = abort;
+    try {
+      const res = await fetch(url, { signal: abort.signal });
+      if (!res.ok) throw new Error(String(res.status));
+      return (await res.json()) as T;
+    } catch {
+      return abort.signal.aborted ? undefined : null;
+    }
+  }
+
+  stop() {
+    this.abort?.abort();
+  }
 }
 
 // Image numbers run 1..count; before the count is known, only from 1.

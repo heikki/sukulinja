@@ -21,12 +21,14 @@ import type {
 
 import { pickedScan } from './citations';
 import type { ScanPerson } from './citations';
-import { frameForFull, frameForThumb, layers } from './frame';
+import { entriesShown, frameForFull, frameForThumb, layers } from './frame';
 import type { Frame, Loading } from './frame';
-import { clampImage, getJson, imageUrl, neighbours, thumbUrl } from './helpers';
+import { clampImage, imageUrl, Latest, neighbours, thumbUrl } from './helpers';
+import { loadingNote } from './note';
 import { Prefetch } from './prefetch';
 import { controlStyles, scanViewerStyles } from './styles';
 
+import './entries';
 import './people';
 import './toolbar';
 
@@ -104,6 +106,8 @@ export class ScanViewerElement extends LitElement {
   // The shown Volume's citations; null until they arrive.
   @state() private citations: VolumeCitation[] | null = null;
   @state() private citationsFailed = false;
+  // The key of the entry picked out, on the scan and in the list.
+  @state() private hovered: string | null = null;
 
   // The Image last shown in each Volume of this reference, to go back to.
   private readonly left = new Map<string, number>();
@@ -119,9 +123,9 @@ export class ScanViewerElement extends LitElement {
       this.zoomBy(factor, at);
     }
   });
-  private linksAbort: AbortController | null = null;
-  private volumesAbort: AbortController | null = null;
-  private citationsAbort: AbortController | null = null;
+  private readonly linksReq = new Latest();
+  private readonly volumesReq = new Latest();
+  private readonly citationsReq = new Latest();
 
   override connectedCallback() {
     super.connectedCallback();
@@ -136,9 +140,9 @@ export class ScanViewerElement extends LitElement {
     window.removeEventListener('mouseup', this.onMouseUp);
     window.removeEventListener('keydown', this.onKeyDown);
     this.stopMomentum();
-    this.linksAbort?.abort();
-    this.volumesAbort?.abort();
-    this.citationsAbort?.abort();
+    this.linksReq.stop();
+    this.volumesReq.stop();
+    this.citationsReq.stop();
     this.prefetch.keep([]);
   }
 
@@ -164,44 +168,31 @@ export class ScanViewerElement extends LitElement {
     }
   }
 
+  // Without them there's nothing to switch to, and marking can't say how.
   private async loadVolumes(id: number) {
-    this.volumesAbort?.abort();
-    const abort = new AbortController();
-    this.volumesAbort = abort;
     this.volumes = null;
-    try {
-      const url = apiUrl(`/api/citations/${id}/volumes`);
-      this.volumes = await getJson<CitationVolume[]>(url, abort.signal);
-    } catch {
-      // Without them there's nothing to switch to, and marking can't say how.
-    }
+    const url = apiUrl(`/api/citations/${id}/volumes`);
+    const volumes = await this.volumesReq.get<CitationVolume[]>(url);
+    if (volumes !== undefined) this.volumes = volumes;
   }
 
+  // Without the list the count stays unknown and Astia unlinked.
   private async loadLinks(volumeId: string) {
-    this.linksAbort?.abort();
-    const abort = new AbortController();
-    this.linksAbort = abort;
     this.links = null;
-    try {
-      const url = `/astia/volumes/${volumeId}/images`;
-      this.links = await getJson<string[]>(url, abort.signal);
-      this.image = clampImage(this.image, this.links.length);
-    } catch {
-      // Without the list the count stays unknown and Astia unlinked.
-    }
+    const url = `/astia/volumes/${volumeId}/images`;
+    const links = await this.linksReq.get<string[]>(url);
+    if (links === null || links === undefined) return;
+    this.links = links;
+    this.image = clampImage(this.image, links.length);
   }
 
   private async loadCitations(volumeId: string) {
-    this.citationsAbort?.abort();
-    const abort = new AbortController();
-    this.citationsAbort = abort;
     this.citationsFailed = false;
-    try {
-      const url = apiUrl(`/api/volumes/${volumeId}/citations`);
-      this.citations = await getJson<VolumeCitation[]>(url, abort.signal);
-    } catch {
-      if (!abort.signal.aborted) this.citationsFailed = true;
-    }
+    const url = apiUrl(`/api/volumes/${volumeId}/citations`);
+    const rows = await this.citationsReq.get<VolumeCitation[]>(url);
+    if (rows === undefined) return;
+    this.citations = rows;
+    this.citationsFailed = rows === null;
   }
 
   private open(volume: Shown, image: number) {
@@ -217,6 +208,7 @@ export class ScanViewerElement extends LitElement {
     this.loading = 'loading';
     this.retry = 0;
     this.thumb = null;
+    this.hovered = null;
     this.fading = false;
   }
 
@@ -237,6 +229,7 @@ export class ScanViewerElement extends LitElement {
     this.loading = 'loading';
     this.retry = 0;
     this.thumb = null;
+    this.hovered = null;
     this.fading = false;
     const id = this.volume?.id;
     if (id === undefined) return;
@@ -477,31 +470,10 @@ export class ScanViewerElement extends LitElement {
   }
 
   private renderNote() {
-    if (this.loading === 'failed') {
-      return html`
-        <div class="note">
-          <span>Image unavailable</span>
-          <button
-            @click=${() => {
-              this.retry += 1;
-              this.loading = 'loading';
-            }}
-          >
-            Retry
-          </button>
-        </div>
-      `;
-    }
-    if (this.loading !== 'loading') return nothing;
-    // Over the last Image or the thumbnail, it waits a moment before showing,
-    // so a cached Image doesn't flash it.
-    return html`
-      <div class="note">
-        <span class="loading ${this.view === null ? '' : 'later'}">
-          Loading image…
-        </span>
-      </div>
-    `;
+    return loadingNote(this.loading, this.view !== null, () => {
+      this.retry += 1;
+      this.loading = 'loading';
+    });
   }
 
   private renderImages(volume: Shown) {
@@ -542,6 +514,28 @@ export class ScanViewerElement extends LitElement {
     `;
   }
 
+  private readonly onHover = (e: CustomEvent<string | null>) => {
+    this.hovered = e.detail;
+  };
+
+  // Boxes around the entries whose place is known, once the full Image is
+  // shown.
+  private renderEntries() {
+    if (!entriesShown(this.frame, this.loading)) return nothing;
+    return html`
+      <sl-scan-entries
+        .rows=${this.citations ?? []}
+        .image=${this.image}
+        .view=${this.view}
+        .frame=${this.frame}
+        .hovered=${this.hovered}
+        .current=${this.citation?.id ?? null}
+        @scan-pick=${this.onPick}
+        @scan-hover=${this.onHover}
+      ></sl-scan-entries>
+    `;
+  }
+
   private renderStage(volume: Shown) {
     return html`
       <div
@@ -553,7 +547,8 @@ export class ScanViewerElement extends LitElement {
         @gestureend=${this.pinch.onGestureEnd}
         @dblclick=${this.onDblClick}
       >
-        ${this.renderImages(volume)} ${this.renderNote()}
+        ${this.renderImages(volume)} ${this.renderEntries()}
+        ${this.renderNote()}
       </div>
     `;
   }
@@ -565,8 +560,10 @@ export class ScanViewerElement extends LitElement {
         .image=${this.image}
         .persons=${this.persons}
         .current=${this.citation?.id ?? null}
+        .hovered=${this.hovered}
         ?failed=${this.citationsFailed}
         @scan-pick=${this.onPick}
+        @scan-hover=${this.onHover}
       ></sl-scan-people>
     `;
   }

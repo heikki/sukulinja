@@ -4,7 +4,7 @@ import { customElement, property } from 'lit/decorators.js';
 import type { PersonRow, VolumeCitation } from '@common/types';
 
 import { formatName } from '../tree-view/renderer';
-import { citationLabel, citedAs, groupCitations } from './citations';
+import { boxKey, citationLabel, citedAs, groupCitations } from './citations';
 import { controlStyles, scanPeopleStyles } from './styles';
 
 // Collapsed or not for the rest of the visit, across Volumes and citations.
@@ -13,7 +13,9 @@ let collapsed = false;
 // Beside the scan: the people of the tree whose citations link the Image
 // shown, grouped as `groupCitations` says, and those known only to be in
 // the Volume. Clicking one asks for them with `scan-pick`; the citation the
-// viewer is on (`current`) is marked.
+// viewer is on (`current`) is marked. Hovering a row with an entry on the
+// scan names the entry's key with `scan-hover`, and rows of the entry picked
+// out there (`hovered`) are highlighted.
 @customElement('sl-scan-people')
 export class ScanPeopleElement extends LitElement {
   static override styles = [controlStyles, scanPeopleStyles];
@@ -23,6 +25,7 @@ export class ScanPeopleElement extends LitElement {
   @property({ type: Number }) image = 1;
   @property({ attribute: false }) persons = new Map<number, PersonRow>();
   @property({ attribute: false }) current: number | null = null;
+  @property({ attribute: false }) hovered: string | null = null;
   @property({ type: Boolean }) failed = false;
 
   private readonly nameOf = (row: VolumeCitation) => {
@@ -43,16 +46,28 @@ export class ScanPeopleElement extends LitElement {
     this.toggleAttribute('collapsed', collapsed);
   }
 
+  private hover(key: string | null) {
+    this.dispatchEvent(new CustomEvent('scan-hover', { detail: key }));
+  }
+
   private renderRow(row: VolumeCitation) {
     const current = row.citation.id === this.current;
+    const key = row.box === undefined ? null : boxKey(row.box);
+    const hovered = key !== null && key === this.hovered;
     return html`
       <li>
         <button
-          class="row ${current ? 'current' : ''}"
+          class="row ${current ? 'current' : ''} ${hovered ? 'hovered' : ''}"
           aria-current=${current ? 'true' : nothing}
           title=${row.citation.reference ?? ''}
           @click=${() => {
             this.dispatchEvent(new CustomEvent('scan-pick', { detail: row }));
+          }}
+          @mouseenter=${() => {
+            if (key !== null) this.hover(key);
+          }}
+          @mouseleave=${() => {
+            if (key !== null) this.hover(null);
           }}
         >
           <span class="name">${this.nameOf(row)}</span>
