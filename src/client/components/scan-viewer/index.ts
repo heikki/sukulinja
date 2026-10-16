@@ -436,9 +436,11 @@ export class ScanViewerElement extends LitElement {
     this.pinch.cancel();
   }
 
-  // Esc closes; the arrows step (see keys.ts).
+  // Esc closes; the arrows step (see keys.ts). Every key handled here is
+  // marked so, or WKWebView hands it on to macOS, which beeps at it.
   private readonly onKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
+      e.preventDefault();
       this.close();
       return;
     }
