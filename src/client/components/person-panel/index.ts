@@ -163,13 +163,16 @@ function renderBody(c: CitationRow, heading: string) {
 
 export type DetailsLoadEvent = CustomEvent<PersonDetails>;
 
-// A relative's row picks them.
-function renderRelative(r: Relative, pick: (id: number) => void) {
+// A relative's row picks them, and a double-click centers the chart on them.
+function renderRelative(r: Relative, ask: (event: string, id: number) => void) {
   const life = lifeText(r.person);
   return html`<button
     class="relative"
     @click=${() => {
-      pick(r.person.id);
+      ask('pick', r.person.id);
+    }}
+    @dblclick=${() => {
+      ask('center', r.person.id);
     }}
   >
     <span class="relation">${r.relation}</span>
@@ -182,7 +185,8 @@ function renderRelative(r: Relative, pick: (id: number) => void) {
 
 // The Focus person's family, events and sources, beside the chart, the
 // details announced with `details-load` as they arrive. A relative's row
-// asks for them with `pick`. Record links open outside the app (the desktop
+// asks for them with `pick`, and for the chart built around them with
+// `center`. Record links open outside the app (the desktop
 // shell hands target=_blank to the browser); Scan links ask for the Scan
 // viewer with a `scan-open` event, and the source it shows (`viewing`) is
 // marked and brought into view.
@@ -427,14 +431,14 @@ export class PersonPanelElement extends LitElement {
     `;
   }
 
-  private readonly pick = (id: number) => {
-    this.dispatchEvent(new CustomEvent('pick', { detail: { id } }));
+  private readonly ask = (event: string, id: number) => {
+    this.dispatchEvent(new CustomEvent(event, { detail: { id } }));
   };
 
   private renderFamily(households: Household[]) {
     return households.map(
       (h) => html`
-        <div class="family">${h.map((r) => renderRelative(r, this.pick))}</div>
+        <div class="family">${h.map((r) => renderRelative(r, this.ask))}</div>
       `
     );
   }

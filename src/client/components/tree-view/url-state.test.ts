@@ -9,6 +9,7 @@ describe('parseHashView', () => {
   test('reads focus from minimal hash', () => {
     expect(parseHashView('#/person/123', BOUNDS)).toEqual({
       focusId: 123,
+      selectedId: null,
       pan: null,
       zoom: null
     });
@@ -17,11 +18,13 @@ describe('parseHashView', () => {
   test('returns nulls for non-matching hash', () => {
     expect(parseHashView('#foo', BOUNDS)).toEqual({
       focusId: null,
+      selectedId: null,
       pan: null,
       zoom: null
     });
     expect(parseHashView('', BOUNDS)).toEqual({
       focusId: null,
+      selectedId: null,
       pan: null,
       zoom: null
     });
@@ -29,7 +32,7 @@ describe('parseHashView', () => {
 
   test('ignores unknown query params, including a legacy gen', () => {
     expect(parseHashView('#/person/7?gen=3&junk=foo&zoom=1.5', BOUNDS)).toEqual(
-      { focusId: 7, pan: null, zoom: 1.5 }
+      { focusId: 7, selectedId: null, pan: null, zoom: 1.5 }
     );
   });
 });
@@ -122,6 +125,15 @@ describe('buildHash', () => {
     ).toBe('#/person/1?pan=120,-80');
   });
 
+  test('writes the selection only when it is not Focus', () => {
+    expect(
+      buildHash({ focusId: 1, selectedId: 1, pan: null, zoom: null })
+    ).toBe('#/person/1');
+    expect(buildHash({ focusId: 1, selectedId: 9, pan: null, zoom: 1 })).toBe(
+      '#/person/1?sel=9&zoom=1'
+    );
+  });
+
   test('emits pan, zoom in canonical order', () => {
     expect(buildHash({ focusId: 1, pan: { x: 10, y: 20 }, zoom: 1.5 })).toBe(
       '#/person/1?pan=10,20&zoom=1.5'
@@ -138,7 +150,8 @@ describe('round-trip', () => {
     '#/person/1?pan=120,-80',
     '#/person/1?pan=0,-80',
     '#/person/1?pan=-80,-120',
-    '#/person/123?pan=120,-80&zoom=1.5'
+    '#/person/123?pan=120,-80&zoom=1.5',
+    '#/person/123?sel=45&pan=120,-80&zoom=1.5'
   ];
   for (const s of cases) {
     test(s, () => {
@@ -146,6 +159,7 @@ describe('round-trip', () => {
       expect(parsed.focusId).not.toBeNull();
       const rebuilt = buildHash({
         focusId: parsed.focusId!,
+        selectedId: parsed.selectedId,
         pan: parsed.pan,
         zoom: parsed.zoom
       });

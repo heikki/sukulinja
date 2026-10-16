@@ -2,6 +2,8 @@ import type { Point } from './emit';
 
 export interface ParsedView {
   focusId: number | null;
+  // The person the dock shows, when not Focus.
+  selectedId: number | null;
   pan: Point | null;
   zoom: number | null;
 }
@@ -13,6 +15,8 @@ export interface Bounds {
 
 export interface BuildView {
   focusId: number;
+  // Written only when it isn't Focus.
+  selectedId?: number | null;
   pan: Point | null;
   zoom: number | null;
 }
@@ -22,6 +26,7 @@ const INT_RE = /^-?\d+$/u;
 const FLOAT_RE = /^-?\d+(?:\.\d+)?$/u;
 const EMPTY: ParsedView = {
   focusId: null,
+  selectedId: null,
   pan: null,
   zoom: null
 };
@@ -44,6 +49,10 @@ function formatZoom(z: number): string {
   return z.toFixed(2).replace(/\.?0+$/u, '');
 }
 
+function parseId(raw: string | null) {
+  return raw === null || !/^\d+$/u.test(raw) ? null : parseInt(raw, 10);
+}
+
 function parsePan(raw: string | null): Point | null {
   if (raw === null) return null;
   const parts = raw.split(',');
@@ -64,6 +73,7 @@ export function parseHashView(hash: string, bounds: Bounds): ParsedView {
   const params = new URLSearchParams(m.groups?.query ?? '');
   return {
     focusId,
+    selectedId: parseId(params.get('sel')),
     pan: parsePan(params.get('pan')),
     zoom: parseZoom(params.get('zoom'), bounds.minZoom, bounds.maxZoom)
   };
@@ -74,6 +84,8 @@ export function parseHashView(hash: string, bounds: Bounds): ParsedView {
 // readable than `%2C`.
 export function buildHash(view: BuildView): string {
   const parts: string[] = [];
+  const sel = view.selectedId ?? view.focusId;
+  if (sel !== view.focusId) parts.push(`sel=${sel}`);
   if (view.pan !== null) parts.push(`pan=${formatPan(view.pan)}`);
   if (view.zoom !== null) parts.push(`zoom=${formatZoom(view.zoom)}`);
   return parts.length === 0
