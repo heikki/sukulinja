@@ -10,7 +10,7 @@ import { createHash } from 'node:crypto';
 import { rename } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import type { Household } from './record';
+import type { EntryName, Household } from './record';
 
 export interface ImageRef {
   volumeId: string;
@@ -18,13 +18,14 @@ export interface ImageRef {
 }
 
 // Who to look for: the name as the tree or the citation has it, with the
-// event date (YYYY-MM-DD, or a shorter prefix), village, and household
-// where known.
+// event date (YYYY-MM-DD, or a shorter prefix), village, household, and the
+// others an index entry names, where known.
 export interface Person {
   name: string;
   date?: string | null;
   village?: string | null;
   household?: Household | null;
+  named?: EntryName[];
 }
 
 export interface Unreadable {
@@ -35,8 +36,13 @@ export interface Unreadable {
 // two for one numbering pages.
 export type PagesReading = { pages: number[] } | Unreadable;
 
+// Which register an Image's entries are in: one Volume may hold its
+// marriages and its baptisms one after the other, each in date order.
+export type Register = 'baptisms' | 'marriages' | 'other';
+
 // The earliest and latest entry dates on the Image, as YYYY-MM-DD.
-export type DatesReading = { earliest: string; latest: string } | Unreadable;
+export type DatesReading =
+  { earliest: string; latest: string; register: Register } | Unreadable;
 
 // Where an entry is on the Image, in fractions of its width and height, so
 // it holds at any size the scan is shown.

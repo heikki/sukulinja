@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { householdTable } from './claude-reader';
+import { entryNames, householdTable } from './claude-reader';
 
 const members = [
   { relation: 'Perheenpää', name: 'Matti Esimerkki', born: '1757' },
@@ -41,5 +41,29 @@ describe('householdTable', () => {
     };
     expect(householdTable(matti)).toBe('');
     expect(householdTable({ name: 'Matti Esimerkki' })).toBe('');
+  });
+});
+
+describe('entryNames', () => {
+  test("lists the people an index entry names, for a parent's citation", () => {
+    const matti = {
+      name: 'Matti Esimerkki',
+      named: [
+        { relation: 'father' as const, name: 'Matti Esimerkki' },
+        { relation: 'mother' as const, name: 'Liisa Malli' },
+        { relation: 'child' as const, name: 'Juho Esimerkki' }
+      ]
+    };
+    expect(entryNames(matti)).toContain(
+      [
+        '- Father: Matti Esimerkki',
+        '- Mother: Liisa Malli',
+        '- Child: Juho Esimerkki'
+      ].join('\n')
+    );
+  });
+
+  test('gives nothing for a person asked about alone', () => {
+    expect(entryNames({ name: 'Matti Esimerkki' })).toBe('');
   });
 });

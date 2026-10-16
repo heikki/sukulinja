@@ -57,7 +57,8 @@ function scans() {
       const from = Date.UTC(1795, 0, 1) + (image - 1) * 10 * DAY;
       return await Promise.resolve({
         earliest: isoDay(from),
-        latest: isoDay(from + 9 * DAY)
+        latest: isoDay(from + 9 * DAY),
+        register: 'baptisms' as const
       });
     },
     findEntry: async ({ volumeId, image }, { name }) => {

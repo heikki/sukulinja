@@ -20,7 +20,8 @@ import type {
   PagesReading,
   Person,
   Question,
-  Reader
+  Reader,
+  Register
 } from '@server/citation-scans/reader';
 
 import { pacedImage } from './images';
@@ -30,8 +31,8 @@ type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 // Changed with what a question asks, so readings made before are asked
 // again: find-entry gained the birth year and the entry's box, then the
-// household table.
-const VERSIONS: Partial<Record<Question, string>> = { entry: '3' };
+// household table; dates gained the register.
+const VERSIONS: Partial<Record<Question, string>> = { dates: '2', entry: '3' };
 
 export const DEFAULT_MODELS: Record<Question, string> = {
   pages: 'claude-haiku-5-5',
@@ -75,6 +76,8 @@ If no page number is legible, answer readable: false with no pages.`;
 
 const DATES_PROMPT = `This image is from a baptism or marriage register, whose entries run in date order. Give the earliest and the latest date of the entries on it, as YYYY-MM-DD: for baptisms, any birth or baptism date written for an entry; for marriages, the marriage (or banns) dates.
 
+Also say which register the entries are in: baptisms (births and baptisms), marriages (marriages or banns, often headed Copulati or Vihityt), or other (burials, communicants, moves, an index, a title page). One book may hold several registers one after another.
+
 The year is often written only at the top of the page or of a section and holds for the entries below it; month names may be in Swedish, Finnish or Latin, or abbreviated.
 
 If you can't read at least one complete date with its year, answer readable: false and leave the dates empty.`;
@@ -109,6 +112,27 @@ Look for this household on the image, and for this person in it.
 `;
 }
 
+const RELATIONS = {
+  child: 'Child',
+  father: 'Father',
+  mother: 'Mother',
+  spouse: 'Spouse'
+};
+
+// The others an index entry names, and that the person cited may be any of
+// them: on a parent's citation of a baptism, the child's entry is the one
+// to find. Nothing for a person asked about alone.
+export function entryNames(person: Person) {
+  const named = person.named ?? [];
+  if (named.length === 0) return '';
+  const rows = named.map((n) => `- ${RELATIONS[n.relation]}: ${n.name}`);
+  return `
+The register entry names:
+${rows.join('\n')}
+This person may be the child or a parent in the entry, or one of the couple. Look for the entry by all of these names, and answer found if the entry is on this image and this person is named in it. A child is often written by first name alone, the surname only on the father's or mother's line. Entries are now and then written out of date order, added later.
+`;
+}
+
 function entryPrompt(person: Person) {
   const known = [
     `Name: ${person.name}`,
@@ -119,7 +143,7 @@ function entryPrompt(person: Person) {
   return `Is this person written on this image?
 
 ${known.join('\n')}
-${householdTable(person)}
+${householdTable(person)}${entryNames(person)}
 The name may be written differently from how it is given here, and still be the same person:
 - Swedish and Finnish forms of a name: Johan for Juho, Henrik for Heikki, Matts for Matti, Maria for Maija, Carl for Kalle, Gustaf for Kustaa.
 - A patronymic instead of, or as well as, a surname: Johansson, Johansdotter, Juhonpoika, Juhontytär.
@@ -155,9 +179,10 @@ const SCHEMAS: Record<Question, Record<string, unknown>> = {
     properties: {
       readable: { type: 'boolean' },
       earliest: { type: 'string' },
-      latest: { type: 'string' }
+      latest: { type: 'string' },
+      register: { type: 'string', enum: ['baptisms', 'marriages', 'other'] }
     },
-    required: ['readable', 'earliest', 'latest'],
+    required: ['readable', 'earliest', 'latest', 'register'],
     additionalProperties: false
   },
   entry: {
@@ -211,14 +236,15 @@ function toDates(json: {
   readable: boolean;
   earliest: string;
   latest: string;
+  register: Register;
 }): DatesReading {
-  const { earliest, latest } = json;
+  const { earliest, latest, register } = json;
   if (!json.readable || !ISO_DATE.test(earliest) || !ISO_DATE.test(latest)) {
     return UNREADABLE;
   }
   return earliest <= latest
-    ? { earliest, latest }
-    : { earliest: latest, latest: earliest };
+    ? { earliest, latest, register }
+    : { earliest: latest, latest: earliest, register };
 }
 
 interface EntryJson {

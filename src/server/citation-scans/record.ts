@@ -32,6 +32,15 @@ export interface ChurchBookRef {
   // from namesakes on the scan: many are named by first name alone. Null
   // where the record has no such row, and for index references.
   household: Household | null;
+  // The others an index entry names, by their part in it: for a baptism,
+  // the child and the parents. The person cited may be any of them. Empty
+  // for rippikirja references.
+  named: EntryName[];
+}
+
+export interface EntryName {
+  relation: 'child' | 'father' | 'mother' | 'spouse';
+  name: string;
 }
 
 export interface Household {
@@ -154,7 +163,8 @@ function parseRippiRef(url: string, text: string, raw: string): ChurchBookRef {
     recordId: recordIdOf(url),
     name,
     date: null,
-    household: householdOf(raw, name)
+    household: householdOf(raw, name),
+    named: []
   };
 }
 
@@ -180,8 +190,35 @@ function parseIndexRef(
     recordId: null,
     name: recordName(text),
     date: event === undefined ? null : isoDate(event.date!),
-    household: null
+    household: null,
+    named: entryNames(text)
   };
+}
+
+// MyHeritage labels an entry's people from the cited person's side, and
+// loosely: on a parent's citation of a baptism, the child's father and
+// mother can read "Puolison isä" and "Puolison äiti".
+const ENTRY_RELATIONS: Record<string, EntryName['relation']> = {
+  'Lapsi': 'child',
+  'Tytär': 'child',
+  'Poika': 'child',
+  'Isä': 'father',
+  'Puolison isä': 'father',
+  'Äiti': 'mother',
+  'Puolison äiti': 'mother',
+  'Puoliso': 'spouse',
+  'Aviomies': 'spouse',
+  'Vaimo': 'spouse'
+};
+
+function entryNames(text: string) {
+  const named: EntryName[] = [];
+  for (const { label, value } of readFields(text).fields) {
+    const relation = ENTRY_RELATIONS[label];
+    const seen = named.some((n) => n.relation === relation && n.name === value);
+    if (relation !== undefined && !seen) named.push({ relation, name: value });
+  }
+  return named;
 }
 
 const MONTHS = [

@@ -127,7 +127,8 @@ test('names a church-book reference by what it gives', () => {
     recordId: null,
     name: null,
     date: null,
-    household: null
+    household: null,
+    named: []
   };
   expect(describeRef(ref)).toBe('Pitäjä\u00a0· Baptisms 1830');
   expect(describeRef({ ...ref, kind: 'lasten', years: null, page: 2 })).toBe(
