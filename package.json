@@ -14,7 +14,7 @@
     "import-ged": "bun run scripts/import-ged.ts",
     "postinstall": "electrobun sync",
     "test": "bun test",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "bun check",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint ."
@@ -23,7 +23,7 @@
     "@anthropic-ai/sdk": "^0.134.0",
     "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
     "@total-typescript/tsconfig": "^1.0.4",
-    "@types/bun": "1.4.2",
+    "@types/bun": "1.4.3",
     "eslint": "10.12.0",
     "eslint-config-love": "158.0.0",
     "prettier": "3.9.9",
