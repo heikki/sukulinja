@@ -2,6 +2,7 @@ import { css, html, LitElement, nothing } from 'lit';
 import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
+import { focusRingStyles } from '@client/focus-ring';
 import type { PersonRow } from '@common/types';
 
 import type { Point } from '../tree-view/emit';
@@ -18,87 +19,90 @@ export type PickEvent = CustomEvent<{ id: number }>;
 // Enter or a click fires `pick` with the person's id and clears the query.
 @customElement('sl-person-search')
 export class PersonSearchElement extends LitElement {
-  static override styles = css`
-    :host {
-      display: block;
-      position: relative;
-    }
+  static override styles = [
+    focusRingStyles,
+    css`
+      :host {
+        display: block;
+        position: relative;
+      }
 
-    /* Same height and frame as the Settings gear beside it, so the bar reads
+      /* Same height and frame as the Settings gear beside it, so the bar reads
        as one quiet row rather than a form field. */
-    input {
-      width: 100%;
-      height: 2rem;
-      box-sizing: border-box;
-      padding: 0 0.6rem 0 1.85rem;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: var(--card);
-      color: var(--muted);
-      font: inherit;
-      font-size: 0.875rem;
-      appearance: none;
-    }
+      input {
+        width: 100%;
+        height: 2rem;
+        box-sizing: border-box;
+        padding: 0 0.6rem 0 1.85rem;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--card);
+        color: var(--muted);
+        font: inherit;
+        font-size: 0.875rem;
+        appearance: none;
+      }
 
-    input::placeholder {
-      color: var(--muted);
-    }
+      input::placeholder {
+        color: var(--muted);
+      }
 
-    input:focus {
-      outline: none;
-      border-color: var(--accent);
-      color: var(--fg);
-    }
+      input:focus {
+        outline: none;
+        border-color: var(--accent);
+        color: var(--fg);
+      }
 
-    .icon {
-      position: absolute;
-      top: 50%;
-      left: 0.6rem;
-      width: 0.875rem;
-      height: 0.875rem;
-      transform: translateY(-50%);
-      color: var(--muted);
-      pointer-events: none;
-    }
+      .icon {
+        position: absolute;
+        top: 50%;
+        left: 0.6rem;
+        width: 0.875rem;
+        height: 0.875rem;
+        transform: translateY(-50%);
+        color: var(--muted);
+        pointer-events: none;
+      }
 
-    .results {
-      position: absolute;
-      top: calc(100% + 2px);
-      left: 0;
-      width: 100%;
-      max-height: 320px;
-      overflow-y: auto;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      box-shadow: 0 4px 12px var(--shadow);
-      z-index: 20;
-    }
+      .results {
+        position: absolute;
+        top: calc(100% + 2px);
+        left: 0;
+        width: 100%;
+        max-height: 320px;
+        overflow-y: auto;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        box-shadow: 0 4px 12px var(--shadow);
+        z-index: 20;
+      }
 
-    .results button {
-      display: block;
-      width: 100%;
-      text-align: left;
-      padding: 0.4rem 0.6rem;
-      background: transparent;
-      color: var(--fg);
-      border: 0;
-      border-bottom: 1px solid var(--border);
-      font: inherit;
-      font-size: 0.875rem;
-      cursor: pointer;
-    }
+      .results button {
+        display: block;
+        width: 100%;
+        text-align: left;
+        padding: 0.4rem 0.6rem;
+        background: transparent;
+        color: var(--fg);
+        border: 0;
+        border-bottom: 1px solid var(--border);
+        font: inherit;
+        font-size: 0.875rem;
+        cursor: pointer;
+      }
 
-    .results button[aria-selected='true'] {
-      background: color-mix(in srgb, var(--accent) 18%, transparent);
-    }
+      .results button[aria-selected='true'] {
+        background: color-mix(in srgb, var(--accent) 18%, transparent);
+      }
 
-    .meta {
-      color: var(--muted);
-      font-size: 0.85em;
-      margin-left: 0.4em;
-    }
-  `;
+      .meta {
+        color: var(--muted);
+        font-size: 0.85em;
+        margin-left: 0.4em;
+      }
+    `
+  ];
 
   @property({ attribute: false }) persons = new Map<number, PersonRow>();
 

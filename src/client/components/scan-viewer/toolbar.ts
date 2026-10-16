@@ -6,8 +6,8 @@ import type { Scan } from '@common/types';
 import { volumeTitle } from './citations';
 import { controlStyles, scanToolbarStyles } from './styles';
 
-// The Scan viewer's one row: the archive and Volume shown, and leaving.
-// Close is reported with `scan-close` to the viewer's host.
+// The Scan viewer's one row: the archive and Volume shown, and leaving,
+// asked of the viewer with `scan-close`.
 @customElement('sl-scan-toolbar')
 export class ScanToolbarElement extends LitElement {
   static override styles = [controlStyles, scanToolbarStyles];
@@ -26,9 +26,7 @@ export class ScanToolbarElement extends LitElement {
         title="Close (Esc)"
         aria-label="Close"
         @click=${() => {
-          this.dispatchEvent(
-            new CustomEvent('scan-close', { bubbles: true, composed: true })
-          );
+          this.dispatchEvent(new CustomEvent('scan-close'));
         }}
       >
         ✕

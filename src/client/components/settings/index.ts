@@ -4,6 +4,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 
 import { currentAppearance, setAppearance } from '@client/appearance';
 import type { Appearance } from '@client/appearance';
+import { focusRingStyles } from '@client/focus-ring';
 import {
   MAX_GENERATIONS,
   preferredGenerations,
@@ -45,149 +46,152 @@ const GEAR_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
 // app: the row asks for it each time the popover opens.
 @customElement('sl-settings')
 export class SettingsElement extends LitElement {
-  static override styles = css`
-    :host {
-      position: relative;
-      display: inline-flex;
-    }
-    button.gear {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 2rem;
-      height: 2rem;
-      padding: 0;
-      background: var(--card);
-      color: var(--muted);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    button.gear:hover,
-    button.gear[aria-expanded='true'] {
-      color: var(--accent);
-      border-color: var(--accent);
-    }
-    button.gear svg {
-      width: 1rem;
-      height: 1rem;
-    }
-    /* Sized to its content: shrink-to-fit would otherwise measure against the
+  static override styles = [
+    focusRingStyles,
+    css`
+      :host {
+        position: relative;
+        display: inline-flex;
+      }
+      button.gear {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        padding: 0;
+        background: var(--card);
+        color: var(--muted);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      button.gear:hover,
+      button.gear[aria-expanded='true'] {
+        color: var(--accent);
+        border-color: var(--accent);
+      }
+      button.gear svg {
+        width: 1rem;
+        height: 1rem;
+      }
+      /* Sized to its content: shrink-to-fit would otherwise measure against the
        gear-sized host it is positioned in. Dropped clear of the top bar (the
        gear sits ~0.7rem above its bottom edge), arrow tip included, so the
        popover floats over the page rather than straddling the bar's border. */
-    .popover {
-      position: absolute;
-      width: max-content;
-      top: calc(100% + 1.4rem);
-      right: 0;
-      z-index: 20;
-      display: grid;
-      grid-template-columns: auto auto;
-      align-items: center;
-      gap: 0.75rem 1.25rem;
-      padding: 1rem;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      box-shadow: 0 8px 24px var(--shadow);
-      white-space: nowrap;
-    }
-    /* The arrow up to the gear: a square turned 45° on the top edge, centred
+      .popover {
+        position: absolute;
+        width: max-content;
+        top: calc(100% + 1.4rem);
+        right: 0;
+        z-index: 20;
+        display: grid;
+        grid-template-columns: auto auto;
+        align-items: center;
+        gap: 0.75rem 1.25rem;
+        padding: 1rem;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        box-shadow: 0 8px 24px var(--shadow);
+        white-space: nowrap;
+      }
+      /* The arrow up to the gear: a square turned 45° on the top edge, centred
        under the gear (whose right edge the popover shares). Only its outer two
        sides carry the border, so it reads as part of the popover's outline. */
-    .popover::before {
-      content: '';
-      position: absolute;
-      top: -6px;
-      right: calc(1rem - 5px);
-      width: 10px;
-      height: 10px;
-      background: var(--card);
-      border-top: 1px solid var(--border);
-      border-left: 1px solid var(--border);
-      transform: rotate(45deg);
-    }
-    .label {
-      font-size: 0.85rem;
-      color: var(--muted);
-    }
-    /* Equal segments, each as wide as the row's longest label; rows stretch
+      .popover::before {
+        content: '';
+        position: absolute;
+        top: -6px;
+        right: calc(1rem - 5px);
+        width: 10px;
+        height: 10px;
+        background: var(--card);
+        border-top: 1px solid var(--border);
+        border-left: 1px solid var(--border);
+        transform: rotate(45deg);
+      }
+      .label {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      /* Equal segments, each as wide as the row's longest label; rows stretch
        to the widest so they line up as one column. */
-    .segmented {
-      display: grid;
-      grid-auto-flow: column;
-      grid-auto-columns: 1fr;
-      gap: 2px;
-      padding: 2px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 7px;
-    }
-    .segmented button {
-      min-width: 2rem;
-      padding: 0.3rem 0.65rem;
-      background: none;
-      color: var(--muted);
-      border: 0;
-      border-radius: 5px;
-      font: inherit;
-      font-size: 0.85rem;
-      cursor: pointer;
-    }
-    .segmented button:hover {
-      color: var(--accent);
-    }
-    /* Marked by colour and the raised fill, not weight: a bolder label would
+      .segmented {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: 1fr;
+        gap: 2px;
+        padding: 2px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 7px;
+      }
+      .segmented button {
+        min-width: 2rem;
+        padding: 0.3rem 0.65rem;
+        background: none;
+        color: var(--muted);
+        border: 0;
+        border-radius: 5px;
+        font: inherit;
+        font-size: 0.85rem;
+        cursor: pointer;
+      }
+      .segmented button:hover {
+        color: var(--accent);
+      }
+      /* Marked by colour and the raised fill, not weight: a bolder label would
        widen its column, and with it every segment and the popover. */
-    .segmented button[aria-pressed='true'] {
-      background: var(--card);
-      color: var(--fg);
-      box-shadow: 0 0 0 1px var(--border);
-    }
-    /* Under the Scan cache sizes and as wide: a meter of the space used,
+      .segmented button[aria-pressed='true'] {
+        background: var(--card);
+        color: var(--fg);
+        box-shadow: 0 0 0 1px var(--border);
+      }
+      /* Under the Scan cache sizes and as wide: a meter of the space used,
        then what it says and Clear at either end. */
-    .usage {
-      grid-column: 2;
-      display: grid;
-      gap: 0.5rem;
-      margin-top: -0.1rem;
-      font-size: 0.8rem;
-      color: var(--muted);
-    }
-    .meter {
-      height: 4px;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 3px;
-      overflow: hidden;
-    }
-    .meter div {
-      height: 100%;
-      background: var(--accent);
-    }
-    .caption {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-    }
-    .caption button {
-      padding: 0;
-      background: none;
-      color: var(--accent);
-      border: 0;
-      font: inherit;
-      cursor: pointer;
-    }
-    .caption button:hover:not(:disabled) {
-      text-decoration: underline;
-    }
-    .caption button:disabled {
-      color: var(--muted);
-      opacity: 0.6;
-      cursor: default;
-    }
-  `;
+      .usage {
+        grid-column: 2;
+        display: grid;
+        gap: 0.5rem;
+        margin-top: -0.1rem;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .meter {
+        height: 4px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .meter div {
+        height: 100%;
+        background: var(--accent);
+      }
+      .caption {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+      .caption button {
+        padding: 0;
+        background: none;
+        color: var(--accent);
+        border: 0;
+        font: inherit;
+        cursor: pointer;
+      }
+      .caption button:hover:not(:disabled) {
+        text-decoration: underline;
+      }
+      .caption button:disabled {
+        color: var(--muted);
+        opacity: 0.6;
+        cursor: default;
+      }
+    `
+  ];
 
   @property({ attribute: false }) generations: number | null = null;
 

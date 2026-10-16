@@ -20,10 +20,14 @@ import type {
 
 import { pickedScan } from './citations';
 import type { ScanPerson } from './citations';
+import { MOMENTUM, releaseVelocity } from './drag';
+import type { Drag, Sample } from './drag';
 import { EdgeWatch } from './edge-watch';
 import { entriesShown, frameForFull, frameForThumb, layers } from './frame';
 import type { Frame, Loading } from './frame';
 import { clampImage, imageUrl, Latest, neighbours, thumbUrl } from './helpers';
+import { stepOf } from './keys';
+import type { ScanClose, ScanStep } from './keys';
 import { loadingNote } from './note';
 import { Prefetch } from './prefetch';
 import { controlStyles, scanViewerStyles } from './styles';
@@ -34,6 +38,7 @@ import './people';
 import './toolbar';
 
 export type { ScanPerson, ScanPersonEvent } from './citations';
+export type { ScanCloseEvent, ScanStepEvent } from './keys';
 export type { ScanMarked, ScanMarkedEvent } from './helpers';
 
 // The chart's feel (tree-view's VIEWPORT_OPTIONS), with room to zoom from a
@@ -41,27 +46,11 @@ export type { ScanMarked, ScanMarkedEvent } from './helpers';
 const SCALE_BOUNDS: ScaleBounds = { minScale: 0.05, maxScale: 2 };
 const WHEEL_ZOOM_K = 0.001;
 const FIT = { maxScale: 1, marginPx: 16 };
-const MOMENTUM = { tauMs: 250, minV: 0.02, minReleaseV: 0.3 };
 const DRAG_THRESHOLD_PX = 4;
 // A thumbnail seen for less than this gives way at once: the full Image was
 // nearly there, and a fade would only flash the blur.
 const FADE_AFTER_MS = 100;
 const ORIGIN: Point = { x: 0, y: 0 };
-
-interface Sample {
-  t: number;
-  at: Point;
-}
-
-// Moves apply as deltas to the current view, so a refit or a zoom during
-// the drag isn't undone by it.
-interface Drag {
-  start: Point;
-  last: Point;
-  moved: boolean;
-  // The last two pointer samples, for the release velocity.
-  samples: Sample[];
-}
 
 // The link's Volume, being shown.
 interface Shown {
@@ -109,6 +98,8 @@ export class ScanViewerElement extends LitElement {
   @state() private hovered: string | null = null;
 
   private readonly prefetch = new Prefetch();
+  // A source was opened, so focus moves here once it's shown.
+  private focusing = false;
   // The Image shown isn't the link's; unknown until first shown, so a new
   // viewer always says.
   private away: boolean | null = null;
@@ -133,8 +124,13 @@ export class ScanViewerElement extends LitElement {
   private readonly linksReq = new Latest();
   private readonly citationsReq = new Latest();
 
+  // A region of its own, focused when it opens a source and reached with
+  // Tab. Its keys work while it's open, wherever focus is.
   override connectedCallback() {
     super.connectedCallback();
+    this.setAttribute('role', 'region');
+    this.setAttribute('aria-label', 'Scan viewer');
+    if (!this.hasAttribute('tabindex')) this.tabIndex = 0;
     window.addEventListener('mousemove', this.onMouseMove);
     window.addEventListener('mouseup', this.onMouseUp);
     window.addEventListener('keydown', this.onKeyDown);
@@ -153,13 +149,20 @@ export class ScanViewerElement extends LitElement {
   }
 
   override willUpdate(changed: PropertyValues<this>) {
-    if (changed.has('scan')) this.follow(this.scan);
+    if (changed.has('scan')) {
+      this.follow(this.scan);
+      this.focusing = this.scan !== null;
+    }
   }
 
   // Watches the scan's edge once there is one, and says with `scan-away`
   // whenever it leaves the link's Image, or comes back to it; a link to the
   // Volume alone holds anywhere in it.
   override updated() {
+    if (this.focusing) {
+      this.focusing = false;
+      this.focus({ preventScroll: true });
+    }
     this.edge.watch(this.renderRoot.querySelector('.stage'));
     const link = this.scan;
     const away =
@@ -252,8 +255,14 @@ export class ScanViewerElement extends LitElement {
   }
 
   private close() {
+    if (this.citation === null) return;
+    this.tell('scan-close', { citationId: this.citation.id });
+  }
+
+  // Tells the host about the source shown.
+  private tell(type: string, detail: ScanClose | ScanStep) {
     this.dispatchEvent(
-      new CustomEvent('scan-close', { bubbles: true, composed: true })
+      new CustomEvent(type, { detail, bubbles: true, composed: true })
     );
   }
 
@@ -402,14 +411,8 @@ export class ScanViewerElement extends LitElement {
   };
 
   private glide(samples: Sample[]) {
-    const [prev, last] = samples;
-    if (prev === undefined || last === undefined) return;
-    const dt = last.t - prev.t;
-    if (dt <= 0) return;
-    const v = {
-      x: (last.at.x - prev.at.x) / dt,
-      y: (last.at.y - prev.at.y) / dt
-    };
+    const v = releaseVelocity(samples);
+    if (v === null) return;
     this.momentum = startMomentumPan(v.x, v.y, MOMENTUM, {
       onTick: (dx, dy) => {
         if (this.view === null) return;
@@ -433,22 +436,35 @@ export class ScanViewerElement extends LitElement {
     this.pinch.cancel();
   }
 
-  // ←/→ step through the Volume unless typing an image number; Esc closes.
+  // Esc closes; the arrows step (see keys.ts).
   private readonly onKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       this.close();
       return;
     }
-    if (e.composedPath()[0] instanceof HTMLInputElement) return;
-    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    const step = stepOf(e);
+    if (step === null) return;
     e.preventDefault();
-    this.show(this.image + (e.key === 'ArrowLeft' ? -1 : 1));
+    if (step.image !== undefined) {
+      this.show(this.image + step.image);
+    } else if (this.citation !== null) {
+      // Asks the dock for the source before or after this one.
+      this.tell('scan-step', {
+        citationId: this.citation.id,
+        step: step.source!
+      });
+    }
   };
 
   // ------------------------------------------------------------ render
 
   private renderToolbar() {
-    return html` <sl-scan-toolbar .link=${this.scan}></sl-scan-toolbar> `;
+    return html`<sl-scan-toolbar
+      .link=${this.scan}
+      @scan-close=${() => {
+        this.close();
+      }}
+    ></sl-scan-toolbar>`;
   }
 
   private renderNote() {

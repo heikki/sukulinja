@@ -4,6 +4,7 @@ import { customElement, state } from 'lit/decorators.js';
 import '../settings';
 import '../tree-view';
 
+import { focusRingStyles } from '@client/focus-ring';
 import { readNdjson } from '@client/ndjson';
 import { slugFromFilename } from '@common/slug';
 import type { DatasetInfo } from '@common/types';
@@ -51,7 +52,7 @@ function currentSlug(): string | null {
 
 @customElement('sl-app')
 export class AppElement extends LitElement {
-  static override styles = appStyles;
+  static override styles = [focusRingStyles, appStyles];
 
   @state() private datasets: DatasetInfo[] | null = null;
   @state() private readonly slug: string | null = currentSlug();
