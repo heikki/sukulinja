@@ -38,17 +38,7 @@ async function resolve(rows: PersonCitation[], volumeId: string) {
     if (found === null || found === undefined) return [];
     const { scan, split } = found;
     const { year: _, ...citation } = toCitation(r);
-    const volumeOnly = scan.method === 'volume';
-    const row: VolumeCitation = {
-      personId: r.personId,
-      citation,
-      image: volumeOnly ? null : scan.image,
-      method: scan.method,
-      split
-    };
-    if (scan.by !== undefined) row.by = scan.by;
-    if (scan.box !== undefined) row.box = scan.box;
-    return [row];
+    return [{ personId: r.personId, citation, scan, split }];
   });
 }
 

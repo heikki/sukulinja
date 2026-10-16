@@ -61,8 +61,8 @@ const BOX = { left: 0.1, top: 0.2, width: 0.5, height: 0.05 };
 function placesOf(rows: Awaited<ReturnType<ReturnType<typeof datasetOf>>>) {
   return rows!.map((r) => ({
     personId: r.personId,
-    image: r.image,
-    method: r.method,
+    image: r.scan.method === 'volume' ? null : r.scan.image,
+    method: r.scan.method,
     split: r.split
   }));
 }
@@ -82,17 +82,11 @@ test("lists the Volume's Placed, Anchored, Estimated and Volume-only citations",
   ]);
 
   const first = await citations('juva-1');
-  expect(first).toEqual([
-    expect.objectContaining({
-      personId: 1,
-      image: 9,
-      method: 'placed',
-      by: 'vision',
-      box: BOX,
-      split: false
-    }),
-    expect.objectContaining({ personId: 2, image: 6, method: 'anchored' })
+  expect(placesOf(first)).toEqual([
+    { personId: 1, image: 9, method: 'placed', split: false },
+    { personId: 2, image: 6, method: 'anchored', split: false }
   ]);
+  expect(first![0]!.scan).toMatchObject({ by: 'vision', box: BOX });
   expect(first![0]!.citation).toMatchObject({
     churchBook: true,
     citedPage: 12
@@ -129,7 +123,7 @@ test('people citing one record get a row each, sharing its Image and box', async
   ]);
 
   const rows = await citations('juva-1');
-  expect(rows!.map((r) => [r.personId, r.image, r.box])).toEqual([
+  expect(rows!.map((r) => [r.personId, r.scan.image, r.scan.box])).toEqual([
     [1, 9, BOX],
     [2, 9, BOX]
   ]);
@@ -148,17 +142,17 @@ test('a hand correction shows in the next answer, dropping the vision box', asyn
       seen: [{ record: 5001, image: 9, by: 'vision', box: BOX }]
     }
   });
-  expect(await citations('juva-1')).toEqual([
-    expect.objectContaining({ image: 9, by: 'vision', box: BOX })
-  ]);
+  const seen = (await citations('juva-1'))!;
+  expect(seen).toHaveLength(1);
+  expect(seen[0]!.scan).toMatchObject({ image: 9, by: 'vision', box: BOX });
 
   await correctScan(marked.page, marked.text, {
     volumeId: 'juva-1',
     image: 10
   });
   const [row] = (await citations('juva-1'))!;
-  expect(row).toMatchObject({ image: 10, method: 'placed', by: 'hand' });
-  expect(row!.box).toBeUndefined();
+  expect(row!.scan).toMatchObject({ image: 10, method: 'placed', by: 'hand' });
+  expect(row!.scan.box).toBeUndefined();
 });
 
 test("another parish's citations are never resolved", async () => {

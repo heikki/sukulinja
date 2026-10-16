@@ -4,7 +4,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type { PersonRow, VolumeCitation } from '@common/types';
 
 import { formatName } from '../tree-view/renderer';
-import { boxKey, groupCitations, SPLIT_NOTE } from './citations';
+import { boxKey, groupCitations, imageOf, SPLIT_NOTE } from './citations';
 import { markedIn, saveMark } from './helpers';
 import type { ScanMarked } from './helpers';
 import { controlStyles, scanPeopleStyles } from './styles';
@@ -61,12 +61,13 @@ export class ScanPeopleElement extends LitElement {
 
   private async confirm(row: VolumeCitation) {
     const { volumeId } = this;
-    if (volumeId === null || row.image === null) return;
+    const image = imageOf(row);
+    if (volumeId === null || image === null) return;
     this.confirming = row.citation.id;
     this.refused = null;
     const saved = await saveMark(row.citation.id, {
       volumeId,
-      image: row.image
+      image
     });
     this.confirming = null;
     if ('error' in saved) {
@@ -80,7 +81,7 @@ export class ScanPeopleElement extends LitElement {
   }
 
   private renderConfirm(row: VolumeCitation) {
-    if (row.image === null || row.by !== 'vision') return nothing;
+    if (imageOf(row) === null || row.scan.by !== 'vision') return nothing;
     const id = row.citation.id;
     return html`
       <button
@@ -103,7 +104,8 @@ export class ScanPeopleElement extends LitElement {
 
   private renderRow(row: VolumeCitation) {
     const current = row.citation.id === this.current;
-    const key = row.box === undefined ? null : boxKey(row.box);
+    const { box } = row.scan;
+    const key = box === undefined ? null : boxKey(box);
     const hovered = key !== null && key === this.hovered;
     return html`
       <li>

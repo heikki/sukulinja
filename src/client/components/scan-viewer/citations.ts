@@ -64,7 +64,7 @@ export function splitLabel(method: string) {
 // where; the rest by name.
 function byPlace(nameOf: (row: VolumeCitation) => string) {
   return (a: VolumeCitation, b: VolumeCitation) => {
-    const top = (a.box?.top ?? Infinity) - (b.box?.top ?? Infinity);
+    const top = (a.scan.box?.top ?? Infinity) - (b.scan.box?.top ?? Infinity);
     if (top !== 0 && !Number.isNaN(top)) return top;
     return nameOf(a).localeCompare(nameOf(b), 'fi');
   };
@@ -80,12 +80,12 @@ export function groupCitations(
   image: number,
   nameOf: (row: VolumeCitation) => string
 ) {
-  const shown = rows.filter((r) => r.image === image);
+  const shown = rows.filter((r) => imageOf(r) === image);
   const order = byPlace(nameOf);
   return STATUSES.map((label) => ({
     label,
     rows: shown
-      .filter((r) => methodLabel(r.method, r.by) === label)
+      .filter((r) => methodLabel(r.scan.method, r.scan.by) === label)
       .toSorted(order)
   })).filter((g) => g.rows.length > 0);
 }
@@ -99,26 +99,21 @@ export interface ScanPerson {
 
 export type ScanPersonEvent = CustomEvent<ScanPerson>;
 
-// The row's link on the Image shown, as the toolbar takes it: one known
-// only to be in the Volume is shown here all the same. `links` are Astia's
-// viewer links of the Volume's Images, once known.
+// The Image a row links, or null for one known only to be in the Volume.
+export function imageOf(row: VolumeCitation) {
+  return row.scan.method === 'volume' ? null : row.scan.image;
+}
+
+// The row's link, as the dock would open it; one known only to be in the
+// Volume opens on the Image shown. `links` are Astia's viewer links of the
+// Volume's Images, once known.
 export function pickedScan(
   row: VolumeCitation,
-  volume: { id: string; label: string },
   shown: number,
   links: string[] | null
-) {
-  const image = row.image ?? shown;
-  const scan: Scan = {
-    volumeId: volume.id,
-    volume: volume.label,
-    image,
-    url: links?.[image - 1] ?? '',
-    method: row.method
-  };
-  if (row.by !== undefined) scan.by = row.by;
-  if (row.box !== undefined) scan.box = row.box;
-  return scan;
+): Scan {
+  if (imageOf(row) !== null) return row.scan;
+  return { ...row.scan, image: shown, url: links?.[shown - 1] ?? row.scan.url };
 }
 
 // Names an entry's Box: people citing one record share it.
@@ -137,9 +132,10 @@ export interface Entry {
 export function entriesOn(rows: VolumeCitation[], image: number) {
   const entries = new Map<string, Entry>();
   for (const row of rows) {
-    if (row.image !== image || row.box === undefined) continue;
-    const key = boxKey(row.box);
-    const entry = entries.get(key) ?? { key, box: row.box, rows: [] };
+    const { box } = row.scan;
+    if (imageOf(row) !== image || box === undefined) continue;
+    const key = boxKey(box);
+    const entry = entries.get(key) ?? { key, box, rows: [] };
     entry.rows.push(row);
     entries.set(key, entry);
   }

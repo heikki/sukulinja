@@ -1,19 +1,21 @@
 import { expect, test } from 'bun:test';
 
-import type { VolumeCitation } from '@common/types';
+import type { Scan, VolumeCitation } from '@common/types';
 
 import {
   entriesOn,
   groupCitations,
   methodLabel,
+  pickedScan,
   splitLabel
 } from './citations';
 
+// A row linking `image`, or only the Volume when it's null.
 function row(
   personId: number,
   image: number | null,
-  method: VolumeCitation['method'],
-  more: Partial<VolumeCitation> = {}
+  method: Scan['method'],
+  more: Partial<Scan> = {}
 ): VolumeCitation {
   return {
     personId,
@@ -29,10 +31,16 @@ function row(
       churchBook: true,
       citedPage: 12
     },
-    image,
-    method,
-    split: false,
-    ...more
+    scan: {
+      volumeId: 'v1',
+      volume: 'I Aa:5',
+      image: image ?? 1,
+      url: `astia/${image ?? 1}`,
+      method: image === null ? 'volume' : method,
+      archive: 'Juvan seurakunnan arkisto',
+      ...more
+    },
+    split: false
   };
 }
 
@@ -114,4 +122,18 @@ test('marks one entry per Box on the Image, shared by those it records', () => {
     { box, people: ['Matti', 'Liisa'] },
     { box: other, people: ['Anna'] }
   ]);
+});
+
+test('opens a picked row on its own link, a Volume-only one on the Image shown', () => {
+  const placed = row(1, 7, 'placed', { by: 'vision' });
+  expect(pickedScan(placed, 9, null)).toBe(placed.scan);
+  const links = ['a', 'b', 'c'];
+  expect(pickedScan(row(2, null, 'volume'), 3, links)).toEqual({
+    volumeId: 'v1',
+    volume: 'I Aa:5',
+    image: 3,
+    url: 'c',
+    method: 'volume',
+    archive: 'Juvan seurakunnan arkisto'
+  });
 });
