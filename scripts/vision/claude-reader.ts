@@ -31,8 +31,9 @@ type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 // Changed with what a question asks, so readings made before are asked
 // again: find-entry gained the birth year and the entry's box, then the
-// household table; dates gained the register, then dates in any register.
-const VERSIONS: Partial<Record<Question, string>> = { dates: '3', entry: '3' };
+// household table, then the date written for the entry; dates gained the
+// register, then dates in any register.
+const VERSIONS: Partial<Record<Question, string>> = { dates: '3', entry: '4' };
 
 export const DEFAULT_MODELS: Record<Question, string> = {
   pages: 'claude-haiku-5-5',
@@ -160,6 +161,7 @@ The person's entry may continue from or onto another image; answer found if the 
 
 If you find the person, also give:
 - born_year: the birth year written beside them in the book, as four digits; 0 if none is written. Read it from the scan, not from what's given above.
+- event_date: in a baptism or marriage register, the baptism (or marriage) date written for their entry, as YYYY-MM-DD, its year from the page or section heading where it's written only there; empty in other books, or if none is written. Read it from the scan, not from what's given above.
 - box: the rectangle around their entry (their name and the rest of their line) in pixels of this image, x and y its top-left corner. All zeros if not found.
 
 If the writing is too faint or damaged to tell, answer readable: false.`;
@@ -194,6 +196,7 @@ const SCHEMAS: Record<Question, Record<string, unknown>> = {
       found: { type: 'boolean' },
       confidence: { type: 'number' },
       born_year: { type: 'integer' },
+      event_date: { type: 'string' },
       box: {
         type: 'object',
         properties: {
@@ -206,7 +209,14 @@ const SCHEMAS: Record<Question, Record<string, unknown>> = {
         additionalProperties: false
       }
     },
-    required: ['readable', 'found', 'confidence', 'born_year', 'box'],
+    required: [
+      'readable',
+      'found',
+      'confidence',
+      'born_year',
+      'event_date',
+      'box'
+    ],
     additionalProperties: false
   }
 };
@@ -258,6 +268,7 @@ interface EntryJson {
   found: boolean;
   confidence: number;
   born_year: number;
+  event_date: string;
   box: { x: number; y: number; width: number; height: number };
 }
 
@@ -285,6 +296,7 @@ function toEntry(json: EntryJson, scan: Scan): EntryReading {
     found: json.found,
     confidence: clamp01(json.confidence),
     bornYear: json.found && year >= 1500 && year < 2000 ? year : null,
+    date: json.found && ISO_DATE.test(json.event_date) ? json.event_date : null,
     box: toBox(json, scan)
   };
 }

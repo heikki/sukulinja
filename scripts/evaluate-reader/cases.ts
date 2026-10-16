@@ -1,13 +1,12 @@
 // What the evaluation asks, and how its answers are scored. The questions
 // come from what's known by hand: Anchors give the Page numbers on their
-// Images, Placements of index references the dates on theirs, and Seen
-// records the person on theirs. Each person is asked about
-// on their own Image, and a decoy, someone recorded elsewhere in the
-// Volume, on the same Image: a Reader confirming decoys can't be trusted
-// to save matches.
+// Images, Placements of index references the dates on theirs and the
+// entry there, and Seen records the person on theirs. Each person is asked
+// about on their own Image, and a decoy, someone recorded elsewhere, on the
+// same Image: a Reader confirming decoys can't be trusted to save matches.
 
 import type { Anchors, Placements } from '@server/citation-scans/locate';
-import { dayRange } from '@server/citation-scans/matcher';
+import { dayRange, personOf } from '@server/citation-scans/matcher';
 import { confirms } from '@server/citation-scans/reader';
 import type { ImageRef, Person, Reader } from '@server/citation-scans/reader';
 import type { ChurchBookRef } from '@server/citation-scans/record';
@@ -99,6 +98,45 @@ export function entryCases(
     const pair: EntryCase[] = [{ at: k.at, person: k.person, there: true }];
     const rest = [...known.slice(i + 1), ...known.slice(0, i)];
     const decoy = rest.find((o) => o.parish !== k.parish);
+    if (decoy !== undefined) {
+      pair.push({ at: k.at, person: decoy.person, there: false });
+    }
+    return pair;
+  });
+  return spread(cases, limit).flat();
+}
+
+// Images apart beyond which an entry can't be the other's continuation or
+// Retake.
+const APART = 2;
+
+// For each index reference placed by hand, its entry on its Image, and a
+// decoy there: the next such reference in the Volume placed at least two
+// Images away, else one from another Volume. One from the same Volume is
+// the hard case: a family recurs there, in the same hand, months apart,
+// and only the date written tells their entries apart. `refs` holds the
+// dataset's references by record URL.
+export function indexEntryCases(
+  placements: Placements,
+  refs: Map<string, ChurchBookRef>,
+  limit = Infinity
+) {
+  const known = Object.entries(placements).flatMap(([url, p]) => {
+    const ref = refs.get(url);
+    const indexed = ref?.kind === 'kastetut' || ref?.kind === 'vihityt';
+    if (!isHand(p) || !indexed || ref.name === null) return [];
+    const at = { volumeId: p.volumeId, image: p.image };
+    return [{ at, person: personOf(ref, ref.name) }];
+  });
+  const cases = known.map((k, i) => {
+    const pair: EntryCase[] = [{ at: k.at, person: k.person, there: true }];
+    const rest = [...known.slice(i + 1), ...known.slice(0, i)];
+    const decoy =
+      rest.find(
+        (o) =>
+          o.at.volumeId === k.at.volumeId &&
+          Math.abs(o.at.image - k.at.image) >= APART
+      ) ?? rest.find((o) => o.at.volumeId !== k.at.volumeId);
     if (decoy !== undefined) {
       pair.push({ at: k.at, person: decoy.person, there: false });
     }

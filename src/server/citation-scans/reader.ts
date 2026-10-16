@@ -55,13 +55,15 @@ export interface Box {
 }
 
 // Whether the person is written on the Image, and how sure the model is,
-// from 0 to 1; where found, the birth year written beside them (null when
-// none is) and where their entry is.
+// from 0 to 1; where found, the birth year written beside them and the
+// date of the baptism or marriage the entry records (YYYY-MM-DD; null when
+// none is written), and where their entry is.
 export type EntryReading =
   | {
       found: boolean;
       confidence: number;
       bornYear?: number | null;
+      date?: string | null;
       box?: Box | null;
     }
   | Unreadable;
@@ -90,17 +92,61 @@ function yearOf(text: string | null | undefined) {
 
 // Books written years apart can disagree on a birth year by one.
 const BIRTH_YEAR_SLACK = 1;
+// How far an entry's date may stray from the cited one, in days: a day
+// misread, or a month.
+const DATE_SLACK_DAYS = 31;
 
-// Whether a reading confirms the person: found, and where both the record
-// and the scan give a birth year, the same one. Two people of one name are
-// told apart by when they were born, whatever the model concluded.
-export function confirms(person: Person, reading: EntryReading) {
-  if (isUnreadable(reading) || !reading.found) return false;
+// A date's day count, near enough for comparing within weeks: months of
+// 31 days. A date given to the year or month runs from its first day to its
+// last.
+function dayCount(date: string, end: boolean) {
+  const [y, m, d] = date.split('-').map(Number);
+  const month = m ?? (end ? 12 : 1);
+  const day = d ?? (end ? 31 : 1);
+  return (y! * 12 + month) * 31 + day;
+}
+
+// Whether the date written for the entry falls within slack of the cited
+// one, which may be given only to the month or year.
+function sameEvent(cited: string, written: string) {
+  const day = dayCount(written, false);
+  return (
+    day >= dayCount(cited, false) - DATE_SLACK_DAYS &&
+    day <= dayCount(cited, true) + DATE_SLACK_DAYS
+  );
+}
+
+type Found = Exclude<EntryReading, Unreadable>;
+
+// Where the reference cites the event's date, whether the entry is written
+// with it. With no date read for the entry, it isn't: a name alone has
+// matched another entry months away.
+function datesAgree(person: Person, reading: Found) {
+  const cited = person.date ?? null;
+  if (cited === null) return true;
+  const written = reading.date ?? null;
+  return written !== null && sameEvent(cited, written);
+}
+
+// Where both the record and the scan give a birth year, whether it's the
+// same one.
+function bornAgree(person: Person, reading: Found) {
   const known = yearOf(person.household?.born);
   const read = reading.bornYear ?? null;
-  return known === null || read === null
-    ? true
-    : Math.abs(known - read) <= BIRTH_YEAR_SLACK;
+  return (
+    known === null ||
+    read === null ||
+    Math.abs(known - read) <= BIRTH_YEAR_SLACK
+  );
+}
+
+// Whether a reading confirms the person: found, written with the cited
+// date, and born the year the record says. Two people of one name are told
+// apart by when they were born, and two entries of one family by when they
+// were written, whatever the model concluded.
+export function confirms(person: Person, reading: EntryReading) {
+  if (isUnreadable(reading) || !reading.found) return false;
+  return datesAgree(person, reading) && bornAgree(person, reading);
 }
 
 // ---------------------------------------------------------------- cache

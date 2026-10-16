@@ -61,15 +61,17 @@ function scans() {
         register: 'baptisms' as const
       });
     },
-    findEntry: async ({ volumeId, image }, { name }) => {
+    findEntry: async ({ volumeId, image }, { name, date }) => {
       asked.push(`entry ${volumeId} ${image} ${name}`);
       if (faint(volumeId, image)) {
         return await Promise.resolve({ unreadable: true });
       }
       const found = names[volumeId]?.[image] === name;
+      // An index entry is written with the date its reference cites.
       return await Promise.resolve({
         found,
         confidence: 0.9,
+        date: found ? (date ?? null) : null,
         box: found ? BOX : null
       });
     }

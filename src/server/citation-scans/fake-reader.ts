@@ -18,8 +18,24 @@ export interface Volume {
   names: Record<number, string[]>;
   // The birth year written beside a name, by Image.
   born?: Record<number, Record<string, number>>;
+  // The date written for a name's entry, by Image; by default the date the
+  // person is asked about, as if their entry were written on it.
+  written?: Record<number, Record<string, string | null>>;
   // Images whose writing is too faint to find anyone on.
   faint?: Set<number>;
+}
+
+// The date the fake Reader reads for a name's entry on an Image.
+function writtenFor(
+  v: Volume,
+  image: number,
+  name: string,
+  asked: string | null | undefined
+) {
+  const scripted = v.written?.[image];
+  return scripted !== undefined && name in scripted
+    ? scripted[name]!
+    : (asked ?? null);
 }
 
 // Where the fake Reader says every entry it finds is.
@@ -63,7 +79,7 @@ export function fakeReader(volumes: Record<string, Volume>) {
         dates === undefined ? { unreadable: true } : dates(image)
       );
     },
-    findEntry: async ({ volumeId, image }, { name }) => {
+    findEntry: async ({ volumeId, image }, { name, date }) => {
       asked.push(`entry ${volumeId} ${image}`);
       const v = volumes[volumeId]!;
       if (v.faint?.has(image) === true) {
@@ -74,6 +90,7 @@ export function fakeReader(volumes: Record<string, Volume>) {
         found,
         confidence: 0.9,
         bornYear: v.born?.[image]?.[name] ?? null,
+        date: found ? writtenFor(v, image, name, date) : null,
         box: found ? BOX : null
       });
     }
