@@ -141,8 +141,8 @@ test('names a church-book reference by what it gives', () => {
   expect(
     describeRef({ ...ref, parish: null, kind: null, years: null })
   ).toBeNull();
-  expect(entryOf({ ...ref, date: '1761-03-03' })).toBe('3 Mar 1761');
-  expect(entryOf({ ...ref, date: '1761-03' })).toBe('Mar 1761');
+  expect(entryOf({ ...ref, date: '1761-03-03' })).toBe('3.3.1761');
+  expect(entryOf({ ...ref, date: '1761-03' })).toBe('3/1761');
   expect(entryOf({ ...ref, date: '1761', page: 12 })).toBe('p.\u00a012');
   expect(entryOf(ref)).toBeNull();
 });

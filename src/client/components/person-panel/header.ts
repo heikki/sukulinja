@@ -2,6 +2,7 @@ import { html, LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 import { mediaUrl } from '@client/api';
+import { gedcomDate } from '@common/dates';
 import type { FactRow, PersonDetails, PersonRow } from '@common/types';
 
 import { avatarUrl, onAvatarReady } from '../tree-view/avatar-cache';
@@ -23,7 +24,8 @@ function lineOf(facts: FactRow[], tags: string[]): Line | null {
   for (const tag of tags) {
     const f = facts.find((x) => x.tag === tag);
     if (f === undefined) continue;
-    const text = [f.date, f.place].filter((x) => x !== null && x !== '');
+    const date = f.date === null ? null : gedcomDate(f.date);
+    const text = [date, f.place].filter((x) => x !== null && x !== '');
     if (text.length > 0) return { label: factLabel(f), text: text.join(' · ') };
   }
   return null;
