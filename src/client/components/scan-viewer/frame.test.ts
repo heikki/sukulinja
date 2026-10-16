@@ -1,6 +1,12 @@
 import { expect, test } from 'bun:test';
 
-import { frameForFull, frameForThumb, layers } from './frame';
+import {
+  boxOnStage,
+  entriesShown,
+  frameForFull,
+  frameForThumb,
+  layers
+} from './frame';
 import type { Loading } from './frame';
 
 const THUMB = { width: 250, height: 196 };
@@ -72,4 +78,27 @@ test('shows the thumbnail until the full Image has faded in', () => {
     full: null,
     fade: false
   });
+});
+
+test('places an entry by its fractions of the Image, as the view moves it', () => {
+  const frame = { size: { width: 8000, height: 6000 }, provisional: false };
+  const box = { left: 0.25, top: 0.5, width: 0.125, height: 0.01 };
+  expect(boxOnStage(box, { pan: { x: 0, y: 0 }, scale: 1 }, frame)).toEqual({
+    left: 2000,
+    top: 3000,
+    width: 1000,
+    height: 60
+  });
+  expect(
+    boxOnStage(box, { pan: { x: 16, y: -40 }, scale: 0.1 }, frame)
+  ).toEqual({ left: 216, top: 260, width: 100, height: 6 });
+});
+
+test('marks entries only over the full Image', () => {
+  const full = { size: { width: 8000, height: 6000 }, provisional: false };
+  const guessed = { ...full, provisional: true };
+  expect(entriesShown(full, 'shown')).toBe(true);
+  expect(entriesShown(guessed, 'shown')).toBe(false);
+  expect(entriesShown(full, 'loading')).toBe(false);
+  expect(entriesShown(null, 'shown')).toBe(false);
 });

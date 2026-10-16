@@ -3,6 +3,7 @@
 // takes over without the view moving.
 
 import type { Transform, Viewport } from '@client/pan-zoom';
+import type { Box } from '@common/types';
 
 export interface Frame {
   size: Viewport;
@@ -84,5 +85,24 @@ export function layers(
     thumb: thumbShown ? `${at} scale(${frame.size.width / thumb.width})` : null,
     full: fullShown ? at : null,
     fade: fading
+  };
+}
+
+// Entries are marked once the full Image is shown, not over the blurred
+// thumbnail, whose frame is only a guess at the full Image's size.
+export function entriesShown(frame: Frame | null, loading: Loading) {
+  return frame !== null && !frame.provisional && loading === 'shown';
+}
+
+// Where an entry's Box is on the stage, in pixels: its fractions of the
+// Image moved as the full Image is. Drawn untransformed, its outline keeps
+// one width at any zoom.
+export function boxOnStage(box: Box, view: Transform, frame: Frame) {
+  const { width, height } = frame.size;
+  return {
+    left: view.pan.x + view.scale * box.left * width,
+    top: view.pan.y + view.scale * box.top * height,
+    width: view.scale * box.width * width,
+    height: view.scale * box.height * height
   };
 }
