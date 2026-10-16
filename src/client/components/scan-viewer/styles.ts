@@ -253,6 +253,19 @@ export const scanNavStyles = css`
     cursor: auto;
   }
 
+  /* Bare, as the close button is; a tint shows them on hover. */
+  button {
+    border-color: transparent;
+    background: none;
+    color: var(--muted);
+  }
+
+  button:hover:not(:disabled) {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--fg) 8%, transparent);
+    color: var(--fg);
+  }
+
   /* A held arrow key's button: a quiet press, not the hover's accent. */
   button.pressed:not(:disabled) {
     background: color-mix(in srgb, var(--fg) 10%, var(--card));
