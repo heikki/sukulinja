@@ -16,22 +16,26 @@ Neither Digihakemisto nor HisKi publishes an API, an export or terms for automat
 ## 1. FamilySearch: "Finland, Baptisms, 1657-1890"
 
 **What it is**
+
 - Collection 1778464. It is a Legacy collection: "no additional records will be added, or any corrections made". The page counts 4,555,893 records, 8,926,322 personas and 62,523 images. Its citation says "Index based upon data collected by the Genealogical Society of Utah" ([collection page](https://www.familysearch.org/search/collection/1778464)).
 - The wiki lists the fields as child's name, gender, date and place of christening, date of birth and parents' names. It says the collection "may include information previously published in the International Genealogical Index", and that it "is not complete for any particular place" ([wiki](https://www.familysearch.org/en/wiki/Finland,_Baptisms_-_FamilySearch_Historical_Records)). No field gives a page, frame or image.
 - A FamilySearch-hosted presentation explains the origin. Names were extracted from birth and christening records in the 1970s–1980s, covering about 95% of Lutheran parishes and children christened before about 1860 (to 1879 in south-east Finland). Parents' names are often abbreviated because the scribes of the "Black Books" abbreviated them. The Black Books are handwritten copies of the registers made in the 1920s and 1940s, which are "also the basis of Hiski" ([slides, FamilySearch CMS](https://cms-b-assets.familysearch.org/df/22/7de6af882da3576cc80523211d6f/the-importance-of-name-extraction-in-finnish-family-history-and-temple-work-presentation-slides.pdf)).
 - A marriages counterpart, "Finland, Marriages, 1682-1892", exists. Only a secondary listing ([Cyndi's List](https://www.cyndislist.com/finland/bmd/)) confirms this; the FamilySearch page was not checked.
 
 **The citation's identifiers**
-- *GS film number 55677.* HisKi's parish pages list the Black Book microfilms by film number ("Mustat kirjat → Rullafilmit"):
+
+- _GS film number 55677._ HisKi's parish pages list the Black Book microfilms by film number ("Mustat kirjat → Rullafilmit"):
   - Rautalampi: film **55677** holds "Syntyneet I 1695-1800", and the books "also include HANKASALMI, PIEKSÄMÄKI and SUONENJOKI" ([HisKi Rautalampi](https://hiski.genealogia.fi/historia/mini-pgsql.php?srk=445&kieli=fi)).
   - Pieksämäki: its own baptisms I 1674–1800 are on film **55660**. Film 55677 holds only Pieksämäki entries for 1797–1801 and 1803–1807 that sit "in the Rautalampi III book" ([HisKi Pieksämäki](https://hiski.genealogia.fi/historia/mini-pgsql.php?srk=394&kieli=fi)).
 
   So the GS film number names the **Black Book copy** an entry was extracted from, not the original Volume, and no frame number goes with it. Inference, not verified: a 1760 Pieksämäki baptism cited with film 55677 was probably copied from the Rautalampi register, which shared these chapels. That record may then sit in a Rautalampi Volume, or among the "(Rautalambi)" pages inside Pieksämäki I C:4 (see section 3).
-- *Batch "C45407-1".* The collection search form has a "Batch Number" field and a "Film/Fiche/Image Group Number (DGS)" field ([collection page](https://www.familysearch.org/search/collection/1778464)). A batch is a unit of extraction work. Reading "C" as christening (and "M" as marriage) is a common convention, but I found no primary source for it. **Unverified.**
-- *"Finland-ODM"* ("Järjestelmälähde", system origin): I found no primary source for what ODM means. **Unverified.**
-- *Viewability of film 55677:* not verified. Catalog pages, including the "Kirkonkirjojen kopiot" Black Book copies entry ([catalog 190817](https://www.familysearch.org/en/search/catalog/190817)), return a sign-in screen, and the catalog JSON service returned HTTP 401.
+
+- _Batch "C45407-1"._ The collection search form has a "Batch Number" field and a "Film/Fiche/Image Group Number (DGS)" field ([collection page](https://www.familysearch.org/search/collection/1778464)). A batch is a unit of extraction work. Reading "C" as christening (and "M" as marriage) is a common convention, but I found no primary source for it. **Unverified.**
+- _"Finland-ODM"_ ("Järjestelmälähde", system origin): I found no primary source for what ODM means. **Unverified.**
+- _Viewability of film 55677:_ not verified. Catalog pages, including the "Kirkonkirjojen kopiot" Black Book copies entry ([catalog 190817](https://www.familysearch.org/en/search/catalog/190817)), return a sign-in screen, and the catalog JSON service returned HTTP 401.
 
 **API and terms**
+
 - Every request needs an OAuth access token ([getting started](https://developers.familysearch.org/main/docs/getting-started)). Production keys need acceptance into the Compatible Solution Program after business and engineering review. "Solutions may not be approved that simply copy data out of FamilySearch" ([app approval](https://developers.familysearch.org/main/docs/app-approval-considerations)).
 - Record search exists at `/platform/records/personas`: at most 100 results per page, and only the first 5,000 are returned ([Record Persona Search](https://www.familysearch.org/en/developers/docs/api/records/Record_Persona_Search_resource)).
 - Throttling is counted per user (per app key when no one is signed in) as processing time per window. Over the limit it returns HTTP 429 with Retry-After ([throttling](https://developers.familysearch.org/main/docs/throttling)).
@@ -42,6 +46,7 @@ Neither Digihakemisto nor HisKi publishes an API, an export or terms for automat
 ## 2. HisKi (hiski.genealogia.fi)
 
 **What it contains**
+
 - Baptisms, marriages, burials and migration lists per parish ([help](https://hiski.genealogia.fi/historia/fi/ohjeet.htm); [Society page](https://www.genealogia.fi/en/webservices/hiski/)).
 - Volunteers enter it "straight from digitized original church records through a separate platform". The Society warns that errors may come from the clergy, from "the copying of the black books" or from data entry ([Society page](https://www.genealogia.fi/en/webservices/hiski/)). Which source a given parish and period was transcribed from is not stated per register. **Unverified for Pieksämäki 1744–1766.**
 - Pieksämäki coverage: Kastetut 1674–1695 and 1720–1884; Vihityt 1721–1783, 1795–1850 and 1864–1904; Haudatut fragments ([parish page](https://hiski.genealogia.fi/hiski?fi+0394)).
@@ -51,6 +56,7 @@ Neither Digihakemisto nor HisKi publishes an API, an export or terms for automat
 - Search: a POST form at `/hiski` with `komento=haku`, `srk`, `kirja`, `alkuvuosi` and `loppuvuosi` (dates as `p.k.vvvv`), name fields, and `maxkpl` (15–1000 in the form). The help page puts the ceiling at 750 per query ([shared fields help](https://hiski.genealogia.fi/historia/fi/ohjyht.htm)). Results are limited to events at least 100 years old ([help](https://hiski.genealogia.fi/historia/fi/ohjeet.htm)).
 
 **What it would give the app:** a full list of a parish's baptisms (and marriages), with birth and baptism dates, usable:
+
 - to check a date the vision model read against the real sequence of entries around it;
 - to estimate the entry's position within its year;
 - to separate siblings with similar names, because the parents, village and both dates are all there.
@@ -58,6 +64,7 @@ Neither Digihakemisto nor HisKi publishes an API, an export or terms for automat
 It would not give the Image directly.
 
 **Access**
+
 - No API, export or download is documented on the help pages or the Society page. No terms of use are stated.
 - `robots.txt` has `Disallow: /hiski/`, and the search pages carry `<META NAME="ROBOTS" CONTENT="NOINDEX, NOFOLLOW">` and a Cloudflare challenge script (observed on [/hiski?fi+L4](https://hiski.genealogia.fi/hiski?fi+L4)).
 - Treat automated querying as not permitted until the Society agrees. HisKi lists a feedback address on its help page.
@@ -67,23 +74,26 @@ It would not give the Image directly.
 ### Digihakemisto (digihakemisto.net)
 
 **What it contains**
+
 - A finding aid over Astia. At volume level it shows "the digitized images and any associated table of contents (hakemisto)" ([home](https://digihakemisto.net/)).
 - The Society supports its upkeep ([home](https://digihakemisto.net/)). The index text is crowdsourced, and the blog warns that not all tables of contents moved to the 2022 version and that rescans can misalign indexes ([blog](https://digihakemisto.blogspot.com/)).
-- The example Volume has a full index ([digihakemisto.net/aineisto/1226129036](https://digihakemisto.net/aineisto/1226129036), last changed 2026-09-27). Columns: *Jakso* (image number), *Sivunumero* (empty here) and *Kuvaus* (description). Each row links `/item/1226129036/<Astia fileId>/<n>`.
+- The example Volume has a full index ([digihakemisto.net/aineisto/1226129036](https://digihakemisto.net/aineisto/1226129036), last changed 2026-09-27). Columns: _Jakso_ (image number), _Sivunumero_ (empty here) and _Kuvaus_ (description). Each row links `/item/1226129036/<Astia fileId>/<n>`.
 - The rows map out the whole Volume:
 
-  | Images | Section |
-  |---|---|
-  | 3–34 | Marriages ("Copulati" / "Wigda"), 1744–1766 |
-  | 35–92 | Deaths ("DÖDE"), 1744–1766 |
-  | 93–256 | Baptisms ("FÖDDE" / "Döpta"), 1744–1766 |
-  | 255–263 | Migration lists and a crime list |
-  | 264 | Blank |
+  | Images  | Section                                     |
+  | ------- | ------------------------------------------- |
+  | 3–34    | Marriages ("Copulati" / "Wigda"), 1744–1766 |
+  | 35–92   | Deaths ("DÖDE"), 1744–1766                  |
+  | 93–256  | Baptisms ("FÖDDE" / "Döpta"), 1744–1766     |
+  | 255–263 | Migration lists and a crime list            |
+  | 264     | Blank                                       |
 
   Some baptism rows list the months on the page; for example, Image 186 is "1759 Döpta 3, 4, 5". Rautalampi pages inside the Volume are marked "(Rautalambi)" (Images 92, 115, 234).
+
 - **Verified alignment.** All 264 Astia file ids from the app's own cache (`ws/aineisto/digitoidut.php?id=1226129036`) match Digihakemisto's Jakso 1–264 in order. Digihakemisto's image number is the app's Image number.
 
 **What it would give the app:**
+
 - each register section's Image range, and each Image's year (sometimes months), as ground truth for where the dates run;
 - a way to skip the marriage and death sections in a baptism search;
 - a check that the vision model's reads are plausible.
@@ -91,6 +101,7 @@ It would not give the Image directly.
 It gives no per-entry location. Coverage beyond this Volume is unknown, and a Volume may be indexed only partly or not at all.
 
 **Access**
+
 - No API, export or terms are published. Pages are server-rendered HTML.
 - An HTTPS request with a browser user agent got 200. A request with curl's default user agent (for robots.txt) got 403 from nginx, so I could not read its robots.txt.
 - The banner says the service "still has disruptions", and the blog announced a platform move in 2026-08. Ask the maintainer (feedback address on the site) before fetching per-Volume pages, or ask for an export.
@@ -98,21 +109,23 @@ It gives no per-entry location. Coverage beyond this Volume is unknown, and a Vo
 ### SSHY Digiarkisto (sukuhistoria.fi)
 
 **What it contains**
+
 - Image sets made from the National Archives microfilms, split by section. For Pieksämäki 1760 ([year page](http://www.sukuhistoria.fi/sshy/sivut/HisKi-digiarkisto.php?plid=0394&year=1760)):
 
-  | Section | Images | Microfilm |
-  |---|---|---|
-  | syntyneet (births) | 161 | TK1422-1423, I C:4 |
-  | vihityt (marriages) | 38 | |
-  | kuolleet (deaths) | 56 | |
-  | muuttaneet (migrations) | 11 | |
+  | Section                 | Images | Microfilm          |
+  | ----------------------- | ------ | ------------------ |
+  | syntyneet (births)      | 161    | TK1422-1423, I C:4 |
+  | vihityt (marriages)     | 38     |                    |
+  | kuolleet (deaths)       | 56     |                    |
+  | muuttaneet (migrations) | 11     |                    |
 
-- Each set has a per-image table with *Kuva*, *Sivu* and *Kommentti* columns. The comment column carries year annotations such as "1760", "1758-1759" and "välissä Rautalammilla 1749 kastetut" ("between, those baptised in Rautalampi 1749") ([births I C:4](http://www.sukuhistoria.fi/sshy/sivut/HisKi-digiarkisto.php?bid=12710)).
+- Each set has a per-image table with _Kuva_, _Sivu_ and _Kommentti_ columns. The comment column carries year annotations such as "1760", "1758-1759" and "välissä Rautalammilla 1749 kastetut" ("between, those baptised in Rautalampi 1749") ([births I C:4](http://www.sukuhistoria.fi/sshy/sivut/HisKi-digiarkisto.php?bid=12710)).
 - Images open without sign-in for this set ([image 100](http://www.sukuhistoria.fi/sshy/sivut/HisKi-digiarkisto.php?bid=12710&pnum=100)). A FamilySearch presentation says newer material is for SSHY members (secondary; not checked on SSHY).
 
 **What it would give the app:** a second year-per-image index, but in **SSHY's own numbering of a different digitisation** (microfilm, split by section). It does not map 1:1 to Astia Images. Useful only as a cross-check, or where Digihakemisto has no index.
 
 **Access**
+
 - `robots.txt` allows `/` for all agents with `Crawl-delay: 10`. It disallows the wiki and forum, including for ClaudeBot ([robots.txt](https://www.sukuhistoria.fi/robots.txt)).
 - I found no terms of use for the image archive.
 
@@ -134,5 +147,5 @@ It gives no per-entry location. Coverage beyond this Volume is unknown, and a Vo
 - Does the HisKi running number follow book order, and was Pieksämäki 1744–1766 transcribed from the original or from the Black Book?
 - What do "ODM" and the "C" batch prefix mean in FamilySearch's data? (No primary source found.)
 - Is film 55677 viewable on FamilySearch, and is a Pieksämäki 1760 baptism indexed from it written in the Pieksämäki Volume at all? (Catalog needs sign-in.)
-- How complete and current are Digihakemisto indexes across the other Volumes, and do any of them fill the *Sivunumero* (page) column?
+- How complete and current are Digihakemisto indexes across the other Volumes, and do any of them fill the _Sivunumero_ (page) column?
 - Does MyHeritage's collection match FamilySearch's 1:1? MyHeritage's collection page did not render when fetched, and a secondary listing gives a different record count.
