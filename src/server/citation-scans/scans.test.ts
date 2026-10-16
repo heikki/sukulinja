@@ -142,12 +142,24 @@ test('the matcher searches the Volumes a reference links', async () => {
     'Juho Esimerkki\nRistiäiset: 29. Marras 1795 - Juva, Mikkeli, Finland'
   );
   expect(await matchCandidates(index)).toEqual([
-    { volumeId: 'juva-3', volume: VOLUMES['juva-3'], images: 20, start: null }
+    {
+      volumeId: 'juva-3',
+      volume: VOLUMES['juva-3'],
+      images: 20,
+      years: { from: 1790, to: 1810 },
+      start: null
+    }
   ]);
   const rippi = citation(5000, '1790 - 1796', 12);
   expect(
     await matchCandidates(parseChurchBookRef(rippi.page, rippi.text))
   ).toEqual([
-    { volumeId: 'juva-1', volume: VOLUMES['juva-1'], images: 20, start: 12 }
+    {
+      volumeId: 'juva-1',
+      volume: VOLUMES['juva-1'],
+      images: 20,
+      years: { from: 1790, to: 1796 },
+      start: 12
+    }
   ]);
 });

@@ -23,6 +23,10 @@ _Avoid_: film (that's the MyHeritage side), archive (the parish's fonds that hol
 **Part**:
 One of several Volumes a Book is split into, usually by village (I, II …). Told apart by the villages in their labels or found in them, or by where each one's page numbering runs.
 
+**Register**:
+One run of entries of a kind in a Volume, in date order: baptisms, or marriages (headed _Copulati_ or _Vihityt_). A Volume labelled for one may hold another before or after it, such as its marriages ahead of its baptisms.
+_Avoid_: book (the kind a reference cites, which a Volume may hold more than one register of).
+
 **Image**:
 One scan in a Volume, numbered from 1 in Astia's order. What a link opens.
 _Avoid_: page (written on the scan), frame (MyHeritage's numbering).
@@ -40,7 +44,7 @@ A second photograph of the same page within one Volume, on the next Image.
 A Volume whose Images hold the book twice, as if filmed twice; the copies drift apart in Image numbers. Anchors point into the copy the references were indexed from.
 
 **Placement**:
-A Church-book reference put on an Image by hand in the app, for one with no page or in a Volume its Book doesn't match.
+A Church-book reference put on an Image: by hand in the app, for one with no page or in a Volume its Book doesn't match; or as a **Vision match**, for one with no Record number.
 
 **Scan viewer**:
 Where the app shows an Image, opened from a Church-book reference's link. You step through the Volume's Images there and mark the one the record is on, which saves an Anchor or a Placement, and a **Seen record** when the reference has a Record number.
@@ -78,6 +82,9 @@ The vision model behind three questions about one Image: the Page numbers writte
 
 **Confirmation**:
 Finding the person's name on the Image a search landed on, or on the Images around it. Only a confirmed match is saved.
+
+**Vision match**:
+A Seen record or Placement the vision model saved after a Confirmation, as opposed to one marked by hand. It is Placed all the same, and the source panel and Scan viewer say it's a vision match.
 
 **Provenance**:
 Who saved an Anchor, Seen record or Placement: by hand (everything shipped, and every mark made in the Scan viewer) or by the vision model. A hand correction always wins over a vision one.

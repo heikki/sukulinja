@@ -12,6 +12,10 @@
 // Date search, for baptism and marriage index references: these books run
 // in date order, so a binary search over the Volume's Images by the dates
 // read on them closes in on the Image whose range covers the cited date.
+// One Volume may hold another register before or after the one cited (its
+// marriages ahead of its baptisms), in date order of its own, so only
+// readings of the cited register steer the search; nor does a date outside
+// the Volume's years, which is a misread.
 //
 // Page search, for references with a Page number: from the Image the
 // Anchored or Estimated method gives, read its Page number and jump by the
@@ -20,16 +24,27 @@
 // other copy of a Doubled volume) isn't followed: the search stays at the
 // start, near the Anchors, and Confirmation looks around it.
 
+import type { BookKind, Years } from '@common/types';
+
 import { confirms } from './reader';
-import type { Box, DatesReading, PagesReading, Person, Reader } from './reader';
+import type {
+  Box,
+  DatesReading,
+  PagesReading,
+  Person,
+  Reader,
+  Register
+} from './reader';
 import type { ChurchBookRef } from './record';
 
 // A Volume the existing resolution offers for the reference, with its
-// number of Images, and the Image it links when it knows one.
+// number of Images, the years its label gives, and the Image it links when
+// it knows one.
 export interface Candidate {
   volumeId: string;
   volume: string;
   images: number;
+  years: Years | null;
   start: number | null;
 }
 
@@ -82,20 +97,71 @@ export function dayRange(date: string) {
   return { from: date, to: `${date}${'-99'.repeat((10 - date.length) / 3)}` };
 }
 
-// Images to try for `at`, nearest first, within lo–hi.
+// Images to try for `at` within lo–hi: the nearest first, then twice as far
+// each time, to step past a stretch of another register.
 function probes(at: number, lo: number, hi: number) {
   const out = [at];
-  for (let d = 1; out.length < UNREADABLE_PROBES && d <= hi - lo; d++) {
+  for (let d = 1; d <= hi - lo; d = d < 4 ? d + 1 : d * 2) {
     if (at + d <= hi) out.push(at + d);
-    if (at - d >= lo && out.length < UNREADABLE_PROBES) out.push(at - d);
+    if (at - d >= lo) out.push(at - d);
   }
   return out;
+}
+
+const REGISTERS: Partial<Record<BookKind, Register>> = {
+  kastetut: 'baptisms',
+  vihityt: 'marriages'
+};
+
+type Dated = Exclude<DatesReading, { unreadable: true }>;
+
+function yearOf(date: string) {
+  return Number(date.slice(0, 4));
+}
+
+// Whether a reading can steer the search: of the cited register, and within
+// the Volume's years.
+function steers(dates: Dated, register: Register, years: Years | null) {
+  if (dates.register !== register) return false;
+  return (
+    years === null ||
+    (yearOf(dates.earliest) >= years.from && yearOf(dates.latest) <= years.to)
+  );
+}
+
+// Where a step of the search reads: around `mid` within lo–hi, for the
+// cited register, with the reads it has left.
+interface Step {
+  mid: number;
+  lo: number;
+  hi: number;
+  register: Register;
+  readsLeft: number;
+}
+
+// The reading nearest `mid` that can steer the search, giving up after a
+// run of unreadable Images or once the reads left are spent.
+async function readDatesNear(reader: Reader, c: Candidate, step: Step) {
+  let reads = 0;
+  let unreadable = 0;
+  for (const image of probes(step.mid, step.lo, step.hi)) {
+    if (unreadable === UNREADABLE_PROBES || reads === step.readsLeft) break;
+    reads += 1;
+    // eslint-disable-next-line no-await-in-loop -- each probe waits on the last
+    const dates = await reader.dates({ volumeId: c.volumeId, image });
+    if ('unreadable' in dates) unreadable += 1;
+    else if (steers(dates, step.register, c.years)) {
+      return { read: { image, dates }, reads };
+    }
+  }
+  return { read: null, reads };
 }
 
 async function dateSearch(
   reader: Reader,
   c: Candidate,
-  date: string
+  date: string,
+  register: Register
 ): Promise<Landing> {
   const cited = dayRange(date);
   let lo = 1;
@@ -103,28 +169,21 @@ async function dateSearch(
   let reads = 0;
   while (lo <= hi) {
     const mid = Math.floor((lo + hi) / 2);
-    let read: { image: number; dates: DatesReading } | null = null;
-    for (const image of probes(mid, lo, hi)) {
-      reads += 1;
-      // eslint-disable-next-line no-await-in-loop -- each probe waits on the last
-      const dates = await reader.dates({ volumeId: c.volumeId, image });
-      if (!('unreadable' in dates)) {
-        read = { image, dates };
-        break;
-      }
-    }
+    const step = { mid, lo, hi, register, readsLeft: MAX_READS - reads };
+    // eslint-disable-next-line no-await-in-loop -- each step follows a reading
+    const near = await readDatesNear(reader, c, step);
+    reads += near.reads;
+    const { read } = near;
     if (read === null) {
       // Narrowed to a stretch Confirmation looks over anyway.
       if (hi - lo <= 2 * WINDOW) return { image: mid };
-      return { reason: 'unreadable', image: mid };
+      const spent = reads >= MAX_READS;
+      return { reason: spent ? 'did not converge' : 'unreadable', image: mid };
     }
     if (reads >= MAX_READS) {
       return { reason: 'did not converge', image: read.image };
     }
-    const { earliest, latest } = read.dates as Exclude<
-      DatesReading,
-      { unreadable: true }
-    >;
+    const { earliest, latest } = read.dates;
     if (cited.to < earliest) hi = read.image - 1;
     else if (cited.from > latest) lo = read.image + 1;
     else return { image: read.image };
@@ -249,8 +308,11 @@ async function confirm(
 // ---------------------------------------------------------------- matching
 
 function search(reader: Reader, ref: ChurchBookRef, c: Candidate) {
-  const indexed = ref.kind === 'kastetut' || ref.kind === 'vihityt';
-  if (indexed && ref.date !== null) return dateSearch(reader, c, ref.date);
+  const register = ref.kind === null ? undefined : REGISTERS[ref.kind];
+  const indexed = register !== undefined;
+  if (indexed && ref.date !== null) {
+    return dateSearch(reader, c, ref.date, register);
+  }
   if (!indexed && ref.page !== null) return pageSearch(reader, c, ref.page);
   // A rippikirja reference with no page needs a village map: not yet.
   return null;
@@ -307,11 +369,14 @@ export async function matchRef(
   if (ref.name === null) {
     return { confirmed: false, reason: 'no name' };
   }
+  // `named` only where there are any, so a rippikirja reference asks as
+  // before, and its cached readings hold.
   const person: Person = {
     name: ref.name,
     date: ref.date,
     village: ref.places[0] ?? null,
-    household: ref.household
+    household: ref.household,
+    ...(ref.named.length > 0 ? { named: ref.named } : {})
   };
   const outcomes: Outcome[] = [];
   for (const c of candidates) {

@@ -32,7 +32,8 @@ function fakeReader(model: string): Reader {
       asked.push(`dates ${image}`);
       return await Promise.resolve({
         earliest: `1829-0${image}-01`,
-        latest: `1829-0${image}-28`
+        latest: `1829-0${image}-28`,
+        register: 'baptisms' as const
       });
     },
     findEntry: async ({ image }, person) => {
@@ -59,7 +60,7 @@ test('a re-run gives the same readings without asking again', async () => {
   expect(first).toEqual([
     { pages: [6] },
     { unreadable: true },
-    { earliest: '1829-04-01', latest: '1829-04-28' },
+    { earliest: '1829-04-01', latest: '1829-04-28', register: 'baptisms' },
     { found: true, confidence: 0.9 },
     { found: false, confidence: 0.8 }
   ]);

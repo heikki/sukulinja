@@ -172,7 +172,11 @@ test('asks about index references placed by hand', async () => {
     dates: async ({ image }) =>
       await Promise.resolve(
         image === 50
-          ? { earliest: '1829-11-20', latest: '1829-12-04' }
+          ? {
+              earliest: '1829-11-20',
+              latest: '1829-12-04',
+              register: 'baptisms' as const
+            }
           : { unreadable: true }
       )
   };

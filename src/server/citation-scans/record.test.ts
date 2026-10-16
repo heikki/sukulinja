@@ -100,7 +100,8 @@ describe('parseChurchBookRef', () => {
           { relation: 'Vaimo', name: 'Liisa Malli', born: 'Touko 1760' },
           { relation: 'Tytär', name: 'Anna', born: '22. Heinä 1784' }
         ]
-      }
+      },
+      named: []
     });
   });
 
@@ -142,7 +143,11 @@ describe('parseChurchBookRef', () => {
       recordId: null,
       name: 'Juho Esimerkki',
       date: '1829-11-29',
-      household: null
+      household: null,
+      named: [
+        { relation: 'father', name: 'Matti Esimerkki' },
+        { relation: 'mother', name: 'Liisa Malli' }
+      ]
     });
   });
 
