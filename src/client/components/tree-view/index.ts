@@ -308,6 +308,12 @@ export class TreeViewElement extends LitElement {
     }
   }
 
+  // The persons and families the chart and the dock read.
+  private get indices() {
+    const { persons, parentFamByPerson, spouseFamsByPerson, gen } = this;
+    return { persons, parentFamByPerson, spouseFamsByPerson, levels: gen };
+  }
+
   private appendSpouseFam(personId: number, fam: FamilyRow) {
     let arr = this.spouseFamsByPerson.get(personId);
     if (arr === undefined) {
@@ -404,7 +410,11 @@ export class TreeViewElement extends LitElement {
         ></sl-person-header>
         <sl-person-panel
           .personId=${this.focusId}
+          .indices=${this.indices}
           .viewing=${this.scanAway ? null : this.scanOpen}
+          @pick=${(e: PickEvent) => {
+            this.setFocus(e.detail.id, this.canvasCenter());
+          }}
           @details-load=${(e: DetailsLoadEvent) => {
             this.focusDetails = e.detail;
           }}
@@ -596,16 +606,7 @@ export class TreeViewElement extends LitElement {
     if (this.focusId === null) {
       return html`<div class="empty">No people in database.</div>`;
     }
-    const chart = buildChart(
-      this.focusId,
-      {
-        persons: this.persons,
-        parentFamByPerson: this.parentFamByPerson,
-        spouseFamsByPerson: this.spouseFamsByPerson,
-        levels: this.gen
-      },
-      dims
-    );
+    const chart = buildChart(this.focusId, this.indices, dims);
     if (chart === null) {
       return html`<div class="empty">No data for selected focus.</div>`;
     }

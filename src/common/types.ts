@@ -17,6 +17,9 @@ export interface PersonRow {
   sex: string | null;
   birth_year: number | null;
   death_year: number | null;
+  // BIRT and DEAT dates as recorded, e.g. "BET 1867 AND 1879".
+  birth_date: string | null;
+  death_date: string | null;
   photo_path: string | null;
   crop: PhotoCrop | null;
 }

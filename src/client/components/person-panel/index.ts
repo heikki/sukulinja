@@ -16,9 +16,12 @@ import type {
 
 import type { ScanCloseEvent, ScanStepEvent } from '../scan-viewer';
 import { volumeTitle } from '../scan-viewer/citations';
+import { formatName } from '../tree-view/renderer';
 
 import './header';
 
+import { householdsOf, lifeText } from './family';
+import type { FamilyIndices, Household, Relative } from './family';
 import {
   factLabel,
   factText,
@@ -123,7 +126,7 @@ function headingOf(c: CitationRow) {
 
 // Each section open or not for the rest of the visit, across people; at
 // first only the sources are.
-const opened = { events: false, sources: true };
+const opened = { events: false, family: false, sources: true };
 type Section = keyof typeof opened;
 
 // Where in the Volume it links the reference points; nothing unlinked.
@@ -160,17 +163,37 @@ function renderBody(c: CitationRow, heading: string) {
 
 export type DetailsLoadEvent = CustomEvent<PersonDetails>;
 
-// The Focus person's events and sources, beside the chart, announced with
-// `details-load` as they arrive. Record links open outside the app (the
-// desktop shell hands target=_blank to the browser); Scan links ask for the
-// Scan viewer with a `scan-open` event, and the source it shows (`viewing`)
-// is marked and brought into view.
+// A relative's row picks them.
+function renderRelative(r: Relative, pick: (id: number) => void) {
+  const life = lifeText(r.person);
+  return html`<button
+    class="relative"
+    @click=${() => {
+      pick(r.person.id);
+    }}
+  >
+    <span class="relation">${r.relation}</span>
+    <span class="person">
+      <span class="name">${formatName(r.person)}</span>
+      ${life === '' ? nothing : html`<span class="life">${life}</span>`}
+    </span>
+  </button>`;
+}
+
+// The Focus person's family, events and sources, beside the chart, the
+// details announced with `details-load` as they arrive. A relative's row
+// asks for them with `pick`. Record links open outside the app (the desktop
+// shell hands target=_blank to the browser); Scan links ask for the Scan
+// viewer with a `scan-open` event, and the source it shows (`viewing`) is
+// marked and brought into view.
 @customElement('sl-person-panel')
 export class PersonPanelElement extends LitElement {
   static override styles = [focusRingStyles, personPanelStyles];
 
   @property({ type: Number }) personId: number | null = null;
   @property({ attribute: false }) viewing: ScanOpen | null = null;
+  // The chart's persons and families, which name the person's households.
+  @property({ attribute: false }) indices: FamilyIndices | null = null;
 
   @state() private details: PersonDetails | null = null;
   @state() private error: string | null = null;
@@ -404,6 +427,18 @@ export class PersonPanelElement extends LitElement {
     `;
   }
 
+  private readonly pick = (id: number) => {
+    this.dispatchEvent(new CustomEvent('pick', { detail: { id } }));
+  };
+
+  private renderFamily(households: Household[]) {
+    return households.map(
+      (h) => html`
+        <div class="family">${h.map((r) => renderRelative(r, this.pick))}</div>
+      `
+    );
+  }
+
   private renderSources(citations: CitationRow[]) {
     return groupSources(citations, this.scans).map((g) => this.renderGroup(g));
   }
@@ -441,8 +476,17 @@ export class PersonPanelElement extends LitElement {
     const d = this.details;
     if (d === null) return html`<div class="body muted">Loading…</div>`;
     const stale = d.id !== this.personId;
+    const households =
+      this.indices === null ? [] : householdsOf(d.id, this.indices);
     return html`
       <div class="body ${stale ? 'stale' : ''}">
+        ${
+          households.length === 0
+            ? nothing
+            : this.renderSection('family', 'Family', () =>
+                this.renderFamily(households)
+              )
+        }
         ${
           d.facts.length === 0
             ? nothing
