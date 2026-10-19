@@ -8,6 +8,8 @@ import {
   findChildren,
   type GedNode
 } from './gedcom-parser';
+import { mediaRefsOf } from './media-refs';
+import type { MediaRef } from './media-refs';
 
 const PERSON_FACT_TAGS = new Set([
   'BIRT',
@@ -102,19 +104,6 @@ function addressOf(node: GedNode) {
     ...ADDRESS_PARTS.map((tag) => childValue(addr, tag))
   ].filter((x) => x !== undefined && x !== null && x.trim() !== '');
   return parts.length === 0 ? null : parts.join(', ');
-}
-
-function cropValues(file: GedNode) {
-  const crop = findChild(file, 'CROP');
-  if (crop === undefined) {
-    return { top: null, left: null, width: null, height: null };
-  }
-  return {
-    top: toInt(findChild(crop, 'TOP')?.value),
-    left: toInt(findChild(crop, 'LEFT')?.value),
-    width: toInt(findChild(crop, 'WIDTH')?.value),
-    height: toInt(findChild(crop, 'HEIGHT')?.value)
-  };
 }
 
 type MediaResolver = (originalRelpath: string) => string | null;
@@ -227,15 +216,7 @@ export function importGedcom(
     }
 
     importCitations(root, 'person', personId);
-
-    // TODO: only picks up OBJE that is a direct child of INDI. OBJE nested
-    // inside event tags (BIRT/MARR/BURI/...) and top-level OBJE records
-    // referenced by pointer are not yet imported. MediaIngest mirrors this
-    // traversal to keep disk and DB in sync.
-    let mediaOrder = 0;
-    for (const obje of findChildren(root, 'OBJE')) {
-      importMediaLink(obje, 'person', personId, mediaOrder++);
-    }
+    importMediaLinks(root, 'person', personId);
   }
 
   function resolveParentId(xref: string | undefined): number | null {
@@ -264,6 +245,7 @@ export function importGedcom(
       }
     }
     importCitations(root, 'family', familyId);
+    importMediaLinks(root, 'family', familyId);
   }
 
   // A citation either points to a source record (`SOUR @S1@`) or describes
@@ -322,38 +304,30 @@ export function importGedcom(
     return res.id;
   }
 
-  function importMediaLink(
-    obje: GedNode,
-    scope: Scope,
-    scopeId: number,
-    order: number
-  ): void {
-    const file = findChild(obje, 'FILE');
-    if (file === undefined) return;
-    const originalPath = file.value;
-    if (originalPath === undefined || originalPath === '') return;
-    const storedPath = mediaResolver(originalPath);
+  // A media row for the stored file, which files with the same content
+  // share, and a link to it from the person or family.
+  function importMediaLink(ref: MediaRef, scope: Scope, scopeId: number) {
+    const storedPath = mediaResolver(ref.path);
     if (storedPath === null) return;
-    const mediaId = resolveMediaId(
-      storedPath,
-      originalPath,
-      childValue(file, 'FORM')
-    );
-
-    const crop = cropValues(file);
+    const mediaId = resolveMediaId(storedPath, ref.path, ref.format);
+    const { crop } = ref;
     insertMediaLink.run(
       mediaId,
       scope,
       scopeId,
-      findChild(obje, '_PRIM')?.value === 'Y' ? 1 : 0,
-      childValue(obje, 'TITL'),
+      ref.primary ? 1 : 0,
+      ref.title,
       crop.top,
       crop.left,
       crop.width,
       crop.height,
-      order
+      ref.order
     );
     stats.mediaLinks += 1;
+  }
+
+  function importMediaLinks(root: GedNode, scope: Scope, scopeId: number) {
+    for (const ref of mediaRefsOf(root)) importMediaLink(ref, scope, scopeId);
   }
 
   const tx = db.transaction(() => {
