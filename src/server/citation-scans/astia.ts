@@ -62,6 +62,13 @@ export interface Astia {
   imageBytes: (volumeId: string, fileId: string) => Promise<Uint8Array>;
 }
 
+// A request to Astia failed: it couldn't be reached, refused, or gave
+// nothing. It passes, so callers report it and try again later; any other
+// error is a bug.
+export class AstiaError extends Error {
+  override name = 'AstiaError';
+}
+
 export function viewerUrl(volumeId: string, fileId: string) {
   return `${ASTIA}/viewer/?fileId=${fileId}&aineistoId=${volumeId}`;
 }
@@ -172,6 +179,17 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
     return run;
   }
 
+  // A request that can't reach Astia is an AstiaError too.
+  async function reach(path: string) {
+    try {
+      return await send(`${ASTIA}/${path}`, {
+        headers: { 'User-Agent': USER_AGENT }
+      });
+    } catch (err) {
+      throw new AstiaError(`${String(err)} on ${path}`, { cause: err });
+    }
+  }
+
   // Astia answers the odd request with a transient 500 or an empty 200;
   // retry those as well as 429s. An empty body that persists means
   // "nothing here" and comes back as null.
@@ -180,9 +198,7 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
     patience: Patience,
     attempt: number
   ): Promise<Uint8Array | null> {
-    const res = await send(`${ASTIA}/${path}`, {
-      headers: { 'User-Agent': USER_AGENT }
-    });
+    const res = await reach(path);
     const body = res.ok ? await res.bytes() : new Uint8Array();
     const empty = res.ok && isBlank(body);
     const wait = retryWait(res, empty, patience, attempt);
@@ -193,7 +209,7 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
       return await request(path, patience, attempt + 1);
     }
     if (empty) return null;
-    if (!res.ok) throw new Error(`${res.status} ${path}`);
+    if (!res.ok) throw new AstiaError(`${res.status} ${path}`);
     return body;
   }
 
@@ -272,7 +288,7 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
     async imageBytes(volumeId, fileId) {
       const path = `ws/getFile.php?fileId=${fileId}&aineistoId=${volumeId}`;
       const body = await request(path, VIEWER, 1);
-      if (body === null) throw new Error(`empty image ${path}`);
+      if (body === null) throw new AstiaError(`empty image ${path}`);
       return body;
     }
   };

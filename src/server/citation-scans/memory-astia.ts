@@ -2,7 +2,7 @@
 // resolution and the Scan viewer run without a request going out. Volumes
 // are written as Astia labels them, and read the way its own are.
 
-import { volumeOf } from './astia';
+import { AstiaError, volumeOf } from './astia';
 import type { Astia, ImageSize } from './astia';
 
 export interface MemoryVolume {
@@ -29,12 +29,25 @@ export function fileId(volumeId: string, image: number, size: ImageSize) {
   return `${volumeId}-${size === 'full' ? 'f' : 't'}${image}`;
 }
 
-// The archives, by Astia id. An archive or Volume not given can't be
-// reached, as when Astia is down; image bytes are a JPEG's first two.
+export interface MemoryOptions {
+  // Every request fails with an AstiaError, as when Astia is down.
+  down?: boolean;
+}
+
+// The archives, by Astia id. Asking for an archive or Volume not given is
+// a mistake in the test, and throws a plain Error; image bytes are a
+// JPEG's first two.
 export function memoryAstia(
-  archives: Record<string, MemoryArchive>
+  archives: Record<string, MemoryArchive>,
+  { down = false }: MemoryOptions = {}
 ): MemoryAstia {
   const asked: string[] = [];
+
+  function ask(what: string) {
+    asked.push(what);
+    if (down) throw new AstiaError(`Astia is down: ${what}`);
+  }
+
   const volumes = new Map(
     Object.values(archives).flatMap((a) => a.volumes.map((v) => [v.id, v]))
   );
@@ -55,7 +68,7 @@ export function memoryAstia(
     asked,
 
     async archiveVolumes(archiveId) {
-      asked.push(`volumes ${archiveId}`);
+      ask(`volumes ${archiveId}`);
       return await Promise.resolve(
         archive(archiveId).volumes.map((v) =>
           volumeOf({
@@ -69,7 +82,7 @@ export function memoryAstia(
     },
 
     async volumeImages(volumeId, size = 'full') {
-      asked.push(`images ${volumeId}`);
+      ask(`images ${volumeId}`);
       const v = volume(volumeId);
       return await Promise.resolve(
         Array.from({ length: v.images }, (_, i) => fileId(v.id, i + 1, size))
@@ -77,12 +90,15 @@ export function memoryAstia(
     },
 
     async archiveTitle(archiveId) {
+      // As over HTTP, a title Astia can't give is null.
       asked.push(`title ${archiveId}`);
-      return await Promise.resolve(archives[archiveId]?.title ?? null);
+      return await Promise.resolve(
+        down ? null : (archives[archiveId]?.title ?? null)
+      );
     },
 
     async imageBytes(volumeId, id) {
-      asked.push(`bytes ${id}`);
+      ask(`bytes ${id}`);
       volume(volumeId);
       return await Promise.resolve(new Uint8Array([0xff, 0xd8]));
     }

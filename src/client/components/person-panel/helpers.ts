@@ -1,7 +1,12 @@
+import {
+  linkHint,
+  linkLabel,
+  splitLabel,
+  unlinkedHint,
+  unlinkedLabel
+} from '@client/link-labels';
 import { gedcomDate } from '@common/dates';
 import type { CitationRow, FactRow, Link, LinkResolution } from '@common/types';
-
-import { linkHint, linkLabel, splitLabel } from '../scan-viewer/citations';
 
 const FACT_LABELS: Record<string, string> = {
   BIRT: 'Birth',
@@ -83,12 +88,8 @@ export function siteName(url: string) {
   return known?.[1] ?? host.replace(/^www\./, '');
 }
 
-// Resolving found the parish's books but not the Image. Other errors (no
-// archive, unparsed, Astia down) found no books to look in.
-const FINDABLE = new Set(['no matching volume', 'not digitized', 'no images']);
-
 // A church-book source's Link, in brief: how sure it is, in the Scan
-// viewer's words, or why there's none; the tooltip says where. Opening the
+// viewer's words, or why there's none; the tooltip says more. Opening the
 // source shows `link` in the Scan viewer, if there is one.
 export interface LinkStatus {
   label: string;
@@ -106,13 +107,10 @@ export function linkStatus(
     const label = pending ? 'Finding scan…' : 'Scan unavailable';
     return { label, title: '', link: null };
   }
-  if ('error' in resolution) {
-    const findable = FINDABLE.has(resolution.error);
+  if ('unlinked' in resolution) {
     return {
-      label: findable ? 'Not found' : 'No scan',
-      title: findable
-        ? "The parish's books were found but not the Image."
-        : `No scan could be found (${resolution.error}).`,
+      label: unlinkedLabel(resolution.unlinked),
+      title: unlinkedHint(resolution.unlinked),
       link: null
     };
   }

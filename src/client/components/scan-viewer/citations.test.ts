@@ -2,15 +2,7 @@ import { expect, test } from 'bun:test';
 
 import type { Box, LinkTarget, VolumeCitation } from '@common/types';
 
-import {
-  boxOf,
-  entriesOn,
-  groupCitations,
-  imageOf,
-  linkHint,
-  linkLabel,
-  splitLabel
-} from './citations';
+import { boxOf, entriesOn, groupCitations, imageOf } from './citations';
 
 const BOX: Box = { left: 0, top: 0.5, width: 1, height: 0.05 };
 
@@ -108,26 +100,6 @@ test('lists entries in the order written on the Image', () => {
     { label: 'Marked', people: ['Liisa'] },
     { label: 'Vision match', people: ['Anna', 'Matti'] }
   ]);
-});
-
-test('names a Link by who says so, then how far down', () => {
-  expect(linkLabel(marked(7, BOX))).toBe('Marked');
-  expect(linkLabel(marked(7))).toBe('Marked Image');
-  expect(linkLabel({ precision: 'volume', certainty: 'marked' })).toBe(
-    'Marked Volume'
-  );
-  expect(linkLabel(vision(7))).toBe('Vision match');
-  expect(linkLabel(estimated(7, 'pins'))).toBe('Estimated Image');
-  expect(linkLabel(VOLUME)).toBe('Estimated Volume');
-  expect(linkHint(marked(7))).toMatch(/where on it isn't marked\.$/);
-  expect(linkHint(estimated(7, 'pins'))).toMatch(/^Counted from page numbers/);
-  expect(linkHint(estimated(7, 'numbering'))).toMatch(
-    /^Guessed from the usual pages/
-  );
-  expect(linkHint(VOLUME)).toMatch(/may be the wrong one/);
-  expect(splitLabel('Estimated Image')).toBe(
-    'Estimated Image · one of several Volumes'
-  );
 });
 
 test('marks one entry per Box on the Image, shared by those it records', () => {

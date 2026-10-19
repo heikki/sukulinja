@@ -4,6 +4,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 
 import { apiUrl } from '@client/api';
 import { focusRingStyles } from '@client/focus-ring';
+import { volumeTitle } from '@client/link-labels';
 import { readNdjson } from '@client/ndjson';
 import type {
   CitationLinks,
@@ -15,7 +16,6 @@ import type {
 } from '@common/types';
 
 import type { ScanCloseEvent, ScanStepEvent } from '../scan-viewer';
-import { volumeTitle } from '../scan-viewer/citations';
 import { formatName } from '../tree-view/renderer';
 
 import './header';

@@ -29,7 +29,7 @@ function printTally(keys: string[]) {
 }
 
 function resolutionKey(c: ChurchBookRef, r: LinkResolution) {
-  if ('error' in r) return `${c.collection} ✗ ${r.error}`;
+  if ('unlinked' in r) return `${c.collection} ✗ ${r.unlinked}`;
   const ambiguous = r.links.length > 1 ? ' (split volume)' : '';
   return `${c.collection} ${r.links[0]!.certainty}${ambiguous}`;
 }
@@ -47,7 +47,7 @@ function checklist(refs: ChurchBookRef[], resolutions: LinkResolution[]) {
   const byVolume = new Map<string, ChecklistEntry>();
   refs.forEach((c, i) => {
     const r = resolutions[i]!;
-    if ('error' in r || c.page === null) return;
+    if ('unlinked' in r || c.page === null) return;
     for (const link of r.links) {
       if (link.precision === 'image' && link.from === 'pins') continue;
       const entry = byVolume.get(link.volumeId) ?? {

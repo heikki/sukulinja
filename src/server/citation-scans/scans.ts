@@ -3,8 +3,9 @@
 
 import { join } from 'node:path';
 
-import type { Link } from '@common/types';
+import type { Link, LinkResolution } from '@common/types';
 
+import { AstiaError } from './astia';
 import type { Astia } from './astia';
 import { setImageCacheDir } from './images';
 import { parishArchive, parishVolumes, resolveChurchBookRef } from './locate';
@@ -37,12 +38,15 @@ async function byBook(pins: PinStore) {
 
 // References resolved with the pins saved so far, against the Astia given.
 export function openScans({ pins, astia }: { pins: PinStore; astia: Astia }) {
-  // Where the reference links, with the pins saved so far.
-  async function resolveRef(ref: ChurchBookRef) {
+  // Where the reference links, with the pins saved so far. A request to
+  // Astia failing is a reason it has none for now; anything else thrown is
+  // a bug, and is thrown on.
+  async function resolveRef(ref: ChurchBookRef): Promise<LinkResolution> {
     try {
       return await resolveChurchBookRef(astia, ref, await pins.snapshot());
-    } catch {
-      return { error: 'Astia unavailable' };
+    } catch (err) {
+      if (err instanceof AstiaError) return { unlinked: 'astia-error' };
+      throw err;
     }
   }
 
@@ -60,14 +64,15 @@ export function openScans({ pins, astia }: { pins: PinStore; astia: Astia }) {
     const order = [...cited.keys()].sort(
       (a, b) => cited.get(b)! - cited.get(a)!
     );
-    let failed: Error | null = null;
+    let failed: AstiaError | null = null;
     for (const archive of order) {
       try {
         // eslint-disable-next-line no-await-in-loop -- stop at the first holding it
         const volumes = await astia.archiveVolumes(archive);
         if (volumes.some((v) => v.id === volumeId)) return archive;
       } catch (err) {
-        failed = err instanceof Error ? err : new Error(String(err));
+        if (!(err instanceof AstiaError)) throw err;
+        failed = err;
       }
     }
     if (failed !== null) throw failed;
@@ -103,7 +108,7 @@ export function openScans({ pins, astia }: { pins: PinStore; astia: Astia }) {
         refs.map(async (ref): Promise<VolumeLink | null> => {
           if (parishArchive(ref.parish) !== archive) return null;
           const resolved = await resolveChurchBookRef(astia, ref, snapshot);
-          if ('error' in resolved) return null;
+          if ('unlinked' in resolved) return null;
           const link = resolved.links.find((l) => l.volumeId === volumeId);
           return link === undefined
             ? null
@@ -121,7 +126,7 @@ export function openScans({ pins, astia }: { pins: PinStore; astia: Astia }) {
         ref,
         await byBook(pins)
       );
-      if ('error' in resolved) return [];
+      if ('unlinked' in resolved) return [];
       const volumes = await parishVolumes(astia, ref.parish);
       return await Promise.all(
         resolved.links.map(async (l): Promise<Candidate> => ({

@@ -2,7 +2,6 @@ import { expect, test } from 'bun:test';
 
 import type { CitationRow, Link, LinkResolution } from '@common/types';
 
-import { volumeTitle } from '../scan-viewer/citations';
 import { groupSources, linkStatus, siteName } from './helpers';
 
 test('names a record link by its site', () => {
@@ -72,12 +71,17 @@ test('says why a source has no scan', () => {
     label: 'Finding scan…',
     link: null
   });
-  expect(linkStatus({ error: 'not digitized' }, false)).toMatchObject({
-    label: 'Not found',
+  expect(linkStatus(undefined, false)).toMatchObject({
+    label: 'Scan unavailable',
     link: null
   });
-  expect(linkStatus({ error: 'no archive' }, false)).toMatchObject({
-    label: 'No scan',
+  expect(linkStatus({ unlinked: 'not-digitized' }, false)).toEqual({
+    label: 'Not found',
+    title: "Its Volume isn't digitized in Astia.",
+    link: null
+  });
+  expect(linkStatus({ unlinked: 'astia-error' }, false)).toMatchObject({
+    label: 'Astia error',
     link: null
   });
 });
@@ -121,7 +125,7 @@ test('groups sources by archive, each Volume together by page', () => {
     [2, { links: [v8] }],
     [3, { links: [v8, v15] }],
     [4, { links: [v15] }],
-    [5, { error: 'not digitized' }],
+    [5, { unlinked: 'not-digitized' }],
     [7, { links: [there] }]
   ]);
   const groups = groupSources(rows, scans).map((g) => [
@@ -136,18 +140,4 @@ test('groups sources by archive, each Volume together by page', () => {
   ]);
   const others = groupSources([source(6, null, false)], new Map());
   expect(others.map((g) => g.label)).toEqual([null]);
-});
-
-test('names a Volume without its archive code', () => {
-  expect(volumeTitle('I Aa:8 Pää- ja rippikirjat (1783-1790)')).toBe(
-    'Pää- ja rippikirjat (1783-1790)'
-  );
-  expect(
-    volumeTitle(
-      'I Aa:15 Pää- ja rippikirjat, I Armisvesi - Pieksämäki (1827-1837)'
-    )
-  ).toBe('Pää- ja rippikirjat, I Armisvesi - Pieksämäki (1827-1837)');
-  expect(
-    volumeTitle('I C:4 Syntyneiden ja kastettujen luettelot (1744-1766)')
-  ).toBe('Syntyneiden ja kastettujen luettelot (1744-1766)');
 });
