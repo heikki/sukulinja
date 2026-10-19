@@ -47,7 +47,7 @@ async function main(): Promise<void> {
   if (mh !== null) {
     const failedNote = mh.failed > 0 ? `, ${mh.failed} failed` : '';
     console.log(
-      `  myheritage: ${mh.downloaded}/${mh.urls} downloaded, ${mh.stripped} cutouts stripped, ${mh.dropped} tags dropped${failedNote}`
+      `  myheritage: ${mh.downloaded} photos downloaded, ${mh.reused} kept from before, ${mh.stripped} cutouts stripped, ${mh.dropped} tags dropped${failedNote}`
     );
   }
   console.log('stats:', outcome.stats);
