@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: wontfix
 
 # Use a Box already on the Image as this source's entry
 
@@ -14,3 +14,7 @@ E.g. a parent's citation of a child's baptism, where the entry is already boxed 
 ## Tests
 
 - viewer state: reusing a Box sets the pending Image and Box; adjusting the copy leaves the other entry's Box as it was.
+
+## Comments
+
+Not built (2026-10-19). People citing the same record already share one Box through its Record pin, so this would only help separate references to one entry, such as index references, where drawing the Box again is one drag. It would add an item to the menu on others' Boxes and store the Box twice. Revisit if redrawing turns out to be tedious.
