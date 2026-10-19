@@ -1,11 +1,9 @@
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
-import { mediaUrl } from '@client/api';
 import { gedcomDate } from '@common/dates';
 import type { FactRow, PersonDetails, PersonRow } from '@common/types';
 
-import { avatarUrl, onAvatarReady } from '../tree-view/avatar-cache';
 import { formatName } from '../tree-view/renderer';
 import { silhouette } from '../tree-view/silhouette';
 import { factLabel } from './helpers';
@@ -47,18 +45,12 @@ function linesOf(person: PersonRow, details: PersonDetails | null) {
 }
 
 // The marked face once it is cropped, the whole photo if none is marked.
-function renderPortrait(p: PersonRow) {
-  const src =
-    p.photo_path === null
-      ? null
-      : p.crop === null
-        ? mediaUrl(p.photo_path)
-        : avatarUrl(p);
-  return src === null
+function renderPortrait(p: PersonRow, photo: string | null) {
+  return photo === null
     ? html`<svg class="portrait" viewBox="-1 -1 2 2" aria-hidden="true">
         ${silhouette(p.sex, 0, 0, 1)}
       </svg>`
-    : html`<img class="portrait" src=${src} alt="" />`;
+    : html`<img class="portrait" src=${photo} alt="" />`;
 }
 
 // The person the dock is about, in its header: their portrait as the chart
@@ -69,28 +61,15 @@ export class PersonHeaderElement extends LitElement {
 
   @property({ attribute: false }) person: PersonRow | null = null;
   @property({ attribute: false }) details: PersonDetails | null = null;
-
-  private avatarUnsub: (() => void) | null = null;
-
-  override connectedCallback() {
-    super.connectedCallback();
-    this.avatarUnsub = onAvatarReady(() => {
-      this.requestUpdate();
-    });
-  }
-
-  override disconnectedCallback() {
-    super.disconnectedCallback();
-    this.avatarUnsub?.();
-    this.avatarUnsub = null;
-  }
+  // Their portrait as the chart's avatar cache gives it.
+  @property({ attribute: false }) photo: string | null = null;
 
   override render() {
     const p = this.person;
     if (p === null) return nothing;
     const lines = linesOf(p, this.details).filter((l) => l !== null);
     return html`
-      ${renderPortrait(p)}
+      ${renderPortrait(p, this.photo)}
       <div class="who">
         <div class="name">${formatName(p)}</div>
         ${

@@ -2,10 +2,10 @@ import { html, LitElement, nothing } from 'lit';
 import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
-import { apiUrl } from '@client/api';
+import { ApiError } from '@client/dataset-api';
+import type { DatasetApi } from '@client/dataset-api';
 import { focusRingStyles } from '@client/focus-ring';
 import { volumeTitle } from '@client/link-labels';
-import { readNdjson } from '@client/ndjson';
 import type {
   CitationLinks,
   CitationRow,
@@ -194,6 +194,8 @@ function renderRelative(r: Relative, ask: (event: string, id: number) => void) {
 export class PersonPanelElement extends LitElement {
   static override styles = [focusRingStyles, personPanelStyles];
 
+  // The dataset's answers, set before the element connects.
+  @property({ attribute: false }) api!: DatasetApi;
   @property({ type: Number }) personId: number | null = null;
   @property({ attribute: false }) viewing: LinkOpen | null = null;
   // The chart's persons and families, which name the person's households.
@@ -296,9 +298,7 @@ export class PersonPanelElement extends LitElement {
       return;
     }
     try {
-      const res = await fetch(apiUrl(`/api/persons/${id}`));
-      if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
-      const details = (await res.json()) as PersonDetails;
+      const details = await this.api.person(id);
       if (request !== this.request) return;
       this.details = details;
       this.error = null;
@@ -306,8 +306,9 @@ export class PersonPanelElement extends LitElement {
       this.selected = null;
       void this.loadLinks(id, false);
     } catch (err) {
+      if (!(err instanceof ApiError)) throw err;
       if (request !== this.request) return;
-      this.error = err instanceof Error ? err.message : 'failed to load';
+      this.error = err.message;
     }
   }
 
@@ -320,16 +321,13 @@ export class PersonPanelElement extends LitElement {
     if (!keep) this.links = new Map();
     this.linksPending = true;
     try {
-      const res = await fetch(apiUrl(`/api/persons/${id}/scans`), {
-        signal: abort.signal
-      });
-      if (!res.ok || res.body === null) throw new Error(String(res.status));
-      await readNdjson(res.body, (raw) => {
-        const { citationId, ...resolution } = raw as CitationLinks;
+      for await (const line of this.api.personLinks(id, abort.signal)) {
+        const { citationId, ...resolution } = line;
         this.links = new Map(this.links).set(citationId, resolution);
-      });
-    } catch {
+      }
+    } catch (err) {
       // Unresolved citations show as unavailable once pending clears.
+      if (!abort.signal.aborted && !(err instanceof ApiError)) throw err;
     } finally {
       if (!abort.signal.aborted) this.linksPending = false;
     }

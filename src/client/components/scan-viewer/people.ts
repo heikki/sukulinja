@@ -1,12 +1,14 @@
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
+import { ApiError } from '@client/dataset-api';
+import type { DatasetApi } from '@client/dataset-api';
 import { SPLIT_NOTE } from '@client/link-labels';
 import type { PersonRow, VolumeCitation } from '@common/types';
 
 import { formatName } from '../tree-view/renderer';
 import { boxKey, boxOf, groupCitations, imageOf } from './citations';
-import { markedIn, saveMark } from './helpers';
+import { markedIn } from './helpers';
 import type { ScanMarked } from './helpers';
 import { controlStyles, scanPeopleStyles } from './styles';
 
@@ -24,6 +26,8 @@ let collapsed = false;
 export class ScanPeopleElement extends LitElement {
   static override styles = [controlStyles, scanPeopleStyles];
 
+  // The dataset's answers, set before the element connects.
+  @property({ attribute: false }) api!: DatasetApi;
   // The Volume's citations; null until they arrive, or when they can't.
   @property({ attribute: false }) rows: VolumeCitation[] | null = null;
   @property({ type: Number }) image = 1;
@@ -66,16 +70,21 @@ export class ScanPeopleElement extends LitElement {
     if (volumeId === null || image === null) return;
     this.confirming = row.citation.id;
     this.refused = null;
-    const saved = await saveMark(row.citation.id, {
-      volumeId,
-      image
-    });
-    this.confirming = null;
-    if ('error' in saved) {
-      this.refused = { id: row.citation.id, error: saved.error };
+    const id = row.citation.id;
+    const saved = await this.api
+      .mark(id, { volumeId, image })
+      .catch((err: unknown) => {
+        if (err instanceof ApiError) return err;
+        throw err;
+      })
+      .finally(() => {
+        this.confirming = null;
+      });
+    if (saved instanceof ApiError) {
+      this.refused = { id, error: saved.message };
       return;
     }
-    const detail: ScanMarked = markedIn(saved.resolved, volumeId);
+    const detail: ScanMarked = markedIn(saved, volumeId);
     this.dispatchEvent(
       new CustomEvent('scan-marked', { detail, bubbles: true, composed: true })
     );

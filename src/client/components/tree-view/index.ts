@@ -3,9 +3,10 @@ import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
-import { apiUrl } from '@client/api';
+import { ApiError } from '@client/dataset-api';
+import type { DatasetApi } from '@client/dataset-api';
 import { preferredGenerations } from '@client/generations';
-import type { FamilyRow, PersonDetails, PersonRow } from '@common/types';
+import type { PersonDetails, PersonRow } from '@common/types';
 
 import '../person-panel';
 import '../scan-viewer';
@@ -25,9 +26,9 @@ import type { PickEvent } from '../person-search';
 import type { ScanMarkedEvent, ScanPersonEvent } from '../scan-viewer';
 import type { GenerationsChangeEvent } from '../settings';
 import type { OpenChangeEvent, WidthChangeEvent } from '../side-dock';
-import { onAvatarReady } from './avatar-cache';
+import { avatarHref, onAvatarReady } from './avatar-cache';
 import { buildChart } from './build';
-import { otherSpouseOf } from './build/indices';
+import { familiesByPerson, otherSpouseOf } from './build/indices';
 import { comfortOf } from './comfort';
 import type { EmitOutput, Extents, Point } from './emit';
 import { dims, formatName, renderBox, renderEdge } from './renderer';
@@ -61,6 +62,8 @@ export class TreeViewElement extends LitElement {
   static override styles = treeViewStyles;
 
   @property({ type: Number, reflect: true }) gen = preferredGenerations();
+  // The dataset's answers, set before the element connects.
+  @property({ attribute: false }) api!: DatasetApi;
 
   @state() private persons = new Map<number, PersonRow>();
   @state() private rootId: number | null = null;
@@ -68,6 +71,8 @@ export class TreeViewElement extends LitElement {
   // rebuilding the chart.
   @state() private selectedId: number | null = null;
   @state() private loading = true;
+  // Why the dataset couldn't be loaded, in the app's words.
+  @state() private loadError: string | null = null;
   // Closed on entering a dataset; opening it lasts only for this visit.
   @state() private details = false;
   @state() private detailsWidth = detailsWidth();
@@ -83,8 +88,7 @@ export class TreeViewElement extends LitElement {
   // their citation.
   private scanFollowing: LinkOpen | null = null;
 
-  private readonly parentFamByPerson = new Map<number, FamilyRow>();
-  private readonly spouseFamsByPerson = new Map<number, FamilyRow[]>();
+  private families = familiesByPerson([]);
 
   // Captured during render so the viewport port can resolve chart-local
   // coords to canvas pixels using the same extents the SVG was sized to.
@@ -243,7 +247,7 @@ export class TreeViewElement extends LitElement {
   // Root and every spouse they have.
   private coreIds(rootId: number) {
     const ids = new Set([rootId]);
-    for (const fam of this.spouseFamsByPerson.get(rootId) ?? []) {
+    for (const fam of this.families.spouseFamsByPerson.get(rootId) ?? []) {
       const spouse = otherSpouseOf(fam, rootId);
       if (spouse !== null) ids.add(spouse);
     }
@@ -257,23 +261,18 @@ export class TreeViewElement extends LitElement {
   }
 
   private async load() {
-    const [personsRes, familiesRes] = await Promise.all([
-      fetch(apiUrl('/api/persons')),
-      fetch(apiUrl('/api/families'))
-    ]);
-    const persons = (await personsRes.json()) as PersonRow[];
-    const families = (await familiesRes.json()) as FamilyRow[];
-
-    this.persons = new Map(persons.map((p) => [p.id, p]));
-    this.parentFamByPerson.clear();
-    this.spouseFamsByPerson.clear();
-    for (const f of families) {
-      for (const cid of f.child_ids) this.parentFamByPerson.set(cid, f);
-      if (f.husband_id !== null) this.appendSpouseFam(f.husband_id, f);
-      if (f.wife_id !== null) this.appendSpouseFam(f.wife_id, f);
+    try {
+      const [persons, families] = await Promise.all([
+        this.api.persons(),
+        this.api.families()
+      ]);
+      this.persons = new Map(persons.map((p) => [p.id, p]));
+      this.families = familiesByPerson(families);
+      this.restoreFromHash();
+    } catch (err) {
+      if (!(err instanceof ApiError)) throw err;
+      this.loadError = err.message;
     }
-
-    this.restoreFromHash();
     this.loading = false;
   }
 
@@ -304,17 +303,8 @@ export class TreeViewElement extends LitElement {
 
   // The persons and families the chart and the dock read.
   private get indices() {
-    const { persons, parentFamByPerson, spouseFamsByPerson, gen } = this;
-    return { persons, parentFamByPerson, spouseFamsByPerson, levels: gen };
-  }
-
-  private appendSpouseFam(personId: number, fam: FamilyRow) {
-    let arr = this.spouseFamsByPerson.get(personId);
-    if (arr === undefined) {
-      arr = [];
-      this.spouseFamsByPerson.set(personId, arr);
-    }
-    arr.push(fam);
+    const { persons, families, gen } = this;
+    return { persons, ...families, levels: gen };
   }
 
   // The person, if the dataset has them, or else the fallback.
@@ -403,6 +393,9 @@ export class TreeViewElement extends LitElement {
   private renderDock() {
     const id = this.selectedId;
     const selected = id === null ? undefined : this.persons.get(id);
+    const { mediaUrl } = this.api;
+    const photo =
+      selected === undefined ? null : avatarHref(selected, mediaUrl);
     return html`
       <sl-side-dock
         label="details"
@@ -423,9 +416,11 @@ export class TreeViewElement extends LitElement {
         <sl-person-header
           slot="header"
           .person=${selected ?? null}
+          .photo=${photo}
           .details=${this.selectedDetails}
         ></sl-person-header>
         <sl-person-panel
+          .api=${this.api}
           .personId=${id}
           .indices=${this.indices}
           .viewing=${this.scanAway ? null : this.scanOpen}
@@ -470,6 +465,7 @@ export class TreeViewElement extends LitElement {
     if (this.scanOpen === null) return nothing;
     return html`
       <sl-scan-viewer
+        .api=${this.api}
         .citation=${this.scanOpen.citation}
         .link=${this.scanOpen.link}
         .persons=${this.persons}
@@ -523,7 +519,11 @@ export class TreeViewElement extends LitElement {
         @mousedown=${this.viewport.onMouseDown}
         @dblclick=${this.viewport.onDblClick}
       >
-        ${panReady ? renderGhosts(leaving, this.persons) : nothing}
+        ${
+          panReady
+            ? renderGhosts(leaving, this.persons, this.api.mediaUrl)
+            : nothing
+        }
         ${
           panReady
             ? html`<div
@@ -558,6 +558,7 @@ export class TreeViewElement extends LitElement {
                         b,
                         person,
                         {
+                          photo: avatarHref(person, this.api.mediaUrl),
                           selected: b.personId === this.selectedId,
                           entering: enteringKeys.has(b.key)
                         },
@@ -596,6 +597,9 @@ export class TreeViewElement extends LitElement {
   }
 
   private renderBody() {
+    if (this.loadError !== null) {
+      return html`<div class="empty">Couldn't load: ${this.loadError}</div>`;
+    }
     if (this.loading) return html`<div class="empty">Loading…</div>`;
     if (this.rootId === null) {
       return html`<div class="empty">No people in database.</div>`;

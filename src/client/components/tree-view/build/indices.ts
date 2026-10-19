@@ -15,6 +15,24 @@ export interface LayoutIndices {
   ancestorLevels?: number;
 }
 
+// Each person's parent Family, and their spouse Families in the order
+// given.
+export function familiesByPerson(families: FamilyRow[]) {
+  const parentFamByPerson = new Map<number, FamilyRow>();
+  const spouseFamsByPerson = new Map<number, FamilyRow[]>();
+  function addSpouse(personId: number | null, fam: FamilyRow) {
+    if (personId === null) return;
+    const fams = spouseFamsByPerson.get(personId) ?? [];
+    spouseFamsByPerson.set(personId, [...fams, fam]);
+  }
+  for (const fam of families) {
+    for (const childId of fam.child_ids) parentFamByPerson.set(childId, fam);
+    addSpouse(fam.husband_id, fam);
+    addSpouse(fam.wife_id, fam);
+  }
+  return { parentFamByPerson, spouseFamsByPerson };
+}
+
 export function otherSpouseOf(fam: FamilyRow, personId: number) {
   if (fam.husband_id === personId) return fam.wife_id;
   if (fam.wife_id === personId) return fam.husband_id;
