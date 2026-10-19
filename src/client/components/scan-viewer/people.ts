@@ -4,7 +4,13 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type { PersonRow, VolumeCitation } from '@common/types';
 
 import { formatName } from '../tree-view/renderer';
-import { boxKey, groupCitations, imageOf, SPLIT_NOTE } from './citations';
+import {
+  boxKey,
+  boxOf,
+  groupCitations,
+  imageOf,
+  SPLIT_NOTE
+} from './citations';
 import { markedIn, saveMark } from './helpers';
 import type { ScanMarked } from './helpers';
 import { controlStyles, scanPeopleStyles } from './styles';
@@ -104,8 +110,8 @@ export class ScanPeopleElement extends LitElement {
 
   private renderRow(row: VolumeCitation) {
     const current = row.citation.id === this.current;
-    const { box } = row.link;
-    const key = box === undefined ? null : boxKey(box);
+    const box = boxOf(row);
+    const key = box === null ? null : boxKey(box);
     const hovered = key !== null && key === this.hovered;
     return html`
       <li>

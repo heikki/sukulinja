@@ -16,26 +16,41 @@ test('names a record link by its site', () => {
   expect(siteName('not a link')).toBe('Record');
 });
 
+const BASE = { volumeId: 'v1', volume: 'I Aa:5', url: '' };
+const BOX = { left: 0, top: 0.5, width: 1, height: 0.05 };
 const link: Link = {
-  volumeId: 'v1',
-  volume: 'I Aa:5',
+  ...BASE,
+  precision: 'entry',
   image: 18,
-  url: '',
-  certainty: 'exact'
+  box: BOX,
+  certainty: 'marked'
 };
 
 function label(s: Link) {
   return linkStatus({ links: [s] }, false).label;
 }
 
-test('says how sure a Link is, and what that means', () => {
-  expect(label(link)).toBe('Exact');
-  expect(label({ ...link, certainty: 'estimated', from: 'pins' })).toBe(
-    'Estimated'
+test('names a Link by who says so and how far down, and says what that means', () => {
+  expect(label(link)).toBe('Marked');
+  expect(
+    label({ ...BASE, precision: 'image', image: 18, certainty: 'marked' })
+  ).toBe('Marked Image');
+  expect(
+    label({
+      ...BASE,
+      precision: 'image',
+      image: 18,
+      certainty: 'estimated',
+      from: 'pins'
+    })
+  ).toBe('Estimated Image');
+  expect(label({ ...BASE, precision: 'volume', certainty: 'estimated' })).toBe(
+    'Estimated Volume'
   );
-  expect(label({ ...link, certainty: 'estimated' })).toBe('Estimated');
-  expect(label({ ...link, certainty: 'volume' })).toBe('Volume only');
-  const vision = { ...link, certainty: 'vision' as const };
+  expect(label({ ...BASE, precision: 'volume', certainty: 'marked' })).toBe(
+    'Marked Volume'
+  );
+  const vision: Link = { ...link, certainty: 'vision' };
   expect(label(vision)).toBe('Vision match');
   expect(linkStatus({ links: [link] }, false).title).toBe(
     'A person marked this record on this Image.'
@@ -48,7 +63,7 @@ test('says how sure a Link is, and what that means', () => {
 test('opens a Split reference on its first Volume', () => {
   const other = { ...link, volumeId: 'v2', volume: 'I Aa:6' };
   const status = linkStatus({ links: [link, other] }, false);
-  expect(status.label).toBe('Exact · one of several Volumes');
+  expect(status.label).toBe('Marked · one of several Volumes');
   expect(status.link).toEqual(link);
 });
 

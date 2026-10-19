@@ -18,7 +18,6 @@ import type {
   VolumeCitation
 } from '@common/types';
 
-import { pickedLink } from './citations';
 import type { ScanPerson } from './citations';
 import { MOMENTUM, releaseVelocity } from './drag';
 import type { Drag, Sample } from './drag';
@@ -168,7 +167,7 @@ export class ScanViewerElement extends LitElement {
     const away =
       link !== null &&
       (this.volume?.id !== link.volumeId ||
-        (link.certainty !== 'volume' && this.image !== link.image));
+        ('image' in link && this.image !== link.image));
     if (away === this.away) return;
     this.away = away;
     this.dispatchEvent(
@@ -180,17 +179,19 @@ export class ScanViewerElement extends LitElement {
     );
   }
 
-  // To the link's Image; a confirmation hands back the link to the Image
-  // shown.
+  // To the Link's Image. One pointing only at the Volume holds anywhere in
+  // it: in the Volume shown, the viewer stays where it is; another opens on
+  // its first Image.
   private follow(link: Link | null) {
     if (link === null) {
       this.volume = null;
       return;
     }
+    const image = 'image' in link ? link.image : null;
     if (this.volume?.id === link.volumeId) {
-      this.show(link.image);
+      if (image !== null) this.show(image);
     } else {
-      this.open({ id: link.volumeId, label: link.volume }, link.image);
+      this.open({ id: link.volumeId, label: link.volume }, image ?? 1);
     }
   }
 
@@ -274,8 +275,7 @@ export class ScanViewerElement extends LitElement {
   private readonly onPick = (e: CustomEvent<VolumeCitation>) => {
     const row = e.detail;
     if (this.volume === null) return;
-    const link = pickedLink(row, this.image, this.viewerUrls);
-    const open = { citation: row.citation, link };
+    const open = { citation: row.citation, link: row.link };
     const detail: ScanPerson = { personId: row.personId, open };
     this.dispatchEvent(
       new CustomEvent('scan-person', { detail, bubbles: true, composed: true })

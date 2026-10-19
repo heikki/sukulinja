@@ -108,7 +108,7 @@ async function standing(ref: ChurchBookRef) {
   const resolved = await resolveChurchBookRef(ref, await loadPins());
   if ('error' in resolved) return resolved.error;
   return resolved.links.some(
-    (l) => l.certainty === 'exact' || l.certainty === 'vision'
+    (l) => l.certainty === 'marked' || l.certainty === 'vision'
   )
     ? 'already pinned'
     : null;

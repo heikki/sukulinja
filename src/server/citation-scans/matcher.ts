@@ -57,6 +57,7 @@ export type Unconfirmed =
   | 'ambiguous'
   | 'no candidate volume'
   | 'no name'
+  | 'no box'
   | 'unsupported';
 
 export type Match =
@@ -68,8 +69,8 @@ export type Match =
       // Whether page search read the cited Page number on this very Image,
       // so it can stand as a Page pin.
       onCitedPage: boolean;
-      // Where on the Image the entry is, where the Reader said.
-      box: Box | null;
+      // Where on the Image the entry is: a match saves only with one.
+      box: Box;
     }
   | {
       confirmed: false;
@@ -421,11 +422,15 @@ export async function matchRef(
   if (found.length === 1) {
     const [only] = found as [Outcome];
     const landing = only.landing as { onCitedPage?: boolean; box?: Box | null };
+    // A suggestion points at the entry; without one it's left for review.
+    if (landing.box === undefined || landing.box === null) {
+      return { confirmed: false, reason: 'no box', ...at(only) };
+    }
     return {
       confirmed: true,
       ...at(only),
       onCitedPage: landing.onCitedPage === true,
-      box: landing.box ?? null
+      box: landing.box
     };
   }
   if (found.length > 1) {

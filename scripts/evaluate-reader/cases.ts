@@ -63,8 +63,11 @@ export function dateCases(
   const cases = Object.entries(references).flatMap(([url, p]) => {
     const ref = refs.get(url);
     const indexed = ref?.kind === 'kastetut' || ref?.kind === 'vihityt';
-    if (!isHand(p) || !indexed || ref.date === null) return [];
-    return [{ at: { volumeId: p.volumeId, image: p.image }, date: ref.date }];
+    const { image } = p;
+    if (!isHand(p) || image === undefined || !indexed || ref.date === null) {
+      return [];
+    }
+    return [{ at: { volumeId: p.volumeId, image }, date: ref.date }];
   });
   return spread(cases, limit);
 }
@@ -124,8 +127,11 @@ export function indexEntryCases(
   const known = Object.entries(references).flatMap(([url, p]) => {
     const ref = refs.get(url);
     const indexed = ref?.kind === 'kastetut' || ref?.kind === 'vihityt';
-    if (!isHand(p) || !indexed || ref.name === null) return [];
-    const at = { volumeId: p.volumeId, image: p.image };
+    const { image } = p;
+    if (!isHand(p) || image === undefined || !indexed || ref.name === null) {
+      return [];
+    }
+    const at = { volumeId: p.volumeId, image };
     return [{ at, person: personOf(ref, ref.name) }];
   });
   const cases = known.map((k, i) => {

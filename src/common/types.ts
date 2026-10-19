@@ -101,9 +101,13 @@ export interface HouseholdMember {
   born: string | null;
 }
 
-// How sure a Link is, best first: a pin saved by hand, one the vision
-// model saved (a suggestion), an estimate, or only the Volume.
-export type Certainty = 'exact' | 'vision' | 'estimated' | 'volume';
+// How far down a Link points: the entry on its Image (with its Box), the
+// Image, or only the Volume.
+export type Precision = 'entry' | 'image' | 'volume';
+
+// Who says where a Link points: a person (a Mark), the vision model (a
+// suggestion), or a count.
+export type Certainty = 'marked' | 'vision' | 'estimated';
 
 // What an estimate is counted from: the Volume's Page pins, or the Book's
 // usual numbering.
@@ -121,23 +125,35 @@ export interface Box {
   height: number;
 }
 
-// Where a Church-book reference points in Astia: an Image of a Volume, or
-// only the Volume (certainty `volume`, `image` then its first). A Split
+// Where a Church-book reference points in Astia, and who says so. A Box is
+// there exactly when the Link points at the entry; one pointing only at the
+// Volume has no Image, and its `url` opens the Volume's first. A Split
 // reference has one per candidate Volume.
-export interface Link {
+export type Link = {
   volumeId: string;
   volume: string;
-  image: number;
   url: string;
-  certainty: Certainty;
-  // Set on an estimate: what it's counted from.
-  from?: EstimateBasis;
-  // Set on a pinned Link where the vision model said where the entry is.
-  box?: Box;
   // The archive the Volume is in, by its title in Astia: "Pieksämäen
   // seurakunnan arkisto". Unset when Astia can't say.
   archive?: string;
-}
+} & LinkTarget;
+
+// How far down a Link points, and who says so: the pairs that occur.
+export type LinkTarget =
+  | {
+      precision: 'entry';
+      image: number;
+      box: Box;
+      certainty: 'marked' | 'vision';
+    }
+  | {
+      precision: 'image';
+      image: number;
+      certainty: 'marked' | 'estimated';
+      // Set on an estimate: what it's counted from.
+      from?: EstimateBasis;
+    }
+  | { precision: 'volume'; certainty: 'marked' | 'estimated' };
 
 export type LinkResolution = { links: Link[] } | { error: string };
 

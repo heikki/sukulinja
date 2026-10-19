@@ -244,7 +244,11 @@ test('never overrides a hand pin', async () => {
   useDataFolder(dir);
   await run();
   expect(await linksOf(JUHO)).toEqual([
-    expect.objectContaining({ image: 16, certainty: 'exact' })
+    expect.objectContaining({
+      image: 16,
+      precision: 'image',
+      certainty: 'marked'
+    })
   ]);
   expect((await loadPins()).volumes['juva-1']!.pages).toEqual([
     { image: 12, pages: [12] }

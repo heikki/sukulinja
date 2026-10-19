@@ -51,7 +51,7 @@ function checklist(refs: ChurchBookRef[], resolutions: LinkResolution[]) {
     const r = resolutions[i]!;
     if ('error' in r || c.page === null) return;
     for (const link of r.links) {
-      if (link.from === 'pins') continue;
+      if (link.precision === 'image' && link.from === 'pins') continue;
       const entry = byVolume.get(link.volumeId) ?? {
         parish: c.parish!,
         count: 0,
@@ -79,7 +79,7 @@ function checklist(refs: ChurchBookRef[], resolutions: LinkResolution[]) {
     '|---|---|---|---|---|---|',
     ...rows.map(
       (r) =>
-        `| ${r.count} | ${r.parish} | ${r.link.volume} | ${r.link.volumeId} | ${r.link.image} | [open](${r.link.url}) |`
+        `| ${r.count} | ${r.parish} | ${r.link.volume} | ${r.link.volumeId} | ${'image' in r.link ? r.link.image : ''} | [open](${r.link.url}) |`
     )
   ];
   return `${lines.join('\n')}\n`;

@@ -105,12 +105,12 @@ async function byBook() {
   return { volumes: (await loadPins()).volumes, references: {} };
 }
 
-// The Volumes the reference links by the Book it cites, with its Image in
-// each: marking an Image in one of them saves a Page pin.
-async function linkedImages(ref: ChurchBookRef) {
+// The Volumes the reference links by the Book it cites: marking an Image
+// in one of them saves a Page pin.
+async function linkedVolumes(ref: ChurchBookRef) {
   const matched = await resolveChurchBookRef(ref, await byBook());
   const links = 'links' in matched ? matched.links : [];
-  return new Map(links.map((l) => [l.volumeId, l.image]));
+  return new Set(links.map((l) => l.volumeId));
 }
 
 // The Volumes the existing resolution links a reference to, by the Book it
@@ -126,7 +126,7 @@ export async function matchCandidates(ref: ChurchBookRef) {
       volume: l.volume,
       images: (await volumeImages(l.volumeId)).length,
       years: volumes.find((v) => v.id === l.volumeId)?.years ?? null,
-      start: l.certainty === 'volume' ? null : l.image
+      start: l.precision === 'volume' ? null : l.image
     }))
   );
 }
@@ -205,18 +205,17 @@ export async function saveVisionMatch(
     volume: string;
     image: number;
     onCitedPage: boolean;
-    box: Box | null;
+    box: Box;
   }
 ) {
-  const { volumeId, volume, image } = match;
-  const box = match.box === null ? {} : { box: match.box };
+  const { volumeId, volume, image, box } = match;
   if (ref.recordId === null) {
     await setReferencePin(ref.url, {
       volumeId,
       volume,
       image,
       by: 'vision',
-      ...box
+      box
     });
     return;
   }
@@ -224,7 +223,7 @@ export async function saveVisionMatch(
     record: ref.recordId,
     image,
     by: 'vision',
-    ...box
+    box
   });
   if (ref.page !== null && match.onCitedPage) {
     await addPagePin(volumeId, volume, {
@@ -252,7 +251,7 @@ export async function markRef(ref: ChurchBookRef, target: MarkTarget) {
   ) {
     return { rejected: `The volume has images 1–${count}.` };
   }
-  const linked = (await linkedImages(ref)).has(target.volumeId);
+  const linked = (await linkedVolumes(ref)).has(target.volumeId);
   await save(ref, target, volume.label, linked);
   return await resolveRef(ref);
 }
