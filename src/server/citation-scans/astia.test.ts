@@ -59,13 +59,16 @@ const ANSWERS: Record<string, unknown> = {
 let dir = '';
 // The requests that went out, after Astia's base URL.
 let sent: string[] = [];
-// Statuses to answer with, in order, before the real answer.
-let failures: number[] = [];
+// Statuses, or 200 bodies, to answer with, in order, before the real answer.
+let failures: Array<number | Uint8Array<ArrayBuffer>> = [];
 
 function fakeFetch(url: string) {
   const path = url.replace(/^https:\/\/astia\.narc\.fi\/uusiastia\//, '');
   sent.push(path);
   const status = failures.shift();
+  if (status instanceof Uint8Array) {
+    return Promise.resolve(new Response(status));
+  }
   if (status !== undefined) {
     return Promise.resolve(new Response('', { status }));
   }
@@ -204,6 +207,25 @@ test('retries a failing Image briefly, then gives up', async () => {
   );
   expect(sent).toHaveLength(3);
   expect(performance.now() - started).toBeLessThan(3000);
+});
+
+// The start of the PNG Astia gives in place of an Image now and then.
+const PLACEHOLDER = new Uint8Array([0x89, 0x50, 0x4e, 0x47]);
+
+test("retries Astia's placeholder in place of an Image", async () => {
+  failures = [PLACEHOLDER];
+  expect(await open().imageBytes('121', '121-t1')).toEqual(
+    new Uint8Array([0xff, 0xd8])
+  );
+  expect(sent).toHaveLength(2);
+});
+
+test("gives up on an Image that stays Astia's placeholder", async () => {
+  failures = [PLACEHOLDER, PLACEHOLDER, PLACEHOLDER];
+  expect(await failure(open().imageBytes('121', '121-t1'))).toMatch(
+    /^AstiaError: no image /
+  );
+  expect(sent).toHaveLength(3);
 });
 
 test("doesn't wait out a rate limit on an Image", async () => {
