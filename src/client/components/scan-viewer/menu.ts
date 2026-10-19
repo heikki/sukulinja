@@ -14,19 +14,31 @@ export interface MenuItem {
   run: () => void;
 }
 
-// What the menu offers for the current source's Link: Mark this Image
-// while it would change something, and Change Volume….
-export function linkItems(viewer: Viewer, chooseVolume: () => void) {
+// What the menu offers for the current source's Link. On its own entry
+// Box (`onBox`), only that Box: editing it, unless it's already pending,
+// and deleting it. Elsewhere: marking the Image shown while that would
+// change it, drawing the entry (only over the full Image, `canDraw`), and
+// Change Volume….
+export function linkItems(
+  viewer: Viewer,
+  where: { onBox: boolean; canDraw: boolean },
+  open: { chooseVolume: () => void; draw: () => void }
+) {
   const items: MenuItem[] = [];
-  if (viewer.canMarkImage.get()) {
-    items.push({
-      label: 'Mark this Image',
-      run: () => {
-        viewer.markImage();
-      }
-    });
+  if (where.onBox) {
+    if (!viewer.boxPending.get()) {
+      items.push({ label: 'Edit box', run: viewer.editBox });
+    }
+    items.push({ label: 'Delete box', run: viewer.removeBox });
+    return items;
   }
-  items.push({ label: 'Change Volume…', run: chooseVolume });
+  if (viewer.canMarkImage.get()) {
+    items.push({ label: 'Mark this Image', run: viewer.markImage });
+  }
+  if (where.canDraw) {
+    items.push({ label: 'Draw the entry…', run: open.draw });
+  }
+  items.push({ label: 'Change Volume…', run: open.chooseVolume });
   return items;
 }
 

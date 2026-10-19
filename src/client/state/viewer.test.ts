@@ -459,12 +459,66 @@ test('Mark this Image puts the source on the Image shown, pending', async () => 
   expect(api.asked.filter((a) => a.startsWith('mark'))).toEqual([]);
 });
 
-test('Save sends the Image marked', async () => {
+test('Save sends the Image marked, without a Box', async () => {
   const { api, viewer } = await selecting(2);
   viewer.open({ citation: C21, link: VISION_21 });
   await settle();
   viewer.markImage();
   await viewer.save();
-  expect(api.asked).toContain('mark 21 201/18');
-  expect(viewer.source.get()?.link).toEqual(MARKED_21);
+  expect(api.asked).toContain('mark 21 201/18 no box');
+});
+
+test("editing a Vision match's Box starts from it, and Save sends the Box", async () => {
+  const { api, viewer } = await selecting(2);
+  viewer.open({ citation: C21, link: VISION_21 });
+  await settle();
+  expect(viewer.boxHere.get()).toEqual(BOX);
+  expect(viewer.boxPending.get()).toBe(false);
+  viewer.editBox();
+  expect(viewer.pending.get()).toEqual({
+    volumeId: '201',
+    volume: 'I Aa:201',
+    image: 18,
+    box: BOX
+  });
+  expect(viewer.boxPending.get()).toBe(true);
+  const moved = { ...BOX, top: 0.6 };
+  viewer.setBox(moved);
+  expect(viewer.boxHere.get()).toEqual(moved);
+  // Off its Image, no Box is shown.
+  viewer.show(19);
+  expect(viewer.boxHere.get()).toBe(null);
+  viewer.show(18);
+  await viewer.save();
+  expect(api.asked).toContain('mark 21 201/18 box');
+});
+
+test('a Box drawn on another Image moves the source there', async () => {
+  const { viewer } = await selecting(1);
+  viewer.open(S11);
+  await settle();
+  viewer.show(22);
+  viewer.setBox(BOX);
+  expect(viewer.pending.get()).toEqual({
+    volumeId: '201',
+    volume: 'I Aa:201',
+    image: 22,
+    box: BOX
+  });
+});
+
+test('removing the Box leaves the Image marked, pending', async () => {
+  const { viewer } = await selecting(2);
+  viewer.open({ citation: C21, link: MARKED_21 });
+  await settle();
+  viewer.removeBox();
+  expect(viewer.pending.get()).toEqual({
+    volumeId: '201',
+    volume: 'I Aa:201',
+    image: 18
+  });
+  expect(viewer.boxHere.get()).toBe(null);
+  viewer.setBox(BOX);
+  viewer.removeBox();
+  expect(viewer.pending.get()?.box).toBeUndefined();
 });

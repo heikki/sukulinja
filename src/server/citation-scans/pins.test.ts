@@ -181,6 +181,64 @@ test('confirming a vision match by hand keeps its Box', async () => {
   ]);
 });
 
+const DRAWN = { left: 0.2, top: 0.6, width: 0.4, height: 0.04 };
+
+test('a Mark with a Box saves it on the Record pin', async () => {
+  const pins = open();
+  await pins.recordMark(ref(150, 21), { ...at('a', 11), box: DRAWN }, linked());
+  expect((await pins.snapshot()).volumes.a!.records).toEqual([
+    { record: 150, image: 11, by: 'hand', box: DRAWN }
+  ]);
+});
+
+test('a Mark with a Box of a reference with no record id saves it on the Reference pin', async () => {
+  const pins = open();
+  const index = ref(null);
+  await pins.recordMark(
+    index,
+    { ...at('b', 5), box: DRAWN },
+    elsewhere('I C:1')
+  );
+  expect((await pins.snapshot()).references[index.url]).toEqual({
+    volumeId: 'b',
+    volume: 'I C:1',
+    image: 5,
+    by: 'hand',
+    box: DRAWN
+  });
+});
+
+test('a page marked with a Box and no record id keeps the Box on a Reference pin beside the Page pin', async () => {
+  const pins = open();
+  const cited = ref(null, 21);
+  await pins.recordMark(cited, { ...at('a', 11), box: DRAWN }, linked());
+  const { volumes, references } = await pins.snapshot();
+  expect(volumes.a!.pages.map((p) => p.image)).toEqual([10, 11]);
+  expect(references[cited.url]).toEqual({
+    volumeId: 'a',
+    volume: 'I Aa:1',
+    image: 11,
+    by: 'hand',
+    box: DRAWN
+  });
+  // Marked again without one, only the Page pin is left.
+  await pins.recordMark(cited, { ...at('a', 11), box: null }, linked());
+  expect((await pins.snapshot()).references).toEqual({});
+});
+
+test("a drawn Box replaces a vision match's, and none drops it", async () => {
+  const pins = open();
+  await pins.recordVision(ref(150), vision('a', 11));
+  await pins.recordMark(ref(150, 21), { ...at('a', 11), box: DRAWN }, linked());
+  expect((await pins.snapshot()).volumes.a!.records).toEqual([
+    { record: 150, image: 11, by: 'hand', box: DRAWN }
+  ]);
+  await pins.recordMark(ref(150, 21), { ...at('a', 11), box: null }, linked());
+  expect((await pins.snapshot()).volumes.a!.records).toEqual([
+    { record: 150, image: 11, by: 'hand' }
+  ]);
+});
+
 // ---------------------------------------------------------------- precedence
 
 test('a vision pin never replaces a hand one', async () => {

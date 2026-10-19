@@ -371,10 +371,13 @@ function matchedBox(
 }
 
 // Where a Mark says the record is, in any Volume of the parish: on an
-// Image, or only somewhere in the Volume.
+// Image, or only somewhere in the Volume. On an Image, `box` is where the
+// entry is drawn, null for none; left out, a Vision match's Box on that
+// Image is kept, as confirming one does.
 export interface MarkTarget {
   volumeId: string;
   image?: number;
+  box?: Box | null;
 }
 
 // A match the vision model confirmed on an Image, with the entry's Box.
@@ -394,7 +397,8 @@ export interface VisionMatch {
 // page, or found in another volume of the parish, gets a Reference pin.
 // Either way a record with a Record number gets a Record pin, which
 // extends the volume's Record range so the records numbered around it
-// follow.
+// follow. A Page pin keeps no Box, so a reference with neither a Record
+// number nor a Reference pin keeps its drawn Box on a Reference pin too.
 function markInto(
   draft: Draft,
   ref: ChurchBookRef,
@@ -408,9 +412,20 @@ function markInto(
     return;
   }
   const on = { volumeId, image };
-  const box = matchedBox(draft, ref, on);
+  const drawn = target.box;
+  const box =
+    drawn === undefined
+      ? matchedBox(draft, ref, on)
+      : drawn === null
+        ? {}
+        : { box: drawn };
   if (ref.page !== null && linked) {
-    setReferencePin(draft, ref.url, null);
+    const keep = ref.recordId === null && 'box' in box;
+    setReferencePin(
+      draft,
+      ref.url,
+      keep ? { ...on, volume, by: 'hand', ...box } : null
+    );
     addPagePin(draft, volumeId, volume, {
       image,
       pages: pagesFor(draft, volumeId, ref),

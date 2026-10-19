@@ -42,7 +42,7 @@ export interface MemoryOptions {
 export type MemoryDatasetApi = DatasetApi & {
   // What was asked, in order: "persons", "families", "person <id>",
   // "links <id>", "mark <citation> <volume>/<image>" (or "<volume>" for
-  // only the Volume), "choices <citation>", "citations <volume>",
+  // only the Volume; " box" or " no box" when it says), "choices <citation>", "citations <volume>",
   // "images <volume>".
   asked: string[];
 };
@@ -115,7 +115,7 @@ export function memoryDatasetApi(
 
     mark: async (citationId, at) =>
       await answer(
-        `mark ${citationId} ${at.volumeId}${at.image === undefined ? '' : `/${at.image}`}`,
+        `mark ${citationId} ${at.volumeId}${at.image === undefined ? '' : `/${at.image}`}${at.box === undefined ? '' : at.box === null ? ' no box' : ' box'}`,
         undefined,
         () => found(data.marks?.[citationId], 'citation not found')
       ),

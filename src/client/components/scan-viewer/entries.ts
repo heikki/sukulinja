@@ -19,7 +19,8 @@ const CLICK_SLOP_PX = 4;
 // Over the scan: a box around each entry of the Image shown whose place on
 // it is known, moved with the scan; at rest only the current citation's
 // shows. Hovering one names its key with `scan-hover` (null on leaving);
-// clicking one picks its first person, as their row does. Presses, wheels and pinches carry on to the stage, so a drag
+// clicking one picks its first person, as their row does. The current
+// citation's is marked `data-own`, for the menu a right-click opens on it. Presses, wheels and pinches carry on to the stage, so a drag
 // starting on a box still pans.
 @customElement('sl-scan-entries')
 export class ScanEntriesElement extends LitElement {
@@ -63,6 +64,7 @@ export class ScanEntriesElement extends LitElement {
     return html`
       <div
         class=${classes}
+        data-own=${current ? 'true' : nothing}
         style="left: ${at.left}px; top: ${at.top}px; width: ${
           at.width
         }px; height: ${at.height}px"

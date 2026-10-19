@@ -224,6 +224,26 @@ test('a Mark of only the Volume is refused outside the parish, and an Image only
   );
 });
 
+test('an entry box must lie on its Image', async () => {
+  const ref = refOf(citation(5000, '1790 - 1796', 12));
+  const box = { left: 0.8, top: 0.5, width: 0.3, height: 0.05 };
+  expect(
+    await scans().markRef(ref, { volumeId: 'juva-1', image: 7, box })
+  ).toEqual({ rejected: 'The entry box must lie on the Image.' });
+  expect(
+    await scans().markRef(ref, {
+      volumeId: 'juva-1',
+      box: { ...box, left: 0.1 }
+    })
+  ).toEqual({ rejected: 'An entry box needs its Image.' });
+  const marked = await scans().markRef(ref, {
+    volumeId: 'juva-1',
+    image: 7,
+    box: { ...box, left: 0.1 }
+  });
+  expect(marked).toMatchObject({ links: [{ precision: 'entry', image: 7 }] });
+});
+
 test("the Volumes to choose from are the cited Book's, those it links first", async () => {
   const ref = refOf(citation(5000, '1797 - 1803', 12));
   const choices = await scans().volumeChoices(ref);

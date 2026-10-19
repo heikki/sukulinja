@@ -106,3 +106,35 @@ export function boxOnStage(box: Box, view: Transform, frame: Frame) {
     height: view.scale * box.height * height
   };
 }
+
+// A rectangle on the stage, in pixels.
+export interface StageRect {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+// The Box a rectangle on the stage covers, in fractions of the Image:
+// `boxOnStage` undone.
+export function boxFromStage(rect: StageRect, view: Transform, frame: Frame) {
+  const { width, height } = frame.size;
+  return {
+    left: (rect.left - view.pan.x) / (view.scale * width),
+    top: (rect.top - view.pan.y) / (view.scale * height),
+    width: rect.width / (view.scale * width),
+    height: rect.height / (view.scale * height)
+  };
+}
+
+// The smallest Box kept, each way, in fractions of the Image.
+export const MIN_BOX = 0.002;
+
+// Kept on the Image, cut at its edges, and at least MIN_BOX each way.
+export function clampBox(box: Box): Box {
+  const left = Math.min(Math.max(0, box.left), 1 - MIN_BOX);
+  const top = Math.min(Math.max(0, box.top), 1 - MIN_BOX);
+  const right = Math.min(1, Math.max(box.left + box.width, left + MIN_BOX));
+  const bottom = Math.min(1, Math.max(box.top + box.height, top + MIN_BOX));
+  return { left, top, width: right - left, height: bottom - top };
+}

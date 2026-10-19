@@ -1,7 +1,9 @@
 import { expect, test } from 'bun:test';
 
 import {
+  boxFromStage,
   boxOnStage,
+  clampBox,
   entriesShown,
   frameForFull,
   frameForThumb,
@@ -101,4 +103,31 @@ test('marks entries only over the full Image', () => {
   expect(entriesShown(guessed, 'shown')).toBe(false);
   expect(entriesShown(full, 'loading')).toBe(false);
   expect(entriesShown(null, 'shown')).toBe(false);
+});
+
+test('a rectangle drawn on the stage is the Box it covers, at any zoom and pan', () => {
+  const frame = { size: FULL, provisional: false };
+  const box = { left: 0.25, top: 0.5, width: 0.4, height: 0.05 };
+  for (const view of [
+    { scale: 0.1, pan: { x: 30, y: -12 } },
+    { scale: 1.7, pan: { x: -4000, y: -2500 } }
+  ]) {
+    const back = boxFromStage(boxOnStage(box, view, frame), view, frame);
+    expect(back.left).toBeCloseTo(box.left, 10);
+    expect(back.top).toBeCloseTo(box.top, 10);
+    expect(back.width).toBeCloseTo(box.width, 10);
+    expect(back.height).toBeCloseTo(box.height, 10);
+  }
+});
+
+test('a Box is kept on its Image, with some size', () => {
+  expect(clampBox({ left: -0.1, top: 0.9, width: 0.5, height: 0.2 })).toEqual({
+    left: 0,
+    top: 0.9,
+    width: 0.4,
+    height: expect.closeTo(0.1, 10) as number
+  });
+  const tiny = clampBox({ left: 0.5, top: 0.5, width: 0, height: 0 });
+  expect(tiny.width).toBeCloseTo(0.002, 10);
+  expect(tiny.height).toBeCloseTo(0.002, 10);
 });

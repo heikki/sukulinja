@@ -3,6 +3,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import type { Database } from 'bun:sqlite';
 
+import type { Box } from '@common/types';
+
 import { AstiaError, openAstia, viewerUrls } from './citation-scans/astia';
 import type { Astia } from './citation-scans/astia';
 import { openPins } from './citation-scans/pins';
@@ -239,17 +241,30 @@ async function handleDeleteDataset(
   }
 }
 
-// `{ volumeId, image }`, or `{ volumeId }` for only the Volume; anything
-// else is rejected.
+// A Box's four numbers, or null for one that isn't.
+function readBox(value: unknown): Box | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const { left, top, width, height } = value as Record<string, unknown>;
+  if (typeof left !== 'number' || typeof top !== 'number') return null;
+  if (typeof width !== 'number' || typeof height !== 'number') return null;
+  const box: Box = { left, top, width, height };
+  return box;
+}
+
+// `{ volumeId, image, box? }`, or `{ volumeId }` for only the Volume; `box`
+// null for none. Anything else is rejected.
 async function readMark(req: Request): Promise<MarkTarget | null> {
   const body = (await req.json().catch(() => null)) as Record<
     string,
     unknown
   > | null;
   if (typeof body?.volumeId !== 'string') return null;
-  const { volumeId, image } = body;
-  if (image === undefined) return { volumeId };
-  return typeof image === 'number' ? { volumeId, image } : null;
+  const { volumeId, image, box } = body;
+  if (image === undefined) return box === undefined ? { volumeId } : null;
+  if (typeof image !== 'number') return null;
+  if (box === undefined || box === null) return { volumeId, image, box };
+  const drawn = readBox(box);
+  return drawn === null ? null : { volumeId, image, box: drawn };
 }
 
 async function routeMark(req: Request, handlers: DatasetHandlers, id: number) {
@@ -258,7 +273,7 @@ async function routeMark(req: Request, handlers: DatasetHandlers, id: number) {
   }
   const target = await readMark(req);
   return target === null
-    ? new Response('expected { volumeId, image? }', { status: 400 })
+    ? new Response('expected { volumeId, image?, box? }', { status: 400 })
     : await handlers.handleMark(id, target);
 }
 

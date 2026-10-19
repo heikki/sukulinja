@@ -1,7 +1,7 @@
 import { css } from 'lit';
 
 // Editing a source's Link: the Volumes to change to, the bar with the
-// change pending, and the scan's menu.
+// change pending, the scan's menu, and the layer drawing Boxes.
 
 // The Volumes to change to, over the scan where the menu was.
 export const scanVolumesStyles = css`
@@ -133,6 +133,11 @@ export const scanEditStyles = css`
     color: var(--danger);
     font-size: 0.8rem;
   }
+
+  .also {
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
 `;
 
 // At the pointer, over the scan.
@@ -164,5 +169,94 @@ export const scanMenuStyles = css`
     border-color: transparent;
     background: color-mix(in srgb, var(--accent) 18%, transparent);
     color: var(--fg);
+  }
+`;
+
+// Over the whole stage, letting presses through to the scan except on its
+// own parts.
+export const scanLayerStyles = css`
+  :host {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  sl-scan-menu,
+  sl-scan-volumes,
+  .draw,
+  .box {
+    pointer-events: auto;
+  }
+
+  .draw {
+    position: absolute;
+    inset: 0;
+    cursor: crosshair;
+  }
+
+  /* The pending Box: the accent, dashed, so it reads as not saved yet. */
+  .box {
+    position: absolute;
+    box-sizing: border-box;
+    border: 2px dashed var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    cursor: move;
+  }
+
+  .grip {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    margin: -6px 0 0 -6px;
+    border: 1px solid var(--bg);
+    border-radius: 2px;
+    background: var(--accent);
+  }
+
+  .grip.n,
+  .grip.s {
+    left: 50%;
+    cursor: ns-resize;
+  }
+
+  .grip.e,
+  .grip.w {
+    top: 50%;
+    cursor: ew-resize;
+  }
+
+  .grip.n,
+  .grip.ne,
+  .grip.nw {
+    top: 0;
+  }
+
+  .grip.s,
+  .grip.se,
+  .grip.sw {
+    top: 100%;
+  }
+
+  .grip.w,
+  .grip.nw,
+  .grip.sw {
+    left: 0;
+  }
+
+  .grip.e,
+  .grip.ne,
+  .grip.se {
+    left: 100%;
+  }
+
+  .grip.ne,
+  .grip.sw {
+    cursor: nesw-resize;
+  }
+
+  .grip.nw,
+  .grip.se {
+    cursor: nwse-resize;
   }
 `;

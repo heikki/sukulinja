@@ -2,6 +2,7 @@ import { computed, signal } from '@lit-labs/signals';
 
 import type { DatasetApi } from '@client/dataset-api';
 import type {
+  Box,
   CitationLinks,
   CitationRow,
   Link,
@@ -26,11 +27,13 @@ export interface VolumeShown {
 }
 
 // A change to the current source's Link, not saved yet: the Volume it
-// will be in, and the Image when one is marked.
+// will be in, and the Image when one is marked, with where on it the entry
+// is drawn.
 export interface PendingLink {
   volumeId: string;
   volume: string;
   image?: number;
+  box?: Box;
 }
 
 // What leaving the source with a change pending waits on.
@@ -79,6 +82,16 @@ export interface Viewer {
   canMarkImage: Readable<boolean>;
   // Puts the source on the Image shown, pending.
   markImage: () => void;
+  // The entry Box on the Image shown: pending, else the Link's.
+  boxHere: Readable<Box | null>;
+  // Whether the Box shown is the pending one, which can be adjusted.
+  boxPending: Readable<boolean>;
+  // Puts the source's entry at the Box, on the Image shown, pending.
+  setBox: (box: Box) => void;
+  // Starts a pending change from the Link's own Box, to adjust it.
+  editBox: () => void;
+  // Takes the entry Box off, pending, leaving the Image marked.
+  removeBox: () => void;
   // Drops the pending change, back to the Link.
   cancel: () => void;
   // Saves the pending change as a Mark and follows the new Link, throwing
@@ -99,6 +112,15 @@ export function clampImage(n: number, count: number | null) {
 
 function imageOf(link: Link) {
   return 'image' in link ? link.image : null;
+}
+
+// The Box of a Link or pending change, if it's on that Image.
+function boxOn(
+  at: { volumeId: string; image?: number; box?: Box },
+  on: { volumeId: string; image: number }
+) {
+  const here = at.volumeId === on.volumeId && at.image === on.image;
+  return here ? (at.box ?? null) : null;
 }
 
 // Of a reference's Links resolved again, the one in the Volume marked.
@@ -135,6 +157,19 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
       imageOf(link) === at
     );
   });
+  // Where the pending change or the Link puts the entry on the Image shown.
+  const boxHere = computed(() => {
+    const shown = volume.get();
+    if (shown === null) return null;
+    const on = { volumeId: shown.id, image: image.get() };
+    const change = pending.get();
+    if (change !== null) return boxOn(change, on);
+    const link = source.get()?.link;
+    return link?.precision === 'entry' ? boxOn(link, on) : null;
+  });
+  const boxPending = computed(
+    () => boxHere.get() !== null && pending.get() !== null
+  );
   const away = computed(() => {
     const link = source.get()?.link;
     if (link === undefined) return false;
@@ -256,6 +291,35 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     });
   }
 
+  function setBox(box: Box) {
+    const shown = volume.get();
+    if (source.get() === null || shown === null) return;
+    pending.set({
+      volumeId: shown.id,
+      volume: shown.label,
+      image: image.get(),
+      box
+    });
+  }
+
+  function editBox() {
+    const box = boxHere.get();
+    if (box !== null && pending.get() === null) setBox(box);
+  }
+
+  // Off a pending Box, or off the Link's own.
+  function removeBox() {
+    const box = boxHere.get();
+    const shown = volume.get();
+    if (box === null || shown === null) return;
+    const change = pending.get();
+    const { volumeId, volume: label } = change ?? {
+      volumeId: shown.id,
+      volume: shown.label
+    };
+    pending.set({ volumeId, volume: label, image: image.get() });
+  }
+
   function cancel() {
     const shown = source.get();
     if (shown !== null) openNow(shown);
@@ -267,10 +331,12 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     const shown = source.get();
     const change = pending.get();
     if (shown === null || change === null) return;
-    const { volumeId, image: at } = change;
+    const { volumeId, image: at, box } = change;
     const resolved = await selected.mark(
       shown.citation.id,
-      at === undefined ? { volumeId } : { volumeId, image: at }
+      at === undefined
+        ? { volumeId }
+        : { volumeId, image: at, box: box ?? null }
     );
     const link = markedIn(resolved, volumeId);
     if (source.get() !== shown) return;
@@ -364,6 +430,11 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     changeVolume,
     canMarkImage,
     markImage,
+    boxHere,
+    boxPending,
+    setBox,
+    editBox,
+    removeBox,
     cancel,
     save,
     leave,
