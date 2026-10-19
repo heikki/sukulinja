@@ -4,6 +4,8 @@ import { customElement, state } from 'lit/decorators.js';
 import '../settings';
 import '../tree-view';
 
+import { openDatasetApi } from '@client/dataset-api';
+import type { DatasetApi } from '@client/dataset-api';
 import { focusRingStyles } from '@client/focus-ring';
 import { readNdjson } from '@client/ndjson';
 import { slugFromFilename } from '@common/slug';
@@ -56,6 +58,8 @@ export class AppElement extends LitElement {
 
   @state() private datasets: DatasetInfo[] | null = null;
   @state() private readonly slug: string | null = currentSlug();
+  // The dataset shown, asked through one API built from its slug.
+  private readonly api = this.slug === null ? null : openDatasetApi(this.slug);
   @state() private pendingImport: File | null = null;
   @state() private pendingMedia: UploadMedia[] = [];
   @state() private importNameInput = '';
@@ -189,12 +193,12 @@ export class AppElement extends LitElement {
     body: ReadableStream<Uint8Array>
   ): Promise<DatasetInfo | null> {
     let done: DatasetInfo | null = null;
-    await readNdjson(body, (raw) => {
+    for await (const raw of readNdjson(body)) {
       const event = raw as ImportEvent;
       if (event.type === 'log') this.importStatus = event.message;
       else if (event.type === 'error') this.importError = event.message;
       else done = event.info;
-    });
+    }
     return done;
   }
 
@@ -378,7 +382,7 @@ export class AppElement extends LitElement {
   }
 
   private renderScreen() {
-    if (this.slug !== null) return this.renderDatasetView();
+    if (this.api !== null) return this.renderDatasetView(this.api);
     // The header renders before the dataset list arrives, so the bar is up
     // from the first paint rather than popping in over a blank page.
     return html`
@@ -407,7 +411,7 @@ export class AppElement extends LitElement {
     `;
   }
 
-  private renderDatasetView() {
+  private renderDatasetView(api: DatasetApi) {
     // The name joins once the dataset list has loaded, rather than standing in
     // with the slug and then changing; the slug is only the fallback for a
     // dataset the list doesn't have.
@@ -419,7 +423,7 @@ export class AppElement extends LitElement {
     // The dataset name lives in the tree-view's own toolbar (slot="brand"),
     // standing in for "Sukulinja" and doubling as the link back to the chooser.
     return html`
-      <sl-tree-view>
+      <sl-tree-view .api=${api}>
         <button
           slot="brand"
           class="brand"

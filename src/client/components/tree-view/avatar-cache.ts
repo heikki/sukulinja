@@ -1,4 +1,3 @@
-import { mediaUrl } from '@client/api';
 import type { PersonRow, PhotoCrop } from '@common/types';
 
 // Avatars are derived in-browser from the original photo plus the marked crop,
@@ -59,27 +58,35 @@ function setReady(key: string, url: string) {
   }
 }
 
-// A ready object URL, or null while one is generated in the background. Keys
-// that failed to generate stay null and are not retried (a reload clears them),
-// so a broken photo can't spin a fetch-and-repaint loop.
-export function avatarUrl(person: PersonRow) {
-  if (person.photo_path === null || person.crop === null) return null;
-  const { left, top, width, height } = person.crop;
-  const key = `${person.photo_path}|${left},${top},${width},${height}`;
+// What a person's avatar draws: their marked face once it's cropped, the
+// whole photo when no face is marked, or null for the silhouette. A face
+// still being cropped is null, and so is one that failed: those aren't
+// retried (a reload clears them), so a broken photo can't spin a
+// fetch-and-repaint loop.
+export function avatarHref(
+  person: PersonRow,
+  mediaUrl: (storedPath: string) => string
+) {
+  if (person.photo_path === null) return null;
+  const photo = mediaUrl(person.photo_path);
+  const { crop } = person;
+  if (crop === null) return photo;
+  const { left, top, width, height } = crop;
+  const key = `${photo}|${left},${top},${width},${height}`;
   const url = getReady(key);
   if (url !== undefined) return url;
   if (failed.has(key) || inflight.has(key)) return null;
-  inflight.set(key, generate(person.photo_path, person.crop, key));
+  inflight.set(key, generate(photo, crop, key));
   return null;
 }
 
-async function generate(photoPath: string, crop: PhotoCrop, key: string) {
+async function generate(photo: string, crop: PhotoCrop, key: string) {
   try {
     // Cover the round avatar with a centred square of the crop's shorter side.
     const side = Math.min(crop.width, crop.height);
     const sx = crop.left + (crop.width - side) / 2;
     const sy = crop.top + (crop.height - side) / 2;
-    const blob = await fetch(mediaUrl(photoPath)).then((r) => r.blob());
+    const blob = await fetch(photo).then((r) => r.blob());
     const bitmap = await createImageBitmap(blob, sx, sy, side, side, {
       resizeWidth: TARGET_PX,
       resizeHeight: TARGET_PX,

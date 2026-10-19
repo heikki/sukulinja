@@ -2,7 +2,7 @@ import { html, LitElement, nothing } from 'lit';
 import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
-import { apiUrl } from '@client/api';
+import type { DatasetApi } from '@client/dataset-api';
 import { fitTo, Pinch, startMomentumPan, zoomAt } from '@client/pan-zoom';
 import type {
   MomentumHandle,
@@ -24,7 +24,7 @@ import type { Drag, Sample } from './drag';
 import { EdgeWatch } from './edge-watch';
 import { entriesShown, frameForFull, frameForThumb, layers } from './frame';
 import type { Frame, Loading } from './frame';
-import { clampImage, imageUrl, Latest, neighbours, thumbUrl } from './helpers';
+import { clampImage, Latest, neighbours } from './helpers';
 import { stepOf } from './keys';
 import type { ScanClose, ScanStep } from './keys';
 import { loadingNote } from './note';
@@ -70,6 +70,8 @@ interface Shown {
 export class ScanViewerElement extends LitElement {
   static override styles = [controlStyles, scanViewerStyles];
 
+  // The dataset's answers, set before the element connects.
+  @property({ attribute: false }) api!: DatasetApi;
   @property({ attribute: false }) citation: CitationRow | null = null;
   @property({ attribute: false }) link: Link | null = null;
   @property({ attribute: false }) persons = new Map<number, PersonRow>();
@@ -198,8 +200,9 @@ export class ScanViewerElement extends LitElement {
   // Without the list the count stays unknown.
   private async loadViewerUrls(volumeId: string) {
     this.viewerUrls = null;
-    const url = `/astia/volumes/${volumeId}/images`;
-    const urls = await this.viewerUrlsReq.get<string[]>(url);
+    const urls = await this.viewerUrlsReq.run(
+      async (signal) => await this.api.volumeImages(volumeId, signal)
+    );
     if (urls === null || urls === undefined) return;
     this.viewerUrls = urls;
     this.image = clampImage(this.image, urls.length);
@@ -207,8 +210,9 @@ export class ScanViewerElement extends LitElement {
 
   private async loadCitations(volumeId: string) {
     this.citationsFailed = false;
-    const url = apiUrl(`/api/volumes/${volumeId}/citations`);
-    const rows = await this.citationsReq.get<VolumeCitation[]>(url);
+    const rows = await this.citationsReq.run(
+      async (signal) => await this.api.volumeCitations(volumeId, signal)
+    );
     if (rows === undefined) return;
     this.citations = rows;
     this.citationsFailed = rows === null;
@@ -244,7 +248,7 @@ export class ScanViewerElement extends LitElement {
     if (id === undefined) return;
     // The one now shown may already be on its way; the rest aren't wanted.
     const near = [next, ...neighbours(next, null, 1)];
-    this.prefetch.keep(near.map((i) => imageUrl(id, i, 0)));
+    this.prefetch.keep(near.map((i) => this.api.imageUrl(id, i, 0)));
   }
 
   private prefetchNeighbours() {
@@ -252,7 +256,7 @@ export class ScanViewerElement extends LitElement {
     if (id === undefined) return;
     const count = this.viewerUrls?.length ?? null;
     const near = neighbours(this.image, count, this.step);
-    this.prefetch.want(near.map((i) => imageUrl(id, i, 0)));
+    this.prefetch.want(near.map((i) => this.api.imageUrl(id, i, 0)));
   }
 
   private close() {
@@ -493,7 +497,7 @@ export class ScanViewerElement extends LitElement {
       }
       <img
         class="thumb ${shown.thumb === null ? 'hidden' : ''}"
-        src=${thumbUrl(volume.id, this.image)}
+        src=${this.api.thumbUrl(volume.id, this.image)}
         alt=""
         draggable="false"
         style=${shown.thumb === null ? '' : `transform: ${shown.thumb}`}
@@ -501,7 +505,7 @@ export class ScanViewerElement extends LitElement {
       />
       <img
         class=${shown.full === null ? 'hidden' : shown.fade ? 'fade' : ''}
-        src=${imageUrl(volume.id, this.image, this.retry)}
+        src=${this.api.imageUrl(volume.id, this.image, this.retry)}
         alt=${`Image ${this.image}`}
         draggable="false"
         style=${shown.frame === null ? '' : `transform: ${shown.frame}`}
@@ -563,6 +567,7 @@ export class ScanViewerElement extends LitElement {
   private renderPeople() {
     return html`
       <sl-scan-people
+        .api=${this.api}
         .rows=${this.citations}
         .image=${this.image}
         .persons=${this.persons}

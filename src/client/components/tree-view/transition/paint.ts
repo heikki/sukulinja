@@ -2,6 +2,7 @@ import { nothing, svg } from 'lit';
 
 import type { PersonRow } from '@common/types';
 
+import { avatarHref } from '../avatar-cache';
 import { renderBox, renderEdge } from '../renderer';
 import type { TransitionController } from './controller';
 import type { Schedule } from './schedule';
@@ -26,7 +27,8 @@ export function scheduleVars(schedule: Schedule) {
 // last screen spot while it fades out.
 export function renderGhosts(
   leaving: TransitionController['leaving'],
-  persons: Map<number, PersonRow>
+  persons: Map<number, PersonRow>,
+  mediaUrl: (storedPath: string) => string
 ) {
   if (leaving.boxes.length === 0 && leaving.edges.length === 0) {
     return nothing;
@@ -46,6 +48,7 @@ export function renderGhosts(
           const person = persons.get(b.personId);
           if (person === undefined) return nothing;
           return renderBox(b, person, {
+            photo: avatarHref(person, mediaUrl),
             entering: false,
             ghost: true
           });

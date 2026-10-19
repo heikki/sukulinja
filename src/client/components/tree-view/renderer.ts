@@ -1,9 +1,7 @@
 import { css, svg } from 'lit';
 
-import { mediaUrl } from '@client/api';
 import type { PersonRow } from '@common/types';
 
-import { avatarUrl } from './avatar-cache';
 import { edgePath } from './connectors';
 import type { Box, DrawnLine } from './emit';
 import { silhouette, silhouetteStyles } from './silhouette';
@@ -67,19 +65,6 @@ function photoAvatar(href: string, cx: number, cy: number, r: number) {
   `;
 }
 
-function avatar(p: PersonRow, cx: number, cy: number, r: number) {
-  if (p.photo_path !== null && p.crop !== null) {
-    // The marked face is cropped in-browser (see avatar-cache) so it renders
-    // sharp and the crop stays adjustable. Until the bitmap lands we show the
-    // silhouette rather than the whole, uncropped photo.
-    const cropped = avatarUrl(p);
-    if (cropped !== null) return photoAvatar(cropped, cx, cy, r);
-  } else if (p.photo_path !== null) {
-    return photoAvatar(mediaUrl(p.photo_path), cx, cy, r);
-  }
-  return silhouette(p.sex, cx, cy, r);
-}
-
 // An entering item fades in via .enter; the fade is delayed (per the Schedule's
 // enter delay) so newcomers arrive only once the Move has landed.
 function enterClass(isNew: boolean) {
@@ -113,14 +98,18 @@ const DATES_BASELINE_OFFSET = 9;
 export function renderBox(
   box: Box,
   person: PersonRow,
+  // What the avatar cache gives to draw: a cropped face is made in-browser
+  // so it renders sharp and the crop stays adjustable, and until it's ready
+  // the silhouette shows rather than the whole, uncropped photo.
   state: {
+    photo: string | null;
     selected?: boolean;
     entering: boolean;
     ghost?: boolean;
   },
   on?: { click: () => void; dblclick: () => void }
 ) {
-  const { selected = false, entering, ghost = false } = state;
+  const { photo, selected = false, entering, ghost = false } = state;
   const { boxW, boxH } = dims;
   const tx = box.pos.x - boxW / 2;
   const ty = box.pos.y - boxH / 2;
@@ -148,7 +137,11 @@ export function renderBox(
       @dblclick=${on?.dblclick}
     >
       <rect class="box" x="0" y="0" width=${boxW} height=${boxH} rx="6" />
-      ${avatar(person, cx, avatarCy, avatarR)}
+      ${
+        photo === null
+          ? silhouette(person.sex, cx, avatarCy, avatarR)
+          : photoAvatar(photo, cx, avatarCy, avatarR)
+      }
       <text class="name" x=${cx} y=${firstLineY}>
         ${lines.map(
           (line, i) =>
