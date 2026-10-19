@@ -382,7 +382,7 @@ export async function resolveChurchBookRef(
   pins: Pins
 ): Promise<LinkResolution> {
   const resolved = await resolveLinks(astia, ref, pins);
-  if ('error' in resolved) return resolved;
+  if ('unlinked' in resolved) return resolved;
   return { links: await withArchive(astia, resolved.links, ref.parish) };
 }
 
@@ -404,18 +404,18 @@ async function resolveLinks(
   const pinned = await pinnedLink(astia, ref, pins);
   if (pinned !== null) return { links: [pinned] };
   if (ref.parish === null || ref.kind === null || ref.years === null) {
-    return { error: 'unparsed' };
+    return { unlinked: 'unparsed' };
   }
   const archiveId = PARISH_ARCHIVE[ref.parish];
-  if (archiveId === undefined) return { error: `no archive for ${ref.parish}` };
+  if (archiveId === undefined) return { unlinked: 'no-archive' };
   const candidates = await volumesFor(astia, ref, archiveId, pins);
-  if (candidates.length === 0) return { error: 'no matching volume' };
+  if (candidates.length === 0) return { unlinked: 'no-volume' };
   const digitized = candidates.filter((v) => v.digitized);
-  if (digitized.length === 0) return { error: 'not digitized' };
+  if (digitized.length === 0) return { unlinked: 'not-digitized' };
   const located = await Promise.all(
     digitized.map((v) => locate(astia, v, ref, pins))
   );
   const withImages = located.filter((l) => l.files.length > 0);
-  if (withImages.length === 0) return { error: 'no images' };
+  if (withImages.length === 0) return { unlinked: 'no-images' };
   return { links: pickVolumes(withImages, ref.places, pins).map(toLink) };
 }

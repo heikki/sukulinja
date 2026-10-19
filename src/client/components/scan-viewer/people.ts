@@ -1,16 +1,11 @@
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
+import { SPLIT_NOTE } from '@client/link-labels';
 import type { PersonRow, VolumeCitation } from '@common/types';
 
 import { formatName } from '../tree-view/renderer';
-import {
-  boxKey,
-  boxOf,
-  groupCitations,
-  imageOf,
-  SPLIT_NOTE
-} from './citations';
+import { boxKey, boxOf, groupCitations, imageOf } from './citations';
 import { markedIn, saveMark } from './helpers';
 import type { ScanMarked } from './helpers';
 import { controlStyles, scanPeopleStyles } from './styles';

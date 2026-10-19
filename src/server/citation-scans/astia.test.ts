@@ -187,7 +187,9 @@ test('Astias on different folders share nothing', async () => {
 test("doesn't keep a failure: the next call asks again", async () => {
   const astia = open();
   failures = [404];
-  expect(await failure(astia.archiveVolumes(ARCHIVE))).toContain('404');
+  expect(await failure(astia.archiveVolumes(ARCHIVE))).toBe(
+    `AstiaError: 404 ws/aineisto/readOne.php?id=${ARCHIVE}`
+  );
   expect((await astia.archiveVolumes(ARCHIVE)).map((v) => v.id)).toEqual([
     '121',
     '124'
@@ -197,13 +199,31 @@ test("doesn't keep a failure: the next call asks again", async () => {
 test('retries a failing Image briefly, then gives up', async () => {
   const started = performance.now();
   failures = [503, 503, 503];
-  expect(await failure(open().imageBytes('121', '121-f1'))).toContain('503');
+  expect(await failure(open().imageBytes('121', '121-f1'))).toMatch(
+    /^AstiaError: 503 /
+  );
   expect(sent).toHaveLength(3);
   expect(performance.now() - started).toBeLessThan(3000);
 });
 
 test("doesn't wait out a rate limit on an Image", async () => {
   failures = [429];
-  expect(await failure(open().imageBytes('121', '121-f1'))).toContain('429');
+  expect(await failure(open().imageBytes('121', '121-f1'))).toMatch(
+    /^AstiaError: 429 /
+  );
   expect(sent).toHaveLength(1);
+});
+
+test("a request that can't reach Astia throws an AstiaError", async () => {
+  const astia = openAstia(join(dir, 'cache'), {
+    fetch: () => Promise.reject(new TypeError('network down')),
+    gapMs: 0
+  });
+  expect(await failure(astia.archiveVolumes(ARCHIVE))).toBe(
+    `AstiaError: TypeError: network down on ws/aineisto/readOne.php?id=${ARCHIVE}`
+  );
+  expect(await failure(astia.imageBytes('121', '121-f1'))).toMatch(
+    /^AstiaError: TypeError: network down on ws\/getFile/
+  );
+  expect(await astia.archiveTitle(ARCHIVE)).toBeNull();
 });

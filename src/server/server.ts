@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import type { Database } from 'bun:sqlite';
 
-import { openAstia, viewerUrls } from './citation-scans/astia';
+import { AstiaError, openAstia, viewerUrls } from './citation-scans/astia';
 import type { Astia } from './citation-scans/astia';
 import { astiaImage } from './citation-scans/images';
 import { openPins } from './citation-scans/pins';
@@ -84,7 +84,8 @@ function createDatasetHandlers(db: Database, scans: Scans): DatasetHandlers {
     },
 
     async handleMark(id, target) {
-      const result = await citations.mark(id, target);
+      const result = await citations.mark(id, target).catch(astiaFailed);
+      if (result instanceof Response) return result;
       if (result === null) {
         return new Response('citation not found', { status: 404 });
       }
@@ -101,8 +102,8 @@ function createDatasetHandlers(db: Database, scans: Scans): DatasetHandlers {
               status: 404
             })
           : Response.json(rows);
-      } catch {
-        return new Response('Astia unavailable', { status: 502 });
+      } catch (err) {
+        return astiaFailed(err);
       }
     },
 
@@ -297,10 +298,18 @@ async function routeAstia(astia: Astia, req: Request, pathname: string) {
 }
 
 async function handleViewerUrls(astia: Astia, volumeId: string) {
-  const urls = await viewerUrls(astia, volumeId).catch(() => null);
-  return urls === null
-    ? new Response('Astia unavailable', { status: 502 })
-    : Response.json(urls);
+  const urls = await viewerUrls(astia, volumeId).catch(astiaFailed);
+  return urls instanceof Response ? urls : Response.json(urls);
+}
+
+// A request to Astia failing answers 502, in words the Scan viewer can
+// show; anything else thrown is a bug, and is thrown on.
+function astiaFailed(err: unknown) {
+  // eslint-disable-next-line @typescript-eslint/only-throw-error -- rethrown as caught
+  if (!(err instanceof AstiaError)) throw err;
+  return new Response("Astia couldn't be reached or gave no answer.", {
+    status: 502
+  });
 }
 
 // `?size=thumb` gives the 250px one. An Image never changes, so the webview
@@ -308,13 +317,13 @@ async function handleViewerUrls(astia: Astia, volumeId: string) {
 async function handleAstiaImage(astia: Astia, req: Request, at: ImageRef) {
   const thumb = new URL(req.url).searchParams.get('size') === 'thumb';
   const size = thumb ? 'thumb' : 'full';
-  // undefined: Astia couldn't be reached; null: the Volume has no such Image.
+  // null: the Volume has no such Image. A request given up as its client
+  // left gets the same answer as Astia failing; no one reads it.
   const path = await astiaImage(astia, at, size, req.signal).catch(
-    () => undefined
+    (err: unknown) =>
+      astiaFailed(req.signal.aborted ? new AstiaError('client left') : err)
   );
-  if (path === undefined) {
-    return new Response('Astia unavailable', { status: 502 });
-  }
+  if (path instanceof Response) return path;
   if (path === null) return new Response('image not found', { status: 404 });
   return new Response(Bun.file(path), {
     headers: {

@@ -155,7 +155,21 @@ export type LinkTarget =
     }
   | { precision: 'volume'; certainty: 'marked' | 'estimated' };
 
-export type LinkResolution = { links: Link[] } | { error: string };
+// Why a Church-book reference has no Link. Most are facts about the books;
+// `astia-error` passes.
+export type Unlinked =
+  // The reference can't be read as parish, book and years.
+  | 'unparsed'
+  // The parish's archive in Astia isn't known.
+  | 'no-archive'
+  // No Volume fits the years.
+  | 'no-volume'
+  | 'not-digitized'
+  | 'no-images'
+  // A request to Astia failed.
+  | 'astia-error';
+
+export type LinkResolution = { links: Link[] } | { unlinked: Unlinked };
 
 // A line of /api/persons/:id/scans, streamed as each citation resolves.
 export type CitationLinks = { citationId: number } & LinkResolution;

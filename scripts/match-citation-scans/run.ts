@@ -119,7 +119,7 @@ function dollars(spent: (() => number | null) | undefined) {
 // tally key saying why not.
 async function standing(scans: Scans, ref: ChurchBookRef) {
   const resolved = await scans.resolveRef(ref);
-  if ('error' in resolved) return resolved.error;
+  if ('unlinked' in resolved) return resolved.unlinked;
   return resolved.links.some(
     (l) => l.certainty === 'marked' || l.certainty === 'vision'
   )
@@ -155,7 +155,7 @@ async function skipped(
   const skip = await standing(scans, ref);
   if (skip === null) return null;
   const entry =
-    skip === 'no matching volume'
+    skip === 'no-volume'
       ? await reviewEntry(astia, ref, 'no candidate volume', null)
       : null;
   return { key: `${kindOf(ref)} ✗ ${skip}`, tried: false, saved: false, entry };

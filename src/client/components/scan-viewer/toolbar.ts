@@ -1,9 +1,9 @@
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
+import { volumeTitle } from '@client/link-labels';
 import type { Link } from '@common/types';
 
-import { volumeTitle } from './citations';
 import { controlStyles, scanToolbarStyles } from './styles';
 
 // The Scan viewer's one row: the archive and Volume shown, and leaving,

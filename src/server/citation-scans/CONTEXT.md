@@ -42,6 +42,10 @@ Where an entry is written on its Image, as a rectangle in fractions of the Image
 Where a Church-book reference points in Astia, as far down as its **Precision** goes, and who says so: its **Certainty**. A Split reference has one per candidate Volume.
 _Avoid_: scan (the Image itself), URL (the citation's own web address).
 
+**Unlinked**:
+A Church-book reference with no Link, and why: it can't be read, its parish's archive isn't known, no Volume fits its years, or its Volume isn't digitized or has no Images; or a request to Astia failed, which passes.
+_Avoid_: error (most are facts about the books).
+
 **Page number**:
 The number written in the book. Rippikirjat usually number spreads (one number per Image), lastenkirjat pages (two per Image). A Volume may start its numbering over partway through.
 

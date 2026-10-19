@@ -278,7 +278,7 @@ test('the matcher searches the Volumes a reference links', async () => {
 // The Volumes a reference links, by id.
 async function volumesOf(c: { page: string; text: string }, astia: Astia) {
   const links = await linksOf(c, astia);
-  return 'error' in links ? links : links.map((l) => l.volumeId);
+  return 'unlinked' in links ? links : links.map((l) => l.volumeId);
 }
 
 test("a Volume's Parts leave out the years in its gaps", async () => {
@@ -369,6 +369,37 @@ test("Links name the Volume's archive; a Volume not digitized has none", async (
     })
   ]);
   expect(await linksOf(citation(5001, '1797 - 1803', 5), astia)).toEqual({
-    error: 'not digitized'
+    unlinked: 'not-digitized'
   });
+});
+
+test('says why a reference has no Link', async () => {
+  const cited = citation(5000, '1790 - 1796', 5);
+  const elsewhere = cited.text.replace('Hallintoalue:Juva', 'Hallintoalue:Ei');
+  expect(await linksOf({ ...cited, text: 'Matti Esimerkki' })).toEqual({
+    unlinked: 'unparsed'
+  });
+  expect(await linksOf({ ...cited, text: elsewhere })).toEqual({
+    unlinked: 'no-archive'
+  });
+  expect(await linksOf(citation(5001, '1700 - 1701', 5))).toEqual({
+    unlinked: 'no-volume'
+  });
+  const empty = juvaWith([
+    { id: 'juva-1', label: VOLUMES['juva-1'], images: 0 }
+  ]);
+  expect(await linksOf(cited, empty)).toEqual({ unlinked: 'no-images' });
+});
+
+test('Astia failing is a reason for now; any other error is thrown on', async () => {
+  const cited = citation(5000, '1790 - 1796', 5);
+  const down = memoryAstia({}, { down: true });
+  expect(await linksOf(cited, down)).toEqual({ unlinked: 'astia-error' });
+  expect(down.asked).toEqual([`volumes ${JUVA}`]);
+  // An Astia without Juva's archive is a mistake, not an outage.
+  const failed = await scans(memoryAstia({}))
+    .resolveRef(refOf(cited))
+    .then(() => 'resolved')
+    .catch((err: unknown) => String(err));
+  expect(failed).toBe(`Error: no archive ${JUVA} in this Astia`);
 });

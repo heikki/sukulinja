@@ -50,26 +50,51 @@ describe('createStaticFetch', () => {
   });
 });
 
+// Serves with this Astia instead.
+function serveWith(other: MemoryAstia) {
+  astia = other;
+  fetch = createStaticFetch({
+    api: createApi(new DatasetRegistry(join(root, 'data')), { astia }),
+    staticRoots: []
+  });
+}
+
+// What the request failed with; it must fail.
+async function failure(request: Promise<unknown>) {
+  return await request
+    .then(() => 'succeeded')
+    .catch((err: unknown) => String(err));
+}
+
 describe('Astia Images', () => {
+  const VOLUME_201 = {
+    '1': { volumes: [{ id: '201', label: 'I Aa:1', images: 2 }] }
+  };
+
   test('serves an Image, or says why not', async () => {
-    // Volume 201 has two Images; Volume 202 can't be reached.
-    fetch = createStaticFetch({
-      api: createApi(new DatasetRegistry(join(root, 'data')), {
-        astia: memoryAstia({
-          '1': { volumes: [{ id: '201', label: 'I Aa:1', images: 2 }] }
-        })
-      }),
-      staticRoots: []
-    });
+    serveWith(memoryAstia(VOLUME_201));
     const res = await get('/astia/volumes/201/images/2');
     expect(res.status).toBe(200);
     expect(res.headers.get('Content-Type')).toBe('image/jpeg');
     expect((await res.bytes()).length).toBe(2);
     expect((await get('/astia/volumes/201/images/3')).status).toBe(404);
-    expect((await get('/astia/volumes/202/images/1')).status).toBe(502);
     const links = await get('/astia/volumes/201/images');
     expect(((await links.json()) as string[]).length).toBe(2);
-    expect((await get('/astia/volumes/202/images')).status).toBe(502);
+  });
+
+  test('answers 502 when Astia fails, and throws on a bug', async () => {
+    serveWith(memoryAstia(VOLUME_201, { down: true }));
+    expect((await get('/astia/volumes/201/images/1')).status).toBe(502);
+    const urls = await get('/astia/volumes/201/images');
+    expect(urls.status).toBe(502);
+    expect(await urls.text()).toBe(
+      "Astia couldn't be reached or gave no answer."
+    );
+    // Asking for a Volume the Astia wasn't given is a mistake, not an outage.
+    serveWith(memoryAstia(VOLUME_201));
+    expect(await failure(get('/astia/volumes/202/images'))).toBe(
+      'Error: no volume 202 in this Astia'
+    );
   });
 });
 
@@ -158,6 +183,20 @@ describe("A dataset's Citations", () => {
     expect(((await volume.json()) as unknown[]).length).toBe(1);
     expect((await get('/d/juva/api/volumes/elsewhere/citations')).status).toBe(
       404
+    );
+  });
+
+  test('says when Astia fails', async () => {
+    await seedDataset();
+    serveWith(memoryAstia({}, { down: true }));
+    const scans = await get('/d/juva/api/persons/1/scans');
+    expect(JSON.parse(await scans.text())).toEqual({
+      citationId: 1,
+      unlinked: 'astia-error'
+    });
+    expect(await mark(1, { volumeId: 'juva-1', image: 7 })).toBe(502);
+    expect((await get('/d/juva/api/volumes/juva-1/citations')).status).toBe(
+      502
     );
   });
 });
