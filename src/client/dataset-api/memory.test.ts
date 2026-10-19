@@ -94,3 +94,12 @@ test('rejects with the reason once aborted', async () => {
   const reason = new Error('superseded');
   expect(await failure(api.persons(AbortSignal.abort(reason)))).toBe(reason);
 });
+
+test('rejects with the reason when aborted after asking, even once answered', async () => {
+  const api = dataset();
+  const abort = new AbortController();
+  const reason = new Error('superseded');
+  const asked = api.person(1, abort.signal);
+  abort.abort(reason);
+  expect(await failure(asked)).toBe(reason);
+});

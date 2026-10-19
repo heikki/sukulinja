@@ -1,19 +1,14 @@
+import { SignalWatcher } from '@lit-labs/signals';
+import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
-import { ApiError } from '@client/dataset-api';
-import type { DatasetApi } from '@client/dataset-api';
 import { focusRingStyles } from '@client/focus-ring';
 import { volumeTitle } from '@client/link-labels';
-import type {
-  CitationLinks,
-  CitationRow,
-  Link,
-  LinkResolution,
-  PersonDetails,
-  RecordView
-} from '@common/types';
+import { appState } from '@client/state';
+import type { AppState, LinkStatus, Source, SourceGroup } from '@client/state';
+import type { CitationRow, Link, RecordView } from '@common/types';
 
 import type { ScanCloseEvent, ScanStepEvent } from '../scan-viewer';
 import { formatName } from '../tree-view/renderer';
@@ -22,14 +17,7 @@ import './header';
 
 import { householdsOf, lifeText } from './family';
 import type { FamilyIndices, Household, Relative } from './family';
-import {
-  factLabel,
-  factText,
-  groupSources,
-  linkStatus,
-  siteName
-} from './helpers';
-import type { LinkStatus, SourceGroup } from './helpers';
+import { factLabel, factText, siteName } from './helpers';
 import { personPanelStyles } from './styles';
 
 function renderRecord(r: RecordView) {
@@ -161,8 +149,6 @@ function renderBody(c: CitationRow, heading: string) {
     : html`<p class="text">${text}</p>`;
 }
 
-export type DetailsLoadEvent = CustomEvent<PersonDetails>;
-
 // A relative's row picks them, and a double-click centers the chart on them.
 function renderRelative(r: Relative, ask: (event: string, id: number) => void) {
   const life = lifeText(r.person);
@@ -183,36 +169,27 @@ function renderRelative(r: Relative, ask: (event: string, id: number) => void) {
   </button>`;
 }
 
-// The selected person's family, events and sources, beside the chart, the
-// details announced with `details-load` as they arrive. A relative's row
-// asks for them with `pick`, and for the chart built around them with
-// `center`. Record links open outside the app (the desktop
-// shell hands target=_blank to the browser); Links ask for the Scan
-// viewer with a `scan-open` event, and the source it shows (`viewing`) is
-// marked and brought into view.
+// The Selected person's family, events and sources, beside the chart. A
+// relative's row asks for them with `pick`, and for the chart built around
+// them with `center`. Record links open outside the app (the desktop shell
+// hands target=_blank to the browser); Links ask for the Scan viewer with a
+// `scan-open` event, and the source it shows (`viewing`) is marked and
+// brought into view.
 @customElement('sl-person-panel')
-export class PersonPanelElement extends LitElement {
+export class PersonPanelElement extends SignalWatcher(LitElement) {
   static override styles = [focusRingStyles, personPanelStyles];
 
-  // The dataset's answers, set before the element connects.
-  @property({ attribute: false }) api!: DatasetApi;
-  @property({ type: Number }) personId: number | null = null;
+  @consume({ context: appState }) private readonly state!: AppState;
+
   @property({ attribute: false }) viewing: LinkOpen | null = null;
   // The chart's persons and families, which name the person's households.
   @property({ attribute: false }) indices: FamilyIndices | null = null;
 
-  @state() private details: PersonDetails | null = null;
-  @state() private error: string | null = null;
-  @state() private links = new Map<number, LinkResolution>();
-  @state() private linksPending = false;
   // The source shown in full; the others show only their heading and links.
-  @state() private selected: number | null = null;
+  @state() private unfolded: number | null = null;
 
-  private scanAbort: AbortController | null = null;
+  // Whose details are shown.
   private shownId: number | null = null;
-
-  // Selecting fast can return answers out of order; only the latest counts.
-  private request = 0;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -250,27 +227,31 @@ export class PersonPanelElement extends LitElement {
   private readonly onStep = (e: Event) => {
     if (!this.sourcesShown()) return;
     const { citationId, step } = (e as ScanStepEvent).detail;
-    const citations = this.details?.citations ?? [];
-    const linked = groupSources(citations, this.links).flatMap((g) =>
-      g.rows.flatMap((c) => {
-        const link = this.statusOf(c)?.link ?? null;
-        return link === null ? [] : [{ c, link }];
+    const linked = this.state.selected.sources.get().flatMap((g) =>
+      g.sources.flatMap(({ citation, status }) => {
+        const link = status?.link ?? null;
+        return link === null ? [] : [{ citation, link }];
       })
     );
-    const at = linked.findIndex((l) => l.c.id === citationId);
+    const at = linked.findIndex((l) => l.citation.id === citationId);
     const next = at < 0 ? undefined : linked[at + step];
-    if (next !== undefined) this.openScan(next.c, next.link);
+    if (next !== undefined) this.openScan(next.citation, next.link);
   };
 
-  override willUpdate(changed: PropertyValues<this>) {
-    if (changed.has('personId')) void this.load();
+  private detailsId() {
+    return this.state.selected.details.get()?.id ?? null;
   }
 
-  // Start a new person at the top. Waits for their details rather than the
-  // personId change, so the stale view doesn't jump before it's replaced.
+  // A new person starts with every source folded, at the top. Waits for
+  // their details rather than the selection, so the stale view doesn't jump
+  // before it's replaced.
+  override willUpdate() {
+    if (this.detailsId() !== this.shownId) this.unfolded = null;
+  }
+
   override updated(changed: PropertyValues<this>) {
     if (changed.has('viewing')) void this.revealViewing();
-    const id = this.details?.id ?? null;
+    const id = this.detailsId();
     if (id === this.shownId) return;
     this.shownId = id;
     this.scrollTop = 0;
@@ -287,58 +268,6 @@ export class PersonPanelElement extends LitElement {
     }
     const source = this.renderRoot.querySelector(`[data-citation="${id}"]`);
     source?.scrollIntoView({ block: 'nearest' });
-  }
-
-  private async load() {
-    const id = this.personId;
-    const request = ++this.request;
-    this.scanAbort?.abort();
-    if (id === null) {
-      this.details = null;
-      return;
-    }
-    try {
-      const details = await this.api.person(id);
-      if (request !== this.request) return;
-      this.details = details;
-      this.error = null;
-      this.dispatchEvent(new CustomEvent('details-load', { detail: details }));
-      this.selected = null;
-      void this.loadLinks(id, false);
-    } catch (err) {
-      if (!(err instanceof ApiError)) throw err;
-      if (request !== this.request) return;
-      this.error = err.message;
-    }
-  }
-
-  // One streamed request per person; selecting someone else aborts it. A
-  // reload after a Mark keeps the Links known until their new ones arrive.
-  private async loadLinks(id: number, keep: boolean) {
-    this.scanAbort?.abort();
-    const abort = new AbortController();
-    this.scanAbort = abort;
-    if (!keep) this.links = new Map();
-    this.linksPending = true;
-    try {
-      for await (const line of this.api.personLinks(id, abort.signal)) {
-        const { citationId, ...resolution } = line;
-        this.links = new Map(this.links).set(citationId, resolution);
-      }
-    } catch (err) {
-      // Unresolved citations show as unavailable once pending clears.
-      if (!abort.signal.aborted && !(err instanceof ApiError)) throw err;
-    } finally {
-      if (!abort.signal.aborted) this.linksPending = false;
-    }
-  }
-
-  // A reference marked in the Scan viewer, resolved again. Its Page pin can
-  // move the person's other references in the Volume too, so they reload.
-  takeLinks(resolved: CitationLinks) {
-    const { citationId, ...resolution } = resolved;
-    this.links = new Map(this.links).set(citationId, resolution);
-    if (this.personId !== null) void this.loadLinks(this.personId, true);
   }
 
   // Each opening is a new link, so the viewer goes back to it even when
@@ -368,25 +297,19 @@ export class PersonPanelElement extends LitElement {
   }
 
   private fold(id: number) {
-    this.selected = this.selected === id ? null : id;
-  }
-
-  private statusOf(c: CitationRow) {
-    if (!c.churchBook) return null;
-    return linkStatus(this.links.get(c.id), this.linksPending);
+    this.unfolded = this.unfolded === id ? null : id;
   }
 
   // Clicking a church-book source opens its scan; clicking another shows or
   // hides what it records, as its chevron does for both. Its record shows
   // only when selected, and opening it in the Scan viewer leaves it as it is.
-  private renderCitation(c: CitationRow) {
+  private renderCitation({ citation: c, status }: Source) {
     const viewing = this.viewing?.citation.id === c.id;
-    const status = this.statusOf(c);
     const heading = headingOf(c);
     const body = renderBody(c, heading);
     const link = status?.link ?? null;
     const foldable = hasDetails(body, c.url, link);
-    const open = this.selected === c.id && foldable;
+    const open = this.unfolded === c.id && foldable;
     const act = this.actionOf(c, link, foldable);
     return html`
       <article
@@ -425,7 +348,7 @@ export class PersonPanelElement extends LitElement {
   private renderGroup(g: SourceGroup) {
     return html`
       ${g.label === null ? nothing : html`<h4>${g.label}</h4>`}
-      ${g.rows.map((c) => this.renderCitation(c))}
+      ${g.sources.map((source) => this.renderCitation(source))}
     `;
   }
 
@@ -441,8 +364,9 @@ export class PersonPanelElement extends LitElement {
     );
   }
 
-  private renderSources(citations: CitationRow[]) {
-    return groupSources(citations, this.links).map((g) => this.renderGroup(g));
+  private renderSources() {
+    const groups = this.state.selected.sources.get();
+    return groups.map((g) => this.renderGroup(g));
   }
 
   // A heading that shows or hides what follows it.
@@ -472,12 +396,14 @@ export class PersonPanelElement extends LitElement {
   }
 
   override render() {
-    if (this.error !== null) {
-      return html`<div class="body muted">Couldn't load: ${this.error}</div>`;
+    const { selected } = this.state;
+    const error = selected.error.get();
+    if (error !== null) {
+      return html`<div class="body muted">Couldn't load: ${error}</div>`;
     }
-    const d = this.details;
+    const d = selected.details.get();
     if (d === null) return html`<div class="body muted">Loading…</div>`;
-    const stale = d.id !== this.personId;
+    const stale = d.id !== selected.id.get();
     const households =
       this.indices === null ? [] : householdsOf(d.id, this.indices);
     return html`
@@ -509,7 +435,7 @@ export class PersonPanelElement extends LitElement {
           d.citations.length === 0
             ? nothing
             : this.renderSection('sources', 'Sources', () =>
-                this.renderSources(d.citations)
+                this.renderSources()
               )
         }
       </div>

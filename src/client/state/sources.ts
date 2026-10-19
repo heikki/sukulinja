@@ -1,0 +1,127 @@
+import {
+  linkHint,
+  linkLabel,
+  splitLabel,
+  unlinkedHint,
+  unlinkedLabel
+} from '@client/link-labels';
+import type { CitationRow, Link, LinkResolution } from '@common/types';
+
+// A church-book source's Link, in brief: how sure it is, in the Scan
+// viewer's words, or why there's none; the tooltip says more. Opening the
+// source shows `link` in the Scan viewer, if there is one.
+export interface LinkStatus {
+  label: string;
+  title: string;
+  link: Link | null;
+}
+
+// Links arrive after the panel renders; until then the status is pending. A
+// Split reference opens on its first candidate.
+export function linkStatus(
+  resolution: LinkResolution | undefined,
+  pending: boolean
+): LinkStatus {
+  if (resolution === undefined) {
+    const label = pending ? 'Finding scan…' : 'Scan unavailable';
+    return { label, title: '', link: null };
+  }
+  if ('unlinked' in resolution) {
+    return {
+      label: unlinkedLabel(resolution.unlinked),
+      title: unlinkedHint(resolution.unlinked),
+      link: null
+    };
+  }
+  const { links } = resolution;
+  const [first] = links;
+  if (first === undefined) return { label: 'No scan', title: '', link: null };
+  const label = linkLabel(first);
+  return {
+    label: links.length > 1 ? splitLabel(label) : label,
+    title: linkTitle(links),
+    link: first
+  };
+}
+
+// What the status means, and for a Split reference that it opens on the
+// first of its Volumes.
+export function linkTitle(links: Link[]) {
+  const [first] = links;
+  const split =
+    links.length > 1
+      ? ['The reference fits several Volumes; it opens on the first.']
+      : [];
+  const hint = first === undefined ? [] : [linkHint(first)];
+  return [...hint, ...split].join('\n');
+}
+
+// A source as the panel lists it: a church book's with its link status,
+// any other's with none.
+export interface Source {
+  citation: CitationRow;
+  status: LinkStatus | null;
+}
+
+// Sources under one heading: an archive's (`linked`), the church books'
+// with no Volume, or the others'. Named only when there's a church book
+// among them.
+export interface SourceGroup {
+  label: string | null;
+  sources: Source[];
+  linked: boolean;
+}
+
+function firstLink(resolution: LinkResolution | undefined) {
+  return resolution !== undefined && 'links' in resolution
+    ? (resolution.links[0] ?? null)
+    : null;
+}
+
+// The heading a source goes under: the archive of the Volume it links (a
+// Split reference's first), else the church books' or the others'.
+function headingFor(c: CitationRow, links: Map<number, LinkResolution>) {
+  const link = c.churchBook ? firstLink(links.get(c.id)) : null;
+  if (link === null) {
+    return { label: c.churchBook ? 'Church books' : 'Other', link };
+  }
+  return { label: link.archive ?? 'Church books', link };
+}
+
+// The sources by the archive whose Volume they link, in the order the
+// server sends them (church books by year, the others last); a Volume's
+// references together, by page. `pending` while the Links still stream.
+export function groupSources(
+  citations: CitationRow[],
+  links: Map<number, LinkResolution>,
+  pending: boolean
+) {
+  const groups = new Map<string, SourceGroup>();
+  const volumeOrder = new Map<string, number>();
+  const placeOf = new Map<number, [number, number]>();
+  for (const c of citations) {
+    const { label, link } = headingFor(c, links);
+    const linked = link !== null;
+    const key = `${linked}:${label}`;
+    const group = groups.get(key) ?? { label, sources: [], linked };
+    const status = c.churchBook ? linkStatus(links.get(c.id), pending) : null;
+    group.sources.push({ citation: c, status });
+    groups.set(key, group);
+    if (link === null) continue;
+    if (!volumeOrder.has(link.volumeId)) {
+      volumeOrder.set(link.volumeId, volumeOrder.size);
+    }
+    placeOf.set(c.id, [volumeOrder.get(link.volumeId)!, c.citedPage ?? 0]);
+  }
+  function byPlace(a: Source, b: Source) {
+    const [va, pa] = placeOf.get(a.citation.id) ?? [0, 0];
+    const [vb, pb] = placeOf.get(b.citation.id) ?? [0, 0];
+    return va === vb ? pa - pb : va - vb;
+  }
+  const named = citations.some((c) => c.churchBook);
+  return [...groups.values()].map((g) => ({
+    ...g,
+    label: named ? g.label : null,
+    sources: g.linked ? g.sources.toSorted(byPlace) : g.sources
+  }));
+}

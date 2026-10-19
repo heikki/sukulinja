@@ -1,6 +1,10 @@
+import { SignalWatcher } from '@lit-labs/signals';
+import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
+import { appState } from '@client/state';
+import type { AppState } from '@client/state';
 import { gedcomDate } from '@common/dates';
 import type { FactRow, PersonDetails, PersonRow } from '@common/types';
 
@@ -54,20 +58,23 @@ function renderPortrait(p: PersonRow, photo: string | null) {
 }
 
 // The person the dock is about, in its header: their portrait as the chart
-// draws it, their name, and when they were born and died.
+// draws it, their name, and when they were born and died, once the
+// Selected person's details arrive.
 @customElement('sl-person-header')
-export class PersonHeaderElement extends LitElement {
+export class PersonHeaderElement extends SignalWatcher(LitElement) {
   static override styles = personHeaderStyles;
 
+  @consume({ context: appState }) private readonly state!: AppState;
+
   @property({ attribute: false }) person: PersonRow | null = null;
-  @property({ attribute: false }) details: PersonDetails | null = null;
   // Their portrait as the chart's avatar cache gives it.
   @property({ attribute: false }) photo: string | null = null;
 
   override render() {
     const p = this.person;
     if (p === null) return nothing;
-    const lines = linesOf(p, this.details).filter((l) => l !== null);
+    const details = this.state.selected.details.get();
+    const lines = linesOf(p, details).filter((l) => l !== null);
     return html`
       ${renderPortrait(p, this.photo)}
       <div class="who">

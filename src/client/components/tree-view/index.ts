@@ -1,12 +1,15 @@
+import { SignalWatcher } from '@lit-labs/signals';
+import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import { ApiError } from '@client/dataset-api';
-import type { DatasetApi } from '@client/dataset-api';
 import { preferredGenerations } from '@client/generations';
-import type { PersonDetails, PersonRow } from '@common/types';
+import { appState } from '@client/state';
+import type { AppState } from '@client/state';
+import type { PersonRow } from '@common/types';
 
 import '../person-panel';
 import '../scan-viewer';
@@ -17,11 +20,7 @@ import { detailsWidth, setDetailsWidth } from '../person-panel/helpers';
 import '../person-search';
 import '../settings';
 
-import type {
-  DetailsLoadEvent,
-  LinkOpen,
-  LinkOpenEvent
-} from '../person-panel';
+import type { LinkOpen, LinkOpenEvent } from '../person-panel';
 import type { PickEvent } from '../person-search';
 import type { ScanMarkedEvent, ScanPersonEvent } from '../scan-viewer';
 import type { GenerationsChangeEvent } from '../settings';
@@ -58,26 +57,21 @@ const URL_BOUNDS: Bounds = {
 };
 
 @customElement('sl-tree-view')
-export class TreeViewElement extends LitElement {
+export class TreeViewElement extends SignalWatcher(LitElement) {
   static override styles = treeViewStyles;
 
+  @consume({ context: appState }) private readonly state!: AppState;
+
   @property({ type: Number, reflect: true }) gen = preferredGenerations();
-  // The dataset's answers, set before the element connects.
-  @property({ attribute: false }) api!: DatasetApi;
 
   @state() private persons = new Map<number, PersonRow>();
   @state() private rootId: number | null = null;
-  // The person the dock shows: Root, or anyone picked since without
-  // rebuilding the chart.
-  @state() private selectedId: number | null = null;
   @state() private loading = true;
   // Why the dataset couldn't be loaded, in the app's words.
   @state() private loadError: string | null = null;
   // Closed on entering a dataset; opening it lasts only for this visit.
   @state() private details = false;
   @state() private detailsWidth = detailsWidth();
-  // The selected person's, or the last one's until theirs arrive.
-  @state() private selectedDetails: PersonDetails | null = null;
   // The scan the Scan viewer shows over the chart; it belongs to the
   // selected person, so selecting another closes it.
   @state() private scanOpen: LinkOpen | null = null;
@@ -161,7 +155,7 @@ export class TreeViewElement extends LitElement {
 
     const id = parsed.rootId;
     if (id === null || !this.persons.has(id)) return;
-    this.selectedId = this.knownOr(parsed.selectedId, id);
+    this.choose(this.knownOr(parsed.selectedId, id));
     if (id === this.rootId) return;
     // No stored pan means the prior box was pinned at its click position; pin the
     // new root at canvas center so back/forward doesn't land it at that stale
@@ -188,9 +182,6 @@ export class TreeViewElement extends LitElement {
   }
 
   override willUpdate(changed: PropertyValues) {
-    if (changed.has('selectedId')) {
-      [this.scanOpen, this.scanFollowing] = [this.scanFollowing, null];
-    }
     // Gen change rebuilds the chart with different extents, which would drift
     // Root on screen since chart (0,0) is mapped through extents.min.
     // Capture Root's current screen pixel so the post-rebuild pin keeps it
@@ -262,9 +253,10 @@ export class TreeViewElement extends LitElement {
 
   private async load() {
     try {
+      const { api } = this.state;
       const [persons, families] = await Promise.all([
-        this.api.persons(),
-        this.api.families()
+        api.persons(),
+        api.families()
       ]);
       this.persons = new Map(persons.map((p) => [p.id, p]));
       this.families = familiesByPerson(families);
@@ -290,13 +282,13 @@ export class TreeViewElement extends LitElement {
     }
     if (parsed.rootId !== null && this.persons.has(parsed.rootId)) {
       this.rootId = parsed.rootId;
-      this.selectedId = this.knownOr(parsed.selectedId, parsed.rootId);
+      this.choose(this.knownOr(parsed.selectedId, parsed.rootId));
       return;
     }
     const def = this.pickDefaultRoot();
     this.rootId = def;
-    this.selectedId = def;
     if (def !== null) {
+      this.choose(def);
       history.replaceState(null, '', this.buildCurrentHash(def));
     }
   }
@@ -326,7 +318,7 @@ export class TreeViewElement extends LitElement {
     }
     this.viewport.beginReroot(pinScreen, { nudge: true });
     this.rootId = id;
-    this.selectedId = id;
+    this.choose(id);
     // Two-step: push carries root+zoom only. The pin lands in updated()
     // and onSettle's writeUrl follows up with a replaceState that adds pan.
     history.pushState(
@@ -348,8 +340,21 @@ export class TreeViewElement extends LitElement {
       this.setRoot(id, this.canvasCenter());
       return;
     }
-    this.selectedId = id;
+    this.choose(id);
     this.writeUrl();
+  }
+
+  private get selectedId() {
+    return this.state.selected.id.get();
+  }
+
+  // Every selection comes through here. The Scan viewer belongs to the
+  // selected person: it goes on with one picked in it, or closes
+  // (ADR-0011).
+  private choose(id: number) {
+    if (id === this.selectedId) return;
+    [this.scanOpen, this.scanFollowing] = [this.scanFollowing, null];
+    this.state.select(id);
   }
 
   private writeUrl() {
@@ -393,7 +398,7 @@ export class TreeViewElement extends LitElement {
   private renderDock() {
     const id = this.selectedId;
     const selected = id === null ? undefined : this.persons.get(id);
-    const { mediaUrl } = this.api;
+    const { mediaUrl } = this.state.api;
     const photo =
       selected === undefined ? null : avatarHref(selected, mediaUrl);
     return html`
@@ -417,11 +422,8 @@ export class TreeViewElement extends LitElement {
           slot="header"
           .person=${selected ?? null}
           .photo=${photo}
-          .details=${this.selectedDetails}
         ></sl-person-header>
         <sl-person-panel
-          .api=${this.api}
-          .personId=${id}
           .indices=${this.indices}
           .viewing=${this.scanAway ? null : this.scanOpen}
           @pick=${(e: PickEvent) => {
@@ -430,20 +432,15 @@ export class TreeViewElement extends LitElement {
           @center=${(e: PickEvent) => {
             this.setRoot(e.detail.id, this.canvasCenter());
           }}
-          @details-load=${(e: DetailsLoadEvent) => {
-            this.selectedDetails = e.detail;
-          }}
         ></sl-person-panel>
       </sl-side-dock>
     `;
   }
 
-  // The dock shows the reference's new links, and the viewer follows the one
-  // in the marked Volume when the mark was for its citation (one confirmed
-  // beside the scan may be another's).
+  // The viewer follows the Link in the marked Volume when the mark was for
+  // its citation (one confirmed beside the scan may be another's).
   private readonly onScanMarked = (e: ScanMarkedEvent) => {
     const { resolved, link } = e.detail;
-    this.renderRoot.querySelector('sl-person-panel')?.takeLinks(resolved);
     if (this.scanOpen?.citation.id === resolved.citationId && link !== null) {
       this.scanOpen = { ...this.scanOpen, link };
     }
@@ -465,7 +462,6 @@ export class TreeViewElement extends LitElement {
     if (this.scanOpen === null) return nothing;
     return html`
       <sl-scan-viewer
-        .api=${this.api}
         .citation=${this.scanOpen.citation}
         .link=${this.scanOpen.link}
         .persons=${this.persons}
@@ -521,7 +517,7 @@ export class TreeViewElement extends LitElement {
       >
         ${
           panReady
-            ? renderGhosts(leaving, this.persons, this.api.mediaUrl)
+            ? renderGhosts(leaving, this.persons, this.state.api.mediaUrl)
             : nothing
         }
         ${
@@ -558,7 +554,7 @@ export class TreeViewElement extends LitElement {
                         b,
                         person,
                         {
-                          photo: avatarHref(person, this.api.mediaUrl),
+                          photo: avatarHref(person, this.state.api.mediaUrl),
                           selected: b.personId === this.selectedId,
                           entering: enteringKeys.has(b.key)
                         },
