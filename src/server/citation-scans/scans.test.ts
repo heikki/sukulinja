@@ -1,30 +1,40 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterAll, afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
+import { afterEach, beforeEach, expect, test } from 'bun:test';
 
+import type { Astia } from './astia';
+import { memoryAstia } from './memory-astia';
+import type { MemoryVolume } from './memory-astia';
 import { openPins } from './pins';
 import { churchBookRefOf, parseChurchBookRef } from './record';
-import { markRef, matchCandidates, resolveRef, useDataFolder } from './scans';
-import { rippiCitation as citation, seedParish, VOLUMES } from './test-parish';
+import { openScans } from './scans';
+import {
+  rippiCitation as citation,
+  JUVA,
+  juvaAstia,
+  VOLUMES
+} from './test-parish';
 
 let dir = '';
 
-const astia = spyOn(globalThis, 'fetch').mockImplementation((() => {
-  throw new Error('no requests to Astia in these tests');
-}) as unknown as typeof fetch);
-
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'scans-'));
-  await seedParish(dir);
-  useDataFolder(dir);
 });
 afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
-afterAll(() => {
-  astia.mockRestore();
-});
+
+// References resolved with the pins saved so far; Juva's archive as the
+// test-parish gives it, unless another Astia is given.
+function scans(astia: Astia = juvaAstia()) {
+  return openScans({ pins: openPins(dir), astia });
+}
+
+// Juva's archive holding just these Volumes.
+function juvaWith(volumes: MemoryVolume[]) {
+  return memoryAstia({ [JUVA]: { volumes } });
+}
 
 async function writeLocal(volumes: unknown) {
   await Bun.write(join(dir, 'pins.local.json'), JSON.stringify({ volumes }));
@@ -34,14 +44,14 @@ function refOf(c: { page: string; text: string }) {
   return churchBookRefOf(c.page, c.text)!;
 }
 
-async function linksOf(c: { page: string; text: string }) {
-  const resolved = await resolveRef(openPins(dir), refOf(c));
+async function linksOf(c: { page: string; text: string }, astia?: Astia) {
+  const resolved = await scans(astia).resolveRef(refOf(c));
   return 'links' in resolved ? resolved.links : resolved;
 }
 
 test('marking a record with a Record number saves a hand Record pin', async () => {
   const marked = citation(5000, '1790 - 1796', 12);
-  await markRef(openPins(dir), refOf(marked), { volumeId: 'juva-1', image: 7 });
+  await scans().markRef(refOf(marked), { volumeId: 'juva-1', image: 7 });
 
   expect(await linksOf(marked)).toEqual([
     expect.objectContaining({
@@ -60,7 +70,7 @@ test('marking a record with a Record number saves a hand Record pin', async () =
 
 test('a record marked in another Book gets a Reference pin and a Record pin there', async () => {
   const marked = citation(5000, '1790 - 1796', null);
-  await markRef(openPins(dir), refOf(marked), { volumeId: 'juva-2', image: 3 });
+  await scans().markRef(refOf(marked), { volumeId: 'juva-2', image: 3 });
 
   expect(await linksOf(marked)).toEqual([
     expect.objectContaining({
@@ -89,7 +99,7 @@ test('a hand marking extends the Record range, routing records in between', asyn
     'juva-2': { pages: [], ranges: [{ from: 4000, to: 5000 }] }
   });
   const marked = citation(2500, '1790 - 1796', 40);
-  await markRef(openPins(dir), refOf(marked), { volumeId: 'juva-1', image: 9 });
+  await scans().markRef(refOf(marked), { volumeId: 'juva-1', image: 9 });
 
   // Record 2200 cites the later Book, but its number puts it in juva-1 now.
   const between = citation(2200, '1797 - 1803', 30);
@@ -107,7 +117,7 @@ test('a Record range is never extended across another Volume', async () => {
     'juva-2': { pages: [], ranges: [{ from: 3000, to: 3500 }] }
   });
   const marked = citation(4000, '1790 - 1796', 40);
-  await markRef(openPins(dir), refOf(marked), { volumeId: 'juva-1', image: 9 });
+  await scans().markRef(refOf(marked), { volumeId: 'juva-1', image: 9 });
 
   expect(await linksOf(marked)).toEqual([
     expect.objectContaining({
@@ -134,7 +144,7 @@ test('a hand marking replaces a vision match', async () => {
   expect(await linksOf(marked)).toEqual([
     expect.objectContaining({ image: 4, certainty: 'vision' })
   ]);
-  await markRef(openPins(dir), refOf(marked), { volumeId: 'juva-1', image: 7 });
+  await scans().markRef(refOf(marked), { volumeId: 'juva-1', image: 7 });
   expect(await linksOf(marked)).toEqual([
     expect.objectContaining({
       image: 7,
@@ -198,7 +208,7 @@ test('confirming a vision match by hand keeps its box', async () => {
     }
   });
   const marked = citation(5000, '1790 - 1796', 12);
-  await markRef(openPins(dir), refOf(marked), { volumeId: 'juva-1', image: 4 });
+  await scans().markRef(refOf(marked), { volumeId: 'juva-1', image: 4 });
   expect(await linksOf(marked)).toEqual([
     expect.objectContaining({
       image: 4,
@@ -229,7 +239,7 @@ test('a vision Reference pin confirmed by hand keeps its box', async () => {
       }
     })
   );
-  await markRef(openPins(dir), refOf(marked), { volumeId: 'juva-2', image: 3 });
+  await scans().markRef(refOf(marked), { volumeId: 'juva-2', image: 3 });
   expect(Object.values((await openPins(dir).snapshot()).references)).toEqual([
     { volumeId: 'juva-2', volume: VOLUMES['juva-2'], image: 3, by: 'hand', box }
   ]);
@@ -240,7 +250,7 @@ test('the matcher searches the Volumes a reference links', async () => {
     'https://www.myheritage.fi/research/collection-30233/x?itemId=9',
     'Juho Esimerkki\nRistiäiset: 29. Marras 1795 - Juva, Mikkeli, Finland'
   );
-  expect(await matchCandidates(openPins(dir), index)).toEqual([
+  expect(await scans().matchCandidates(index)).toEqual([
     {
       volumeId: 'juva-3',
       volume: VOLUMES['juva-3'],
@@ -251,10 +261,7 @@ test('the matcher searches the Volumes a reference links', async () => {
   ]);
   const rippi = citation(5000, '1790 - 1796', 12);
   expect(
-    await matchCandidates(
-      openPins(dir),
-      parseChurchBookRef(rippi.page, rippi.text)
-    )
+    await scans().matchCandidates(parseChurchBookRef(rippi.page, rippi.text))
   ).toEqual([
     {
       volumeId: 'juva-1',
@@ -264,4 +271,104 @@ test('the matcher searches the Volumes a reference links', async () => {
       start: 12
     }
   ]);
+});
+
+// ---------------------------------------------------------------- choosing the Volume
+
+// The Volumes a reference links, by id.
+async function volumesOf(c: { page: string; text: string }, astia: Astia) {
+  const links = await linksOf(c, astia);
+  return 'error' in links ? links : links.map((l) => l.volumeId);
+}
+
+test("a Volume's Parts leave out the years in its gaps", async () => {
+  const astia = juvaWith([
+    {
+      id: 'juva-p',
+      label: 'I Aa:3 Pää- ja rippikirjat, 1790-1792, 1795-1796 (1790-1796)',
+      images: 20
+    },
+    {
+      id: 'juva-q',
+      label: 'I Aa:4 Pää- ja rippikirjat (1793-1794)',
+      images: 20
+    }
+  ]);
+  expect(await volumesOf(citation(5000, '1793 - 1793', 5), astia)).toEqual([
+    'juva-q'
+  ]);
+  expect(await volumesOf(citation(5001, '1791 - 1791', 5), astia)).toEqual([
+    'juva-p'
+  ]);
+});
+
+test("a page past a Volume's Page pins goes to the Volume continuing it", async () => {
+  // Pages 1–20 in the first Volume, 21–40 in the second.
+  const astia = juvaWith([
+    {
+      id: 'juva-a',
+      label: 'I Aa:1a Pää- ja rippikirjat (1790-1796)',
+      images: 20
+    },
+    {
+      id: 'juva-b',
+      label: 'I Aa:1b Pää- ja rippikirjat (1790-1796)',
+      images: 20
+    }
+  ]);
+  await writeLocal({
+    'juva-a': { pages: [{ image: 20, pages: [20] }] },
+    'juva-b': { pages: [{ image: 1, pages: [21] }] }
+  });
+  expect(await linksOf(citation(5000, '1790 - 1796', 30), astia)).toEqual([
+    expect.objectContaining({ volumeId: 'juva-b', image: 10, from: 'pins' })
+  ]);
+  expect(await linksOf(citation(5001, '1790 - 1796', 5), astia)).toEqual([
+    expect.objectContaining({ volumeId: 'juva-a', image: 5, from: 'pins' })
+  ]);
+});
+
+test("Volumes split by villages link the one holding the reference's village", async () => {
+  const astia = juvaWith([
+    {
+      id: 'juva-h',
+      label: 'I Aa:3 Pää- ja rippikirjat, Hankamäki - Orala (1790-1796)',
+      images: 20
+    },
+    {
+      id: 'juva-p',
+      label: 'I Aa:4 Pää- ja rippikirjat, Pajula - Ö (1790-1796)',
+      images: 20
+    }
+  ]);
+  const cited = citation(5000, '1790 - 1796', 5);
+  expect(
+    await volumesOf({ ...cited, text: `${cited.text}\nKylä:Pajula` }, astia)
+  ).toEqual(['juva-p']);
+  expect(
+    await volumesOf({ ...cited, text: `${cited.text}\nKylä:Kaipola` }, astia)
+  ).toEqual(['juva-h']);
+  // No village given: the split stands.
+  expect(await volumesOf(cited, astia)).toEqual(['juva-h', 'juva-p']);
+});
+
+test("Links name the Volume's archive; a Volume not digitized has none", async () => {
+  const astia = memoryAstia({
+    [JUVA]: {
+      title: 'Juvan seurakunnan arkisto',
+      volumes: [
+        { id: 'juva-1', label: VOLUMES['juva-1'], images: 20 },
+        { id: 'juva-2', label: VOLUMES['juva-2'], images: 20, digitized: false }
+      ]
+    }
+  });
+  expect(await linksOf(citation(5000, '1790 - 1796', 5), astia)).toEqual([
+    expect.objectContaining({
+      volumeId: 'juva-1',
+      archive: 'Juvan seurakunnan arkisto'
+    })
+  ]);
+  expect(await linksOf(citation(5001, '1797 - 1803', 5), astia)).toEqual({
+    error: 'not digitized'
+  });
 });

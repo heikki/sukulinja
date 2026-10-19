@@ -1,17 +1,21 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
-import { rippiCitation, seedParish } from './citation-scans/test-parish';
+import { memoryAstia } from './citation-scans/memory-astia';
+import type { MemoryAstia } from './citation-scans/memory-astia';
+import { juvaAstia, rippiCitation } from './citation-scans/test-parish';
 import { DatasetRegistry } from './dataset-registry';
 import { importGedcom } from './gedcom-import';
 import { parseGedcom } from './gedcom-parser';
 import { createApi, createStaticFetch } from './server';
 
 let root = '';
+// Astia as the app sees it; nothing goes out over HTTP.
+let astia: MemoryAstia = juvaAstia();
 let fetch = createStaticFetch({
-  api: createApi(new DatasetRegistry('/')),
+  api: createApi(new DatasetRegistry('/'), { astia }),
   staticRoots: []
 });
 
@@ -22,8 +26,9 @@ async function get(path: string) {
 beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'static-fetch-'));
   await writeFile(join(root, 'index.js'), 'export {};');
+  astia = juvaAstia();
   fetch = createStaticFetch({
-    api: createApi(new DatasetRegistry(join(root, 'data'))),
+    api: createApi(new DatasetRegistry(join(root, 'data')), { astia }),
     staticRoots: [root]
   });
 });
@@ -46,43 +51,25 @@ describe('createStaticFetch', () => {
 });
 
 describe('Astia Images', () => {
-  // Volume 201 has two Images; Volume 202's are unreachable.
-  function file(id: string) {
-    return { name: 'FILE', children: [{ name: 'URL', tagData: id }] };
-  }
-
-  function fakeAstia(input: string | URL | Request) {
-    const url = new URL(input instanceof Request ? input.url : input);
-    const volumeId =
-      url.searchParams.get('aineistoId') ?? url.searchParams.get('id');
-    if (volumeId === '202') {
-      return Promise.resolve(new Response('', { status: 404 }));
-    }
-    if (url.pathname.endsWith('/digitoidut.php')) {
-      return Promise.resolve(
-        Response.json({ isot: [file('a'), file('b')], pienet: [] })
-      );
-    }
-    return Promise.resolve(new Response(new Uint8Array([0xff, 0xd8])));
-  }
-
   test('serves an Image, or says why not', async () => {
-    const astia = spyOn(globalThis, 'fetch').mockImplementation(
-      fakeAstia as typeof globalThis.fetch
-    );
-    try {
-      const res = await get('/astia/volumes/201/images/2');
-      expect(res.status).toBe(200);
-      expect(res.headers.get('Content-Type')).toBe('image/jpeg');
-      expect((await res.bytes()).length).toBe(2);
-      expect((await get('/astia/volumes/201/images/3')).status).toBe(404);
-      expect((await get('/astia/volumes/202/images/1')).status).toBe(502);
-      const links = await get('/astia/volumes/201/images');
-      expect(((await links.json()) as string[]).length).toBe(2);
-      expect((await get('/astia/volumes/202/images')).status).toBe(502);
-    } finally {
-      astia.mockRestore();
-    }
+    // Volume 201 has two Images; Volume 202 can't be reached.
+    fetch = createStaticFetch({
+      api: createApi(new DatasetRegistry(join(root, 'data')), {
+        astia: memoryAstia({
+          '1': { volumes: [{ id: '201', label: 'I Aa:1', images: 2 }] }
+        })
+      }),
+      staticRoots: []
+    });
+    const res = await get('/astia/volumes/201/images/2');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toBe('image/jpeg');
+    expect((await res.bytes()).length).toBe(2);
+    expect((await get('/astia/volumes/201/images/3')).status).toBe(404);
+    expect((await get('/astia/volumes/202/images/1')).status).toBe(502);
+    const links = await get('/astia/volumes/201/images');
+    expect(((await links.json()) as string[]).length).toBe(2);
+    expect((await get('/astia/volumes/202/images')).status).toBe(502);
   });
 });
 
@@ -119,7 +106,7 @@ describe('Scan cache setting', () => {
     expect(JSON.parse(saved.toString())).toEqual({ scanCacheBytes: 5 * GB });
     // As after a restart: the cap is read back from the data folder.
     fetch = createStaticFetch({
-      api: createApi(new DatasetRegistry(join(root, 'data'))),
+      api: createApi(new DatasetRegistry(join(root, 'data')), { astia }),
       staticRoots: [root]
     });
     expect((await send('GET')).body).toMatchObject({ cap: 5 * GB });
@@ -131,7 +118,6 @@ describe('Scan cache setting', () => {
 describe("A dataset's Citations", () => {
   async function seedDataset() {
     const data = join(root, 'data');
-    await seedParish(data);
     const staging = await new DatasetRegistry(data).createStaging('juva');
     const insert = staging.db.prepare(
       `INSERT INTO citations (scope_type, scope_id, page, text, sort_order)
@@ -154,32 +140,25 @@ describe("A dataset's Citations", () => {
   }
 
   test('streams scan lines, saves Marks, and lists a Volume', async () => {
-    const astia = spyOn(globalThis, 'fetch').mockImplementation((() => {
-      throw new Error('no requests to Astia in these tests');
-    }) as unknown as typeof globalThis.fetch);
-    try {
-      await seedDataset();
-      const scans = await get('/d/juva/api/persons/1/scans');
-      expect(scans.headers.get('content-type')).toBe('application/x-ndjson');
-      const lines = (await scans.text())
-        .trim()
-        .split('\n')
-        .map((l) => JSON.parse(l) as { citationId: number });
-      expect(lines.map((l) => l.citationId)).toEqual([1]);
+    await seedDataset();
+    const scans = await get('/d/juva/api/persons/1/scans');
+    expect(scans.headers.get('content-type')).toBe('application/x-ndjson');
+    const lines = (await scans.text())
+      .trim()
+      .split('\n')
+      .map((l) => JSON.parse(l) as { citationId: number });
+    expect(lines.map((l) => l.citationId)).toEqual([1]);
 
-      expect(await mark(1, { volumeId: 'juva-1', image: 7 })).toBe(200);
-      expect(await mark(1, { volumeId: 'juva-1', image: 99 })).toBe(400);
-      expect(await mark(1, { image: 7 })).toBe(400);
-      expect(await mark(2, { volumeId: 'juva-1', image: 7 })).toBe(404);
+    expect(await mark(1, { volumeId: 'juva-1', image: 7 })).toBe(200);
+    expect(await mark(1, { volumeId: 'juva-1', image: 99 })).toBe(400);
+    expect(await mark(1, { image: 7 })).toBe(400);
+    expect(await mark(2, { volumeId: 'juva-1', image: 7 })).toBe(404);
 
-      const volume = await get('/d/juva/api/volumes/juva-1/citations');
-      expect(((await volume.json()) as unknown[]).length).toBe(1);
-      expect(
-        (await get('/d/juva/api/volumes/elsewhere/citations')).status
-      ).toBe(404);
-    } finally {
-      astia.mockRestore();
-    }
+    const volume = await get('/d/juva/api/volumes/juva-1/citations');
+    expect(((await volume.json()) as unknown[]).length).toBe(1);
+    expect((await get('/d/juva/api/volumes/elsewhere/citations')).status).toBe(
+      404
+    );
   });
 });
 
@@ -205,7 +184,10 @@ describe('A dataset replaced while open', () => {
 
   test('answers with the new dataset after an import commits', async () => {
     const registry = new DatasetRegistry(join(root, 'data'));
-    fetch = createStaticFetch({ api: createApi(registry), staticRoots: [] });
+    fetch = createStaticFetch({
+      api: createApi(registry, { astia }),
+      staticRoots: []
+    });
     await importAs(registry, 'Matti');
     expect(await persons()).toEqual(['Matti']);
     // Committed without /import, so only the registry knows.
@@ -215,7 +197,10 @@ describe('A dataset replaced while open', () => {
 
   test('is gone once deleted', async () => {
     const registry = new DatasetRegistry(join(root, 'data'));
-    fetch = createStaticFetch({ api: createApi(registry), staticRoots: [] });
+    fetch = createStaticFetch({
+      api: createApi(registry, { astia }),
+      staticRoots: []
+    });
     await importAs(registry, 'Matti');
     expect(await persons()).toEqual(['Matti']);
     const deleted = await fetch(

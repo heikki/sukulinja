@@ -18,9 +18,12 @@
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
+import { openAstia } from '@server/citation-scans/astia';
+
 import { claudeReader } from '../vision/claude-reader';
 import type { Spend } from '../vision/claude-reader';
 import { datasetRefs } from '../vision/dataset';
+import { pacedImages } from '../vision/images';
 import { reviewMarkdown, runMatching } from './run';
 import type { Books } from './run';
 
@@ -85,7 +88,9 @@ async function main() {
   const refs = datasetRefs(join(root, values.dataset, 'db.sqlite'));
   console.log(`${refs.length} church-book references`);
 
+  const astia = openAstia(join(root, '.astia-cache'));
   const claude = claudeReader({
+    image: pacedImages(astia),
     models: given({
       pages: values['pages-model'],
       dates: values['dates-model'],
@@ -96,6 +101,7 @@ async function main() {
     root,
     refs,
     reader: claude,
+    astia,
     dryRun,
     ...given({
       books,

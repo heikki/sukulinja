@@ -7,8 +7,8 @@
 import { readdir, rename, rm, stat, utimes } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
-import { imageBytes, volumeImages } from './astia';
-import type { ImageSize } from './astia';
+import type { Astia, ImageSize } from './astia';
+import type { ImageRef } from './reader';
 
 const DEFAULT_CAP_BYTES = 2 * 1024 ** 3;
 
@@ -39,8 +39,8 @@ export async function shrinkImageCache() {
 
 // Whether a Volume's full-size Image is on disk already: a bulk job paces
 // only the fetches that reach Astia.
-export async function isImageCached(volumeId: string, image: number) {
-  const fileId = (await volumeImages(volumeId))[image - 1];
+export async function isImageCached(astia: Astia, at: ImageRef) {
+  const fileId = (await astia.volumeImages(at.volumeId))[at.image - 1];
   if (fileId === undefined) return false;
   return await Bun.file(join(cacheDir, `${fileId}.jpg`)).exists();
 }
@@ -181,8 +181,13 @@ async function prune(keep: string | null) {
   await Promise.all(dropped.map((path) => rm(path, { force: true })));
 }
 
-async function download(volumeId: string, fileId: string, path: string) {
-  const bytes = await imageBytes(volumeId, fileId);
+async function download(
+  astia: Astia,
+  volumeId: string,
+  fileId: string,
+  path: string
+) {
+  const bytes = await astia.imageBytes(volumeId, fileId);
   // Written aside and moved in, so a cut-off fetch never shows as cached.
   const part = `${path}.part`;
   await Bun.write(part, bytes);
@@ -194,19 +199,23 @@ async function download(volumeId: string, fileId: string, path: string) {
 // null when the Volume has no such Image. Throws when Astia can't be
 // reached, or when `signal` aborts first.
 export async function astiaImage(
-  volumeId: string,
-  image: number,
+  astia: Astia,
+  at: ImageRef,
   size: ImageSize,
   signal: AbortSignal
 ) {
-  const fileId = (await volumeImages(volumeId, size))[image - 1];
+  const fileId = (await astia.volumeImages(at.volumeId, size))[at.image - 1];
   if (fileId === undefined) return null;
   const path = join(cacheDir, `${fileId}.jpg`);
   if (await touch(path)) return path;
   if (size === 'thumb') {
-    await download(volumeId, fileId, path);
+    await download(astia, at.volumeId, fileId, path);
   } else {
-    await inLane(fileId, () => download(volumeId, fileId, path), signal);
+    await inLane(
+      fileId,
+      () => download(astia, at.volumeId, fileId, path),
+      signal
+    );
   }
   return path;
 }
