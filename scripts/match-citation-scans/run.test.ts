@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
 
-import { loadAnchors, loadPlacements } from '@server/citation-scans/anchors';
+import { loadPins } from '@server/citation-scans/pins';
 import type { Reader } from '@server/citation-scans/reader';
 import {
   churchBookRefOf,
@@ -163,27 +163,26 @@ test('saves confirmed matches, which the app shows as vision matches', async () 
     expect.objectContaining({
       volumeId: 'juva-1',
       image: 12,
-      method: 'placed',
-      by: 'vision'
+      method: 'vision'
     })
   ]);
   expect(await scanOf(JUHO)).toEqual([
     expect.objectContaining({
       volumeId: 'juva-3',
       image: 15,
-      method: 'placed',
-      by: 'vision'
+      method: 'vision'
     })
   ]);
-  const juva1 = (await loadAnchors())['juva-1']!;
-  expect(juva1.seen).toEqual([
+  const pins = await loadPins();
+  const juva1 = pins.volumes['juva-1']!;
+  expect(juva1.records).toEqual([
     { record: 5000, image: 12, by: 'vision', box: BOX }
   ]);
-  expect(juva1.records).toEqual([{ from: 5000, to: 5000 }]);
-  expect(juva1.anchors).toEqual([
+  expect(juva1.ranges).toEqual([{ from: 5000, to: 5000 }]);
+  expect(juva1.pages).toEqual([
     { image: 12, pages: [12], note: 'read by the vision model', by: 'vision' }
   ]);
-  expect(Object.keys(await loadPlacements())).toEqual([JUHO.page]);
+  expect(Object.keys(pins.references)).toEqual([JUHO.page]);
 });
 
 test('lists what it could not confirm, with where the search ended', async () => {
@@ -219,37 +218,40 @@ test('a re-run skips what was saved and asks the Reader nothing new', async () =
   expect(
     'outcomes' in again.result && again.result.outcomes.toSorted()
   ).toEqual([
-    'kastetut ✗ already placed',
+    'kastetut ✗ already pinned',
     'rippi did not converge',
     'rippi unreadable',
-    'rippi ✗ already placed'
+    'rippi ✗ already pinned'
   ]);
 });
 
-test('never overrides a hand correction', async () => {
+test('never overrides a hand pin', async () => {
   await passEvaluation();
-  // Juho placed by hand on Image 16; an Anchor read by hand on Image 12.
+  // Juho pinned by hand on Image 16; a Page pin read by hand on Image 12.
   await Bun.write(
-    join(dir, 'placements.local.json'),
+    join(dir, 'pins.local.json'),
     JSON.stringify({
-      [JUHO.page]: { volumeId: 'juva-3', volume: VOLUMES['juva-3'], image: 16 }
+      volumes: { 'juva-1': { pages: [{ image: 12, pages: [12] }] } },
+      references: {
+        [JUHO.page]: {
+          volumeId: 'juva-3',
+          volume: VOLUMES['juva-3'],
+          image: 16
+        }
+      }
     })
-  );
-  await Bun.write(
-    join(dir, 'anchors.local.json'),
-    JSON.stringify({ 'juva-1': { anchors: [{ image: 12, pages: [12] }] } })
   );
   useDataFolder(dir);
   await run();
   expect(await scanOf(JUHO)).toEqual([
-    expect.objectContaining({ image: 16, by: 'hand' })
+    expect.objectContaining({ image: 16, method: 'exact' })
   ]);
-  expect((await loadAnchors())['juva-1']!.anchors).toEqual([
+  expect((await loadPins()).volumes['juva-1']!.pages).toEqual([
     { image: 12, pages: [12] }
   ]);
-  // Matti is still matched, as a Seen record beside the hand Anchor.
+  // Matti is still matched, as a Record pin beside the hand Page pin.
   expect(await scanOf(MATTI)).toEqual([
-    expect.objectContaining({ image: 12, by: 'vision' })
+    expect.objectContaining({ image: 12, method: 'vision' })
   ]);
 });
 
@@ -261,15 +263,13 @@ test('writes nothing without a passing evaluation', async () => {
   expect((await run()).result).toEqual({
     refused: 'fake confirmed 2.5% of decoys; at most 1% is allowed'
   });
-  expect(await loadPlacements()).toEqual({});
-  expect(await Bun.file(join(dir, 'anchors.local.json')).exists()).toBe(false);
+  expect(await Bun.file(join(dir, 'pins.local.json')).exists()).toBe(false);
 });
 
 test('a dry run reports what it would save, and writes nothing', async () => {
   const { result } = await run({ dryRun: true });
   expect('saved' in result && result.saved).toBe(2);
-  expect(await loadPlacements()).toEqual({});
-  expect(await Bun.file(join(dir, 'anchors.local.json')).exists()).toBe(false);
+  expect(await Bun.file(join(dir, 'pins.local.json')).exists()).toBe(false);
   expect(await scanOf(MATTI)).toEqual([
     expect.objectContaining({ method: 'estimated' })
   ]);

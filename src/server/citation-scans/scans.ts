@@ -5,22 +5,21 @@ import { join } from 'node:path';
 
 import type { Box, Scan } from '@common/types';
 
-import {
-  addLocalAnchor,
-  addLocalSeen,
-  loadAnchors,
-  loadPlacements,
-  setLocalFolder,
-  setPlacement
-} from './anchors';
 import { archiveVolumes, setCacheDir, volumeImages } from './astia';
 import { setImageCacheDir } from './images';
 import { parishArchive, parishVolumes, resolveChurchBookRef } from './locate';
 import type { Candidate } from './matcher';
+import {
+  addPagePin,
+  addRecordPin,
+  loadPins,
+  setLocalFolder,
+  setReferencePin
+} from './pins';
 import type { ChurchBookRef } from './record';
 import { useScanCacheSettings } from './scan-cache';
 
-// Astia's caches and the local corrections live beside the datasets; the
+// Astia's caches and the local pins live beside the datasets; the
 // registry lists only slug-named folders, so none shows as a dataset.
 export function useDataFolder(root: string) {
   setCacheDir(join(root, '.astia-cache'));
@@ -29,14 +28,10 @@ export function useDataFolder(root: string) {
   useScanCacheSettings(root);
 }
 
-// Where the reference links, with the Anchors and Placements saved so far.
+// Where the reference links, with the pins saved so far.
 export async function resolveRef(ref: ChurchBookRef) {
   try {
-    return await resolveChurchBookRef(
-      ref,
-      await loadAnchors(),
-      await loadPlacements()
-    );
+    return await resolveChurchBookRef(ref, await loadPins());
   } catch {
     return { error: 'Astia unavailable' };
   }
@@ -84,14 +79,11 @@ export async function volumeScans(volumeId: string, refs: ChurchBookRef[]) {
     refs.map((r) => r.parish)
   );
   if (archive === null) return null;
-  const [anchors, placements] = await Promise.all([
-    loadAnchors(),
-    loadPlacements()
-  ]);
+  const pins = await loadPins();
   return await Promise.all(
     refs.map(async (ref): Promise<VolumeScan | null> => {
       if (parishArchive(ref.parish) !== archive) return null;
-      const resolved = await resolveChurchBookRef(ref, anchors, placements);
+      const resolved = await resolveChurchBookRef(ref, pins);
       if ('error' in resolved) return null;
       const scan = resolved.scans.find((s) => s.volumeId === volumeId);
       return scan === undefined
@@ -107,11 +99,16 @@ export interface MarkTarget {
   image: number;
 }
 
-// The Volumes the reference links by the Book it cites, not by an earlier
-// placement, with its Image in each: marking an Image in one of them saves
-// an anchor.
+// The pins resolution reads, but no Reference pins: a reference's links by
+// the Book it cites, not by where it was pinned before.
+async function byBook() {
+  return { volumes: (await loadPins()).volumes, references: {} };
+}
+
+// The Volumes the reference links by the Book it cites, with its Image in
+// each: marking an Image in one of them saves a Page pin.
 async function linkedImages(ref: ChurchBookRef) {
-  const matched = await resolveChurchBookRef(ref, await loadAnchors());
+  const matched = await resolveChurchBookRef(ref, await byBook());
   const scans = 'scans' in matched ? matched.scans : [];
   return new Map(scans.map((s) => [s.volumeId, s.image]));
 }
@@ -120,7 +117,7 @@ async function linkedImages(ref: ChurchBookRef) {
 // cites, with each one's Image count, years and the Image it links if any:
 // where the matcher searches.
 export async function matchCandidates(ref: ChurchBookRef) {
-  const resolved = await resolveChurchBookRef(ref, await loadAnchors());
+  const resolved = await resolveChurchBookRef(ref, await byBook());
   if ('error' in resolved) return [];
   const volumes = await parishVolumes(ref.parish);
   return await Promise.all(
@@ -134,10 +131,10 @@ export async function matchCandidates(ref: ChurchBookRef) {
   );
 }
 
-// A volume numbered by page carries two numbers per image; the new anchor
-// follows the ones already read in that volume, or the book type.
+// A volume numbered by page carries two numbers per image; the new Page pin
+// follows the ones already in that volume, or the book type.
 async function pagesFor(volumeId: string, page: number, kind: string | null) {
-  const known = (await loadAnchors())[volumeId]?.anchors ?? [];
+  const known = (await loadPins()).volumes[volumeId]?.pages ?? [];
   const twoPages =
     known.length > 0
       ? known.some((a) => a.pages.length === 2)
@@ -151,22 +148,24 @@ async function matchedBox(
   ref: ChurchBookRef,
   target: { volumeId: string; image: number }
 ) {
+  const pins = await loadPins();
   const saved =
     ref.recordId === null
-      ? (await loadPlacements())[ref.url]
-      : (await loadAnchors())[target.volumeId]?.seen?.find(
-          (s) => s.record === ref.recordId
+      ? pins.references[ref.url]
+      : pins.volumes[target.volumeId]?.records?.find(
+          (p) => p.record === ref.recordId
         );
   if (saved?.image !== target.image || saved.box === undefined) return {};
   const inVolume = !('volumeId' in saved) || saved.volumeId === target.volumeId;
   return inVolume ? { box: saved.box } : {};
 }
 
-// A cited page found in a volume the reference already links is an anchor,
-// which moves the volume's other references near it too. A record naming no
-// page, or found in another volume of the parish, is placed on its own.
-// Either way a record with a Record number is seen there, which extends
-// the volume's record range so the records numbered around it follow.
+// A cited page found in a volume the reference already links is a Page
+// pin, which moves the volume's other references near it too. A reference
+// naming no page, or found in another volume of the parish, gets a
+// Reference pin. Either way a record with a Record number gets a Record
+// pin, which extends the volume's Record range so the records numbered
+// around it follow.
 async function save(
   ref: ChurchBookRef,
   target: { volumeId: string; image: number },
@@ -175,18 +174,18 @@ async function save(
 ) {
   const box = await matchedBox(ref, target);
   if (ref.page !== null && linked) {
-    await setPlacement(ref.url, null);
-    await addLocalAnchor(target.volumeId, volume, {
+    await setReferencePin(ref.url, null);
+    await addPagePin(target.volumeId, volume, {
       image: target.image,
       pages: await pagesFor(target.volumeId, ref.page, ref.kind),
-      note: 'placed by hand in the app',
+      note: 'marked in the app',
       by: 'hand'
     });
   } else {
-    await setPlacement(ref.url, { ...target, volume, by: 'hand', ...box });
+    await setReferencePin(ref.url, { ...target, volume, by: 'hand', ...box });
   }
   if (ref.recordId !== null) {
-    await addLocalSeen(target.volumeId, volume, {
+    await addRecordPin(target.volumeId, volume, {
       record: ref.recordId,
       image: target.image,
       by: 'hand',
@@ -195,10 +194,10 @@ async function save(
   }
 }
 
-// A match the vision model confirmed, saved the way a hand correction is,
-// marked as the model's: a Seen record for a record with a Record number,
-// else a Placement. The cited page becomes an Anchor only where the model
-// read it on that very Image. A hand entry is never replaced.
+// A match the vision model confirmed, saved the way a Mark is, as the
+// model's: a Record pin for a record with a Record number, else a Reference
+// pin. The cited page becomes a Page pin only where the model read it on
+// that very Image. A hand pin is never replaced.
 export async function saveVisionMatch(
   ref: ChurchBookRef,
   match: {
@@ -212,7 +211,7 @@ export async function saveVisionMatch(
   const { volumeId, volume, image } = match;
   const box = match.box === null ? {} : { box: match.box };
   if (ref.recordId === null) {
-    await setPlacement(ref.url, {
+    await setReferencePin(ref.url, {
       volumeId,
       volume,
       image,
@@ -221,14 +220,14 @@ export async function saveVisionMatch(
     });
     return;
   }
-  await addLocalSeen(volumeId, volume, {
+  await addRecordPin(volumeId, volume, {
     record: ref.recordId,
     image,
     by: 'vision',
     ...box
   });
   if (ref.page !== null && match.onCitedPage) {
-    await addLocalAnchor(volumeId, volume, {
+    await addPagePin(volumeId, volume, {
       image,
       pages: await pagesFor(volumeId, ref.page, ref.kind),
       note: 'read by the vision model',

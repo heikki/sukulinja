@@ -101,12 +101,15 @@ export interface HouseholdMember {
   born: string | null;
 }
 
-// How a scan's image was found: from page numbers read off the volume
-// (anchored), guessed from the book type (estimated), exactly for this
-// record (placed), or not at all — the link opens the volume.
-export type ScanMethod = 'anchored' | 'estimated' | 'placed' | 'volume';
+// How sure a link is, best first: a pin saved by hand, one the vision
+// model saved (a suggestion), an estimate, or only the Volume.
+export type ScanMethod = 'exact' | 'vision' | 'estimated' | 'volume';
 
-// Who saved a correction: marked by hand, or matched by the vision model.
+// What an estimate is counted from: the Volume's Page pins, or the Book's
+// usual numbering.
+export type EstimateBasis = 'pins' | 'numbering';
+
+// Who saved a pin: by hand, or the vision model.
 export type Provenance = 'hand' | 'vision';
 
 // Where an entry is on an Image, in fractions of its width and height, so
@@ -126,9 +129,9 @@ export interface Scan {
   image: number;
   url: string;
   method: ScanMethod;
-  // Set on a placed scan: whether a person or the vision model placed it.
-  by?: Provenance;
-  // Set on a placed scan where the vision model said where the entry is.
+  // Set on an estimate: what it's counted from.
+  from?: EstimateBasis;
+  // Set on a pinned scan where the vision model said where the entry is.
   box?: Box;
   // The archive the Volume is in, by its title in Astia: "Pieksämäen
   // seurakunnan arkisto". Unset when Astia can't say.

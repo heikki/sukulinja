@@ -119,7 +119,7 @@ export function scanStatus(
   const { scans } = resolution;
   const [first] = scans;
   if (first === undefined) return { label: 'No scan', title: '', scan: null };
-  const label = methodLabel(first.method, first.by);
+  const label = methodLabel(first);
   return {
     label: scans.length > 1 ? splitLabel(label) : label,
     title: scanTitle(scans),
@@ -135,7 +135,7 @@ export function scanTitle(scans: Scan[]) {
     scans.length > 1
       ? ['The reference fits several Volumes; it opens on the first.']
       : [];
-  const hint = first === undefined ? [] : [methodHint(first.method, first.by)];
+  const hint = first === undefined ? [] : [methodHint(first)];
   return [...hint, ...split].join('\n');
 }
 

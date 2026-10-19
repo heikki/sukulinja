@@ -1,24 +1,23 @@
 // Church-book reference → Astia volume → image.
 //
 // Astia knows only image order, so a cited page is turned into an image via
-// anchors (anchors.json): what's written on one image, read off the scan by
-// hand. One number means the book numbers spreads (`pages: [77]`); two mean
-// it numbers pages (`pages: [40, 41]`). Where MyHeritage's indexer misread
-// the page number, an anchor gives the number as cited and a `note` says
-// what's written. Without an anchor we guess from the spot checks so far:
-// rippikirjat number spreads, lastenkirjat pages.
+// Page pins (pins.json): what's written on one image. One number means the
+// book numbers spreads (`pages: [77]`); two mean it numbers pages
+// (`pages: [40, 41]`). Where MyHeritage's indexer misread the page number,
+// a Page pin gives the number as cited and a `note` says what's written.
+// Without one we guess from the spot checks so far: rippikirjat number
+// spreads, lastenkirjat pages.
 //
 // Which volume a reference is in comes from its book's years, then the
 // villages and page numbers. Where that's known exactly, a volume lists the
-// MyHeritage records on its film: MyHeritage numbers each film's records in
-// one block, in image order, and blocks don't overlap, so a record seen on a
-// film places every record numbered around it there too. A record seen this
-// way is on a known image: MyHeritage's scan of it was matched by eye to
-// Astia's — mostly the same scan under another image number, sometimes a
-// different photograph of the same page, matched by what's written on it.
+// Record ranges on its film: MyHeritage numbers each film's records in one
+// block, in image order, and blocks don't overlap, so a record pinned on a
+// film places every record numbered around it there too. A Record pin puts
+// its record on a known image; so does a Reference pin its reference.
 
 import type {
   Box,
+  EstimateBasis,
   Provenance,
   Scan,
   ScanMethod,
@@ -53,9 +52,9 @@ const PARISH_ARCHIVE: Record<string, string> = {
   'Sääminki': '1231967062'
 };
 
-// Corrections say who made them; a missing `by` is by hand, which covers
-// everything shipped and every local file written before the vision model.
-export interface Anchor {
+// Pins say who saved them; a missing `by` is by hand, which covers the
+// shipped ones and every local file written before the vision model.
+export interface PagePin {
   image: number;
   pages: number[];
   note?: string;
@@ -68,8 +67,8 @@ export interface RecordRange {
   to: number;
 }
 
-// A MyHeritage record whose scan is this image.
-export interface SeenRecord {
+// A record known to be on this image, by its MyHeritage Record number.
+export interface RecordPin {
   record: number;
   image: number;
   by?: Provenance;
@@ -77,23 +76,20 @@ export interface SeenRecord {
   box?: Box;
 }
 
-// Per volume: the anchors read in it, the villages found in it where a book
-// is split in parts without village ranges in their labels, the records on
-// its film, and the images of those seen.
-export type Anchors = Record<
-  string,
-  {
-    title?: string;
-    anchors: Anchor[];
-    villages?: string[];
-    records?: RecordRange[];
-    seen?: SeenRecord[];
-  }
->;
+// What's known of one volume: its Page pins, the villages found in it where
+// a book is split in parts without village ranges in their labels, the
+// Record ranges on its film, and its Record pins.
+export interface VolumePins {
+  title?: string;
+  pages: PagePin[];
+  villages?: string[];
+  ranges?: RecordRange[];
+  records?: RecordPin[];
+}
 
-// A record placed by hand on an image, for a reference naming no page or
-// found in a volume its book doesn't match.
-export interface Placement {
+// One reference known to be on an image: one naming no page, or found in a
+// volume its book doesn't match. Kept by the reference's link.
+export interface ReferencePin {
   volumeId: string;
   volume: string;
   image: number;
@@ -101,7 +97,16 @@ export interface Placement {
   box?: Box;
 }
 
-export type Placements = Record<string, Placement>;
+export interface Pins {
+  volumes: Record<string, VolumePins>;
+  references: Record<string, ReferencePin>;
+}
+
+// A Record or Reference pin gives an exact link when saved by hand, and a
+// suggestion when the vision model saved it.
+function pinnedMethod(by: Provenance | undefined) {
+  return by === 'vision' ? ('vision' as const) : ('exact' as const);
+}
 
 // ---------------------------------------------------------------- volumes
 
@@ -134,14 +139,10 @@ function candidateVolumes(volumes: Volume[], kind: BookKind, years: Years) {
 }
 
 // The volume whose film holds the record, whatever book the reference names.
-function filmedIn(
-  volumes: Volume[],
-  recordId: number | null,
-  anchors: Anchors
-) {
+function filmedIn(volumes: Volume[], recordId: number | null, pins: Pins) {
   if (recordId === null) return [];
   return volumes.filter((v) =>
-    (anchors[v.id]?.records ?? []).some(
+    (pins.volumes[v.id]?.ranges ?? []).some(
       (r) => r.from <= recordId && recordId <= r.to
     )
   );
@@ -178,15 +179,11 @@ function inRange(place: string, range: { from: string; to: string }) {
 // Among volumes split by village, keep those known to hold one of the
 // reference's place names, else those whose range covers one; if none does,
 // the split can't be decided here.
-function narrowByVillage(
-  volumes: Volume[],
-  places: string[],
-  anchors: Anchors
-) {
+function narrowByVillage(volumes: Volume[], places: string[], pins: Pins) {
   if (volumes.length < 2) return volumes;
   const keys = places.map(placeKey);
   const known = volumes.filter((v) =>
-    (anchors[v.id]?.villages ?? []).some((name) =>
+    (pins.volumes[v.id]?.villages ?? []).some((name) =>
       keys.includes(placeKey(name))
     )
   );
@@ -216,12 +213,12 @@ function imageFor(n: Numbering, page: number) {
   return n.image + Math.floor((page - n.first) / n.pagesPerImage);
 }
 
-// Between two anchors a page is placed proportionally, which spreads
+// Between two Page pins a page is placed proportionally, which spreads
 // unnumbered or inserted leaves over the gap; elsewhere it's counted from
-// the nearest anchor. Anchors out of image order (a misread page, see
+// the nearest one. Page pins out of image order (a misread page, see
 // above) are only counted from.
-function anchoredImage(anchors: Anchor[], page: number) {
-  const numbered = anchors
+function countedImage(pins: PagePin[], page: number) {
+  const numbered = pins
     .filter((a) => a.pages.length > 0)
     .map((a) => ({
       image: a.image,
@@ -248,59 +245,56 @@ interface Located {
   files: string[];
   image: number | null;
   method: ScanMethod;
-  by?: Provenance;
+  from?: EstimateBasis;
   box?: Box;
 }
 
-function seenRecord(v: Volume, ref: ChurchBookRef, anchors: Anchors) {
-  return anchors[v.id]?.seen?.find((r) => r.record === ref.recordId);
+function recordPin(v: Volume, ref: ChurchBookRef, pins: Pins) {
+  return pins.volumes[v.id]?.records?.find((r) => r.record === ref.recordId);
 }
 
-// A Seen record's Image, who saw it there, and where on it.
-function seenAt(seen: SeenRecord) {
-  const at = {
-    image: seen.image,
-    method: 'placed' as const,
-    by: seen.by ?? 'hand'
-  };
-  return seen.box === undefined ? at : { ...at, box: seen.box };
+// A Record pin's Image, how sure it is, and where on it the entry is.
+function pinnedAt(pin: RecordPin) {
+  const at = { image: pin.image, method: pinnedMethod(pin.by) };
+  return pin.box === undefined ? at : { ...at, box: pin.box };
 }
 
 async function locate(
   v: Volume,
   ref: ChurchBookRef,
-  anchors: Anchors
+  pins: Pins
 ): Promise<Located> {
   const files = await volumeImages(v.id);
-  const seen = seenRecord(v, ref, anchors);
-  if (seen !== undefined) return { volume: v, files, ...seenAt(seen) };
+  const pinned = recordPin(v, ref, pins);
+  if (pinned !== undefined) return { volume: v, files, ...pinnedAt(pinned) };
   if (ref.page === null) {
     return { volume: v, files, image: null, method: 'volume' };
   }
-  const anchored = anchoredImage(anchors[v.id]?.anchors ?? [], ref.page);
-  const image = anchored ?? imageFor(defaultNumbering(ref.kind!), ref.page);
+  const counted = countedImage(pins.volumes[v.id]?.pages ?? [], ref.page);
+  const image = counted ?? imageFor(defaultNumbering(ref.kind!), ref.page);
   const inside = image >= 1 && image <= files.length;
   return {
     volume: v,
     files,
     image: inside ? image : null,
-    method: anchored === null ? 'estimated' : 'anchored'
+    method: 'estimated',
+    from: counted === null ? 'numbering' : 'pins'
   };
 }
 
-// Pick the volumes to link. An anchored volume whose numbering doesn't
-// reach the cited page isn't the one cited: split volumes often continue one
-// page sequence (I: 1–600, II: 601–1200), and that beats the village guess.
-function pickVolumes(located: Located[], places: string[], anchors: Anchors) {
+// Pick the volumes to link. A volume whose Page pins don't reach the cited
+// page isn't the one cited: split volumes often continue one page sequence
+// (I: 1–600, II: 601–1200), and that beats the village guess.
+function pickVolumes(located: Located[], places: string[], pins: Pins) {
   const reachable = located.filter(
-    (l) => !(l.method === 'anchored' && l.image === null)
+    (l) => !(l.from === 'pins' && l.image === null)
   );
   const pool = reachable.length > 0 ? reachable : located;
   const byVillage = new Set(
     narrowByVillage(
       pool.map((l) => l.volume),
       places,
-      anchors
+      pins
     )
   );
   return pool.filter((l) => byVillage.has(l.volume));
@@ -315,7 +309,7 @@ function toScan(l: Located): Scan {
     url: viewerUrl(l.volume.id, l.files[image - 1]!),
     method: l.image === null ? 'volume' : l.method
   };
-  if (l.by !== undefined) scan.by = l.by;
+  if (l.image !== null && l.from !== undefined) scan.from = l.from;
   if (l.box !== undefined) scan.box = l.box;
   return scan;
 }
@@ -326,32 +320,27 @@ export function parishArchive(parish: string | null) {
   return parish === null ? null : (PARISH_ARCHIVE[parish] ?? null);
 }
 
-// The parish's population-register volumes, for checking a placement.
+// The parish's population-register volumes, for checking a Mark.
 export async function parishVolumes(parish: string | null) {
   const archiveId = parishArchive(parish);
   return archiveId === null ? [] : await archiveVolumes(archiveId);
 }
 
-async function placedScan(p: Placement): Promise<Scan> {
+async function referenceScan(p: ReferencePin): Promise<Scan> {
   const files = await volumeImages(p.volumeId);
   return {
     volumeId: p.volumeId,
     volume: p.volume,
     image: p.image,
     url: viewerUrl(p.volumeId, files[p.image - 1]!),
-    method: 'placed',
-    by: p.by ?? 'hand',
+    method: pinnedMethod(p.by),
     ...(p.box === undefined ? {} : { box: p.box })
   };
 }
 
-async function volumesFor(
-  ref: ChurchBookRef,
-  archiveId: string,
-  anchors: Anchors
-) {
+async function volumesFor(ref: ChurchBookRef, archiveId: string, pins: Pins) {
   const volumes = await archiveVolumes(archiveId);
-  const filmed = filmedIn(volumes, ref.recordId, anchors);
+  const filmed = filmedIn(volumes, ref.recordId, pins);
   return filmed.length > 0
     ? filmed
     : candidateVolumes(volumes, ref.kind!, ref.years!);
@@ -366,34 +355,30 @@ async function withArchive(scans: Scan[], parish: string | null) {
 
 export async function resolveChurchBookRef(
   ref: ChurchBookRef,
-  anchors: Anchors,
-  placements: Placements = {}
+  pins: Pins
 ): Promise<ScanResolution> {
-  const resolved = await resolveScans(ref, anchors, placements);
+  const resolved = await resolveScans(ref, pins);
   if ('error' in resolved) return resolved;
   return { scans: await withArchive(resolved.scans, ref.parish) };
 }
 
 async function resolveScans(
   ref: ChurchBookRef,
-  anchors: Anchors,
-  placements: Placements
+  pins: Pins
 ): Promise<ScanResolution> {
-  const placed = placements[ref.url];
-  if (placed !== undefined) return { scans: [await placedScan(placed)] };
+  const pinned = pins.references[ref.url];
+  if (pinned !== undefined) return { scans: [await referenceScan(pinned)] };
   if (ref.parish === null || ref.kind === null || ref.years === null) {
     return { error: 'unparsed' };
   }
   const archiveId = PARISH_ARCHIVE[ref.parish];
   if (archiveId === undefined) return { error: `no archive for ${ref.parish}` };
-  const candidates = await volumesFor(ref, archiveId, anchors);
+  const candidates = await volumesFor(ref, archiveId, pins);
   if (candidates.length === 0) return { error: 'no matching volume' };
   const digitized = candidates.filter((v) => v.digitized);
   if (digitized.length === 0) return { error: 'not digitized' };
-  const located = await Promise.all(
-    digitized.map((v) => locate(v, ref, anchors))
-  );
+  const located = await Promise.all(digitized.map((v) => locate(v, ref, pins)));
   const withImages = located.filter((l) => l.files.length > 0);
   if (withImages.length === 0) return { error: 'no images' };
-  return { scans: pickVolumes(withImages, ref.places, anchors).map(toScan) };
+  return { scans: pickVolumes(withImages, ref.places, pins).map(toScan) };
 }

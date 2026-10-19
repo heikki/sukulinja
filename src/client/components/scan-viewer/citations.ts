@@ -1,50 +1,38 @@
 import type {
   Box,
   CitationRow,
-  Provenance,
   Scan,
   ScanMethod,
   VolumeCitation
 } from '@common/types';
 
-// How a link to the Image was found, in the words the person panel and the
-// Scan viewer share: a person marked it there (Placed by hand), the vision
-// model did (Placed by the model), or it was worked out (Anchored and
-// Estimated alike), with what that means.
-const METHODS: Record<ScanMethod, { label: string; hint: string }> = {
-  placed: {
-    label: 'Verified',
-    hint: 'A person marked this record on this Image.'
-  },
-  anchored: {
-    label: 'Estimated',
-    hint: "Counted from page numbers read in this Volume; the record itself isn't checked."
-  },
-  estimated: {
-    label: 'Estimated',
-    hint: 'Guessed from the usual pages per Image for this kind of book; often a few Images off.'
-  },
-  volume: {
-    label: 'Volume only',
-    hint: 'The citation names no page, so only the Volume is known.'
+// How sure a link to the Image is, in the words the person panel and the
+// Scan viewer share.
+const LABELS: Record<ScanMethod, string> = {
+  exact: 'Exact',
+  vision: 'Vision match',
+  estimated: 'Estimated',
+  volume: 'Volume only'
+};
+
+// What each one means; an estimate says what it was counted from.
+export function methodHint(scan: Pick<Scan, 'method' | 'from'>) {
+  switch (scan.method) {
+    case 'exact':
+      return 'A person marked this record on this Image.';
+    case 'vision':
+      return 'The vision model found the name on this Image. Not checked yet: confirm it, or mark the right Image.';
+    case 'estimated':
+      return scan.from === 'pins'
+        ? "Counted from page numbers read in this Volume; the record itself isn't checked."
+        : 'Guessed from the usual pages per Image for this kind of book; often a few Images off.';
+    case 'volume':
+      return 'The citation names no page, so only the Volume is known.';
   }
-};
-
-const VISION = {
-  label: 'Vision match',
-  hint: 'The vision model found the name on this Image. Not checked yet: confirm it, or mark the right Image.'
-};
-
-function methodOf(method: ScanMethod, by?: Provenance) {
-  return method === 'placed' && by === 'vision' ? VISION : METHODS[method];
 }
 
-export function methodLabel(method: ScanMethod, by?: Provenance) {
-  return methodOf(method, by).label;
-}
-
-export function methodHint(method: ScanMethod, by?: Provenance) {
-  return methodOf(method, by).hint;
+export function methodLabel(scan: Pick<Scan, 'method'>) {
+  return LABELS[scan.method];
 }
 
 // A Volume's name without the archive's code for it ("I Aa:8"), which the
@@ -70,11 +58,12 @@ function byPlace(nameOf: (row: VolumeCitation) => string) {
   };
 }
 
-const STATUSES = ['Verified', 'Vision match', 'Estimated'];
+const GROUPED: ScanMethod[] = ['exact', 'vision', 'estimated'];
 
-// The Volume's rows linking the Image shown, grouped by status: Verified,
-// then Vision matches left to confirm, then Estimated ones. Those known only
-// to be in the Volume aren't known to be here, so they're left out.
+// The Volume's rows linking the Image shown, grouped by how sure each is:
+// Exact, then Vision matches left to confirm, then Estimated ones. Those
+// known only to be in the Volume aren't known to be here, so they're left
+// out.
 export function groupCitations(
   rows: VolumeCitation[],
   image: number,
@@ -82,11 +71,9 @@ export function groupCitations(
 ) {
   const shown = rows.filter((r) => imageOf(r) === image);
   const order = byPlace(nameOf);
-  return STATUSES.map((label) => ({
-    label,
-    rows: shown
-      .filter((r) => methodLabel(r.scan.method, r.scan.by) === label)
-      .toSorted(order)
+  return GROUPED.map((method) => ({
+    label: LABELS[method],
+    rows: shown.filter((r) => r.scan.method === method).toSorted(order)
   })).filter((g) => g.rows.length > 0);
 }
 

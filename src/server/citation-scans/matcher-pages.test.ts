@@ -120,7 +120,7 @@ describe('page search', () => {
     ).toMatchObject({ confirmed: true, image: 126, onCitedPage: false });
   });
 
-  test('stays in the numbering that starts over, near the Anchors', async () => {
+  test('stays in the numbering that starts over, near the Page pins', async () => {
     // Pages 1–150 on Images 1–150, then 1–150 again on Images 151–300.
     // Image 199 shows page 49 but reads as 149; following it would lead
     // to page 49 of the first numbering.
@@ -135,7 +135,7 @@ describe('page search', () => {
     ).toMatchObject({ confirmed: true, image: 199 });
   });
 
-  test('matches a Doubled volume in the copy the Anchors point into', async () => {
+  test('matches a Doubled volume in the copy the Page pins point into', async () => {
     // The book twice: pages 1–200 on Images 1–200 and again on 201–400.
     const { reader } = fakeReader({
       r: numbered((i) => (i <= 200 ? i : i - 200), {

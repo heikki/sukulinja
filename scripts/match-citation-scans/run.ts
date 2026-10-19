@@ -1,15 +1,15 @@
-// The bulk pass: match every Church-book reference not already Placed to
+// The bulk pass: match every Church-book reference not already pinned to
 // its exact Image with the Reader, and save the confirmed ones into the data
 // folder, where the app reads them. It is resumable: every reading is
-// cached, and what was saved is Placed, so a re-run skips it.
+// cached, and what was saved is pinned, so a re-run skips it.
 
 import { join } from 'node:path';
 
-import { loadAnchors, loadPlacements } from '@server/citation-scans/anchors';
 import { viewerUrl, volumeImages } from '@server/citation-scans/astia';
 import { resolveChurchBookRef } from '@server/citation-scans/locate';
 import { matchRef } from '@server/citation-scans/matcher';
 import type { Match, Unconfirmed } from '@server/citation-scans/matcher';
+import { loadPins } from '@server/citation-scans/pins';
 import { cachedReader } from '@server/citation-scans/reader';
 import type { Reader } from '@server/citation-scans/reader';
 import { RIPPI_COLLECTION } from '@server/citation-scans/record';
@@ -101,17 +101,16 @@ function dollars(spent: (() => number | null) | undefined) {
   return n === undefined ? '' : n === null ? ' · $?' : ` · $${n.toFixed(2)}`;
 }
 
-// Whether the reference is up for matching: not Placed yet, in a Volume
-// the existing resolution finds. Otherwise, the tally key saying why not.
+// Whether the reference is up for matching: not pinned yet, by hand or by
+// the model, in a Volume the existing resolution finds. Otherwise, the
+// tally key saying why not.
 async function standing(ref: ChurchBookRef) {
-  const resolved = await resolveChurchBookRef(
-    ref,
-    await loadAnchors(),
-    await loadPlacements()
-  );
+  const resolved = await resolveChurchBookRef(ref, await loadPins());
   if ('error' in resolved) return resolved.error;
-  return resolved.scans.some((s) => s.method === 'placed')
-    ? 'already placed'
+  return resolved.scans.some(
+    (s) => s.method === 'exact' || s.method === 'vision'
+  )
+    ? 'already pinned'
     : null;
 }
 

@@ -38,21 +38,11 @@ _Avoid_: page (written on the scan), frame (MyHeritage's numbering).
 **Page number**:
 The number written in the book. Rippikirjat usually number spreads (one number per Image), lastenkirjat pages (two per Image). A Volume may start its numbering over partway through.
 
-**Anchor**:
-A Page number read off one Image of a Volume by hand. Images for other pages are counted from the nearest Anchors. Where a source misread a page number, the Anchor gives the number as referenced and notes what's written.
-
 **Retake**:
 A second photograph of the same page within one Volume, on the next Image.
 
 **Doubled volume**:
-A Volume whose Images hold the book twice, as if filmed twice; the copies drift apart in Image numbers. Anchors point into the copy the references were indexed from.
-
-**Placement**:
-A Church-book reference with no Record number put on an Image: as a **Vision match**, or by hand.
-
-**Mark**:
-Saying by hand, in the Scan viewer, which Image a Church-book reference's record is on. A cited page in a Volume the reference already links becomes an Anchor; otherwise the reference gets a Placement. One with a Record number is also a Seen record there. Confirming a **Vision match** is a Mark too.
-_Avoid_: correction (the link it replaces is often not wrong, only less exact).
+A Volume whose Images hold the book twice, as if filmed twice; the copies drift apart in Image numbers. Page pins point into the copy the references were indexed from.
 
 **Scan viewer**:
 Where the app shows the Image a Church-book reference links, opened from its source. You step through the link's Volume there; beside the scan are the people whose references link the Image shown, and a **Vision match** among them can be confirmed.
@@ -61,12 +51,37 @@ _Avoid_: record viewer (a record is MyHeritage's), Astia viewer (Astia's own sit
 **Scan method**:
 How sure a link is, best first:
 
-- **Placed** — a Seen record or a Placement: the exact Image.
-- **Anchored** — counted from Anchors.
-- **Estimated** — guessed from the Book's usual numbering.
+- **Exact** — the link's Record pin or Reference pin was saved by hand: the Image a person said.
+- **Vision match** — the link's pin is the vision model's: a suggestion, to confirm or correct with a Mark.
+- **Estimated** — counted from the Volume's nearest Page pins or, failing any, guessed from the Book's usual numbering. Counted from Page pins it's usually right; guessed, often a few Images off.
 - **Volume** — the Volume is known but not the Image; the link opens the Volume.
 
 A Church-book reference whose Volume can't be told apart has several candidate Volumes: it is **Split**.
+
+### Pins
+
+**Pin**:
+Something known to be on an exact Image of a Volume: a page, a record, or one reference. Pins ship with the app or are saved in the data folder, by hand or by the vision model.
+_Avoid_: correction, anchor (alone), placement.
+
+**Page pin**:
+A Page number known to be on an Image. Images for other pages of the Volume are counted from the nearest Page pins, so one helps every reference in the Volume. Where a source misread a page number, the Page pin gives the number as referenced and notes what's written.
+_Avoid_: anchor.
+
+**Record pin**:
+A record known to be on an Image, by the source's id for it (today a MyHeritage **Record number**). It holds for everyone citing the record, and extends its Volume's **Record range**.
+_Avoid_: seen record.
+
+**Reference pin**:
+One Church-book reference known to be on an Image, kept by its link. For a reference with no record id, such as an Index reference.
+_Avoid_: placement.
+
+**Mark**:
+Saying by hand, in the Scan viewer, which Image a Church-book reference's record is on. A cited page in a Volume the reference already links becomes a Page pin; otherwise the reference gets a Reference pin. One with a record id also gets a Record pin. Confirming a **Vision match** is a Mark too.
+_Avoid_: correction (the link it replaces is often not wrong, only less exact).
+
+**Provenance**:
+Who saved a Pin: by hand (the shipped Page pins, and every Mark) or by the vision model. What's saved by hand always wins over the vision model's. Vision pins still count other links' estimates and extend Record ranges; the links they steer stay Estimated.
 
 ### Through MyHeritage
 
@@ -80,10 +95,7 @@ One image on a Film, numbered as MyHeritage numbers it. The Frame-to-Image offse
 MyHeritage's id for a record in the collection. Each Film's records form one unbroken block in Frame order, and blocks never overlap — so one record known to be on a Film places every record numbered around it there too.
 
 **Record range**:
-A Volume's span of Record numbers. Overrides choosing the Volume by years.
-
-**Seen record**:
-A record whose Image is known exactly: its MyHeritage Frame matched by eye to an Image, or a **Vision match**, confirmed or not. One outside its Volume's **Record range** extends the nearest one to it, unless another Volume's range lies between.
+A Volume's span of Record numbers. Overrides choosing the Volume by years. A Record pin outside it extends the nearest range to it, unless another Volume's range lies between.
 
 **Reader**:
 The vision model behind three questions about one Image: the Page numbers written on it, the earliest and latest entry dates on it, and whether a named person is written on it. "Unreadable" is an answer it can give. Only scripts ask it; the app never calls a model.
@@ -92,17 +104,16 @@ The vision model behind three questions about one Image: the Page numbers writte
 Finding the person's name on the Image a search landed on, or on the Images around it. Only a confirmed match is saved.
 
 **Vision match**:
-A Seen record or Placement the vision model saved after a Confirmation, as opposed to one marked by hand. It is Placed all the same, and the source panel and Scan viewer say it's a vision match. Confirming it beside the Scan viewer saves it again by hand, keeping where the model said the entry is.
-
-**Provenance**:
-Who saved an Anchor, Seen record or Placement: by hand (everything shipped, and every Vision match confirmed in the Scan viewer) or by the vision model. What's saved by hand always wins over the vision model's.
+A Record pin or Reference pin the vision model saved after a Confirmation, and the link it gives: a suggestion, ranked above an estimate. Confirming it beside the Scan viewer is a Mark, which makes the link Exact and keeps where the model said the entry is.
 
 **Same scan** / **Different photograph**:
-Whether a Seen record's Frame is the very scan Astia holds (same framing, shadows, blots) or a separate filming of the same page, matched by its content — page number, or village, house and household where the book has no page numbers.
+Whether a record's MyHeritage Frame is the very scan Astia holds (same framing, shadows, blots) or a separate filming of the same page, matched by its content — page number, or village, house and household where the book has no page numbers.
 _Avoid_: "same page" alone — it doesn't say which.
 
 ## Flagged ambiguities
 
 - A **Citation** is not a **Church-book reference**: many Citations aren't to church books, and the reference is only what's read from one.
 - **"Volume"** is Astia's book; MyHeritage's equivalent is a **Film**, which may hold several Volumes. **"Image"** is Astia's numbering, **"Frame"** MyHeritage's, **"Page number"** what's written in the book.
-- **"Placed"** covers both a **Seen record** and a **Placement**: either way the exact Image is known.
+- **Exact** and **Vision match** both come from a **Record pin** or **Reference pin**; only who saved it differs. A **Page pin** only improves its Volume's **Estimated** links.
+- Shipped data holds only facts about Volumes (Page pins, Record ranges, villages), never Record or Reference pins.
+- A **Volume** id and an **Image** number are Astia's: a Pin holds only for Astia's scans. The page or record it pins holds in any filming of the book.

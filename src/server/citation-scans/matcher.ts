@@ -21,11 +21,11 @@
 // weeks or months.
 //
 // Page search, for references with a Page number: from the Image the
-// Anchored or Estimated method gives, read its Page number and jump by the
+// estimate gives, read its Page number and jump by the
 // difference, until it lands on the cited page. A reading that contradicts
 // the jump just made (numbering that starts over, a misread number, the
 // other copy of a Doubled volume) isn't followed: the search stays at the
-// start, near the Anchors, and Confirmation looks around it.
+// start, near the Page pins, and Confirmation looks around it.
 
 import type { BookKind, Box, Years } from '@common/types';
 
@@ -66,7 +66,7 @@ export type Match =
       volume: string;
       image: number;
       // Whether page search read the cited Page number on this very Image,
-      // so it can stand as an Anchor.
+      // so it can stand as a Page pin.
       onCitedPage: boolean;
       // Where on the Image the entry is, where the Reader said.
       box: Box | null;

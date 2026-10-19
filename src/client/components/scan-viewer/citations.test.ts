@@ -5,6 +5,7 @@ import type { Scan, VolumeCitation } from '@common/types';
 import {
   entriesOn,
   groupCitations,
+  methodHint,
   methodLabel,
   pickedScan,
   splitLabel
@@ -64,17 +65,17 @@ function shown(rows: VolumeCitation[], image: number) {
   }));
 }
 
-test("groups the Image's rows by status", () => {
+test("groups the Image's rows by how sure each is", () => {
   const rows = [
-    row(1, 7, 'anchored'),
-    row(2, 7, 'placed', { by: 'hand' }),
-    row(3, 7, 'estimated'),
-    row(4, 8, 'placed', { by: 'vision' }),
+    row(1, 7, 'estimated', { from: 'pins' }),
+    row(2, 7, 'exact'),
+    row(3, 7, 'estimated', { from: 'numbering' }),
+    row(4, 8, 'vision'),
     row(5, null, 'volume'),
-    row(6, 7, 'placed', { by: 'vision' })
+    row(6, 7, 'vision')
   ];
   expect(shown(rows, 7)).toEqual([
-    { label: 'Verified', people: ['Liisa'] },
+    { label: 'Exact', people: ['Liisa'] },
     { label: 'Vision match', people: ['Pekka'] },
     { label: 'Estimated', people: ['Anna', 'Matti'] }
   ]);
@@ -86,23 +87,27 @@ test('lists entries in the order written on the Image', () => {
     return { left: 0, top, width: 1, height: 0.05 };
   }
   const rows = [
-    row(1, 7, 'placed', { by: 'vision', box: at(0.6) }),
-    row(2, 7, 'placed', { by: 'hand' }),
-    row(3, 7, 'placed', { by: 'vision', box: at(0.2) })
+    row(1, 7, 'vision', { box: at(0.6) }),
+    row(2, 7, 'exact'),
+    row(3, 7, 'vision', { box: at(0.2) })
   ];
   expect(shown(rows, 7)).toEqual([
-    { label: 'Verified', people: ['Liisa'] },
+    { label: 'Exact', people: ['Liisa'] },
     { label: 'Vision match', people: ['Anna', 'Matti'] }
   ]);
 });
 
 test('says how a link was found, and that a Split may be elsewhere', () => {
-  expect(methodLabel('placed', 'vision')).toBe('Vision match');
-  expect(methodLabel('placed', 'hand')).toBe('Verified');
-  expect(methodLabel('placed')).toBe('Verified');
-  expect(methodLabel('anchored')).toBe('Estimated');
-  expect(methodLabel('estimated')).toBe('Estimated');
-  expect(methodLabel('volume')).toBe('Volume only');
+  expect(methodLabel({ method: 'exact' })).toBe('Exact');
+  expect(methodLabel({ method: 'vision' })).toBe('Vision match');
+  expect(methodLabel({ method: 'estimated' })).toBe('Estimated');
+  expect(methodLabel({ method: 'volume' })).toBe('Volume only');
+  expect(methodHint({ method: 'estimated', from: 'pins' })).toMatch(
+    /^Counted from page numbers/
+  );
+  expect(methodHint({ method: 'estimated', from: 'numbering' })).toMatch(
+    /^Guessed from the usual pages/
+  );
   expect(splitLabel('Estimated')).toBe('Estimated · one of several Volumes');
 });
 
@@ -110,11 +115,11 @@ test('marks one entry per Box on the Image, shared by those it records', () => {
   const box = { left: 0.1, top: 0.4, width: 0.3, height: 0.03 };
   const other = { ...box, top: 0.6 };
   const rows = [
-    row(1, 7, 'placed', { by: 'vision', box }),
-    row(2, 7, 'placed', { by: 'vision', box }),
-    row(3, 7, 'placed', { by: 'vision', box: other }),
-    row(4, 8, 'placed', { by: 'vision', box }),
-    row(5, 7, 'placed', { by: 'hand' })
+    row(1, 7, 'vision', { box }),
+    row(2, 7, 'vision', { box }),
+    row(3, 7, 'vision', { box: other }),
+    row(4, 8, 'vision', { box }),
+    row(5, 7, 'exact')
   ];
   expect(
     entriesOn(rows, 7).map((e) => ({ box: e.box, people: e.rows.map(nameOf) }))
@@ -125,8 +130,8 @@ test('marks one entry per Box on the Image, shared by those it records', () => {
 });
 
 test('opens a picked row on its own link, a Volume-only one on the Image shown', () => {
-  const placed = row(1, 7, 'placed', { by: 'vision' });
-  expect(pickedScan(placed, 9, null)).toBe(placed.scan);
+  const pinned = row(1, 7, 'vision');
+  expect(pickedScan(pinned, 9, null)).toBe(pinned.scan);
   const links = ['a', 'b', 'c'];
   expect(pickedScan(row(2, null, 'volume'), 3, links)).toEqual({
     volumeId: 'v1',

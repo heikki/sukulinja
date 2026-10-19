@@ -9,7 +9,7 @@ import type { Database } from 'bun:sqlite';
 import { isoDate } from '@common/dates';
 import type { BookKind, CitationRow, VolumeCitation } from '@common/types';
 
-import { localStamp } from './citation-scans/anchors';
+import { localStamp } from './citation-scans/pins';
 import {
   churchBookRefOf,
   citationText,
@@ -142,8 +142,7 @@ export function createCitations(db: Database) {
     return rows.map((row) => ({ row, book: bookOf(row) }));
   }
 
-  // Kept per Volume until a Mark or a vision save changes the local
-  // Anchors or Placements.
+  // Kept per Volume until a Mark or a vision save changes the local pins.
   const kept = new Map<
     string,
     { stamp: string; rows: Promise<VolumeCitation[] | null> }

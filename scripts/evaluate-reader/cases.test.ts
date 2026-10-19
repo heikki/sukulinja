@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, test } from 'bun:test';
 
-import type { Anchors } from '@server/citation-scans/locate';
+import type { Pins } from '@server/citation-scans/locate';
 import type { Person, Reader } from '@server/citation-scans/reader';
 import { parseChurchBookRef } from '@server/citation-scans/record';
 
@@ -19,27 +19,27 @@ import {
   scorePages
 } from './cases';
 
-// Two parishes' Volumes with hand Anchors and Seen records, and a vision
+// Two parishes' Volumes with hand Page pins and Record pins, and a vision
 // match and a misread page that the evaluation leaves out.
-const ANCHORS: Anchors = {
+const VOLUMES: Pins['volumes'] = {
   v: {
     title: 'Pitäjä I Aa:1 Rippikirja (1790-1796)',
-    anchors: [
+    pages: [
       { image: 10, pages: [8] },
       { image: 20, pages: [18] },
       { image: 30, pages: [28], note: 'written 82' },
       { image: 40, pages: [38], by: 'vision' }
     ],
-    records: [{ from: 1000, to: 2000 }],
-    seen: [
+    ranges: [{ from: 1000, to: 2000 }],
+    records: [
       { record: 1100, image: 10 },
       { record: 1600, image: 30, by: 'vision' }
     ]
   },
   w: {
     title: 'Naapuri I Aa:1 Rippikirja (1790-1796)',
-    anchors: [],
-    seen: [{ record: 1500, image: 20 }]
+    pages: [],
+    records: [{ record: 1500, image: 20 }]
   }
 };
 
@@ -81,8 +81,8 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-test('asks about hand Anchors read as cited', async () => {
-  const cases = pageCases(ANCHORS);
+test('asks about hand Page pins read as cited', async () => {
+  const cases = pageCases(VOLUMES);
   expect(cases).toEqual([
     { at: { volumeId: 'v', image: 10 }, pages: [8] },
     { at: { volumeId: 'v', image: 20 }, pages: [18] }
@@ -95,8 +95,8 @@ test('asks about hand Anchors read as cited', async () => {
   });
 });
 
-test('asks about each hand Seen record and a decoy from another parish', async () => {
-  const cases = entryCases(ANCHORS, PEOPLE);
+test('asks about each hand Record pin and a decoy from another parish', async () => {
+  const cases = entryCases(VOLUMES, PEOPLE);
   expect(cases).toEqual([
     {
       at: { volumeId: 'v', image: 10 },
@@ -141,7 +141,7 @@ function baptism(n: number, date: string) {
   );
 }
 
-function placed(image: number, by?: 'vision') {
+function pinned(image: number, by?: 'vision') {
   return {
     volumeId: 'c',
     volume: 'I C:1',
@@ -150,7 +150,7 @@ function placed(image: number, by?: 'vision') {
   };
 }
 
-test('asks about index references placed by hand', async () => {
+test('asks about index references pinned by hand', async () => {
   const refs = new Map(
     [baptism(1, '29. Marras 1829'), baptism(2, '3. Touko 1830')].map((r) => [
       r.url,
@@ -159,9 +159,9 @@ test('asks about index references placed by hand', async () => {
   );
   const cases = dateCases(
     {
-      [indexUrl(1)]: placed(50),
-      [indexUrl(2)]: placed(60, 'vision'),
-      x: placed(70)
+      [indexUrl(1)]: pinned(50),
+      [indexUrl(2)]: pinned(60, 'vision'),
+      x: pinned(70)
     },
     refs
   );
@@ -191,7 +191,7 @@ test('asks about index references placed by hand', async () => {
 
 test("asks about each index reference's entry, and a decoy from the same family", () => {
   // A parent's citations of three children's baptisms: the decoy for one is
-  // another child placed at least two Images away.
+  // another child pinned at least two Images away.
   function child(n: number, date: string, name: string) {
     return parseChurchBookRef(
       indexUrl(n),
@@ -207,9 +207,9 @@ test("asks about each index reference's entry, and a decoy from the same family"
   );
   const cases = indexEntryCases(
     {
-      [indexUrl(1)]: placed(50),
-      [indexUrl(2)]: placed(51),
-      [indexUrl(3)]: placed(80)
+      [indexUrl(1)]: pinned(50),
+      [indexUrl(2)]: pinned(51),
+      [indexUrl(3)]: pinned(80)
     },
     refs
   );
@@ -230,8 +230,8 @@ test("asks about each index reference's entry, and a decoy from the same family"
 });
 
 test('limits a run to a spread of cases', () => {
-  expect(pageCases(ANCHORS, 1)).toHaveLength(1);
-  expect(entryCases(ANCHORS, PEOPLE, 1)).toHaveLength(2);
+  expect(pageCases(VOLUMES, 1)).toHaveLength(1);
+  expect(entryCases(VOLUMES, PEOPLE, 1)).toHaveLength(2);
 });
 
 function entryResult(tally: Partial<EntryTally>) {

@@ -66,8 +66,8 @@ async function linesOf(lines: AsyncIterable<CitationScans>) {
 
 // Written as the vision pass writes it, from another process: the app isn't
 // told.
-async function writeLocal(anchors: unknown) {
-  await Bun.write(join(dir, 'anchors.local.json'), JSON.stringify(anchors));
+async function writeLocal(volumes: unknown) {
+  await Bun.write(join(dir, 'pins.local.json'), JSON.stringify({ volumes }));
 }
 
 const BOX = { left: 0.1, top: 0.2, width: 0.5, height: 0.05 };
@@ -211,12 +211,12 @@ test('a Mark is saved, and the scan lines show it', async () => {
   expect(
     await citations.mark(1, { volumeId: 'juva-1', image: 7 })
   ).toMatchObject({
-    scans: [{ volumeId: 'juva-1', image: 7, method: 'placed', by: 'hand' }]
+    scans: [{ volumeId: 'juva-1', image: 7, method: 'exact' }]
   });
   const [line] = await linesOf(citations.scansOf(1));
   expect(line).toMatchObject({
     citationId: 1,
-    scans: [{ image: 7, method: 'placed', by: 'hand' }]
+    scans: [{ image: 7, method: 'exact' }]
   });
 });
 
@@ -248,11 +248,11 @@ function placesOf(rows: VolumeCitation[] | null) {
   }));
 }
 
-test("lists the Volume's Placed, Anchored, Estimated and Volume-only citations", async () => {
+test("lists the Volume's Vision match, Estimated and Volume-only citations", async () => {
   await writeLocal({
     'juva-1': {
-      anchors: [{ image: 5, pages: [3] }],
-      seen: [{ record: 5001, image: 9, by: 'vision', box: BOX }]
+      pages: [{ image: 5, pages: [3] }],
+      records: [{ record: 5001, image: 9, by: 'vision', box: BOX }]
     }
   });
   const citations = datasetOf([
@@ -264,10 +264,11 @@ test("lists the Volume's Placed, Anchored, Estimated and Volume-only citations",
 
   const first = await citations.inVolume('juva-1');
   expect(placesOf(first)).toEqual([
-    { personId: 1, image: 9, method: 'placed', split: false },
-    { personId: 2, image: 6, method: 'anchored', split: false }
+    { personId: 1, image: 9, method: 'vision', split: false },
+    { personId: 2, image: 6, method: 'estimated', split: false }
   ]);
-  expect(first![0]!.scan).toMatchObject({ by: 'vision', box: BOX });
+  expect(first![0]!.scan).toMatchObject({ method: 'vision', box: BOX });
+  expect(first![1]!.scan).toMatchObject({ from: 'pins' });
   expect(first![0]!.citation).toMatchObject({
     churchBook: true,
     citedPage: 12
@@ -292,8 +293,8 @@ test('a Split reference is listed in each candidate Volume', async () => {
 test('people citing one record get a row each, sharing its Image and box', async () => {
   await writeLocal({
     'juva-1': {
-      anchors: [],
-      seen: [{ record: 5001, image: 9, by: 'vision', box: BOX }]
+      pages: [],
+      records: [{ record: 5001, image: 9, by: 'vision', box: BOX }]
     }
   });
   const record = rippiCitation(5001, '1790 - 1796', 12);
@@ -320,17 +321,21 @@ test('a Mark shows in the next answer, dropping the vision box', async () => {
 
   await writeLocal({
     'juva-1': {
-      anchors: [],
-      seen: [{ record: 5001, image: 9, by: 'vision', box: BOX }]
+      pages: [],
+      records: [{ record: 5001, image: 9, by: 'vision', box: BOX }]
     }
   });
-  const seen = (await citations.inVolume('juva-1'))!;
-  expect(seen).toHaveLength(1);
-  expect(seen[0]!.scan).toMatchObject({ image: 9, by: 'vision', box: BOX });
+  const pinned = (await citations.inVolume('juva-1'))!;
+  expect(pinned).toHaveLength(1);
+  expect(pinned[0]!.scan).toMatchObject({
+    image: 9,
+    method: 'vision',
+    box: BOX
+  });
 
   await citations.mark(1, { volumeId: 'juva-1', image: 10 });
   const [row] = (await citations.inVolume('juva-1'))!;
-  expect(row!.scan).toMatchObject({ image: 10, method: 'placed', by: 'hand' });
+  expect(row!.scan).toMatchObject({ image: 10, method: 'exact' });
   expect(row!.scan.box).toBeUndefined();
 });
 

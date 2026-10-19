@@ -335,7 +335,7 @@ export class PersonPanelElement extends LitElement {
     }
   }
 
-  // A reference marked in the Scan viewer, resolved again. Its anchor can
+  // A reference marked in the Scan viewer, resolved again. Its Page pin can
   // move the person's other references in the Volume too, so they reload.
   takeScans(resolved: CitationScans) {
     const { citationId, ...scan } = resolved;
