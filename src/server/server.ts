@@ -3,8 +3,6 @@ import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import type { Database } from 'bun:sqlite';
 
-import type { FamilyRow, PersonRow } from '@common/types';
-
 import { viewerUrls } from './citation-scans/astia';
 import { astiaImage } from './citation-scans/images';
 import { openPins } from './citation-scans/pins';
@@ -16,16 +14,11 @@ import type { DatasetRegistry } from './dataset-registry';
 import { importDataset, slugFromFilename } from './import-dataset';
 import { createPersonDetails } from './person-details';
 import { runPool } from './pool';
+import { createTree } from './tree';
 
 const DATASET_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?<rest>\/.*)?$/u;
 const ASTIA_RE =
   /^\/astia\/volumes\/(?<volumeId>\d+)\/images(?:\/(?<n>\d+))?$/u;
-
-function parseYear(date: string | null): number | null {
-  if (date === null) return null;
-  const m = /(?<year>\d{4})/.exec(date);
-  return m === null ? null : parseInt(m.groups!.year!, 10);
-}
 
 interface ApiHandlers {
   routeApi: (req: Request, pathname: string) => Promise<Response | null>;
@@ -42,99 +35,17 @@ interface DatasetHandlers {
 }
 
 function createDatasetHandlers(db: Database, pins: PinStore): DatasetHandlers {
-  const listPersons = db.prepare(`
-    SELECT
-      p.id,
-      n.given,
-      n.surname,
-      p.sex,
-      (SELECT date_text FROM facts WHERE scope_type='person' AND scope_id=p.id AND tag='BIRT' LIMIT 1) AS birth_date,
-      (SELECT date_text FROM facts WHERE scope_type='person' AND scope_id=p.id AND tag='DEAT' LIMIT 1) AS death_date,
-      m.file_path AS photo_path,
-      ml.crop_top,
-      ml.crop_left,
-      ml.crop_width,
-      ml.crop_height
-    FROM persons p
-    LEFT JOIN names n ON n.person_id = p.id AND n.sort_order = 0
-    LEFT JOIN media_links ml ON ml.id = (
-      SELECT ml2.id FROM media_links ml2
-      JOIN media m2 ON m2.id = ml2.media_id
-      WHERE ml2.scope_type='person' AND ml2.scope_id=p.id
-      ORDER BY ml2.is_primary DESC, ml2.sort_order ASC, ml2.id ASC
-      LIMIT 1
-    )
-    LEFT JOIN media m ON m.id = ml.media_id
-    ORDER BY n.surname COLLATE NOCASE, n.given COLLATE NOCASE
-  `);
-
-  type ListRow = Omit<PersonRow, 'birth_year' | 'death_year' | 'crop'> & {
-    crop_top: number | null;
-    crop_left: number | null;
-    crop_width: number | null;
-    crop_height: number | null;
-  };
-
-  const listFamilies = db.prepare(
-    'SELECT id, husband_id, wife_id FROM families'
-  );
-  const listFamilyChildren = db.prepare(
-    'SELECT family_id, person_id FROM family_children ORDER BY family_id, sort_order'
-  );
+  const tree = createTree(db);
   const citations = createCitations(db, pins);
   const personDetails = createPersonDetails(db, citations);
 
   return {
     handlePersons() {
-      const rows = listPersons.all() as ListRow[];
-      const out: PersonRow[] = rows.map((r) => ({
-        id: r.id,
-        given: r.given,
-        surname: r.surname,
-        sex: r.sex,
-        birth_year: parseYear(r.birth_date),
-        death_year: parseYear(r.death_date),
-        birth_date: r.birth_date,
-        death_date: r.death_date,
-        photo_path: r.photo_path,
-        crop:
-          r.crop_top !== null &&
-          r.crop_left !== null &&
-          r.crop_width !== null &&
-          r.crop_height !== null
-            ? {
-                top: r.crop_top,
-                left: r.crop_left,
-                width: r.crop_width,
-                height: r.crop_height
-              }
-            : null
-      }));
-      return Response.json(out);
+      return Response.json(tree.persons());
     },
 
     handleFamilies() {
-      const fams = listFamilies.all() as Array<Omit<FamilyRow, 'child_ids'>>;
-      const kids = listFamilyChildren.all() as Array<{
-        family_id: number;
-        person_id: number;
-      }>;
-      const childrenByFamily = new Map<number, number[]>();
-      for (const k of kids) {
-        let arr = childrenByFamily.get(k.family_id);
-        if (arr === undefined) {
-          arr = [];
-          childrenByFamily.set(k.family_id, arr);
-        }
-        arr.push(k.person_id);
-      }
-      const out: FamilyRow[] = fams.map((f) => ({
-        id: f.id,
-        husband_id: f.husband_id,
-        wife_id: f.wife_id,
-        child_ids: childrenByFamily.get(f.id) ?? []
-      }));
-      return Response.json(out);
+      return Response.json(tree.families());
     },
 
     handlePerson(id) {
@@ -302,11 +213,9 @@ async function handleImport(
 
 async function handleDeleteDataset(
   registry: DatasetRegistry,
-  handlersBySlug: Map<string, DatasetHandlers>,
   slug: string
 ): Promise<Response> {
   try {
-    handlersBySlug.delete(slug);
     const existed = await registry.delete(slug);
     return existed
       ? new Response(null, { status: 204 })
@@ -419,7 +328,10 @@ async function routeShared(req: Request, pathname: string) {
 export function createApi(registry: DatasetRegistry): ApiHandlers {
   useDataFolder(registry.root);
   const pins = openPins(registry.root);
-  const handlersBySlug = new Map<string, DatasetHandlers>();
+  // Kept by the Database they're bound to: the registry alone decides when
+  // a dataset's Database is closed and replaced (by an import or a delete),
+  // and the next request then opens the new one and gets new handlers.
+  const handlersByDb = new WeakMap<Database, DatasetHandlers>();
 
   function tryOpen(slug: string): Database | null {
     try {
@@ -430,13 +342,14 @@ export function createApi(registry: DatasetRegistry): ApiHandlers {
   }
 
   function getHandlers(slug: string): DatasetHandlers | null {
-    const cached = handlersBySlug.get(slug);
-    if (cached !== undefined) return cached;
     const db = tryOpen(slug);
     if (db === null) return null;
-    const h = createDatasetHandlers(db, pins);
-    handlersBySlug.set(slug, h);
-    return h;
+    let handlers = handlersByDb.get(db);
+    if (handlers === undefined) {
+      handlers = createDatasetHandlers(db, pins);
+      handlersByDb.set(db, handlers);
+    }
+    return handlers;
   }
 
   return {
@@ -445,7 +358,6 @@ export function createApi(registry: DatasetRegistry): ApiHandlers {
         if (req.method !== 'POST') {
           return new Response('method not allowed', { status: 405 });
         }
-        handlersBySlug.clear();
         return await handleImport(req, registry);
       }
       if (pathname === '/datasets') {
@@ -456,7 +368,7 @@ export function createApi(registry: DatasetRegistry): ApiHandlers {
           return new Response('method not allowed', { status: 405 });
         }
         const slug = pathname.slice('/datasets/'.length);
-        return await handleDeleteDataset(registry, handlersBySlug, slug);
+        return await handleDeleteDataset(registry, slug);
       }
       const shared = await routeShared(req, pathname);
       if (shared !== null) return shared;
