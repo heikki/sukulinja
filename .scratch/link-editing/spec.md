@@ -1,0 +1,61 @@
+# Editing a source's Link in the Scan viewer
+
+Glossary (`src/server/citation-scans/CONTEXT.md`): **Link**, **Mark**, **Box**, **Precision**, **Certainty**, **Reference pin**, **Record pin**, **Page pin**, **Vision match**, **Split**, **Book**, **Volume**.
+
+## Problem
+
+The only Mark in the app is Confirm on a Vision match. When a Link's Volume is wrong (years or a Record range chose badly, or a Split reference opened on the wrong candidate), or its Image is a few off, or the entry is boxed wrong, there is no way to say so. The Scan viewer can't even switch Volumes: it shows only the Volume of the Link it was opened on.
+
+The server half mostly exists: `recordMark` saves an Image Mark as the right Page, Record or Reference pins, and a Volume-only Reference pin already resolves to Marked Volume. What's missing is a Mark without an Image, a Mark with a hand-drawn Box, and the whole interface.
+
+## Design
+
+### Pending changes, saved together
+
+Editing is always for the viewer's **current source**, one at a time. Nothing saves as you go. The first change shows a bar over the scan with the Link as it was, the Link as it will be, and **Cancel** / **Save**:
+
+```
+┌─ Anna's baptism ───────────────────────────────┐
+│ Was:  Estimated Image · I Aa:5 · Image 40      │
+│ Now:  Marked · I Aa:6 · Image 12 · entry box   │
+│                          [Cancel]  [Save]      │
+└────────────────────────────────────────────────┘
+```
+
+- **Save** sends one Mark: Volume, and the Image and Box if set. **Cancel** drops the pending change and takes the viewer back to the Link.
+- Leaving with changes pending (opening another source, ↑/↓, picking a person beside the scan, selecting someone else, closing the viewer, Esc) pauses, and the bar asks "Save changes to Anna's baptism?" with **Save** / **Discard** / **Keep editing**. No browser dialogs: they freeze the app's WebView.
+- Picking a person beside the scan still selects them. With changes pending, the bar asks first.
+
+### What you can change
+
+- **Change Volume…**: the list of the parish's Volumes in the same Astia series as the reference's Book. It has two groups: _Fits the reference_ (the Volumes its years or Record range give, worked out without its own pin, as `matchCandidates` does with `byBook(pins)`), then _Other Volumes_ by years, each with its code and years. Picking one shows it and sets the pending Link to that Volume, with no Image (Marked Volume). It opens from the toolbar's Volume name and from the context menu. There's no separate browse-only switcher: Cancel undoes a look.
+- **Mark this Image**: sets the pending Image to the one shown, in the Volume shown, with no Box (Marked Image).
+- **Draw the entry…**: the cursor becomes a crosshair; drag a rectangle, Esc cancels. It sets the pending Box, and the Image shown if it wasn't set yet.
+- **Adjust the Box**: while a Box is pending it has corner and edge handles. Dragging a handle resizes it; dragging inside moves it; dragging elsewhere still pans.
+- **Remove the entry box**: back to Marked Image.
+- **This is the entry for <source>**: on an existing Box on the Image, copies that Box into the pending change, e.g. a parent's citation of a child's baptism already boxed for the child.
+
+A pending change starts from the Link as it is. Editing a Vision match starts from the match's Box, and Save makes it a hand Mark at that Box (or wherever it was moved).
+
+### Ways in
+
+- **Context menu** on the scan, drawn in the page. The app blocks WebKit's own menu there. Its items depend on the state: Mark this Image, Draw the entry…, Change Volume…, Remove the entry box. Right-clicking a Box adds "This is the entry for <source>". It handles Esc and focus as the viewer's other controls do (marked handled, so macOS doesn't beep).
+- **Mark** button in the controls at the foot of the scan, and the **M** key: Mark this Image. Shown only when it would change the pending or saved Link.
+- **Confirm** on a Vision match's row stays one click and saves at once. Fixing the match goes through editing instead.
+
+### What a Mark replaces
+
+- A Mark in another Volume replaces the reference's Link, whatever its Precision.
+- Volume-only: a hand Reference pin `{ volumeId, volume, by: 'hand' }` with no Image or Box. No Record or Page pin, no Record range change. Other pins stay, including a hand Record pin for the same record elsewhere, which still holds for others citing it.
+- A later Image Mark or Confirm replaces a Volume-only pin. `markInto` already does: it overwrites the Reference pin, or clears it when the Mark becomes a Page pin.
+- A Box on a Record pin is shared by everyone citing that record, so editing it moves theirs too. The bar names them: "Also moves the entry for Juho, Maria."
+
+## Out of scope
+
+- Clearing a saved Mark back to the estimate: `issues/05-clear-a-mark.md`.
+- Editing several sources at once.
+- Creating a Citation from the scan: `../create-citations/issues/01-cite-from-the-scan.md`. Keep the pending change (Volume, Image, Box) separate from the stored Citation, and keep drawing and reusing a Box independent of whose source it is, so a new Citation can later go through the same bar and menu.
+
+## Glossary to update as it ships
+
+**Mark**: may say where on the Image (a hand Box), not only which Image or Volume. **Scan viewer**: Volumes can be changed there.
