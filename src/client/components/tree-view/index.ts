@@ -18,8 +18,8 @@ import '../settings';
 
 import type {
   DetailsLoadEvent,
-  ScanOpen,
-  ScanOpenEvent
+  LinkOpen,
+  LinkOpenEvent
 } from '../person-panel';
 import type { PickEvent } from '../person-search';
 import type { ScanMarkedEvent, ScanPersonEvent } from '../scan-viewer';
@@ -75,13 +75,13 @@ export class TreeViewElement extends LitElement {
   @state() private selectedDetails: PersonDetails | null = null;
   // The scan the Scan viewer shows over the chart; it belongs to the
   // selected person, so selecting another closes it.
-  @state() private scanOpen: ScanOpen | null = null;
+  @state() private scanOpen: LinkOpen | null = null;
   // The Scan viewer has moved off the link's Image, so the dock doesn't
   // mark its source as shown; opening the source again goes back.
   @state() private scanAway = false;
   // A person picked in the Scan viewer: selecting them keeps it open, on
   // their citation.
-  private scanFollowing: ScanOpen | null = null;
+  private scanFollowing: LinkOpen | null = null;
 
   private readonly parentFamByPerson = new Map<number, FamilyRow>();
   private readonly spouseFamsByPerson = new Map<number, FamilyRow[]>();
@@ -416,7 +416,7 @@ export class TreeViewElement extends LitElement {
           this.detailsWidth = e.detail;
           setDetailsWidth(e.detail);
         }}
-        @scan-open=${(e: ScanOpenEvent) => {
+        @scan-open=${(e: LinkOpenEvent) => {
           this.scanOpen = e.detail;
         }}
       >
@@ -448,9 +448,9 @@ export class TreeViewElement extends LitElement {
   // beside the scan may be another's).
   private readonly onScanMarked = (e: ScanMarkedEvent) => {
     const { resolved, link } = e.detail;
-    this.renderRoot.querySelector('sl-person-panel')?.takeScans(resolved);
+    this.renderRoot.querySelector('sl-person-panel')?.takeLinks(resolved);
     if (this.scanOpen?.citation.id === resolved.citationId && link !== null) {
-      this.scanOpen = { ...this.scanOpen, scan: link };
+      this.scanOpen = { ...this.scanOpen, link };
     }
   };
 
@@ -471,7 +471,7 @@ export class TreeViewElement extends LitElement {
     return html`
       <sl-scan-viewer
         .citation=${this.scanOpen.citation}
-        .scan=${this.scanOpen.scan}
+        .link=${this.scanOpen.link}
         .persons=${this.persons}
         @scan-person=${this.onScanPerson}
         @scan-close=${() => {

@@ -107,8 +107,8 @@ function dollars(spent: (() => number | null) | undefined) {
 async function standing(ref: ChurchBookRef) {
   const resolved = await resolveChurchBookRef(ref, await loadPins());
   if ('error' in resolved) return resolved.error;
-  return resolved.scans.some(
-    (s) => s.method === 'exact' || s.method === 'vision'
+  return resolved.links.some(
+    (l) => l.certainty === 'exact' || l.certainty === 'vision'
   )
     ? 'already pinned'
     : null;

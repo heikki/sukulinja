@@ -1,9 +1,9 @@
-// Astia scan links for Church-book references, resolved on demand, and
+// Astia Links for Church-book references, resolved on demand, and
 // the Marks made in the app.
 
 import { join } from 'node:path';
 
-import type { Box, Scan } from '@common/types';
+import type { Box, Link } from '@common/types';
 
 import { archiveVolumes, setCacheDir, volumeImages } from './astia';
 import { setImageCacheDir } from './images';
@@ -63,17 +63,17 @@ async function archiveOf(volumeId: string, parishes: Array<string | null>) {
 }
 
 // Where in the Volume a reference resolves.
-export interface VolumeScan {
-  scan: Scan;
+export interface VolumeLink {
+  link: Link;
   // One of several candidate Volumes.
   split: boolean;
 }
 
-// Each reference's Scan in the Volume, or null for one resolving elsewhere;
+// Each reference's Link in the Volume, or null for one resolving elsewhere;
 // null for them all when the Volume is in none of their parishes. Only the
 // Volume's parish's references are resolved: another parish's would crawl
 // its Volumes from Astia.
-export async function volumeScans(volumeId: string, refs: ChurchBookRef[]) {
+export async function volumeLinks(volumeId: string, refs: ChurchBookRef[]) {
   const archive = await archiveOf(
     volumeId,
     refs.map((r) => r.parish)
@@ -81,14 +81,14 @@ export async function volumeScans(volumeId: string, refs: ChurchBookRef[]) {
   if (archive === null) return null;
   const pins = await loadPins();
   return await Promise.all(
-    refs.map(async (ref): Promise<VolumeScan | null> => {
+    refs.map(async (ref): Promise<VolumeLink | null> => {
       if (parishArchive(ref.parish) !== archive) return null;
       const resolved = await resolveChurchBookRef(ref, pins);
       if ('error' in resolved) return null;
-      const scan = resolved.scans.find((s) => s.volumeId === volumeId);
-      return scan === undefined
+      const link = resolved.links.find((l) => l.volumeId === volumeId);
+      return link === undefined
         ? null
-        : { scan, split: resolved.scans.length > 1 };
+        : { link, split: resolved.links.length > 1 };
     })
   );
 }
@@ -109,8 +109,8 @@ async function byBook() {
 // each: marking an Image in one of them saves a Page pin.
 async function linkedImages(ref: ChurchBookRef) {
   const matched = await resolveChurchBookRef(ref, await byBook());
-  const scans = 'scans' in matched ? matched.scans : [];
-  return new Map(scans.map((s) => [s.volumeId, s.image]));
+  const links = 'links' in matched ? matched.links : [];
+  return new Map(links.map((l) => [l.volumeId, l.image]));
 }
 
 // The Volumes the existing resolution links a reference to, by the Book it
@@ -121,12 +121,12 @@ export async function matchCandidates(ref: ChurchBookRef) {
   if ('error' in resolved) return [];
   const volumes = await parishVolumes(ref.parish);
   return await Promise.all(
-    resolved.scans.map(async (s): Promise<Candidate> => ({
-      volumeId: s.volumeId,
-      volume: s.volume,
-      images: (await volumeImages(s.volumeId)).length,
-      years: volumes.find((v) => v.id === s.volumeId)?.years ?? null,
-      start: s.method === 'volume' ? null : s.image
+    resolved.links.map(async (l): Promise<Candidate> => ({
+      volumeId: l.volumeId,
+      volume: l.volume,
+      images: (await volumeImages(l.volumeId)).length,
+      years: volumes.find((v) => v.id === l.volumeId)?.years ?? null,
+      start: l.certainty === 'volume' ? null : l.image
     }))
   );
 }

@@ -6,12 +6,12 @@ import { apiUrl } from '@client/api';
 import { focusRingStyles } from '@client/focus-ring';
 import { readNdjson } from '@client/ndjson';
 import type {
+  CitationLinks,
   CitationRow,
-  CitationScans,
+  Link,
+  LinkResolution,
   PersonDetails,
-  RecordView,
-  Scan,
-  ScanResolution
+  RecordView
 } from '@common/types';
 
 import type { ScanCloseEvent, ScanStepEvent } from '../scan-viewer';
@@ -26,10 +26,10 @@ import {
   factLabel,
   factText,
   groupSources,
-  scanStatus,
+  linkStatus,
   siteName
 } from './helpers';
-import type { ScanStatus, SourceGroup } from './helpers';
+import type { LinkStatus, SourceGroup } from './helpers';
 import { personPanelStyles } from './styles';
 
 function renderRecord(r: RecordView) {
@@ -63,14 +63,14 @@ function renderRecord(r: RecordView) {
   `;
 }
 
-// Opening a church-book source asks for the Scan viewer on that scan of its
+// Opening a church-book source asks for the Scan viewer on that Link of its
 // reference.
-export interface ScanOpen {
+export interface LinkOpen {
   citation: CitationRow;
-  scan: Scan;
+  link: Link;
 }
 
-export type ScanOpenEvent = CustomEvent<ScanOpen>;
+export type LinkOpenEvent = CustomEvent<LinkOpen>;
 
 function renderFold(open: boolean, fold: () => void) {
   const label = open ? 'Hide the record' : 'Show the record';
@@ -84,7 +84,7 @@ function renderFold(open: boolean, fold: () => void) {
 }
 
 // Where in its Volume the reference points, if it links one, and how.
-function renderStatus(status: ScanStatus | null, entry: string | null) {
+function renderStatus(status: LinkStatus | null, entry: string | null) {
   if (status === null) return nothing;
   return html`<div class="status">
     ${entry === null ? nothing : html`<span class="entry">${entry}</span>`}
@@ -98,8 +98,8 @@ function renderSite(href: string, label: string) {
 
 // What the source records, then links to the record on its own site and to
 // its scan in Astia.
-function renderDetails(body: unknown, url: string | null, scan: Scan | null) {
-  const astia = scan === null || scan.url === '' ? null : scan.url;
+function renderDetails(body: unknown, url: string | null, link: Link | null) {
+  const astia = link === null || link.url === '' ? null : link.url;
   const links = [
     url === null ? null : renderSite(url, `Open on ${siteName(url)}`),
     astia === null ? null : renderSite(astia, 'Open in Astia')
@@ -114,8 +114,8 @@ function renderDetails(body: unknown, url: string | null, scan: Scan | null) {
 
 // Whether folding the source out shows anything: what it records, or a
 // link to it.
-function hasDetails(body: unknown, url: string | null, scan: Scan | null) {
-  return body !== nothing || url !== null || scan !== null;
+function hasDetails(body: unknown, url: string | null, link: Link | null) {
+  return body !== nothing || url !== null || link !== null;
 }
 
 // A Church-book reference names itself; other sources go by their title,
@@ -130,8 +130,8 @@ const opened = { events: false, family: false, sources: true };
 type Section = keyof typeof opened;
 
 // Where in the Volume it links the reference points; nothing unlinked.
-function linkedEntry(c: CitationRow, scan: Scan | null) {
-  return scan === null ? null : c.entry;
+function linkedEntry(c: CitationRow, link: Link | null) {
+  return link === null ? null : c.entry;
 }
 
 // A source clicking opens (`active`), the one the Scan viewer shows
@@ -144,8 +144,8 @@ function sourceClass(flags: Record<string, boolean>) {
 // Under its archive, a Church-book reference goes by the Volume it links,
 // named as Astia names it but for its code: "Pää- ja rippikirjat
 // (1783-1790)".
-function titleText(c: CitationRow, scan: Scan | null) {
-  return scan === null ? headingOf(c) : volumeTitle(scan.volume);
+function titleText(c: CitationRow, link: Link | null) {
+  return link === null ? headingOf(c) : volumeTitle(link.volume);
 }
 
 // A Church-book reference's tooltip names its collection.
@@ -187,7 +187,7 @@ function renderRelative(r: Relative, ask: (event: string, id: number) => void) {
 // details announced with `details-load` as they arrive. A relative's row
 // asks for them with `pick`, and for the chart built around them with
 // `center`. Record links open outside the app (the desktop
-// shell hands target=_blank to the browser); Scan links ask for the Scan
+// shell hands target=_blank to the browser); Links ask for the Scan
 // viewer with a `scan-open` event, and the source it shows (`viewing`) is
 // marked and brought into view.
 @customElement('sl-person-panel')
@@ -195,14 +195,14 @@ export class PersonPanelElement extends LitElement {
   static override styles = [focusRingStyles, personPanelStyles];
 
   @property({ type: Number }) personId: number | null = null;
-  @property({ attribute: false }) viewing: ScanOpen | null = null;
+  @property({ attribute: false }) viewing: LinkOpen | null = null;
   // The chart's persons and families, which name the person's households.
   @property({ attribute: false }) indices: FamilyIndices | null = null;
 
   @state() private details: PersonDetails | null = null;
   @state() private error: string | null = null;
-  @state() private scans = new Map<number, ScanResolution>();
-  @state() private scansPending = false;
+  @state() private links = new Map<number, LinkResolution>();
+  @state() private linksPending = false;
   // The source shown in full; the others show only their heading and links.
   @state() private selected: number | null = null;
 
@@ -243,21 +243,21 @@ export class PersonPanelElement extends LitElement {
   }
 
   // The Scan viewer asks for the source before or after the one it shows:
-  // the next in the list with a scan, none past either end. Only while
+  // the next in the list with a Link, none past either end. Only while
   // the list can be seen, so the step is one the person can follow.
   private readonly onStep = (e: Event) => {
     if (!this.sourcesShown()) return;
     const { citationId, step } = (e as ScanStepEvent).detail;
     const citations = this.details?.citations ?? [];
-    const linked = groupSources(citations, this.scans).flatMap((g) =>
+    const linked = groupSources(citations, this.links).flatMap((g) =>
       g.rows.flatMap((c) => {
-        const scan = this.statusOf(c)?.scan ?? null;
-        return scan === null ? [] : [{ c, scan }];
+        const link = this.statusOf(c)?.link ?? null;
+        return link === null ? [] : [{ c, link }];
       })
     );
     const at = linked.findIndex((l) => l.c.id === citationId);
     const next = at < 0 ? undefined : linked[at + step];
-    if (next !== undefined) this.openScan(next.c, next.scan);
+    if (next !== undefined) this.openScan(next.c, next.link);
   };
 
   override willUpdate(changed: PropertyValues<this>) {
@@ -304,7 +304,7 @@ export class PersonPanelElement extends LitElement {
       this.error = null;
       this.dispatchEvent(new CustomEvent('details-load', { detail: details }));
       this.selected = null;
-      void this.loadScans(id, false);
+      void this.loadLinks(id, false);
     } catch (err) {
       if (request !== this.request) return;
       this.error = err instanceof Error ? err.message : 'failed to load';
@@ -312,43 +312,43 @@ export class PersonPanelElement extends LitElement {
   }
 
   // One streamed request per person; selecting someone else aborts it. A
-  // reload after a mark keeps the scans known until their new ones arrive.
-  private async loadScans(id: number, keep: boolean) {
+  // reload after a Mark keeps the Links known until their new ones arrive.
+  private async loadLinks(id: number, keep: boolean) {
     this.scanAbort?.abort();
     const abort = new AbortController();
     this.scanAbort = abort;
-    if (!keep) this.scans = new Map();
-    this.scansPending = true;
+    if (!keep) this.links = new Map();
+    this.linksPending = true;
     try {
       const res = await fetch(apiUrl(`/api/persons/${id}/scans`), {
         signal: abort.signal
       });
       if (!res.ok || res.body === null) throw new Error(String(res.status));
       await readNdjson(res.body, (raw) => {
-        const { citationId, ...scan } = raw as CitationScans;
-        this.scans = new Map(this.scans).set(citationId, scan);
+        const { citationId, ...resolution } = raw as CitationLinks;
+        this.links = new Map(this.links).set(citationId, resolution);
       });
     } catch {
       // Unresolved citations show as unavailable once pending clears.
     } finally {
-      if (!abort.signal.aborted) this.scansPending = false;
+      if (!abort.signal.aborted) this.linksPending = false;
     }
   }
 
   // A reference marked in the Scan viewer, resolved again. Its Page pin can
   // move the person's other references in the Volume too, so they reload.
-  takeScans(resolved: CitationScans) {
-    const { citationId, ...scan } = resolved;
-    this.scans = new Map(this.scans).set(citationId, scan);
-    if (this.personId !== null) void this.loadScans(this.personId, true);
+  takeLinks(resolved: CitationLinks) {
+    const { citationId, ...resolution } = resolved;
+    this.links = new Map(this.links).set(citationId, resolution);
+    if (this.personId !== null) void this.loadLinks(this.personId, true);
   }
 
   // Each opening is a new link, so the viewer goes back to it even when
   // it's showing this source already.
-  private openScan(citation: CitationRow, scan: Scan) {
+  private openScan(citation: CitationRow, link: Link) {
     this.dispatchEvent(
-      new CustomEvent<ScanOpen>('scan-open', {
-        detail: { citation, scan: { ...scan } },
+      new CustomEvent<LinkOpen>('scan-open', {
+        detail: { citation, link: { ...link } },
         bubbles: true,
         composed: true
       })
@@ -357,10 +357,10 @@ export class PersonPanelElement extends LitElement {
 
   // What clicking the source does: open its scan if it is a church book
   // that has one, else show or hide its record.
-  private actionOf(c: CitationRow, scan: Scan | null, foldable: boolean) {
-    if (scan !== null) {
+  private actionOf(c: CitationRow, link: Link | null, foldable: boolean) {
+    if (link !== null) {
       return () => {
-        this.openScan(c, scan);
+        this.openScan(c, link);
       };
     }
     if (!foldable) return null;
@@ -375,7 +375,7 @@ export class PersonPanelElement extends LitElement {
 
   private statusOf(c: CitationRow) {
     if (!c.churchBook) return null;
-    return scanStatus(this.scans.get(c.id), this.scansPending);
+    return linkStatus(this.links.get(c.id), this.linksPending);
   }
 
   // Clicking a church-book source opens its scan; clicking another shows or
@@ -386,13 +386,13 @@ export class PersonPanelElement extends LitElement {
     const status = this.statusOf(c);
     const heading = headingOf(c);
     const body = renderBody(c, heading);
-    const scan = status?.scan ?? null;
-    const foldable = hasDetails(body, c.url, scan);
+    const link = status?.link ?? null;
+    const foldable = hasDetails(body, c.url, link);
     const open = this.selected === c.id && foldable;
-    const act = this.actionOf(c, scan, foldable);
+    const act = this.actionOf(c, link, foldable);
     return html`
       <article
-        class=${sourceClass({ active: act !== null, viewing, linked: scan !== null })}
+        class=${sourceClass({ active: act !== null, viewing, linked: link !== null })}
         data-citation=${c.id}
         @click=${(e: Event) => {
           const on = e.target as Element;
@@ -405,11 +405,11 @@ export class PersonPanelElement extends LitElement {
               class="title"
               ?disabled=${act === null}
               aria-current=${viewing ? 'true' : nothing}
-              title=${scan === null ? titleOf(c, heading) : scan.volume}
+              title=${link === null ? titleOf(c, heading) : link.volume}
             >
-              ${titleText(c, scan)}
+              ${titleText(c, link)}
             </button>
-            ${renderStatus(status, linkedEntry(c, scan))}
+            ${renderStatus(status, linkedEntry(c, link))}
           </div>
           ${
             foldable
@@ -419,7 +419,7 @@ export class PersonPanelElement extends LitElement {
               : nothing
           }
         </div>
-        ${open ? renderDetails(body, c.url, scan) : nothing}
+        ${open ? renderDetails(body, c.url, link) : nothing}
       </article>
     `;
   }
@@ -444,7 +444,7 @@ export class PersonPanelElement extends LitElement {
   }
 
   private renderSources(citations: CitationRow[]) {
-    return groupSources(citations, this.scans).map((g) => this.renderGroup(g));
+    return groupSources(citations, this.links).map((g) => this.renderGroup(g));
   }
 
   // A heading that shows or hides what follows it.

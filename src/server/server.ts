@@ -5,7 +5,7 @@ import type { Database } from 'bun:sqlite';
 
 import type { FamilyRow, PersonRow } from '@common/types';
 
-import { imageLinks } from './citation-scans/astia';
+import { viewerUrls } from './citation-scans/astia';
 import { astiaImage } from './citation-scans/images';
 import { routeScanCache } from './citation-scans/scan-cache';
 import { useDataFolder } from './citation-scans/scans';
@@ -34,7 +34,7 @@ interface DatasetHandlers {
   handlePersons: () => Response;
   handleFamilies: () => Response;
   handlePerson: (id: number) => Response;
-  handlePersonScans: (id: number) => Response;
+  handlePersonLinks: (id: number) => Response;
   handleMark: (id: number, target: MarkTarget) => Promise<Response>;
   handleVolumeCitations: (volumeId: string) => Promise<Response>;
   handleMedia: (rest: string, mediaRoot: string) => Promise<Response>;
@@ -143,11 +143,11 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
         : Response.json(details);
     },
 
-    // One line per church-book citation as its scans resolve. Astia is slow
+    // One line per church-book citation as its Links resolve. Astia is slow
     // and throttled, so a person's citations share one streamed request
     // rather than holding a connection each.
-    handlePersonScans(id) {
-      const lines = citations.scansOf(id);
+    handlePersonLinks(id) {
+      const lines = citations.linksOf(id);
       const enc = new TextEncoder();
       // A cancelled stream lets the resolutions under way finish, unread.
       const stream = new ReadableStream<Uint8Array>({
@@ -350,7 +350,7 @@ async function routeDataset(
     const id = Number(person.groups!.id);
     return person.groups!.scans === undefined
       ? handlers.handlePerson(id)
-      : handlers.handlePersonScans(id);
+      : handlers.handlePersonLinks(id);
   }
   const citation = /^\/api\/citations\/(?<id>\d+)\/scans$/.exec(rest);
   if (citation !== null) {
@@ -367,7 +367,7 @@ async function routeDataset(
 }
 
 // An Astia Volume's Images, shared by every dataset: their Astia viewer
-// links in order, or one Image itself.
+// URLs in order, or one Image itself.
 async function routeAstia(req: Request, pathname: string) {
   const m = ASTIA_RE.exec(pathname);
   if (m === null) return null;
@@ -376,15 +376,15 @@ async function routeAstia(req: Request, pathname: string) {
   }
   const { volumeId, n } = m.groups!;
   return n === undefined
-    ? await handleImageLinks(volumeId!)
+    ? await handleViewerUrls(volumeId!)
     : await handleAstiaImage(req, volumeId!, Number(n));
 }
 
-async function handleImageLinks(volumeId: string) {
-  const links = await imageLinks(volumeId).catch(() => null);
-  return links === null
+async function handleViewerUrls(volumeId: string) {
+  const urls = await viewerUrls(volumeId).catch(() => null);
+  return urls === null
     ? new Response('Astia unavailable', { status: 502 })
-    : Response.json(links);
+    : Response.json(urls);
 }
 
 // `?size=thumb` gives the 250px one. An Image never changes, so the webview

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
 
-import type { CitationScans, VolumeCitation } from '@common/types';
+import type { CitationLinks, VolumeCitation } from '@common/types';
 
 import { useDataFolder } from './citation-scans/scans';
 import {
@@ -58,8 +58,8 @@ function cite(personId: number, c: { page: string | null; text: string }) {
   return { personId, ...c };
 }
 
-async function linesOf(lines: AsyncIterable<CitationScans>) {
-  const out: CitationScans[] = [];
+async function linesOf(lines: AsyncIterable<CitationLinks>) {
+  const out: CitationLinks[] = [];
   for await (const line of lines) out.push(line);
   return out;
 }
@@ -186,19 +186,19 @@ test('every Citation served as a church book gets one scan line, and no other', 
   const served = citations.ofPerson(1);
   const churchBooks = served.filter((c) => c.churchBook).map((c) => c.id);
   expect(churchBooks.toSorted((a, b) => a - b)).toEqual([1, 2]);
-  const lines = await linesOf(citations.scansOf(1));
+  const lines = await linesOf(citations.linksOf(1));
   expect(lines.map((l) => l.citationId).toSorted((a, b) => a - b)).toEqual(
     churchBooks
   );
   expect(lines.find((l) => l.citationId === 1)).toMatchObject({
-    scans: [{ volumeId: 'juva-1', image: 12, method: 'estimated' }]
+    links: [{ volumeId: 'juva-1', image: 12, certainty: 'estimated' }]
   });
 });
 
 test('a person with no church books gets no scan lines', async () => {
   const citations = datasetOf([cite(1, { page: null, text: 'Family bible' })]);
-  expect(await linesOf(citations.scansOf(1))).toEqual([]);
-  expect(await linesOf(citations.scansOf(99))).toEqual([]);
+  expect(await linesOf(citations.linksOf(1))).toEqual([]);
+  expect(await linesOf(citations.linksOf(99))).toEqual([]);
 });
 
 // ---------------------------------------------------------------- Marks
@@ -211,12 +211,12 @@ test('a Mark is saved, and the scan lines show it', async () => {
   expect(
     await citations.mark(1, { volumeId: 'juva-1', image: 7 })
   ).toMatchObject({
-    scans: [{ volumeId: 'juva-1', image: 7, method: 'exact' }]
+    links: [{ volumeId: 'juva-1', image: 7, certainty: 'exact' }]
   });
-  const [line] = await linesOf(citations.scansOf(1));
+  const [line] = await linesOf(citations.linksOf(1));
   expect(line).toMatchObject({
     citationId: 1,
-    scans: [{ image: 7, method: 'exact' }]
+    links: [{ image: 7, certainty: 'exact' }]
   });
 });
 
@@ -242,8 +242,8 @@ test('a Mark needs a church-book Citation and an Image in the Volume', async () 
 function placesOf(rows: VolumeCitation[] | null) {
   return rows!.map((r) => ({
     personId: r.personId,
-    image: r.scan.method === 'volume' ? null : r.scan.image,
-    method: r.scan.method,
+    image: r.link.certainty === 'volume' ? null : r.link.image,
+    certainty: r.link.certainty,
     split: r.split
   }));
 }
@@ -264,18 +264,18 @@ test("lists the Volume's Vision match, Estimated and Volume-only citations", asy
 
   const first = await citations.inVolume('juva-1');
   expect(placesOf(first)).toEqual([
-    { personId: 1, image: 9, method: 'vision', split: false },
-    { personId: 2, image: 6, method: 'estimated', split: false }
+    { personId: 1, image: 9, certainty: 'vision', split: false },
+    { personId: 2, image: 6, certainty: 'estimated', split: false }
   ]);
-  expect(first![0]!.scan).toMatchObject({ method: 'vision', box: BOX });
-  expect(first![1]!.scan).toMatchObject({ from: 'pins' });
+  expect(first![0]!.link).toMatchObject({ certainty: 'vision', box: BOX });
+  expect(first![1]!.link).toMatchObject({ from: 'pins' });
   expect(first![0]!.citation).toMatchObject({
     churchBook: true,
     citedPage: 12
   });
   expect(placesOf(await citations.inVolume('juva-2'))).toEqual([
-    { personId: 3, image: 7, method: 'estimated', split: false },
-    { personId: 4, image: null, method: 'volume', split: false }
+    { personId: 3, image: 7, certainty: 'estimated', split: false },
+    { personId: 4, image: null, certainty: 'volume', split: false }
   ]);
 });
 
@@ -285,7 +285,7 @@ test('a Split reference is listed in each candidate Volume', async () => {
   for (const volumeId of ['juva-1', 'juva-2']) {
     // eslint-disable-next-line no-await-in-loop -- two Volumes
     expect(placesOf(await citations.inVolume(volumeId))).toEqual([
-      { personId: 1, image: 3, method: 'estimated', split: true }
+      { personId: 1, image: 3, certainty: 'estimated', split: true }
     ]);
   }
 });
@@ -305,7 +305,7 @@ test('people citing one record get a row each, sharing its Image and box', async
   ]);
 
   const rows = await citations.inVolume('juva-1');
-  expect(rows!.map((r) => [r.personId, r.scan.image, r.scan.box])).toEqual([
+  expect(rows!.map((r) => [r.personId, r.link.image, r.link.box])).toEqual([
     [1, 9, BOX],
     [2, 9, BOX]
   ]);
@@ -316,7 +316,7 @@ test('a Mark shows in the next answer, dropping the vision box', async () => {
     cite(1, rippiCitation(5001, '1790 - 1796', 12))
   ]);
   expect(placesOf(await citations.inVolume('juva-1'))).toEqual([
-    { personId: 1, image: 12, method: 'estimated', split: false }
+    { personId: 1, image: 12, certainty: 'estimated', split: false }
   ]);
 
   await writeLocal({
@@ -327,16 +327,16 @@ test('a Mark shows in the next answer, dropping the vision box', async () => {
   });
   const pinned = (await citations.inVolume('juva-1'))!;
   expect(pinned).toHaveLength(1);
-  expect(pinned[0]!.scan).toMatchObject({
+  expect(pinned[0]!.link).toMatchObject({
     image: 9,
-    method: 'vision',
+    certainty: 'vision',
     box: BOX
   });
 
   await citations.mark(1, { volumeId: 'juva-1', image: 10 });
   const [row] = (await citations.inVolume('juva-1'))!;
-  expect(row!.scan).toMatchObject({ image: 10, method: 'exact' });
-  expect(row!.scan.box).toBeUndefined();
+  expect(row!.link).toMatchObject({ image: 10, certainty: 'exact' });
+  expect(row!.link.box).toBeUndefined();
 });
 
 test("another parish's citations are never resolved", async () => {

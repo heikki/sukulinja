@@ -12,7 +12,7 @@ import { mkdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import type { Scan, ScanResolution } from '@common/types';
+import type { Link, LinkResolution } from '@common/types';
 import { CACHE_DIR } from '@server/citation-scans/astia';
 import { resolveChurchBookRef } from '@server/citation-scans/locate';
 import { loadPins } from '@server/citation-scans/pins';
@@ -30,35 +30,35 @@ function printTally(keys: string[]) {
   for (const [k, n] of sorted) console.log(`${String(n).padStart(6)}  ${k}`);
 }
 
-function resolutionKey(c: ChurchBookRef, r: ScanResolution) {
+function resolutionKey(c: ChurchBookRef, r: LinkResolution) {
   if ('error' in r) return `${c.collection} ✗ ${r.error}`;
-  const ambiguous = r.scans.length > 1 ? ' (split volume)' : '';
-  return `${c.collection} ${r.scans[0]!.method}${ambiguous}`;
+  const ambiguous = r.links.length > 1 ? ' (split volume)' : '';
+  return `${c.collection} ${r.links[0]!.certainty}${ambiguous}`;
 }
 
 interface ChecklistEntry {
   parish: string;
   count: number;
-  scan: Scan;
+  link: Link;
 }
 
 // Cited volumes without a Page pin, most-cited first: those where a page was
 // estimated, and those where the estimate ran past the volume's end. Each
 // links to an image to read, so checking it is one click.
-function checklist(refs: ChurchBookRef[], resolutions: ScanResolution[]) {
+function checklist(refs: ChurchBookRef[], resolutions: LinkResolution[]) {
   const byVolume = new Map<string, ChecklistEntry>();
   refs.forEach((c, i) => {
     const r = resolutions[i]!;
     if ('error' in r || c.page === null) return;
-    for (const scan of r.scans) {
-      if (scan.from === 'pins') continue;
-      const entry = byVolume.get(scan.volumeId) ?? {
+    for (const link of r.links) {
+      if (link.from === 'pins') continue;
+      const entry = byVolume.get(link.volumeId) ?? {
         parish: c.parish!,
         count: 0,
-        scan
+        link
       };
       entry.count += 1;
-      byVolume.set(scan.volumeId, entry);
+      byVolume.set(link.volumeId, entry);
     }
   });
   const rows = [...byVolume.values()].sort((a, b) => b.count - a.count);
@@ -79,7 +79,7 @@ function checklist(refs: ChurchBookRef[], resolutions: ScanResolution[]) {
     '|---|---|---|---|---|---|',
     ...rows.map(
       (r) =>
-        `| ${r.count} | ${r.parish} | ${r.scan.volume} | ${r.scan.volumeId} | ${r.scan.image} | [open](${r.scan.url}) |`
+        `| ${r.count} | ${r.parish} | ${r.link.volume} | ${r.link.volumeId} | ${r.link.image} | [open](${r.link.url}) |`
     )
   ];
   return `${lines.join('\n')}\n`;

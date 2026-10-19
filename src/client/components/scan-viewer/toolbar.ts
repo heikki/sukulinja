@@ -1,7 +1,7 @@
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
-import type { Scan } from '@common/types';
+import type { Link } from '@common/types';
 
 import { volumeTitle } from './citations';
 import { controlStyles, scanToolbarStyles } from './styles';
@@ -13,7 +13,7 @@ export class ScanToolbarElement extends LitElement {
   static override styles = [controlStyles, scanToolbarStyles];
 
   // The reference's link, whose Volume is shown.
-  @property({ attribute: false }) link: Scan | null = null;
+  @property({ attribute: false }) link: Link | null = null;
 
   override render() {
     const { link } = this;

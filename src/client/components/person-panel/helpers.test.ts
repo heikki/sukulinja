@@ -1,9 +1,9 @@
 import { expect, test } from 'bun:test';
 
-import type { CitationRow, Scan, ScanResolution } from '@common/types';
+import type { CitationRow, Link, LinkResolution } from '@common/types';
 
 import { volumeTitle } from '../scan-viewer/citations';
-import { groupSources, scanStatus, siteName } from './helpers';
+import { groupSources, linkStatus, siteName } from './helpers';
 
 test('names a record link by its site', () => {
   expect(
@@ -16,54 +16,54 @@ test('names a record link by its site', () => {
   expect(siteName('not a link')).toBe('Record');
 });
 
-const scan: Scan = {
+const link: Link = {
   volumeId: 'v1',
   volume: 'I Aa:5',
   image: 18,
   url: '',
-  method: 'exact'
+  certainty: 'exact'
 };
 
-function label(s: Scan) {
-  return scanStatus({ scans: [s] }, false).label;
+function label(s: Link) {
+  return linkStatus({ links: [s] }, false).label;
 }
 
-test('says how a scan was found, and what that means', () => {
-  expect(label(scan)).toBe('Exact');
-  expect(label({ ...scan, method: 'estimated', from: 'pins' })).toBe(
+test('says how sure a Link is, and what that means', () => {
+  expect(label(link)).toBe('Exact');
+  expect(label({ ...link, certainty: 'estimated', from: 'pins' })).toBe(
     'Estimated'
   );
-  expect(label({ ...scan, method: 'estimated' })).toBe('Estimated');
-  expect(label({ ...scan, method: 'volume' })).toBe('Volume only');
-  const vision = { ...scan, method: 'vision' as const };
+  expect(label({ ...link, certainty: 'estimated' })).toBe('Estimated');
+  expect(label({ ...link, certainty: 'volume' })).toBe('Volume only');
+  const vision = { ...link, certainty: 'vision' as const };
   expect(label(vision)).toBe('Vision match');
-  expect(scanStatus({ scans: [scan] }, false).title).toBe(
+  expect(linkStatus({ links: [link] }, false).title).toBe(
     'A person marked this record on this Image.'
   );
-  expect(scanStatus({ scans: [vision] }, false).title).toMatch(
+  expect(linkStatus({ links: [vision] }, false).title).toMatch(
     /^The vision model found the name on this Image\.[^\n]*$/
   );
 });
 
 test('opens a Split reference on its first Volume', () => {
-  const other = { ...scan, volumeId: 'v2', volume: 'I Aa:6' };
-  const status = scanStatus({ scans: [scan, other] }, false);
+  const other = { ...link, volumeId: 'v2', volume: 'I Aa:6' };
+  const status = linkStatus({ links: [link, other] }, false);
   expect(status.label).toBe('Exact · one of several Volumes');
-  expect(status.scan).toEqual(scan);
+  expect(status.link).toEqual(link);
 });
 
 test('says why a source has no scan', () => {
-  expect(scanStatus(undefined, true)).toMatchObject({
+  expect(linkStatus(undefined, true)).toMatchObject({
     label: 'Finding scan…',
-    scan: null
+    link: null
   });
-  expect(scanStatus({ error: 'not digitized' }, false)).toMatchObject({
+  expect(linkStatus({ error: 'not digitized' }, false)).toMatchObject({
     label: 'Not found',
-    scan: null
+    link: null
   });
-  expect(scanStatus({ error: 'no archive' }, false)).toMatchObject({
+  expect(linkStatus({ error: 'no archive' }, false)).toMatchObject({
     label: 'No scan',
-    scan: null
+    link: null
   });
 });
 
@@ -93,21 +93,21 @@ test('groups sources by archive, each Volume together by page', () => {
     source(6, null, false),
     source(7, 12)
   ];
-  const here = { ...scan, archive: 'Pieksämäen seurakunnan arkisto' };
+  const here = { ...link, archive: 'Pieksämäen seurakunnan arkisto' };
   const v8 = { ...here, volumeId: 'v8', volume: 'I Aa:8' };
   const v15 = { ...here, volumeId: 'v15', volume: 'I Aa:15' };
   const there = {
-    ...scan,
+    ...link,
     volumeId: 'j1',
     archive: 'Joroisten seurakunnan arkisto'
   };
-  const scans = new Map<number, ScanResolution>([
-    [1, { scans: [here] }],
-    [2, { scans: [v8] }],
-    [3, { scans: [v8, v15] }],
-    [4, { scans: [v15] }],
+  const scans = new Map<number, LinkResolution>([
+    [1, { links: [here] }],
+    [2, { links: [v8] }],
+    [3, { links: [v8, v15] }],
+    [4, { links: [v15] }],
     [5, { error: 'not digitized' }],
-    [7, { scans: [there] }]
+    [7, { links: [there] }]
   ]);
   const groups = groupSources(rows, scans).map((g) => [
     g.label,

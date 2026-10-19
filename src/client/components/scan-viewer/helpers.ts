@@ -1,5 +1,5 @@
 import { apiUrl } from '@client/api';
-import type { CitationScans, Scan } from '@common/types';
+import type { CitationLinks, Link } from '@common/types';
 
 // One JSON request at a time: asking again aborts the last one.
 export class Latest {
@@ -52,12 +52,12 @@ export interface Shown {
   image: number;
 }
 
-// Saves by hand where a citation's record is: the reference's scans
-// resolved again, or why they couldn't be saved.
+// Saves a Mark: the reference's Links resolved again, or why it couldn't be
+// saved.
 export async function saveMark(
   citationId: number,
   target: Shown
-): Promise<{ resolved: CitationScans } | { error: string }> {
+): Promise<{ resolved: CitationLinks } | { error: string }> {
   try {
     const res = await fetch(apiUrl(`/api/citations/${citationId}/scans`), {
       method: 'POST',
@@ -65,27 +65,27 @@ export async function saveMark(
       body: JSON.stringify(target)
     });
     if (!res.ok) return { error: await res.text() };
-    return { resolved: (await res.json()) as CitationScans };
+    return { resolved: (await res.json()) as CitationLinks };
   } catch {
     return { error: 'The app is not responding.' };
   }
 }
 
-// A mark saved: the reference's links resolved again, and the one in the
+// A Mark saved: the reference's Links resolved again, and the one in the
 // marked Volume for the viewer to follow.
 export interface ScanMarked {
-  resolved: CitationScans;
-  link: Scan | null;
+  resolved: CitationLinks;
+  link: Link | null;
 }
 
 export type ScanMarkedEvent = CustomEvent<ScanMarked>;
 
-// What a saved mark reports: the resolved scans, and the link in the
-// Volume marked.
-export function markedIn(resolved: CitationScans, volumeId: string) {
-  const scans = 'scans' in resolved ? resolved.scans : [];
+// What a saved Mark reports: the resolved Links, and the one in the Volume
+// marked.
+export function markedIn(resolved: CitationLinks, volumeId: string) {
+  const links = 'links' in resolved ? resolved.links : [];
   return {
     resolved,
-    link: scans.find((s) => s.volumeId === volumeId) ?? null
+    link: links.find((l) => l.volumeId === volumeId) ?? null
   };
 }
