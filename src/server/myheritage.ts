@@ -1,24 +1,26 @@
 // Port of the MyHeritage GEDCOM converter (formerly the standalone fix.py).
 //
-// A raw MyHeritage 5.5.1 export references every image as a signed
-// `mhcache.com` URL (valid ~1 week), carries MyHeritage-private bloat, and
-// marks face rectangles with a private `2 _POSITION x1 y1 x2 y2` tag that no
+// A raw MyHeritage 5.5.1 export references every image as an `mhcache.com`
+// URL whose token changes with every export, carries MyHeritage-private
+// bloat, and marks face rectangles with a private `2 _POSITION x1 y1 x2 y2` tag that no
 // other app understands. This module transforms such an export in place so the
 // existing media-ingest + gedcom-import pipeline can consume it:
 //
 //   - drop the synthetic "Unassociated photos" person MyHeritage parks untagged
 //     photos under (before downloading, so its photos aren't fetched)
-//   - download every referenced image into a flat staging dir and rewrite the
-//     FILE value to the local name (failed downloads keep the remote URL so a
-//     re-run retries them)
+//   - gather every referenced image into a staging dir, copied from the
+//     dataset's earlier import where it's there, else downloaded, and rewrite
+//     the FILE value to the photo's name (failed downloads keep the remote URL
+//     so a re-run retries them)
 //   - drop face-cutout OBJE blocks (each person keeps the parent photo with
 //     their face rectangle, converted to CROP below)
 //   - strip MyHeritage-private metadata and prune the empty leaves it leaves
 //   - move each OBJE's FORM under its FILE as a MIME type, and convert
 //     `_POSITION x1 y1 x2 y2` to a standard `CROP { TOP, LEFT, WIDTH, HEIGHT }`
 
-import { mkdir } from 'node:fs/promises';
-import { basename, join } from 'node:path';
+import { createHash } from 'node:crypto';
+import { copyFile, mkdir, rename, rm } from 'node:fs/promises';
+import { dirname, extname, join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
 import { findChild } from './gedcom-parser';
@@ -216,28 +218,28 @@ export function collectFileUrls(roots: GedNode[]) {
   return out;
 }
 
-// Map each URL to a unique flat filename derived from its basename; disambiguate
-// the rare collision so two distinct images never share one staging file.
-function assignNames(urls: string[]): Map<string, string> {
-  const names = new Map<string, string>();
-  const used = new Set<string>();
-  for (const url of urls) {
-    const base = basename(new URL(url).pathname);
-    let name = base === '' ? 'file' : base;
-    if (used.has(name)) {
-      const dot = name.lastIndexOf('.');
-      const stem = dot > 0 ? name.slice(0, dot) : name;
-      const ext = dot > 0 ? name.slice(dot) : '';
-      let i = 1;
-      while (used.has(`${stem}-${i}${ext}`)) i += 1;
-      name = `${stem}-${i}${ext}`;
-    }
-    used.add(name);
-    names.set(url, name);
+// A photo's name: what its FILE is rewritten to, which the media row keeps
+// as its original path, so a re-import finds the photo already stored. An
+// mhcache.com URL is `/e/1/<token>/<tail>`: the token changes with every
+// export, the tail stays and names the photo. Any other URL, or a tail that
+// isn't plain path segments, is named by a hash of the whole URL.
+const SAFE_SEGMENT = /^[A-Za-z0-9._-]+$/u;
+
+export function photoNameOf(url: string) {
+  const { hostname, pathname } = new URL(url);
+  const segments = pathname.split('/').slice(1);
+  const tail = segments.slice(3);
+  const plain = tail.every(
+    (s) => SAFE_SEGMENT.test(s) && s !== '.' && s !== '..'
+  );
+  if (hostname.endsWith('mhcache.com') && tail.length > 0 && plain) {
+    return tail.join('/');
   }
-  return names;
+  const hash = createHash('sha256').update(url).digest('hex').slice(0, 16);
+  return `${hash}${extname(pathname).toLowerCase()}`;
 }
 
+// Fetches `url` into `dest`, and says 'ok' or why not.
 export type Downloader = (url: string, dest: string) => Promise<string>;
 
 // Settle `task`, but give up after `ms` and throw instead. This is the part
@@ -276,8 +278,6 @@ async function fetchToFile(
 }
 
 async function downloadDefault(url: string, dest: string): Promise<string> {
-  const existing = Bun.file(dest);
-  if ((await existing.exists()) && existing.size > 0) return 'skip';
   let last = 'fail';
   /* eslint-disable no-await-in-loop -- retries are inherently sequential; each attempt must finish before the next */
   for (let attempt = 0; attempt <= RETRIES; attempt += 1) {
@@ -324,9 +324,12 @@ function noop(): void {
 }
 
 export interface MyHeritageOptions {
-  // Flat dir the remote images are downloaded into; pass this as the ingest
-  // sourceDir so the rewritten FILE basenames resolve.
+  // Where the photos are gathered, each at its name (see photoNameOf). Pass
+  // it as the ingest sourceDir so the rewritten FILE values resolve.
   stagingDir: string;
+  // Where a photo of that name is stored from the dataset's earlier import,
+  // if it is: copied instead of downloaded.
+  stored?: (name: string) => string | null;
   keepCutouts?: boolean;
   concurrency?: number;
   download?: Downloader;
@@ -338,9 +341,10 @@ export interface MyHeritageResult {
   dropped: number;
   pruned: number;
   urls: number;
+  // Photos downloaded, and copied from the dataset's earlier import.
   downloaded: number;
+  reused: number;
   failed: string[];
-  sourceDir: string;
 }
 
 // Detect a raw MyHeritage export so callers can branch without a flag.
@@ -352,17 +356,95 @@ export function isMyHeritageExport(roots: GedNode[]): boolean {
   return collectFileUrls(roots).some((u) => u.includes('mhcache.com'));
 }
 
+// Downloads one photo: written under `.part`, and renamed into place only
+// once whole, so a failed or stalled download never leaves a file that
+// looks like the photo.
+async function fetchInto(download: Downloader, url: string, dest: string) {
+  await mkdir(dirname(dest), { recursive: true });
+  const part = `${dest}.part`;
+  try {
+    const status = await download(url, part);
+    if (status === 'ok') await rename(part, dest);
+    return status;
+  } finally {
+    await rm(part, { force: true });
+  }
+}
+
+async function copyStored(from: string | null, dest: string) {
+  if (from === null || !(await Bun.file(from).exists())) return false;
+  await mkdir(dirname(dest), { recursive: true });
+  await copyFile(from, dest);
+  return true;
+}
+
+// The photos stored from the dataset's earlier import, copied into the
+// staging dir; the rest are missing.
+async function copyAllStored(
+  byName: Map<string, string[]>,
+  { stagingDir, stored }: MyHeritageOptions
+) {
+  const succeeded = new Set<string>();
+  const missing: Array<[string, string[]]> = [];
+  for (const [name, same] of byName) {
+    const dest = join(stagingDir, name);
+    // eslint-disable-next-line no-await-in-loop -- a local copy per photo
+    if (await copyStored(stored?.(name) ?? null, dest)) {
+      for (const u of same) succeeded.add(u);
+    } else {
+      missing.push([name, same]);
+    }
+  }
+  return { succeeded, missing };
+}
+
+// Each photo into the staging dir, by one copy or fetch however many URLs
+// name it. Says which URLs it has, and which failed.
+async function gatherPhotos(
+  names: Map<string, string>,
+  options: MyHeritageOptions
+) {
+  const { stagingDir } = options;
+  const download = options.download ?? downloadDefault;
+  const log = options.log ?? noop;
+  const byName = new Map<string, string[]>();
+  for (const [url, name] of names) {
+    byName.set(name, [...(byName.get(name) ?? []), url]);
+  }
+  const { succeeded, missing } = await copyAllStored(byName, options);
+  const failed: string[] = [];
+  const reused = byName.size - missing.length;
+  if (byName.size > 0) {
+    log(`Downloading ${missing.length} photos, ${reused} kept from before…`);
+  }
+  let done = 0;
+  let downloaded = 0;
+  await runPool(
+    missing,
+    options.concurrency ?? DEFAULT_CONCURRENCY,
+    async ([name, same]) => {
+      done += 1;
+      const url = same[0]!;
+      const status = await fetchInto(download, url, join(stagingDir, name));
+      if (status === 'ok') {
+        downloaded += 1;
+        for (const u of same) succeeded.add(u);
+      } else {
+        failed.push(...same);
+        log(`  FAIL ${status}  ${url}`);
+      }
+      log(`Downloaded ${done}/${missing.length} photos`);
+    }
+  );
+  return { succeeded, failed, downloaded, reused };
+}
+
 export async function convertMyHeritage(
   roots: GedNode[],
   options: MyHeritageOptions
 ): Promise<MyHeritageResult> {
-  const { stagingDir, keepCutouts = false } = options;
-  const concurrency = options.concurrency ?? DEFAULT_CONCURRENCY;
-  const download = options.download ?? downloadDefault;
-  const log = options.log ?? noop;
-
   dropUnassociatedPhotos(roots);
-  const strip = !keepCutouts;
+  const strip = options.keepCutouts !== true;
   const stripped = strip ? stripCutouts(roots) : 0;
 
   const dropSet = new Set(DROP_TAGS_ALWAYS);
@@ -371,26 +453,11 @@ export async function convertMyHeritage(
   const pruned = pruneEmptyLeaves(roots);
 
   const urls = collectFileUrls(roots);
-  const names = assignNames(urls);
-  const succeeded = new Set<string>();
-  const failed: string[] = [];
-
-  if (urls.length > 0) {
-    await mkdir(stagingDir, { recursive: true });
-    log(`Downloading ${urls.length} photos…`);
-    let done = 0;
-    await runPool(urls, concurrency, async (url) => {
-      const status = await download(url, join(stagingDir, names.get(url)!));
-      if (status === 'ok' || status === 'skip') {
-        succeeded.add(url);
-      } else {
-        failed.push(url);
-        log(`  FAIL ${status}  ${url}`);
-      }
-      done += 1;
-      log(`Downloaded ${done}/${urls.length} photos`);
-    });
-  }
+  const names = new Map(urls.map((u) => [u, photoNameOf(u)]));
+  const { succeeded, failed, downloaded, reused } = await gatherPhotos(
+    names,
+    options
+  );
 
   rewriteLocalPaths(roots, succeeded, names);
   transformObjes(roots);
@@ -400,8 +467,8 @@ export async function convertMyHeritage(
     dropped,
     pruned,
     urls: urls.length,
-    downloaded: succeeded.size,
-    failed,
-    sourceDir: stagingDir
+    downloaded,
+    reused,
+    failed
   };
 }

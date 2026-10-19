@@ -11,6 +11,7 @@ import {
   dropTags,
   dropUnassociatedPhotos,
   isMyHeritageExport,
+  photoNameOf,
   pruneEmptyLeaves,
   stripCutouts,
   transformObjes
@@ -151,51 +152,101 @@ describe('isMyHeritageExport', () => {
   });
 });
 
+describe('photoNameOf', () => {
+  function photo(token: string) {
+    return `https://sites-cf.mhcache.com/e/1/${token}/012/345/6789/abc_def.jpg`;
+  }
+
+  test('keeps an mhcache photo at the part after its token', () => {
+    expect(photoNameOf(photo('tok1'))).toBe('012/345/6789/abc_def.jpg');
+    // The next export's token differs; the photo's name doesn't.
+    expect(photoNameOf(photo('tok2'))).toBe(photoNameOf(photo('tok1')));
+  });
+
+  test('hashes any other URL, keeping its extension', () => {
+    const name = photoNameOf('https://x/photo.JPG');
+    expect(name).toMatch(/^[0-9a-f]{16}\.jpg$/u);
+    expect(photoNameOf('https://y/photo.JPG')).not.toBe(name);
+    // A tail that isn't plain path segments is hashed too.
+    expect(
+      photoNameOf('https://sites-cf.mhcache.com/e/1/t/a%20b/c.jpg')
+    ).toMatch(/^[0-9a-f]{16}\.jpg$/u);
+  });
+});
+
 describe('convertMyHeritage', () => {
-  let staging = '';
+  let stagingDir = '';
 
   beforeEach(async () => {
-    staging = await mkdtemp(join(tmpdir(), 'myheritage-test-'));
+    stagingDir = await mkdtemp(join(tmpdir(), 'myheritage-test-'));
   });
   afterEach(async () => {
-    await rm(staging, { recursive: true, force: true });
+    await rm(stagingDir, { recursive: true, force: true });
   });
 
-  test('rewrites succeeded URLs to flat names and leaves failures remote', async () => {
+  // Fetches a photo by writing its URL as its bytes, and keeps the URLs
+  // asked for; a URL with "dead" in it fails.
+  function fakeDownload() {
+    const tried: string[] = [];
+    async function download(url: string, dest: string) {
+      tried.push(url);
+      if (url.includes('dead')) return 'fail(403)';
+      await Bun.write(dest, url);
+      return 'ok';
+    }
+    return { tried, download };
+  }
+
+  test('rewrites fetched URLs to their cache names and leaves failures remote', async () => {
     const root = indi(
       obje('https://x/ok.jpg', node(2, '_CUTOUT', 'Y')),
       obje('https://x/photo.jpg', node(2, '_POSITION', '0 0 10 20')),
       obje('https://x/dead.jpg')
     );
-    const tried: string[] = [];
-    const result = await convertMyHeritage([root], {
-      stagingDir: staging,
-      download: (url) => {
-        tried.push(url);
-        return Promise.resolve(url.includes('dead') ? 'fail(403)' : 'ok');
-      }
-    });
+    const { tried, download } = fakeDownload();
+    const result = await convertMyHeritage([root], { stagingDir, download });
 
     // The cutout OBJE is stripped, so its URL is never downloaded.
     expect(tried.sort()).toEqual(['https://x/dead.jpg', 'https://x/photo.jpg']);
     expect(result.stripped).toBe(1);
-    expect(result.downloaded).toBe(1);
+    expect(result).toMatchObject({ downloaded: 1, reused: 0 });
     expect(result.failed).toEqual(['https://x/dead.jpg']);
 
     const files = root.children.map((o) => findChild(o, 'FILE')!.value);
-    expect(files).toContain('photo.jpg');
+    expect(files).toContain(photoNameOf('https://x/photo.jpg'));
     expect(files).toContain('https://x/dead.jpg'); // failure kept remote
+    // A failed download leaves nothing under its name.
+    const dead = Bun.file(join(stagingDir, photoNameOf('https://x/dead.jpg')));
+    expect(await dead.exists()).toBe(false);
   });
 
-  test('disambiguates colliding basenames across distinct URLs', async () => {
-    const root = indi(obje('https://a/p.jpg'), obje('https://b/p.jpg'));
-    await convertMyHeritage([root], {
-      stagingDir: staging,
-      download: () => Promise.resolve('ok')
+  test('fetches a photo once, and copies one stored before instead', async () => {
+    function url(token: string) {
+      return `https://sites-cf.mhcache.com/e/1/${token}/1/2/3/p.jpg`;
+    }
+    const first = fakeDownload();
+    // Two URLs naming the same photo share one fetch.
+    await convertMyHeritage([indi(obje(url('a')), obje(url('b')))], {
+      stagingDir,
+      download: first.download
     });
-    const files = root.children.map((o) => findChild(o, 'FILE')!.value);
-    expect(new Set(files).size).toBe(2);
-    expect(files).toContain('p.jpg');
-    expect(files).toContain('p-1.jpg');
+    expect(first.tried).toHaveLength(1);
+
+    const later = await mkdtemp(join(tmpdir(), 'myheritage-test-'));
+    try {
+      const again = fakeDownload();
+      const root = indi(obje(url('c')));
+      const result = await convertMyHeritage([root], {
+        stagingDir: later,
+        stored: (name) => join(stagingDir, name),
+        download: again.download
+      });
+      expect(again.tried).toEqual([]);
+      expect(result).toMatchObject({ downloaded: 0, reused: 1 });
+      expect(findChild(root.children[0]!, 'FILE')!.value).toBe('1/2/3/p.jpg');
+      expect(await Bun.file(join(later, '1/2/3/p.jpg')).text()).toBe(url('a'));
+    } finally {
+      await rm(later, { recursive: true, force: true });
+    }
   });
 });

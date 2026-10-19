@@ -31,6 +31,7 @@ function readGedcomVersion(roots: GedNode[]): string | null {
 export interface MyHeritageSummary {
   downloaded: number;
   urls: number;
+  reused: number;
   stripped: number;
   dropped: number;
   failed: number;
@@ -61,6 +62,36 @@ export interface ImportOutcome {
   myheritage: MyHeritageSummary | null;
 }
 
+// Where each photo the dataset under `slug` has now is stored, by its
+// original path: a re-import copies those rather than download them again.
+// Photos no longer in the new export aren't copied, so they go with the old
+// dataset.
+function openIfThere(registry: DatasetRegistry, slug: string) {
+  try {
+    return registry.open(slug);
+  } catch {
+    return null;
+  }
+}
+
+function storedPhotos(registry: DatasetRegistry, slug: string) {
+  const stored = new Map<string, string>();
+  const db = openIfThere(registry, slug);
+  if (db === null) return stored;
+  const mediaDir = registry.mediaDir(slug);
+  const rows = db
+    .query<{ original_path: string | null; file_path: string }, []>(
+      'SELECT original_path, file_path FROM media'
+    )
+    .all();
+  for (const r of rows) {
+    if (r.original_path !== null) {
+      stored.set(r.original_path, join(mediaDir, r.file_path));
+    }
+  }
+  return stored;
+}
+
 export async function importDataset(
   req: ImportRequest
 ): Promise<ImportOutcome> {
@@ -72,27 +103,31 @@ export async function importDataset(
   // import succeeds, so a network drop or error mid-download never leaves a
   // half-imported dataset visible. Any failure discards the staged work.
   const workspace = await req.registry.createStaging(req.slug);
+  // Where a MyHeritage export's photos are gathered for ingesting.
+  let photoStaging: string | null = null;
   try {
     const { db, mediaDir } = workspace;
 
     // Default to a path that won't exist, so an upload's local media refs simply
     // resolve as "missing" rather than accidentally matching files in the cwd.
     let sourceDir = req.sourceDir ?? join(tmpdir(), 'sukulinja-no-local-media');
-    let mediaStaging: string | null = null;
     let myheritage: MyHeritageSummary | null = null;
 
     if (req.forceMyHeritage === true || isMyHeritageExport(roots)) {
-      mediaStaging = await mkdtemp(join(tmpdir(), 'myheritage-'));
+      const stored = storedPhotos(req.registry, req.slug);
+      photoStaging = await mkdtemp(join(tmpdir(), 'myheritage-photos-'));
       const conv = await convertMyHeritage(roots, {
-        stagingDir: mediaStaging,
+        stagingDir: photoStaging,
+        stored: (name) => stored.get(name) ?? null,
         keepCutouts: req.keepCutouts ?? false,
         download: req.download,
         log
       });
-      sourceDir = mediaStaging;
+      sourceDir = photoStaging;
       myheritage = {
         downloaded: conv.downloaded,
         urls: conv.urls,
+        reused: conv.reused,
         stripped: conv.stripped,
         dropped: conv.dropped,
         failed: conv.failed.length
@@ -106,9 +141,6 @@ export async function importDataset(
       targetDir: mediaDir,
       log
     });
-    if (mediaStaging !== null) {
-      await rm(mediaStaging, { recursive: true, force: true });
-    }
 
     log('Writing database…');
     const stats = importGedcom(
@@ -144,5 +176,9 @@ export async function importDataset(
   } catch (err) {
     await workspace.discard();
     throw err;
+  } finally {
+    if (photoStaging !== null) {
+      await rm(photoStaging, { recursive: true, force: true });
+    }
   }
 }
