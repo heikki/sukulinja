@@ -6,8 +6,7 @@ import { Database } from 'bun:sqlite';
 
 import type { Person } from '@server/citation-scans/reader';
 import {
-  CHURCH_COLLECTIONS,
-  parseChurchBookRef,
+  churchBookRefOf,
   RIPPI_COLLECTION
 } from '@server/citation-scans/record';
 import type { ChurchBookRef } from '@server/citation-scans/record';
@@ -22,8 +21,8 @@ export function datasetRefs(dbPath: string) {
   db.close();
   const refs = new Map<string, ChurchBookRef>();
   for (const row of rows) {
-    const ref = parseChurchBookRef(row.page, row.text ?? '');
-    if (CHURCH_COLLECTIONS.has(ref.collection) && !refs.has(ref.url)) {
+    const ref = churchBookRefOf(row.page, row.text);
+    if (ref !== null && !refs.has(ref.url)) {
       refs.set(ref.url, ref);
     }
   }

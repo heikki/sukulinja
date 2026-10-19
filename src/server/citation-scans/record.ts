@@ -286,6 +286,17 @@ export function parseChurchBookRef(url: string, raw: string) {
     : parseIndexRef(url, collection, text);
 }
 
+// The Church-book reference a Citation makes, if it makes one: its page is
+// a link into a church-book collection. The one rule the app and the
+// scripts tell church books by.
+export function churchBookRefOf(page: string | null, text: string | null) {
+  if (page === null || !/^https?:/.test(page)) return null;
+  const collection = collectionOf(page);
+  return collection !== null && CHURCH_COLLECTIONS.has(collection)
+    ? parseChurchBookRef(page, text ?? '')
+    : null;
+}
+
 // ---------------------------------------------------------------- display
 
 // The labels MyHeritage writes before a value ("Syntymäpäivä: 1757"), often

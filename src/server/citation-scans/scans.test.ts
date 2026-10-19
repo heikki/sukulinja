@@ -4,13 +4,8 @@ import { join } from 'node:path';
 import { afterAll, afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
 
 import { loadAnchors, loadPlacements } from './anchors';
-import { parseChurchBookRef } from './record';
-import {
-  correctScan,
-  matchCandidates,
-  resolveScans,
-  useDataFolder
-} from './scans';
+import { churchBookRefOf, parseChurchBookRef } from './record';
+import { markRef, matchCandidates, resolveRef, useDataFolder } from './scans';
 import { rippiCitation as citation, seedParish, VOLUMES } from './test-parish';
 
 let dir = '';
@@ -36,14 +31,18 @@ async function writeLocal(anchors: unknown) {
   useDataFolder(dir);
 }
 
+function refOf(c: { page: string; text: string }) {
+  return churchBookRefOf(c.page, c.text)!;
+}
+
 async function scanOf(c: { page: string; text: string }) {
-  const resolved = await resolveScans(c.page, c.text);
+  const resolved = await resolveRef(refOf(c));
   return 'scans' in resolved ? resolved.scans : resolved;
 }
 
 test('marking a record with a Record number saves a hand Seen record', async () => {
   const marked = citation(5000, '1790 - 1796', 12);
-  await correctScan(marked.page, marked.text, { volumeId: 'juva-1', image: 7 });
+  await markRef(refOf(marked), { volumeId: 'juva-1', image: 7 });
 
   expect(await scanOf(marked)).toEqual([
     expect.objectContaining({
@@ -62,7 +61,7 @@ test('marking a record with a Record number saves a hand Seen record', async () 
 
 test('a record marked in another Book is placed and seen there', async () => {
   const marked = citation(5000, '1790 - 1796', null);
-  await correctScan(marked.page, marked.text, { volumeId: 'juva-2', image: 3 });
+  await markRef(refOf(marked), { volumeId: 'juva-2', image: 3 });
 
   expect(await scanOf(marked)).toEqual([
     expect.objectContaining({
@@ -91,7 +90,7 @@ test('a hand marking extends the Record range, routing records in between', asyn
     'juva-2': { anchors: [], records: [{ from: 4000, to: 5000 }] }
   });
   const marked = citation(2500, '1790 - 1796', 40);
-  await correctScan(marked.page, marked.text, { volumeId: 'juva-1', image: 9 });
+  await markRef(refOf(marked), { volumeId: 'juva-1', image: 9 });
 
   // Record 2200 cites the later Book, but its number puts it in juva-1 now.
   const between = citation(2200, '1797 - 1803', 30);
@@ -109,7 +108,7 @@ test('a Record range is never extended across another Volume', async () => {
     'juva-2': { anchors: [], records: [{ from: 3000, to: 3500 }] }
   });
   const marked = citation(4000, '1790 - 1796', 40);
-  await correctScan(marked.page, marked.text, { volumeId: 'juva-1', image: 9 });
+  await markRef(refOf(marked), { volumeId: 'juva-1', image: 9 });
 
   expect(await scanOf(marked)).toEqual([
     expect.objectContaining({ volumeId: 'juva-1', image: 9, method: 'placed' })
@@ -130,7 +129,7 @@ test('a hand marking replaces a vision match', async () => {
   expect(await scanOf(marked)).toEqual([
     expect.objectContaining({ image: 4, method: 'placed', by: 'vision' })
   ]);
-  await correctScan(marked.page, marked.text, { volumeId: 'juva-1', image: 7 });
+  await markRef(refOf(marked), { volumeId: 'juva-1', image: 7 });
   expect(await scanOf(marked)).toEqual([
     expect.objectContaining({ image: 7, method: 'placed', by: 'hand' })
   ]);
@@ -145,7 +144,7 @@ test('confirming a vision match by hand keeps its box', async () => {
     }
   });
   const marked = citation(5000, '1790 - 1796', 12);
-  await correctScan(marked.page, marked.text, { volumeId: 'juva-1', image: 4 });
+  await markRef(refOf(marked), { volumeId: 'juva-1', image: 4 });
   expect(await scanOf(marked)).toEqual([
     expect.objectContaining({ image: 4, method: 'placed', by: 'hand', box })
   ]);
@@ -169,7 +168,7 @@ test('a vision placement confirmed by hand keeps its box', async () => {
     })
   );
   useDataFolder(dir);
-  await correctScan(marked.page, marked.text, { volumeId: 'juva-2', image: 3 });
+  await markRef(refOf(marked), { volumeId: 'juva-2', image: 3 });
   expect(Object.values(await loadPlacements())).toEqual([
     { volumeId: 'juva-2', volume: VOLUMES['juva-2'], image: 3, by: 'hand', box }
   ]);
