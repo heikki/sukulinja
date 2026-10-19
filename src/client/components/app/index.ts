@@ -1,5 +1,6 @@
 import { ContextProvider } from '@lit/context';
 import { html, LitElement, nothing, svg } from 'lit';
+import type { ReactiveElement } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
 import '../settings';
@@ -53,6 +54,17 @@ function currentSlug(): string | null {
   return m === null ? null : m.groups!.slug!;
 }
 
+// The dataset's app state, provided by `host`. Given the slug rather than
+// reading the host's: the app build sets undecorated fields before
+// decorated ones, so `slug` isn't set yet when this runs.
+function provideDataset(host: ReactiveElement, slug: string | null) {
+  if (slug === null) return null;
+  return new ContextProvider(host, {
+    context: appState,
+    initialValue: openAppState(openDatasetApi(slug))
+  });
+}
+
 @customElement('sl-app')
 export class AppElement extends LitElement {
   static override styles = [focusRingStyles, appStyles];
@@ -62,13 +74,7 @@ export class AppElement extends LitElement {
   // The dataset shown: its state, built over one API from its slug, and
   // provided to the screens below. A provider rather than `@provide`, whose
   // field can't be null, since the chooser has no dataset to provide.
-  private readonly provider =
-    this.slug === null
-      ? null
-      : new ContextProvider(this, {
-          context: appState,
-          initialValue: openAppState(openDatasetApi(this.slug))
-        });
+  private readonly provider = provideDataset(this, currentSlug());
   @state() private pendingImport: File | null = null;
   @state() private pendingMedia: UploadMedia[] = [];
   @state() private importNameInput = '';
