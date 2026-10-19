@@ -7,9 +7,10 @@ import type { FamilyRow, PersonRow } from '@common/types';
 
 import { viewerUrls } from './citation-scans/astia';
 import { astiaImage } from './citation-scans/images';
+import { openPins } from './citation-scans/pins';
+import type { MarkTarget, PinStore } from './citation-scans/pins';
 import { routeScanCache } from './citation-scans/scan-cache';
 import { useDataFolder } from './citation-scans/scans';
-import type { MarkTarget } from './citation-scans/scans';
 import { createCitations } from './citations';
 import type { DatasetRegistry } from './dataset-registry';
 import { importDataset, slugFromFilename } from './import-dataset';
@@ -40,7 +41,7 @@ interface DatasetHandlers {
   handleMedia: (rest: string, mediaRoot: string) => Promise<Response>;
 }
 
-function createDatasetHandlers(db: Database): DatasetHandlers {
+function createDatasetHandlers(db: Database, pins: PinStore): DatasetHandlers {
   const listPersons = db.prepare(`
     SELECT
       p.id,
@@ -80,7 +81,7 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
   const listFamilyChildren = db.prepare(
     'SELECT family_id, person_id FROM family_children ORDER BY family_id, sort_order'
   );
-  const citations = createCitations(db);
+  const citations = createCitations(db, pins);
   const personDetails = createPersonDetails(db, citations);
 
   return {
@@ -417,6 +418,7 @@ async function routeShared(req: Request, pathname: string) {
 
 export function createApi(registry: DatasetRegistry): ApiHandlers {
   useDataFolder(registry.root);
+  const pins = openPins(registry.root);
   const handlersBySlug = new Map<string, DatasetHandlers>();
 
   function tryOpen(slug: string): Database | null {
@@ -432,7 +434,7 @@ export function createApi(registry: DatasetRegistry): ApiHandlers {
     if (cached !== undefined) return cached;
     const db = tryOpen(slug);
     if (db === null) return null;
-    const h = createDatasetHandlers(db);
+    const h = createDatasetHandlers(db, pins);
     handlersBySlug.set(slug, h);
     return h;
   }

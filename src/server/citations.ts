@@ -9,7 +9,7 @@ import type { Database } from 'bun:sqlite';
 import { isoDate } from '@common/dates';
 import type { BookKind, CitationRow, VolumeCitation } from '@common/types';
 
-import { localStamp } from './citation-scans/pins';
+import type { MarkTarget, PinStore } from './citation-scans/pins';
 import {
   churchBookRefOf,
   citationText,
@@ -17,7 +17,6 @@ import {
 } from './citation-scans/record';
 import type { ChurchBookRef } from './citation-scans/record';
 import { markRef, resolveRef, volumeLinks } from './citation-scans/scans';
-import type { MarkTarget } from './citation-scans/scans';
 
 interface CitationDbRow {
   id: number;
@@ -114,7 +113,7 @@ function onePerRecord<T extends { row: CitationDbRow }>(cited: T[]) {
   });
 }
 
-export function createCitations(db: Database) {
+export function createCitations(db: Database, pins: PinStore) {
   const SELECT = `SELECT c.id, c.scope_id AS personId, s.title AS source,
     c.page, c.text FROM citations c LEFT JOIN sources s ON s.id = c.source_id`;
   const ofPersonQuery = db.prepare<CitationDbRow, [number]>(
@@ -155,6 +154,7 @@ export function createCitations(db: Database) {
       )
     );
     const links = await volumeLinks(
+      pins,
       volumeId,
       church.map((c) => c.book)
     );
@@ -187,7 +187,7 @@ export function createCitations(db: Database) {
             : [
                 [
                   row.id,
-                  resolveRef(book).then((resolved) => ({
+                  resolveRef(pins, book).then((resolved) => ({
                     citationId: row.id,
                     ...resolved
                   }))
@@ -208,14 +208,14 @@ export function createCitations(db: Database) {
     async mark(citationId: number, target: MarkTarget) {
       const row = byId.get(citationId);
       const book = row === null ? null : bookOf(row);
-      return book === null ? null : await markRef(book, target);
+      return book === null ? null : await markRef(pins, book, target);
     },
 
     // The Church-book references resolving into the Volume, one per person
     // and record; null when the Volume is in none of the dataset's parishes.
     // Throws when Astia can't be reached.
     async inVolume(volumeId: string) {
-      const stamp = await localStamp();
+      const stamp = await pins.stamp();
       const hit = kept.get(volumeId);
       if (hit?.stamp === stamp) return await hit.rows;
       const entry = { stamp, rows: resolveVolume(volumeId) };

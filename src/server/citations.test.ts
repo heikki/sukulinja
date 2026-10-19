@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
 
 import type { CitationLinks, VolumeCitation } from '@common/types';
 
+import { openPins } from './citation-scans/pins';
 import { useDataFolder } from './citation-scans/scans';
 import {
   baptismCitation,
@@ -51,7 +52,7 @@ function datasetOf(cited: Cited[]) {
   for (const [i, c] of cited.entries()) {
     insert.run(c.personId, c.page, c.text, i);
   }
-  return createCitations(db);
+  return createCitations(db, openPins(dir));
 }
 
 function cite(personId: number, c: { page: string | null; text: string }) {
@@ -92,7 +93,7 @@ test("serves a person's Citations, church books first", () => {
     ''
   ].join('\n');
   importGedcom(db, parseGedcom(gedcom), () => null);
-  expect(createCitations(db).ofPerson(1)).toEqual([
+  expect(createCitations(db, openPins(dir)).ofPerson(1)).toEqual([
     {
       id: 2,
       source: 'Suomalaiset rippi- ja lastenkirjat, 1657-1915',

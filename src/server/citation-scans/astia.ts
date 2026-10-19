@@ -26,10 +26,8 @@ interface Patience {
 const CRAWL: Patience = { attempts: 6, waitMs: 5000, maxWaitMs: Infinity };
 // The Scan viewer is waiting: retry a blip, give up on an outage.
 const VIEWER: Patience = { attempts: 3, waitMs: 500, maxWaitMs: 2000 };
-export const CACHE_DIR = resolve('data/.astia-cache');
-
-// The app keeps the cache in its data folder; the script uses CACHE_DIR.
-let cacheDir = CACHE_DIR;
+// Kept in the data folder given (see useDataFolder); until then, the cwd's.
+let cacheDir = resolve('data/.astia-cache');
 
 export function setCacheDir(dir: string) {
   cacheDir = dir;

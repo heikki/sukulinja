@@ -6,17 +6,17 @@
 import { join } from 'node:path';
 
 import { viewerUrl, volumeImages } from '@server/citation-scans/astia';
-import { resolveChurchBookRef } from '@server/citation-scans/locate';
 import { matchRef } from '@server/citation-scans/matcher';
 import type { Match, Unconfirmed } from '@server/citation-scans/matcher';
-import { loadPins } from '@server/citation-scans/pins';
+import { openPins } from '@server/citation-scans/pins';
+import type { PinStore } from '@server/citation-scans/pins';
 import { cachedReader } from '@server/citation-scans/reader';
 import type { Reader } from '@server/citation-scans/reader';
 import { RIPPI_COLLECTION } from '@server/citation-scans/record';
 import type { ChurchBookRef } from '@server/citation-scans/record';
 import {
   matchCandidates,
-  saveVisionMatch,
+  resolveRef,
   useDataFolder
 } from '@server/citation-scans/scans';
 
@@ -104,8 +104,8 @@ function dollars(spent: (() => number | null) | undefined) {
 // Whether the reference is up for matching: not pinned yet, by hand or by
 // the model, in a Volume the existing resolution finds. Otherwise, the
 // tally key saying why not.
-async function standing(ref: ChurchBookRef) {
-  const resolved = await resolveChurchBookRef(ref, await loadPins());
+async function standing(pins: PinStore, ref: ChurchBookRef) {
+  const resolved = await resolveRef(pins, ref);
   if ('error' in resolved) return resolved.error;
   return resolved.links.some(
     (l) => l.certainty === 'marked' || l.certainty === 'vision'
@@ -135,8 +135,11 @@ function progress(n: number, ref: ChurchBookRef, match: Match, cost: string) {
 const LEFT_OUT: Done = { key: null, tried: false, saved: false, entry: null };
 
 // Done already, when the reference isn't up for matching.
-async function skipped(ref: ChurchBookRef): Promise<Done | null> {
-  const skip = await standing(ref);
+async function skipped(
+  pins: PinStore,
+  ref: ChurchBookRef
+): Promise<Done | null> {
+  const skip = await standing(pins, ref);
   if (skip === null) return null;
   const entry =
     skip === 'no matching volume'
@@ -147,13 +150,14 @@ async function skipped(ref: ChurchBookRef): Promise<Done | null> {
 
 async function settle(
   options: RunOptions,
+  pins: PinStore,
   ref: ChurchBookRef,
   match: Match
 ): Promise<Done> {
   const key = `${kindOf(ref)} ${match.confirmed ? 'confirmed' : match.reason}`;
   if (match.confirmed) {
     if (options.dryRun !== true) {
-      await saveVisionMatch(ref, match);
+      await pins.recordVision(ref, match);
     }
     return { key, tried: true, saved: true, entry: null };
   }
@@ -173,28 +177,35 @@ function leftOut(options: RunOptions, ref: ChurchBookRef) {
   );
 }
 
+// What a run matches with, and saves into.
+interface Pass {
+  pins: PinStore;
+  reader: Reader;
+}
+
 async function matchOne(
   options: RunOptions,
-  reader: Reader,
+  { pins, reader }: Pass,
   ref: ChurchBookRef,
   n: number
 ): Promise<Done> {
   if (leftOut(options, ref)) return LEFT_OUT;
-  const skip = await skipped(ref);
+  const skip = await skipped(pins, ref);
   if (skip !== null) return skip;
-  const candidates = await matchCandidates(ref);
+  const candidates = await matchCandidates(pins, ref);
   const volume = options.volume;
   if (volume !== undefined && !candidates.some((c) => c.volumeId === volume)) {
     return LEFT_OUT;
   }
   const match = await matchRef(ref, candidates, reader);
   (options.log ?? console.log)(progress(n, ref, match, dollars(options.spent)));
-  return await settle(options, ref, match);
+  return await settle(options, pins, ref, match);
 }
 
 export async function runMatching(options: RunOptions): Promise<RunResult> {
   const { root } = options;
   useDataFolder(root);
+  const pins = openPins(root);
   const reader = cachedReader(options.reader, join(root, '.vision-readings'));
   if (options.dryRun !== true) {
     const refusal = await gateRefusal(root, reader.models.entry);
@@ -205,7 +216,7 @@ export async function runMatching(options: RunOptions): Promise<RunResult> {
   for (const ref of options.refs) {
     if (tried >= (options.limit ?? Infinity)) break;
     // eslint-disable-next-line no-await-in-loop -- one reference at a time
-    const done = await matchOne(options, reader, ref, tried + 1);
+    const done = await matchOne(options, { pins, reader }, ref, tried + 1);
     all.push(done);
     if (done.tried) tried += 1;
   }
