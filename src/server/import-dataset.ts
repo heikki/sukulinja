@@ -16,6 +16,7 @@ import type { GedNode } from './gedcom-parser';
 import { ingest } from './media-ingest';
 import type { IngestSkipped } from './media-ingest';
 import { convertMyHeritage, isMyHeritageExport } from './myheritage';
+import type { Downloader } from './myheritage';
 
 export { slugFromFilename } from '@common/slug';
 
@@ -48,6 +49,8 @@ export interface ImportRequest {
   sourceDir?: string;
   forceMyHeritage?: boolean;
   keepCutouts?: boolean;
+  // Fetches a MyHeritage photo; the network by default.
+  download?: Downloader;
   log?: (msg: string) => void;
 }
 
@@ -83,6 +86,7 @@ export async function importDataset(
       const conv = await convertMyHeritage(roots, {
         stagingDir: mediaStaging,
         keepCutouts: req.keepCutouts ?? false,
+        download: req.download,
         log
       });
       sourceDir = mediaStaging;

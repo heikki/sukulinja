@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
 
-import { findChildren, type GedNode } from './gedcom-parser';
+import type { GedNode } from './gedcom-parser';
+import { mediaRefsOf } from './media-refs';
 import { runPool } from './pool';
 
 // Each worker reads a whole file into memory to hash it, so keep the in-flight
@@ -29,21 +30,6 @@ interface IngestInput {
   log?: (msg: string) => void;
 }
 
-function collectFileRefs(roots: GedNode[]): string[] {
-  const out: string[] = [];
-  for (const root of roots) {
-    if (root.tag !== 'INDI' && root.tag !== 'FAM') continue;
-    for (const child of root.children) {
-      if (child.tag !== 'OBJE') continue;
-      for (const file of findChildren(child, 'FILE')) {
-        const v = file.value;
-        if (v !== undefined && v !== '') out.push(v);
-      }
-    }
-  }
-  return out;
-}
-
 async function storeFile(
   sourceAbsPath: string,
   targetDir: string
@@ -62,7 +48,8 @@ async function storeFile(
 const WIN_ABS_RE = /^[A-Za-z]:[\\/]/u;
 
 export async function ingest(input: IngestInput): Promise<IngestResult> {
-  const refs = collectFileRefs(input.roots);
+  // What gedcom-import links, so every file copied gets a media row.
+  const refs = input.roots.flatMap(mediaRefsOf).map((r) => r.path);
   const resolved = new Map<string, string>();
   const skipped: IngestSkipped[] = [];
   if (refs.length === 0) return { resolved, skipped };
