@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
 
-import { loadPins } from '@server/citation-scans/pins';
+import { openPins } from '@server/citation-scans/pins';
 import type { Reader } from '@server/citation-scans/reader';
 import {
   churchBookRefOf,
@@ -145,7 +145,10 @@ async function run(
 }
 
 async function linksOf(c: { page: string; text: string }) {
-  const resolved = await resolveRef(churchBookRefOf(c.page, c.text)!);
+  const resolved = await resolveRef(
+    openPins(dir),
+    churchBookRefOf(c.page, c.text)!
+  );
   return 'links' in resolved ? resolved.links : resolved;
 }
 
@@ -173,7 +176,7 @@ test('saves confirmed matches, which the app shows as vision matches', async () 
       certainty: 'vision'
     })
   ]);
-  const pins = await loadPins();
+  const pins = await openPins(dir).snapshot();
   const juva1 = pins.volumes['juva-1']!;
   expect(juva1.records).toEqual([
     { record: 5000, image: 12, by: 'vision', box: BOX }
@@ -241,7 +244,6 @@ test('never overrides a hand pin', async () => {
       }
     })
   );
-  useDataFolder(dir);
   await run();
   expect(await linksOf(JUHO)).toEqual([
     expect.objectContaining({
@@ -250,7 +252,7 @@ test('never overrides a hand pin', async () => {
       certainty: 'marked'
     })
   ]);
-  expect((await loadPins()).volumes['juva-1']!.pages).toEqual([
+  expect((await openPins(dir).snapshot()).volumes['juva-1']!.pages).toEqual([
     { image: 12, pages: [12] }
   ]);
   // Matti is still matched, as a Record pin beside the hand Page pin.

@@ -1,27 +1,25 @@
 // One-off: map MyHeritage church-record citations to public scans in the
 // National Archives' Astia service.
 //
-//   bun run scripts/map-citation-scans/index.ts <export.ged> [--dry-run]
+//   bun run scripts/map-citation-scans/index.ts <export.ged> [--data <folder>]
+//     [--dry-run]
 //
-// Writes data/citation-scans.json (one entry per citation) and
-// data/citation-scans-checklist.md (cited volumes still lacking a Page pin;
-// see src/server/citation-scans/locate.ts). Astia responses are cached
-// under data/.astia-cache.
+// Resolves with the pins of the data folder (default `data`), and writes
+// there citation-scans.json (one entry per citation) and
+// citation-scans-checklist.md (cited volumes still lacking a Page pin; see
+// src/server/citation-scans/locate.ts). Astia responses are cached under
+// its .astia-cache.
 
 import { mkdir } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import type { Link, LinkResolution } from '@common/types';
-import { CACHE_DIR } from '@server/citation-scans/astia';
-import { resolveChurchBookRef } from '@server/citation-scans/locate';
-import { loadPins } from '@server/citation-scans/pins';
+import { openPins } from '@server/citation-scans/pins';
 import type { ChurchBookRef } from '@server/citation-scans/record';
+import { resolveRef, useDataFolder } from '@server/citation-scans/scans';
 
 import { churchBookRefs } from './citations';
-
-const OUT_FILE = resolve('data/citation-scans.json');
-const CHECKLIST_FILE = resolve('data/citation-scans-checklist.md');
 
 function printTally(keys: string[]) {
   const tally = new Map<string, number>();
@@ -88,17 +86,21 @@ function checklist(refs: ChurchBookRef[], resolutions: LinkResolution[]) {
 async function main() {
   const { positionals, values } = parseArgs({
     args: process.argv.slice(2),
-    options: { 'dry-run': { type: 'boolean' } },
+    options: { 'dry-run': { type: 'boolean' }, 'data': { type: 'string' } },
     allowPositionals: true
   });
   const input = positionals[0];
   if (input === undefined) {
     console.error(
-      'usage: bun run scripts/map-citation-scans/index.ts <export.ged> [--dry-run]'
+      'usage: bun run scripts/map-citation-scans/index.ts <export.ged> [--data <folder>] [--dry-run]'
     );
     process.exit(2);
   }
-  await mkdir(CACHE_DIR, { recursive: true });
+  const root = resolve(values.data ?? 'data');
+  useDataFolder(root);
+  await mkdir(join(root, '.astia-cache'), { recursive: true });
+  const outFile = join(root, 'citation-scans.json');
+  const checklistFile = join(root, 'citation-scans-checklist.md');
 
   const refs = churchBookRefs(await Bun.file(resolve(input)).text());
   console.log(`${refs.length} church-book references`);
@@ -113,15 +115,13 @@ async function main() {
     return;
   }
 
-  const pins = await loadPins();
-  const resolutions = await Promise.all(
-    refs.map((c) => resolveChurchBookRef(c, pins))
-  );
+  const pins = openPins(root);
+  const resolutions = await Promise.all(refs.map((c) => resolveRef(pins, c)));
   const results = refs.map((c, i) => ({ ...c, ...resolutions[i] }));
-  await Bun.write(OUT_FILE, `${JSON.stringify(results, null, 2)}\n`);
-  await Bun.write(CHECKLIST_FILE, checklist(refs, resolutions));
+  await Bun.write(outFile, `${JSON.stringify(results, null, 2)}\n`);
+  await Bun.write(checklistFile, checklist(refs, resolutions));
   printTally(refs.map((c, i) => resolutionKey(c, resolutions[i]!)));
-  console.log(`wrote ${OUT_FILE}\nwrote ${CHECKLIST_FILE}`);
+  console.log(`wrote ${outFile}\nwrote ${checklistFile}`);
 }
 
 await main();

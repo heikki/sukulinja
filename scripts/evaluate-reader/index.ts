@@ -19,9 +19,7 @@
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import type { Pins } from '@server/citation-scans/locate';
-import { loadPins } from '@server/citation-scans/pins';
-import shipped from '@server/citation-scans/pins.json';
+import { openPins } from '@server/citation-scans/pins';
 import { cachedReader } from '@server/citation-scans/reader';
 import type { Question, Reader } from '@server/citation-scans/reader';
 import { useDataFolder } from '@server/citation-scans/scans';
@@ -196,13 +194,12 @@ async function main() {
   const root = resolve(values.data ?? 'data');
   useDataFolder(root);
   const limit = values.limit === undefined ? Infinity : Number(values.limit);
-  const volumes: Pins['volumes'] = shipped.volumes;
 
   const refs = datasetRefs(join(root, values.dataset, 'db.sqlite'));
   const names = principals(refs);
+  const { volumes, references } = await openPins(root).snapshot();
   const pages = pageCases(volumes, limit);
   const byUrl = new Map(refs.map((r) => [r.url, r]));
-  const { references } = await loadPins();
   const dates = dateCases(references, byUrl, limit);
   const rippiEntries = entryCases(volumes, names, limit);
   const indexEntries = indexEntryCases(references, byUrl, limit);

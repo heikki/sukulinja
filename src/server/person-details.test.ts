@@ -1,10 +1,16 @@
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { expect, test } from 'bun:test';
 
+import { openPins } from './citation-scans/pins';
 import { createCitations } from './citations';
 import { openDb } from './db';
 import { importGedcom } from './gedcom-import';
 import { parseGedcom } from './gedcom-parser';
 import { createPersonDetails } from './person-details';
+
+// Facts and names never read the pins.
+const PINS = openPins(join(tmpdir(), 'person-details-unread'));
 
 const RIPPI =
   'https://www.myheritage.fi/research/collection-10509/x?itemId=1&action=showRecord';
@@ -44,7 +50,7 @@ test('serves facts in date order, and the Citations', () => {
   importGedcom(db, parseGedcom(GEDCOM), () => null);
   const { citations, ...details } = createPersonDetails(
     db,
-    createCitations(db)
+    createCitations(db, PINS)
   )(1)!;
   expect(citations.map((c) => c.id)).toEqual([2, 1]);
   expect(details).toEqual({
@@ -86,7 +92,7 @@ test('serves facts in date order, and the Citations', () => {
       }
     ]
   });
-  expect(createPersonDetails(db, createCitations(db))(99)).toBeNull();
+  expect(createPersonDetails(db, createCitations(db, PINS))(99)).toBeNull();
 });
 
 test('serves birth first and death last, whatever their dates', () => {
@@ -106,7 +112,7 @@ test('serves birth first and death last, whatever their dates', () => {
   importGedcom(db, parseGedcom(gedcom), () => null);
   const tags = createPersonDetails(
     db,
-    createCitations(db)
+    createCitations(db, PINS)
   )(1)?.facts.map((f) => f.tag);
   expect(tags).toEqual(['BIRT', 'RESI', 'OCCU', 'DEAT', 'BURI']);
 });

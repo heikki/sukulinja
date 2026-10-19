@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
 
-import { loadPins } from './pins';
+import { openPins } from './pins';
 import { churchBookRefOf, parseChurchBookRef } from './record';
 import { markRef, matchCandidates, resolveRef, useDataFolder } from './scans';
 import { rippiCitation as citation, seedParish, VOLUMES } from './test-parish';
@@ -28,7 +28,6 @@ afterAll(() => {
 
 async function writeLocal(volumes: unknown) {
   await Bun.write(join(dir, 'pins.local.json'), JSON.stringify({ volumes }));
-  useDataFolder(dir);
 }
 
 function refOf(c: { page: string; text: string }) {
@@ -36,13 +35,13 @@ function refOf(c: { page: string; text: string }) {
 }
 
 async function linksOf(c: { page: string; text: string }) {
-  const resolved = await resolveRef(refOf(c));
+  const resolved = await resolveRef(openPins(dir), refOf(c));
   return 'links' in resolved ? resolved.links : resolved;
 }
 
 test('marking a record with a Record number saves a hand Record pin', async () => {
   const marked = citation(5000, '1790 - 1796', 12);
-  await markRef(refOf(marked), { volumeId: 'juva-1', image: 7 });
+  await markRef(openPins(dir), refOf(marked), { volumeId: 'juva-1', image: 7 });
 
   expect(await linksOf(marked)).toEqual([
     expect.objectContaining({
@@ -52,7 +51,7 @@ test('marking a record with a Record number saves a hand Record pin', async () =
       certainty: 'marked'
     })
   ]);
-  const volume = (await loadPins()).volumes['juva-1']!;
+  const volume = (await openPins(dir).snapshot()).volumes['juva-1']!;
   expect(volume.records).toEqual([{ record: 5000, image: 7, by: 'hand' }]);
   expect(volume.pages).toEqual([
     { image: 7, pages: [12], note: 'marked in the app', by: 'hand' }
@@ -61,7 +60,7 @@ test('marking a record with a Record number saves a hand Record pin', async () =
 
 test('a record marked in another Book gets a Reference pin and a Record pin there', async () => {
   const marked = citation(5000, '1790 - 1796', null);
-  await markRef(refOf(marked), { volumeId: 'juva-2', image: 3 });
+  await markRef(openPins(dir), refOf(marked), { volumeId: 'juva-2', image: 3 });
 
   expect(await linksOf(marked)).toEqual([
     expect.objectContaining({
@@ -71,7 +70,7 @@ test('a record marked in another Book gets a Reference pin and a Record pin ther
       certainty: 'marked'
     })
   ]);
-  expect(Object.values((await loadPins()).references)).toEqual([
+  expect(Object.values((await openPins(dir).snapshot()).references)).toEqual([
     {
       volumeId: 'juva-2',
       volume: VOLUMES['juva-2'],
@@ -79,7 +78,7 @@ test('a record marked in another Book gets a Reference pin and a Record pin ther
       by: 'hand'
     }
   ]);
-  expect((await loadPins()).volumes['juva-2']!.records).toEqual([
+  expect((await openPins(dir).snapshot()).volumes['juva-2']!.records).toEqual([
     { record: 5000, image: 3, by: 'hand' }
   ]);
 });
@@ -90,14 +89,14 @@ test('a hand marking extends the Record range, routing records in between', asyn
     'juva-2': { pages: [], ranges: [{ from: 4000, to: 5000 }] }
   });
   const marked = citation(2500, '1790 - 1796', 40);
-  await markRef(refOf(marked), { volumeId: 'juva-1', image: 9 });
+  await markRef(openPins(dir), refOf(marked), { volumeId: 'juva-1', image: 9 });
 
   // Record 2200 cites the later Book, but its number puts it in juva-1 now.
   const between = citation(2200, '1797 - 1803', 30);
   expect(await linksOf(between)).toEqual([
     expect.objectContaining({ volumeId: 'juva-1' })
   ]);
-  expect((await loadPins()).volumes['juva-1']!.ranges).toEqual([
+  expect((await openPins(dir).snapshot()).volumes['juva-1']!.ranges).toEqual([
     { from: 1000, to: 2500 }
   ]);
 });
@@ -108,7 +107,7 @@ test('a Record range is never extended across another Volume', async () => {
     'juva-2': { pages: [], ranges: [{ from: 3000, to: 3500 }] }
   });
   const marked = citation(4000, '1790 - 1796', 40);
-  await markRef(refOf(marked), { volumeId: 'juva-1', image: 9 });
+  await markRef(openPins(dir), refOf(marked), { volumeId: 'juva-1', image: 9 });
 
   expect(await linksOf(marked)).toEqual([
     expect.objectContaining({
@@ -118,7 +117,7 @@ test('a Record range is never extended across another Volume', async () => {
       certainty: 'marked'
     })
   ]);
-  const { volumes } = await loadPins();
+  const { volumes } = await openPins(dir).snapshot();
   expect(volumes['juva-1']!.ranges).toEqual([{ from: 1000, to: 2000 }]);
   expect(volumes['juva-2']!.ranges).toEqual([{ from: 3000, to: 3500 }]);
 });
@@ -135,7 +134,7 @@ test('a hand marking replaces a vision match', async () => {
   expect(await linksOf(marked)).toEqual([
     expect.objectContaining({ image: 4, certainty: 'vision' })
   ]);
-  await markRef(refOf(marked), { volumeId: 'juva-1', image: 7 });
+  await markRef(openPins(dir), refOf(marked), { volumeId: 'juva-1', image: 7 });
   expect(await linksOf(marked)).toEqual([
     expect.objectContaining({
       image: 7,
@@ -179,7 +178,6 @@ test('a Reference pin without an Image marks only the Volume', async () => {
       }
     })
   );
-  useDataFolder(dir);
   const links = await linksOf(reference);
   expect(links).toEqual([
     expect.objectContaining({
@@ -200,7 +198,7 @@ test('confirming a vision match by hand keeps its box', async () => {
     }
   });
   const marked = citation(5000, '1790 - 1796', 12);
-  await markRef(refOf(marked), { volumeId: 'juva-1', image: 4 });
+  await markRef(openPins(dir), refOf(marked), { volumeId: 'juva-1', image: 4 });
   expect(await linksOf(marked)).toEqual([
     expect.objectContaining({
       image: 4,
@@ -231,9 +229,8 @@ test('a vision Reference pin confirmed by hand keeps its box', async () => {
       }
     })
   );
-  useDataFolder(dir);
-  await markRef(refOf(marked), { volumeId: 'juva-2', image: 3 });
-  expect(Object.values((await loadPins()).references)).toEqual([
+  await markRef(openPins(dir), refOf(marked), { volumeId: 'juva-2', image: 3 });
+  expect(Object.values((await openPins(dir).snapshot()).references)).toEqual([
     { volumeId: 'juva-2', volume: VOLUMES['juva-2'], image: 3, by: 'hand', box }
   ]);
 });
@@ -243,7 +240,7 @@ test('the matcher searches the Volumes a reference links', async () => {
     'https://www.myheritage.fi/research/collection-30233/x?itemId=9',
     'Juho Esimerkki\nRistiäiset: 29. Marras 1795 - Juva, Mikkeli, Finland'
   );
-  expect(await matchCandidates(index)).toEqual([
+  expect(await matchCandidates(openPins(dir), index)).toEqual([
     {
       volumeId: 'juva-3',
       volume: VOLUMES['juva-3'],
@@ -254,7 +251,10 @@ test('the matcher searches the Volumes a reference links', async () => {
   ]);
   const rippi = citation(5000, '1790 - 1796', 12);
   expect(
-    await matchCandidates(parseChurchBookRef(rippi.page, rippi.text))
+    await matchCandidates(
+      openPins(dir),
+      parseChurchBookRef(rippi.page, rippi.text)
+    )
   ).toEqual([
     {
       volumeId: 'juva-1',
