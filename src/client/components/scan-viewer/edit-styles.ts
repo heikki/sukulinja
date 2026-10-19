@@ -1,11 +1,13 @@
 import { css } from 'lit';
 
-// Editing a source's Link: the Volumes to change to, and the bar with the
-// change pending.
+// Editing a source's Link: the Volumes to change to, the bar with the
+// change pending, and the scan's menu.
 
-// The Volumes to change to, dropped from the toolbar over the scan.
+// The Volumes to change to, over the scan where the menu was.
 export const scanVolumesStyles = css`
   :host {
+    position: absolute;
+    z-index: 3;
     display: block;
     width: min(32rem, calc(100vw - 2rem));
     max-height: min(28rem, 70vh);
@@ -130,5 +132,37 @@ export const scanEditStyles = css`
   .refused {
     color: var(--danger);
     font-size: 0.8rem;
+  }
+`;
+
+// At the pointer, over the scan.
+export const scanMenuStyles = css`
+  :host {
+    position: absolute;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    min-width: 12rem;
+    padding: 0.3rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    box-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
+    cursor: auto;
+  }
+
+  button {
+    padding: 0.3rem 0.5rem;
+    border-color: transparent;
+    background: none;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  button:hover:not(:disabled),
+  button:focus-visible {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    color: var(--fg);
   }
 `;

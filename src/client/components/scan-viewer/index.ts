@@ -22,11 +22,13 @@ import { entriesShown, frameForFull, frameForThumb, layers } from './frame';
 import type { Frame, Loading } from './frame';
 import { neighbours } from './helpers';
 import { stepOf } from './keys';
+import { linkItems } from './menu';
 import { loadingNote } from './note';
 import { Prefetch } from './prefetch';
 import { controlStyles, scanViewerStyles } from './styles';
 
 import './edit';
+import './volumes';
 import './entries';
 import './nav';
 import './people';
@@ -85,6 +87,9 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
   @state() private dragging = false;
   // The key of the entry picked out, on the scan and in the list.
   @state() private hovered: string | null = null;
+  // Where the scan was right-clicked, in the stage: its menu, or the
+  // Volumes opened from it, are open there.
+  @state() private popup: { at: Point; volumes: boolean } | null = null;
 
   private readonly prefetch = new Prefetch();
   private drawn: Drawn = { volumeId: null, image: 1 };
@@ -357,8 +362,9 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
           );
   };
 
+  // A Ctrl-click is the Mac's right-click: it opens the menu, not a pan.
   private readonly onMouseDown = (e: MouseEvent) => {
-    if (e.button !== 0 || this.view === null) return;
+    if (e.button !== 0 || e.ctrlKey || this.view === null) return;
     e.preventDefault();
     this.stopMomentum();
     const at = { x: e.clientX, y: e.clientY };
@@ -439,6 +445,22 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     } else {
       this.viewer.show(this.image + step.image);
     }
+  };
+
+  // The scan's own menu in place of WebKit's, except in the Image number,
+  // where WebKit's has copy and paste.
+  private readonly onContextMenu = (e: MouseEvent) => {
+    if (e.composedPath()[0] instanceof HTMLInputElement) return;
+    e.preventDefault();
+    this.stopMomentum();
+    const at = this.toStage({ x: e.clientX, y: e.clientY });
+    this.popup = { at, volumes: false };
+  };
+
+  // Closing the Volumes gives the keys back to the viewer.
+  private readonly onPopupClose = () => {
+    if (this.popup?.volumes === true) this.focus();
+    this.popup = null;
   };
 
   // ------------------------------------------------------------ render
@@ -522,6 +544,7 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
         @gesturechange=${this.pinch.onGestureChange}
         @gestureend=${this.pinch.onGestureEnd}
         @dblclick=${this.onDblClick}
+        @contextmenu=${this.onContextMenu}
       >
         ${this.renderImages(volume)} ${this.renderEntries(source)}
         ${this.renderNote()}
@@ -531,8 +554,27 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
             ? nothing
             : html`<sl-scan-edit></sl-scan-edit>`
         }
+        ${this.renderMenu()}
       </div>
     `;
+  }
+
+  private renderMenu() {
+    if (this.popup === null) return nothing;
+    const { at, volumes } = this.popup;
+    if (volumes) {
+      return html`<sl-scan-volumes
+        .at=${at}
+        @close=${this.onPopupClose}
+      ></sl-scan-volumes>`;
+    }
+    return html`<sl-scan-menu
+      .items=${linkItems(this.viewer, () => {
+        this.popup = { at, volumes: true };
+      })}
+      .at=${at}
+      @close=${this.onPopupClose}
+    ></sl-scan-menu>`;
   }
 
   private renderPeople() {

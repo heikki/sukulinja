@@ -1,25 +1,35 @@
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 
 import { ApiError } from '@client/dataset-api';
+import type { Point } from '@client/pan-zoom';
 import { appState } from '@client/state';
 import type { AppState } from '@client/state';
 import type { VolumeChoice, VolumeChoices } from '@common/types';
 
 import { scanVolumesStyles } from './edit-styles';
+import { placedInside } from './helpers';
 import { controlStyles } from './styles';
 
-// Under the toolbar's Volume name: the Volumes the current source can be
-// put in, those its years or Record range give first, then the others of
-// its Book by years. Picking one changes the source's Volume, pending, and
-// asks to `close`, as Esc does. The Volume shown is marked.
+function stop(e: Event) {
+  e.stopPropagation();
+}
+
+// Opened from the scan's menu, where it was: the Volumes the current
+// source can be put in, those its years or Record range give first, then
+// the others of its Book by years. Picking one changes the source's
+// Volume, pending, and asks to `close`, as Esc and a press anywhere else
+// do. The Volume shown is marked. Pointer and wheel input stays here, so
+// scrolling it doesn't zoom the scan.
 @customElement('sl-scan-volumes')
 export class ScanVolumesElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanVolumesStyles];
 
   @consume({ context: appState }) private readonly state!: AppState;
+
+  @property({ attribute: false }) at: Point = { x: 0, y: 0 };
 
   @state() private choices: VolumeChoices | { failed: string } | null = null;
 
@@ -27,13 +37,24 @@ export class ScanVolumesElement extends SignalWatcher(LitElement) {
 
   override connectedCallback() {
     super.connectedCallback();
+    for (const type of ['mousedown', 'wheel', 'dblclick', 'contextmenu']) {
+      this.addEventListener(type, stop);
+    }
     this.addEventListener('keydown', this.onKeyDown);
+    window.addEventListener('mousedown', this.onOutside);
     void this.load();
+  }
+
+  override updated() {
+    const { x, y } = placedInside(this, this.at);
+    this.style.left = `${x}px`;
+    this.style.top = `${y}px`;
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.removeEventListener('keydown', this.onKeyDown);
+    window.removeEventListener('mousedown', this.onOutside);
     this.abort?.abort();
     this.abort = null;
   }
@@ -50,6 +71,10 @@ export class ScanVolumesElement extends SignalWatcher(LitElement) {
   private close() {
     this.dispatchEvent(new CustomEvent('close'));
   }
+
+  private readonly onOutside = (e: MouseEvent) => {
+    if (!e.composedPath().includes(this)) this.close();
+  };
 
   private async load() {
     const id = this.state.viewer.source.get()?.citation.id;

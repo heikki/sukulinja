@@ -6,7 +6,7 @@ Glossary (`src/server/citation-scans/CONTEXT.md`): **Link**, **Mark**, **Box**, 
 
 The only Mark in the app is Confirm on a Vision match. When a Link's Volume is wrong (years or a Record range chose badly, or a Split reference opened on the wrong candidate), or its Image is a few off, or the entry is boxed wrong, there is no way to say so. The Scan viewer can't even switch Volumes: it shows only the Volume of the Link it was opened on.
 
-Shipped so far: the pending-change bar with its leaving guard, and Change Volume… from the toolbar's Volume name, saved as a Volume-only Mark (`viewer.ts`, `edit.ts`, `volumes.ts`, `GET /api/citations/:id/volumes`). Still to come: the context menu, Mark this Image, the hand-drawn Box, and Not known.
+Shipped so far: the pending-change bar with its leaving guard; the scan's context menu with Change Volume… (saved as a Volume-only Mark) and Mark this Image(`viewer.ts`, `edit.ts`, `menu.ts`, `volumes.ts`, `GET /api/citations/:id/volumes`). Still to come: the hand-drawn Box, reusing a Box, and Not known.
 
 ## Design
 
@@ -28,7 +28,7 @@ Editing is always for the viewer's **current source**, one at a time. Nothing sa
 
 ### What you can change
 
-- **Change Volume…**: the list of the parish's Volumes in the same Astia series as the reference's Book. It has two groups: _Fits the reference_ (the Volumes its years or Record range give, worked out without its own pin, as `matchCandidates` does with `byBook(pins)`), then _Other Volumes_ by years, each with its code and years. Picking one shows it and sets the pending Link to that Volume, with no Image (Marked Volume). It opens from the toolbar's Volume name and from the context menu. There's no separate browse-only switcher: Cancel undoes a look. Its own Volume is no change, unless the reference is Split.
+- **Change Volume…**: the list of the parish's Volumes in the same Astia series as the reference's Book. It has two groups: _Fits the reference_ (the Volumes its years or Record range give, worked out without its own pin, as `matchCandidates` does with `byBook(pins)`), then _Other Volumes_ by years, each with its code and years. Picking one shows it and sets the pending Link to that Volume, with no Image (Marked Volume). It opens from the scan's context menu, where you right-clicked; the toolbar only names the Volume shown. There's no separate browse-only switcher: Cancel undoes a look. Its own Volume is no change, unless the reference is Split.
 - **Not known**: a row at the foot of the Change Volume list, for a reference whose Volume you've looked for and can't tell (`issues/06-not-known.md`).
 - **Mark this Image**: sets the pending Image to the one shown, in the Volume shown, with no Box (Marked Image).
 - **Draw the entry…**: the cursor becomes a crosshair; drag a rectangle, Esc cancels. It sets the pending Box, and the Image shown if it wasn't set yet.
@@ -41,7 +41,6 @@ A pending change starts from the Link as it is. Editing a Vision match starts fr
 ### Ways in
 
 - **Context menu** on the scan, drawn in the page. The app blocks WebKit's own menu there. Its items depend on the state: Mark this Image, Draw the entry…, Change Volume…, Remove the entry box. Right-clicking a Box adds "This is the entry for <source>". It handles Esc and focus as the viewer's other controls do (marked handled, so macOS doesn't beep).
-- **Mark** button in the controls at the foot of the scan, and the **M** key: Mark this Image. Shown only when it would change the pending or saved Link.
 - **Confirm** on a Vision match's row stays one click and saves at once. Fixing the match goes through editing instead.
 
 ### What a Mark replaces
