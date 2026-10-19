@@ -2,22 +2,19 @@ Status: ready-for-agent
 
 # Pins: one module for what's known to be on an Image
 
-Vocabulary: `src/server/citation-scans/CONTEXT.md`, the Pins section and Scan method, as updated for this spec.
+Vocabulary: `src/server/citation-scans/CONTEXT.md`: Pins, Link, Precision, Certainty, Mark.
 
 ## Problem Statement
 
-What the app knows about where things are on Astia's Images is stored in `anchors.ts` as module globals over two local files, and the rules for saving it are split between modules:
+What the app knows about where things are on Astia's Images lives in `pins.ts` as module globals over one local file, `data/pins.local.json`, and the rules for saving it are split between modules:
 
-- **Split rules.** `anchors.ts` holds the merge, the clash rules and hand-beats-vision (`overrides`). `scans.ts` decides what a Mark or a Vision match saves (`save`, `saveVisionMatch`, `pagesFor`, `matchedBox`). A Mark makes up to three separate read-modify-write updates across the two files.
-- **Unsafe writes.** The app and the vision script both rewrite `anchors.local.json` (now 541 KB) and `placements.local.json` with a plain overwrite: no lock, no atomic rename. Saves landing together can drop one; a crash mid-write truncates the file, and every link then fails to resolve. The reading and image caches already write with `.part` plus rename.
-- **Globals and cwd defaults.** `setLocalFolder` points the module at a folder, and until called it writes to `resolve('data/…')`. `map-citation-scans` never calls it and relies on the cwd. The scripts wire `loadAnchors()` and `loadPlacements()` into `resolveChurchBookRef` by hand.
-- **Names that don't say what they pin.** Anchor, Seen record and Placement are now **Page pin**, **Record pin** and **Reference pin**. The Scan method mixed exactness with who saved it: Placed meant both a hand pin and a vision suggestion, and the client re-derived "Verified" from `method` plus `by`, then grouped rows by comparing chip text.
+- **Split rules.** `pins.ts` holds the merge, the clash rules and hand-beats-vision (`overrides`). `scans.ts` decides what a Mark or a Vision match saves (`save`, `saveVisionMatch`, `pagesFor`, `matchedBox`). A Mark makes up to three separate read-modify-write updates.
+- **Unsafe writes.** The app and the vision script both rewrite `pins.local.json`. Each write is atomic (`.part` plus rename), but there's no lock, so saves landing together can drop one.
+- **Globals and cwd defaults.** `setLocalFolder` points the module at a folder, and until called it reads and writes `resolve('data/…')`. `map-citation-scans` never calls it and relies on the cwd. The scripts wire `loadPins()` into `resolveChurchBookRef` by hand.
 
 ## Solution
 
-One **Pins** module, `openPins(dataFolder, { base })` in `src/server/citation-scans/pins.ts`. It owns the pins in one local file, merges them over a base layer it's given, applies the saving rules, and writes atomically under a lock. Resolution (`locate.ts`) reads a snapshot from it.
-
-The Scan methods become **Exact** (a hand pin), **Vision match** (a vision pin, a suggestion), **Estimated** (counted from Page pins, or guessed from the Book's numbering) and **Volume**. `Scan` drops `by`.
+One **Pins** module, `openPins(dataFolder, { base })` in `src/server/citation-scans/pins.ts`. It owns the local pins, merges them over a base layer it's given, applies the saving rules, and writes under a lock. Resolution (`locate.ts`) reads a snapshot from it.
 
 ## Interface
 
@@ -44,35 +41,6 @@ Behind it:
 
 ## Decisions
 
-- **One local file, `data/pins.local.json`.** The shipped file is renamed `src/server/citation-scans/pins.json`. Shape:
-
-  ```json
-  {
-    "volumes": {
-      "<Astia volume id>": {
-        "title": "…",
-        "pages": [{ "image": 82, "pages": [143], "note": "…", "by": "hand" }],
-        "records": [
-          { "record": 8506062, "image": 82, "by": "vision", "box": {} }
-        ],
-        "ranges": [{ "from": 8500000, "to": 8510000 }],
-        "villages": ["…"]
-      }
-    },
-    "references": {
-      "<reference URL>": {
-        "volumeId": "…",
-        "volume": "…",
-        "image": 45,
-        "by": "hand"
-      }
-    }
-  }
-  ```
-
-  The shipped file has only `volumes`, and in them only `title`, `pages`, `ranges` and `villages`. Citation matches are never shipped.
-
-- **Migration.** On first open, if `pins.local.json` is missing and `anchors.local.json` or `placements.local.json` exists, they're converted into `pins.local.json`, written atomically, and renamed `*.migrated`. Any other files in the folder, such as `*.before-full.json` backups, are left alone. The shipped `anchors.json` is converted once, in the repo.
 - **The lock.** `data/pins.lock` is created exclusively and holds the process id and the time.
   - A save retries every 50 ms for up to 5 s, then throws.
   - A lock older than 30 s is taken over.
@@ -80,29 +48,18 @@ Behind it:
   - Reads take no lock: the rename means a reader always sees a whole file.
 - **The base is passed in.** Shipped pins are temporary, until something better comes along, so the module knows only "a base under the local pins". Tests pass their own.
 - **Volume ids stay Astia's, unprefixed.** The interface treats them as opaque strings. A second scan destination would mean a one-time key rewrite and an adapter behind the Astia port, which is candidate #2.
-- **Scan methods.** `ScanMethod` becomes `'exact' | 'vision' | 'estimated' | 'volume'`, ranked in that order.
-  - Exact is a Record or Reference pin saved by hand; Vision match is one saved by the model.
-  - An estimate carries `from: 'pins' | 'numbering'`.
-  - `Scan.by` is removed. Provenance stays on the pins.
 - **Vision pins still steer other links.** Vision Page pins count estimates and vision Record pins extend Record ranges. The links they steer stay Estimated.
-- **One word per method, everywhere.** The chips read Exact (was Verified), Vision match, Estimated and Volume only. The person panel and the Scan viewer group by method, never by chip text.
-- **The chart's `Anchor` is unrelated.** It's a layout slot (ADR-0003) in `tree-view/build/` and keeps its name.
-
-- **Link and Certainty.** Where a reference points is a **Link**, and how sure it is its **Certainty**: `Scan` becomes `Link`, `ScanMethod` becomes `Certainty`, and `method` becomes `certainty` (issue 03, before 02).
-
-- **Precision and Certainty.** A Link says how far down it points (entry, Image, Volume) apart from who says so (marked, vision, estimated); a Box exists exactly at the entry, and a Reference pin may pin a reference to its Volume alone (issue 04, before 02). Drawing a Box when marking (05) and a Volume-only Mark (06) follow.
 
 ## Testing
 
 Test through `openPins` on a temp folder with a test base:
 
-- what `anchors.test.ts` covers today: merging, precedence, Record ranges
-- **migration:** old files in, `pins.local.json` out, old files kept as `*.migrated`; opening again changes nothing
+- what `pins.test.ts` covers today: merging, precedence, Record ranges, migration
 - **two writers:** two `openPins` on the same folder, standing in for the app and the vision script, save at the same time, and both saves survive
 - a stale lock is taken over; a held lock past 5 s throws
 - a reader never sees a half-written file
 
-`scans.test.ts`, `citations.test.ts` and `run.test.ts` keep their end-to-end cases, with the new method names.
+`scans.test.ts`, `citations.test.ts` and `run.test.ts` keep their end-to-end cases.
 
 ## Out of scope
 
