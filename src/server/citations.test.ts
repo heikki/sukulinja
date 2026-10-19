@@ -231,7 +231,7 @@ test('a Mark needs a church-book Citation and an Image in the Volume', async () 
   });
   expect(
     await citations.mark(1, { volumeId: 'elsewhere-1', image: 1 })
-  ).toEqual({ rejected: "That image isn't in this parish's church books." });
+  ).toEqual({ rejected: "That Volume isn't in this parish's church books." });
 });
 
 // ---------------------------------------------------------------- a Volume's

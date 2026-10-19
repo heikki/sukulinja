@@ -354,7 +354,11 @@ function pagesFor(draft: Draft, volumeId: string, ref: ChurchBookRef) {
 
 // Where on the Image the vision model said the entry is, when its match is
 // on the Image now marked: confirming the match by hand keeps it.
-function matchedBox(draft: Draft, ref: ChurchBookRef, target: MarkTarget) {
+function matchedBox(
+  draft: Draft,
+  ref: ChurchBookRef,
+  target: { volumeId: string; image: number }
+) {
   const saved =
     ref.recordId === null
       ? draft.local.references[ref.url]
@@ -366,10 +370,11 @@ function matchedBox(draft: Draft, ref: ChurchBookRef, target: MarkTarget) {
   return inVolume ? { box: saved.box } : {};
 }
 
-// The Image a Mark says the record is on, in any Volume of the parish.
+// Where a Mark says the record is, in any Volume of the parish: on an
+// Image, or only somewhere in the Volume.
 export interface MarkTarget {
   volumeId: string;
-  image: number;
+  image?: number;
 }
 
 // A match the vision model confirmed on an Image, with the entry's Box.
@@ -382,12 +387,14 @@ export interface VisionMatch {
   box: Box;
 }
 
-// A cited page found in a volume the reference already links is a Page
-// pin, which moves the volume's other references near it too. A reference
-// naming no page, or found in another volume of the parish, gets a
-// Reference pin. Either way a record with a Record number gets a Record
-// pin, which extends the volume's Record range so the records numbered
-// around it follow.
+// A Mark of only the Volume is the reference's own: a Reference pin with
+// no Image, and nothing its neighbours count from. On an Image, a cited
+// page found in a volume the reference already links is a Page pin, which
+// moves the volume's other references near it too. A reference naming no
+// page, or found in another volume of the parish, gets a Reference pin.
+// Either way a record with a Record number gets a Record pin, which
+// extends the volume's Record range so the records numbered around it
+// follow.
 function markInto(
   draft: Draft,
   ref: ChurchBookRef,
@@ -395,22 +402,28 @@ function markInto(
   where: { volume: string; linked: boolean }
 ) {
   const { volume, linked } = where;
-  const box = matchedBox(draft, ref, target);
+  const { volumeId, image } = target;
+  if (image === undefined) {
+    setReferencePin(draft, ref.url, { volumeId, volume, by: 'hand' });
+    return;
+  }
+  const on = { volumeId, image };
+  const box = matchedBox(draft, ref, on);
   if (ref.page !== null && linked) {
     setReferencePin(draft, ref.url, null);
-    addPagePin(draft, target.volumeId, volume, {
-      image: target.image,
-      pages: pagesFor(draft, target.volumeId, ref),
+    addPagePin(draft, volumeId, volume, {
+      image,
+      pages: pagesFor(draft, volumeId, ref),
       note: 'marked in the app',
       by: 'hand'
     });
   } else {
-    setReferencePin(draft, ref.url, { ...target, volume, by: 'hand', ...box });
+    setReferencePin(draft, ref.url, { ...on, volume, by: 'hand', ...box });
   }
   if (ref.recordId !== null) {
-    addRecordPin(draft, target.volumeId, volume, {
+    addRecordPin(draft, volumeId, volume, {
       record: ref.recordId,
-      image: target.image,
+      image,
       by: 'hand',
       ...box
     });
@@ -518,7 +531,8 @@ export function openPins(
     // Changes whenever the local pins do, from this process or another.
     stamp,
 
-    // A Mark: the reference's record is on the Image. `volume` is the
+    // A Mark: the reference's record is on the Image, or in the Volume when
+    // the target gives none. `volume` is the
     // Volume's title; `linked`, whether the reference links that Volume by
     // the Book it cites. One write.
     async recordMark(

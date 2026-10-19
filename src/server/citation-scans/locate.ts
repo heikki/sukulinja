@@ -340,7 +340,8 @@ export function parishArchive(parish: string | null) {
   return parish === null ? null : (PARISH_ARCHIVE[parish] ?? null);
 }
 
-// The parish's population-register volumes, for checking a Mark.
+// The parish's Volumes of every series, for checking a Mark and choosing
+// another Volume.
 export async function parishVolumes(astia: Astia, parish: string | null) {
   const archiveId = parishArchive(parish);
   return archiveId === null ? [] : await astia.archiveVolumes(archiveId);

@@ -5,6 +5,7 @@ import type {
   CitationLinks,
   CitationRow,
   Link,
+  VolumeChoice,
   VolumeCitation
 } from '@common/types';
 
@@ -24,8 +25,21 @@ export interface VolumeShown {
   label: string;
 }
 
+// A change to the current source's Link, not saved yet: the Volume it
+// will be in, and the Image when one is marked.
+export interface PendingLink {
+  volumeId: string;
+  volume: string;
+  image?: number;
+}
+
+// What leaving the source with a change pending waits on.
+export type LeaveAnswer = 'save' | 'discard' | 'keep';
+
 // What the Scan viewer shows. It belongs to the Selected person
-// (ADR-0011): selecting someone else closes it.
+// (ADR-0011): selecting someone else closes it. Opening another source,
+// stepping and closing wait, while a change is pending, until it's saved
+// or discarded.
 export interface Viewer {
   // A new object on each `open`, even of the source shown.
   source: Readable<LinkOpen | null>;
@@ -54,6 +68,23 @@ export interface Viewer {
   // Marks a Vision match's Image, throwing ApiError if it's refused.
   confirm: (row: VolumeCitation) => Promise<void>;
   close: () => void;
+  // The current source's change not saved yet.
+  pending: Readable<PendingLink | null>;
+  // A way out of the source is waiting on `answer`.
+  leaving: Readable<boolean>;
+  // Puts the source in the Volume, pending, and shows it there. Its own
+  // Volume, unless it's one of several, is no change.
+  changeVolume: (choice: VolumeChoice) => void;
+  // Drops the pending change, back to the Link.
+  cancel: () => void;
+  // Saves the pending change as a Mark and follows the new Link, throwing
+  // ApiError if it's refused.
+  save: () => Promise<void>;
+  // Runs `go` now, or once the pending change is saved or discarded;
+  // `stay` runs if the person keeps editing instead.
+  leave: (go: () => void, stay?: () => void) => void;
+  // Saving can throw, as `save` does; the way out then still waits.
+  answer: (answer: LeaveAnswer) => Promise<void>;
 }
 
 // Image numbers run 1..count; before the count is known, only from 1.
@@ -79,6 +110,10 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   const count = signal<number | null>(null);
   const citations = signal<VolumeCitation[] | null | 'failed'>(null);
   const sourcesInView = signal(false);
+  const pending = signal<PendingLink | null>(null);
+  const leaving = signal(false);
+  // The way out waiting on an answer, and what keeping on editing does.
+  let held: { go: () => void; stay?: () => void } | null = null;
   const away = computed(() => {
     const link = source.get()?.link;
     if (link === undefined) return false;
@@ -114,29 +149,112 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     image.set(clampImage(n, count.get()));
   }
 
-  function open({ citation, link }: LinkOpen) {
-    source.set({ citation, link });
-    const at = imageOf(link);
-    if (volume.get()?.id === link.volumeId) {
+  // A Volume already shown stays on its Image unless `at` gives one.
+  function showVolume(id: string, label: string, at: number | null) {
+    if (volume.get()?.id === id) {
       if (at !== null) show(at);
       return;
     }
-    volume.set({ id: link.volumeId, label: link.volume });
+    volume.set({ id, label });
     image.set(clampImage(at ?? 1, null));
     count.set(null);
     citations.set(null);
-    void loadCount(link.volumeId);
-    void loadCitations(link.volumeId);
+    void loadCount(id);
+    void loadCitations(id);
+  }
+
+  function openNow({ citation, link }: LinkOpen) {
+    pending.set(null);
+    source.set({ citation, link });
+    showVolume(link.volumeId, link.volume, imageOf(link));
   }
 
   // Nothing shown, so the next source opens afresh.
-  function close() {
+  function closeNow() {
     countReq.stop();
     citationsReq.stop();
+    pending.set(null);
+    held = null;
+    leaving.set(false);
     source.set(null);
     volume.set(null);
     count.set(null);
     citations.set(null);
+  }
+
+  function leave(go: () => void, stay?: () => void) {
+    if (pending.get() === null) {
+      go();
+      return;
+    }
+    held = stay === undefined ? { go } : { go, stay };
+    leaving.set(true);
+  }
+
+  function open(next: LinkOpen) {
+    leave(() => {
+      openNow(next);
+    });
+  }
+
+  function close() {
+    leave(closeNow);
+  }
+
+  function isSplit(citationId: number) {
+    const resolution = selected.links.get().get(citationId);
+    return (
+      resolution !== undefined &&
+      'links' in resolution &&
+      resolution.links.length > 1
+    );
+  }
+
+  function changeVolume(choice: VolumeChoice) {
+    const shown = source.get();
+    if (shown === null) return;
+    const { link } = shown;
+    const settled = !isSplit(shown.citation.id) || link.certainty === 'marked';
+    if (choice.id === link.volumeId && settled) {
+      openNow(shown);
+      return;
+    }
+    pending.set({ volumeId: choice.id, volume: choice.label });
+    showVolume(choice.id, choice.label, null);
+  }
+
+  function cancel() {
+    const shown = source.get();
+    if (shown !== null) openNow(shown);
+  }
+
+  // The Mark reloads the Volume's citations, as a confirmation does, and
+  // the viewer follows the new Link.
+  async function save() {
+    const shown = source.get();
+    const change = pending.get();
+    if (shown === null || change === null) return;
+    const { volumeId, image: at } = change;
+    const resolved = await selected.mark(
+      shown.citation.id,
+      at === undefined ? { volumeId } : { volumeId, image: at }
+    );
+    const link = markedIn(resolved, volumeId);
+    if (source.get() !== shown) return;
+    pending.set(null);
+    const reload = loadCitations(volume.get()?.id ?? volumeId);
+    if (link !== null) openNow({ citation: shown.citation, link });
+    await reload;
+  }
+
+  async function answer(given: LeaveAnswer) {
+    if (given === 'save') await save();
+    else if (given === 'discard') pending.set(null);
+    const waiting = held;
+    held = null;
+    leaving.set(false);
+    if (given === 'keep') waiting?.stay?.();
+    else waiting?.go();
   }
 
   function step(by: 1 | -1) {
@@ -166,8 +284,8 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   function selectedNow(id: number) {
     const going = noted?.personId === id ? noted.source : null;
     noted = null;
-    if (going === null) close();
-    else open(going);
+    if (going === null) closeNow();
+    else openNow(going);
   }
 
   // A confirmation moves its row, and a Page pin its neighbours', so the
@@ -185,7 +303,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     const current = source.get();
     const link = markedIn(resolved, shown.id);
     if (current?.citation.id === resolved.citationId && link !== null) {
-      open({ citation: current.citation, link });
+      openNow({ citation: current.citation, link });
     }
     await reload;
   }
@@ -207,6 +325,13 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     pick,
     selected: selectedNow,
     confirm,
-    close
+    close,
+    pending,
+    leaving,
+    changeVolume,
+    cancel,
+    save,
+    leave,
+    answer
   };
 }

@@ -137,6 +137,11 @@ export function createCitations(db: Database, scans: Scans) {
     return book;
   }
 
+  function churchBookOf(citationId: number) {
+    const row = byId.get(citationId);
+    return row === null ? null : bookOf(row);
+  }
+
   function cited(rows: CitationDbRow[]) {
     return rows.map((row) => ({ row, book: bookOf(row) }));
   }
@@ -205,9 +210,14 @@ export function createCitations(db: Database, scans: Scans) {
     // Saves a Mark. Null when there's no such Citation, or it isn't a
     // Church-book reference.
     async mark(citationId: number, target: MarkTarget) {
-      const row = byId.get(citationId);
-      const book = row === null ? null : bookOf(row);
+      const book = churchBookOf(citationId);
       return book === null ? null : await scans.markRef(book, target);
+    },
+
+    // The Volumes the reference can be put in; null as for `mark`.
+    async volumeChoices(citationId: number) {
+      const book = churchBookOf(citationId);
+      return book === null ? null : await scans.volumeChoices(book);
     },
 
     // The Church-book references resolving into the Volume, one per person

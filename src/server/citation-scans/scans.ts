@@ -1,10 +1,15 @@
 // Astia Links for Church-book references, resolved on demand, and the
 // Marks made in the app.
 
-import type { Link, LinkResolution } from '@common/types';
+import type {
+  Link,
+  LinkResolution,
+  VolumeChoice,
+  VolumeChoices
+} from '@common/types';
 
 import { AstiaError } from './astia';
-import type { Astia } from './astia';
+import type { Astia, Volume } from './astia';
 import { parishArchive, parishVolumes, resolveChurchBookRef } from './locate';
 import type { Candidate } from './matcher';
 import type { MarkTarget, PinStore } from './pins';
@@ -21,6 +26,15 @@ export interface VolumeLink {
 // the Book it cites, not by where it was pinned before.
 async function byBook(pins: PinStore) {
   return { volumes: (await pins.snapshot()).volumes, references: {} };
+}
+
+function choiceOf(v: Volume): VolumeChoice {
+  return { id: v.id, label: v.label, years: v.years };
+}
+
+// By first year; a Volume whose years can't be read goes last.
+function byYears(a: Volume, b: Volume) {
+  return (a.years?.from ?? Infinity) - (b.years?.from ?? Infinity);
 }
 
 // References resolved with the pins saved so far, against the Astia given.
@@ -126,21 +140,37 @@ export function openScans({ pins, astia }: { pins: PinStore; astia: Astia }) {
       );
     },
 
+    // The digitized Volumes of the parish a reference can be put in: of
+    // the Book it cites, those it links by that Book first.
+    async volumeChoices(ref: ChurchBookRef): Promise<VolumeChoices> {
+      const volumes = (await parishVolumes(astia, ref.parish)).filter(
+        (v) => v.digitized && ref.kind !== null && v.kind === ref.kind
+      );
+      const linked = [...(await linkedVolumes(ref))];
+      const fits = linked.flatMap((id) => {
+        const v = volumes.find((u) => u.id === id);
+        return v === undefined ? [] : [v];
+      });
+      const others = volumes
+        .filter((v) => !linked.includes(v.id))
+        .toSorted(byYears);
+      return { fits: fits.map(choiceOf), others: others.map(choiceOf) };
+    },
+
     // Saves a Mark, and gives the reference's links as they now resolve.
     async markRef(ref: ChurchBookRef, target: MarkTarget) {
       const volume = (await parishVolumes(astia, ref.parish)).find(
         (v) => v.id === target.volumeId
       );
       if (volume === undefined) {
-        return { rejected: "That image isn't in this parish's church books." };
+        return { rejected: "That Volume isn't in this parish's church books." };
       }
-      const count = (await astia.volumeImages(target.volumeId)).length;
-      if (
-        !Number.isInteger(target.image) ||
-        target.image < 1 ||
-        target.image > count
-      ) {
-        return { rejected: `The volume has images 1–${count}.` };
+      const { image } = target;
+      if (image !== undefined) {
+        const count = (await astia.volumeImages(target.volumeId)).length;
+        if (!Number.isInteger(image) || image < 1 || image > count) {
+          return { rejected: `The volume has images 1–${count}.` };
+        }
       }
       const linked = (await linkedVolumes(ref)).has(target.volumeId);
       await pins.recordMark(ref, target, { volume: volume.label, linked });

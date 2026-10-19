@@ -139,7 +139,17 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
     this.avatarUnsub = null;
   }
 
+  // Back or forward waits on a change pending in the Scan viewer; editing
+  // on puts the URL back.
   private readonly onHashChange = () => {
+    const back =
+      this.rootId === null ? null : this.buildCurrentHash(this.rootId);
+    this.state.viewer.leave(this.followHash, () => {
+      if (back !== null) history.replaceState(null, '', back);
+    });
+  };
+
+  private readonly followHash = () => {
     const parsed = parseHashView(location.hash, URL_BOUNDS);
     this.restoreViewportFromHash(parsed);
 
@@ -300,8 +310,15 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
     return first.done === true ? null : first.value;
   }
 
-  // The chart is rebuilt around them, and the dock shows them.
+  // The chart is rebuilt around them, and the dock shows them, once a
+  // change pending in the Scan viewer is saved or discarded.
   private setRoot(id: number, pinScreen: Point | null) {
+    this.state.viewer.leave(() => {
+      this.reroot(id, pinScreen);
+    });
+  }
+
+  private reroot(id: number, pinScreen: Point | null) {
     if (id === this.rootId) {
       this.select(id);
       return;
@@ -323,8 +340,16 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
   }
 
   // The dock shows them; the chart stays as it is if it draws them, and is
-  // built around them if not.
+  // built around them if not. Waits on a change pending in the Scan
+  // viewer, as `setRoot` does.
   private select(id: number) {
+    if (id === this.selectedId) return;
+    this.state.viewer.leave(() => {
+      this.selectNow(id);
+    });
+  }
+
+  private selectNow(id: number) {
     if (id === this.selectedId) return;
     if (!this.drawnIds.has(id)) {
       this.setRoot(id, this.canvasCenter());

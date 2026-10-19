@@ -39,21 +39,24 @@ export interface ScanPerson {
 
 export type ScanPersonEvent = CustomEvent<ScanPerson>;
 
-// Picks the row's person from `from`, the part clicked.
+// Picks the row's person from `from`, the part clicked, once any change
+// pending is saved or discarded.
 export function pickRow(
   from: HTMLElement,
   viewer: Viewer,
   row: VolumeCitation
 ) {
-  const personId = viewer.pick(row);
-  if (personId === null) return;
-  from.dispatchEvent(
-    new CustomEvent<ScanPerson>('scan-person', {
-      detail: { personId },
-      bubbles: true,
-      composed: true
-    })
-  );
+  viewer.leave(() => {
+    const personId = viewer.pick(row);
+    if (personId === null) return;
+    from.dispatchEvent(
+      new CustomEvent<ScanPerson>('scan-person', {
+        detail: { personId },
+        bubbles: true,
+        composed: true
+      })
+    );
+  });
 }
 
 // The Image a row links, or null for one known only to be in the Volume.

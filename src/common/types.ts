@@ -183,6 +183,21 @@ export interface Years {
   to: number;
 }
 
+// A Volume a Church-book reference can be put in, by its Astia label.
+export interface VolumeChoice {
+  id: string;
+  label: string;
+  years: Years | null;
+}
+
+// GET /api/citations/:id/volumes: the parish's Volumes of the Book a
+// reference cites, those its years or Record range give first, then the
+// others by years.
+export interface VolumeChoices {
+  fits: VolumeChoice[];
+  others: VolumeChoice[];
+}
+
 // A row of /api/volumes/:id/citations: one person's church-book citation
 // that resolves into the Volume; `split` marks one of several candidate
 // Volumes.

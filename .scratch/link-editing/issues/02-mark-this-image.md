@@ -1,5 +1,4 @@
 Status: ready-for-agent
-Blocked by: 01
 
 # Mark this Image, from a context menu, a button and M
 

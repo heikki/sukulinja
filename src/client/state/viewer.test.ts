@@ -79,6 +79,18 @@ const VISION_21: Link = {
 };
 const MARKED_21: Link = { ...VISION_21, certainty: 'marked' };
 
+// Matti's 12 marked as only in Volume 202.
+const MARKED_202: Link = {
+  ...inVolume('202'),
+  volume: 'I Aa:202 (1797-1803)',
+  certainty: 'marked'
+};
+const CHOICE_202 = { id: '202', label: 'I Aa:202 (1797-1803)', years: null };
+const CHOICE_201 = { id: '201', label: 'I Aa:201', years: null };
+// Person 3's 15, Split between Volumes 201 and 202.
+const C15 = churchBook(15, null);
+const L15 = inVolume('201');
+
 const S11 = { citation: C11, link: L11 };
 const S12 = { citation: C12, link: L12 };
 const S13 = { citation: C13, link: L13 };
@@ -106,7 +118,7 @@ function dataset(options: MemoryOptions = {}) {
       details: {
         1: person(1, [C11, C12, C13, C14]),
         2: person(2, [C21]),
-        3: person(3, [])
+        3: person(3, [C15])
       },
       links: {
         1: [
@@ -115,13 +127,18 @@ function dataset(options: MemoryOptions = {}) {
           linksOf(13, L13),
           { citationId: 14, unlinked: 'not-digitized' }
         ],
-        2: [linksOf(21, VISION_21)]
+        2: [linksOf(21, VISION_21)],
+        3: [{ citationId: 15, links: [L15, inVolume('202')] }]
       },
       volumes: {
         '201': { images: 40, citations: [ROW_11, ROW_21] },
         '202': { images: 10, citations: [] }
       },
-      marks: { 21: linksOf(21, MARKED_21) }
+      marks: {
+        12: linksOf(12, MARKED_202),
+        15: linksOf(15, { ...L15, certainty: 'marked' }),
+        21: linksOf(21, MARKED_21)
+      }
     },
     options
   );
@@ -289,4 +306,123 @@ test('with Astia down the count stays unknown and the citations failed', async (
   expect(state.viewer.count.get()).toBe(null);
   expect(state.viewer.citations.get()).toBe('failed');
   expect(state.viewer.image.get()).toBe(18);
+});
+
+// ---------------------------------------------------------------- changes
+
+test('changing the Volume shows it, pending, and Cancel goes back to the Link', async () => {
+  const { viewer } = await selecting(1);
+  viewer.open(S11);
+  viewer.changeVolume(CHOICE_202);
+  expect(viewer.pending.get()).toEqual({
+    volumeId: '202',
+    volume: 'I Aa:202 (1797-1803)'
+  });
+  expect([viewer.volume.get()?.id, viewer.image.get()]).toEqual(['202', 1]);
+  expect(viewer.source.get()).toEqual(S11);
+  expect(viewer.away.get()).toBe(true);
+  viewer.cancel();
+  expect(viewer.pending.get()).toBe(null);
+  expect([viewer.volume.get()?.id, viewer.image.get()]).toEqual(['201', 18]);
+});
+
+test("a source's own Volume is no change, unless it's one of several", async () => {
+  const { state, viewer } = await selecting(1);
+  viewer.open(S11);
+  await settle();
+  viewer.show(30);
+  viewer.changeVolume(CHOICE_201);
+  expect(viewer.pending.get()).toBe(null);
+  expect(viewer.image.get()).toBe(18);
+  state.select(3);
+  await settle();
+  viewer.open({ citation: C15, link: L15 });
+  viewer.changeVolume(CHOICE_201);
+  expect(viewer.pending.get()).toEqual({ volumeId: '201', volume: 'I Aa:201' });
+});
+
+test('Save marks only the Volume and follows the new Link', async () => {
+  const { api, viewer } = await selecting(1);
+  viewer.open(S12);
+  viewer.changeVolume(CHOICE_202);
+  await settle();
+  await viewer.save();
+  expect(api.asked.slice(-3)).toEqual([
+    'mark 12 202',
+    'links 1',
+    'citations 202'
+  ]);
+  expect(viewer.pending.get()).toBe(null);
+  expect(viewer.source.get()?.link).toEqual(MARKED_202);
+  expect(viewer.away.get()).toBe(false);
+});
+
+test('a way out waits on the pending change: kept, discarded or saved', async () => {
+  const { api, viewer } = await selecting(1);
+  viewer.open(S12);
+  viewer.changeVolume(CHOICE_202);
+  viewer.open(S13);
+  expect(viewer.leaving.get()).toBe(true);
+  expect(viewer.source.get()?.citation.id).toBe(12);
+
+  await viewer.answer('keep');
+  expect(viewer.leaving.get()).toBe(false);
+  expect(viewer.pending.get()).not.toBe(null);
+
+  viewer.close();
+  await viewer.answer('discard');
+  expect(viewer.source.get()).toBe(null);
+
+  viewer.open(S12);
+  viewer.changeVolume(CHOICE_202);
+  viewer.open(S13);
+  await viewer.answer('save');
+  expect(api.asked).toContain('mark 12 202');
+  expect(viewer.source.get()).toEqual(S13);
+  expect(viewer.pending.get()).toBe(null);
+});
+
+test('leaving runs at once with nothing pending, and keeping on editing runs `stay`', async () => {
+  const { viewer } = await selecting(1);
+  const ran: string[] = [];
+  viewer.open(S11);
+  viewer.leave(() => {
+    ran.push('go');
+  });
+  viewer.changeVolume(CHOICE_202);
+  viewer.leave(
+    () => {
+      ran.push('go');
+    },
+    () => {
+      ran.push('stay');
+    }
+  );
+  expect(ran).toEqual(['go']);
+  await viewer.answer('keep');
+  expect(ran).toEqual(['go', 'stay']);
+});
+
+test('a refused save leaves the way out waiting', async () => {
+  const { viewer } = await selecting(1);
+  viewer.open(S13);
+  viewer.changeVolume(CHOICE_201);
+  viewer.open(S11);
+  const refused = await viewer
+    .answer('save')
+    .then(() => null)
+    .catch((err: unknown) => err);
+  expect(refused).toBeInstanceOf(ApiError);
+  expect(viewer.leaving.get()).toBe(true);
+  expect(viewer.source.get()).toEqual(S13);
+});
+
+test('selecting someone else drops the pending change', async () => {
+  const { state, viewer } = await selecting(1);
+  viewer.open(S11);
+  viewer.changeVolume(CHOICE_202);
+  state.select(2);
+  expect(viewer.source.get()).toBe(null);
+  expect(viewer.pending.get()).toBe(null);
+  expect(viewer.leaving.get()).toBe(false);
 });
