@@ -1,5 +1,4 @@
 Status: needs-triage
-Blocked by: 04
 
 # Draw where the entry is when marking an Image
 

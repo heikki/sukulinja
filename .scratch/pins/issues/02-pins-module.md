@@ -1,9 +1,8 @@
 Status: ready-for-agent
-Blocked by: 01, 03, 04
 
 # Deepen pins into one module with safe writes
 
-Spec: `.scratch/pins/spec.md`. Builds on 01's names and file shape.
+Spec: `.scratch/pins/spec.md`.
 
 ## Steps
 
@@ -21,7 +20,7 @@ Spec: `.scratch/pins/spec.md`. Builds on 01's names and file shape.
    A Mark is one write.
 
 3. **The app.** `createApi` opens one Pins for the data folder.
-   - `scans.ts`: `resolveRef`, `volumeScans`, `matchCandidates` and `markRef` read `pins.snapshot()` instead of `loadAnchors()` and `loadPlacements()`, which go away.
+   - `scans.ts`: `resolveRef`, `volumeLinks`, `byBook`, `matchCandidates` and `markRef` read `pins.snapshot()` instead of `loadPins()`, which goes away with `addPagePin`, `addRecordPin` and `setReferencePin` as exports.
    - `citations.ts`: reads `pins.stamp()` in place of `localStamp()`.
    - Pass the Pins object in where today a global is read. `useDataFolder` keeps only the Astia and image-cache setters.
 4. **Scripts.**
@@ -32,13 +31,12 @@ Spec: `.scratch/pins/spec.md`. Builds on 01's names and file shape.
 ## Acceptance
 
 - **`src/server/citation-scans/pins.test.ts`** covers:
-  - merging, precedence and Record ranges, moved from `anchors.test.ts`
-  - migration
+  - merging, precedence, Record ranges and migration, as it does now, through `openPins`
   - two `openPins` on one folder saving at once, with both saves kept
   - a stale lock taken over, and a held lock throwing after 5 s
   - no reader seeing a partial file
 - No module in `citation-scans/` keeps a data folder in a module variable. Astia's cache dir is left to candidate #2.
 - `bun run format`, `bun run lint`, `bun run typecheck` and `bun test` pass.
 - **On the `ylonen` data:**
-  - a Mark in the Scan viewer writes `pins.local.json` once and shows Exact
+  - a Mark in the Scan viewer writes `pins.local.json` once and shows Marked Image
   - a vision pass run alongside the app loses nothing
