@@ -1,10 +1,13 @@
+import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 import type { Point, Transform } from '@client/pan-zoom';
+import { appState } from '@client/state';
+import type { AppState } from '@client/state';
 import type { VolumeCitation } from '@common/types';
 
-import { entriesOn } from './citations';
+import { entriesOn, pickRow } from './citations';
 import type { Entry } from './citations';
 import { boxOnStage } from './frame';
 import type { Frame } from './frame';
@@ -16,12 +19,13 @@ const CLICK_SLOP_PX = 4;
 // Over the scan: a box around each entry of the Image shown whose place on
 // it is known, moved with the scan; at rest only the current citation's
 // shows. Hovering one names its key with `scan-hover` (null on leaving);
-// clicking one asks for its first person with `scan-pick`, as their row
-// does. Presses, wheels and pinches carry on to the stage, so a drag
+// clicking one picks its first person, as their row does. Presses, wheels and pinches carry on to the stage, so a drag
 // starting on a box still pans.
 @customElement('sl-scan-entries')
 export class ScanEntriesElement extends LitElement {
   static override styles = scanEntriesStyles;
+
+  @consume({ context: appState }) private readonly state!: AppState;
 
   @property({ attribute: false }) rows: VolumeCitation[] = [];
   @property({ type: Number }) image = 1;
@@ -42,7 +46,10 @@ export class ScanEntriesElement extends LitElement {
     this.pressedAt = null;
     if (from === null) return;
     const moved = Math.hypot(e.clientX - from.x, e.clientY - from.y);
-    if (moved < CLICK_SLOP_PX) this.ask('scan-pick', entry.rows[0]);
+    const [first] = entry.rows;
+    if (moved < CLICK_SLOP_PX && first !== undefined) {
+      pickRow(this, this.state.viewer, first);
+    }
   }
 
   private renderEntry(entry: Entry, view: Transform, frame: Frame) {

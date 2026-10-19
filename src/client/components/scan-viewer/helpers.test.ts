@@ -1,14 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import { clampImage, neighbours } from './helpers';
-
-test('keeps an image number inside the Volume', () => {
-  expect(clampImage(0, 354)).toBe(1);
-  expect(clampImage(355, 354)).toBe(354);
-  expect(clampImage(107.4, 354)).toBe(107);
-  expect(clampImage(9999, null)).toBe(9999);
-  expect(clampImage(-3, null)).toBe(1);
-});
+import { neighbours } from './helpers';
 
 test('prefetches the Image ahead first', () => {
   expect(neighbours(5, 10, 1)).toEqual([6, 4]);

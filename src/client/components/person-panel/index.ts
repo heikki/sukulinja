@@ -1,16 +1,20 @@
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
-import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { focusRingStyles } from '@client/focus-ring';
 import { volumeTitle } from '@client/link-labels';
 import { appState } from '@client/state';
-import type { AppState, LinkStatus, Source, SourceGroup } from '@client/state';
+import type {
+  AppState,
+  LinkOpen,
+  LinkStatus,
+  Source,
+  SourceGroup
+} from '@client/state';
 import type { CitationRow, Link, RecordView } from '@common/types';
 
-import type { ScanCloseEvent, ScanStepEvent } from '../scan-viewer';
 import { formatName } from '../tree-view/renderer';
 
 import './header';
@@ -50,15 +54,6 @@ function renderRecord(r: RecordView) {
     }
   `;
 }
-
-// Opening a church-book source asks for the Scan viewer on that Link of its
-// reference.
-export interface LinkOpen {
-  citation: CitationRow;
-  link: Link;
-}
-
-export type LinkOpenEvent = CustomEvent<LinkOpen>;
 
 function renderFold(open: boolean, fold: () => void) {
   const label = open ? 'Hide the record' : 'Show the record';
@@ -172,71 +167,43 @@ function renderRelative(r: Relative, ask: (event: string, id: number) => void) {
 // The Selected person's family, events and sources, beside the chart. A
 // relative's row asks for them with `pick`, and for the chart built around
 // them with `center`. Record links open outside the app (the desktop shell
-// hands target=_blank to the browser); Links ask for the Scan viewer with a
-// `scan-open` event, and the source it shows (`viewing`) is marked and
-// brought into view.
+// hands target=_blank to the browser); a Link opens in the Scan viewer,
+// and the source it shows is marked and brought into view.
 @customElement('sl-person-panel')
 export class PersonPanelElement extends SignalWatcher(LitElement) {
   static override styles = [focusRingStyles, personPanelStyles];
 
   @consume({ context: appState }) private readonly state!: AppState;
 
-  @property({ attribute: false }) viewing: LinkOpen | null = null;
   // The chart's persons and families, which name the person's households.
   @property({ attribute: false }) indices: FamilyIndices | null = null;
+  // Whether the dock holding the panel is open.
+  @property({ type: Boolean }) docked = false;
 
   // The source shown in full; the others show only their heading and links.
   @state() private unfolded: number | null = null;
 
   // Whose details are shown.
   private shownId: number | null = null;
-
-  override connectedCallback() {
-    super.connectedCallback();
-    window.addEventListener('scan-step', this.onStep);
-    window.addEventListener('scan-close', this.onClose);
-  }
-
-  override disconnectedCallback() {
-    super.disconnectedCallback();
-    window.removeEventListener('scan-step', this.onStep);
-    window.removeEventListener('scan-close', this.onClose);
-  }
-
-  // The Scan viewer closing hands focus back to the source it showed,
-  // where that can be seen.
-  private readonly onClose = (e: Event) => {
-    const { citationId } = (e as ScanCloseEvent).detail;
-    if (!this.sourcesShown()) return;
-    const source = this.renderRoot.querySelector(
-      `[data-citation="${citationId}"] button.title`
-    );
-    if (source instanceof HTMLElement) source.focus({ preventScroll: true });
+  // The source last brought into view, and the one the viewer last showed
+  // and for whom.
+  private revealed: LinkOpen | null = null;
+  private lastOpen: { source: LinkOpen | null; personId: number | null } = {
+    source: null,
+    personId: null
   };
+
+  // The source the Scan viewer shows, unless it has moved off its Link.
+  private get viewing() {
+    const { viewer } = this.state;
+    return viewer.away.get() ? null : viewer.source.get();
+  }
 
   // Whether the sources can be seen: their section is open, and so is the
   // dock holding the panel.
   private sourcesShown() {
-    const dock = this.closest('sl-side-dock');
-    return opened.sources && (dock === null || dock.open);
+    return opened.sources && this.docked;
   }
-
-  // The Scan viewer asks for the source before or after the one it shows:
-  // the next in the list with a Link, none past either end. Only while
-  // the list can be seen, so the step is one the person can follow.
-  private readonly onStep = (e: Event) => {
-    if (!this.sourcesShown()) return;
-    const { citationId, step } = (e as ScanStepEvent).detail;
-    const linked = this.state.selected.sources.get().flatMap((g) =>
-      g.sources.flatMap(({ citation, status }) => {
-        const link = status?.link ?? null;
-        return link === null ? [] : [{ citation, link }];
-      })
-    );
-    const at = linked.findIndex((l) => l.citation.id === citationId);
-    const next = at < 0 ? undefined : linked[at + step];
-    if (next !== undefined) this.openScan(next.citation, next.link);
-  };
 
   private detailsId() {
     return this.state.selected.details.get()?.id ?? null;
@@ -249,12 +216,35 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
     if (this.detailsId() !== this.shownId) this.unfolded = null;
   }
 
-  override updated(changed: PropertyValues<this>) {
-    if (changed.has('viewing')) void this.revealViewing();
+  override updated() {
+    const { viewer } = this.state;
+    viewer.setSourcesInView(this.sourcesShown());
+    const { viewing } = this;
+    if (viewing !== this.revealed) {
+      this.revealed = viewing;
+      void this.revealViewing();
+    }
+    this.focusOnClose();
     const id = this.detailsId();
     if (id === this.shownId) return;
     this.shownId = id;
     this.scrollTop = 0;
+  }
+
+  // The Scan viewer closing hands focus back to the source it showed, where
+  // that can be seen. Not when it closed for someone else being selected:
+  // focus stays where that was done.
+  private focusOnClose() {
+    const source = this.state.viewer.source.get();
+    const personId = this.state.selected.id.get();
+    const last = this.lastOpen;
+    this.lastOpen = { source, personId };
+    if (last.source === null || source !== null) return;
+    if (personId !== last.personId || !this.sourcesShown()) return;
+    const title = this.renderRoot.querySelector(
+      `[data-citation="${last.source.citation.id}"] button.title`
+    );
+    if (title instanceof HTMLElement) title.focus({ preventScroll: true });
   }
 
   // The source in the Scan viewer, scrolled to, opening Sources if need be.
@@ -270,16 +260,10 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
     source?.scrollIntoView({ block: 'nearest' });
   }
 
-  // Each opening is a new link, so the viewer goes back to it even when
-  // it's showing this source already.
+  // The viewer goes back to the Link even when it's showing this source
+  // already.
   private openScan(citation: CitationRow, link: Link) {
-    this.dispatchEvent(
-      new CustomEvent<LinkOpen>('scan-open', {
-        detail: { citation, link: { ...link } },
-        bubbles: true,
-        composed: true
-      })
-    );
+    this.state.viewer.open({ citation, link });
   }
 
   // What clicking the source does: open its scan if it is a church book

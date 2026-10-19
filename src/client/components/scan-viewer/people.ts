@@ -1,3 +1,4 @@
+import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
@@ -9,36 +10,26 @@ import type { AppState } from '@client/state';
 import type { PersonRow, VolumeCitation } from '@common/types';
 
 import { formatName } from '../tree-view/renderer';
-import { boxKey, boxOf, groupCitations, imageOf } from './citations';
-import { markedIn } from './helpers';
-import type { ScanMarked } from './helpers';
+import { boxKey, boxOf, groupCitations, pickRow } from './citations';
 import { controlStyles, scanPeopleStyles } from './styles';
 
 // Collapsed or not for the rest of the visit, across Volumes and citations.
 let collapsed = false;
 
 // Beside the scan: the people of the tree whose citations link the Image
-// shown, grouped as `groupCitations` says. Clicking one asks for them with `scan-pick`; the citation the
-// viewer is on (`current`) is marked. Hovering a row with an entry on the
-// scan names the entry's key with `scan-hover`, and rows of the entry picked
-// out there (`hovered`) are highlighted. A vision match can be confirmed
-// from its row, saved for the Selected person's Links as marking its Image
-// by hand would be, and reported with `scan-marked`.
+// shown, grouped as `groupCitations` says. Clicking one picks them; the
+// citation the viewer is on is marked. Hovering a row with an entry on the
+// scan names the entry's key with `scan-hover`, and rows of the entry
+// picked out there (`hovered`) are highlighted. A vision match can be
+// confirmed from its row, saved as marking its Image by hand would be.
 @customElement('sl-scan-people')
-export class ScanPeopleElement extends LitElement {
+export class ScanPeopleElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanPeopleStyles];
 
   @consume({ context: appState }) private readonly state!: AppState;
 
-  // The Volume's citations; null until they arrive, or when they can't.
-  @property({ attribute: false }) rows: VolumeCitation[] | null = null;
-  @property({ type: Number }) image = 1;
   @property({ attribute: false }) persons = new Map<number, PersonRow>();
-  @property({ attribute: false }) current: number | null = null;
   @property({ attribute: false }) hovered: string | null = null;
-  @property({ type: Boolean }) failed = false;
-  // The Volume shown, which a confirmation marks.
-  @property({ attribute: false }) volumeId: string | null = null;
 
   // The citation being confirmed, and the last one that couldn't be.
   @state() private confirming: number | null = null;
@@ -67,14 +58,12 @@ export class ScanPeopleElement extends LitElement {
   }
 
   private async confirm(row: VolumeCitation) {
-    const { volumeId } = this;
-    const image = imageOf(row);
-    if (volumeId === null || image === null) return;
-    this.confirming = row.citation.id;
-    this.refused = null;
     const id = row.citation.id;
-    const saved = await this.state.selected
-      .mark(id, { volumeId, image })
+    this.confirming = id;
+    this.refused = null;
+    const refused = await this.state.viewer
+      .confirm(row)
+      .then(() => null)
       .catch((err: unknown) => {
         if (err instanceof ApiError) return err;
         throw err;
@@ -82,14 +71,7 @@ export class ScanPeopleElement extends LitElement {
       .finally(() => {
         this.confirming = null;
       });
-    if (saved instanceof ApiError) {
-      this.refused = { id, error: saved.message };
-      return;
-    }
-    const detail: ScanMarked = markedIn(saved, volumeId);
-    this.dispatchEvent(
-      new CustomEvent('scan-marked', { detail, bubbles: true, composed: true })
-    );
+    if (refused !== null) this.refused = { id, error: refused.message };
   }
 
   private renderConfirm(row: VolumeCitation) {
@@ -115,7 +97,8 @@ export class ScanPeopleElement extends LitElement {
   }
 
   private renderRow(row: VolumeCitation) {
-    const current = row.citation.id === this.current;
+    const current =
+      row.citation.id === this.state.viewer.source.get()?.citation.id;
     const box = boxOf(row);
     const key = box === null ? null : boxKey(box);
     const hovered = key !== null && key === this.hovered;
@@ -126,7 +109,7 @@ export class ScanPeopleElement extends LitElement {
           aria-current=${current ? 'true' : nothing}
           title=${row.citation.reference ?? ''}
           @click=${() => {
-            this.dispatchEvent(new CustomEvent('scan-pick', { detail: row }));
+            pickRow(this, this.state.viewer, row);
           }}
           @mouseenter=${() => {
             if (key !== null) this.hover(key);
@@ -144,12 +127,14 @@ export class ScanPeopleElement extends LitElement {
   }
 
   private renderList() {
-    if (this.rows === null) {
+    const { citations, image } = this.state.viewer;
+    const rows = citations.get();
+    if (!Array.isArray(rows)) {
       return html`<p class="muted">
-        ${this.failed ? 'People unavailable' : 'Finding people…'}
+        ${rows === 'failed' ? 'People unavailable' : 'Finding people…'}
       </p>`;
     }
-    const groups = groupCitations(this.rows, this.image, this.nameOf);
+    const groups = groupCitations(rows, image.get(), this.nameOf);
     if (groups.length === 0) {
       return html`<p class="muted">No one in the tree is linked here.</p>`;
     }

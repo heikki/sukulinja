@@ -20,9 +20,8 @@ import { detailsWidth, setDetailsWidth } from '../person-panel/helpers';
 import '../person-search';
 import '../settings';
 
-import type { LinkOpen, LinkOpenEvent } from '../person-panel';
 import type { PickEvent } from '../person-search';
-import type { ScanMarkedEvent, ScanPersonEvent } from '../scan-viewer';
+import type { ScanPersonEvent } from '../scan-viewer';
 import type { GenerationsChangeEvent } from '../settings';
 import type { OpenChangeEvent, WidthChangeEvent } from '../side-dock';
 import { avatarHref, onAvatarReady } from './avatar-cache';
@@ -72,15 +71,6 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
   // Closed on entering a dataset; opening it lasts only for this visit.
   @state() private details = false;
   @state() private detailsWidth = detailsWidth();
-  // The scan the Scan viewer shows over the chart; it belongs to the
-  // selected person, so selecting another closes it.
-  @state() private scanOpen: LinkOpen | null = null;
-  // The Scan viewer has moved off the link's Image, so the dock doesn't
-  // mark its source as shown; opening the source again goes back.
-  @state() private scanAway = false;
-  // A person picked in the Scan viewer: selecting them keeps it open, on
-  // their citation.
-  private scanFollowing: LinkOpen | null = null;
 
   private families = familiesByPerson([]);
 
@@ -155,7 +145,7 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
 
     const id = parsed.rootId;
     if (id === null || !this.persons.has(id)) return;
-    this.choose(this.knownOr(parsed.selectedId, id));
+    this.state.select(this.knownOr(parsed.selectedId, id));
     if (id === this.rootId) return;
     // No stored pan means the prior box was pinned at its click position; pin the
     // new root at canvas center so back/forward doesn't land it at that stale
@@ -282,13 +272,13 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
     }
     if (parsed.rootId !== null && this.persons.has(parsed.rootId)) {
       this.rootId = parsed.rootId;
-      this.choose(this.knownOr(parsed.selectedId, parsed.rootId));
+      this.state.select(this.knownOr(parsed.selectedId, parsed.rootId));
       return;
     }
     const def = this.pickDefaultRoot();
     this.rootId = def;
     if (def !== null) {
-      this.choose(def);
+      this.state.select(def);
       history.replaceState(null, '', this.buildCurrentHash(def));
     }
   }
@@ -318,7 +308,7 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
     }
     this.viewport.beginReroot(pinScreen, { nudge: true });
     this.rootId = id;
-    this.choose(id);
+    this.state.select(id);
     // Two-step: push carries root+zoom only. The pin lands in updated()
     // and onSettle's writeUrl follows up with a replaceState that adds pan.
     history.pushState(
@@ -340,21 +330,12 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
       this.setRoot(id, this.canvasCenter());
       return;
     }
-    this.choose(id);
+    this.state.select(id);
     this.writeUrl();
   }
 
   private get selectedId() {
     return this.state.selected.id.get();
-  }
-
-  // Every selection comes through here. The Scan viewer belongs to the
-  // selected person: it goes on with one picked in it, or closes
-  // (ADR-0011).
-  private choose(id: number) {
-    if (id === this.selectedId) return;
-    [this.scanOpen, this.scanFollowing] = [this.scanFollowing, null];
-    this.state.select(id);
   }
 
   private writeUrl() {
@@ -414,9 +395,6 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
           this.detailsWidth = e.detail;
           setDetailsWidth(e.detail);
         }}
-        @scan-open=${(e: LinkOpenEvent) => {
-          this.scanOpen = e.detail;
-        }}
       >
         <sl-person-header
           slot="header"
@@ -425,7 +403,7 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
         ></sl-person-header>
         <sl-person-panel
           .indices=${this.indices}
-          .viewing=${this.scanAway ? null : this.scanOpen}
+          ?docked=${this.details}
           @pick=${(e: PickEvent) => {
             this.select(e.detail.id);
           }}
@@ -437,41 +415,16 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
     `;
   }
 
-  // The viewer follows the Link in the marked Volume when the mark was for
-  // its citation (one confirmed beside the scan may be another's).
-  private readonly onScanMarked = (e: ScanMarkedEvent) => {
-    const { resolved, link } = e.detail;
-    if (this.scanOpen?.citation.id === resolved.citationId && link !== null) {
-      this.scanOpen = { ...this.scanOpen, link };
-    }
-  };
-
-  // The dock moves to them, and the viewer goes on with their citation, so
-  // a mark saves for it.
-  private readonly onScanPerson = (e: ScanPersonEvent) => {
-    const { personId, open } = e.detail;
-    if (personId === this.selectedId) {
-      this.scanOpen = open;
-    } else {
-      this.scanFollowing = open;
-      this.select(personId);
-    }
-  };
-
+  // Over the chart while it shows a source; it belongs to the Selected
+  // person (ADR-0011). A person picked in it who isn't selected is asked
+  // for with `scan-person`, and selected as anyone else is.
   private renderScanViewer() {
-    if (this.scanOpen === null) return nothing;
+    if (this.state.viewer.source.get() === null) return nothing;
     return html`
       <sl-scan-viewer
-        .citation=${this.scanOpen.citation}
-        .link=${this.scanOpen.link}
         .persons=${this.persons}
-        @scan-person=${this.onScanPerson}
-        @scan-close=${() => {
-          this.scanOpen = null;
-        }}
-        @scan-marked=${this.onScanMarked}
-        @scan-away=${(e: CustomEvent<boolean>) => {
-          this.scanAway = e.detail;
+        @scan-person=${(e: ScanPersonEvent) => {
+          this.select(e.detail.personId);
         }}
       ></sl-scan-viewer>
     `;
