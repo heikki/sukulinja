@@ -1,5 +1,4 @@
 Status: ready-for-agent
-Blocked by: 03
 
 # Use a Box already on the Image as this source's entry
 

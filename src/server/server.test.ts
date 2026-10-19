@@ -181,6 +181,15 @@ describe("A dataset's Citations", () => {
     expect(await mark(1, { volumeId: 'juva-1', image: 99 })).toBe(400);
     expect(await mark(1, { image: 7 })).toBe(400);
     expect(await mark(1, { volumeId: 'juva-1', image: '7' })).toBe(400);
+    const box = { left: 0.1, top: 0.5, width: 0.5, height: 0.05 };
+    expect(await mark(1, { volumeId: 'juva-1', image: 7, box })).toBe(200);
+    expect(await mark(1, { volumeId: 'juva-1', image: 7, box: null })).toBe(
+      200
+    );
+    expect(
+      await mark(1, { volumeId: 'juva-1', image: 7, box: { left: 1 } })
+    ).toBe(400);
+    expect(await mark(1, { volumeId: 'juva-1', box })).toBe(400);
     expect(await mark(2, { volumeId: 'juva-1', image: 7 })).toBe(404);
     expect(await mark(1, { volumeId: 'juva-1' })).toBe(200);
 

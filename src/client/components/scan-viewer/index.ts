@@ -22,14 +22,13 @@ import { entriesShown, frameForFull, frameForThumb, layers } from './frame';
 import type { Frame, Loading } from './frame';
 import { neighbours } from './helpers';
 import { stepOf } from './keys';
-import { linkItems } from './menu';
 import { loadingNote } from './note';
 import { Prefetch } from './prefetch';
 import { controlStyles, scanViewerStyles } from './styles';
 
 import './edit';
-import './volumes';
 import './entries';
+import './layer';
 import './nav';
 import './people';
 import './toolbar';
@@ -87,9 +86,6 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
   @state() private dragging = false;
   // The key of the entry picked out, on the scan and in the list.
   @state() private hovered: string | null = null;
-  // Where the scan was right-clicked, in the stage: its menu, or the
-  // Volumes opened from it, are open there.
-  @state() private popup: { at: Point; volumes: boolean } | null = null;
 
   private readonly prefetch = new Prefetch();
   private drawn: Drawn = { volumeId: null, image: 1 };
@@ -448,19 +444,18 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
   };
 
   // The scan's own menu in place of WebKit's, except in the Image number,
-  // where WebKit's has copy and paste.
+  // where WebKit's has copy and paste. On the source's own entry Box it's
+  // that Box's menu.
   private readonly onContextMenu = (e: MouseEvent) => {
-    if (e.composedPath()[0] instanceof HTMLInputElement) return;
+    const path = e.composedPath();
+    if (path[0] instanceof HTMLInputElement) return;
     e.preventDefault();
     this.stopMomentum();
     const at = this.toStage({ x: e.clientX, y: e.clientY });
-    this.popup = { at, volumes: false };
-  };
-
-  // Closing the Volumes gives the keys back to the viewer.
-  private readonly onPopupClose = () => {
-    if (this.popup?.volumes === true) this.focus();
-    this.popup = null;
+    const onBox = path.some(
+      (t) => t instanceof HTMLElement && t.dataset.own === 'true'
+    );
+    this.renderRoot.querySelector('sl-scan-layer')?.openMenu(at, onBox);
   };
 
   // ------------------------------------------------------------ render
@@ -517,13 +512,17 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
   };
 
   // Boxes around the entries whose place is known, once the full Image is
-  // shown.
+  // shown; the source's own gives way to its change pending.
   private renderEntries(source: LinkOpen) {
     if (!entriesShown(this.frame, this.loading)) return nothing;
     const rows = this.viewer.citations.get();
+    const editing = this.viewer.pending.get() !== null;
+    const shown = (Array.isArray(rows) ? rows : []).filter(
+      (r) => !editing || r.citation.id !== source.citation.id
+    );
     return html`
       <sl-scan-entries
-        .rows=${Array.isArray(rows) ? rows : []}
+        .rows=${shown}
         .image=${this.image}
         .view=${this.view}
         .frame=${this.frame}
@@ -552,29 +551,15 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
         ${
           this.viewer.pending.get() === null
             ? nothing
-            : html`<sl-scan-edit></sl-scan-edit>`
+            : html`<sl-scan-edit .persons=${this.persons}></sl-scan-edit>`
         }
-        ${this.renderMenu()}
+        <sl-scan-layer
+          .view=${this.view}
+          .frame=${this.frame}
+          ?canEdit=${entriesShown(this.frame, this.loading)}
+        ></sl-scan-layer>
       </div>
     `;
-  }
-
-  private renderMenu() {
-    if (this.popup === null) return nothing;
-    const { at, volumes } = this.popup;
-    if (volumes) {
-      return html`<sl-scan-volumes
-        .at=${at}
-        @close=${this.onPopupClose}
-      ></sl-scan-volumes>`;
-    }
-    return html`<sl-scan-menu
-      .items=${linkItems(this.viewer, () => {
-        this.popup = { at, volumes: true };
-      })}
-      .at=${at}
-      @close=${this.onPopupClose}
-    ></sl-scan-menu>`;
   }
 
   private renderPeople() {

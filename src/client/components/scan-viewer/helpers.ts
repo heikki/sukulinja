@@ -6,10 +6,10 @@ export function neighbours(n: number, count: number | null, step: 1 | -1) {
   return beside.filter((i) => i >= 1 && (count === null || i <= count));
 }
 
-// Where a pop-up at `at` in its parent goes: moved in from any edge it
-// would cross.
+// Where a pop-up at `at` in the element it's positioned in goes: moved in
+// from any edge it would cross.
 export function placedInside(el: HTMLElement, at: Point) {
-  const box = el.parentElement?.getBoundingClientRect();
+  const box = el.offsetParent?.getBoundingClientRect();
   if (box === undefined) return at;
   const x = Math.min(at.x, box.width - el.offsetWidth - 4);
   const y = Math.min(at.y, box.height - el.offsetHeight - 4);

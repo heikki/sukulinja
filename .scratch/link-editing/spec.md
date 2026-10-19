@@ -6,7 +6,7 @@ Glossary (`src/server/citation-scans/CONTEXT.md`): **Link**, **Mark**, **Box**, 
 
 The only Mark in the app is Confirm on a Vision match. When a Link's Volume is wrong (years or a Record range chose badly, or a Split reference opened on the wrong candidate), or its Image is a few off, or the entry is boxed wrong, there is no way to say so. The Scan viewer can't even switch Volumes: it shows only the Volume of the Link it was opened on.
 
-Shipped so far: the pending-change bar with its leaving guard; the scan's context menu with Change Volume… (saved as a Volume-only Mark) and Mark this Image(`viewer.ts`, `edit.ts`, `menu.ts`, `volumes.ts`, `GET /api/citations/:id/volumes`). Still to come: the hand-drawn Box, reusing a Box, and Not known.
+Shipped so far: the pending-change bar with its leaving guard; the scan's context menu with Change Volume… (saved as a Volume-only Mark), Mark this Image, and drawing, adjusting and removing the entry Box (`viewer.ts`, `edit.ts`, `layer.ts`, `menu.ts`, `volumes.ts`, `GET /api/citations/:id/volumes`). Still to come: reusing a Box, and Not known.
 
 ## Design
 
@@ -30,17 +30,17 @@ Editing is always for the viewer's **current source**, one at a time. Nothing sa
 
 - **Change Volume…**: the list of the parish's Volumes in the same Astia series as the reference's Book. It has two groups: _Fits the reference_ (the Volumes its years or Record range give, worked out without its own pin, as `matchCandidates` does with `byBook(pins)`), then _Other Volumes_ by years, each with its code and years. Picking one shows it and sets the pending Link to that Volume, with no Image (Marked Volume). It opens from the scan's context menu, where you right-clicked; the toolbar only names the Volume shown. There's no separate browse-only switcher: Cancel undoes a look. Its own Volume is no change, unless the reference is Split.
 - **Not known**: a row at the foot of the Change Volume list, for a reference whose Volume you've looked for and can't tell (`issues/06-not-known.md`).
-- **Mark this Image**: sets the pending Image to the one shown, in the Volume shown, with no Box (Marked Image).
+- **Mark this Image**: sets the pending Image to the one shown, in the Volume shown, with no Box (Marked Image). On a Vision match's Image it drops the match's Box; Confirm keeps it.
 - **Draw the entry…**: the cursor becomes a crosshair; drag a rectangle, Esc cancels. It sets the pending Box, and the Image shown if it wasn't set yet.
-- **Adjust the Box**: while a Box is pending it has corner and edge handles. Dragging a handle resizes it; dragging inside moves it; dragging elsewhere still pans.
-- **Remove the entry box**: back to Marked Image.
+- **Edit box**: on the source's own entry Box, makes it pending (a Vision match's too), to adjust. While a Box is pending it has corner and edge handles, dashed in the accent. Dragging a handle resizes it; dragging inside moves it; dragging elsewhere still pans.
+- **Delete box**: on the source's own entry Box, back to Marked Image.
 - **This is the entry for <source>**: on an existing Box on the Image, copies that Box into the pending change, e.g. a parent's citation of a child's baptism already boxed for the child.
 
 A pending change starts from the Link as it is. Editing a Vision match starts from the match's Box, and Save makes it a hand Mark at that Box (or wherever it was moved).
 
 ### Ways in
 
-- **Context menu** on the scan, drawn in the page. The app blocks WebKit's own menu there. Its items depend on the state: Mark this Image, Draw the entry…, Change Volume…, Remove the entry box. Right-clicking a Box adds "This is the entry for <source>". It handles Esc and focus as the viewer's other controls do (marked handled, so macOS doesn't beep).
+- **Context menu** on the scan, drawn in the page. The app blocks WebKit's own menu there. On the source's own entry Box it offers only that Box: Edit box (unless it's already pending) and Delete box. Elsewhere: Mark this Image (while it would change the Link), Draw the entry…, Change Volume…. Right-clicking someone else's Box offers "This is the entry for <source>". It handles Esc and focus as the viewer's other controls do (marked handled, so macOS doesn't beep).
 - **Confirm** on a Vision match's row stays one click and saves at once. Fixing the match goes through editing instead.
 
 ### What a Mark replaces
@@ -58,4 +58,4 @@ A pending change starts from the Link as it is. Editing a Vision match starts fr
 
 ## Glossary to update as it ships
 
-**Mark**: may say where on the Image (a hand Box), not only which Image or Volume. **Unlinked**: a person may say the Volume isn't known.
+**Unlinked**: a person may say the Volume isn't known.

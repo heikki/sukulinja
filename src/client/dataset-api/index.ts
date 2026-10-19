@@ -4,6 +4,7 @@
 
 import { readNdjson } from '@client/ndjson';
 import type {
+  Box,
   CitationLinks,
   FamilyRow,
   PersonDetails,
@@ -21,9 +22,12 @@ export class ApiError extends Error {
 export const NOT_RESPONDING = 'The app is not responding.';
 
 // Where a Mark puts a reference: an Image of a Volume, or only the Volume.
+// On an Image, `box` is the entry drawn, null for none; left out, a Vision
+// match's Box there is kept.
 export interface MarkTarget {
   volumeId: string;
   image?: number;
+  box?: Box | null;
 }
 
 // Each call rejects with ApiError when it fails, and with the signal's

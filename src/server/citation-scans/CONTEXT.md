@@ -103,7 +103,7 @@ One Church-book reference known to be in a Volume, and on which Image when known
 _Avoid_: placement.
 
 **Mark**:
-Saying by hand, in the Scan viewer, which Image a Church-book reference's record is on, or only which Volume. An Image: a cited page in a Volume the reference already links becomes a Page pin; otherwise the reference gets a Reference pin; one with a record id also gets a Record pin. Only a Volume: the reference gets a Reference pin without an Image. Confirming a **Vision match** is a Mark too, and keeps where the model said the entry is.
+Saying by hand, in the Scan viewer, which Image a Church-book reference's record is on, or only which Volume. An Image: a cited page in a Volume the reference already links becomes a Page pin; otherwise the reference gets a Reference pin; one with a record id also gets a Record pin. Only a Volume: the reference gets a Reference pin without an Image. A Mark may also say where on the Image the entry is, its **Box**, drawn by hand. Confirming a **Vision match** is a Mark too, and keeps where the model said the entry is.
 _Avoid_: correction (the link it replaces is often not wrong, only less exact).
 
 **Provenance**:

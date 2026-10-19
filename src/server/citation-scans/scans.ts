@@ -2,6 +2,7 @@
 // Marks made in the app.
 
 import type {
+  Box,
   Link,
   LinkResolution,
   VolumeChoice,
@@ -26,6 +27,28 @@ export interface VolumeLink {
 // the Book it cites, not by where it was pinned before.
 async function byBook(pins: PinStore) {
   return { volumes: (await pins.snapshot()).volumes, references: {} };
+}
+
+// A Box within its Image, with some width and height.
+function onImage(box: Box) {
+  const { left, top, width, height } = box;
+  const edge = 1 + 1e-9;
+  return (
+    [left, top, width, height].every(Number.isFinite) &&
+    left >= 0 &&
+    top >= 0 &&
+    width > 0 &&
+    height > 0 &&
+    left + width <= edge &&
+    top + height <= edge
+  );
+}
+
+// What's wrong with a Mark's entry Box, if anything.
+function boxProblem({ image, box }: MarkTarget) {
+  if (box === undefined || box === null) return null;
+  if (image === undefined) return 'An entry box needs its Image.';
+  return onImage(box) ? null : 'The entry box must lie on the Image.';
 }
 
 function choiceOf(v: Volume): VolumeChoice {
@@ -165,6 +188,8 @@ export function openScans({ pins, astia }: { pins: PinStore; astia: Astia }) {
       if (volume === undefined) {
         return { rejected: "That Volume isn't in this parish's church books." };
       }
+      const boxed = boxProblem(target);
+      if (boxed !== null) return { rejected: boxed };
       const { image } = target;
       if (image !== undefined) {
         const count = (await astia.volumeImages(target.volumeId)).length;
