@@ -307,7 +307,7 @@ function mediaType(bytes: Uint8Array) {
 export interface ClaudeReaderOptions {
   models?: Partial<Record<Question, string>>;
   effort?: Partial<Record<Question, Effort>>;
-  // The Image, scaled to send: pacedImages(astia), through the image
+  // The Image, scaled to send: pacedImages(cache), through the Scan
   // cache.
   image: (at: ImageRef) => Promise<Scan>;
   client?: Anthropic;

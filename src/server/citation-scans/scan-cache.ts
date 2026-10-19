@@ -1,86 +1,272 @@
-// The Scan cache setting: how much space Astia's Images may take. It belongs
-// to the install, so it is kept in the data folder rather than a viewer's
-// cookie, beside the local pins.
+// The Scan cache: Astia's Images kept on disk for the Scan viewer and the
+// vision pass. Full-size ones are fetched one at a time, the latest request
+// first; thumbnails, a few KB each, go straight away, so one never waits
+// behind a full Image. The cache is capped by a size the install sets,
+// kept in the data folder rather than a viewer's cookie, and drops the
+// least recently viewed Images first.
 
+import { readdir, rename, rm, stat, utimes } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import type { ScanCacheStatus } from '@common/types';
 
-import {
-  clearImageCache,
-  imageCacheCap,
-  imageCacheUsed,
-  setImageCacheCap,
-  shrinkImageCache
-} from './images';
+import type { Astia, ImageSize } from './astia';
+import type { ImageRef } from './reader';
 
 const GB = 1024 ** 3;
-const CAPS = [1, 2, 5, 10].map((n) => n * GB);
+const CAPS = [2, 5, 10, 20].map((n) => n * GB);
+const DEFAULT_CAP_BYTES = 2 * GB;
 
-let settingsFile = '';
-// Reading the saved cap, which the route waits for.
-let loaded: Promise<void> = Promise.resolve();
+// ---------------------------------------------------------------- the queue
+
+// One fetch of a file, shared by everyone waiting for it. A job no one waits
+// for any more is dropped before it starts.
+interface Job {
+  fileId: string;
+  run: () => Promise<void>;
+  started: boolean;
+  waiters: number;
+  done: PromiseWithResolvers<void>;
+}
+
+// Full-size fetches, one at a time. Waiting jobs are taken latest first:
+// stepping through a Volume wants the Image now on screen, not the ones
+// stepped past.
+function openQueue() {
+  const queued: Job[] = [];
+  const jobs = new Map<string, Job>();
+  let busy = false;
+
+  function pump() {
+    if (busy) return;
+    const job = queued.pop();
+    if (job === undefined) return;
+    busy = true;
+    job.started = true;
+    void job
+      .run()
+      .then(job.done.resolve)
+      .catch(job.done.reject)
+      .finally(() => {
+        jobs.delete(job.fileId);
+        busy = false;
+        pump();
+      });
+  }
+
+  function unqueue(job: Job) {
+    queued.splice(queued.indexOf(job), 1);
+  }
+
+  return async function inQueue(
+    fileId: string,
+    run: () => Promise<void>,
+    signal: AbortSignal
+  ) {
+    signal.throwIfAborted();
+    let job = jobs.get(fileId);
+    if (job === undefined) {
+      job = {
+        fileId,
+        run,
+        started: false,
+        waiters: 0,
+        done: Promise.withResolvers()
+      };
+      // Everyone waiting may have left by the time it fails.
+      job.done.promise.catch(() => undefined);
+      jobs.set(fileId, job);
+    } else if (!job.started) {
+      unqueue(job);
+    }
+    if (!job.started) queued.push(job);
+    job.waiters += 1;
+    const mine = job;
+    const left = Promise.withResolvers<never>();
+    function leave() {
+      mine.waiters -= 1;
+      if (mine.waiters === 0 && !mine.started) {
+        unqueue(mine);
+        jobs.delete(mine.fileId);
+      }
+      left.reject(signal.reason);
+    }
+    signal.addEventListener('abort', leave, { once: true });
+    pump();
+    try {
+      await Promise.race([mine.done.promise, left.promise]);
+    } finally {
+      signal.removeEventListener('abort', leave);
+    }
+  };
+}
+
+// ---------------------------------------------------------------- the files
+
+// A file's modification time is when it was last viewed.
+async function touch(path: string) {
+  const now = new Date();
+  try {
+    await utimes(path, now, now);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// The cached Images; none before the first is fetched. One removed while
+// they're listed is left out.
+async function cachedFiles(dir: string) {
+  const names = await readdir(dir).catch(() => []);
+  const files = await Promise.all(
+    names
+      .filter((name) => name.endsWith('.jpg'))
+      .map(async (name) => {
+        const path = join(dir, name);
+        const info = await stat(path).catch(() => null);
+        return info === null
+          ? null
+          : { path, size: info.size, viewed: info.mtimeMs };
+      })
+  );
+  return files.filter((f) => f !== null);
+}
+
+function totalSize(files: Array<{ size: number }>) {
+  return files.reduce((sum, f) => sum + f.size, 0);
+}
+
+// ---------------------------------------------------------------- the setting
 
 // The install's settings; none when the file is missing or unreadable.
-async function readSettings() {
+async function readSettings(file: string) {
   const none: Record<string, unknown> = {};
-  const file = Bun.file(settingsFile);
-  if (!(await file.exists())) return none;
-  const read = (await file.json().catch(() => null)) as typeof none | null;
+  const settings = Bun.file(file);
+  if (!(await settings.exists())) return none;
+  const read = (await settings.json().catch(() => null)) as typeof none | null;
   return read ?? none;
 }
 
-async function loadCap() {
-  const { scanCacheBytes } = await readSettings();
-  if (typeof scanCacheBytes === 'number' && CAPS.includes(scanCacheBytes)) {
-    setImageCacheCap(scanCacheBytes);
+// The cap saved for the install, if it's one of the choices.
+async function savedCap(file: string) {
+  const { scanCacheBytes } = await readSettings(file);
+  return typeof scanCacheBytes === 'number' && CAPS.includes(scanCacheBytes)
+    ? scanCacheBytes
+    : DEFAULT_CAP_BYTES;
+}
+
+// ---------------------------------------------------------------- the cache
+
+// The Scan cache of the data folder at `root`, fetching from `astia`: its
+// Images in `.astia-images`, its cap in `settings.local.json`.
+export function openScanCache({ astia, root }: { astia: Astia; root: string }) {
+  const dir = join(root, '.astia-images');
+  const settingsFile = join(root, 'settings.local.json');
+  const inQueue = openQueue();
+  let cap = DEFAULT_CAP_BYTES;
+  // Read before anything prunes or reports, so the default never stands in
+  // for a cap saved larger.
+  const ready = savedCap(settingsFile).then((saved) => {
+    cap = saved;
+  });
+
+  // Drops the least recently viewed files until the cache fits its cap; the
+  // file just fetched stays even when it alone is over.
+  async function prune(keep: string | null) {
+    await ready;
+    const files = await cachedFiles(dir);
+    let total = totalSize(files);
+    const dropped: string[] = [];
+    for (const f of files.sort((a, b) => a.viewed - b.viewed)) {
+      if (total <= cap) break;
+      if (f.path === keep) continue;
+      dropped.push(f.path);
+      total -= f.size;
+    }
+    await Promise.all(dropped.map((path) => rm(path, { force: true })));
   }
-}
 
-// The cap saved for this install, if any, from the data folder at `root`.
-export function useScanCacheSettings(root: string) {
-  settingsFile = join(root, 'settings.local.json');
-  loaded = loadCap();
-}
+  async function download(volumeId: string, fileId: string, path: string) {
+    const bytes = await astia.imageBytes(volumeId, fileId);
+    // Written aside and moved in, so a cut-off fetch never shows as cached.
+    const part = `${path}.part`;
+    await Bun.write(part, bytes);
+    await rename(part, path);
+    await prune(path);
+  }
 
-async function saveCap(cap: number) {
-  const settings = { ...(await readSettings()), scanCacheBytes: cap };
-  await Bun.write(settingsFile, `${JSON.stringify(settings, null, 2)}\n`);
-}
+  return {
+    // The cached file of a Volume's Image (numbered from 1), fetched if need
+    // be; null when the Volume has no such Image. Throws when Astia fails,
+    // or when `signal` aborts first.
+    async image(at: ImageRef, size: ImageSize, signal: AbortSignal) {
+      const images = await astia.volumeImages(at.volumeId, size);
+      const fileId = images[at.image - 1];
+      if (fileId === undefined) return null;
+      const path = join(dir, `${fileId}.jpg`);
+      if (await touch(path)) return path;
+      if (size === 'thumb') {
+        await download(at.volumeId, fileId, path);
+      } else {
+        await inQueue(
+          fileId,
+          () => download(at.volumeId, fileId, path),
+          signal
+        );
+      }
+      return path;
+    },
 
-async function status() {
-  const body: ScanCacheStatus = {
-    cap: imageCacheCap(),
-    used: await imageCacheUsed(),
-    caps: CAPS
+    // Whether a Volume's full-size Image is on disk already: a bulk job
+    // paces only the fetches that reach Astia.
+    async isCached(at: ImageRef) {
+      const fileId = (await astia.volumeImages(at.volumeId))[at.image - 1];
+      if (fileId === undefined) return false;
+      return await Bun.file(join(dir, `${fileId}.jpg`)).exists();
+    },
+
+    async status(): Promise<ScanCacheStatus> {
+      await ready;
+      return { cap, used: totalSize(await cachedFiles(dir)), caps: CAPS };
+    },
+
+    // Saves the cap for the install, and shrinks to it at once.
+    async setCap(bytes: number) {
+      await ready;
+      const settings = await readSettings(settingsFile);
+      const saved = { ...settings, scanCacheBytes: bytes };
+      await Bun.write(settingsFile, `${JSON.stringify(saved, null, 2)}\n`);
+      cap = bytes;
+      await prune(null);
+    },
+
+    async clear() {
+      const files = await cachedFiles(dir);
+      await Promise.all(files.map((f) => rm(f.path, { force: true })));
+    }
   };
-  return Response.json(body);
 }
 
-// A new cap takes effect at once, dropping the least recently viewed
-// Images over it.
-async function changeCap(req: Request) {
-  const body = (await req.json().catch(() => null)) as { cap?: unknown } | null;
-  const cap = body?.cap;
-  if (typeof cap !== 'number' || !CAPS.includes(cap)) {
-    return new Response(`expected { cap } of ${CAPS.join(', ')}`, {
-      status: 400
-    });
-  }
-  await saveCap(cap);
-  setImageCacheCap(cap);
-  await shrinkImageCache();
-  return await status();
-}
+export type ScanCache = ReturnType<typeof openScanCache>;
 
-// GET the status, PUT `{ cap }`, DELETE to clear the cache.
-export async function routeScanCache(req: Request) {
-  await loaded;
-  if (req.method === 'GET') return await status();
-  if (req.method === 'PUT') return await changeCap(req);
-  if (req.method === 'DELETE') {
-    await clearImageCache();
-    return await status();
+// GET the status, PUT `{ cap }` of the choices, DELETE to clear the cache;
+// each answers with the status.
+export async function routeScanCache(cache: ScanCache, req: Request) {
+  if (req.method === 'PUT') {
+    const body = (await req.json().catch(() => null)) as {
+      cap?: unknown;
+    } | null;
+    const cap = body?.cap;
+    if (typeof cap !== 'number' || !CAPS.includes(cap)) {
+      return new Response(`expected { cap } of ${CAPS.join(', ')}`, {
+        status: 400
+      });
+    }
+    await cache.setCap(cap);
+  } else if (req.method === 'DELETE') {
+    await cache.clear();
+  } else if (req.method !== 'GET') {
+    return new Response('method not allowed', { status: 405 });
   }
-  return new Response('method not allowed', { status: 405 });
+  return Response.json(await cache.status());
 }

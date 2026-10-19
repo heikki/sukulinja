@@ -1,27 +1,14 @@
 // Astia Links for Church-book references, resolved on demand, and the
 // Marks made in the app.
 
-import { join } from 'node:path';
-
 import type { Link, LinkResolution } from '@common/types';
 
 import { AstiaError } from './astia';
 import type { Astia } from './astia';
-import { setImageCacheDir } from './images';
 import { parishArchive, parishVolumes, resolveChurchBookRef } from './locate';
 import type { Candidate } from './matcher';
 import type { MarkTarget, PinStore } from './pins';
 import type { ChurchBookRef } from './record';
-import { useScanCacheSettings } from './scan-cache';
-
-// The Scan viewer's image cache and its setting live beside the datasets,
-// as do the local pins (see openPins) and Astia's answers (openAstia's
-// folder, by convention `.astia-cache`); the registry lists only slug-named
-// folders, so none shows as a dataset.
-export function useDataFolder(root: string) {
-  setImageCacheDir(join(root, '.astia-images'));
-  useScanCacheSettings(root);
-}
 
 // Where in the Volume a reference resolves.
 export interface VolumeLink {

@@ -120,7 +120,11 @@ describe('Scan cache setting', () => {
     await writeFile(join(images, 'a.jpg'), new Uint8Array(1000));
     expect(await send('GET')).toEqual({
       status: 200,
-      body: { cap: 2 * GB, used: 1000, caps: [GB, 2 * GB, 5 * GB, 10 * GB] }
+      body: {
+        cap: 2 * GB,
+        used: 1000,
+        caps: [2 * GB, 5 * GB, 10 * GB, 20 * GB]
+      }
     });
     expect((await send('PUT', { cap: 3 * GB })).status).toBe(400);
     expect((await send('PUT', { cap: 5 * GB })).body).toMatchObject({
@@ -136,7 +140,6 @@ describe('Scan cache setting', () => {
     });
     expect((await send('GET')).body).toMatchObject({ cap: 5 * GB });
     expect((await send('DELETE')).body).toMatchObject({ used: 0 });
-    await send('PUT', { cap: 2 * GB });
   });
 });
 

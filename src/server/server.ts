@@ -5,12 +5,12 @@ import type { Database } from 'bun:sqlite';
 
 import { AstiaError, openAstia, viewerUrls } from './citation-scans/astia';
 import type { Astia } from './citation-scans/astia';
-import { astiaImage } from './citation-scans/images';
 import { openPins } from './citation-scans/pins';
 import type { MarkTarget } from './citation-scans/pins';
 import type { ImageRef } from './citation-scans/reader';
-import { routeScanCache } from './citation-scans/scan-cache';
-import { openScans, useDataFolder } from './citation-scans/scans';
+import { openScanCache, routeScanCache } from './citation-scans/scan-cache';
+import type { ScanCache } from './citation-scans/scan-cache';
+import { openScans } from './citation-scans/scans';
 import type { Scans } from './citation-scans/scans';
 import { createCitations } from './citations';
 import type { DatasetRegistry } from './dataset-registry';
@@ -280,9 +280,20 @@ async function routeDataset(
   return null;
 }
 
+// What the routes outside any dataset read: Astia, and the Scan cache its
+// Images are kept in.
+interface Shared {
+  astia: Astia;
+  cache: ScanCache;
+}
+
 // An Astia Volume's Images, shared by every dataset: their Astia viewer
 // URLs in order, or one Image itself.
-async function routeAstia(astia: Astia, req: Request, pathname: string) {
+async function routeAstia(
+  { astia, cache }: Shared,
+  req: Request,
+  pathname: string
+) {
   const m = ASTIA_RE.exec(pathname);
   if (m === null) return null;
   if (req.method !== 'GET') {
@@ -291,7 +302,7 @@ async function routeAstia(astia: Astia, req: Request, pathname: string) {
   const { volumeId, n } = m.groups!;
   return n === undefined
     ? await handleViewerUrls(astia, volumeId!)
-    : await handleAstiaImage(astia, req, {
+    : await handleAstiaImage(cache, req, {
         volumeId: volumeId!,
         image: Number(n)
       });
@@ -314,15 +325,16 @@ function astiaFailed(err: unknown) {
 
 // `?size=thumb` gives the 250px one. An Image never changes, so the webview
 // may keep it.
-async function handleAstiaImage(astia: Astia, req: Request, at: ImageRef) {
+async function handleAstiaImage(cache: ScanCache, req: Request, at: ImageRef) {
   const thumb = new URL(req.url).searchParams.get('size') === 'thumb';
   const size = thumb ? 'thumb' : 'full';
   // null: the Volume has no such Image. A request given up as its client
   // left gets the same answer as Astia failing; no one reads it.
-  const path = await astiaImage(astia, at, size, req.signal).catch(
-    (err: unknown) =>
+  const path = await cache
+    .image(at, size, req.signal)
+    .catch((err: unknown) =>
       astiaFailed(req.signal.aborted ? new AstiaError('client left') : err)
-  );
+    );
   if (path instanceof Response) return path;
   if (path === null) return new Response('image not found', { status: 404 });
   return new Response(Bun.file(path), {
@@ -335,9 +347,11 @@ async function handleAstiaImage(astia: Astia, req: Request, at: ImageRef) {
 
 // Routes outside any dataset, shared by them all: Astia's Images and the
 // cache they're kept in.
-async function routeShared(astia: Astia, req: Request, pathname: string) {
-  if (pathname === '/settings/scan-cache') return await routeScanCache(req);
-  return await routeAstia(astia, req, pathname);
+async function routeShared(shared: Shared, req: Request, pathname: string) {
+  if (pathname === '/settings/scan-cache') {
+    return await routeScanCache(shared.cache, req);
+  }
+  return await routeAstia(shared, req, pathname);
 }
 
 export interface ApiOptions {
@@ -349,8 +363,8 @@ export function createApi(
   registry: DatasetRegistry,
   options: ApiOptions = {}
 ): ApiHandlers {
-  useDataFolder(registry.root);
   const astia = options.astia ?? openAstia(join(registry.root, '.astia-cache'));
+  const cache = openScanCache({ astia, root: registry.root });
   const scans = openScans({ pins: openPins(registry.root), astia });
   // Kept by the Database they're bound to: the registry alone decides when
   // a dataset's Database is closed and replaced (by an import or a delete),
@@ -394,7 +408,7 @@ export function createApi(
         const slug = pathname.slice('/datasets/'.length);
         return await handleDeleteDataset(registry, slug);
       }
-      const shared = await routeShared(astia, req, pathname);
+      const shared = await routeShared({ astia, cache }, req, pathname);
       if (shared !== null) return shared;
       const m = DATASET_RE.exec(pathname);
       if (m === null) return null;

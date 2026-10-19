@@ -1,21 +1,16 @@
-import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { Astia } from './astia';
-import {
-  astiaImage,
-  clearImageCache,
-  imageCacheUsed,
-  setImageCacheCap,
-  setImageCacheDir,
-  shrinkImageCache
-} from './images';
 import { memoryAstia } from './memory-astia';
+import { openScanCache } from './scan-cache';
+import type { ScanCache } from './scan-cache';
 
 const IMAGES = 10;
 const IMAGE_BYTES = 1000;
+const GB = 1024 ** 3;
 
 let dir = '';
 // File ids in the order Astia was asked for them.
@@ -43,17 +38,19 @@ const astia: Astia = {
   }
 };
 
+// Opened afresh on each test's folder.
+let cache: ScanCache = openScanCache({ astia, root: dir });
+
 function open(
   volumeId: string,
   image: number,
   signal = new AbortController().signal
 ) {
-  return astiaImage(astia, { volumeId, image }, 'full', signal);
+  return cache.image({ volumeId, image }, 'full', signal);
 }
 
 function thumb(volumeId: string, image: number) {
-  return astiaImage(
-    astia,
+  return cache.image(
     { volumeId, image },
     'thumb',
     new AbortController().signal
@@ -71,9 +68,8 @@ async function outcome(request: Promise<string | null>) {
 }
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), 'astia-images-'));
-  setImageCacheDir(join(dir, 'images'));
-  setImageCacheCap(500 * 1024 * 1024);
+  dir = await mkdtemp(join(tmpdir(), 'scan-cache-'));
+  cache = openScanCache({ astia, root: dir });
   fetched = [];
   hold = null;
 });
@@ -158,7 +154,7 @@ test('keeps a request another client still waits for', async () => {
 });
 
 test('drops the least recently viewed Images past the cap', async () => {
-  setImageCacheCap(2.5 * IMAGE_BYTES);
+  await cache.setCap(2.5 * IMAGE_BYTES);
   await open('106', 1);
   await Bun.sleep(5);
   await open('106', 2);
@@ -166,21 +162,76 @@ test('drops the least recently viewed Images past the cap', async () => {
   await open('106', 1);
   await Bun.sleep(5);
   await open('106', 3);
-  const cached = await readdir(join(dir, 'images'));
+  const cached = await readdir(join(dir, '.astia-images'));
   expect(cached.sort()).toEqual(['106-f1.jpg', '106-f3.jpg']);
 });
 
+// The space the cached Images take.
+async function used() {
+  return (await cache.status()).used;
+}
+
 test('shrinks to a lowered cap at once, and clears', async () => {
-  expect(await imageCacheUsed()).toBe(0);
+  expect(await used()).toBe(0);
   await open('109', 1);
   await Bun.sleep(5);
   await open('109', 2);
   await Bun.sleep(5);
   await open('109', 3);
-  expect(await imageCacheUsed()).toBe(3 * IMAGE_BYTES);
-  setImageCacheCap(1.5 * IMAGE_BYTES);
-  await shrinkImageCache();
-  expect(await readdir(join(dir, 'images'))).toEqual(['109-f3.jpg']);
-  await clearImageCache();
-  expect(await imageCacheUsed()).toBe(0);
+  expect(await used()).toBe(3 * IMAGE_BYTES);
+  await cache.setCap(1.5 * IMAGE_BYTES);
+  expect(await readdir(join(dir, '.astia-images'))).toEqual(['109-f3.jpg']);
+  await cache.clear();
+  expect(await used()).toBe(0);
+});
+
+async function writeSettings(root: string, settings: unknown) {
+  await mkdir(root, { recursive: true });
+  await Bun.write(join(root, 'settings.local.json'), JSON.stringify(settings));
+}
+
+test('reads the cap saved for the install before anything else', async () => {
+  const root = join(dir, 'saved');
+  await writeSettings(root, { scanCacheBytes: 10 * GB });
+  expect(await openScanCache({ astia, root }).status()).toEqual({
+    cap: 10 * GB,
+    used: 0,
+    caps: [2 * GB, 5 * GB, 10 * GB, 20 * GB]
+  });
+  // A cap no longer offered falls back to the default.
+  await writeSettings(root, { scanCacheBytes: 1 * GB });
+  expect((await openScanCache({ astia, root }).status()).cap).toBe(2 * GB);
+});
+
+test("saving a cap keeps the install's other settings", async () => {
+  await writeSettings(dir, { theme: 'dark', scanCacheBytes: 5 * GB });
+  await cache.setCap(20 * GB);
+  expect(await Bun.file(join(dir, 'settings.local.json')).json()).toEqual({
+    theme: 'dark',
+    scanCacheBytes: 20 * GB
+  });
+  expect((await openScanCache({ astia, root: dir }).status()).cap).toBe(
+    20 * GB
+  );
+});
+
+test('Scan caches on two data folders share neither files nor a queue', async () => {
+  const other = openScanCache({ astia, root: join(dir, 'other') });
+  await open('101', 9);
+  hold = Promise.withResolvers();
+  const held = open('101', 1);
+  await until(() => fetched.length === 2);
+  // Not queued behind the held Image: the other cache fetches its own.
+  const elsewhere = other.image(
+    { volumeId: '101', image: 9 },
+    'full',
+    new AbortController().signal
+  );
+  await until(() => fetched.length === 3);
+  hold.resolve();
+  expect(await elsewhere).toBe(
+    join(dir, 'other', '.astia-images', '101-f9.jpg')
+  );
+  await held;
+  expect(fetched).toEqual(['101-f9', '101-f1', '101-f9']);
 });

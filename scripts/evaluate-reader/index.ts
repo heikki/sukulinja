@@ -23,7 +23,7 @@ import { openAstia } from '@server/citation-scans/astia';
 import { openPins } from '@server/citation-scans/pins';
 import { cachedReader } from '@server/citation-scans/reader';
 import type { ImageRef, Question, Reader } from '@server/citation-scans/reader';
-import { useDataFolder } from '@server/citation-scans/scans';
+import { openScanCache } from '@server/citation-scans/scan-cache';
 
 import { claudeReader, DEFAULT_MODELS } from '../vision/claude-reader';
 import type { Spend } from '../vision/claude-reader';
@@ -201,7 +201,6 @@ async function main() {
     process.exit(2);
   }
   const root = resolve(values.data ?? 'data');
-  useDataFolder(root);
   const limit = values.limit === undefined ? Infinity : Number(values.limit);
 
   const refs = datasetRefs(join(root, values.dataset, 'db.sqlite'));
@@ -223,7 +222,8 @@ async function main() {
   const pageModels = models(values['pages-models'], DEFAULT_MODELS.pages);
   const dateModels = models(values['dates-models'], DEFAULT_MODELS.dates);
   const entryModels = models(values['entry-models'], DEFAULT_MODELS.entry);
-  const image = pacedImages(openAstia(join(root, '.astia-cache')));
+  const astia = openAstia(join(root, '.astia-cache'));
+  const image = pacedImages(openScanCache({ astia, root }));
   const { results, lines, spentInAll } = await runAll({ root, image }, [
     ...pageModels.map((model) => ({
       question: 'pages' as const,

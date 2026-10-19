@@ -163,9 +163,9 @@ function unitsOf(json: { sisaltyvat?: XmlNode[] | '' }) {
 
 // Astia over HTTP. Its answers about archives and volumes are kept in
 // `cacheDir` for good, and those requests go out one at a time with a gap,
-// so callers can fan out with Promise.all. Images aren't kept here (see
-// images.ts) or queued: Astia's own ZIP download fetches them back to
-// back, so callers queue them as they see fit.
+// so callers can fan out with Promise.all. Images aren't kept here (the
+// Scan cache keeps them) or queued: Astia's own ZIP download fetches them
+// back to back, so callers queue them as they see fit.
 export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
   const send = options.fetch ?? fetch;
   const gapMs = options.gapMs ?? REQUEST_GAP_MS;
