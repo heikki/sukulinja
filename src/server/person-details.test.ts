@@ -1,9 +1,10 @@
 import { expect, test } from 'bun:test';
 
+import { createCitations } from './citations';
 import { openDb } from './db';
 import { importGedcom } from './gedcom-import';
 import { parseGedcom } from './gedcom-parser';
-import { createPersonDetails, describeRef, entryOf } from './person-details';
+import { createPersonDetails } from './person-details';
 
 const RIPPI =
   'https://www.myheritage.fi/research/collection-10509/x?itemId=1&action=showRecord';
@@ -38,10 +39,14 @@ const GEDCOM = [
   ''
 ].join('\n');
 
-test('serves facts in date order and church books first', () => {
+test('serves facts in date order, and the Citations', () => {
   const db = openDb(':memory:');
   importGedcom(db, parseGedcom(GEDCOM), () => null);
-  const details = createPersonDetails(db)(1);
+  const { citations, ...details } = createPersonDetails(
+    db,
+    createCitations(db)
+  )(1)!;
+  expect(citations.map((c) => c.id)).toEqual([2, 1]);
   expect(details).toEqual({
     id: 1,
     name: 'Matti Esimerkki',
@@ -79,42 +84,9 @@ test('serves facts in date order and church books first', () => {
         value: null,
         spouse: null
       }
-    ],
-    citations: [
-      {
-        id: 2,
-        source: 'Suomalaiset rippi- ja lastenkirjat, 1657-1915',
-        reference: 'Pää- ja rippikirjat 1794–1808\u00a0· p.\u00a0139',
-        entry: 'p.\u00a0139',
-        page: RIPPI,
-        url: RIPPI,
-        record: {
-          name: 'Matti Esimerkki',
-          fields: [
-            { label: 'Kirja', value: 'Rippikirja, 1794 - 1808' },
-            { label: 'Sivu', value: '139' }
-          ],
-          household: []
-        },
-        text: null,
-        churchBook: true,
-        citedPage: 139
-      },
-      {
-        id: 1,
-        source: null,
-        reference: null,
-        entry: null,
-        page: null,
-        url: null,
-        record: null,
-        text: 'Family bible',
-        churchBook: false,
-        citedPage: null
-      }
     ]
   });
-  expect(createPersonDetails(db)(99)).toBeNull();
+  expect(createPersonDetails(db, createCitations(db))(99)).toBeNull();
 });
 
 test('serves birth first and death last, whatever their dates', () => {
@@ -132,36 +104,9 @@ test('serves birth first and death last, whatever their dates', () => {
   ].join('\n');
   const db = openDb(':memory:');
   importGedcom(db, parseGedcom(gedcom), () => null);
-  const tags = createPersonDetails(db)(1)?.facts.map((f) => f.tag);
+  const tags = createPersonDetails(
+    db,
+    createCitations(db)
+  )(1)?.facts.map((f) => f.tag);
   expect(tags).toEqual(['BIRT', 'RESI', 'OCCU', 'DEAT', 'BURI']);
-});
-
-test('names a church-book reference by what it gives', () => {
-  const ref = {
-    url: RIPPI,
-    collection: '30233',
-    parish: 'Pitäjä',
-    kind: 'kastetut' as const,
-    years: { from: 1830, to: 1830 },
-    page: null,
-    places: [],
-    recordId: null,
-    name: null,
-    date: null,
-    household: null,
-    named: []
-  };
-  expect(describeRef(ref)).toBe(
-    'Pitäjä\u00a0· Syntyneiden ja kastettujen luettelot 1830'
-  );
-  expect(describeRef({ ...ref, kind: 'lasten', years: null, page: 2 })).toBe(
-    'Pitäjä\u00a0· Lastenkirjat\u00a0· p.\u00a02'
-  );
-  expect(
-    describeRef({ ...ref, parish: null, kind: null, years: null })
-  ).toBeNull();
-  expect(entryOf({ ...ref, date: '1761-03-03' })).toBe('3.3.1761');
-  expect(entryOf({ ...ref, date: '1761-03' })).toBe('3/1761');
-  expect(entryOf({ ...ref, date: '1761', page: 12 })).toBe('p.\u00a012');
-  expect(entryOf(ref)).toBeNull();
 });

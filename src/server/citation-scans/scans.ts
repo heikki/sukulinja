@@ -1,9 +1,9 @@
-// Astia scan links for church-book citations, resolved on demand, and
-// corrections to them made in the app.
+// Astia scan links for Church-book references, resolved on demand, and
+// the Marks made in the app.
 
 import { join } from 'node:path';
 
-import type { Box, Scan, ScanResolution } from '@common/types';
+import type { Box, Scan } from '@common/types';
 
 import {
   addLocalAnchor,
@@ -17,7 +17,6 @@ import { archiveVolumes, setCacheDir, volumeImages } from './astia';
 import { setImageCacheDir } from './images';
 import { parishArchive, parishVolumes, resolveChurchBookRef } from './locate';
 import type { Candidate } from './matcher';
-import { CHURCH_COLLECTIONS, collectionOf, parseChurchBookRef } from './record';
 import type { ChurchBookRef } from './record';
 import { useScanCacheSettings } from './scan-cache';
 
@@ -30,18 +29,11 @@ export function useDataFolder(root: string) {
   useScanCacheSettings(root);
 }
 
-export function isChurchBook(page: string | null): page is string {
-  const collection = page === null ? null : collectionOf(page);
-  return collection !== null && CHURCH_COLLECTIONS.has(collection);
-}
-
-export async function resolveScans(
-  page: string,
-  text: string | null
-): Promise<ScanResolution> {
+// Where the reference links, with the Anchors and Placements saved so far.
+export async function resolveRef(ref: ChurchBookRef) {
   try {
     return await resolveChurchBookRef(
-      parseChurchBookRef(page, text ?? ''),
+      ref,
       await loadAnchors(),
       await loadPlacements()
     );
@@ -109,14 +101,11 @@ export async function volumeScans(volumeId: string, refs: ChurchBookRef[]) {
   );
 }
 
-// The Image the user marks as where the record is, in any Volume of the
-// parish.
-export interface Correction {
+// The Image a Mark says the record is on, in any Volume of the parish.
+export interface MarkTarget {
   volumeId: string;
   image: number;
 }
-
-export type CorrectionResult = ScanResolution | { rejected: string };
 
 // The Volumes the reference links by the Book it cites, not by an earlier
 // placement, with its Image in each: marking an Image in one of them saves
@@ -248,12 +237,8 @@ export async function saveVisionMatch(
   }
 }
 
-export async function correctScan(
-  page: string,
-  text: string | null,
-  target: Correction
-): Promise<CorrectionResult> {
-  const ref = parseChurchBookRef(page, text ?? '');
+// Saves a Mark, and gives the reference's links as they now resolve.
+export async function markRef(ref: ChurchBookRef, target: MarkTarget) {
   const volume = (await parishVolumes(ref.parish)).find(
     (v) => v.id === target.volumeId
   );
@@ -270,5 +255,5 @@ export async function correctScan(
   }
   const linked = (await linkedImages(ref)).has(target.volumeId);
   await save(ref, target, volume.label, linked);
-  return await resolveScans(page, text);
+  return await resolveRef(ref);
 }

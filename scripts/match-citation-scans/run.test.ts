@@ -5,8 +5,11 @@ import { afterAll, afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
 
 import { loadAnchors, loadPlacements } from '@server/citation-scans/anchors';
 import type { Reader } from '@server/citation-scans/reader';
-import { parseChurchBookRef } from '@server/citation-scans/record';
-import { resolveScans, useDataFolder } from '@server/citation-scans/scans';
+import {
+  churchBookRefOf,
+  parseChurchBookRef
+} from '@server/citation-scans/record';
+import { resolveRef, useDataFolder } from '@server/citation-scans/scans';
 import {
   baptismCitation,
   rippiCitation,
@@ -142,7 +145,7 @@ async function run(
 }
 
 async function scanOf(c: { page: string; text: string }) {
-  const resolved = await resolveScans(c.page, c.text);
+  const resolved = await resolveRef(churchBookRefOf(c.page, c.text)!);
   return 'scans' in resolved ? resolved.scans : resolved;
 }
 

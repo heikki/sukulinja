@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 
+import { rippiCitation, seedParish } from './citation-scans/test-parish';
 import { DatasetRegistry } from './dataset-registry';
 import { createApi, createStaticFetch } from './server';
 
@@ -122,5 +123,60 @@ describe('Scan cache setting', () => {
     expect((await send('GET')).body).toMatchObject({ cap: 5 * GB });
     expect((await send('DELETE')).body).toMatchObject({ used: 0 });
     await send('PUT', { cap: 2 * GB });
+  });
+});
+
+describe("A dataset's Citations", () => {
+  async function seedDataset() {
+    const data = join(root, 'data');
+    await seedParish(data);
+    const staging = await new DatasetRegistry(data).createStaging('juva');
+    const insert = staging.db.prepare(
+      `INSERT INTO citations (scope_type, scope_id, page, text, sort_order)
+       VALUES ('person', 1, ?, ?, ?)`
+    );
+    const rippi = rippiCitation(5001, '1790 - 1796', 12);
+    insert.run(rippi.page, rippi.text, 0);
+    insert.run(null, 'Family bible', 1);
+    await staging.commit();
+  }
+
+  async function mark(citationId: number, body: unknown) {
+    const res = await fetch(
+      new Request(`http://localhost/d/juva/api/citations/${citationId}/scans`, {
+        method: 'POST',
+        body: JSON.stringify(body)
+      })
+    );
+    return res.status;
+  }
+
+  test('streams scan lines, saves Marks, and lists a Volume', async () => {
+    const astia = spyOn(globalThis, 'fetch').mockImplementation((() => {
+      throw new Error('no requests to Astia in these tests');
+    }) as unknown as typeof globalThis.fetch);
+    try {
+      await seedDataset();
+      const scans = await get('/d/juva/api/persons/1/scans');
+      expect(scans.headers.get('content-type')).toBe('application/x-ndjson');
+      const lines = (await scans.text())
+        .trim()
+        .split('\n')
+        .map((l) => JSON.parse(l) as { citationId: number });
+      expect(lines.map((l) => l.citationId)).toEqual([1]);
+
+      expect(await mark(1, { volumeId: 'juva-1', image: 7 })).toBe(200);
+      expect(await mark(1, { volumeId: 'juva-1', image: 99 })).toBe(400);
+      expect(await mark(1, { image: 7 })).toBe(400);
+      expect(await mark(2, { volumeId: 'juva-1', image: 7 })).toBe(404);
+
+      const volume = await get('/d/juva/api/volumes/juva-1/citations');
+      expect(((await volume.json()) as unknown[]).length).toBe(1);
+      expect(
+        (await get('/d/juva/api/volumes/elsewhere/citations')).status
+      ).toBe(404);
+    } finally {
+      astia.mockRestore();
+    }
   });
 });

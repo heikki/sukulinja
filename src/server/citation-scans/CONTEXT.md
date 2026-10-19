@@ -50,6 +50,10 @@ A Volume whose Images hold the book twice, as if filmed twice; the copies drift 
 **Placement**:
 A Church-book reference with no Record number put on an Image: as a **Vision match**, or by hand.
 
+**Mark**:
+Saying by hand, in the Scan viewer, which Image a Church-book reference's record is on. A cited page in a Volume the reference already links becomes an Anchor; otherwise the reference gets a Placement. One with a Record number is also a Seen record there. Confirming a **Vision match** is a Mark too.
+_Avoid_: correction (the link it replaces is often not wrong, only less exact).
+
 **Scan viewer**:
 Where the app shows the Image a Church-book reference links, opened from its source. You step through the link's Volume there; beside the scan are the people whose references link the Image shown, and a **Vision match** among them can be confirmed.
 _Avoid_: record viewer (a record is MyHeritage's), Astia viewer (Astia's own site).
@@ -91,7 +95,7 @@ Finding the person's name on the Image a search landed on, or on the Images arou
 A Seen record or Placement the vision model saved after a Confirmation, as opposed to one marked by hand. It is Placed all the same, and the source panel and Scan viewer say it's a vision match. Confirming it beside the Scan viewer saves it again by hand, keeping where the model said the entry is.
 
 **Provenance**:
-Who saved an Anchor, Seen record or Placement: by hand (everything shipped, and every Vision match confirmed in the Scan viewer) or by the vision model. A hand correction always wins over a vision one.
+Who saved an Anchor, Seen record or Placement: by hand (everything shipped, and every Vision match confirmed in the Scan viewer) or by the vision model. What's saved by hand always wins over the vision model's.
 
 **Same scan** / **Different photograph**:
 Whether a Seen record's Frame is the very scan Astia holds (same framing, shadows, blots) or a separate filming of the same page, matched by its content — page number, or village, house and household where the book has no page numbers.

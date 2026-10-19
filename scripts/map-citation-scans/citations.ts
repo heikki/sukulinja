@@ -1,10 +1,7 @@
 // Church-book references from a MyHeritage GEDCOM export, read from the
 // SOUR citations whose PAGE is a MyHeritage record URL.
 
-import {
-  CHURCH_COLLECTIONS,
-  parseChurchBookRef
-} from '@server/citation-scans/record';
+import { churchBookRefOf } from '@server/citation-scans/record';
 import type { ChurchBookRef } from '@server/citation-scans/record';
 import { parseGedcom } from '@server/gedcom-parser';
 import type { GedNode } from '@server/gedcom-parser';
@@ -17,12 +14,11 @@ export function churchBookRefs(gedcom: string) {
       const text = node.children
         .find((c) => c.tag === 'DATA')
         ?.children.find((c) => c.tag === 'TEXT')?.value;
-      if (page !== undefined && /^https?:/.test(page)) {
-        out.push(parseChurchBookRef(page, text ?? ''));
-      }
+      const ref = churchBookRefOf(page ?? null, text ?? null);
+      if (ref !== null) out.push(ref);
     }
     for (const c of node.children) walk(c);
   }
   for (const r of parseGedcom(gedcom)) walk(r);
-  return out.filter((c) => CHURCH_COLLECTIONS.has(c.collection));
+  return out;
 }

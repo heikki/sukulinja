@@ -8,18 +8,13 @@ import type { FamilyRow, PersonRow } from '@common/types';
 import { imageLinks } from './citation-scans/astia';
 import { astiaImage } from './citation-scans/images';
 import { routeScanCache } from './citation-scans/scan-cache';
-import {
-  correctScan,
-  isChurchBook,
-  resolveScans,
-  useDataFolder
-} from './citation-scans/scans';
-import type { Correction } from './citation-scans/scans';
+import { useDataFolder } from './citation-scans/scans';
+import type { MarkTarget } from './citation-scans/scans';
+import { createCitations } from './citations';
 import type { DatasetRegistry } from './dataset-registry';
 import { importDataset, slugFromFilename } from './import-dataset';
 import { createPersonDetails } from './person-details';
 import { runPool } from './pool';
-import { createVolumeCitations } from './volume-citations';
 
 const DATASET_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?<rest>\/.*)?$/u;
 const ASTIA_RE =
@@ -40,7 +35,7 @@ interface DatasetHandlers {
   handleFamilies: () => Response;
   handlePerson: (id: number) => Response;
   handlePersonScans: (id: number) => Response;
-  handleCorrection: (id: number, correction: Correction) => Promise<Response>;
+  handleMark: (id: number, target: MarkTarget) => Promise<Response>;
   handleVolumeCitations: (volumeId: string) => Promise<Response>;
   handleMedia: (rest: string, mediaRoot: string) => Promise<Response>;
 }
@@ -85,19 +80,8 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
   const listFamilyChildren = db.prepare(
     'SELECT family_id, person_id FROM family_children ORDER BY family_id, sort_order'
   );
-  const personDetails = createPersonDetails(db);
-  const volumeCitations = createVolumeCitations(db);
-  const getCitation = db.prepare<
-    { page: string | null; text: string | null },
-    [number]
-  >('SELECT page, text FROM citations WHERE id = ?');
-  const listCitations = db.prepare<
-    { id: number; page: string | null; text: string | null },
-    [number]
-  >(
-    `SELECT id, page, text FROM citations
-     WHERE scope_type = 'person' AND scope_id = ? ORDER BY sort_order`
-  );
+  const citations = createCitations(db);
+  const personDetails = createPersonDetails(db, citations);
 
   return {
     handlePersons() {
@@ -163,28 +147,20 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
     // and throttled, so a person's citations share one streamed request
     // rather than holding a connection each.
     handlePersonScans(id) {
-      const rows = listCitations
-        .all(id)
-        .filter((r): r is typeof r & { page: string } => isChurchBook(r.page));
-      let open = true;
+      const lines = citations.scansOf(id);
       const enc = new TextEncoder();
+      // A cancelled stream lets the resolutions under way finish, unread.
       const stream = new ReadableStream<Uint8Array>({
-        async start(controller) {
-          await Promise.all(
-            rows.map(async (r) => {
-              const line = {
-                citationId: r.id,
-                ...(await resolveScans(r.page, r.text))
-              };
-              if (open) {
-                controller.enqueue(enc.encode(`${JSON.stringify(line)}\n`));
-              }
-            })
-          );
-          if (open) controller.close();
+        async pull(controller) {
+          const next = await lines.next();
+          if (next.done === true) {
+            controller.close();
+          } else {
+            controller.enqueue(enc.encode(`${JSON.stringify(next.value)}\n`));
+          }
         },
         cancel() {
-          open = false;
+          void lines.return(undefined);
         }
       });
       return new Response(stream, {
@@ -192,12 +168,11 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
       });
     },
 
-    async handleCorrection(id, correction) {
-      const row = getCitation.get(id);
-      if (row === null || !isChurchBook(row.page)) {
+    async handleMark(id, target) {
+      const result = await citations.mark(id, target);
+      if (result === null) {
         return new Response('citation not found', { status: 404 });
       }
-      const result = await correctScan(row.page, row.text, correction);
       return 'rejected' in result
         ? new Response(result.rejected, { status: 400 })
         : Response.json({ citationId: id, ...result });
@@ -205,7 +180,7 @@ function createDatasetHandlers(db: Database): DatasetHandlers {
 
     async handleVolumeCitations(volumeId) {
       try {
-        const rows = await volumeCitations(volumeId);
+        const rows = await citations.inVolume(volumeId);
         return rows === null
           ? new Response("volume not in the dataset's parishes", {
               status: 404
@@ -342,7 +317,7 @@ async function handleDeleteDataset(
 }
 
 // `{ volumeId, image }`; anything else is rejected.
-async function readCorrection(req: Request): Promise<Correction | null> {
+async function readMark(req: Request): Promise<MarkTarget | null> {
   const body = (await req.json().catch(() => null)) as Record<
     string,
     unknown
@@ -352,18 +327,14 @@ async function readCorrection(req: Request): Promise<Correction | null> {
     : null;
 }
 
-async function routeCorrection(
-  req: Request,
-  handlers: DatasetHandlers,
-  id: number
-) {
+async function routeMark(req: Request, handlers: DatasetHandlers, id: number) {
   if (req.method !== 'POST') {
     return new Response('method not allowed', { status: 405 });
   }
-  const correction = await readCorrection(req);
-  return correction === null
+  const target = await readMark(req);
+  return target === null
     ? new Response('expected { volumeId, image }', { status: 400 })
-    : await handlers.handleCorrection(id, correction);
+    : await handlers.handleMark(id, target);
 }
 
 async function routeDataset(
@@ -383,7 +354,7 @@ async function routeDataset(
   }
   const citation = /^\/api\/citations\/(?<id>\d+)\/scans$/.exec(rest);
   if (citation !== null) {
-    return await routeCorrection(req, handlers, Number(citation.groups!.id));
+    return await routeMark(req, handlers, Number(citation.groups!.id));
   }
   const volume = /^\/api\/volumes\/(?<id>[^/]+)\/citations$/.exec(rest);
   if (volume !== null) {
