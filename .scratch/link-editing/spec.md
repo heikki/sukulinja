@@ -6,7 +6,7 @@ Glossary (`src/server/citation-scans/CONTEXT.md`): **Link**, **Mark**, **Box**, 
 
 The only Mark in the app is Confirm on a Vision match. When a Link's Volume is wrong (years or a Record range chose badly, or a Split reference opened on the wrong candidate), or its Image is a few off, or the entry is boxed wrong, there is no way to say so. The Scan viewer can't even switch Volumes: it shows only the Volume of the Link it was opened on.
 
-Shipped so far: the pending-change bar with its leaving guard; the scan's context menu with Change Volume… (saved as a Volume-only Mark), Mark this Image, and drawing, adjusting and removing the entry Box (`viewer.ts`, `edit.ts`, `layer.ts`, `menu.ts`, `volumes.ts`, `GET /api/citations/:id/volumes`). Still to come: reusing a Box, and Not known.
+Shipped so far: the pending-change bar with its leaving guard; the scan's context menu with Change Volume… (saved as a Volume-only Mark), Mark this Image, and drawing, editing and deleting the entry Box (`viewer.ts`, `edit.ts`, `layer.ts`, `menu.ts`, `volumes.ts`, `GET /api/citations/:id/volumes`). Still to come: Not known.
 
 ## Design
 
@@ -34,13 +34,12 @@ Editing is always for the viewer's **current source**, one at a time. Nothing sa
 - **Draw the entry…**: the cursor becomes a crosshair; drag a rectangle, Esc cancels. It sets the pending Box, and the Image shown if it wasn't set yet.
 - **Edit box**: on the source's own entry Box, makes it pending (a Vision match's too), to adjust. While a Box is pending it has corner and edge handles, dashed in the accent. Dragging a handle resizes it; dragging inside moves it; dragging elsewhere still pans.
 - **Delete box**: on the source's own entry Box, back to Marked Image.
-- **This is the entry for <source>**: on an existing Box on the Image, copies that Box into the pending change, e.g. a parent's citation of a child's baptism already boxed for the child.
 
 A pending change starts from the Link as it is. Editing a Vision match starts from the match's Box, and Save makes it a hand Mark at that Box (or wherever it was moved).
 
 ### Ways in
 
-- **Context menu** on the scan, drawn in the page. The app blocks WebKit's own menu there. On the source's own entry Box it offers only that Box: Edit box (unless it's already pending) and Delete box. Elsewhere: Mark this Image (while it would change the Link), Draw the entry…, Change Volume…. Right-clicking someone else's Box offers "This is the entry for <source>". It handles Esc and focus as the viewer's other controls do (marked handled, so macOS doesn't beep).
+- **Context menu** on the scan, drawn in the page. The app blocks WebKit's own menu there. On the source's own entry Box it offers only that Box: Edit box (unless it's already pending) and Delete box. Elsewhere: Mark this Image (while it would change the Link), Draw the entry…, Change Volume…. It handles Esc and focus as the viewer's other controls do (marked handled, so macOS doesn't beep).
 - **Confirm** on a Vision match's row stays one click and saves at once. Fixing the match goes through editing instead.
 
 ### What a Mark replaces
@@ -54,7 +53,8 @@ A pending change starts from the Link as it is. Editing a Vision match starts fr
 
 - Clearing a saved Mark back to the estimate: `issues/05-clear-a-mark.md`.
 - Editing several sources at once.
-- Creating a Citation from the scan: `../create-citations/issues/01-cite-from-the-scan.md`. Keep the pending change (Volume, Image, Box) separate from the stored Citation, and keep drawing and reusing a Box independent of whose source it is, so a new Citation can later go through the same bar and menu.
+- Reusing another source's Box for this one: people citing the same record already share a Box, and another entry is one drag to draw (`issues/04-reuse-a-box.md`, wontfix).
+- Creating a Citation from the scan: `../create-citations/issues/01-cite-from-the-scan.md`. Keep the pending change (Volume, Image, Box) separate from the stored Citation, and keep drawing a Box independent of whose source it is, so a new Citation can later go through the same bar and menu.
 
 ## Glossary to update as it ships
 
