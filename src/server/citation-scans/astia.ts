@@ -203,8 +203,8 @@ export function viewerUrl(volumeId: string, fileId: string) {
   return `${ASTIA}/viewer/?fileId=${fileId}&aineistoId=${volumeId}`;
 }
 
-// Astia's viewer link for each of the volume's images, in order.
-export async function imageLinks(volumeId: string) {
+// Astia's viewer URL for each of the volume's images, in order.
+export async function viewerUrls(volumeId: string) {
   return (await volumeImages(volumeId)).map((f) => viewerUrl(volumeId, f));
 }
 

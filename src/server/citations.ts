@@ -1,8 +1,8 @@
 // A dataset's Citations: each person's, as the panel shows them, and for the
-// Church-book references among them their scan links, their Marks, and the
+// Church-book references among them their Links, their Marks, and the
 // Volume's citations the Scan viewer lists. Which Citations are church
 // books is decided once, by churchBookRefOf, so a row the panel marks as a
-// church book always gets a scan line, and no other row does.
+// church book always gets a line of Links, and no other row does.
 
 import type { Database } from 'bun:sqlite';
 
@@ -16,7 +16,7 @@ import {
   readRecord
 } from './citation-scans/record';
 import type { ChurchBookRef } from './citation-scans/record';
-import { markRef, resolveRef, volumeScans } from './citation-scans/scans';
+import { markRef, resolveRef, volumeLinks } from './citation-scans/scans';
 import type { MarkTarget } from './citation-scans/scans';
 
 interface CitationDbRow {
@@ -154,17 +154,17 @@ export function createCitations(db: Database) {
         (c): c is { row: CitationDbRow; book: ChurchBookRef } => c.book !== null
       )
     );
-    const scans = await volumeScans(
+    const links = await volumeLinks(
       volumeId,
       church.map((c) => c.book)
     );
-    if (scans === null) return null;
+    if (links === null) return null;
     return church.flatMap(({ row, book }, i): VolumeCitation[] => {
-      const found = scans[i];
+      const found = links[i];
       if (found === null || found === undefined) return [];
-      const { scan, split } = found;
+      const { link, split } = found;
       const citation = toCitation(row, book);
-      return [{ personId: row.personId, citation, scan, split }];
+      return [{ personId: row.personId, citation, link, split }];
     });
   }
 
@@ -179,7 +179,7 @@ export function createCitations(db: Database) {
 
     // A line for each of the person's Church-book references, as each
     // resolves: Astia is slow, so the first needn't wait for the last.
-    async *scansOf(personId: number) {
+    async *linksOf(personId: number) {
       const pending = new Map(
         cited(ofPersonQuery.all(personId)).flatMap(({ row, book }) =>
           book === null

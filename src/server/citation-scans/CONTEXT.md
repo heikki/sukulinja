@@ -32,8 +32,12 @@ One run of entries of a kind in a Volume, in date order: baptisms, or marriages 
 _Avoid_: book (the kind a reference cites, which a Volume may hold more than one register of).
 
 **Image**:
-One scan in a Volume, numbered from 1 in Astia's order. What a link opens.
+One scan in a Volume, numbered from 1 in Astia's order. What a **Link** opens.
 _Avoid_: page (written on the scan), frame (MyHeritage's numbering).
+
+**Link**:
+Where a Church-book reference points in Astia: an Image of a Volume, or only the Volume, with its **Certainty**. A Split reference has one per candidate Volume.
+_Avoid_: scan (the Image itself), URL (the citation's own web address).
 
 **Page number**:
 The number written in the book. Rippikirjat usually number spreads (one number per Image), lastenkirjat pages (two per Image). A Volume may start its numbering over partway through.
@@ -48,8 +52,8 @@ A Volume whose Images hold the book twice, as if filmed twice; the copies drift 
 Where the app shows the Image a Church-book reference links, opened from its source. You step through the link's Volume there; beside the scan are the people whose references link the Image shown, and a **Vision match** among them can be confirmed.
 _Avoid_: record viewer (a record is MyHeritage's), Astia viewer (Astia's own site).
 
-**Scan method**:
-How sure a link is, best first:
+**Certainty**:
+How sure a Link is, best first:
 
 - **Exact** — the link's Record pin or Reference pin was saved by hand: the Image a person said.
 - **Vision match** — the link's pin is the vision model's: a suggestion, to confirm or correct with a Mark.
@@ -57,6 +61,7 @@ How sure a link is, best first:
 - **Volume** — the Volume is known but not the Image; the link opens the Volume.
 
 A Church-book reference whose Volume can't be told apart has several candidate Volumes: it is **Split**.
+_Avoid_: method, scan method (they said how a link was found, not how far to trust it).
 
 ### Pins
 
@@ -73,7 +78,7 @@ A record known to be on an Image, by the source's id for it (today a MyHeritage 
 _Avoid_: seen record.
 
 **Reference pin**:
-One Church-book reference known to be on an Image, kept by its link. For a reference with no record id, such as an Index reference.
+One Church-book reference known to be on an Image, kept by its URL. For a reference with no record id, such as an Index reference.
 _Avoid_: placement.
 
 **Mark**:

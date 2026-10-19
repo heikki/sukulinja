@@ -13,12 +13,12 @@ import type {
 } from '@client/pan-zoom';
 import type {
   CitationRow,
+  Link,
   PersonRow,
-  Scan,
   VolumeCitation
 } from '@common/types';
 
-import { pickedScan } from './citations';
+import { pickedLink } from './citations';
 import type { ScanPerson } from './citations';
 import { MOMENTUM, releaseVelocity } from './drag';
 import type { Drag, Sample } from './drag';
@@ -59,8 +59,8 @@ interface Shown {
 }
 
 // The Scan viewer: the Image a Church-book reference (`citation`) links
-// (`scan`) over the chart, in its Volume to step through and zoom into; a
-// new `scan` moves it there. The record itself stays in the dock, marked
+// to (`link`) over the chart, in its Volume to step through and zoom into;
+// a new `link` moves it there. The record itself stays in the dock, marked
 // there, so the toolbar only names the Volume, and the Image controls float
 // over the scan. Asks to close
 // with a `scan-close` event. Beside the scan, the people of the tree
@@ -72,14 +72,14 @@ export class ScanViewerElement extends LitElement {
   static override styles = [controlStyles, scanViewerStyles];
 
   @property({ attribute: false }) citation: CitationRow | null = null;
-  @property({ attribute: false }) scan: Scan | null = null;
+  @property({ attribute: false }) link: Link | null = null;
   @property({ attribute: false }) persons = new Map<number, PersonRow>();
 
   @state() private volume: Shown | null = null;
   @state() private image = 1;
-  // Astia's viewer link for each Image of the Volume, which also gives their
+  // Astia's viewer URL for each Image of the Volume, which also gives their
   // count; null until it arrives.
-  @state() private links: string[] | null = null;
+  @state() private viewerUrls: string[] | null = null;
   @state() private loading: Loading = 'loading';
   @state() private retry = 0;
   // The shown Image's thumbnail, once loaded: shown blurred until the full
@@ -121,7 +121,7 @@ export class ScanViewerElement extends LitElement {
     const { pan } = this.view;
     this.view = { ...this.view, pan: { x: pan.x - dx, y: pan.y } };
   });
-  private readonly linksReq = new Latest();
+  private readonly viewerUrlsReq = new Latest();
   private readonly citationsReq = new Latest();
 
   // A region of its own, focused when it opens a source and reached with
@@ -143,15 +143,15 @@ export class ScanViewerElement extends LitElement {
     window.removeEventListener('keydown', this.onKeyDown);
     this.stopMomentum();
     this.edge.watch(null);
-    this.linksReq.stop();
+    this.viewerUrlsReq.stop();
     this.citationsReq.stop();
     this.prefetch.keep([]);
   }
 
   override willUpdate(changed: PropertyValues<this>) {
-    if (changed.has('scan')) {
-      this.follow(this.scan);
-      this.focusing = this.scan !== null;
+    if (changed.has('link')) {
+      this.follow(this.link);
+      this.focusing = this.link !== null;
     }
   }
 
@@ -164,11 +164,11 @@ export class ScanViewerElement extends LitElement {
       this.focus({ preventScroll: true });
     }
     this.edge.watch(this.renderRoot.querySelector('.stage'));
-    const link = this.scan;
+    const { link } = this;
     const away =
       link !== null &&
       (this.volume?.id !== link.volumeId ||
-        (link.method !== 'volume' && this.image !== link.image));
+        (link.certainty !== 'volume' && this.image !== link.image));
     if (away === this.away) return;
     this.away = away;
     this.dispatchEvent(
@@ -182,26 +182,26 @@ export class ScanViewerElement extends LitElement {
 
   // To the link's Image; a confirmation hands back the link to the Image
   // shown.
-  private follow(scan: Scan | null) {
-    if (scan === null) {
+  private follow(link: Link | null) {
+    if (link === null) {
       this.volume = null;
       return;
     }
-    if (this.volume?.id === scan.volumeId) {
-      this.show(scan.image);
+    if (this.volume?.id === link.volumeId) {
+      this.show(link.image);
     } else {
-      this.open({ id: scan.volumeId, label: scan.volume }, scan.image);
+      this.open({ id: link.volumeId, label: link.volume }, link.image);
     }
   }
 
   // Without the list the count stays unknown.
-  private async loadLinks(volumeId: string) {
-    this.links = null;
+  private async loadViewerUrls(volumeId: string) {
+    this.viewerUrls = null;
     const url = `/astia/volumes/${volumeId}/images`;
-    const links = await this.linksReq.get<string[]>(url);
-    if (links === null || links === undefined) return;
-    this.links = links;
-    this.image = clampImage(this.image, links.length);
+    const urls = await this.viewerUrlsReq.get<string[]>(url);
+    if (urls === null || urls === undefined) return;
+    this.viewerUrls = urls;
+    this.image = clampImage(this.image, urls.length);
   }
 
   private async loadCitations(volumeId: string) {
@@ -219,7 +219,7 @@ export class ScanViewerElement extends LitElement {
     this.view = null;
     this.prefetch.keep([]);
     this.citations = null;
-    void this.loadLinks(volume.id);
+    void this.loadViewerUrls(volume.id);
     void this.loadCitations(volume.id);
     this.image = clampImage(image, null);
     this.loading = 'loading';
@@ -230,7 +230,7 @@ export class ScanViewerElement extends LitElement {
   }
 
   private show(n: number) {
-    const next = clampImage(n, this.links?.length ?? null);
+    const next = clampImage(n, this.viewerUrls?.length ?? null);
     if (next === this.image) return;
     this.step = next < this.image ? -1 : 1;
     this.image = next;
@@ -249,7 +249,7 @@ export class ScanViewerElement extends LitElement {
   private prefetchNeighbours() {
     const id = this.volume?.id;
     if (id === undefined) return;
-    const count = this.links?.length ?? null;
+    const count = this.viewerUrls?.length ?? null;
     const near = neighbours(this.image, count, this.step);
     this.prefetch.want(near.map((i) => imageUrl(id, i, 0)));
   }
@@ -274,8 +274,8 @@ export class ScanViewerElement extends LitElement {
   private readonly onPick = (e: CustomEvent<VolumeCitation>) => {
     const row = e.detail;
     if (this.volume === null) return;
-    const scan = pickedScan(row, this.image, this.links);
-    const open = { citation: row.citation, scan };
+    const link = pickedLink(row, this.image, this.viewerUrls);
+    const open = { citation: row.citation, link };
     const detail: ScanPerson = { personId: row.personId, open };
     this.dispatchEvent(
       new CustomEvent('scan-person', { detail, bubbles: true, composed: true })
@@ -462,7 +462,7 @@ export class ScanViewerElement extends LitElement {
 
   private renderToolbar() {
     return html`<sl-scan-toolbar
-      .link=${this.scan}
+      .link=${this.link}
       @scan-close=${() => {
         this.close();
       }}
@@ -551,7 +551,7 @@ export class ScanViewerElement extends LitElement {
         ${this.renderNote()}
         <sl-scan-nav
           .image=${this.image}
-          .count=${this.links?.length ?? null}
+          .count=${this.viewerUrls?.length ?? null}
           @scan-show=${(e: CustomEvent<number>) => {
             this.show(e.detail);
           }}

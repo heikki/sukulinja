@@ -81,7 +81,7 @@ export class ScanPeopleElement extends LitElement {
   }
 
   private renderConfirm(row: VolumeCitation) {
-    if (row.scan.method !== 'vision') return nothing;
+    if (row.link.certainty !== 'vision') return nothing;
     const id = row.citation.id;
     return html`
       <button
@@ -104,7 +104,7 @@ export class ScanPeopleElement extends LitElement {
 
   private renderRow(row: VolumeCitation) {
     const current = row.citation.id === this.current;
-    const { box } = row.scan;
+    const { box } = row.link;
     const key = box === undefined ? null : boxKey(box);
     const hovered = key !== null && key === this.hovered;
     return html`

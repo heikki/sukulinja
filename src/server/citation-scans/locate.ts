@@ -17,11 +17,11 @@
 
 import type {
   Box,
+  Certainty,
   EstimateBasis,
-  Provenance,
-  Scan,
-  ScanMethod,
-  ScanResolution
+  Link,
+  LinkResolution,
+  Provenance
 } from '@common/types';
 
 import { archiveTitle, archiveVolumes, viewerUrl, volumeImages } from './astia';
@@ -104,7 +104,7 @@ export interface Pins {
 
 // A Record or Reference pin gives an exact link when saved by hand, and a
 // suggestion when the vision model saved it.
-function pinnedMethod(by: Provenance | undefined) {
+function pinnedCertainty(by: Provenance | undefined) {
   return by === 'vision' ? ('vision' as const) : ('exact' as const);
 }
 
@@ -244,7 +244,7 @@ interface Located {
   volume: Volume;
   files: string[];
   image: number | null;
-  method: ScanMethod;
+  certainty: Certainty;
   from?: EstimateBasis;
   box?: Box;
 }
@@ -255,7 +255,7 @@ function recordPin(v: Volume, ref: ChurchBookRef, pins: Pins) {
 
 // A Record pin's Image, how sure it is, and where on it the entry is.
 function pinnedAt(pin: RecordPin) {
-  const at = { image: pin.image, method: pinnedMethod(pin.by) };
+  const at = { image: pin.image, certainty: pinnedCertainty(pin.by) };
   return pin.box === undefined ? at : { ...at, box: pin.box };
 }
 
@@ -268,7 +268,7 @@ async function locate(
   const pinned = recordPin(v, ref, pins);
   if (pinned !== undefined) return { volume: v, files, ...pinnedAt(pinned) };
   if (ref.page === null) {
-    return { volume: v, files, image: null, method: 'volume' };
+    return { volume: v, files, image: null, certainty: 'volume' };
   }
   const counted = countedImage(pins.volumes[v.id]?.pages ?? [], ref.page);
   const image = counted ?? imageFor(defaultNumbering(ref.kind!), ref.page);
@@ -277,7 +277,7 @@ async function locate(
     volume: v,
     files,
     image: inside ? image : null,
-    method: 'estimated',
+    certainty: 'estimated',
     from: counted === null ? 'numbering' : 'pins'
   };
 }
@@ -300,18 +300,18 @@ function pickVolumes(located: Located[], places: string[], pins: Pins) {
   return pool.filter((l) => byVillage.has(l.volume));
 }
 
-function toScan(l: Located): Scan {
+function toLink(l: Located): Link {
   const image = l.image ?? 1;
-  const scan: Scan = {
+  const link: Link = {
     volumeId: l.volume.id,
     volume: l.volume.label,
     image,
     url: viewerUrl(l.volume.id, l.files[image - 1]!),
-    method: l.image === null ? 'volume' : l.method
+    certainty: l.image === null ? 'volume' : l.certainty
   };
-  if (l.image !== null && l.from !== undefined) scan.from = l.from;
-  if (l.box !== undefined) scan.box = l.box;
-  return scan;
+  if (l.image !== null && l.from !== undefined) link.from = l.from;
+  if (l.box !== undefined) link.box = l.box;
+  return link;
 }
 
 // The Astia fonds of the parish, however it's spelled; null for one not
@@ -326,14 +326,14 @@ export async function parishVolumes(parish: string | null) {
   return archiveId === null ? [] : await archiveVolumes(archiveId);
 }
 
-async function referenceScan(p: ReferencePin): Promise<Scan> {
+async function referenceLink(p: ReferencePin): Promise<Link> {
   const files = await volumeImages(p.volumeId);
   return {
     volumeId: p.volumeId,
     volume: p.volume,
     image: p.image,
     url: viewerUrl(p.volumeId, files[p.image - 1]!),
-    method: pinnedMethod(p.by),
+    certainty: pinnedCertainty(p.by),
     ...(p.box === undefined ? {} : { box: p.box })
   };
 }
@@ -346,28 +346,28 @@ async function volumesFor(ref: ChurchBookRef, archiveId: string, pins: Pins) {
     : candidateVolumes(volumes, ref.kind!, ref.years!);
 }
 
-// The links, each saying whose archive its Volume is in.
-async function withArchive(scans: Scan[], parish: string | null) {
+// The Links, each saying whose archive its Volume is in.
+async function withArchive(links: Link[], parish: string | null) {
   const archiveId = parishArchive(parish);
   const archive = archiveId === null ? null : await archiveTitle(archiveId);
-  return archive === null ? scans : scans.map((s) => ({ ...s, archive }));
+  return archive === null ? links : links.map((l) => ({ ...l, archive }));
 }
 
 export async function resolveChurchBookRef(
   ref: ChurchBookRef,
   pins: Pins
-): Promise<ScanResolution> {
-  const resolved = await resolveScans(ref, pins);
+): Promise<LinkResolution> {
+  const resolved = await resolveLinks(ref, pins);
   if ('error' in resolved) return resolved;
-  return { scans: await withArchive(resolved.scans, ref.parish) };
+  return { links: await withArchive(resolved.links, ref.parish) };
 }
 
-async function resolveScans(
+async function resolveLinks(
   ref: ChurchBookRef,
   pins: Pins
-): Promise<ScanResolution> {
+): Promise<LinkResolution> {
   const pinned = pins.references[ref.url];
-  if (pinned !== undefined) return { scans: [await referenceScan(pinned)] };
+  if (pinned !== undefined) return { links: [await referenceLink(pinned)] };
   if (ref.parish === null || ref.kind === null || ref.years === null) {
     return { error: 'unparsed' };
   }
@@ -380,5 +380,5 @@ async function resolveScans(
   const located = await Promise.all(digitized.map((v) => locate(v, ref, pins)));
   const withImages = located.filter((l) => l.files.length > 0);
   if (withImages.length === 0) return { error: 'no images' };
-  return { scans: pickVolumes(withImages, ref.places, pins).map(toScan) };
+  return { links: pickVolumes(withImages, ref.places, pins).map(toLink) };
 }

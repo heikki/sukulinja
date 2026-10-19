@@ -88,6 +88,8 @@ Behind it:
 - **One word per method, everywhere.** The chips read Exact (was Verified), Vision match, Estimated and Volume only. The person panel and the Scan viewer group by method, never by chip text.
 - **The chart's `Anchor` is unrelated.** It's a layout slot (ADR-0003) in `tree-view/build/` and keeps its name.
 
+- **Link and Certainty.** Where a reference points is a **Link**, and how sure it is its **Certainty**: `Scan` becomes `Link`, `ScanMethod` becomes `Certainty`, and `method` becomes `certainty` (issue 03, before 02).
+
 ## Testing
 
 Test through `openPins` on a temp folder with a test base:

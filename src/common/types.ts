@@ -77,7 +77,7 @@ export interface CitationRow {
   // which show `text` as recorded.
   record: RecordView | null;
   text: string | null;
-  // Cites a Finnish church book, so a scan may be found for it.
+  // Cites a Finnish church book, so it may get a Link.
   churchBook: boolean;
   // The church-book page cited, which a Mark places.
   citedPage: number | null;
@@ -101,9 +101,9 @@ export interface HouseholdMember {
   born: string | null;
 }
 
-// How sure a link is, best first: a pin saved by hand, one the vision
+// How sure a Link is, best first: a pin saved by hand, one the vision
 // model saved (a suggestion), an estimate, or only the Volume.
-export type ScanMethod = 'exact' | 'vision' | 'estimated' | 'volume';
+export type Certainty = 'exact' | 'vision' | 'estimated' | 'volume';
 
 // What an estimate is counted from: the Volume's Page pins, or the Book's
 // usual numbering.
@@ -121,27 +121,28 @@ export interface Box {
   height: number;
 }
 
-// One Astia image a citation may be on; a volume split in parts can give
-// one per part.
-export interface Scan {
+// Where a Church-book reference points in Astia: an Image of a Volume, or
+// only the Volume (certainty `volume`, `image` then its first). A Split
+// reference has one per candidate Volume.
+export interface Link {
   volumeId: string;
   volume: string;
   image: number;
   url: string;
-  method: ScanMethod;
+  certainty: Certainty;
   // Set on an estimate: what it's counted from.
   from?: EstimateBasis;
-  // Set on a pinned scan where the vision model said where the entry is.
+  // Set on a pinned Link where the vision model said where the entry is.
   box?: Box;
   // The archive the Volume is in, by its title in Astia: "Pieksämäen
   // seurakunnan arkisto". Unset when Astia can't say.
   archive?: string;
 }
 
-export type ScanResolution = { scans: Scan[] } | { error: string };
+export type LinkResolution = { links: Link[] } | { error: string };
 
 // A line of /api/persons/:id/scans, streamed as each citation resolves.
-export type CitationScans = { citationId: number } & ScanResolution;
+export type CitationLinks = { citationId: number } & LinkResolution;
 
 // The kind of church book: rippikirja (communion book), lastenkirja
 // (children's book), baptisms or marriages.
@@ -153,14 +154,13 @@ export interface Years {
 }
 
 // A row of /api/volumes/:id/citations: one person's church-book citation
-// that resolves into the Volume. `image` is null for one resolved only to
-// the Volume as a whole (method `volume`); `split` marks one of several
-// candidate Volumes; `box` is where the entry is, where known.
+// that resolves into the Volume; `split` marks one of several candidate
+// Volumes.
 export interface VolumeCitation {
   personId: number;
   citation: CitationRow;
-  // The citation's link into this Volume, as the person panel resolves it.
-  scan: Scan;
+  // The citation's Link into this Volume, as the person panel resolves it.
+  link: Link;
   split: boolean;
 }
 

@@ -1,13 +1,13 @@
 import { expect, test } from 'bun:test';
 
-import type { Scan, VolumeCitation } from '@common/types';
+import type { Link, VolumeCitation } from '@common/types';
 
 import {
+  certaintyHint,
+  certaintyLabel,
   entriesOn,
   groupCitations,
-  methodHint,
-  methodLabel,
-  pickedScan,
+  pickedLink,
   splitLabel
 } from './citations';
 
@@ -15,8 +15,8 @@ import {
 function row(
   personId: number,
   image: number | null,
-  method: Scan['method'],
-  more: Partial<Scan> = {}
+  certainty: Link['certainty'],
+  more: Partial<Link> = {}
 ): VolumeCitation {
   return {
     personId,
@@ -32,12 +32,12 @@ function row(
       churchBook: true,
       citedPage: 12
     },
-    scan: {
+    link: {
       volumeId: 'v1',
       volume: 'I Aa:5',
       image: image ?? 1,
       url: `astia/${image ?? 1}`,
-      method: image === null ? 'volume' : method,
+      certainty: image === null ? 'volume' : certainty,
       archive: 'Juvan seurakunnan arkisto',
       ...more
     },
@@ -98,14 +98,14 @@ test('lists entries in the order written on the Image', () => {
 });
 
 test('says how a link was found, and that a Split may be elsewhere', () => {
-  expect(methodLabel({ method: 'exact' })).toBe('Exact');
-  expect(methodLabel({ method: 'vision' })).toBe('Vision match');
-  expect(methodLabel({ method: 'estimated' })).toBe('Estimated');
-  expect(methodLabel({ method: 'volume' })).toBe('Volume only');
-  expect(methodHint({ method: 'estimated', from: 'pins' })).toMatch(
+  expect(certaintyLabel({ certainty: 'exact' })).toBe('Exact');
+  expect(certaintyLabel({ certainty: 'vision' })).toBe('Vision match');
+  expect(certaintyLabel({ certainty: 'estimated' })).toBe('Estimated');
+  expect(certaintyLabel({ certainty: 'volume' })).toBe('Volume only');
+  expect(certaintyHint({ certainty: 'estimated', from: 'pins' })).toMatch(
     /^Counted from page numbers/
   );
-  expect(methodHint({ method: 'estimated', from: 'numbering' })).toMatch(
+  expect(certaintyHint({ certainty: 'estimated', from: 'numbering' })).toMatch(
     /^Guessed from the usual pages/
   );
   expect(splitLabel('Estimated')).toBe('Estimated · one of several Volumes');
@@ -131,14 +131,14 @@ test('marks one entry per Box on the Image, shared by those it records', () => {
 
 test('opens a picked row on its own link, a Volume-only one on the Image shown', () => {
   const pinned = row(1, 7, 'vision');
-  expect(pickedScan(pinned, 9, null)).toBe(pinned.scan);
+  expect(pickedLink(pinned, 9, null)).toBe(pinned.link);
   const links = ['a', 'b', 'c'];
-  expect(pickedScan(row(2, null, 'volume'), 3, links)).toEqual({
+  expect(pickedLink(row(2, null, 'volume'), 3, links)).toEqual({
     volumeId: 'v1',
     volume: 'I Aa:5',
     image: 3,
     url: 'c',
-    method: 'volume',
+    certainty: 'volume',
     archive: 'Juvan seurakunnan arkisto'
   });
 });

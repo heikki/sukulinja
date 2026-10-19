@@ -144,9 +144,9 @@ async function run(
   return { result, asked };
 }
 
-async function scanOf(c: { page: string; text: string }) {
+async function linksOf(c: { page: string; text: string }) {
   const resolved = await resolveRef(churchBookRefOf(c.page, c.text)!);
-  return 'scans' in resolved ? resolved.scans : resolved;
+  return 'links' in resolved ? resolved.links : resolved;
 }
 
 test('saves confirmed matches, which the app shows as vision matches', async () => {
@@ -159,18 +159,18 @@ test('saves confirmed matches, which the app shows as vision matches', async () 
     'rippi unreadable'
   ]);
 
-  expect(await scanOf(MATTI)).toEqual([
+  expect(await linksOf(MATTI)).toEqual([
     expect.objectContaining({
       volumeId: 'juva-1',
       image: 12,
-      method: 'vision'
+      certainty: 'vision'
     })
   ]);
-  expect(await scanOf(JUHO)).toEqual([
+  expect(await linksOf(JUHO)).toEqual([
     expect.objectContaining({
       volumeId: 'juva-3',
       image: 15,
-      method: 'vision'
+      certainty: 'vision'
     })
   ]);
   const pins = await loadPins();
@@ -243,15 +243,15 @@ test('never overrides a hand pin', async () => {
   );
   useDataFolder(dir);
   await run();
-  expect(await scanOf(JUHO)).toEqual([
-    expect.objectContaining({ image: 16, method: 'exact' })
+  expect(await linksOf(JUHO)).toEqual([
+    expect.objectContaining({ image: 16, certainty: 'exact' })
   ]);
   expect((await loadPins()).volumes['juva-1']!.pages).toEqual([
     { image: 12, pages: [12] }
   ]);
   // Matti is still matched, as a Record pin beside the hand Page pin.
-  expect(await scanOf(MATTI)).toEqual([
-    expect.objectContaining({ image: 12, method: 'vision' })
+  expect(await linksOf(MATTI)).toEqual([
+    expect.objectContaining({ image: 12, certainty: 'vision' })
   ]);
 });
 
@@ -270,8 +270,8 @@ test('a dry run reports what it would save, and writes nothing', async () => {
   const { result } = await run({ dryRun: true });
   expect('saved' in result && result.saved).toBe(2);
   expect(await Bun.file(join(dir, 'pins.local.json')).exists()).toBe(false);
-  expect(await scanOf(MATTI)).toEqual([
-    expect.objectContaining({ method: 'estimated' })
+  expect(await linksOf(MATTI)).toEqual([
+    expect.objectContaining({ certainty: 'estimated' })
   ]);
 });
 

@@ -1,7 +1,11 @@
 import { gedcomDate } from '@common/dates';
-import type { CitationRow, FactRow, Scan, ScanResolution } from '@common/types';
+import type { CitationRow, FactRow, Link, LinkResolution } from '@common/types';
 
-import { methodHint, methodLabel, splitLabel } from '../scan-viewer/citations';
+import {
+  certaintyHint,
+  certaintyLabel,
+  splitLabel
+} from '../scan-viewer/citations';
 
 const FACT_LABELS: Record<string, string> = {
   BIRT: 'Birth',
@@ -87,24 +91,24 @@ export function siteName(url: string) {
 // archive, unparsed, Astia down) found no books to look in.
 const FINDABLE = new Set(['no matching volume', 'not digitized', 'no images']);
 
-// A church-book source's scan, in brief: how its Image was found, in the
-// Scan viewer's words, or why there's none; the tooltip says where. Opening
-// the source shows `scan` in the Scan viewer, if there is one.
-export interface ScanStatus {
+// A church-book source's Link, in brief: how sure it is, in the Scan
+// viewer's words, or why there's none; the tooltip says where. Opening the
+// source shows `link` in the Scan viewer, if there is one.
+export interface LinkStatus {
   label: string;
   title: string;
-  scan: Scan | null;
+  link: Link | null;
 }
 
-// Scans arrive after the panel renders; until then the status is pending. A
+// Links arrive after the panel renders; until then the status is pending. A
 // Split reference opens on its first candidate.
-export function scanStatus(
-  resolution: ScanResolution | undefined,
+export function linkStatus(
+  resolution: LinkResolution | undefined,
   pending: boolean
-): ScanStatus {
+): LinkStatus {
   if (resolution === undefined) {
     const label = pending ? 'Finding scan…' : 'Scan unavailable';
-    return { label, title: '', scan: null };
+    return { label, title: '', link: null };
   }
   if ('error' in resolution) {
     const findable = FINDABLE.has(resolution.error);
@@ -113,29 +117,29 @@ export function scanStatus(
       title: findable
         ? "The parish's books were found but not the Image."
         : `No scan could be found (${resolution.error}).`,
-      scan: null
+      link: null
     };
   }
-  const { scans } = resolution;
-  const [first] = scans;
-  if (first === undefined) return { label: 'No scan', title: '', scan: null };
-  const label = methodLabel(first);
+  const { links } = resolution;
+  const [first] = links;
+  if (first === undefined) return { label: 'No scan', title: '', link: null };
+  const label = certaintyLabel(first);
   return {
-    label: scans.length > 1 ? splitLabel(label) : label,
-    title: scanTitle(scans),
-    scan: first
+    label: links.length > 1 ? splitLabel(label) : label,
+    title: linkTitle(links),
+    link: first
   };
 }
 
 // What the status means, and for a Split reference that it opens on the
 // first of its Volumes.
-export function scanTitle(scans: Scan[]) {
-  const [first] = scans;
+export function linkTitle(links: Link[]) {
+  const [first] = links;
   const split =
-    scans.length > 1
+    links.length > 1
       ? ['The reference fits several Volumes; it opens on the first.']
       : [];
-  const hint = first === undefined ? [] : [methodHint(first)];
+  const hint = first === undefined ? [] : [certaintyHint(first)];
   return [...hint, ...split].join('\n');
 }
 
@@ -148,20 +152,20 @@ export interface SourceGroup {
   linked: boolean;
 }
 
-function firstScan(resolution: ScanResolution | undefined) {
-  return resolution !== undefined && 'scans' in resolution
-    ? (resolution.scans[0] ?? null)
+function firstLink(resolution: LinkResolution | undefined) {
+  return resolution !== undefined && 'links' in resolution
+    ? (resolution.links[0] ?? null)
     : null;
 }
 
 // The heading a source goes under: the archive of the Volume it links (a
 // Split reference's first), else the church books' or the others'.
-function headingFor(c: CitationRow, scans: Map<number, ScanResolution>) {
-  const scan = c.churchBook ? firstScan(scans.get(c.id)) : null;
-  if (scan === null) {
-    return { label: c.churchBook ? 'Church books' : 'Other', scan };
+function headingFor(c: CitationRow, links: Map<number, LinkResolution>) {
+  const link = c.churchBook ? firstLink(links.get(c.id)) : null;
+  if (link === null) {
+    return { label: c.churchBook ? 'Church books' : 'Other', link };
   }
-  return { label: scan.archive ?? 'Church books', scan };
+  return { label: link.archive ?? 'Church books', link };
 }
 
 // The sources by the archive whose Volume they link, in the order the
@@ -169,23 +173,23 @@ function headingFor(c: CitationRow, scans: Map<number, ScanResolution>) {
 // references together, by page.
 export function groupSources(
   citations: CitationRow[],
-  scans: Map<number, ScanResolution>
+  links: Map<number, LinkResolution>
 ) {
   const groups = new Map<string, SourceGroup>();
   const volumeOrder = new Map<string, number>();
   const placeOf = new Map<number, [number, number]>();
   for (const c of citations) {
-    const { label, scan } = headingFor(c, scans);
-    const linked = scan !== null;
+    const { label, link } = headingFor(c, links);
+    const linked = link !== null;
     const key = `${linked}:${label}`;
     const group = groups.get(key) ?? { label, rows: [], linked };
     group.rows.push(c);
     groups.set(key, group);
-    if (scan === null) continue;
-    if (!volumeOrder.has(scan.volumeId)) {
-      volumeOrder.set(scan.volumeId, volumeOrder.size);
+    if (link === null) continue;
+    if (!volumeOrder.has(link.volumeId)) {
+      volumeOrder.set(link.volumeId, volumeOrder.size);
     }
-    placeOf.set(c.id, [volumeOrder.get(scan.volumeId)!, c.citedPage ?? 0]);
+    placeOf.set(c.id, [volumeOrder.get(link.volumeId)!, c.citedPage ?? 0]);
   }
   function byPlace(a: CitationRow, b: CitationRow) {
     const [va, pa] = placeOf.get(a.id) ?? [0, 0];
