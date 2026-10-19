@@ -6,7 +6,7 @@ import { customElement, state } from 'lit/decorators.js';
 import '../settings';
 import '../tree-view';
 
-import { openDatasetApi } from '@client/dataset-api';
+import { NOT_RESPONDING, openDatasetApi } from '@client/dataset-api';
 import { focusRingStyles } from '@client/focus-ring';
 import { readNdjson } from '@client/ndjson';
 import { appState, openAppState } from '@client/state';
@@ -70,6 +70,8 @@ export class AppElement extends LitElement {
   static override styles = [focusRingStyles, appStyles];
 
   @state() private datasets: DatasetInfo[] | null = null;
+  // Why the dataset list didn't load, in the app's words.
+  @state() private datasetsError: string | null = null;
   @state() private readonly slug: string | null = currentSlug();
   // The dataset shown: its state, built over one API from its slug, and
   // provided to the screens below. A provider rather than `@provide`, whose
@@ -92,9 +94,22 @@ export class AppElement extends LitElement {
     void this.loadDatasets();
   }
 
+  // Worded as the Dataset API words its failures; an answer that isn't JSON
+  // is a bug, so it still throws.
   private async loadDatasets() {
-    const res = await fetch('/datasets');
+    const res = await fetch('/datasets').catch(() => null);
+    if (res === null) {
+      this.datasetsError = NOT_RESPONDING;
+      return;
+    }
+    if (!res.ok) {
+      const words = await res.text().catch(() => '');
+      this.datasetsError =
+        words === '' ? `datasets failed (${res.status})` : words;
+      return;
+    }
     this.datasets = (await res.json()) as DatasetInfo[];
+    this.datasetsError = null;
   }
 
   // Import a single GEDCOM file (no local media; MyHeritage URL media still
@@ -410,6 +425,11 @@ export class AppElement extends LitElement {
   }
 
   private renderLanding() {
+    if (this.datasetsError !== null) {
+      return html`<div class="center">
+        <p>Couldn't load: ${this.datasetsError}</p>
+      </div>`;
+    }
     if (this.datasets === null) return nothing;
     if (this.datasets.length === 0) return this.renderEmpty();
     return this.renderChooser();
