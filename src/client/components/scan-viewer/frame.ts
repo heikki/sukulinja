@@ -64,8 +64,8 @@ export interface Arrival {
 
 // What the stage draws, as CSS transforms; null where it stays hidden. The
 // frame shows empty until something arrives; the thumbnail, blurred, until
-// the full Image has faded in over it. Without a thumbnail the full Image's
-// element stays up while the next loads, so a cached one doesn't flicker.
+// the full Image has faded in over it. Without a thumbnail the last full
+// Image stays up while the next loads, so a cached one doesn't flicker.
 export function layers(
   view: Transform | null,
   frame: Frame | null,

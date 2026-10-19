@@ -42,6 +42,10 @@ const DRAG_THRESHOLD_PX = 4;
 // A thumbnail seen for less than this gives way at once: the full Image was
 // nearly there, and a fade would only flash the blur.
 const FADE_AFTER_MS = 100;
+// After a step, a thumbnail waits this long before taking over from the
+// last Image: a cached Image is decoded by then, and the blur would only
+// flash.
+const THUMB_GRACE_MS = 120;
 const ORIGIN: Point = { x: 0, y: 0 };
 
 // The Volume and Image last drawn.
@@ -70,6 +74,10 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
   @state() private thumb: Viewport | null = null;
   // The full Image fading in over the thumbnail.
   @state() private fading = false;
+  // The full Image drawn: only ever one loaded and decoded, since WebKit
+  // draws an <img> blank while its new src loads or decodes. Until the next
+  // is ready, the last one stays.
+  @state() private drawnUrl: string | null = null;
   @state() private frame: Frame | null = null;
   // Null until the first Image of the Volume is fitted.
   @state() private view: Transform | null = null;
@@ -79,13 +87,18 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
 
   private readonly prefetch = new Prefetch();
   private drawn: Drawn = { volumeId: null, image: 1 };
+  // The full Image being loaded and decoded out of sight, and its URL.
+  private pending: HTMLImageElement | null = null;
+  private wanted: string | null = null;
   // The source last opened; a new one moves focus here once it's shown.
   private opened: LinkOpen | null = null;
   private focusing = false;
   // Which way the last step went, for which neighbour to prefetch first.
   private step: 1 | -1 = 1;
-  // When the shown Image's thumbnail appeared.
+  // When the shown Image's thumbnail appeared, and when the Image was
+  // stepped to.
   private thumbAt = 0;
+  private steppedAt = 0;
   private drag: Drag | null = null;
   private momentum: MomentumHandle | null = null;
   private readonly pinch = new Pinch({
@@ -121,6 +134,8 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     this.stopMomentum();
     this.edge.watch(null);
     this.prefetch.keep([]);
+    this.pending = null;
+    this.wanted = null;
   }
 
   private get viewer() {
@@ -149,6 +164,7 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
       // The one now shown may already be on its way; the rest aren't wanted.
       if (volumeId !== null) this.keepNear(volumeId, image);
     }
+    this.load(volumeId);
     const source = this.viewer.source.get();
     if (source !== this.opened) {
       this.opened = source;
@@ -165,11 +181,43 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
   }
 
   private reset() {
+    this.steppedAt = performance.now();
     this.loading = 'loading';
     this.retry = 0;
     this.thumb = null;
     this.hovered = null;
     this.fading = false;
+  }
+
+  // Starts on the full Image wanted, unless it's on its way already: a new
+  // Image, or a retry.
+  private load(volumeId: string | null) {
+    const url =
+      volumeId === null
+        ? null
+        : this.state.api.imageUrl(volumeId, this.image, this.retry);
+    if (url === this.wanted) return;
+    this.wanted = url;
+    if (url === null) {
+      this.pending = null;
+      return;
+    }
+    const img = new Image();
+    this.pending = img;
+    img.src = url;
+    void this.decode(img, url);
+  }
+
+  // Decoded at full size, which also keeps the first zoom in from stalling
+  // on a scaled-down decode. One superseded meanwhile is dropped.
+  private async decode(img: HTMLImageElement, url: string) {
+    try {
+      await img.decode();
+    } catch {
+      if (this.pending === img) this.onError();
+      return;
+    }
+    if (this.pending === img) this.onLoad(img, url);
   }
 
   private keepNear(volumeId: string, image: number) {
@@ -216,18 +264,36 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     this.view = zoomAt(this.view, this.toStage(at), factor, SCALE_BOUNDS);
   }
 
+  // Over the last Image it waits out the grace, in case the full one comes
+  // first.
   private readonly onThumbLoad = (e: Event) => {
     const img = e.target as HTMLImageElement;
     const size = { width: img.naturalWidth, height: img.naturalHeight };
+    const wait =
+      this.frame === null
+        ? 0
+        : this.steppedAt + THUMB_GRACE_MS - performance.now();
+    if (wait <= 0) {
+      this.showThumb(size);
+      return;
+    }
+    const { wanted } = this;
+    setTimeout(() => {
+      if (this.wanted === wanted && this.loading === 'loading') {
+        this.showThumb(size);
+      }
+    }, wait);
+  };
+
+  private showThumb(size: Viewport) {
     const { frame, fit } = frameForThumb(this.frame, size);
     this.frame = frame;
     if (fit || this.view === null) this.view = this.fitted();
     this.thumb = size;
     this.thumbAt = performance.now();
-  };
+  }
 
-  private readonly onLoad = (e: Event) => {
-    const img = e.target as HTMLImageElement;
+  private onLoad(img: HTMLImageElement, url: string) {
     const size = { width: img.naturalWidth, height: img.naturalHeight };
     const { frame, fit, rescale } = frameForFull(this.frame, size);
     this.frame = frame;
@@ -240,12 +306,10 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     // Over a thumbnail it fades in; a cached one just appears.
     this.fading =
       this.thumb !== null && performance.now() - this.thumbAt > FADE_AFTER_MS;
+    this.drawnUrl = url;
     this.loading = 'shown';
     this.prefetchNeighbours();
-    // Shown fitted, a scan is drawn from a scaled-down decode; decoding it at
-    // full size now keeps the first zoom in from stalling on that.
-    img.decode().catch(() => undefined);
-  };
+  }
 
   private readonly onError = () => {
     this.loading = 'failed';
@@ -389,18 +453,20 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
         style=${shown.thumb === null ? '' : `transform: ${shown.thumb}`}
         @load=${this.onThumbLoad}
       />
-      <img
-        class=${shown.full === null ? 'hidden' : shown.fade ? 'fade' : ''}
-        src=${this.state.api.imageUrl(volume.id, this.image, this.retry)}
-        alt=${`Image ${this.image}`}
-        draggable="false"
-        style=${shown.frame === null ? '' : `transform: ${shown.frame}`}
-        @load=${this.onLoad}
-        @error=${this.onError}
-        @transitionend=${() => {
-          this.fading = false;
-        }}
-      />
+      ${
+        this.drawnUrl === null
+          ? nothing
+          : html`<img
+              class=${shown.full === null ? 'hidden' : shown.fade ? 'fade' : ''}
+              src=${this.drawnUrl}
+              alt=${`Image ${this.image}`}
+              draggable="false"
+              style=${shown.frame === null ? '' : `transform: ${shown.frame}`}
+              @transitionend=${() => {
+                this.fading = false;
+              }}
+            />`
+      }
     `;
   }
 
