@@ -55,9 +55,19 @@ export function memoryDatasetApi(
     give: () => T
   ) {
     asked.push(what);
-    signal?.throwIfAborted();
-    if (down) throw new ApiError(NOT_RESPONDING);
-    return await Promise.resolve(give());
+    // Answered a turn later, as over HTTP; an abort meanwhile wins, as
+    // `settled` makes it there.
+    try {
+      await Promise.resolve();
+      if (down) throw new ApiError(NOT_RESPONDING);
+      const value = give();
+      signal?.throwIfAborted();
+      return value;
+    } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- the abort's own reason
+      if (signal?.aborted === true) throw signal.reason;
+      throw err;
+    }
   }
 
   function found<T>(value: T | undefined, missing: string) {

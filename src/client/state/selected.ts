@@ -1,0 +1,114 @@
+import { computed, signal } from '@lit-labs/signals';
+
+import { ApiError } from '@client/dataset-api';
+import type { DatasetApi, MarkTarget } from '@client/dataset-api';
+import type {
+  CitationLinks,
+  LinkResolution,
+  PersonDetails
+} from '@common/types';
+
+import { groupSources } from './sources';
+import type { SourceGroup } from './sources';
+
+// A signal as its readers see it; only the store's verbs change it.
+export interface Readable<T> {
+  get: () => T;
+}
+
+// The Selected person: who they are, their details, and the Links of their
+// church-book references as they stream in.
+export interface Selected {
+  id: Readable<number | null>;
+  // The last person's stay until the new person's arrive.
+  details: Readable<PersonDetails | null>;
+  // The app's words when the details couldn't load.
+  error: Readable<string | null>;
+  // By citation id.
+  links: Readable<Map<number, LinkResolution>>;
+  // The Links are still streaming.
+  pending: Readable<boolean>;
+  // The details' sources in the panel's order, each with its link status.
+  sources: Readable<SourceGroup[]>;
+  // Resolves once their details and Links are in, or the next selection
+  // takes over.
+  select: (id: number) => Promise<void>;
+  // Saves a Mark, throwing ApiError if it's refused; the reference's Links,
+  // resolved again.
+  mark: (citationId: number, at: MarkTarget) => Promise<CitationLinks>;
+}
+
+export function openSelected(api: DatasetApi): Selected {
+  const id = signal<number | null>(null);
+  const details = signal<PersonDetails | null>(null);
+  const error = signal<string | null>(null);
+  const links = signal(new Map<number, LinkResolution>());
+  const pending = signal(false);
+  const sources = computed(() => {
+    const d = details.get();
+    return d === null
+      ? []
+      : groupSources(d.citations, links.get(), pending.get());
+  });
+
+  // The details asked for, and the Links streaming; each ask aborts the
+  // last.
+  let detailsAbort: AbortController | null = null;
+  let linksAbort: AbortController | null = null;
+
+  function setLinks(line: CitationLinks) {
+    const { citationId, ...resolution } = line;
+    links.set(new Map(links.get()).set(citationId, resolution));
+  }
+
+  // One stream at a time. `keep` leaves the Links known until their new
+  // ones arrive.
+  async function loadLinks(person: number, keep: boolean) {
+    linksAbort?.abort();
+    const abort = new AbortController();
+    linksAbort = abort;
+    if (!keep) links.set(new Map());
+    pending.set(true);
+    try {
+      for await (const line of api.personLinks(person, abort.signal)) {
+        setLinks(line);
+      }
+    } catch (err) {
+      // Unresolved references show as unavailable once pending clears.
+      if (!abort.signal.aborted && !(err instanceof ApiError)) throw err;
+    } finally {
+      if (!abort.signal.aborted) pending.set(false);
+    }
+  }
+
+  async function select(next: number) {
+    if (next === id.get()) return;
+    id.set(next);
+    detailsAbort?.abort();
+    linksAbort?.abort();
+    const abort = new AbortController();
+    detailsAbort = abort;
+    try {
+      details.set(await api.person(next, abort.signal));
+      error.set(null);
+    } catch (err) {
+      if (abort.signal.aborted) return;
+      if (!(err instanceof ApiError)) throw err;
+      error.set(err.message);
+      return;
+    }
+    await loadLinks(next, false);
+  }
+
+  // A Page pin can move the person's other references in the Volume too,
+  // so their Links reload.
+  async function mark(citationId: number, at: MarkTarget) {
+    const resolved = await api.mark(citationId, at);
+    setLinks(resolved);
+    const person = id.get();
+    if (person !== null) void loadLinks(person, true);
+    return resolved;
+  }
+
+  return { id, details, error, links, pending, sources, select, mark };
+}

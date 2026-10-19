@@ -1,9 +1,11 @@
+import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { ApiError } from '@client/dataset-api';
-import type { DatasetApi } from '@client/dataset-api';
 import { SPLIT_NOTE } from '@client/link-labels';
+import { appState } from '@client/state';
+import type { AppState } from '@client/state';
 import type { PersonRow, VolumeCitation } from '@common/types';
 
 import { formatName } from '../tree-view/renderer';
@@ -20,14 +22,14 @@ let collapsed = false;
 // viewer is on (`current`) is marked. Hovering a row with an entry on the
 // scan names the entry's key with `scan-hover`, and rows of the entry picked
 // out there (`hovered`) are highlighted. A vision match can be confirmed
-// from its row, saved as marking its Image by hand would be, and reported
-// with `scan-marked`.
+// from its row, saved for the Selected person's Links as marking its Image
+// by hand would be, and reported with `scan-marked`.
 @customElement('sl-scan-people')
 export class ScanPeopleElement extends LitElement {
   static override styles = [controlStyles, scanPeopleStyles];
 
-  // The dataset's answers, set before the element connects.
-  @property({ attribute: false }) api!: DatasetApi;
+  @consume({ context: appState }) private readonly state!: AppState;
+
   // The Volume's citations; null until they arrive, or when they can't.
   @property({ attribute: false }) rows: VolumeCitation[] | null = null;
   @property({ type: Number }) image = 1;
@@ -71,7 +73,7 @@ export class ScanPeopleElement extends LitElement {
     this.confirming = row.citation.id;
     this.refused = null;
     const id = row.citation.id;
-    const saved = await this.api
+    const saved = await this.state.selected
       .mark(id, { volumeId, image })
       .catch((err: unknown) => {
         if (err instanceof ApiError) return err;
