@@ -211,12 +211,14 @@ test('a Mark is saved, and the scan lines show it', async () => {
   expect(
     await citations.mark(1, { volumeId: 'juva-1', image: 7 })
   ).toMatchObject({
-    links: [{ volumeId: 'juva-1', image: 7, certainty: 'exact' }]
+    links: [
+      { volumeId: 'juva-1', image: 7, precision: 'image', certainty: 'marked' }
+    ]
   });
   const [line] = await linesOf(citations.linksOf(1));
   expect(line).toMatchObject({
     citationId: 1,
-    links: [{ image: 7, certainty: 'exact' }]
+    links: [{ image: 7, precision: 'image', certainty: 'marked' }]
   });
 });
 
@@ -238,17 +240,25 @@ test('a Mark needs a church-book Citation and an Image in the Volume', async () 
 
 // ---------------------------------------------------------------- a Volume's
 
+function imageOf(r: VolumeCitation) {
+  return 'image' in r.link ? r.link.image : null;
+}
+
+function boxOf(r: VolumeCitation) {
+  return r.link.precision === 'entry' ? r.link.box : null;
+}
+
 // Where each person's row is, in the order listed.
 function placesOf(rows: VolumeCitation[] | null) {
   return rows!.map((r) => ({
     personId: r.personId,
-    image: r.link.certainty === 'volume' ? null : r.link.image,
-    certainty: r.link.certainty,
+    image: imageOf(r),
+    at: `${r.link.certainty} ${r.link.precision}`,
     split: r.split
   }));
 }
 
-test("lists the Volume's Vision match, Estimated and Volume-only citations", async () => {
+test("lists the Volume's Vision matches, Estimated Images and Estimated Volumes", async () => {
   await writeLocal({
     'juva-1': {
       pages: [{ image: 5, pages: [3] }],
@@ -264,8 +274,8 @@ test("lists the Volume's Vision match, Estimated and Volume-only citations", asy
 
   const first = await citations.inVolume('juva-1');
   expect(placesOf(first)).toEqual([
-    { personId: 1, image: 9, certainty: 'vision', split: false },
-    { personId: 2, image: 6, certainty: 'estimated', split: false }
+    { personId: 1, image: 9, at: 'vision entry', split: false },
+    { personId: 2, image: 6, at: 'estimated image', split: false }
   ]);
   expect(first![0]!.link).toMatchObject({ certainty: 'vision', box: BOX });
   expect(first![1]!.link).toMatchObject({ from: 'pins' });
@@ -274,8 +284,8 @@ test("lists the Volume's Vision match, Estimated and Volume-only citations", asy
     citedPage: 12
   });
   expect(placesOf(await citations.inVolume('juva-2'))).toEqual([
-    { personId: 3, image: 7, certainty: 'estimated', split: false },
-    { personId: 4, image: null, certainty: 'volume', split: false }
+    { personId: 3, image: 7, at: 'estimated image', split: false },
+    { personId: 4, image: null, at: 'estimated volume', split: false }
   ]);
 });
 
@@ -285,7 +295,7 @@ test('a Split reference is listed in each candidate Volume', async () => {
   for (const volumeId of ['juva-1', 'juva-2']) {
     // eslint-disable-next-line no-await-in-loop -- two Volumes
     expect(placesOf(await citations.inVolume(volumeId))).toEqual([
-      { personId: 1, image: 3, certainty: 'estimated', split: true }
+      { personId: 1, image: 3, at: 'estimated image', split: true }
     ]);
   }
 });
@@ -305,7 +315,7 @@ test('people citing one record get a row each, sharing its Image and box', async
   ]);
 
   const rows = await citations.inVolume('juva-1');
-  expect(rows!.map((r) => [r.personId, r.link.image, r.link.box])).toEqual([
+  expect(rows!.map((r) => [r.personId, imageOf(r), boxOf(r)])).toEqual([
     [1, 9, BOX],
     [2, 9, BOX]
   ]);
@@ -316,7 +326,7 @@ test('a Mark shows in the next answer, dropping the vision box', async () => {
     cite(1, rippiCitation(5001, '1790 - 1796', 12))
   ]);
   expect(placesOf(await citations.inVolume('juva-1'))).toEqual([
-    { personId: 1, image: 12, certainty: 'estimated', split: false }
+    { personId: 1, image: 12, at: 'estimated image', split: false }
   ]);
 
   await writeLocal({
@@ -335,8 +345,12 @@ test('a Mark shows in the next answer, dropping the vision box', async () => {
 
   await citations.mark(1, { volumeId: 'juva-1', image: 10 });
   const [row] = (await citations.inVolume('juva-1'))!;
-  expect(row!.link).toMatchObject({ image: 10, certainty: 'exact' });
-  expect(row!.link.box).toBeUndefined();
+  expect(row!.link).toMatchObject({
+    image: 10,
+    precision: 'image',
+    certainty: 'marked'
+  });
+  expect(boxOf(row!)).toBeNull();
 });
 
 test("another parish's citations are never resolved", async () => {

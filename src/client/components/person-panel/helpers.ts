@@ -1,11 +1,7 @@
 import { gedcomDate } from '@common/dates';
 import type { CitationRow, FactRow, Link, LinkResolution } from '@common/types';
 
-import {
-  certaintyHint,
-  certaintyLabel,
-  splitLabel
-} from '../scan-viewer/citations';
+import { linkHint, linkLabel, splitLabel } from '../scan-viewer/citations';
 
 const FACT_LABELS: Record<string, string> = {
   BIRT: 'Birth',
@@ -123,7 +119,7 @@ export function linkStatus(
   const { links } = resolution;
   const [first] = links;
   if (first === undefined) return { label: 'No scan', title: '', link: null };
-  const label = certaintyLabel(first);
+  const label = linkLabel(first);
   return {
     label: links.length > 1 ? splitLabel(label) : label,
     title: linkTitle(links),
@@ -139,7 +135,7 @@ export function linkTitle(links: Link[]) {
     links.length > 1
       ? ['The reference fits several Volumes; it opens on the first.']
       : [];
-  const hint = first === undefined ? [] : [certaintyHint(first)];
+  const hint = first === undefined ? [] : [linkHint(first)];
   return [...hint, ...split].join('\n');
 }
 

@@ -1,5 +1,5 @@
 Status: ready-for-agent
-Blocked by: 01, 03
+Blocked by: 01, 03, 04
 
 # Deepen pins into one module with safe writes
 

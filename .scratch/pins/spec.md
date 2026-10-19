@@ -90,6 +90,8 @@ Behind it:
 
 - **Link and Certainty.** Where a reference points is a **Link**, and how sure it is its **Certainty**: `Scan` becomes `Link`, `ScanMethod` becomes `Certainty`, and `method` becomes `certainty` (issue 03, before 02).
 
+- **Precision and Certainty.** A Link says how far down it points (entry, Image, Volume) apart from who says so (marked, vision, estimated); a Box exists exactly at the entry, and a Reference pin may pin a reference to its Volume alone (issue 04, before 02). Drawing a Box when marking (05) and a Volume-only Mark (06) follow.
+
 ## Testing
 
 Test through `openPins` on a temp folder with a test base:

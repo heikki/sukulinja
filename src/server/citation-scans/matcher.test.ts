@@ -36,6 +36,31 @@ describe('date search', () => {
     });
   });
 
+  test("leaves a match for review when the Reader can't say where the entry is", async () => {
+    const { volume, images } = baptisms(400, { 137: ['Juho Esimerkki'] });
+    const { reader } = fakeReader({ b: volume });
+    const boxless = {
+      ...reader,
+      findEntry: async (...args: Parameters<typeof reader.findEntry>) => {
+        const entry = await reader.findEntry(...args);
+        return 'unreadable' in entry ? entry : { ...entry, box: null };
+      }
+    };
+    expect(
+      await matchRef(
+        baptism('Juho Esimerkki', CITED),
+        [candidate('b', images)],
+        boxless
+      )
+    ).toEqual({
+      confirmed: false,
+      reason: 'no box',
+      volumeId: 'b',
+      volume: 'b label',
+      image: 137
+    });
+  });
+
   test('finds an entry continued onto the next Image, or two off', async () => {
     for (const image of [138, 136, 139]) {
       const { volume, images } = baptisms(400, { [image]: ['Juho Esimerkki'] });

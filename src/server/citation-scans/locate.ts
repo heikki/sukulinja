@@ -17,10 +17,9 @@
 
 import type {
   Box,
-  Certainty,
-  EstimateBasis,
   Link,
   LinkResolution,
+  LinkTarget,
   Provenance
 } from '@common/types';
 
@@ -87,12 +86,13 @@ export interface VolumePins {
   records?: RecordPin[];
 }
 
-// One reference known to be on an image: one naming no page, or found in a
-// volume its book doesn't match. Kept by the reference's link.
+// One reference known to be in a volume, and on which image when known:
+// one naming no page, found in a volume its book doesn't match, or pinned
+// to its volume alone. Kept by the reference's URL.
 export interface ReferencePin {
   volumeId: string;
   volume: string;
-  image: number;
+  image?: number;
   by?: Provenance;
   box?: Box;
 }
@@ -102,10 +102,22 @@ export interface Pins {
   references: Record<string, ReferencePin>;
 }
 
-// A Record or Reference pin gives an exact link when saved by hand, and a
-// suggestion when the vision model saved it.
-function pinnedCertainty(by: Provenance | undefined) {
-  return by === 'vision' ? ('vision' as const) : ('exact' as const);
+// Where a Record or Reference pin points, and who says so: as far down as it
+// goes, with the entry's Box. The vision model only pins an entry, so a
+// vision pin without a Box points nowhere.
+function pinnedTarget(pin: {
+  image?: number;
+  box?: Box;
+  by?: Provenance;
+}): LinkTarget | null {
+  const certainty = pin.by === 'vision' ? 'vision' : 'marked';
+  if (pin.image !== undefined && pin.box !== undefined) {
+    return { precision: 'entry', image: pin.image, box: pin.box, certainty };
+  }
+  if (certainty !== 'marked') return null;
+  return pin.image === undefined
+    ? { precision: 'volume', certainty }
+    : { precision: 'image', image: pin.image, certainty };
 }
 
 // ---------------------------------------------------------------- volumes
@@ -243,21 +255,19 @@ function countedImage(pins: PagePin[], page: number) {
 interface Located {
   volume: Volume;
   files: string[];
-  image: number | null;
-  certainty: Certainty;
-  from?: EstimateBasis;
-  box?: Box;
+  target: LinkTarget;
+  // Counted from the volume's Page pins, the cited page fell outside it.
+  overran?: boolean;
 }
 
 function recordPin(v: Volume, ref: ChurchBookRef, pins: Pins) {
   return pins.volumes[v.id]?.records?.find((r) => r.record === ref.recordId);
 }
 
-// A Record pin's Image, how sure it is, and where on it the entry is.
-function pinnedAt(pin: RecordPin) {
-  const at = { image: pin.image, certainty: pinnedCertainty(pin.by) };
-  return pin.box === undefined ? at : { ...at, box: pin.box };
-}
+const ESTIMATED_VOLUME: LinkTarget = {
+  precision: 'volume',
+  certainty: 'estimated'
+};
 
 async function locate(
   v: Volume,
@@ -265,20 +275,25 @@ async function locate(
   pins: Pins
 ): Promise<Located> {
   const files = await volumeImages(v.id);
-  const pinned = recordPin(v, ref, pins);
-  if (pinned !== undefined) return { volume: v, files, ...pinnedAt(pinned) };
-  if (ref.page === null) {
-    return { volume: v, files, image: null, certainty: 'volume' };
-  }
+  const pin = recordPin(v, ref, pins);
+  const pinned = pin === undefined ? null : pinnedTarget(pin);
+  if (pinned !== null) return { volume: v, files, target: pinned };
+  if (ref.page === null) return { volume: v, files, target: ESTIMATED_VOLUME };
   const counted = countedImage(pins.volumes[v.id]?.pages ?? [], ref.page);
   const image = counted ?? imageFor(defaultNumbering(ref.kind!), ref.page);
-  const inside = image >= 1 && image <= files.length;
+  const from = counted === null ? 'numbering' : 'pins';
+  if (image < 1 || image > files.length) {
+    return {
+      volume: v,
+      files,
+      target: ESTIMATED_VOLUME,
+      overran: from === 'pins'
+    };
+  }
   return {
     volume: v,
     files,
-    image: inside ? image : null,
-    certainty: 'estimated',
-    from: counted === null ? 'numbering' : 'pins'
+    target: { precision: 'image', image, certainty: 'estimated', from }
   };
 }
 
@@ -286,9 +301,7 @@ async function locate(
 // page isn't the one cited: split volumes often continue one page sequence
 // (I: 1–600, II: 601–1200), and that beats the village guess.
 function pickVolumes(located: Located[], places: string[], pins: Pins) {
-  const reachable = located.filter(
-    (l) => !(l.from === 'pins' && l.image === null)
-  );
+  const reachable = located.filter((l) => l.overran !== true);
   const pool = reachable.length > 0 ? reachable : located;
   const byVillage = new Set(
     narrowByVillage(
@@ -300,18 +313,24 @@ function pickVolumes(located: Located[], places: string[], pins: Pins) {
   return pool.filter((l) => byVillage.has(l.volume));
 }
 
-function toLink(l: Located): Link {
-  const image = l.image ?? 1;
-  const link: Link = {
-    volumeId: l.volume.id,
-    volume: l.volume.label,
-    image,
-    url: viewerUrl(l.volume.id, l.files[image - 1]!),
-    certainty: l.image === null ? 'volume' : l.certainty
+// A Link opens its Image, or the Volume's first when it has none.
+function linkTo(
+  volumeId: string,
+  volume: string,
+  files: string[],
+  target: LinkTarget
+): Link {
+  const image = 'image' in target ? target.image : 1;
+  return {
+    volumeId,
+    volume,
+    url: viewerUrl(volumeId, files[image - 1]!),
+    ...target
   };
-  if (l.image !== null && l.from !== undefined) link.from = l.from;
-  if (l.box !== undefined) link.box = l.box;
-  return link;
+}
+
+function toLink(l: Located) {
+  return linkTo(l.volume.id, l.volume.label, l.files, l.target);
 }
 
 // The Astia fonds of the parish, however it's spelled; null for one not
@@ -326,16 +345,9 @@ export async function parishVolumes(parish: string | null) {
   return archiveId === null ? [] : await archiveVolumes(archiveId);
 }
 
-async function referenceLink(p: ReferencePin): Promise<Link> {
+async function referenceLink(p: ReferencePin, target: LinkTarget) {
   const files = await volumeImages(p.volumeId);
-  return {
-    volumeId: p.volumeId,
-    volume: p.volume,
-    image: p.image,
-    url: viewerUrl(p.volumeId, files[p.image - 1]!),
-    certainty: pinnedCertainty(p.by),
-    ...(p.box === undefined ? {} : { box: p.box })
-  };
+  return linkTo(p.volumeId, p.volume, files, target);
 }
 
 async function volumesFor(ref: ChurchBookRef, archiveId: string, pins: Pins) {
@@ -362,12 +374,22 @@ export async function resolveChurchBookRef(
   return { links: await withArchive(resolved.links, ref.parish) };
 }
 
+// The reference's own pin decides its Link, at whatever Precision; null
+// when it has none that points anywhere.
+async function pinnedLink(ref: ChurchBookRef, pins: Pins) {
+  const pin = pins.references[ref.url];
+  const pinned = pin === undefined ? null : pinnedTarget(pin);
+  return pin === undefined || pinned === null
+    ? null
+    : await referenceLink(pin, pinned);
+}
+
 async function resolveLinks(
   ref: ChurchBookRef,
   pins: Pins
 ): Promise<LinkResolution> {
-  const pinned = pins.references[ref.url];
-  if (pinned !== undefined) return { links: [await referenceLink(pinned)] };
+  const pinned = await pinnedLink(ref, pins);
+  if (pinned !== null) return { links: [pinned] };
   if (ref.parish === null || ref.kind === null || ref.years === null) {
     return { error: 'unparsed' };
   }
