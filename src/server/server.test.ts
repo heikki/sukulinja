@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
 
 import { rippiCitation, seedParish } from './citation-scans/test-parish';
 import { DatasetRegistry } from './dataset-registry';
+import { importGedcom } from './gedcom-import';
+import { parseGedcom } from './gedcom-parser';
 import { createApi, createStaticFetch } from './server';
 
 let root = '';
@@ -178,5 +180,48 @@ describe("A dataset's Citations", () => {
     } finally {
       astia.mockRestore();
     }
+  });
+});
+
+describe('A dataset replaced while open', () => {
+  // Imports a one-person dataset as `tree` the way /import does: staged,
+  // then committed over any earlier one.
+  async function importAs(registry: DatasetRegistry, given: string) {
+    const staging = await registry.createStaging('tree');
+    importGedcom(
+      staging.db,
+      parseGedcom(`0 @I1@ INDI\n1 NAME ${given} /Esimerkki/`),
+      () => null
+    );
+    await staging.commit();
+  }
+
+  async function persons() {
+    const res = await get('/d/tree/api/persons');
+    return res.ok
+      ? ((await res.json()) as Array<{ given: string }>).map((p) => p.given)
+      : res.status;
+  }
+
+  test('answers with the new dataset after an import commits', async () => {
+    const registry = new DatasetRegistry(join(root, 'data'));
+    fetch = createStaticFetch({ api: createApi(registry), staticRoots: [] });
+    await importAs(registry, 'Matti');
+    expect(await persons()).toEqual(['Matti']);
+    // Committed without /import, so only the registry knows.
+    await importAs(registry, 'Liisa');
+    expect(await persons()).toEqual(['Liisa']);
+  });
+
+  test('is gone once deleted', async () => {
+    const registry = new DatasetRegistry(join(root, 'data'));
+    fetch = createStaticFetch({ api: createApi(registry), staticRoots: [] });
+    await importAs(registry, 'Matti');
+    expect(await persons()).toEqual(['Matti']);
+    const deleted = await fetch(
+      new Request('http://localhost/datasets/tree', { method: 'DELETE' })
+    );
+    expect(deleted.status).toBe(204);
+    expect(await persons()).toBe(404);
   });
 });
