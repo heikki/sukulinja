@@ -15,7 +15,7 @@ import { cachedReader } from '@server/citation-scans/reader';
 import type { Reader } from '@server/citation-scans/reader';
 import { RIPPI_COLLECTION } from '@server/citation-scans/record';
 import type { ChurchBookRef } from '@server/citation-scans/record';
-import { openScans, useDataFolder } from '@server/citation-scans/scans';
+import { openScans } from '@server/citation-scans/scans';
 import type { Scans } from '@server/citation-scans/scans';
 
 import { gateRefusal } from '../vision/gate';
@@ -211,7 +211,6 @@ async function matchOne(
 
 export async function runMatching(options: RunOptions): Promise<RunResult> {
   const { root } = options;
-  useDataFolder(root);
   const pins = openPins(root);
   const astia = options.astia ?? openAstia(join(root, '.astia-cache'));
   const scans = openScans({ pins, astia });

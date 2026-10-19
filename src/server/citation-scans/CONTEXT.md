@@ -59,6 +59,10 @@ A Volume whose Images hold the book twice, as if filmed twice; the copies drift 
 Where the app shows the Image a Church-book reference links, opened from its source. You step through the link's Volume there; beside the scan are the people whose references link the Image shown, and a **Vision match** among them can be confirmed.
 _Avoid_: record viewer (a record is MyHeritage's), Astia viewer (Astia's own site).
 
+**Scan cache**:
+The Images kept on disk for the Scan viewer and the vision pass, up to a size the install sets; the least recently viewed go first.
+_Avoid_: image cache, Astia cache (that's Astia's answers about archives and Volumes).
+
 **Precision**:
 How far down a Link points: the **entry** on its Image (where on the Image, its Box), the **Image**, or only the **Volume**.
 

@@ -1,5 +1,4 @@
-// Full-size Images for an unattended job, through the Scan viewer's image
-// cache: one at a time, with a gap between the ones fetched from Astia, so
+// Full-size Images for an unattended job, through the Scan cache: one at a time, with a gap between the ones fetched from Astia, so
 // a bulk run doesn't hammer the archive. Images already cached are read
 // straight away, and the ones fetched stay for the Scan viewer.
 //
@@ -12,9 +11,8 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { Astia } from '@server/citation-scans/astia';
-import { astiaImage, isImageCached } from '@server/citation-scans/images';
 import type { ImageRef } from '@server/citation-scans/reader';
+import type { ScanCache } from '@server/citation-scans/scan-cache';
 
 const GAP_MS = 1000;
 const MAX_EDGE = 2576;
@@ -78,14 +76,14 @@ async function fitted(path: string): Promise<Scan> {
   }
 }
 
-// Loads Images from the Astia given, one at a time.
-export function pacedImages(astia: Astia) {
+// Loads Images through the Scan cache given, one at a time.
+export function pacedImages(cache: ScanCache) {
   let queue: Promise<unknown> = Promise.resolve();
   // Resolves when the next fetch from Astia may start.
   let gap: Promise<void> = Promise.resolve();
 
   async function load(at: ImageRef) {
-    const fetching = !(await isImageCached(astia, at));
+    const fetching = !(await cache.isCached(at));
     if (fetching) {
       const wait = gap;
       gap = wait.then(async () => {
@@ -93,12 +91,7 @@ export function pacedImages(astia: Astia) {
       });
       await wait;
     }
-    const path = await astiaImage(
-      astia,
-      at,
-      'full',
-      new AbortController().signal
-    );
+    const path = await cache.image(at, 'full', new AbortController().signal);
     if (path === null) {
       throw new Error(`Volume ${at.volumeId} has no Image ${at.image}`);
     }

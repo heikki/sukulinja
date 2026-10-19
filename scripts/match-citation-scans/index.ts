@@ -19,6 +19,7 @@ import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { openAstia } from '@server/citation-scans/astia';
+import { openScanCache } from '@server/citation-scans/scan-cache';
 
 import { claudeReader } from '../vision/claude-reader';
 import type { Spend } from '../vision/claude-reader';
@@ -90,7 +91,7 @@ async function main() {
 
   const astia = openAstia(join(root, '.astia-cache'));
   const claude = claudeReader({
-    image: pacedImages(astia),
+    image: pacedImages(openScanCache({ astia, root })),
     models: given({
       pages: values['pages-model'],
       dates: values['dates-model'],
