@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterAll, afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
+import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import { openPins } from '@server/citation-scans/pins';
 import type { Reader } from '@server/citation-scans/reader';
@@ -9,11 +9,11 @@ import {
   churchBookRefOf,
   parseChurchBookRef
 } from '@server/citation-scans/record';
-import { resolveRef, useDataFolder } from '@server/citation-scans/scans';
+import { openScans } from '@server/citation-scans/scans';
 import {
   baptismCitation,
+  juvaAstia,
   rippiCitation,
-  seedParish,
   VOLUMES
 } from '@server/citation-scans/test-parish';
 
@@ -95,20 +95,11 @@ const REFS = CITATIONS.map((c) => parseChurchBookRef(c.page, c.text));
 
 let dir = '';
 
-const astia = spyOn(globalThis, 'fetch').mockImplementation((() => {
-  throw new Error('no requests to Astia in these tests');
-}) as unknown as typeof fetch);
-
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'vision-pass-'));
-  await seedParish(dir);
-  useDataFolder(dir);
 });
 afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
-});
-afterAll(() => {
-  astia.mockRestore();
 });
 
 async function passEvaluation(falseConfirmations = 0) {
@@ -138,6 +129,7 @@ async function run(
     root: dir,
     refs: REFS,
     reader,
+    astia: juvaAstia(),
     log: () => undefined,
     ...options
   });
@@ -145,10 +137,8 @@ async function run(
 }
 
 async function linksOf(c: { page: string; text: string }) {
-  const resolved = await resolveRef(
-    openPins(dir),
-    churchBookRefOf(c.page, c.text)!
-  );
+  const scans = openScans({ pins: openPins(dir), astia: juvaAstia() });
+  const resolved = await scans.resolveRef(churchBookRefOf(c.page, c.text)!);
   return 'links' in resolved ? resolved.links : resolved;
 }
 

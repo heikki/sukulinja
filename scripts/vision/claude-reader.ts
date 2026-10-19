@@ -24,7 +24,6 @@ import type {
   Register
 } from '@server/citation-scans/reader';
 
-import { pacedImage } from './images';
 import type { Scan } from './images';
 
 type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
@@ -308,9 +307,9 @@ function mediaType(bytes: Uint8Array) {
 export interface ClaudeReaderOptions {
   models?: Partial<Record<Question, string>>;
   effort?: Partial<Record<Question, Effort>>;
-  // The Image, scaled to send; by default fetched through the image cache,
-  // paced.
-  image?: (at: ImageRef) => Promise<Scan>;
+  // The Image, scaled to send: pacedImages(astia), through the image
+  // cache.
+  image: (at: ImageRef) => Promise<Scan>;
   client?: Anthropic;
 }
 
@@ -348,10 +347,10 @@ function claudeModel(served: string) {
   return served.replace(/^anthropic\//, '').replace(/\./g, '-');
 }
 
-export function claudeReader(options: ClaudeReaderOptions = {}): ClaudeReader {
+export function claudeReader(options: ClaudeReaderOptions): ClaudeReader {
   const models = { ...DEFAULT_MODELS, ...options.models };
   const effort = { ...DEFAULT_EFFORT, ...options.effort };
-  const image = options.image ?? pacedImage;
+  const image = options.image;
   const { client, openRouter } =
     options.client === undefined
       ? connect()

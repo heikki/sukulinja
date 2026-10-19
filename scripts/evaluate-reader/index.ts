@@ -19,9 +19,10 @@
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
+import { openAstia } from '@server/citation-scans/astia';
 import { openPins } from '@server/citation-scans/pins';
 import { cachedReader } from '@server/citation-scans/reader';
-import type { Question, Reader } from '@server/citation-scans/reader';
+import type { ImageRef, Question, Reader } from '@server/citation-scans/reader';
 import { useDataFolder } from '@server/citation-scans/scans';
 
 import { claudeReader, DEFAULT_MODELS } from '../vision/claude-reader';
@@ -29,6 +30,8 @@ import type { Spend } from '../vision/claude-reader';
 import { datasetRefs, principals } from '../vision/dataset';
 import { gateRefusal, loadEvaluation, recordEvaluation } from '../vision/gate';
 import type { EntryTally, Evaluation, Tally } from '../vision/gate';
+import { pacedImages } from '../vision/images';
+import type { Scan } from '../vision/images';
 import type { Confirmation } from './cases';
 import {
   dateCases,
@@ -87,13 +90,19 @@ function row(question: Question, model: string, tally: Tally, cost: string) {
   return `| ${question} | ${model} | ${n} | ${percent(tally.exact, n)} | ${percent(tally.wrong, n)} | ${percent(tally.unreadable, n)} | ${decoys} | ${cost} |`;
 }
 
+// The data folder evaluated in, and how Images are loaded.
+interface Bench {
+  root: string;
+  image: (at: ImageRef) => Promise<Scan>;
+}
+
 async function evaluate(
-  root: string,
+  { root, image }: Bench,
   question: Question,
   model: string,
   score: (reader: Reader) => Promise<Tally>
 ) {
-  const claude = claudeReader({ models: { [question]: model } });
+  const claude = claudeReader({ image, models: { [question]: model } });
   const reader = cachedReader(claude, join(root, '.vision-readings'));
   console.log(`${question} with ${model}…`);
   const tally = await score(reader);
@@ -116,14 +125,14 @@ interface Run {
   score: (reader: Reader) => Promise<Tally>;
 }
 
-async function runAll(root: string, runs: Run[]) {
+async function runAll(bench: Bench, runs: Run[]) {
   const results: Evaluation = {};
   const lines: string[] = [];
   let spentInAll: number | null = 0;
   // Nothing to ask leaves earlier results as they were.
   for (const run of runs.filter((r) => r.cases > 0)) {
     // eslint-disable-next-line no-await-in-loop -- one model at a time
-    const result = await evaluate(root, run.question, run.model, run.score);
+    const result = await evaluate(bench, run.question, run.model, run.score);
     results[run.model] = {
       ...results[run.model],
       [run.question]: {
@@ -214,7 +223,8 @@ async function main() {
   const pageModels = models(values['pages-models'], DEFAULT_MODELS.pages);
   const dateModels = models(values['dates-models'], DEFAULT_MODELS.dates);
   const entryModels = models(values['entry-models'], DEFAULT_MODELS.entry);
-  const { results, lines, spentInAll } = await runAll(root, [
+  const image = pacedImages(openAstia(join(root, '.astia-cache')));
+  const { results, lines, spentInAll } = await runAll({ root, image }, [
     ...pageModels.map((model) => ({
       question: 'pages' as const,
       model,

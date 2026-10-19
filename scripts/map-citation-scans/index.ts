@@ -10,14 +10,14 @@
 // src/server/citation-scans/locate.ts). Astia responses are cached under
 // its .astia-cache.
 
-import { mkdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import type { Link, LinkResolution } from '@common/types';
+import { openAstia } from '@server/citation-scans/astia';
 import { openPins } from '@server/citation-scans/pins';
 import type { ChurchBookRef } from '@server/citation-scans/record';
-import { resolveRef, useDataFolder } from '@server/citation-scans/scans';
+import { openScans } from '@server/citation-scans/scans';
 
 import { churchBookRefs } from './citations';
 
@@ -97,8 +97,6 @@ async function main() {
     process.exit(2);
   }
   const root = resolve(values.data ?? 'data');
-  useDataFolder(root);
-  await mkdir(join(root, '.astia-cache'), { recursive: true });
   const outFile = join(root, 'citation-scans.json');
   const checklistFile = join(root, 'citation-scans-checklist.md');
 
@@ -115,8 +113,11 @@ async function main() {
     return;
   }
 
-  const pins = openPins(root);
-  const resolutions = await Promise.all(refs.map((c) => resolveRef(pins, c)));
+  const scans = openScans({
+    pins: openPins(root),
+    astia: openAstia(join(root, '.astia-cache'))
+  });
+  const resolutions = await Promise.all(refs.map((c) => scans.resolveRef(c)));
   const results = refs.map((c, i) => ({ ...c, ...resolutions[i] }));
   await Bun.write(outFile, `${JSON.stringify(results, null, 2)}\n`);
   await Bun.write(checklistFile, checklist(refs, resolutions));

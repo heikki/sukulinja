@@ -23,8 +23,8 @@ import type {
   Provenance
 } from '@common/types';
 
-import { archiveTitle, archiveVolumes, viewerUrl, volumeImages } from './astia';
-import type { Volume } from './astia';
+import { viewerUrl } from './astia';
+import type { Astia, Volume } from './astia';
 import type { ChurchBookRef } from './record';
 import type { BookKind, Years } from './text';
 
@@ -270,11 +270,12 @@ const ESTIMATED_VOLUME: LinkTarget = {
 };
 
 async function locate(
+  astia: Astia,
   v: Volume,
   ref: ChurchBookRef,
   pins: Pins
 ): Promise<Located> {
-  const files = await volumeImages(v.id);
+  const files = await astia.volumeImages(v.id);
   const pin = recordPin(v, ref, pins);
   const pinned = pin === undefined ? null : pinnedTarget(pin);
   if (pinned !== null) return { volume: v, files, target: pinned };
@@ -340,18 +341,27 @@ export function parishArchive(parish: string | null) {
 }
 
 // The parish's population-register volumes, for checking a Mark.
-export async function parishVolumes(parish: string | null) {
+export async function parishVolumes(astia: Astia, parish: string | null) {
   const archiveId = parishArchive(parish);
-  return archiveId === null ? [] : await archiveVolumes(archiveId);
+  return archiveId === null ? [] : await astia.archiveVolumes(archiveId);
 }
 
-async function referenceLink(p: ReferencePin, target: LinkTarget) {
-  const files = await volumeImages(p.volumeId);
+async function referenceLink(
+  astia: Astia,
+  p: ReferencePin,
+  target: LinkTarget
+) {
+  const files = await astia.volumeImages(p.volumeId);
   return linkTo(p.volumeId, p.volume, files, target);
 }
 
-async function volumesFor(ref: ChurchBookRef, archiveId: string, pins: Pins) {
-  const volumes = await archiveVolumes(archiveId);
+async function volumesFor(
+  astia: Astia,
+  ref: ChurchBookRef,
+  archiveId: string,
+  pins: Pins
+) {
+  const volumes = await astia.archiveVolumes(archiveId);
   const filmed = filmedIn(volumes, ref.recordId, pins);
   return filmed.length > 0
     ? filmed
@@ -359,47 +369,52 @@ async function volumesFor(ref: ChurchBookRef, archiveId: string, pins: Pins) {
 }
 
 // The Links, each saying whose archive its Volume is in.
-async function withArchive(links: Link[], parish: string | null) {
+async function withArchive(astia: Astia, links: Link[], parish: string | null) {
   const archiveId = parishArchive(parish);
-  const archive = archiveId === null ? null : await archiveTitle(archiveId);
+  const archive =
+    archiveId === null ? null : await astia.archiveTitle(archiveId);
   return archive === null ? links : links.map((l) => ({ ...l, archive }));
 }
 
 export async function resolveChurchBookRef(
+  astia: Astia,
   ref: ChurchBookRef,
   pins: Pins
 ): Promise<LinkResolution> {
-  const resolved = await resolveLinks(ref, pins);
+  const resolved = await resolveLinks(astia, ref, pins);
   if ('error' in resolved) return resolved;
-  return { links: await withArchive(resolved.links, ref.parish) };
+  return { links: await withArchive(astia, resolved.links, ref.parish) };
 }
 
 // The reference's own pin decides its Link, at whatever Precision; null
 // when it has none that points anywhere.
-async function pinnedLink(ref: ChurchBookRef, pins: Pins) {
+async function pinnedLink(astia: Astia, ref: ChurchBookRef, pins: Pins) {
   const pin = pins.references[ref.url];
   const pinned = pin === undefined ? null : pinnedTarget(pin);
   return pin === undefined || pinned === null
     ? null
-    : await referenceLink(pin, pinned);
+    : await referenceLink(astia, pin, pinned);
 }
 
 async function resolveLinks(
+  astia: Astia,
   ref: ChurchBookRef,
   pins: Pins
 ): Promise<LinkResolution> {
-  const pinned = await pinnedLink(ref, pins);
+  const pinned = await pinnedLink(astia, ref, pins);
   if (pinned !== null) return { links: [pinned] };
   if (ref.parish === null || ref.kind === null || ref.years === null) {
     return { error: 'unparsed' };
   }
   const archiveId = PARISH_ARCHIVE[ref.parish];
   if (archiveId === undefined) return { error: `no archive for ${ref.parish}` };
-  const candidates = await volumesFor(ref, archiveId, pins);
+  const candidates = await volumesFor(astia, ref, archiveId, pins);
   if (candidates.length === 0) return { error: 'no matching volume' };
   const digitized = candidates.filter((v) => v.digitized);
   if (digitized.length === 0) return { error: 'not digitized' };
-  const located = await Promise.all(digitized.map((v) => locate(v, ref, pins)));
+  const located = await Promise.all(
+    digitized.map((v) => locate(astia, v, ref, pins))
+  );
   const withImages = located.filter((l) => l.files.length > 0);
   if (withImages.length === 0) return { error: 'no images' };
   return { links: pickVolumes(withImages, ref.places, pins).map(toLink) };

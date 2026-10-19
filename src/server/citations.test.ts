@@ -1,16 +1,17 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterAll, afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
+import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { CitationLinks, VolumeCitation } from '@common/types';
 
+import type { MemoryAstia } from './citation-scans/memory-astia';
 import { openPins } from './citation-scans/pins';
-import { useDataFolder } from './citation-scans/scans';
+import { openScans } from './citation-scans/scans';
 import {
   baptismCitation,
-  rippiCitation,
-  seedParish
+  juvaAstia,
+  rippiCitation
 } from './citation-scans/test-parish';
 import { createCitations, describeRef, entryOf } from './citations';
 import { openDb } from './db';
@@ -18,22 +19,14 @@ import { importGedcom } from './gedcom-import';
 import { parseGedcom } from './gedcom-parser';
 
 let dir = '';
-
-const astia = spyOn(globalThis, 'fetch').mockImplementation((() => {
-  throw new Error('no requests to Astia in these tests');
-}) as unknown as typeof fetch);
+let astia: MemoryAstia = juvaAstia();
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'citations-'));
-  await seedParish(dir);
-  useDataFolder(dir);
-  astia.mockClear();
+  astia = juvaAstia();
 });
 afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
-});
-afterAll(() => {
-  astia.mockRestore();
 });
 
 interface Cited {
@@ -52,7 +45,7 @@ function datasetOf(cited: Cited[]) {
   for (const [i, c] of cited.entries()) {
     insert.run(c.personId, c.page, c.text, i);
   }
-  return createCitations(db, openPins(dir));
+  return createCitations(db, openScans({ pins: openPins(dir), astia }));
 }
 
 function cite(personId: number, c: { page: string | null; text: string }) {
@@ -93,7 +86,9 @@ test("serves a person's Citations, church books first", () => {
     ''
   ].join('\n');
   importGedcom(db, parseGedcom(gedcom), () => null);
-  expect(createCitations(db, openPins(dir)).ofPerson(1)).toEqual([
+  expect(
+    createCitations(db, openScans({ pins: openPins(dir), astia })).ofPerson(1)
+  ).toEqual([
     {
       id: 2,
       source: 'Suomalaiset rippi- ja lastenkirjat, 1657-1915',
@@ -367,7 +362,8 @@ test("another parish's citations are never resolved", async () => {
 
   const rows = await citations.inVolume('juva-1');
   expect(rows!.map((r) => r.personId)).toEqual([1, 2]);
-  expect(astia).not.toHaveBeenCalled();
+  // Haukivuori's archive was never asked for.
+  expect(astia.asked).not.toContain('volumes 1202439501');
 });
 
 test('a Volume in none of the parishes cited is not found', async () => {

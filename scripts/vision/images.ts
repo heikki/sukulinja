@@ -12,6 +12,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import type { Astia } from '@server/citation-scans/astia';
 import { astiaImage, isImageCached } from '@server/citation-scans/images';
 import type { ImageRef } from '@server/citation-scans/reader';
 
@@ -77,33 +78,36 @@ async function fitted(path: string): Promise<Scan> {
   }
 }
 
-let queue: Promise<unknown> = Promise.resolve();
-// Resolves when the next fetch from Astia may start.
-let gap: Promise<void> = Promise.resolve();
+// Loads Images from the Astia given, one at a time.
+export function pacedImages(astia: Astia) {
+  let queue: Promise<unknown> = Promise.resolve();
+  // Resolves when the next fetch from Astia may start.
+  let gap: Promise<void> = Promise.resolve();
 
-async function load(at: ImageRef) {
-  const fetching = !(await isImageCached(at.volumeId, at.image));
-  if (fetching) {
-    const wait = gap;
-    gap = wait.then(async () => {
-      await Bun.sleep(GAP_MS);
-    });
-    await wait;
+  async function load(at: ImageRef) {
+    const fetching = !(await isImageCached(astia, at));
+    if (fetching) {
+      const wait = gap;
+      gap = wait.then(async () => {
+        await Bun.sleep(GAP_MS);
+      });
+      await wait;
+    }
+    const path = await astiaImage(
+      astia,
+      at,
+      'full',
+      new AbortController().signal
+    );
+    if (path === null) {
+      throw new Error(`Volume ${at.volumeId} has no Image ${at.image}`);
+    }
+    return await fitted(path);
   }
-  const path = await astiaImage(
-    at.volumeId,
-    at.image,
-    'full',
-    new AbortController().signal
-  );
-  if (path === null) {
-    throw new Error(`Volume ${at.volumeId} has no Image ${at.image}`);
-  }
-  return await fitted(path);
-}
 
-export function pacedImage(at: ImageRef) {
-  const run = queue.then(async () => await load(at));
-  queue = run.catch(() => undefined);
-  return run;
+  return function pacedImage(at: ImageRef) {
+    const run = queue.then(async () => await load(at));
+    queue = run.catch(() => undefined);
+    return run;
+  };
 }

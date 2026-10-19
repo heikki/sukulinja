@@ -5,7 +5,8 @@
 
 import { join } from 'node:path';
 
-import { viewerUrl, volumeImages } from '@server/citation-scans/astia';
+import { openAstia, viewerUrl } from '@server/citation-scans/astia';
+import type { Astia } from '@server/citation-scans/astia';
 import { matchRef } from '@server/citation-scans/matcher';
 import type { Match, Unconfirmed } from '@server/citation-scans/matcher';
 import { openPins } from '@server/citation-scans/pins';
@@ -14,11 +15,8 @@ import { cachedReader } from '@server/citation-scans/reader';
 import type { Reader } from '@server/citation-scans/reader';
 import { RIPPI_COLLECTION } from '@server/citation-scans/record';
 import type { ChurchBookRef } from '@server/citation-scans/record';
-import {
-  matchCandidates,
-  resolveRef,
-  useDataFolder
-} from '@server/citation-scans/scans';
+import { openScans, useDataFolder } from '@server/citation-scans/scans';
+import type { Scans } from '@server/citation-scans/scans';
 
 import { gateRefusal } from '../vision/gate';
 
@@ -28,6 +26,8 @@ export interface RunOptions {
   root: string;
   refs: ChurchBookRef[];
   reader: Reader;
+  // By default over HTTP, kept in the data folder.
+  astia?: Astia;
   dryRun?: boolean;
   parish?: string;
   // Only rippikirja references (searched by page), or only index
@@ -72,13 +72,26 @@ function cited(ref: ChurchBookRef) {
   return ref.page === null ? ref.date : `p. ${ref.page}`;
 }
 
-async function link(volumeId: string | undefined, image: number | undefined) {
+// What a run matches with, and saves into.
+interface Pass {
+  pins: PinStore;
+  scans: Scans;
+  astia: Astia;
+  reader: Reader;
+}
+
+async function link(
+  astia: Astia,
+  volumeId: string | undefined,
+  image: number | undefined
+) {
   if (volumeId === undefined || image === undefined) return null;
-  const fileId = (await volumeImages(volumeId))[image - 1];
+  const fileId = (await astia.volumeImages(volumeId))[image - 1];
   return fileId === undefined ? null : viewerUrl(volumeId, fileId);
 }
 
 async function reviewEntry(
+  astia: Astia,
   ref: ChurchBookRef,
   reason: Unconfirmed,
   match: Match | null
@@ -92,7 +105,7 @@ async function reviewEntry(
     record: ref.url,
     volume: where?.volume ?? null,
     image: where?.image ?? null,
-    link: await link(where?.volumeId, where?.image)
+    link: await link(astia, where?.volumeId, where?.image)
   };
 }
 
@@ -104,8 +117,8 @@ function dollars(spent: (() => number | null) | undefined) {
 // Whether the reference is up for matching: not pinned yet, by hand or by
 // the model, in a Volume the existing resolution finds. Otherwise, the
 // tally key saying why not.
-async function standing(pins: PinStore, ref: ChurchBookRef) {
-  const resolved = await resolveRef(pins, ref);
+async function standing(scans: Scans, ref: ChurchBookRef) {
+  const resolved = await scans.resolveRef(ref);
   if ('error' in resolved) return resolved.error;
   return resolved.links.some(
     (l) => l.certainty === 'marked' || l.certainty === 'vision'
@@ -136,21 +149,21 @@ const LEFT_OUT: Done = { key: null, tried: false, saved: false, entry: null };
 
 // Done already, when the reference isn't up for matching.
 async function skipped(
-  pins: PinStore,
+  { scans, astia }: Pass,
   ref: ChurchBookRef
 ): Promise<Done | null> {
-  const skip = await standing(pins, ref);
+  const skip = await standing(scans, ref);
   if (skip === null) return null;
   const entry =
     skip === 'no matching volume'
-      ? await reviewEntry(ref, 'no candidate volume', null)
+      ? await reviewEntry(astia, ref, 'no candidate volume', null)
       : null;
   return { key: `${kindOf(ref)} ✗ ${skip}`, tried: false, saved: false, entry };
 }
 
 async function settle(
   options: RunOptions,
-  pins: PinStore,
+  { pins, astia }: Pass,
   ref: ChurchBookRef,
   match: Match
 ): Promise<Done> {
@@ -163,7 +176,7 @@ async function settle(
   }
   const entry = NOT_REVIEWED.has(match.reason)
     ? null
-    : await reviewEntry(ref, match.reason, match);
+    : await reviewEntry(astia, ref, match.reason, match);
   return { key, tried: true, saved: false, entry };
 }
 
@@ -177,35 +190,31 @@ function leftOut(options: RunOptions, ref: ChurchBookRef) {
   );
 }
 
-// What a run matches with, and saves into.
-interface Pass {
-  pins: PinStore;
-  reader: Reader;
-}
-
 async function matchOne(
   options: RunOptions,
-  { pins, reader }: Pass,
+  pass: Pass,
   ref: ChurchBookRef,
   n: number
 ): Promise<Done> {
   if (leftOut(options, ref)) return LEFT_OUT;
-  const skip = await skipped(pins, ref);
+  const skip = await skipped(pass, ref);
   if (skip !== null) return skip;
-  const candidates = await matchCandidates(pins, ref);
+  const candidates = await pass.scans.matchCandidates(ref);
   const volume = options.volume;
   if (volume !== undefined && !candidates.some((c) => c.volumeId === volume)) {
     return LEFT_OUT;
   }
-  const match = await matchRef(ref, candidates, reader);
+  const match = await matchRef(ref, candidates, pass.reader);
   (options.log ?? console.log)(progress(n, ref, match, dollars(options.spent)));
-  return await settle(options, pins, ref, match);
+  return await settle(options, pass, ref, match);
 }
 
 export async function runMatching(options: RunOptions): Promise<RunResult> {
   const { root } = options;
   useDataFolder(root);
   const pins = openPins(root);
+  const astia = options.astia ?? openAstia(join(root, '.astia-cache'));
+  const scans = openScans({ pins, astia });
   const reader = cachedReader(options.reader, join(root, '.vision-readings'));
   if (options.dryRun !== true) {
     const refusal = await gateRefusal(root, reader.models.entry);
@@ -216,7 +225,12 @@ export async function runMatching(options: RunOptions): Promise<RunResult> {
   for (const ref of options.refs) {
     if (tried >= (options.limit ?? Infinity)) break;
     // eslint-disable-next-line no-await-in-loop -- one reference at a time
-    const done = await matchOne(options, { pins, reader }, ref, tried + 1);
+    const done = await matchOne(
+      options,
+      { pins, scans, astia, reader },
+      ref,
+      tried + 1
+    );
     all.push(done);
     if (done.tried) tried += 1;
   }
