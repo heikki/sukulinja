@@ -1,6 +1,6 @@
+import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
-import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { fitTo, Pinch, startMomentumPan, zoomAt } from '@client/pan-zoom';
@@ -12,23 +12,16 @@ import type {
   Viewport
 } from '@client/pan-zoom';
 import { appState } from '@client/state';
-import type { AppState } from '@client/state';
-import type {
-  CitationRow,
-  Link,
-  PersonRow,
-  VolumeCitation
-} from '@common/types';
+import type { AppState, LinkOpen, VolumeShown } from '@client/state';
+import type { PersonRow } from '@common/types';
 
-import type { ScanPerson } from './citations';
 import { MOMENTUM, releaseVelocity } from './drag';
 import type { Drag, Sample } from './drag';
 import { EdgeWatch } from './edge-watch';
 import { entriesShown, frameForFull, frameForThumb, layers } from './frame';
 import type { Frame, Loading } from './frame';
-import { clampImage, Latest, neighbours } from './helpers';
+import { neighbours } from './helpers';
 import { stepOf } from './keys';
-import type { ScanClose, ScanStep } from './keys';
 import { loadingNote } from './note';
 import { Prefetch } from './prefetch';
 import { controlStyles, scanViewerStyles } from './styles';
@@ -39,8 +32,6 @@ import './people';
 import './toolbar';
 
 export type { ScanPerson, ScanPersonEvent } from './citations';
-export type { ScanCloseEvent, ScanStepEvent } from './keys';
-export type { ScanMarked, ScanMarkedEvent } from './helpers';
 
 // The chart's feel (tree-view's VIEWPORT_OPTIONS), with room to zoom from a
 // whole spread down to a page's detail.
@@ -53,36 +44,25 @@ const DRAG_THRESHOLD_PX = 4;
 const FADE_AFTER_MS = 100;
 const ORIGIN: Point = { x: 0, y: 0 };
 
-// The link's Volume, being shown.
-interface Shown {
-  id: string;
-  label: string;
+// The Volume and Image last drawn.
+interface Drawn {
+  volumeId: string | null;
+  image: number;
 }
 
-// The Scan viewer: the Image a Church-book reference (`citation`) links
-// to (`link`) over the chart, in its Volume to step through and zoom into;
-// a new `link` moves it there. The record itself stays in the dock, marked
-// there, so the toolbar only names the Volume, and the Image controls float
-// over the scan. Asks to close
-// with a `scan-close` event. Beside the scan, the people of the tree
-// (`persons`) linked to the Image shown; picking one asks to go on with
-// their citation with `scan-person`, and confirming one's vision match
-// reports with `scan-marked`.
+// The Scan viewer: the Image the viewer store shows, over the chart, to
+// zoom into and step through its Volume. The record itself stays in the
+// dock, marked there, so the toolbar only names the Volume, and the Image
+// controls float over the scan. Beside the scan, the people of the tree
+// (`persons`) linked to the Image shown.
 @customElement('sl-scan-viewer')
-export class ScanViewerElement extends LitElement {
+export class ScanViewerElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanViewerStyles];
 
   @consume({ context: appState }) private readonly state!: AppState;
 
-  @property({ attribute: false }) citation: CitationRow | null = null;
-  @property({ attribute: false }) link: Link | null = null;
   @property({ attribute: false }) persons = new Map<number, PersonRow>();
 
-  @state() private volume: Shown | null = null;
-  @state() private image = 1;
-  // Astia's viewer URL for each Image of the Volume, which also gives their
-  // count; null until it arrives.
-  @state() private viewerUrls: string[] | null = null;
   @state() private loading: Loading = 'loading';
   @state() private retry = 0;
   // The shown Image's thumbnail, once loaded: shown blurred until the full
@@ -94,18 +74,14 @@ export class ScanViewerElement extends LitElement {
   // Null until the first Image of the Volume is fitted.
   @state() private view: Transform | null = null;
   @state() private dragging = false;
-  // The shown Volume's citations; null until they arrive.
-  @state() private citations: VolumeCitation[] | null = null;
-  @state() private citationsFailed = false;
   // The key of the entry picked out, on the scan and in the list.
   @state() private hovered: string | null = null;
 
   private readonly prefetch = new Prefetch();
-  // A source was opened, so focus moves here once it's shown.
+  private drawn: Drawn = { volumeId: null, image: 1 };
+  // The source last opened; a new one moves focus here once it's shown.
+  private opened: LinkOpen | null = null;
   private focusing = false;
-  // The Image shown isn't the link's; unknown until first shown, so a new
-  // viewer always says.
-  private away: boolean | null = null;
   // Which way the last step went, for which neighbour to prefetch first.
   private step: 1 | -1 = 1;
   // When the shown Image's thumbnail appeared.
@@ -124,8 +100,6 @@ export class ScanViewerElement extends LitElement {
     const { pan } = this.view;
     this.view = { ...this.view, pan: { x: pan.x - dx, y: pan.y } };
   });
-  private readonly viewerUrlsReq = new Latest();
-  private readonly citationsReq = new Latest();
 
   // A region of its own, focused when it opens a source and reached with
   // Tab. Its keys work while it's open, wherever focus is.
@@ -146,89 +120,51 @@ export class ScanViewerElement extends LitElement {
     window.removeEventListener('keydown', this.onKeyDown);
     this.stopMomentum();
     this.edge.watch(null);
-    this.viewerUrlsReq.stop();
-    this.citationsReq.stop();
     this.prefetch.keep([]);
   }
 
-  override willUpdate(changed: PropertyValues<this>) {
-    if (changed.has('link')) {
-      this.follow(this.link);
-      this.focusing = this.link !== null;
+  private get viewer() {
+    return this.state.viewer;
+  }
+
+  private get image() {
+    return this.viewer.image.get();
+  }
+
+  // A new Volume or Image starts its drawing afresh, and a new source
+  // moves focus here.
+  override willUpdate() {
+    const volumeId = this.viewer.volume.get()?.id ?? null;
+    const { image } = this;
+    const last = this.drawn;
+    this.drawn = { volumeId, image };
+    if (volumeId !== last.volumeId) {
+      this.frame = null;
+      this.view = null;
+      this.prefetch.keep([]);
+      this.reset();
+    } else if (image !== last.image) {
+      this.step = image < last.image ? -1 : 1;
+      this.reset();
+      // The one now shown may already be on its way; the rest aren't wanted.
+      if (volumeId !== null) this.keepNear(volumeId, image);
+    }
+    const source = this.viewer.source.get();
+    if (source !== this.opened) {
+      this.opened = source;
+      this.focusing = source !== null;
     }
   }
 
-  // Watches the scan's edge once there is one, and says with `scan-away`
-  // whenever it leaves the link's Image, or comes back to it; a link to the
-  // Volume alone holds anywhere in it.
   override updated() {
     if (this.focusing) {
       this.focusing = false;
       this.focus({ preventScroll: true });
     }
     this.edge.watch(this.renderRoot.querySelector('.stage'));
-    const { link } = this;
-    const away =
-      link !== null &&
-      (this.volume?.id !== link.volumeId ||
-        ('image' in link && this.image !== link.image));
-    if (away === this.away) return;
-    this.away = away;
-    this.dispatchEvent(
-      new CustomEvent('scan-away', {
-        detail: away,
-        bubbles: true,
-        composed: true
-      })
-    );
   }
 
-  // To the Link's Image. One pointing only at the Volume holds anywhere in
-  // it: in the Volume shown, the viewer stays where it is; another opens on
-  // its first Image.
-  private follow(link: Link | null) {
-    if (link === null) {
-      this.volume = null;
-      return;
-    }
-    const image = 'image' in link ? link.image : null;
-    if (this.volume?.id === link.volumeId) {
-      if (image !== null) this.show(image);
-    } else {
-      this.open({ id: link.volumeId, label: link.volume }, image ?? 1);
-    }
-  }
-
-  // Without the list the count stays unknown.
-  private async loadViewerUrls(volumeId: string) {
-    this.viewerUrls = null;
-    const urls = await this.viewerUrlsReq.run(
-      async (signal) => await this.state.api.volumeImages(volumeId, signal)
-    );
-    if (urls === null || urls === undefined) return;
-    this.viewerUrls = urls;
-    this.image = clampImage(this.image, urls.length);
-  }
-
-  private async loadCitations(volumeId: string) {
-    this.citationsFailed = false;
-    const rows = await this.citationsReq.run(
-      async (signal) => await this.state.api.volumeCitations(volumeId, signal)
-    );
-    if (rows === undefined) return;
-    this.citations = rows;
-    this.citationsFailed = rows === null;
-  }
-
-  private open(volume: Shown, image: number) {
-    this.volume = volume;
-    this.frame = null;
-    this.view = null;
-    this.prefetch.keep([]);
-    this.citations = null;
-    void this.loadViewerUrls(volume.id);
-    void this.loadCitations(volume.id);
-    this.image = clampImage(image, null);
+  private reset() {
     this.loading = 'loading';
     this.retry = 0;
     this.thumb = null;
@@ -236,57 +172,18 @@ export class ScanViewerElement extends LitElement {
     this.fading = false;
   }
 
-  private show(n: number) {
-    const next = clampImage(n, this.viewerUrls?.length ?? null);
-    if (next === this.image) return;
-    this.step = next < this.image ? -1 : 1;
-    this.image = next;
-    this.loading = 'loading';
-    this.retry = 0;
-    this.thumb = null;
-    this.hovered = null;
-    this.fading = false;
-    const id = this.volume?.id;
-    if (id === undefined) return;
-    // The one now shown may already be on its way; the rest aren't wanted.
-    const near = [next, ...neighbours(next, null, 1)];
-    this.prefetch.keep(near.map((i) => this.state.api.imageUrl(id, i, 0)));
+  private keepNear(volumeId: string, image: number) {
+    const near = [image, ...neighbours(image, null, 1)];
+    const { api } = this.state;
+    this.prefetch.keep(near.map((i) => api.imageUrl(volumeId, i, 0)));
   }
 
   private prefetchNeighbours() {
-    const id = this.volume?.id;
+    const id = this.viewer.volume.get()?.id;
     if (id === undefined) return;
-    const count = this.viewerUrls?.length ?? null;
-    const near = neighbours(this.image, count, this.step);
+    const near = neighbours(this.image, this.viewer.count.get(), this.step);
     this.prefetch.want(near.map((i) => this.state.api.imageUrl(id, i, 0)));
   }
-
-  private close() {
-    if (this.citation === null) return;
-    this.tell('scan-close', { citationId: this.citation.id });
-  }
-
-  // Tells the host about the source shown.
-  private tell(type: string, detail: ScanClose | ScanStep) {
-    this.dispatchEvent(
-      new CustomEvent(type, { detail, bubbles: true, composed: true })
-    );
-  }
-
-  // A confirmation moves its row, and a Page pin its neighbours'.
-  private readonly onMarked = () => {
-    if (this.volume !== null) void this.loadCitations(this.volume.id);
-  };
-
-  private readonly onPick = (e: CustomEvent<VolumeCitation>) => {
-    const row = e.detail;
-    if (this.volume === null) return;
-    const open = { citation: row.citation, link: row.link };
-    const detail: ScanPerson = { personId: row.personId, open };
-    this.dispatchEvent(
-      new CustomEvent('scan-person', { detail, bubbles: true, composed: true })
-    );
-  };
 
   // ------------------------------------------------------------ view
 
@@ -447,33 +344,20 @@ export class ScanViewerElement extends LitElement {
   private readonly onKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();
-      this.close();
+      this.viewer.close();
       return;
     }
     const step = stepOf(e);
     if (step === null) return;
     e.preventDefault();
-    if (step.image !== undefined) {
-      this.show(this.image + step.image);
-    } else if (this.citation !== null) {
-      // Asks the dock for the source before or after this one.
-      this.tell('scan-step', {
-        citationId: this.citation.id,
-        step: step.source!
-      });
+    if (step.image === undefined) {
+      this.viewer.step(step.source!);
+    } else {
+      this.viewer.show(this.image + step.image);
     }
   };
 
   // ------------------------------------------------------------ render
-
-  private renderToolbar() {
-    return html`<sl-scan-toolbar
-      .link=${this.link}
-      @scan-close=${() => {
-        this.close();
-      }}
-    ></sl-scan-toolbar>`;
-  }
 
   private renderNote() {
     return loadingNote(this.loading, this.view !== null, () => {
@@ -482,7 +366,7 @@ export class ScanViewerElement extends LitElement {
     });
   }
 
-  private renderImages(volume: Shown) {
+  private renderImages(volume: VolumeShown) {
     const { frame } = this;
     const { thumb, loading, fading } = this;
     const shown = layers(this.view, frame, { thumb, loading, fading });
@@ -526,23 +410,23 @@ export class ScanViewerElement extends LitElement {
 
   // Boxes around the entries whose place is known, once the full Image is
   // shown.
-  private renderEntries() {
+  private renderEntries(source: LinkOpen) {
     if (!entriesShown(this.frame, this.loading)) return nothing;
+    const rows = this.viewer.citations.get();
     return html`
       <sl-scan-entries
-        .rows=${this.citations ?? []}
+        .rows=${Array.isArray(rows) ? rows : []}
         .image=${this.image}
         .view=${this.view}
         .frame=${this.frame}
         .hovered=${this.hovered}
-        .current=${this.citation?.id ?? null}
-        @scan-pick=${this.onPick}
+        .current=${source.citation.id}
         @scan-hover=${this.onHover}
       ></sl-scan-entries>
     `;
   }
 
-  private renderStage(volume: Shown) {
+  private renderStage(source: LinkOpen, volume: VolumeShown) {
     return html`
       <div
         class="stage ${this.dragging ? 'dragging' : ''}"
@@ -553,15 +437,9 @@ export class ScanViewerElement extends LitElement {
         @gestureend=${this.pinch.onGestureEnd}
         @dblclick=${this.onDblClick}
       >
-        ${this.renderImages(volume)} ${this.renderEntries()}
+        ${this.renderImages(volume)} ${this.renderEntries(source)}
         ${this.renderNote()}
-        <sl-scan-nav
-          .image=${this.image}
-          .count=${this.viewerUrls?.length ?? null}
-          @scan-show=${(e: CustomEvent<number>) => {
-            this.show(e.detail);
-          }}
-        ></sl-scan-nav>
+        <sl-scan-nav></sl-scan-nav>
       </div>
     `;
   }
@@ -569,26 +447,21 @@ export class ScanViewerElement extends LitElement {
   private renderPeople() {
     return html`
       <sl-scan-people
-        .rows=${this.citations}
-        .image=${this.image}
         .persons=${this.persons}
-        .current=${this.citation?.id ?? null}
         .hovered=${this.hovered}
-        .volumeId=${this.volume?.id ?? null}
-        ?failed=${this.citationsFailed}
-        @scan-marked=${this.onMarked}
-        @scan-pick=${this.onPick}
         @scan-hover=${this.onHover}
       ></sl-scan-people>
     `;
   }
 
   override render() {
-    if (this.citation === null || this.volume === null) return nothing;
+    const source = this.viewer.source.get();
+    const volume = this.viewer.volume.get();
+    if (source === null || volume === null) return nothing;
     return html`
-      ${this.renderToolbar()}
+      <sl-scan-toolbar></sl-scan-toolbar>
       <div class="body">
-        ${this.renderStage(this.volume)} ${this.renderPeople()}
+        ${this.renderStage(source, volume)} ${this.renderPeople()}
       </div>
     `;
   }

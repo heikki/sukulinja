@@ -1,6 +1,11 @@
+import { SignalWatcher } from '@lit-labs/signals';
+import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { customElement, state } from 'lit/decorators.js';
 import { live } from 'lit/directives/live.js';
+
+import { appState } from '@client/state';
+import type { AppState } from '@client/state';
 
 import { stepOf } from './keys';
 import { controlStyles, scanNavStyles } from './styles';
@@ -10,16 +15,14 @@ function stop(e: Event) {
 }
 
 // Stepping through the Volume, floating over the foot of the scan: the
-// Image shown (`image`) of how many (`count`, once known). Asks the viewer
-// for an Image with `scan-show`. Pointer and wheel input stays here, so
-// using it doesn't pan or zoom the scan beneath. The button a held ←/→
-// stands for shows pressed.
+// Image shown of how many, once Astia says. Pointer and wheel input stays
+// here, so using it doesn't pan or zoom the scan beneath. The button a held
+// ←/→ stands for shows pressed.
 @customElement('sl-scan-nav')
-export class ScanNavElement extends LitElement {
+export class ScanNavElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanNavStyles];
 
-  @property({ type: Number }) image = 1;
-  @property({ attribute: false }) count: number | null = null;
+  @consume({ context: appState }) private readonly state!: AppState;
 
   // Which way the arrow key held steps. Its button stays live while held,
   // so a step onto the first or last Image still shows the press.
@@ -54,11 +57,12 @@ export class ScanNavElement extends LitElement {
   };
 
   private ask(image: number) {
-    this.dispatchEvent(new CustomEvent('scan-show', { detail: image }));
+    this.state.viewer.show(image);
   }
 
   override render() {
-    const { count, image } = this;
+    const count = this.state.viewer.count.get();
+    const image = this.state.viewer.image.get();
     return html`
       <button
         class=${this.pressed === -1 ? 'pressed' : ''}
@@ -80,7 +84,7 @@ export class ScanNavElement extends LitElement {
         @change=${(e: Event) => {
           const input = e.target as HTMLInputElement;
           this.ask(Number(input.value));
-          input.value = String(this.image);
+          input.value = String(this.state.viewer.image.get());
         }}
       />
       <span class="count">${count === null ? '' : `of ${count}`}</span>

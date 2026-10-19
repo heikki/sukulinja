@@ -1,11 +1,6 @@
 import { certaintyName } from '@client/link-labels';
-import type {
-  Box,
-  Certainty,
-  CitationRow,
-  Link,
-  VolumeCitation
-} from '@common/types';
+import type { Viewer } from '@client/state';
+import type { Box, Certainty, VolumeCitation } from '@common/types';
 
 // Entries in the order they're written on the Image, where the model said
 // where; the rest by name.
@@ -36,14 +31,30 @@ export function groupCitations(
   })).filter((g) => g.rows.length > 0);
 }
 
-// A person picked beside the scan: the viewer is to go on with their
-// citation, on the Image shown.
+// A person picked in the viewer who isn't the Selected person: the viewer
+// has noted their citation, and `scan-person` asks for them.
 export interface ScanPerson {
   personId: number;
-  open: { citation: CitationRow; link: Link };
 }
 
 export type ScanPersonEvent = CustomEvent<ScanPerson>;
+
+// Picks the row's person from `from`, the part clicked.
+export function pickRow(
+  from: HTMLElement,
+  viewer: Viewer,
+  row: VolumeCitation
+) {
+  const personId = viewer.pick(row);
+  if (personId === null) return;
+  from.dispatchEvent(
+    new CustomEvent<ScanPerson>('scan-person', {
+      detail: { personId },
+      bubbles: true,
+      composed: true
+    })
+  );
+}
 
 // The Image a row links, or null for one known only to be in the Volume.
 export function imageOf(row: VolumeCitation) {

@@ -1,23 +1,25 @@
+import { SignalWatcher } from '@lit-labs/signals';
+import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement } from 'lit/decorators.js';
 
 import { volumeTitle } from '@client/link-labels';
-import type { Link } from '@common/types';
+import { appState } from '@client/state';
+import type { AppState } from '@client/state';
 
 import { controlStyles, scanToolbarStyles } from './styles';
 
-// The Scan viewer's one row: the archive and Volume shown, and leaving,
-// asked of the viewer with `scan-close`.
+// The Scan viewer's one row: the archive and Volume of the source's Link,
+// and closing.
 @customElement('sl-scan-toolbar')
-export class ScanToolbarElement extends LitElement {
+export class ScanToolbarElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanToolbarStyles];
 
-  // The reference's link, whose Volume is shown.
-  @property({ attribute: false }) link: Link | null = null;
+  @consume({ context: appState }) private readonly state!: AppState;
 
   override render() {
-    const { link } = this;
-    if (link === null) return nothing;
+    const link = this.state.viewer.source.get()?.link;
+    if (link === undefined) return nothing;
     const archive = link.archive === undefined ? '' : `${link.archive} · `;
     const title = `${archive}${volumeTitle(link.volume)}`;
     return html`
@@ -27,7 +29,7 @@ export class ScanToolbarElement extends LitElement {
         title="Close (Esc)"
         aria-label="Close"
         @click=${() => {
-          this.dispatchEvent(new CustomEvent('scan-close'));
+          this.state.viewer.close();
         }}
       >
         ✕
