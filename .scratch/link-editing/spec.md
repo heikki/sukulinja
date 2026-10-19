@@ -6,7 +6,7 @@ Glossary (`src/server/citation-scans/CONTEXT.md`): **Link**, **Mark**, **Box**, 
 
 The only Mark in the app is Confirm on a Vision match. When a Link's Volume is wrong (years or a Record range chose badly, or a Split reference opened on the wrong candidate), or its Image is a few off, or the entry is boxed wrong, there is no way to say so. The Scan viewer can't even switch Volumes: it shows only the Volume of the Link it was opened on.
 
-Shipped so far: the pending-change bar with its leaving guard; the scan's context menu with Change Volume… (saved as a Volume-only Mark), Mark this Image, and drawing, editing and deleting the entry Box (`viewer.ts`, `edit.ts`, `layer.ts`, `menu.ts`, `volumes.ts`, `GET /api/citations/:id/volumes`). Still to come: Not known.
+Shipped so far: the pending-change bar with its leaving guard; the scan's context menu with Change Volume… (saved as a Volume-only Mark), Mark this Image, and drawing, editing and deleting the entry Box (`viewer.ts`, `edit.ts`, `layer.ts`, `menu.ts`, `volumes.ts`, `GET /api/citations/:id/volumes`).
 
 ## Design
 
@@ -29,7 +29,6 @@ Editing is always for the viewer's **current source**, one at a time. Nothing sa
 ### What you can change
 
 - **Change Volume…**: the list of the parish's Volumes in the same Astia series as the reference's Book. It has two groups: _Fits the reference_ (the Volumes its years or Record range give, worked out without its own pin, as `matchCandidates` does with `byBook(pins)`), then _Other Volumes_ by years, each with its code and years. Picking one shows it and sets the pending Link to that Volume, with no Image (Marked Volume). It opens from the scan's context menu, where you right-clicked; the toolbar only names the Volume shown. There's no separate browse-only switcher: Cancel undoes a look. Its own Volume is no change, unless the reference is Split.
-- **Not known**: a row at the foot of the Change Volume list, for a reference whose Volume you've looked for and can't tell (`issues/06-not-known.md`).
 - **Mark this Image**: sets the pending Image to the one shown, in the Volume shown, with no Box (Marked Image). On a Vision match's Image it drops the match's Box; Confirm keeps it.
 - **Draw the entry…**: the cursor becomes a crosshair; drag a rectangle, Esc cancels. It sets the pending Box, and the Image shown if it wasn't set yet.
 - **Edit box**: on the source's own entry Box, makes it pending (a Vision match's too), to adjust. While a Box is pending it has corner and edge handles, dashed in the accent. Dragging a handle resizes it; dragging inside moves it; dragging elsewhere still pans.
@@ -53,9 +52,6 @@ A pending change starts from the Link as it is. Editing a Vision match starts fr
 
 - Clearing a saved Mark back to the estimate: `issues/05-clear-a-mark.md`.
 - Editing several sources at once.
+- Saying a reference's Volume isn't known: its estimate already says it's a guess, and a hand pin without a Volume would need a Link that's unlinked yet openable, and would block later vision matches (`issues/06-not-known.md`, wontfix).
 - Reusing another source's Box for this one: people citing the same record already share a Box, and another entry is one drag to draw (`issues/04-reuse-a-box.md`, wontfix).
 - Creating a Citation from the scan: `../create-citations/issues/01-cite-from-the-scan.md`. Keep the pending change (Volume, Image, Box) separate from the stored Citation, and keep drawing a Box independent of whose source it is, so a new Citation can later go through the same bar and menu.
-
-## Glossary to update as it ships
-
-**Unlinked**: a person may say the Volume isn't known.

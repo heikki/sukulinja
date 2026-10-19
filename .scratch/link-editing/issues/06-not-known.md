@@ -1,4 +1,4 @@
-Status: needs-triage
+Status: wontfix
 
 # Say a reference's Volume isn't known
 
@@ -21,3 +21,7 @@ Other Volumes
 - **Resolution**: a new Unlinked reason, `not-known` ("Not known": "A person looked and couldn't tell which Volume holds this.").
 - **Still openable**: an Unlinked reference can't open the Scan viewer today, so a Not known one could never be changed back. Its resolution should also carry the Links by its Book (as `byBook(pins)` resolves them), so clicking the source opens the viewer there, with Change Volume… in its menu to put it in a Volume again. This is the main open question: a `LinkResolution` that is both Unlinked and has Links to open, or another way in.
 - **Bar**: Now reads "Not known".
+
+## Comments
+
+Not built (2026-10-19). The reference's estimate already says it's a guess. Not known would need a hand pin without a Volume, a Link that's unlinked yet still opens the Scan viewer, and it would block later vision matches, since a hand pin beats the model's. If the need is remembering which references were already searched, a lighter "checked" mark would be simpler.
