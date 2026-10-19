@@ -193,6 +193,8 @@ export const scanViewerStyles = css`
 // close.
 export const scanToolbarStyles = css`
   :host {
+    position: relative;
+    z-index: 2;
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -224,12 +226,44 @@ export const scanToolbarStyles = css`
     color: var(--fg);
   }
 
-  .volume {
-    flex: 1;
+  /* Bare, as the close button is: the name, with a chevron for the list. */
+  button.volume {
+    display: flex;
+    flex: 0 1 auto;
+    align-items: center;
+    gap: 0.35rem;
     min-width: 0;
+    margin-left: -0.55rem;
+    border-color: transparent;
+    background: none;
+    font-weight: 500;
+  }
+
+  button.volume:hover {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--fg) 8%, transparent);
+    color: var(--fg);
+  }
+
+  .name {
     overflow: hidden;
     text-overflow: ellipsis;
-    font-weight: 500;
+  }
+
+  .chevron {
+    flex: none;
+    color: var(--muted);
+  }
+
+  /* The close button keeps to the right edge. */
+  button.close {
+    margin-left: auto;
+  }
+
+  sl-scan-volumes {
+    position: absolute;
+    top: calc(100% + 0.25rem);
+    left: 0.5rem;
   }
 `;
 

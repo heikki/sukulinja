@@ -33,6 +33,7 @@ interface DatasetHandlers {
   handlePerson: (id: number) => Response;
   handlePersonLinks: (id: number) => Response;
   handleMark: (id: number, target: MarkTarget) => Promise<Response>;
+  handleVolumeChoices: (id: number) => Promise<Response>;
   handleVolumeCitations: (volumeId: string) => Promise<Response>;
   handleMedia: (rest: string, mediaRoot: string) => Promise<Response>;
 }
@@ -92,6 +93,14 @@ function createDatasetHandlers(db: Database, scans: Scans): DatasetHandlers {
       return 'rejected' in result
         ? new Response(result.rejected, { status: 400 })
         : Response.json({ citationId: id, ...result });
+    },
+
+    async handleVolumeChoices(id) {
+      const choices = await citations.volumeChoices(id).catch(astiaFailed);
+      if (choices instanceof Response) return choices;
+      return choices === null
+        ? new Response('citation not found', { status: 404 })
+        : Response.json(choices);
     },
 
     async handleVolumeCitations(volumeId) {
@@ -230,15 +239,17 @@ async function handleDeleteDataset(
   }
 }
 
-// `{ volumeId, image }`; anything else is rejected.
+// `{ volumeId, image }`, or `{ volumeId }` for only the Volume; anything
+// else is rejected.
 async function readMark(req: Request): Promise<MarkTarget | null> {
   const body = (await req.json().catch(() => null)) as Record<
     string,
     unknown
   > | null;
-  return typeof body?.volumeId === 'string' && typeof body.image === 'number'
-    ? { volumeId: body.volumeId, image: body.image }
-    : null;
+  if (typeof body?.volumeId !== 'string') return null;
+  const { volumeId, image } = body;
+  if (image === undefined) return { volumeId };
+  return typeof image === 'number' ? { volumeId, image } : null;
 }
 
 async function routeMark(req: Request, handlers: DatasetHandlers, id: number) {
@@ -247,8 +258,22 @@ async function routeMark(req: Request, handlers: DatasetHandlers, id: number) {
   }
   const target = await readMark(req);
   return target === null
-    ? new Response('expected { volumeId, image }', { status: 400 })
+    ? new Response('expected { volumeId, image? }', { status: 400 })
     : await handlers.handleMark(id, target);
+}
+
+// GET a citation's `/volumes`, POST its `/scans` (a Mark).
+async function routeCitation(
+  req: Request,
+  handlers: DatasetHandlers,
+  id: number,
+  part: string
+) {
+  if (part === 'scans') return await routeMark(req, handlers, id);
+  if (req.method !== 'GET') {
+    return new Response('method not allowed', { status: 405 });
+  }
+  return await handlers.handleVolumeChoices(id);
 }
 
 async function routeDataset(
@@ -266,9 +291,11 @@ async function routeDataset(
       ? handlers.handlePerson(id)
       : handlers.handlePersonLinks(id);
   }
-  const citation = /^\/api\/citations\/(?<id>\d+)\/scans$/.exec(rest);
+  const citation =
+    /^\/api\/citations\/(?<id>\d+)\/(?<part>scans|volumes)$/.exec(rest);
   if (citation !== null) {
-    return await routeMark(req, handlers, Number(citation.groups!.id));
+    const { id, part } = citation.groups!;
+    return await routeCitation(req, handlers, Number(id), part!);
   }
   const volume = /^\/api\/volumes\/(?<id>[^/]+)\/citations$/.exec(rest);
   if (volume !== null) {

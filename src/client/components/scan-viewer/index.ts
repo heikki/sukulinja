@@ -26,6 +26,7 @@ import { loadingNote } from './note';
 import { Prefetch } from './prefetch';
 import { controlStyles, scanViewerStyles } from './styles';
 
+import './edit';
 import './entries';
 import './nav';
 import './people';
@@ -420,12 +421,14 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     this.pinch.cancel();
   }
 
-  // Esc closes; the arrows step (see keys.ts). Every key handled here is
-  // marked so, or WKWebView hands it on to macOS, which beeps at it.
+  // Esc closes, or goes on editing when closing is waiting on a change;
+  // the arrows step (see keys.ts). Every key handled here is marked so, or
+  // WKWebView hands it on to macOS, which beeps at it.
   private readonly onKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();
-      this.viewer.close();
+      if (this.viewer.leaving.get()) void this.viewer.answer('keep');
+      else this.viewer.close();
       return;
     }
     const step = stepOf(e);
@@ -523,6 +526,11 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
         ${this.renderImages(volume)} ${this.renderEntries(source)}
         ${this.renderNote()}
         <sl-scan-nav></sl-scan-nav>
+        ${
+          this.viewer.pending.get() === null
+            ? nothing
+            : html`<sl-scan-edit></sl-scan-edit>`
+        }
       </div>
     `;
   }

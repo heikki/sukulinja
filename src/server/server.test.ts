@@ -180,7 +180,16 @@ describe("A dataset's Citations", () => {
     expect(await mark(1, { volumeId: 'juva-1', image: 7 })).toBe(200);
     expect(await mark(1, { volumeId: 'juva-1', image: 99 })).toBe(400);
     expect(await mark(1, { image: 7 })).toBe(400);
+    expect(await mark(1, { volumeId: 'juva-1', image: '7' })).toBe(400);
     expect(await mark(2, { volumeId: 'juva-1', image: 7 })).toBe(404);
+    expect(await mark(1, { volumeId: 'juva-1' })).toBe(200);
+
+    const choices = await get('/d/juva/api/citations/1/volumes');
+    expect(await choices.json()).toMatchObject({
+      fits: [{ id: 'juva-1' }],
+      others: [{ id: 'juva-2' }]
+    });
+    expect((await get('/d/juva/api/citations/2/volumes')).status).toBe(404);
 
     const volume = await get('/d/juva/api/volumes/juva-1/citations');
     expect(((await volume.json()) as unknown[]).length).toBe(1);

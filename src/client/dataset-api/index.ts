@@ -8,6 +8,7 @@ import type {
   FamilyRow,
   PersonDetails,
   PersonRow,
+  VolumeChoices,
   VolumeCitation
 } from '@common/types';
 
@@ -19,10 +20,10 @@ export class ApiError extends Error {
 
 export const NOT_RESPONDING = 'The app is not responding.';
 
-// Where a Mark puts a reference: an Image of a Volume.
+// Where a Mark puts a reference: an Image of a Volume, or only the Volume.
 export interface MarkTarget {
   volumeId: string;
-  image: number;
+  image?: number;
 }
 
 // Each call rejects with ApiError when it fails, and with the signal's
@@ -38,6 +39,11 @@ export interface DatasetApi {
   ) => AsyncGenerator<CitationLinks, void, undefined>;
   // Saves a Mark: the reference's Links, resolved again.
   mark: (citationId: number, at: MarkTarget) => Promise<CitationLinks>;
+  // The Volumes a reference can be put in.
+  volumeChoices: (
+    citationId: number,
+    signal?: AbortSignal
+  ) => Promise<VolumeChoices>;
   // The dataset's people citing a Volume, wherever its Links put them.
   volumeCitations: (
     volumeId: string,
@@ -154,6 +160,13 @@ export function openDatasetApi(
       );
       return (await res.json()) as CitationLinks;
     },
+
+    volumeChoices: async (citationId, signal) =>
+      await json<VolumeChoices>(
+        'the Volumes',
+        `${dataset}/api/citations/${citationId}/volumes`,
+        signal
+      ),
 
     volumeCitations: async (volumeId, signal) =>
       await json<VolumeCitation[]>(

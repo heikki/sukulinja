@@ -7,6 +7,7 @@ import type {
   FamilyRow,
   PersonDetails,
   PersonRow,
+  VolumeChoices,
   VolumeCitation
 } from '@common/types';
 
@@ -29,6 +30,8 @@ export interface MemoryDataset {
   volumes?: Record<string, MemoryVolume>;
   // What saving a Mark answers, by citation id.
   marks?: Record<number, CitationLinks>;
+  // The Volumes each reference can be put in, by citation id.
+  choices?: Record<number, VolumeChoices>;
 }
 
 export interface MemoryOptions {
@@ -38,7 +41,8 @@ export interface MemoryOptions {
 
 export type MemoryDatasetApi = DatasetApi & {
   // What was asked, in order: "persons", "families", "person <id>",
-  // "links <id>", "mark <citation> <volume>/<image>", "citations <volume>",
+  // "links <id>", "mark <citation> <volume>/<image>" (or "<volume>" for
+  // only the Volume), "choices <citation>", "citations <volume>",
   // "images <volume>".
   asked: string[];
 };
@@ -111,9 +115,14 @@ export function memoryDatasetApi(
 
     mark: async (citationId, at) =>
       await answer(
-        `mark ${citationId} ${at.volumeId}/${at.image}`,
+        `mark ${citationId} ${at.volumeId}${at.image === undefined ? '' : `/${at.image}`}`,
         undefined,
         () => found(data.marks?.[citationId], 'citation not found')
+      ),
+
+    volumeChoices: async (citationId, signal) =>
+      await answer(`choices ${citationId}`, signal, () =>
+        found(data.choices?.[citationId], 'citation not found')
       ),
 
     volumeCitations: async (volumeId, signal) =>

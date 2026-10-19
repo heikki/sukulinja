@@ -176,6 +176,91 @@ test('a vision pin without a box is left out, a hand one without is Marked Image
   ]);
 });
 
+test('a Mark of only the Volume saves a hand Reference pin and nothing else', async () => {
+  const marked = citation(5000, '1790 - 1796', 12);
+  await scans().markRef(refOf(marked), { volumeId: 'juva-2' });
+
+  const links = await linksOf(marked);
+  expect(links).toEqual([
+    expect.objectContaining({
+      volumeId: 'juva-2',
+      precision: 'volume',
+      certainty: 'marked'
+    })
+  ]);
+  const { volumes, references } = await openPins(dir).snapshot();
+  expect(Object.values(references)).toEqual([
+    { volumeId: 'juva-2', volume: VOLUMES['juva-2'], by: 'hand' }
+  ]);
+  expect(volumes['juva-2']).toBeUndefined();
+});
+
+test('a Mark of only the Volume replaces an Image Mark, and an Image Mark replaces it', async () => {
+  const marked = citation(5000, '1790 - 1796', null);
+  const s = scans();
+  await s.markRef(refOf(marked), { volumeId: 'juva-2', image: 3 });
+  await s.markRef(refOf(marked), { volumeId: 'juva-1' });
+  expect(await linksOf(marked)).toEqual([
+    expect.objectContaining({ volumeId: 'juva-1', precision: 'volume' })
+  ]);
+  await s.markRef(refOf(marked), { volumeId: 'juva-1', image: 5 });
+  expect(await linksOf(marked)).toEqual([
+    expect.objectContaining({
+      volumeId: 'juva-1',
+      image: 5,
+      precision: 'image',
+      certainty: 'marked'
+    })
+  ]);
+});
+
+test('a Mark of only the Volume is refused outside the parish, and an Image only past its Images', async () => {
+  const ref = refOf(citation(5000, '1790 - 1796', 12));
+  expect(await scans().markRef(ref, { volumeId: 'elsewhere' })).toEqual({
+    rejected: "That Volume isn't in this parish's church books."
+  });
+  expect(await scans().markRef(ref, { volumeId: 'juva-1', image: 21 })).toEqual(
+    { rejected: 'The volume has images 1–20.' }
+  );
+});
+
+test("the Volumes to choose from are the cited Book's, those it links first", async () => {
+  const ref = refOf(citation(5000, '1797 - 1803', 12));
+  const choices = await scans().volumeChoices(ref);
+  expect(choices).toEqual({
+    fits: [
+      {
+        id: 'juva-2',
+        label: VOLUMES['juva-2'],
+        years: { from: 1797, to: 1803 }
+      }
+    ],
+    others: [
+      {
+        id: 'juva-1',
+        label: VOLUMES['juva-1'],
+        years: { from: 1790, to: 1796 }
+      }
+    ]
+  });
+  // Its own pin doesn't move it out of what fits.
+  await scans().markRef(ref, { volumeId: 'juva-1' });
+  expect((await scans().volumeChoices(ref)).fits.map((v) => v.id)).toEqual([
+    'juva-2'
+  ]);
+});
+
+test('the Volumes to choose from leave out those not digitized', async () => {
+  const astia = juvaWith([
+    { id: 'r1', label: VOLUMES['juva-1'], images: 20 },
+    { id: 'r2', label: VOLUMES['juva-2'], images: 0, digitized: false }
+  ]);
+  const ref = refOf(citation(5000, '1790 - 1796', 12));
+  const choices = await scans(astia).volumeChoices(ref);
+  expect(choices.others).toEqual([]);
+  expect(choices.fits.map((v) => v.id)).toEqual(['r1']);
+});
+
 test('a Reference pin without an Image marks only the Volume', async () => {
   const cited = citation(5000, '1790 - 1796', null);
   const reference = { ...cited, page: cited.page.replace('itemId=5000&', '') };

@@ -1,0 +1,126 @@
+import { SignalWatcher } from '@lit-labs/signals';
+import { consume } from '@lit/context';
+import { html, LitElement, nothing } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
+
+import { ApiError } from '@client/dataset-api';
+import { appState } from '@client/state';
+import type { AppState } from '@client/state';
+import type { VolumeChoice, VolumeChoices } from '@common/types';
+
+import { scanVolumesStyles } from './edit-styles';
+import { controlStyles } from './styles';
+
+// Under the toolbar's Volume name: the Volumes the current source can be
+// put in, those its years or Record range give first, then the others of
+// its Book by years. Picking one changes the source's Volume, pending, and
+// asks to `close`, as Esc does. The Volume shown is marked.
+@customElement('sl-scan-volumes')
+export class ScanVolumesElement extends SignalWatcher(LitElement) {
+  static override styles = [controlStyles, scanVolumesStyles];
+
+  @consume({ context: appState }) private readonly state!: AppState;
+
+  @state() private choices: VolumeChoices | { failed: string } | null = null;
+
+  private abort: AbortController | null = null;
+
+  override connectedCallback() {
+    super.connectedCallback();
+    this.addEventListener('keydown', this.onKeyDown);
+    void this.load();
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.removeEventListener('keydown', this.onKeyDown);
+    this.abort?.abort();
+    this.abort = null;
+  }
+
+  // Marked handled, or the viewer's Esc closes it too, and WKWebView hands
+  // it on to macOS, which beeps.
+  private readonly onKeyDown = (e: KeyboardEvent) => {
+    if (e.key !== 'Escape') return;
+    e.preventDefault();
+    e.stopPropagation();
+    this.close();
+  };
+
+  private close() {
+    this.dispatchEvent(new CustomEvent('close'));
+  }
+
+  private async load() {
+    const id = this.state.viewer.source.get()?.citation.id;
+    if (id === undefined) return;
+    this.abort?.abort();
+    const abort = new AbortController();
+    this.abort = abort;
+    try {
+      this.choices = await this.state.api.volumeChoices(id, abort.signal);
+    } catch (err) {
+      if (abort.signal.aborted) return;
+      if (!(err instanceof ApiError)) throw err;
+      this.choices = { failed: err.message };
+    }
+    await this.updateComplete;
+    const first = this.renderRoot.querySelector<HTMLElement>(
+      'button[aria-current="true"], button'
+    );
+    first?.focus();
+  }
+
+  private pick(choice: VolumeChoice) {
+    this.state.viewer.changeVolume(choice);
+    this.close();
+  }
+
+  private renderGroup(heading: string, choices: VolumeChoice[]) {
+    if (choices.length === 0) return nothing;
+    const shown = this.state.viewer.volume.get()?.id;
+    return html`
+      <h3>${heading}</h3>
+      <ul>
+        ${choices.map((c) => {
+          const current = c.id === shown;
+          return html`
+            <li>
+              <button
+                class=${current ? 'current' : ''}
+                aria-current=${current ? 'true' : nothing}
+                title=${c.label}
+                @click=${() => {
+                  this.pick(c);
+                }}
+              >
+                ${c.label}
+              </button>
+            </li>
+          `;
+        })}
+      </ul>
+    `;
+  }
+
+  override render() {
+    const { choices } = this;
+    if (choices === null) return html`<p class="muted">Finding Volumes…</p>`;
+    if ('failed' in choices) {
+      return html`<p class="muted">${choices.failed}</p>`;
+    }
+    if (choices.fits.length === 0 && choices.others.length === 0) {
+      return html`<p class="muted">No other Volumes of this Book.</p>`;
+    }
+    return html`
+      ${this.renderGroup('Fits the reference', choices.fits)}
+      ${this.renderGroup('Other Volumes', choices.others)}
+    `;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'sl-scan-volumes': ScanVolumesElement;
+  }
+}
