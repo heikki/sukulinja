@@ -21,7 +21,7 @@ const scan: Scan = {
   volume: 'I Aa:5',
   image: 18,
   url: '',
-  method: 'placed'
+  method: 'exact'
 };
 
 function label(s: Scan) {
@@ -29,12 +29,13 @@ function label(s: Scan) {
 }
 
 test('says how a scan was found, and what that means', () => {
-  expect(label(scan)).toBe('Verified');
-  expect(label({ ...scan, by: 'hand' })).toBe('Verified');
-  expect(label({ ...scan, method: 'anchored' })).toBe('Estimated');
+  expect(label(scan)).toBe('Exact');
+  expect(label({ ...scan, method: 'estimated', from: 'pins' })).toBe(
+    'Estimated'
+  );
   expect(label({ ...scan, method: 'estimated' })).toBe('Estimated');
   expect(label({ ...scan, method: 'volume' })).toBe('Volume only');
-  const vision = { ...scan, by: 'vision' as const };
+  const vision = { ...scan, method: 'vision' as const };
   expect(label(vision)).toBe('Vision match');
   expect(scanStatus({ scans: [scan] }, false).title).toBe(
     'A person marked this record on this Image.'
@@ -47,7 +48,7 @@ test('says how a scan was found, and what that means', () => {
 test('opens a Split reference on its first Volume', () => {
   const other = { ...scan, volumeId: 'v2', volume: 'I Aa:6' };
   const status = scanStatus({ scans: [scan, other] }, false);
-  expect(status.label).toBe('Verified · one of several Volumes');
+  expect(status.label).toBe('Exact · one of several Volumes');
   expect(status.scan).toEqual(scan);
 });
 

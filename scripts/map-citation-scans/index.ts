@@ -4,7 +4,7 @@
 //   bun run scripts/map-citation-scans/index.ts <export.ged> [--dry-run]
 //
 // Writes data/citation-scans.json (one entry per citation) and
-// data/citation-scans-checklist.md (cited volumes still lacking an anchor;
+// data/citation-scans-checklist.md (cited volumes still lacking a Page pin;
 // see src/server/citation-scans/locate.ts). Astia responses are cached
 // under data/.astia-cache.
 
@@ -13,9 +13,9 @@ import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import type { Scan, ScanResolution } from '@common/types';
-import { loadAnchors, loadPlacements } from '@server/citation-scans/anchors';
 import { CACHE_DIR } from '@server/citation-scans/astia';
 import { resolveChurchBookRef } from '@server/citation-scans/locate';
+import { loadPins } from '@server/citation-scans/pins';
 import type { ChurchBookRef } from '@server/citation-scans/record';
 
 import { churchBookRefs } from './citations';
@@ -42,7 +42,7 @@ interface ChecklistEntry {
   scan: Scan;
 }
 
-// Cited volumes without an anchor, most-cited first: those where a page was
+// Cited volumes without a Page pin, most-cited first: those where a page was
 // estimated, and those where the estimate ran past the volume's end. Each
 // links to an image to read, so checking it is one click.
 function checklist(refs: ChurchBookRef[], resolutions: ScanResolution[]) {
@@ -51,7 +51,7 @@ function checklist(refs: ChurchBookRef[], resolutions: ScanResolution[]) {
     const r = resolutions[i]!;
     if ('error' in r || c.page === null) return;
     for (const scan of r.scans) {
-      if (scan.method === 'anchored') continue;
+      if (scan.from === 'pins') continue;
       const entry = byVolume.get(scan.volumeId) ?? {
         parish: c.parish!,
         count: 0,
@@ -63,17 +63,17 @@ function checklist(refs: ChurchBookRef[], resolutions: ScanResolution[]) {
   });
   const rows = [...byVolume.values()].sort((a, b) => b.count - a.count);
   const lines = [
-    '# Volumes to anchor',
+    '# Volumes to pin',
     '',
     'Open the link and read the number(s) written at the top of the image.',
     'Some books number each spread once (one number), others each page (two).',
-    'Add to `src/server/citation-scans/anchors.json`:',
+    'Add under `volumes` in `src/server/citation-scans/pins.json`:',
     '',
-    '    "<volume id>": { "anchors": [{ "image": <image>, "pages": [<n>] }] }',
-    '    "<volume id>": { "anchors": [{ "image": <image>, "pages": [<left>, <right>] }] }',
+    '    "<volume id>": { "pages": [{ "image": <image>, "pages": [<n>] }] }',
+    '    "<volume id>": { "pages": [{ "image": <image>, "pages": [<left>, <right>] }] }',
     '',
     'If the estimate drifts further into a volume (inserts, skipped numbers),',
-    'add a second anchor there.',
+    'add a second Page pin there.',
     '',
     '| Citations | Parish | Volume | Volume id | Image | Link |',
     '|---|---|---|---|---|---|',
@@ -113,10 +113,9 @@ async function main() {
     return;
   }
 
-  const anchors = await loadAnchors();
-  const placements = await loadPlacements();
+  const pins = await loadPins();
   const resolutions = await Promise.all(
-    refs.map((c) => resolveChurchBookRef(c, anchors, placements))
+    refs.map((c) => resolveChurchBookRef(c, pins))
   );
   const results = refs.map((c, i) => ({ ...c, ...resolutions[i] }));
   await Bun.write(OUT_FILE, `${JSON.stringify(results, null, 2)}\n`);

@@ -1,11 +1,11 @@
 // What the evaluation asks, and how its answers are scored. The questions
-// come from what's known by hand: Anchors give the Page numbers on their
-// Images, Placements of index references the dates on theirs and the
-// entry there, and Seen records the person on theirs. Each person is asked
+// come from what's known by hand: Page pins give the Page numbers on their
+// Images, Reference pins of index references the dates on theirs and the
+// entry there, and Record pins the person on theirs. Each person is asked
 // about on their own Image, and a decoy, someone recorded elsewhere, on the
 // same Image: a Reader confirming decoys can't be trusted to save matches.
 
-import type { Anchors, Placements } from '@server/citation-scans/locate';
+import type { Pins } from '@server/citation-scans/locate';
 import { dayRange, personOf } from '@server/citation-scans/matcher';
 import { confirms } from '@server/citation-scans/reader';
 import type { ImageRef, Person, Reader } from '@server/citation-scans/reader';
@@ -41,26 +41,26 @@ function spread<T>(list: T[], limit: number) {
   return Array.from({ length: limit }, (_, i) => list[Math.floor(i * step)]!);
 }
 
-// Anchors whose number is written as cited; one with a note was misread by
-// the source, so what's written differs.
-export function pageCases(anchors: Anchors, limit = Infinity) {
-  const cases = Object.entries(anchors).flatMap(([volumeId, v]) =>
-    v.anchors
-      .filter((a) => isHand(a) && a.note === undefined && a.pages.length > 0)
-      .map((a) => ({ at: { volumeId, image: a.image }, pages: a.pages }))
+// Page pins whose number is written as cited; one with a note was misread
+// by the source, so what's written differs.
+export function pageCases(volumes: Pins['volumes'], limit = Infinity) {
+  const cases = Object.entries(volumes).flatMap(([volumeId, v]) =>
+    v.pages
+      .filter((p) => isHand(p) && p.note === undefined && p.pages.length > 0)
+      .map((p) => ({ at: { volumeId, image: p.image }, pages: p.pages }))
   );
   return spread(cases, limit);
 }
 
-// Baptism and marriage index references placed by hand: the cited date is
-// on the Image each was placed on. `refs` holds the dataset's references by
+// Baptism and marriage index references pinned by hand: the cited date is
+// on the Image each was pinned to. `refs` holds the dataset's references by
 // record URL.
 export function dateCases(
-  placements: Placements,
+  references: Pins['references'],
   refs: Map<string, ChurchBookRef>,
   limit = Infinity
 ) {
-  const cases = Object.entries(placements).flatMap(([url, p]) => {
+  const cases = Object.entries(references).flatMap(([url, p]) => {
     const ref = refs.get(url);
     const indexed = ref?.kind === 'kastetut' || ref?.kind === 'vihityt';
     if (!isHand(p) || !indexed || ref.date === null) return [];
@@ -70,28 +70,28 @@ export function dateCases(
 }
 
 // The parish a Volume's title starts with ("Haukivuori I Aa:1 …").
-function parishOf(anchors: Anchors, volumeId: string) {
-  return anchors[volumeId]?.title?.split(' ')[0] ?? volumeId;
+function parishOf(volumes: Pins['volumes'], volumeId: string) {
+  return volumes[volumeId]?.title?.split(' ')[0] ?? volumeId;
 }
 
-// For each hand Seen record whose principal is known, the person on their
+// For each hand Record pin whose principal is known, the person on their
 // Image, and a decoy there: the next such person from another parish's
 // books. A decoy from the same Volume may well be written on the Image too,
 // as families recur page after page; one from another parish can't be, yet
 // bears the same kind of name. Each is asked about as the pass would ask,
 // with their household.
 export function entryCases(
-  anchors: Anchors,
+  volumes: Pins['volumes'],
   people: Map<number, Person>,
   limit = Infinity
 ) {
-  const known = Object.entries(anchors).flatMap(([volumeId, v]) =>
-    (v.seen ?? [])
-      .filter((s) => isHand(s) && people.has(s.record))
-      .map((s) => ({
-        at: { volumeId, image: s.image },
-        parish: parishOf(anchors, volumeId),
-        person: people.get(s.record)!
+  const known = Object.entries(volumes).flatMap(([volumeId, v]) =>
+    (v.records ?? [])
+      .filter((p) => isHand(p) && people.has(p.record))
+      .map((p) => ({
+        at: { volumeId, image: p.image },
+        parish: parishOf(volumes, volumeId),
+        person: people.get(p.record)!
       }))
   );
   const cases = known.map((k, i) => {
@@ -110,18 +110,18 @@ export function entryCases(
 // Retake.
 const APART = 2;
 
-// For each index reference placed by hand, its entry on its Image, and a
-// decoy there: the next such reference in the Volume placed at least two
+// For each index reference pinned by hand, its entry on its Image, and a
+// decoy there: the next such reference in the Volume pinned at least two
 // Images away, else one from another Volume. One from the same Volume is
 // the hard case: a family recurs there, in the same hand, months apart,
 // and only the date written tells their entries apart. `refs` holds the
 // dataset's references by record URL.
 export function indexEntryCases(
-  placements: Placements,
+  references: Pins['references'],
   refs: Map<string, ChurchBookRef>,
   limit = Infinity
 ) {
-  const known = Object.entries(placements).flatMap(([url, p]) => {
+  const known = Object.entries(references).flatMap(([url, p]) => {
     const ref = refs.get(url);
     const indexed = ref?.kind === 'kastetut' || ref?.kind === 'vihityt';
     if (!isHand(p) || !indexed || ref.name === null) return [];

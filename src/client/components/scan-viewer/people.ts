@@ -81,7 +81,7 @@ export class ScanPeopleElement extends LitElement {
   }
 
   private renderConfirm(row: VolumeCitation) {
-    if (imageOf(row) === null || row.scan.by !== 'vision') return nothing;
+    if (row.scan.method !== 'vision') return nothing;
     const id = row.citation.id;
     return html`
       <button

@@ -1,6 +1,6 @@
 // The Scan cache setting: how much space Astia's Images may take. It belongs
 // to the install, so it is kept in the data folder rather than a viewer's
-// cookie, beside the local anchors and placements.
+// cookie, beside the local pins.
 
 import { join } from 'node:path';
 

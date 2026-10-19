@@ -1,6 +1,6 @@
 // The vision pass: match a dataset's church-book citations to their exact
-// Astia Images with Claude, and save the confirmed ones as Seen records or
-// Placements in the data folder, where the app reads them.
+// Astia Images with Claude, and save the confirmed ones as Record pins or
+// Reference pins in the data folder, where the app reads them.
 //
 //   bun run scripts/match-citation-scans/index.ts --dataset <slug>
 //     [--data <folder>] [--books rippikirjat|index] [--parish <name>]
@@ -8,7 +8,7 @@
 //     [--pages-model <m>] [--dates-model <m>] [--entry-model <m>]
 //
 // Unattended and resumable: every reading is cached under
-// <data>/.vision-readings, and references already Placed are skipped, so a
+// <data>/.vision-readings, and references already pinned are skipped, so a
 // re-run after a crash or Ctrl-C picks up where it stopped. It writes
 // nothing (a dry run aside) until scripts/evaluate-reader has shown the
 // find-entry model confirms at most 1% of decoys. References it couldn't

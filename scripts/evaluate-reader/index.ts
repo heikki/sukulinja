@@ -1,7 +1,7 @@
 // How well each model reads, before trusting it with the data: asks the
 // Reader about Images whose Page numbers, dates and records are known by
-// hand (the shipped Anchors and Seen records, and index references placed
-// in the app), and reports exact, wrong and unreadable rates and the cost
+// hand (the shipped Page pins, and Record and Reference pins marked in the
+// app), and reports exact, wrong and unreadable rates and the cost
 // per reading, per question and model; find-entry also for rippikirja and
 // index references apart.
 //
@@ -19,9 +19,9 @@
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { loadPlacements } from '@server/citation-scans/anchors';
-import shipped from '@server/citation-scans/anchors.json';
-import type { Anchors } from '@server/citation-scans/locate';
+import type { Pins } from '@server/citation-scans/locate';
+import { loadPins } from '@server/citation-scans/pins';
+import shipped from '@server/citation-scans/pins.json';
 import { cachedReader } from '@server/citation-scans/reader';
 import type { Question, Reader } from '@server/citation-scans/reader';
 import { useDataFolder } from '@server/citation-scans/scans';
@@ -196,15 +196,16 @@ async function main() {
   const root = resolve(values.data ?? 'data');
   useDataFolder(root);
   const limit = values.limit === undefined ? Infinity : Number(values.limit);
-  const anchors = shipped as Anchors;
+  const volumes: Pins['volumes'] = shipped.volumes;
 
   const refs = datasetRefs(join(root, values.dataset, 'db.sqlite'));
   const names = principals(refs);
-  const pages = pageCases(anchors, limit);
+  const pages = pageCases(volumes, limit);
   const byUrl = new Map(refs.map((r) => [r.url, r]));
-  const dates = dateCases(await loadPlacements(), byUrl, limit);
-  const rippiEntries = entryCases(anchors, names, limit);
-  const indexEntries = indexEntryCases(await loadPlacements(), byUrl, limit);
+  const { references } = await loadPins();
+  const dates = dateCases(references, byUrl, limit);
+  const rippiEntries = entryCases(volumes, names, limit);
+  const indexEntries = indexEntryCases(references, byUrl, limit);
   const entries = [...rippiEntries, ...indexEntries];
   const decoys = entries.filter((c) => !c.there).length;
   console.log(

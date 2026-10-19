@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
 
-import { loadAnchors, loadPlacements } from './anchors';
+import { loadPins } from './pins';
 import { churchBookRefOf, parseChurchBookRef } from './record';
 import { markRef, matchCandidates, resolveRef, useDataFolder } from './scans';
 import { rippiCitation as citation, seedParish, VOLUMES } from './test-parish';
@@ -26,8 +26,8 @@ afterAll(() => {
   astia.mockRestore();
 });
 
-async function writeLocal(anchors: unknown) {
-  await Bun.write(join(dir, 'anchors.local.json'), JSON.stringify(anchors));
+async function writeLocal(volumes: unknown) {
+  await Bun.write(join(dir, 'pins.local.json'), JSON.stringify({ volumes }));
   useDataFolder(dir);
 }
 
@@ -40,7 +40,7 @@ async function scanOf(c: { page: string; text: string }) {
   return 'scans' in resolved ? resolved.scans : resolved;
 }
 
-test('marking a record with a Record number saves a hand Seen record', async () => {
+test('marking a record with a Record number saves a hand Record pin', async () => {
   const marked = citation(5000, '1790 - 1796', 12);
   await markRef(refOf(marked), { volumeId: 'juva-1', image: 7 });
 
@@ -48,18 +48,17 @@ test('marking a record with a Record number saves a hand Seen record', async () 
     expect.objectContaining({
       volumeId: 'juva-1',
       image: 7,
-      method: 'placed',
-      by: 'hand'
+      method: 'exact'
     })
   ]);
-  const volume = (await loadAnchors())['juva-1']!;
-  expect(volume.seen).toEqual([{ record: 5000, image: 7, by: 'hand' }]);
-  expect(volume.anchors).toEqual([
-    { image: 7, pages: [12], note: 'placed by hand in the app', by: 'hand' }
+  const volume = (await loadPins()).volumes['juva-1']!;
+  expect(volume.records).toEqual([{ record: 5000, image: 7, by: 'hand' }]);
+  expect(volume.pages).toEqual([
+    { image: 7, pages: [12], note: 'marked in the app', by: 'hand' }
   ]);
 });
 
-test('a record marked in another Book is placed and seen there', async () => {
+test('a record marked in another Book gets a Reference pin and a Record pin there', async () => {
   const marked = citation(5000, '1790 - 1796', null);
   await markRef(refOf(marked), { volumeId: 'juva-2', image: 3 });
 
@@ -67,11 +66,10 @@ test('a record marked in another Book is placed and seen there', async () => {
     expect.objectContaining({
       volumeId: 'juva-2',
       image: 3,
-      method: 'placed',
-      by: 'hand'
+      method: 'exact'
     })
   ]);
-  expect(Object.values(await loadPlacements())).toEqual([
+  expect(Object.values((await loadPins()).references)).toEqual([
     {
       volumeId: 'juva-2',
       volume: VOLUMES['juva-2'],
@@ -79,15 +77,15 @@ test('a record marked in another Book is placed and seen there', async () => {
       by: 'hand'
     }
   ]);
-  expect((await loadAnchors())['juva-2']!.seen).toEqual([
+  expect((await loadPins()).volumes['juva-2']!.records).toEqual([
     { record: 5000, image: 3, by: 'hand' }
   ]);
 });
 
 test('a hand marking extends the Record range, routing records in between', async () => {
   await writeLocal({
-    'juva-1': { anchors: [], records: [{ from: 1000, to: 2000 }] },
-    'juva-2': { anchors: [], records: [{ from: 4000, to: 5000 }] }
+    'juva-1': { pages: [], ranges: [{ from: 1000, to: 2000 }] },
+    'juva-2': { pages: [], ranges: [{ from: 4000, to: 5000 }] }
   });
   const marked = citation(2500, '1790 - 1796', 40);
   await markRef(refOf(marked), { volumeId: 'juva-1', image: 9 });
@@ -97,41 +95,41 @@ test('a hand marking extends the Record range, routing records in between', asyn
   expect(await scanOf(between)).toEqual([
     expect.objectContaining({ volumeId: 'juva-1' })
   ]);
-  expect((await loadAnchors())['juva-1']!.records).toEqual([
+  expect((await loadPins()).volumes['juva-1']!.ranges).toEqual([
     { from: 1000, to: 2500 }
   ]);
 });
 
 test('a Record range is never extended across another Volume', async () => {
   await writeLocal({
-    'juva-1': { anchors: [], records: [{ from: 1000, to: 2000 }] },
-    'juva-2': { anchors: [], records: [{ from: 3000, to: 3500 }] }
+    'juva-1': { pages: [], ranges: [{ from: 1000, to: 2000 }] },
+    'juva-2': { pages: [], ranges: [{ from: 3000, to: 3500 }] }
   });
   const marked = citation(4000, '1790 - 1796', 40);
   await markRef(refOf(marked), { volumeId: 'juva-1', image: 9 });
 
   expect(await scanOf(marked)).toEqual([
-    expect.objectContaining({ volumeId: 'juva-1', image: 9, method: 'placed' })
+    expect.objectContaining({ volumeId: 'juva-1', image: 9, method: 'exact' })
   ]);
-  const anchors = await loadAnchors();
-  expect(anchors['juva-1']!.records).toEqual([{ from: 1000, to: 2000 }]);
-  expect(anchors['juva-2']!.records).toEqual([{ from: 3000, to: 3500 }]);
+  const { volumes } = await loadPins();
+  expect(volumes['juva-1']!.ranges).toEqual([{ from: 1000, to: 2000 }]);
+  expect(volumes['juva-2']!.ranges).toEqual([{ from: 3000, to: 3500 }]);
 });
 
 test('a hand marking replaces a vision match', async () => {
   await writeLocal({
     'juva-1': {
-      anchors: [],
-      seen: [{ record: 5000, image: 4, by: 'vision' }]
+      pages: [],
+      records: [{ record: 5000, image: 4, by: 'vision' }]
     }
   });
   const marked = citation(5000, '1790 - 1796', 12);
   expect(await scanOf(marked)).toEqual([
-    expect.objectContaining({ image: 4, method: 'placed', by: 'vision' })
+    expect.objectContaining({ image: 4, method: 'vision' })
   ]);
   await markRef(refOf(marked), { volumeId: 'juva-1', image: 7 });
   expect(await scanOf(marked)).toEqual([
-    expect.objectContaining({ image: 7, method: 'placed', by: 'hand' })
+    expect.objectContaining({ image: 7, method: 'exact' })
   ]);
 });
 
@@ -139,37 +137,40 @@ test('confirming a vision match by hand keeps its box', async () => {
   const box = { left: 0.1, top: 0.4, width: 0.5, height: 0.05 };
   await writeLocal({
     'juva-1': {
-      anchors: [],
-      seen: [{ record: 5000, image: 4, by: 'vision', box }]
+      pages: [],
+      records: [{ record: 5000, image: 4, by: 'vision', box }]
     }
   });
   const marked = citation(5000, '1790 - 1796', 12);
   await markRef(refOf(marked), { volumeId: 'juva-1', image: 4 });
   expect(await scanOf(marked)).toEqual([
-    expect.objectContaining({ image: 4, method: 'placed', by: 'hand', box })
+    expect.objectContaining({ image: 4, method: 'exact', box })
   ]);
 });
 
-test('a vision placement confirmed by hand keeps its box', async () => {
+test('a vision Reference pin confirmed by hand keeps its box', async () => {
   const box = { left: 0.1, top: 0.4, width: 0.5, height: 0.05 };
-  // Vision placements are of references with no Record number.
+  // Vision Reference pins are of references with no Record number.
   const cited = citation(5000, '1790 - 1796', null);
   const marked = { ...cited, page: cited.page.replace('itemId=5000&', '') };
   await Bun.write(
-    join(dir, 'placements.local.json'),
+    join(dir, 'pins.local.json'),
     JSON.stringify({
-      [marked.page]: {
-        volumeId: 'juva-2',
-        volume: VOLUMES['juva-2'],
-        image: 3,
-        by: 'vision',
-        box
+      volumes: {},
+      references: {
+        [marked.page]: {
+          volumeId: 'juva-2',
+          volume: VOLUMES['juva-2'],
+          image: 3,
+          by: 'vision',
+          box
+        }
       }
     })
   );
   useDataFolder(dir);
   await markRef(refOf(marked), { volumeId: 'juva-2', image: 3 });
-  expect(Object.values(await loadPlacements())).toEqual([
+  expect(Object.values((await loadPins()).references)).toEqual([
     { volumeId: 'juva-2', volume: VOLUMES['juva-2'], image: 3, by: 'hand', box }
   ]);
 });

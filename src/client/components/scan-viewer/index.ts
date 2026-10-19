@@ -266,7 +266,7 @@ export class ScanViewerElement extends LitElement {
     );
   }
 
-  // A confirmation moves its row, and an Anchor its neighbours'.
+  // A confirmation moves its row, and a Page pin its neighbours'.
   private readonly onMarked = () => {
     if (this.volume !== null) void this.loadCitations(this.volume.id);
   };

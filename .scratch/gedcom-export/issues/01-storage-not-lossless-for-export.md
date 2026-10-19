@@ -79,10 +79,9 @@ that need to show sources/notes/etc.
 ### Scan links on citations
 
 A church-book citation's Astia scan link isn't in the GEDCOM or in SQLite. It
-lives in the data folder's local files, keyed by the cited MyHeritage record so
-it survives re-imports: a Seen record (by Record number) in
-`citation-scans.json`, or a Placement (by record URL) in
-`placements.local.json`. Under either option above, export has to merge these
+lives in the data folder's `pins.local.json`, keyed by the cited MyHeritage
+record so it survives re-imports: a Record pin (by Record number) or a
+Reference pin (by record URL). Under either option above, export has to merge these
 into the citations it writes; it's the one thing the app adds that the import
 never held.
 
