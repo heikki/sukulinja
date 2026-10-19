@@ -87,6 +87,9 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
 
   private readonly prefetch = new Prefetch();
   private drawn: Drawn = { volumeId: null, image: 1 };
+  // A new Volume's first Image is fitted afresh; until something of it
+  // arrives, the last Volume's Image stays up.
+  private refit = false;
   // The full Image being loaded and decoded out of sight, and its URL.
   private pending: HTMLImageElement | null = null;
   private wanted: string | null = null;
@@ -146,16 +149,16 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     return this.viewer.image.get();
   }
 
-  // A new Volume or Image starts its drawing afresh, and a new source
-  // moves focus here.
+  // A new Volume or Image starts its drawing afresh, over the last Image
+  // until it arrives, and a new source moves focus here.
   override willUpdate() {
     const volumeId = this.viewer.volume.get()?.id ?? null;
     const { image } = this;
     const last = this.drawn;
     this.drawn = { volumeId, image };
     if (volumeId !== last.volumeId) {
-      this.frame = null;
-      this.view = null;
+      this.refit = true;
+      if (volumeId === null) this.clearFrame();
       this.prefetch.keep([]);
       this.reset();
     } else if (image !== last.image) {
@@ -285,8 +288,20 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     }, wait);
   };
 
+  private clearFrame() {
+    this.frame = null;
+    this.view = null;
+  }
+
+  // The frame a new Image arrives in: none for a new Volume's first.
+  private takeFrame() {
+    const last = this.refit ? null : this.frame;
+    this.refit = false;
+    return last;
+  }
+
   private showThumb(size: Viewport) {
-    const { frame, fit } = frameForThumb(this.frame, size);
+    const { frame, fit } = frameForThumb(this.takeFrame(), size);
     this.frame = frame;
     if (fit || this.view === null) this.view = this.fitted();
     this.thumb = size;
@@ -295,7 +310,7 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
 
   private onLoad(img: HTMLImageElement, url: string) {
     const size = { width: img.naturalWidth, height: img.naturalHeight };
-    const { frame, fit, rescale } = frameForFull(this.frame, size);
+    const { frame, fit, rescale } = frameForFull(this.takeFrame(), size);
     this.frame = frame;
     const view = this.view;
     if (fit || view === null) {
@@ -311,7 +326,9 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     this.prefetchNeighbours();
   }
 
+  // A new Volume's failing leaves nothing of the last one up.
   private readonly onError = () => {
+    if (this.refit) this.clearFrame();
     this.loading = 'failed';
   };
 
