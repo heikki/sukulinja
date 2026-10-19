@@ -426,3 +426,45 @@ test('selecting someone else drops the pending change', async () => {
   expect(viewer.pending.get()).toBe(null);
   expect(viewer.leaving.get()).toBe(false);
 });
+
+test('Mark this Image puts the source on the Image shown, pending', async () => {
+  const { api, state, viewer } = await selecting(1);
+  viewer.open(S11);
+  await settle();
+  // An estimate there is still a change.
+  expect(viewer.canMarkImage.get()).toBe(true);
+  viewer.show(20);
+  viewer.markImage();
+  expect(viewer.pending.get()).toEqual({
+    volumeId: '201',
+    volume: 'I Aa:201',
+    image: 20
+  });
+  expect(viewer.canMarkImage.get()).toBe(false);
+  viewer.show(21);
+  expect(viewer.canMarkImage.get()).toBe(true);
+  viewer.show(20);
+  // Changing the Volume drops the Image.
+  viewer.changeVolume(CHOICE_202);
+  expect(viewer.pending.get()?.image).toBeUndefined();
+  viewer.markImage();
+  expect(viewer.pending.get()).toMatchObject({ volumeId: '202', image: 1 });
+  viewer.cancel();
+  state.select(2);
+  await settle();
+  viewer.open({ citation: C21, link: MARKED_21 });
+  expect(viewer.canMarkImage.get()).toBe(false);
+  viewer.markImage();
+  expect(viewer.pending.get()).toBe(null);
+  expect(api.asked.filter((a) => a.startsWith('mark'))).toEqual([]);
+});
+
+test('Save sends the Image marked', async () => {
+  const { api, viewer } = await selecting(2);
+  viewer.open({ citation: C21, link: VISION_21 });
+  await settle();
+  viewer.markImage();
+  await viewer.save();
+  expect(api.asked).toContain('mark 21 201/18');
+  expect(viewer.source.get()?.link).toEqual(MARKED_21);
+});

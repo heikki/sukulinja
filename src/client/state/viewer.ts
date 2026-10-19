@@ -75,6 +75,10 @@ export interface Viewer {
   // Puts the source in the Volume, pending, and shows it there. Its own
   // Volume, unless it's one of several, is no change.
   changeVolume: (choice: VolumeChoice) => void;
+  // Whether `markImage` would change the pending or saved Link.
+  canMarkImage: Readable<boolean>;
+  // Puts the source on the Image shown, pending.
+  markImage: () => void;
   // Drops the pending change, back to the Link.
   cancel: () => void;
   // Saves the pending change as a Mark and follows the new Link, throwing
@@ -114,6 +118,23 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   const leaving = signal(false);
   // The way out waiting on an answer, and what keeping on editing does.
   let held: { go: () => void; stay?: () => void } | null = null;
+  // The Image shown, unless the source is already there by hand or has it
+  // pending. An estimate or a Vision match there is still a change.
+  const canMarkImage = computed(() => {
+    const link = source.get()?.link;
+    const shown = volume.get();
+    if (link === undefined || shown === null) return false;
+    const at = image.get();
+    const change = pending.get();
+    if (change !== null) {
+      return change.volumeId !== shown.id || change.image !== at;
+    }
+    return !(
+      link.volumeId === shown.id &&
+      link.certainty === 'marked' &&
+      imageOf(link) === at
+    );
+  });
   const away = computed(() => {
     const link = source.get()?.link;
     if (link === undefined) return false;
@@ -223,6 +244,18 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     showVolume(choice.id, choice.label, null);
   }
 
+  function markImage() {
+    const shown = volume.get();
+    if (source.get() === null || shown === null || !canMarkImage.get()) {
+      return;
+    }
+    pending.set({
+      volumeId: shown.id,
+      volume: shown.label,
+      image: image.get()
+    });
+  }
+
   function cancel() {
     const shown = source.get();
     if (shown !== null) openNow(shown);
@@ -329,6 +362,8 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     pending,
     leaving,
     changeVolume,
+    canMarkImage,
+    markImage,
     cancel,
     save,
     leave,
