@@ -1,7 +1,7 @@
 import { computed, signal } from '@lit-labs/signals';
 
 import { ApiError } from '@client/dataset-api';
-import type { DatasetApi, MarkTarget } from '@client/dataset-api';
+import type { BoxAt, DatasetApi, MarkTarget } from '@client/dataset-api';
 import type {
   CitationLinks,
   LinkResolution,
@@ -38,6 +38,8 @@ export interface Selected {
   // Saves a Mark, throwing ApiError if it's refused; the reference's Links,
   // resolved again.
   mark: (citationId: number, at: MarkTarget) => Promise<CitationLinks>;
+  // Takes back a reference's Box, as `mark` saves one.
+  discard: (citationId: number, at: BoxAt) => Promise<CitationLinks>;
 }
 
 // Long enough for Links the server has resolved before; ones it must ask
@@ -129,14 +131,33 @@ export function openSelected(
   }
 
   // A Page pin can move the person's other references in the Volume too,
-  // so their Links reload.
-  async function mark(citationId: number, at: MarkTarget) {
-    const resolved = await api.mark(citationId, at);
+  // and a Record pin taken back theirs citing the record, so their Links
+  // reload.
+  async function settled(saving: Promise<CitationLinks>) {
+    const resolved = await saving;
     setLinks(resolved);
     const person = id.get();
     if (person !== null) void loadLinks(person, null);
     return resolved;
   }
 
-  return { id, details, error, links, pending, sources, select, mark };
+  async function mark(citationId: number, at: MarkTarget) {
+    return await settled(api.mark(citationId, at));
+  }
+
+  async function discard(citationId: number, at: BoxAt) {
+    return await settled(api.discard(citationId, at));
+  }
+
+  return {
+    id,
+    details,
+    error,
+    links,
+    pending,
+    sources,
+    select,
+    mark,
+    discard
+  };
 }

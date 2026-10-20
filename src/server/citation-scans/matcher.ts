@@ -58,7 +58,9 @@ export type Unconfirmed =
   | 'no candidate volume'
   | 'no name'
   | 'no box'
-  | 'unsupported';
+  | 'unsupported'
+  // Confirmed on an Image where a person took the match back.
+  | 'rejected';
 
 export type Match =
   | {

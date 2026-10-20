@@ -3,12 +3,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import type { Database } from 'bun:sqlite';
 
-import type { Box } from '@common/types';
+import type { Box, LinkResolution } from '@common/types';
 
 import { AstiaError, openAstia, viewerUrls } from './citation-scans/astia';
 import type { Astia } from './citation-scans/astia';
 import { openPins } from './citation-scans/pins';
-import type { MarkTarget } from './citation-scans/pins';
+import type { BoxAt, MarkTarget } from './citation-scans/pins';
 import type { ImageRef } from './citation-scans/reader';
 import { openScanCache, routeScanCache } from './citation-scans/scan-cache';
 import type { ScanCache } from './citation-scans/scan-cache';
@@ -35,9 +35,24 @@ interface DatasetHandlers {
   handlePerson: (id: number) => Response;
   handlePersonLinks: (id: number) => Response;
   handleMark: (id: number, target: MarkTarget) => Promise<Response>;
+  handleDiscard: (id: number, at: BoxAt) => Promise<Response>;
   handleVolumeChoices: (id: number) => Promise<Response>;
   handleVolumeCitations: (volumeId: string) => Promise<Response>;
   handleMedia: (rest: string, mediaRoot: string) => Promise<Response>;
+}
+
+// A reference's links as a Mark or Discard left them, or why not.
+function answerLinks(
+  id: number,
+  result: Response | LinkResolution | { rejected: string } | null
+) {
+  if (result instanceof Response) return result;
+  if (result === null) {
+    return new Response('citation not found', { status: 404 });
+  }
+  return 'rejected' in result
+    ? new Response(result.rejected, { status: 400 })
+    : Response.json({ citationId: id, ...result });
 }
 
 function createDatasetHandlers(db: Database, scans: Scans): DatasetHandlers {
@@ -87,14 +102,17 @@ function createDatasetHandlers(db: Database, scans: Scans): DatasetHandlers {
     },
 
     async handleMark(id, target) {
-      const result = await citations.mark(id, target).catch(astiaFailed);
-      if (result instanceof Response) return result;
-      if (result === null) {
-        return new Response('citation not found', { status: 404 });
-      }
-      return 'rejected' in result
-        ? new Response(result.rejected, { status: 400 })
-        : Response.json({ citationId: id, ...result });
+      return answerLinks(
+        id,
+        await citations.mark(id, target).catch(astiaFailed)
+      );
+    },
+
+    async handleDiscard(id, at) {
+      return answerLinks(
+        id,
+        await citations.discard(id, at).catch(astiaFailed)
+      );
     },
 
     async handleVolumeChoices(id) {
@@ -267,7 +285,25 @@ async function readMark(req: Request): Promise<MarkTarget | null> {
   return drawn === null ? null : { volumeId, image, box: drawn };
 }
 
+// `{ volumeId, image }`: where a Box is. Anything else is rejected.
+async function readBoxAt(req: Request): Promise<BoxAt | null> {
+  const body = (await req.json().catch(() => null)) as Record<
+    string,
+    unknown
+  > | null;
+  const { volumeId, image } = body ?? {};
+  if (typeof volumeId !== 'string' || typeof image !== 'number') return null;
+  return { volumeId, image };
+}
+
+// POST a Mark, DELETE a Box.
 async function routeMark(req: Request, handlers: DatasetHandlers, id: number) {
+  if (req.method === 'DELETE') {
+    const at = await readBoxAt(req);
+    return at === null
+      ? new Response('expected { volumeId, image }', { status: 400 })
+      : await handlers.handleDiscard(id, at);
+  }
   if (req.method !== 'POST') {
     return new Response('method not allowed', { status: 405 });
   }
@@ -277,7 +313,8 @@ async function routeMark(req: Request, handlers: DatasetHandlers, id: number) {
     : await handlers.handleMark(id, target);
 }
 
-// GET a citation's `/volumes`, POST its `/scans` (a Mark).
+// GET a citation's `/volumes`; POST its `/scans` (a Mark), or DELETE its
+// Box there (a Discard).
 async function routeCitation(
   req: Request,
   handlers: DatasetHandlers,

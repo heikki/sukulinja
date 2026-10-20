@@ -50,9 +50,7 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
     this.dispatchEvent(new CustomEvent('scan-hover', { detail: key }));
   }
 
-  // Also asked for by the scan's menu, so it's guarded as the button is.
-  async confirm(row: VolumeCitation) {
-    if (this.confirming !== null) return;
+  private async confirm(row: VolumeCitation) {
     const id = row.citation.id;
     this.confirming = id;
     this.refused = null;

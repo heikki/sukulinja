@@ -87,8 +87,16 @@ export interface Viewer {
   setBox: (box: Box) => void;
   // Starts a pending change from the Link's own Box, to adjust it.
   editBox: () => void;
-  // Drops the pending change, back to the Link.
+  // A Discard of the Link's Box on the Image shown, waiting to be saved.
+  // Moving off the Image drops it.
+  discarding: Readable<boolean>;
+  // Asks to take back the Link's Box on the Image shown.
+  discard: () => void;
+  // Drops the pending change, back to the Link, or the Discard asked for.
   cancel: () => void;
+  // Takes the Box back, throwing ApiError if it's refused, and goes on
+  // with the Link it leaves, on the Image shown.
+  confirmDiscard: () => Promise<void>;
   // Saves the pending change as a Mark and follows the new Link, throwing
   // ApiError if it's refused.
   save: () => Promise<void>;
@@ -132,6 +140,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   const citations = signal<VolumeCitation[] | null | 'failed'>(null);
   const sourcesInView = signal(false);
   const pending = signal<PendingLink | null>(null);
+  const discarding = signal(false);
   const leaving = signal(false);
   // The way out waiting on an answer, and what keeping on editing does.
   let held: { go: () => void; stay?: () => void } | null = null;
@@ -180,6 +189,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   }
 
   function showNow(n: number) {
+    discarding.set(false);
     image.set(clampImage(n, count.get()));
   }
 
@@ -189,6 +199,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
       if (at !== null) showNow(at);
       return;
     }
+    discarding.set(false);
     volume.set({ id, label });
     image.set(clampImage(at ?? 1, null));
     count.set(null);
@@ -199,6 +210,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
 
   function openNow({ citation, link }: LinkOpen) {
     pending.set(null);
+    discarding.set(false);
     source.set({ citation, link });
     showVolume(link.volumeId, link.volume, imageOf(link));
   }
@@ -208,6 +220,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     countReq.stop();
     citationsReq.stop();
     pending.set(null);
+    discarding.set(false);
     held = null;
     leaving.set(false);
     source.set(null);
@@ -254,6 +267,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   function setBox(box: Box) {
     const shown = volume.get();
     if (source.get() === null || shown === null) return;
+    discarding.set(false);
     pending.set({
       volumeId: shown.id,
       volume: shown.label,
@@ -267,13 +281,42 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     if (box !== null && pending.get() === null) setBox(box);
   }
 
+  function discard() {
+    if (pending.get() === null && boxHere.get() !== null) discarding.set(true);
+  }
+
   function cancel() {
+    if (pending.get() === null) {
+      discarding.set(false);
+      return;
+    }
     const shown = source.get();
     if (shown !== null) openNow(shown);
   }
 
+  // The citations reload, as after a Mark: a Record pin taken back moves
+  // everyone citing the record. The viewer stays on the Image.
+  async function confirmDiscard() {
+    const shown = source.get();
+    const at = volume.get();
+    if (shown === null || at === null || !discarding.get()) return;
+    const resolved = await selected.discard(shown.citation.id, {
+      volumeId: at.id,
+      image: image.get()
+    });
+    // The faint Box stays until the citations say it's gone, or the old
+    // one shows again in between.
+    await loadCitations(at.id);
+    if (source.get() !== shown) return;
+    discarding.set(false);
+    const links = 'links' in resolved ? resolved.links : [];
+    const link = markedIn(resolved, at.id) ?? links[0];
+    if (link !== undefined) source.set({ citation: shown.citation, link });
+  }
+
   // The Mark reloads the Volume's citations, as a confirmation does, and
-  // the viewer follows the new Link.
+  // the viewer follows the new Link. The pending Box stays until they're
+  // in, or the Link's old Box shows again in between.
   async function save() {
     const shown = source.get();
     const change = pending.get();
@@ -286,10 +329,10 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     });
     const link = markedIn(resolved, volumeId);
     if (source.get() !== shown) return;
-    pending.set(null);
-    const reload = loadCitations(volume.get()?.id ?? volumeId);
-    if (link !== null) openNow({ citation: shown.citation, link });
-    await reload;
+    await loadCitations(volume.get()?.id ?? volumeId);
+    if (source.get() !== shown) return;
+    if (link === null) pending.set(null);
+    else openNow({ citation: shown.citation, link });
   }
 
   async function answer(given: LeaveAnswer) {
@@ -378,7 +421,10 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     boxPending,
     setBox,
     editBox,
+    discarding,
+    discard,
     cancel,
+    confirmDiscard,
     save,
     leave,
     answer

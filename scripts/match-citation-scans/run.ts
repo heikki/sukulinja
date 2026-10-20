@@ -169,10 +169,24 @@ async function settle(
 ): Promise<Done> {
   const key = `${kindOf(ref)} ${match.confirmed ? 'confirmed' : match.reason}`;
   if (match.confirmed) {
-    if (options.dryRun !== true) {
-      await pins.recordVision(ref, match);
-    }
-    return { key, tried: true, saved: true, entry: null };
+    const saved =
+      options.dryRun === true
+        ? !(await pins.rejects(ref, match))
+        : await pins.recordVision(ref, match);
+    if (saved) return { key, tried: true, saved: true, entry: null };
+    const { volumeId, volume, image } = match;
+    const taken = { confirmed: false as const, reason: 'rejected' as const };
+    return {
+      key: `${kindOf(ref)} rejected`,
+      tried: true,
+      saved: false,
+      entry: await reviewEntry(astia, ref, 'rejected', {
+        ...taken,
+        volumeId,
+        volume,
+        image
+      })
+    };
   }
   const entry = NOT_REVIEWED.has(match.reason)
     ? null

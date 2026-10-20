@@ -481,6 +481,11 @@ export const scanEntriesStyles = css`
     background: color-mix(in srgb, var(--danger) 12%, transparent);
   }
 
+  .entry.current.discarding {
+    border-style: dashed;
+    opacity: 0.7;
+  }
+
   .entry.hovered {
     border-color: var(--danger);
     background: color-mix(in srgb, var(--danger) 25%, transparent);

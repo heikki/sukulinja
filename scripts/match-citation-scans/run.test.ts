@@ -218,6 +218,23 @@ test('a re-run skips what was saved and asks the Reader nothing new', async () =
   ]);
 });
 
+test('a match taken back by hand there goes to the review list, not the pins', async () => {
+  await passEvaluation();
+  await run();
+  const at = { volumeId: 'juva-1', image: 12 };
+  expect(await openPins(dir).recordDiscard(REFS[0]!, at)).toBe(true);
+  const { result } = await run();
+  if (!('outcomes' in result)) throw new Error(result.refused);
+  expect(result.outcomes).toContain('rippi rejected');
+  expect(
+    result.review.filter((r) => r.reason === 'rejected').map((r) => r.image)
+  ).toEqual([12]);
+  expect(await openPins(dir).rejects(REFS[0]!, at)).toBe(true);
+  expect(
+    (await openPins(dir).snapshot()).volumes['juva-1']?.records ?? []
+  ).toEqual([]);
+});
+
 test('never overrides a hand pin', async () => {
   await passEvaluation();
   // Juho pinned by hand on Image 16; a Page pin read by hand on Image 12.

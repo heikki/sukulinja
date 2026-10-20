@@ -36,6 +36,8 @@ export class ScanEntriesElement extends LitElement {
   // The key of the entry picked out, and the citation the viewer is on.
   @property({ attribute: false }) hovered: string | null = null;
   @property({ attribute: false }) current: number | null = null;
+  // The current citation's Box waits to be discarded: it shows faint.
+  @property({ type: Boolean }) discarding = false;
 
   private pressedAt: Point | null = null;
 
@@ -60,6 +62,7 @@ export class ScanEntriesElement extends LitElement {
     const classes = [
       'entry',
       current ? 'current' : '',
+      current && this.discarding ? 'discarding' : '',
       entry.key === this.hovered ? 'hovered' : ''
     ].join(' ');
     return html`

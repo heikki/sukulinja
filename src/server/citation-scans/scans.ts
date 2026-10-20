@@ -13,7 +13,7 @@ import { AstiaError } from './astia';
 import type { Astia, Volume } from './astia';
 import { parishArchive, parishVolumes, resolveChurchBookRef } from './locate';
 import type { Candidate } from './matcher';
-import type { MarkTarget, PinStore } from './pins';
+import type { BoxAt, MarkTarget, PinStore } from './pins';
 import type { ChurchBookRef } from './record';
 
 // The pins resolution reads, but no Reference pins: a reference's links by
@@ -189,6 +189,15 @@ export function openScans({ pins, astia }: { pins: PinStore; astia: Astia }) {
       }
       const linked = (await linkedVolumes(ref)).has(target.volumeId);
       await pins.recordMark(ref, target, { volume: volume.label, linked });
+      return await resolveRef(ref);
+    },
+
+    // Takes back the reference's Box at `at`, and gives its links as they
+    // now resolve: its estimate, or a pin left without a Box.
+    async discardRef(ref: ChurchBookRef, at: BoxAt) {
+      if (!(await pins.recordDiscard(ref, at))) {
+        return { rejected: 'There is no box there to discard.' };
+      }
       return await resolveRef(ref);
     }
   };

@@ -18,8 +18,8 @@ function stop(e: Event) {
 }
 
 // Stepping through the Volume, floating over the foot of the scan: the
-// Image shown of how many, once Astia says, and while a Box is pending,
-// its Cancel and Save, named from `persons`. Pointer and wheel input stays
+// Image shown of how many, once Astia says, and while a Box is pending or
+// waits to be discarded, its Cancel and Save, named from `persons`. Pointer and wheel input stays
 // here, so using it doesn't pan or zoom the scan beneath. The button a held
 // ←/→ stands for shows pressed.
 @customElement('sl-scan-nav')
@@ -106,7 +106,8 @@ export class ScanNavElement extends SignalWatcher(LitElement) {
         ›
       </button>
       ${
-        this.state.viewer.pending.get() === null
+        this.state.viewer.pending.get() === null &&
+        !this.state.viewer.discarding.get()
           ? nothing
           : html`<sl-scan-edit .persons=${this.persons}></sl-scan-edit>`
       }
