@@ -9,6 +9,7 @@ const controls = css`
   }
 
   input {
+    -webkit-user-select: text;
     width: 4.5em;
     padding: 0.15rem 0.35rem;
     border: 1px solid var(--border);
@@ -93,7 +94,7 @@ export const scanViewerStyles = css`
     overflow: hidden;
     cursor: grab;
     touch-action: none;
-    user-select: none;
+    -webkit-user-select: none;
   }
 
   .stage.dragging {

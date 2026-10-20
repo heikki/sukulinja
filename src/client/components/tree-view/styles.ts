@@ -56,7 +56,7 @@ export const treeViewStyles = css`
     position: relative;
     cursor: grab;
     touch-action: none;
-    user-select: none;
+    -webkit-user-select: none;
   }
 
   .canvas.dragging {
