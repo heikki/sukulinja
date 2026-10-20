@@ -62,6 +62,8 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
   @consume({ context: appState }) private readonly state!: AppState;
 
   @property({ type: Number, reflect: true }) gen = preferredGenerations();
+  // The dataset's name, for the Settings popover's way back to the chooser.
+  @property({ attribute: false }) datasetName: string | null = null;
 
   @state() private persons = new Map<number, PersonRow>();
   @state() private rootId: number | null = null;
@@ -377,10 +379,12 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
     });
   }
 
-  private renderToolbar() {
+  // Search and Settings, floating over the chart's top-right corner. Away
+  // while the Scan viewer covers the chart: its own row ends in Close there.
+  private renderCorner() {
+    if (this.state.viewer.source.get() !== null) return nothing;
     return html`
-      <div class="toolbar">
-        <slot name="brand"></slot>
+      <div class="corner">
         <sl-person-search
           .persons=${this.persons}
           @pick=${(e: PickEvent) => {
@@ -389,6 +393,7 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
         ></sl-person-search>
         <sl-settings
           .generations=${this.gen}
+          .datasetName=${this.datasetName}
           @generations-change=${async (e: GenerationsChangeEvent) => {
             this.gen = e.detail;
             // Wait for the silent gen-change pin to land in updated() before
@@ -582,9 +587,9 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
   }
 
   override render() {
-    // The toolbar always renders so the dataset name / home link (slot="brand")
-    // stays visible through the loading and empty states; the body below swaps.
-    return html`${this.renderToolbar()}${this.renderBody()}`;
+    // The corner renders through the loading and empty states too, so the
+    // way back to the chooser (in Settings) is always there.
+    return html`${this.renderBody()}${this.renderCorner()}`;
   }
 
   private renderBody() {

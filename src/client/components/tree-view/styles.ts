@@ -13,29 +13,25 @@ export const treeViewStyles = css`
     --sl-leave-delay: 0ms;
     --sl-leave-duration: 200ms;
     --sl-leave-easing: ease-in;
+    position: relative;
     display: flex;
     flex-direction: column;
     height: 100vh;
   }
 
-  /* Bar metrics kept in sync with the chooser's header (app styles) so the
-     title doesn't shift between the chooser and a tree view. */
-  .toolbar {
-    position: relative;
+  /* No bar above the chart: Search and Settings float in its top-right
+     corner, so the chart and the details panel take the window's height. */
+  .corner {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    z-index: 5;
     display: flex;
     gap: 0.5rem;
-    align-items: center;
-    min-height: 3.375rem;
-    box-sizing: border-box;
-    padding: 0.5rem 0.5rem 0.5rem 1.1rem;
-    background: var(--card);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
   }
 
   sl-person-search {
-    margin-left: auto;
-    width: min(320px, 45vw);
+    width: min(280px, 40vw);
   }
 
   /* The chart and, beside it, the selected person's details panel. */
