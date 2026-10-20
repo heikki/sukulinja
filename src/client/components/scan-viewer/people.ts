@@ -14,6 +14,10 @@ import { controlStyles, scanPeopleStyles } from './styles';
 // Collapsed or not for the rest of the visit, across Volumes and citations.
 let collapsed = false;
 
+// How long the list last shown stays up while the next Volume's citations
+// load, before the pane says it's finding them.
+const HOLD_MS = 300;
+
 // Beside the scan: the people of the tree whose citations link the Image
 // shown, grouped as `groupCitations` says. Clicking one picks them; the
 // citation the viewer is on is marked. Hovering a row with an entry on the
@@ -32,6 +36,12 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
   // The citation being confirmed, and the last one that couldn't be.
   @state() private confirming: number | null = null;
   @state() private refused: { id: number; error: string } | null = null;
+  // Moving to another Volume, the list last shown stays up until its
+  // citations arrive, so the pane doesn't blink to a one-line note and
+  // back; the note shows only once the wait is long enough to see.
+  private last: { rows: VolumeCitation[]; image: number } | null = null;
+  @state() private waitedLong = false;
+  private holdTimer: ReturnType<typeof setTimeout> | null = null;
 
   private readonly nameOf = (row: VolumeCitation) => rowName(this.persons, row);
 
@@ -44,6 +54,31 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
   override connectedCallback() {
     super.connectedCallback();
     this.toggleAttribute('collapsed', collapsed);
+  }
+
+  override willUpdate() {
+    const { citations, image } = this.state.viewer;
+    const rows = citations.get();
+    if (rows !== null) {
+      this.stopHold();
+      this.waitedLong = false;
+      if (Array.isArray(rows)) this.last = { rows, image: image.get() };
+    } else if (this.holdTimer === null && !this.waitedLong) {
+      this.holdTimer = setTimeout(() => {
+        this.holdTimer = null;
+        this.waitedLong = true;
+      }, HOLD_MS);
+    }
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.stopHold();
+  }
+
+  private stopHold() {
+    if (this.holdTimer !== null) clearTimeout(this.holdTimer);
+    this.holdTimer = null;
   }
 
   private hover(key: string | null) {
@@ -121,12 +156,17 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
   private renderList() {
     const { citations, image } = this.state.viewer;
     const rows = citations.get();
-    if (!Array.isArray(rows)) {
-      return html`<p class="muted">
-        ${rows === 'failed' ? 'People unavailable' : 'Finding people…'}
-      </p>`;
+    if (Array.isArray(rows)) return this.renderGroups(rows, image.get());
+    if (rows === null && this.last !== null && !this.waitedLong) {
+      return this.renderGroups(this.last.rows, this.last.image);
     }
-    const groups = groupCitations(rows, image.get(), this.nameOf);
+    return html`<p class="muted">
+      ${rows === 'failed' ? 'People unavailable' : 'Finding people…'}
+    </p>`;
+  }
+
+  private renderGroups(rows: VolumeCitation[], image: number) {
+    const groups = groupCitations(rows, image, this.nameOf);
     if (groups.length === 0) {
       return html`<p class="muted">No one in the tree is linked here.</p>`;
     }
