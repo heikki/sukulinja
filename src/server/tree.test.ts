@@ -33,10 +33,13 @@ const GEDCOM = [
   '4 LEFT 2',
   '1 OBJE',
   '2 FILE second.jpg',
+  '1 BURI',
+  '2 DATE 1830',
   '0 @I3@ INDI',
   '1 NAME Liisa /Esimerkki/',
   '0 @I4@ INDI',
   '1 NAME Juho /Esimerkki/',
+  '1 DEAT Y',
   '0 @F1@ FAM',
   '1 HUSB @I1@',
   '1 WIFE @I2@',
@@ -69,6 +72,20 @@ test('reads the years from dates as written', () => {
   });
   const liisa = people.find((p) => p.given === 'Liisa')!;
   expect(liisa).toMatchObject({ birth_year: null, death_year: null });
+});
+
+test('has died with any death, burial or cremation, dated or not', () => {
+  const died = new Map(
+    tree()
+      .persons()
+      .map((p) => [p.given, p.died])
+  );
+  expect(died.get('Matti')).toBe(true);
+  // Buried, with no death.
+  expect(died.get('Anna')).toBe(true);
+  // "DEAT Y": died, no date.
+  expect(died.get('Juho')).toBe(true);
+  expect(died.get('Liisa')).toBe(false);
 });
 
 test('takes the photo marked primary, else the first, with its crop', () => {

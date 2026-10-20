@@ -17,7 +17,7 @@ import type {
 import { BOOK_NAMES } from '@common/books';
 import type { CitationRow, Link, RecordView } from '@common/types';
 
-import { formatName } from '../tree-view/renderer';
+import { CROSS, formatName } from '../tree-view/renderer';
 
 import './fold';
 import './header';
@@ -158,6 +158,14 @@ function renderBody(c: CitationRow, heading: string) {
     : html`<p class="text">${text}</p>`;
 }
 
+// Dates as the list writes them, the cross they end with a size up.
+function crossed(life: string) {
+  if (!life.endsWith(CROSS)) return life;
+  return html`${life.slice(0, -CROSS.length)}<span class="cross"
+      >${CROSS}</span
+    >`;
+}
+
 // A relative's row picks them, and a double-click centers the chart on them.
 function renderRelative(r: Relative, ask: (event: string, id: number) => void) {
   const life = lifeText(r.person);
@@ -173,7 +181,7 @@ function renderRelative(r: Relative, ask: (event: string, id: number) => void) {
     <span class="relation">${r.relation}</span>
     <span class="person">
       <span class="name">${formatName(r.person)}</span>
-      ${life === '' ? nothing : html`<span class="life">${life}</span>`}
+      ${life === '' ? nothing : html`<span class="life">${crossed(life)}</span>`}
     </span>
   </button>`;
 }

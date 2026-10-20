@@ -13,7 +13,11 @@ function yearOf(date: string | null) {
   return m === null ? null : parseInt(m.groups!.year!, 10);
 }
 
-type PersonDbRow = Omit<PersonRow, 'birth_year' | 'death_year' | 'crop'> & {
+type PersonDbRow = Omit<
+  PersonRow,
+  'birth_year' | 'death_year' | 'died' | 'crop'
+> & {
+  died: number;
   crop_top: number | null;
   crop_left: number | null;
   crop_width: number | null;
@@ -40,6 +44,7 @@ export function createTree(db: Database) {
       p.sex,
       (SELECT date_text FROM facts WHERE scope_type='person' AND scope_id=p.id AND tag='BIRT' LIMIT 1) AS birth_date,
       (SELECT date_text FROM facts WHERE scope_type='person' AND scope_id=p.id AND tag='DEAT' LIMIT 1) AS death_date,
+      EXISTS (SELECT 1 FROM facts WHERE scope_type='person' AND scope_id=p.id AND tag IN ('DEAT','BURI','CREM')) AS died,
       m.file_path AS photo_path,
       ml.crop_top,
       ml.crop_left,
@@ -78,6 +83,7 @@ export function createTree(db: Database) {
         death_year: yearOf(r.death_date),
         birth_date: r.birth_date,
         death_date: r.death_date,
+        died: r.died === 1,
         photo_path: r.photo_path,
         crop: cropOf(r)
       }));

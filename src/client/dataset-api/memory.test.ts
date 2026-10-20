@@ -19,6 +19,7 @@ const MATTI: PersonRow = {
   death_year: null,
   birth_date: null,
   death_date: null,
+  died: false,
   photo_path: null,
   crop: null
 };

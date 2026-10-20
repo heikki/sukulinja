@@ -155,6 +155,10 @@ export const personPanelStyles = css`
     font-size: 0.8rem;
   }
 
+  .life .cross {
+    font-size: 1.15em;
+  }
+
   /* A group of sources, named as written: set apart from the sections'
      small capitals. */
   /* 1.2rem above each: the first's margin counts the heading's padding,
@@ -423,6 +427,10 @@ export const personHeaderStyles = [
     dd {
       margin: 0;
       overflow-wrap: anywhere;
+    }
+
+    dd.unknown {
+      color: var(--muted);
     }
   `
 ];
