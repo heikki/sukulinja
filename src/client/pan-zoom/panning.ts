@@ -1,20 +1,18 @@
 // How a view is panned and zoomed, the chart's and the scan's alike:
-// dragged, flung, and zoomed, stretching past its bounds (bounds.ts), and
-// once let go springing back within them.
+// dragged, stretching past its bounds (bounds.ts), and once let go flung or
+// springing back within them; and zoomed about the pointer, which stays put
+// however far that carries the content, within its scale bounds.
 
 import {
   coastWithin,
   dragWithin,
   easeScale,
   overshoot,
-  stretchPast,
   withinScale
 } from './bounds';
 import type { Screen } from './bounds';
 import { startFling } from './fling';
 import type { FlingHandle, FlingOptions } from './fling';
-import { settledView, startSettle } from './settle';
-import type { SettleHandle } from './settle';
 import { zoomAround, zoomAt } from './transform';
 import type { Extents, Point, ScaleBounds, Transform } from './transform';
 
@@ -38,7 +36,8 @@ export interface PanningHost {
 export interface PanningOptions {
   fling: FlingOptions;
   dragThresholdPx: number;
-  // A wheel zoom has stopped once no wheel event has come for this long.
+  // A wheel zoom has stopped, and is at rest, once no wheel event has come
+  // for this long.
   zoomSettleMs: number;
 }
 
@@ -76,14 +75,6 @@ function sameView(a: Transform, b: Transform) {
   );
 }
 
-// Closer than this to a bound is at it.
-const REST_PX = 0.5;
-
-// How far `view`'s scale is past `bounds`, in log-zoom.
-function scaleOut(view: Transform, bounds: ScaleBounds) {
-  return Math.abs(Math.log(view.scale / withinScale(view.scale, bounds)));
-}
-
 // How fast the view was moving when let go, from its last two samples, in
 // pixels per millisecond; still where they can't say.
 function releaseVelocity(samples: Sample[]) {
@@ -99,15 +90,9 @@ function releaseVelocity(samples: Sample[]) {
 
 export class Panning {
   private drag: Drag | null = null;
-  // A drag let go, coasting or bouncing back into bounds, or a zoom
-  // settling back within them.
-  private motion: FlingHandle | SettleHandle | null = null;
-  // Where the last zoom was centred: a zoom stretched past its scale bounds
-  // settles back around it.
-  private zoomAnchor: Point | null = null;
-  private zoomSettle: ReturnType<typeof setTimeout> | null = null;
-  // The motion is a settle: a wheel turning or stopping leaves it be.
-  private settling = false;
+  // A drag let go, coasting.
+  private fling: FlingHandle | null = null;
+  private wheelRest: ReturnType<typeof setTimeout> | null = null;
   // The furthest out the view could zoom when the screen last changed size.
   private lastMin: number | null = null;
 
@@ -154,87 +139,83 @@ export class Panning {
     return true;
   }
 
-  // Let go: a drag that moved flings, or settles a zoom stretched past its
-  // scale bounds.
+  // Let go: a drag that moved flings, or springs back from past its bounds.
   end() {
     const drag = this.drag;
     this.drag = null;
     if (drag?.moved !== true) return;
-    const view = this.host.view();
-    const bounds = this.host.scaleBounds();
-    if (view !== null && view.scale !== withinScale(view.scale, bounds)) {
-      this.settle();
-      return;
-    }
-    this.motion = startFling(
-      releaseVelocity(drag.samples),
-      this.options.fling,
-      {
-        over: () => this.overshoot(),
-        coast: (dx, dy) => {
-          const view = this.host.view();
-          const content = view === null ? null : this.host.content(view);
-          const screen = this.host.screen();
-          const moved =
-            content === null || screen === null
-              ? { x: dx, y: dy }
-              : coastWithin({ x: dx, y: dy }, content, screen);
-          this.panBy(moved);
-          return moved;
-        },
-        onTick: (dx, dy) => {
-          this.panBy({ x: dx, y: dy });
-        },
-        onEnd: () => {
-          this.motion = null;
-          this.host.onRest?.();
-        }
+    this.fling = startFling(releaseVelocity(drag.samples), this.options.fling, {
+      over: () => {
+        const view = this.host.view();
+        const content = view === null ? null : this.host.content(view);
+        const screen = this.host.screen();
+        return content === null || screen === null
+          ? { x: 0, y: 0 }
+          : overshoot(content, screen);
+      },
+      onTick: (dx, dy) => {
+        this.panBy({ x: dx, y: dy });
+      },
+      coast: (dx, dy) => {
+        const view = this.host.view();
+        const content = view === null ? null : this.host.content(view);
+        const screen = this.host.screen();
+        const moved =
+          content === null || screen === null
+            ? { x: dx, y: dy }
+            : coastWithin({ x: dx, y: dy }, content, screen);
+        this.panBy(moved);
+        return moved;
+      },
+      onEnd: () => {
+        this.fling = null;
+        this.host.onRest?.();
       }
-    );
-    if (this.motion === null) this.host.onRest?.();
+    });
+    if (this.fling === null) this.host.onRest?.();
   }
 
-  // Zooms by `factor` around `at`, on screen: past the scale bounds, or
-  // carrying the content past its own, it stretches. Whether the view is
-  // still within them.
+  // Zooms by `factor` around `at`, on screen, which stays put: the scale
+  // stops at its bounds, the content goes wherever the zoom takes it.
+  // Whether it zoomed at all: false at a limit.
   zoomBy(factor: number, at: Point) {
     this.stop();
-    return this.zoomStep(factor, at);
+    const view = this.host.view();
+    if (view === null) return true;
+    const { scale } = zoomAt(view, at, factor, this.host.scaleBounds());
+    if (scale === view.scale) return false;
+    this.host.setView(zoomedTo(view, at, scale));
+    return true;
   }
 
-  // A wheel zoom by `factor` around `at`, and only that: carrying the content
-  // past its bounds, nothing holds it back until the wheel stops, when it
-  // settles back. Past its scale bounds, though, it never goes: it eases out
-  // to them, so a trackpad's momentum, running on once let go, slows to rest
-  // at a limit.
+  // A wheel zoom by `factor` around `at`. It eases out to the scale bounds
+  // rather than stopping dead, so a trackpad's momentum, running on once let
+  // go, slows to rest at a limit.
   wheel(factor: number, at: Point) {
     const view = this.host.view();
     if (view === null) return;
     const scale = easeScale(view.scale, factor, this.host.scaleBounds());
     // At a limit the scroll is spent: the rest of it, momentum running on,
-    // has nothing to zoom, so it settles at once rather than waiting it out.
+    // has nothing to zoom, so it rests at once rather than waiting it out.
     if (scale === view.scale) {
-      if (this.zoomSettle === null) return;
-      this.stopZoomSettle();
-      this.settle();
+      if (this.wheelRest === null) return;
+      this.stopWheelRest();
+      this.zoomEnded();
       return;
     }
     this.wheelTurned();
     this.stop();
-    this.zoomAnchor = at;
     this.host.setView(zoomedTo(view, at, scale));
   }
 
-  // Pulls the scale and the content back within their bounds, if out of
-  // them, unless already on the way. A drag going on settles when it's let
-  // go.
-  settle() {
-    if (this.drag === null && !this.settling) this.startSettle();
-    if (this.motion === null) this.host.onRest?.();
+  // A pinch or a one-off zoom has stopped: the view is at rest, unless a
+  // drag or a fling has it.
+  zoomEnded() {
+    if (this.drag === null && this.fling === null) this.host.onRest?.();
   }
 
   // The screen has changed size: the view comes back within its bounds at
-  // once, about the screen's centre, unless a drag or a motion has it. One
+  // once, about the screen's centre, unless a drag or a fling has it. One
   // zoomed out as far as it went is fitted anew. Whether it moved.
   keepWithin() {
     const bounds = this.host.scaleBounds();
@@ -242,18 +223,20 @@ export class Panning {
     this.lastMin = bounds.minScale;
     const view = this.host.view();
     const screen = this.host.screen();
-    if (this.drag !== null || this.motion !== null) return false;
+    if (this.drag !== null || this.fling !== null) return false;
     if (view === null || screen === null) return false;
-    if (this.host.content(view) === null) return false;
-    const centre = { x: screen.width / 2, y: screen.height / 2 };
     const fitted =
       lastMin !== null && Math.abs(view.scale / lastMin - 1) < 1e-6;
     const from = fitted ? (this.host.fit() ?? view) : view;
-    const to = settledView(from, centre, {
-      scale: bounds,
-      content: (t) => this.host.content(t)!,
-      screen
-    });
+    const centre = { x: screen.width / 2, y: screen.height / 2 };
+    const zoomed = zoomedTo(from, centre, withinScale(from.scale, bounds));
+    const content = this.host.content(zoomed);
+    if (content === null) return false;
+    const over = overshoot(content, screen);
+    const to = {
+      scale: zoomed.scale,
+      pan: { x: zoomed.pan.x - over.x, y: zoomed.pan.y - over.y }
+    };
     if (sameView(to, view)) return false;
     this.host.setView(to);
     return true;
@@ -261,87 +244,23 @@ export class Panning {
 
   // A zoom, a new gesture or a jump elsewhere takes over.
   stop() {
-    this.motion?.cancel();
-    this.motion = null;
-    this.settling = false;
+    this.fling?.cancel();
+    this.fling = null;
   }
 
   dispose() {
     this.stop();
-    this.stopZoomSettle();
+    this.stopWheelRest();
     this.drag = null;
   }
 
-  private zoomStep(factor: number, at: Point) {
-    const view = this.host.view();
-    if (view === null) return true;
-    const { scale } = zoomAt(view, at, factor, this.host.scaleBounds());
-    this.zoomTo(view, scale, at);
-    return this.within();
-  }
-
-  // Zooms `view` to `scale` around `at`, stretching where that carries the
-  // content past its bounds.
-  private zoomTo(view: Transform, scale: number, at: Point) {
-    this.zoomAnchor = at;
-    const before = this.overshoot();
-    this.host.setView(zoomedTo(view, at, scale));
-    const screen = this.host.screen();
-    if (screen !== null) {
-      this.panBy(stretchPast(before, this.overshoot(), screen));
-    }
-  }
-
-  private startSettle() {
-    this.stop();
-    this.motion = startSettle(this.options.fling.springMs, {
-      view: () => this.host.view(),
-      rest: (view) => this.rest(view),
-      setView: (view) => {
-        this.host.setView(view);
-      },
-      onEnd: () => {
-        this.motion = null;
-        this.settling = false;
-        // A wheel still turning rests once it stops.
-        if (this.zoomSettle === null) this.host.onRest?.();
-      }
-    });
-    this.settling = this.motion !== null;
-  }
-
-  // A wheel scroll settles once it has stopped.
+  // A wheel scroll is at rest once it has stopped.
   private wheelTurned() {
-    this.stopZoomSettle();
-    this.zoomSettle = setTimeout(() => {
-      this.zoomSettle = null;
-      this.settle();
+    this.stopWheelRest();
+    this.wheelRest = setTimeout(() => {
+      this.wheelRest = null;
+      this.zoomEnded();
     }, this.options.zoomSettleMs);
-  }
-
-  // Where `view` comes to rest: back within bounds, around the last zoom's
-  // centre.
-  private rest(view: Transform) {
-    const screen = this.host.screen();
-    if (screen === null || this.host.content(view) === null) return null;
-    const at = this.zoomAnchor ?? {
-      x: screen.width / 2,
-      y: screen.height / 2
-    };
-    return settledView(view, at, {
-      scale: this.host.scaleBounds(),
-      content: (t) => this.host.content(t)!,
-      screen
-    });
-  }
-
-  // Whether the scale and the content are within their bounds.
-  private within() {
-    const view = this.host.view();
-    if (view === null) return true;
-    if (scaleOut(view, this.host.scaleBounds()) > 0) return false;
-    const over = this.overshoot();
-    return Math.abs(over.x) < REST_PX && Math.abs(over.y) < REST_PX;
   }
 
   private panBy(delta: Point) {
@@ -355,18 +274,9 @@ export class Panning {
     });
   }
 
-  private overshoot() {
-    const view = this.host.view();
-    const content = view === null ? null : this.host.content(view);
-    const screen = this.host.screen();
-    return content === null || screen === null
-      ? { x: 0, y: 0 }
-      : overshoot(content, screen);
-  }
-
-  private stopZoomSettle() {
-    if (this.zoomSettle === null) return;
-    clearTimeout(this.zoomSettle);
-    this.zoomSettle = null;
+  private stopWheelRest() {
+    if (this.wheelRest === null) return;
+    clearTimeout(this.wheelRest);
+    this.wheelRest = null;
   }
 }

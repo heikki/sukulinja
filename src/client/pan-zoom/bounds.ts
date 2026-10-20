@@ -2,9 +2,10 @@
 // on it; content larger covers it, though each edge may come inside it as
 // far as the screen's reach, or as far as the content overflows it, if less,
 // so the bounds loosen as it zooms in from a fit. Its scale stays within its
-// bounds. A drag or a pinch past either stretches like a
-// rubber band and, once let go, springs back (fling.ts, settle.ts). A fling
-// eases out to them instead, as a wheel does to the scale bounds.
+// bounds. A drag past the content's bounds stretches like a rubber band and,
+// once let go, springs back (fling.ts); a fling eases out to them instead. A
+// zoom goes wherever it takes the content, but stops dead at the scale
+// bounds, or a wheel eases out to them.
 
 import type { Extents, Point, ScaleBounds, Viewport } from './transform';
 
@@ -40,14 +41,11 @@ function axes(screen: Screen) {
   };
 }
 
-// How much of a move past the bounds the view follows at first; it gives
+// How much of a drag past the bounds the view follows at first; it gives
 // less the further out it is.
 const STRETCH = 0.55;
-// The furthest past its bounds a scale stretches, in log-zoom: never half as
-// far again.
-const SCALE_GIVE = Math.log(1.5);
 
-// A move's `raw` overshoot as shown, at most `give`.
+// A drag's `raw` overshoot as shown, at most `give`.
 function stretch(raw: number, give: number) {
   const shown = give * (1 - 1 / ((STRETCH * Math.abs(raw)) / give + 1));
   return Math.sign(raw) * shown;
@@ -59,9 +57,10 @@ function unstretch(shown: number, give: number) {
   return Math.sign(shown) * raw;
 }
 
-// The overshoot shown after a move that, followed exactly, would take it
+// The overshoot shown after a drag that, followed exactly, would take it
 // from `over` (as shown) to `raw`: further out it stretches, back in it
-// follows.
+// follows. Already as far out as `give` (as a zoom can leave it), it goes
+// no further.
 function stretched(over: number, raw: number, give: number) {
   const from = Math.sign(raw) === Math.sign(over) ? over : 0;
   if (Math.abs(raw) <= Math.abs(from)) return raw;
@@ -97,22 +96,8 @@ export function overshoot(content: Extents, view: Screen): Point {
   };
 }
 
-// The pan shift that stretches a move which took content from `before`
-// past its bounds to `after` (`overshoot`s) in `view`, which gives at most
-// its own size.
-export function stretchPast(
-  before: Point,
-  after: Point,
-  view: Viewport
-): Point {
-  return {
-    x: stretched(before.x, after.x, view.width) - after.x,
-    y: stretched(before.y, after.y, view.height) - after.y
-  };
-}
-
 // How far content follows a drag of `delta`: all of it within its bounds,
-// stretched past them.
+// stretched past them, giving at most the screen's size.
 export function dragWithin(
   delta: Point,
   content: Extents,
@@ -122,34 +107,22 @@ export function dragWithin(
     min: { x: content.min.x + delta.x, y: content.min.y + delta.y },
     max: { x: content.max.x + delta.x, y: content.max.y + delta.y }
   };
-  const hold = stretchPast(
-    overshoot(content, view),
-    overshoot(moved, view),
-    view
-  );
-  return { x: delta.x + hold.x, y: delta.y + hold.y };
+  const before = overshoot(content, view);
+  const after = overshoot(moved, view);
+  return {
+    x: delta.x + stretched(before.x, after.x, view.width) - after.x,
+    y: delta.y + stretched(before.y, after.y, view.height) - after.y
+  };
 }
 
-// How far `scale` is past `bounds`, in log-zoom: positive where too large.
-function scaleOvershoot(scale: number, bounds: ScaleBounds) {
-  const log = Math.log(scale);
-  const max = Math.log(bounds.maxScale);
-  const min = Math.log(bounds.minScale);
-  if (log > max) return log - max;
-  if (log < min) return log - min;
-  return 0;
-}
-
-// The scale a zoom from `scale` toward `target` shows: all of it within
-// `bounds`, stretched past them.
-export function stretchScale(
-  scale: number,
-  target: number,
-  bounds: ScaleBounds
-) {
-  const raw = scaleOvershoot(target, bounds);
-  const shown = stretched(scaleOvershoot(scale, bounds), raw, SCALE_GIVE);
-  return target * Math.exp(shown - raw);
+// The scale a zoom from `scale` toward `target` comes to: all of it within
+// `bounds`, none of it past them. From past them already (as a fit to a huge
+// chart can be), back in it follows and further out it stays put.
+export function holdScale(scale: number, target: number, bounds: ScaleBounds) {
+  const { minScale, maxScale } = bounds;
+  if (target > maxScale) return Math.max(maxScale, Math.min(scale, target));
+  if (target < minScale) return Math.min(minScale, Math.max(scale, target));
+  return target;
 }
 
 export function withinScale(scale: number, bounds: ScaleBounds) {

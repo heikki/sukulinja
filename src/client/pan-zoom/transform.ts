@@ -7,7 +7,7 @@
 //
 // Therefore: screen = pan + scale * (chart - viewBoxOrigin).
 
-import { stretchScale } from './bounds';
+import { holdScale } from './bounds';
 
 export interface Point {
   x: number;
@@ -96,10 +96,9 @@ export function fitTo(
 
 // Cursor-anchored zoom. Returns a new Transform with scale multiplied by
 // `factor` and pan adjusted so the chart point currently under cursorScreen
-// remains under cursorScreen at the new scale. Past `bounds` the scale
-// stretches (bounds.ts): further out it gives less, back in it follows, and
-// from far outside them (as a fit to a huge chart can be) it goes no
-// further out. viewBoxOrigin cancels in the math (the chart point under
+// remains under cursorScreen at the new scale. The scale stops at `bounds`
+// (bounds.ts), and from outside them (as a fit to a huge chart can be) it
+// goes no further out. viewBoxOrigin cancels in the math (the chart point under
 // cursor is the same before and after at the same vbo), so it isn't a
 // parameter here.
 export function zoomAt(
@@ -108,8 +107,11 @@ export function zoomAt(
   factor: number,
   bounds: ScaleBounds
 ): Transform {
-  const newScale = stretchScale(t.scale, t.scale * factor, bounds);
-  return zoomAround(t, cursorScreen, newScale / t.scale);
+  const newScale = holdScale(t.scale, t.scale * factor, bounds);
+  return {
+    ...zoomAround(t, cursorScreen, newScale / t.scale),
+    scale: newScale
+  };
 }
 
 // `t` scaled by `ratio` about `at` on screen, which stays put.

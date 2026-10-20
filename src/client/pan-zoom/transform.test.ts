@@ -84,7 +84,7 @@ describe('zoomAt cursor-anchor invariant', () => {
 });
 
 describe('zoomAt bounds', () => {
-  test('stretches past maxScale; cursor-anchor invariant still holds', () => {
+  test('stops at maxScale; cursor-anchor invariant still holds', () => {
     const t: Transform = { pan: { x: 10, y: -5 }, scale: 1.8 };
     const cursor = { x: 250, y: 250 };
     const vbo = { x: -50, y: -50 };
@@ -93,12 +93,11 @@ describe('zoomAt bounds', () => {
       y: (cursor.y - t.pan.y) / t.scale + vbo.y
     };
     const next = zoomAt(t, cursor, 5, BOUNDS);
-    expect(next.scale).toBeGreaterThan(BOUNDS.maxScale);
-    expect(next.scale).toBeLessThan(BOUNDS.maxScale * 1.5);
+    expect(next.scale).toBe(BOUNDS.maxScale);
     approx(chartToScreen(next, cursorChart, vbo), cursor, 1e-6);
   });
 
-  test('stretches past minScale; cursor-anchor invariant still holds', () => {
+  test('stops at minScale; cursor-anchor invariant still holds', () => {
     const t: Transform = { pan: { x: 10, y: -5 }, scale: 0.4 };
     const cursor = { x: 250, y: 250 };
     const vbo = { x: -50, y: -50 };
@@ -107,19 +106,18 @@ describe('zoomAt bounds', () => {
       y: (cursor.y - t.pan.y) / t.scale + vbo.y
     };
     const next = zoomAt(t, cursor, 0.01, BOUNDS);
-    expect(next.scale).toBeLessThan(BOUNDS.minScale);
-    expect(next.scale).toBeGreaterThan(BOUNDS.minScale / 1.5);
+    expect(next.scale).toBe(BOUNDS.minScale);
     approx(chartToScreen(next, cursorChart, vbo), cursor, 1e-6);
   });
 
-  test('at maxScale, the same factor goes less far', () => {
+  test('at maxScale, a zoom further in stays put', () => {
     const t: Transform = {
       pan: { x: 7, y: 11 },
       scale: BOUNDS.maxScale
     };
     const next = zoomAt(t, { x: 100, y: 100 }, 1.2, BOUNDS);
-    expect(next.scale).toBeGreaterThan(BOUNDS.maxScale);
-    expect(next.scale).toBeLessThan(BOUNDS.maxScale * 1.2);
+    expect(next.scale).toBe(BOUNDS.maxScale);
+    approx(next.pan, t.pan);
   });
 
   test('far below minScale, a zoom further out stays put', () => {

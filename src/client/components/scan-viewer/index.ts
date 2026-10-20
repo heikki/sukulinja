@@ -127,7 +127,7 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
   private readonly pinch = new Pinch({
     onZoom: (factor, at) => this.zoomBy(factor, at),
     onEnd: () => {
-      this.panning.settle();
+      this.panning.zoomEnded();
     }
   });
   // The scan stays put on screen when the dock beside the viewer moves its

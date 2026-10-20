@@ -1,12 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import {
-  coastWithin,
-  dragWithin,
-  overshoot,
-  stretchPast,
-  stretchScale
-} from './bounds';
+import { coastWithin, dragWithin, holdScale, overshoot } from './bounds';
 
 const VIEW = { width: 800, height: 600 };
 
@@ -153,47 +147,20 @@ describe('dragWithin', () => {
   });
 });
 
-describe('stretchPast', () => {
-  test('nothing while a move stays within bounds', () => {
-    expect(stretchPast({ x: 0, y: 0 }, { x: 0, y: 0 }, VIEW)).toEqual({
-      x: 0,
-      y: 0
-    });
-  });
-
-  test('takes back part of a move out of bounds', () => {
-    const hold = stretchPast({ x: 0, y: 0 }, { x: 40, y: -25 }, VIEW);
-    expect(hold.x).toBeLessThan(0);
-    expect(hold.x).toBeGreaterThan(-40);
-    expect(hold.y).toBeGreaterThan(0);
-    expect(hold.y).toBeLessThan(25);
-  });
-
-  test('nothing for a move back toward the bounds', () => {
-    expect(stretchPast({ x: 50, y: 0 }, { x: 20, y: 0 }, VIEW)).toEqual({
-      x: 0,
-      y: 0
-    });
-  });
-});
-
-describe('stretchScale', () => {
+describe('holdScale', () => {
   const BOUNDS = { minScale: 0.25, maxScale: 2 };
 
   test('within bounds, the scale asked for', () => {
-    expect(stretchScale(1, 1.5, BOUNDS)).toBe(1.5);
+    expect(holdScale(1, 1.5, BOUNDS)).toBe(1.5);
   });
 
-  test('past the bounds, less than asked and never half as far again', () => {
-    const big = stretchScale(1.5, 100, BOUNDS);
-    expect(big).toBeGreaterThan(2);
-    expect(big).toBeLessThan(3);
-    const small = stretchScale(0.5, 0.001, BOUNDS);
-    expect(small).toBeLessThan(0.25);
-    expect(small).toBeGreaterThan(0.25 / 1.5);
+  test('past the bounds, no further than them', () => {
+    expect(holdScale(1.5, 100, BOUNDS)).toBe(2);
+    expect(holdScale(0.5, 0.001, BOUNDS)).toBe(0.25);
   });
 
-  test('back in from past them, the scale asked for', () => {
-    expect(stretchScale(2.4, 2.2, BOUNDS)).toBeCloseTo(2.2, 10);
+  test('from past them, back in it follows and out it stays put', () => {
+    expect(holdScale(2.4, 2.2, BOUNDS)).toBeCloseTo(2.2, 10);
+    expect(holdScale(2.4, 3, BOUNDS)).toBeCloseTo(2.4, 10);
   });
 });
