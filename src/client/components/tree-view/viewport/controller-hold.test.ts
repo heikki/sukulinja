@@ -8,7 +8,7 @@ const OPTIONS: ViewportOptions = {
   scaleBounds: { minScale: 0.25, maxScale: 2 },
   wheelZoomK: 0.001,
   fitOptions: { maxScale: 1, marginPx: 24 },
-  momentumOptions: { tauMs: 250, minV: 0.02, minReleaseV: 0.3 },
+  momentumOptions: { tauMs: 250, minV: 0.02, minReleaseV: 0.3, springMs: 60 },
   dragThresholdPx: 4,
   svgMarginPx: 24
 };
@@ -60,14 +60,16 @@ function rectAt(left: number) {
   return rect as DOMRect;
 }
 
-function setup() {
+// The dock beside the canvas takes its width from the canvas's left. The
+// chart is wider than the canvas, so held still it keeps filling it.
+function setup(chart = { x: 1000, y: 150 }) {
   let left = 0;
   const measurements: ViewportMeasurements = {
     chartExtents: () => ({
-      min: { x: -200, y: -150 },
-      max: { x: 200, y: 150 }
+      min: { x: -chart.x, y: -chart.y },
+      max: { x: chart.x, y: chart.y }
     }),
-    canvasSize: () => ({ width: 800, height: 600 }),
+    canvasSize: () => ({ width: 800 - left, height: 600 }),
     canvasRect: () => rectAt(left)
   };
   const controller = new ViewportController(host, measurements, OPTIONS);
@@ -87,6 +89,19 @@ test('a canvas origin move shifts pan back so the chart holds still', () => {
   expect(controller.pan).toEqual({ x: start.x - 380, y: start.y });
   moveCanvasTo(40);
   expect(controller.pan).toEqual({ x: start.x - 40, y: start.y });
+});
+
+test('a resize leaving the chart out of bounds brings it back at once', () => {
+  // 448 wide with its margin, centred: 176..624 on the canvas.
+  const { controller, moveCanvasTo } = setup({ x: 200, y: 150 });
+  // The dock takes 380: held still, the chart's left 204 px would be under
+  // it, its right at 244 on the 420 px canvas. It overflows the canvas by
+  // 28, so an edge may come in that far: its right comes back to 392.
+  moveCanvasTo(380);
+  const left = controller.chartToScreen({ x: -200, y: 0 })!.x - 24;
+  const right = controller.chartToScreen({ x: 200, y: 0 })!.x + 24;
+  expect(left).toBeCloseTo(-56, 6);
+  expect(right).toBeCloseTo(392, 6);
 });
 
 test('a resize that keeps the left edge leaves pan alone', () => {

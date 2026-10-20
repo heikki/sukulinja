@@ -83,8 +83,8 @@ describe('zoomAt cursor-anchor invariant', () => {
   }
 });
 
-describe('zoomAt clamping', () => {
-  test('clamps at maxScale; cursor-anchor invariant still holds', () => {
+describe('zoomAt bounds', () => {
+  test('stretches past maxScale; cursor-anchor invariant still holds', () => {
     const t: Transform = { pan: { x: 10, y: -5 }, scale: 1.8 };
     const cursor = { x: 250, y: 250 };
     const vbo = { x: -50, y: -50 };
@@ -93,11 +93,12 @@ describe('zoomAt clamping', () => {
       y: (cursor.y - t.pan.y) / t.scale + vbo.y
     };
     const next = zoomAt(t, cursor, 5, BOUNDS);
-    expect(next.scale).toBe(BOUNDS.maxScale);
+    expect(next.scale).toBeGreaterThan(BOUNDS.maxScale);
+    expect(next.scale).toBeLessThan(BOUNDS.maxScale * 1.5);
     approx(chartToScreen(next, cursorChart, vbo), cursor, 1e-6);
   });
 
-  test('clamps at minScale; cursor-anchor invariant still holds', () => {
+  test('stretches past minScale; cursor-anchor invariant still holds', () => {
     const t: Transform = { pan: { x: 10, y: -5 }, scale: 0.4 };
     const cursor = { x: 250, y: 250 };
     const vbo = { x: -50, y: -50 };
@@ -106,21 +107,22 @@ describe('zoomAt clamping', () => {
       y: (cursor.y - t.pan.y) / t.scale + vbo.y
     };
     const next = zoomAt(t, cursor, 0.01, BOUNDS);
-    expect(next.scale).toBe(BOUNDS.minScale);
+    expect(next.scale).toBeLessThan(BOUNDS.minScale);
+    expect(next.scale).toBeGreaterThan(BOUNDS.minScale / 1.5);
     approx(chartToScreen(next, cursorChart, vbo), cursor, 1e-6);
   });
 
-  test('already clamped transform with same-direction factor stays put', () => {
+  test('at maxScale, the same factor goes less far', () => {
     const t: Transform = {
       pan: { x: 7, y: 11 },
       scale: BOUNDS.maxScale
     };
-    const next = zoomAt(t, { x: 100, y: 100 }, 2, BOUNDS);
-    expect(next.scale).toBe(BOUNDS.maxScale);
-    approx(next.pan, t.pan);
+    const next = zoomAt(t, { x: 100, y: 100 }, 1.2, BOUNDS);
+    expect(next.scale).toBeGreaterThan(BOUNDS.maxScale);
+    expect(next.scale).toBeLessThan(BOUNDS.maxScale * 1.2);
   });
 
-  test('elastic min: scale below minScale stays put when zoomed further out', () => {
+  test('far below minScale, a zoom further out stays put', () => {
     // fitTo can produce sub-minScale scales for huge charts. Wheeling out
     // from there must not snap scale UP to minScale.
     const t: Transform = { pan: { x: 5, y: 5 }, scale: 0.1 };
@@ -129,7 +131,7 @@ describe('zoomAt clamping', () => {
     approx(next.pan, t.pan);
   });
 
-  test('elastic min: can zoom back in toward bounds from below minScale', () => {
+  test('far below minScale, a zoom back in follows', () => {
     const t: Transform = { pan: { x: 5, y: 5 }, scale: 0.1 };
     const next = zoomAt(t, { x: 100, y: 100 }, 1.5, BOUNDS);
     expect(next.scale).toBeCloseTo(0.15, 10);

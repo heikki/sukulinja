@@ -7,6 +7,8 @@
 //
 // Therefore: screen = pan + scale * (chart - viewBoxOrigin).
 
+import { stretchScale } from './bounds';
+
 export interface Point {
   x: number;
   y: number;
@@ -93,32 +95,32 @@ export function fitTo(
 }
 
 // Cursor-anchored zoom. Returns a new Transform with scale multiplied by
-// `factor` (clamped to bounds) and pan adjusted so the chart point
-// currently under cursorScreen remains under cursorScreen at the new scale.
-// viewBoxOrigin cancels in the math (the chart point under cursor is the
-// same before and after at the same vbo), so it isn't a parameter here.
+// `factor` and pan adjusted so the chart point currently under cursorScreen
+// remains under cursorScreen at the new scale. Past `bounds` the scale
+// stretches (bounds.ts): further out it gives less, back in it follows, and
+// from far outside them (as a fit to a huge chart can be) it goes no
+// further out. viewBoxOrigin cancels in the math (the chart point under
+// cursor is the same before and after at the same vbo), so it isn't a
+// parameter here.
 export function zoomAt(
   t: Transform,
   cursorScreen: Point,
   factor: number,
   bounds: ScaleBounds
 ): Transform {
-  // Elastic bounds: if scale is already outside [minScale, maxScale] (e.g.
-  // fitTo computed a scale below minScale to fit a huge chart), the user
-  // can come back into bounds but can't drift further out. Without this,
-  // wheel-out from a sub-minScale fit would snap scale UP to minScale.
-  const targetScale = t.scale * factor;
-  const effMin = Math.min(bounds.minScale, t.scale);
-  const effMax = Math.max(bounds.maxScale, t.scale);
-  const newScale = Math.min(effMax, Math.max(effMin, targetScale));
+  const newScale = stretchScale(t.scale, t.scale * factor, bounds);
+  return zoomAround(t, cursorScreen, newScale / t.scale);
+}
+
+// `t` scaled by `ratio` about `at` on screen, which stays put.
+export function zoomAround(t: Transform, at: Point, ratio: number): Transform {
   // Substituting (chart - vbo) = (cursor - pan) / scale into the pin formula:
   // newPan = cursor - (newScale / oldScale) * (cursor - oldPan)
-  const ratio = newScale / t.scale;
   return {
-    scale: newScale,
+    scale: t.scale * ratio,
     pan: {
-      x: cursorScreen.x - ratio * (cursorScreen.x - t.pan.x),
-      y: cursorScreen.y - ratio * (cursorScreen.y - t.pan.y)
+      x: at.x - ratio * (at.x - t.pan.x),
+      y: at.y - ratio * (at.y - t.pan.y)
     }
   };
 }

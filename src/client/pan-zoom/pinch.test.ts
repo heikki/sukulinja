@@ -16,12 +16,15 @@ let now = 0;
 let frames: FrameRequestCallback[] = [];
 let zooms: Array<{ factor: number; at: Point }> = [];
 let ended = 0;
+// The zoom past which the view is out of bounds.
+let limit = Infinity;
 
 function pinch() {
   return new Pinch(
     {
       onZoom: (factor, at) => {
         zooms.push({ factor, at });
+        return zoomed() <= limit;
       },
       onEnd: () => {
         ended += 1;
@@ -68,6 +71,7 @@ beforeEach(() => {
   frames = [];
   zooms = [];
   ended = 0;
+  limit = Infinity;
   const g = globalThis as Record<string, unknown>;
   g.requestAnimationFrame = (cb: FrameRequestCallback) => frames.push(cb);
   g.cancelAnimationFrame = () => {
@@ -108,6 +112,40 @@ test('glides on after a quick pinch, slowing to a stop', () => {
   expect(zoomed()).toBeLessThan(1.5 * 1.45);
   const steps = zooms.slice(2).map((z) => z.factor);
   expect(steps.every((f, i) => i === 0 || f <= steps[i - 1]!)).toBe(true);
+});
+
+test('a glide that carries the view out of bounds ends there', () => {
+  limit = 1.6;
+  const p = pinch();
+  p.onGestureStart(gesture('gesturestart', 1, 0));
+  p.onGestureChange(gesture('gesturechange', 1.2, 16));
+  p.onGestureChange(gesture('gesturechange', 1.5, 32));
+  p.onGestureEnd(gesture('gestureend', 1.5, 40));
+  runFrames();
+  expect(ended).toBe(1);
+  expect(frames).toHaveLength(0);
+  // It stops on the first step past 1.6, well short of a full glide.
+  expect(zoomed()).toBeGreaterThan(1.6);
+  expect(zoomed()).toBeLessThan(1.8);
+});
+
+test('a pinch past the bounds by hand zooms on: only a glide stops', () => {
+  limit = 1.1;
+  const p = pinch();
+  p.onGestureStart(gesture('gesturestart', 1, 0));
+  p.onGestureChange(gesture('gesturechange', 1.2, 16));
+  p.onGestureChange(gesture('gesturechange', 1.5, 32));
+  expect(zoomed()).toBeCloseTo(1.5, 10);
+  expect(ended).toBe(0);
+});
+
+test('a ctrl+wheel easing out of bounds ends there', () => {
+  limit = 1.05;
+  const p = pinch();
+  p.wheel(wheel({ deltaY: -30, ctrlKey: true }));
+  runFrames();
+  expect(ended).toBe(1);
+  expect(zoomed()).toBeLessThan(Math.exp(0.3));
 });
 
 test('ends without a glide after a slow pinch', () => {

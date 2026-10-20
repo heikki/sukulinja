@@ -1,14 +1,16 @@
 // Watches where an element's left edge is on screen as its size changes,
 // as when the dock beside it opens, closes or is resized, and reports how
-// far it moved.
+// far it moved; then that it resized.
 export class EdgeWatch {
   private readonly moved: (dx: number) => void;
+  private readonly resized: () => void;
   private readonly observer: ResizeObserver;
   private el: Element | null = null;
   private left: number | null = null;
 
-  constructor(moved: (dx: number) => void) {
+  constructor(moved: (dx: number) => void, resized: () => void) {
     this.moved = moved;
+    this.resized = resized;
     this.observer = new ResizeObserver(() => {
       this.measure();
     });
@@ -28,5 +30,6 @@ export class EdgeWatch {
     const left = this.el.getBoundingClientRect().left;
     if (this.left !== null && left !== this.left) this.moved(left - this.left);
     this.left = left;
+    this.resized();
   }
 }
