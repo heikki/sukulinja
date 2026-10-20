@@ -13,7 +13,7 @@ The single person the chart is built around, and the top of its layout tree. Anc
 _Avoid_: Focus (keyboard focus owns that word), proband, ego, center person.
 
 **Selected person**:
-The person the details dock shows, the only card the chart marks, with a ring. Clicking a card, or a relative in the dock's Family list, selects its person without a **Relayout**, and clicking the selected card shows or hides the dock; double-clicking either makes them **Root** too, as selecting someone the chart doesn't draw does (ADR-0011). Root is selected on becoming Root; afterwards the two may differ.
+The person the details dock shows, the only card the chart marks, with a ring. Clicking a card, or a relative in the dock's Family list, selects its person without a **Relayout**, and clicking the selected card shows or hides the dock. Make Root, in a card's right-click menu, or a double-click on a relative in the Family list, makes them **Root** too, as selecting someone the chart doesn't draw does (ADR-0011). Root is selected on becoming Root; afterwards the two may differ.
 _Avoid_: Active person, current person, focused person.
 
 ### Horizontal regions

@@ -57,3 +57,26 @@ export function renderGhosts(
     </svg>
   `;
 }
+
+// The order cards paint in. Entering cards render as a stable trailing block
+// the sort never reorders — reordering an SVG node restarts its CSS fade, so
+// a sorted entering card would flash each time a Move starts and ends. The
+// rest sort the sliders first (painted behind) so stationary cards stay on
+// top as movers pass under them; those carry no fade, and movers slide via
+// Web Animations, which survive a same-parent reorder. A stable sort keeps
+// each group's order otherwise.
+export function paintOrder<T extends { key: string }>(
+  boxes: T[],
+  moving: ReadonlySet<string>,
+  entering: ReadonlySet<string>
+) {
+  const fading = boxes.filter((b) => entering.has(b.key));
+  const rest = boxes.filter((b) => !entering.has(b.key));
+  const sorted =
+    moving.size === 0
+      ? rest
+      : [...rest].sort(
+          (a, b) => (moving.has(a.key) ? 0 : 1) - (moving.has(b.key) ? 0 : 1)
+        );
+  return [...sorted, ...fading];
+}

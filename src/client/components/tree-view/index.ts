@@ -27,6 +27,8 @@ import type { OpenChangeEvent, WidthChangeEvent } from '../side-dock';
 import { avatarHref, onAvatarReady } from './avatar-cache';
 import { buildChart } from './build';
 import { familiesByPerson, otherSpouseOf } from './build/indices';
+import { cardMenuAt, renderCardMenu } from './card-menu';
+import type { CardMenu } from './card-menu';
 import { comfortOf } from './comfort';
 import { cardsByPerson } from './emit';
 import type { EmitOutput, Extents, Point } from './emit';
@@ -34,7 +36,7 @@ import { cardHalf, dims, formatName, renderBox, renderEdge } from './renderer';
 import { treeViewStyles } from './styles';
 import { TransitionController } from './transition';
 import type { RelayoutKind } from './transition';
-import { renderGhosts, scheduleVars } from './transition/paint';
+import { paintOrder, renderGhosts, scheduleVars } from './transition/paint';
 import { buildHash, parseHashView } from './url-state';
 import type { Bounds, ParsedView } from './url-state';
 import { ViewportController } from './viewport';
@@ -74,6 +76,7 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
   // Closed on entering a dataset; selecting someone opens it.
   @state() private details = false;
   @state() private detailsWidth = detailsWidth();
+  @state() private menu: CardMenu | null = null;
 
   private families = familiesByPerson([]);
 
@@ -491,25 +494,9 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
     // each card's and edge's old spot before it is replaced. Which items fade in
     // is the Transition's call, made once the relayout's pin has settled.
     if (panReady) this.transition.retainChart(chart);
-    // Entering cards render as a stable trailing block the paint-order sort
-    // never reorders — reordering an SVG node restarts its CSS fade, so a
-    // sorted entering card would flash each time a Move starts and ends. The
-    // rest sort the sliders first (painted behind) so stationary cards stay on
-    // top as movers pass under them; those carry no fade, and movers slide via
-    // Web Animations, which survive a same-parent reorder. A stable sort keeps
-    // each group's order otherwise.
-    const movingKeys = this.transition.movingKeys;
     const enteringKeys = this.transition.enteringBoxKeys;
-    const entering = chart.boxes.filter((b) => enteringKeys.has(b.key));
-    const rest = chart.boxes.filter((b) => !enteringKeys.has(b.key));
-    const sortedRest =
-      movingKeys.size === 0
-        ? rest
-        : [...rest].sort(
-            (a, b) =>
-              (movingKeys.has(a.key) ? 0 : 1) - (movingKeys.has(b.key) ? 0 : 1)
-          );
-    const boxes = [...sortedRest, ...entering];
+    const movingKeys = this.transition.movingKeys;
+    const boxes = paintOrder(chart.boxes, movingKeys, enteringKeys);
     const leaving = this.transition.leaving;
     return html`
       <div
@@ -563,25 +550,19 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
                         },
                         {
                           click: (e: MouseEvent) => {
-                            if (this.viewport.dragMoved) return;
+                            // A Ctrl-click is the Mac's right-click.
+                            if (this.viewport.dragMoved || e.ctrlKey) return;
                             if (b.personId !== this.selectedId) {
                               this.select(b.personId, [b.pos]);
                             } else if (e.detail <= 1) {
                               // The selected card shows or hides the dock;
-                              // a double-click's second click doesn't.
+                              // a quick second click, as a double-click's,
+                              // doesn't.
                               this.details = !this.details;
                             }
                           },
-                          dblclick: () => {
-                            if (this.viewport.dragMoved) return;
-                            // Pin from layout coords rather than
-                            // getBoundingClientRect — label widths vary by
-                            // name length and would drift the captured
-                            // "center" across back-and-forth toggles.
-                            this.setRoot(
-                              b.personId,
-                              this.viewport.chartToScreen(b.pos)
-                            );
+                          contextmenu: (e: MouseEvent) => {
+                            this.menu = cardMenuAt(e, b, this.rootId);
                           }
                         }
                       );
@@ -591,6 +572,17 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
               </div>`
             : nothing
         }
+        ${renderCardMenu(this.menu, this.persons, {
+          // The card's person's pin is where their card is drawn, from
+          // layout coords: label widths vary by name length and would
+          // drift it across back-and-forth re-roots.
+          makeRoot: (menu) => {
+            this.setRoot(menu.personId, this.viewport.chartToScreen(menu.pos));
+          },
+          close: () => {
+            this.menu = null;
+          }
+        })}
       </div>
     `;
   }
