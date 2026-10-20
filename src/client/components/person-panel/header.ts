@@ -22,16 +22,16 @@ interface Line {
   text: string;
 }
 
-// The first of `tags` with a date or place; one recorded with neither, as
-// a death often is ("DEAT Y"), still says it happened.
+// The date of the first of `tags` that has one; the places are left to
+// Events. One recorded without a date, as a death often is ("DEAT Y"),
+// still says it happened.
 function lineOf(facts: FactRow[], tags: string[]): Line | null {
   let bare: Line | null = null;
   for (const tag of tags) {
     const f = facts.find((x) => x.tag === tag);
     if (f === undefined) continue;
-    const date = f.date === null ? null : gedcomDate(f.date);
-    const text = [date, f.place].filter((x) => x !== null && x !== '');
-    if (text.length > 0) return { label: factLabel(f), text: text.join(' · ') };
+    const date = f.date === null ? '' : gedcomDate(f.date);
+    if (date !== '') return { label: factLabel(f), text: date };
     bare ??= { label: factLabel(f), text: '—' };
   }
   return bare;
