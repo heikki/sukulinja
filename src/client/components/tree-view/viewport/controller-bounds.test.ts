@@ -89,16 +89,6 @@ function edges(controller: ViewportController) {
   };
 }
 
-// Whether the chart with its margin fills the canvas's width or, narrower,
-// stays on it.
-function within(controller: ViewportController) {
-  const { left, right } = edges(controller);
-  const e = 1e-6;
-  return right - left <= WIDTH
-    ? left >= -e && right <= WIDTH + e
-    : left <= e && right >= WIDTH - e;
-}
-
 function mouse(x: number, t: number) {
   now = t;
   return { clientX: x, clientY: 0, button: 0 } as unknown as MouseEvent;
@@ -193,26 +183,15 @@ function wheel(x: number, deltaY: number) {
   } as unknown as WheelEvent;
 }
 
-test("a wheel zoom past the canvas's edge goes on, then settles", () => {
+test("a wheel zoom past the canvas's edge goes on, and stays once it stops", () => {
   const controller = setup();
   // In around the canvas's left edge, which pushes the chart off its right.
   for (let i = 0; i < 5; i++) controller.onWheel(wheel(0, -100));
-  expect(edges(controller).right).toBeGreaterThan(WIDTH);
+  const { right } = edges(controller);
+  expect(right).toBeGreaterThan(WIDTH);
+  runTimers();
   expect(frames).toHaveLength(0);
-  runTimers();
-  runFrames(controller);
-  expect(within(controller)).toBe(true);
-  expect(settles).toBe(1);
-});
-
-test('a wheel zoom from out of bounds settles once it stops', () => {
-  const controller = setup();
-  // Right edge 100 px off the canvas.
-  controller.setPan({ x: 452, y: 126 });
-  controller.onWheel(wheel(0, -200));
-  runTimers();
-  runFrames(controller);
-  expect(edges(controller).right).toBeCloseTo(WIDTH, 6);
+  expect(edges(controller).right).toBe(right);
   expect(settles).toBe(1);
 });
 
@@ -231,18 +210,20 @@ test('a wheel zoom eases out to maxScale, never past it', () => {
   expect(settles).toBe(1);
 });
 
-test('a drag let go with the zoom stretched settles it', () => {
+test('a drag let go with the chart left off the canvas by a zoom springs it back', () => {
   const controller = setup();
-  // As a pinch past maxScale leaves it.
-  controller.setScale(2.4);
+  // Right edge 100 px off the canvas.
+  controller.setPan({ x: 452, y: 126 });
   controller.onMouseDown(mouse(0, 1000));
-  controller.onMouseMove(mouse(20, 1010));
+  controller.onMouseMove(mouse(-20, 2000));
+  controller.onMouseMove(mouse(-20, 3000));
   controller.onMouseUp();
   runFrames(controller);
-  expect(controller.scale).toBeCloseTo(OPTIONS.scaleBounds.maxScale, 6);
+  expect(edges(controller).right).toBeCloseTo(WIDTH, 6);
+  expect(settles).toBe(1);
 });
 
-test('a wheel zoom mid-drag waits for the drag to be let go', () => {
+test('a wheel zoom mid-drag leaves the drag to spring back once let go', () => {
   const controller = setup();
   controller.onMouseDown(mouse(0, 1000));
   controller.onMouseMove(mouse(-500, 1100));

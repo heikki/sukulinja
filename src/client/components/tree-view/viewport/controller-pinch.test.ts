@@ -145,16 +145,15 @@ test('a drag stops the glide without settling it', () => {
   expect(settles).toBe(0);
 });
 
-test('a pinch ending out of bounds bounces back, then settles', () => {
+test('a pinch ending out of bounds stays there, then settles', () => {
   const controller = setup();
   // The chart, with the fit's 24 px margin, 100 px off the canvas's right.
   controller.setPan({ x: 452, y: 126 });
   pinch();
   runFrames();
-  // Back on the canvas, its right edge on the canvas's.
-  expect(controller.chartToScreen({ x: 200, y: 0 })!.x + 24).toBeCloseTo(
-    800,
-    6
+  // In around the canvas's middle: further off its right.
+  expect(controller.chartToScreen({ x: 200, y: 0 })!.x + 24).toBeGreaterThan(
+    900
   );
   expect(settles).toBe(1);
 });

@@ -97,21 +97,6 @@ function centred(scale: number): Point {
   };
 }
 
-// Along one axis: whether content from `lo` to `hi` fills a screen `size`
-// across or, smaller, stays on it.
-function fits(lo: number, hi: number, size: number) {
-  const e = 1e-6;
-  return hi - lo <= size
-    ? lo >= -e && hi <= size + e
-    : lo <= e && hi >= size - e;
-}
-
-// Whether `t`'s content fills the screen or, smaller, stays on it.
-function within(t: Transform) {
-  const { min, max } = contentAt(t);
-  return fits(min.x, max.x, SCREEN.width) && fits(min.y, max.y, SCREEN.height);
-}
-
 // Wheel steps `gap` ms apart, frames running between them.
 function scroll(panning: Panning, factors: number[], gap: number, at = MID) {
   for (const factor of factors) {
@@ -126,47 +111,41 @@ function scroll(panning: Panning, factors: number[], gap: number, at = MID) {
 
 const MID = { x: 400, y: 300 };
 
-test('a pinch carrying the content off its bounds stretches', () => {
+test('a pinch turns about the pointer, however far that carries the content', () => {
   // 1200 × 900, its right and bottom edges on the screen's.
   const { view, panning } = setup({ x: -400, y: -300 }, 1.5);
-  // Out around the top left: followed exactly, the right edge would come
-  // in to 640, leaving the screen uncovered.
+  // Out around the top left, uncovering the screen's right.
   panning.zoomBy(0.8, { x: 0, y: 0 });
-  const right = contentAt(view()).max.x;
-  expect(right).toBeGreaterThan(640);
-  expect(right).toBeLessThan(800);
+  expect(contentAt(view()).max.x).toBeCloseTo(640, 6);
 });
 
-test('a pinch past the scale bounds stretches', () => {
+test('a pinch stops at the scale bounds', () => {
   const { view, panning } = setup(centred(1.9), 1.9);
   panning.zoomBy(2, MID);
-  expect(view().scale).toBeGreaterThan(2);
-  expect(view().scale).toBeLessThan(3);
+  expect(view().scale).toBe(BOUNDS.maxScale);
 });
 
-test('a pinch ending out of bounds settles back, then rests', () => {
+test('a zoom ending rests where it is, out of bounds or not', () => {
   const { view, panning, rests } = setup({ x: 100, y: 0 });
-  panning.settle();
-  expect(rests()).toBe(0);
-  runFrames();
-  expect(view().pan.x).toBeCloseTo(0, 6);
-  expect(rests()).toBe(1);
-});
-
-test('a zoom ending within bounds rests at once', () => {
-  const { panning, rests } = setup({ x: 0, y: 0 });
-  panning.settle();
+  panning.zoomEnded();
   expect(frames).toHaveLength(0);
+  expect(view().pan.x).toBe(100);
   expect(rests()).toBe(1);
 });
 
-test('a drag let go with the zoom stretched settles it', () => {
-  const { view, panning } = setup(centred(2.4), 2.4);
+test('a drag let go with the content left past the bounds springs it back', () => {
+  // As a zoom can leave it: 100 px off the screen's right.
+  const { view, panning } = setup({ x: 100, y: 0 });
   panning.start({ x: 0, y: 0 });
-  panning.move({ x: 10, y: 0 });
+  now += 100;
+  panning.move({ x: -10, y: 0 });
+  // Back in, it follows the pointer.
+  expect(view().pan.x).toBe(90);
+  now += 100;
+  panning.move({ x: -10, y: 0 });
   panning.end();
   runFrames();
-  expect(view().scale).toBeCloseTo(BOUNDS.maxScale, 6);
+  expect(view().pan.x).toBeCloseTo(0, 6);
 });
 
 test('a drag past an edge stretches, and let go springs back', () => {
@@ -231,30 +210,17 @@ test("a trackpad's momentum slows to rest at the limit", () => {
   expect(frames).toHaveLength(0);
 });
 
-test('past the bounds, a wheel goes no further while the settle pulls on', () => {
-  const { view, panning } = setup(centred(2.4), 2.4);
-  panning.settle();
-  now += 16;
-  frames.shift()?.(now);
-  const pulled = view().scale;
-  panning.wheel(1.2, MID);
-  expect(view().scale).toBeLessThanOrEqual(pulled);
-  runTimers();
-  runFrames();
-  expect(view().scale).toBeCloseTo(BOUNDS.maxScale, 6);
-});
-
-test('a wheel zoom past the bounds goes on, then settles once it stops', () => {
+test('a wheel zoom past the bounds goes on, and stays once it stops', () => {
   // Its right and bottom edges on the screen's: zooming out around the top
   // left uncovers them.
   const { view, panning, rests } = setup({ x: -400, y: -300 }, 1.5);
   scroll(panning, [0.95, 0.95, 0.95], 16, { x: 0, y: 0 });
   // Nothing holds it back meanwhile: it turns about the pointer alone.
   expect(contentAt(view()).max.x).toBeCloseTo(800 * 0.95 ** 3, 6);
-  expect(frames).toHaveLength(0);
+  expect(rests()).toBe(0);
   runTimers();
-  runFrames();
-  expect(within(view())).toBe(true);
+  expect(frames).toHaveLength(0);
+  expect(contentAt(view()).max.x).toBeCloseTo(800 * 0.95 ** 3, 6);
   expect(rests()).toBe(1);
 });
 
@@ -264,10 +230,11 @@ test('a wheel within bounds sets nothing going', () => {
   expect(frames).toHaveLength(0);
 });
 
-test('zoomBy says whether the view is still within bounds', () => {
+test('zoomBy says whether it zoomed, not at a limit', () => {
   const { panning } = setup(centred(1.5), 1.5);
   expect(panning.zoomBy(1.2, MID)).toBe(true);
-  expect(panning.zoomBy(1.5, MID)).toBe(false);
+  expect(panning.zoomBy(1.5, MID)).toBe(true);
+  expect(panning.zoomBy(1.1, MID)).toBe(false);
 });
 
 test('a wheel zoom turns about the pointer', () => {
@@ -280,7 +247,7 @@ test('a wheel zoom turns about the pointer', () => {
   expect((after.pan.y - k * before.y) / (1 - k)).toBeCloseTo(250, 6);
 });
 
-test('a scroll reaching a limit settles at once, its momentum spent', () => {
+test('a scroll reaching a limit rests at once, its momentum spent', () => {
   // Its right and bottom edges on the screen's.
   const { view, panning, rests } = setup({ x: -400, y: -300 }, 1.5);
   // Out around the top left, past the edges, down to minScale.
@@ -288,19 +255,18 @@ test('a scroll reaching a limit settles at once, its momentum spent', () => {
     panning.wheel(0.9, { x: 0, y: 0 });
   }
   expect(view().scale).toBe(BOUNDS.minScale);
-  // The next step has nothing to zoom: the settle starts without waiting
-  // for the wheel to stop.
+  // The next step has nothing to zoom: it rests without waiting for the
+  // wheel to stop.
   panning.wheel(0.95, { x: 0, y: 0 });
   expect(timers).toHaveLength(0);
-  const settling = frames.length;
-  expect(settling).toBe(1);
+  expect(rests()).toBe(1);
   // Momentum running on changes nothing.
+  const at = view();
   for (const factor of [0.97, 0.98, 0.99]) {
     panning.wheel(factor, { x: 0, y: 0 });
   }
-  expect(frames).toHaveLength(settling);
-  runFrames();
-  expect(within(view())).toBe(true);
+  expect(view()).toBe(at);
+  expect(frames).toHaveLength(0);
   expect(rests()).toBe(1);
 });
 

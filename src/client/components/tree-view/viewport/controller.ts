@@ -96,13 +96,13 @@ export class ViewportController implements ReactiveController {
   private _pendingPan: Point | null = null;
   private _pendingScale: number | null = null;
 
-  // Drags, flings and zooms, kept within bounds; at rest the view settles.
+  // Drags and flings, kept within bounds, and zooms.
   private readonly panning: Panning;
-  // A pinch settles, like a wheel burst, once it has eased to a stop.
+  // A pinch is at rest, like a wheel burst, once it has eased to a stop.
   private readonly pinch = new Pinch({
     onZoom: (factor, at) => this.zoomBy(factor, at),
     onEnd: () => {
-      this.panning.settle();
+      this.panning.zoomEnded();
     }
   });
   private canvas: HTMLElement | null = null;
@@ -469,7 +469,7 @@ export class ViewportController implements ReactiveController {
     this.host.requestUpdate();
   };
 
-  // A drag let go flings, or settles a zoom it interrupted, and settles at
+  // A drag let go flings or springs back within bounds, and is at rest at
   // once when neither moves.
   readonly onMouseUp = () => {
     this.panning.end();
@@ -493,7 +493,6 @@ export class ViewportController implements ReactiveController {
     this.glide = null;
     const at = this.toCanvas({ x: e.clientX, y: e.clientY });
     if (at === null) return;
-    // The wheel's own momentum past the bounds leaves a settle running.
     this.panning.wheel(Math.exp(-e.deltaY * this.options.wheelZoomK), at);
   };
 
@@ -539,8 +538,8 @@ export class ViewportController implements ReactiveController {
     };
   }
 
-  // Zoom at a point in client coordinates; whether the view is still within
-  // its bounds. Stops a pan's glide, not a pinch's.
+  // Zoom at a point in client coordinates; false at a zoom limit. Stops a
+  // pan's glide, not a pinch's.
   private zoomBy(factor: number, at: Point) {
     const on = this.toCanvas(at);
     if (on === null) return true;
