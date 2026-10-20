@@ -19,8 +19,11 @@ export const personPanelStyles = css`
     padding-top: 1rem;
   }
 
+  /* The last person's view, dimmed only once the next one is slow to come,
+     so a quick change doesn't flash. */
   .body.stale {
     opacity: 0.55;
+    transition: opacity 0.15s 0.2s;
   }
 
   /* Sections are banded across the panel's full width. */
