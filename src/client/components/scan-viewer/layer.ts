@@ -14,7 +14,7 @@ import { boxFromStage, boxOnStage, clampBox, newBox } from './frame';
 import type { Frame } from './frame';
 import { linkItems } from './menu';
 
-import './menu';
+import '../context-menu';
 import './volumes';
 
 // The parts of a Box a drag can take: an edge, a corner, or all of it.
@@ -201,12 +201,12 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
         }
       }
     );
-    return html`<sl-scan-menu
+    return html`<sl-context-menu
       .items=${items}
       .heading=${this.sourceName()}
       .at=${at}
       @close=${this.onPopupClose}
-    ></sl-scan-menu>`;
+    ></sl-context-menu>`;
   }
 
   // The pending Box, or the one being dragged.

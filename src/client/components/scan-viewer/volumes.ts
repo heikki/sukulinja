@@ -9,8 +9,8 @@ import { appState } from '@client/state';
 import type { AppState } from '@client/state';
 import type { VolumeChoice, VolumeChoices } from '@common/types';
 
+import { placedInside } from '../context-menu';
 import { scanVolumesStyles } from './edit-styles';
-import { placedInside } from './helpers';
 import { controlStyles } from './styles';
 
 function stop(e: Event) {

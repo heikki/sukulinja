@@ -110,7 +110,10 @@ export function renderBox(
     entering: boolean;
     ghost?: boolean;
   },
-  on?: { click: (e: MouseEvent) => void; dblclick: () => void }
+  on?: {
+    click: (e: MouseEvent) => void;
+    contextmenu: (e: MouseEvent) => void;
+  }
 ) {
   const { photo, selected = false, entering, ghost = false } = state;
   const { boxW, boxH } = dims;
@@ -137,7 +140,7 @@ export function renderBox(
       data-box-key=${box.key}
       style="transform: translate(${tx}px, ${ty}px)"
       @click=${on?.click}
-      @dblclick=${on?.dblclick}
+      @contextmenu=${on?.contextmenu}
     >
       <rect class="box" x="0" y="0" width=${boxW} height=${boxH} rx="6" />
       ${

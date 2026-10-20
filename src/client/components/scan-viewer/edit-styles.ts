@@ -118,50 +118,6 @@ export const scanEditStyles = css`
   }
 `;
 
-// At the pointer, over the scan.
-export const scanMenuStyles = css`
-  :host {
-    position: absolute;
-    z-index: 3;
-    display: flex;
-    flex-direction: column;
-    min-width: 12rem;
-    padding: 0.3rem;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--card);
-    box-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
-    cursor: auto;
-  }
-
-  h3 {
-    margin: 0 0 0.3rem;
-    padding: 0.2rem 0.5rem 0.4rem;
-    overflow: hidden;
-    border-bottom: 1px solid var(--border);
-    color: var(--muted);
-    font-size: 0.8em;
-    font-weight: 500;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  button {
-    padding: 0.3rem 0.5rem;
-    border-color: transparent;
-    background: none;
-    text-align: left;
-    white-space: nowrap;
-  }
-
-  button:hover:not(:disabled),
-  button:focus-visible {
-    border-color: transparent;
-    background: color-mix(in srgb, var(--accent) 18%, transparent);
-    color: var(--fg);
-  }
-`;
-
 // Over the whole stage, letting presses through to the scan except on its
 // own parts. No stacking of its own, so its parts stack with the viewer's:
 // the Box under the nav (2), the menus over it.
@@ -172,7 +128,7 @@ export const scanLayerStyles = css`
     pointer-events: none;
   }
 
-  sl-scan-menu,
+  sl-context-menu,
   sl-scan-volumes,
   .box {
     pointer-events: auto;

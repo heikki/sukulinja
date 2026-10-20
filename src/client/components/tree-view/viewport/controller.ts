@@ -325,8 +325,9 @@ export class ViewportController implements ReactiveController {
     });
   }
 
+  // A Ctrl-click is the Mac's right-click: it opens a card's menu, not a pan.
   readonly onMouseDown = (e: MouseEvent) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || e.ctrlKey) return;
     this.cancelMomentum();
     this.panning.start({ x: e.clientX, y: e.clientY });
     this._dragMoved = false;
