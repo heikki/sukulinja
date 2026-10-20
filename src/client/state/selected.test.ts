@@ -132,10 +132,7 @@ test("the sources are in the panel's order, with link statuses", async () => {
   const selected = openSelected(dataset());
   const loading = selected.select(1);
   await until(() => selected.details.get() !== null);
-  // Details in, the Links still to come.
-  const finding = selected.sources.get()[0]?.sources[0]?.status?.label;
-  await loading;
-  expect(finding).toBe('Finding scan…');
+  // Shown with their Links, not before.
   const sources = selected.sources.get().map((g) => ({
     label: g.label,
     rows: g.sources.map((s) => [s.citation.id, s.status?.label])
@@ -144,6 +141,31 @@ test("the sources are in the panel's order, with link statuses", async () => {
     { label: 'Juvan seurakunnan arkisto', rows: [[11, 'Marked Image']] },
     { label: 'Church books', rows: [[12, 'Not found']] }
   ]);
+  await loading;
+});
+
+test('Links still streaming after the grace show the details, and arrive after', async () => {
+  const api = dataset();
+  const held = Promise.withResolvers<undefined>();
+  const slow = {
+    ...api,
+    async *personLinks(id: number, signal?: AbortSignal) {
+      await held.promise;
+      yield* api.personLinks(id, signal);
+    }
+  };
+  const selected = openSelected(slow, { grace: 0 });
+  const loading = selected.select(1);
+  // Past the grace, timed from the details' answer.
+  await Bun.sleep(10);
+  expect(selected.details.get()).toBe(MATTI);
+  expect(selected.pending.get()).toBe(true);
+  const finding = selected.sources.get()[0]?.sources[0]?.status?.label;
+  expect(finding).toBe('Finding scan…');
+  held.resolve(undefined);
+  await loading;
+  expect(selected.pending.get()).toBe(false);
+  expect([...selected.links.get().keys()]).toEqual([11, 12]);
 });
 
 test("mark saves, sets the reference's Links, and reloads the others keeping the known", async () => {

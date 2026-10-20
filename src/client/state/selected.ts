@@ -20,7 +20,9 @@ export interface Readable<T> {
 // church-book references as they stream in.
 export interface Selected {
   id: Readable<number | null>;
-  // The last person's stay until the new person's arrive.
+  // The last person's stay until the new person's arrive with their Links,
+  // or `grace` has passed, so the panel changes once rather than as each
+  // Link streams in.
   details: Readable<PersonDetails | null>;
   // The app's words when the details couldn't load.
   error: Readable<string | null>;
@@ -38,7 +40,14 @@ export interface Selected {
   mark: (citationId: number, at: MarkTarget) => Promise<CitationLinks>;
 }
 
-export function openSelected(api: DatasetApi): Selected {
+// Long enough for Links the server has resolved before; ones it must ask
+// Astia for stream in after.
+const GRACE_MS = 250;
+
+export function openSelected(
+  api: DatasetApi,
+  { grace = GRACE_MS }: { grace?: number } = {}
+): Selected {
   const id = signal<number | null>(null);
   const details = signal<PersonDetails | null>(null);
   const error = signal<string | null>(null);
@@ -61,23 +70,43 @@ export function openSelected(api: DatasetApi): Selected {
     links.set(new Map(links.get()).set(citationId, resolution));
   }
 
-  // One stream at a time. `keep` leaves the Links known until their new
-  // ones arrive.
-  async function loadLinks(person: number, keep: boolean) {
+  // One stream at a time. With `arrived`, the new person's details, their
+  // Links are gathered and shown with them, all at once; without, the
+  // Links known stay until their new ones arrive.
+  async function loadLinks(person: number, arrived: PersonDetails | null) {
     linksAbort?.abort();
     const abort = new AbortController();
     linksAbort = abort;
-    if (!keep) links.set(new Map());
-    pending.set(true);
+    const gathered = new Map<number, LinkResolution>();
+    let shown = arrived === null;
+    function show() {
+      if (shown || abort.signal.aborted) return;
+      shown = true;
+      details.set(arrived);
+      error.set(null);
+      links.set(gathered);
+      pending.set(true);
+    }
+    if (shown) pending.set(true);
+    const timer = shown ? undefined : setTimeout(show, grace);
     try {
       for await (const line of api.personLinks(person, abort.signal)) {
-        setLinks(line);
+        if (shown) {
+          setLinks(line);
+        } else {
+          const { citationId, ...resolution } = line;
+          gathered.set(citationId, resolution);
+        }
       }
     } catch (err) {
       // Unresolved references show as unavailable once pending clears.
       if (!abort.signal.aborted && !(err instanceof ApiError)) throw err;
     } finally {
-      if (!abort.signal.aborted) pending.set(false);
+      clearTimeout(timer);
+      if (!abort.signal.aborted) {
+        show();
+        pending.set(false);
+      }
     }
   }
 
@@ -88,16 +117,15 @@ export function openSelected(api: DatasetApi): Selected {
     linksAbort?.abort();
     const abort = new AbortController();
     detailsAbort = abort;
-    try {
-      details.set(await api.person(next, abort.signal));
-      error.set(null);
-    } catch (err) {
-      if (abort.signal.aborted) return;
-      if (!(err instanceof ApiError)) throw err;
-      error.set(err.message);
-      return;
-    }
-    await loadLinks(next, false);
+    const arrived = await api
+      .person(next, abort.signal)
+      .catch((err: unknown) => {
+        if (abort.signal.aborted) return null;
+        if (!(err instanceof ApiError)) throw err;
+        error.set(err.message);
+        return null;
+      });
+    if (arrived !== null) await loadLinks(next, arrived);
   }
 
   // A Page pin can move the person's other references in the Volume too,
@@ -106,7 +134,7 @@ export function openSelected(api: DatasetApi): Selected {
     const resolved = await api.mark(citationId, at);
     setLinks(resolved);
     const person = id.get();
-    if (person !== null) void loadLinks(person, true);
+    if (person !== null) void loadLinks(person, null);
     return resolved;
   }
 
