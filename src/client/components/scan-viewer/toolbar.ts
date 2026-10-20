@@ -5,9 +5,14 @@ import { customElement } from 'lit/decorators.js';
 
 import { volumeTitle } from '@client/link-labels';
 import { appState } from '@client/state';
-import type { AppState } from '@client/state';
+import type { AppState, LinkOpen } from '@client/state';
 
 import { controlStyles, scanToolbarStyles } from './styles';
+
+// The archive of a source's Link, or of the books it wasn't found in.
+function archiveOf(source: LinkOpen) {
+  return source.link === null ? source.unlinked.archive : source.link.archive;
+}
 
 // The Scan viewer's one row: the archive and the Volume shown, and closing.
 @customElement('sl-scan-toolbar')
@@ -17,11 +22,13 @@ export class ScanToolbarElement extends SignalWatcher(LitElement) {
   @consume({ context: appState }) private readonly state!: AppState;
 
   override render() {
-    const link = this.state.viewer.source.get()?.link;
+    const source = this.state.viewer.source.get();
+    if (source === null) return nothing;
     const shown = this.state.viewer.volume.get();
-    if (link === undefined || shown === null) return nothing;
-    const archive = link.archive === undefined ? '' : `${link.archive} · `;
-    const title = `${archive}${volumeTitle(shown.label)}`;
+    const named = archiveOf(source);
+    const archive = named === undefined ? '' : `${named} · `;
+    const volume = shown === null ? 'No Volume' : volumeTitle(shown.label);
+    const title = `${archive}${volume}`;
     return html`
       <span class="volume" title=${title}>${title}</span>
       <button

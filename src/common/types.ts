@@ -81,6 +81,16 @@ export interface CitationRow {
   churchBook: boolean;
   // The church-book page cited, which a Mark places.
   citedPage: number | null;
+  // What a Church-book reference cites, as far as it can be read; null for
+  // other sources.
+  cited: CitedBook | null;
+}
+
+// The parish, kind of Book and years a Church-book reference cites.
+export interface CitedBook {
+  parish: string | null;
+  kind: BookKind | null;
+  years: Years | null;
 }
 
 export interface RecordView {
@@ -169,7 +179,15 @@ export type Unlinked =
   // A request to Astia failed.
   | 'astia-error';
 
-export type LinkResolution = { links: Link[] } | { unlinked: Unlinked };
+// No Link, and why. `archive` names the parish's archive, as a Link's does,
+// when the parish's books were looked through: its Volumes can be browsed
+// for the entry.
+export interface UnlinkedResolution {
+  unlinked: Unlinked;
+  archive?: string;
+}
+
+export type LinkResolution = { links: Link[] } | UnlinkedResolution;
 
 // A line of /api/persons/:id/scans, streamed as each citation resolves.
 export type CitationLinks = { citationId: number } & LinkResolution;

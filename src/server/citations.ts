@@ -6,8 +6,9 @@
 
 import type { Database } from 'bun:sqlite';
 
+import { BOOK_NAMES } from '@common/books';
 import { isoDate } from '@common/dates';
-import type { BookKind, CitationRow, VolumeCitation } from '@common/types';
+import type { CitationRow, VolumeCitation } from '@common/types';
 
 import type { BoxAt, MarkTarget } from './citation-scans/pins';
 import {
@@ -25,13 +26,6 @@ interface CitationDbRow {
   page: string | null;
   text: string | null;
 }
-
-const BOOK_NAMES: Record<BookKind, string> = {
-  rippi: 'Pää- ja rippikirjat',
-  lasten: 'Lastenkirjat',
-  kastetut: 'Syntyneiden ja kastettujen luettelot',
-  vihityt: 'Vihittyjen luettelot'
-};
 
 // Parish · book and years · page, of what the reference gives. Lines break
 // only after a dot.
@@ -83,7 +77,11 @@ function toCitation(row: CitationDbRow, book: ChurchBookRef | null) {
     url,
     ...contentOf(url, row.text),
     churchBook: book !== null,
-    citedPage: book?.page ?? null
+    citedPage: book?.page ?? null,
+    cited:
+      book === null
+        ? null
+        : { parish: book.parish, kind: book.kind, years: book.years }
   };
   return citation;
 }

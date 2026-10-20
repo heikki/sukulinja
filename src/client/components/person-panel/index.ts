@@ -14,6 +14,7 @@ import type {
   Source,
   SourceGroup
 } from '@client/state';
+import { BOOK_NAMES } from '@common/books';
 import type { CitationRow, Link, RecordView } from '@common/types';
 
 import { formatName } from '../tree-view/renderer';
@@ -114,13 +115,20 @@ function headingOf(c: CitationRow) {
 const opened = { events: false, family: false, sources: true };
 type Section = keyof typeof opened;
 
-// Where in the Volume it links the reference points; nothing unlinked.
-function linkedEntry(c: CitationRow, link: Link | null) {
-  return link === null ? null : c.entry;
+// Filed under its archive: it links a Volume there, or the archive's
+// books were looked through for it.
+function isFiled(status: LinkStatus | null) {
+  return status !== null && (status.link !== null || status.browse !== null);
+}
+
+// Under its archive (`filed`), where in its Volume the reference points.
+function filedEntry(c: CitationRow, filed: boolean) {
+  return filed ? c.entry : null;
 }
 
 // A source clicking opens (`active`), the one the Scan viewer shows
-// (`viewing`), and one titled by the Volume it links (`linked`).
+// (`viewing`), and one filed under its archive, titled by its Volume or
+// Book (`linked`).
 function sourceClass(flags: Record<string, boolean>) {
   const on = Object.entries(flags).filter(([, v]) => v);
   return ['source', ...on.map(([k]) => k)].join(' ');
@@ -128,9 +136,13 @@ function sourceClass(flags: Record<string, boolean>) {
 
 // Under its archive, a Church-book reference goes by the Volume it links,
 // named as Astia names it but for its code: "Pää- ja rippikirjat
-// (1783-1790)".
-function titleText(c: CitationRow, link: Link | null) {
-  return link === null ? headingOf(c) : volumeTitle(link.volume);
+// (1783-1790)"; one the archive's books lack goes by its Book.
+function titleText(c: CitationRow, status: LinkStatus | null) {
+  const link = status?.link ?? null;
+  if (link !== null) return volumeTitle(link.volume);
+  const kind = c.cited?.kind ?? null;
+  if ((status?.browse ?? null) === null || kind === null) return headingOf(c);
+  return BOOK_NAMES[kind];
 }
 
 // A Church-book reference's tooltip names its collection.
@@ -267,18 +279,25 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
     source?.scrollIntoView({ block: 'nearest' });
   }
 
-  // The viewer goes back to the Link even when it's showing this source
-  // already.
-  private openScan(citation: CitationRow, link: Link) {
-    this.state.viewer.open({ citation, link });
-  }
-
   // What clicking the source does: open its scan if it is a church book
-  // that has one, else show or hide its record.
-  private actionOf(c: CitationRow, link: Link | null, foldable: boolean) {
+  // that has one, or the viewer to look through its parish's Volumes if it
+  // can; else show or hide its record. The viewer goes back to the Link
+  // even when it's showing this source already.
+  private actionOf(
+    c: CitationRow,
+    status: LinkStatus | null,
+    foldable: boolean
+  ) {
+    const link = status?.link ?? null;
     if (link !== null) {
       return () => {
-        this.openScan(c, link);
+        this.state.viewer.open({ citation: c, link });
+      };
+    }
+    const unlinked = status?.browse ?? null;
+    if (unlinked !== null) {
+      return () => {
+        this.state.viewer.open({ citation: c, link: null, unlinked });
       };
     }
     if (!foldable) return null;
@@ -299,12 +318,13 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
     const heading = headingOf(c);
     const body = renderBody(c, heading);
     const link = status?.link ?? null;
+    const filed = isFiled(status);
     const foldable = hasDetails(body, c.url, link);
     const open = this.unfolded === c.id && foldable;
-    const act = this.actionOf(c, link, foldable);
+    const act = this.actionOf(c, status, foldable);
     return html`
       <article
-        class=${sourceClass({ active: act !== null, viewing, linked: link !== null })}
+        class=${sourceClass({ active: act !== null, viewing, linked: filed })}
         data-citation=${c.id}
         @click=${(e: Event) => {
           const on = e.target as Element;
@@ -319,9 +339,9 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
               aria-current=${viewing ? 'true' : nothing}
               title=${link === null ? titleOf(c, heading) : link.volume}
             >
-              ${titleText(c, link)}
+              ${titleText(c, status)}
             </button>
-            ${renderStatus(status, linkedEntry(c, link))}
+            ${renderStatus(status, filedEntry(c, filed))}
           </div>
           ${
             foldable

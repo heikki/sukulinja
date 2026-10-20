@@ -5,6 +5,7 @@ import type { Box, LinkTarget, Unlinked } from '@common/types';
 import {
   linkHint,
   linkLabel,
+  missingText,
   unlinkedHint,
   unlinkedLabel,
   volumeTitle
@@ -80,4 +81,27 @@ test('names a Volume without its archive code', () => {
   expect(
     volumeTitle('I C:4 Syntyneiden ja kastettujen luettelot (1744-1766)')
   ).toBe('Syntyneiden ja kastettujen luettelot (1744-1766)');
+});
+
+test('says what is missing by parish, Book and years, when it can', () => {
+  const baptisms = {
+    parish: 'Mikkeli',
+    kind: 'kastetut' as const,
+    years: { from: 1779, to: 1779 }
+  };
+  expect(missingText('no-volume', baptisms)).toBe(
+    'Mikkeli has no baptism Volume for 1779.'
+  );
+  const marriages = {
+    parish: 'Kangasniemi',
+    kind: 'vihityt' as const,
+    years: { from: 1777, to: 1780 }
+  };
+  expect(missingText('not-digitized', marriages)).toBe(
+    "Kangasniemi's marriage Volume for 1777–1780 isn't digitized in Astia."
+  );
+  expect(missingText('no-volume', null)).toBe(unlinkedHint('no-volume'));
+  expect(missingText('no-volume', { ...baptisms, years: null })).toBe(
+    unlinkedHint('no-volume')
+  );
 });

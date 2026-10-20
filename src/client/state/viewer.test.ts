@@ -49,7 +49,8 @@ function churchBook(id: number, citedPage: number | null): CitationRow {
     record: null,
     text: null,
     churchBook: true,
-    citedPage
+    citedPage,
+    cited: null
   };
 }
 
@@ -320,6 +321,25 @@ test('changing the Volume only shows it, and its own Volume goes back to the Lin
   expect(viewer.away.get()).toBe(true);
   viewer.changeVolume(CHOICE_201);
   expect([viewer.volume.get()?.id, viewer.image.get()]).toEqual(['201', 18]);
+  expect(api.asked.filter((a) => a.startsWith('mark'))).toEqual([]);
+});
+
+test('a source with no Link opens on no Volume, and Cancel stays where the Box was', async () => {
+  const { api, viewer } = await selecting(1);
+  const unlinked = { unlinked: 'no-volume' as const, archive: ARCHIVE.archive };
+  viewer.open({ citation: C14, link: null, unlinked });
+  expect(viewer.source.get()?.link).toBe(null);
+  expect(viewer.volume.get()).toBe(null);
+  expect(viewer.away.get()).toBe(false);
+  viewer.changeVolume(CHOICE_202);
+  expect([viewer.volume.get()?.id, viewer.image.get()]).toEqual(['202', 1]);
+  await settle();
+  viewer.show(7);
+  viewer.setBox(BOX);
+  expect(viewer.pending.get()).toMatchObject({ volumeId: '202', image: 7 });
+  viewer.cancel();
+  expect(viewer.pending.get()).toBe(null);
+  expect([viewer.volume.get()?.id, viewer.image.get()]).toEqual(['202', 7]);
   expect(api.asked.filter((a) => a.startsWith('mark'))).toEqual([]);
 });
 

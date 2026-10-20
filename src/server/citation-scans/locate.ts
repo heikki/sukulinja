@@ -20,7 +20,8 @@ import type {
   Link,
   LinkResolution,
   LinkTarget,
-  Provenance
+  Provenance,
+  Unlinked
 } from '@common/types';
 
 import { viewerUrl } from './astia';
@@ -369,22 +370,33 @@ async function volumesFor(
     : candidateVolumes(volumes, ref.kind!, ref.years!);
 }
 
-// The Links, each saying whose archive its Volume is in.
-async function withArchive(astia: Astia, links: Link[], parish: string | null) {
+// The title of the parish's archive in Astia, if it's known.
+async function archiveTitleOf(astia: Astia, parish: string | null) {
   const archiveId = parishArchive(parish);
-  const archive =
-    archiveId === null ? null : await astia.archiveTitle(archiveId);
-  return archive === null ? links : links.map((l) => ({ ...l, archive }));
+  return archiveId === null ? null : await astia.archiveTitle(archiveId);
 }
 
+// Unlinked after looking through the parish's books: no Volume fits, or
+// the one that does can't be shown.
+const LOOKED: ReadonlySet<Unlinked> = new Set([
+  'no-volume',
+  'not-digitized',
+  'no-images'
+]);
+
+// Each Link says whose archive its Volume is in; so does an Unlinked
+// reference whose parish's books were looked through.
 export async function resolveChurchBookRef(
   astia: Astia,
   ref: ChurchBookRef,
   pins: Pins
 ): Promise<LinkResolution> {
   const resolved = await resolveLinks(astia, ref, pins);
-  if ('unlinked' in resolved) return resolved;
-  return { links: await withArchive(astia, resolved.links, ref.parish) };
+  if ('unlinked' in resolved && !LOOKED.has(resolved.unlinked)) return resolved;
+  const archive = await archiveTitleOf(astia, ref.parish);
+  if (archive === null) return resolved;
+  if ('unlinked' in resolved) return { ...resolved, archive };
+  return { links: resolved.links.map((l) => ({ ...l, archive })) };
 }
 
 // The reference's own pin decides its Link, at whatever Precision; null

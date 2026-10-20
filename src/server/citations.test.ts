@@ -106,7 +106,8 @@ test("serves a person's Citations, church books first", () => {
       },
       text: null,
       churchBook: true,
-      citedPage: 139
+      citedPage: 139,
+      cited: { parish: null, kind: 'rippi', years: { from: 1794, to: 1808 } }
     },
     {
       id: 1,
@@ -118,7 +119,8 @@ test("serves a person's Citations, church books first", () => {
       record: null,
       text: 'Family bible',
       churchBook: false,
-      citedPage: null
+      citedPage: null,
+      cited: null
     }
   ]);
 });

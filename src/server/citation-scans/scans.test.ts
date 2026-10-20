@@ -457,7 +457,7 @@ test("Volumes split by villages link the one holding the reference's village", a
   expect(await volumesOf(cited, astia)).toEqual(['juva-h', 'juva-p']);
 });
 
-test("Links name the Volume's archive; a Volume not digitized has none", async () => {
+test("Links name the Volume's archive, as does a reference whose Volume isn't digitized", async () => {
   const astia = memoryAstia({
     [JUVA]: {
       title: 'Juvan seurakunnan arkisto',
@@ -474,7 +474,8 @@ test("Links name the Volume's archive; a Volume not digitized has none", async (
     })
   ]);
   expect(await linksOf(citation(5001, '1797 - 1803', 5), astia)).toEqual({
-    unlinked: 'not-digitized'
+    unlinked: 'not-digitized',
+    archive: 'Juvan seurakunnan arkisto'
   });
 });
 
