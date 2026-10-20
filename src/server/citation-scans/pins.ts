@@ -8,7 +8,8 @@
 //
 // A pin saved by hand always wins: one the vision model saved never
 // replaces a hand one (the base counts as by hand), and a hand one
-// replaces it.
+// replaces it. A Discard takes a Box's pin back; a Vision match taken back
+// is kept as a Rejection, so the model's match there isn't saved again.
 //
 // The app and the vision pass save into one folder at once, from separate
 // processes. Each save takes pins.lock, re-reads the file, applies all its
@@ -235,11 +236,22 @@ function merge(base: Pins['volumes'], local: Pins['volumes']) {
 
 // ---------------------------------------------------------------- saving
 
+// A Vision match taken back by hand: the reference isn't on that Image.
+export interface Rejection {
+  volumeId: string;
+  image: number;
+}
+
+// The local file: the pins, and the Rejections by the reference's URL.
+interface LocalPins extends Pins {
+  rejected: Record<string, Rejection[]>;
+}
+
 // One save's view of the pins: the local ones it changes, read under the
 // lock, and the base they're read over.
 interface Draft {
   base: Pins['volumes'];
-  local: Pins;
+  local: LocalPins;
 }
 
 function mergedVolumes(draft: Draft) {
@@ -477,6 +489,59 @@ function visionInto(draft: Draft, ref: ChurchBookRef, match: VisionMatch) {
   }
 }
 
+// Where a Box is: on an Image of a Volume.
+export interface BoxAt {
+  volumeId: string;
+  image: number;
+}
+
+function isRejected(local: LocalPins, ref: ChurchBookRef, at: BoxAt) {
+  return (local.rejected[ref.url] ?? []).some(
+    (r) => r.volumeId === at.volumeId && r.image === at.image
+  );
+}
+
+function boxedAt(pin: { image?: number; box?: Box }, at: BoxAt) {
+  return pin.image === at.image && pin.box !== undefined;
+}
+
+// The reference's own pin, taken off when it boxes the entry at `at`.
+function takeReferencePin(draft: Draft, ref: ChurchBookRef, at: BoxAt) {
+  const own = draft.local.references[ref.url];
+  if (own?.volumeId !== at.volumeId || !boxedAt(own, at)) return null;
+  setReferencePin(draft, ref.url, null);
+  return own;
+}
+
+// The record's pin in the Volume, taken off when it boxes the entry at `at`.
+function takeRecordPin(draft: Draft, ref: ChurchBookRef, at: BoxAt) {
+  const volume = draft.local.volumes[at.volumeId];
+  const pin = volume?.records?.find((p) => p.record === ref.recordId);
+  if (volume === undefined || pin === undefined || !boxedAt(pin, at)) {
+    return null;
+  }
+  const rest = volume.records!.filter((p) => p !== pin);
+  if (rest.length > 0) volume.records = rest;
+  else delete volume.records;
+  return pin;
+}
+
+// Takes back the Box the reference's Link shows at `at`: its Reference pin
+// there and its record's Record pin there, by hand or by the model. Page
+// pins and Record ranges stay, as facts about the Volume. A Vision match
+// taken back becomes a Rejection. Whether there was a Box to take back.
+function discardInto(draft: Draft, ref: ChurchBookRef, at: BoxAt) {
+  const taken = [
+    takeReferencePin(draft, ref, at),
+    takeRecordPin(draft, ref, at)
+  ].filter((p) => p !== null);
+  if (taken.some((p) => !isHand(p)) && !isRejected(draft.local, ref, at)) {
+    const { rejected } = draft.local;
+    rejected[ref.url] = [...(rejected[ref.url] ?? []), at];
+  }
+  return taken.length > 0;
+}
+
 // ---------------------------------------------------------------- the module
 
 // The pins of a data folder. `base` is what the local pins are read over:
@@ -502,24 +567,30 @@ export function openPins(
     await migration;
   }
 
-  async function readLocal(): Promise<Pins> {
+  async function readLocal(): Promise<LocalPins> {
     await migrated();
-    const local = await readIfThere<Partial<Pins>>(localFile);
+    const local = await readIfThere<Partial<LocalPins>>(localFile);
     return {
       volumes: local?.volumes ?? {},
-      references: local?.references ?? {}
+      references: local?.references ?? {},
+      rejected: local?.rejected ?? {}
     };
   }
 
-  async function save(change: (draft: Draft) => void) {
+  // Rejections are left out of the file while there are none.
+  async function save<T>(change: (draft: Draft) => T) {
     await migrated();
     await mkdir(folder, { recursive: true });
-    await withLock(lockFile, async () => {
+    const result = await withLock(lockFile, async () => {
       const draft = { base, local: await readLocal() };
-      change(draft);
-      await writeJson(localFile, draft.local);
+      const changed = change(draft);
+      const { rejected, ...pins } = draft.local;
+      const none = Object.keys(rejected).length === 0;
+      await writeJson(localFile, none ? pins : draft.local);
+      return changed;
     });
     merged = null;
+    return result;
   }
 
   async function stamp() {
@@ -560,11 +631,25 @@ export function openPins(
       });
     },
 
-    // A match the vision model confirmed. One write.
+    // A match the vision model confirmed, unless it was taken back there by
+    // hand; whether it was saved. One write.
     async recordVision(ref: ChurchBookRef, match: VisionMatch) {
-      await save((draft) => {
+      return await save((draft) => {
+        if (isRejected(draft.local, ref, match)) return false;
         visionInto(draft, ref, match);
+        return true;
       });
+    },
+
+    // A Discard of the reference's Box at `at`; whether there was one.
+    // One write.
+    async recordDiscard(ref: ChurchBookRef, at: BoxAt) {
+      return await save((draft) => discardInto(draft, ref, at));
+    },
+
+    // Whether a Vision match at `at` was taken back by hand.
+    async rejects(ref: ChurchBookRef, at: BoxAt) {
+      return isRejected(await readLocal(), ref, at);
     }
   };
 }

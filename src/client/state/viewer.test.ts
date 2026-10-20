@@ -136,7 +136,8 @@ function dataset(options: MemoryOptions = {}) {
         12: linksOf(12, MARKED_202),
         15: linksOf(15, { ...L15, certainty: 'marked' }),
         21: linksOf(21, MARKED_21)
-      }
+      },
+      discards: { 21: linksOf(21, onImage('201', 20)) }
     },
     options
   );
@@ -454,6 +455,50 @@ test("editing a Vision match's Box starts from it, and Save sends the Box", asyn
   expect(viewer.boxHere.get()).toEqual(moved);
   await viewer.save();
   expect(api.asked).toContain('mark 21 201/18 box');
+});
+
+test('a Discard waits to be saved, and takes the Box back where it is', async () => {
+  const { api, viewer } = await selecting(2);
+  viewer.open({ citation: C21, link: VISION_21 });
+  await settle();
+  viewer.discard();
+  expect(viewer.discarding.get()).toBe(true);
+  viewer.cancel();
+  expect(viewer.discarding.get()).toBe(false);
+  expect(viewer.source.get()?.link).toEqual(VISION_21);
+  viewer.discard();
+  await viewer.confirmDiscard();
+  expect(api.asked.slice(-3)).toEqual([
+    'discard 21 201/18',
+    'links 2',
+    'citations 201'
+  ]);
+  expect(viewer.discarding.get()).toBe(false);
+  expect(viewer.source.get()?.link).toEqual(onImage('201', 20));
+  // The viewer stays where the Box was.
+  expect(viewer.image.get()).toBe(18);
+});
+
+test('a Discard needs a Box, and moving off its Image drops it', async () => {
+  const { state, viewer } = await selecting(1);
+  viewer.open(S11);
+  await settle();
+  viewer.discard();
+  expect(viewer.discarding.get()).toBe(false);
+  state.select(2);
+  await settle();
+  viewer.open({ citation: C21, link: VISION_21 });
+  await settle();
+  viewer.discard();
+  viewer.show(19);
+  expect(viewer.leaving.get()).toBe(false);
+  expect(viewer.discarding.get()).toBe(false);
+  viewer.show(18);
+  viewer.discard();
+  // Editing the Box instead drops it too.
+  viewer.editBox();
+  expect(viewer.discarding.get()).toBe(false);
+  expect(viewer.boxPending.get()).toBe(true);
 });
 
 test('a Box drawn on another Image moves the source there', async () => {

@@ -1,4 +1,4 @@
-import { html, LitElement } from 'lit';
+import { html, LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 import type { Point } from '@client/pan-zoom';
@@ -14,43 +14,38 @@ export interface MenuItem {
   run: () => void;
 }
 
-// What the menu offers for the current source's Link, whose person is
-// `name` when known. On its own entry Box (`onBox`), only that Box: a
-// Vision match's to confirm (`confirm`) or edit, a Mark's to edit, and
-// once it's pending, the change to discard. Elsewhere: a pending Box for
-// the person's entry (only over the full Image, `canBox`), and Change
-// Volume…, which only shows another Volume.
+// What the menu offers for the current source's Link; the menu is titled
+// with its person. On its own entry Box (`onBox`), only that Box: a Vision
+// match's or a Mark's to edit or discard, and once it's pending, the change
+// to discard. Confirming a Vision match is beside the scan. Elsewhere: a
+// pending Box for the person's entry (only over the full Image, `canBox`),
+// and Change Volume…, which only shows another Volume.
 export function linkItems(
   viewer: Viewer,
-  name: string | null,
   where: { onBox: boolean; canBox: boolean },
-  open: {
-    confirm: (() => void) | null;
-    chooseVolume: () => void;
-    placeBox: () => void;
-  }
+  open: { chooseVolume: () => void; placeBox: () => void }
 ) {
   const items: MenuItem[] = [];
-  function whose(verb: string) {
-    return name === null ? `${verb} the entry` : `${verb} “${name}”`;
-  }
   if (where.onBox) {
     if (viewer.boxPending.get()) {
       items.push({ label: 'Discard changes', run: viewer.cancel });
       return items;
     }
     if (viewer.source.get()?.link.certainty === 'vision') {
-      if (open.confirm !== null) {
-        items.push({ label: whose('Confirm'), run: open.confirm });
-      }
-      items.push({ label: 'Edit match', run: viewer.editBox });
+      items.push(
+        { label: 'Edit match', run: viewer.editBox },
+        { label: 'Discard match', run: viewer.discard }
+      );
     } else {
-      items.push({ label: whose('Edit'), run: viewer.editBox });
+      items.push(
+        { label: 'Edit mark', run: viewer.editBox },
+        { label: 'Discard mark', run: viewer.discard }
+      );
     }
     return items;
   }
   if (where.canBox) {
-    items.push({ label: whose('Mark'), run: open.placeBox });
+    items.push({ label: 'Mark entry', run: open.placeBox });
   }
   items.push({ label: 'Change Volume…', run: open.chooseVolume });
   return items;
@@ -62,13 +57,14 @@ function stop(e: Event) {
 
 // What a right-click on the scan offers for the current source's Link,
 // drawn in the page in place of WebKit's own menu, at `at` in the stage
-// and kept inside it. A choice, Esc or a press anywhere else asks to
-// `close`. ↑/↓ move between the items.
+// and kept inside it, under its `heading` when it has one. A choice, Esc
+// or a press anywhere else asks to `close`. ↑/↓ move between the items.
 @customElement('sl-scan-menu')
 export class ScanMenuElement extends LitElement {
   static override styles = [controlStyles, scanMenuStyles];
 
   @property({ attribute: false }) items: MenuItem[] = [];
+  @property({ attribute: false }) heading: string | null = null;
   @property({ attribute: false }) at: Point = { x: 0, y: 0 };
 
   override connectedCallback() {
@@ -134,18 +130,25 @@ export class ScanMenuElement extends LitElement {
   }
 
   override render() {
-    return this.items.map(
-      (item) => html`
-        <button
-          role="menuitem"
-          @click=${() => {
-            this.choose(item);
-          }}
-        >
-          ${item.label}
-        </button>
-      `
-    );
+    return html`
+      ${
+        this.heading === null
+          ? nothing
+          : html`<h3 role="presentation">${this.heading}</h3>`
+      }
+      ${this.items.map(
+        (item) => html`
+          <button
+            role="menuitem"
+            @click=${() => {
+              this.choose(item);
+            }}
+          >
+            ${item.label}
+          </button>
+        `
+      )}
+    `;
   }
 }
 

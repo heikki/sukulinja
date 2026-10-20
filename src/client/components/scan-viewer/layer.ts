@@ -6,7 +6,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type { Point, Transform } from '@client/pan-zoom';
 import { appState } from '@client/state';
 import type { AppState } from '@client/state';
-import type { Box, PersonRow, VolumeCitation } from '@common/types';
+import type { Box, PersonRow } from '@common/types';
 
 import { entriesOn, rowName } from './citations';
 import { scanLayerStyles } from './edit-styles';
@@ -148,29 +148,14 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
   };
 
   // The current source's person, as the people beside the scan name them.
-  private sourceRow() {
+  private sourceName() {
     const id = this.viewer.source.get()?.citation.id;
     const rows = this.viewer.citations.get();
-    return Array.isArray(rows)
-      ? (rows.find((r) => r.citation.id === id) ?? null)
-      : null;
-  }
-
-  private sourceName(row: VolumeCitation | null) {
-    const name = row === null ? '—' : rowName(this.persons, row);
+    const row = Array.isArray(rows)
+      ? rows.find((r) => r.citation.id === id)
+      : undefined;
+    const name = row === undefined ? '—' : rowName(this.persons, row);
     return name === '—' ? null : name;
-  }
-
-  // Confirmed by the people beside the scan, who show it saving and why
-  // it's refused.
-  private confirm(row: VolumeCitation) {
-    this.dispatchEvent(
-      new CustomEvent<VolumeCitation>('scan-confirm', {
-        detail: row,
-        bubbles: true,
-        composed: true
-      })
-    );
   }
 
   // A pending Box for the source's entry, to move and resize from there:
@@ -204,18 +189,10 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
         @close=${this.onPopupClose}
       ></sl-scan-volumes>`;
     }
-    const row = this.sourceRow();
     const items = linkItems(
       this.viewer,
-      this.sourceName(row),
       { onBox, canBox: this.canEdit },
       {
-        confirm:
-          row?.link.certainty === 'vision'
-            ? () => {
-                this.confirm(row);
-              }
-            : null,
         chooseVolume: () => {
           this.popup = { at, onBox, volumes: true };
         },
@@ -226,6 +203,7 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     );
     return html`<sl-scan-menu
       .items=${items}
+      .heading=${this.sourceName()}
       .at=${at}
       @close=${this.onPopupClose}
     ></sl-scan-menu>`;

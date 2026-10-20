@@ -28,16 +28,17 @@ Editing is always for the viewer's **current source**, one at a time, and a chan
 ### What you can change
 
 - **Change Volume…**: the list of the parish's Volumes in the same Astia series as the reference's Book. It has two groups: _Fits the reference_ (the Volumes its years or Record range give, worked out without its own pin, as `matchCandidates` does with `byBook(pins)`), then _Other Volumes_ by years, each with its code and years. Picking one only shows it: the Link stays as it is until a Box is saved there. The source's own Volume opens on its Link's Image. It opens from the scan's context menu, where you right-clicked; the toolbar only names the Volume shown. Marking only a Volume isn't offered: Volume-only Marks already saved still show.
-- **Mark “[name]”** (the source's person, as People here names them; **Mark the entry** when unnamed): makes the source's own Box on the Image shown pending, as it does on that Box (a Vision match's too); without one, puts a pending Box centred where the menu opened, as big as the Image's other entries' Boxes (their median; with none, the usual entry size), with handles to move and resize it. It puts the source on the Image and in the Volume shown.
-- **Edit “[name]”** on the source's own entry Box (**Edit the entry** when unnamed; **Edit match** on a Vision match's): makes it pending, to adjust. While a Box is pending it has corner and edge handles, dashed in the same red as the entries' Boxes. Dragging a handle resizes it; dragging inside moves it; dragging elsewhere still pans.
+- **Mark entry**: makes the source's own Box on the Image shown pending, as it does on that Box (a Vision match's too); without one, puts a pending Box centred where the menu opened, as big as the Image's other entries' Boxes (their median; with none, the usual entry size), with handles to move and resize it. It puts the source on the Image and in the Volume shown.
+- **Edit mark** on the source's own entry Box (**Edit match** on a Vision match's): makes it pending, to adjust. While a Box is pending it has corner and edge handles, dashed in the same red as the entries' Boxes. Dragging a handle resizes it; dragging inside moves it; dragging elsewhere still pans.
 - **Discard changes**: on the pending Box, drops the pending change, as Cancel does. There's no marking an Image without its Box from the menu: Marked Image Links already saved still show.
+- **Discard match** / **Discard mark**: on a Vision match's or a Mark's own Box, takes the Box back to the estimate. Only Boxes are discarded, since they're all a person adds. The Box shows faint and the nav asks "Discard this match?" (or "this mark?") with **Cancel** / **Discard**; Esc cancels, and moving off the Image drops it without asking. Discard removes the reference's Reference pin and its record's Record pin boxing the entry there, whoever saved them; Page pins and Record ranges stay, as facts about the Volume. A Vision match taken back is saved as a Rejection of that Image for the reference (`rejected` in `pins.local.json`): the vision pass never saves a match there again, and lists one landing there for review by hand. A Mark taken back is no Rejection. A Record pin is shared by everyone citing the record, so the nav names them: "Also for Juho, Maria." Served as `DELETE /api/citations/:id/scans` with `{ volumeId, image }`.
 
 A pending change starts from the Link as it is. Editing a Vision match starts from the match's Box, and Save makes it a hand Mark at that Box (or wherever it was moved).
 
 ### Ways in
 
-- **Context menu** on the scan, drawn in the page. The app blocks WebKit's own menu there. On the source's own entry Box it offers only that Box: Confirm “[name]” and Edit match on a Vision match, Edit “[name]” on a Mark; once it's pending, only Discard changes. Elsewhere: Mark “[name]”, Change Volume…. It handles Esc and focus as the viewer's other controls do (marked handled, so macOS doesn't beep).
-- **Confirm** on a Vision match's row, or **Confirm “[name]”** in its Box's menu, stays one click and saves at once; the row shows it saving, and why it's refused. Fixing the match goes through editing instead.
+- **Context menu** on the scan, drawn in the page. The app blocks WebKit's own menu there. It's titled with the source's person, as People here names them (untitled when unnamed). On the source's own entry Box it offers only that Box: Edit match and Discard match on a Vision match, Edit mark and Discard mark on a Mark; once it's pending, only Discard changes. Elsewhere: Mark entry, Change Volume…. It handles Esc and focus as the viewer's other controls do (marked handled, so macOS doesn't beep).
+- **Confirm** on a Vision match's row beside the scan, and only there, stays one click and saves at once; the row shows it saving, and why it's refused. Fixing the match goes through editing instead.
 
 ### What a Mark replaces
 
@@ -47,7 +48,6 @@ A pending change starts from the Link as it is. Editing a Vision match starts fr
 
 ## Out of scope
 
-- Clearing a saved Mark back to the estimate: `issues/05-clear-a-mark.md`.
 - Editing several sources at once.
 - Saying a reference's Volume isn't known: its estimate already says it's a guess, and a hand pin without a Volume would need a Link that's unlinked yet openable, and would block later vision matches (`issues/06-not-known.md`, wontfix).
 - Reusing another source's Box for this one: people citing the same record already share a Box, and another entry is one drag to draw (`issues/04-reuse-a-box.md`, wontfix).

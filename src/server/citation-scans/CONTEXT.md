@@ -56,7 +56,7 @@ A second photograph of the same page within one Volume, on the next Image.
 A Volume whose Images hold the book twice, as if filmed twice; the copies drift apart in Image numbers. Page pins point into the copy the references were indexed from.
 
 **Scan viewer**:
-Where the app shows the Image a Church-book reference links, opened from its source. You step through the link's Volume there, or look in another Volume of its Book; beside the scan are the people whose references link the Image shown, and a **Vision match** among them can be confirmed. A **Box** placed there for the source's entry waits until it's saved as a **Mark**.
+Where the app shows the Image a Church-book reference links, opened from its source. You step through the link's Volume there, or look in another Volume of its Book; beside the scan are the people whose references link the Image shown, and a **Vision match** among them can be confirmed. A **Box** placed there for the source's entry waits until it's saved as a **Mark**, and the source's own Box can be taken back with a **Discard**.
 _Avoid_: record viewer (a record is MyHeritage's), Astia viewer (Astia's own site).
 
 **Scan cache**:
@@ -105,6 +105,13 @@ _Avoid_: placement.
 **Mark**:
 Saying by hand, in the Scan viewer, which Image a Church-book reference's record is on, or only which Volume. An Image: a cited page in a Volume the reference already links becomes a Page pin; otherwise the reference gets a Reference pin; one with a record id also gets a Record pin. Only a Volume: the reference gets a Reference pin without an Image. A Mark may also say where on the Image the entry is, its **Box**, drawn by hand. Confirming a **Vision match** is a Mark too, and keeps where the model said the entry is.
 _Avoid_: correction (the link it replaces is often not wrong, only less exact).
+
+**Discard**:
+Taking a reference's **Box** back by hand in the Scan viewer, a Mark's or a **Vision match**'s, so its Link goes back to the estimate. The Reference and Record pins boxing the entry there go; Page pins and Record ranges stay. A Vision match discarded becomes a **Rejection**.
+_Avoid_: clear, delete (only the Box's pins go).
+
+**Rejection**:
+A **Vision match** discarded by hand: the reference isn't on that Image. The vision pass never saves a match there again, and lists one landing there for review by hand.
 
 **Provenance**:
 Who saved a Pin: by hand (the shipped Page pins, and every Mark) or by the vision model. What's saved by hand always wins over the vision model's. Vision pins still count other links' estimates and extend Record ranges; the links they steer stay Estimated.

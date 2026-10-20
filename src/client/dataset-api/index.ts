@@ -30,6 +30,12 @@ export interface MarkTarget {
   box?: Box | null;
 }
 
+// Where a Box is: on an Image of a Volume.
+export interface BoxAt {
+  volumeId: string;
+  image: number;
+}
+
 // Each call rejects with ApiError when it fails, and with the signal's
 // reason once `signal` aborts.
 export interface DatasetApi {
@@ -43,6 +49,9 @@ export interface DatasetApi {
   ) => AsyncGenerator<CitationLinks, void, undefined>;
   // Saves a Mark: the reference's Links, resolved again.
   mark: (citationId: number, at: MarkTarget) => Promise<CitationLinks>;
+  // Takes back the reference's Box at `at`, a Mark's or a Vision match's:
+  // its Links, resolved again.
+  discard: (citationId: number, at: BoxAt) => Promise<CitationLinks>;
   // The Volumes a reference can be put in.
   volumeChoices: (
     citationId: number,
@@ -158,6 +167,19 @@ export function openDatasetApi(
         `${dataset}/api/citations/${citationId}/scans`,
         {
           method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(at)
+        }
+      );
+      return (await res.json()) as CitationLinks;
+    },
+
+    async discard(citationId, at) {
+      const res = await ask(
+        'Discard',
+        `${dataset}/api/citations/${citationId}/scans`,
+        {
+          method: 'DELETE',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify(at)
         }

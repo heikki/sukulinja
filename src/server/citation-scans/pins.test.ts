@@ -5,7 +5,7 @@ import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { Pins } from './locate';
 import { openPins } from './pins';
-import type { MarkTarget } from './pins';
+import type { BoxAt, MarkTarget } from './pins';
 import shipped from './pins.json';
 import type { ChurchBookRef } from './record';
 
@@ -73,6 +73,10 @@ function elsewhere(volume = 'I Aa:1') {
 }
 
 function at(volumeId: string, image: number): MarkTarget {
+  return { volumeId, image };
+}
+
+function spot(volumeId: string, image: number): BoxAt {
   return { volumeId, image };
 }
 
@@ -237,6 +241,53 @@ test("a drawn Box replaces a vision match's, and none drops it", async () => {
   expect((await pins.snapshot()).volumes.a!.records).toEqual([
     { record: 150, image: 11, by: 'hand' }
   ]);
+});
+
+// ---------------------------------------------------------------- discarding
+
+test("discarding a Mark's Box takes its pins back, leaving the Page pin", async () => {
+  const pins = open();
+  await pins.recordMark(ref(150, 21), { ...at('a', 11), box: DRAWN }, linked());
+  expect(await pins.recordDiscard(ref(150, 21), spot('a', 11))).toBe(true);
+  const { volumes, references } = await pins.snapshot();
+  expect(volumes.a!.records).toBeUndefined();
+  expect(volumes.a!.pages.map((p) => p.image)).toEqual([10, 11]);
+  expect(references).toEqual({});
+  const index = ref(null);
+  await pins.recordMark(index, { ...at('b', 5), box: DRAWN }, elsewhere());
+  expect(await pins.recordDiscard(index, spot('b', 5))).toBe(true);
+  expect((await pins.snapshot()).references).toEqual({});
+  // A Mark taken back is no Rejection: the model may match it again.
+  expect(await pins.rejects(index, spot('b', 5))).toBe(false);
+  expect(JSON.parse(await Bun.file(localFile()).text())).not.toHaveProperty(
+    'rejected'
+  );
+});
+
+test('discarding a Vision match rejects it there, and only there', async () => {
+  const pins = open();
+  await pins.recordVision(ref(150, 21), vision('a', 11, true));
+  expect(await pins.recordDiscard(ref(150, 21), spot('a', 11))).toBe(true);
+  const { volumes } = await pins.snapshot();
+  expect(volumes.a!.records).toBeUndefined();
+  // The Page pin the model read stays.
+  expect(volumes.a!.pages.map((p) => p.image)).toEqual([10, 11]);
+  expect(await pins.rejects(ref(150, 21), spot('a', 11))).toBe(true);
+  expect(await pins.recordVision(ref(150, 21), vision('a', 11))).toBe(false);
+  expect((await pins.snapshot()).volumes.a!.records).toBeUndefined();
+  expect(await pins.recordVision(ref(150, 21), vision('a', 12))).toBe(true);
+  expect((await pins.snapshot()).volumes.a!.records).toEqual([
+    { record: 150, image: 12, by: 'vision', box: BOX }
+  ]);
+});
+
+test('a Discard finds no Box elsewhere, nor on a Mark without one', async () => {
+  const pins = open();
+  await pins.recordVision(ref(150), vision('a', 11));
+  expect(await pins.recordDiscard(ref(150), spot('a', 12))).toBe(false);
+  await pins.recordMark(ref(160, 21), at('a', 11), linked());
+  expect(await pins.recordDiscard(ref(160, 21), spot('a', 11))).toBe(false);
+  expect((await pins.snapshot()).volumes.a!.records).toHaveLength(2);
 });
 
 // ---------------------------------------------------------------- precedence

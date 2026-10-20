@@ -96,6 +96,17 @@ export const scanEditStyles = css`
     filter: brightness(1.1);
   }
 
+  button.discard {
+    border-color: var(--danger);
+    background: var(--danger);
+    color: var(--bg);
+  }
+
+  button.discard:hover:not(:disabled) {
+    color: var(--bg);
+    filter: brightness(1.1);
+  }
+
   .refused {
     color: var(--danger);
     font-size: 0.8rem;
@@ -121,6 +132,18 @@ export const scanMenuStyles = css`
     background: var(--card);
     box-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
     cursor: auto;
+  }
+
+  h3 {
+    margin: 0 0 0.3rem;
+    padding: 0.2rem 0.5rem 0.4rem;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.8em;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   button {

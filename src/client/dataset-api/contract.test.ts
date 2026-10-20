@@ -132,6 +132,19 @@ describe('the answers', () => {
     });
   });
 
+  test('a Discard takes the Box back to the estimate, once', async () => {
+    const box = { left: 0.1, top: 0.4, width: 0.3, height: 0.03 };
+    await api.mark(1, { volumeId: VOLUME, image: 7, box });
+    const resolved = await api.discard(1, { volumeId: VOLUME, image: 7 });
+    expect(resolved).toMatchObject({
+      citationId: 1,
+      links: [{ volumeId: VOLUME, certainty: 'estimated' }]
+    });
+    expect(await failure(api.discard(1, { volumeId: VOLUME, image: 7 }))).toBe(
+      'There is no box there to discard.'
+    );
+  });
+
   test("a Volume's citations and Images", async () => {
     const rows = await api.volumeCitations(VOLUME);
     expect(rows.map((r) => r.personId)).toEqual([1]);

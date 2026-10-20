@@ -13,7 +13,7 @@ import type {
 } from '@client/pan-zoom';
 import { appState } from '@client/state';
 import type { AppState, LinkOpen, VolumeShown } from '@client/state';
-import type { PersonRow, VolumeCitation } from '@common/types';
+import type { PersonRow } from '@common/types';
 
 import { MOMENTUM, releaseVelocity } from './drag';
 import type { Drag, Sample } from './drag';
@@ -423,15 +423,19 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
   }
 
   // Esc backs out one step: from a way out waiting on the pending Box back
-  // to editing, from editing (dropping the Box, as Cancel does), else out
-  // of the viewer. The arrows step (see keys.ts). Every key handled here is
+  // to editing, from editing (dropping the Box, as Cancel does) or a
+  // Discard waiting, else out of the viewer. The arrows step (see keys.ts). Every key handled here is
   // marked so, or WKWebView hands it on to macOS, which beeps at it.
+  private editing() {
+    return this.viewer.pending.get() !== null || this.viewer.discarding.get();
+  }
+
   private readonly onKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();
       if (this.viewer.leaving.get()) void this.viewer.answer('keep');
-      else if (this.viewer.pending.get() === null) this.viewer.close();
-      else this.viewer.cancel();
+      else if (this.editing()) this.viewer.cancel();
+      else this.viewer.close();
       return;
     }
     const step = stepOf(e);
@@ -512,10 +516,6 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     this.hovered = e.detail;
   };
 
-  private readonly onConfirm = (e: CustomEvent<VolumeCitation>) => {
-    void this.renderRoot.querySelector('sl-scan-people')?.confirm(e.detail);
-  };
-
   // Boxes around the entries whose place is known, once the full Image is
   // shown; the source's own gives way to its change pending.
   private renderEntries(source: LinkOpen) {
@@ -533,6 +533,7 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
         .frame=${this.frame}
         .hovered=${this.hovered}
         .current=${source.citation.id}
+        ?discarding=${this.viewer.discarding.get()}
         @scan-hover=${this.onHover}
       ></sl-scan-entries>
     `;
@@ -558,7 +559,6 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
           .frame=${this.frame}
           ?canEdit=${entriesShown(this.frame, this.loading)}
           .persons=${this.persons}
-          @scan-confirm=${this.onConfirm}
         ></sl-scan-layer>
       </div>
     `;

@@ -9,7 +9,7 @@ import type { Database } from 'bun:sqlite';
 import { isoDate } from '@common/dates';
 import type { BookKind, CitationRow, VolumeCitation } from '@common/types';
 
-import type { MarkTarget } from './citation-scans/pins';
+import type { BoxAt, MarkTarget } from './citation-scans/pins';
 import {
   churchBookRefOf,
   citationText,
@@ -211,6 +211,12 @@ export function createCitations(db: Database, scans: Scans) {
     async mark(citationId: number, target: MarkTarget) {
       const book = churchBookOf(citationId);
       return book === null ? null : await scans.markRef(book, target);
+    },
+
+    // Takes back the reference's Box; null as for `mark`.
+    async discard(citationId: number, at: BoxAt) {
+      const book = churchBookOf(citationId);
+      return book === null ? null : await scans.discardRef(book, at);
     },
 
     // The Volumes the reference can be put in; null as for `mark`.
