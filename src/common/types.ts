@@ -199,14 +199,12 @@ export interface VolumeChoices {
 }
 
 // A row of /api/volumes/:id/citations: one person's church-book citation
-// that resolves into the Volume; `split` marks one of several candidate
-// Volumes.
+// that resolves into the Volume.
 export interface VolumeCitation {
   personId: number;
   citation: CitationRow;
   // The citation's Link into this Volume, as the person panel resolves it.
   link: Link;
-  split: boolean;
 }
 
 // GET /settings/scan-cache: how much space Astia's Images may take (`cap`)

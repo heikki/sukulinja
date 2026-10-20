@@ -51,8 +51,20 @@ test('names a Link by who says so and how far down, and says what that means', (
 test('opens a Split reference on its first Volume', () => {
   const other = { ...link, volumeId: 'v2', volume: 'I Aa:6' };
   const status = linkStatus({ links: [link, other] }, false);
-  expect(status.label).toBe('Marked · one of several Volumes');
+  expect(status.label).toBe('Marked');
+  expect(status.title).not.toMatch(/several|Volumes;/);
   expect(status.link).toEqual(link);
+});
+
+test('counts the other Volumes an Estimated Volume could be', () => {
+  const volume: Link = { ...BASE, precision: 'volume', certainty: 'estimated' };
+  const others = ['v2', 'v3'].map((volumeId) => ({ ...volume, volumeId }));
+  const status = linkStatus({ links: [volume, ...others] }, false);
+  expect(status.label).toBe('Estimated Volume +2');
+  expect(status.title).toMatch(
+    /\nThe reference fits 3 Volumes; it opens on the first\.$/
+  );
+  expect(linkStatus({ links: [volume] }, false).label).toBe('Estimated Volume');
 });
 
 test('says why a source has no scan', () => {

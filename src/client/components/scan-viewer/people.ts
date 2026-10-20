@@ -4,7 +4,6 @@ import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { ApiError } from '@client/dataset-api';
-import { SPLIT_NOTE } from '@client/link-labels';
 import { appState } from '@client/state';
 import type { AppState } from '@client/state';
 import type { PersonRow, VolumeCitation } from '@common/types';
@@ -119,7 +118,6 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
           }}
         >
           <span class="name">${this.nameOf(row)}</span>
-          ${row.split ? html`<span class="muted">${SPLIT_NOTE}</span>` : nothing}
         </button>
         ${this.renderConfirm(row)}
       </li>

@@ -98,14 +98,12 @@ const S13 = { citation: C13, link: L13 };
 const ROW_11: VolumeCitation = {
   personId: 1,
   citation: C11,
-  link: L11,
-  split: false
+  link: L11
 };
 const ROW_21: VolumeCitation = {
   personId: 2,
   citation: C21,
-  link: VISION_21,
-  split: false
+  link: VISION_21
 };
 
 function linksOf(id: number, link: Link): CitationLinks {

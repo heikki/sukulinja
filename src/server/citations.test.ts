@@ -249,8 +249,7 @@ function placesOf(rows: VolumeCitation[] | null) {
   return rows!.map((r) => ({
     personId: r.personId,
     image: imageOf(r),
-    at: `${r.link.certainty} ${r.link.precision}`,
-    split: r.split
+    at: `${r.link.certainty} ${r.link.precision}`
   }));
 }
 
@@ -270,8 +269,8 @@ test("lists the Volume's Vision matches, Estimated Images and Estimated Volumes"
 
   const first = await citations.inVolume('juva-1');
   expect(placesOf(first)).toEqual([
-    { personId: 1, image: 9, at: 'vision entry', split: false },
-    { personId: 2, image: 6, at: 'estimated image', split: false }
+    { personId: 1, image: 9, at: 'vision entry' },
+    { personId: 2, image: 6, at: 'estimated image' }
   ]);
   expect(first![0]!.link).toMatchObject({ certainty: 'vision', box: BOX });
   expect(first![1]!.link).toMatchObject({ from: 'pins' });
@@ -280,8 +279,8 @@ test("lists the Volume's Vision matches, Estimated Images and Estimated Volumes"
     citedPage: 12
   });
   expect(placesOf(await citations.inVolume('juva-2'))).toEqual([
-    { personId: 3, image: 7, at: 'estimated image', split: false },
-    { personId: 4, image: null, at: 'estimated volume', split: false }
+    { personId: 3, image: 7, at: 'estimated image' },
+    { personId: 4, image: null, at: 'estimated volume' }
   ]);
 });
 
@@ -291,7 +290,7 @@ test('a Split reference is listed in each candidate Volume', async () => {
   for (const volumeId of ['juva-1', 'juva-2']) {
     // eslint-disable-next-line no-await-in-loop -- two Volumes
     expect(placesOf(await citations.inVolume(volumeId))).toEqual([
-      { personId: 1, image: 3, at: 'estimated image', split: true }
+      { personId: 1, image: 3, at: 'estimated image' }
     ]);
   }
 });
@@ -322,7 +321,7 @@ test('a Mark shows in the next answer, dropping the vision box', async () => {
     cite(1, rippiCitation(5001, '1790 - 1796', 12))
   ]);
   expect(placesOf(await citations.inVolume('juva-1'))).toEqual([
-    { personId: 1, image: 12, at: 'estimated image', split: false }
+    { personId: 1, image: 12, at: 'estimated image' }
   ]);
 
   await writeLocal({

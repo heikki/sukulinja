@@ -5,7 +5,6 @@ import type { Box, LinkTarget, Unlinked } from '@common/types';
 import {
   linkHint,
   linkLabel,
-  splitLabel,
   unlinkedHint,
   unlinkedLabel,
   volumeTitle
@@ -46,9 +45,6 @@ test('names a Link by who says so, then how far down', () => {
     /^Guessed from the usual pages/
   );
   expect(linkHint(VOLUME)).toMatch(/may be the wrong one/);
-  expect(splitLabel('Estimated Image')).toBe(
-    'Estimated Image · one of several Volumes'
-  );
 });
 
 test('says why a reference has no Link: not looked for, not found, or Astia failed', () => {

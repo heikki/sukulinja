@@ -16,13 +16,6 @@ import type { Candidate } from './matcher';
 import type { MarkTarget, PinStore } from './pins';
 import type { ChurchBookRef } from './record';
 
-// Where in the Volume a reference resolves.
-export interface VolumeLink {
-  link: Link;
-  // One of several candidate Volumes.
-  split: boolean;
-}
-
 // The pins resolution reads, but no Reference pins: a reference's links by
 // the Book it cites, not by where it was pinned before.
 async function byBook(pins: PinStore) {
@@ -129,14 +122,11 @@ export function openScans({ pins, astia }: { pins: PinStore; astia: Astia }) {
       if (archive === null) return null;
       const snapshot = await pins.snapshot();
       return await Promise.all(
-        refs.map(async (ref): Promise<VolumeLink | null> => {
+        refs.map(async (ref): Promise<Link | null> => {
           if (parishArchive(ref.parish) !== archive) return null;
           const resolved = await resolveChurchBookRef(astia, ref, snapshot);
           if ('unlinked' in resolved) return null;
-          const link = resolved.links.find((l) => l.volumeId === volumeId);
-          return link === undefined
-            ? null
-            : { link, split: resolved.links.length > 1 };
+          return resolved.links.find((l) => l.volumeId === volumeId) ?? null;
         })
       );
     },

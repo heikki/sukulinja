@@ -1,7 +1,6 @@
 import {
   linkHint,
   linkLabel,
-  splitLabel,
   unlinkedHint,
   unlinkedLabel
 } from '@client/link-labels';
@@ -17,7 +16,8 @@ export interface LinkStatus {
 }
 
 // Links arrive after the panel renders; until then the status is pending. A
-// Split reference opens on its first candidate.
+// Split reference opens on its first candidate; if that's an Estimated
+// Volume, the label counts the other candidates (+2).
 export function linkStatus(
   resolution: LinkResolution | undefined,
   pending: boolean
@@ -36,24 +36,18 @@ export function linkStatus(
   const { links } = resolution;
   const [first] = links;
   if (first === undefined) return { label: 'No scan', title: '', link: null };
-  const label = linkLabel(first);
+  const others = links.length - 1;
+  const counted =
+    others > 0 &&
+    first.precision === 'volume' &&
+    first.certainty === 'estimated';
   return {
-    label: links.length > 1 ? splitLabel(label) : label,
-    title: linkTitle(links),
+    label: counted ? `${linkLabel(first)} +${others}` : linkLabel(first),
+    title: counted
+      ? `${linkHint(first)}\nThe reference fits ${others + 1} Volumes; it opens on the first.`
+      : linkHint(first),
     link: first
   };
-}
-
-// What the status means, and for a Split reference that it opens on the
-// first of its Volumes.
-export function linkTitle(links: Link[]) {
-  const [first] = links;
-  const split =
-    links.length > 1
-      ? ['The reference fits several Volumes; it opens on the first.']
-      : [];
-  const hint = first === undefined ? [] : [linkHint(first)];
-  return [...hint, ...split].join('\n');
 }
 
 // A source as the panel lists it: a church book's with its link status,
