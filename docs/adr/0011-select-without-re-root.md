@@ -4,7 +4,7 @@ Clicking a card used to make its person **Root**: a **Relayout** rebuilt the **H
 
 Who the chart is built around and who the dock shows are now separate. The **Selected person** is the one the dock shows:
 
-- **A click selects.** The card is ringed, the dock moves to the person, and the chart stays as it is.
+- **A click selects.** The card is ringed, the dock moves to the person, and the chart stays as it is. Clicking the selected card shows or hides the dock.
 - **A double-click makes Root.** It also selects, so the dock and the chart agree again. It works the same on a row of the dock's Family list, whose people may not be drawn at all.
 - **Search makes Root.** Picking someone there is a jump elsewhere, not a look at someone on screen.
 - **The dock's own picks select.** A click on a row in the Family list, or on a person in the Scan viewer's list, selects them.
@@ -22,6 +22,7 @@ Who the chart is built around and who the dock shows are now separate. The **Sel
 
 ## Consequences
 
+- The click that starts a double-click on the selected card shows or hides the dock; the second click, on a card it has just selected, doesn't.
 - The click that starts a double-click selects first and writes that into the current history entry, so Back from the new chart returns to the old one with the double-clicked person selected.
 - Only the selected card is marked, with the ring the Root card used to have. Root needs no mark of its own: the layout places them, and every way of making someone Root selects them too. Two marks on different cards, or stacked on one, read as neither.
 - The ring has its own colour token, `--selected-card`; the old Root ring had shared `--focus-ring`, which keyboard focus rings redefine after Tab, and lost its outline then.

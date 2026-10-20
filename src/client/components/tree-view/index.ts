@@ -537,9 +537,15 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
                           entering: enteringKeys.has(b.key)
                         },
                         {
-                          click: () => {
+                          click: (e: MouseEvent) => {
                             if (this.viewport.dragMoved) return;
-                            this.select(b.personId);
+                            if (b.personId !== this.selectedId) {
+                              this.select(b.personId);
+                            } else if (e.detail <= 1) {
+                              // The selected card shows or hides the dock;
+                              // a double-click's second click doesn't.
+                              this.details = !this.details;
+                            }
                           },
                           dblclick: () => {
                             if (this.viewport.dragMoved) return;
