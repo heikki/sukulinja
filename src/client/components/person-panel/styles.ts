@@ -370,11 +370,22 @@ export const personPanelStyles = css`
 export const personHeaderStyles = [
   silhouetteStyles,
   css`
+    /* As tall as a name over birth and death lines, so the header stands
+       the same for the living, their lines centred beside the portrait. */
     :host {
+      --name-size: 1.15rem;
+      --name-leading: 1.3;
+      --line-size: 0.8rem;
+      --line-leading: 1.4;
+      --lines-gap: 0.2rem;
       display: flex;
       align-items: center;
       gap: 0.85rem;
       min-width: 0;
+      min-height: calc(
+        var(--name-size) * var(--name-leading) + var(--lines-gap) + 2 *
+          var(--line-size) * var(--line-leading)
+      );
     }
 
     .portrait {
@@ -390,9 +401,9 @@ export const personHeaderStyles = [
     }
 
     .name {
-      font-size: 1.15rem;
+      font-size: var(--name-size);
       font-weight: 600;
-      line-height: 1.3;
+      line-height: var(--name-leading);
       overflow-wrap: anywhere;
     }
 
@@ -400,9 +411,9 @@ export const personHeaderStyles = [
       display: grid;
       grid-template-columns: max-content 1fr;
       gap: 0 0.6rem;
-      margin: 0.2rem 0 0;
-      font-size: 0.8rem;
-      line-height: 1.4;
+      margin: var(--lines-gap) 0 0;
+      font-size: var(--line-size);
+      line-height: var(--line-leading);
     }
 
     dt {
