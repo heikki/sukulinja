@@ -192,7 +192,7 @@ export const appStyles = css`
     overflow-y: auto;
     overflow-wrap: anywhere;
     color: var(--fg);
-    user-select: text;
+    -webkit-user-select: text;
   }
   .dialog .actions {
     display: flex;
@@ -233,6 +233,7 @@ export const appStyles = css`
     color: var(--muted);
   }
   .dialog .field input {
+    -webkit-user-select: text;
     padding: 0.55rem 0.7rem;
     background: var(--bg);
     color: var(--fg);

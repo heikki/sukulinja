@@ -30,6 +30,7 @@ export class PersonSearchElement extends LitElement {
       /* Same height and frame as the Settings gear beside it, so the pair
        reads as one quiet cluster rather than a form field. */
       input {
+        -webkit-user-select: text;
         width: 100%;
         height: 2rem;
         box-sizing: border-box;

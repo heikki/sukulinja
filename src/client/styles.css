@@ -58,10 +58,13 @@
   box-sizing: border-box;
 }
 
+/* An app, not a page: text isn't selected by dragging across it. Fields
+   and error messages, whose text is worth copying, take selection back. */
 body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
+  -webkit-user-select: none;
 }
 
 main {
