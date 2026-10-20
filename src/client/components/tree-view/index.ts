@@ -401,9 +401,20 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
     `;
   }
 
-  private renderDock() {
+  // Whom the dock shows: the person whose details the panel has, so the
+  // header changes with the panel rather than before it; the Selected
+  // person until any arrive, or when theirs couldn't load.
+  private dockPerson() {
     const id = this.selectedId;
     const selected = id === null ? undefined : this.persons.get(id);
+    const { details, error } = this.state.selected;
+    const shownId = details.get()?.id;
+    if (shownId === undefined || error.get() !== null) return selected;
+    return this.persons.get(shownId) ?? selected;
+  }
+
+  private renderDock() {
+    const selected = this.dockPerson();
     const { mediaUrl } = this.state.api;
     const photo =
       selected === undefined ? null : avatarHref(selected, mediaUrl);
