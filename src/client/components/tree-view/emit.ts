@@ -251,3 +251,12 @@ export function emitLayout(
     extents: { min: { x: minX, y: minY }, max: { x: maxX, y: maxY } }
   };
 }
+
+// Where each person's cards are: a person can be drawn more than once.
+export function cardsByPerson(boxes: Box[]) {
+  const at = new Map<number, Point[]>();
+  for (const b of boxes) {
+    at.set(b.personId, [...(at.get(b.personId) ?? []), b.pos]);
+  }
+  return at;
+}

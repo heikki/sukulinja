@@ -13,7 +13,6 @@ import type { PersonRow } from '@common/types';
 
 import '../person-panel';
 import '../scan-viewer';
-import '../side-dock';
 
 import { detailsWidth, setDetailsWidth } from '../person-panel/helpers';
 
@@ -23,13 +22,15 @@ import '../settings';
 import type { PickEvent } from '../person-search';
 import type { ScanPersonEvent } from '../scan-viewer';
 import type { GenerationsChangeEvent } from '../settings';
+import { RAIL_PX, SLIDE_MS } from '../side-dock';
 import type { OpenChangeEvent, WidthChangeEvent } from '../side-dock';
 import { avatarHref, onAvatarReady } from './avatar-cache';
 import { buildChart } from './build';
 import { familiesByPerson, otherSpouseOf } from './build/indices';
 import { comfortOf } from './comfort';
+import { cardsByPerson } from './emit';
 import type { EmitOutput, Extents, Point } from './emit';
-import { dims, formatName, renderBox, renderEdge } from './renderer';
+import { cardHalf, dims, formatName, renderBox, renderEdge } from './renderer';
 import { treeViewStyles } from './styles';
 import { TransitionController } from './transition';
 import type { RelayoutKind } from './transition';
@@ -70,7 +71,7 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
   @state() private loading = true;
   // Why the dataset couldn't be loaded, in the app's words.
   @state() private loadError: string | null = null;
-  // Closed on entering a dataset; opening it lasts only for this visit.
+  // Closed on entering a dataset; selecting someone opens it.
   @state() private details = false;
   @state() private detailsWidth = detailsWidth();
 
@@ -81,7 +82,7 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
   private chartExtents: Extents | null = null;
   private chartComfort: Comfort | null = null;
   // Who the chart draws, so selecting anyone else rebuilds it around them.
-  private drawnIds = new Set<number>();
+  private drawnAt = new Map<number, Point[]>();
 
   // Sticky flag: once the user has expressed a zoom (URL-supplied or
   // settled-after-gesture), the URL keeps emitting `zoom` even if it happens
@@ -328,6 +329,7 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
     this.viewport.beginReroot(pinScreen, { nudge: true });
     this.rootId = id;
     this.state.select(id);
+    this.details = true;
     // Two-step: push carries root+zoom only. The pin lands in updated()
     // and onSettle's writeUrl follows up with a replaceState that adds pan.
     history.pushState(
@@ -341,24 +343,31 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
     );
   }
 
-  // The dock shows them; the chart stays as it is if it draws them, and is
-  // built around them if not. Waits on a change pending in the Scan
-  // viewer, as `setRoot` does.
-  private select(id: number) {
-    if (id === this.selectedId) return;
+  // The dock opens on them, and the chart glides to show their card (`at`,
+  // the one clicked) whole and clear of it, or is built around them if it
+  // doesn't draw them. Anyone else waits on a change pending in the Scan
+  // viewer.
+  private select(id: number, at: Point[] | null = null) {
+    if (id === this.selectedId) {
+      this.selectNow(id, at);
+      return;
+    }
     this.state.viewer.leave(() => {
-      this.selectNow(id);
+      this.selectNow(id, at);
     });
   }
 
-  private selectNow(id: number) {
-    if (id === this.selectedId) return;
-    if (!this.drawnIds.has(id)) {
+  private selectNow(id: number, at: Point[] | null) {
+    const cards = this.drawnAt.get(id);
+    if (cards === undefined) {
       this.setRoot(id, this.canvasCenter());
       return;
     }
     this.state.select(id);
     this.writeUrl();
+    const opening = this.details ? 0 : this.detailsWidth - RAIL_PX;
+    this.viewport.showCard(at ?? cards, cardHalf, opening, SLIDE_MS);
+    this.details = true;
   }
 
   private get selectedId() {
@@ -388,7 +397,7 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
         <sl-person-search
           .persons=${this.persons}
           @pick=${(e: PickEvent) => {
-            this.setRoot(e.detail.id, this.canvasCenter());
+            this.select(e.detail.id);
           }}
         ></sl-person-search>
         <sl-settings
@@ -556,7 +565,7 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
                           click: (e: MouseEvent) => {
                             if (this.viewport.dragMoved) return;
                             if (b.personId !== this.selectedId) {
-                              this.select(b.personId);
+                              this.select(b.personId, [b.pos]);
                             } else if (e.detail <= 1) {
                               // The selected card shows or hides the dock;
                               // a double-click's second click doesn't.
@@ -605,7 +614,7 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
       return html`<div class="empty">No data for this person.</div>`;
     }
     this.chartExtents = chart.extents;
-    this.drawnIds = new Set(chart.boxes.map((b) => b.personId));
+    this.drawnAt = cardsByPerson(chart.boxes);
     this.chartComfort = comfortOf(chart.boxes, this.coreIds(this.rootId));
     return html`
       <div class="main">

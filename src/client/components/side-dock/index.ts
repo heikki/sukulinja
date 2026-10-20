@@ -3,21 +3,17 @@ import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { focusRingStyles } from '@client/focus-ring';
+import { easeOutCubic, reducedMotion } from '@client/pan-zoom';
 
 import { sideDockStyles } from './styles';
 
-const RAIL_PX = 40;
+// The closed dock's width.
+export const RAIL_PX = 40;
 const MIN_PX = 260;
 const MAX_PX = 640;
-const SLIDE_MS = 200;
-
-function reducedMotion() {
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
-function easeOutCubic(t: number) {
-  return 1 - (1 - t) ** 3;
-}
+// How long the dock takes to open or close; a pan made alongside it takes
+// as long, eased alike, so the two move in step.
+export const SLIDE_MS = 200;
 
 export type OpenChangeEvent = CustomEvent<boolean>;
 export type WidthChangeEvent = CustomEvent<number>;
