@@ -79,12 +79,27 @@ test('says why a source has no scan', () => {
   expect(linkStatus({ unlinked: 'not-digitized' }, false)).toEqual({
     label: 'Not found',
     title: "Its Volume isn't digitized in Astia.",
-    link: null
+    link: null,
+    browse: null
   });
   expect(linkStatus({ unlinked: 'astia-error' }, false)).toMatchObject({
     label: 'Astia error',
     link: null
   });
+});
+
+test("can be browsed for when its parish's books were looked through", () => {
+  const looked = {
+    unlinked: 'no-volume' as const,
+    archive: 'Mikkelin maaseurakunnan arkisto'
+  };
+  expect(linkStatus(looked, false)).toMatchObject({
+    label: 'Not found',
+    link: null,
+    browse: looked
+  });
+  expect(linkStatus({ unlinked: 'unparsed' }, false).browse).toBeNull();
+  expect(linkStatus({ links: [link] }, false).browse).toBeNull();
 });
 
 function source(id: number, citedPage: number | null, churchBook = true) {
@@ -98,7 +113,8 @@ function source(id: number, citedPage: number | null, churchBook = true) {
     record: null,
     text: null,
     churchBook,
-    citedPage
+    citedPage,
+    cited: null
   };
   return row;
 }
@@ -141,4 +157,23 @@ test('groups sources by archive, each Volume together by page', () => {
   ]);
   const others = groupSources([source(6, null, false)], new Map(), false);
   expect(others.map((g) => g.label)).toEqual([null]);
+});
+
+test("puts a reference its archive's books lack under that archive, after the linked", () => {
+  const archive = 'Mikkelin maaseurakunnan arkisto';
+  const here = { ...link, archive };
+  const scans = new Map<number, LinkResolution>([
+    [1, { unlinked: 'no-volume', archive }],
+    [2, { links: [here] }],
+    [3, { unlinked: 'unparsed' }]
+  ]);
+  const rows = [source(1, null), source(2, 12), source(3, null)];
+  const groups = groupSources(rows, scans, false).map((g) => [
+    g.label,
+    g.sources.map((s) => s.citation.id)
+  ]);
+  expect(groups).toEqual([
+    [archive, [2, 1]],
+    ['Church books', [3]]
+  ]);
 });

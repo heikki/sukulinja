@@ -492,3 +492,35 @@ export const scanEntriesStyles = css`
     background: color-mix(in srgb, var(--danger) 25%, transparent);
   }
 `;
+
+// The stage with no Volume shown: its note, and the Volume list over it.
+export const scanEmptyStyles = css`
+  :host {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .note {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .why {
+    color: var(--fg);
+    font-weight: 600;
+  }
+
+  .hint {
+    max-width: 24rem;
+  }
+`;

@@ -38,6 +38,7 @@ A pending change starts from the Link as it is. Editing a Vision match starts fr
 ### Ways in
 
 - **Context menu** on the scan, drawn in the page. The app blocks WebKit's own menu there. It's titled with the source's person, as People here names them (untitled when unnamed). On the source's own entry Box it offers only that Box: Edit match and Discard match on a Vision match, Edit mark and Discard mark on a Mark; once it's pending, only Discard changes. Elsewhere: Mark entry, Change Volume…. It handles Esc and focus as the viewer's other controls do (marked handled, so macOS doesn't beep).
+- **An Unlinked source** whose parish's books were looked through (no Volume fits, or its Volume isn't digitized or has no Images) opens the viewer on no Volume: the reason, and **Choose a Volume…**, the Change Volume list, from a button or a right-click. Its group is the parish's other Volumes of the Book. Once one is shown, Mark entry saves as anywhere else; Cancel stays on the Image, having no Link to go back to. In the person panel such a source sits under its parish's archive, after the linked ones. The resolution carries the archive for this (`{ unlinked, archive }`).
 - **Confirm** on a Vision match's row beside the scan, and only there, stays one click and saves at once; the row shows it saving, and why it's refused. Fixing the match goes through editing instead.
 
 ### What a Mark replaces

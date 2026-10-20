@@ -18,6 +18,7 @@ import { loadingNote } from './note';
 import { Prefetch } from './prefetch';
 import { controlStyles, scanViewerStyles } from './styles';
 
+import './empty';
 import './entries';
 import './layer';
 import './nav';
@@ -57,7 +58,8 @@ interface Drawn {
 // zoom into and step through its Volume. The record itself stays in the
 // dock, marked there, so the toolbar only names the Volume, and the Image
 // controls float over the scan. Beside the scan, the people of the tree
-// (`persons`) linked to the Image shown.
+// (`persons`) linked to the Image shown. A source with no Link opens on no
+// Volume, saying why, until one of its parish's is chosen.
 @customElement('sl-scan-viewer')
 export class ScanViewerElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanViewerStyles];
@@ -584,8 +586,20 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
 
   override render() {
     const source = this.viewer.source.get();
+    if (source === null) return nothing;
     const volume = this.viewer.volume.get();
-    if (source === null || volume === null) return nothing;
+    if (volume === null) {
+      if (source.link !== null) return nothing;
+      return html`
+        <sl-scan-toolbar></sl-scan-toolbar>
+        <div class="body">
+          <sl-scan-empty
+            .unlinked=${source.unlinked}
+            .cited=${source.citation.cited}
+          ></sl-scan-empty>
+        </div>
+      `;
+    }
     return html`
       <sl-scan-toolbar></sl-scan-toolbar>
       <div class="body">

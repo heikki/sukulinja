@@ -31,7 +31,7 @@ export function linkItems(
       items.push({ label: 'Discard changes', run: viewer.cancel });
       return items;
     }
-    if (viewer.source.get()?.link.certainty === 'vision') {
+    if (viewer.source.get()?.link?.certainty === 'vision') {
       items.push(
         { label: 'Edit match', run: viewer.editBox },
         { label: 'Discard match', run: viewer.discard }

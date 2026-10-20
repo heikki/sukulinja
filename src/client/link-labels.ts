@@ -1,7 +1,14 @@
 // A Link's words, shared by the person panel and the Scan viewer: its
 // name and what it means, and for a reference with none, why.
 
-import type { Certainty, LinkTarget, Precision, Unlinked } from '@common/types';
+import type {
+  BookKind,
+  Certainty,
+  CitedBook,
+  LinkTarget,
+  Precision,
+  Unlinked
+} from '@common/types';
 
 const CERTAINTY: Record<Certainty, string> = {
   marked: 'Marked',
@@ -94,4 +101,39 @@ export function unlinkedLabel(reason: Unlinked) {
 
 export function unlinkedHint(reason: Unlinked) {
   return UNLINKED[reason].hint;
+}
+
+// A kind of church book in a sentence: "Mikkeli has no baptism Volume".
+const BOOK_NOUN: Record<BookKind, string> = {
+  rippi: 'communion book',
+  lasten: "children's book",
+  kastetut: 'baptism',
+  vihityt: 'marriage'
+};
+
+function yearsText({ from, to }: { from: number; to: number }) {
+  return from === to ? `${from}` : `${from}–${to}`;
+}
+
+// What's missing for a reference whose parish's books were looked through,
+// naming its parish, Book and years: "Mikkeli has no baptism Volume for
+// 1779." Without them, the reason's hint.
+export function missingText(reason: Unlinked, cited: CitedBook | null) {
+  if (cited === null) return unlinkedHint(reason);
+  const { parish, kind, years } = cited;
+  if (parish === null || kind === null || years === null) {
+    return unlinkedHint(reason);
+  }
+  const noun = BOOK_NOUN[kind];
+  const when = yearsText(years);
+  if (reason === 'no-volume') {
+    return `${parish} has no ${noun} Volume for ${when}.`;
+  }
+  if (reason === 'not-digitized') {
+    return `${parish}'s ${noun} Volume for ${when} isn't digitized in Astia.`;
+  }
+  if (reason === 'no-images') {
+    return `Astia has no Images of ${parish}'s ${noun} Volume for ${when}.`;
+  }
+  return unlinkedHint(reason);
 }

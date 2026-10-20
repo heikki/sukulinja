@@ -6,6 +6,7 @@ import type {
   CitationLinks,
   CitationRow,
   Link,
+  UnlinkedResolution,
   VolumeChoice,
   VolumeCitation
 } from '@common/types';
@@ -14,11 +15,11 @@ import { Latest } from './latest';
 import type { Readable, Selected } from './selected';
 
 // A church-book source opened in the Scan viewer, on one Link of its
-// reference.
-export interface LinkOpen {
-  citation: CitationRow;
-  link: Link;
-}
+// reference, or with none, to look through its parish's Volumes for it:
+// `unlinked` says why it has none.
+export type LinkOpen =
+  | { citation: CitationRow; link: Link }
+  | { citation: CitationRow; link: null; unlinked: UnlinkedResolution };
 
 // The Volume shown.
 export interface VolumeShown {
@@ -53,12 +54,14 @@ export interface Viewer {
   count: Readable<number | null>;
   // The Volume's citations; null until they arrive.
   citations: Readable<VolumeCitation[] | null | 'failed'>;
-  // Off the Link's Image. A Link to only the Volume holds anywhere in it.
+  // Off the Link's Image. A Link to only the Volume holds anywhere in it;
+  // with no Link, nothing is away.
   away: Readable<boolean>;
   // Whether the dock's Sources list can be seen; the panel says.
   sourcesInView: Readable<boolean>;
   setSourcesInView: (inView: boolean) => void;
-  // To the source's Link, even when it shows that source already.
+  // To the source's Link, even when it shows that source already; with
+  // none, to no Volume until one is chosen.
   open: (source: LinkOpen) => void;
   // To Image `n` of the Volume shown.
   show: (n: number) => void;
@@ -77,7 +80,8 @@ export interface Viewer {
   // A way out of the source is waiting on `answer`.
   leaving: Readable<boolean>;
   // Shows the Volume, without changing the source's Link; back in the
-  // Link's own Volume, on its Image.
+  // Link's own Volume, on its Image. With no Link, the first Volume shown
+  // opens on its first Image.
   changeVolume: (choice: VolumeChoice) => void;
   // The entry Box on the Image shown: pending, else the Link's.
   boxHere: Readable<Box | null>;
@@ -158,8 +162,8 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     () => boxHere.get() !== null && pending.get() !== null
   );
   const away = computed(() => {
-    const link = source.get()?.link;
-    if (link === undefined) return false;
+    const link = source.get()?.link ?? null;
+    if (link === null) return false;
     const at = imageOf(link);
     return (
       volume.get()?.id !== link.volumeId || (at !== null && image.get() !== at)
@@ -208,25 +212,33 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     void loadCitations(id);
   }
 
-  function openNow({ citation, link }: LinkOpen) {
+  // Nothing of a Volume shown, as before the first is chosen.
+  function showNoVolume() {
+    countReq.stop();
+    citationsReq.stop();
+    volume.set(null);
+    image.set(1);
+    count.set(null);
+    citations.set(null);
+  }
+
+  function openNow(next: LinkOpen) {
     pending.set(null);
     discarding.set(false);
-    source.set({ citation, link });
-    showVolume(link.volumeId, link.volume, imageOf(link));
+    source.set({ ...next });
+    const { link } = next;
+    if (link === null) showNoVolume();
+    else showVolume(link.volumeId, link.volume, imageOf(link));
   }
 
   // Nothing shown, so the next source opens afresh.
   function closeNow() {
-    countReq.stop();
-    citationsReq.stop();
     pending.set(null);
     discarding.set(false);
     held = null;
     leaving.set(false);
     source.set(null);
-    volume.set(null);
-    count.set(null);
-    citations.set(null);
+    showNoVolume();
   }
 
   function leave(go: () => void, stay?: () => void) {
@@ -256,9 +268,11 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   }
 
   function changeVolume(choice: VolumeChoice) {
-    const link = source.get()?.link;
-    if (link === undefined) return;
-    const own = choice.id === link.volumeId ? imageOf(link) : null;
+    const shown = source.get();
+    if (shown === null) return;
+    const { link } = shown;
+    const own =
+      link !== null && choice.id === link.volumeId ? imageOf(link) : null;
     leave(() => {
       showVolume(choice.id, choice.label, own);
     });
@@ -285,13 +299,15 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     if (pending.get() === null && boxHere.get() !== null) discarding.set(true);
   }
 
+  // Back to the Link; with none, it stays on the Image.
   function cancel() {
     if (pending.get() === null) {
       discarding.set(false);
       return;
     }
     const shown = source.get();
-    if (shown !== null) openNow(shown);
+    if (shown?.link === null) pending.set(null);
+    else if (shown !== null) openNow(shown);
   }
 
   // The citations reload, as after a Mark: a Record pin taken back moves

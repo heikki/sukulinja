@@ -22,7 +22,8 @@ function churchBook(id: number, citedPage: number | null): CitationRow {
     record: null,
     text: null,
     churchBook: true,
-    citedPage
+    citedPage,
+    cited: null
   };
 }
 
