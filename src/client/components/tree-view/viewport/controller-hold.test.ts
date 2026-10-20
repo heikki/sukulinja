@@ -95,3 +95,47 @@ test('a resize that keeps the left edge leaves pan alone', () => {
   moveCanvasTo(0);
   expect(controller.pan).toEqual(start);
 });
+
+// A card 100 px square whose top-left is at `x`, `y` in the canvas, at
+// scale 1: its centre in chart units.
+function cardAt(controller: ViewportController, x: number, y: number) {
+  const origin = controller.chartToScreen({ x: 0, y: 0 })!;
+  return { x: x + 50 - origin.x, y: y + 50 - origin.y };
+}
+
+const HALF = { x: 50, y: 50 };
+
+test('a card in view is shown where it is', () => {
+  const { controller } = setup();
+  controller.setScale(1);
+  const start = controller.pan;
+  controller.showCard([cardAt(controller, 300, 200)], HALF, 0, 0);
+  expect(controller.pan).toEqual(start);
+});
+
+test('a card past an edge comes just inside the margin', () => {
+  const { controller } = setup();
+  controller.setScale(1);
+  const start = controller.pan;
+  // The canvas is 800 by 600 and the margin 24.
+  controller.showCard([cardAt(controller, 750, -40)], HALF, 0, 0);
+  expect(controller.pan).toEqual({ x: start.x - 74, y: start.y + 64 });
+});
+
+test('a card the opening column will cover comes clear of it', () => {
+  const { controller } = setup();
+  controller.setScale(1);
+  const start = controller.pan;
+  controller.showCard([cardAt(controller, 100, 200)], HALF, 300, 0);
+  expect(controller.pan).toEqual({ x: start.x + 224, y: start.y });
+});
+
+test('of a person drawn twice, the card needing least is shown', () => {
+  const { controller } = setup();
+  controller.setScale(1);
+  const start = controller.pan;
+  const far = cardAt(controller, -400, 200);
+  const near = cardAt(controller, 720, 200);
+  controller.showCard([far, near], HALF, 0, 0);
+  expect(controller.pan).toEqual({ x: start.x - 44, y: start.y });
+});

@@ -10,18 +10,22 @@ import {
   fitTo,
   Pinch,
   pinChartPointAtScreen,
+  reducedMotion,
+  startGlide,
   startMomentumPan,
   zoomAt
 } from '@client/pan-zoom';
 import type {
   Extents,
   FitOptions,
+  GlideHandle,
   MomentumHandle,
   MomentumOptions,
   Point,
   ScaleBounds
 } from '@client/pan-zoom';
 
+import { shiftIntoView } from './in-view';
 import { nudgeIntoView } from './nudge';
 
 const WHEEL_SETTLE_MS = 200;
@@ -125,6 +129,8 @@ export class ViewportController implements ReactiveController {
   private resizeObserver: ResizeObserver | null = null;
   private canvasLeft: number | null = null;
   private holdSettleTimer: ReturnType<typeof setTimeout> | null = null;
+  // A pan bringing a selected card into view.
+  private glide: GlideHandle | null = null;
 
   constructor(
     private readonly host: ReactiveControllerHost,
@@ -251,6 +257,59 @@ export class ViewportController implements ReactiveController {
       this.measurements.onHold?.();
     }, HOLD_SETTLE_MS);
   };
+
+  // Glides the pan over `ms` just far enough to show a card whole: of the
+  // cards at `centers` (`half` their size, in chart units) the one needing
+  // the least, inside the fit margin and clear of the `cover` px a column
+  // opening beside the canvas is about to take from its left.
+  showCard(centers: Point[], half: Point, cover: number, ms: number) {
+    const size = this.measurements.canvasSize();
+    if (size === null) return;
+    const m = this.options.fitOptions.marginPx;
+    const view = {
+      min: { x: cover + m, y: m },
+      max: { x: size.width - m, y: size.height - m }
+    };
+    const scaled = { x: half.x * this._scale, y: half.y * this._scale };
+    let best: Point | null = null;
+    for (const center of centers) {
+      const at = this.chartToScreen(center);
+      if (at === null) continue;
+      const rect = {
+        min: { x: at.x - scaled.x, y: at.y - scaled.y },
+        max: { x: at.x + scaled.x, y: at.y + scaled.y }
+      };
+      const shift = shiftIntoView(rect, view);
+      if (
+        best === null ||
+        Math.hypot(shift.x, shift.y) < Math.hypot(best.x, best.y)
+      ) {
+        best = shift;
+      }
+    }
+    if (best === null || (best.x === 0 && best.y === 0)) return;
+    this.glideBy(best, ms);
+  }
+
+  private glideBy(shift: Point, ms: number) {
+    this.cancelMomentum();
+    if (ms <= 0 || reducedMotion()) {
+      this._pan = { x: this._pan.x + shift.x, y: this._pan.y + shift.y };
+      this.host.requestUpdate();
+      this.measurements.onSettle?.();
+      return;
+    }
+    this.glide = startGlide(shift.x, shift.y, ms, {
+      onTick: (dx, dy) => {
+        this._pan = { x: this._pan.x + dx, y: this._pan.y + dy };
+        this.host.requestUpdate();
+      },
+      onEnd: () => {
+        this.glide = null;
+        this.measurements.onSettle?.();
+      }
+    });
+  }
 
   readonly onMouseDown = (e: MouseEvent) => {
     if (e.button !== 0) return;
@@ -499,6 +558,8 @@ export class ViewportController implements ReactiveController {
   private cancelPan() {
     this.momentum?.cancel();
     this.momentum = null;
+    this.glide?.cancel();
+    this.glide = null;
   }
 
   // Both glides: a new gesture or a re-root takes over from either.

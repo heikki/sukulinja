@@ -89,6 +89,9 @@ export const dims = {
   tieOffset: 6
 };
 
+// Half a card's size, either way from its centre.
+export const cardHalf = { x: dims.boxW / 2, y: dims.boxH / 2 };
+
 const avatarR = 28;
 const AVATAR_TOP_INSET = 14;
 const NAME_LINE_HEIGHT = 14;
