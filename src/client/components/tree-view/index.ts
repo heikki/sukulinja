@@ -437,7 +437,6 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
       selected === undefined ? null : avatarHref(selected, mediaUrl);
     return html`
       <sl-side-dock
-        label="details"
         heading=${selected === undefined ? '' : formatName(selected)}
         ?open=${this.details}
         .width=${this.detailsWidth}

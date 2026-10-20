@@ -113,7 +113,6 @@ export class ScanVolumesElement extends SignalWatcher(LitElement) {
               <button
                 class=${current ? 'current' : ''}
                 aria-current=${current ? 'true' : nothing}
-                title=${c.label}
                 @click=${() => {
                   this.pick(c);
                 }}

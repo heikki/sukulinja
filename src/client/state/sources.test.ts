@@ -18,7 +18,7 @@ function label(s: Link) {
   return linkStatus({ links: [s] }, false).label;
 }
 
-test('names a Link by who says so and how far down, and says what that means', () => {
+test('names a Link by who says so and how far down', () => {
   expect(label(link)).toBe('Marked');
   expect(
     label({ ...BASE, precision: 'image', image: 18, certainty: 'marked' })
@@ -40,19 +40,12 @@ test('names a Link by who says so and how far down, and says what that means', (
   );
   const vision: Link = { ...link, certainty: 'vision' };
   expect(label(vision)).toBe('Vision match');
-  expect(linkStatus({ links: [link] }, false).title).toBe(
-    'A person marked this record on this Image.'
-  );
-  expect(linkStatus({ links: [vision] }, false).title).toMatch(
-    /^The vision model found the name on this Image\.[^\n]*$/
-  );
 });
 
 test('opens a Split reference on its first Volume', () => {
   const other = { ...link, volumeId: 'v2', volume: 'I Aa:6' };
   const status = linkStatus({ links: [link, other] }, false);
   expect(status.label).toBe('Marked');
-  expect(status.title).not.toMatch(/several|Volumes;/);
   expect(status.link).toEqual(link);
 });
 
@@ -61,9 +54,6 @@ test('counts the other Volumes an Estimated Volume could be', () => {
   const others = ['v2', 'v3'].map((volumeId) => ({ ...volume, volumeId }));
   const status = linkStatus({ links: [volume, ...others] }, false);
   expect(status.label).toBe('Estimated Volume +2');
-  expect(status.title).toMatch(
-    /\nThe reference fits 3 Volumes; it opens on the first\.$/
-  );
   expect(linkStatus({ links: [volume] }, false).label).toBe('Estimated Volume');
 });
 
@@ -78,7 +68,6 @@ test('says why a source has no scan', () => {
   });
   expect(linkStatus({ unlinked: 'not-digitized' }, false)).toEqual({
     label: 'Not found',
-    title: "Its Volume isn't digitized in Astia.",
     link: null,
     browse: null
   });

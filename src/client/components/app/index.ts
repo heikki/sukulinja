@@ -284,7 +284,7 @@ export class AppElement extends LitElement {
             e.stopPropagation();
           }}
         >
-          <h2 id="import-title" title=${file.name}>Import ${file.name}</h2>
+          <h2 id="import-title">Import ${file.name}</h2>
           <label class="field">
             Name
             <input
@@ -305,9 +305,7 @@ export class AppElement extends LitElement {
           </label>
           ${
             this.importing && this.importStatus !== null
-              ? html`<p class="status" title=${this.importStatus}>
-                  ${this.importStatus}
-                </p>`
+              ? html`<p class="status">${this.importStatus}</p>`
               : nothing
           }
           ${errorNote('Import failed', this.importError)}
@@ -346,7 +344,6 @@ export class AppElement extends LitElement {
         <button
           class="import"
           ?disabled=${this.importing}
-          title="Pick a folder containing the GEDCOM and its image folders"
           @click=${this.onImportFolderClick}
         >
           Import GEDCOM folder
@@ -471,7 +468,6 @@ export class AppElement extends LitElement {
                 </a>
                 <button
                   class="delete"
-                  title="Delete dataset"
                   aria-label=${`Delete ${d.displayName}`}
                   @click=${() => {
                     this.requestDelete(d);

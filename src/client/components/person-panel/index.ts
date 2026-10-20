@@ -64,7 +64,6 @@ function renderFold(open: boolean, fold: () => void) {
     class="fold"
     aria-expanded=${open ? 'true' : 'false'}
     aria-label=${label}
-    title=${label}
     @click=${fold}
   ></button>`;
 }
@@ -74,7 +73,7 @@ function renderStatus(status: LinkStatus | null, entry: string | null) {
   if (status === null) return nothing;
   return html`<div class="status">
     ${entry === null ? nothing : html`<span class="entry">${entry}</span>`}
-    <span class="chip" title=${status.title}>${status.label}</span>
+    <span class="chip">${status.label}</span>
   </div>`;
 }
 
@@ -143,11 +142,6 @@ function titleText(c: CitationRow, status: LinkStatus | null) {
   const kind = c.cited?.kind ?? null;
   if ((status?.browse ?? null) === null || kind === null) return headingOf(c);
   return BOOK_NAMES[kind];
-}
-
-// A Church-book reference's tooltip names its collection.
-function titleOf(c: CitationRow, heading: string) {
-  return c.reference === null ? heading : (c.source ?? heading);
 }
 
 function renderBody(c: CitationRow, heading: string) {
@@ -345,7 +339,6 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
               class="title"
               ?disabled=${act === null}
               aria-current=${viewing ? 'true' : nothing}
-              title=${link === null ? titleOf(c, heading) : link.volume}
             >
               ${titleText(c, status)}
             </button>

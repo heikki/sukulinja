@@ -1,5 +1,5 @@
 // A Link's words, shared by the person panel and the Scan viewer: its
-// name and what it means, and for a reference with none, why.
+// name, and for a reference with none, why.
 
 import type {
   BookKind,
@@ -34,29 +34,6 @@ export function linkName(certainty: Certainty, precision: Precision) {
 
 export function linkLabel(link: LinkTarget) {
   return linkName(link.certainty, link.precision);
-}
-
-// What the name means; an estimate says what it was counted from.
-export function linkHint(link: LinkTarget) {
-  if (link.certainty === 'vision') {
-    return 'The vision model found the name on this Image. Not checked yet: confirm it, or mark the right Image.';
-  }
-  if (link.certainty === 'marked') {
-    switch (link.precision) {
-      case 'entry':
-        return 'A person marked this record on this Image.';
-      case 'image':
-        return "A person marked this record on this Image; where on it isn't marked.";
-      case 'volume':
-        return "A person said the record is in this Volume; its Image isn't marked.";
-    }
-  }
-  if (link.precision === 'volume') {
-    return "Only the Volume is known, chosen from what the citation gives; it may be the wrong one, and the Image isn't known.";
-  }
-  return link.precision === 'image' && link.from === 'pins'
-    ? "Counted from page numbers read in this Volume; the record itself isn't checked."
-    : 'Guessed from the usual pages per Image for this kind of book; often a few Images off.';
 }
 
 // A Volume's name without the archive's code for it ("I Aa:8"), which the

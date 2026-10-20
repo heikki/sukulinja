@@ -28,12 +28,10 @@ export class ScanToolbarElement extends SignalWatcher(LitElement) {
     const named = archiveOf(source);
     const archive = named === undefined ? '' : `${named} · `;
     const volume = shown === null ? 'No Volume' : volumeTitle(shown.label);
-    const title = `${archive}${volume}`;
     return html`
-      <span class="volume" title=${title}>${title}</span>
+      <span class="volume">${archive}${volume}</span>
       <button
         class="close"
-        title="Close (Esc)"
         aria-label="Close"
         @click=${() => {
           this.state.viewer.close();

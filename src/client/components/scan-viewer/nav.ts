@@ -72,7 +72,6 @@ export class ScanNavElement extends SignalWatcher(LitElement) {
     return html`
       <button
         class=${this.pressed === -1 ? 'pressed' : ''}
-        title="Previous image (←)"
         aria-label="Previous image"
         ?disabled=${image <= 1}
         @click=${() => {
@@ -123,7 +122,6 @@ export class ScanNavElement extends SignalWatcher(LitElement) {
       <span class="count">${count === null ? '' : `of ${count}`}</span>
       <button
         class=${this.pressed === 1 ? 'pressed' : ''}
-        title="Next image (→)"
         aria-label="Next image"
         ?disabled=${count !== null && image >= count}
         @click=${() => {

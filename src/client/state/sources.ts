@@ -1,9 +1,4 @@
-import {
-  linkHint,
-  linkLabel,
-  unlinkedHint,
-  unlinkedLabel
-} from '@client/link-labels';
+import { linkLabel, unlinkedLabel } from '@client/link-labels';
 import type {
   CitationRow,
   Link,
@@ -12,12 +7,11 @@ import type {
 } from '@common/types';
 
 // A church-book source's Link, in brief: how sure it is, in the Scan
-// viewer's words, or why there's none; the tooltip says more. Opening the
+// viewer's words, or why there's none. Opening the
 // source shows `link` in the Scan viewer, if there is one; without one,
 // `browse` is set when its parish's Volumes can be looked through for it.
 export interface LinkStatus {
   label: string;
-  title: string;
   link: Link | null;
   browse: UnlinkedResolution | null;
 }
@@ -31,12 +25,11 @@ export function linkStatus(
 ): LinkStatus {
   if (resolution === undefined) {
     const label = pending ? 'Finding scan…' : 'Scan unavailable';
-    return { label, title: '', link: null, browse: null };
+    return { label, link: null, browse: null };
   }
   if ('unlinked' in resolution) {
     return {
       label: unlinkedLabel(resolution.unlinked),
-      title: unlinkedHint(resolution.unlinked),
       link: null,
       browse: resolution.archive === undefined ? null : resolution
     };
@@ -44,7 +37,7 @@ export function linkStatus(
   const { links } = resolution;
   const [first] = links;
   if (first === undefined) {
-    return { label: 'No scan', title: '', link: null, browse: null };
+    return { label: 'No scan', link: null, browse: null };
   }
   const others = links.length - 1;
   const counted =
@@ -53,9 +46,6 @@ export function linkStatus(
     first.certainty === 'estimated';
   return {
     label: counted ? `${linkLabel(first)} +${others}` : linkLabel(first),
-    title: counted
-      ? `${linkHint(first)}\nThe reference fits ${others + 1} Volumes; it opens on the first.`
-      : linkHint(first),
     link: first,
     browse: null
   };

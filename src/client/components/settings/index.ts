@@ -291,7 +291,6 @@ export class SettingsElement extends LitElement {
     return html`
       <button
         class="gear"
-        title="Settings"
         aria-label="Settings"
         aria-haspopup="true"
         aria-expanded=${this.open}
