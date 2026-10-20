@@ -26,20 +26,15 @@ export const personPanelStyles = css`
   /* Sections are banded across the panel's full width. */
   section {
     margin: 0 -1.1rem;
-    padding: 0.85rem 1.1rem;
     border-bottom: 1px solid var(--border);
   }
 
-  /* The heading's band is as tall open as closed. */
   .section-body {
-    margin-top: 0.85rem;
+    padding: 0 1.1rem 0.85rem;
   }
 
-  /* Spans the band, so its focus ring can. */
   h3 {
-    position: relative;
-    margin: 0 -1.1rem;
-    padding: 0 1.1rem;
+    margin: 0;
     font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.04em;
@@ -48,13 +43,14 @@ export const personPanelStyles = css`
   }
 
   /* A section heading that shows or hides the section, its chevron at the
-     far right as on the dock's header. */
+     far right as on the dock's header. It fills the heading's band, so all
+     of the band takes the hover and the click. */
   button.toggle {
     display: flex;
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    padding: 0;
+    padding: 0.85rem 1.1rem;
     border: 0;
     background: none;
     color: inherit;
@@ -81,18 +77,9 @@ export const personPanelStyles = css`
     color: var(--fg);
   }
 
-  /* The whole heading band rings when its toggle has focus. */
   button.toggle:focus-visible {
-    outline: none;
-  }
-
-  h3:has(button.toggle:focus-visible)::after {
-    content: '';
-    position: absolute;
-    inset: -0.85rem 0;
     outline: var(--focus-ring);
     outline-offset: -2px;
-    pointer-events: none;
   }
 
   .muted {
@@ -167,7 +154,7 @@ export const personPanelStyles = css`
 
   /* A group of sources, named as written: set apart from the sections'
      small capitals. */
-  /* 1.2rem above each: the first's margin merges with the section body's,
+  /* 1.2rem above each: the first's margin counts the heading's padding,
      and the rest count the padding of the row above. */
   h4 {
     margin: 0.75rem 0 0.5rem;
@@ -177,7 +164,7 @@ export const personPanelStyles = css`
   }
 
   h4:first-child {
-    margin-top: 1.2rem;
+    margin-top: 0.35rem;
   }
 
   /* A source, tinted across the panel's width when clicking it does
