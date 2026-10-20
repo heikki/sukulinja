@@ -2,6 +2,7 @@ import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { repeat } from 'lit/directives/repeat.js';
 
 import { focusRingStyles } from '@client/focus-ring';
 import { volumeTitle } from '@client/link-labels';
@@ -17,6 +18,7 @@ import type { CitationRow, Link, RecordView } from '@common/types';
 
 import { formatName } from '../tree-view/renderer';
 
+import './fold';
 import './header';
 
 import { householdsOf, lifeText } from './family';
@@ -247,7 +249,8 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
     if (title instanceof HTMLElement) title.focus({ preventScroll: true });
   }
 
-  // The source in the Scan viewer, scrolled to, opening Sources if need be.
+  // The source in the Scan viewer, scrolled to, opening Sources if need be
+  // and once they've slid open.
   private async revealViewing() {
     const id = this.viewing?.citation.id;
     if (id === undefined) return;
@@ -255,6 +258,10 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
       opened.sources = true;
       this.requestUpdate();
       await this.updateComplete;
+      await this.renderRoot
+        .querySelector('[data-section="sources"]')
+        ?.querySelector('sl-fold')
+        ?.settled();
     }
     const source = this.renderRoot.querySelector(`[data-citation="${id}"]`);
     source?.scrollIntoView({ block: 'nearest' });
@@ -324,15 +331,27 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
               : nothing
           }
         </div>
-        ${open ? renderDetails(body, c.url, link) : nothing}
+        ${
+          foldable
+            ? html`<sl-fold .open=${open}>
+                ${renderDetails(body, c.url, link)}
+              </sl-fold>`
+            : nothing
+        }
       </article>
     `;
   }
 
+  // Each source keeps its own element, so another person's sources or a
+  // reordering never slides one shut that was open.
   private renderGroup(g: SourceGroup) {
     return html`
       ${g.label === null ? nothing : html`<h4>${g.label}</h4>`}
-      ${g.sources.map((source) => this.renderCitation(source))}
+      ${repeat(
+        g.sources,
+        (source) => source.citation.id,
+        (source) => this.renderCitation(source)
+      )}
     `;
   }
 
@@ -361,7 +380,7 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
   ) {
     const open = opened[section];
     return html`
-      <section>
+      <section data-section=${section}>
         <h3>
           <button
             class="toggle"
@@ -374,7 +393,9 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
             ${label}
           </button>
         </h3>
-        ${open ? html`<div class="section-body">${content()}</div>` : nothing}
+        <sl-fold .open=${open}>
+          <div class="section-body">${content()}</div>
+        </sl-fold>
       </section>
     `;
   }
