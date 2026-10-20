@@ -3,7 +3,6 @@ import { expect, test } from 'bun:test';
 import type { Box, LinkTarget, Unlinked } from '@common/types';
 
 import {
-  linkHint,
   linkLabel,
   missingText,
   unlinkedHint,
@@ -40,12 +39,6 @@ test('names a Link by who says so, then how far down', () => {
   expect(linkLabel(VISION)).toBe('Vision match');
   expect(linkLabel(estimated(7, 'pins'))).toBe('Estimated Image');
   expect(linkLabel(VOLUME)).toBe('Estimated Volume');
-  expect(linkHint(marked(7))).toMatch(/where on it isn't marked\.$/);
-  expect(linkHint(estimated(7, 'pins'))).toMatch(/^Counted from page numbers/);
-  expect(linkHint(estimated(7, 'numbering'))).toMatch(
-    /^Guessed from the usual pages/
-  );
-  expect(linkHint(VOLUME)).toMatch(/may be the wrong one/);
 });
 
 test('says why a reference has no Link: not looked for, not found, or Astia failed', () => {

@@ -108,7 +108,6 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
     return html`
       <button
         class="confirm"
-        title="Mark the record where the vision model found it"
         ?disabled=${this.confirming !== null}
         @click=${() => {
           void this.confirm(row);
@@ -135,7 +134,6 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
         <button
           class="row ${current ? 'current' : ''} ${hovered ? 'hovered' : ''}"
           aria-current=${current ? 'true' : nothing}
-          title=${row.citation.reference ?? ''}
           @click=${() => {
             pickRow(this, this.state.viewer, row);
           }}
@@ -185,14 +183,14 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
   override render() {
     if (collapsed) {
       return html`
-        <button class="rail" title="Show the people here" @click=${this.toggle}>
+        <button class="rail" @click=${this.toggle}>
           <span aria-hidden="true">‹</span>
           <span class="rail-heading">People here</span>
         </button>
       `;
     }
     return html`
-      <button class="head" title="Hide the people here" @click=${this.toggle}>
+      <button class="head" @click=${this.toggle}>
         <h2>People here</h2>
         <span class="chevron" aria-hidden="true">›</span>
       </button>

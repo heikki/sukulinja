@@ -29,8 +29,6 @@ export class SideDockElement extends LitElement {
 
   @property({ type: Boolean, reflect: true }) open = false;
   @property({ type: Number }) width = 380;
-  // What the dock holds, for its buttons' titles ("Show details").
-  @property() label = '';
   @property() heading = '';
 
   // The painted width: trails `open` through the slide, `width` through a drag.
@@ -112,7 +110,6 @@ export class SideDockElement extends LitElement {
       <div class="content" style="width:${width}px" ?inert=${!this.open}>
         <button
           class="header"
-          title=${`Hide ${this.label}`}
           @click=${() => {
             this.request(false);
           }}
@@ -126,7 +123,6 @@ export class SideDockElement extends LitElement {
       </div>
       <button
         class="rail"
-        title=${`Show ${this.label}`}
         ?inert=${this.open}
         @click=${() => {
           this.request(true);
