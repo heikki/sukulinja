@@ -107,7 +107,7 @@ export function renderBox(
     entering: boolean;
     ghost?: boolean;
   },
-  on?: { click: () => void; dblclick: () => void }
+  on?: { click: (e: MouseEvent) => void; dblclick: () => void }
 ) {
   const { photo, selected = false, entering, ghost = false } = state;
   const { boxW, boxH } = dims;
