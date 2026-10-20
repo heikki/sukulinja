@@ -69,7 +69,7 @@ export const personPanelStyles = css`
     font-size: 1rem;
     font-weight: 400;
     line-height: 1;
-    transition: transform 0.15s;
+    transition: transform 0.2s cubic-bezier(0.33, 1, 0.68, 1);
   }
 
   button.toggle[aria-expanded='true']::after {
@@ -272,7 +272,7 @@ export const personPanelStyles = css`
   button.fold::after {
     content: '›';
     display: inline-block;
-    transition: transform 0.15s;
+    transition: transform 0.2s cubic-bezier(0.33, 1, 0.68, 1);
   }
 
   button.fold[aria-expanded='true']::after {
