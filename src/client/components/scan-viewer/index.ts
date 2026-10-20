@@ -3,20 +3,12 @@ import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
-import { fitTo, Pinch, startMomentumPan, zoomAt } from '@client/pan-zoom';
-import type {
-  MomentumHandle,
-  Point,
-  ScaleBounds,
-  Transform,
-  Viewport
-} from '@client/pan-zoom';
+import { fitTo, Panning, Pinch } from '@client/pan-zoom';
+import type { Point, ScaleBounds, Transform, Viewport } from '@client/pan-zoom';
 import { appState } from '@client/state';
 import type { AppState, LinkOpen, VolumeShown } from '@client/state';
 import type { PersonRow } from '@common/types';
 
-import { MOMENTUM, releaseVelocity } from './drag';
-import type { Drag, Sample } from './drag';
 import { EdgeWatch } from './edge-watch';
 import { entriesShown, frameForFull, frameForThumb, layers } from './frame';
 import type { Frame, Loading } from './frame';
@@ -34,12 +26,18 @@ import './toolbar';
 
 export type { ScanPerson, ScanPersonEvent } from './citations';
 
-// The chart's feel (tree-view's VIEWPORT_OPTIONS), with room to zoom from a
-// whole spread down to a page's detail.
+// The chart's feel (tree-view's VIEWPORT_OPTIONS), with room to zoom in to a
+// page's detail; out, no further than the whole Image (scaleBounds).
 const SCALE_BOUNDS: ScaleBounds = { minScale: 0.05, maxScale: 2 };
 const WHEEL_ZOOM_K = 0.001;
-const FIT = { maxScale: 1, marginPx: 16 };
-const DRAG_THRESHOLD_PX = 4;
+// Fitted, the Image meets the stage's edges.
+const FIT = { maxScale: 1, marginPx: 0 };
+// The chart's feel.
+const PANNING = {
+  fling: { tauMs: 250, minV: 0.02, minReleaseV: 0.3, springMs: 60 },
+  dragThresholdPx: 4,
+  zoomSettleMs: 200
+};
 // A thumbnail seen for less than this gives way at once: the full Image was
 // nearly there, and a fade would only flash the blur.
 const FADE_AFTER_MS = 100;
@@ -103,20 +101,45 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
   // stepped to.
   private thumbAt = 0;
   private steppedAt = 0;
-  private drag: Drag | null = null;
-  private momentum: MomentumHandle | null = null;
+  private readonly panning = new Panning(
+    {
+      view: () => this.view,
+      setView: (view) => {
+        this.view = view;
+      },
+      content: ({ pan, scale }) => {
+        const size = this.frame?.size;
+        if (size === undefined) return null;
+        const max = {
+          x: pan.x + scale * size.width,
+          y: pan.y + scale * size.height
+        };
+        return { min: pan, max };
+      },
+      screen: () => this.screen(),
+      scaleBounds: () => this.scaleBounds(),
+      fit: () => this.fitted()
+    },
+    PANNING
+  );
   private readonly pinch = new Pinch({
-    onZoom: (factor, at) => {
-      this.zoomBy(factor, at);
+    onZoom: (factor, at) => this.zoomBy(factor, at),
+    onEnd: () => {
+      this.panning.settle();
     }
   });
   // The scan stays put on screen when the dock beside the viewer moves its
-  // edge.
-  private readonly edge = new EdgeWatch((dx) => {
-    if (this.view === null) return;
-    const { pan } = this.view;
-    this.view = { ...this.view, pan: { x: pan.x - dx, y: pan.y } };
-  });
+  // edge, then comes back within its bounds for the stage's new size.
+  private readonly edge = new EdgeWatch(
+    (dx) => {
+      if (this.view === null) return;
+      const { pan } = this.view;
+      this.view = { ...this.view, pan: { x: pan.x - dx, y: pan.y } };
+    },
+    () => {
+      this.panning.keepWithin();
+    }
+  );
 
   // A region of its own, focused when it opens a source and reached with
   // Tab. Its keys work while it's open, wherever focus is.
@@ -135,7 +158,8 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     window.removeEventListener('mousemove', this.onMouseMove);
     window.removeEventListener('mouseup', this.onMouseUp);
     window.removeEventListener('keydown', this.onKeyDown);
-    this.stopMomentum();
+    this.pinch.cancel();
+    this.panning.dispose();
     this.edge.watch(null);
     this.prefetch.keep([]);
     this.pending = null;
@@ -246,12 +270,43 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
       : { width: stage.clientWidth, height: stage.clientHeight };
   }
 
+  // The stage, which an Image zoomed in on fills, but for its foot: its last
+  // lines can rise clear of the page nav.
+  private screen() {
+    const size = this.stageSize();
+    if (size === null) return null;
+    const nav = { x: 0, y: this.navRoom() };
+    return { ...size, reach: { min: { x: 0, y: 0 }, max: nav } };
+  }
+
+  // The whole Image, above the page nav floating at the stage's foot: it may
+  // lie over the Image zoomed in, but never over the whole of it.
   private fitted() {
     const size = this.stageSize();
     const image = this.frame?.size ?? null;
     if (size === null || image === null) return null;
     const extents = { min: ORIGIN, max: { x: image.width, y: image.height } };
-    return fitTo(extents, ORIGIN, size, FIT);
+    const room = { ...size, height: size.height - this.navRoom() };
+    return fitTo(extents, ORIGIN, room, FIT);
+  }
+
+  // How much of the stage's foot the page nav takes, clear of the Image above
+  // it by as much as it is of the foot below.
+  private navRoom() {
+    const stage = this.renderRoot.querySelector('.stage');
+    const nav = this.renderRoot.querySelector('sl-scan-nav');
+    if (stage === null || nav === null) return 0;
+    const foot = stage.getBoundingClientRect().bottom;
+    const { top, bottom, height } = nav.getBoundingClientRect();
+    return height === 0 ? 0 : foot - top + (foot - bottom);
+  }
+
+  // The scale bounds, out no further than a fit of the whole Image:
+  // smaller shows nothing more.
+  private scaleBounds(): ScaleBounds {
+    const fit = this.fitted();
+    if (fit === null) return SCALE_BOUNDS;
+    return { ...SCALE_BOUNDS, minScale: fit.scale };
   }
 
   private toStage(client: Point): Point {
@@ -263,9 +318,7 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
 
   // At a point in client coordinates; stops a pan's glide, not a pinch's.
   private zoomBy(factor: number, at: Point) {
-    if (this.view === null) return;
-    this.stopPan();
-    this.view = zoomAt(this.view, this.toStage(at), factor, SCALE_BOUNDS);
+    return this.panning.zoomBy(factor, this.toStage(at));
   }
 
   // Over the last Image it waits out the grace, in case the full one comes
@@ -338,7 +391,7 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     if (this.pinch.wheel(e)) return;
     this.pinch.cancel();
     const at = { x: e.clientX, y: e.clientY };
-    this.zoomBy(Math.exp(-e.deltaY * WHEEL_ZOOM_K), at);
+    this.panning.wheel(Math.exp(-e.deltaY * WHEEL_ZOOM_K), this.toStage(at));
   };
 
   // Toggles between the whole Image and 100% at the pointer.
@@ -346,15 +399,11 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     const fit = this.fitted();
     if (this.view === null || fit === null) return;
     this.stopMomentum();
-    this.view =
-      Math.abs(this.view.scale - fit.scale) > 1e-3
-        ? fit
-        : zoomAt(
-            this.view,
-            this.toStage({ x: e.clientX, y: e.clientY }),
-            1 / this.view.scale,
-            SCALE_BOUNDS
-          );
+    if (Math.abs(this.view.scale - fit.scale) > 1e-3) {
+      this.view = fit;
+      return;
+    }
+    this.zoomBy(1 / this.view.scale, { x: e.clientX, y: e.clientY });
   };
 
   // A Ctrl-click is the Mac's right-click: it opens the menu, not a pan.
@@ -362,63 +411,22 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     if (e.button !== 0 || e.ctrlKey || this.view === null) return;
     e.preventDefault();
     this.stopMomentum();
-    const at = { x: e.clientX, y: e.clientY };
-    this.drag = {
-      start: at,
-      last: at,
-      moved: false,
-      samples: [{ t: performance.now(), at }]
-    };
+    this.panning.start({ x: e.clientX, y: e.clientY });
   };
 
   private readonly onMouseMove = (e: MouseEvent) => {
-    const drag = this.drag;
-    if (drag === null || this.view === null) return;
-    const at = { x: e.clientX, y: e.clientY };
-    const away = Math.hypot(at.x - drag.start.x, at.y - drag.start.y);
-    if (!drag.moved && away < DRAG_THRESHOLD_PX) return;
-    drag.moved = true;
-    this.dragging = true;
-    drag.samples = [...drag.samples.slice(-1), { t: performance.now(), at }];
-    const { pan } = this.view;
-    this.view = {
-      ...this.view,
-      pan: { x: pan.x + at.x - drag.last.x, y: pan.y + at.y - drag.last.y }
-    };
-    drag.last = at;
+    if (this.view === null) return;
+    if (this.panning.move({ x: e.clientX, y: e.clientY })) this.dragging = true;
   };
 
   private readonly onMouseUp = () => {
-    const drag = this.drag;
-    if (drag === null) return;
-    this.drag = null;
+    this.panning.end();
     this.dragging = false;
-    if (drag.moved) this.glide(drag.samples);
   };
-
-  private glide(samples: Sample[]) {
-    const v = releaseVelocity(samples);
-    if (v === null) return;
-    this.momentum = startMomentumPan(v.x, v.y, MOMENTUM, {
-      onTick: (dx, dy) => {
-        if (this.view === null) return;
-        const { pan } = this.view;
-        this.view = { ...this.view, pan: { x: pan.x + dx, y: pan.y + dy } };
-      },
-      onEnd: () => {
-        this.momentum = null;
-      }
-    });
-  }
-
-  private stopPan() {
-    this.momentum?.cancel();
-    this.momentum = null;
-  }
 
   // Both glides: a new gesture takes over from either.
   private stopMomentum() {
-    this.stopPan();
+    this.panning.stop();
     this.pinch.cancel();
   }
 

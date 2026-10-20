@@ -56,7 +56,7 @@ const OPTIONS: ViewportOptions = {
   scaleBounds: { minScale: 0.25, maxScale: 2 },
   wheelZoomK: 0.001,
   fitOptions: { maxScale: 1, marginPx: 24 },
-  momentumOptions: { tauMs: 250, minV: 0.02, minReleaseV: 0.3 },
+  momentumOptions: { tauMs: 250, minV: 0.02, minReleaseV: 0.3, springMs: 60 },
   dragThresholdPx: 4,
   svgMarginPx: 24
 };
@@ -210,7 +210,7 @@ describe('drag FSM', () => {
     expect(controller.pan.y).toBe(startPan.y + 5);
   });
 
-  test('subsequent moves accumulate against original mousedown anchor', () => {
+  test('subsequent moves accumulate', () => {
     const { controller } = setup();
     controller.ensureInitialPan();
     const startPan = { ...controller.pan };
@@ -251,15 +251,15 @@ describe('momentum sample window', () => {
     controller.onMouseMove(mouse(11, 0));
     mockNow = 1210;
     controller.onMouseMove(mouse(12, 0));
-    // Fast final flick.
-    mockNow = 1220;
-    controller.onMouseMove(mouse(112, 0));
+    // Fast final flick, short of the canvas's edge so it coasts freely.
+    mockNow = 1211;
+    controller.onMouseMove(mouse(22, 0));
     const panBeforeMomentum = { ...controller.pan };
     controller.onMouseUp();
     expect(rafCallbacks.length).toBe(1);
     mockNow += 16;
     flushRaf();
-    // v = (112-12)/(1220-1210) = 10 px/ms; first 16ms tick = 160 px pre-decay.
+    // v = (22-12)/(1211-1210) = 10 px/ms; first 16ms tick = 160 px pre-decay.
     expect(controller.pan.x - panBeforeMomentum.x).toBeCloseTo(160, 0);
     expect(controller.pan.y - panBeforeMomentum.y).toBeCloseTo(0, 6);
   });
@@ -434,14 +434,20 @@ describe('restoreViewportDeferred + applyPendingViewport', () => {
 
 describe('wheel zoom', () => {
   test('zooms toward cursor; pan/scale match zoomAt contract', () => {
-    const { controller } = setup();
+    // A chart larger than the canvas, so it fills it and zooming in turns
+    // about the cursor.
+    const big: Extents = {
+      min: { x: -500, y: -400 },
+      max: { x: 500, y: 400 }
+    };
+    const { controller } = setup(big);
     controller.ensureInitialPan();
     controller.attachCanvas(fakeCanvas());
     const cursor = { x: 600, y: 400 };
     // chart point currently under cursor — must remain under cursor after zoom.
     const cursorChart = {
-      x: (cursor.x - controller.pan.x) / controller.scale + EXTENTS.min.x - 24,
-      y: (cursor.y - controller.pan.y) / controller.scale + EXTENTS.min.y - 24
+      x: (cursor.x - controller.pan.x) / controller.scale + big.min.x - 24,
+      y: (cursor.y - controller.pan.y) / controller.scale + big.min.y - 24
     };
     controller.onWheel(wheel(cursor.x, cursor.y, -200));
     const projected = controller.chartToScreen(cursorChart);

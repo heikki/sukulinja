@@ -36,8 +36,10 @@ export const PINCH_OPTIONS: PinchOptions = {
 };
 
 export interface PinchHandlers {
-  // Zoom by `factor` around `at`, in client coordinates.
-  onZoom: (factor: number, at: Point) => void;
+  // Zoom by `factor` around `at`, in client coordinates; false where that
+  // took the view past its bounds, which ends a glide or an easing there so
+  // the view can spring back.
+  onZoom: (factor: number, at: Point) => boolean;
   // The pinch and its easing are over. Not called on cancel.
   onEnd?: () => void;
 }
@@ -125,9 +127,10 @@ export class Pinch {
     const close = 1 - Math.exp(-dt / this.options.wheelEaseMs);
     const step = Math.abs(this.aim) < EASE_DONE ? this.aim : this.aim * close;
     this.aim -= step;
-    if (step !== 0) this.handlers.onZoom(Math.exp(step), this.at);
-    if (this.aim === 0) {
+    const within = step === 0 || this.handlers.onZoom(Math.exp(step), this.at);
+    if (this.aim === 0 || !within) {
       this.easing = null;
+      this.aim = 0;
       this.handlers.onEnd?.();
       return;
     }
@@ -160,7 +163,10 @@ export class Pinch {
     const v = Math.min(max, Math.max(-max, speed));
     this.glide = startMomentumPan(v, 0, momentum, {
       onTick: (dlog) => {
-        this.handlers.onZoom(Math.exp(dlog), this.at);
+        if (this.handlers.onZoom(Math.exp(dlog), this.at)) return;
+        this.glide?.cancel();
+        this.glide = null;
+        this.handlers.onEnd?.();
       },
       onEnd: () => {
         this.glide = null;

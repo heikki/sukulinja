@@ -15,6 +15,10 @@ export type {
 
 export { easeOutCubic, reducedMotion, startGlide } from './glide';
 export type { GlideHandle } from './glide';
+export type { Reach, Screen } from './bounds';
+export { Panning } from './panning';
+export type { PanningHost, PanningOptions } from './panning';
+export type { FlingOptions } from './fling';
 export { startMomentumPan } from './momentum';
 export { Pinch, PINCH_OPTIONS } from './pinch';
 export type { PinchHandlers, PinchOptions } from './pinch';

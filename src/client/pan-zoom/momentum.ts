@@ -29,6 +29,8 @@ export function startMomentumPan(
 ): MomentumHandle | null {
   if (Math.hypot(vx, vy) < options.minReleaseV) return null;
   let raf: number | null = null;
+  // Cancelled, perhaps by onTick itself.
+  let stopped = false;
   let lastT = performance.now();
   let velX = vx;
   let velY = vy;
@@ -36,6 +38,7 @@ export function startMomentumPan(
     const dt = now - lastT;
     lastT = now;
     handlers.onTick(velX * dt, velY * dt);
+    if (stopped) return;
     const decay = Math.exp(-dt / options.tauMs);
     velX *= decay;
     velY *= decay;
@@ -49,6 +52,7 @@ export function startMomentumPan(
   raf = requestAnimationFrame(step);
   return {
     cancel: () => {
+      stopped = true;
       if (raf !== null) cancelAnimationFrame(raf);
       raf = null;
     }

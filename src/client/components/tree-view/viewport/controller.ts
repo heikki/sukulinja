@@ -8,21 +8,20 @@ import type { ReactiveController, ReactiveControllerHost } from 'lit';
 import {
   chartToScreen,
   fitTo,
+  Panning,
   Pinch,
   pinChartPointAtScreen,
   reducedMotion,
-  startGlide,
-  startMomentumPan,
-  zoomAt
+  startGlide
 } from '@client/pan-zoom';
 import type {
   Extents,
   FitOptions,
+  FlingOptions,
   GlideHandle,
-  MomentumHandle,
-  MomentumOptions,
   Point,
-  ScaleBounds
+  ScaleBounds,
+  Transform
 } from '@client/pan-zoom';
 
 import { shiftIntoView } from './in-view';
@@ -65,20 +64,9 @@ export interface ViewportOptions {
   scaleBounds: ScaleBounds;
   wheelZoomK: number;
   fitOptions: FitOptions;
-  momentumOptions: MomentumOptions;
+  momentumOptions: FlingOptions;
   dragThresholdPx: number;
   svgMarginPx: number;
-}
-
-interface DragOrigin {
-  mouse: Point;
-  pan: Point;
-}
-
-interface DragSample {
-  t: number;
-  x: number;
-  y: number;
 }
 
 export class ViewportController implements ReactiveController {
@@ -108,24 +96,21 @@ export class ViewportController implements ReactiveController {
   private _pendingPan: Point | null = null;
   private _pendingScale: number | null = null;
 
-  private dragOrigin: DragOrigin | null = null;
-  private dragSamples: DragSample[] = [];
-  private momentum: MomentumHandle | null = null;
+  // Drags, flings and zooms, kept within bounds; at rest the view settles.
+  private readonly panning: Panning;
   // A pinch settles, like a wheel burst, once it has eased to a stop.
   private readonly pinch = new Pinch({
-    onZoom: (factor, at) => {
-      this.zoomBy(factor, at);
-    },
+    onZoom: (factor, at) => this.zoomBy(factor, at),
     onEnd: () => {
-      this.measurements.onSettle?.();
+      this.panning.settle();
     }
   });
   private canvas: HTMLElement | null = null;
-  private wheelSettleTimer: ReturnType<typeof setTimeout> | null = null;
   // A column beside the canvas (the details dock) moves the canvas origin when it
   // slides or resizes. Each canvas resize shifts pan by how far the left edge
-  // moved, holding the chart still on screen; the observer runs after layout
-  // and before paint, so no frame shows the jump.
+  // moved, holding the chart still on screen, then brings the view back
+  // within its bounds for the new size; the observer runs after layout and
+  // before paint, so no frame shows the jump.
   private resizeObserver: ResizeObserver | null = null;
   private canvasLeft: number | null = null;
   private holdSettleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -138,6 +123,28 @@ export class ViewportController implements ReactiveController {
     private readonly options: ViewportOptions
   ) {
     host.addController(this);
+    this.panning = new Panning(
+      {
+        view: () => ({ pan: this._pan, scale: this._scale }),
+        setView: (t) => {
+          this._pan = t.pan;
+          this._scale = t.scale;
+          this.host.requestUpdate();
+        },
+        content: (t) => this.contentAt(t),
+        screen: () => this.screen(),
+        scaleBounds: () => this.scaleBounds(),
+        fit: () => this.fitView(),
+        onRest: () => {
+          this.measurements.onSettle?.();
+        }
+      },
+      {
+        fling: options.momentumOptions,
+        dragThresholdPx: options.dragThresholdPx,
+        zoomSettleMs: WHEEL_SETTLE_MS
+      }
+    );
   }
 
   get pan(): Point {
@@ -178,10 +185,7 @@ export class ViewportController implements ReactiveController {
     window.removeEventListener('mouseup', this.onMouseUp);
     this.attachCanvas(null);
     this.cancelMomentum();
-    if (this.wheelSettleTimer !== null) {
-      clearTimeout(this.wheelSettleTimer);
-      this.wheelSettleTimer = null;
-    }
+    this.panning.dispose();
     if (this.holdSettleTimer !== null) {
       clearTimeout(this.holdSettleTimer);
       this.holdSettleTimer = null;
@@ -238,18 +242,17 @@ export class ViewportController implements ReactiveController {
       el.addEventListener('gesturechange', this.pinch.onGestureChange);
       el.addEventListener('gestureend', this.pinch.onGestureEnd);
       this.canvasLeft = this.measurements.canvasRect()?.left ?? null;
-      this.resizeObserver = new ResizeObserver(this.holdOnOriginMove);
+      this.resizeObserver = new ResizeObserver(this.onCanvasResize);
       this.resizeObserver.observe(el);
     }
   }
 
-  private readonly holdOnOriginMove = () => {
-    const before = this.canvasLeft;
-    const after = this.measurements.canvasRect()?.left ?? null;
-    this.canvasLeft = after;
-    if (before === null || after === null || after === before) return;
-    if (!this._panReady) return;
-    this._pan = { x: this._pan.x + before - after, y: this._pan.y };
+  private readonly onCanvasResize = () => {
+    const held = this.holdOnOriginMove();
+    // A card gliding into view as the dock opens has the view meanwhile.
+    const kept =
+      this._panReady && this.glide === null && this.panning.keepWithin();
+    if (!held && !kept) return;
     this.host.requestUpdate();
     if (this.holdSettleTimer !== null) clearTimeout(this.holdSettleTimer);
     this.holdSettleTimer = setTimeout(() => {
@@ -257,6 +260,17 @@ export class ViewportController implements ReactiveController {
       this.measurements.onHold?.();
     }, HOLD_SETTLE_MS);
   };
+
+  // Shifts pan by how far the canvas's left edge moved; whether it did.
+  private holdOnOriginMove() {
+    const before = this.canvasLeft;
+    const after = this.measurements.canvasRect()?.left ?? null;
+    this.canvasLeft = after;
+    if (before === null || after === null || after === before) return false;
+    if (!this._panReady) return false;
+    this._pan = { x: this._pan.x + before - after, y: this._pan.y };
+    return true;
+  }
 
   // Glides the pan over `ms` just far enough to show a card whole: of the
   // cards at `centers` (`half` their size, in chart units) the one needing
@@ -314,12 +328,8 @@ export class ViewportController implements ReactiveController {
   readonly onMouseDown = (e: MouseEvent) => {
     if (e.button !== 0) return;
     this.cancelMomentum();
-    this.dragOrigin = {
-      mouse: { x: e.clientX, y: e.clientY },
-      pan: { ...this._pan }
-    };
+    this.panning.start({ x: e.clientX, y: e.clientY });
     this._dragMoved = false;
-    this.dragSamples = [{ t: performance.now(), x: e.clientX, y: e.clientY }];
   };
 
   readonly onDblClick = (e: MouseEvent) => {
@@ -452,46 +462,18 @@ export class ViewportController implements ReactiveController {
   }
 
   readonly onMouseMove = (e: MouseEvent) => {
-    if (this.dragOrigin === null) return;
-    const dx = e.clientX - this.dragOrigin.mouse.x;
-    const dy = e.clientY - this.dragOrigin.mouse.y;
-    if (
-      !this._dragMoved &&
-      Math.hypot(dx, dy) >= this.options.dragThresholdPx
-    ) {
-      this._dragMoved = true;
-      this._dragging = true;
-      this.host.requestUpdate();
-    }
-    if (!this._dragMoved) return;
-    const nextX = this.dragOrigin.pan.x + dx;
-    const nextY = this.dragOrigin.pan.y + dy;
-    // Two most-recent pointer samples are enough to compute the release
-    // velocity for momentum pan without smoothing noise from older samples
-    // that span across direction changes.
-    this.dragSamples.push({
-      t: performance.now(),
-      x: e.clientX,
-      y: e.clientY
-    });
-    if (this.dragSamples.length > 2) this.dragSamples.shift();
-    if (nextX === this._pan.x && nextY === this._pan.y) return;
-    this._pan = { x: nextX, y: nextY };
+    if (!this.panning.move({ x: e.clientX, y: e.clientY })) return;
+    if (this._dragMoved) return;
+    this._dragMoved = true;
+    this._dragging = true;
     this.host.requestUpdate();
   };
 
+  // A drag let go flings, or settles a zoom it interrupted, and settles at
+  // once when neither moves.
   readonly onMouseUp = () => {
-    this.dragOrigin = null;
-    if (!this._dragging) {
-      this.dragSamples = [];
-      return;
-    }
-    this.maybeStartMomentum();
-    this.dragSamples = [];
-    // When no momentum kicked in (short drag or low release velocity), the
-    // gesture has settled at mouseup. Momentum's own onEnd handles the
-    // animated case.
-    if (this.momentum === null) this.measurements.onSettle?.();
+    this.panning.end();
+    if (!this._dragging) return;
     // Defer clearing `dragging` so the canvas's CSS class survives long
     // enough for the click event on a box to know a drag just ended.
     setTimeout(() => {
@@ -506,58 +488,74 @@ export class ViewportController implements ReactiveController {
     if (this.canvas === null) return;
     e.preventDefault();
     if (this.pinch.wheel(e)) return;
-    this.cancelMomentum();
-    const factor = Math.exp(-e.deltaY * this.options.wheelZoomK);
-    this.zoomBy(factor, { x: e.clientX, y: e.clientY });
-    if (this.wheelSettleTimer !== null) clearTimeout(this.wheelSettleTimer);
-    this.wheelSettleTimer = setTimeout(() => {
-      this.wheelSettleTimer = null;
-      this.measurements.onSettle?.();
-    }, WHEEL_SETTLE_MS);
+    this.pinch.cancel();
+    this.glide?.cancel();
+    this.glide = null;
+    const at = this.toCanvas({ x: e.clientX, y: e.clientY });
+    if (at === null) return;
+    // The wheel's own momentum past the bounds leaves a settle running.
+    this.panning.wheel(Math.exp(-e.deltaY * this.options.wheelZoomK), at);
   };
 
-  private maybeStartMomentum() {
-    if (this.dragSamples.length < 2) return;
-    const [prev, last] = this.dragSamples as [DragSample, DragSample];
-    const dt = last.t - prev.t;
-    if (dt <= 0) return;
-    this.momentum = startMomentumPan(
-      (last.x - prev.x) / dt,
-      (last.y - prev.y) / dt,
-      this.options.momentumOptions,
-      {
-        onTick: (dx, dy) => {
-          this._pan = { x: this._pan.x + dx, y: this._pan.y + dy };
-          this.host.requestUpdate();
-        },
-        onEnd: () => {
-          this.momentum = null;
-          this.measurements.onSettle?.();
-        }
-      }
-    );
+  // The scale bounds, out no further than a fit of the whole chart: smaller
+  // shows nothing more. The options' minScale holds until the chart is known.
+  private scaleBounds(): ScaleBounds {
+    const { scaleBounds } = this.options;
+    const fit = this.fitView();
+    return fit === null ? scaleBounds : { ...scaleBounds, minScale: fit.scale };
   }
 
-  // Zoom at a point in client coordinates. Stops a pan's glide, not a
-  // pinch's.
+  // The canvas, which any card zoomed in on can be brought to the middle of:
+  // the chart's edges may come in as far as half of it.
+  private screen() {
+    const size = this.measurements.canvasSize();
+    if (size === null) return null;
+    const half = { x: size.width / 2, y: size.height / 2 };
+    return { ...size, reach: { min: half, max: half } };
+  }
+
+  // The view of the whole chart, centred.
+  private fitView() {
+    const extents = this.measurements.chartExtents();
+    const size = this.measurements.canvasSize();
+    const vbo = this.viewBoxOrigin();
+    if (extents === null || size === null || vbo === null) return null;
+    return fitTo(extents, vbo, size, this.options.fitOptions);
+  }
+
+  // The chart's extents on screen at `t`, relative to the canvas, with the
+  // fit's margin around them: a fitted chart just meets its bounds, and
+  // cards keep clear of the canvas's edges.
+  private contentAt(t: Transform): Extents | null {
+    const extents = this.measurements.chartExtents();
+    const vbo = this.viewBoxOrigin();
+    if (extents === null || vbo === null) return null;
+    const min = chartToScreen(t, extents.min, vbo);
+    const max = chartToScreen(t, extents.max, vbo);
+    const m = this.options.fitOptions.marginPx;
+    return {
+      min: { x: min.x - m, y: min.y - m },
+      max: { x: max.x + m, y: max.y + m }
+    };
+  }
+
+  // Zoom at a point in client coordinates; whether the view is still within
+  // its bounds. Stops a pan's glide, not a pinch's.
   private zoomBy(factor: number, at: Point) {
-    const rect = this.measurements.canvasRect();
-    if (rect === null) return;
+    const on = this.toCanvas(at);
+    if (on === null) return true;
     this.cancelPan();
-    const next = zoomAt(
-      { pan: this._pan, scale: this._scale },
-      { x: at.x - rect.left, y: at.y - rect.top },
-      factor,
-      this.options.scaleBounds
-    );
-    this._pan = next.pan;
-    this._scale = next.scale;
-    this.host.requestUpdate();
+    return this.panning.zoomBy(factor, on);
+  }
+
+  private toCanvas(client: Point): Point | null {
+    const rect = this.measurements.canvasRect();
+    if (rect === null) return null;
+    return { x: client.x - rect.left, y: client.y - rect.top };
   }
 
   private cancelPan() {
-    this.momentum?.cancel();
-    this.momentum = null;
+    this.panning.stop();
     this.glide?.cancel();
     this.glide = null;
   }
