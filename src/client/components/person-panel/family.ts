@@ -3,6 +3,7 @@ import type { FamilyRow, PersonRow } from '@common/types';
 
 import { otherSpouseOf } from '../tree-view/build/indices';
 import type { LayoutIndices } from '../tree-view/build/indices';
+import { CROSS } from '../tree-view/renderer';
 
 export type FamilyIndices = Pick<
   LayoutIndices,
@@ -93,11 +94,14 @@ export function householdsOf(id: number, ix: FamilyIndices) {
   return households;
 }
 
-// Born and died, as precisely as recorded: "12.3.1894 – 4.5.1965",
-// "12.3.1894 –", "– 1965".
+// Born and died, as precisely as recorded and written as the chart's cards
+// write years: "12.3.1894 – 4.5.1965", just "12.3.1894" for the living,
+// "12.3.1894 – ✝" for a death without a date, "– 1965" without a birth, and
+// "Deceased" with neither.
 export function lifeText(p: PersonRow) {
   const born = p.birth_date === null ? '' : gedcomDate(p.birth_date);
   const died = p.death_date === null ? '' : gedcomDate(p.death_date);
-  if (born === '' && died === '') return '';
-  return `${born} – ${died}`.trim();
+  if (!p.died && died === '') return born;
+  if (died !== '') return `${born} – ${died}`.trim();
+  return born === '' ? 'Deceased' : `${born} – ${CROSS}`;
 }

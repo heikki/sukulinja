@@ -20,6 +20,8 @@ export interface PersonRow {
   // BIRT and DEAT dates as recorded, e.g. "BET 1867 AND 1879".
   birth_date: string | null;
   death_date: string | null;
+  // A death, burial or cremation is recorded, dated or not ("DEAT Y").
+  died: boolean;
   photo_path: string | null;
   crop: PhotoCrop | null;
 }

@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 
 import type { FamilyRow, PersonRow } from '@common/types';
 
+import { CROSS } from '../tree-view/renderer';
 import { householdsOf, lifeText } from './family';
 
 function yearOf(date: string | null) {
@@ -23,6 +24,7 @@ function person(
     death_year: yearOf(death),
     birth_date: birth,
     death_date: death,
+    died: death !== null,
     photo_path: null,
     crop: null
   };
@@ -132,8 +134,17 @@ describe('lifeText', () => {
     expect(lifeText(person(1, 'M', '12 MAR 1894', '1965'))).toBe(
       '12.3.1894 – 1965'
     );
-    expect(lifeText(person(1, 'M', '12 MAR 1894'))).toBe('12.3.1894 –');
+    expect(lifeText(person(1, 'M', '12 MAR 1894'))).toBe('12.3.1894');
     expect(lifeText(person(1, 'M', null, 'ABT 1965'))).toBe('– n. 1965');
     expect(lifeText(person(1, 'M'))).toBe('');
+  });
+
+  test('writes a death without a date as a cross', () => {
+    const died = { ...person(1, 'M', '12 MAR 1894'), died: true };
+    expect(lifeText(died)).toBe(`12.3.1894 – ${CROSS}`);
+  });
+
+  test('writes a death with neither date as "Deceased"', () => {
+    expect(lifeText({ ...person(1, 'M'), died: true })).toBe('Deceased');
   });
 });

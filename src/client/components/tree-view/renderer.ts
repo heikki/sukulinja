@@ -15,11 +15,26 @@ export function formatName(p: PersonRow) {
   return joined.length > 0 ? joined : '—';
 }
 
+// A death without a year: a Latin cross, its text presentation selector
+// keeping macOS from drawing it as an emoji. Drawn a size up (`.cross`), as
+// at the dates' size it reads as a speck.
+export const CROSS = '\u271D\uFE0E';
+
+// Birth and death years: "1890 – 1943", and just "1990" for the living. A
+// death without a year is a cross, so "1890 –" isn't read as someone living,
+// as it often is elsewhere; an unknown birth is left out, "– 1943". With
+// neither year, "Deceased".
 export function formatDates(p: PersonRow) {
-  const b = p.birth_year ?? '';
-  const d = p.death_year ?? '';
-  if (b === '' && d === '') return '';
-  return `${b} – ${d}`;
+  const born = p.birth_year === null ? '' : String(p.birth_year);
+  if (!p.died) return born;
+  if (p.death_year !== null) return `${born} – ${p.death_year}`.trim();
+  return born === '' ? 'Deceased' : `${born} – ${CROSS}`;
+}
+
+// Dates as the card draws them, the cross they end with a size up.
+function crossed(dates: string) {
+  if (!dates.endsWith(CROSS)) return dates;
+  return svg`${dates.slice(0, -CROSS.length)}<tspan class="cross">${CROSS}</tspan>`;
 }
 
 // Manual split so wrapping can use SVG <tspan>: foreignObject HTML
@@ -154,7 +169,7 @@ export function renderBox(
             svg`<tspan x=${cx} dy=${i === 0 ? 0 : NAME_LINE_HEIGHT}>${line}</tspan>`
         )}
       </text>
-      <text class="dates" x=${cx} y=${datesY}>${dates}</text>
+      <text class="dates" x=${cx} y=${datesY}>${crossed(dates)}</text>
       <rect class="hit" x="0" y="0" width=${boxW} height=${boxH} rx="6" />
     </g>
   `;
@@ -194,6 +209,9 @@ export const styles = css`
     font-size: 11px;
     text-anchor: middle;
     text-rendering: optimizeLegibility;
+  }
+  .node .dates .cross {
+    font-size: 13px;
   }
 
   .edge {
