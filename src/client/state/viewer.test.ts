@@ -308,60 +308,66 @@ test('with Astia down the count stays unknown and the citations failed', async (
 
 // ---------------------------------------------------------------- changes
 
-test('changing the Volume shows it, pending, and Cancel goes back to the Link', async () => {
-  const { viewer } = await selecting(1);
+test('changing the Volume only shows it, and its own Volume goes back to the Link', async () => {
+  const { api, viewer } = await selecting(1);
   viewer.open(S11);
+  await settle();
   viewer.changeVolume(CHOICE_202);
-  expect(viewer.pending.get()).toEqual({
-    volumeId: '202',
-    volume: 'I Aa:202 (1797-1803)'
-  });
+  expect(viewer.pending.get()).toBe(null);
   expect([viewer.volume.get()?.id, viewer.image.get()]).toEqual(['202', 1]);
   expect(viewer.source.get()).toEqual(S11);
   expect(viewer.away.get()).toBe(true);
-  viewer.cancel();
-  expect(viewer.pending.get()).toBe(null);
+  viewer.changeVolume(CHOICE_201);
   expect([viewer.volume.get()?.id, viewer.image.get()]).toEqual(['201', 18]);
+  expect(api.asked.filter((a) => a.startsWith('mark'))).toEqual([]);
 });
 
-test("a source's own Volume is no change, unless it's one of several", async () => {
-  const { state, viewer } = await selecting(1);
+test('placing a Box puts the source there, pending, and Cancel goes back to the Link', async () => {
+  const { viewer } = await selecting(1);
   viewer.open(S11);
   await settle();
-  viewer.show(30);
-  viewer.changeVolume(CHOICE_201);
+  viewer.setBox(BOX);
+  expect(viewer.pending.get()).toEqual({
+    volumeId: '201',
+    volume: 'I Aa:201',
+    image: 18,
+    box: BOX
+  });
+  expect(viewer.boxPending.get()).toBe(true);
+  viewer.cancel();
   expect(viewer.pending.get()).toBe(null);
-  expect(viewer.image.get()).toBe(18);
-  state.select(3);
-  await settle();
-  viewer.open({ citation: C15, link: L15 });
-  viewer.changeVolume(CHOICE_201);
-  expect(viewer.pending.get()).toEqual({ volumeId: '201', volume: 'I Aa:201' });
+  expect(viewer.boxHere.get()).toBe(null);
 });
 
-test('Save marks only the Volume and follows the new Link', async () => {
-  const { api, viewer } = await selecting(1);
-  viewer.open(S12);
-  viewer.changeVolume(CHOICE_202);
+test('moving off the Image of a pending Box waits on it', async () => {
+  const { viewer } = await selecting(1);
+  viewer.open(S11);
   await settle();
-  await viewer.save();
-  expect(api.asked.slice(-3)).toEqual([
-    'mark 12 202',
-    'links 1',
-    'citations 202'
-  ]);
+  viewer.setBox(BOX);
+  viewer.show(19);
+  expect(viewer.leaving.get()).toBe(true);
+  expect(viewer.image.get()).toBe(18);
+  await viewer.answer('keep');
+  viewer.changeVolume(CHOICE_202);
+  expect(viewer.leaving.get()).toBe(true);
+  await viewer.answer('discard');
   expect(viewer.pending.get()).toBe(null);
-  expect(viewer.source.get()?.link).toEqual(MARKED_202);
-  expect(viewer.away.get()).toBe(false);
+  expect(viewer.volume.get()?.id).toBe('202');
+  // Nothing pending, the Image shown is no way out.
+  viewer.show(3);
+  expect(viewer.leaving.get()).toBe(false);
+  expect(viewer.image.get()).toBe(3);
 });
 
 test('a way out waits on the pending change: kept, discarded or saved', async () => {
-  const { api, viewer } = await selecting(1);
-  viewer.open(S12);
-  viewer.changeVolume(CHOICE_202);
-  viewer.open(S13);
+  const { api, viewer } = await selecting(2);
+  const vision = { citation: C21, link: VISION_21 };
+  viewer.open(vision);
+  await settle();
+  viewer.editBox();
+  viewer.close();
   expect(viewer.leaving.get()).toBe(true);
-  expect(viewer.source.get()?.citation.id).toBe(12);
+  expect(viewer.source.get()?.citation.id).toBe(21);
 
   await viewer.answer('keep');
   expect(viewer.leaving.get()).toBe(false);
@@ -371,12 +377,13 @@ test('a way out waits on the pending change: kept, discarded or saved', async ()
   await viewer.answer('discard');
   expect(viewer.source.get()).toBe(null);
 
-  viewer.open(S12);
-  viewer.changeVolume(CHOICE_202);
-  viewer.open(S13);
+  viewer.open(vision);
+  await settle();
+  viewer.editBox();
+  viewer.close();
   await viewer.answer('save');
-  expect(api.asked).toContain('mark 12 202');
-  expect(viewer.source.get()).toEqual(S13);
+  expect(api.asked).toContain('mark 21 201/18 box');
+  expect(viewer.source.get()).toBe(null);
   expect(viewer.pending.get()).toBe(null);
 });
 
@@ -384,10 +391,11 @@ test('leaving runs at once with nothing pending, and keeping on editing runs `st
   const { viewer } = await selecting(1);
   const ran: string[] = [];
   viewer.open(S11);
+  await settle();
   viewer.leave(() => {
     ran.push('go');
   });
-  viewer.changeVolume(CHOICE_202);
+  viewer.setBox(BOX);
   viewer.leave(
     () => {
       ran.push('go');
@@ -404,7 +412,8 @@ test('leaving runs at once with nothing pending, and keeping on editing runs `st
 test('a refused save leaves the way out waiting', async () => {
   const { viewer } = await selecting(1);
   viewer.open(S13);
-  viewer.changeVolume(CHOICE_201);
+  await settle();
+  viewer.setBox(BOX);
   viewer.open(S11);
   const refused = await viewer
     .answer('save')
@@ -418,52 +427,12 @@ test('a refused save leaves the way out waiting', async () => {
 test('selecting someone else drops the pending change', async () => {
   const { state, viewer } = await selecting(1);
   viewer.open(S11);
-  viewer.changeVolume(CHOICE_202);
+  await settle();
+  viewer.setBox(BOX);
   state.select(2);
   expect(viewer.source.get()).toBe(null);
   expect(viewer.pending.get()).toBe(null);
   expect(viewer.leaving.get()).toBe(false);
-});
-
-test('Mark this Image puts the source on the Image shown, pending', async () => {
-  const { api, state, viewer } = await selecting(1);
-  viewer.open(S11);
-  await settle();
-  // An estimate there is still a change.
-  expect(viewer.canMarkImage.get()).toBe(true);
-  viewer.show(20);
-  viewer.markImage();
-  expect(viewer.pending.get()).toEqual({
-    volumeId: '201',
-    volume: 'I Aa:201',
-    image: 20
-  });
-  expect(viewer.canMarkImage.get()).toBe(false);
-  viewer.show(21);
-  expect(viewer.canMarkImage.get()).toBe(true);
-  viewer.show(20);
-  // Changing the Volume drops the Image.
-  viewer.changeVolume(CHOICE_202);
-  expect(viewer.pending.get()?.image).toBeUndefined();
-  viewer.markImage();
-  expect(viewer.pending.get()).toMatchObject({ volumeId: '202', image: 1 });
-  viewer.cancel();
-  state.select(2);
-  await settle();
-  viewer.open({ citation: C21, link: MARKED_21 });
-  expect(viewer.canMarkImage.get()).toBe(false);
-  viewer.markImage();
-  expect(viewer.pending.get()).toBe(null);
-  expect(api.asked.filter((a) => a.startsWith('mark'))).toEqual([]);
-});
-
-test('Save sends the Image marked, without a Box', async () => {
-  const { api, viewer } = await selecting(2);
-  viewer.open({ citation: C21, link: VISION_21 });
-  await settle();
-  viewer.markImage();
-  await viewer.save();
-  expect(api.asked).toContain('mark 21 201/18 no box');
 });
 
 test("editing a Vision match's Box starts from it, and Save sends the Box", async () => {
@@ -483,10 +452,6 @@ test("editing a Vision match's Box starts from it, and Save sends the Box", asyn
   const moved = { ...BOX, top: 0.6 };
   viewer.setBox(moved);
   expect(viewer.boxHere.get()).toEqual(moved);
-  // Off its Image, no Box is shown.
-  viewer.show(19);
-  expect(viewer.boxHere.get()).toBe(null);
-  viewer.show(18);
   await viewer.save();
   expect(api.asked).toContain('mark 21 201/18 box');
 });
@@ -503,20 +468,4 @@ test('a Box drawn on another Image moves the source there', async () => {
     image: 22,
     box: BOX
   });
-});
-
-test('removing the Box leaves the Image marked, pending', async () => {
-  const { viewer } = await selecting(2);
-  viewer.open({ citation: C21, link: MARKED_21 });
-  await settle();
-  viewer.removeBox();
-  expect(viewer.pending.get()).toEqual({
-    volumeId: '201',
-    volume: 'I Aa:201',
-    image: 18
-  });
-  expect(viewer.boxHere.get()).toBe(null);
-  viewer.setBox(BOX);
-  viewer.removeBox();
-  expect(viewer.pending.get()?.box).toBeUndefined();
 });

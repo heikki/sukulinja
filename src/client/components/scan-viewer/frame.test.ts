@@ -7,7 +7,8 @@ import {
   entriesShown,
   frameForFull,
   frameForThumb,
-  layers
+  layers,
+  newBox
 } from './frame';
 import type { Loading } from './frame';
 
@@ -130,4 +131,25 @@ test('a Box is kept on its Image, with some size', () => {
   const tiny = clampBox({ left: 0.5, top: 0.5, width: 0, height: 0 });
   expect(tiny.width).toBeCloseTo(0.002, 10);
   expect(tiny.height).toBeCloseTo(0.002, 10);
+});
+
+test('a new Box is centred where asked, as big as the entries around it', () => {
+  const others = [
+    { left: 0.1, top: 0.2, width: 0.2, height: 0.02 },
+    { left: 0.1, top: 0.3, width: 0.4, height: 0.04 },
+    { left: 0.1, top: 0.4, width: 0.3, height: 0.03 }
+  ];
+  const box = newBox({ x: 0.5, y: 0.5 }, others);
+  expect(box.width).toBeCloseTo(0.3, 10);
+  expect(box.height).toBeCloseTo(0.03, 10);
+  expect(box.left).toBeCloseTo(0.35, 10);
+  expect(box.top).toBeCloseTo(0.485, 10);
+});
+
+test('a new Box on an Image with no others is the usual size, kept on it', () => {
+  const box = newBox({ x: 0.99, y: -0.2 }, []);
+  expect(box.width).toBeCloseTo(0.29, 10);
+  expect(box.height).toBeCloseTo(0.025, 10);
+  expect(box.left).toBeCloseTo(0.71, 10);
+  expect(box.top).toBe(0);
 });

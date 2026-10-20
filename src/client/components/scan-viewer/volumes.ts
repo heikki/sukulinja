@@ -17,11 +17,10 @@ function stop(e: Event) {
   e.stopPropagation();
 }
 
-// Opened from the scan's menu, where it was: the Volumes the current
-// source can be put in, those its years or Record range give first, then
-// the others of its Book by years. Picking one changes the source's
-// Volume, pending, and asks to `close`, as Esc and a press anywhere else
-// do. The Volume shown is marked. Pointer and wheel input stays here, so
+// Opened from the scan's menu, where it was: the Volumes of the current
+// source's Book, those its years or Record range give first, then the
+// others by years. Picking one shows it, leaving the source's Link as it
+// is, and asks to `close`, as Esc and a press anywhere else do. The Volume shown is marked. Pointer and wheel input stays here, so
 // scrolling it doesn't zoom the scan.
 @customElement('sl-scan-volumes')
 export class ScanVolumesElement extends SignalWatcher(LitElement) {

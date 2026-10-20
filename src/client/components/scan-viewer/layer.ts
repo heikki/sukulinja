@@ -6,11 +6,12 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type { Point, Transform } from '@client/pan-zoom';
 import { appState } from '@client/state';
 import type { AppState } from '@client/state';
-import type { Box } from '@common/types';
+import type { Box, PersonRow, VolumeCitation } from '@common/types';
 
+import { entriesOn, rowName } from './citations';
 import { scanLayerStyles } from './edit-styles';
-import { boxFromStage, boxOnStage, clampBox } from './frame';
-import type { Frame, StageRect } from './frame';
+import { boxFromStage, boxOnStage, clampBox, newBox } from './frame';
+import type { Frame } from './frame';
 import { linkItems } from './menu';
 
 import './menu';
@@ -21,10 +22,9 @@ type Grip = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw' | 'move';
 
 const GRIPS: Grip[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
 
-// A drag under way: from where, and the Box it started on. `draw` is a new
-// Box being drawn from that corner.
+// A drag under way: from where, and the Box it started on.
 interface BoxDrag {
-  grip: Grip | 'draw';
+  grip: Grip;
   from: Point;
   start: Box;
 }
@@ -46,19 +46,9 @@ function dragged(start: Box, grip: Grip, d: Point): Box {
   return clampBox({ left, top, width: right - left, height: bottom - top });
 }
 
-// A rectangle between two points on the stage.
-function between(a: Point, b: Point): StageRect {
-  return {
-    left: Math.min(a.x, b.x),
-    top: Math.min(a.y, b.y),
-    width: Math.abs(a.x - b.x),
-    height: Math.abs(a.y - b.y)
-  };
-}
-
 // Editing the current source's Link over the scan: the menu a right-click
-// opens (`openMenu`), the Volumes opened from it, drawing a new entry Box,
-// and the pending Box with handles to move and resize it. Presses on
+// opens (`openMenu`), the Volumes opened from it, a new entry Box put where
+// the menu opened, and the pending Box with handles to move and resize it. Presses on
 // anything of its own stay here, so they don't pan the scan; elsewhere the
 // scan pans as ever. `canEdit` is false until the full Image is shown,
 // whose frame Boxes are measured in.
@@ -71,13 +61,13 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
   @property({ attribute: false }) view: Transform | null = null;
   @property({ attribute: false }) frame: Frame | null = null;
   @property({ type: Boolean }) canEdit = false;
+  @property({ attribute: false }) persons = new Map<number, PersonRow>();
 
   @state() private popup: {
     at: Point;
     onBox: boolean;
     volumes: boolean;
   } | null = null;
-  @state() private drawing = false;
   @state() private drag: BoxDrag | null = null;
   // The Box as a drag has it, before it's let go.
   @state() private live: Box | null = null;
@@ -99,7 +89,6 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
   // The menu at `at` on the stage; `onBox` when it's on the source's own
   // entry Box, which then has a menu of its own.
   openMenu(at: Point, onBox: boolean) {
-    this.drawing = false;
     this.popup = { at, onBox, volumes: false };
   }
 
@@ -112,32 +101,27 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }
 
-  // Esc stops a drawing or a drag before the viewer's Esc closes anything.
+  // Esc stops a drag before the viewer's Esc closes anything.
   private readonly onKey = (e: KeyboardEvent) => {
-    if (e.key !== 'Escape' || (!this.drawing && this.drag === null)) return;
+    if (e.key !== 'Escape' || this.drag === null) return;
     e.preventDefault();
     e.stopPropagation();
-    this.drawing = false;
     this.drag = null;
     this.live = null;
   };
 
-  private start(e: MouseEvent, grip: Grip | 'draw', start: Box) {
+  private start(e: MouseEvent, grip: Grip, start: Box) {
     if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
     this.drag = { grip, from: this.toStage(e), start };
-    this.live = grip === 'draw' ? null : start;
+    this.live = start;
   }
 
   private readonly onMove = (e: MouseEvent) => {
     const { drag, view, frame } = this;
     if (drag === null || view === null || frame === null) return;
     const at = this.toStage(e);
-    if (drag.grip === 'draw') {
-      this.live = clampBox(boxFromStage(between(drag.from, at), view, frame));
-      return;
-    }
     const d = boxFromStage(
       {
         left: view.pan.x + at.x - drag.from.x,
@@ -151,19 +135,65 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     this.live = dragged(drag.start, drag.grip, { x: d.left, y: d.top });
   };
 
-  // A drawing too small to mean anything is dropped.
   private readonly onUp = () => {
     const { drag, live } = this;
     if (drag === null) return;
     this.drag = null;
     this.live = null;
-    if (drag.grip === 'draw') this.drawing = false;
     if (live !== null) this.viewer.setBox(live);
   };
 
   private readonly onPopupClose = () => {
     this.popup = null;
   };
+
+  // The current source's person, as the people beside the scan name them.
+  private sourceRow() {
+    const id = this.viewer.source.get()?.citation.id;
+    const rows = this.viewer.citations.get();
+    return Array.isArray(rows)
+      ? (rows.find((r) => r.citation.id === id) ?? null)
+      : null;
+  }
+
+  private sourceName(row: VolumeCitation | null) {
+    const name = row === null ? '—' : rowName(this.persons, row);
+    return name === '—' ? null : name;
+  }
+
+  // Confirmed by the people beside the scan, who show it saving and why
+  // it's refused.
+  private confirm(row: VolumeCitation) {
+    this.dispatchEvent(
+      new CustomEvent<VolumeCitation>('scan-confirm', {
+        detail: row,
+        bubbles: true,
+        composed: true
+      })
+    );
+  }
+
+  // A pending Box for the source's entry, to move and resize from there:
+  // its Link's own Box when it has one on the Image shown, as a Vision match
+  // does, else one at `at` on the stage, sized as the Image's other entries.
+  private placeBox(at: Point) {
+    const { view, frame } = this;
+    if (view === null || frame === null) return;
+    if (!this.viewer.boxPending.get() && this.viewer.boxHere.get() !== null) {
+      this.viewer.editBox();
+      return;
+    }
+    const point = boxFromStage(
+      { left: at.x, top: at.y, width: 0, height: 0 },
+      view,
+      frame
+    );
+    const rows = this.viewer.citations.get();
+    const others = Array.isArray(rows)
+      ? entriesOn(rows, this.viewer.image.get()).map((e) => e.box)
+      : [];
+    this.viewer.setBox(newBox({ x: point.left, y: point.top }, others));
+  }
 
   private renderPopup() {
     if (this.popup === null) return nothing;
@@ -174,16 +204,23 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
         @close=${this.onPopupClose}
       ></sl-scan-volumes>`;
     }
-    const canDraw = this.canEdit;
+    const row = this.sourceRow();
     const items = linkItems(
       this.viewer,
-      { onBox, canDraw },
+      this.sourceName(row),
+      { onBox, canBox: this.canEdit },
       {
+        confirm:
+          row?.link.certainty === 'vision'
+            ? () => {
+                this.confirm(row);
+              }
+            : null,
         chooseVolume: () => {
           this.popup = { at, onBox, volumes: true };
         },
-        draw: () => {
-          this.drawing = true;
+        placeBox: () => {
+          this.placeBox(at);
         }
       }
     );
@@ -194,19 +231,7 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     ></sl-scan-menu>`;
   }
 
-  // Over the whole stage while drawing, so a press starts the new Box.
-  private renderDrawing() {
-    if (!this.drawing || !this.canEdit) return nothing;
-    const empty = { left: 0, top: 0, width: 0, height: 0 };
-    return html`<div
-      class="draw"
-      @mousedown=${(e: MouseEvent) => {
-        this.start(e, 'draw', empty);
-      }}
-    ></div>`;
-  }
-
-  // The pending Box, or the one being drawn or dragged.
+  // The pending Box, or the one being dragged.
   private renderBox() {
     const { view, frame } = this;
     if (view === null || frame === null || !this.canEdit) return nothing;
@@ -216,7 +241,6 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     const box = this.live ?? pending;
     if (box === null) return nothing;
     const at = boxOnStage(box, view, frame);
-    const grips = this.drag?.grip === 'draw' ? [] : GRIPS;
     return html`
       <div
         class="box"
@@ -226,7 +250,7 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
           this.start(e, 'move', box);
         }}
       >
-        ${grips.map(
+        ${GRIPS.map(
           (g) =>
             html`<span
               class="grip ${g}"
@@ -240,8 +264,7 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
   }
 
   override render() {
-    return html`${this.renderBox()} ${this.renderDrawing()}
-    ${this.renderPopup()}`;
+    return html`${this.renderBox()} ${this.renderPopup()}`;
   }
 }
 

@@ -1,9 +1,9 @@
 import { css } from 'lit';
 
-// Editing a source's Link: the Volumes to change to, the bar with the
-// change pending, the scan's menu, and the layer drawing Boxes.
+// Editing a source's Link: the Volumes to look in, Cancel and Save under
+// the pending Box, the scan's menu, and the layer editing Boxes.
 
-// The Volumes to change to, over the scan where the menu was.
+// The Volumes to look in, over the scan where the menu was.
 export const scanVolumesStyles = css`
   :host {
     position: absolute;
@@ -61,51 +61,14 @@ export const scanVolumesStyles = css`
   }
 `;
 
-// Floating over the top of the scan, centred, while a change is pending.
+// In the nav, after its divider: one row, as the nav is.
 export const scanEditStyles = css`
   :host {
-    position: absolute;
-    top: 1rem;
-    left: 50%;
     display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    width: min(30rem, calc(100% - 2rem));
-    padding: 0.6rem 0.75rem;
-    transform: translateX(-50%);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--card) 96%, transparent);
-    box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
-    cursor: auto;
-  }
-
-  h3 {
-    margin: 0;
-    overflow: hidden;
-    font-size: 1em;
-    font-weight: 500;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  dl {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 0.15rem 0.6rem;
-    margin: 0;
-  }
-
-  dt {
-    color: var(--muted);
-  }
-
-  dd {
-    min-width: 0;
-    margin: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding-left: 0.5rem;
+    border-left: 1px solid var(--border);
   }
 
   p {
@@ -114,8 +77,12 @@ export const scanEditStyles = css`
 
   .actions {
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
     gap: 0.5rem;
+  }
+
+  button {
+    white-space: nowrap;
   }
 
   button.save {
@@ -173,34 +140,30 @@ export const scanMenuStyles = css`
 `;
 
 // Over the whole stage, letting presses through to the scan except on its
-// own parts.
+// own parts. No stacking of its own, so its parts stack with the viewer's:
+// the Box under the nav (2), the menus over it.
 export const scanLayerStyles = css`
   :host {
     position: absolute;
     inset: 0;
-    z-index: 2;
     pointer-events: none;
   }
 
   sl-scan-menu,
   sl-scan-volumes,
-  .draw,
   .box {
     pointer-events: auto;
   }
 
-  .draw {
-    position: absolute;
-    inset: 0;
-    cursor: crosshair;
-  }
-
-  /* The pending Box: the accent, dashed, so it reads as not saved yet. */
+  /* The pending Box: red as the entries' Boxes are, but dashed, so it
+     reads as not saved yet. */
   .box {
     position: absolute;
+    z-index: 1;
     box-sizing: border-box;
-    border: 2px dashed var(--accent);
-    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border: 2px dashed var(--danger);
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
     cursor: move;
   }
 
@@ -209,9 +172,9 @@ export const scanLayerStyles = css`
     width: 10px;
     height: 10px;
     margin: -6px 0 0 -6px;
-    border: 1px solid var(--bg);
+    border: 1px solid color-mix(in srgb, var(--danger) 70%, black);
     border-radius: 2px;
-    background: var(--accent);
+    background: var(--danger);
   }
 
   .grip.n,

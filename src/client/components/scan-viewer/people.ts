@@ -8,8 +8,7 @@ import { appState } from '@client/state';
 import type { AppState } from '@client/state';
 import type { PersonRow, VolumeCitation } from '@common/types';
 
-import { formatName } from '../tree-view/renderer';
-import { boxKey, boxOf, groupCitations, pickRow } from './citations';
+import { boxKey, boxOf, groupCitations, pickRow, rowName } from './citations';
 import { controlStyles, scanPeopleStyles } from './styles';
 
 // Collapsed or not for the rest of the visit, across Volumes and citations.
@@ -19,8 +18,8 @@ let collapsed = false;
 // shown, grouped as `groupCitations` says. Clicking one picks them; the
 // citation the viewer is on is marked. Hovering a row with an entry on the
 // scan names the entry's key with `scan-hover`, and rows of the entry
-// picked out there (`hovered`) are highlighted. A vision match can be
-// confirmed from its row, saved as marking its Image by hand would be.
+// picked out there (`hovered`) are highlighted. The picked row, when a
+// vision match, can be confirmed, saved as marking its Image by hand would be.
 @customElement('sl-scan-people')
 export class ScanPeopleElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanPeopleStyles];
@@ -34,12 +33,7 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
   @state() private confirming: number | null = null;
   @state() private refused: { id: number; error: string } | null = null;
 
-  private readonly nameOf = (row: VolumeCitation) => {
-    const person = this.persons.get(row.personId);
-    return person === undefined
-      ? (row.citation.record?.name ?? '—')
-      : formatName(person);
-  };
+  private readonly nameOf = (row: VolumeCitation) => rowName(this.persons, row);
 
   private readonly toggle = () => {
     collapsed = !collapsed;
@@ -56,7 +50,9 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
     this.dispatchEvent(new CustomEvent('scan-hover', { detail: key }));
   }
 
-  private async confirm(row: VolumeCitation) {
+  // Also asked for by the scan's menu, so it's guarded as the button is.
+  async confirm(row: VolumeCitation) {
+    if (this.confirming !== null) return;
     const id = row.citation.id;
     this.confirming = id;
     this.refused = null;
@@ -73,13 +69,13 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
     if (refused !== null) this.refused = { id, error: refused.message };
   }
 
-  private renderConfirm(row: VolumeCitation) {
-    if (row.link.certainty !== 'vision') return nothing;
+  private renderConfirm(row: VolumeCitation, current: boolean) {
+    if (!current || row.link.certainty !== 'vision') return nothing;
     const id = row.citation.id;
     return html`
       <button
         class="confirm"
-        title="Mark this Image as where the record is"
+        title="Mark the record where the vision model found it"
         ?disabled=${this.confirming !== null}
         @click=${() => {
           void this.confirm(row);
@@ -119,7 +115,7 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
         >
           <span class="name">${this.nameOf(row)}</span>
         </button>
-        ${this.renderConfirm(row)}
+        ${this.renderConfirm(row, current)}
       </li>
     `;
   }

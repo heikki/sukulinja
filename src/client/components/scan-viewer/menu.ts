@@ -14,29 +14,43 @@ export interface MenuItem {
   run: () => void;
 }
 
-// What the menu offers for the current source's Link. On its own entry
-// Box (`onBox`), only that Box: editing it, unless it's already pending,
-// and deleting it. Elsewhere: marking the Image shown while that would
-// change it, drawing the entry (only over the full Image, `canDraw`), and
-// Change Volume….
+// What the menu offers for the current source's Link, whose person is
+// `name` when known. On its own entry Box (`onBox`), only that Box: a
+// Vision match's to confirm (`confirm`) or edit, a Mark's to edit, and
+// once it's pending, the change to discard. Elsewhere: a pending Box for
+// the person's entry (only over the full Image, `canBox`), and Change
+// Volume…, which only shows another Volume.
 export function linkItems(
   viewer: Viewer,
-  where: { onBox: boolean; canDraw: boolean },
-  open: { chooseVolume: () => void; draw: () => void }
+  name: string | null,
+  where: { onBox: boolean; canBox: boolean },
+  open: {
+    confirm: (() => void) | null;
+    chooseVolume: () => void;
+    placeBox: () => void;
+  }
 ) {
   const items: MenuItem[] = [];
+  function whose(verb: string) {
+    return name === null ? `${verb} the entry` : `${verb} “${name}”`;
+  }
   if (where.onBox) {
-    if (!viewer.boxPending.get()) {
-      items.push({ label: 'Edit box', run: viewer.editBox });
+    if (viewer.boxPending.get()) {
+      items.push({ label: 'Discard changes', run: viewer.cancel });
+      return items;
     }
-    items.push({ label: 'Delete box', run: viewer.removeBox });
+    if (viewer.source.get()?.link.certainty === 'vision') {
+      if (open.confirm !== null) {
+        items.push({ label: whose('Confirm'), run: open.confirm });
+      }
+      items.push({ label: 'Edit match', run: viewer.editBox });
+    } else {
+      items.push({ label: whose('Edit'), run: viewer.editBox });
+    }
     return items;
   }
-  if (viewer.canMarkImage.get()) {
-    items.push({ label: 'Mark this Image', run: viewer.markImage });
-  }
-  if (where.canDraw) {
-    items.push({ label: 'Draw the entry…', run: open.draw });
+  if (where.canBox) {
+    items.push({ label: whose('Mark'), run: open.placeBox });
   }
   items.push({ label: 'Change Volume…', run: open.chooseVolume });
   return items;

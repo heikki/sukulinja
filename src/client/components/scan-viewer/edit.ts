@@ -4,15 +4,9 @@ import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { ApiError } from '@client/dataset-api';
-import { linkLabel } from '@client/link-labels';
 import { appState } from '@client/state';
-import type {
-  AppState,
-  LeaveAnswer,
-  LinkOpen,
-  PendingLink
-} from '@client/state';
-import type { Link, LinkTarget, PersonRow } from '@common/types';
+import type { AppState, LeaveAnswer, LinkOpen } from '@client/state';
+import type { PersonRow } from '@common/types';
 
 import { formatName } from '../tree-view/renderer';
 import { scanEditStyles } from './edit-styles';
@@ -22,32 +16,10 @@ function stop(e: Event) {
   e.stopPropagation();
 }
 
-function imagePart(image: number | undefined) {
-  return image === undefined ? '' : ` · Image ${image}`;
-}
-
-function was(link: Link) {
-  const image = 'image' in link ? link.image : undefined;
-  return `${linkLabel(link)} · ${link.volume}${imagePart(image)}`;
-}
-
-function targetOf({ image, box }: PendingLink): LinkTarget {
-  if (image === undefined) return { precision: 'volume', certainty: 'marked' };
-  return box === undefined
-    ? { precision: 'image', image, certainty: 'marked' }
-    : { precision: 'entry', image, box, certainty: 'marked' };
-}
-
-function now(change: PendingLink) {
-  const label = linkLabel(targetOf(change));
-  return `${label} · ${change.volume}${imagePart(change.image)}`;
-}
-
-// Floating over the top of the scan while the current source has a change
-// not saved: its Link as it was and as it will be, with Cancel and Save. A
-// way out of the source waiting on the change asks instead: Save, Discard
-// or Keep editing. Pointer and wheel input stays here, as in the nav. A
-// change on an Image moves the record for everyone citing it, whom it
+// At the end of the nav while a Box is pending: Cancel and Save. A way out
+// of the source waiting on the Box asks there instead: Keep editing,
+// Discard or Save. Pointer and wheel input stays here, so a press doesn't pan. The
+// Box is on a Record pin shared by everyone citing the record, whom it
 // names from `persons`.
 @customElement('sl-scan-edit')
 export class ScanEditElement extends SignalWatcher(LitElement) {
@@ -63,7 +35,7 @@ export class ScanEditElement extends SignalWatcher(LitElement) {
 
   override connectedCallback() {
     super.connectedCallback();
-    for (const type of ['mousedown', 'wheel', 'dblclick']) {
+    for (const type of ['mousedown', 'wheel', 'dblclick', 'contextmenu']) {
       this.addEventListener(type, stop);
     }
   }
@@ -87,9 +59,15 @@ export class ScanEditElement extends SignalWatcher(LitElement) {
     });
   }
 
+  private renderSave(run: () => void) {
+    return html`<button class="save" ?disabled=${this.saving} @click=${run}>
+      ${this.saving ? 'Saving…' : 'Save'}
+    </button>`;
+  }
+
   private renderAsk() {
     return html`
-      <p class="ask">Save this change first?</p>
+      <p class="ask">Save this box first?</p>
       <div class="actions">
         <button
           ?disabled=${this.saving}
@@ -107,49 +85,15 @@ export class ScanEditElement extends SignalWatcher(LitElement) {
         >
           Discard
         </button>
-        <button
-          class="save"
-          ?disabled=${this.saving}
-          @click=${() => {
-            this.answer('save');
-          }}
-        >
-          ${this.saving ? 'Saving…' : 'Save'}
-        </button>
+        ${this.renderSave(() => {
+          this.answer('save');
+        })}
       </div>
     `;
   }
 
-  // The others in the Volume citing the same record, by its URL.
-  private alsoMoved(source: LinkOpen, change: PendingLink) {
-    const rows = this.state.viewer.citations.get();
-    const { url, id } = source.citation;
-    if (change.image === undefined || url === null || !Array.isArray(rows)) {
-      return nothing;
-    }
-    const names = rows
-      .filter((r) => r.citation.url === url && r.citation.id !== id)
-      .map((r) => {
-        const person = this.persons.get(r.personId);
-        return person === undefined ? null : formatName(person);
-      })
-      .filter((n) => n !== null);
-    if (names.length === 0) return nothing;
-    return html`<p class="also">
-      Also moves the entry for ${names.join(', ')}.
-    </p>`;
-  }
-
-  private renderChange(source: LinkOpen, change: PendingLink) {
-    const { link } = source;
+  private renderActions() {
     return html`
-      <dl>
-        <dt>Was</dt>
-        <dd>${was(link)}</dd>
-        <dt>Now</dt>
-        <dd>${now(change)}</dd>
-      </dl>
-      ${this.alsoMoved(source, change)}
       <div class="actions">
         <button
           ?disabled=${this.saving}
@@ -160,35 +104,43 @@ export class ScanEditElement extends SignalWatcher(LitElement) {
         >
           Cancel
         </button>
-        <button
-          class="save"
-          ?disabled=${this.saving}
-          @click=${() => {
-            void this.run(true, async () => {
-              await this.state.viewer.save();
-            });
-          }}
-        >
-          ${this.saving ? 'Saving…' : 'Save'}
-        </button>
+        ${this.renderSave(() => {
+          void this.run(true, async () => {
+            await this.state.viewer.save();
+          });
+        })}
       </div>
     `;
+  }
+
+  // The others in the Volume citing the same record, by its URL.
+  private alsoMoved(source: LinkOpen) {
+    const rows = this.state.viewer.citations.get();
+    const { url, id } = source.citation;
+    if (url === null || !Array.isArray(rows)) return nothing;
+    const names = rows
+      .filter((r) => r.citation.url === url && r.citation.id !== id)
+      .map((r) => {
+        const person = this.persons.get(r.personId);
+        return person === undefined ? null : formatName(person);
+      })
+      .filter((n) => n !== null);
+    if (names.length === 0) return nothing;
+    return html`<p class="also">Also moves ${names.join(', ')}.</p>`;
   }
 
   override render() {
     const { viewer } = this.state;
     const source = viewer.source.get();
-    const change = viewer.pending.get();
-    if (source === null || change === null) return nothing;
-    const name = source.citation.reference ?? 'this source';
+    if (source === null || viewer.pending.get() === null) return nothing;
     return html`
-      <h3 title=${name}>${name}</h3>
+      ${this.alsoMoved(source)}
       ${
-        viewer.leaving.get()
-          ? this.renderAsk()
-          : this.renderChange(source, change)
+        this.refused === null
+          ? nothing
+          : html`<p class="refused">${this.refused}</p>`
       }
-      ${this.refused === null ? nothing : html`<p class="refused">${this.refused}</p>`}
+      ${viewer.leaving.get() ? this.renderAsk() : this.renderActions()}
     `;
   }
 }
