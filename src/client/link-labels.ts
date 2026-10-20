@@ -48,13 +48,6 @@ export function linkHint(link: LinkTarget) {
     : 'Guessed from the usual pages per Image for this kind of book; often a few Images off.';
 }
 
-// A Split reference's row says it may be elsewhere.
-export const SPLIT_NOTE = 'one of several Volumes';
-
-export function splitLabel(label: string) {
-  return `${label} · ${SPLIT_NOTE}`;
-}
-
 // A Volume's name without the archive's code for it ("I Aa:8"), which the
 // archive's name stands in for: "Pää- ja rippikirjat (1783-1790)".
 export function volumeTitle(label: string) {

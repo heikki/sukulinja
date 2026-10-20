@@ -44,8 +44,7 @@ function row(personId: number, target: LinkTarget): VolumeCitation {
       url: 'astia/1',
       archive: 'Juvan seurakunnan arkisto',
       ...target
-    },
-    split: false
+    }
   };
 }
 

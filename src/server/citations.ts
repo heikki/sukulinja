@@ -164,11 +164,10 @@ export function createCitations(db: Database, scans: Scans) {
     );
     if (links === null) return null;
     return church.flatMap(({ row, book }, i): VolumeCitation[] => {
-      const found = links[i];
-      if (found === null || found === undefined) return [];
-      const { link, split } = found;
+      const link = links[i];
+      if (link === null || link === undefined) return [];
       const citation = toCitation(row, book);
-      return [{ personId: row.personId, citation, link, split }];
+      return [{ personId: row.personId, citation, link }];
     });
   }
 

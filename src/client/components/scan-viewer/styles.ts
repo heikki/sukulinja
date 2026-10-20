@@ -435,10 +435,6 @@ export const scanPeopleStyles = css`
     font-weight: 500;
   }
 
-  .row .muted {
-    font-size: 0.8rem;
-  }
-
   li {
     position: relative;
   }
