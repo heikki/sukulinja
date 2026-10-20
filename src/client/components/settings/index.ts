@@ -36,8 +36,10 @@ const GEAR_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
   `}
 </svg>`;
 
-// The gear at the end of the top bar and the popover it opens. Non-modal, so
-// the chart stays in view and reflows as Generations changes; a click anywhere
+// The gear in the window's top-right corner (beside the person search inside a
+// dataset) and the popover it opens. Inside a dataset it first names the dataset
+// (`datasetName`) and links back to the chooser. Non-modal, so the chart
+// stays in view and reflows as Generations changes; a click anywhere
 // outside, the gear again, or Escape closes it. Generations is the chart's
 // Generation limit: inside a dataset the chart owns the value (`generations`)
 // and hears picks through `generations-change`; on the landing page there is
@@ -76,13 +78,12 @@ export class SettingsElement extends LitElement {
         height: 1rem;
       }
       /* Sized to its content: shrink-to-fit would otherwise measure against the
-       gear-sized host it is positioned in. Dropped clear of the top bar (the
-       gear sits ~0.7rem above its bottom edge), arrow tip included, so the
-       popover floats over the page rather than straddling the bar's border. */
+       gear-sized host it is positioned in. Dropped just under the gear, arrow
+       tip included. */
       .popover {
         position: absolute;
         width: max-content;
-        top: calc(100% + 1.4rem);
+        top: calc(100% + 0.6rem);
         right: 0;
         z-index: 20;
         display: grid;
@@ -114,6 +115,23 @@ export class SettingsElement extends LitElement {
       .label {
         font-size: 0.85rem;
         color: var(--muted);
+      }
+      .dataset {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 1.25rem;
+        font-size: 0.85rem;
+      }
+      .dataset .name {
+        font-weight: 600;
+      }
+      .dataset a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+      .dataset a:hover {
+        text-decoration: underline;
       }
       /* Equal segments, each as wide as the row's longest label; rows stretch
        to the widest so they line up as one column. */
@@ -194,6 +212,7 @@ export class SettingsElement extends LitElement {
   ];
 
   @property({ attribute: false }) generations: number | null = null;
+  @property({ attribute: false }) datasetName: string | null = null;
 
   @state() private open = false;
   @state() private appearance: Appearance = currentAppearance();
@@ -289,8 +308,19 @@ export class SettingsElement extends LitElement {
   private renderPopover() {
     return html`
       <div class="popover" role="group" aria-label="Settings">
-        ${this.renderAppearance()} ${this.renderGenerations()}
-        ${this.renderScanCache()}
+        ${this.renderDataset()} ${this.renderAppearance()}
+        ${this.renderGenerations()} ${this.renderScanCache()}
+      </div>
+    `;
+  }
+
+  private renderDataset() {
+    if (this.datasetName === null) return nothing;
+    return html`
+      <span class="label">Dataset</span>
+      <div class="dataset">
+        <span class="name">${this.datasetName}</span>
+        <a href="/">All datasets</a>
       </div>
     `;
   }

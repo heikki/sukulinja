@@ -129,6 +129,23 @@ if (savedFrame !== null) {
   win.setFrame(savedFrame.x, savedFrame.y, savedFrame.width, savedFrame.height);
 }
 
+// The window's title names the dataset shown, or the app on the chooser.
+// Moving between them is a full page load, so each move lands here.
+const DATASET_PATH_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?=\/|$)/u;
+async function windowTitle(url: string) {
+  const slug = DATASET_PATH_RE.exec(new URL(url).pathname)?.groups?.slug;
+  if (slug === undefined) return 'Sukulinja';
+  const listed = (await registry.list()).find((d) => d.slug === slug);
+  return listed?.displayName ?? slug;
+}
+win.webview.on('did-navigate', (event: unknown) => {
+  const url = (event as ElectrobunEvent).data?.detail;
+  if (typeof url !== 'string') return;
+  void windowTitle(url).then((title) => {
+    win.setTitle(title);
+  });
+});
+
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 function debouncedSave() {
   if (saveTimer !== null) clearTimeout(saveTimer);

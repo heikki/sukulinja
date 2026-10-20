@@ -413,15 +413,9 @@ export class AppElement extends LitElement {
 
   private renderScreen() {
     if (this.provider !== null) return this.renderDatasetView();
-    // The header renders before the dataset list arrives, so the bar is up
-    // from the first paint rather than popping in over a blank page.
-    return html`
-      <header>
-        <h1>Sukulinja</h1>
-        <sl-settings></sl-settings>
-      </header>
-      ${this.renderLanding()}
-    `;
+    // Settings renders before the dataset list arrives, so it's there from
+    // the first paint rather than popping in over a blank page.
+    return html`<sl-settings></sl-settings>${this.renderLanding()}`;
   }
 
   private renderLanding() {
@@ -446,30 +440,14 @@ export class AppElement extends LitElement {
     `;
   }
 
+  // The name goes to the Settings popover, beside its link back to the
+  // chooser; the window's title names the dataset too (src/server/index.ts).
   private renderDatasetView() {
-    // The name joins once the dataset list has loaded, rather than standing in
-    // with the slug and then changing; the slug is only the fallback for a
-    // dataset the list doesn't have.
-    const name =
-      this.datasets === null
-        ? null
-        : (this.datasets.find((d) => d.slug === this.slug)?.displayName ??
-          this.slug);
-    // The dataset name lives in the tree-view's own toolbar (slot="brand"),
-    // standing in for "Sukulinja" and doubling as the link back to the chooser.
+    const listed = this.datasets?.find((d) => d.slug === this.slug);
     return html`
-      <sl-tree-view>
-        <button
-          slot="brand"
-          class="brand"
-          title="Back to datasets"
-          @click=${() => {
-            window.location.assign('/');
-          }}
-        >
-          ${name === null ? 'Sukulinja' : `Sukulinja · ${name}`}
-        </button>
-      </sl-tree-view>
+      <sl-tree-view
+        .datasetName=${listed?.displayName ?? this.slug}
+      ></sl-tree-view>
     `;
   }
 

@@ -27,8 +27,8 @@ export class PersonSearchElement extends LitElement {
         position: relative;
       }
 
-      /* Same height and frame as the Settings gear beside it, so the bar reads
-       as one quiet row rather than a form field. */
+      /* Same height and frame as the Settings gear beside it, so the pair
+       reads as one quiet cluster rather than a form field. */
       input {
         width: 100%;
         height: 2rem;
