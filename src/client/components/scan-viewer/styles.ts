@@ -240,6 +240,7 @@ export const scanNavStyles = css`
     position: absolute;
     bottom: 1rem;
     left: 50%;
+    z-index: 2;
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -439,7 +440,6 @@ export const scanPeopleStyles = css`
     position: relative;
   }
 
-  /* Shown on the row hovered or focused, and on the viewer's own. */
   button.confirm {
     position: absolute;
     top: 50%;
@@ -447,14 +447,6 @@ export const scanPeopleStyles = css`
     transform: translateY(-50%);
     padding: 0.1rem 0.5rem;
     font-size: 0.75rem;
-    visibility: hidden;
-  }
-
-  li:hover button.confirm,
-  li:focus-within button.confirm,
-  li:has(.current) button.confirm,
-  button.confirm:disabled {
-    visibility: visible;
   }
 
   .refused {
@@ -464,9 +456,10 @@ export const scanPeopleStyles = css`
   }
 `;
 
-// Over the stage, letting presses through but on the boxes themselves. Red
-// stands out on the grey scans. At rest only the entry of the citation the
-// viewer is on shows; the others show when hovered, here or by their row.
+// Over the stage, letting presses through but on the current box. Red
+// stands out on the grey scans. Only the entry of the citation the viewer
+// is on shows and takes the pointer; the others show when their row is
+// hovered, and the pointer passes through them to the stage.
 export const scanEntriesStyles = css`
   :host {
     position: absolute;
@@ -479,11 +472,11 @@ export const scanEntriesStyles = css`
     box-sizing: border-box;
     border: 2px solid transparent;
     border-radius: 3px;
-    pointer-events: auto;
-    cursor: pointer;
   }
 
   .entry.current {
+    pointer-events: auto;
+    cursor: pointer;
     border-color: var(--danger);
     background: color-mix(in srgb, var(--danger) 12%, transparent);
   }

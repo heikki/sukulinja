@@ -21,8 +21,12 @@ export function certaintyName(certainty: Certainty) {
 }
 
 // A Link's name: who says so, then how far down unless it's the entry.
+export function linkName(certainty: Certainty, precision: Precision) {
+  return `${CERTAINTY[certainty]}${PRECISION[precision]}`;
+}
+
 export function linkLabel(link: LinkTarget) {
-  return `${CERTAINTY[link.certainty]}${PRECISION[link.precision]}`;
+  return linkName(link.certainty, link.precision);
 }
 
 // What the name means; an estimate says what it was counted from.

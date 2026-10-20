@@ -2,7 +2,7 @@
 // thumbnail arrives first and sets it provisionally; the full Image then
 // takes over without the view moving.
 
-import type { Transform, Viewport } from '@client/pan-zoom';
+import type { Point, Transform, Viewport } from '@client/pan-zoom';
 import type { Box } from '@common/types';
 
 export interface Frame {
@@ -137,4 +137,34 @@ export function clampBox(box: Box): Box {
   const right = Math.min(1, Math.max(box.left + box.width, left + MIN_BOX));
   const bottom = Math.min(1, Math.max(box.top + box.height, top + MIN_BOX));
   return { left, top, width: right - left, height: bottom - top };
+}
+
+// How big an entry's Box usually is, in fractions of its Image: the median
+// of the Boxes saved so far.
+export const ENTRY_SIZE = { width: 0.29, height: 0.025 };
+
+function median(values: number[]) {
+  const sorted = values.toSorted((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1
+    ? sorted[mid]!
+    : (sorted[mid - 1]! + sorted[mid]!) / 2;
+}
+
+// A new entry Box centred on `at` (in fractions of the Image) and kept on
+// it, as big as the Image's other entries are, or as entries usually are.
+export function newBox(at: Point, others: Box[]): Box {
+  const width = Math.min(
+    1,
+    others.length === 0 ? ENTRY_SIZE.width : median(others.map((b) => b.width))
+  );
+  const height = Math.min(
+    1,
+    others.length === 0
+      ? ENTRY_SIZE.height
+      : median(others.map((b) => b.height))
+  );
+  const left = Math.min(Math.max(0, at.x - width / 2), 1 - width);
+  const top = Math.min(Math.max(0, at.y - height / 2), 1 - height);
+  return { left, top, width, height };
 }

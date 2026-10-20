@@ -13,7 +13,7 @@ import type {
 } from '@client/pan-zoom';
 import { appState } from '@client/state';
 import type { AppState, LinkOpen, VolumeShown } from '@client/state';
-import type { PersonRow } from '@common/types';
+import type { PersonRow, VolumeCitation } from '@common/types';
 
 import { MOMENTUM, releaseVelocity } from './drag';
 import type { Drag, Sample } from './drag';
@@ -26,7 +26,6 @@ import { loadingNote } from './note';
 import { Prefetch } from './prefetch';
 import { controlStyles, scanViewerStyles } from './styles';
 
-import './edit';
 import './entries';
 import './layer';
 import './nav';
@@ -423,14 +422,16 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     this.pinch.cancel();
   }
 
-  // Esc closes, or goes on editing when closing is waiting on a change;
-  // the arrows step (see keys.ts). Every key handled here is marked so, or
-  // WKWebView hands it on to macOS, which beeps at it.
+  // Esc backs out one step: from a way out waiting on the pending Box back
+  // to editing, from editing (dropping the Box, as Cancel does), else out
+  // of the viewer. The arrows step (see keys.ts). Every key handled here is
+  // marked so, or WKWebView hands it on to macOS, which beeps at it.
   private readonly onKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();
       if (this.viewer.leaving.get()) void this.viewer.answer('keep');
-      else this.viewer.close();
+      else if (this.viewer.pending.get() === null) this.viewer.close();
+      else this.viewer.cancel();
       return;
     }
     const step = stepOf(e);
@@ -511,6 +512,10 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     this.hovered = e.detail;
   };
 
+  private readonly onConfirm = (e: CustomEvent<VolumeCitation>) => {
+    void this.renderRoot.querySelector('sl-scan-people')?.confirm(e.detail);
+  };
+
   // Boxes around the entries whose place is known, once the full Image is
   // shown; the source's own gives way to its change pending.
   private renderEntries(source: LinkOpen) {
@@ -547,16 +552,13 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
       >
         ${this.renderImages(volume)} ${this.renderEntries(source)}
         ${this.renderNote()}
-        <sl-scan-nav></sl-scan-nav>
-        ${
-          this.viewer.pending.get() === null
-            ? nothing
-            : html`<sl-scan-edit .persons=${this.persons}></sl-scan-edit>`
-        }
+        <sl-scan-nav .persons=${this.persons}></sl-scan-nav>
         <sl-scan-layer
           .view=${this.view}
           .frame=${this.frame}
           ?canEdit=${entriesShown(this.frame, this.loading)}
+          .persons=${this.persons}
+          @scan-confirm=${this.onConfirm}
         ></sl-scan-layer>
       </div>
     `;
