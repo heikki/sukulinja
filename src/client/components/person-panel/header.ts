@@ -22,30 +22,37 @@ interface Line {
   text: string;
 }
 
+// The first of `tags` with a date or place; one recorded with neither, as
+// a death often is ("DEAT Y"), still says it happened.
 function lineOf(facts: FactRow[], tags: string[]): Line | null {
+  let bare: Line | null = null;
   for (const tag of tags) {
     const f = facts.find((x) => x.tag === tag);
     if (f === undefined) continue;
     const date = f.date === null ? null : gedcomDate(f.date);
     const text = [date, f.place].filter((x) => x !== null && x !== '');
     if (text.length > 0) return { label: factLabel(f), text: text.join(' · ') };
+    bare ??= { label: factLabel(f), text: '—' };
   }
-  return null;
+  return bare;
 }
 
 function yearLine(label: string, year: number | null): Line | null {
   return year === null ? null : { label, text: String(year) };
 }
 
-// Until the details arrive, the years the chart knows stand in.
+// Everyone was born, so birth always has a line, a dash when nothing of it
+// is known; death has one only when recorded. Until the first details
+// arrive, the years the chart knows stand in.
 function linesOf(person: PersonRow, details: PersonDetails | null) {
-  if (details?.id === person.id) {
-    return [lineOf(details.facts, BORN), lineOf(details.facts, DIED)];
-  }
-  return [
-    yearLine('Birth', person.birth_year),
-    yearLine('Death', person.death_year)
-  ];
+  const [born, died] =
+    details?.id === person.id
+      ? [lineOf(details.facts, BORN), lineOf(details.facts, DIED)]
+      : [
+          yearLine('Birth', person.birth_year),
+          yearLine('Death', person.death_year)
+        ];
+  return [born ?? { label: 'Birth', text: '—' }, died];
 }
 
 // The marked face once it is cropped, the whole photo if none is marked.
@@ -79,17 +86,13 @@ export class PersonHeaderElement extends SignalWatcher(LitElement) {
       ${renderPortrait(p, this.photo)}
       <div class="who">
         <div class="name">${formatName(p)}</div>
-        ${
-          lines.length === 0
-            ? nothing
-            : html`<dl>
-                ${lines.map(
-                  (l) =>
-                    html`<dt>${l.label}</dt>
-                      <dd>${l.text}</dd>`
-                )}
-              </dl>`
-        }
+        <dl>
+          ${lines.map(
+            (l) =>
+              html`<dt>${l.label}</dt>
+                <dd>${l.text}</dd>`
+          )}
+        </dl>
       </div>
     `;
   }

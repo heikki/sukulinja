@@ -36,14 +36,17 @@ export function factLabel(fact: FactRow) {
 }
 
 // The date, read, then place, address and value as recorded, joined; a
-// marriage names the spouse.
+// marriage names the spouse. A value of "Y" is GEDCOM's flag that the
+// event happened ("DEAT Y"), not text, so an event with nothing else
+// reads as a dash.
 export function factText(fact: FactRow) {
   const date = fact.date === null ? null : gedcomDate(fact.date);
-  const parts = [date, fact.place, fact.address, fact.value].filter(
+  const value = fact.value === 'Y' ? null : fact.value;
+  const parts = [date, fact.place, fact.address, value].filter(
     (x) => x !== null && x !== ''
   );
   if (fact.spouse !== null) parts.push(`with ${fact.spouse}`);
-  return parts.join(' · ');
+  return parts.length === 0 ? '—' : parts.join(' · ');
 }
 
 // Kept in a cookie for the reason appearance.ts gives: the app's origin
