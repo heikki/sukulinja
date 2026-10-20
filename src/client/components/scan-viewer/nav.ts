@@ -30,8 +30,8 @@ export class ScanNavElement extends SignalWatcher(LitElement) {
 
   @property({ attribute: false }) persons = new Map<number, PersonRow>();
 
-  // Which way the arrow key held steps. Its button stays live while held,
-  // so a step onto the first or last Image still shows the press.
+  // Which way the arrow key held steps. At the first or last Image its
+  // button is disabled all the same: there's no step to show.
   @state() private pressed: 1 | -1 | null = null;
 
   override connectedCallback() {
@@ -74,7 +74,7 @@ export class ScanNavElement extends SignalWatcher(LitElement) {
         class=${this.pressed === -1 ? 'pressed' : ''}
         title="Previous image (←)"
         aria-label="Previous image"
-        ?disabled=${image <= 1 && this.pressed !== -1}
+        ?disabled=${image <= 1}
         @click=${() => {
           this.ask(image - 1);
         }}
@@ -87,6 +87,33 @@ export class ScanNavElement extends SignalWatcher(LitElement) {
         max=${count ?? nothing}
         aria-label="Image"
         .value=${live(String(image))}
+        @focus=${(e: FocusEvent) => {
+          (e.target as HTMLInputElement).select();
+        }}
+        @mousedown=${(e: MouseEvent) => {
+          // Taking focus, a click selects the number to type over: its own
+          // press would put the caret down instead and drop the selection.
+          const input = e.target as HTMLInputElement;
+          if (this.shadowRoot?.activeElement === input) return;
+          e.preventDefault();
+          input.focus();
+        }}
+        @keydown=${(e: KeyboardEvent) => {
+          // Enter lets go of the field, which commits the number. Escape
+          // first puts back the Image shown, so letting go changes nothing,
+          // and stops there rather than closing the viewer. Either way the
+          // arrow keys step again. Both are marked handled, or WKWebView
+          // hands them on to macOS, which beeps.
+          const input = e.target as HTMLInputElement;
+          if (e.key === 'Escape') {
+            e.stopPropagation();
+            input.value = String(this.state.viewer.image.get());
+          } else if (e.key !== 'Enter') {
+            return;
+          }
+          e.preventDefault();
+          input.blur();
+        }}
         @change=${(e: Event) => {
           const input = e.target as HTMLInputElement;
           this.ask(Number(input.value));
@@ -98,7 +125,7 @@ export class ScanNavElement extends SignalWatcher(LitElement) {
         class=${this.pressed === 1 ? 'pressed' : ''}
         title="Next image (→)"
         aria-label="Next image"
-        ?disabled=${count !== null && image >= count && this.pressed !== 1}
+        ?disabled=${count !== null && image >= count}
         @click=${() => {
           this.ask(image + 1);
         }}
