@@ -7,7 +7,8 @@
 //
 // Astia may re-scan a Volume, giving every Image a new file id and none by
 // the old ones. An Image whose id Astia no longer has sends for the
-// Volume's list again, and is fetched once more by its new id.
+// Volume's list again, and is fetched once more by its new id; the cached
+// Images of the filming replaced go.
 
 import { readdir, rename, rm, stat, utimes } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -222,10 +223,28 @@ export function openScanCache({ astia, root }: { astia: Astia; root: string }) {
 
   // The Image's id after asking Astia for the Volume's list again, unless
   // another request already has since `gone` was read from it.
+  async function listed(volumeId: string) {
+    const sizes = await Promise.all([
+      astia.volumeImages(volumeId, 'full'),
+      astia.volumeImages(volumeId, 'thumb')
+    ]);
+    return sizes.flat();
+  }
+
+  // Asks Astia for the Volume's list again, and drops the cached Images of
+  // file ids it no longer lists.
+  async function refresh(volumeId: string) {
+    const before = await listed(volumeId);
+    await astia.refreshImages(volumeId);
+    const now = new Set(await listed(volumeId));
+    const gone = before.filter((id) => !now.has(id));
+    await Promise.all(
+      gone.map((id) => rm(join(dir, `${id}.jpg`), { force: true }))
+    );
+  }
+
   async function renewed(at: ImageRef, size: ImageSize, gone: string) {
-    if ((await fileAt(at, size)) === gone) {
-      await astia.refreshImages(at.volumeId);
-    }
+    if ((await fileAt(at, size)) === gone) await refresh(at.volumeId);
     return await fileAt(at, size);
   }
 
@@ -246,6 +265,8 @@ export function openScanCache({ astia, root }: { astia: Astia; root: string }) {
         return await cached(at, size, now, signal);
       }
     },
+
+    refresh,
 
     // Whether a Volume's full-size Image is on disk already: a bulk job
     // paces only the fetches that reach Astia.
