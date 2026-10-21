@@ -147,7 +147,7 @@ test('a re-import, with new tokens in every URL, downloads nothing', async () =>
   expect(again).toEqual(first);
 });
 
-test('a photo deleted in MyHeritage is gone after a re-import', async () => {
+test('a photo deleted in MyHeritage is gone after a re-import, but for undoing it', async () => {
   await imported('tok1');
   const withoutWedding = gedcom('tok2').replace(
     /1 OBJE\n2 FILE \S+wedding\.jpg\n/u,
@@ -157,7 +157,11 @@ test('a photo deleted in MyHeritage is gone after a re-import', async () => {
   expect(fetched).toEqual([]);
   const paths = linkRows(db).map((r) => r.original_path);
   expect(paths).not.toContain('1/2/3/wedding.jpg');
-  expect(await readdir(registry.mediaDir('doe'))).toHaveLength(3);
+  // Kept for the database from before, which still names it.
+  expect(await readdir(registry.mediaDir('doe'))).toHaveLength(4);
+  expect(await registry.undoImport('doe')).toBe(true);
+  const before = linkRows(registry.open('doe')).map((r) => r.original_path);
+  expect(before).toContain('1/2/3/wedding.jpg');
 });
 
 async function photoStagings() {

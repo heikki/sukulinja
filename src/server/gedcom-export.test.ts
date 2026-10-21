@@ -226,20 +226,20 @@ describe('exporting a GEDZIP', () => {
     expect(text).toContain('2 AGE 48y');
   });
 
-  test('carries Marks and Vision matches, their Boxes and the pages imported', async () => {
+  test('carries Marks and Vision matches, their Boxes, the pages imported and the citations made in the app', async () => {
     await importFixture();
     const db = registry.open('a');
     const index =
       'https://www.myheritage.fi/research/collection-30233/x?itemId=7';
     const other =
       'https://www.myheritage.fi/research/collection-10509/x?itemId=2';
-    for (const [person, page] of [
-      [2, index],
-      [3, other]
+    for (const [person, page, added] of [
+      [2, index, 0],
+      [3, other, 1]
     ] as const) {
       db.run(
-        "INSERT INTO citations (scope_type, scope_id, source_id, page, sort_order) VALUES ('person', ?, 1, ?, 0)",
-        [person, page]
+        "INSERT INTO citations (scope_type, scope_id, source_id, page, added_in_app, sort_order) VALUES ('person', ?, 1, ?, ?, 0)",
+        [person, page, added]
       );
     }
     const marks = openMarks(db);
@@ -293,7 +293,9 @@ describe('exporting a GEDZIP', () => {
     expect(text).toContain(
       '2 NOTE Found by the vision model, not checked by hand'
     );
-    expect(text).toContain('2 NOTE Astia Volume 999: I Ab:1');
+    expect(text).toContain(
+      '2 NOTE Astia Volume 999: I Ab:1\r\n2 NOTE Added in Sukulinja'
+    );
     expect(text).toContain(
       [
         '0 @A1@ OBJE',

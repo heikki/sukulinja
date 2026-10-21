@@ -5,8 +5,9 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { Database } from 'bun:sqlite';
 
-import type { DatasetInfo } from '@common/types';
+import type { DatasetInfo, ImportReview } from '@common/types';
 
 import type { DatasetRegistry } from './dataset-registry';
 import { importGedcom } from './gedcom-import';
@@ -14,6 +15,7 @@ import type { ImportStats } from './gedcom-import';
 import { childValue, findChild, parseGedcom } from './gedcom-parser';
 import type { GedNode } from './gedcom-parser';
 import { unpackGedzip } from './gedzip';
+import { mergeImport } from './import-merge';
 import { ingest } from './media-ingest';
 import type { IngestSkipped } from './media-ingest';
 import { localPaths } from './media-refs';
@@ -56,11 +58,23 @@ export interface ImportRequest {
   // Fetches a MyHeritage photo; the network by default.
   download?: Downloader;
   log?: (msg: string) => void;
+  // Asked, when the import merges into a dataset, whether to save it; it is
+  // saved unasked without.
+  review?: (review: ImportReview) => Promise<boolean>;
+}
+
+// An import its review said not to save.
+export class ImportCancelled extends Error {
+  constructor() {
+    super('import cancelled');
+  }
 }
 
 export interface ImportOutcome {
   info: DatasetInfo;
   stats: ImportStats;
+  // What merging into the dataset there was changed; null for a new one.
+  merged: ImportReview | null;
   skipped: IngestSkipped[];
   myheritage: MyHeritageSummary | null;
 }
@@ -135,6 +149,29 @@ async function readSource(
   return { text, archived: files };
 }
 
+function readStored<T>(req: ImportRequest, read: (db: Database | null) => T) {
+  const stored = req.registry.readAny(req.slug);
+  try {
+    return read(stored);
+  } finally {
+    stored?.close();
+  }
+}
+
+// The import merged with the dataset already under its slug, and saved if
+// its review says so; null when there's none to merge with.
+async function mergeWith(req: ImportRequest, db: Database, stats: ImportStats) {
+  if (!req.registry.exists(req.slug)) return null;
+  req.log?.('Merging with the dataset…');
+  const review = readStored(req, (stored) =>
+    mergeImport(db, stored, stats.newUids === stats.persons + stats.families)
+  );
+  if (req.review !== undefined && !(await req.review(review))) {
+    throw new ImportCancelled();
+  }
+  return review;
+}
+
 export async function importDataset(
   req: ImportRequest
 ): Promise<ImportOutcome> {
@@ -207,6 +244,8 @@ export async function importDataset(
     const version = readGedcomVersion(roots);
     if (version !== null) writeMeta.run('gedcom_version', version);
 
+    const merged = await mergeWith(req, db, stats);
+
     log('Finishing…');
     await workspace.commit();
 
@@ -217,9 +256,11 @@ export async function importDataset(
         personCount: stats.persons,
         familyCount: stats.families,
         importedAt,
-        outdated: false
+        outdated: false,
+        undoable: merged !== null
       },
       stats,
+      merged,
       skipped: ingestResult.skipped,
       myheritage
     };

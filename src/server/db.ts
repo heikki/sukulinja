@@ -165,6 +165,8 @@ const SCHEMA_SQL = `
     link_box_width INTEGER,
     link_box_height INTEGER,
     link_by TEXT CHECK (link_by IN ('hand','vision')),
+    -- Made in the app, not by an import: a re-import keeps it.
+    added_in_app INTEGER NOT NULL DEFAULT 0,
     sort_order INTEGER NOT NULL DEFAULT 0,
     CHECK ((link_volume_id IS NULL) = (link_by IS NULL))
   );
@@ -219,7 +221,7 @@ const SCHEMA_SQL = `
 // Raised whenever the schema changes. A dataset's database holds the whole
 // tree and the file it came from isn't kept, so an older database can't be
 // upgraded: the dataset is imported again (ADR-0013).
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 // A dataset whose database an older version of the app built.
 export class OutdatedDatasetError extends Error {}

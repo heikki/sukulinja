@@ -86,6 +86,7 @@ export interface CitationRow {
   link_box_width: number | null;
   link_box_height: number | null;
   link_by: 'hand' | 'vision' | null;
+  added_in_app: number;
 }
 
 export interface NoteRow {

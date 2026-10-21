@@ -3,8 +3,8 @@
 // citation, pointing at an OBJE record per Image whose FILE is the Image's
 // JPEG in Astia, titled with its Volume and Image number; the Box is the
 // link's CROP. `imported_page` is a NOTE, and so is a Vision match nobody
-// has checked, and a link with no file to point at: only a Volume, or an
-// Image whose file id wasn't known.
+// has checked, a link with no file to point at (only a Volume, or an Image
+// whose file id wasn't known), and a citation made in the app.
 
 import type { CitationRow } from './export-rows';
 import { line, pointer } from './gedcom-writer';
@@ -15,6 +15,7 @@ const ASTIA_FILE =
 const IMAGE_TITLE = /^(?<volume>.*), Image (?<image>\d+)$/su;
 const IMPORTED_PAGE = 'Imported page: ';
 export const UNCHECKED = 'Found by the vision model, not checked by hand';
+export const ADDED_IN_APP = 'Added in Sukulinja';
 const NO_FILE =
   /^Astia Volume (?<volumeId>\S+?)(?:, Image (?<image>\d+))?: (?<volume>.*)$/su;
 
@@ -130,7 +131,8 @@ export function astiaLinkExport(taken: Set<string>) {
 
   // The citation's OBJE for its link, and the notes saying what else it is.
   function linesOf(c: CitationRow) {
-    if (c.link_volume_id === null) return { objects: [], notes: [] };
+    const added = c.added_in_app === 1 ? [line('NOTE', ADDED_IN_APP)] : [];
+    if (c.link_volume_id === null) return { objects: [], notes: added };
     const volume = c.link_volume ?? c.link_volume_id;
     const { link_image: image, link_file_id: fileId } = c;
     const filed = image !== null && fileId !== null;
@@ -150,7 +152,8 @@ export function astiaLinkExport(taken: Set<string>) {
       ...(filed
         ? []
         : [line('NOTE', noFileNote(c.link_volume_id, volume, image))]),
-      ...(c.link_by === 'vision' ? [line('NOTE', UNCHECKED)] : [])
+      ...(c.link_by === 'vision' ? [line('NOTE', UNCHECKED)] : []),
+      ...added
     ];
     return { objects, notes };
   }

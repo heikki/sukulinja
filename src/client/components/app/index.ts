@@ -11,8 +11,11 @@ import { focusRingStyles } from '@client/focus-ring';
 import { readNdjson } from '@client/ndjson';
 import { appState, openAppState } from '@client/state';
 import { slugFromFilename, withoutExtension } from '@common/slug';
-import type { DatasetInfo } from '@common/types';
+import type { DatasetInfo, ImportReview } from '@common/types';
 
+import { confirmDialog, errorNote, runAction } from './dialogs';
+import type { Confirming, DatasetAction } from './dialogs';
+import { importDate, renderReview } from './import-review';
 import { appStyles } from './styles';
 
 const TRASH_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
@@ -28,21 +31,11 @@ const TRASH_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
   `}
 </svg>`;
 
-// A dialog's failure: what failed, then the server's message, which can be a
-// long raw path or stack line — hence wrapped anywhere and scrollable.
-function errorNote(title: string, message: string | null) {
-  if (message === null) return nothing;
-  return html`
-    <div class="error" role="alert">
-      <strong>${title}</strong>
-      <span class="message">${message}</span>
-    </div>
-  `;
-}
-
 type ImportEvent =
   | { type: 'log'; message: string }
   | { type: 'error'; message: string }
+  | { type: 'review'; id: string; review: ImportReview }
+  | { type: 'cancelled' }
   | { type: 'done'; info: DatasetInfo };
 
 const DATASET_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?=\/|$)/u;
@@ -97,9 +90,11 @@ export class AppElement extends LitElement {
   @state() private importing = false;
   @state() private importStatus: string | null = null;
   @state() private importError: string | null = null;
-  @state() private pendingDelete: DatasetInfo | null = null;
-  @state() private deleting = false;
-  @state() private deleteError: string | null = null;
+  // What importing into an existing dataset would change, waiting for
+  // Merge or Cancel.
+  @state() private review: { id: string; review: ImportReview } | null = null;
+  // A dataset action waiting to be confirmed, or running.
+  @state() private confirming: Confirming | null = null;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -210,10 +205,25 @@ export class AppElement extends LitElement {
       const event = raw as ImportEvent;
       if (event.type === 'log') this.importStatus = event.message;
       else if (event.type === 'error') this.importError = event.message;
+      else if (event.type === 'review') this.review = event;
+      else if (event.type === 'cancelled') this.pendingImport = null;
       else done = event.info;
     }
     return done;
   }
+
+  // Merge or Cancel the import waiting on its review; its stream then ends.
+  private readonly answerReview = async (merge: boolean) => {
+    const waiting = this.review;
+    if (waiting === null) return;
+    this.review = null;
+    this.importStatus = merge ? 'Saving…' : 'Cancelling…';
+    const res = await fetch(`/import/${waiting.id}`, {
+      method: 'POST',
+      body: JSON.stringify({ merge })
+    }).catch(() => null);
+    if (res?.ok !== true) this.importError = 'the import stopped waiting';
+  };
 
   // Saved by the server, since the app's web view can't hand a download to
   // the user: into Downloads, which the note names.
@@ -255,39 +265,30 @@ export class AppElement extends LitElement {
       : errorNote('Export failed', note.text);
   }
 
-  private readonly requestDelete = (dataset: DatasetInfo) => {
-    this.pendingDelete = dataset;
-    this.deleteError = null;
+  private readonly request = (action: DatasetAction, dataset: DatasetInfo) => {
+    this.confirming = { action, dataset, busy: false, error: null };
   };
 
-  private readonly cancelDelete = () => {
-    if (this.deleting) return;
-    this.pendingDelete = null;
+  private readonly cancelConfirm = () => {
+    if (this.confirming?.busy !== false) return;
+    this.confirming = null;
   };
 
-  private readonly confirmDelete = async () => {
-    const target = this.pendingDelete;
-    if (target === null) return;
-    this.deleting = true;
-    this.deleteError = null;
-    try {
-      const res = await fetch(`/datasets/${target.slug}`, { method: 'DELETE' });
-      if (!res.ok) {
-        const msg = await res.text();
-        this.deleteError = msg === '' ? `delete failed (${res.status})` : msg;
-        return;
-      }
-      this.pendingDelete = null;
-      if (target.slug === this.slug) {
-        window.location.assign('/');
-        return;
-      }
-      await this.loadDatasets();
-    } catch (err) {
-      this.deleteError = err instanceof Error ? err.message : 'delete failed';
-    } finally {
-      this.deleting = false;
+  private readonly runConfirmed = async () => {
+    const c = this.confirming;
+    if (c === null) return;
+    this.confirming = { ...c, busy: true, error: null };
+    const error = await runAction(c);
+    if (error !== null) {
+      this.confirming = { ...c, busy: false, error };
+      return;
     }
+    this.confirming = null;
+    if (c.action === 'delete' && c.dataset.slug === this.slug) {
+      window.location.assign('/');
+      return;
+    }
+    await this.loadDatasets();
   };
 
   private renderImportDialog() {
@@ -308,50 +309,84 @@ export class AppElement extends LitElement {
           }}
         >
           <h2 id="import-title">Import ${file.name}</h2>
-          <label class="field">
-            Name
-            <input
-              type="text"
-              .value=${this.importNameInput}
-              ?disabled=${this.importing}
-              @input=${this.onImportNameInput}
-              @keydown=${this.onImportKeydown}
-            />
-            ${
-              replaces === undefined
-                ? nothing
-                : html`<span class="hint">
-                    Replaces the existing dataset
-                    <strong>${replaces.displayName}</strong>.
-                  </span>`
-            }
-          </label>
           ${
-            this.importing && this.importStatus !== null
+            this.review === null
+              ? this.renderImportForm(replaces)
+              : renderReview(this.review.review)
+          }
+          ${
+            this.importing && this.review === null && this.importStatus !== null
               ? html`<p class="status">${this.importStatus}</p>`
               : nothing
           }
           ${errorNote('Import failed', this.importError)}
-          <div class="actions">
-            <button @click=${this.cancelImport} ?disabled=${this.importing}>
-              Cancel
-            </button>
-            <button
-              class="primary"
-              @click=${this.confirmImport}
-              ?disabled=${this.importing || slug === ''}
-            >
-              ${this.importLabel(replaces !== undefined)}
-            </button>
-          </div>
+          ${this.renderImportActions(slug, replaces !== undefined)}
         </div>
       </div>
     `;
   }
 
-  private importLabel(replacing: boolean) {
-    if (this.importing) return 'Importing…';
-    return replacing ? 'Replace' : 'Import';
+  private renderImportForm(replaces: DatasetInfo | undefined) {
+    return html`
+      <label class="field">
+        Name
+        <input
+          type="text"
+          .value=${this.importNameInput}
+          ?disabled=${this.importing}
+          @input=${this.onImportNameInput}
+          @keydown=${this.onImportKeydown}
+        />
+        ${
+          replaces === undefined
+            ? nothing
+            : html`<span class="hint">
+                Merges into the existing dataset
+                <strong>${replaces.displayName}</strong>, keeping what the app
+                added. You'll see what changes before it's saved.
+              </span>`
+        }
+      </label>
+    `;
+  }
+
+  private renderImportActions(slug: string, merging: boolean) {
+    const waiting = this.review;
+    if (waiting !== null) {
+      return html`
+        <div class="actions">
+          <button
+            @click=${() => {
+              void this.answerReview(false);
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            class="primary"
+            @click=${() => {
+              void this.answerReview(true);
+            }}
+          >
+            ${waiting.review.unreadable === null ? 'Merge' : 'Replace'}
+          </button>
+        </div>
+      `;
+    }
+    return html`
+      <div class="actions">
+        <button @click=${this.cancelImport} ?disabled=${this.importing}>
+          Cancel
+        </button>
+        <button
+          class="primary"
+          @click=${this.confirmImport}
+          ?disabled=${this.importing || slug === ''}
+        >
+          ${this.importing ? 'Importing…' : merging ? 'Continue' : 'Import'}
+        </button>
+      </div>
+    `;
   }
 
   private renderImportButton() {
@@ -378,42 +413,16 @@ export class AppElement extends LitElement {
         @change=${this.onFileChange}
       />
       ${this.renderScreen()} ${this.renderImportDialog()}
-      ${this.renderDeleteDialog()}
-    `;
-  }
-
-  private renderDeleteDialog() {
-    const target = this.pendingDelete;
-    if (target === null) return nothing;
-    return html`
-      <div class="overlay" @click=${this.cancelDelete}>
-        <div
-          class="dialog"
-          role="alertdialog"
-          @click=${(e: Event) => {
-            e.stopPropagation();
-          }}
-        >
-          <h2>Delete dataset?</h2>
-          <p>
-            <strong>${target.displayName}</strong> (${target.personCount}
-            people) will be permanently removed. This can't be undone.
-          </p>
-          ${errorNote('Delete failed', this.deleteError)}
-          <div class="actions">
-            <button @click=${this.cancelDelete} ?disabled=${this.deleting}>
-              Cancel
-            </button>
-            <button
-              class="danger"
-              @click=${this.confirmDelete}
-              ?disabled=${this.deleting}
-            >
-              ${this.deleting ? 'Deleting…' : 'Delete'}
-            </button>
-          </div>
-        </div>
-      </div>
+      ${
+        this.confirming === null
+          ? nothing
+          : confirmDialog(this.confirming, {
+              cancel: this.cancelConfirm,
+              confirm: () => {
+                void this.runConfirmed();
+              }
+            })
+      }
     `;
   }
 
@@ -459,13 +468,14 @@ export class AppElement extends LitElement {
   }
 
   // An older version's database doesn't open; the file it came from isn't
-  // kept, so it's imported again (ADR-0013).
+  // kept, so it's imported again, merging (ADR-0013).
   private renderOutdated(d: DatasetInfo) {
     return html`
       <div class="outdated">
         <span class="name">${d.displayName}</span>
         <span class="muted">
-          Made by an older version. Import its GEDCOM again to open it.
+          Made by an older version. Import its GEDCOM again to open it; what the
+          app added is kept.
         </span>
       </div>
       <button
@@ -506,11 +516,23 @@ export class AppElement extends LitElement {
                         ${this.exporting === d.slug ? 'Exporting…' : 'Export'}
                       </button>`
                 }
+                ${
+                  d.undoable
+                    ? html`<button
+                        class="import"
+                        @click=${() => {
+                          this.request('undo', d);
+                        }}
+                      >
+                        Undo last import (${importDate(d.importedAt)})
+                      </button>`
+                    : nothing
+                }
                 <button
                   class="delete"
                   aria-label=${`Delete ${d.displayName}`}
                   @click=${() => {
-                    this.requestDelete(d);
+                    this.request('delete', d);
                   }}
                 >
                   ${TRASH_ICON}
