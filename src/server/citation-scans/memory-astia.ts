@@ -20,7 +20,7 @@ export interface MemoryArchive {
 
 export type MemoryAstia = Astia & {
   // What was asked, in order: "volumes <archive>", "images <volume>",
-  // "refresh <volume>", "title <archive>", "bytes <file>".
+  // "peek <volume>", "refresh <volume>", "title <archive>", "bytes <file>".
   asked: string[];
   // Astia re-scans the Volume: it now holds `images` Images under new file
   // ids, and has none by the old ones. Its list stays as it was until
@@ -125,6 +125,16 @@ export function memoryAstia(
       return await Promise.resolve(
         Array.from({ length: images }, (_, i) =>
           fileId(volumeId, i + 1, size, filming)
+        )
+      );
+    },
+
+    async peekImages(volumeId) {
+      ask(`peek ${volumeId}`);
+      const { filming, images } = held.get(volumeId) ?? first(volumeId);
+      return await Promise.resolve(
+        Array.from({ length: images }, (_, i) =>
+          fileId(volumeId, i + 1, 'full', filming)
         )
       );
     },

@@ -40,7 +40,7 @@ const astia: Astia = {
 };
 
 // Opened afresh on each test's folder.
-let cache: ScanCache = openScanCache({ astia, root: dir });
+let cache: ScanCache = openScanCache({ astia, root: dir, switches: false });
 
 function open(
   volumeId: string,
@@ -70,7 +70,7 @@ async function outcome(request: Promise<string | null>) {
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'scan-cache-'));
-  cache = openScanCache({ astia, root: dir });
+  cache = openScanCache({ astia, root: dir, switches: false });
   fetched = [];
   hold = null;
 });
@@ -194,14 +194,18 @@ async function writeSettings(root: string, settings: unknown) {
 test('reads the cap saved for the install before anything else', async () => {
   const root = join(dir, 'saved');
   await writeSettings(root, { scanCacheBytes: 10 * GB });
-  expect(await openScanCache({ astia, root }).status()).toEqual({
+  expect(
+    await openScanCache({ astia, root, switches: false }).status()
+  ).toEqual({
     cap: 10 * GB,
     used: 0,
     caps: [2 * GB, 5 * GB, 10 * GB, 20 * GB]
   });
   // A cap no longer offered falls back to the default.
   await writeSettings(root, { scanCacheBytes: 1 * GB });
-  expect((await openScanCache({ astia, root }).status()).cap).toBe(2 * GB);
+  expect(
+    (await openScanCache({ astia, root, switches: false }).status()).cap
+  ).toBe(2 * GB);
 });
 
 test("saving a cap keeps the install's other settings", async () => {
@@ -211,13 +215,17 @@ test("saving a cap keeps the install's other settings", async () => {
     theme: 'dark',
     scanCacheBytes: 20 * GB
   });
-  expect((await openScanCache({ astia, root: dir }).status()).cap).toBe(
-    20 * GB
-  );
+  expect(
+    (await openScanCache({ astia, root: dir, switches: false }).status()).cap
+  ).toBe(20 * GB);
 });
 
 test('Scan caches on two data folders share neither files nor a queue', async () => {
-  const other = openScanCache({ astia, root: join(dir, 'other') });
+  const other = openScanCache({
+    astia,
+    root: join(dir, 'other'),
+    switches: false
+  });
   await open('101', 9);
   hold = Promise.withResolvers();
   const held = open('101', 1);
@@ -238,12 +246,13 @@ test('Scan caches on two data folders share neither files nor a queue', async ()
 });
 
 describe('a re-scanned Volume', () => {
-  // Volume 301 of ten Images, which Astia films anew with eight.
-  function rescanned() {
+  // Volume 301 of ten Images, which Astia films anew with eight, in a
+  // Scan cache that switches to the new filming on its own unless told.
+  function rescanned(switches = true) {
     const astia = memoryAstia({
       '3': { volumes: [{ id: '301', label: 'Volume 301', images: IMAGES }] }
     });
-    return { astia, cache: openScanCache({ astia, root: dir }) };
+    return { astia, cache: openScanCache({ astia, root: dir, switches }) };
   }
 
   function at(image: number) {
@@ -278,6 +287,25 @@ describe('a re-scanned Volume', () => {
     ]);
   });
 
+  test("one that doesn't switch on its own leaves the filming as it was", async () => {
+    const { astia, cache: scans } = rescanned(false);
+    await scans.image(at(2), 'full', signal);
+    astia.rescan('301', 8);
+    const failed = await scans
+      .image(at(5), 'full', signal)
+      .catch((err: unknown) => err);
+    expect(failed).toBeInstanceOf(NoImageError);
+    expect(astia.asked.filter((a) => a.startsWith('refresh'))).toEqual([]);
+    expect(await scans.image(at(2), 'full', signal)).toBe(
+      join(dir, '.astia-images', '301-f2.jpg')
+    );
+    await scans.refresh('301');
+    expect(await readdir(join(dir, '.astia-images'))).toEqual([]);
+    expect(await scans.image(at(5), 'full', signal)).toBe(
+      join(dir, '.astia-images', '301-2-f5.jpg')
+    );
+  });
+
   test('has no Image past the new filming', async () => {
     const { astia, cache: scans } = rescanned();
     astia.rescan('301', 8);
@@ -293,7 +321,7 @@ describe('a re-scanned Volume', () => {
       ...listed,
       imageBytes: () => Promise.reject(new NoImageError('no image'))
     };
-    const scans = openScanCache({ astia: gone, root: dir });
+    const scans = openScanCache({ astia: gone, root: dir, switches: true });
     const failed = await scans
       .image(at(2), 'full', signal)
       .catch((err: unknown) => err);

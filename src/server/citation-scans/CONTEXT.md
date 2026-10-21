@@ -53,7 +53,7 @@ The number written in the book. Rippikirjat usually number spreads (one number p
 A second photograph of the same page within one Volume, on the next Image.
 
 **Re-scan**:
-Astia replacing a Volume's Images with a new filming of the book, as it did Mikkeli I Ab:9 (455 greyscale Images, then 434 in colour). Every Image's file id changes, and an Image number may hold another page. Astia gives no notice; it answers an old file id with a placeholder, upon which the app asks for the Volume's list again.
+Astia replacing a Volume's Images with a new filming of the book, as it did Mikkeli I Ab:9 (455 greyscale Images, then 434 in colour). Every Image's file id changes, and an Image number may hold another page. Astia gives no notice; it answers an old file id with a placeholder. The Scan viewer then says what switching to the new filming leaves out, and switches when the person says so; the vision pass and the scripts switch on their own.
 _Avoid_: rescan, refilming (as names).
 
 **Doubled volume**:

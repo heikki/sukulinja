@@ -55,8 +55,11 @@ export interface Astia {
   // File ids of the volume's images, in viewer order: full size, or the
   // 250px thumbnails Astia lists beside them.
   volumeImages: (volumeId: string, size?: ImageSize) => Promise<string[]>;
+  // The volume's full-size file ids as Astia lists them now, past the
+  // cache, which keeps what it had: after a re-scan every id has changed.
+  peekImages: (volumeId: string) => Promise<string[]>;
   // Asks Astia for the volume's file ids again, past the cache, and keeps
-  // the answer in its place: after a re-scan every id has changed.
+  // the answer in its place.
   refreshImages: (volumeId: string) => Promise<void>;
   // The archive's title as Astia gives it ("Pieksämäen seurakunnan
   // arkisto"); null when Astia can't say.
@@ -127,6 +130,12 @@ function imagesPath(volumeId: string) {
   return `ws/aineisto/digitoidut.php?id=${volumeId}`;
 }
 
+// A volume's images as digitoidut.php lists them: full size and 250px.
+interface ImageLists {
+  isot?: XmlNode[];
+  pienet?: XmlNode[];
+}
+
 export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
 export interface AstiaOptions {
@@ -177,6 +186,11 @@ function retryWait(
   return wait <= patience.maxWaitMs ? wait : null;
 }
 
+function fileIds(json: ImageLists, size: ImageSize) {
+  const files = size === 'full' ? json.isot : json.pienet;
+  return (files ?? []).map((f) => childValue(f, 'URL'));
+}
+
 function unitsOf(json: { sisaltyvat?: XmlNode[] | '' }) {
   const children = json.sisaltyvat === '' ? [] : (json.sisaltyvat ?? []);
   return children.map((c): Unit => ({
@@ -197,7 +211,7 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
   const gapMs = options.gapMs ?? REQUEST_GAP_MS;
   let gate: Promise<unknown> = Promise.resolve();
   const inflight = new Map<string, Promise<unknown>>();
-  const refetching = new Map<string, Promise<void>>();
+  const fetchingPast = new Map<string, Promise<string>>();
   const volumesByArchive = new Map<string, Promise<Volume[]>>();
 
   function throttled<T>(fn: () => Promise<T>) {
@@ -270,29 +284,34 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
     return hit;
   }
 
-  // Fetched past the cache for someone waiting, and kept in its place.
-  // Callers asking meanwhile share it; one that fails keeps what was
-  // cached.
-  function refetchJson(path: string) {
-    const key = cacheKey(path);
-    let hit = refetching.get(key);
+  // Fetched past the cache for someone waiting, as its body; callers
+  // asking meanwhile share it.
+  function fetchPast(path: string) {
+    let hit = fetchingPast.get(path);
     if (hit === undefined) {
       hit = (async () => {
         const bytes = await throttled(() => request(path, VIEWER, 1));
         if (bytes === null) throw new AstiaError(`no answer ${path}`);
-        const body = new TextDecoder().decode(bytes);
-        const json = JSON.parse(body) as unknown;
-        await Bun.write(cacheFile(key), body);
-        inflight.set(key, Promise.resolve(json));
+        return new TextDecoder().decode(bytes);
       })();
-      refetching.set(key, hit);
+      fetchingPast.set(path, hit);
       void hit
         .catch(() => undefined)
         .finally(() => {
-          refetching.delete(key);
+          fetchingPast.delete(path);
         });
     }
     return hit;
+  }
+
+  // Fetched past the cache and kept in its place; one that fails keeps
+  // what was cached.
+  async function refetchJson(path: string) {
+    const key = cacheKey(path);
+    const body = await fetchPast(path);
+    const json = JSON.parse(body) as unknown;
+    await Bun.write(cacheFile(key), body);
+    inflight.set(key, Promise.resolve(json));
   }
 
   async function readOne(id: string) {
@@ -330,12 +349,13 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
     },
 
     async volumeImages(volumeId, size = 'full') {
-      const json = (await fetchJson(imagesPath(volumeId))) as {
-        isot?: XmlNode[];
-        pienet?: XmlNode[];
-      };
-      const files = size === 'full' ? json.isot : json.pienet;
-      return (files ?? []).map((f) => childValue(f, 'URL'));
+      const json = (await fetchJson(imagesPath(volumeId))) as ImageLists;
+      return fileIds(json, size);
+    },
+
+    async peekImages(volumeId) {
+      const body = await fetchPast(imagesPath(volumeId));
+      return fileIds(JSON.parse(body) as ImageLists, 'full');
     },
 
     async refreshImages(volumeId) {

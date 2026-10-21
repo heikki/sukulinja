@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 
 # In the app, find a re-scan but switch to the new filming only when asked
 
@@ -24,3 +24,11 @@ Since `02`, the Scan cache switches a Volume to its new filming on its own the f
 ## Not here
 
 The viewer asking (`06`).
+
+## Answer
+
+- `Astia.peekImages` fetches a Volume's full-size ids past the cache without keeping them; `refreshImages` is now a peek kept in place, and both share a fetch in flight.
+- `openScanCache({ astia, root, switches })`: `false` in the app, `true` in the vision pass, `evaluate-reader` and `check-rescans`. Holding back, an Image Astia no longer has answers `410 Astia no longer has this Image.`
+- `src/server/citation-scans/rescans.ts` holds the check (moved from the script, which keeps only its report), `rescanOf` and `routeRescan`: `GET /astia/volumes/:id/rescan` → `{ rescan: Rescan | null }` with structured `StalePin`s (`@common/types`), `POST` switches through the Scan cache's `refresh` and answers the viewer URLs. The pin store's `kept()` gives the shipped and local pins unmerged, so each stale one says where it's from.
+- `check-rescans` now always reads a data folder (default `data`).
+- Checked against Astia on 2026-10-21 with I Ab:9's old list and the repo folder's pins: Image 120 failed without switching; GET gave 455 → 434 Images and the vision Record pin of record 11185142 at Image 247; POST switched, GET then gave `null`, and Image 120 came back as `15047072402`.
