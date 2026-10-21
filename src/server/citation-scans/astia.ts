@@ -55,10 +55,14 @@ export interface Astia {
   // File ids of the volume's images, in viewer order: full size, or the
   // 250px thumbnails Astia lists beside them.
   volumeImages: (volumeId: string, size?: ImageSize) => Promise<string[]>;
+  // Asks Astia for the volume's file ids again, past the cache, and keeps
+  // the answer in its place: after a re-scan every id has changed.
+  refreshImages: (volumeId: string) => Promise<void>;
   // The archive's title as Astia gives it ("Pieksämäen seurakunnan
   // arkisto"); null when Astia can't say.
   archiveTitle: (archiveId: string) => Promise<string | null>;
-  // One image file, for someone waiting on it.
+  // One image file, for someone waiting on it. Throws NoImageError when
+  // Astia has no file by that id.
   imageBytes: (volumeId: string, fileId: string) => Promise<Uint8Array>;
 }
 
@@ -67,6 +71,12 @@ export interface Astia {
 // error is a bug.
 export class AstiaError extends Error {
   override name = 'AstiaError';
+}
+
+// Astia had no file by the id asked for: a blip that outlasted the
+// retries, or an id gone with a re-scan of its Volume.
+export class NoImageError extends AstiaError {
+  override name = 'NoImageError';
 }
 
 export function viewerUrl(volumeId: string, fileId: string) {
@@ -113,6 +123,10 @@ export function volumeOf(unit: Unit): Volume {
 
 // ---------------------------------------------------------------- over HTTP
 
+function imagesPath(volumeId: string) {
+  return `ws/aineisto/digitoidut.php?id=${volumeId}`;
+}
+
 export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
 export interface AstiaOptions {
@@ -140,9 +154,10 @@ function hasContent(bytes: Uint8Array) {
   return !isBlank(bytes);
 }
 
-// Astia's Images are all JPEGs. Now and then it answers with its "no
-// preview" placeholder, a PNG, instead: a blip like an empty answer, which
-// a cache would otherwise keep for good.
+// Astia's Images are all JPEGs. In place of one it may answer with its "no
+// preview" placeholder, a PNG: now and then as a blip like an empty answer,
+// which a cache would otherwise keep for good, and always for an id it no
+// longer has, as after a re-scan.
 function isJpeg(bytes: Uint8Array) {
   return bytes[0] === 0xff && bytes[1] === 0xd8;
 }
@@ -182,6 +197,7 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
   const gapMs = options.gapMs ?? REQUEST_GAP_MS;
   let gate: Promise<unknown> = Promise.resolve();
   const inflight = new Map<string, Promise<unknown>>();
+  const refetching = new Map<string, Promise<void>>();
   const volumesByArchive = new Map<string, Promise<Volume[]>>();
 
   function throttled<T>(fn: () => Promise<T>) {
@@ -225,8 +241,16 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
     return body;
   }
 
+  function cacheKey(path: string) {
+    return createHash('sha1').update(path).digest('hex');
+  }
+
+  function cacheFile(key: string) {
+    return Bun.file(join(cacheDir, `${key}.json`));
+  }
+
   async function cachedFetch(key: string, path: string) {
-    const cached = Bun.file(join(cacheDir, `${key}.json`));
+    const cached = cacheFile(key);
     if (await cached.exists()) return (await cached.json()) as unknown;
     const bytes = await throttled(() => request(path, CRAWL, 1));
     const body = bytes === null ? '{}' : new TextDecoder().decode(bytes);
@@ -235,13 +259,38 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
   }
 
   function fetchJson(path: string) {
-    const key = createHash('sha1').update(path).digest('hex');
+    const key = cacheKey(path);
     let hit = inflight.get(key);
     if (hit === undefined) {
       hit = cachedFetch(key, path);
       inflight.set(key, hit);
       // A failure isn't kept: the app keeps running, and Astia comes back.
       hit.catch(() => inflight.delete(key));
+    }
+    return hit;
+  }
+
+  // Fetched past the cache for someone waiting, and kept in its place.
+  // Callers asking meanwhile share it; one that fails keeps what was
+  // cached.
+  function refetchJson(path: string) {
+    const key = cacheKey(path);
+    let hit = refetching.get(key);
+    if (hit === undefined) {
+      hit = (async () => {
+        const bytes = await throttled(() => request(path, VIEWER, 1));
+        if (bytes === null) throw new AstiaError(`no answer ${path}`);
+        const body = new TextDecoder().decode(bytes);
+        const json = JSON.parse(body) as unknown;
+        await Bun.write(cacheFile(key), body);
+        inflight.set(key, Promise.resolve(json));
+      })();
+      refetching.set(key, hit);
+      void hit
+        .catch(() => undefined)
+        .finally(() => {
+          refetching.delete(key);
+        });
     }
     return hit;
   }
@@ -281,11 +330,16 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
     },
 
     async volumeImages(volumeId, size = 'full') {
-      const json = (await fetchJson(
-        `ws/aineisto/digitoidut.php?id=${volumeId}`
-      )) as { isot?: XmlNode[]; pienet?: XmlNode[] };
+      const json = (await fetchJson(imagesPath(volumeId))) as {
+        isot?: XmlNode[];
+        pienet?: XmlNode[];
+      };
       const files = size === 'full' ? json.isot : json.pienet;
       return (files ?? []).map((f) => childValue(f, 'URL'));
+    },
+
+    async refreshImages(volumeId) {
+      await refetchJson(imagesPath(volumeId));
     },
 
     async archiveTitle(archiveId) {
@@ -300,7 +354,7 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
     async imageBytes(volumeId, fileId) {
       const path = `ws/getFile.php?fileId=${fileId}&aineistoId=${volumeId}`;
       const body = await request(path, VIEWER, 1, isJpeg);
-      if (body === null) throw new AstiaError(`no image ${path}`);
+      if (body === null) throw new NoImageError(`no image ${path}`);
       return body;
     }
   };

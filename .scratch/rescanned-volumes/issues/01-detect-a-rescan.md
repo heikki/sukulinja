@@ -1,4 +1,4 @@
-Status: needs-triage
+Status: ready-for-agent
 
 # Notice when Astia re-scans a Volume
 
@@ -22,16 +22,14 @@ The hand fix reached only the installed app's data folder (`~/Library/Applicatio
 - **Stale links elsewhere**: `data/citation-scans.json`, written by `scripts/map-citation-scans` and not read by the app, bakes file ids into its viewer links; those into a re-scanned Volume now open the placeholder in Astia's viewer.
 - **In the tree**: three references point into this Volume: `@I500237@` pages 463 (the Record pin) and 248, `@I500427@` page 241.
 
-## Proposed (confirm before agent work)
+## Decided (2026-10-21)
 
-- **Detect**: when `getFile.php` answers with the placeholder (PNG, not JPEG) for an id from a cached list, fetch the list again, bypassing the cache. If it differs, replace the cached list and retry the Image once with the new id. If it doesn't, it's a genuine "no image".
-- **Remember**: keep the old list beside the new one (e.g. `<key>.replaced-<date>.json`), so old Image numbers can still be mapped by hand.
-- **File id**: every pin and Box also saves the file id of its Image, the `fileId` at that Image number in the list when it was saved. The Image number stays: estimates count from it, and after a re-scan it's still a rough guide (125 became 120). A pin whose saved id isn't the list's id at its Image number was made on another filming. This also catches a re-scan that keeps the Image count, or Images reordered within one filming. Compare ids as opaque strings: in I Ab:9 the new ids mostly step by 3, the old ones weren't even in order. Existing pins are backfilled from today's cached lists, which the 208-list check found current.
-- **Pins**: Image numbers saved against the old list are no longer trustworthy. Options:
-  - mark the Volume's pins stale, so its Links show as Estimated Volume until someone re-pins, and list the Volume for review;
-  - or keep counting from them, and only flag the Volume ("Astia re-scanned this Volume; Images may be off").
-    Boxes from the old filming should never show on the new one.
-- **Shipped pins**: `pins.json` facts about a Volume hold for one filming. A check script that fetches each pinned Volume's list, bypassing the cache, and compares it with the pins' saved file ids would catch the next re-scan before users see it.
-- **Scan cache**: the old filming's Images stay on disk under their old file ids until pruned. Nothing points to them; no action needed.
+- **A pin made on another filming is ignored.** Its Image number and Box stop counting, and its Link falls back to the estimate from the Volume's other pins or the Book's numbering until someone re-pins. Keeping on counting from it was rejected: in I Ab:9 the old pins were 5 and 15 Images off.
+- **The old list isn't kept.** A re-scan replaces the cached list outright.
+- **Every pin saves its Image's file id** beside the Image number, and that is how a pin from another filming is told apart; it replaces storing each Volume's Image count.
+- Built as three tickets, in order:
+  - `02-refresh-a-rescanned-volume.md`: the Scan cache notices the placeholder, fetches the list again and retries.
+  - `03-file-ids-on-pins.md`: pins save the file id, stale ones are ignored, existing ones are backfilled.
+  - `04-check-for-rescans.md`: a script that catches the next re-scan of a pinned Volume.
 
 ## Comments

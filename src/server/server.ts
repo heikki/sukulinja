@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join, relative, resolve } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import type { Database } from 'bun:sqlite';
 
 import type { Box, LinkResolution } from '@common/types';
@@ -402,8 +402,8 @@ function astiaFailed(err: unknown) {
   });
 }
 
-// `?size=thumb` gives the 250px one. An Image never changes, so the webview
-// may keep it.
+// `?size=thumb` gives the 250px one. The webview keeps it by its file id,
+// asking each time: a re-scan puts another photograph at the same number.
 async function handleAstiaImage(cache: ScanCache, req: Request, at: ImageRef) {
   const thumb = new URL(req.url).searchParams.get('size') === 'thumb';
   const size = thumb ? 'thumb' : 'full';
@@ -416,11 +416,13 @@ async function handleAstiaImage(cache: ScanCache, req: Request, at: ImageRef) {
     );
   if (path instanceof Response) return path;
   if (path === null) return new Response('image not found', { status: 404 });
+  const etag = `"${basename(path, '.jpg')}"`;
+  const headers = { 'Cache-Control': 'no-cache', 'ETag': etag };
+  if (req.headers.get('If-None-Match') === etag) {
+    return new Response(null, { status: 304, headers });
+  }
   return new Response(Bun.file(path), {
-    headers: {
-      'Content-Type': 'image/jpeg',
-      'Cache-Control': 'max-age=31536000, immutable'
-    }
+    headers: { ...headers, 'Content-Type': 'image/jpeg' }
   });
 }
 

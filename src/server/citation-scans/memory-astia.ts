@@ -2,7 +2,7 @@
 // resolution and the Scan viewer run without a request going out. Volumes
 // are written as Astia labels them, and read the way its own are.
 
-import { AstiaError, volumeOf } from './astia';
+import { AstiaError, NoImageError, volumeOf } from './astia';
 import type { Astia, ImageSize } from './astia';
 
 export interface MemoryVolume {
@@ -20,13 +20,38 @@ export interface MemoryArchive {
 
 export type MemoryAstia = Astia & {
   // What was asked, in order: "volumes <archive>", "images <volume>",
-  // "title <archive>", "bytes <file>".
+  // "refresh <volume>", "title <archive>", "bytes <file>".
   asked: string[];
+  // Astia re-scans the Volume: it now holds `images` Images under new file
+  // ids, and has none by the old ones. Its list stays as it was until
+  // refreshed, as a cached one would.
+  rescan: (volumeId: string, images: number) => void;
 };
 
-// An Image's file id: `<volume>-f<n>` full size, `<volume>-t<n>` thumbnail.
-export function fileId(volumeId: string, image: number, size: ImageSize) {
-  return `${volumeId}-${size === 'full' ? 'f' : 't'}${image}`;
+// An Image's file id: `<volume>-f<n>` full size, `<volume>-t<n>` thumbnail,
+// with the filming between them after a re-scan (`<volume>-2-f<n>`).
+export function fileId(
+  volumeId: string,
+  image: number,
+  size: ImageSize,
+  filming = 1
+) {
+  const kind = size === 'full' ? 'f' : 't';
+  const of = filming === 1 ? volumeId : `${volumeId}-${filming}`;
+  return `${of}-${kind}${image}`;
+}
+
+interface Filming {
+  filming: number;
+  images: number;
+}
+
+function filmingIds(volumeId: string, { filming, images }: Filming) {
+  return (['full', 'thumb'] as const).flatMap((size) =>
+    Array.from({ length: images }, (_, i) =>
+      fileId(volumeId, i + 1, size, filming)
+    )
+  );
 }
 
 export interface MemoryOptions {
@@ -51,6 +76,13 @@ export function memoryAstia(
   const volumes = new Map(
     Object.values(archives).flatMap((a) => a.volumes.map((v) => [v.id, v]))
   );
+  // Each Volume's filming as Astia holds it, and as its list gives it.
+  const held = new Map<string, Filming>();
+  const listed = new Map<string, Filming>();
+
+  function first(volumeId: string) {
+    return { filming: 1, images: volume(volumeId).images };
+  }
 
   function archive(id: string) {
     const found = archives[id];
@@ -66,6 +98,12 @@ export function memoryAstia(
 
   return {
     asked,
+
+    rescan(volumeId, images) {
+      const now = held.get(volumeId) ?? first(volumeId);
+      listed.set(volumeId, listed.get(volumeId) ?? now);
+      held.set(volumeId, { filming: now.filming + 1, images });
+    },
 
     async archiveVolumes(archiveId) {
       ask(`volumes ${archiveId}`);
@@ -83,10 +121,18 @@ export function memoryAstia(
 
     async volumeImages(volumeId, size = 'full') {
       ask(`images ${volumeId}`);
-      const v = volume(volumeId);
+      const { filming, images } = listed.get(volumeId) ?? first(volumeId);
       return await Promise.resolve(
-        Array.from({ length: v.images }, (_, i) => fileId(v.id, i + 1, size))
+        Array.from({ length: images }, (_, i) =>
+          fileId(volumeId, i + 1, size, filming)
+        )
       );
+    },
+
+    async refreshImages(volumeId) {
+      ask(`refresh ${volumeId}`);
+      listed.set(volumeId, held.get(volumeId) ?? first(volumeId));
+      await Promise.resolve();
     },
 
     async archiveTitle(archiveId) {
@@ -99,7 +145,10 @@ export function memoryAstia(
 
     async imageBytes(volumeId, id) {
       ask(`bytes ${id}`);
-      volume(volumeId);
+      const now = held.get(volumeId) ?? first(volumeId);
+      if (!filmingIds(volumeId, now).includes(id)) {
+        throw new NoImageError(`no image ${id}`);
+      }
       return await Promise.resolve(new Uint8Array([0xff, 0xd8]));
     }
   };
