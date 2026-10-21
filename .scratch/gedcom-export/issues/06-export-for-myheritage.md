@@ -44,3 +44,16 @@ Decided while building:
 On ylonen: 82,012 lines. Left out: 299 photo links and 1,607 Boxes. The validator finds nothing but the `ADDR` lines.
 
 **Still to do by hand:** upload the export to MyHeritage as a new tree, and note here what comes through: people, dates, sources, citation notes and the Astia links. Also note whether MyHeritage pulls the Astia JPEGs in as photos, and whether an `@` in a note comes back as one `@`.
+
+## Round trip through MyHeritage, 2026-10-21
+
+ylonen's 5.5.1 export was uploaded to MyHeritage as a new tree, exported from there, and merged into a copy of the dataset (not saved). What MyHeritage did:
+
+- **Kept** every person's and family's `_UID` (1,585), and the citations' `PAGE`s, including the 28 Astia viewer addresses.
+- **Renumbered every record** (`@I1@`, `@S1@`; it had been `@S500004@`…) and added `RIN MH:…`. Sources carry no `_UID`, so the merge, which matches sources by xref, found none: all 3,799 citations came out as gone and added, and all 1,608 Marks as lost. People all matched.
+- **Dropped the citations' `OBJE`** (the Astia Image links), so no Box or Image comes back.
+- **Kept the app's notes as plain notes**: `Imported page: …` ×28 and `Found by the vision model, not checked by hand` ×1,580.
+
+Nothing was changed for this. Renumbering is expected from an upload, which makes a new tree, while exports of the same tree keep their ids (re-importing `Ylönen.ged` matched everything). It would matter only if the app's data went back into the main MyHeritage tree. Then sources would need matching by something that survives, for example their title, and the notes above would have to be read back into the Mark instead of staying as notes.
+
+Not yet checked: whether MyHeritage reads an `@@` back as one `@`, and how the tree looks on MyHeritage itself.
