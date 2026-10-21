@@ -225,8 +225,8 @@ async function matchOne(
 
 export async function runMatching(options: RunOptions): Promise<RunResult> {
   const { root } = options;
-  const pins = openPins(root);
   const astia = options.astia ?? openAstia(join(root, '.astia-cache'));
+  const pins = openPins(root, { astia });
   const scans = openScans({ pins, astia });
   const reader = cachedReader(options.reader, join(root, '.vision-readings'));
   if (options.dryRun !== true) {

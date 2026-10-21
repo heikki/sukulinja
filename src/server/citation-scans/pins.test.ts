@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, test } from 'bun:test';
@@ -7,12 +7,15 @@ import type { Pins } from './locate';
 import { openPins } from './pins';
 import type { BoxAt, MarkTarget } from './pins';
 import shipped from './pins.json';
-import type { ChurchBookRef } from './record';
+import { BOX, listedAstia, ref, vision } from './test-pins';
 
 let dir = '';
+let lists: Record<string, string[]> = {};
+const ASTIA = listedAstia(() => lists);
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'pins-'));
+  lists = {};
 });
 afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
@@ -26,10 +29,8 @@ const BASE: Pins['volumes'] = {
   }
 };
 
-const BOX = { left: 0.1, top: 0.4, width: 0.5, height: 0.05 };
-
 function open(base = BASE) {
-  return openPins(dir, { base });
+  return openPins(dir, { astia: ASTIA, base });
 }
 
 function localFile() {
@@ -38,30 +39,6 @@ function localFile() {
 
 async function writeLocal(pins: Partial<Pins>) {
   await Bun.write(localFile(), JSON.stringify(pins));
-}
-
-// A rippikirja reference to the record, on the page when given.
-function ref(recordId: number | null, page: number | null = null) {
-  const item = recordId ?? 'none';
-  const book: ChurchBookRef = {
-    url: `https://www.myheritage.fi/research/collection-10509/x?itemId=${item}`,
-    collection: '10509',
-    parish: 'Juva',
-    kind: 'rippi',
-    years: { from: 1790, to: 1796 },
-    page,
-    places: [],
-    recordId,
-    name: null,
-    date: null,
-    household: null,
-    named: []
-  };
-  return book;
-}
-
-function vision(volumeId: string, image: number, onCitedPage = false) {
-  return { volumeId, volume: volumeId, image, onCitedPage, box: BOX };
 }
 
 function linked(volume = 'I Aa:1') {
@@ -114,7 +91,7 @@ test('reads the local pins over the base', async () => {
 });
 
 test('reads over the shipped pins unless given a base', async () => {
-  const { volumes } = await openPins(dir).snapshot();
+  const { volumes } = await openPins(dir, { astia: ASTIA }).snapshot();
   expect(Object.keys(volumes)).toEqual(Object.keys(shipped.volumes));
 });
 
@@ -386,132 +363,83 @@ test('a Record pin extends the nearest Record range of its Volume', async () => 
   expect(volumes.d!.ranges).toEqual([{ from: 800, to: 800 }]);
 });
 
-// ---------------------------------------------------------------- writing
+// ---------------------------------------------------------------- filmings
 
-test('two openings saving at once both keep their saves', async () => {
-  const app = open();
-  const pass = open();
-  const saves = Array.from({ length: 10 }, (_, i) => [
-    app.recordMark(ref(1000 + i), at('v', i + 1), elsewhere('V')),
-    pass.recordVision(ref(2000 + i), vision('v', i + 1))
-  ]).flat();
-  await Promise.all(saves);
-
-  const { volumes, references } = await open().snapshot();
-  expect(volumes.v!.records).toHaveLength(20);
-  expect(Object.keys(references)).toHaveLength(10);
-  expect(await readdir(dir)).toEqual(['pins.local.json']);
-});
-
-test('a reader never sees half a file', async () => {
-  const pins = open();
-  const state = { saving: true };
-  const saves = Promise.all(
-    Array.from({ length: 10 }, (_, i) =>
-      pins.recordVision(ref(1000 + i), vision('v', i + 1))
-    )
-  ).finally(() => {
-    state.saving = false;
-  });
-  let reads = 0;
-  while (state.saving) {
-    // eslint-disable-next-line no-await-in-loop -- reading while it's written
-    const text = await Bun.file(localFile())
-      .text()
-      .catch(() => null);
-    if (text !== null) {
-      expect(() => JSON.parse(text) as unknown).not.toThrow();
-      reads += 1;
-    }
-    // eslint-disable-next-line no-await-in-loop -- as above
-    await Bun.sleep(1);
-  }
-  await saves;
-  expect(reads).toBeGreaterThan(0);
-});
-
-test('takes over a lock left by a process that died', async () => {
-  await Bun.write(
-    join(dir, 'pins.lock'),
-    JSON.stringify({ pid: 1, at: Date.now() - 31_000 })
-  );
-  const pins = open();
-  await pins.recordVision(ref(150), vision('a', 11));
-  expect((await pins.snapshot()).volumes.a!.records).toHaveLength(1);
-  expect(await readdir(dir)).toEqual(['pins.local.json']);
-});
-
-test('gives up after 5 s on a lock another save holds', async () => {
-  await Bun.write(
-    join(dir, 'pins.lock'),
-    JSON.stringify({ pid: 1, at: Date.now() })
-  );
-  const since = Date.now();
-  const failed = await open()
-    .recordVision(ref(150), vision('a', 11))
-    .then(() => null)
-    .catch((err: unknown) => err);
-  expect(Date.now() - since).toBeGreaterThanOrEqual(5000);
-  expect(String(failed)).toContain('locked');
-  expect(await Bun.file(localFile()).exists()).toBe(false);
-}, 10_000);
-
-// ---------------------------------------------------------------- migration
-
-const INDEX_URL =
-  'https://www.myheritage.fi/research/collection-30233/x?itemId=9';
-
-async function writeOldFiles() {
-  await Bun.write(
-    join(dir, 'anchors.local.json'),
-    JSON.stringify({
-      v: {
-        title: 'I Aa:1',
-        anchors: [{ image: 2, pages: [3], by: 'vision' }],
-        villages: ['Kylä'],
-        records: [{ from: 10, to: 20 }],
-        seen: [{ record: 12, image: 5, by: 'vision' }]
-      }
-    })
-  );
-  await Bun.write(
-    join(dir, 'placements.local.json'),
-    JSON.stringify({
-      [INDEX_URL]: { volumeId: 'v', volume: 'I C:1', image: 45 }
-    })
-  );
-  await Bun.write(join(dir, 'anchors.local.before-full.json'), '{}');
+// Volume a's file ids in one filming: `a-<filming><n>`.
+function filming(name: string) {
+  return Array.from({ length: 50 }, (_, i) => `a-${name}${i + 1}`);
 }
 
-test('moves the files saved before pins into pins.local.json', async () => {
-  await writeOldFiles();
-  const { volumes, references } = await open({}).snapshot();
-
-  expect(volumes.v).toEqual({
-    title: 'I Aa:1',
-    pages: [{ image: 2, pages: [3], by: 'vision' }],
-    villages: ['Kylä'],
-    ranges: [{ from: 10, to: 20 }],
-    records: [{ record: 12, image: 5, by: 'vision' }]
-  });
-  expect(references).toEqual({
-    [INDEX_URL]: { volumeId: 'v', volume: 'I C:1', image: 45 }
-  });
-  expect((await readdir(dir)).toSorted()).toEqual([
-    'anchors.local.before-full.json',
-    'anchors.local.json.migrated',
-    'pins.local.json',
-    'placements.local.json.migrated'
+test('a pin on an Image saves its file id', async () => {
+  lists = { a: filming('new') };
+  const pins = open();
+  await pins.recordMark(ref(150, 21), at('a', 11), linked());
+  await pins.recordMark(ref(null), { volumeId: 'b', image: 4 }, elsewhere());
+  const { volumes, references } = await pins.snapshot();
+  expect(volumes.a!.pages.at(-1)?.fileId).toBe('a-new11');
+  expect(volumes.a!.records).toEqual([
+    { record: 150, image: 11, by: 'hand', fileId: 'a-new11' }
+  ]);
+  // Astia lists no Images for b: no file id to save.
+  expect(Object.values(references)).toEqual([
+    { volumeId: 'b', volume: 'I Aa:1', image: 4, by: 'hand' }
   ]);
 });
 
-test('migrates once: a later opening reads pins.local.json as it is', async () => {
-  await writeOldFiles();
-  await open({}).recordVision(ref(13), vision('v', 6));
-  const { volumes, references } = await open({}).snapshot();
-  expect(Object.keys(references)).toEqual([INDEX_URL]);
-  expect(volumes.v?.records).toEqual([
-    { record: 12, image: 5, by: 'vision' },
-    { record: 13, image: 6, by: 'vision', box: BOX }
+test('a hand pin made on another filming never keeps a vision pin out', async () => {
+  lists = { a: filming('new') };
+  await writeLocal({
+    volumes: {
+      a: {
+        pages: [
+          { image: 12, pages: [30], by: 'hand', fileId: 'a-old12' },
+          { image: 20, pages: [40], by: 'hand', fileId: 'a-new20' }
+        ],
+        records: [
+          { record: 150, image: 12, by: 'hand', fileId: 'a-old12' },
+          { record: 160, image: 20, by: 'hand', fileId: 'a-new20' }
+        ]
+      }
+    },
+    references: {}
+  });
+  const pins = open();
+  await pins.recordVision(ref(150, 30), vision('a', 13, true));
+  await pins.recordVision(ref(160, 40), vision('a', 21, true));
+  const a = (await pins.snapshot()).volumes.a!;
+  expect(a.records).toEqual([
+    { record: 160, image: 20, by: 'hand', fileId: 'a-new20' },
+    { record: 150, image: 13, by: 'vision', box: BOX, fileId: 'a-new13' }
+  ]);
+  expect(a.pages).toEqual([
+    { image: 10, pages: [20] },
+    {
+      image: 13,
+      pages: [30],
+      note: 'read by the vision model',
+      by: 'vision',
+      fileId: 'a-new13'
+    },
+    { image: 20, pages: [40], by: 'hand', fileId: 'a-new20' }
+  ]);
+});
+
+test('a Rejection holds on the filming it was made on', async () => {
+  lists = { a: filming('new') };
+  const pins = open();
+  await pins.recordVision(ref(150), vision('a', 12));
+  expect(await pins.recordDiscard(ref(150), spot('a', 12))).toBe(true);
+  expect(await pins.rejects(ref(150), spot('a', 12))).toBe(true);
+  const saved = (await Bun.file(localFile()).json()) as {
+    rejected: Record<string, unknown>;
+  };
+  expect(saved.rejected[ref(150).url]).toEqual([
+    { volumeId: 'a', image: 12, fileId: 'a-new12' }
+  ]);
+  lists = { a: filming('newer') };
+  expect(await pins.rejects(ref(150), spot('a', 12))).toBe(false);
+  expect(await pins.recordVision(ref(150), vision('a', 12))).toBe(true);
+  expect((await pins.snapshot()).volumes.a!.records).toEqual([
+    { record: 150, image: 12, by: 'vision', box: BOX, fileId: 'a-newer12' }
   ]);
 });

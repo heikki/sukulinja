@@ -446,7 +446,10 @@ export function createApi(
 ): ApiHandlers {
   const astia = options.astia ?? openAstia(join(registry.root, '.astia-cache'));
   const cache = openScanCache({ astia, root: registry.root });
-  const scans = openScans({ pins: openPins(registry.root), astia });
+  const scans = openScans({
+    pins: openPins(registry.root, { astia }),
+    astia
+  });
   // Kept by the Database they're bound to: the registry alone decides when
   // a dataset's Database is closed and replaced (by an import or a delete),
   // and the next request then opens the new one and gets new handlers.

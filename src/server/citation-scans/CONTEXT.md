@@ -52,6 +52,10 @@ The number written in the book. Rippikirjat usually number spreads (one number p
 **Retake**:
 A second photograph of the same page within one Volume, on the next Image.
 
+**Re-scan**:
+Astia replacing a Volume's Images with a new filming of the book, as it did Mikkeli I Ab:9 (455 greyscale Images, then 434 in colour). Every Image's file id changes, and an Image number may hold another page. Astia gives no notice; it answers an old file id with a placeholder, upon which the app asks for the Volume's list again.
+_Avoid_: rescan, refilming (as names).
+
 **Doubled volume**:
 A Volume whose Images hold the book twice, as if filmed twice; the copies drift apart in Image numbers. Page pins point into the copy the references were indexed from.
 
@@ -87,7 +91,7 @@ _Avoid_: method, scan method (they said how a link was found, not how far to tru
 ### Pins
 
 **Pin**:
-Something known to be in a Volume, and on which Image: a page, a record, or one reference (which may be pinned to the Volume alone). Pins ship with the app or are saved in the data folder, by hand or by the vision model.
+Something known to be in a Volume, and on which Image: a page, a record, or one reference (which may be pinned to the Volume alone). Pins ship with the app or are saved in the data folder, by hand or by the vision model. A pin on an Image keeps the Image's file id, so it holds for one filming: after a **Re-scan** it's **stale**, left out as if never saved, with its Box, until the page or record is pinned again. Record ranges and villages aren't about Images, and stay.
 _Avoid_: correction, anchor (alone), placement.
 
 **Page pin**:
@@ -150,4 +154,4 @@ _Avoid_: "same page" alone — it doesn't say which.
 - **Marked** and **Vision match** Links both come from a **Record pin** or **Reference pin**; only who saved it differs. A **Page pin** only improves its Volume's **Estimated** links.
 - **Precision** and **Certainty** answer different questions: how far down, and who says so. A Box exists exactly when a Link points at the entry.
 - Shipped data holds only facts about Volumes (Page pins, Record ranges, villages), never Record or Reference pins.
-- A **Volume** id and an **Image** number are Astia's: a Pin holds only for Astia's scans. The page or record it pins holds in any filming of the book.
+- A **Volume** id and an **Image** number are Astia's: a Pin holds only for Astia's scans, and only for the filming it was made on. The page or record it pins holds in any filming of the book.

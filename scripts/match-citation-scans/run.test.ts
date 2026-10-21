@@ -137,7 +137,8 @@ async function run(
 }
 
 async function linksOf(c: { page: string; text: string }) {
-  const scans = openScans({ pins: openPins(dir), astia: juvaAstia() });
+  const astia = juvaAstia();
+  const scans = openScans({ pins: openPins(dir, { astia }), astia });
   const resolved = await scans.resolveRef(churchBookRefOf(c.page, c.text)!);
   return 'links' in resolved ? resolved.links : resolved;
 }
@@ -166,14 +167,20 @@ test('saves confirmed matches, which the app shows as vision matches', async () 
       certainty: 'vision'
     })
   ]);
-  const pins = await openPins(dir).snapshot();
+  const pins = await openPins(dir, { astia: juvaAstia() }).snapshot();
   const juva1 = pins.volumes['juva-1']!;
   expect(juva1.records).toEqual([
-    { record: 5000, image: 12, by: 'vision', box: BOX }
+    { record: 5000, image: 12, by: 'vision', box: BOX, fileId: 'juva-1-f12' }
   ]);
   expect(juva1.ranges).toEqual([{ from: 5000, to: 5000 }]);
   expect(juva1.pages).toEqual([
-    { image: 12, pages: [12], note: 'read by the vision model', by: 'vision' }
+    {
+      image: 12,
+      pages: [12],
+      note: 'read by the vision model',
+      by: 'vision',
+      fileId: 'juva-1-f12'
+    }
   ]);
   expect(Object.keys(pins.references)).toEqual([JUHO.page]);
 });
@@ -222,16 +229,21 @@ test('a match taken back by hand there goes to the review list, not the pins', a
   await passEvaluation();
   await run();
   const at = { volumeId: 'juva-1', image: 12 };
-  expect(await openPins(dir).recordDiscard(REFS[0]!, at)).toBe(true);
+  expect(
+    await openPins(dir, { astia: juvaAstia() }).recordDiscard(REFS[0]!, at)
+  ).toBe(true);
   const { result } = await run();
   if (!('outcomes' in result)) throw new Error(result.refused);
   expect(result.outcomes).toContain('rippi rejected');
   expect(
     result.review.filter((r) => r.reason === 'rejected').map((r) => r.image)
   ).toEqual([12]);
-  expect(await openPins(dir).rejects(REFS[0]!, at)).toBe(true);
   expect(
-    (await openPins(dir).snapshot()).volumes['juva-1']?.records ?? []
+    await openPins(dir, { astia: juvaAstia() }).rejects(REFS[0]!, at)
+  ).toBe(true);
+  expect(
+    (await openPins(dir, { astia: juvaAstia() }).snapshot()).volumes['juva-1']
+      ?.records ?? []
   ).toEqual([]);
 });
 
@@ -259,9 +271,10 @@ test('never overrides a hand pin', async () => {
       certainty: 'marked'
     })
   ]);
-  expect((await openPins(dir).snapshot()).volumes['juva-1']!.pages).toEqual([
-    { image: 12, pages: [12] }
-  ]);
+  expect(
+    (await openPins(dir, { astia: juvaAstia() }).snapshot()).volumes['juva-1']!
+      .pages
+  ).toEqual([{ image: 12, pages: [12] }]);
   // Matti is still matched, as a Record pin beside the hand Page pin.
   expect(await linksOf(MATTI)).toEqual([
     expect.objectContaining({ image: 12, certainty: 'vision' })

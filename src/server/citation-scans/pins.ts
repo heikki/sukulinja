@@ -11,16 +11,23 @@
 // replaces it. A Discard takes a Box's pin back; a Vision match taken back
 // is kept as a Rejection, so the model's match there isn't saved again.
 //
-// The app and the vision pass save into one folder at once, from separate
-// processes. Each save takes pins.lock, re-reads the file, applies all its
-// changes, and renames a whole new file over it; reads take no lock, as
-// the rename means they never see half a file.
+// A pin on an Image keeps the Image's Astia file id, from the Volume's
+// list when saved. One made on another filming of the Volume is left out
+// of the clashes a save weighs, so it never keeps a pin for the filming
+// now from being saved. Merging the local pins over the base can't tell,
+// lacking the lists: a stale base Page pin still beats a vision one there
+// until the base is fixed.
+//
+// How the local pins are kept on disk, and saved from two processes at
+// once, is pin-files.ts.
 
-import { mkdir, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import type { Box } from '@common/types';
 
+import type { Astia } from './astia';
+import { isCurrent } from './locate';
 import type {
   PagePin,
   Pins,
@@ -29,127 +36,18 @@ import type {
   ReferencePin,
   VolumePins
 } from './locate';
+import {
+  fileStamp,
+  migrate,
+  readLocalFile,
+  withLock,
+  writeLocalFile
+} from './pin-files';
+import type { LocalPins } from './pin-files';
 import shipped from './pins.json';
 import type { ChurchBookRef } from './record';
 
 const SHIPPED: Pins['volumes'] = shipped.volumes;
-
-const LOCK_RETRY_MS = 50;
-const LOCK_WAIT_MS = 5000;
-// Older than any save takes: its process died holding it.
-const LOCK_STALE_MS = 30_000;
-
-// Written whole under another name, then renamed over the file, so a
-// reader never sees half of it.
-async function writeJson(path: string, value: unknown) {
-  const part = `${path}.part`;
-  await Bun.write(part, `${JSON.stringify(value, null, 2)}\n`);
-  await rename(part, path);
-}
-
-async function readIfThere<T>(path: string) {
-  const file = Bun.file(path);
-  return (await file.exists()) ? ((await file.json()) as T) : null;
-}
-
-async function fileStamp(path: string) {
-  const info = await stat(path).catch(() => null);
-  return info === null ? '-' : `${info.mtimeMs}:${info.size}`;
-}
-
-// ---------------------------------------------------------------- the lock
-
-// When the lock was taken: the time it holds, or its file's when it can't
-// be read yet.
-async function takenAt(lock: string) {
-  const held = await readIfThere<{ at?: number }>(lock).catch(() => null);
-  if (typeof held?.at === 'number') return held.at;
-  return (await stat(lock).catch(() => null))?.mtimeMs ?? null;
-}
-
-async function tryLock(lock: string) {
-  try {
-    await writeFile(
-      lock,
-      JSON.stringify({ pid: process.pid, at: Date.now() }),
-      {
-        flag: 'wx'
-      }
-    );
-    return true;
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'EEXIST') return false;
-    throw err;
-  }
-}
-
-// Runs `fn` holding the lock: retries while another save holds it, takes
-// over one left by a process that died, and gives up after LOCK_WAIT_MS.
-async function withLock<T>(lock: string, fn: () => Promise<T>) {
-  const since = Date.now();
-  // eslint-disable-next-line no-await-in-loop -- waiting on the other save
-  while (!(await tryLock(lock))) {
-    // eslint-disable-next-line no-await-in-loop -- as above
-    const at = await takenAt(lock);
-    if (at !== null && Date.now() - at > LOCK_STALE_MS) {
-      // eslint-disable-next-line no-await-in-loop -- as above
-      await rm(lock, { force: true });
-      continue;
-    }
-    if (Date.now() - since >= LOCK_WAIT_MS) {
-      throw new Error(`The pins are locked by another save: ${lock}`);
-    }
-    // eslint-disable-next-line no-await-in-loop -- as above
-    await Bun.sleep(LOCK_RETRY_MS);
-  }
-  try {
-    return await fn();
-  } finally {
-    await rm(lock, { force: true });
-  }
-}
-
-// ---------------------------------------------------------------- migration
-
-// The local files before pins: Anchors, Seen records and Record ranges per
-// volume in one, Placements in another.
-interface OldVolume {
-  title?: string;
-  anchors?: PagePin[];
-  villages?: string[];
-  records?: RecordRange[];
-  seen?: RecordPin[];
-}
-
-function fromOldVolume(old: OldVolume) {
-  const { title, anchors, villages, records, seen } = old;
-  const volume: VolumePins = { pages: anchors ?? [] };
-  if (title !== undefined) volume.title = title;
-  if (villages !== undefined) volume.villages = villages;
-  if (records !== undefined) volume.ranges = records;
-  if (seen !== undefined) volume.records = seen;
-  return volume;
-}
-
-// A folder saved before pins has its two local files turned into
-// pins.local.json, keeping them as *.migrated.
-async function migrate(folder: string, localFile: string) {
-  if (await Bun.file(localFile).exists()) return;
-  const anchorsFile = join(folder, 'anchors.local.json');
-  const placementsFile = join(folder, 'placements.local.json');
-  const anchors = await readIfThere<Record<string, OldVolume>>(anchorsFile);
-  const placements =
-    await readIfThere<Record<string, ReferencePin>>(placementsFile);
-  if (anchors === null && placements === null) return;
-  const volumes = Object.fromEntries(
-    Object.entries(anchors ?? {}).map(([id, v]) => [id, fromOldVolume(v)])
-  );
-  await writeJson(localFile, { volumes, references: placements ?? {} });
-  for (const old of [anchorsFile, placementsFile]) {
-    // eslint-disable-next-line no-await-in-loop -- two files
-    if (await Bun.file(old).exists()) await rename(old, `${old}.migrated`);
-  }
-}
 
 // ---------------------------------------------------------------- merging
 
@@ -166,6 +64,14 @@ function overrides(entry: Saved, clashing: Saved[]) {
   return isHand(entry) || !clashing.some(isHand);
 }
 
+// Which pins of a list a save weighs: all of them, unless the list is of
+// the Volume it saves into, whose stale pins it passes over.
+type Weighs = (pin: { image?: number; fileId?: string }) => boolean;
+
+function weighsAll() {
+  return true;
+}
+
 function byImage(a: PagePin, b: PagePin) {
   return a.image - b.image;
 }
@@ -175,9 +81,13 @@ function pageClash(pin: PagePin) {
     p.image === pin.image || p.pages.some((n) => pin.pages.includes(n));
 }
 
-function withPagePin(pins: PagePin[], pin: PagePin) {
+function withPagePin(
+  pins: PagePin[],
+  pin: PagePin,
+  weighs: Weighs = weighsAll
+) {
   const clashes = pageClash(pin);
-  if (!overrides(pin, pins.filter(clashes))) return pins;
+  if (!overrides(pin, pins.filter(clashes).filter(weighs))) return pins;
   return [...pins.filter((p) => !clashes(p)), pin].sort(byImage);
 }
 
@@ -218,7 +128,10 @@ function mergeVolume(base: VolumePins | undefined, local: VolumePins) {
     ranges: withRanges(union(from.ranges, local.ranges)),
     records: union(local.records).reduce(withRecordPin, union(from.records))
   };
-  const pages = local.pages.reduce(withPagePin, from.pages);
+  const pages = local.pages.reduce(
+    (list, pin) => withPagePin(list, pin),
+    from.pages
+  );
   const out: VolumePins = { ...(base ?? local), pages };
   for (const [key, list] of Object.entries(lists)) {
     if (list.length > 0) Object.assign(out, { [key]: list });
@@ -236,22 +149,41 @@ function merge(base: Pins['volumes'], local: Pins['volumes']) {
 
 // ---------------------------------------------------------------- saving
 
-// A Vision match taken back by hand: the reference isn't on that Image.
+// A Vision match taken back by hand: the reference isn't on that Image,
+// of the filming its file id is of.
 export interface Rejection {
   volumeId: string;
   image: number;
+  fileId?: string;
 }
 
-// The local file: the pins, and the Rejections by the reference's URL.
-interface LocalPins extends Pins {
-  rejected: Record<string, Rejection[]>;
+// The Volume a save is about, with its list as Astia gives it now.
+interface Scope {
+  volumeId: string;
+  files: string[];
 }
 
 // One save's view of the pins: the local ones it changes, read under the
-// lock, and the base they're read over.
+// lock, the base they're read over, and the Volume it saves into.
 interface Draft {
   base: Pins['volumes'];
   local: LocalPins;
+  scope: Scope;
+}
+
+// Whether the save weighs a pin of `volumeId`: not one made on another
+// filming of the Volume it saves into.
+function weighsIn(draft: Draft, volumeId: string): Weighs {
+  const { scope } = draft;
+  return scope.volumeId === volumeId
+    ? (pin) => isCurrent(pin, scope.files)
+    : weighsAll;
+}
+
+// The file id of the Image a save puts a pin on, when the list has it.
+function fileOf(draft: Draft, image: number) {
+  const fileId = draft.scope.files[image - 1];
+  return fileId === undefined ? {} : { fileId };
 }
 
 function mergedVolumes(draft: Draft) {
@@ -264,14 +196,15 @@ function addPagePin(
   title: string,
   pin: PagePin
 ) {
+  const weighs = weighsIn(draft, volumeId);
   const known = mergedVolumes(draft)[volumeId]?.pages ?? [];
-  if (!overrides(pin, known.filter(pageClash(pin)))) return;
+  if (!overrides(pin, known.filter(pageClash(pin)).filter(weighs))) return;
   const { volumes } = draft.local;
   const volume = volumes[volumeId];
   volumes[volumeId] = {
     ...volume,
     title: volume?.title ?? title,
-    pages: withPagePin(volume?.pages ?? [], pin)
+    pages: withPagePin(volume?.pages ?? [], pin, weighs)
   };
 }
 
@@ -315,8 +248,10 @@ function addRecordPin(
   pin: RecordPin
 ) {
   const volumes = mergedVolumes(draft);
-  const known = Object.values(volumes).flatMap((v) =>
-    (v.records ?? []).filter((p) => p.record === pin.record)
+  const known = Object.entries(volumes).flatMap(([id, v]) =>
+    (v.records ?? [])
+      .filter((p) => p.record === pin.record)
+      .filter(weighsIn(draft, id))
   );
   if (!overrides(pin, known)) return;
   for (const volume of Object.values(draft.local.volumes)) {
@@ -342,9 +277,9 @@ function addRecordPin(
 function setReferencePin(draft: Draft, url: string, pin: ReferencePin | null) {
   const { references } = draft.local;
   const earlier = references[url];
-  if (pin !== null && earlier !== undefined && !overrides(pin, [earlier])) {
-    return;
-  }
+  const weighed =
+    earlier !== undefined && weighsIn(draft, earlier.volumeId)(earlier);
+  if (pin !== null && weighed && !overrides(pin, [earlier])) return;
   const others = Object.entries(references).filter(([key]) => key !== url);
   const { local } = draft;
   local.references = Object.fromEntries(
@@ -379,7 +314,8 @@ function matchedBox(
         );
   if (saved?.image !== target.image || saved.box === undefined) return {};
   const inVolume = !('volumeId' in saved) || saved.volumeId === target.volumeId;
-  return inVolume ? { box: saved.box } : {};
+  const current = weighsIn(draft, target.volumeId)(saved);
+  return inVolume && current ? { box: saved.box } : {};
 }
 
 // Where a Mark says the record is, in any Volume of the parish: on an
@@ -423,7 +359,7 @@ function markInto(
     setReferencePin(draft, ref.url, { volumeId, volume, by: 'hand' });
     return;
   }
-  const on = { volumeId, image };
+  const on = { volumeId, image, ...fileOf(draft, image) };
   const drawn = target.box;
   const box =
     drawn === undefined
@@ -442,7 +378,8 @@ function markInto(
       image,
       pages: pagesFor(draft, volumeId, ref),
       note: 'marked in the app',
-      by: 'hand'
+      by: 'hand',
+      ...fileOf(draft, image)
     });
   } else {
     setReferencePin(draft, ref.url, { ...on, volume, by: 'hand', ...box });
@@ -452,7 +389,8 @@ function markInto(
       record: ref.recordId,
       image,
       by: 'hand',
-      ...box
+      ...box,
+      ...fileOf(draft, image)
     });
   }
 }
@@ -463,13 +401,15 @@ function markInto(
 // replaced.
 function visionInto(draft: Draft, ref: ChurchBookRef, match: VisionMatch) {
   const { volumeId, volume, image, box } = match;
+  const file = fileOf(draft, image);
   if (ref.recordId === null) {
     setReferencePin(draft, ref.url, {
       volumeId,
       volume,
       image,
       by: 'vision',
-      box
+      box,
+      ...file
     });
     return;
   }
@@ -477,14 +417,16 @@ function visionInto(draft: Draft, ref: ChurchBookRef, match: VisionMatch) {
     record: ref.recordId,
     image,
     by: 'vision',
-    box
+    box,
+    ...file
   });
   if (ref.page !== null && match.onCitedPage) {
     addPagePin(draft, volumeId, volume, {
       image,
       pages: pagesFor(draft, volumeId, ref),
       note: 'read by the vision model',
-      by: 'vision'
+      by: 'vision',
+      ...file
     });
   }
 }
@@ -495,9 +437,14 @@ export interface BoxAt {
   image: number;
 }
 
-function isRejected(local: LocalPins, ref: ChurchBookRef, at: BoxAt) {
-  return (local.rejected[ref.url] ?? []).some(
-    (r) => r.volumeId === at.volumeId && r.image === at.image
+// Whether a Vision match at `at` was taken back there by hand, on the
+// filming of the Volume the draft has the list of.
+function isRejected(draft: Draft, ref: ChurchBookRef, at: BoxAt) {
+  return (draft.local.rejected[ref.url] ?? []).some(
+    (r) =>
+      r.volumeId === at.volumeId &&
+      r.image === at.image &&
+      weighsIn(draft, r.volumeId)(r)
   );
 }
 
@@ -535,21 +482,33 @@ function discardInto(draft: Draft, ref: ChurchBookRef, at: BoxAt) {
     takeReferencePin(draft, ref, at),
     takeRecordPin(draft, ref, at)
   ].filter((p) => p !== null);
-  if (taken.some((p) => !isHand(p)) && !isRejected(draft.local, ref, at)) {
+  if (taken.some((p) => !isHand(p)) && !isRejected(draft, ref, at)) {
     const { rejected } = draft.local;
-    rejected[ref.url] = [...(rejected[ref.url] ?? []), at];
+    const rejection = {
+      volumeId: at.volumeId,
+      image: at.image,
+      ...fileOf(draft, at.image)
+    };
+    rejected[ref.url] = [
+      ...(rejected[ref.url] ?? []).filter(
+        (r) => r.volumeId !== at.volumeId || r.image !== at.image
+      ),
+      rejection
+    ];
   }
   return taken.length > 0;
 }
 
 // ---------------------------------------------------------------- the module
 
-// The pins of a data folder. `base` is what the local pins are read over:
-// the shipped ones unless given.
+// The pins of a data folder, saved with file ids from `astia`'s lists.
+// `base` is what the local pins are read over: the shipped ones unless
+// given.
 export function openPins(
   folder: string,
-  options: { base?: Pins['volumes'] } = {}
+  options: { astia: Astia; base?: Pins['volumes'] }
 ) {
+  const { astia } = options;
   const base = options.base ?? SHIPPED;
   const localFile = join(folder, 'pins.local.json');
   const lockFile = join(folder, 'pins.lock');
@@ -567,26 +526,24 @@ export function openPins(
     await migration;
   }
 
-  async function readLocal(): Promise<LocalPins> {
+  async function readLocal() {
     await migrated();
-    const local = await readIfThere<Partial<LocalPins>>(localFile);
-    return {
-      volumes: local?.volumes ?? {},
-      references: local?.references ?? {},
-      rejected: local?.rejected ?? {}
-    };
+    return await readLocalFile(localFile);
   }
 
-  // Rejections are left out of the file while there are none.
-  async function save<T>(change: (draft: Draft) => T) {
+  // The Volume, with its list when the save puts a pin on an Image.
+  async function scopeOf(volumeId: string, onImage: boolean) {
+    const files = onImage ? await astia.volumeImages(volumeId) : [];
+    return { volumeId, files };
+  }
+
+  async function save<T>(scope: Scope, change: (draft: Draft) => T) {
     await migrated();
     await mkdir(folder, { recursive: true });
     const result = await withLock(lockFile, async () => {
-      const draft = { base, local: await readLocal() };
+      const draft = { base, local: await readLocal(), scope };
       const changed = change(draft);
-      const { rejected, ...pins } = draft.local;
-      const none = Object.keys(rejected).length === 0;
-      await writeJson(localFile, none ? pins : draft.local);
+      await writeLocalFile(localFile, draft.local);
       return changed;
     });
     merged = null;
@@ -626,7 +583,8 @@ export function openPins(
       target: MarkTarget,
       where: { volume: string; linked: boolean }
     ) {
-      await save((draft) => {
+      const onImage = target.image !== undefined;
+      await save(await scopeOf(target.volumeId, onImage), (draft) => {
         markInto(draft, ref, target, where);
       });
     },
@@ -634,8 +592,8 @@ export function openPins(
     // A match the vision model confirmed, unless it was taken back there by
     // hand; whether it was saved. One write.
     async recordVision(ref: ChurchBookRef, match: VisionMatch) {
-      return await save((draft) => {
-        if (isRejected(draft.local, ref, match)) return false;
+      return await save(await scopeOf(match.volumeId, true), (draft) => {
+        if (isRejected(draft, ref, match)) return false;
         visionInto(draft, ref, match);
         return true;
       });
@@ -644,12 +602,15 @@ export function openPins(
     // A Discard of the reference's Box at `at`; whether there was one.
     // One write.
     async recordDiscard(ref: ChurchBookRef, at: BoxAt) {
-      return await save((draft) => discardInto(draft, ref, at));
+      return await save(await scopeOf(at.volumeId, true), (draft) =>
+        discardInto(draft, ref, at)
+      );
     },
 
     // Whether a Vision match at `at` was taken back by hand.
     async rejects(ref: ChurchBookRef, at: BoxAt) {
-      return isRejected(await readLocal(), ref, at);
+      const scope = await scopeOf(at.volumeId, true);
+      return isRejected({ base, local: await readLocal(), scope }, ref, at);
     }
   };
 }

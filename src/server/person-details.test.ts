@@ -12,9 +12,10 @@ import { parseGedcom } from './gedcom-parser';
 import { createPersonDetails } from './person-details';
 
 // Facts and names never read the pins.
+const UNREAD = memoryAstia({});
 const SCANS = openScans({
-  pins: openPins(join(tmpdir(), 'person-details-unread')),
-  astia: memoryAstia({})
+  pins: openPins(join(tmpdir(), 'person-details-unread'), { astia: UNREAD }),
+  astia: UNREAD
 });
 
 const RIPPI =

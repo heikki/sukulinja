@@ -113,10 +113,8 @@ async function main() {
     return;
   }
 
-  const scans = openScans({
-    pins: openPins(root),
-    astia: openAstia(join(root, '.astia-cache'))
-  });
+  const astia = openAstia(join(root, '.astia-cache'));
+  const scans = openScans({ pins: openPins(root, { astia }), astia });
   const resolutions = await Promise.all(refs.map((c) => scans.resolveRef(c)));
   const results = refs.map((c, i) => ({ ...c, ...resolutions[i] }));
   await Bun.write(outFile, `${JSON.stringify(results, null, 2)}\n`);

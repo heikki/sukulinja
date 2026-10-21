@@ -28,7 +28,7 @@ afterEach(async () => {
 // References resolved with the pins saved so far; Juva's archive as the
 // test-parish gives it, unless another Astia is given.
 function scans(astia: Astia = juvaAstia()) {
-  return openScans({ pins: openPins(dir), astia });
+  return openScans({ pins: openPins(dir, { astia }), astia });
 }
 
 // Juva's archive holding just these Volumes.
@@ -61,10 +61,19 @@ test('marking a record with a Record number saves a hand Record pin', async () =
       certainty: 'marked'
     })
   ]);
-  const volume = (await openPins(dir).snapshot()).volumes['juva-1']!;
-  expect(volume.records).toEqual([{ record: 5000, image: 7, by: 'hand' }]);
+  const volume = (await openPins(dir, { astia: juvaAstia() }).snapshot())
+    .volumes['juva-1']!;
+  expect(volume.records).toEqual([
+    { record: 5000, image: 7, by: 'hand', fileId: 'juva-1-f7' }
+  ]);
   expect(volume.pages).toEqual([
-    { image: 7, pages: [12], note: 'marked in the app', by: 'hand' }
+    {
+      image: 7,
+      pages: [12],
+      note: 'marked in the app',
+      by: 'hand',
+      fileId: 'juva-1-f7'
+    }
   ]);
 });
 
@@ -80,17 +89,23 @@ test('a record marked in another Book gets a Reference pin and a Record pin ther
       certainty: 'marked'
     })
   ]);
-  expect(Object.values((await openPins(dir).snapshot()).references)).toEqual([
+  expect(
+    Object.values(
+      (await openPins(dir, { astia: juvaAstia() }).snapshot()).references
+    )
+  ).toEqual([
     {
       volumeId: 'juva-2',
       volume: VOLUMES['juva-2'],
       image: 3,
-      by: 'hand'
+      by: 'hand',
+      fileId: 'juva-2-f3'
     }
   ]);
-  expect((await openPins(dir).snapshot()).volumes['juva-2']!.records).toEqual([
-    { record: 5000, image: 3, by: 'hand' }
-  ]);
+  expect(
+    (await openPins(dir, { astia: juvaAstia() }).snapshot()).volumes['juva-2']!
+      .records
+  ).toEqual([{ record: 5000, image: 3, by: 'hand', fileId: 'juva-2-f3' }]);
 });
 
 test('a hand marking extends the Record range, routing records in between', async () => {
@@ -106,9 +121,10 @@ test('a hand marking extends the Record range, routing records in between', asyn
   expect(await linksOf(between)).toEqual([
     expect.objectContaining({ volumeId: 'juva-1' })
   ]);
-  expect((await openPins(dir).snapshot()).volumes['juva-1']!.ranges).toEqual([
-    { from: 1000, to: 2500 }
-  ]);
+  expect(
+    (await openPins(dir, { astia: juvaAstia() }).snapshot()).volumes['juva-1']!
+      .ranges
+  ).toEqual([{ from: 1000, to: 2500 }]);
 });
 
 test('a Record range is never extended across another Volume', async () => {
@@ -127,7 +143,7 @@ test('a Record range is never extended across another Volume', async () => {
       certainty: 'marked'
     })
   ]);
-  const { volumes } = await openPins(dir).snapshot();
+  const { volumes } = await openPins(dir, { astia: juvaAstia() }).snapshot();
   expect(volumes['juva-1']!.ranges).toEqual([{ from: 1000, to: 2000 }]);
   expect(volumes['juva-2']!.ranges).toEqual([{ from: 3000, to: 3500 }]);
 });
@@ -188,7 +204,9 @@ test('a Mark of only the Volume saves a hand Reference pin and nothing else', as
       certainty: 'marked'
     })
   ]);
-  const { volumes, references } = await openPins(dir).snapshot();
+  const { volumes, references } = await openPins(dir, {
+    astia: juvaAstia()
+  }).snapshot();
   expect(Object.values(references)).toEqual([
     { volumeId: 'juva-2', volume: VOLUMES['juva-2'], by: 'hand' }
   ]);
@@ -345,8 +363,19 @@ test('a vision Reference pin confirmed by hand keeps its box', async () => {
     })
   );
   await scans().markRef(refOf(marked), { volumeId: 'juva-2', image: 3 });
-  expect(Object.values((await openPins(dir).snapshot()).references)).toEqual([
-    { volumeId: 'juva-2', volume: VOLUMES['juva-2'], image: 3, by: 'hand', box }
+  expect(
+    Object.values(
+      (await openPins(dir, { astia: juvaAstia() }).snapshot()).references
+    )
+  ).toEqual([
+    {
+      volumeId: 'juva-2',
+      volume: VOLUMES['juva-2'],
+      image: 3,
+      by: 'hand',
+      box,
+      fileId: 'juva-2-f3'
+    }
   ]);
 });
 
