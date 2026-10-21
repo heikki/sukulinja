@@ -99,6 +99,12 @@ export const appStyles = css`
   ul.chooser li button.import {
     margin-right: 0.4rem;
   }
+  .export-note {
+    margin: 0 0 0.8rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
+  }
   .muted {
     color: var(--muted);
     font-size: 0.85em;

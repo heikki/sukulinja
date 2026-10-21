@@ -11,6 +11,7 @@ It isn't known whether MyHeritage takes GEDCOM 7 or a GEDZIP, so beside the `.gd
 
 - **Write GEDCOM 5.5.1** from the same data as `03`: `HEAD` with `GEDC.VERS 5.5.1` and `FORM LINEAGE-LINKED`, `CHAR UTF-8`, `CONC` / `CONT` splitting under 5.5.1's line-length limit.
 - **What 5.5.1 needs that 7 doesn't** (`../research-gedcom7-tooling.md`): `HEAD.SOUR` and `HEAD.SUBM`, and a `0 @…@ SUBM` record with a `NAME`. `HEAD.LANG` is a language name (`Finnish`), not `fi`. `FORM` is `jpg`, not `image/jpeg`. At most 255 characters per line _including_ the line end, counted in characters. `CONC` splits between two non-space characters. Every `@` in a value is `@@`. `FILE` and `PAGE` can't be continued, so a URL must fit on its line.
+- **Undo what the import made GEDCOM 7** (`gedcom7-values.ts`, `03`): MIME `FORM` back to an extension, the BCP 47 `LANG` to its English name, calendar words to `@#D…@` escapes, `SNOTE` to `NOTE` records and pointers, an enumeration's `PHRASE` back to 5.5.1's free text (`EVEN Record`, `ROLE 10509:…`, `NAME.TYPE`, `ASSO.RELA`), `@VOID@` citations back to inline `SOUR <text>`.
 - **Leave photos out**: no person or family `OBJE`.
 - **Marks without Boxes**: a citation's Astia link as an `OBJE` with the Image URL and no crop, since 5.5.1 has none. The two notes of `04` as in the `.gdz`.
 - **`UID` as `_UID`**, the one place a person's id survives in 5.5.1, so MyHeritage has the chance to recognise people.

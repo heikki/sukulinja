@@ -5,7 +5,7 @@
 
 import { mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { unzipSync } from 'fflate';
+import { unzipSync, zipSync } from 'fflate';
 
 const GEDCOM_ENTRY = 'gedcom.ged';
 
@@ -69,4 +69,14 @@ export async function unpackGedzip(zip: Uint8Array, dir: string) {
   }
   /* eslint-enable no-await-in-loop */
   return { text, files };
+}
+
+// A GEDZIP of a GEDCOM's text and its media, by entry name. Photos are
+// stored as they are, since JPEGs don't shrink.
+export function packGedzip(text: string, media: Map<string, Uint8Array>) {
+  const files: Record<string, [Uint8Array, { level: 0 | 6 }]> = {
+    [GEDCOM_ENTRY]: [new TextEncoder().encode(text), { level: 6 }]
+  };
+  for (const [name, bytes] of media) files[name] = [bytes, { level: 0 }];
+  return zipSync(files);
 }

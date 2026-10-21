@@ -4,20 +4,27 @@ import type { Scope } from '@common/types';
 
 import { lineReader } from './gedcom-lines';
 import type { Unstored } from './gedcom-lines';
+import { parseName } from './gedcom-names';
 import { findChildren } from './gedcom-parser';
 import type { GedNode } from './gedcom-parser';
 import {
   ADDRESS_PARTS,
+  EVENTS,
   FAMILY_FACT_TAGS,
   HEADER_META,
   NAME_PIECE_TAGS,
   PERSON_FACT_TAGS
 } from './gedcom-tags';
+import {
+  gedcom7Age,
+  gedcom7Date,
+  gedcom7Quality,
+  languageTag
+} from './gedcom7-values';
 import { mediaLinker } from './import-media';
 import type { MediaResolver } from './import-media';
 import { importStatements } from './import-statements';
-
-const NAME_RE = /^(?<given>[^/]*)\/(?<surname>[^/]*)\/(?<suffix>.*)$/;
+import { objectRecords } from './media-refs';
 
 export type { Unstored } from './gedcom-lines';
 
@@ -36,18 +43,8 @@ export interface ImportStats {
   unstored: Unstored[];
 }
 
-interface NameParts {
-  given: string | null;
-  surname: string | null;
-  suffix: string | null;
-}
-
 function hasXref(root: GedNode): root is GedNode & { xref: string } {
   return root.xref !== undefined && root.xref !== '';
-}
-
-function nullIfEmpty(s: string): string | null {
-  return s === '' ? null : s;
 }
 
 function toInt(value: string | undefined): number | null {
@@ -56,20 +53,16 @@ function toInt(value: string | undefined): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function parseName(full: string): NameParts {
-  const m = NAME_RE.exec(full);
-  if (m === null) {
-    return { given: nullIfEmpty(full.trim()), surname: null, suffix: null };
-  }
-  const g = m.groups!;
-  return {
-    given: nullIfEmpty(g.given!.trim()),
-    surname: nullIfEmpty(g.surname!.trim()),
-    suffix: nullIfEmpty(g.suffix!.trim())
-  };
-}
-
 const POINTER_RE = /^@[^@]+@$/;
+
+// A line with no value and nothing under it but program-specific lines:
+// GEDCOM 7 has no such structure, and it says nothing.
+function isEmptyLine(node: GedNode): boolean {
+  return (
+    (node.value ?? '') === '' &&
+    node.children.every((c) => c.tag.startsWith('_') || isEmptyLine(c))
+  );
+}
 
 function isPointer(value: string | undefined) {
   return POINTER_RE.test(value ?? '');
@@ -116,6 +109,13 @@ export function importGedcom(
   const lines = lineReader();
   const { take, takeAll, takeValue } = lines;
 
+  // An enumeration line's value: its PHRASE where GEDCOM 7 gives one for
+  // what the enumeration can't name.
+  function enumValue(node: GedNode | undefined) {
+    if (node === undefined) return null;
+    return takeValue(node, 'PHRASE') ?? node.value ?? null;
+  }
+
   const sql = importStatements(db);
   const importMediaLinks = mediaLinker({
     sql,
@@ -124,6 +124,7 @@ export function importGedcom(
       stats[kind] += 1;
     },
     resolve: mediaResolver,
+    records: objectRecords(roots),
     importNotes
   });
 
@@ -146,7 +147,10 @@ export function importGedcom(
       for (const tag of path) {
         node = node === undefined ? node : take(node, tag);
       }
-      if (node?.value !== undefined) sql.insertMeta.run(key, node.value);
+      if (node?.value !== undefined) {
+        const value = key === 'language' ? languageTag(node.value) : node.value;
+        sql.insertMeta.run(key, value);
+      }
     }
   }
 
@@ -211,7 +215,7 @@ export function importGedcom(
       const repoId = Number(res.lastInsertRowid);
       repositoryXrefs.set(root.xref, repoId);
       importAddress(root, 'repository', repoId);
-    } else if (root.tag === 'NOTE') {
+    } else if (root.tag === 'NOTE' || root.tag === 'SNOTE') {
       lines.use(root);
       const change = changeOf(root);
       const res = sql.insertSharedNote.run(
@@ -271,7 +275,7 @@ export function importGedcom(
       importFamilyDetails(root, familyXrefs.get(root.xref)!);
     } else if (root.tag === 'SOUR') {
       importSourceDetails(root, sourceXrefs.get(root.xref)!);
-    } else if (root.tag === 'NOTE') {
+    } else if (root.tag === 'NOTE' || root.tag === 'SNOTE') {
       const noteId = sharedNoteXrefs.get(root.xref)!;
       importCitations(root, 'shared_note', noteId);
     }
@@ -292,12 +296,16 @@ export function importGedcom(
   // citations when it's written out.
   function importNotes(node: GedNode, owner: NoteOwner, ownerId: number) {
     let order = 0;
-    for (const note of findChildren(node, 'NOTE')) {
+    const notes = node.children.filter(
+      (c) => c.tag === 'NOTE' || c.tag === 'SNOTE'
+    );
+    for (const note of notes) {
       const shared = isPointer(note.value)
         ? sharedNoteXrefs.get(note.value!)
         : null;
       if (shared === undefined) continue;
       lines.use(note);
+      if (shared === null && isEmptyLine(note)) continue;
       const res = sql.insertNote.run(
         owner,
         ownerId,
@@ -321,7 +329,7 @@ export function importGedcom(
       parts.given,
       parts.surname,
       parts.suffix,
-      takeValue(name, 'TYPE'),
+      enumValue(take(name, 'TYPE')),
       order
     );
     const nameId = Number(res.lastInsertRowid);
@@ -329,6 +337,7 @@ export function importGedcom(
     for (const piece of name.children) {
       if (!NAME_PIECE_TAGS.includes(piece.tag)) continue;
       lines.use(piece);
+      if (isEmptyLine(piece)) continue;
       sql.insertNamePiece.run(
         nameId,
         piece.tag,
@@ -341,6 +350,12 @@ export function importGedcom(
     stats.names += 1;
   }
 
+  // GEDCOM 7 requires an association's ROLE; a bare OTHER says nothing.
+  function relationOf(role: GedNode | undefined) {
+    const value = enumValue(role);
+    return value === 'OTHER' ? null : value;
+  }
+
   function importAssociations(root: GedNode, personId: number) {
     let order = 0;
     for (const asso of findChildren(root, 'ASSO')) {
@@ -350,7 +365,7 @@ export function importGedcom(
       const res = sql.insertAssociation.run(
         personId,
         associateId,
-        takeValue(asso, 'RELA'),
+        takeValue(asso, 'RELA') ?? relationOf(take(asso, 'ROLE')),
         order++
       );
       importNotes(asso, 'association', Number(res.lastInsertRowid));
@@ -358,16 +373,11 @@ export function importGedcom(
   }
 
   function importPersonDetails(root: GedNode, personId: number): void {
-    takeAll(root, 'NAME').forEach((name, i) => {
-      importName(name, personId, i);
-    });
-
-    let factOrder = 0;
-    for (const child of root.children) {
-      if (PERSON_FACT_TAGS.has(child.tag)) {
-        insertFactRow('person', personId, child, factOrder++);
-      }
+    let nameOrder = 0;
+    for (const name of takeAll(root, 'NAME')) {
+      if (!isEmptyLine(name)) importName(name, personId, nameOrder++);
     }
+    importFacts(root, 'person', personId, PERSON_FACT_TAGS);
 
     // A person's families are read from the FAM records' HUSB, WIFE and
     // CHIL, so these pointers back say nothing more.
@@ -392,21 +402,17 @@ export function importGedcom(
     const wifeId = resolveParentId(takeValue(root, 'WIFE'));
     sql.updateFamily.run(husbandId, wifeId, familyId);
 
-    takeAll(root, 'CHIL').forEach((ch, i) => {
-      const xref = ch.value;
-      if (xref === undefined) return;
-      const childId = personXrefs.get(xref);
-      if (childId === undefined) return;
-      sql.insertFamilyChild.run(familyId, childId, i);
+    let childOrder = 0;
+    for (const ch of takeAll(root, 'CHIL')) {
+      const childId = personXrefs.get(ch.value ?? '');
+      if (childId === undefined) continue;
+      const res = sql.insertFamilyChild.run(familyId, childId, childOrder);
+      if (res.changes === 0) continue;
+      childOrder += 1;
       stats.familyChildren += 1;
-    });
-
-    let factOrder = 0;
-    for (const child of root.children) {
-      if (FAMILY_FACT_TAGS.has(child.tag)) {
-        insertFactRow('family', familyId, child, factOrder++);
-      }
     }
+
+    importFacts(root, 'family', familyId, FAMILY_FACT_TAGS);
     takeAll(root, 'RIN');
     importNotes(root, 'family', familyId);
     importCitations(root, 'family', familyId);
@@ -423,10 +429,10 @@ export function importGedcom(
     return {
       sourceId: pointer ? (sourceXrefs.get(sour.value!) ?? null) : null,
       page: takeValue(sour, 'PAGE'),
-      event: event?.value ?? null,
-      role: takeValue(event, 'ROLE'),
-      quality: toInt(takeValue(sour, 'QUAY') ?? undefined),
-      dataDate: takeValue(data, 'DATE'),
+      event: enumValue(event),
+      role: enumValue(event === undefined ? undefined : take(event, 'ROLE')),
+      quality: gedcom7Quality(toInt(takeValue(sour, 'QUAY') ?? undefined)),
+      dataDate: gedcom7Date(takeValue(data, 'DATE')),
       text: takeValue(data, 'TEXT') ?? (pointer ? null : (sour.value ?? null))
     };
   }
@@ -482,29 +488,55 @@ export function importGedcom(
     return { text, parts, shown: lines.length === 0 ? null : lines.join(', ') };
   }
 
-  function insertFactRow(
+  // An event with nothing more to say is GEDCOM 7's `BIRT Y`: it happened.
+  // An empty attribute says nothing and isn't kept.
+  function importFacts(
+    root: GedNode,
     scope: Scope,
     scopeId: number,
+    tags: Set<string>
+  ) {
+    let order = 0;
+    for (const child of root.children) {
+      if (!tags.has(child.tag)) continue;
+      if (!isEmptyLine(child)) {
+        insertFactRow(
+          { scope, id: scopeId },
+          child,
+          child.value ?? null,
+          order++
+        );
+      } else if (EVENTS.has(child.tag)) {
+        insertFactRow({ scope, id: scopeId }, child, 'Y', order++);
+      } else {
+        lines.use(child);
+      }
+    }
+  }
+
+  function insertFactRow(
+    owner: { scope: Scope; id: number },
     node: GedNode,
+    value: string | null,
     order: number
   ): void {
     lines.use(node);
     const place = readPlace(node);
     const address = readAddress(node);
     const res = sql.insertFact.run(
-      scope,
-      scopeId,
+      owner.scope,
+      owner.id,
       node.tag,
       takeValue(node, 'TYPE'),
-      takeValue(node, 'DATE'),
+      gedcom7Date(takeValue(node, 'DATE')),
       place.name,
       place.latitude,
       place.longitude,
       address?.shown ?? null,
-      takeValue(node, 'AGE'),
+      gedcom7Age(takeValue(node, 'AGE')),
       takeValue(node, 'CAUS'),
       takeValue(node, 'AGNC'),
-      node.value ?? null,
+      value,
       order
     );
     const factId = Number(res.lastInsertRowid);

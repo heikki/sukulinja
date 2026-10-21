@@ -87,6 +87,9 @@ export class AppElement extends LitElement {
   // field can't be null, since the chooser has no dataset to provide.
   private readonly provider = provideDataset(this, currentSlug());
   @state() private pendingImport: File | null = null;
+  @state() private exporting: string | null = null;
+  // Where the last export was saved, or why it failed.
+  @state() private exportNote: { ok: boolean; text: string } | null = null;
   // The name of an outdated dataset being imported again, so the import
   // replaces it.
   private reimportName: string | null = null;
@@ -210,6 +213,46 @@ export class AppElement extends LitElement {
       else done = event.info;
     }
     return done;
+  }
+
+  // Saved by the server, since the app's web view can't hand a download to
+  // the user: into Downloads, which the note names.
+  private readonly exportDataset = async (dataset: DatasetInfo) => {
+    this.exporting = dataset.slug;
+    this.exportNote = null;
+    try {
+      const res = await fetch(`/datasets/${dataset.slug}/export`, {
+        method: 'POST'
+      });
+      if (!res.ok) {
+        const msg = await res.text();
+        this.exportNote = {
+          ok: false,
+          text: msg === '' ? `export failed (${res.status})` : msg
+        };
+        return;
+      }
+      const { path } = (await res.json()) as { path: string };
+      this.exportNote = {
+        ok: true,
+        text: `Exported ${dataset.displayName} to ${path}`
+      };
+    } catch (err) {
+      this.exportNote = {
+        ok: false,
+        text: err instanceof Error ? err.message : 'export failed'
+      };
+    } finally {
+      this.exporting = null;
+    }
+  };
+
+  private renderExportNote() {
+    const note = this.exportNote;
+    if (note === null) return nothing;
+    return note.ok
+      ? html`<p class="export-note">${note.text}</p>`
+      : errorNote('Export failed', note.text);
   }
 
   private readonly requestDelete = (dataset: DatasetInfo) => {
@@ -444,11 +487,25 @@ export class AppElement extends LitElement {
           <h2>Datasets</h2>
           ${this.renderImportButton()}
         </div>
+        ${this.renderExportNote()}
         <ul class="chooser">
           ${this.datasets!.map(
             (d) => html`
               <li>
                 ${d.outdated ? this.renderOutdated(d) : renderLink(d)}
+                ${
+                  d.outdated
+                    ? nothing
+                    : html`<button
+                        class="import"
+                        ?disabled=${this.exporting !== null}
+                        @click=${() => {
+                          void this.exportDataset(d);
+                        }}
+                      >
+                        ${this.exporting === d.slug ? 'Exporting…' : 'Export'}
+                      </button>`
+                }
                 <button
                   class="delete"
                   aria-label=${`Delete ${d.displayName}`}

@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 Blocked by: 02, 07
 
 # Export a dataset as a GEDCOM 7 GEDZIP, and get the same dataset back from it
@@ -28,3 +28,13 @@ With everything stored (`02`), a dataset can leave the app whole: a `.gdz` holdi
 ## Not here
 
 Astia links on citations (`04`), the MyHeritage `.ged` (`06`).
+
+## Answer
+
+- **Export** (`exportGedcom` in `gedcom-export.ts`, written by `gedcom-writer.ts`): `HEAD` (`GEDC.VERS 7.0` first, `SOUR SUKULINJA`, the stored `SUBM`, `COPR`, `LANG`, `PLAC.FORM`, `NOTE`), then people, families, sources, repositories, shared notes (`SNOTE`), submitters and one `OBJE` record per OBJE a person, family, event or citation had, every structure in stored order with the stored xrefs. A citation with no source record points at `@VOID@`. Enumerations the stored value isn't in are written as `OTHER` / `EVEN` with the value as `PHRASE` (citation `EVEN`/`ROLE`, `ASSO.ROLE`, `NAME.TYPE`). An event with nothing left to say is written `Y`. The writer splits values into `CONT` lines, doubles a leading `@` on each line, ends lines in CRLF and starts the file with a BOM.
+- **GEDZIP** (`exportDataset`, `packGedzip`): `gedcom.ged` and each linked file under the path it was imported from when that's safe (relative, inside the archive, not `gedcom.ged`), else `media/<stored name>`. `FILE` is that path percent-escaped per segment; photos are stored uncompressed.
+- **Import reads it back**: `OBJE` records with links carrying `CROP` and `TITL`, `SNOTE` records and pointers, `PHRASE`, `@VOID@`. To make the round trip exact, the import now stores values the GEDCOM 7 way whatever the file's version (ADR-0013): `FORM` as MIME, `LANG` as BCP 47, calendar words, `QUAY` 0–3, `AGE` with a unit, an empty event as `Y`, other empty lines not at all; and family children numbered without gaps.
+- **Export… in the app**: each dataset in the chooser has Export, which `POST /datasets/<slug>/export` answers by saving `~/Downloads/<slug>.gdz` (or `-2`, `-3`, …) and saying where, since the app's web view can't hand a download over.
+- **Validated with js-gedcom** (`test/gedcom7/validate.ts`, devDependency pinned to `9296068`, rules pinned at GEDCOM-registries `19ce01e`). It reads a value that starts with a space as a double delimiter, which GEDCOM 7's grammar allows; MyHeritage writes a name with no given name that way (`NAME  /Doe/`), so the helper ignores that one message.
+- **Round trip**: `test/tree-snapshot.ts` describes every table with ids replaced by what each row belongs to; the fixture and the demo come back identical, and (run locally) so does ylonen's export. Only `media.original_path`, which records how an import found the file, may differ.
+- **Known**: the demo has one `EVEN` with an empty `TYPE`; GEDCOM 7 requires a type and the export doesn't invent one, so that line stays invalid. FamilySearch's `maximal70.gdz` imports (its escaped `FILE` is found) and what's stored of it exports valid; it uses 130 kinds of line the database doesn't hold, which the import lists.
