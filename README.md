@@ -2,7 +2,7 @@
 
 DIY genealogy editor, early prototype — currently an hourglass family tree chart for GEDCOM files, with portraits.
 
-Portraits come from the image files beside the GEDCOM, or are downloaded from a MyHeritage export.
+Portraits come packed with the GEDCOM in a GEDZIP (`.gdz`), or are downloaded from a MyHeritage export.
 
 Includes a House of Bourbon demo dataset.
 

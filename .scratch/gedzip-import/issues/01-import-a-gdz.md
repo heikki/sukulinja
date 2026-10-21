@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 
 # Import a GEDZIP (.gdz) in place of a GEDCOM folder
 
@@ -39,3 +39,11 @@ The start screen has two ways in: **Import GEDCOM** (a single `.ged`) and **Impo
 - By hand: `../myheritage-export/` has `export-with-media.ged` (GEDCOM 7) and a flat `media/`. Copy the `.ged` to `gedcom.ged`, zip it with `media/`, and import the result in the app.
 
 ## Comments
+
+**Built 2026-10-21.** `src/server/gedzip.ts` unpacks the archive; `importDataset` takes `source: { gedcom } | { gedzip }`, and every import ingests from a temp folder of its own. Beyond the ticket:
+
+- A FILE that climbs out of the source folder (`../…`, or `..%2F…` once decoded) now names nothing. Before, a bare `.ged` upload could copy any readable file on the disk into a dataset's media.
+- `keepCutouts` is gone from `convertMyHeritage` too: only the CLI set it, so cutouts are always stripped.
+- A `__MACOSX/` entry is neither unpacked nor reported.
+
+Checked against the bundled demo: the upstream Bourbon sample ([D-Jeffrey/gedcom-samples](https://github.com/D-Jeffrey/gedcom-samples) `sample-bourbon/`, GEDCOM 5.5.1 from Ancestris, with `photos/` and `actes/`) packed as `bourbon.gdz` imports to the same 303 people, 139 families, 47 photos and 49 links as `data/bourbon`, with identical stored files. Its file names with spaces and accents resolve as written. The 8 photos no FILE names are logged. Through `POST /import`, the `.gdz` imports, a `.zip` answers 400, and the bare `.ged` imports without photos.

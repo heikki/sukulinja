@@ -69,3 +69,14 @@ export function mediaRefsOf(record: GedNode) {
   }
   return refs;
 }
+
+// The local paths a FILE may name: as written, and percent-decoded, since
+// GEDCOM 7 writes a FILE as a URL (`photo%201.jpg` for `photo 1.jpg`).
+export function localPaths(file: string) {
+  try {
+    const decoded = decodeURIComponent(file);
+    return decoded === file ? [file] : [file, decoded];
+  } catch {
+    return [file];
+  }
+}

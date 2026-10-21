@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, expect, test } from 'bun:test';
+import { strToU8, zipSync } from 'fflate';
 
 import { DatasetRegistry } from './dataset-registry';
 import { importDataset } from './import-dataset';
@@ -62,7 +63,7 @@ async function imported(token?: string, text = gedcom(token)) {
   await importDataset({
     registry,
     slug: 'doe',
-    text,
+    source: { gedcom: text },
     sourceFilename: 'doe.ged',
     download: fakeDownload
   });
@@ -171,7 +172,7 @@ test('a download that throws fails the import and leaves nothing behind', async 
   const failed = await importDataset({
     registry,
     slug: 'doe',
-    text: gedcom(),
+    source: { gedcom: gedcom() },
     sourceFilename: 'doe.ged',
     download: async (_url, dest) => {
       await Bun.write(dest, 'half');
@@ -183,4 +184,100 @@ test('a download that throws fails the import and leaves nothing behind', async 
   expect(String(failed)).toContain('connection reset');
   expect(await readdir(root)).toEqual([]);
   expect(await photoStagings()).toEqual(before);
+});
+
+// A GEDZIP of a person with a photo, a photo whose name has a space, and a
+// FILE whose entry would land outside the folder it's unpacked into.
+function gedzip(entries: Record<string, string> = {}) {
+  const text = [
+    '0 HEAD',
+    '1 GEDC',
+    '2 VERS 7.0',
+    '0 @I1@ INDI',
+    '1 NAME Jane /Doe/',
+    '1 OBJE',
+    '2 FILE media/portrait.jpg',
+    '2 FILE media/photo%201.jpg',
+    '0 TRLR'
+  ].join('\n');
+  return zipSync(
+    Object.fromEntries(
+      Object.entries({
+        'gedcom.ged': text,
+        'media/portrait.jpg': 'PORTRAIT',
+        'media/photo 1.jpg': 'SPACE',
+        ...entries
+      }).map(([name, body]) => [name, strToU8(body)])
+    )
+  );
+}
+
+async function importedGedzip(zip: Uint8Array) {
+  const registry = new DatasetRegistry(root);
+  const log: string[] = [];
+  const outcome = await importDataset({
+    registry,
+    slug: 'doe',
+    source: { gedzip: zip },
+    sourceFilename: 'doe.gdz',
+    log: (m) => {
+      log.push(m);
+    }
+  });
+  return { outcome, log, db: registry.open('doe') };
+}
+
+async function importStagings() {
+  return (await readdir(tmpdir())).filter((f) =>
+    f.startsWith('sukulinja-import-')
+  );
+}
+
+test("a GEDZIP's photos are imported, a percent-escaped name too", async () => {
+  const before = await importStagings();
+  const { outcome, db } = await importedGedzip(gedzip());
+  expect(outcome.skipped).toEqual([]);
+  expect(linkRows(db).map((r) => r.original_path)).toEqual([
+    'media/portrait.jpg',
+    'media/photo%201.jpg'
+  ]);
+  expect(await importStagings()).toEqual(before);
+});
+
+test('a GEDZIP file no FILE names is logged, not imported', async () => {
+  const { log, db } = await importedGedzip(
+    gedzip({ 'media/stray.jpg': 'STRAY', '__MACOSX/._x': '' })
+  );
+  expect(log).toContain('Not imported, as no FILE names them: media/stray.jpg');
+  expect(linkRows(db)).toHaveLength(2);
+});
+
+test('a GEDZIP entry named to climb out is not written', async () => {
+  const name = `escaped-${crypto.randomUUID()}.jpg`;
+  await importedGedzip(gedzip({ [`../${name}`]: 'OUT' }));
+  expect(await Bun.file(join(tmpdir(), name)).exists()).toBe(false);
+});
+
+test('a GEDZIP without gedcom.ged, or not a zip, fails the import', async () => {
+  const before = await importStagings();
+  const registry = new DatasetRegistry(root);
+  async function failure(zip: Uint8Array) {
+    return await importDataset({
+      registry,
+      slug: 'doe',
+      source: { gedzip: zip },
+      sourceFilename: 'doe.gdz'
+    })
+      .then(() => null)
+      .catch((err: unknown) => String(err));
+  }
+  const nested = zipSync({ 'tree/gedcom.ged': strToU8('0 HEAD\n0 TRLR') });
+  expect(await failure(nested)).toContain(
+    'no gedcom.ged at the top of the archive'
+  );
+  expect(await failure(strToU8('0 HEAD\n0 TRLR'))).toContain(
+    'not a zip archive'
+  );
+  expect(await readdir(root)).toEqual([]);
+  expect(await importStagings()).toEqual(before);
 });
