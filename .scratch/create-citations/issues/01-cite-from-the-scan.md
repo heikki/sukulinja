@@ -17,3 +17,7 @@ A Mark only pins where an existing Citation points; pins live in the data folder
 - Who it's for: the Selected person, or anyone in the tree (needs a person picker in the viewer).
 - How it's made: likely the Link-editing flow (`../../link-editing/spec.md`): right-click → "Cite this entry for…", draw or reuse a Box, Save. Whether a new Citation is a pending change like the rest.
 - How it shows in the person panel beside the imported ones, and whether it's marked as made in the app.
+
+## Comments
+
+**Storage decided 2026-10-21** in `docs/adr/0013-database-holds-the-tree-gedzip-carries-it.md`: an app-made Citation is a row in the dataset's database like an imported one, with its Astia link written into it the same way a Mark is. A re-import of the MyHeritage export reattaches it to the same person by `UID` (or record id), and drops it if the new export has the same Citation. The first open question is answered; the rest still stand.
