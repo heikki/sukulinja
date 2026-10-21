@@ -1,4 +1,4 @@
-Status: resolved
+Status: ready-for-agent
 
 # Notice when Astia re-scans a Volume
 
@@ -31,5 +31,9 @@ The hand fix reached only the installed app's data folder (`~/Library/Applicatio
   - `02-refresh-a-rescanned-volume.md`: the Scan cache notices the placeholder, fetches the list again and retries.
   - `03-file-ids-on-pins.md`: pins save the file id, stale ones are ignored, existing ones are backfilled.
   - `04-check-for-rescans.md`: a script that catches the next re-scan of a pinned Volume.
+- **In the app, the person is asked before switching** (decided later the same day). Switching silently made hand marks seem to vanish. Asking first: the viewer shows what the switch leaves out, and switches when told. The vision pass and the scripts still switch on their own. Tickets:
+  - `05-hold-back-the-switch.md`: the app finds a re-scan and reports it, and switches only on request.
+  - `06-ask-in-the-viewer.md`: the Scan viewer asks, and reloads the Volume after switching.
+  - `07-stale-mark-in-the-person-panel.md`: needs triage.
 
 ## Comments
