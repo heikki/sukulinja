@@ -82,7 +82,7 @@ describe('Astia Images', () => {
     expect(((await links.json()) as string[]).length).toBe(2);
   });
 
-  test('names the photograph in its ETag, so a re-scanned one is fetched anew', async () => {
+  test('names the photograph in its ETag, so a re-scanned one is fetched anew once switched to', async () => {
     const volume = memoryAstia(VOLUME_201);
     serveWith(volume);
     const first = await get('/astia/volumes/201/images/2');
@@ -100,10 +100,21 @@ describe('Astia Images', () => {
     expect((await get('/astia/volumes/201/images/2')).headers.get('ETag')).toBe(
       etag
     );
-    // Image 1 isn't, so Astia is asked; the list is fetched anew.
-    expect((await get('/astia/volumes/201/images/1')).headers.get('ETag')).toBe(
-      '"201-2-f1"'
+    // Image 1 isn't: Astia no longer has it, and the app waits to be told
+    // to switch to the new filming.
+    const gone = await get('/astia/volumes/201/images/1');
+    expect(gone.status).toBe(410);
+    expect(await gone.text()).toBe('Astia no longer has this Image.');
+    const asked = (await (await get('/astia/volumes/201/rescan')).json()) as {
+      rescan: { cached: number; images: number } | null;
+    };
+    expect(asked.rescan).toMatchObject({ cached: 2, images: 2 });
+    const switched = await fetch(
+      new Request('http://localhost/astia/volumes/201/rescan', {
+        method: 'POST'
+      })
     );
+    expect(((await switched.json()) as string[])[0]).toContain('201-2-f1');
     const renewed = await fetch(
       new Request('http://localhost/astia/volumes/201/images/2', {
         headers: { 'If-None-Match': etag }

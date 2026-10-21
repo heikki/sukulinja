@@ -7,11 +7,11 @@
 //   bun run scripts/check-rescans/index.ts [--data <folder>]
 //     [--update-cache]
 //
-// Checks the shipped pins, and with --data the folder's local pins too,
+// Checks the shipped pins and the data folder's own (default `data`)
 // against each Volume's list fetched from Astia past any cache, one
 // request at a time. --update-cache also keeps the new lists in the data
 // folder and drops its cached Images of the filmings replaced, as the Scan
-// cache would on its own. Exits 1 when a Volume was re-scanned.
+// viewer does when told to switch. Exits 1 when a Volume was re-scanned.
 
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -21,9 +21,10 @@ import { parseArgs } from 'node:util';
 import { openAstia } from '@server/citation-scans/astia';
 import { readLocalFile } from '@server/citation-scans/pin-files';
 import shipped from '@server/citation-scans/pins.json';
+import { checkRescans } from '@server/citation-scans/rescans';
 import { openScanCache } from '@server/citation-scans/scan-cache';
 
-import { checkRescans, reportLines } from './check';
+import { reportLines } from './report';
 
 const { values } = parseArgs({
   args: Bun.argv.slice(2),
@@ -32,28 +33,22 @@ const { values } = parseArgs({
     'update-cache': { type: 'boolean' }
   }
 });
-if (values['update-cache'] === true && values.data === undefined) {
-  console.error('--update-cache needs --data <folder>');
-  process.exit(2);
-}
-
-const root = values.data === undefined ? null : resolve(values.data);
+const root = resolve(values.data ?? 'data');
 const cache = await mkdtemp(join(tmpdir(), 'check-rescans-'));
 try {
   const fresh = openAstia(cache);
-  const kept = root === null ? null : openAstia(join(root, '.astia-cache'));
-  const local =
-    root === null
-      ? undefined
-      : await readLocalFile(join(root, 'pins.local.json'));
+  const kept = openAstia(join(root, '.astia-cache'));
   const result = await checkRescans(
-    { shipped: shipped.volumes, local },
+    {
+      shipped: shipped.volumes,
+      local: await readLocalFile(join(root, 'pins.local.json'))
+    },
     async (id) => await fresh.volumeImages(id),
-    kept === null ? undefined : async (id) => await kept.volumeImages(id)
+    async (id) => await kept.volumeImages(id)
   );
   for (const line of reportLines(result)) console.log(line);
-  if (root !== null && kept !== null && values['update-cache'] === true) {
-    const scans = openScanCache({ astia: kept, root });
+  if (values['update-cache'] === true) {
+    const scans = openScanCache({ astia: kept, root, switches: true });
     for (const r of result.rescanned) {
       // eslint-disable-next-line no-await-in-loop -- one at a time
       await scans.refresh(r.volumeId);

@@ -574,6 +574,11 @@ export function openPins(
     // Changes whenever the local pins do, from this process or another.
     stamp,
 
+    // The pins as kept, before the local ones are read over the base.
+    async kept() {
+      return { shipped: base, local: await readLocal() };
+    },
+
     // A Mark: the reference's record is on the Image, or in the Volume when
     // the target gives none. `volume` is the
     // Volume's title; `linked`, whether the reference links that Volume by

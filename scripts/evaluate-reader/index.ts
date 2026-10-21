@@ -228,7 +228,7 @@ async function main() {
   const pageModels = models(values['pages-models'], DEFAULT_MODELS.pages);
   const dateModels = models(values['dates-models'], DEFAULT_MODELS.dates);
   const entryModels = models(values['entry-models'], DEFAULT_MODELS.entry);
-  const image = pacedImages(openScanCache({ astia, root }));
+  const image = pacedImages(openScanCache({ astia, root, switches: true }));
   const { results, lines, spentInAll } = await runAll({ root, image }, [
     ...pageModels.map((model) => ({
       question: 'pages' as const,

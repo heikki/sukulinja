@@ -6,9 +6,12 @@
 // least recently viewed Images first.
 //
 // Astia may re-scan a Volume, giving every Image a new file id and none by
-// the old ones. An Image whose id Astia no longer has sends for the
-// Volume's list again, and is fetched once more by its new id; the cached
-// Images of the filming replaced go.
+// the old ones. Switching to the new filming means asking for the
+// Volume's list again and dropping the cached Images of the one replaced.
+// A cache that `switches` on its own does so when an Image's id is gone,
+// and fetches it once more by its new id: the vision pass and the scripts,
+// which have no one to ask. The app's doesn't, so the Scan viewer can ask
+// first (see rescans.ts).
 
 import { readdir, rename, rm, stat, utimes } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -165,7 +168,15 @@ async function savedCap(file: string) {
 
 // The Scan cache of the data folder at `root`, fetching from `astia`: its
 // Images in `.astia-images`, its cap in `settings.local.json`.
-export function openScanCache({ astia, root }: { astia: Astia; root: string }) {
+export function openScanCache({
+  astia,
+  root,
+  switches
+}: {
+  astia: Astia;
+  root: string;
+  switches: boolean;
+}) {
   const dir = join(root, '.astia-images');
   const settingsFile = join(root, 'settings.local.json');
   const inQueue = openQueue();
@@ -258,7 +269,7 @@ export function openScanCache({ astia, root }: { astia: Astia; root: string }) {
       try {
         return await cached(at, size, fileId, signal);
       } catch (err) {
-        if (!(err instanceof NoImageError)) throw err;
+        if (!(err instanceof NoImageError) || !switches) throw err;
         const now = await renewed(at, size, fileId);
         if (now === undefined) return null;
         if (now === fileId) throw err;

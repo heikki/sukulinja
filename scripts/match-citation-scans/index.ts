@@ -91,7 +91,7 @@ async function main() {
 
   const astia = openAstia(join(root, '.astia-cache'));
   const claude = claudeReader({
-    image: pacedImages(openScanCache({ astia, root })),
+    image: pacedImages(openScanCache({ astia, root, switches: true })),
     models: given({
       pages: values['pages-model'],
       dates: values['dates-model'],

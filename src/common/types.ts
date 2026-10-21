@@ -234,3 +234,27 @@ export interface ScanCacheStatus {
   used: number;
   caps: number[];
 }
+
+// A pin made on a filming of its Volume that Astia has since replaced,
+// which switching to the new filming leaves out: shipped with the app or
+// saved in the data folder, on the Image it gives. A Page pin gives its
+// pages, a Record pin its record, a Reference pin or Rejection the URL of
+// its reference.
+export interface StalePin {
+  kind: 'page' | 'record' | 'reference' | 'rejection';
+  from: 'shipped' | 'local';
+  by: Provenance;
+  image: number;
+  pages?: number[];
+  record?: number;
+  url?: string;
+}
+
+// GET /astia/volumes/:id/rescan: Astia's re-scan of the Volume not yet
+// switched to, with the Image counts of the filming shown and the new one;
+// `rescan` is null when the Volume's list is as cached.
+export interface Rescan {
+  cached: number;
+  images: number;
+  stale: StalePin[];
+}

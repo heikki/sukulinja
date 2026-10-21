@@ -257,6 +257,21 @@ test("asks for a re-scanned Volume's list again, and keeps the new one", async (
   expect(sent).toEqual([IMAGES_121]);
 });
 
+test("peeks at a Volume's list now, keeping the cached one", async () => {
+  const astia = open();
+  await astia.volumeImages('121');
+  rescan121();
+  sent = [];
+  const [now] = await Promise.all([
+    astia.peekImages('121'),
+    astia.peekImages('121')
+  ]);
+  expect(now).toEqual(['121-2-f1', '121-2-f2', '121-2-f3']);
+  expect(sent).toEqual([IMAGES_121]);
+  expect(await astia.volumeImages('121')).toEqual(['121-f1', '121-f2']);
+  expect(await open().volumeImages('121')).toEqual(['121-f1', '121-f2']);
+});
+
 test('refreshes asked for at once share one request', async () => {
   const astia = open();
   await astia.volumeImages('121');
