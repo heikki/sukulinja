@@ -38,6 +38,7 @@ import type {
 } from './locate';
 import {
   fileStamp,
+  fillFileIds,
   migrate,
   readLocalFile,
   withLock,
@@ -515,12 +516,20 @@ export function openPins(
   let migration: Promise<void> | null = null;
   let merged: { stamp: string; pins: Promise<Pins> } | null = null;
 
+  // Once a run, before the pins are first read: a folder saved before pins
+  // has its files migrated, and pins saved before pins kept file ids get
+  // them. Filling them is upkeep: one that fails is logged, and the pins
+  // read as they are.
   async function migrated() {
     migration ??= (async () => {
-      if (await Bun.file(localFile).exists()) return;
-      await mkdir(folder, { recursive: true });
-      await withLock(lockFile, async () => {
-        await migrate(folder, localFile);
+      if (!(await Bun.file(localFile).exists())) {
+        await mkdir(folder, { recursive: true });
+        await withLock(lockFile, async () => {
+          await migrate(folder, localFile);
+        });
+      }
+      await fillFileIds(folder, astia).catch((err: unknown) => {
+        console.error('Filling in pins’ file ids failed:', err);
       });
     })();
     await migration;

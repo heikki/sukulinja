@@ -224,21 +224,29 @@ function localWithFileIds(
 }
 
 // Fills in the file ids of the data folder's local pins saved before pins
-// kept them, from `astia`'s lists: the folder's cached ones, which its pins
-// were made on. Under the lock, like a save.
+// kept them, from the lists `astia` has cached: the ones its pins were made
+// on. A list from Astia now might be of a newer filming, so a Volume whose
+// list isn't cached keeps its pins as they are, for a later run. Under the
+// lock, like a save; the file is written only when a pin gained an id.
 export async function fillFileIds(folder: string, astia: Astia) {
   const localFile = join(folder, 'pins.local.json');
   const ids = volumesOnImages(await readLocalFile(localFile));
   const lists = new Map(
     await Promise.all(
-      ids.map(async (id) => [id, await astia.volumeImages(id)] as const)
+      ids.map(async (id) => [id, (await astia.cachedImages(id)) ?? []] as const)
     )
   );
   await withLock(join(folder, 'pins.lock'), async () => {
     const local = await readLocalFile(localFile);
-    for (const id of Object.keys(local.volumes)) {
+    // A save since the lists were read may have put pins on more Volumes.
+    for (const id of [
+      ...volumesOnImages(local),
+      ...Object.keys(local.volumes)
+    ]) {
       if (!lists.has(id)) lists.set(id, []);
     }
-    await writeLocalFile(localFile, localWithFileIds(local, lists));
+    const filledIn = localWithFileIds(local, lists);
+    if (JSON.stringify(filledIn) === JSON.stringify(local)) return;
+    await writeLocalFile(localFile, filledIn);
   });
 }

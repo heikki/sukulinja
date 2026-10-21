@@ -36,6 +36,7 @@ export function vision(volumeId: string, image: number, onCitedPage = false) {
 export function listedAstia(lists: () => Record<string, string[]>): Astia {
   return {
     ...memoryAstia({}),
-    volumeImages: (volumeId) => Promise.resolve(lists()[volumeId] ?? [])
+    volumeImages: (volumeId) => Promise.resolve(lists()[volumeId] ?? []),
+    cachedImages: (volumeId) => Promise.resolve(lists()[volumeId] ?? null)
   };
 }

@@ -132,6 +132,15 @@ export function memoryAstia(
       );
     },
 
+    async cachedImages(volumeId) {
+      const { filming, images } = listed.get(volumeId) ?? first(volumeId);
+      return await Promise.resolve(
+        Array.from({ length: images }, (_, i) =>
+          fileId(volumeId, i + 1, 'full', filming)
+        )
+      );
+    },
+
     async peekImages(volumeId) {
       ask(`peek ${volumeId}`);
       peekedAt.add(volumeId);
