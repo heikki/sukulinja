@@ -45,4 +45,4 @@ Decided while building:
 - **A Box** is checked server-side to be whole pixels within the Image, using its size from the Scan cache.
 - **`pins.local.json`** keeps Page pins and Record ranges. Record pins left there (no dataset cites them) aren't read.
 
-**Still to do by hand:** re-import each dataset (schema 4), then run `bun run scripts/move-pins-into-datasets/index.ts --data ~/Library/Application\ Support/Sukulinja/data`. The installed app's pins are newer than the checkout's. Then delete the script in a commit of its own. A dry run on a copy placed 1,603 of the app's 1,759 pins straight away. The other 156 have Boxes on Images not in the Scan cache, which the script downloads to read their sizes.
+**Moved on 2026-10-21:** after each dataset was re-imported (schema 4), `scripts/move-pins-into-datasets` moved the installed app's pins into its datasets' citations. A first run placed 1,603 of 1,759; the other 154 had Boxes on Images not in the Scan cache, and Astia was down. A second run once it was back downloaded them and moved all 154. The script is gone.
