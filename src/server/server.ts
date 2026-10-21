@@ -1,8 +1,7 @@
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { basename, dirname, join, relative, resolve } from 'node:path';
+import { basename, join, relative, resolve } from 'node:path';
 import type { Database } from 'bun:sqlite';
 
+import { slugFromFilename, withoutExtension } from '@common/slug';
 import type { Box, LinkResolution } from '@common/types';
 
 import {
@@ -22,9 +21,8 @@ import { openScans } from './citation-scans/scans';
 import type { Scans } from './citation-scans/scans';
 import { createCitations } from './citations';
 import type { DatasetRegistry } from './dataset-registry';
-import { importDataset, slugFromFilename } from './import-dataset';
+import { importDataset } from './import-dataset';
 import { createPersonDetails } from './person-details';
-import { runPool } from './pool';
 import { createTree } from './tree';
 
 const DATASET_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?<rest>\/.*)?$/u;
@@ -157,34 +155,11 @@ function createDatasetHandlers(db: Database, scans: Scans): DatasetHandlers {
   };
 }
 
-// A relative path is safe to write under our temp dir only if it can't escape
-// it (no absolute path, no `..` segment) — uploaded names are untrusted.
-function safeRelPath(rel: string): string | null {
-  if (rel === '' || rel.startsWith('/') || rel.split('/').includes('..')) {
-    return null;
-  }
-  return rel;
-}
-
-// Folder uploads ship the media alongside the GEDCOM as `media`/`mediaPath`
-// field pairs. Write them to a temp dir (preserving relative layout) and return
-// it as the importer's sourceDir; the caller removes it once the import is done.
-// Returns null for a plain single-file upload (no media → no local sourceDir).
-async function stageUploadedMedia(form: FormData): Promise<string | null> {
-  const files = form.getAll('media');
-  const paths = form.getAll('mediaPath');
-  if (files.length === 0) return null;
-  const dir = await mkdtemp(join(tmpdir(), 'sukulinja-upload-'));
-  const items = files.map((f, i) => ({ f, rel: paths[i] }));
-  await runPool(items, 8, async ({ f, rel }) => {
-    if (!(f instanceof File) || typeof rel !== 'string') return;
-    const safe = safeRelPath(rel);
-    if (safe === null) return;
-    const dest = join(dir, safe);
-    await mkdir(dirname(dest), { recursive: true });
-    await Bun.write(dest, f);
-  });
-  return dir;
+// What an upload holds, by its extension: a GEDZIP, or a GEDCOM's text.
+async function importSource(file: File) {
+  if (/\.gdz$/iu.test(file.name)) return { gedzip: await file.bytes() };
+  if (/\.ged(?:com)?$/iu.test(file.name)) return { gedcom: await file.text() };
+  return null;
 }
 
 async function handleImport(
@@ -204,12 +179,16 @@ async function handleImport(
     typeof nameField === 'string' && nameField.trim() !== ''
       ? nameField.trim()
       : file.name;
+  const source = await importSource(file);
+  if (source === null) {
+    return new Response('expected a .ged, .gedcom or .gdz file', {
+      status: 400
+    });
+  }
   // Keep the readable name (accents/casing) for display; the slug is derived.
-  const displayName = rawName.replace(/\.ged(?:com)?$/iu, '').trim();
+  const displayName = withoutExtension(rawName).trim();
   const slug = slugFromFilename(rawName);
-  const text = await file.text();
   const sourceFilename = file.name;
-  const sourceDir = await stageUploadedMedia(form);
 
   // Stream the import as newline-delimited JSON: a series of {type:'log'}
   // progress lines, then a terminal {type:'done', info} or {type:'error'}.
@@ -226,9 +205,8 @@ async function handleImport(
           registry,
           slug,
           displayName,
-          text,
+          source,
           sourceFilename,
-          sourceDir: sourceDir ?? undefined,
           log: (message) => {
             send({ type: 'log', message });
           }
@@ -239,9 +217,6 @@ async function handleImport(
         send({ type: 'error', message });
       } finally {
         controller.close();
-        if (sourceDir !== null) {
-          await rm(sourceDir, { recursive: true, force: true });
-        }
       }
     }
   });

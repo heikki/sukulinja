@@ -88,6 +88,35 @@ describe('ingest', () => {
     ]);
   });
 
+  test('a percent-escaped FILE finds the file under its plain name', async () => {
+    await Bun.write(join(sourceDir, 'media/photo 1.jpg'), 'SPACE');
+    const result = await ingest({
+      roots: [indi(objeWithFile('media/photo%201.jpg'))],
+      sourceDir,
+      targetDir
+    });
+
+    expect(result.skipped).toEqual([]);
+    expect(result.resolved.has('media/photo%201.jpg')).toBe(true);
+  });
+
+  test('a FILE climbing out of the source folder is missing', async () => {
+    await Bun.write(join(tmp, 'outside.jpg'), 'OUT');
+    const result = await ingest({
+      roots: [
+        indi(objeWithFile('../outside.jpg'), objeWithFile('..%2Foutside.jpg'))
+      ],
+      sourceDir,
+      targetDir
+    });
+
+    expect(result.resolved.size).toBe(0);
+    expect(result.skipped).toEqual([
+      { originalRelpath: '../outside.jpg', reason: 'missing' },
+      { originalRelpath: '..%2Foutside.jpg', reason: 'missing' }
+    ]);
+  });
+
   test('absolute paths are skipped with reason: absolute', async () => {
     const result = await ingest({
       roots: [

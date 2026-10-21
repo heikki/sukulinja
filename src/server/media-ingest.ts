@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
-import { extname, join, resolve } from 'node:path';
+import { extname, isAbsolute, join, relative, resolve } from 'node:path';
 
 import type { GedNode } from './gedcom-parser';
-import { mediaRefsOf } from './media-refs';
+import { localPaths, mediaRefsOf } from './media-refs';
 import { runPool } from './pool';
 
 // Each worker reads a whole file into memory to hash it, so keep the in-flight
@@ -47,6 +47,21 @@ async function storeFile(
 
 const WIN_ABS_RE = /^[A-Za-z]:[\\/]/u;
 
+// The file these FILEs name under `sourceDir`, if there is one. A FILE that
+// climbs out of it names nothing: an uploaded GEDCOM mustn't copy files from
+// elsewhere on the disk into a dataset.
+async function existing(sourceDir: string, relpaths: string[]) {
+  const inside = relpaths
+    .flatMap(localPaths)
+    .map((path) => resolve(sourceDir, path))
+    .filter((abs) => {
+      const rel = relative(sourceDir, abs);
+      return rel !== '..' && !rel.startsWith('../') && !isAbsolute(rel);
+    });
+  const found = await Promise.all(inside.map((abs) => Bun.file(abs).exists()));
+  return inside.find((_, i) => found[i] === true) ?? null;
+}
+
 export async function ingest(input: IngestInput): Promise<IngestResult> {
   // What gedcom-import links, so every file copied gets a media row.
   const refs = input.roots.flatMap(mediaRefsOf).map((r) => r.path);
@@ -81,14 +96,15 @@ export async function ingest(input: IngestInput): Promise<IngestResult> {
   await runPool(
     entries,
     input.concurrency ?? DEFAULT_CONCURRENCY,
-    async ([sourceAbsPath, relpaths]) => {
-      if (await Bun.file(sourceAbsPath).exists()) {
-        const name = await storeFile(sourceAbsPath, input.targetDir);
-        for (const r of relpaths) resolved.set(r, name);
-      } else {
+    async ([, relpaths]) => {
+      const source = await existing(input.sourceDir, relpaths);
+      if (source === null) {
         for (const r of relpaths) {
           skipped.push({ originalRelpath: r, reason: 'missing' });
         }
+      } else {
+        const name = await storeFile(source, input.targetDir);
+        for (const r of relpaths) resolved.set(r, name);
       }
       done += 1;
       if (done % 25 === 0 || done === entries.length) {

@@ -3,9 +3,10 @@ import { describe, expect, test } from 'bun:test';
 import { slugFromFilename } from './slug';
 
 describe('slugFromFilename', () => {
-  test('drops a .ged or .gedcom extension', () => {
+  test('drops a .ged, .gedcom or .gdz extension', () => {
     expect(slugFromFilename('Family.ged')).toBe('family');
     expect(slugFromFilename('Tree.GEDCOM')).toBe('tree');
+    expect(slugFromFilename('Bourbon.gdz')).toBe('bourbon');
   });
 
   test('transliterates diacritics instead of replacing them with dashes', () => {

@@ -10,11 +10,9 @@ import { NOT_RESPONDING, openDatasetApi } from '@client/dataset-api';
 import { focusRingStyles } from '@client/focus-ring';
 import { readNdjson } from '@client/ndjson';
 import { appState, openAppState } from '@client/state';
-import { slugFromFilename } from '@common/slug';
+import { slugFromFilename, withoutExtension } from '@common/slug';
 import type { DatasetInfo } from '@common/types';
 
-import { folderOf, relativeToBase, stripExtension } from './helpers';
-import type { UploadMedia } from './helpers';
 import { appStyles } from './styles';
 
 const TRASH_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
@@ -78,13 +76,10 @@ export class AppElement extends LitElement {
   // field can't be null, since the chooser has no dataset to provide.
   private readonly provider = provideDataset(this, currentSlug());
   @state() private pendingImport: File | null = null;
-  @state() private pendingMedia: UploadMedia[] = [];
   @state() private importNameInput = '';
   @state() private importing = false;
   @state() private importStatus: string | null = null;
   @state() private importError: string | null = null;
-  // A pick that can't become an import, shown on the page: no dialog is open.
-  @state() private pickError: string | null = null;
   @state() private pendingDelete: DatasetInfo | null = null;
   @state() private deleting = false;
   @state() private deleteError: string | null = null;
@@ -112,17 +107,10 @@ export class AppElement extends LitElement {
     this.datasetsError = null;
   }
 
-  // Import a single GEDCOM file (no local media; MyHeritage URL media still
-  // downloads server-side).
+  // Import a GEDCOM, whose local media can't come along (MyHeritage photos
+  // still download server-side), or a GEDZIP carrying its media.
   private readonly onImportFileClick = () => {
-    this.pickError = null;
     this.renderRoot.querySelector<HTMLInputElement>('#file-input')?.click();
-  };
-
-  // Import a whole folder: the GEDCOM plus its sibling image directories.
-  private readonly onImportFolderClick = () => {
-    this.pickError = null;
-    this.renderRoot.querySelector<HTMLInputElement>('#folder-input')?.click();
   };
 
   private readonly onFileChange = (e: Event) => {
@@ -130,39 +118,11 @@ export class AppElement extends LitElement {
     const file = input.files?.[0];
     input.value = '';
     if (file === undefined) return;
-    this.openImportDialog(file, [], stripExtension(file.name));
-  };
-
-  // A folder upload carries the GEDCOM's sibling media so local FILE references
-  // resolve. Find the .ged, then ship every other file relative to its folder.
-  private readonly onFolderChange = (e: Event) => {
-    const input = e.target as HTMLInputElement;
-    const all = input.files === null ? [] : Array.from(input.files);
-    input.value = '';
-    if (all.length === 0) return;
-    const ged = all.find((f) => /\.ged(?:com)?$/iu.test(f.name));
-    if (ged === undefined) {
-      this.pickError = 'No .ged or .gedcom file found in that folder.';
-      return;
-    }
-    const base = folderOf(ged.webkitRelativePath);
-    const media: UploadMedia[] = [];
-    for (const f of all) {
-      if (f === ged) continue;
-      const relPath = relativeToBase(f.webkitRelativePath, base);
-      if (relPath !== null) media.push({ file: f, relPath });
-    }
-    const defaultName = base === '' ? stripExtension(ged.name) : base;
-    this.openImportDialog(ged, media, defaultName);
-  };
-
-  private openImportDialog(file: File, media: UploadMedia[], name: string) {
     this.pendingImport = file;
-    this.pendingMedia = media;
-    this.importNameInput = name;
+    this.importNameInput = withoutExtension(file.name);
     this.importStatus = null;
     this.importError = null;
-  }
+  };
 
   private readonly onImportNameInput = (e: Event) => {
     this.importNameInput = (e.target as HTMLInputElement).value;
@@ -175,7 +135,6 @@ export class AppElement extends LitElement {
   private readonly cancelImport = () => {
     if (this.importing) return;
     this.pendingImport = null;
-    this.pendingMedia = [];
   };
 
   private readonly confirmImport = () => {
@@ -196,10 +155,6 @@ export class AppElement extends LitElement {
       const body = new FormData();
       body.append('file', file);
       body.append('name', name);
-      for (const m of this.pendingMedia) {
-        body.append('media', m.file);
-        body.append('mediaPath', m.relPath);
-      }
       const res = await fetch('/import', { method: 'POST', body });
       if (!res.ok || res.body === null) {
         const msg = await res.text();
@@ -339,14 +294,7 @@ export class AppElement extends LitElement {
           ?disabled=${this.importing}
           @click=${this.onImportFileClick}
         >
-          ${this.importing ? 'Importing…' : 'Import GEDCOM file'}
-        </button>
-        <button
-          class="import"
-          ?disabled=${this.importing}
-          @click=${this.onImportFolderClick}
-        >
-          Import GEDCOM folder
+          ${this.importing ? 'Importing…' : 'Import GEDCOM'}
         </button>
       </div>
     `;
@@ -357,16 +305,9 @@ export class AppElement extends LitElement {
       <input
         id="file-input"
         type="file"
-        accept=".ged,.gedcom"
+        accept=".ged,.gedcom,.gdz"
         hidden
         @change=${this.onFileChange}
-      />
-      <input
-        id="folder-input"
-        type="file"
-        webkitdirectory
-        hidden
-        @change=${this.onFolderChange}
       />
       ${this.renderScreen()} ${this.renderImportDialog()}
       ${this.renderDeleteDialog()}
@@ -430,9 +371,10 @@ export class AppElement extends LitElement {
     return html`
       <div class="center">
         <h2>No datasets yet</h2>
-        <p>Import a MyHeritage (or any) GEDCOM file to get started.</p>
+        <p>
+          Import a GEDCOM file, or a GEDZIP with its photos, to get started.
+        </p>
         ${this.renderImportButton()}
-        ${errorNote("Can't import that folder", this.pickError)}
       </div>
     `;
   }
@@ -455,7 +397,6 @@ export class AppElement extends LitElement {
           <h2>Datasets</h2>
           ${this.renderImportButton()}
         </div>
-        ${errorNote("Can't import that folder", this.pickError)}
         <ul class="chooser">
           ${this.datasets!.map(
             (d) => html`

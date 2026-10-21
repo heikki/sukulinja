@@ -54,7 +54,7 @@ const FORM_MIME: Record<string, string> = {
 
 // Keyed `<level>\t<tag>` — the same tag means different things at different
 // depths, so drops are level-specific (mirrors fix.py's (level, tag) keys).
-const DROP_TAGS_ALWAYS = new Set([
+const DROP_TAGS = new Set([
   '1\t_UPD',
   '1\t_UID',
   '1\t_TYPE',
@@ -64,19 +64,17 @@ const DROP_TAGS_ALWAYS = new Set([
   '2\t_PERSONALPHOTO',
   '2\t_PLACE',
   '2\t_DATE',
-  '2\tEMAIL'
+  '2\tEMAIL',
+  // Only meaningful while their sibling cutout OBJE still exists, and the
+  // cutouts are stripped.
+  '2\t_PRIM_CUTOUT',
+  '2\t_PARENTPHOTO',
+  '2\t_PHOTO_RIN'
 ]);
 
 // The fixed ID of the "Unassociated photos" person: a bucket for photos nobody
 // is tagged in, not someone in the tree.
 const UNASSOCIATED_PHOTOS_XREF = '@I88888888@';
-
-// Only meaningful while their sibling cutout OBJE still exists.
-const DROP_TAGS_WHEN_STRIPPING = new Set([
-  '2\t_PRIM_CUTOUT',
-  '2\t_PARENTPHOTO',
-  '2\t_PHOTO_RIN'
-]);
 
 // The transforms below recurse through children arrays and reassign each loop
 // variable's `.children` (loop vars, not function parameters, so eslint's
@@ -330,7 +328,6 @@ export interface MyHeritageOptions {
   // Where a photo of that name is stored from the dataset's earlier import,
   // if it is: copied instead of downloaded.
   stored?: (name: string) => string | null;
-  keepCutouts?: boolean;
   concurrency?: number;
   download?: Downloader;
   log?: (msg: string) => void;
@@ -444,12 +441,8 @@ export async function convertMyHeritage(
   options: MyHeritageOptions
 ): Promise<MyHeritageResult> {
   dropUnassociatedPhotos(roots);
-  const strip = options.keepCutouts !== true;
-  const stripped = strip ? stripCutouts(roots) : 0;
-
-  const dropSet = new Set(DROP_TAGS_ALWAYS);
-  if (strip) for (const t of DROP_TAGS_WHEN_STRIPPING) dropSet.add(t);
-  const dropped = dropTags(roots, dropSet);
+  const stripped = stripCutouts(roots);
+  const dropped = dropTags(roots, DROP_TAGS);
   const pruned = pruneEmptyLeaves(roots);
 
   const urls = collectFileUrls(roots);
