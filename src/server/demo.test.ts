@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readdir, rename, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
 
 import { DatasetRegistry } from './dataset-registry';
@@ -64,4 +65,34 @@ test('a demo that fails to import is logged, and not tried again', async () => {
   error.mockRestore();
   await seedDemo(registry, DEMO);
   expect(await slugs()).toEqual([]);
+});
+
+// Marks the dataset's database as an older version's, optionally changing
+// which file it says it came from.
+function age(sourceFilename?: string) {
+  const db = new Database(join(registry.root, 'bourbon', 'db.sqlite'));
+  db.run("UPDATE meta SET value = '1' WHERE key = 'schema_version'");
+  if (sourceFilename !== undefined) {
+    db.run("UPDATE meta SET value = ? WHERE key = 'source_filename'", [
+      sourceFilename
+    ]);
+  }
+  db.close();
+}
+
+test('a demo an older version built is imported again', async () => {
+  await seedDemo(registry, DEMO);
+  age();
+  expect(await registry.list()).toMatchObject([{ outdated: true }]);
+  await seedDemo(registry, DEMO);
+  expect(await registry.list()).toMatchObject([
+    { slug: 'bourbon', outdated: false, personCount: 303 }
+  ]);
+});
+
+test("an outdated dataset of your own under the demo's name is left alone", async () => {
+  await seedDemo(registry, DEMO);
+  age('my-own.ged');
+  await seedDemo(registry, DEMO);
+  expect(await registry.list()).toMatchObject([{ outdated: true }]);
 });

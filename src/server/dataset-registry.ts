@@ -5,7 +5,7 @@ import type { Database } from 'bun:sqlite';
 
 import type { DatasetInfo } from '@common/types';
 
-import { openDb } from './db';
+import { openAnyDb, openDb, OutdatedDatasetError } from './db';
 
 const SLUG_RE = /^[a-z0-9][a-z0-9_-]*$/u;
 
@@ -156,40 +156,62 @@ export class DatasetRegistry {
     return db;
   }
 
+  // The dataset's database, read-only and whatever version built it, for
+  // what an import carries over from it; null when there is none. The
+  // caller closes it.
+  readAny(slug: string): Database | null {
+    validateSlug(slug);
+    const dbPath = join(this.datasetDir(slug), 'db.sqlite');
+    if (!existsSync(dbPath)) return null;
+    try {
+      return openAnyDb(dbPath);
+    } catch {
+      return null;
+    }
+  }
+
   private datasetDir(slug: string): string {
     return join(this.root, slug);
   }
 
   private tryReadInfo(slug: string): DatasetInfo | null {
     try {
-      const db = this.open(slug);
-      const meta = new Map<string, string>(
-        db
-          .query<{ key: string; value: string }, []>(
-            'SELECT key, value FROM meta'
-          )
-          .all()
-          .map((r) => [r.key, r.value])
-      );
-      const personCount = (
-        db
-          .query<{ n: number }, []>('SELECT COUNT(*) AS n FROM persons')
-          .get() ?? { n: 0 }
-      ).n;
-      const familyCount = (
-        db
-          .query<{ n: number }, []>('SELECT COUNT(*) AS n FROM families')
-          .get() ?? { n: 0 }
-      ).n;
-      return {
-        slug,
-        displayName: meta.get('display_name') ?? slug,
-        personCount,
-        familyCount,
-        importedAt: meta.get('imported_at') ?? null
-      };
+      return readInfo(this.open(slug), slug, false);
+    } catch (err) {
+      if (!(err instanceof OutdatedDatasetError)) return null;
+    }
+    const db = this.readAny(slug);
+    if (db === null) return null;
+    try {
+      return readInfo(db, slug, true);
     } catch {
       return null;
+    } finally {
+      db.close();
     }
   }
+}
+
+function readInfo(db: Database, slug: string, outdated: boolean) {
+  const meta = new Map<string, string>(
+    db
+      .query<{ key: string; value: string }, []>('SELECT key, value FROM meta')
+      .all()
+      .map((r) => [r.key, r.value])
+  );
+  function count(table: string) {
+    return (
+      db
+        .query<{ n: number }, []>(`SELECT COUNT(*) AS n FROM ${table}`)
+        .get() ?? { n: 0 }
+    ).n;
+  }
+  return {
+    slug,
+    displayName: meta.get('display_name') ?? slug,
+    personCount: count('persons'),
+    familyCount: count('families'),
+    importedAt: meta.get('imported_at') ?? null,
+    outdated
+  };
 }

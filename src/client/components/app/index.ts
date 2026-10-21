@@ -63,6 +63,17 @@ function provideDataset(host: ReactiveElement, slug: string | null) {
   });
 }
 
+function renderLink(d: DatasetInfo) {
+  return html`
+    <a href=${`/d/${d.slug}/`}>
+      <span class="name">${d.displayName}</span>
+      <span class="muted">
+        ${d.personCount} people · ${d.familyCount} families
+      </span>
+    </a>
+  `;
+}
+
 @customElement('sl-app')
 export class AppElement extends LitElement {
   static override styles = [focusRingStyles, appStyles];
@@ -76,6 +87,9 @@ export class AppElement extends LitElement {
   // field can't be null, since the chooser has no dataset to provide.
   private readonly provider = provideDataset(this, currentSlug());
   @state() private pendingImport: File | null = null;
+  // The name of an outdated dataset being imported again, so the import
+  // replaces it.
+  private reimportName: string | null = null;
   @state() private importNameInput = '';
   @state() private importing = false;
   @state() private importStatus: string | null = null;
@@ -110,8 +124,18 @@ export class AppElement extends LitElement {
   // Import a GEDCOM, whose local media can't come along (MyHeritage photos
   // still download server-side), or a GEDZIP carrying its media.
   private readonly onImportFileClick = () => {
-    this.renderRoot.querySelector<HTMLInputElement>('#file-input')?.click();
+    this.reimportName = null;
+    this.pickFile();
   };
+
+  private readonly reimport = (dataset: DatasetInfo) => {
+    this.reimportName = dataset.displayName;
+    this.pickFile();
+  };
+
+  private pickFile() {
+    this.renderRoot.querySelector<HTMLInputElement>('#file-input')?.click();
+  }
 
   private readonly onFileChange = (e: Event) => {
     const input = e.target as HTMLInputElement;
@@ -119,7 +143,8 @@ export class AppElement extends LitElement {
     input.value = '';
     if (file === undefined) return;
     this.pendingImport = file;
-    this.importNameInput = withoutExtension(file.name);
+    this.importNameInput = this.reimportName ?? withoutExtension(file.name);
+    this.reimportName = null;
     this.importStatus = null;
     this.importError = null;
   };
@@ -390,6 +415,28 @@ export class AppElement extends LitElement {
     `;
   }
 
+  // An older version's database doesn't open; the file it came from isn't
+  // kept, so it's imported again (ADR-0013).
+  private renderOutdated(d: DatasetInfo) {
+    return html`
+      <div class="outdated">
+        <span class="name">${d.displayName}</span>
+        <span class="muted">
+          Made by an older version. Import its GEDCOM again to open it.
+        </span>
+      </div>
+      <button
+        class="import"
+        ?disabled=${this.importing}
+        @click=${() => {
+          this.reimport(d);
+        }}
+      >
+        Import…
+      </button>
+    `;
+  }
+
   private renderChooser() {
     return html`
       <div class="page">
@@ -401,12 +448,7 @@ export class AppElement extends LitElement {
           ${this.datasets!.map(
             (d) => html`
               <li>
-                <a href=${`/d/${d.slug}/`}>
-                  <span class="name">${d.displayName}</span>
-                  <span class="muted">
-                    ${d.personCount} people · ${d.familyCount} families
-                  </span>
-                </a>
+                ${d.outdated ? this.renderOutdated(d) : renderLink(d)}
                 <button
                   class="delete"
                   aria-label=${`Delete ${d.displayName}`}

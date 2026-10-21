@@ -56,7 +56,6 @@ const FORM_MIME: Record<string, string> = {
 // depths, so drops are level-specific (mirrors fix.py's (level, tag) keys).
 const DROP_TAGS = new Set([
   '1\t_UPD',
-  '1\t_UID',
   '1\t_TYPE',
   '1\t_MEDI',
   '2\t_ALBUM',
@@ -436,6 +435,15 @@ async function gatherPhotos(
   return { succeeded, failed, downloaded, reused };
 }
 
+// MyHeritage's id for a person or family is GEDCOM 7's UID, kept as written.
+export function standardUids(roots: GedNode[]) {
+  for (const root of roots) {
+    for (const child of root.children) {
+      if (child.level === 1 && child.tag === '_UID') child.tag = 'UID';
+    }
+  }
+}
+
 export async function convertMyHeritage(
   roots: GedNode[],
   options: MyHeritageOptions
@@ -443,6 +451,7 @@ export async function convertMyHeritage(
   dropUnassociatedPhotos(roots);
   const stripped = stripCutouts(roots);
   const dropped = dropTags(roots, DROP_TAGS);
+  standardUids(roots);
   const pruned = pruneEmptyLeaves(roots);
 
   const urls = collectFileUrls(roots);

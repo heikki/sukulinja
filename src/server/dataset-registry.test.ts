@@ -1,10 +1,12 @@
 import { existsSync } from 'node:fs';
-import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
+import { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
 import { DatasetRegistry } from './dataset-registry';
+import { OutdatedDatasetError } from './db';
 
 let root = '';
 let registry = new DatasetRegistry('/');
@@ -191,14 +193,16 @@ describe('list', () => {
         displayName: 'Alpha Tree',
         personCount: 2,
         familyCount: 1,
-        importedAt: '2026-01-01T00:00:00Z'
+        importedAt: '2026-01-01T00:00:00Z',
+        outdated: false
       },
       {
         slug: 'bravo',
         displayName: 'bravo',
         personCount: 0,
         familyCount: 0,
-        importedAt: null
+        importedAt: null,
+        outdated: false
       }
     ]);
   });
@@ -228,5 +232,46 @@ describe('mediaDir', () => {
 
   test('rejects invalid slugs', () => {
     expect(() => registry.mediaDir('Foo')).toThrow();
+  });
+});
+
+describe('a dataset an older version built', () => {
+  async function writeOldDataset(slug: string) {
+    await mkdir(join(root, slug), { recursive: true });
+    const db = new Database(join(root, slug, 'db.sqlite'), { create: true });
+    db.run('CREATE TABLE persons (id INTEGER PRIMARY KEY, xref TEXT)');
+    db.run('CREATE TABLE families (id INTEGER PRIMARY KEY, xref TEXT)');
+    db.run('CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
+    db.run("INSERT INTO meta VALUES ('display_name', 'Old Tree')");
+    db.run("INSERT INTO persons (xref) VALUES ('@I1@')");
+    db.close();
+  }
+
+  test("won't open", async () => {
+    await writeOldDataset('old');
+    expect(() => registry.open('old')).toThrow(OutdatedDatasetError);
+  });
+
+  test('is listed as outdated', async () => {
+    await writeOldDataset('old');
+    expect(await registry.list()).toEqual([
+      {
+        slug: 'old',
+        displayName: 'Old Tree',
+        personCount: 1,
+        familyCount: 0,
+        importedAt: null,
+        outdated: true
+      }
+    ]);
+  });
+
+  test('can still be read for what an import carries over', async () => {
+    await writeOldDataset('old');
+    const db = registry.readAny('old')!;
+    expect(db.query('SELECT xref FROM persons').all()).toEqual([
+      { xref: '@I1@' }
+    ]);
+    db.close();
   });
 });

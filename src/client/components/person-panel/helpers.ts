@@ -21,6 +21,24 @@ const FACT_LABELS: Record<string, string> = {
   NATU: 'Naturalization',
   GRAD: 'Graduation',
   RETI: 'Retirement',
+  CENS: 'Census',
+  BARM: 'Bar mitzvah',
+  BASM: 'Bat mitzvah',
+  BLES: 'Blessing',
+  CHRA: 'Adult christening',
+  FCOM: 'First communion',
+  PROB: 'Probate',
+  WILL: 'Will',
+  CAST: 'Caste',
+  DSCR: 'Description',
+  IDNO: 'Identity number',
+  NCHI: 'Number of children',
+  NMR: 'Number of marriages',
+  PROP: 'Property',
+  RELI: 'Religion',
+  SSN: 'Social security number',
+  TITL: 'Title',
+  FACT: 'Fact',
   MARR: 'Marriage',
   DIV: 'Divorce',
   ENGA: 'Engagement',
@@ -28,7 +46,8 @@ const FACT_LABELS: Record<string, string> = {
   MARB: 'Marriage banns',
   MARC: 'Marriage contract',
   MARL: 'Marriage licence',
-  MARS: 'Marriage settlement'
+  MARS: 'Marriage settlement',
+  DIVF: 'Divorce filing'
 };
 
 export function factLabel(fact: FactRow) {
