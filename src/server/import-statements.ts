@@ -44,7 +44,11 @@ export function importStatements(db: Database) {
       'INSERT INTO submitters (xref, name, phone, email, website, change_date, change_time) VALUES (?, ?, ?, ?, ?, ?, ?)'
     ),
     insertCitation: db.prepare(
-      'INSERT INTO citations (scope_type, scope_id, source_id, page, event, role, quality, data_date, text, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      `INSERT INTO citations (scope_type, scope_id, source_id, page, event,
+         role, quality, data_date, text, sort_order, imported_page,
+         link_volume_id, link_volume, link_image, link_file_id, link_box_left,
+         link_box_top, link_box_width, link_box_height, link_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ),
     insertSharedNote: db.prepare(
       'INSERT INTO shared_notes (xref, text, change_date, change_time) VALUES (?, ?, ?, ?)'

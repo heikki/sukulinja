@@ -11,6 +11,7 @@ import type {
 
 import { AstiaError } from './astia';
 import type { Astia, Volume } from './astia';
+import type { Viewport } from './jpeg';
 import { parishArchive, parishVolumes, resolveChurchBookRef } from './locate';
 import type { Candidate } from './matcher';
 import type { BoxAt, MarkTarget, PinStore } from './pins';
@@ -22,26 +23,39 @@ async function byBook(pins: PinStore) {
   return { volumes: (await pins.snapshot()).volumes, references: {} };
 }
 
-// A Box within its Image, with some width and height.
-function onImage(box: Box) {
+// The full-size Image's size in pixels, or null when it can't be told.
+export type ImageSizeOf = (at: BoxAt) => Promise<Viewport | null>;
+
+// A Box in whole pixels, with some width and height, within the Image when
+// its size is known.
+function onImage(box: Box, size: Viewport | null) {
   const { left, top, width, height } = box;
-  const edge = 1 + 1e-9;
   return (
-    [left, top, width, height].every(Number.isFinite) &&
+    [left, top, width, height].every(Number.isInteger) &&
     left >= 0 &&
     top >= 0 &&
     width > 0 &&
     height > 0 &&
-    left + width <= edge &&
-    top + height <= edge
+    (size === null ||
+      (left + width <= size.width && top + height <= size.height))
   );
 }
 
 // What's wrong with a Mark's entry Box, if anything.
-function boxProblem({ image, box }: MarkTarget) {
+async function boxProblem(
+  { image, box, volumeId }: MarkTarget,
+  sizeOf: ImageSizeOf
+) {
   if (box === undefined || box === null) return null;
   if (image === undefined) return 'An entry box needs its Image.';
-  return onImage(box) ? null : 'The entry box must lie on the Image.';
+  const size = await sizeOf({ volumeId, image });
+  return onImage(box, size)
+    ? null
+    : 'The entry box must lie on the Image, in whole pixels.';
+}
+
+function unknownSize() {
+  return Promise.resolve(null);
 }
 
 function choiceOf(v: Volume): VolumeChoice {
@@ -57,7 +71,16 @@ const OLD_FILMING =
   'Astia has re-scanned this Volume. It can be changed once switched to the new filming.';
 
 // References resolved with the pins saved so far, against the Astia given.
-export function openScans({ pins, astia }: { pins: PinStore; astia: Astia }) {
+// `sizeOf` tells a Box past its Image's edges; without it, none is.
+export function openScans({
+  pins,
+  astia,
+  sizeOf = unknownSize
+}: {
+  pins: PinStore;
+  astia: Astia;
+  sizeOf?: ImageSizeOf;
+}) {
   // Where the reference links, with the pins saved so far. A request to
   // Astia failing is a reason it has none for now; anything else thrown is
   // a bug, and is thrown on.
@@ -191,7 +214,7 @@ export function openScans({ pins, astia }: { pins: PinStore; astia: Astia }) {
       if (volume === undefined) {
         return { rejected: "That Volume isn't in this parish's church books." };
       }
-      const boxed = boxProblem(target);
+      const boxed = await boxProblem(target, sizeOf);
       if (boxed !== null) return { rejected: boxed };
       if (await onOldFilming(target.volumeId)) return { rejected: OLD_FILMING };
       const { image } = target;

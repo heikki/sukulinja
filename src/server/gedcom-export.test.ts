@@ -6,6 +6,7 @@ import { unzipSync } from 'fflate';
 
 import { gedcom7Errors } from '../../test/gedcom7/validate';
 import { treeSnapshot } from '../../test/tree-snapshot';
+import { openMarks } from './citation-scans/marks';
 import { DatasetRegistry } from './dataset-registry';
 import { exportDataset } from './export-dataset';
 import { line, pointer, writeGedcom } from './gedcom-writer';
@@ -223,6 +224,93 @@ describe('exporting a GEDZIP', () => {
     expect(text).toContain('1 SOUR @VOID@');
     expect(text).toContain('2 DATE JULIAN 1 JAN 1700');
     expect(text).toContain('2 AGE 48y');
+  });
+
+  test('carries Marks and Vision matches, their Boxes and the pages imported', async () => {
+    await importFixture();
+    const db = registry.open('a');
+    const index =
+      'https://www.myheritage.fi/research/collection-30233/x?itemId=7';
+    const other =
+      'https://www.myheritage.fi/research/collection-10509/x?itemId=2';
+    for (const [person, page] of [
+      [2, index],
+      [3, other]
+    ] as const) {
+      db.run(
+        "INSERT INTO citations (scope_type, scope_id, source_id, page, sort_order) VALUES ('person', ?, 1, ?, 0)",
+        [person, page]
+      );
+    }
+    const marks = openMarks(db);
+    const volume =
+      'I Aa:5 Pää- ja rippikirjat, I Haapakoski - Längelmäki (1859-1868)';
+    marks.write('record 1', {
+      volumeId: '1234',
+      volume,
+      image: 25,
+      fileId: '5678',
+      box: { left: 10, top: 20, width: 300, height: 40 },
+      by: 'hand'
+    });
+    marks.write(`url ${index}`, {
+      volumeId: '1234',
+      volume,
+      image: 25,
+      fileId: '5678',
+      box: { left: 10, top: 80, width: 300, height: 40 },
+      by: 'vision'
+    });
+    marks.write('record 2', { volumeId: '999', volume: 'I Ab:1', by: 'hand' });
+    db.run(
+      "INSERT INTO rejections (reference_url, volume_id, image) VALUES (?, '1234', 3)",
+      [index]
+    );
+
+    const text = gedcomOf(await roundTrip());
+    expect(treeSnapshot(registry.open('b'))).toEqual(treeSnapshot(db));
+    expect(gedcom7Errors(text)).toEqual([]);
+    expect(text).toContain(
+      [
+        '2 PAGE https://astia.narc.fi/uusiastia/viewer/?fileId=5678&aineistoId=1234',
+        '2 DATA'
+      ].join('\r\n')
+    );
+    expect(text).toContain(
+      [
+        '2 OBJE @A1@',
+        '3 CROP',
+        '4 TOP 20',
+        '4 LEFT 10',
+        '4 HEIGHT 40',
+        '4 WIDTH 300',
+        '2 NOTE Imported page: https://www.myheritage.fi/research/collection-10509/x?itemId=1'
+      ].join('\r\n')
+    );
+    expect(text).toContain(
+      '1 SOUR @S1@\r\n2 PAGE https://www.myheritage.fi/research/collection-30233/x?itemId=7\r\n2 OBJE @A1@'
+    );
+    expect(text).toContain(
+      '2 NOTE Found by the vision model, not checked by hand'
+    );
+    expect(text).toContain('2 NOTE Astia Volume 999: I Ab:1');
+    expect(text).toContain(
+      [
+        '0 @A1@ OBJE',
+        '1 FILE https://astia.narc.fi/uusiastia/ws/getFile.php?fileId=5678&aineistoId=1234',
+        '2 FORM image/jpeg',
+        `2 TITL ${volume}, Image 25`
+      ].join('\r\n')
+    );
+    // One OBJE record per Image, and no media made of it.
+    expect(text.match(/0 @A\d+@ OBJE/g)).toHaveLength(1);
+    expect(
+      registry.open('b').query('SELECT COUNT(*) AS n FROM media').get()
+    ).toEqual({ n: 2 });
+    // Rejections stay out of the GEDZIP.
+    expect(
+      registry.open('b').query('SELECT COUNT(*) AS n FROM rejections').get()
+    ).toEqual({ n: 0 });
   });
 
   test('gives back the demo, which is valid GEDCOM 7 but for one untyped event', async () => {

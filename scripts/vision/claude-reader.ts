@@ -12,10 +12,10 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 
-import type { Box } from '@common/types';
 import type {
   DatesReading,
   EntryReading,
+  Fractions,
   ImageRef,
   PagesReading,
   Person,
@@ -277,7 +277,7 @@ function clamp01(n: number) {
 
 // The entry's box in pixels of the scan as sent, as fractions of it; none
 // where it's empty or the person wasn't found.
-function toBox(json: EntryJson, scan: Scan): Box | null {
+function toBox(json: EntryJson, scan: Scan): Fractions | null {
   const { x, y, width, height } = json.box;
   if (!json.found || width <= 0 || height <= 0) return null;
   return {

@@ -27,11 +27,12 @@
 // other copy of a Doubled volume) isn't followed: the search stays at the
 // start, near the Page pins, and Confirmation looks around it.
 
-import type { BookKind, Box, Years } from '@common/types';
+import type { BookKind, Years } from '@common/types';
 
 import { confirms } from './reader';
 import type {
   DatesReading,
+  Fractions,
   PagesReading,
   Person,
   Reader,
@@ -72,7 +73,7 @@ export type Match =
       // so it can stand as a Page pin.
       onCitedPage: boolean;
       // Where on the Image the entry is: a match saves only with one.
-      box: Box;
+      box: Fractions;
     }
   | {
       confirmed: false;
@@ -92,7 +93,7 @@ const UNREADABLE_PROBES = 8;
 const WINDOW = 3;
 
 type Landing =
-  | { image: number; onCitedPage?: boolean; box?: Box | null }
+  | { image: number; onCitedPage?: boolean; box?: Fractions | null }
   | { reason: Unconfirmed; image: number };
 
 // ---------------------------------------------------------------- dates
@@ -423,7 +424,10 @@ export async function matchRef(
   const found = outcomes.filter((o) => !('reason' in o.landing));
   if (found.length === 1) {
     const [only] = found as [Outcome];
-    const landing = only.landing as { onCitedPage?: boolean; box?: Box | null };
+    const landing = only.landing as {
+      onCitedPage?: boolean;
+      box?: Fractions | null;
+    };
     // A suggestion points at the entry; without one it's left for review.
     if (landing.box === undefined || landing.box === null) {
       return { confirmed: false, reason: 'no box', ...at(only) };

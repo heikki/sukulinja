@@ -24,7 +24,7 @@ The database is now the dataset's master copy, and a GEDZIP is how all of it lea
   - **Undo:** the import keeps the database from before it, and _Undo last import_ swaps it back.
 - **A database built by an older schema won't open.** The dataset has to be imported again, which merges as above. With the source file gone, there's nothing to upgrade from.
 - **Export writes a GEDCOM 7 GEDZIP** (`gedcom.ged` and its media). It holds everything the database holds:
-  - Each Mark becomes an `OBJE` under its citation, pointing at the Image's JPEG, with the Box as its `CROP`.
+  - Each Mark becomes an `OBJE` under its citation, pointing at an `OBJE` record for the Image's JPEG in Astia, titled with its Volume and Image number, with the Box as its `CROP`. A Mark of only a Volume is a `NOTE` naming it.
   - `imported_page` becomes `NOTE Imported page: <url>`.
   - An unchecked Vision match gets a `NOTE` saying so.
   - Importing that GEDZIP gives back the same dataset, reading those notes back into their columns.

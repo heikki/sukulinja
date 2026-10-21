@@ -5,14 +5,15 @@ import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { CitationLinks, VolumeCitation } from '@common/types';
 
+import { openMarks } from './citation-scans/marks';
 import type { MemoryAstia } from './citation-scans/memory-astia';
-import { openPins } from './citation-scans/pins';
 import { openScans } from './citation-scans/scans';
 import {
   baptismCitation,
   juvaAstia,
   rippiCitation
 } from './citation-scans/test-parish';
+import { pinsOf } from './citation-scans/test-pins';
 import { createCitations, describeRef, entryOf } from './citations';
 import { openDb } from './db';
 import { importGedcom } from './gedcom-import';
@@ -37,7 +38,7 @@ interface Cited {
 
 // The dataset's citations, numbered from 1 in the order given.
 function datasetOf(cited: Cited[]) {
-  const db = openDb(':memory:');
+  const db = openDb(join(dir, 'db.sqlite'));
   const insert = db.prepare(
     `INSERT INTO citations (scope_type, scope_id, page, text, sort_order)
      VALUES ('person', ?, ?, ?, ?)`
@@ -47,7 +48,7 @@ function datasetOf(cited: Cited[]) {
   }
   return createCitations(
     db,
-    openScans({ pins: openPins(dir, { astia }), astia })
+    openScans({ pins: pinsOf(dir, db, { astia }), astia })
   );
 }
 
@@ -61,13 +62,25 @@ async function linesOf(lines: AsyncIterable<CitationLinks>) {
   return out;
 }
 
-// Written as the vision pass writes it, from another process: the app isn't
-// told.
 async function writeLocal(volumes: unknown) {
   await Bun.write(join(dir, 'pins.local.json'), JSON.stringify({ volumes }));
 }
 
-const BOX = { left: 0.1, top: 0.2, width: 0.5, height: 0.05 };
+const BOX = { left: 100, top: 200, width: 500, height: 50 };
+
+// A Vision match of the record on Image 9 of juva-1, saved as the vision
+// pass saves it, from another process: the app isn't told.
+function visionSaved(record: number) {
+  const other = openDb(join(dir, 'db.sqlite'));
+  openMarks(other).write(`record ${record}`, {
+    volumeId: 'juva-1',
+    volume: 'I Aa:1',
+    image: 9,
+    box: BOX,
+    by: 'vision'
+  });
+  other.close();
+}
 
 // ---------------------------------------------------------------- a person's
 
@@ -92,7 +105,7 @@ test("serves a person's Citations, church books first", () => {
   expect(
     createCitations(
       db,
-      openScans({ pins: openPins(dir, { astia }), astia })
+      openScans({ pins: pinsOf(dir, openDb(':memory:'), { astia }), astia })
     ).ofPerson(1)
   ).toEqual([
     {
@@ -262,18 +275,14 @@ function placesOf(rows: VolumeCitation[] | null) {
 }
 
 test("lists the Volume's Vision matches, Estimated Images and Estimated Volumes", async () => {
-  await writeLocal({
-    'juva-1': {
-      pages: [{ image: 5, pages: [3] }],
-      records: [{ record: 5001, image: 9, by: 'vision', box: BOX }]
-    }
-  });
+  await writeLocal({ 'juva-1': { pages: [{ image: 5, pages: [3] }] } });
   const citations = datasetOf([
     cite(1, rippiCitation(5001, '1790 - 1796', 12)),
     cite(2, rippiCitation(5002, '1790 - 1796', 4)),
     cite(3, rippiCitation(5003, '1797 - 1803', 7)),
     cite(4, rippiCitation(5004, '1797 - 1803', null))
   ]);
+  visionSaved(5001);
 
   const first = await citations.inVolume('juva-1');
   expect(placesOf(first)).toEqual([
@@ -304,18 +313,13 @@ test('a Split reference is listed in each candidate Volume', async () => {
 });
 
 test('people citing one record get a row each, sharing its Image and box', async () => {
-  await writeLocal({
-    'juva-1': {
-      pages: [],
-      records: [{ record: 5001, image: 9, by: 'vision', box: BOX }]
-    }
-  });
   const record = rippiCitation(5001, '1790 - 1796', 12);
   const citations = datasetOf([
     cite(1, record),
     cite(2, record),
     cite(2, record)
   ]);
+  visionSaved(5001);
 
   const rows = await citations.inVolume('juva-1');
   expect(rows!.map((r) => [r.personId, imageOf(r), boxOf(r)])).toEqual([
@@ -332,12 +336,7 @@ test('a Mark shows in the next answer, dropping the vision box', async () => {
     { personId: 1, image: 12, at: 'estimated image' }
   ]);
 
-  await writeLocal({
-    'juva-1': {
-      pages: [],
-      records: [{ record: 5001, image: 9, by: 'vision', box: BOX }]
-    }
-  });
+  visionSaved(5001);
   const pinned = (await citations.inVolume('juva-1'))!;
   expect(pinned).toHaveLength(1);
   expect(pinned[0]!.link).toMatchObject({

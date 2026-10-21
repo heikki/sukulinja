@@ -297,6 +297,23 @@ export function churchBookRefOf(page: string | null, text: string | null) {
     : null;
 }
 
+// What a Mark of the reference is written for: every citation of its
+// record, for one with a Record number, else every citation of its URL.
+export function markKey(ref: { url: string; recordId: number | null }) {
+  return ref.recordId === null ? `url ${ref.url}` : `record ${ref.recordId}`;
+}
+
+// The reference a citation's page makes, as far as a Mark needs it: its
+// URL and Record number, without reading the citation's text. Null as for
+// churchBookRefOf.
+export function markedRefOf(page: string | null) {
+  if (page === null || !/^https?:/.test(page)) return null;
+  const collection = collectionOf(page);
+  if (collection === null || !CHURCH_COLLECTIONS.has(collection)) return null;
+  const recordId = collection === RIPPI_COLLECTION ? recordIdOf(page) : null;
+  return { url: page, recordId };
+}
+
 // ---------------------------------------------------------------- display
 
 // The labels MyHeritage writes before a value ("Syntymäpäivä: 1757"), often

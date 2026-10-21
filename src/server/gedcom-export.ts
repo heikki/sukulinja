@@ -4,6 +4,7 @@
 
 import type { Database } from 'bun:sqlite';
 
+import { astiaLinkExport } from './astia-links';
 import { mediaExport } from './export-media';
 import { ownerKey, readExportRows } from './export-rows';
 import type {
@@ -68,20 +69,18 @@ export function exportGedcom(db: Database) {
   const sourceXref = xrefsById(rows.sources);
   const repositoryXref = xrefsById(rows.repositories);
   const sharedNoteXref = xrefsById(rows.sharedNotes);
-  const media = mediaExport(
-    rows,
-    new Set(
-      [
-        ...rows.persons,
-        ...rows.families,
-        ...rows.sources,
-        ...rows.repositories,
-        ...rows.sharedNotes,
-        ...rows.submitters
-      ].map((r) => r.xref)
-    ),
-    notes
+  const taken = new Set(
+    [
+      ...rows.persons,
+      ...rows.families,
+      ...rows.sources,
+      ...rows.repositories,
+      ...rows.sharedNotes,
+      ...rows.submitters
+    ].map((r) => r.xref)
   );
+  const media = mediaExport(rows, taken, notes);
+  const links = astiaLinkExport(taken);
 
   function notes(ownerType: string, ownerId: number): OutLine[] {
     return rows
@@ -110,22 +109,23 @@ export function exportGedcom(db: Database) {
   }
 
   function citations(scopeType: string, scopeId: number): OutLine[] {
-    return rows
-      .citationsOf(ownerKey(scopeType, scopeId))
-      .map((c) =>
-        pointer(
-          'SOUR',
-          c.source_id === null ? VOID : sourceXref.get(c.source_id)!,
-          [
-            ...optional('PAGE', c.page),
-            ...citationData(c),
-            ...citationEvent(c),
-            ...optional('QUAY', c.quality === null ? null : String(c.quality)),
-            ...media.linksOf('citation', c.id),
-            ...notes('citation', c.id)
-          ]
-        )
+    return rows.citationsOf(ownerKey(scopeType, scopeId)).map((c) => {
+      const link = links.linesOf(c);
+      return pointer(
+        'SOUR',
+        c.source_id === null ? VOID : sourceXref.get(c.source_id)!,
+        [
+          ...optional('PAGE', c.page),
+          ...citationData(c),
+          ...citationEvent(c),
+          ...optional('QUAY', c.quality === null ? null : String(c.quality)),
+          ...media.linksOf('citation', c.id),
+          ...link.objects,
+          ...notes('citation', c.id),
+          ...link.notes
+        ]
       );
+    });
   }
 
   function address(ownerType: string, ownerId: number) {
@@ -342,6 +342,7 @@ export function exportGedcom(db: Database) {
     header(),
     ...records,
     ...media.records,
+    ...links.records,
     line('TRLR')
   ]);
   return { text, entries: media.entries };

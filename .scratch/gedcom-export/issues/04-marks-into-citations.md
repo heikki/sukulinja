@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 Blocked by: 02, 03
 
 # Write Marks into the citations, and carry them through the GEDZIP
@@ -30,3 +30,19 @@ A Mark is saved today as a Record pin or Reference pin in the data folder's `pin
 ## Not here
 
 Carrying Marks across a re-import (`05`). Updating `src/server/citation-scans/CONTEXT.md`'s Record pin, Reference pin and Mark entries belongs in this ticket's last commit, once the code matches.
+
+## Answer
+
+Done. Marks and Vision matches live in each dataset's citations (`src/server/citation-scans/marks.ts`), schema 4. Resolution reads them as Record and Reference pins over the shared Page pins and Record ranges (`pins.ts`), so `locate.ts` didn't change. The Scan viewer, the vision pass and the API work in pixels of the full-size Image.
+
+Decided while building:
+
+- **A Mark's key** is the record, for a reference with a Record number, else its URL. Every citation of the key gets the same link; a Discard clears them all.
+- **Resolution** reads every marked citation as a Reference pin of its own URL, and a Mark on an Image as a Record pin too. A Mark therefore always decides its reference's Link, as a Reference pin did before.
+- **A Page-pin-only Mark** (a linked cited page, no Record number, no Box) still saves only the Page pin, and the citation keeps no link, as before.
+- **A Volume-only Mark** keeps the imported `page`. The GEDZIP carries it as `NOTE Astia Volume <id>: <label>`.
+- **The Image number and Volume label** travel in the Astia `OBJE` record's `FILE.TITL` (`<label>, Image <n>`). Importing a `.gdz` then needs no Astia lists.
+- **A Box** is checked server-side to be whole pixels within the Image, using its size from the Scan cache.
+- **`pins.local.json`** keeps Page pins and Record ranges. Record pins left there (no dataset cites them) aren't read.
+
+**Still to do by hand:** re-import each dataset (schema 4), then run `bun run scripts/move-pins-into-datasets/index.ts --data ~/Library/Application\ Support/Sukulinja/data`. The installed app's pins are newer than the checkout's. Then delete the script in a commit of its own. A dry run on a copy placed 1,603 of the app's 1,759 pins straight away. The other 156 have Boxes on Images not in the Scan cache, which the script downloads to read their sizes.

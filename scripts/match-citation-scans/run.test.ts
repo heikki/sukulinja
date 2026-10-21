@@ -1,9 +1,10 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, expect, test } from 'bun:test';
 
-import { openPins } from '@server/citation-scans/pins';
+import { openMarks } from '@server/citation-scans/marks';
 import type { Reader } from '@server/citation-scans/reader';
 import {
   churchBookRefOf,
@@ -16,6 +17,7 @@ import {
   rippiCitation,
   VOLUMES
 } from '@server/citation-scans/test-parish';
+import { citing, pinsOf } from '@server/citation-scans/test-pins';
 
 import { recordEvaluation } from '../vision/gate';
 import { reviewMarkdown, runMatching } from './run';
@@ -23,8 +25,11 @@ import type { Books } from './run';
 
 const DAY = 24 * 60 * 60 * 1000;
 
-// Where the fake Reader says every entry it finds is.
-const BOX = { left: 0.1, top: 0.6, width: 0.4, height: 0.03 };
+// Where the fake Reader says every entry it finds is, and the Box saved on
+// an Image of 1000 × 2000 pixels.
+const READ = { left: 0.1, top: 0.6, width: 0.4, height: 0.03 };
+const BOX = { left: 100, top: 1200, width: 400, height: 60 };
+const SIZE = { width: 1000, height: 2000 };
 
 function isoDay(ms: number) {
   return new Date(ms).toISOString().slice(0, 10);
@@ -76,7 +81,7 @@ function scans() {
         found,
         confidence: 0.9,
         date: found ? (date ?? null) : null,
-        box: found ? BOX : null
+        box: found ? READ : null
       });
     }
   };
@@ -94,13 +99,20 @@ const CITATIONS = [MATTI, LIISA, ANNA, JUHO];
 const REFS = CITATIONS.map((c) => parseChurchBookRef(c.page, c.text));
 
 let dir = '';
+let db: Database = citing([]);
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'vision-pass-'));
+  db = citing(CITATIONS, join(dir, 'db.sqlite'));
 });
 afterEach(async () => {
+  db.close();
   await rm(dir, { recursive: true, force: true });
 });
+
+function pins() {
+  return pinsOf(dir, db, { astia: juvaAstia() });
+}
 
 async function passEvaluation(falseConfirmations = 0) {
   await recordEvaluation(dir, {
@@ -127,6 +139,8 @@ async function run(
   const { reader, asked } = scans();
   const result = await runMatching({
     root: dir,
+    db,
+    sizeOf: async () => await Promise.resolve(SIZE),
     refs: REFS,
     reader,
     astia: juvaAstia(),
@@ -138,7 +152,7 @@ async function run(
 
 async function linksOf(c: { page: string; text: string }) {
   const astia = juvaAstia();
-  const scans = openScans({ pins: openPins(dir, { astia }), astia });
+  const scans = openScans({ pins: pinsOf(dir, db, { astia }), astia });
   const resolved = await scans.resolveRef(churchBookRefOf(c.page, c.text)!);
   return 'links' in resolved ? resolved.links : resolved;
 }
@@ -167,8 +181,8 @@ test('saves confirmed matches, which the app shows as vision matches', async () 
       certainty: 'vision'
     })
   ]);
-  const pins = await openPins(dir, { astia: juvaAstia() }).snapshot();
-  const juva1 = pins.volumes['juva-1']!;
+  const snapshot = await pins().snapshot();
+  const juva1 = snapshot.volumes['juva-1']!;
   expect(juva1.records).toEqual([
     { record: 5000, image: 12, by: 'vision', box: BOX, fileId: 'juva-1-f12' }
   ]);
@@ -182,7 +196,13 @@ test('saves confirmed matches, which the app shows as vision matches', async () 
       fileId: 'juva-1-f12'
     }
   ]);
-  expect(Object.keys(pins.references)).toEqual([JUHO.page]);
+  expect(Object.keys(snapshot.references).toSorted()).toEqual(
+    [MATTI.page, JUHO.page].toSorted()
+  );
+  // A Vision match keeps the page imported.
+  expect(db.query('SELECT imported_page FROM citations').all()).toEqual(
+    CITATIONS.map(() => ({ imported_page: null }))
+  );
 });
 
 test('lists what it could not confirm, with where the search ended', async () => {
@@ -229,22 +249,17 @@ test('a match taken back by hand there goes to the review list, not the pins', a
   await passEvaluation();
   await run();
   const at = { volumeId: 'juva-1', image: 12 };
-  expect(
-    await openPins(dir, { astia: juvaAstia() }).recordDiscard(REFS[0]!, at)
-  ).toBe(true);
+  expect(await pins().recordDiscard(REFS[0]!, at)).toBe(true);
   const { result } = await run();
   if (!('outcomes' in result)) throw new Error(result.refused);
   expect(result.outcomes).toContain('rippi rejected');
   expect(
     result.review.filter((r) => r.reason === 'rejected').map((r) => r.image)
   ).toEqual([12]);
-  expect(
-    await openPins(dir, { astia: juvaAstia() }).rejects(REFS[0]!, at)
-  ).toBe(true);
-  expect(
-    (await openPins(dir, { astia: juvaAstia() }).snapshot()).volumes['juva-1']
-      ?.records ?? []
-  ).toEqual([]);
+  expect(await pins().rejects(REFS[0]!, at)).toBe(true);
+  expect((await pins().snapshot()).volumes['juva-1']?.records ?? []).toEqual(
+    []
+  );
 });
 
 test('never overrides a hand pin', async () => {
@@ -254,15 +269,15 @@ test('never overrides a hand pin', async () => {
     join(dir, 'pins.local.json'),
     JSON.stringify({
       volumes: { 'juva-1': { pages: [{ image: 12, pages: [12] }] } },
-      references: {
-        [JUHO.page]: {
-          volumeId: 'juva-3',
-          volume: VOLUMES['juva-3'],
-          image: 16
-        }
-      }
+      references: {}
     })
   );
+  openMarks(db).write(`url ${JUHO.page}`, {
+    volumeId: 'juva-3',
+    volume: VOLUMES['juva-3'],
+    image: 16,
+    by: 'hand'
+  });
   await run();
   expect(await linksOf(JUHO)).toEqual([
     expect.objectContaining({
@@ -271,10 +286,9 @@ test('never overrides a hand pin', async () => {
       certainty: 'marked'
     })
   ]);
-  expect(
-    (await openPins(dir, { astia: juvaAstia() }).snapshot()).volumes['juva-1']!
-      .pages
-  ).toEqual([{ image: 12, pages: [12], fileId: 'juva-1-f12' }]);
+  expect((await pins().snapshot()).volumes['juva-1']!.pages).toEqual([
+    { image: 12, pages: [12], fileId: 'juva-1-f12' }
+  ]);
   // Matti is still matched, as a Record pin beside the hand Page pin.
   expect(await linksOf(MATTI)).toEqual([
     expect.objectContaining({ image: 12, certainty: 'vision' })

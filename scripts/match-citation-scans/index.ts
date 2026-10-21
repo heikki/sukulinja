@@ -1,6 +1,6 @@
 // The vision pass: match a dataset's church-book citations to their exact
-// Astia Images with Claude, and save the confirmed ones as Record pins or
-// Reference pins in the data folder, where the app reads them.
+// Astia Images with Claude, and save the confirmed ones into the dataset's
+// citations as Vision matches, where the app reads them.
 //
 //   bun run scripts/match-citation-scans/index.ts --dataset <slug>
 //     [--data <folder>] [--books rippikirjat|index] [--parish <name>]
@@ -19,7 +19,8 @@ import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { openAstia } from '@server/citation-scans/astia';
-import { openScanCache } from '@server/citation-scans/scan-cache';
+import { imageSize, openScanCache } from '@server/citation-scans/scan-cache';
+import { openDb } from '@server/db';
 
 import { claudeReader } from '../vision/claude-reader';
 import type { Spend } from '../vision/claude-reader';
@@ -86,12 +87,14 @@ async function main() {
   const books = booksOption(values.books);
   const root = resolve(values.data ?? 'data');
   const dryRun = values['dry-run'] === true;
-  const refs = datasetRefs(join(root, values.dataset, 'db.sqlite'));
+  const dbPath = join(root, values.dataset, 'db.sqlite');
+  const refs = datasetRefs(dbPath);
   console.log(`${refs.length} church-book references`);
 
   const astia = openAstia(join(root, '.astia-cache'));
+  const cache = openScanCache({ astia, root, switches: true });
   const claude = claudeReader({
-    image: pacedImages(openScanCache({ astia, root, switches: true })),
+    image: pacedImages(cache),
     models: given({
       pages: values['pages-model'],
       dates: values['dates-model'],
@@ -100,6 +103,8 @@ async function main() {
   });
   const result = await runMatching({
     root,
+    db: openDb(dbPath),
+    sizeOf: async (at) => await imageSize(cache, at),
     refs,
     reader: claude,
     astia,

@@ -4,28 +4,42 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { MemoryAstia } from './memory-astia';
-import { openPins } from './pins';
 import { churchBookRefOf } from './record';
 import { openScans } from './scans';
 import { rippiCitation as citation, juvaAstia } from './test-parish';
+import { citing, pinsOf } from './test-pins';
 
 let dir = '';
+let db: Database = citing([]);
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'rescanned-'));
+  db = citing([]);
 });
 afterEach(async () => {
+  db.close();
   await rm(dir, { recursive: true, force: true });
 });
 
 function scans(astia: MemoryAstia) {
-  return openScans({ pins: openPins(dir, { astia }), astia });
+  return openScans({ pins: pinsOf(dir, db, { astia }), astia });
 }
 
+// The citation's reference, the dataset citing it.
 function refOf(c: { page: string; text: string }) {
+  const cited = db
+    .query('SELECT 1 FROM citations WHERE COALESCE(imported_page, page) = ?')
+    .get(c.page);
+  if (cited === null) {
+    db.run(
+      "INSERT INTO citations (scope_type, scope_id, page, text) VALUES ('person', 1, ?, ?)",
+      [c.page, c.text]
+    );
+  }
   return churchBookRefOf(c.page, c.text)!;
 }
 

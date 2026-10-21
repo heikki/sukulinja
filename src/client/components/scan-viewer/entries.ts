@@ -56,8 +56,8 @@ export class ScanEntriesElement extends LitElement {
     }
   }
 
-  private renderEntry(entry: Entry, view: Transform, frame: Frame) {
-    const at = boxOnStage(entry.box, view, frame);
+  private renderEntry(entry: Entry, view: Transform) {
+    const at = boxOnStage(entry.box, view);
     const current = entry.rows.some((r) => r.citation.id === this.current);
     const classes = [
       'entry',
@@ -92,7 +92,7 @@ export class ScanEntriesElement extends LitElement {
     const { view, frame } = this;
     if (view === null || frame === null) return nothing;
     return entriesOn(this.rows, this.image).map((e) =>
-      this.renderEntry(e, view, frame)
+      this.renderEntry(e, view)
     );
   }
 }

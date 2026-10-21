@@ -223,7 +223,7 @@ describe("A dataset's Citations", () => {
     expect(await mark(1, { volumeId: 'juva-1', image: 99 })).toBe(400);
     expect(await mark(1, { image: 7 })).toBe(400);
     expect(await mark(1, { volumeId: 'juva-1', image: '7' })).toBe(400);
-    const box = { left: 0.1, top: 0.5, width: 0.5, height: 0.05 };
+    const box = { left: 100, top: 500, width: 500, height: 50 };
     expect(await mark(1, { volumeId: 'juva-1', image: 7, box })).toBe(200);
     expect(await mark(1, { volumeId: 'juva-1', image: 7, box: null })).toBe(
       200

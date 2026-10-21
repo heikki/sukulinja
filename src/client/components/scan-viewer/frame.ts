@@ -94,16 +94,15 @@ export function entriesShown(frame: Frame | null, loading: Loading) {
   return frame !== null && !frame.provisional && loading === 'shown';
 }
 
-// Where an entry's Box is on the stage, in pixels: its fractions of the
-// Image moved as the full Image is. Drawn untransformed, its outline keeps
-// one width at any zoom.
-export function boxOnStage(box: Box, view: Transform, frame: Frame) {
-  const { width, height } = frame.size;
+// Where an entry's Box is on the stage, in pixels: its pixels of the full
+// Image, moved as the Image is. Drawn untransformed, its outline keeps one
+// width at any zoom.
+export function boxOnStage(box: Box, view: Transform) {
   return {
-    left: view.pan.x + view.scale * box.left * width,
-    top: view.pan.y + view.scale * box.top * height,
-    width: view.scale * box.width * width,
-    height: view.scale * box.height * height
+    left: view.pan.x + view.scale * box.left,
+    top: view.pan.y + view.scale * box.top,
+    width: view.scale * box.width,
+    height: view.scale * box.height
   };
 }
 
@@ -115,28 +114,50 @@ export interface StageRect {
   height: number;
 }
 
-// The Box a rectangle on the stage covers, in fractions of the Image:
+// The Box a rectangle on the stage covers, in pixels of the full Image:
 // `boxOnStage` undone.
-export function boxFromStage(rect: StageRect, view: Transform, frame: Frame) {
-  const { width, height } = frame.size;
+export function boxFromStage(rect: StageRect, view: Transform) {
   return {
-    left: (rect.left - view.pan.x) / (view.scale * width),
-    top: (rect.top - view.pan.y) / (view.scale * height),
-    width: rect.width / (view.scale * width),
-    height: rect.height / (view.scale * height)
+    left: (rect.left - view.pan.x) / view.scale,
+    top: (rect.top - view.pan.y) / view.scale,
+    width: rect.width / view.scale,
+    height: rect.height / view.scale
   };
 }
 
 // The smallest Box kept, each way, in fractions of the Image.
 export const MIN_BOX = 0.002;
 
-// Kept on the Image, cut at its edges, and at least MIN_BOX each way.
-export function clampBox(box: Box): Box {
-  const left = Math.min(Math.max(0, box.left), 1 - MIN_BOX);
-  const top = Math.min(Math.max(0, box.top), 1 - MIN_BOX);
-  const right = Math.min(1, Math.max(box.left + box.width, left + MIN_BOX));
-  const bottom = Math.min(1, Math.max(box.top + box.height, top + MIN_BOX));
+// Kept on the Image of `size`, cut at its edges, and at least MIN_BOX of
+// it each way.
+export function clampBox(box: Box, size: Viewport): Box {
+  const min = { x: MIN_BOX * size.width, y: MIN_BOX * size.height };
+  const left = Math.min(Math.max(0, box.left), size.width - min.x);
+  const top = Math.min(Math.max(0, box.top), size.height - min.y);
+  const right = Math.min(
+    size.width,
+    Math.max(box.left + box.width, left + min.x)
+  );
+  const bottom = Math.min(
+    size.height,
+    Math.max(box.top + box.height, top + min.y)
+  );
   return { left, top, width: right - left, height: bottom - top };
+}
+
+// The Box in whole pixels, as it's saved (GEDCOM's CROP), still on the
+// Image and at least a pixel each way.
+export function wholeBox(box: Box, size: Viewport): Box {
+  const left = Math.min(Math.round(box.left), size.width - 1);
+  const top = Math.min(Math.round(box.top), size.height - 1);
+  const right = Math.min(size.width, Math.round(box.left + box.width));
+  const bottom = Math.min(size.height, Math.round(box.top + box.height));
+  return {
+    left,
+    top,
+    width: Math.max(1, right - left),
+    height: Math.max(1, bottom - top)
+  };
 }
 
 // How big an entry's Box usually is, in fractions of its Image: the median
@@ -151,20 +172,23 @@ function median(values: number[]) {
     : (sorted[mid - 1]! + sorted[mid]!) / 2;
 }
 
-// A new entry Box centred on `at` (in fractions of the Image) and kept on
-// it, as big as the Image's other entries are, or as entries usually are.
-export function newBox(at: Point, others: Box[]): Box {
+// A new entry Box centred on `at` (in pixels of the Image of `size`) and
+// kept on it, in whole pixels, as big as the Image's other entries are, or
+// as entries usually are.
+export function newBox(at: Point, others: Box[], size: Viewport): Box {
   const width = Math.min(
-    1,
-    others.length === 0 ? ENTRY_SIZE.width : median(others.map((b) => b.width))
+    size.width,
+    others.length === 0
+      ? ENTRY_SIZE.width * size.width
+      : median(others.map((b) => b.width))
   );
   const height = Math.min(
-    1,
+    size.height,
     others.length === 0
-      ? ENTRY_SIZE.height
+      ? ENTRY_SIZE.height * size.height
       : median(others.map((b) => b.height))
   );
-  const left = Math.min(Math.max(0, at.x - width / 2), 1 - width);
-  const top = Math.min(Math.max(0, at.y - height / 2), 1 - height);
-  return { left, top, width, height };
+  const left = Math.min(Math.max(0, at.x - width / 2), size.width - width);
+  const top = Math.min(Math.max(0, at.y - height / 2), size.height - height);
+  return wholeBox({ left, top, width, height }, size);
 }

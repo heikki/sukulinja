@@ -21,10 +21,12 @@ import { parseArgs } from 'node:util';
 
 import { openAstia } from '@server/citation-scans/astia';
 import { withoutStale } from '@server/citation-scans/locate';
-import { openPins } from '@server/citation-scans/pins';
+import { openMarks } from '@server/citation-scans/marks';
+import { openPins, openVolumeFacts } from '@server/citation-scans/pins';
 import { cachedReader } from '@server/citation-scans/reader';
 import type { ImageRef, Question, Reader } from '@server/citation-scans/reader';
 import { openScanCache } from '@server/citation-scans/scan-cache';
+import { openDb } from '@server/db';
 
 import { claudeReader, DEFAULT_MODELS } from '../vision/claude-reader';
 import type { Spend } from '../vision/claude-reader';
@@ -204,12 +206,16 @@ async function main() {
   const root = resolve(values.data ?? 'data');
   const limit = values.limit === undefined ? Infinity : Number(values.limit);
 
-  const refs = datasetRefs(join(root, values.dataset, 'db.sqlite'));
+  const dbPath = join(root, values.dataset, 'db.sqlite');
+  const refs = datasetRefs(dbPath);
   const names = principals(refs);
   const astia = openAstia(join(root, '.astia-cache'));
   // Pins made on a filming Astia has since replaced name the wrong Image.
   const { volumes, references } = await withoutStale(
-    await openPins(root, { astia }).snapshot(),
+    await openPins(
+      openVolumeFacts(root, { astia }),
+      openMarks(openDb(dbPath))
+    ).snapshot(),
     astia
   );
   const pages = pageCases(volumes, limit);

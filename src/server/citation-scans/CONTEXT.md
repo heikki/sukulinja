@@ -36,7 +36,7 @@ One scan in a Volume, numbered from 1 in Astia's order. What a **Link** opens.
 _Avoid_: page (written on the scan), frame (MyHeritage's numbering).
 
 **Box**:
-Where an entry is written on its Image, as a rectangle in fractions of the Image's width and height. People citing the same record share one.
+Where an entry is written on its Image, as a rectangle in whole pixels of the full-size Image, as GEDCOM's `CROP` holds it. The Scan viewer and the vision pass scale it by the Image they have open. People citing the same record share one.
 
 **Link**:
 Where a Church-book reference points in Astia, as far down as its **Precision** goes, and who says so: its **Certainty**. A Split reference has one per candidate Volume.
@@ -91,7 +91,7 @@ _Avoid_: method, scan method (they said how a link was found, not how far to tru
 ### Pins
 
 **Pin**:
-Something known to be in a Volume, and on which Image: a page, a record, or one reference (which may be pinned to the Volume alone). Pins ship with the app or are saved in the data folder, by hand or by the vision model. A pin on an Image keeps the Image's file id, so it holds for one filming: after a **Re-scan** it's **stale**, left out as if never saved, with its Box, until the page or record is pinned again. Record ranges and villages aren't about Images, and stay.
+Something known to be in a Volume, and on which Image: a page, a record, or one reference (which may be pinned to the Volume alone). Page pins and Record ranges are facts about Volumes: they ship with the app or are saved in the data folder, shared by every dataset. Record pins and Reference pins are a dataset's Marks and Vision matches, kept in its citations (ADR-0013) and read as pins when a Link is resolved. A pin on an Image keeps the Image's file id, so it holds for one filming: after a **Re-scan** it's **stale**, left out as if never saved, with its Box, until the page or record is pinned again. Record ranges and villages aren't about Images, and stay.
 _Avoid_: correction, anchor (alone), placement.
 
 **Page pin**:
@@ -99,23 +99,23 @@ A Page number known to be on an Image. Images for other pages of the Volume are 
 _Avoid_: anchor.
 
 **Record pin**:
-A record known to be on an Image, by the source's id for it (today a MyHeritage **Record number**). It holds for everyone citing the record, and extends its Volume's **Record range**.
+A record known to be on an Image, by the source's id for it (today a MyHeritage **Record number**): a Mark or Vision match on an Image, as resolution reads it from the dataset's citations of the record. It holds for everyone citing the record, and extends its Volume's **Record range** for that dataset.
 _Avoid_: seen record.
 
 **Reference pin**:
-One Church-book reference known to be in a Volume, and on which Image when known, kept by its URL. For a reference with no record id, such as an Index reference, or one pinned to its Volume alone. It decides that one reference's Volume, and is no rule for its neighbours.
+One Church-book reference known to be in a Volume, and on which Image when known, by its URL: every marked citation's reference, as resolution reads it. It decides that one reference's Volume, and is no rule for its neighbours.
 _Avoid_: placement.
 
 **Mark**:
-Saying by hand, in the Scan viewer, which Image a Church-book reference's record is on, or only which Volume. An Image: a cited page in a Volume the reference already links becomes a Page pin; otherwise the reference gets a Reference pin; one with a record id also gets a Record pin. Only a Volume: the reference gets a Reference pin without an Image. A Mark may also say where on the Image the entry is, its **Box**, drawn by hand. Confirming a **Vision match** is a Mark too, and keeps where the model said the entry is.
+Saying by hand, in the Scan viewer, which Image a Church-book reference's record is on, or only which Volume. It's written into every citation of the record (by its Record number, or by the reference's URL for one without): on an Image, the citation then cites the Image, its imported page kept beside. A cited page found in a Volume the reference already links also becomes a Page pin; a reference with neither a Record number nor a Box then needs no Link of its own. A Mark may also say where on the Image the entry is, its **Box**, drawn by hand. Confirming a **Vision match** is a Mark too, and keeps where the model said the entry is.
 _Avoid_: correction (the link it replaces is often not wrong, only less exact).
 
 **Discard**:
-Taking a reference's **Box** back by hand in the Scan viewer, a Mark's or a **Vision match**'s, so its Link goes back to the estimate. The Reference and Record pins boxing the entry there go; Page pins and Record ranges stay. A Vision match discarded becomes a **Rejection**.
+Taking a reference's **Box** back by hand in the Scan viewer, a Mark's or a **Vision match**'s, so its Link goes back to the estimate. The link goes from every citation of the record, which cite their imported page again; Page pins and Record ranges stay. A Vision match discarded becomes a **Rejection**.
 _Avoid_: clear, delete (only the Box's pins go).
 
 **Rejection**:
-A **Vision match** discarded by hand: the reference isn't on that Image. The vision pass never saves a match there again, and lists one landing there for review by hand.
+A **Vision match** discarded by hand: the reference isn't on that Image. Kept in the dataset, by the reference's URL. The vision pass never saves a match there again, and lists one landing there for review by hand.
 
 **Provenance**:
 Who saved a Pin: by hand (the shipped Page pins, and every Mark) or by the vision model. What's saved by hand always wins over the vision model's. Vision pins still count other links' estimates and extend Record ranges; the links they steer stay Estimated.
@@ -141,7 +141,7 @@ The vision model behind three questions about one Image: the Page numbers writte
 Finding the person's name on the Image a search landed on, or on the Images around it. Only a confirmed match is saved.
 
 **Vision match**:
-A Record pin or Reference pin the vision model saved after a Confirmation, always with where the entry is, and the Link it gives: a suggestion, ranked above an estimate. A match with no entry found isn't saved. Confirming it beside the Scan viewer is a Mark, which makes the Link Marked at the entry.
+A link the vision model wrote into the citations of a record after a Confirmation, always with where the entry is, and the Link it gives: a suggestion, ranked above an estimate. The citations keep their imported page. A match with no entry found isn't saved. Confirming it beside the Scan viewer is a Mark, which makes the Link Marked at the entry.
 
 **Same scan** / **Different photograph**:
 Whether a record's MyHeritage Frame is the very scan Astia holds (same framing, shadows, blots) or a separate filming of the same page, matched by its content — page number, or village, house and household where the book has no page numbers.
@@ -153,5 +153,5 @@ _Avoid_: "same page" alone — it doesn't say which.
 - **"Volume"** is Astia's book; MyHeritage's equivalent is a **Film**, which may hold several Volumes. **"Image"** is Astia's numbering, **"Frame"** MyHeritage's, **"Page number"** what's written in the book.
 - **Marked** and **Vision match** Links both come from a **Record pin** or **Reference pin**; only who saved it differs. A **Page pin** only improves its Volume's **Estimated** links.
 - **Precision** and **Certainty** answer different questions: how far down, and who says so. A Box exists exactly when a Link points at the entry.
-- Shipped data holds only facts about Volumes (Page pins, Record ranges, villages), never Record or Reference pins.
+- Shipped data and the data folder's pins.local.json hold only facts about Volumes (Page pins, Record ranges, villages); Marks and Vision matches are in each dataset's citations.
 - A **Volume** id and an **Image** number are Astia's: a Pin holds only for Astia's scans, and only for the filming it was made on. The page or record it pins holds in any filming of the book.

@@ -11,11 +11,17 @@ import {
   viewerUrls
 } from './citation-scans/astia';
 import type { Astia } from './citation-scans/astia';
-import { openPins } from './citation-scans/pins';
-import type { BoxAt, MarkTarget, PinStore } from './citation-scans/pins';
+import { openMarks } from './citation-scans/marks';
+import { openPins, openVolumeFacts } from './citation-scans/pins';
+import type { BoxAt, MarkTarget } from './citation-scans/pins';
 import type { ImageRef } from './citation-scans/reader';
 import { routeRescan } from './citation-scans/rescans';
-import { openScanCache, routeScanCache } from './citation-scans/scan-cache';
+import type { KeptPins } from './citation-scans/rescans';
+import {
+  imageSize,
+  openScanCache,
+  routeScanCache
+} from './citation-scans/scan-cache';
 import type { ScanCache } from './citation-scans/scan-cache';
 import { openScans } from './citation-scans/scans';
 import type { Scans } from './citation-scans/scans';
@@ -342,11 +348,11 @@ async function routeDataset(
 }
 
 // What the routes outside any dataset read: Astia, the Scan cache its
-// Images are kept in, and the pins made on them.
+// Images are kept in, and the pins every dataset made on them.
 interface Shared {
   astia: Astia;
   cache: ScanCache;
-  pins: PinStore;
+  kept: () => Promise<KeptPins>;
 }
 
 // An Astia Volume's Images, shared by every dataset: their Astia viewer
@@ -452,12 +458,28 @@ export function createApi(
     root: registry.root,
     switches: false
   });
-  const pins = openPins(registry.root, { astia });
-  const scans = openScans({ pins, astia });
+  const facts = openVolumeFacts(registry.root, { astia });
   // Kept by the Database they're bound to: the registry alone decides when
   // a dataset's Database is closed and replaced (by an import or a delete),
   // and the next request then opens the new one and gets new handlers.
   const handlersByDb = new WeakMap<Database, DatasetHandlers>();
+
+  function pinsOf(db: Database) {
+    return openPins(facts, openMarks(db));
+  }
+
+  // The pins on Astia's Images: the data folder's, and every dataset's
+  // Marks, which a switch to a new filming leaves out alike.
+  async function kept() {
+    const { shipped, local } = await facts.kept();
+    const marked = (await registry.list())
+      .filter((d) => !d.outdated)
+      .flatMap((d) => {
+        const db = tryOpen(d.slug);
+        return db === null ? [] : [pinsOf(db).marked()];
+      });
+    return { shipped, local: [local, ...marked] };
+  }
 
   function tryOpen(slug: string): Database | null {
     try {
@@ -472,6 +494,12 @@ export function createApi(
     if (db === null) return null;
     let handlers = handlersByDb.get(db);
     if (handlers === undefined) {
+      // The Scan viewer has just shown the Image a Box is drawn on.
+      const scans = openScans({
+        pins: pinsOf(db),
+        astia,
+        sizeOf: async (at) => await imageSize(cache, at)
+      });
       handlers = createDatasetHandlers(db, scans);
       handlersByDb.set(db, handlers);
     }
@@ -511,7 +539,7 @@ export function createApi(
       }
       const datasets = await routeDatasets(req, pathname);
       if (datasets !== null) return datasets;
-      const shared = await routeShared({ astia, cache, pins }, req, pathname);
+      const shared = await routeShared({ astia, cache, kept }, req, pathname);
       if (shared !== null) return shared;
       const m = DATASET_RE.exec(pathname);
       if (m === null) return null;

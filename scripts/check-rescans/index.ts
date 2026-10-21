@@ -7,8 +7,8 @@
 //   bun run scripts/check-rescans/index.ts [--data <folder>]
 //     [--update-cache]
 //
-// Checks the shipped pins and the data folder's own (default `data`)
-// against each Volume's list fetched from Astia past any cache, one
+// Checks the shipped pins and the data folder's own (default `data`), in
+// its pins.local.json and in each dataset's Marks, against each Volume's list fetched from Astia past any cache, one
 // request at a time. --update-cache also keeps the new lists in the data
 // folder and drops its cached Images of the filmings replaced, as the Scan
 // viewer does when told to switch. Exits 1 when a Volume was re-scanned.
@@ -19,10 +19,13 @@ import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { openAstia } from '@server/citation-scans/astia';
+import { openMarks } from '@server/citation-scans/marks';
 import { readLocalFile } from '@server/citation-scans/pin-files';
+import { openPins, openVolumeFacts } from '@server/citation-scans/pins';
 import shipped from '@server/citation-scans/pins.json';
 import { checkRescans } from '@server/citation-scans/rescans';
 import { openScanCache } from '@server/citation-scans/scan-cache';
+import { DatasetRegistry } from '@server/dataset-registry';
 
 import { reportLines } from './report';
 
@@ -38,10 +41,15 @@ const cache = await mkdtemp(join(tmpdir(), 'check-rescans-'));
 try {
   const fresh = openAstia(cache);
   const kept = openAstia(join(root, '.astia-cache'));
+  const registry = new DatasetRegistry(root);
+  const facts = openVolumeFacts(root, { astia: kept });
+  const marked = (await registry.list())
+    .filter((d) => !d.outdated)
+    .map((d) => openPins(facts, openMarks(registry.open(d.slug))).marked());
   const result = await checkRescans(
     {
       shipped: shipped.volumes,
-      local: await readLocalFile(join(root, 'pins.local.json'))
+      local: [await readLocalFile(join(root, 'pins.local.json')), ...marked]
     },
     async (id) => await fresh.volumeImages(id),
     async (id) => await kept.volumeImages(id)

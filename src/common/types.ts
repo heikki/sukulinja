@@ -131,8 +131,9 @@ export type EstimateBasis = 'pins' | 'numbering';
 // Who saved a pin: by hand, or the vision model.
 export type Provenance = 'hand' | 'vision';
 
-// Where an entry is on an Image, in fractions of its width and height, so
-// it holds at any size the scan is shown.
+// Where an entry is on an Image, in whole pixels of the full-size Image, as
+// GEDCOM's CROP holds it (ADR-0013). The Scan viewer has the Image open to
+// scale it by; a vision reading gives fractions, scaled the same way.
 export interface Box {
   left: number;
   top: number;
