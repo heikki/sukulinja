@@ -21,6 +21,7 @@ import { openScans } from './citation-scans/scans';
 import type { Scans } from './citation-scans/scans';
 import { createCitations } from './citations';
 import type { DatasetRegistry } from './dataset-registry';
+import { saveExport } from './export-dataset';
 import { importDataset } from './import-dataset';
 import { createPersonDetails } from './person-details';
 import { createTree } from './tree';
@@ -422,6 +423,23 @@ async function routeShared(shared: Shared, req: Request, pathname: string) {
 export interface ApiOptions {
   // Astia's answers; by default over HTTP, kept in the data folder.
   astia?: Astia;
+  // Where exports are saved; by default the user's Downloads.
+  exportDir?: string;
+}
+
+const EXPORT_RE = /^\/datasets\/(?<slug>[^/]+)\/export$/u;
+
+async function handleExport(
+  registry: DatasetRegistry,
+  slug: string,
+  dir: string | undefined
+) {
+  try {
+    return Response.json({ path: await saveExport(registry, slug, dir) });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'export failed';
+    return new Response(message, { status: 400 });
+  }
 }
 
 export function createApi(
@@ -460,6 +478,29 @@ export function createApi(
     return handlers;
   }
 
+  // The list of datasets, and deleting or exporting one.
+  async function routeDatasets(req: Request, pathname: string) {
+    if (pathname === '/datasets') {
+      return Response.json(await registry.list());
+    }
+    const exporting = EXPORT_RE.exec(pathname);
+    if (exporting !== null) {
+      if (req.method !== 'POST') {
+        return new Response('method not allowed', { status: 405 });
+      }
+      const slug = exporting.groups!.slug!;
+      return await handleExport(registry, slug, options.exportDir);
+    }
+    if (pathname.startsWith('/datasets/')) {
+      if (req.method !== 'DELETE') {
+        return new Response('method not allowed', { status: 405 });
+      }
+      const slug = pathname.slice('/datasets/'.length);
+      return await handleDeleteDataset(registry, slug);
+    }
+    return null;
+  }
+
   return {
     async routeApi(req, pathname) {
       if (pathname === '/import') {
@@ -468,16 +509,8 @@ export function createApi(
         }
         return await handleImport(req, registry);
       }
-      if (pathname === '/datasets') {
-        return Response.json(await registry.list());
-      }
-      if (pathname.startsWith('/datasets/')) {
-        if (req.method !== 'DELETE') {
-          return new Response('method not allowed', { status: 405 });
-        }
-        const slug = pathname.slice('/datasets/'.length);
-        return await handleDeleteDataset(registry, slug);
-      }
+      const datasets = await routeDatasets(req, pathname);
+      if (datasets !== null) return datasets;
       const shared = await routeShared({ astia, cache, pins }, req, pathname);
       if (shared !== null) return shared;
       const m = DATASET_RE.exec(pathname);

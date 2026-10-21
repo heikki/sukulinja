@@ -53,7 +53,8 @@ test('imports source records and person citations as recorded', () => {
     {
       title: 'Suomalaiset rippi- ja lastenkirjat, 1657-1915',
       page: 'https://www.myheritage.fi/research/collection-10509/x?itemId=1',
-      quality: 4,
+      // MyHeritage's 4 is GEDCOM's best, 3.
+      quality: 3,
       text: [
         'Jane DoeKirja: ',
         'Maa:FinlandKirja:Rippikirja, 1794 - 1808',
@@ -332,7 +333,7 @@ test('stores what other programs write: change dates, map, citations and media o
   expect(db.query('SELECT key, value FROM meta ORDER BY key').all()).toEqual([
     { key: 'copyright', value: '(c) Someone' },
     { key: 'header_note', value: 'About this tree' },
-    { key: 'language', value: 'French' },
+    { key: 'language', value: 'fr' },
     { key: 'place_form', value: 'Commune, Pays' },
     { key: 'schema_version', value: '3' },
     { key: 'submitter', value: '@B1@' }

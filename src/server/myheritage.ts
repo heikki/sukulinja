@@ -25,6 +25,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 import { findChild } from './gedcom-parser';
 import type { GedNode } from './gedcom-parser';
+import { mimeOf } from './media-refs';
 import { runPool } from './pool';
 
 const REFERER = 'https://www.myheritage.com/';
@@ -35,22 +36,6 @@ const UA = 'Mozilla/5.0';
 const TIMEOUT_MS = 20_000;
 const RETRIES = 1;
 const DEFAULT_CONCURRENCY = 4;
-
-const FORM_MIME: Record<string, string> = {
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  png: 'image/png',
-  gif: 'image/gif',
-  tif: 'image/tiff',
-  tiff: 'image/tiff',
-  bmp: 'image/bmp',
-  webp: 'image/webp',
-  heic: 'image/heic',
-  heif: 'image/heif',
-  pdf: 'application/pdf',
-  mp4: 'video/mp4',
-  mov: 'video/quicktime'
-};
 
 // Keyed `<level>\t<tag>` — the same tag means different things at different
 // depths, so drops are level-specific (mirrors fix.py's (level, tag) keys).
@@ -162,7 +147,7 @@ function transformObje(obje: GedNode): void {
   if (form !== undefined) {
     obje.children.splice(obje.children.indexOf(form), 1);
     form.level = file.level + 1;
-    form.value = FORM_MIME[(form.value ?? '').toLowerCase()] ?? form.value;
+    form.value = mimeOf(form.value ?? null) ?? undefined;
     file.children.unshift(form);
   }
 

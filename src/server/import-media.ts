@@ -4,26 +4,28 @@
 import type { Scope } from '@common/types';
 
 import type { LineReader } from './gedcom-lines';
-import { findChildren } from './gedcom-parser';
 import type { GedNode } from './gedcom-parser';
 import type { ImportStatements } from './import-statements';
-import { mediaRefsOf } from './media-refs';
-import type { MediaRef } from './media-refs';
+import { mediaRefsOf, objectsOf } from './media-refs';
+import type { MediaRef, ObjectRecords } from './media-refs';
 
 export type MediaResolver = (originalRelpath: string) => string | null;
 
 type MediaScope = Scope | 'fact' | 'citation';
 
-const POINTER_RE = /^@[^@]+@$/;
-
 // The media one line holds, the one marked primary first: GEDCOM 7 takes
-// the first as the preferred one.
+// the first as the preferred one. Its OBJEs are numbered in that order too,
+// as an export writes them.
 function primaryFirst(refs: MediaRef[]) {
   const ordered = [
     ...refs.filter((r) => r.primary),
     ...refs.filter((r) => !r.primary)
   ];
-  return ordered.map((r, order) => ({ ...r, order }));
+  const objects = new Map<number, number>();
+  return ordered.map((r, order) => {
+    if (!objects.has(r.object)) objects.set(r.object, objects.size);
+    return { ...r, order, objectOrder: objects.get(r.object)! };
+  });
 }
 
 interface MediaLinker {
@@ -32,6 +34,7 @@ interface MediaLinker {
   // Called for each media row and each link written.
   count: (kind: 'media' | 'mediaLinks') => void;
   resolve: MediaResolver;
+  records: ObjectRecords;
   importNotes: (node: GedNode, owner: 'media_link', ownerId: number) => void;
 }
 
@@ -40,6 +43,7 @@ export function mediaLinker({
   lines,
   count,
   resolve,
+  records,
   importNotes
 }: MediaLinker) {
   const { use, take, takeAll } = lines;
@@ -63,7 +67,11 @@ export function mediaLinker({
   // A media row for the stored file, which files with the same content
   // share, and a link to it from what holds it. Null when the file couldn't
   // be stored, which the media ingest reports.
-  function importMediaLink(ref: MediaRef, scope: MediaScope, scopeId: number) {
+  function importMediaLink(
+    ref: MediaRef & { objectOrder: number },
+    scope: MediaScope,
+    scopeId: number
+  ) {
     const storedPath = resolve(ref.path);
     if (storedPath === null) return null;
     const mediaId = resolveMediaId(storedPath, ref.path, ref.format);
@@ -72,7 +80,7 @@ export function mediaLinker({
       mediaId,
       scope,
       scopeId,
-      ref.object,
+      ref.objectOrder,
       ref.title,
       crop.top,
       crop.left,
@@ -84,17 +92,27 @@ export function mediaLinker({
     return Number(res.lastInsertRowid);
   }
 
+  function markCrop(holder: GedNode) {
+    const crop = take(holder, 'CROP');
+    if (crop === undefined) return;
+    for (const side of ['TOP', 'LEFT', 'HEIGHT', 'WIDTH']) take(crop, side);
+  }
+
   // The lines mediaRefsOf reads.
-  function markMediaLines(obje: GedNode) {
-    use(obje);
-    take(obje, 'TITL');
-    for (const file of takeAll(obje, 'FILE')) {
+  function markMediaLines(link: GedNode, files: GedNode) {
+    use(link);
+    use(files);
+    take(link, 'TITL');
+    markCrop(link);
+    for (const file of takeAll(files, 'FILE')) {
       take(file, 'FORM');
-      const crop = take(file, 'CROP');
-      if (crop === undefined) continue;
-      for (const side of ['TOP', 'LEFT', 'HEIGHT', 'WIDTH']) take(crop, side);
+      take(file, 'TITL');
+      markCrop(file);
     }
   }
+
+  // An OBJE record's notes are kept once, with the first link to it.
+  const noted = new Set<GedNode>();
 
   // An OBJE's notes go with the first of its files that was stored.
   function importMediaLinks(
@@ -102,20 +120,20 @@ export function mediaLinker({
     scope: MediaScope,
     scopeId: number
   ) {
-    const objes = findChildren(holder, 'OBJE').filter(
-      (o) => !POINTER_RE.test(o.value ?? '')
-    );
-    for (const obje of objes) markMediaLines(obje);
+    const objects = objectsOf(holder, records);
+    for (const { link, files } of objects) markMediaLines(link, files);
     const firstLink = new Map<number, number>();
-    for (const ref of primaryFirst(mediaRefsOf(holder))) {
+    for (const ref of primaryFirst(mediaRefsOf(holder, records))) {
       const linkId = importMediaLink(ref, scope, scopeId);
       if (linkId !== null && !firstLink.has(ref.object)) {
         firstLink.set(ref.object, linkId);
       }
     }
-    objes.forEach((obje, object) => {
+    objects.forEach(({ files }, object) => {
       const linkId = firstLink.get(object);
-      if (linkId !== undefined) importNotes(obje, 'media_link', linkId);
+      if (linkId === undefined || noted.has(files)) return;
+      noted.add(files);
+      importNotes(files, 'media_link', linkId);
     });
   }
 

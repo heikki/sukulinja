@@ -58,6 +58,42 @@ export const FAMILY_FACT_TAGS = new Set([
   'FACT'
 ]);
 
+// The facts that are events rather than attributes (GEDCOM 7's enumset-EVEN).
+export const EVENTS = new Set([
+  'ADOP',
+  'ANUL',
+  'BAPM',
+  'BARM',
+  'BASM',
+  'BIRT',
+  'BLES',
+  'BURI',
+  'CENS',
+  'CHR',
+  'CHRA',
+  'CONF',
+  'CREM',
+  'DEAT',
+  'DIV',
+  'DIVF',
+  'EMIG',
+  'ENGA',
+  'EVEN',
+  'FCOM',
+  'GRAD',
+  'IMMI',
+  'MARB',
+  'MARC',
+  'MARL',
+  'MARR',
+  'MARS',
+  'NATU',
+  'ORDN',
+  'PROB',
+  'RETI',
+  'WILL'
+]);
+
 export const NAME_PIECE_TAGS = ['NPFX', 'GIVN', 'NICK', 'SPFX', 'SURN', 'NSFX'];
 
 export const ADDRESS_PARTS = [

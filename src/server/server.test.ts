@@ -312,3 +312,48 @@ describe('A dataset replaced while open', () => {
     expect(await persons()).toBe(404);
   });
 });
+
+describe('Exporting a dataset', () => {
+  test('saves its GEDZIP into the export folder, under a free name', async () => {
+    const registry = new DatasetRegistry(join(root, 'data'));
+    const exportDir = join(root, 'Downloads');
+    fetch = createStaticFetch({
+      api: createApi(registry, { astia, exportDir }),
+      staticRoots: []
+    });
+    const staging = await registry.createStaging('tree');
+    importGedcom(
+      staging.db,
+      parseGedcom('0 @I1@ INDI\n1 NAME Matti /Esimerkki/'),
+      () => null
+    );
+    await staging.commit();
+    async function exportTree() {
+      const res = await fetch(
+        new Request('http://localhost/datasets/tree/export', { method: 'POST' })
+      );
+      return (await res.json()) as { path: string };
+    }
+    expect(await exportTree()).toEqual({ path: join(exportDir, 'tree.gdz') });
+    expect(await exportTree()).toEqual({
+      path: join(exportDir, 'tree-2.gdz')
+    });
+    expect(
+      (await readFile(join(exportDir, 'tree.gdz'))).length
+    ).toBeGreaterThan(0);
+  });
+
+  test("answers 400 for a dataset that isn't there", async () => {
+    fetch = createStaticFetch({
+      api: createApi(new DatasetRegistry(join(root, 'data')), {
+        astia,
+        exportDir: join(root, 'Downloads')
+      }),
+      staticRoots: []
+    });
+    const res = await fetch(
+      new Request('http://localhost/datasets/nope/export', { method: 'POST' })
+    );
+    expect(res.status).toBe(400);
+  });
+});

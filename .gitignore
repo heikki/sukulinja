@@ -14,3 +14,4 @@ app.db-shm
 
 # The data folder of `bun run dev` and a dev build.
 /data/
+test/gedcom7/.cache/
