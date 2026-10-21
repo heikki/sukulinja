@@ -37,7 +37,7 @@ export const appStyles = css`
      lifts it above true centre, where it reads as centred. */
   .page {
     width: 100%;
-    max-width: 36rem;
+    max-width: 42rem;
     box-sizing: border-box;
     margin: auto;
     padding: 3rem 1.5rem calc(3rem + 20vh);
@@ -69,9 +69,23 @@ export const appStyles = css`
     background: var(--card);
     overflow: hidden;
   }
+  /* The buttons stay on one line, and go under the name together when
+     there isn't room beside it. */
   ul.chooser li {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
+  }
+  ul.chooser .row-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-left: auto;
+    padding: 0.4rem 0.6rem 0.4rem 1rem;
+  }
+  ul.chooser .row-actions button {
+    margin: 0;
+    white-space: nowrap;
   }
   ul.chooser li + li {
     border-top: 1px solid var(--border);
@@ -84,7 +98,7 @@ export const appStyles = css`
     display: flex;
     flex-direction: column;
     gap: 0.15rem;
-    flex: 1;
+    flex: 1 1 10rem;
     min-width: 0;
     padding: 0.8rem 1rem;
     color: var(--fg);
@@ -95,9 +109,6 @@ export const appStyles = css`
   }
   ul.chooser .outdated {
     color: var(--muted);
-  }
-  ul.chooser li button.import {
-    margin-right: 0.4rem;
   }
   .export-note {
     margin: 0 0 0.8rem;

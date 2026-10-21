@@ -27,6 +27,7 @@ import type { Scans } from './citation-scans/scans';
 import { createCitations } from './citations';
 import type { DatasetRegistry } from './dataset-registry';
 import { saveExport } from './export-dataset';
+import type { ExportKind } from './export-dataset';
 import { importRoutes } from './import-route';
 import { createPersonDetails } from './person-details';
 import { createTree } from './tree';
@@ -362,7 +363,10 @@ export interface ApiOptions {
   exportDir?: string;
 }
 
-const EXPORT_RE = /^\/datasets\/(?<slug>[^/]+)\/export$/u;
+// POST /datasets/<slug>/export saves its GEDZIP; …/export-myheritage a
+// GEDCOM 5.5.1 file for MyHeritage.
+const EXPORT_RE =
+  /^\/datasets\/(?<slug>[^/]+)\/export(?<myheritage>-myheritage)?$/u;
 const UNDO_RE = /^\/datasets\/(?<slug>[^/]+)\/undo-import$/u;
 
 // Puts back the dataset's database from before its last import.
@@ -380,10 +384,10 @@ async function handleUndoImport(registry: DatasetRegistry, slug: string) {
 async function handleExport(
   registry: DatasetRegistry,
   slug: string,
-  dir: string | undefined
+  options: { dir: string | undefined; kind: ExportKind }
 ) {
   try {
-    return Response.json({ path: await saveExport(registry, slug, dir) });
+    return Response.json(await saveExport(registry, slug, options));
   } catch (err) {
     const message = err instanceof Error ? err.message : 'export failed';
     return new Response(message, { status: 400 });
@@ -459,8 +463,11 @@ export function createApi(
       if (req.method !== 'POST') {
         return new Response('method not allowed', { status: 405 });
       }
-      const slug = exporting.groups!.slug!;
-      return await handleExport(registry, slug, options.exportDir);
+      const { slug, myheritage } = exporting.groups!;
+      return await handleExport(registry, slug!, {
+        dir: options.exportDir,
+        kind: myheritage === undefined ? 'gdz' : 'myheritage'
+      });
     }
     const undoing = UNDO_RE.exec(pathname);
     if (undoing !== null) {

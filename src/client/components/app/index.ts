@@ -15,6 +15,8 @@ import type { DatasetInfo, ImportReview } from '@common/types';
 
 import { confirmDialog, errorNote, runAction } from './dialogs';
 import type { Confirming, DatasetAction } from './dialogs';
+import { exportDataset } from './exports';
+import type { ExportKind, ExportNote } from './exports';
 import { importDate, renderReview } from './import-review';
 import { appStyles } from './styles';
 
@@ -67,6 +69,20 @@ function renderLink(d: DatasetInfo) {
   `;
 }
 
+// An older version's database doesn't open; the file it came from isn't
+// kept, so it's imported again, merging (ADR-0013).
+function renderOutdated(d: DatasetInfo) {
+  return html`
+    <div class="outdated">
+      <span class="name">${d.displayName}</span>
+      <span class="muted">
+        Made by an older version. Import its GEDCOM again to open it; what the
+        app added is kept.
+      </span>
+    </div>
+  `;
+}
+
 @customElement('sl-app')
 export class AppElement extends LitElement {
   static override styles = [focusRingStyles, appStyles];
@@ -82,7 +98,7 @@ export class AppElement extends LitElement {
   @state() private pendingImport: File | null = null;
   @state() private exporting: string | null = null;
   // Where the last export was saved, or why it failed.
-  @state() private exportNote: { ok: boolean; text: string } | null = null;
+  @state() private exportNote: ExportNote | null = null;
   // The name of an outdated dataset being imported again, so the import
   // replaces it.
   private reimportName: string | null = null;
@@ -225,37 +241,32 @@ export class AppElement extends LitElement {
     if (res?.ok !== true) this.importError = 'the import stopped waiting';
   };
 
-  // Saved by the server, since the app's web view can't hand a download to
-  // the user: into Downloads, which the note names.
-  private readonly exportDataset = async (dataset: DatasetInfo) => {
-    this.exporting = dataset.slug;
+  private readonly exportAs = async (
+    dataset: DatasetInfo,
+    kind: ExportKind
+  ) => {
+    this.exporting = `${dataset.slug} ${kind}`;
     this.exportNote = null;
-    try {
-      const res = await fetch(`/datasets/${dataset.slug}/export`, {
-        method: 'POST'
-      });
-      if (!res.ok) {
-        const msg = await res.text();
-        this.exportNote = {
-          ok: false,
-          text: msg === '' ? `export failed (${res.status})` : msg
-        };
-        return;
-      }
-      const { path } = (await res.json()) as { path: string };
-      this.exportNote = {
-        ok: true,
-        text: `Exported ${dataset.displayName} to ${path}`
-      };
-    } catch (err) {
-      this.exportNote = {
-        ok: false,
-        text: err instanceof Error ? err.message : 'export failed'
-      };
-    } finally {
-      this.exporting = null;
-    }
+    this.exportNote = await exportDataset(dataset, kind);
+    this.exporting = null;
   };
+
+  private renderExports(d: DatasetInfo) {
+    const button = (kind: ExportKind, label: string) =>
+      html`<button
+        class="import"
+        ?disabled=${this.exporting !== null}
+        @click=${() => {
+          void this.exportAs(d, kind);
+        }}
+      >
+        ${this.exporting === `${d.slug} ${kind}` ? 'Exporting…' : label}
+      </button>`;
+    return [
+      button('gdz', 'Export'),
+      button('myheritage', 'Export for MyHeritage')
+    ];
+  }
 
   private renderExportNote() {
     const note = this.exportNote;
@@ -467,27 +478,16 @@ export class AppElement extends LitElement {
     `;
   }
 
-  // An older version's database doesn't open; the file it came from isn't
-  // kept, so it's imported again, merging (ADR-0013).
-  private renderOutdated(d: DatasetInfo) {
-    return html`
-      <div class="outdated">
-        <span class="name">${d.displayName}</span>
-        <span class="muted">
-          Made by an older version. Import its GEDCOM again to open it; what the
-          app added is kept.
-        </span>
-      </div>
-      <button
-        class="import"
-        ?disabled=${this.importing}
-        @click=${() => {
-          this.reimport(d);
-        }}
-      >
-        Import…
-      </button>
-    `;
+  private renderReimport(d: DatasetInfo) {
+    return html`<button
+      class="import"
+      ?disabled=${this.importing}
+      @click=${() => {
+        this.reimport(d);
+      }}
+    >
+      Import…
+    </button>`;
   }
 
   private renderChooser() {
@@ -502,41 +502,31 @@ export class AppElement extends LitElement {
           ${this.datasets!.map(
             (d) => html`
               <li>
-                ${d.outdated ? this.renderOutdated(d) : renderLink(d)}
-                ${
-                  d.outdated
-                    ? nothing
-                    : html`<button
-                        class="import"
-                        ?disabled=${this.exporting !== null}
-                        @click=${() => {
-                          void this.exportDataset(d);
-                        }}
-                      >
-                        ${this.exporting === d.slug ? 'Exporting…' : 'Export'}
-                      </button>`
-                }
-                ${
-                  d.undoable
-                    ? html`<button
-                        class="import"
-                        @click=${() => {
-                          this.request('undo', d);
-                        }}
-                      >
-                        Undo last import (${importDate(d.importedAt)})
-                      </button>`
-                    : nothing
-                }
-                <button
-                  class="delete"
-                  aria-label=${`Delete ${d.displayName}`}
-                  @click=${() => {
-                    this.request('delete', d);
-                  }}
-                >
-                  ${TRASH_ICON}
-                </button>
+                ${d.outdated ? renderOutdated(d) : renderLink(d)}
+                <div class="row-actions">
+                  ${d.outdated ? this.renderReimport(d) : this.renderExports(d)}
+                  ${
+                    d.undoable
+                      ? html`<button
+                          class="import"
+                          @click=${() => {
+                            this.request('undo', d);
+                          }}
+                        >
+                          Undo last import (${importDate(d.importedAt)})
+                        </button>`
+                      : nothing
+                  }
+                  <button
+                    class="delete"
+                    aria-label=${`Delete ${d.displayName}`}
+                    @click=${() => {
+                      this.request('delete', d);
+                    }}
+                  >
+                    ${TRASH_ICON}
+                  </button>
+                </div>
               </li>
             `
           )}
