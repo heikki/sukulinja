@@ -262,6 +262,12 @@ export const scanNavStyles = css`
     color: var(--muted);
   }
 
+  /* The Volume shown is on Astia's old filming, read-only. */
+  button.old-filming {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
   button:hover:not(:disabled) {
     border-color: transparent;
     background: color-mix(in srgb, var(--fg) 8%, transparent);

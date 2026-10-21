@@ -40,6 +40,9 @@ export interface Selected {
   mark: (citationId: number, at: MarkTarget) => Promise<CitationLinks>;
   // Takes back a reference's Box, as `mark` saves one.
   discard: (citationId: number, at: BoxAt) => Promise<CitationLinks>;
+  // The Links resolved again, as after switching a re-scanned Volume to
+  // its new filming; resolves once they're in.
+  relink: () => Promise<void>;
 }
 
 // Long enough for Links the server has resolved before; ones it must ask
@@ -149,6 +152,11 @@ export function openSelected(
     return await settled(api.discard(citationId, at));
   }
 
+  async function relink() {
+    const person = id.get();
+    if (person !== null) await loadLinks(person, null);
+  }
+
   return {
     id,
     details,
@@ -158,6 +166,7 @@ export function openSelected(
     sources,
     select,
     mark,
-    discard
+    discard,
+    relink
   };
 }

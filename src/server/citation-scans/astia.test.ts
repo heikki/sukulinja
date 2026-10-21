@@ -272,6 +272,30 @@ test("peeks at a Volume's list now, keeping the cached one", async () => {
   expect(await open().volumeImages('121')).toEqual(['121-f1', '121-f2']);
 });
 
+test('knows a file gone with a re-scan once it has peeked', async () => {
+  const astia = open();
+  await astia.volumeImages('121');
+  rescan121();
+  expect(await astia.isGone('121', '121-f1')).toBe(false);
+  await astia.peekImages('121');
+  expect(await astia.isGone('121', '121-f1')).toBe(true);
+  expect(await astia.isGone('121', '121-t2')).toBe(true);
+  expect(await astia.isGone('121', '121-2-f3')).toBe(false);
+  expect(await astia.isGone('121', '121-2-t3')).toBe(false);
+  await astia.refreshImages('121');
+  expect(await astia.isGone('121', '121-f1')).toBe(false);
+});
+
+test('peeks once per run, and again once the list is kept anew', async () => {
+  const astia = open();
+  await astia.peekImages('121');
+  await astia.peekImages('121');
+  expect(sent).toEqual([IMAGES_121]);
+  await astia.refreshImages('121');
+  await astia.peekImages('121');
+  expect(sent).toEqual([IMAGES_121, IMAGES_121, IMAGES_121]);
+});
+
 test('refreshes asked for at once share one request', async () => {
   const astia = open();
   await astia.volumeImages('121');

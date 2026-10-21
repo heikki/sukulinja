@@ -88,8 +88,15 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
 
   // The menu at `at` on the stage; `onBox` when it's on the source's own
   // entry Box, which then has a menu of its own.
+  // None over a Volume on a filming Astia replaced: it's read-only.
   openMenu(at: Point, onBox: boolean) {
+    if (this.viewer.oldFilming.get()) return;
     this.popup = { at, onBox, volumes: false };
+  }
+
+  // A Volume on a filming Astia replaced is read-only until switched.
+  private get editable() {
+    return this.canEdit && !this.viewer.oldFilming.get();
   }
 
   private get viewer() {
@@ -191,7 +198,7 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     }
     const items = linkItems(
       this.viewer,
-      { onBox, canBox: this.canEdit },
+      { onBox, canBox: this.editable },
       {
         chooseVolume: () => {
           this.popup = { at, onBox, volumes: true };
@@ -212,7 +219,7 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
   // The pending Box, or the one being dragged.
   private renderBox() {
     const { view, frame } = this;
-    if (view === null || frame === null || !this.canEdit) return nothing;
+    if (view === null || frame === null || !this.editable) return nothing;
     const pending = this.viewer.boxPending.get()
       ? this.viewer.boxHere.get()
       : null;

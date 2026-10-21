@@ -356,6 +356,22 @@ test('a Mark shows in the next answer, dropping the vision box', async () => {
   expect(boxOf(row!)).toBeNull();
 });
 
+test("a Volume switched to Astia's new filming resolves anew", async () => {
+  const citations = datasetOf([
+    cite(1, rippiCitation(5001, '1790 - 1796', 12))
+  ]);
+  await citations.mark(1, { volumeId: 'juva-1', image: 10 });
+  expect(placesOf(await citations.inVolume('juva-1'))).toEqual([
+    { personId: 1, image: 10, at: 'marked image' }
+  ]);
+  astia.rescan('juva-1', 20);
+  await astia.refreshImages('juva-1');
+  // The Mark was made on the filming replaced.
+  expect(placesOf(await citations.inVolume('juva-1'))).toEqual([
+    { personId: 1, image: 12, at: 'estimated image' }
+  ]);
+});
+
 test("another parish's citations are never resolved", async () => {
   const elsewhere = rippiCitation(6001, '1790 - 1796', 12);
   const citations = datasetOf([

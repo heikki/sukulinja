@@ -7,6 +7,8 @@ import type {
   FamilyRow,
   PersonDetails,
   PersonRow,
+  Rescan,
+  StalePin,
   VolumeChoices,
   VolumeCitation
 } from '@common/types';
@@ -17,6 +19,9 @@ import type { DatasetApi } from '.';
 export interface MemoryVolume {
   images: number;
   citations: VolumeCitation[];
+  // Astia's re-scan of it, until switched to: its Image count and the pins
+  // switching leaves out.
+  rescan?: { images: number; stale: StalePin[] };
 }
 
 export interface MemoryDataset {
@@ -46,7 +51,7 @@ export type MemoryDatasetApi = DatasetApi & {
   // "links <id>", "mark <citation> <volume>/<image>" (or "<volume>" for
   // only the Volume; " box" or " no box" when it says), "discard <citation>
   // <volume>/<image>", "choices <citation>", "citations <volume>",
-  // "images <volume>".
+  // "images <volume>", "rescan <volume>", "switch <volume>".
   asked: string[];
 };
 
@@ -149,6 +154,25 @@ export function memoryDatasetApi(
           (_, i) => `memory:viewer/${volumeId}/${i + 1}`
         )
       ),
+
+    volumeRescan: async (volumeId, signal) =>
+      await answer(`rescan ${volumeId}`, signal, (): Rescan | null => {
+        const { images, rescan } = volume(volumeId);
+        return rescan === undefined ? null : { cached: images, ...rescan };
+      }),
+
+    switchFilming: async (volumeId) =>
+      await answer(`switch ${volumeId}`, undefined, () => {
+        const shown = volume(volumeId);
+        if (shown.rescan !== undefined) {
+          shown.images = shown.rescan.images;
+          delete shown.rescan;
+        }
+        return Array.from(
+          { length: shown.images },
+          (_, i) => `memory:viewer/${volumeId}/${i + 1}`
+        );
+      }),
 
     imageUrl: (volumeId, n, retry) =>
       `memory:image/${volumeId}/${n}${retry === 0 ? '' : `?retry=${retry}`}`,
