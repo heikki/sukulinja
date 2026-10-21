@@ -1,4 +1,4 @@
-Status: needs-triage
+Status: ready-for-agent
 
 # Seed the bundled demo from a GEDZIP
 
@@ -12,15 +12,19 @@ Ship the source instead: a `bourbon.gdz`, imported on first launch through `impo
 
 The upstream sample ([D-Jeffrey/gedcom-samples](https://github.com/D-Jeffrey/gedcom-samples) `sample-bourbon/`: `bourbon.ged`, GEDCOM 5.5.1 from Ancestris, with `photos/` and `actes/`), packed as a `.gdz` with `bourbon.ged` renamed to `gedcom.ged`, imports in about 60 ms to exactly what `data/bourbon` holds: 303 people, 139 families, 47 photos and 49 links, with the same stored files and the same `original_path` for each.
 
-As packed, it's 8.3 MB: 8 photos that no FILE names and the 5 `actes/` files (nested under events, so the app doesn't read them yet) ride along.
+That first pack took the whole upstream folder (8.3 MB), including 8 photos no FILE names. The 5 `actes/` files are named, but under events, which the app doesn't read yet.
 
-## Open questions
+## Decided (2026-10-21)
 
-- **Which files go in**: only what a FILE names (the 47 photos + the 5 `actes/`, which the spec says belong in the archive), or the upstream folder as it is.
-- **Where it lives**: e.g. `resources/demo/bourbon.gdz`, or `data/bourbon.gdz` (the `.gitignore` tracks only `data/bourbon/` and `data/NOTICE.md` now).
-- **The dev data folder**: a dev build and the scripts read the checkout's `data/`, which has `data/bourbon` committed today. Seed it the same way when it's missing, or leave the dev folder to imports by hand.
-- **Display name**: the committed demo is named "Bourbon" (`4a4608d`). The import names it after the request's `displayName`, so seeding passes "Bourbon".
-- **First launch**: `seedDemo` copies synchronously before the registry opens. Importing is async; decide whether the window waits for it or the chooser shows the demo once it's in.
-- **Provenance**: `data/NOTICE.md` describes the committed folder and needs to describe the `.gdz` instead.
+- **Only what a FILE names goes in**: `gedcom.ged` (upstream `bourbon.ged`, unchanged) and the 55 files its FILEs name, the `actes/` scans and transcriptions included (about 4.4 MB). The 8 photos no FILE names and `geo_cache.csv` stay out. Pack from upstream commit `74040285d9e7` (2026-04-18); store the photos uncompressed, deflate the text.
+- **It lives at `resources/demo/bourbon.gdz`**, with `NOTICE.md` moved beside it and rewritten for the `.gdz` (source, licence, how it was packed). `electrobun.config.ts` copies `resources/demo` to `demo` in place of `data/bourbon` and `data/NOTICE.md`. Untrack `data/bourbon/` and `data/NOTICE.md` with `git rm --cached`, so existing checkouts keep their copy, and make `data/` wholly gitignored.
+- **Seed under one rule everywhere**: the app, dev or installed, and the `bun run dev` server (`src/server/dev.ts`) import the demo when their data folder doesn't exist yet. Keep keying on the folder not existing, so deleting the demo never brings it back. Share the seeding between `index.ts` and `dev.ts`.
+- **Wait for it**: seed before the server starts and the window opens, as the copy does now (the import takes ~60 ms). Import as slug `bourbon`, display name "Bourbon". If the import fails, log it and open with no datasets: the data folder then exists, so it isn't retried.
+
+## Notes
+
+- `seedDemo` returns early in a dev build today (`isDev`); that check goes.
+- The import's staging writes into the data folder, so create the folder as part of seeding. A failed import must still leave it in place (see above).
+- Test the seeding against a temp folder: seeds when missing, leaves an existing folder alone even when it's empty.
 
 ## Comments
