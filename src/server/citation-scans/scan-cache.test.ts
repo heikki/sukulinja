@@ -266,6 +266,18 @@ describe('a re-scanned Volume', () => {
     ]);
   });
 
+  test("drops the replaced filming's cached Images", async () => {
+    const { astia, cache: scans } = rescanned();
+    await scans.image(at(2), 'full', signal);
+    await scans.image(at(2), 'thumb', signal);
+    await scans.image(at(3), 'full', signal);
+    astia.rescan('301', 8);
+    await scans.image(at(5), 'full', signal);
+    expect((await readdir(join(dir, '.astia-images'))).toSorted()).toEqual([
+      '301-2-f5.jpg'
+    ]);
+  });
+
   test('has no Image past the new filming', async () => {
     const { astia, cache: scans } = rescanned();
     astia.rescan('301', 8);
