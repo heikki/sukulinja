@@ -2,79 +2,24 @@ import type { Database } from 'bun:sqlite';
 
 import type { Scope } from '@common/types';
 
-import { findChild, findChildren } from './gedcom-parser';
+import { lineReader } from './gedcom-lines';
+import type { Unstored } from './gedcom-lines';
+import { findChildren } from './gedcom-parser';
 import type { GedNode } from './gedcom-parser';
-import { mediaRefsOf } from './media-refs';
-import type { MediaRef } from './media-refs';
-
-// GEDCOM 7's individual and family events and attributes.
-const PERSON_FACT_TAGS = new Set([
-  'ADOP',
-  'BAPM',
-  'BARM',
-  'BASM',
-  'BIRT',
-  'BLES',
-  'BURI',
-  'CENS',
-  'CHR',
-  'CHRA',
-  'CONF',
-  'CREM',
-  'DEAT',
-  'EMIG',
-  'FCOM',
-  'GRAD',
-  'IMMI',
-  'NATU',
-  'ORDN',
-  'PROB',
-  'RETI',
-  'WILL',
-  'EVEN',
-  'CAST',
-  'DSCR',
-  'EDUC',
-  'IDNO',
-  'NATI',
-  'NCHI',
-  'NMR',
-  'OCCU',
-  'PROP',
-  'RELI',
-  'RESI',
-  'SSN',
-  'TITL',
-  'FACT'
-]);
-
-const FAMILY_FACT_TAGS = new Set([
-  'ANUL',
-  'CENS',
-  'DIV',
-  'DIVF',
-  'ENGA',
-  'MARB',
-  'MARC',
-  'MARR',
-  'MARL',
-  'MARS',
-  'EVEN',
-  'NCHI',
-  'RESI',
-  'FACT'
-]);
-
-const NAME_PIECE_TAGS = ['NPFX', 'GIVN', 'NICK', 'SPFX', 'SURN', 'NSFX'];
+import {
+  ADDRESS_PARTS,
+  FAMILY_FACT_TAGS,
+  HEADER_META,
+  NAME_PIECE_TAGS,
+  PERSON_FACT_TAGS
+} from './gedcom-tags';
+import { mediaLinker } from './import-media';
+import type { MediaResolver } from './import-media';
+import { importStatements } from './import-statements';
 
 const NAME_RE = /^(?<given>[^/]*)\/(?<surname>[^/]*)\/(?<suffix>.*)$/;
 
-// A kind of line the import couldn't store, by its path from the record
-// (`INDI.BIRT.CAUS`), and how many there were.
-export interface Unstored {
-  path: string;
-  count: number;
-}
+export type { Unstored } from './gedcom-lines';
 
 export interface ImportStats {
   persons: number;
@@ -124,54 +69,24 @@ function parseName(full: string): NameParts {
   };
 }
 
-const ADDRESS_PARTS = ['ADR1', 'ADR2', 'ADR3', 'CITY', 'STAE', 'POST', 'CTRY'];
-
 const POINTER_RE = /^@[^@]+@$/;
 
 function isPointer(value: string | undefined) {
   return POINTER_RE.test(value ?? '');
 }
 
-type MediaResolver = (originalRelpath: string) => string | null;
+type NoteOwner =
+  | 'person'
+  | 'family'
+  | 'fact'
+  | 'place'
+  | 'name'
+  | 'source'
+  | 'citation'
+  | 'media_link'
+  | 'association';
 
-// Records that say nothing about the tree: the header is written afresh on
-// export.
-const SKIPPED_RECORDS = new Set(['HEAD', 'TRLR']);
-
-// Every standard line not in `used`, by path. Below a line that wasn't
-// stored, nothing more is counted.
-function unstoredLines(roots: GedNode[], used: Set<GedNode>) {
-  const counts = new Map<string, number>();
-  function count(path: string) {
-    counts.set(path, (counts.get(path) ?? 0) + 1);
-  }
-  function walk(node: GedNode, path: string) {
-    for (const child of node.children) {
-      if (child.tag.startsWith('_')) continue;
-      const childPath = `${path}.${child.tag}`;
-      if (used.has(child)) walk(child, childPath);
-      else count(childPath);
-    }
-  }
-  for (const root of roots) {
-    if (SKIPPED_RECORDS.has(root.tag) || root.tag.startsWith('_')) continue;
-    if (used.has(root)) walk(root, root.tag);
-    else count(root.tag);
-  }
-  return [...counts]
-    .map(([path, n]) => ({ path, count: n }))
-    .sort((x, y) => x.path.localeCompare(y.path));
-}
-
-// A person's or family's media, with the one marked primary first: GEDCOM 7
-// takes the first as the preferred one.
-function primaryFirst(refs: MediaRef[]) {
-  const ordered = [
-    ...refs.filter((r) => r.primary),
-    ...refs.filter((r) => !r.primary)
-  ];
-  return ordered.map((r, order) => ({ ...r, order }));
-}
+type CitationScope = Scope | 'fact' | 'name' | 'note' | 'shared_note';
 
 export function importGedcom(
   db: Database,
@@ -181,6 +96,8 @@ export function importGedcom(
   const personXrefs = new Map<string, number>();
   const familyXrefs = new Map<string, number>();
   const sourceXrefs = new Map<string, number>();
+  const sharedNoteXrefs = new Map<string, number>();
+  const repositoryXrefs = new Map<string, number>();
   const stats: ImportStats = {
     persons: 0,
     families: 0,
@@ -196,62 +113,19 @@ export function importGedcom(
   };
 
   // Each line stored, so that what's left can be listed.
-  const used = new Set<GedNode>();
-  function take(node: GedNode, tag: string) {
-    const child = findChild(node, tag);
-    if (child !== undefined) used.add(child);
-    return child;
-  }
-  function takeAll(node: GedNode, tag: string) {
-    const children = findChildren(node, tag);
-    for (const c of children) used.add(c);
-    return children;
-  }
-  function takeValue(node: GedNode | undefined, tag: string) {
-    if (node === undefined) return null;
-    return take(node, tag)?.value ?? null;
-  }
+  const lines = lineReader();
+  const { take, takeAll, takeValue } = lines;
 
-  const insertPerson = db.prepare(
-    'INSERT INTO persons (xref, uid, sex) VALUES (?, ?, ?)'
-  );
-  const insertFamily = db.prepare(
-    'INSERT INTO families (xref, uid, husband_id, wife_id) VALUES (?, ?, NULL, NULL)'
-  );
-  const updateFamily = db.prepare(
-    'UPDATE families SET husband_id = ?, wife_id = ? WHERE id = ?'
-  );
-  const insertName = db.prepare(
-    'INSERT INTO names (person_id, full_text, given, surname, suffix, name_type, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  );
-  const insertNamePiece = db.prepare(
-    'INSERT INTO name_pieces (name_id, tag, value, sort_order) VALUES (?, ?, ?, ?)'
-  );
-  const insertFact = db.prepare(
-    'INSERT INTO facts (scope_type, scope_id, tag, type, date_text, place, address, age, cause, value, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  );
-  const insertAddress = db.prepare(
-    'INSERT INTO fact_addresses (fact_id, text, line1, line2, line3, city, state, postal_code, country) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  );
-  const insertFamilyChild = db.prepare(
-    'INSERT OR IGNORE INTO family_children (family_id, person_id, sort_order) VALUES (?, ?, ?)'
-  );
-  const insertSource = db.prepare(
-    'INSERT INTO sources (xref, title, author, publisher, text) VALUES (?, ?, ?, ?, ?)'
-  );
-  const insertCitation = db.prepare(
-    'INSERT INTO citations (scope_type, scope_id, source_id, page, event, role, quality, data_date, text, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  );
-  const insertNote = db.prepare(
-    'INSERT INTO notes (owner_type, owner_id, text, sort_order) VALUES (?, ?, ?, ?)'
-  );
-  const getMediaByPath = db.prepare('SELECT id FROM media WHERE file_path = ?');
-  const insertMedia = db.prepare(
-    'INSERT INTO media (file_path, format, original_path) VALUES (?, ?, ?) RETURNING id'
-  );
-  const insertMediaLink = db.prepare(
-    'INSERT INTO media_links (media_id, scope_type, scope_id, title, crop_top, crop_left, crop_width, crop_height, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-  );
+  const sql = importStatements(db);
+  const importMediaLinks = mediaLinker({
+    sql,
+    lines,
+    count: (kind) => {
+      stats[kind] += 1;
+    },
+    resolve: mediaResolver,
+    importNotes
+  });
 
   // A record's UID, or a new one: only a UID says reliably who is who from
   // one file to the next (ADR-0013).
@@ -259,61 +133,181 @@ export function importGedcom(
     return takeValue(root, 'UID') ?? crypto.randomUUID();
   }
 
+  // When a record was last changed, as the file says.
+  function changeOf(root: GedNode) {
+    const chan = take(root, 'CHAN');
+    const date = chan === undefined ? undefined : take(chan, 'DATE');
+    return { date: date?.value ?? null, time: takeValue(date, 'TIME') };
+  }
+
+  function importHeader(head: GedNode) {
+    for (const [path, key] of HEADER_META) {
+      let node: GedNode | undefined = head;
+      for (const tag of path) {
+        node = node === undefined ? node : take(node, tag);
+      }
+      if (node?.value !== undefined) sql.insertMeta.run(key, node.value);
+    }
+  }
+
+  function addressParts(addr: GedNode) {
+    return ADDRESS_PARTS.map((tag) => takeValue(addr, tag));
+  }
+
+  function importAddress(
+    node: GedNode,
+    owner: 'repository' | 'submitter',
+    ownerId: number
+  ) {
+    const addr = take(node, 'ADDR');
+    if (addr === undefined) return;
+    sql.insertAddress.run(
+      owner,
+      ownerId,
+      addr.value ?? null,
+      ...addressParts(addr)
+    );
+  }
+
+  // The records others point at come first, so a pointer always finds its
+  // target: people, families, sources, repositories and shared notes.
   function createRecord(root: GedNode): void {
     if (!hasXref(root)) return;
     if (root.tag === 'INDI') {
-      used.add(root);
-      const res = insertPerson.run(
+      lines.use(root);
+      const change = changeOf(root);
+      const res = sql.insertPerson.run(
         root.xref,
         uidOf(root),
-        takeValue(root, 'SEX')
+        takeValue(root, 'SEX'),
+        change.date,
+        change.time
       );
       personXrefs.set(root.xref, Number(res.lastInsertRowid));
       stats.persons += 1;
     } else if (root.tag === 'FAM') {
-      used.add(root);
-      const res = insertFamily.run(root.xref, uidOf(root));
+      lines.use(root);
+      const change = changeOf(root);
+      const res = sql.insertFamily.run(
+        root.xref,
+        uidOf(root),
+        change.date,
+        change.time
+      );
       familyXrefs.set(root.xref, Number(res.lastInsertRowid));
       stats.families += 1;
     } else if (root.tag === 'SOUR') {
-      used.add(root);
-      const res = insertSource.run(
+      createSource(root);
+    } else if (root.tag === 'REPO') {
+      lines.use(root);
+      const change = changeOf(root);
+      const res = sql.insertRepository.run(
         root.xref,
-        takeValue(root, 'TITL'),
-        takeValue(root, 'AUTH'),
-        takeValue(root, 'PUBL'),
-        takeValue(root, 'TEXT')
+        takeValue(root, 'NAME'),
+        takeValue(root, 'PHON'),
+        change.date,
+        change.time
       );
-      const sourceId = Number(res.lastInsertRowid);
-      sourceXrefs.set(root.xref, sourceId);
-      importNotes(root, 'source', sourceId);
-      stats.sources += 1;
+      const repoId = Number(res.lastInsertRowid);
+      repositoryXrefs.set(root.xref, repoId);
+      importAddress(root, 'repository', repoId);
+    } else if (root.tag === 'NOTE') {
+      lines.use(root);
+      const change = changeOf(root);
+      const res = sql.insertSharedNote.run(
+        root.xref,
+        root.value ?? '',
+        change.date,
+        change.time
+      );
+      sharedNoteXrefs.set(root.xref, Number(res.lastInsertRowid));
+    } else if (root.tag === 'SUBM') {
+      createSubmitter(root);
     }
+  }
+
+  function createSource(root: GedNode & { xref: string }) {
+    lines.use(root);
+    const change = changeOf(root);
+    const data = take(root, 'DATA');
+    const res = sql.insertSource.run(
+      root.xref,
+      takeValue(root, 'TITL'),
+      takeValue(root, 'AUTH'),
+      takeValue(root, 'PUBL'),
+      takeValue(root, 'TEXT'),
+      takeValue(data, 'EVEN'),
+      change.date,
+      change.time
+    );
+    sourceXrefs.set(root.xref, Number(res.lastInsertRowid));
+    stats.sources += 1;
+  }
+
+  function createSubmitter(root: GedNode & { xref: string }) {
+    lines.use(root);
+    const change = changeOf(root);
+    const res = sql.insertSubmitter.run(
+      root.xref,
+      takeValue(root, 'NAME'),
+      takeValue(root, 'PHON'),
+      takeValue(root, 'EMAIL'),
+      takeValue(root, 'WWW'),
+      change.date,
+      change.time
+    );
+    importAddress(root, 'submitter', Number(res.lastInsertRowid));
   }
 
   function populateRecord(root: GedNode): void {
+    if (root.tag === 'HEAD') {
+      importHeader(root);
+      return;
+    }
     if (!hasXref(root)) return;
     if (root.tag === 'INDI') {
-      const personId = personXrefs.get(root.xref)!;
-      importPersonDetails(root, personId);
+      importPersonDetails(root, personXrefs.get(root.xref)!);
     } else if (root.tag === 'FAM') {
-      const familyId = familyXrefs.get(root.xref)!;
-      importFamilyDetails(root, familyId);
+      importFamilyDetails(root, familyXrefs.get(root.xref)!);
+    } else if (root.tag === 'SOUR') {
+      importSourceDetails(root, sourceXrefs.get(root.xref)!);
+    } else if (root.tag === 'NOTE') {
+      const noteId = sharedNoteXrefs.get(root.xref)!;
+      importCitations(root, 'shared_note', noteId);
     }
   }
 
-  // Notes written out on the line; a pointer to a shared note record isn't
-  // read yet, so it's left to be listed.
-  function importNotes(
-    node: GedNode,
-    owner: 'person' | 'family' | 'fact' | 'source' | 'citation',
-    ownerId: number
-  ) {
+  function importSourceDetails(root: GedNode, sourceId: number) {
+    let order = 0;
+    for (const repo of findChildren(root, 'REPO')) {
+      const repoId = repositoryXrefs.get(repo.value ?? '');
+      if (repoId === undefined) continue;
+      lines.use(repo);
+      sql.insertSourceRepository.run(sourceId, repoId, order++);
+    }
+    importNotes(root, 'source', sourceId);
+  }
+
+  // Notes, written out or pointing at a shared note, each with its own
+  // citations when it's written out.
+  function importNotes(node: GedNode, owner: NoteOwner, ownerId: number) {
     let order = 0;
     for (const note of findChildren(node, 'NOTE')) {
-      if (isPointer(note.value)) continue;
-      used.add(note);
-      insertNote.run(owner, ownerId, note.value ?? '', order++);
+      const shared = isPointer(note.value)
+        ? sharedNoteXrefs.get(note.value!)
+        : null;
+      if (shared === undefined) continue;
+      lines.use(note);
+      const res = sql.insertNote.run(
+        owner,
+        ownerId,
+        shared === null ? (note.value ?? '') : null,
+        shared,
+        order++
+      );
+      if (shared === null) {
+        importCitations(note, 'note', Number(res.lastInsertRowid));
+      }
       stats.notes += 1;
     }
   }
@@ -321,7 +315,7 @@ export function importGedcom(
   function importName(name: GedNode, personId: number, order: number) {
     const full = name.value ?? '';
     const parts = parseName(full);
-    const res = insertName.run(
+    const res = sql.insertName.run(
       personId,
       full,
       parts.given,
@@ -334,10 +328,33 @@ export function importGedcom(
     let pieceOrder = 0;
     for (const piece of name.children) {
       if (!NAME_PIECE_TAGS.includes(piece.tag)) continue;
-      used.add(piece);
-      insertNamePiece.run(nameId, piece.tag, piece.value ?? '', pieceOrder++);
+      lines.use(piece);
+      sql.insertNamePiece.run(
+        nameId,
+        piece.tag,
+        piece.value ?? '',
+        pieceOrder++
+      );
     }
+    importNotes(name, 'name', nameId);
+    importCitations(name, 'name', nameId);
     stats.names += 1;
+  }
+
+  function importAssociations(root: GedNode, personId: number) {
+    let order = 0;
+    for (const asso of findChildren(root, 'ASSO')) {
+      const associateId = personXrefs.get(asso.value ?? '');
+      if (associateId === undefined) continue;
+      lines.use(asso);
+      const res = sql.insertAssociation.run(
+        personId,
+        associateId,
+        takeValue(asso, 'RELA'),
+        order++
+      );
+      importNotes(asso, 'association', Number(res.lastInsertRowid));
+    }
   }
 
   function importPersonDetails(root: GedNode, personId: number): void {
@@ -359,6 +376,7 @@ export function importGedcom(
     // RIN repeats the record's xref.
     takeAll(root, 'RIN');
 
+    importAssociations(root, personId);
     importNotes(root, 'person', personId);
     importCitations(root, 'person', personId);
     importMediaLinks(root, 'person', personId);
@@ -372,14 +390,14 @@ export function importGedcom(
   function importFamilyDetails(root: GedNode, familyId: number): void {
     const husbandId = resolveParentId(takeValue(root, 'HUSB'));
     const wifeId = resolveParentId(takeValue(root, 'WIFE'));
-    updateFamily.run(husbandId, wifeId, familyId);
+    sql.updateFamily.run(husbandId, wifeId, familyId);
 
     takeAll(root, 'CHIL').forEach((ch, i) => {
       const xref = ch.value;
       if (xref === undefined) return;
       const childId = personXrefs.get(xref);
       if (childId === undefined) return;
-      insertFamilyChild.run(familyId, childId, i);
+      sql.insertFamilyChild.run(familyId, childId, i);
       stats.familyChildren += 1;
     });
 
@@ -413,10 +431,14 @@ export function importGedcom(
     };
   }
 
-  function importCitations(root: GedNode, scope: Scope, scopeId: number) {
-    takeAll(root, 'SOUR').forEach((sour, i) => {
+  function importCitations(
+    holder: GedNode,
+    scope: CitationScope,
+    scopeId: number
+  ) {
+    takeAll(holder, 'SOUR').forEach((sour, i) => {
       const c = readCitation(sour);
-      const res = insertCitation.run(
+      const res = sql.insertCitation.run(
         scope,
         scopeId,
         c.sourceId,
@@ -428,9 +450,23 @@ export function importGedcom(
         c.text,
         i
       );
-      importNotes(sour, 'citation', Number(res.lastInsertRowid));
+      const citationId = Number(res.lastInsertRowid);
+      importNotes(sour, 'citation', citationId);
+      importMediaLinks(sour, 'citation', citationId);
       stats.citations += 1;
     });
+  }
+
+  // An event's PLAC: its name, where it is on the map, and its notes.
+  function readPlace(node: GedNode) {
+    const plac = take(node, 'PLAC');
+    const map = plac === undefined ? undefined : take(plac, 'MAP');
+    return {
+      plac,
+      name: plac?.value ?? null,
+      latitude: takeValue(map, 'LATI'),
+      longitude: takeValue(map, 'LONG')
+    };
   }
 
   // An event's ADDR, its parts kept and its lines joined for showing.
@@ -439,7 +475,7 @@ export function importGedcom(
     const addr = take(node, 'ADDR');
     if (addr === undefined) return null;
     const text = addr.value ?? null;
-    const parts = ADDRESS_PARTS.map((tag) => takeValue(addr, tag));
+    const parts = addressParts(addr);
     const lines = [text, ...parts].filter(
       (x): x is string => x !== null && x.trim() !== ''
     );
@@ -452,85 +488,34 @@ export function importGedcom(
     node: GedNode,
     order: number
   ): void {
-    used.add(node);
+    lines.use(node);
+    const place = readPlace(node);
     const address = readAddress(node);
-    const res = insertFact.run(
+    const res = sql.insertFact.run(
       scope,
       scopeId,
       node.tag,
       takeValue(node, 'TYPE'),
       takeValue(node, 'DATE'),
-      takeValue(node, 'PLAC'),
+      place.name,
+      place.latitude,
+      place.longitude,
       address?.shown ?? null,
       takeValue(node, 'AGE'),
       takeValue(node, 'CAUS'),
+      takeValue(node, 'AGNC'),
       node.value ?? null,
       order
     );
     const factId = Number(res.lastInsertRowid);
     if (address !== null) {
-      insertAddress.run(factId, address.text, ...address.parts);
+      sql.insertAddress.run('fact', factId, address.text, ...address.parts);
     }
+    if (place.plac !== undefined) importNotes(place.plac, 'place', factId);
     importNotes(node, 'fact', factId);
+    importCitations(node, 'fact', factId);
+    importMediaLinks(node, 'fact', factId);
     stats.facts += 1;
-  }
-
-  function resolveMediaId(
-    storedPath: string,
-    originalPath: string,
-    format: string | null
-  ): number {
-    const existing = getMediaByPath.get(storedPath) as { id: number } | null;
-    if (existing !== null) return existing.id;
-    const res = insertMedia.get(storedPath, format, originalPath) as {
-      id: number;
-    };
-    stats.media += 1;
-    return res.id;
-  }
-
-  // A media row for the stored file, which files with the same content
-  // share, and a link to it from the person or family.
-  function importMediaLink(ref: MediaRef, scope: Scope, scopeId: number) {
-    const storedPath = mediaResolver(ref.path);
-    if (storedPath === null) return;
-    const mediaId = resolveMediaId(storedPath, ref.path, ref.format);
-    const { crop } = ref;
-    insertMediaLink.run(
-      mediaId,
-      scope,
-      scopeId,
-      ref.title,
-      crop.top,
-      crop.left,
-      crop.width,
-      crop.height,
-      ref.order
-    );
-    stats.mediaLinks += 1;
-  }
-
-  // The lines mediaRefsOf reads. A file that couldn't be stored is reported
-  // by the media ingest, not here.
-  function markMediaLines(record: GedNode) {
-    for (const obje of findChildren(record, 'OBJE')) {
-      if (isPointer(obje.value)) continue;
-      used.add(obje);
-      take(obje, 'TITL');
-      for (const file of takeAll(obje, 'FILE')) {
-        take(file, 'FORM');
-        const crop = take(file, 'CROP');
-        if (crop === undefined) continue;
-        for (const side of ['TOP', 'LEFT', 'HEIGHT', 'WIDTH']) take(crop, side);
-      }
-    }
-  }
-
-  function importMediaLinks(root: GedNode, scope: Scope, scopeId: number) {
-    markMediaLines(root);
-    for (const ref of primaryFirst(mediaRefsOf(root))) {
-      importMediaLink(ref, scope, scopeId);
-    }
   }
 
   const tx = db.transaction(() => {
@@ -539,6 +524,6 @@ export function importGedcom(
   });
 
   tx();
-  stats.unstored = unstoredLines(roots, used);
+  stats.unstored = lines.unstored(roots);
   return stats;
 }

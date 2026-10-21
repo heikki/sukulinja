@@ -33,7 +33,7 @@ test('a new data folder gets the demo, built from its GEDZIP', async () => {
       familyCount: 139
     }
   ]);
-  expect(await readdir(registry.mediaDir('bourbon'))).toHaveLength(47);
+  expect(await readdir(registry.mediaDir('bourbon'))).toHaveLength(55);
 });
 
 test('the demo is offered once: deleted, it stays gone', async () => {

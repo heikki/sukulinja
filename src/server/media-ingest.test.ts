@@ -136,7 +136,7 @@ describe('ingest', () => {
     ]);
   });
 
-  test('OBJE nested inside an event (not a direct child of INDI/FAM) is ignored', async () => {
+  test('an OBJE on an event is copied too', async () => {
     await Bun.write(join(sourceDir, 'nested.jpg'), 'NEST');
     const eventWithObje: GedNode = {
       level: 1,
@@ -148,7 +148,7 @@ describe('ingest', () => {
       sourceDir,
       targetDir
     });
-    expect(result.resolved.size).toBe(0);
+    expect([...result.resolved.keys()]).toEqual(['nested.jpg']);
     expect(result.skipped).toEqual([]);
   });
 

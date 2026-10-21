@@ -5,7 +5,9 @@ const SCHEMA_SQL = `
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     xref TEXT UNIQUE NOT NULL,
     uid TEXT,
-    sex TEXT
+    sex TEXT,
+    change_date TEXT,
+    change_time TEXT
   );
 
   CREATE TABLE IF NOT EXISTS names (
@@ -34,7 +36,9 @@ const SCHEMA_SQL = `
     xref TEXT UNIQUE NOT NULL,
     uid TEXT,
     husband_id INTEGER REFERENCES persons(id) ON DELETE SET NULL,
-    wife_id INTEGER REFERENCES persons(id) ON DELETE SET NULL
+    wife_id INTEGER REFERENCES persons(id) ON DELETE SET NULL,
+    change_date TEXT,
+    change_time TEXT
   );
 
   CREATE TABLE IF NOT EXISTS family_children (
@@ -53,16 +57,21 @@ const SCHEMA_SQL = `
     type TEXT,
     date_text TEXT,
     place TEXT,
+    latitude TEXT,
+    longitude TEXT,
     address TEXT,
     age TEXT,
     cause TEXT,
+    agency TEXT,
     value TEXT,
     sort_order INTEGER NOT NULL DEFAULT 0
   );
   CREATE INDEX IF NOT EXISTS facts_scope_idx ON facts(scope_type, scope_id);
   CREATE INDEX IF NOT EXISTS facts_tag_idx ON facts(tag);
-  CREATE TABLE IF NOT EXISTS fact_addresses (
-    fact_id INTEGER PRIMARY KEY REFERENCES facts(id) ON DELETE CASCADE,
+  CREATE TABLE IF NOT EXISTS addresses (
+    owner_type TEXT NOT NULL
+      CHECK (owner_type IN ('fact','repository','submitter')),
+    owner_id INTEGER NOT NULL,
     text TEXT,
     line1 TEXT,
     line2 TEXT,
@@ -70,7 +79,15 @@ const SCHEMA_SQL = `
     city TEXT,
     state TEXT,
     postal_code TEXT,
-    country TEXT
+    country TEXT,
+    PRIMARY KEY (owner_type, owner_id)
+  );
+  CREATE TABLE IF NOT EXISTS associations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    person_id INTEGER NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
+    associate_id INTEGER NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
+    relation TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0
   );
 
   CREATE TABLE IF NOT EXISTS media (
@@ -83,8 +100,10 @@ const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS media_links (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     media_id INTEGER NOT NULL REFERENCES media(id) ON DELETE CASCADE,
-    scope_type TEXT NOT NULL CHECK (scope_type IN ('person','family')),
+    scope_type TEXT NOT NULL
+      CHECK (scope_type IN ('person','family','fact','citation')),
     scope_id INTEGER NOT NULL,
+    object_order INTEGER NOT NULL DEFAULT 0,
     title TEXT,
     crop_top INTEGER,
     crop_left INTEGER,
@@ -94,18 +113,36 @@ const SCHEMA_SQL = `
   );
   CREATE INDEX IF NOT EXISTS media_links_scope_idx ON media_links(scope_type, scope_id);
 
+  CREATE TABLE IF NOT EXISTS repositories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    xref TEXT UNIQUE NOT NULL,
+    name TEXT,
+    phone TEXT,
+    change_date TEXT,
+    change_time TEXT
+  );
   CREATE TABLE IF NOT EXISTS sources (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     xref TEXT UNIQUE NOT NULL,
     title TEXT,
     author TEXT,
     publisher TEXT,
-    text TEXT
+    text TEXT,
+    data_events TEXT,
+    change_date TEXT,
+    change_time TEXT
+  );
+  CREATE TABLE IF NOT EXISTS source_repositories (
+    source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE,
+    repository_id INTEGER NOT NULL REFERENCES repositories(id) ON DELETE CASCADE,
+    sort_order INTEGER NOT NULL DEFAULT 0
   );
 
   CREATE TABLE IF NOT EXISTS citations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    scope_type TEXT NOT NULL CHECK (scope_type IN ('person','family')),
+    scope_type TEXT NOT NULL CHECK (
+      scope_type IN ('person','family','fact','name','note','shared_note')
+    ),
     scope_id INTEGER NOT NULL,
     source_id INTEGER REFERENCES sources(id) ON DELETE SET NULL,
     page TEXT,
@@ -118,15 +155,37 @@ const SCHEMA_SQL = `
   );
   CREATE INDEX IF NOT EXISTS citations_scope_idx ON citations(scope_type, scope_id);
 
+  CREATE TABLE IF NOT EXISTS shared_notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    xref TEXT UNIQUE NOT NULL,
+    text TEXT NOT NULL,
+    change_date TEXT,
+    change_time TEXT
+  );
   CREATE TABLE IF NOT EXISTS notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    owner_type TEXT NOT NULL
-      CHECK (owner_type IN ('person','family','fact','source','citation')),
+    owner_type TEXT NOT NULL CHECK (owner_type IN (
+      'person','family','fact','place','name','source','citation',
+      'media_link','association'
+    )),
     owner_id INTEGER NOT NULL,
-    text TEXT NOT NULL,
-    sort_order INTEGER NOT NULL DEFAULT 0
+    -- Written out, or a pointer to a shared note.
+    text TEXT,
+    shared_note_id INTEGER REFERENCES shared_notes(id) ON DELETE CASCADE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    CHECK ((text IS NULL) <> (shared_note_id IS NULL))
   );
   CREATE INDEX IF NOT EXISTS notes_owner_idx ON notes(owner_type, owner_id);
+  CREATE TABLE IF NOT EXISTS submitters (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    xref TEXT UNIQUE NOT NULL,
+    name TEXT,
+    phone TEXT,
+    email TEXT,
+    website TEXT,
+    change_date TEXT,
+    change_time TEXT
+  );
   CREATE TABLE IF NOT EXISTS meta (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -136,7 +195,7 @@ const SCHEMA_SQL = `
 // Raised whenever the schema changes. A dataset's database holds the whole
 // tree and the file it came from isn't kept, so an older database can't be
 // upgraded: the dataset is imported again (ADR-0013).
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 // A dataset whose database an older version of the app built.
 export class OutdatedDatasetError extends Error {}

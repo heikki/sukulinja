@@ -3,7 +3,7 @@ import { mkdir } from 'node:fs/promises';
 import { extname, isAbsolute, join, relative, resolve } from 'node:path';
 
 import type { GedNode } from './gedcom-parser';
-import { localPaths, mediaRefsOf } from './media-refs';
+import { allMediaRefs, localPaths } from './media-refs';
 import { runPool } from './pool';
 
 // Each worker reads a whole file into memory to hash it, so keep the in-flight
@@ -64,7 +64,7 @@ async function existing(sourceDir: string, relpaths: string[]) {
 
 export async function ingest(input: IngestInput): Promise<IngestResult> {
   // What gedcom-import links, so every file copied gets a media row.
-  const refs = input.roots.flatMap(mediaRefsOf).map((r) => r.path);
+  const refs = allMediaRefs(input.roots).map((r) => r.path);
   const resolved = new Map<string, string>();
   const skipped: IngestSkipped[] = [];
   if (refs.length === 0) return { resolved, skipped };

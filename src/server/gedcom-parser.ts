@@ -72,7 +72,33 @@ export function parseGedcom(text: string): GedNode[] {
     }
   }
 
+  unescapeAts(roots);
   return roots;
+}
+
+function isVersion7(roots: GedNode[]) {
+  const head = roots.find((r) => r.tag === 'HEAD');
+  const gedc = head?.children.find((c) => c.tag === 'GEDC');
+  const vers = gedc?.children.find((c) => c.tag === 'VERS');
+  return vers?.value?.startsWith('7') === true;
+}
+
+// A value's @ is written @@: everywhere in it in GEDCOM 5.5.1, and only at
+// the start of each line in GEDCOM 7.
+function unescapeAts(roots: GedNode[]) {
+  const v7 = isVersion7(roots);
+  function unescape(value: string) {
+    if (!v7) return value.replaceAll('@@', '@');
+    return value
+      .split('\n')
+      .map((line) => (line.startsWith('@@') ? line.slice(1) : line))
+      .join('\n');
+  }
+  const pending = [...roots];
+  for (let node = pending.pop(); node !== undefined; node = pending.pop()) {
+    if (node.value?.includes('@@') === true) node.value = unescape(node.value);
+    pending.push(...node.children);
+  }
 }
 
 export function findChild(node: GedNode, tag: string): GedNode | undefined {
