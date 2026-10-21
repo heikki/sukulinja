@@ -62,7 +62,10 @@ function xrefsById(rows: Array<{ id: number; xref: string }>) {
   return new Map(rows.map((r) => [r.id, r.xref]));
 }
 
-export function exportGedcom(db: Database) {
+// The dataset's GEDCOM 7 as lines: its header, records, the OBJE records
+// of its photos and of the Astia Images it links, and the media files to
+// pack beside it.
+export function gedcomTree(db: Database) {
   const rows = readExportRows(db);
   const personXref = xrefsById(rows.persons);
   const familyXref = xrefsById(rows.families);
@@ -338,12 +341,23 @@ export function exportGedcom(db: Database) {
     ...rows.sharedNotes.map(sharedNote),
     ...rows.submitters.map(submitter)
   ];
+  return {
+    header: header(),
+    records,
+    photos: media.records,
+    images: links.records,
+    entries: media.entries
+  };
+}
+
+export function exportGedcom(db: Database) {
+  const tree = gedcomTree(db);
   const text = writeGedcom([
-    header(),
-    ...records,
-    ...media.records,
-    ...links.records,
+    tree.header,
+    ...tree.records,
+    ...tree.photos,
+    ...tree.images,
     line('TRLR')
   ]);
-  return { text, entries: media.entries };
+  return { text, entries: tree.entries };
 }

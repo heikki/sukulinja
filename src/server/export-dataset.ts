@@ -1,5 +1,5 @@
 // A dataset as a GEDZIP: its GEDCOM 7 and every media file it links,
-// the mirror of importing one (ADR-0013).
+// the mirror of importing one (ADR-0013). Or as GEDCOM 5.5.1 for MyHeritage.
 
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
@@ -8,6 +8,7 @@ import { join } from 'node:path';
 
 import type { DatasetRegistry } from './dataset-registry';
 import { exportGedcom } from './gedcom-export';
+import { exportGedcom551 } from './gedcom551';
 import { packGedzip } from './gedzip';
 
 export async function exportDataset(registry: DatasetRegistry, slug: string) {
@@ -26,22 +27,43 @@ export async function exportDataset(registry: DatasetRegistry, slug: string) {
 export const DOWNLOADS = join(homedir(), 'Downloads');
 
 // A name in `dir` no file has yet: `ylonen.gdz`, then `ylonen-2.gdz`, …
-function freePath(dir: string, slug: string) {
+function freePath(dir: string, name: string, ext: string) {
   for (let n = 1; ; n += 1) {
-    const path = join(dir, n === 1 ? `${slug}.gdz` : `${slug}-${n}.gdz`);
+    const path = join(dir, n === 1 ? `${name}${ext}` : `${name}-${n}${ext}`);
     if (!existsSync(path)) return path;
   }
 }
 
-// Exports the dataset into `dir`, and says where.
+// The two exports: the dataset's GEDZIP, and a GEDCOM 5.5.1 file for
+// MyHeritage with what it leaves out.
+export type ExportKind = 'gdz' | 'myheritage';
+
+async function exportOf(
+  registry: DatasetRegistry,
+  slug: string,
+  kind: ExportKind
+) {
+  if (kind === 'gdz') {
+    return {
+      bytes: await exportDataset(registry, slug),
+      left: [],
+      name: slug,
+      ext: '.gdz'
+    };
+  }
+  const { text, left } = exportGedcom551(registry.open(slug));
+  return { bytes: text, left, name: `${slug}-myheritage`, ext: '.ged' };
+}
+
+// Exports the dataset into `dir`, and says where, and what was left out.
 export async function saveExport(
   registry: DatasetRegistry,
   slug: string,
-  dir = DOWNLOADS
+  { dir = DOWNLOADS, kind = 'gdz' }: { dir?: string; kind?: ExportKind } = {}
 ) {
-  const gdz = await exportDataset(registry, slug);
+  const { bytes, left, name, ext } = await exportOf(registry, slug, kind);
   await mkdir(dir, { recursive: true });
-  const path = freePath(dir, slug);
-  await Bun.write(path, gdz);
-  return path;
+  const path = freePath(dir, name, ext);
+  await Bun.write(path, bytes);
+  return { path, left };
 }

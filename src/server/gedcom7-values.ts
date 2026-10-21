@@ -50,7 +50,7 @@ export function enumeration(
 
 // GEDCOM 5.5.1 escapes name a calendar (`@#DJULIAN@ 1 JAN 1700`); GEDCOM 7
 // names it with a word (`JULIAN 1 JAN 1700`).
-const CALENDARS: Array<[string, string]> = [
+export const CALENDARS: Array<[string, string]> = [
   ['@#DGREGORIAN@', 'GREGORIAN'],
   ['@#DJULIAN@', 'JULIAN'],
   ['@#DHEBREW@', 'HEBREW'],
@@ -91,6 +91,17 @@ const LANGUAGE_TAGS: Record<string, string> = {
 
 export function languageTag(language: string) {
   return LANGUAGE_TAGS[language] ?? language;
+}
+
+// A BCP 47 tag's GEDCOM 5.5.1 name: `fi` is `Finnish`.
+export function languageName(tag: string) {
+  const known = Object.entries(LANGUAGE_TAGS).find(([, t]) => t === tag);
+  if (known !== undefined) return known[0];
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'language' }).of(tag) ?? tag;
+  } catch {
+    return tag;
+  }
 }
 
 // GEDCOM rates a citation 0–3. MyHeritage writes 4 for its best, which is

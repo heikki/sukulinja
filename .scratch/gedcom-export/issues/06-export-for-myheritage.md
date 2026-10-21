@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 Blocked by: 04
 
 # Export a GEDCOM 5.5.1 file for MyHeritage
@@ -28,3 +28,19 @@ It isn't known whether MyHeritage takes GEDCOM 7 or a GEDZIP, so beside the `.gd
 ## Check by hand, once
 
 Upload ylonen's export to MyHeritage as a new tree, and note in this ticket whether people, dates, sources, citation notes and the Astia links come through. MyHeritage fetches linked photos during an upload, so watch whether the Astia JPEG links are pulled in as photos. Put an `@` in one note to see whether `@@` is read back.
+
+## Answer
+
+Done, apart from the check by hand. _Export for MyHeritage_ saves `<slug>-myheritage.ged` to Downloads beside the `.gdz`, and its note lists what was left out. The file is the GEDCOM 7 export's lines written back the 5.5.1 way (`src/server/gedcom551.ts`, `gedcom551-writer.ts`), so both exports always carry the same data.
+
+Decided while building:
+
+- **Submitter:** a dataset with none gets `0 @U1@ SUBM` / `1 NAME Sukulinja`, as 5.5.1 requires one.
+- **`ADDR` with no value** stays as MyHeritage writes it: the address on `ADR1` under an empty `ADDR`. Strict 5.5.1 wants a value there, and the validator says so (2,347 times on ylonen, its only finding). Changing it would change what MyHeritage gets back.
+- **`SEX X`**, which 5.5.1 lacks, is written as `U` and counted in the note. ylonen has none.
+- **Lines:** the BOM is kept, as MyHeritage's own export has one. A value that is too long goes on `CONC` lines split between two non-space characters, never inside an `@@`. A `FILE` or `PAGE` too long for a line is written whole and listed. ylonen has none; its longest line is 253 characters.
+- **Inline citations:** an `@VOID@` citation goes back to `SOUR <text>`.
+
+On ylonen: 82,012 lines. Left out: 299 photo links and 1,607 Boxes. The validator finds nothing but the `ADDR` lines.
+
+**Still to do by hand:** upload the export to MyHeritage as a new tree, and note here what comes through: people, dates, sources, citation notes and the Astia links. Also note whether MyHeritage pulls the Astia JPEGs in as photos, and whether an `@` in a note comes back as one `@`.

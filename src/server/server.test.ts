@@ -330,19 +330,31 @@ describe('Exporting a dataset', () => {
       () => null
     );
     await staging.commit();
-    async function exportTree() {
+    async function exportTree(path = 'export') {
       const res = await fetch(
-        new Request('http://localhost/datasets/tree/export', { method: 'POST' })
+        new Request(`http://localhost/datasets/tree/${path}`, {
+          method: 'POST'
+        })
       );
-      return (await res.json()) as { path: string };
+      return (await res.json()) as { path: string; left: string[] };
     }
-    expect(await exportTree()).toEqual({ path: join(exportDir, 'tree.gdz') });
     expect(await exportTree()).toEqual({
-      path: join(exportDir, 'tree-2.gdz')
+      path: join(exportDir, 'tree.gdz'),
+      left: []
+    });
+    expect(await exportTree()).toEqual({
+      path: join(exportDir, 'tree-2.gdz'),
+      left: []
     });
     expect(
       (await readFile(join(exportDir, 'tree.gdz'))).length
     ).toBeGreaterThan(0);
+    expect(await exportTree('export-myheritage')).toEqual({
+      path: join(exportDir, 'tree-myheritage.ged'),
+      left: []
+    });
+    const ged = await readFile(join(exportDir, 'tree-myheritage.ged'), 'utf8');
+    expect(ged).toContain('2 VERS 5.5.1');
   });
 
   test("answers 400 for a dataset that isn't there", async () => {
