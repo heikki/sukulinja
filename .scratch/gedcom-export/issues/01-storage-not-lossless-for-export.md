@@ -125,3 +125,7 @@ Decided 2026-10-21: an export with media is a `.gdz` (GEDCOM 7.0 spec, chapter 4
 
 - Import (MyHeritage → SQLite, CLI + in-app `POST /import`) is built and
   verified — see `src/server/myheritage.ts`, `src/server/import-dataset.ts`.
+
+## Comments
+
+**Decided 2026-10-21: see `docs/adr/0013-database-holds-the-tree-gedzip-carries-it.md`.** Neither A nor B as written: the database becomes the master copy and grows a table or column per kind of data the real exports use (B, scoped), and the import file is not kept. Export is a GEDCOM 7 GEDZIP that round-trips, plus a GEDCOM 5.5.1 `.ged` for MyHeritage. This supersedes "Scan links on citations" above: a Mark is written into the citations themselves (`page` becomes the Astia Image, the imported `PAGE` kept in `imported_page`), not kept in `pins.local.json`. Re-import merges by `UID` / record id and keeps an undo. Next: split into implementation tickets.

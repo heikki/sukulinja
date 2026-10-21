@@ -1,0 +1,48 @@
+# The database holds the whole tree, and a GEDZIP carries it out and back
+
+A dataset's SQLite database stored only what the chart and person panel render: notes, causes of death, the rest of each source and any fact tag outside the import's allow-lists were dropped. The GEDCOM an import read was then discarded, so nothing faithful was left to export from. Links to Astia lived outside the tree in `data/pins.local.json`. And the app is about to write genealogical data of its own: **Citations** made in the **Scan viewer**.
+
+The database is now the dataset's master copy, and a GEDZIP is how all of it leaves the app and comes back:
+
+- **Every kind of GEDCOM data the imports contain gets a table or column.** Scope follows what real exports use, plus what the app adds, not the whole GEDCOM 7 spec. The import lists each standard line it couldn't store, by tag and count. The source file is not kept.
+- **Program-specific `_` lines are dropped at import**, with two exceptions that become standard: `_UID` is stored as the person's `UID`, and the photo `_PRIM` marks is ordered first. GEDCOM 7 takes the first substructure of a kind as the preferred one.
+- **No source program's name appears in the schema.** Column names say what a value is (`uid`, `imported_page`), not who wrote it.
+- **A Mark is written into the citations.** Marking a **Church-book reference**'s record, by hand or by confirming a **Vision match**, writes the link into every citation of that record:
+  - `page` becomes the Astia Image's address.
+  - The `PAGE` the import gave is kept in `imported_page`.
+  - A multimedia link to the Image is added, with its **Box** and the Image's pixel size.
+  - Clearing the Mark puts `imported_page` back.
+  - A Vision match nobody has checked keeps its imported `page` and adds the link with a note saying it wasn't checked.
+  - **Rejections** have no GEDCOM form, so they get a table of their own.
+- **Facts about Volumes stay shared.** **Page pins** and **Record ranges** describe Astia's books, not a tree, so they stay in one local file that every dataset reads, beside the shipped ones. A Mark that gives a Page pin still saves it there.
+- **Re-importing merges, by stable ids.** The source program's part comes from the new export. Citations made in the app go back to the same person, by `UID`, or by record id when there is no `UID`.
+  - **Matching a citation:** an imported citation counts as the stored one when it has the same person, the same source, and the same `PAGE` as the stored `imported_page` (or `page` if the citation was never Marked). The stored citation is kept, Mark and all, so no duplicate is made.
+  - **Duplicates:** an app-made Citation that the new export now has as well is dropped, and its link moves to the imported one.
+  - **Before the merge:** whatever can't be reattached is listed before you confirm.
+  - **Undo:** the import keeps the database from before it, and _Undo last import_ swaps it back.
+- **A database built by an older schema won't open.** The dataset has to be imported again, which merges as above. With the source file gone, there's nothing to upgrade from.
+- **Export writes a GEDCOM 7 GEDZIP** (`gedcom.ged` and its media). It holds everything the database holds:
+  - Each Mark becomes an `OBJE` under its citation, with the Box as a pixel `CROP`.
+  - `imported_page` becomes `NOTE Imported page: <url>`.
+  - An unchecked Vision match gets a `NOTE` saying so.
+  - Importing that GEDZIP gives back the same dataset, reading those notes back into their columns.
+  - A second export writes a GEDCOM 5.5.1 `.ged` for MyHeritage, with no photos and links without Boxes, since 5.5.1 has no standard crop.
+- **Verified by a round trip.** A test imports, exports and imports again and must get the same tree, on fixtures and, run locally, on the real exports. It also fails if the import listed any line it couldn't store. The MyHeritage `.ged` is checked once by uploading it as a new tree.
+
+## Considered options
+
+- **Keep the cleaned import as the master and SQLite as a display copy** (`source.gdz` per dataset, lossless by construction). Rejected: the app's own changes would have to be written into a file and the database rebuilt from it, and a re-import would still overwrite the file. The app is where the tree is worked on, so the master copy belongs there.
+- **One row per GEDCOM line, with today's tables rebuilt from those rows.** Rejected: lossless, but every read and every change goes through a generic tree instead of tables that say what they hold.
+- **Leftovers as JSON beside typed tables.** Rejected: two places to keep in step on every change.
+- **Keep Marks as notes about a record in `pins.local.json`, laid over the citations at read time.** Rejected: the database wouldn't match the GEDZIP, and a citation made in the app would hold its link differently from an imported one.
+- **Keep the source URL in `PAGE` and add the Astia link beside it.** Rejected: the citation should read as what it now cites, the Astia Image. `imported_page` keeps the re-import's match working.
+- **Replace on re-import.** Rejected: it would lose every Citation made in the app.
+- **A full merge with conflict handling.** Deferred: nothing edits imported data yet, so the app's changes are only additions. It can be built on this merge once there's something to conflict.
+- **Keep `_PRIM` in the GEDZIP, declared in the header.** Rejected: putting the photo first says the same thing in standard GEDCOM.
+
+## Consequences
+
+- The vision pass and the Scan viewer write Marks into the dataset's database instead of `pins.local.json`. A one-off script moves today's pins into the citations and is deleted afterwards. Page pins and Record ranges stay in a shared file.
+- A Mark made in one dataset no longer improves another dataset's estimates through Record ranges.
+- Re-reading a citation's record number goes through `imported_page` once the citation is Marked.
+- The schema grows when a new export's import lists lines it couldn't store. Until then, the round-trip test fails.
