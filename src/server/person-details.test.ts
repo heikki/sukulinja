@@ -3,8 +3,8 @@ import { join } from 'node:path';
 import { expect, test } from 'bun:test';
 
 import { memoryAstia } from './citation-scans/memory-astia';
-import { openPins } from './citation-scans/pins';
 import { openScans } from './citation-scans/scans';
+import { pinsOf } from './citation-scans/test-pins';
 import { createCitations } from './citations';
 import { openDb } from './db';
 import { importGedcom } from './gedcom-import';
@@ -14,7 +14,9 @@ import { createPersonDetails } from './person-details';
 // Facts and names never read the pins.
 const UNREAD = memoryAstia({});
 const SCANS = openScans({
-  pins: openPins(join(tmpdir(), 'person-details-unread'), { astia: UNREAD }),
+  pins: pinsOf(join(tmpdir(), 'person-details-unread'), openDb(':memory:'), {
+    astia: UNREAD
+  }),
   astia: UNREAD
 });
 

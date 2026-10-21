@@ -7,7 +7,7 @@ import type { Rescan, StalePin } from '@common/types';
 
 import { fileId, memoryAstia } from './memory-astia';
 import type { MemoryAstia } from './memory-astia';
-import { openPins } from './pins';
+import { openVolumeFacts } from './pins';
 import { checkRescans, routeRescan } from './rescans';
 import { openScanCache } from './scan-cache';
 
@@ -77,7 +77,7 @@ test('names the re-scanned Volume and its stale pins, and nothing else', async (
   const listed = astia();
   listed.rescan('v1', 8);
   const result = await checkRescans(
-    { shipped: SHIPPED, local: LOCAL },
+    { shipped: SHIPPED, local: [LOCAL] },
     async (id) => await listed.peekImages(id),
     async (id) => await listed.volumeImages(id)
   );
@@ -93,7 +93,7 @@ test('names the re-scanned Volume and its stale pins, and nothing else', async (
 test('finds nothing when no pinned Volume was re-scanned', async () => {
   const listed = astia();
   const result = await checkRescans(
-    { shipped: SHIPPED },
+    { shipped: SHIPPED, local: [] },
     async (id) => await listed.peekImages(id),
     async (id) => await listed.volumeImages(id)
   );
@@ -104,10 +104,14 @@ test('finds nothing when no pinned Volume was re-scanned', async () => {
 
 async function app(listed: MemoryAstia) {
   await Bun.write(join(dir, 'pins.local.json'), JSON.stringify(LOCAL));
+  const facts = openVolumeFacts(dir, { astia: listed, base: SHIPPED });
   const shared = {
     astia: listed,
     cache: openScanCache({ astia: listed, root: dir, switches: false }),
-    pins: openPins(dir, { astia: listed, base: SHIPPED })
+    kept: async () => {
+      const { shipped, local } = await facts.kept();
+      return { shipped, local: [local] };
+    }
   };
   async function ask(method: string, volumeId: string) {
     const req = new Request(`http://localhost/astia/volumes/${volumeId}`, {

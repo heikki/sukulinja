@@ -5,8 +5,8 @@ import { afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
 
 import type { Pins } from './locate';
 import { fillFileIds } from './pin-files';
-import { openPins } from './pins';
-import { BOX, listedAstia, ref, vision } from './test-pins';
+import { openVolumeFacts } from './pins';
+import { BOX, listedAstia, ref } from './test-pins';
 
 let dir = '';
 let lists: Record<string, string[]> = {};
@@ -21,19 +21,22 @@ afterEach(async () => {
 });
 
 function open(base: Pins['volumes'] = {}) {
-  return openPins(dir, { astia: ASTIA, base });
+  return openVolumeFacts(dir, { astia: ASTIA, base });
 }
 
 function localFile() {
   return join(dir, 'pins.local.json');
 }
 
-function at(volumeId: string, image: number) {
-  return { volumeId, image };
-}
-
-function elsewhere(volume: string) {
-  return { volume, linked: false };
+// A Page pin for page `page` on the Image of Volume v.
+async function savePage(
+  facts: ReturnType<typeof open>,
+  page: number,
+  image: number,
+  by: 'hand' | 'vision' = 'vision'
+) {
+  const scope = await facts.scopeOf('v', true);
+  await facts.savePagePin(scope, ref(null, page), { volume: 'V', image, by });
 }
 
 // ---------------------------------------------------------------- writing
@@ -42,14 +45,13 @@ test('two openings saving at once both keep their saves', async () => {
   const app = open();
   const pass = open();
   const saves = Array.from({ length: 10 }, (_, i) => [
-    app.recordMark(ref(1000 + i), at('v', i + 1), elsewhere('V')),
-    pass.recordVision(ref(2000 + i), vision('v', i + 1))
+    savePage(app, 100 + i, i + 1, 'hand'),
+    savePage(pass, 200 + i, i + 21)
   ]).flat();
   await Promise.all(saves);
 
-  const { volumes, references } = await open().snapshot();
-  expect(volumes.v!.records).toHaveLength(20);
-  expect(Object.keys(references)).toHaveLength(10);
+  const volumes = await open().volumes();
+  expect(volumes.v!.pages).toHaveLength(20);
   expect(await readdir(dir)).toEqual(['pins.local.json']);
 });
 
@@ -57,9 +59,9 @@ test('a reader never sees half a file', async () => {
   const pins = open();
   const state = { saving: true };
   const saves = Promise.all(
-    Array.from({ length: 10 }, (_, i) =>
-      pins.recordVision(ref(1000 + i), vision('v', i + 1))
-    )
+    Array.from({ length: 10 }, async (_, i) => {
+      await savePage(pins, 100 + i, i + 1);
+    })
   ).finally(() => {
     state.saving = false;
   });
@@ -86,8 +88,8 @@ test('takes over a lock left by a process that died', async () => {
     JSON.stringify({ pid: 1, at: Date.now() - 31_000 })
   );
   const pins = open();
-  await pins.recordVision(ref(150), vision('a', 11));
-  expect((await pins.snapshot()).volumes.a!.records).toHaveLength(1);
+  await savePage(pins, 21, 11);
+  expect((await pins.volumes()).v!.pages).toHaveLength(1);
   expect(await readdir(dir)).toEqual(['pins.local.json']);
 });
 
@@ -97,8 +99,7 @@ test('gives up after 5 s on a lock another save holds', async () => {
     JSON.stringify({ pid: 1, at: Date.now() })
   );
   const since = Date.now();
-  const failed = await open()
-    .recordVision(ref(150), vision('a', 11))
+  const failed = await savePage(open(), 21, 11)
     .then(() => null)
     .catch((err: unknown) => err);
   expect(Date.now() - since).toBeGreaterThanOrEqual(5000);
@@ -135,7 +136,7 @@ async function writeOldFiles() {
 
 test('moves the files saved before pins into pins.local.json', async () => {
   await writeOldFiles();
-  const { volumes, references } = await open({}).snapshot();
+  const { volumes, references } = (await open({}).kept()).local;
 
   expect(volumes.v).toEqual({
     title: 'I Aa:1',
@@ -157,13 +158,10 @@ test('moves the files saved before pins into pins.local.json', async () => {
 
 test('migrates once: a later opening reads pins.local.json as it is', async () => {
   await writeOldFiles();
-  await open({}).recordVision(ref(13), vision('v', 6));
-  const { volumes, references } = await open({}).snapshot();
+  await savePage(open({}), 7, 6);
+  const { volumes, references } = (await open({}).kept()).local;
   expect(Object.keys(references)).toEqual([INDEX_URL]);
-  expect(volumes.v?.records).toEqual([
-    { record: 12, image: 5, by: 'vision' },
-    { record: 13, image: 6, by: 'vision', box: BOX }
-  ]);
+  expect(volumes.v?.pages.map((p) => p.image)).toEqual([2, 6]);
 });
 
 // ---------------------------------------------------------------- file ids
@@ -235,7 +233,7 @@ test('opening the pins fills in file ids before they are first read', async () =
     })
   );
   lists = { a: ['a1', 'a2'] };
-  await open().snapshot();
+  await open().volumes();
   expect(await Bun.file(localFile()).json()).toEqual({
     volumes: { a: { pages: [{ image: 2, pages: [3], fileId: 'a2' }] } },
     references: {}
@@ -250,8 +248,8 @@ test('a fill that fails is logged, and the pins read as they are', async () => {
     ...ASTIA,
     cachedImages: async () => await Promise.reject(new Error('unreadable'))
   };
-  const pins = openPins(dir, { astia: broken, base: {} });
-  expect((await pins.snapshot()).references).toEqual(references);
+  const facts = openVolumeFacts(dir, { astia: broken, base: {} });
+  expect((await facts.kept()).local.references).toEqual(references);
   expect(error).toHaveBeenCalled();
   error.mockRestore();
 });

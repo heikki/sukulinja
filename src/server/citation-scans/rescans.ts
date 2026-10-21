@@ -10,13 +10,13 @@ import type { Astia } from './astia';
 import { isCurrent } from './locate';
 import type { Pins } from './locate';
 import type { LocalPins } from './pin-files';
-import type { PinStore } from './pins';
 import type { ScanCache } from './scan-cache';
 
-// The pins as kept: shipped with the app, and a data folder's own.
+// The pins as kept: shipped with the app, and the data folder's own, in
+// its file and in each dataset's Marks.
 export interface KeptPins {
   shipped: Pins['volumes'];
-  local?: LocalPins;
+  local: LocalPins[];
 }
 
 // One pin on an Image of a Volume, and how it's reported when stale.
@@ -104,7 +104,7 @@ function localEntries(local: LocalPins): Entry[] {
 function entriesOf(pins: KeptPins) {
   return [
     ...volumeEntries(pins.shipped, 'shipped'),
-    ...(pins.local === undefined ? [] : localEntries(pins.local))
+    ...pins.local.flatMap(localEntries)
   ];
 }
 
@@ -183,7 +183,7 @@ function sameList(a: string[], b: string[]) {
 // to: null when Astia lists the Volume as cached.
 export async function rescanOf(
   astia: Astia,
-  pins: PinStore,
+  kept: () => Promise<KeptPins>,
   volumeId: string
 ): Promise<Rescan | null> {
   const [cached, now] = await Promise.all([
@@ -191,7 +191,7 @@ export async function rescanOf(
     astia.peekImages(volumeId)
   ]);
   if (sameList(cached, now)) return null;
-  const entries = entriesOf(await pins.kept()).filter(
+  const entries = entriesOf(await kept()).filter(
     (e) => e.volumeId === volumeId
   );
   return {
@@ -204,7 +204,11 @@ export async function rescanOf(
 // GET the Volume's re-scan not yet switched to, `{ rescan }`; POST to
 // switch to the new filming, answered with its Images' viewer URLs.
 export async function routeRescan(
-  { astia, cache, pins }: { astia: Astia; cache: ScanCache; pins: PinStore },
+  {
+    astia,
+    cache,
+    kept
+  }: { astia: Astia; cache: ScanCache; kept: () => Promise<KeptPins> },
   req: Request,
   volumeId: string
 ) {
@@ -215,5 +219,5 @@ export async function routeRescan(
   if (req.method !== 'GET') {
     return new Response('method not allowed', { status: 405 });
   }
-  return Response.json({ rescan: await rescanOf(astia, pins, volumeId) });
+  return Response.json({ rescan: await rescanOf(astia, kept, volumeId) });
 }

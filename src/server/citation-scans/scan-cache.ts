@@ -20,6 +20,7 @@ import type { ScanCacheStatus } from '@common/types';
 
 import { NoImageError } from './astia';
 import type { Astia, ImageSize } from './astia';
+import { jpegSize } from './jpeg';
 import type { ImageRef } from './reader';
 
 const GB = 1024 ** 3;
@@ -314,6 +315,20 @@ export function openScanCache({
 }
 
 export type ScanCache = ReturnType<typeof openScanCache>;
+
+// The full-size Image's size in pixels, from its JPEG's header, through the
+// cache; null when it can't be had.
+export async function imageSize(cache: ScanCache, at: ImageRef) {
+  const path = await cache
+    .image(at, 'full', new AbortController().signal)
+    .catch(() => null);
+  if (path === null) return null;
+  return jpegSize(
+    await Bun.file(path)
+      .slice(0, 1 << 18)
+      .bytes()
+  );
+}
 
 // GET the status, PUT `{ cap }` of the choices, DELETE to clear the cache;
 // each answers with the status.

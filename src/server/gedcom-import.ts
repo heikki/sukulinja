@@ -21,6 +21,7 @@ import {
   gedcom7Quality,
   languageTag
 } from './gedcom7-values';
+import { linkReader, linkValues } from './import-links';
 import { mediaLinker } from './import-media';
 import type { MediaResolver } from './import-media';
 import { importStatements } from './import-statements';
@@ -127,6 +128,8 @@ export function importGedcom(
     records: objectRecords(roots),
     importNotes
   });
+
+  const readLink = linkReader(roots, lines);
 
   // A record's UID, or a new one: only a UID says reliably who is who from
   // one file to the next (ADR-0013).
@@ -443,6 +446,7 @@ export function importGedcom(
     scopeId: number
   ) {
     takeAll(holder, 'SOUR').forEach((sour, i) => {
+      const link = readLink(sour);
       const c = readCitation(sour);
       const res = sql.insertCitation.run(
         scope,
@@ -454,7 +458,8 @@ export function importGedcom(
         c.quality,
         c.dataDate,
         c.text,
-        i
+        i,
+        ...linkValues(link)
       );
       const citationId = Number(res.lastInsertRowid);
       importNotes(sour, 'citation', citationId);

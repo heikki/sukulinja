@@ -15,7 +15,9 @@ export function datasetRefs(dbPath: string) {
   const db = new Database(dbPath, { readonly: true });
   const rows = db
     .query<{ page: string; text: string | null }, []>(
-      `SELECT page, text FROM citations WHERE page LIKE '%myheritage%collection-%' ORDER BY id`
+      `SELECT COALESCE(imported_page, page) AS page, text FROM citations
+       WHERE COALESCE(imported_page, page) LIKE '%myheritage%collection-%'
+       ORDER BY id`
     )
     .all();
   db.close();

@@ -133,7 +133,7 @@ describe('the answers', () => {
   });
 
   test('a Discard takes the Box back to the estimate, once', async () => {
-    const box = { left: 0.1, top: 0.4, width: 0.3, height: 0.03 };
+    const box = { left: 100, top: 400, width: 300, height: 30 };
     await api.mark(1, { volumeId: VOLUME, image: 7, box });
     const resolved = await api.discard(1, { volumeId: VOLUME, image: 7 });
     expect(resolved).toMatchObject({

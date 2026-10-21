@@ -1,23 +1,34 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { Pins } from './locate';
-import { openPins } from './pins';
+import { openMarks } from './marks';
 import type { BoxAt, MarkTarget } from './pins';
 import shipped from './pins.json';
-import { BOX, listedAstia, ref, vision } from './test-pins';
+import { markKey } from './record';
+import { BOX, citing, listedAstia, pinsOf, ref, vision } from './test-pins';
 
 let dir = '';
 let lists: Record<string, string[]> = {};
+let db: Database = citing([]);
 const ASTIA = listedAstia(() => lists);
+
+// The records the tests mark, each cited once, and a reference with no
+// Record number.
+const CITED = [150, 160, 12, 50, 250, 450, 650, 800, 5000, null].map(
+  (r) => ref(r).url
+);
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'pins-'));
   lists = {};
+  db = citing(CITED, join(dir, 'db.sqlite'));
 });
 afterEach(async () => {
+  db.close();
   await rm(dir, { recursive: true, force: true });
 });
 
@@ -30,7 +41,7 @@ const BASE: Pins['volumes'] = {
 };
 
 function open(base = BASE) {
-  return openPins(dir, { astia: ASTIA, base });
+  return pinsOf(dir, db, { astia: ASTIA, base });
 }
 
 function localFile() {
@@ -59,7 +70,7 @@ function spot(volumeId: string, image: number): BoxAt {
 
 // ---------------------------------------------------------------- reading
 
-test('reads the local pins over the base', async () => {
+test('reads the local pins over the base, but no Record pins left there', async () => {
   await writeLocal({
     volumes: {
       a: {
@@ -79,8 +90,7 @@ test('reads the local pins over the base', async () => {
     ranges: [
       { from: 100, to: 200 },
       { from: 300, to: 310 }
-    ],
-    records: [{ record: 150, image: 10 }]
+    ]
   });
   expect(volumes.b).toEqual({
     title: 'I Aa:2',
@@ -91,7 +101,7 @@ test('reads the local pins over the base', async () => {
 });
 
 test('reads over the shipped pins unless given a base', async () => {
-  const { volumes } = await openPins(dir, { astia: ASTIA }).snapshot();
+  const { volumes } = await pinsOf(dir, db, { astia: ASTIA }).snapshot();
   expect(Object.keys(volumes)).toEqual(Object.keys(shipped.volumes));
 });
 
@@ -103,15 +113,111 @@ test('ships only facts about Volumes, never Record or Reference pins', () => {
   }
 });
 
-test('the stamp changes when another opening saves, and so does the snapshot', async () => {
+test('the stamp changes when another process saves, and so does the snapshot', async () => {
   const app = open();
-  const pass = open();
+  const other = citing([], join(dir, 'db.sqlite'));
+  const pass = pinsOf(dir, other, { astia: ASTIA, base: BASE });
   const before = await app.stamp();
   expect((await app.snapshot()).volumes.b).toBeUndefined();
   await pass.recordVision(ref(5000), vision('b', 4));
   expect(await app.stamp()).not.toBe(before);
   expect((await app.snapshot()).volumes.b?.records).toEqual([
     { record: 5000, image: 4, by: 'vision', box: BOX }
+  ]);
+  other.close();
+});
+
+// ---------------------------------------------------------------- the citations
+
+test('a Mark is written into every citation of the record, which then cites the Image', async () => {
+  lists = { a: Array.from({ length: 20 }, (_, i) => `f${i + 1}`) };
+  const three = citing(
+    [ref(150).url, `${ref(150).url}&lang=fi`, ref(150).url, ref(160).url],
+    join(dir, 'three.sqlite')
+  );
+  const pins = pinsOf(dir, three, { astia: ASTIA, base: BASE });
+  await pins.recordMark(ref(150, 21), { ...at('a', 11), box: BOX }, linked());
+  const rows = three
+    .query(
+      'SELECT page, imported_page, link_image, link_box_left, link_by FROM citations ORDER BY id'
+    )
+    .all();
+  const astia =
+    'https://astia.narc.fi/uusiastia/viewer/?fileId=f11&aineistoId=a';
+  expect(rows).toEqual([
+    {
+      page: astia,
+      imported_page: ref(150).url,
+      link_image: 11,
+      link_box_left: 100,
+      link_by: 'hand'
+    },
+    {
+      page: astia,
+      imported_page: `${ref(150).url}&lang=fi`,
+      link_image: 11,
+      link_box_left: 100,
+      link_by: 'hand'
+    },
+    {
+      page: astia,
+      imported_page: ref(150).url,
+      link_image: 11,
+      link_box_left: 100,
+      link_by: 'hand'
+    },
+    {
+      page: ref(160).url,
+      imported_page: null,
+      link_image: null,
+      link_box_left: null,
+      link_by: null
+    }
+  ]);
+  // Every reference citing the record has the Link.
+  const { references } = await pins.snapshot();
+  expect(Object.keys(references).sort()).toEqual(
+    [ref(150).url, `${ref(150).url}&lang=fi`].sort()
+  );
+
+  expect(await pins.recordDiscard(ref(150, 21), spot('a', 11))).toBe(true);
+  expect(
+    three
+      .query('SELECT page, imported_page, link_by FROM citations ORDER BY id')
+      .all()
+  ).toEqual([
+    { page: ref(150).url, imported_page: null, link_by: null },
+    { page: `${ref(150).url}&lang=fi`, imported_page: null, link_by: null },
+    { page: ref(150).url, imported_page: null, link_by: null },
+    { page: ref(160).url, imported_page: null, link_by: null }
+  ]);
+  three.close();
+});
+
+test('a Vision match keeps the page imported, and a Mark of only the Volume too', async () => {
+  lists = { a: Array.from({ length: 20 }, (_, i) => `f${i + 1}`) };
+  const pins = open();
+  await pins.recordVision(ref(150), vision('a', 11));
+  await pins.recordMark(ref(160), { volumeId: 'b' }, elsewhere('I Aa:2'));
+  expect(
+    db
+      .query(
+        'SELECT page, imported_page, link_volume_id, link_by FROM citations WHERE link_by IS NOT NULL ORDER BY id'
+      )
+      .all()
+  ).toEqual([
+    {
+      page: ref(150).url,
+      imported_page: null,
+      link_volume_id: 'a',
+      link_by: 'vision'
+    },
+    {
+      page: ref(160).url,
+      imported_page: null,
+      link_volume_id: 'b',
+      link_by: 'hand'
+    }
   ]);
 });
 
@@ -162,7 +268,7 @@ test('confirming a vision match by hand keeps its Box', async () => {
   ]);
 });
 
-const DRAWN = { left: 0.2, top: 0.6, width: 0.4, height: 0.04 };
+const DRAWN = { left: 200, top: 600, width: 400, height: 40 };
 
 test('a Mark with a Box saves it on the Record pin', async () => {
   const pins = open();
@@ -236,9 +342,7 @@ test("discarding a Mark's Box takes its pins back, leaving the Page pin", async 
   expect((await pins.snapshot()).references).toEqual({});
   // A Mark taken back is no Rejection: the model may match it again.
   expect(await pins.rejects(index, spot('b', 5))).toBe(false);
-  expect(JSON.parse(await Bun.file(localFile()).text())).not.toHaveProperty(
-    'rejected'
-  );
+  expect(openMarks(db).rejections()).toEqual({});
 });
 
 test('discarding a Vision match rejects it there, and only there', async () => {
@@ -323,7 +427,7 @@ test('a record pinned again moves to its new Image, in any Volume', async () => 
   await pins.recordVision(ref(12), vision('x', 4));
   await pins.recordVision(ref(12), vision('y', 9));
   const { volumes } = await pins.snapshot();
-  expect(volumes.x!.records).toBeUndefined();
+  expect(volumes.x?.records).toBeUndefined();
   expect(volumes.y!.records).toEqual([
     { record: 12, image: 9, by: 'vision', box: BOX }
   ]);
@@ -381,9 +485,12 @@ test('a pin on an Image saves its file id', async () => {
     { record: 150, image: 11, by: 'hand', fileId: 'a-new11' }
   ]);
   // Astia lists no Images for b: no file id to save.
-  expect(Object.values(references)).toEqual([
-    { volumeId: 'b', volume: 'I Aa:1', image: 4, by: 'hand' }
-  ]);
+  expect(references[ref(null).url]).toEqual({
+    volumeId: 'b',
+    volume: 'I Aa:1',
+    image: 4,
+    by: 'hand'
+  });
 });
 
 test('a hand pin made on another filming never keeps a vision pin out', async () => {
@@ -394,22 +501,22 @@ test('a hand pin made on another filming never keeps a vision pin out', async ()
         pages: [
           { image: 12, pages: [30], by: 'hand', fileId: 'a-old12' },
           { image: 20, pages: [40], by: 'hand', fileId: 'a-new20' }
-        ],
-        records: [
-          { record: 150, image: 12, by: 'hand', fileId: 'a-old12' },
-          { record: 160, image: 20, by: 'hand', fileId: 'a-new20' }
         ]
       }
     },
     references: {}
   });
+  const marks = openMarks(db);
+  const on = { volumeId: 'a', volume: 'I Aa:1', by: 'hand' as const };
+  marks.write(markKey(ref(150)), { ...on, image: 12, fileId: 'a-old12' });
+  marks.write(markKey(ref(160)), { ...on, image: 20, fileId: 'a-new20' });
   const pins = open();
   await pins.recordVision(ref(150, 30), vision('a', 13, true));
   await pins.recordVision(ref(160, 40), vision('a', 21, true));
   const a = (await pins.snapshot()).volumes.a!;
   expect(a.records).toEqual([
-    { record: 160, image: 20, by: 'hand', fileId: 'a-new20' },
-    { record: 150, image: 13, by: 'vision', box: BOX, fileId: 'a-new13' }
+    { record: 150, image: 13, by: 'vision', box: BOX, fileId: 'a-new13' },
+    { record: 160, image: 20, by: 'hand', fileId: 'a-new20' }
   ]);
   expect(a.pages).toEqual([
     { image: 10, pages: [20] },
@@ -430,10 +537,7 @@ test('a Rejection holds on the filming it was made on', async () => {
   await pins.recordVision(ref(150), vision('a', 12));
   expect(await pins.recordDiscard(ref(150), spot('a', 12))).toBe(true);
   expect(await pins.rejects(ref(150), spot('a', 12))).toBe(true);
-  const saved = (await Bun.file(localFile()).json()) as {
-    rejected: Record<string, unknown>;
-  };
-  expect(saved.rejected[ref(150).url]).toEqual([
+  expect(openMarks(db).rejections()[ref(150).url]).toEqual([
     { volumeId: 'a', image: 12, fileId: 'a-new12' }
   ]);
   lists = { a: filming('newer') };

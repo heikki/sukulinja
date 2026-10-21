@@ -10,9 +10,17 @@ import { createHash } from 'node:crypto';
 import { rename } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import type { Box } from '@common/types';
-
 import type { EntryName, Household } from './record';
+
+// Where an entry is on an Image, in fractions of its width and height:
+// what a reading gives, whatever size the model read the Image at. A Box
+// saved is in pixels of the full-size Image (see Box).
+export interface Fractions {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
 
 export interface ImageRef {
   volumeId: string;
@@ -57,7 +65,7 @@ export type EntryReading =
       confidence: number;
       bornYear?: number | null;
       date?: string | null;
-      box?: Box | null;
+      box?: Fractions | null;
     }
   | Unreadable;
 

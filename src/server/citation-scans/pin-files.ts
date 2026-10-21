@@ -17,7 +17,7 @@ import type {
   ReferencePin,
   VolumePins
 } from './locate';
-import type { Rejection } from './pins';
+import type { Rejection } from './marks';
 
 const LOCK_RETRY_MS = 50;
 const LOCK_WAIT_MS = 5000;
@@ -25,6 +25,8 @@ const LOCK_WAIT_MS = 5000;
 const LOCK_STALE_MS = 30_000;
 
 // The local file: the pins, and the Rejections by the reference's URL.
+// Record pins, Reference pins and Rejections are now kept in the datasets
+// (marks.ts); the ones left here are those no dataset cites.
 export interface LocalPins extends Pins {
   rejected: Record<string, Rejection[]>;
 }

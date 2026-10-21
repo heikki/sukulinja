@@ -8,6 +8,7 @@
 // record that holds the FILEs (GEDCOM 7), and the link then holds its CROP
 // and TITL.
 
+import { astiaImageOf } from './astia-links';
 import { childValue, findChild, findChildren } from './gedcom-parser';
 import type { GedNode } from './gedcom-parser';
 
@@ -39,10 +40,21 @@ export function mimeOf(form: string | null) {
 // The OBJE records of a file, by xref, for the links that point at them.
 export type ObjectRecords = Map<string, GedNode>;
 
+// An Astia Image a Mark links is no media of the dataset's (import-links.ts).
+function isAstiaImage(record: GedNode) {
+  const file = findChild(record, 'FILE');
+  return (
+    file?.value !== undefined &&
+    astiaImageOf(file.value, childValue(file, 'TITL') ?? null) !== null
+  );
+}
+
 export function objectRecords(roots: GedNode[]): ObjectRecords {
   return new Map(
     roots
-      .filter((r) => r.tag === 'OBJE' && r.xref !== undefined)
+      .filter(
+        (r) => r.tag === 'OBJE' && r.xref !== undefined && !isAstiaImage(r)
+      )
       .map((r) => [r.xref!, r])
   );
 }

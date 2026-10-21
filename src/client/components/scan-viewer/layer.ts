@@ -3,14 +3,14 @@ import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
-import type { Point, Transform } from '@client/pan-zoom';
+import type { Point, Transform, Viewport } from '@client/pan-zoom';
 import { appState } from '@client/state';
 import type { AppState } from '@client/state';
 import type { Box, PersonRow } from '@common/types';
 
 import { entriesOn, rowName } from './citations';
 import { scanLayerStyles } from './edit-styles';
-import { boxFromStage, boxOnStage, clampBox, newBox } from './frame';
+import { boxFromStage, boxOnStage, clampBox, newBox, wholeBox } from './frame';
 import type { Frame } from './frame';
 import { linkItems } from './menu';
 
@@ -29,11 +29,18 @@ interface BoxDrag {
   start: Box;
 }
 
-// The Box a drag of `grip` by `d` (in fractions of the Image) gives.
-function dragged(start: Box, grip: Grip, d: Point): Box {
+// The Box a drag of `grip` by `d` (in pixels of the Image of `size`)
+// gives.
+function dragged(start: Box, grip: Grip, d: Point, size: Viewport): Box {
   if (grip === 'move') {
-    const left = Math.min(Math.max(0, start.left + d.x), 1 - start.width);
-    const top = Math.min(Math.max(0, start.top + d.y), 1 - start.height);
+    const left = Math.min(
+      Math.max(0, start.left + d.x),
+      size.width - start.width
+    );
+    const top = Math.min(
+      Math.max(0, start.top + d.y),
+      size.height - start.height
+    );
     return { ...start, left, top };
   }
   let { left, top } = start;
@@ -43,7 +50,10 @@ function dragged(start: Box, grip: Grip, d: Point): Box {
   if (grip.includes('e')) right = Math.max(right + d.x, left);
   if (grip.includes('n')) top = Math.min(top + d.y, bottom);
   if (grip.includes('s')) bottom = Math.max(bottom + d.y, top);
-  return clampBox({ left, top, width: right - left, height: bottom - top });
+  return clampBox(
+    { left, top, width: right - left, height: bottom - top },
+    size
+  );
 }
 
 // Editing the current source's Link over the scan: the menu a right-click
@@ -136,18 +146,24 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
         width: 0,
         height: 0
       },
-      view,
-      frame
+      view
     );
-    this.live = dragged(drag.start, drag.grip, { x: d.left, y: d.top });
+    this.live = dragged(
+      drag.start,
+      drag.grip,
+      { x: d.left, y: d.top },
+      frame.size
+    );
   };
 
   private readonly onUp = () => {
-    const { drag, live } = this;
+    const { drag, live, frame } = this;
     if (drag === null) return;
     this.drag = null;
     this.live = null;
-    if (live !== null) this.viewer.setBox(live);
+    if (live !== null && frame !== null) {
+      this.viewer.setBox(wholeBox(live, frame.size));
+    }
   };
 
   private readonly onPopupClose = () => {
@@ -177,14 +193,15 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     }
     const point = boxFromStage(
       { left: at.x, top: at.y, width: 0, height: 0 },
-      view,
-      frame
+      view
     );
     const rows = this.viewer.citations.get();
     const others = Array.isArray(rows)
       ? entriesOn(rows, this.viewer.image.get()).map((e) => e.box)
       : [];
-    this.viewer.setBox(newBox({ x: point.left, y: point.top }, others));
+    this.viewer.setBox(
+      newBox({ x: point.left, y: point.top }, others, frame.size)
+    );
   }
 
   private renderPopup() {
@@ -225,7 +242,7 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
       : null;
     const box = this.live ?? pending;
     if (box === null) return nothing;
-    const at = boxOnStage(box, view, frame);
+    const at = boxOnStage(box, view);
     return html`
       <div
         class="box"

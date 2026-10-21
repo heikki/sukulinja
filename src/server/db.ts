@@ -151,9 +151,33 @@ const SCHEMA_SQL = `
     quality INTEGER,
     data_date TEXT,
     text TEXT,
-    sort_order INTEGER NOT NULL DEFAULT 0
+    -- A Mark's citation cites the Astia Image: page is its address,
+    -- and the page the import gave is kept here.
+    imported_page TEXT,
+    -- The Astia Image or Volume a Mark or Vision match links, with the
+    -- entry's Box in pixels of the full-size Image.
+    link_volume_id TEXT,
+    link_volume TEXT,
+    link_image INTEGER,
+    link_file_id TEXT,
+    link_box_left INTEGER,
+    link_box_top INTEGER,
+    link_box_width INTEGER,
+    link_box_height INTEGER,
+    link_by TEXT CHECK (link_by IN ('hand','vision')),
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    CHECK ((link_volume_id IS NULL) = (link_by IS NULL))
   );
   CREATE INDEX IF NOT EXISTS citations_scope_idx ON citations(scope_type, scope_id);
+  -- Vision matches taken back by hand: the reference isn't on that Image.
+  CREATE TABLE IF NOT EXISTS rejections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    reference_url TEXT NOT NULL,
+    volume_id TEXT NOT NULL,
+    image INTEGER NOT NULL,
+    file_id TEXT
+  );
+  CREATE INDEX IF NOT EXISTS rejections_url_idx ON rejections(reference_url);
 
   CREATE TABLE IF NOT EXISTS shared_notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -195,7 +219,7 @@ const SCHEMA_SQL = `
 // Raised whenever the schema changes. A dataset's database holds the whole
 // tree and the file it came from isn't kept, so an older database can't be
 // upgraded: the dataset is imported again (ADR-0013).
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 // A dataset whose database an older version of the app built.
 export class OutdatedDatasetError extends Error {}
@@ -228,6 +252,8 @@ function schemaVersion(db: Database) {
 export function openDb(path: string): Database {
   const db = new Database(path, { create: true });
   db.run('PRAGMA foreign_keys = ON;');
+  // The app and the vision pass write Marks at once, from two processes.
+  db.run('PRAGMA busy_timeout = 5000;');
   if (hasTables(db)) {
     const version = schemaVersion(db);
     if (version !== SCHEMA_VERSION) {

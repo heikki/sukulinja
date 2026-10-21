@@ -112,8 +112,11 @@ function onePerRecord<T extends { row: CitationDbRow }>(cited: T[]) {
 }
 
 export function createCitations(db: Database, scans: Scans) {
+  // A Mark makes its citation cite the Astia Image; the panel shows the
+  // page imported, which the reference is read from (ADR-0013).
   const SELECT = `SELECT c.id, c.scope_id AS personId, s.title AS source,
-    c.page, c.text FROM citations c LEFT JOIN sources s ON s.id = c.source_id`;
+    COALESCE(c.imported_page, c.page) AS page, c.text
+    FROM citations c LEFT JOIN sources s ON s.id = c.source_id`;
   const ofPersonQuery = db.prepare<CitationDbRow, [number]>(
     `${SELECT} WHERE c.scope_type = 'person' AND c.scope_id = ?
      ORDER BY c.sort_order`
@@ -144,7 +147,7 @@ export function createCitations(db: Database, scans: Scans) {
     return rows.map((row) => ({ row, book: bookOf(row) }));
   }
 
-  // Kept per Volume until a Mark or a vision save changes the local pins.
+  // Kept per Volume until a Mark or a vision save changes the pins.
   const kept = new Map<
     string,
     { stamp: string; rows: Promise<VolumeCitation[] | null> }

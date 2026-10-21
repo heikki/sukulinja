@@ -76,6 +76,16 @@ export interface CitationRow {
   quality: number | null;
   data_date: string | null;
   text: string | null;
+  imported_page: string | null;
+  link_volume_id: string | null;
+  link_volume: string | null;
+  link_image: number | null;
+  link_file_id: string | null;
+  link_box_left: number | null;
+  link_box_top: number | null;
+  link_box_width: number | null;
+  link_box_height: number | null;
+  link_by: 'hand' | 'vision' | null;
 }
 
 export interface NoteRow {

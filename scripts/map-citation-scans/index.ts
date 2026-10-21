@@ -15,9 +15,11 @@ import { parseArgs } from 'node:util';
 
 import type { Link, LinkResolution } from '@common/types';
 import { openAstia } from '@server/citation-scans/astia';
-import { openPins } from '@server/citation-scans/pins';
+import { openMarks } from '@server/citation-scans/marks';
+import { openPins, openVolumeFacts } from '@server/citation-scans/pins';
 import type { ChurchBookRef } from '@server/citation-scans/record';
 import { openScans } from '@server/citation-scans/scans';
+import { openDb } from '@server/db';
 
 import { churchBookRefs } from './citations';
 
@@ -114,7 +116,12 @@ async function main() {
   }
 
   const astia = openAstia(join(root, '.astia-cache'));
-  const scans = openScans({ pins: openPins(root, { astia }), astia });
+  // References read from a GEDCOM file, in no dataset: no Marks.
+  const pins = openPins(
+    openVolumeFacts(root, { astia }),
+    openMarks(openDb(':memory:'))
+  );
+  const scans = openScans({ pins, astia });
   const resolutions = await Promise.all(refs.map((c) => scans.resolveRef(c)));
   const results = refs.map((c, i) => ({ ...c, ...resolutions[i] }));
   await Bun.write(outFile, `${JSON.stringify(results, null, 2)}\n`);

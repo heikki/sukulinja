@@ -1,18 +1,25 @@
 // The bulk pass: match every Church-book reference not already pinned to
-// its exact Image with the Reader, and save the confirmed ones into the data
-// folder, where the app reads them. It is resumable: every reading is
-// cached, and what was saved is pinned, so a re-run skips it.
+// its exact Image with the Reader, and save the confirmed ones into the
+// dataset's citations, where the app reads them. It is resumable: every
+// reading is cached, and what was saved is pinned, so a re-run skips it.
 
 import { join } from 'node:path';
+import type { Database } from 'bun:sqlite';
 
 import { openAstia, viewerUrl } from '@server/citation-scans/astia';
 import type { Astia } from '@server/citation-scans/astia';
+import type { Viewport } from '@server/citation-scans/jpeg';
+import { openMarks } from '@server/citation-scans/marks';
 import { matchRef } from '@server/citation-scans/matcher';
 import type { Match, Unconfirmed } from '@server/citation-scans/matcher';
-import { openPins } from '@server/citation-scans/pins';
+import { openPins, openVolumeFacts } from '@server/citation-scans/pins';
 import type { PinStore } from '@server/citation-scans/pins';
 import { cachedReader } from '@server/citation-scans/reader';
-import type { Reader } from '@server/citation-scans/reader';
+import type {
+  Fractions,
+  ImageRef,
+  Reader
+} from '@server/citation-scans/reader';
 import { RIPPI_COLLECTION } from '@server/citation-scans/record';
 import type { ChurchBookRef } from '@server/citation-scans/record';
 import { openScans } from '@server/citation-scans/scans';
@@ -24,8 +31,13 @@ export type Books = 'rippikirjat' | 'index';
 
 export interface RunOptions {
   root: string;
+  // The dataset's database, which the matches are saved into.
+  db: Database;
   refs: ChurchBookRef[];
   reader: Reader;
+  // The full-size Image's size, which a Box is saved in pixels of; null
+  // when it can't be had.
+  sizeOf: (at: ImageRef) => Promise<Viewport | null>;
   // By default over HTTP, kept in the data folder.
   astia?: Astia;
   dryRun?: boolean;
@@ -161,6 +173,39 @@ async function skipped(
   return { key: `${kindOf(ref)} ✗ ${skip}`, tried: false, saved: false, entry };
 }
 
+// The Box in pixels of the full-size Image, from the reading's fractions.
+function inPixels(box: Fractions, size: Viewport) {
+  const left = Math.round(box.left * size.width);
+  const top = Math.round(box.top * size.height);
+  const right = Math.round((box.left + box.width) * size.width);
+  const bottom = Math.round((box.top + box.height) * size.height);
+  return {
+    left,
+    top,
+    width: Math.max(1, Math.min(size.width, right) - left),
+    height: Math.max(1, Math.min(size.height, bottom) - top)
+  };
+}
+
+async function save(
+  options: RunOptions,
+  pins: PinStore,
+  ref: ChurchBookRef,
+  match: Extract<Match, { confirmed: true }>
+) {
+  if (options.dryRun === true) return !(await pins.rejects(ref, match));
+  const size = await options.sizeOf(match);
+  if (size === null) {
+    throw new Error(
+      `No size for Image ${match.image} of Volume ${match.volumeId}`
+    );
+  }
+  return await pins.recordVision(ref, {
+    ...match,
+    box: inPixels(match.box, size)
+  });
+}
+
 async function settle(
   options: RunOptions,
   { pins, astia }: Pass,
@@ -169,10 +214,7 @@ async function settle(
 ): Promise<Done> {
   const key = `${kindOf(ref)} ${match.confirmed ? 'confirmed' : match.reason}`;
   if (match.confirmed) {
-    const saved =
-      options.dryRun === true
-        ? !(await pins.rejects(ref, match))
-        : await pins.recordVision(ref, match);
+    const saved = await save(options, pins, ref, match);
     if (saved) return { key, tried: true, saved: true, entry: null };
     const { volumeId, volume, image } = match;
     const taken = { confirmed: false as const, reason: 'rejected' as const };
@@ -226,7 +268,10 @@ async function matchOne(
 export async function runMatching(options: RunOptions): Promise<RunResult> {
   const { root } = options;
   const astia = options.astia ?? openAstia(join(root, '.astia-cache'));
-  const pins = openPins(root, { astia });
+  const pins = openPins(
+    openVolumeFacts(root, { astia }),
+    openMarks(options.db)
+  );
   const scans = openScans({ pins, astia });
   const reader = cachedReader(options.reader, join(root, '.vision-readings'));
   if (options.dryRun !== true) {

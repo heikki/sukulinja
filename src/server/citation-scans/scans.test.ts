@@ -1,13 +1,15 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { Astia } from './astia';
+import { openMarks } from './marks';
+import type { CitationLink } from './marks';
 import { memoryAstia } from './memory-astia';
 import type { MemoryVolume } from './memory-astia';
-import { openPins } from './pins';
-import { churchBookRefOf, parseChurchBookRef } from './record';
+import { churchBookRefOf, markKey, parseChurchBookRef } from './record';
 import { openScans } from './scans';
 import {
   rippiCitation as citation,
@@ -15,20 +17,29 @@ import {
   juvaAstia,
   VOLUMES
 } from './test-parish';
+import { citing, pinsOf } from './test-pins';
 
 let dir = '';
+// The dataset citing every reference a test reads (refOf).
+let db: Database = citing([]);
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'scans-'));
+  db = citing([], join(dir, 'db.sqlite'));
 });
 afterEach(async () => {
+  db.close();
   await rm(dir, { recursive: true, force: true });
 });
+
+function pins(astia: Astia = juvaAstia()) {
+  return pinsOf(dir, db, { astia });
+}
 
 // References resolved with the pins saved so far; Juva's archive as the
 // test-parish gives it, unless another Astia is given.
 function scans(astia: Astia = juvaAstia()) {
-  return openScans({ pins: openPins(dir, { astia }), astia });
+  return openScans({ pins: pins(astia), astia });
 }
 
 // Juva's archive holding just these Volumes.
@@ -40,8 +51,24 @@ async function writeLocal(volumes: unknown) {
   await Bun.write(join(dir, 'pins.local.json'), JSON.stringify({ volumes }));
 }
 
+// The citation's reference, the dataset citing it.
 function refOf(c: { page: string; text: string }) {
+  const cited = db
+    .query('SELECT 1 FROM citations WHERE page = ? OR imported_page = ?')
+    .get(c.page, c.page);
+  if (cited === null) {
+    db.run(
+      "INSERT INTO citations (scope_type, scope_id, page, text) VALUES ('person', 1, ?, ?)",
+      [c.page, c.text]
+    );
+  }
   return churchBookRefOf(c.page, c.text)!;
+}
+
+// The dataset's citations of `c` hold the link, as a Mark or Vision match
+// saved them.
+function linkedAs(c: { page: string; text: string }, link: CitationLink) {
+  openMarks(db).write(markKey(refOf(c)), link);
 }
 
 async function linksOf(c: { page: string; text: string }, astia?: Astia) {
@@ -61,8 +88,7 @@ test('marking a record with a Record number saves a hand Record pin', async () =
       certainty: 'marked'
     })
   ]);
-  const volume = (await openPins(dir, { astia: juvaAstia() }).snapshot())
-    .volumes['juva-1']!;
+  const volume = (await pins().snapshot()).volumes['juva-1']!;
   expect(volume.records).toEqual([
     { record: 5000, image: 7, by: 'hand', fileId: 'juva-1-f7' }
   ]);
@@ -89,11 +115,7 @@ test('a record marked in another Book gets a Reference pin and a Record pin ther
       certainty: 'marked'
     })
   ]);
-  expect(
-    Object.values(
-      (await openPins(dir, { astia: juvaAstia() }).snapshot()).references
-    )
-  ).toEqual([
+  expect(Object.values((await pins().snapshot()).references)).toEqual([
     {
       volumeId: 'juva-2',
       volume: VOLUMES['juva-2'],
@@ -102,10 +124,9 @@ test('a record marked in another Book gets a Reference pin and a Record pin ther
       fileId: 'juva-2-f3'
     }
   ]);
-  expect(
-    (await openPins(dir, { astia: juvaAstia() }).snapshot()).volumes['juva-2']!
-      .records
-  ).toEqual([{ record: 5000, image: 3, by: 'hand', fileId: 'juva-2-f3' }]);
+  expect((await pins().snapshot()).volumes['juva-2']!.records).toEqual([
+    { record: 5000, image: 3, by: 'hand', fileId: 'juva-2-f3' }
+  ]);
 });
 
 test('a hand marking extends the Record range, routing records in between', async () => {
@@ -121,10 +142,9 @@ test('a hand marking extends the Record range, routing records in between', asyn
   expect(await linksOf(between)).toEqual([
     expect.objectContaining({ volumeId: 'juva-1' })
   ]);
-  expect(
-    (await openPins(dir, { astia: juvaAstia() }).snapshot()).volumes['juva-1']!
-      .ranges
-  ).toEqual([{ from: 1000, to: 2500 }]);
+  expect((await pins().snapshot()).volumes['juva-1']!.ranges).toEqual([
+    { from: 1000, to: 2500 }
+  ]);
 });
 
 test('a Record range is never extended across another Volume', async () => {
@@ -143,20 +163,17 @@ test('a Record range is never extended across another Volume', async () => {
       certainty: 'marked'
     })
   ]);
-  const { volumes } = await openPins(dir, { astia: juvaAstia() }).snapshot();
+  const { volumes } = await pins().snapshot();
   expect(volumes['juva-1']!.ranges).toEqual([{ from: 1000, to: 2000 }]);
   expect(volumes['juva-2']!.ranges).toEqual([{ from: 3000, to: 3500 }]);
 });
 
+const BOX = { left: 100, top: 400, width: 500, height: 50 };
+const JUVA_1 = { volumeId: 'juva-1', volume: VOLUMES['juva-1'] };
+
 test('a hand marking replaces a vision match', async () => {
-  const box = { left: 0.1, top: 0.4, width: 0.5, height: 0.05 };
-  await writeLocal({
-    'juva-1': {
-      pages: [],
-      records: [{ record: 5000, image: 4, by: 'vision', box }]
-    }
-  });
   const marked = citation(5000, '1790 - 1796', 12);
+  linkedAs(marked, { ...JUVA_1, image: 4, by: 'vision', box: BOX });
   expect(await linksOf(marked)).toEqual([
     expect.objectContaining({ image: 4, certainty: 'vision' })
   ]);
@@ -171,14 +188,15 @@ test('a hand marking replaces a vision match', async () => {
 });
 
 test('a vision pin without a box is left out, a hand one without is Marked Image', async () => {
-  await writeLocal({
-    'juva-1': {
-      pages: [],
-      records: [
-        { record: 5000, image: 4, by: 'vision' },
-        { record: 5001, image: 6, by: 'hand' }
-      ]
-    }
+  linkedAs(citation(5000, '1790 - 1796', 12), {
+    ...JUVA_1,
+    image: 4,
+    by: 'vision'
+  });
+  linkedAs(citation(5001, '1790 - 1796', 12), {
+    ...JUVA_1,
+    image: 6,
+    by: 'hand'
   });
   expect(await linksOf(citation(5000, '1790 - 1796', 12))).toEqual([
     expect.objectContaining({ image: 12, certainty: 'estimated' })
@@ -204,9 +222,7 @@ test('a Mark of only the Volume saves a hand Reference pin and nothing else', as
       certainty: 'marked'
     })
   ]);
-  const { volumes, references } = await openPins(dir, {
-    astia: juvaAstia()
-  }).snapshot();
+  const { volumes, references } = await pins().snapshot();
   expect(Object.values(references)).toEqual([
     { volumeId: 'juva-2', volume: VOLUMES['juva-2'], by: 'hand' }
   ]);
@@ -244,20 +260,34 @@ test('a Mark of only the Volume is refused outside the parish, and an Image only
 
 test('an entry box must lie on its Image', async () => {
   const ref = refOf(citation(5000, '1790 - 1796', 12));
-  const box = { left: 0.8, top: 0.5, width: 0.3, height: 0.05 };
+  const box = { left: 800, top: 500, width: 300, height: 50 };
+  // An Image 1000 pixels wide.
+  const sized = openScans({
+    pins: pins(),
+    astia: juvaAstia(),
+    sizeOf: async () => await Promise.resolve({ width: 1000, height: 800 })
+  });
+  const off = 'The entry box must lie on the Image, in whole pixels.';
   expect(
-    await scans().markRef(ref, { volumeId: 'juva-1', image: 7, box })
-  ).toEqual({ rejected: 'The entry box must lie on the Image.' });
+    await sized.markRef(ref, { volumeId: 'juva-1', image: 7, box })
+  ).toEqual({ rejected: off });
   expect(
-    await scans().markRef(ref, {
+    await sized.markRef(ref, {
       volumeId: 'juva-1',
-      box: { ...box, left: 0.1 }
+      image: 7,
+      box: { ...box, left: 100.5 }
+    })
+  ).toEqual({ rejected: off });
+  expect(
+    await sized.markRef(ref, {
+      volumeId: 'juva-1',
+      box: { ...box, left: 100 }
     })
   ).toEqual({ rejected: 'An entry box needs its Image.' });
-  const marked = await scans().markRef(ref, {
+  const marked = await sized.markRef(ref, {
     volumeId: 'juva-1',
     image: 7,
-    box: { ...box, left: 0.1 }
+    box: { ...box, left: 100 }
   });
   expect(marked).toMatchObject({ links: [{ precision: 'entry', image: 7 }] });
 });
@@ -302,15 +332,11 @@ test('the Volumes to choose from leave out those not digitized', async () => {
 test('a Reference pin without an Image marks only the Volume', async () => {
   const cited = citation(5000, '1790 - 1796', null);
   const reference = { ...cited, page: cited.page.replace('itemId=5000&', '') };
-  await Bun.write(
-    join(dir, 'pins.local.json'),
-    JSON.stringify({
-      volumes: {},
-      references: {
-        [reference.page]: { volumeId: 'juva-2', volume: VOLUMES['juva-2'] }
-      }
-    })
-  );
+  linkedAs(reference, {
+    volumeId: 'juva-2',
+    volume: VOLUMES['juva-2'],
+    by: 'hand'
+  });
   const links = await linksOf(reference);
   expect(links).toEqual([
     expect.objectContaining({
@@ -323,14 +349,15 @@ test('a Reference pin without an Image marks only the Volume', async () => {
 });
 
 test('confirming a vision match by hand keeps its box', async () => {
-  const box = { left: 0.1, top: 0.4, width: 0.5, height: 0.05 };
-  await writeLocal({
-    'juva-1': {
-      pages: [],
-      records: [{ record: 5000, image: 4, by: 'vision', box }]
-    }
-  });
+  const box = BOX;
   const marked = citation(5000, '1790 - 1796', 12);
+  linkedAs(marked, {
+    ...JUVA_1,
+    image: 4,
+    by: 'vision',
+    box,
+    fileId: 'juva-1-f4'
+  });
   await scans().markRef(refOf(marked), { volumeId: 'juva-1', image: 4 });
   expect(await linksOf(marked)).toEqual([
     expect.objectContaining({
@@ -343,31 +370,19 @@ test('confirming a vision match by hand keeps its box', async () => {
 });
 
 test('a vision Reference pin confirmed by hand keeps its box', async () => {
-  const box = { left: 0.1, top: 0.4, width: 0.5, height: 0.05 };
+  const box = BOX;
   // Vision Reference pins are of references with no Record number.
   const cited = citation(5000, '1790 - 1796', null);
   const marked = { ...cited, page: cited.page.replace('itemId=5000&', '') };
-  await Bun.write(
-    join(dir, 'pins.local.json'),
-    JSON.stringify({
-      volumes: {},
-      references: {
-        [marked.page]: {
-          volumeId: 'juva-2',
-          volume: VOLUMES['juva-2'],
-          image: 3,
-          by: 'vision',
-          box
-        }
-      }
-    })
-  );
+  linkedAs(marked, {
+    volumeId: 'juva-2',
+    volume: VOLUMES['juva-2'],
+    image: 3,
+    by: 'vision',
+    box
+  });
   await scans().markRef(refOf(marked), { volumeId: 'juva-2', image: 3 });
-  expect(
-    Object.values(
-      (await openPins(dir, { astia: juvaAstia() }).snapshot()).references
-    )
-  ).toEqual([
+  expect(Object.values((await pins().snapshot()).references)).toEqual([
     {
       volumeId: 'juva-2',
       volume: VOLUMES['juva-2'],
