@@ -13,7 +13,7 @@ Importing into an existing dataset replaces it (`src/server/import-dataset.ts` b
 - **Merge**, building the new dataset in staging as now, from the new export, then carrying over from the current one:
   - **Marks**: each imported citation whose person, source and `PAGE` match a stored citation's `imported_page` (or `page`, if never Marked) keeps the stored citation's link, `page` and `imported_page`.
   - **Repeated citations**: person + source + page isn't unique (ylonen has 28 such groups, 91 citations). Within a group, pair them in stored order, the first with the first; any left over on either side are added or listed as gone. Never merge them into one.
-  - **Citations made in the app**: reattached to the same person by `UID`, or by xref when there is no `UID`.
+  - **Citations made in the app**: reattached to the same person by `UID`, or by xref for a file that carries no `UID`s. The spec doesn't promise xrefs survive between files, so the xref fallback is a best effort.
   - **Duplicates**: an app-made Citation with the same person, source and page as one in the new export is dropped, and its link moves to the imported one.
   - **Rejections** carry over by reference.
 - **Ask before publishing.** The import shows what came from the export (people and citations added and gone), what was kept from the app (Citations, Marks), and what can't be reattached because its person or record is gone, then Merge or Cancel.
