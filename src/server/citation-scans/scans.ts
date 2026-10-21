@@ -53,6 +53,9 @@ function byYears(a: Volume, b: Volume) {
   return (a.years?.from ?? Infinity) - (b.years?.from ?? Infinity);
 }
 
+const OLD_FILMING =
+  'Astia has re-scanned this Volume. It can be changed once switched to the new filming.';
+
 // References resolved with the pins saved so far, against the Astia given.
 export function openScans({ pins, astia }: { pins: PinStore; astia: Astia }) {
   // Where the reference links, with the pins saved so far. A request to
@@ -98,6 +101,15 @@ export function openScans({ pins, astia }: { pins: PinStore; astia: Astia }) {
 
   // The Volumes the reference links by the Book it cites: marking an
   // Image in one of them saves a Page pin.
+  // Whether the Volume's cached list is of a filming Astia has replaced, as
+  // found this run: it's read-only until switched, as what's saved on it
+  // would be left out then. A re-scan changes every file id, so its first
+  // tells.
+  async function onOldFilming(volumeId: string) {
+    const first = (await astia.volumeImages(volumeId))[0];
+    return first !== undefined && (await astia.isGone(volumeId, first));
+  }
+
   async function linkedVolumes(ref: ChurchBookRef) {
     const matched = await resolveChurchBookRef(astia, ref, await byBook(pins));
     const links = 'links' in matched ? matched.links : [];
@@ -107,8 +119,9 @@ export function openScans({ pins, astia }: { pins: PinStore; astia: Astia }) {
   return {
     resolveRef,
 
-    // Changes when a save changes what references resolve to.
-    stamp: () => pins.stamp(),
+    // Changes when a save, or a Volume's list kept anew, changes what
+    // references resolve to.
+    stamp: async () => `${await pins.stamp()}/${astia.refreshed()}`,
 
     // Each reference's Link in the Volume, or null for one resolving
     // elsewhere; null for them all when the Volume is in none of their
@@ -180,6 +193,7 @@ export function openScans({ pins, astia }: { pins: PinStore; astia: Astia }) {
       }
       const boxed = boxProblem(target);
       if (boxed !== null) return { rejected: boxed };
+      if (await onOldFilming(target.volumeId)) return { rejected: OLD_FILMING };
       const { image } = target;
       if (image !== undefined) {
         const count = (await astia.volumeImages(target.volumeId)).length;
@@ -195,6 +209,7 @@ export function openScans({ pins, astia }: { pins: PinStore; astia: Astia }) {
     // Takes back the reference's Box at `at`, and gives its links as they
     // now resolve: its estimate, or a pin left without a Box.
     async discardRef(ref: ChurchBookRef, at: BoxAt) {
+      if (await onOldFilming(at.volumeId)) return { rejected: OLD_FILMING };
       if (!(await pins.recordDiscard(ref, at))) {
         return { rejected: 'There is no box there to discard.' };
       }

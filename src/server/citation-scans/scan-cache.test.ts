@@ -306,6 +306,22 @@ describe('a re-scanned Volume', () => {
     );
   });
 
+  test("doesn't ask Astia for an Image a peek found gone", async () => {
+    const { astia, cache: scans } = rescanned(false);
+    await scans.image(at(2), 'full', signal);
+    astia.rescan('301', 8);
+    await astia.peekImages('301');
+    const failed = await scans
+      .image(at(5), 'thumb', signal)
+      .catch((err: unknown) => err);
+    expect(failed).toBeInstanceOf(NoImageError);
+    expect(astia.asked).not.toContain('bytes 301-t5');
+    // One on disk still shows.
+    expect(await scans.image(at(2), 'full', signal)).toBe(
+      join(dir, '.astia-images', '301-f2.jpg')
+    );
+  });
+
   test('has no Image past the new filming', async () => {
     const { astia, cache: scans } = rescanned();
     astia.rescan('301', 8);

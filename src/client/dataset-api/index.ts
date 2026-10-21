@@ -9,6 +9,7 @@ import type {
   FamilyRow,
   PersonDetails,
   PersonRow,
+  Rescan,
   VolumeChoices,
   VolumeCitation
 } from '@common/types';
@@ -64,6 +65,14 @@ export interface DatasetApi {
   ) => Promise<VolumeCitation[]>;
   // Astia's viewer URL for each Image of a Volume, in order.
   volumeImages: (volumeId: string, signal?: AbortSignal) => Promise<string[]>;
+  // Astia's re-scan of the Volume not yet switched to, and what switching
+  // leaves out; null when there's none.
+  volumeRescan: (
+    volumeId: string,
+    signal?: AbortSignal
+  ) => Promise<Rescan | null>;
+  // Switches the Volume to Astia's new filming: its Images' viewer URLs.
+  switchFilming: (volumeId: string) => Promise<string[]>;
   // An Image as the app serves and caches it; `retry` makes a failed load
   // ask again.
   imageUrl: (volumeId: string, n: number, retry: number) => string;
@@ -207,6 +216,21 @@ export function openDatasetApi(
         `${astia}/${volumeId}/images`,
         signal
       ),
+
+    volumeRescan: async (volumeId, signal) =>
+      (
+        await json<{ rescan: Rescan | null }>(
+          "the Volume's re-scan",
+          `${astia}/${volumeId}/rescan`,
+          signal
+        )
+      ).rescan,
+
+    async switchFilming(volumeId) {
+      const url = `${astia}/${volumeId}/rescan`;
+      const res = await ask('Switching', url, { method: 'POST' });
+      return (await res.json()) as string[];
+    },
 
     imageUrl(volumeId, n, retry) {
       const url = `${astia}/${volumeId}/images/${n}`;

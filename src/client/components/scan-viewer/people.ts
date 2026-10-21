@@ -104,6 +104,7 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
 
   private renderConfirm(row: VolumeCitation, current: boolean) {
     if (!current || row.link.certainty !== 'vision') return nothing;
+    if (this.state.viewer.oldFilming.get()) return nothing;
     const id = row.citation.id;
     return html`
       <button

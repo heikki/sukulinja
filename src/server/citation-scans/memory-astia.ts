@@ -79,6 +79,9 @@ export function memoryAstia(
   // Each Volume's filming as Astia holds it, and as its list gives it.
   const held = new Map<string, Filming>();
   const listed = new Map<string, Filming>();
+  let refreshes = 0;
+  // The Volumes peeked at since their list was last kept.
+  const peekedAt = new Set<string>();
 
   function first(volumeId: string) {
     return { filming: 1, images: volume(volumeId).images };
@@ -131,6 +134,7 @@ export function memoryAstia(
 
     async peekImages(volumeId) {
       ask(`peek ${volumeId}`);
+      peekedAt.add(volumeId);
       const { filming, images } = held.get(volumeId) ?? first(volumeId);
       return await Promise.resolve(
         Array.from({ length: images }, (_, i) =>
@@ -142,7 +146,17 @@ export function memoryAstia(
     async refreshImages(volumeId) {
       ask(`refresh ${volumeId}`);
       listed.set(volumeId, held.get(volumeId) ?? first(volumeId));
+      peekedAt.delete(volumeId);
+      refreshes += 1;
       await Promise.resolve();
+    },
+
+    refreshed: () => refreshes,
+
+    async isGone(volumeId, id) {
+      if (!peekedAt.has(volumeId)) return await Promise.resolve(false);
+      const now = held.get(volumeId) ?? first(volumeId);
+      return !filmingIds(volumeId, now).includes(id);
     },
 
     async archiveTitle(archiveId) {

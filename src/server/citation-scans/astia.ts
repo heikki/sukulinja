@@ -55,12 +55,19 @@ export interface Astia {
   // File ids of the volume's images, in viewer order: full size, or the
   // 250px thumbnails Astia lists beside them.
   volumeImages: (volumeId: string, size?: ImageSize) => Promise<string[]>;
-  // The volume's full-size file ids as Astia lists them now, past the
-  // cache, which keeps what it had: after a re-scan every id has changed.
+  // The volume's full-size file ids as Astia lists them, past the cache,
+  // which keeps what it had: after a re-scan every id has changed. Asked
+  // once per run, and again once the volume's list is kept anew.
   peekImages: (volumeId: string) => Promise<string[]>;
+  // Whether a peek this run found the volume's list without the file, full
+  // size or thumbnail: gone with a re-scan, known without asking Astia.
+  isGone: (volumeId: string, fileId: string) => Promise<boolean>;
   // Asks Astia for the volume's file ids again, past the cache, and keeps
   // the answer in its place.
   refreshImages: (volumeId: string) => Promise<void>;
+  // How many lists were kept anew so far: what resolved from the old ones
+  // is out of date once it changes.
+  refreshed: () => number;
   // The archive's title as Astia gives it ("Pieksämäen seurakunnan
   // arkisto"); null when Astia can't say.
   archiveTitle: (archiveId: string) => Promise<string | null>;
@@ -212,6 +219,8 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
   let gate: Promise<unknown> = Promise.resolve();
   const inflight = new Map<string, Promise<unknown>>();
   const fetchingPast = new Map<string, Promise<string>>();
+  let refreshes = 0;
+  const peeked = new Map<string, Promise<ImageLists>>();
   const volumesByArchive = new Map<string, Promise<Volume[]>>();
 
   function throttled<T>(fn: () => Promise<T>) {
@@ -312,6 +321,7 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
     const json = JSON.parse(body) as unknown;
     await Bun.write(cacheFile(key), body);
     inflight.set(key, Promise.resolve(json));
+    refreshes += 1;
   }
 
   async function readOne(id: string) {
@@ -354,13 +364,31 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
     },
 
     async peekImages(volumeId) {
-      const body = await fetchPast(imagesPath(volumeId));
-      return fileIds(JSON.parse(body) as ImageLists, 'full');
+      let hit = peeked.get(volumeId);
+      if (hit === undefined) {
+        hit = fetchPast(imagesPath(volumeId)).then(
+          (body) => JSON.parse(body) as ImageLists
+        );
+        peeked.set(volumeId, hit);
+        // A failure isn't kept: Astia comes back.
+        hit.catch(() => peeked.delete(volumeId));
+      }
+      return fileIds(await hit, 'full');
+    },
+
+    async isGone(volumeId, fileId) {
+      const lists = await peeked.get(volumeId)?.catch(() => null);
+      if (lists === undefined || lists === null) return false;
+      const sizes: ImageSize[] = ['full', 'thumb'];
+      return !sizes.some((size) => fileIds(lists, size).includes(fileId));
     },
 
     async refreshImages(volumeId) {
       await refetchJson(imagesPath(volumeId));
+      peeked.delete(volumeId);
     },
+
+    refreshed: () => refreshes,
 
     async archiveTitle(archiveId) {
       try {

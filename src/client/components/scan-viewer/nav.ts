@@ -66,6 +66,23 @@ export class ScanNavElement extends SignalWatcher(LitElement) {
     this.state.viewer.show(image);
   }
 
+  // After Not now: the Volume is still on Astia's old filming, and
+  // read-only; clicking asks about switching again.
+  private renderOldFilming() {
+    const { viewer } = this.state;
+    if (!viewer.oldFilming.get() || viewer.rescan.get() !== null) {
+      return nothing;
+    }
+    return html`<button
+      class="old-filming"
+      @click=${() => {
+        viewer.askAgain();
+      }}
+    >
+      ⓘ Old filming
+    </button>`;
+  }
+
   override render() {
     const count = this.state.viewer.count.get();
     const image = this.state.viewer.image.get();
@@ -130,6 +147,7 @@ export class ScanNavElement extends SignalWatcher(LitElement) {
       >
         ›
       </button>
+      ${this.renderOldFilming()}
       ${
         this.state.viewer.pending.get() === null &&
         !this.state.viewer.discarding.get()

@@ -3,9 +3,10 @@ import { computed, signal } from '@lit-labs/signals';
 import type { DatasetApi } from '@client/dataset-api';
 import type {
   Box,
-  CitationLinks,
   CitationRow,
   Link,
+  LinkResolution,
+  Rescan,
   UnlinkedResolution,
   VolumeChoice,
   VolumeCitation
@@ -109,6 +110,23 @@ export interface Viewer {
   leave: (go: () => void, stay?: () => void) => void;
   // Saving can throw, as `save` does; the way out then still waits.
   answer: (answer: LeaveAnswer) => Promise<void>;
+  // Astia's re-scan of the Volume shown, not switched to yet: asked about
+  // when the Volume is shown, and again when an Image of it fails if that
+  // got no answer.
+  rescan: Readable<Rescan | null>;
+  // The Volume shown is known to be re-scanned and not switched to, asked
+  // or kept: its Images not on disk can't load, and it's read-only.
+  oldFilming: Readable<boolean>;
+  // Brings the question about the old filming back, as after Not now.
+  askAgain: () => void;
+  // An Image of the Volume shown couldn't load.
+  imageFailed: () => Promise<void>;
+  // Switches the Volume shown to Astia's new filming, throwing ApiError if
+  // it fails. Its Images, citations and the Links reload, and the viewer
+  // follows the source's Link there.
+  switchFilming: () => Promise<void>;
+  // Stays on the filming shown; asked again when the Volume is next shown.
+  keepFilming: () => void;
 }
 
 // Image numbers run 1..count; before the count is known, only from 1.
@@ -131,7 +149,7 @@ function boxOn(
 }
 
 // Of a reference's Links resolved again, the one in the Volume marked.
-function markedIn(resolved: CitationLinks, volumeId: string) {
+function markedIn(resolved: LinkResolution, volumeId: string) {
   const links = 'links' in resolved ? resolved.links : [];
   return links.find((l) => l.volumeId === volumeId) ?? null;
 }
@@ -146,6 +164,12 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   const pending = signal<PendingLink | null>(null);
   const discarding = signal(false);
   const leaving = signal(false);
+  const rescan = signal<Rescan | null>(null);
+  // Astia's re-scan of the Volume shown, kept after Not now.
+  const known = signal<Rescan | null>(null);
+  const oldFilming = computed(() => known.get() !== null);
+  // The Volume shown, once Astia answered whether it was re-scanned.
+  const answered = new Set<string>();
   // The way out waiting on an answer, and what keeping on editing does.
   let held: { go: () => void; stay?: () => void } | null = null;
   // Where the pending change or the Link puts the entry on the Image shown.
@@ -172,6 +196,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
 
   const countReq = new Latest();
   const citationsReq = new Latest();
+  const rescanReq = new Latest();
   // A person picked in the viewer, whose citation it goes on with once
   // they're selected.
   let noted: { personId: number; source: LinkOpen } | null = null;
@@ -197,12 +222,20 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     image.set(clampImage(n, count.get()));
   }
 
+  function forgetRescan() {
+    rescanReq.stop();
+    answered.clear();
+    rescan.set(null);
+    known.set(null);
+  }
+
   // A Volume already shown stays on its Image unless `at` gives one.
   function showVolume(id: string, label: string, at: number | null) {
     if (volume.get()?.id === id) {
       if (at !== null) showNow(at);
       return;
     }
+    forgetRescan();
     discarding.set(false);
     volume.set({ id, label });
     image.set(clampImage(at ?? 1, null));
@@ -210,10 +243,12 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     citations.set(null);
     void loadCount(id);
     void loadCitations(id);
+    void askRescan(id);
   }
 
   // Nothing of a Volume shown, as before the first is chosen.
   function showNoVolume() {
+    forgetRescan();
     countReq.stop();
     citationsReq.stop();
     volume.set(null);
@@ -278,9 +313,10 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     });
   }
 
+  // A Volume on a filming Astia replaced is read-only until switched.
   function setBox(box: Box) {
     const shown = volume.get();
-    if (source.get() === null || shown === null) return;
+    if (source.get() === null || shown === null || oldFilming.get()) return;
     discarding.set(false);
     pending.set({
       volumeId: shown.id,
@@ -296,6 +332,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   }
 
   function discard() {
+    if (oldFilming.get()) return;
     if (pending.get() === null && boxHere.get() !== null) discarding.set(true);
   }
 
@@ -398,7 +435,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   async function confirm(row: VolumeCitation) {
     const shown = volume.get();
     const at = imageOf(row.link);
-    if (shown === null || at === null) return;
+    if (shown === null || at === null || oldFilming.get()) return;
     const resolved = await selected.mark(row.citation.id, {
       volumeId: shown.id,
       image: at
@@ -410,6 +447,43 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
       openNow({ citation: current.citation, link });
     }
     await reload;
+  }
+
+  async function askRescan(volumeId: string) {
+    if (answered.has(volumeId)) return;
+    const answer = await rescanReq.run(async (signal) => ({
+      found: await api.volumeRescan(volumeId, signal)
+    }));
+    if (answer === null || answer === undefined) return;
+    if (volume.get()?.id !== volumeId) return;
+    answered.add(volumeId);
+    rescan.set(answer.found);
+    known.set(answer.found);
+  }
+
+  async function imageFailed() {
+    const shown = volume.get();
+    if (shown !== null) await askRescan(shown.id);
+  }
+
+  // The source's Link may have been made on the filming replaced, so the
+  // viewer follows its Link resolved anew.
+  async function switchFilming() {
+    const shown = volume.get();
+    const opened = source.get();
+    if (shown === null || !oldFilming.get()) return;
+    const urls = await api.switchFilming(shown.id);
+    rescan.set(null);
+    known.set(null);
+    if (volume.get()?.id !== shown.id) return;
+    count.set(urls.length);
+    image.set(clampImage(image.get(), urls.length));
+    await Promise.all([loadCitations(shown.id), selected.relink()]);
+    const current = source.get();
+    if (current === null || current !== opened) return;
+    const resolved = selected.links.get().get(current.citation.id);
+    const link = resolved === undefined ? null : markedIn(resolved, shown.id);
+    if (link !== null) openNow({ citation: current.citation, link });
   }
 
   return {
@@ -443,6 +517,16 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     confirmDiscard,
     save,
     leave,
-    answer
+    answer,
+    rescan,
+    oldFilming,
+    askAgain() {
+      rescan.set(known.get());
+    },
+    imageFailed,
+    switchFilming,
+    keepFilming() {
+      rescan.set(null);
+    }
   };
 }

@@ -203,7 +203,11 @@ export function openScanCache({
     await Promise.all(dropped.map((path) => rm(path, { force: true })));
   }
 
+  // One Astia is known to no longer have isn't asked for.
   async function download(volumeId: string, fileId: string, path: string) {
+    if (await astia.isGone(volumeId, fileId)) {
+      throw new NoImageError(`gone with a re-scan: ${fileId}`);
+    }
     const bytes = await astia.imageBytes(volumeId, fileId);
     // Written aside and moved in, so a cut-off fetch never shows as cached.
     const part = `${path}.part`;

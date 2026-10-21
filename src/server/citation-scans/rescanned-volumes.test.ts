@@ -81,3 +81,33 @@ test("a Reference pin made on a replaced filming is left out, the Record range i
     })
   ]);
 });
+
+test('a Volume found re-scanned is read-only until switched', async () => {
+  const astia = juvaAstia();
+  const marked = citation(5000, '1790 - 1796', 12);
+  const app = scans(astia);
+  await app.markRef(refOf(marked), { volumeId: 'juva-1', image: 7 });
+  astia.rescan('juva-1', 20);
+  // Not known yet: a change still goes through.
+  expect(
+    await app.markRef(refOf(marked), { volumeId: 'juva-1', image: 8 })
+  ).toHaveProperty('links');
+  await astia.peekImages('juva-1');
+  const refused = {
+    rejected:
+      'Astia has re-scanned this Volume. It can be changed once switched to the new filming.'
+  };
+  expect(
+    await app.markRef(refOf(marked), { volumeId: 'juva-1', image: 9 })
+  ).toEqual(refused);
+  expect(await app.markRef(refOf(marked), { volumeId: 'juva-1' })).toEqual(
+    refused
+  );
+  expect(
+    await app.discardRef(refOf(marked), { volumeId: 'juva-1', image: 8 })
+  ).toEqual(refused);
+  await astia.refreshImages('juva-1');
+  expect(
+    await app.markRef(refOf(marked), { volumeId: 'juva-1', image: 9 })
+  ).toHaveProperty('links');
+});

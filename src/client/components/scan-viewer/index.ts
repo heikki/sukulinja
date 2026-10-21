@@ -14,7 +14,7 @@ import { entriesShown, frameForFull, frameForThumb, layers } from './frame';
 import type { Frame, Loading } from './frame';
 import { neighbours } from './helpers';
 import { stepOf } from './keys';
-import { loadingNote } from './note';
+import { stageNote } from './note';
 import { Prefetch } from './prefetch';
 import { controlStyles, scanViewerStyles } from './styles';
 
@@ -382,10 +382,14 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     this.prefetchNeighbours();
   }
 
-  // A new Volume's failing leaves nothing of the last one up.
+  // A new Volume's failing leaves nothing of the last one up, and none is
+  // drawn again while the next loads: stepping on past Images that fail
+  // would flash it. Astia may have re-scanned the Volume.
   private readonly onError = () => {
     if (this.refit) this.clearFrame();
+    this.drawnUrl = null;
     this.loading = 'failed';
+    void this.viewer.imageFailed();
   };
 
   private readonly onWheel = (e: WheelEvent) => {
@@ -476,10 +480,16 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
   // ------------------------------------------------------------ render
 
   private renderNote() {
-    return loadingNote(this.loading, this.view !== null, () => {
+    const retry = () => {
       this.retry += 1;
       this.loading = 'loading';
-    });
+    };
+    const { loading, view, persons } = this;
+    return stageNote(
+      this.viewer,
+      { loading, over: view !== null, persons },
+      retry
+    );
   }
 
   private renderImages(volume: VolumeShown) {
