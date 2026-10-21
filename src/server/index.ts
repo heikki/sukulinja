@@ -1,4 +1,3 @@
-import { cpSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import Electrobun, {
   ApplicationMenu,
@@ -7,6 +6,7 @@ import Electrobun, {
 } from 'electrobun/main';
 
 import { DatasetRegistry } from './dataset-registry';
+import { seedDemo } from './demo';
 import { createApi, createStaticFetch } from './server';
 import { loadWindowFrame, saveWindowFrame } from './window-state';
 
@@ -37,16 +37,9 @@ const dataDir = isDev
 // registry only looks at directories.
 const stateDir = isDev ? dataDir : supportDir;
 
-// An installed app's first launch gets the bundled demo, so it has something
-// to show. Keyed on the data folder not existing rather than on it being
-// empty: deleting the demo later must not bring it back.
-function seedDemo() {
-  if (isDev || existsSync(dataDir)) return;
-  cpSync(join(resourcesDir, 'app', 'demo'), dataDir, { recursive: true });
-}
-seedDemo();
-
+// A first launch gets the bundled demo, so it has something to show.
 const registry = new DatasetRegistry(dataDir);
+await seedDemo(registry, join(resourcesDir, 'app', 'demo', 'bourbon.gdz'));
 void registry.sweepStaging(); // clear staging dirs left by interrupted imports
 const api = createApi(registry);
 const fetch = createStaticFetch({ api, staticRoots: [viewsDir] });

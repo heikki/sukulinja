@@ -12,7 +12,5 @@ app.db-journal
 app.db-wal
 app.db-shm
 
-# Track only the bundled bourbon demo; ignore other imports.
-data/*
-!data/bourbon/
-!data/NOTICE.md
+# The data folder of `bun run dev` and a dev build.
+/data/

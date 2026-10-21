@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 
 # Seed the bundled demo from a GEDZIP
 
@@ -28,3 +28,5 @@ That first pack took the whole upstream folder (8.3 MB), including 8 photos no F
 - Test the seeding against a temp folder: seeds when missing, leaves an existing folder alone even when it's empty.
 
 ## Comments
+
+**Built 2026-10-21.** `src/server/demo.ts` seeds; `index.ts` and `dev.ts` await it before serving. `resources/demo/bourbon.gdz` is 4.5 MB, and packing the same commit twice gave identical bytes. A dev build bundles it at `Resources/app/demo/bourbon.gdz`, where `index.ts` looks. `bun run dev` started on a fresh folder lists Bourbon (303 people, 139 families) before it serves. `data/bourbon` is untracked but still on disk in this checkout, so nothing there changed.

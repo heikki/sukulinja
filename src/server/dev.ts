@@ -2,9 +2,11 @@ import { resolve } from 'node:path';
 
 import indexHtml from '../client/index.html';
 import { DatasetRegistry } from './dataset-registry';
+import { seedDemo } from './demo';
 import { createApi, createStaticFetch } from './server';
 
 const registry = new DatasetRegistry(resolve('data'));
+await seedDemo(registry, resolve('resources/demo/bourbon.gdz'));
 void registry.sweepStaging(); // clear staging dirs left by interrupted imports
 const api = createApi(registry);
 const fetch = createStaticFetch({ api, staticRoots: ['src/client'] });
