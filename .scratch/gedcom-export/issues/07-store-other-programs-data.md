@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 Blocked by: 02
 
 # Store what other programs' GEDCOMs use
@@ -32,3 +32,13 @@ Raise the schema version. Name columns for what a value is (ADR-0013).
 - A fact's `OBJE` file inside a GEDZIP is copied into the dataset's media and linked to the fact.
 - A shared note pointed at from two people is stored once.
 - Importing `resources/demo/bourbon.gdz` lists nothing as not stored.
+
+## Answer
+
+- **Schema version 3.** Change dates on people, families, sources, repositories, shared notes and the submitter (`change_date`, `change_time`). A fact's `latitude`, `longitude` and `agency`. `addresses` replaces `fact_addresses`, for facts, repositories and the submitter. New tables: `associations`, `repositories` with `source_repositories` (a source may name several), `shared_notes`, `submitters`. A source's `data_events`.
+- **Below the record**: citations now hang on facts, names, notes and shared notes too (`citations.scope_type`), and media links on facts and citations (`media_links.scope_type`). `mediaRefsOf` reads the `OBJE` under any line, and the ingest copies every `OBJE` file under a person or family (`allMediaRefs`): the demo now brings 55 files, 8 of them scans of its acts. One `OBJE` with two `FILE`s keeps that grouping in `media_links.object_order`, and its notes go with its first stored file.
+- **Notes** may sit on places, names, media links and associations, and point at a shared note instead of holding text (`notes.shared_note_id`).
+- **Header**: `NOTE`, `COPR`, `LANG`, `PLAC.FORM` and `SUBM` go into `meta` (`header_note`, `copyright`, `language`, `place_form`, `submitter`).
+- **`@@`**: the parser now decodes it, everywhere in a GEDCOM 5.5.1 value and at the start of each line in GEDCOM 7. MyHeritage writes it too, in e-mail addresses.
+- Importing `resources/demo/bourbon.gdz` lists nothing as not stored; a committed test checks it.
+- The importer was split to stay under the file-size limit: `gedcom-lines.ts` (which lines were read, and the rest), `gedcom-tags.ts`, `import-statements.ts`, `import-media.ts`.

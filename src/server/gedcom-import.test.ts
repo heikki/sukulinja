@@ -159,8 +159,10 @@ test('stores notes, causes, ages, types, citation dates and source authors, in o
     db.query('SELECT text FROM notes WHERE owner_type = ?').all('fact')
   ).toEqual([{ text: 'On the farm' }]);
   expect(
-    db.query('SELECT text, line1, city FROM fact_addresses').all()
-  ).toEqual([{ text: 'Pajula', line1: 'Pajula', city: 'Haukivuori' }]);
+    db.query('SELECT owner_type, text, line1, city FROM addresses').all()
+  ).toEqual([
+    { owner_type: 'fact', text: 'Pajula', line1: 'Pajula', city: 'Haukivuori' }
+  ]);
   expect(
     db.query('SELECT tag, value FROM name_pieces ORDER BY sort_order').all()
   ).toEqual([
@@ -193,22 +195,20 @@ test('lists each kind of line it has nowhere to store, by path and count', () =>
     '1 _UPD 26 MAR 2026',
     '1 BIRT',
     '2 PLAC Pajula',
-    '3 MAP',
-    '4 LATI N61.9',
-    '1 ASSO @I2@',
-    '1 ASSO @I3@',
+    '3 FORM Village',
+    '1 ALIA @I2@',
+    '1 ALIA @I3@',
+    '1 NOTE @N9@',
     '0 @I2@ INDI',
-    '1 CHAN',
-    '2 DATE 1 JAN 2020',
-    '0 @R1@ REPO',
-    '1 NAME Archive',
+    '0 @O1@ OBJE',
+    '1 FILE a.jpg',
     '0 TRLR'
   ]);
   expect(stats.unstored).toEqual([
-    { path: 'INDI.ASSO', count: 2 },
-    { path: 'INDI.BIRT.PLAC.MAP', count: 1 },
-    { path: 'INDI.CHAN', count: 1 },
-    { path: 'REPO', count: 1 }
+    { path: 'INDI.ALIA', count: 2 },
+    { path: 'INDI.BIRT.PLAC.FORM', count: 1 },
+    { path: 'INDI.NOTE', count: 1 },
+    { path: 'OBJE', count: 1 }
   ]);
 });
 
@@ -262,4 +262,170 @@ test('puts the photo marked _PRIM first', () => {
     { file: 'b.jpg', title: 'Portrait', n: 0 },
     { file: 'a.jpg', title: null, n: 1 }
   ]);
+});
+
+test('stores what other programs write: change dates, map, citations and media on facts, shared notes, associations, repositories, the submitter', () => {
+  const { db, stats } = importText([
+    '0 HEAD',
+    '1 SUBM @B1@',
+    '1 LANG French',
+    '1 COPR (c) Someone',
+    '1 NOTE About this tree',
+    '1 PLAC',
+    '2 FORM Commune, Pays',
+    '0 @B1@ SUBM',
+    '1 NAME A Submitter',
+    '1 EMAIL a@@example.org',
+    '1 ADDR 1 Rue',
+    '2 CITY Vienne',
+    '0 @R1@ REPO',
+    '1 NAME Archive',
+    '1 PHON +33 1',
+    '0 @R2@ REPO',
+    '1 NAME Library',
+    '0 @N1@ NOTE A shared note',
+    '1 SOUR @S1@',
+    '0 @S1@ SOUR',
+    '1 TITL Register',
+    '1 REPO @R1@',
+    '1 REPO @R2@',
+    '1 DATA',
+    '2 EVEN BIRT, DEAT',
+    '1 CHAN',
+    '2 DATE 7 MAY 2020',
+    '3 TIME 18:46:35',
+    '0 @I1@ INDI',
+    '1 NAME Jane /Doe/',
+    '2 NOTE @N1@',
+    '2 SOUR @S1@',
+    '1 NOTE @N1@',
+    '1 NOTE Written out',
+    '2 SOUR @S1@',
+    '1 BIRT',
+    '2 AGNC Parish',
+    '2 PLAC Paris',
+    '3 MAP',
+    '4 LATI N48.85',
+    '4 LONG E2.35',
+    '3 NOTE Old church',
+    '2 SOUR @S1@',
+    '3 DATA',
+    '4 TEXT Baptised',
+    '3 OBJE',
+    '4 FILE actes/baptism.jpg',
+    '5 FORM jpg',
+    '4 TITL Baptism record',
+    '2 OBJE',
+    '3 FILE photos/church.jpg',
+    '4 FORM jpg',
+    '3 NOTE Before the fire',
+    '1 ASSO @I2@',
+    '2 RELA Godparent',
+    '2 NOTE Named after her',
+    '1 CHAN',
+    '2 DATE 4 FEB 2018',
+    '3 TIME 20:42:25',
+    '0 @I2@ INDI',
+    '0 TRLR'
+  ]);
+  expect(stats.unstored).toEqual([]);
+  expect(db.query('SELECT key, value FROM meta ORDER BY key').all()).toEqual([
+    { key: 'copyright', value: '(c) Someone' },
+    { key: 'header_note', value: 'About this tree' },
+    { key: 'language', value: 'French' },
+    { key: 'place_form', value: 'Commune, Pays' },
+    { key: 'schema_version', value: '3' },
+    { key: 'submitter', value: '@B1@' }
+  ]);
+  expect(db.query('SELECT name, email FROM submitters').all()).toEqual([
+    { name: 'A Submitter', email: 'a@example.org' }
+  ]);
+  expect(
+    db
+      .query(
+        `SELECT r.name FROM source_repositories sr
+         JOIN repositories r ON r.id = sr.repository_id ORDER BY sr.sort_order`
+      )
+      .all()
+  ).toEqual([{ name: 'Archive' }, { name: 'Library' }]);
+  expect(
+    db.query('SELECT data_events, change_date, change_time FROM sources').all()
+  ).toEqual([
+    {
+      data_events: 'BIRT, DEAT',
+      change_date: '7 MAY 2020',
+      change_time: '18:46:35'
+    }
+  ]);
+  expect(
+    db.query('SELECT change_date FROM persons WHERE id = 1').get()
+  ).toEqual({ change_date: '4 FEB 2018' });
+  expect(
+    db.query('SELECT place, latitude, longitude, agency FROM facts').get()
+  ).toEqual({
+    place: 'Paris',
+    latitude: 'N48.85',
+    longitude: 'E2.35',
+    agency: 'Parish'
+  });
+  // The shared note is stored once, pointed at from the name and the person.
+  expect(db.query('SELECT text FROM shared_notes').all()).toEqual([
+    { text: 'A shared note' }
+  ]);
+  expect(
+    db
+      .query(
+        'SELECT owner_type, text, shared_note_id AS shared FROM notes ORDER BY id'
+      )
+      .all()
+  ).toEqual([
+    { owner_type: 'name', text: null, shared: 1 },
+    { owner_type: 'place', text: 'Old church', shared: null },
+    { owner_type: 'media_link', text: 'Before the fire', shared: null },
+    { owner_type: 'association', text: 'Named after her', shared: null },
+    { owner_type: 'person', text: null, shared: 1 },
+    { owner_type: 'person', text: 'Written out', shared: null }
+  ]);
+  expect(
+    db.query('SELECT scope_type, text FROM citations ORDER BY id').all()
+  ).toEqual([
+    { scope_type: 'shared_note', text: null },
+    { scope_type: 'name', text: null },
+    { scope_type: 'fact', text: 'Baptised' },
+    { scope_type: 'note', text: null }
+  ]);
+  expect(
+    db
+      .query(
+        `SELECT ml.scope_type, m.file_path AS file, ml.title FROM media_links ml
+         JOIN media m ON m.id = ml.media_id ORDER BY ml.id`
+      )
+      .all()
+  ).toEqual([
+    {
+      scope_type: 'citation',
+      file: 'actes/baptism.jpg',
+      title: 'Baptism record'
+    },
+    { scope_type: 'fact', file: 'photos/church.jpg', title: null }
+  ]);
+  expect(db.query('SELECT relation FROM associations').all()).toEqual([
+    { relation: 'Godparent' }
+  ]);
+});
+
+test('reads every line of the demo GEDZIP', async () => {
+  const { mkdtemp, rm } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join, resolve } = await import('node:path');
+  const { unpackGedzip } = await import('./gedzip');
+  const dir = await mkdtemp(join(tmpdir(), 'demo-'));
+  try {
+    const demo = resolve(import.meta.dir, '../../resources/demo/bourbon.gdz');
+    const { text } = await unpackGedzip(await Bun.file(demo).bytes(), dir);
+    const stats = importGedcom(openDb(':memory:'), parseGedcom(text), (p) => p);
+    expect(stats.unstored).toEqual([]);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
