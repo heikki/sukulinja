@@ -40,6 +40,9 @@ export interface DatasetInfo {
   personCount: number;
   familyCount: number;
   importedAt: string | null;
+  // Built by an older version of the app, so it won't open until it's
+  // imported again (ADR-0013).
+  outdated: boolean;
 }
 
 // Returned by /api/persons/:id — what the person panel shows.

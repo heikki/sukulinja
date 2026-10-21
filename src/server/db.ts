@@ -4,6 +4,7 @@ const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS persons (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     xref TEXT UNIQUE NOT NULL,
+    uid TEXT,
     sex TEXT
   );
 
@@ -18,11 +19,20 @@ const SCHEMA_SQL = `
     sort_order INTEGER NOT NULL DEFAULT 0
   );
   CREATE INDEX IF NOT EXISTS names_person_idx ON names(person_id);
+  CREATE TABLE IF NOT EXISTS name_pieces (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name_id INTEGER NOT NULL REFERENCES names(id) ON DELETE CASCADE,
+    tag TEXT NOT NULL,
+    value TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX IF NOT EXISTS name_pieces_name_idx ON name_pieces(name_id);
   CREATE INDEX IF NOT EXISTS names_surname_idx ON names(surname);
 
   CREATE TABLE IF NOT EXISTS families (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     xref TEXT UNIQUE NOT NULL,
+    uid TEXT,
     husband_id INTEGER REFERENCES persons(id) ON DELETE SET NULL,
     wife_id INTEGER REFERENCES persons(id) ON DELETE SET NULL
   );
@@ -40,14 +50,28 @@ const SCHEMA_SQL = `
     scope_type TEXT NOT NULL CHECK (scope_type IN ('person','family')),
     scope_id INTEGER NOT NULL,
     tag TEXT NOT NULL,
+    type TEXT,
     date_text TEXT,
     place TEXT,
     address TEXT,
+    age TEXT,
+    cause TEXT,
     value TEXT,
     sort_order INTEGER NOT NULL DEFAULT 0
   );
   CREATE INDEX IF NOT EXISTS facts_scope_idx ON facts(scope_type, scope_id);
   CREATE INDEX IF NOT EXISTS facts_tag_idx ON facts(tag);
+  CREATE TABLE IF NOT EXISTS fact_addresses (
+    fact_id INTEGER PRIMARY KEY REFERENCES facts(id) ON DELETE CASCADE,
+    text TEXT,
+    line1 TEXT,
+    line2 TEXT,
+    line3 TEXT,
+    city TEXT,
+    state TEXT,
+    postal_code TEXT,
+    country TEXT
+  );
 
   CREATE TABLE IF NOT EXISTS media (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,7 +85,6 @@ const SCHEMA_SQL = `
     media_id INTEGER NOT NULL REFERENCES media(id) ON DELETE CASCADE,
     scope_type TEXT NOT NULL CHECK (scope_type IN ('person','family')),
     scope_id INTEGER NOT NULL,
-    is_primary INTEGER NOT NULL DEFAULT 0,
     title TEXT,
     crop_top INTEGER,
     crop_left INTEGER,
@@ -75,7 +98,9 @@ const SCHEMA_SQL = `
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     xref TEXT UNIQUE NOT NULL,
     title TEXT,
-    publisher TEXT
+    author TEXT,
+    publisher TEXT,
+    text TEXT
   );
 
   CREATE TABLE IF NOT EXISTS citations (
@@ -84,41 +109,89 @@ const SCHEMA_SQL = `
     scope_id INTEGER NOT NULL,
     source_id INTEGER REFERENCES sources(id) ON DELETE SET NULL,
     page TEXT,
+    event TEXT,
+    role TEXT,
     quality INTEGER,
+    data_date TEXT,
     text TEXT,
     sort_order INTEGER NOT NULL DEFAULT 0
   );
   CREATE INDEX IF NOT EXISTS citations_scope_idx ON citations(scope_type, scope_id);
 
+  CREATE TABLE IF NOT EXISTS notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner_type TEXT NOT NULL
+      CHECK (owner_type IN ('person','family','fact','source','citation')),
+    owner_id INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX IF NOT EXISTS notes_owner_idx ON notes(owner_type, owner_id);
   CREATE TABLE IF NOT EXISTS meta (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
   );
 `;
 
-// Columns added after datasets already existed; CREATE TABLE IF NOT EXISTS
-// leaves an older table as it was.
-const ADDED_COLUMNS = [{ table: 'facts', column: 'address', type: 'TEXT' }];
+// Raised whenever the schema changes. A dataset's database holds the whole
+// tree and the file it came from isn't kept, so an older database can't be
+// upgraded: the dataset is imported again (ADR-0013).
+export const SCHEMA_VERSION = 2;
 
-function addMissingColumns(db: Database) {
-  for (const { table, column, type } of ADDED_COLUMNS) {
-    const columns = db
-      .query<{ name: string }, []>(`PRAGMA table_info(${table})`)
-      .all();
-    if (!columns.some((c) => c.name === column)) {
-      db.run(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}`);
-    }
-  }
+// A dataset whose database an older version of the app built.
+export class OutdatedDatasetError extends Error {}
+
+function hasTables(db: Database) {
+  return (
+    db
+      .query<{ n: number }, []>(
+        "SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table'"
+      )
+      .get()!.n > 0
+  );
 }
 
+function schemaVersion(db: Database) {
+  const hasMeta = db
+    .query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'meta'")
+    .get();
+  if (hasMeta === null) return null;
+  const row = db
+    .query<{ value: string }, []>(
+      "SELECT value FROM meta WHERE key = 'schema_version'"
+    )
+    .get();
+  return row === null ? null : Number(row.value);
+}
+
+// Opens a dataset's database, creating the schema in a new one. Throws
+// OutdatedDatasetError for one built with another schema.
 export function openDb(path: string): Database {
   const db = new Database(path, { create: true });
   db.run('PRAGMA foreign_keys = ON;');
+  if (hasTables(db)) {
+    const version = schemaVersion(db);
+    if (version !== SCHEMA_VERSION) {
+      db.close();
+      throw new OutdatedDatasetError(
+        `made by an older version of the app (schema ${version ?? 1}, now ${SCHEMA_VERSION})`
+      );
+    }
+    return db;
+  }
   for (const stmt of SCHEMA_SQL.split(';')
     .map((s) => s.trim())
     .filter((s) => s !== '')) {
     db.run(stmt);
   }
-  addMissingColumns(db);
+  db.run("INSERT INTO meta (key, value) VALUES ('schema_version', ?)", [
+    String(SCHEMA_VERSION)
+  ]);
   return db;
+}
+
+// Reads an existing database whatever its schema, for what an import carries
+// over from the dataset it replaces.
+export function openAnyDb(path: string): Database {
+  return new Database(path, { readonly: true });
 }

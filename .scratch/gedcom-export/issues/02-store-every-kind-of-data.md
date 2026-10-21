@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 
 # Store every kind of data the real exports use
 
@@ -28,3 +28,13 @@ The database keeps only what the chart and panel render, so the import drops not
 ## Not here
 
 Writing anything back out (`03`). Showing the new data in the person panel: that's a display concern for later tickets.
+
+## Answer
+
+- **Stored now**: notes (on people, families, facts, sources and citations, in a `notes` table), name pieces (`GIVN`, `SURN`, … in `name_pieces`), a fact's `TYPE`, `AGE` and `CAUS`, its `ADDR` parts (`fact_addresses`; `facts.address` stays the joined text the panel shows), a citation's `EVEN` / `ROLE` (MyHeritage keeps its record id in `ROLE`) and `DATA.DATE`, a source's `AUTH` and `TEXT`, and every GEDCOM 7 individual and family event and attribute (census among them).
+- **What isn't stored** is found mechanically: the import marks each line it reads, and `ImportStats.unstored` lists the rest by path and count. The import log prints it as "Not stored: …". ylonen's export lists nothing.
+- **UID**: MyHeritage's `_UID` becomes `UID` in the conversion and is stored on persons and families exactly as written (32 hex digits, not reformatted). Anyone without one gets `crypto.randomUUID()`. `RIN` is dropped.
+- **Profile photo**: the `_PRIM` photo is ordered first and `media_links.is_primary` is gone; the chart takes the first.
+- **Schema version 2** in `meta.schema_version`. `openDb` refuses any other with `OutdatedDatasetError`; the registry lists such a dataset as `outdated`, and the chooser shows it with Import…, which imports a file under its name. `readAny` still reads it, so a re-import reuses its photos. The demo, if an older version built it from `bourbon.gdz`, is imported again on launch.
+- **Left as before**: the MyHeritage conversion still drops `EMAIL` on residences. `FAMC` / `FAMS` aren't stored: they repeat the families' `HUSB`, `WIFE` and `CHIL`.
+- **Not here**: the Bourbon demo (Ancestris, GEDCOM 5.5.1) still lists 13 kinds of line; they're `07`.

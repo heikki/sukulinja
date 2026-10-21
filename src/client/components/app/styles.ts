@@ -79,7 +79,8 @@ export const appStyles = css`
   ul.chooser li:hover {
     background: color-mix(in srgb, var(--accent) 8%, var(--card));
   }
-  ul.chooser a {
+  ul.chooser a,
+  ul.chooser .outdated {
     display: flex;
     flex-direction: column;
     gap: 0.15rem;
@@ -91,6 +92,12 @@ export const appStyles = css`
   }
   ul.chooser .name {
     font-weight: 600;
+  }
+  ul.chooser .outdated {
+    color: var(--muted);
+  }
+  ul.chooser li button.import {
+    margin-right: 0.4rem;
   }
   .muted {
     color: var(--muted);

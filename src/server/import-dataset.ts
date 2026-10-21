@@ -66,33 +66,36 @@ export interface ImportOutcome {
 }
 
 // Where each photo the dataset under `slug` has now is stored, by its
-// original path: a re-import copies those rather than download them again.
-// Photos no longer in the new export aren't copied, so they go with the old
-// dataset.
-function openIfThere(registry: DatasetRegistry, slug: string) {
-  try {
-    return registry.open(slug);
-  } catch {
-    return null;
-  }
-}
-
+// original path: a re-import copies those rather than download them again,
+// also from a dataset an older version built. Photos no longer in the new
+// export aren't copied, so they go with the old dataset.
 function storedPhotos(registry: DatasetRegistry, slug: string) {
   const stored = new Map<string, string>();
-  const db = openIfThere(registry, slug);
+  const db = registry.readAny(slug);
   if (db === null) return stored;
-  const mediaDir = registry.mediaDir(slug);
-  const rows = db
-    .query<{ original_path: string | null; file_path: string }, []>(
-      'SELECT original_path, file_path FROM media'
-    )
-    .all();
-  for (const r of rows) {
-    if (r.original_path !== null) {
-      stored.set(r.original_path, join(mediaDir, r.file_path));
+  try {
+    const mediaDir = registry.mediaDir(slug);
+    const rows = db
+      .query<{ original_path: string | null; file_path: string }, []>(
+        'SELECT original_path, file_path FROM media'
+      )
+      .all();
+    for (const r of rows) {
+      if (r.original_path !== null) {
+        stored.set(r.original_path, join(mediaDir, r.file_path));
+      }
     }
+  } finally {
+    db.close();
   }
   return stored;
+}
+
+// Standard lines the database has nowhere to keep yet (ADR-0013).
+function reportUnstored(stats: ImportStats, log: (msg: string) => void) {
+  if (stats.unstored.length === 0) return;
+  const listed = stats.unstored.map((u) => `${u.path} ×${u.count}`).join(', ');
+  log(`Not stored: ${listed}`);
 }
 
 // Every FILE the GEDCOM gives, wherever it sits: the app reads only some of
@@ -193,6 +196,7 @@ export async function importDataset(
       roots,
       (rel) => ingestResult.resolved.get(rel) ?? null
     );
+    reportUnstored(stats, log);
 
     const displayName = req.displayName ?? req.slug;
     const importedAt = new Date().toISOString();
@@ -212,7 +216,8 @@ export async function importDataset(
         displayName,
         personCount: stats.persons,
         familyCount: stats.families,
-        importedAt
+        importedAt,
+        outdated: false
       },
       stats,
       skipped: ingestResult.skipped,

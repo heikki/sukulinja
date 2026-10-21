@@ -13,6 +13,7 @@ import {
   isMyHeritageExport,
   photoNameOf,
   pruneEmptyLeaves,
+  standardUids,
   stripCutouts,
   transformObjes
 } from './myheritage';
@@ -77,6 +78,17 @@ describe('dropTags', () => {
     const obj = findChild(root, 'OBJE')!;
     expect(findChild(obj, '_FILESIZE')).toBeUndefined();
     expect(findChild(obj, '_PRIM')?.value).toBe('Y');
+  });
+});
+
+describe('standardUids', () => {
+  test("turns a record's _UID into UID, as written", () => {
+    const root = indi(node(1, '_UID', '57946566E10CCFB0735B471A8829D14E'));
+    standardUids([root]);
+    expect(findChild(root, 'UID')?.value).toBe(
+      '57946566E10CCFB0735B471A8829D14E'
+    );
+    expect(findChild(root, '_UID')).toBeUndefined();
   });
 });
 

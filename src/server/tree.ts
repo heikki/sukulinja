@@ -56,7 +56,7 @@ export function createTree(db: Database) {
       SELECT ml2.id FROM media_links ml2
       JOIN media m2 ON m2.id = ml2.media_id
       WHERE ml2.scope_type='person' AND ml2.scope_id=p.id
-      ORDER BY ml2.is_primary DESC, ml2.sort_order ASC, ml2.id ASC
+      ORDER BY ml2.sort_order ASC, ml2.id ASC
       LIMIT 1
     )
     LEFT JOIN media m ON m.id = ml.media_id
