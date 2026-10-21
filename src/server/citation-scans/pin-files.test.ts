@@ -1,7 +1,7 @@
-import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, expect, test } from 'bun:test';
+import { afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
 
 import type { Pins } from './locate';
 import { fillFileIds } from './pin-files';
@@ -212,4 +212,46 @@ test('fills in the file ids of pins saved before pins kept them', async () => {
     rejected: { [url]: [{ volumeId: 'a', image: 3, fileId: 'a3' }] }
   });
   expect(await readdir(dir)).toEqual(['pins.local.json']);
+});
+
+test("a Volume whose list isn't cached keeps its pins as they are", async () => {
+  const saved = {
+    volumes: { a: { pages: [{ image: 2, pages: [3] }] } },
+    references: {}
+  };
+  await Bun.write(localFile(), JSON.stringify(saved));
+  const before = await stat(localFile());
+  await fillFileIds(dir, ASTIA);
+  expect(await Bun.file(localFile()).json()).toEqual(saved);
+  expect((await stat(localFile())).mtimeMs).toBe(before.mtimeMs);
+});
+
+test('opening the pins fills in file ids before they are first read', async () => {
+  await Bun.write(
+    localFile(),
+    JSON.stringify({
+      volumes: { a: { pages: [{ image: 2, pages: [3] }] } },
+      references: {}
+    })
+  );
+  lists = { a: ['a1', 'a2'] };
+  await open().snapshot();
+  expect(await Bun.file(localFile()).json()).toEqual({
+    volumes: { a: { pages: [{ image: 2, pages: [3], fileId: 'a2' }] } },
+    references: {}
+  });
+});
+
+test('a fill that fails is logged, and the pins read as they are', async () => {
+  const error = spyOn(console, 'error').mockImplementation(() => undefined);
+  const references = { r: { volumeId: 'a', volume: 'I A:1', image: 2 } };
+  await Bun.write(localFile(), JSON.stringify({ volumes: {}, references }));
+  const broken = {
+    ...ASTIA,
+    cachedImages: async () => await Promise.reject(new Error('unreadable'))
+  };
+  const pins = openPins(dir, { astia: broken, base: {} });
+  expect((await pins.snapshot()).references).toEqual(references);
+  expect(error).toHaveBeenCalled();
+  error.mockRestore();
 });

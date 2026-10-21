@@ -136,7 +136,20 @@ test('tells of a re-scan, and what switching leaves out, without switching', asy
   const { rescan } = (await (await ask('GET', 'v1')).json()) as {
     rescan: Rescan;
   };
-  expect(rescan).toEqual({ cached: 10, images: 8, stale: STALE });
+  // The app gave the pin saved before file ids the id of its Image in the
+  // cached list, so it's known to be of the filming replaced.
+  const filled: StalePin = {
+    kind: 'record',
+    from: 'local',
+    by: 'hand',
+    image: 7,
+    record: 8
+  };
+  expect(rescan).toEqual({
+    cached: 10,
+    images: 8,
+    stale: [...STALE.slice(0, 2), filled, ...STALE.slice(2)]
+  });
   expect(await listed.volumeImages('v1')).toHaveLength(10);
   expect(await readdir(join(dir, '.astia-images'))).toEqual(['v1-f2.jpg']);
 });

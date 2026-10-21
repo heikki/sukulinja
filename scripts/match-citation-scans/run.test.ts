@@ -274,7 +274,7 @@ test('never overrides a hand pin', async () => {
   expect(
     (await openPins(dir, { astia: juvaAstia() }).snapshot()).volumes['juva-1']!
       .pages
-  ).toEqual([{ image: 12, pages: [12] }]);
+  ).toEqual([{ image: 12, pages: [12], fileId: 'juva-1-f12' }]);
   // Matti is still matched, as a Record pin beside the hand Page pin.
   expect(await linksOf(MATTI)).toEqual([
     expect.objectContaining({ image: 12, certainty: 'vision' })

@@ -55,6 +55,9 @@ export interface Astia {
   // File ids of the volume's images, in viewer order: full size, or the
   // 250px thumbnails Astia lists beside them.
   volumeImages: (volumeId: string, size?: ImageSize) => Promise<string[]>;
+  // The volume's full-size file ids as the cache kept them, without asking
+  // Astia; null when it hasn't kept the volume's list.
+  cachedImages: (volumeId: string) => Promise<string[] | null>;
   // The volume's full-size file ids as Astia lists them, past the cache,
   // which keeps what it had: after a re-scan every id has changed. Asked
   // once per run, and again once the volume's list is kept anew.
@@ -361,6 +364,12 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
     async volumeImages(volumeId, size = 'full') {
       const json = (await fetchJson(imagesPath(volumeId))) as ImageLists;
       return fileIds(json, size);
+    },
+
+    async cachedImages(volumeId) {
+      const cached = cacheFile(cacheKey(imagesPath(volumeId)));
+      if (!(await cached.exists())) return null;
+      return fileIds((await cached.json()) as ImageLists, 'full');
     },
 
     async peekImages(volumeId) {
