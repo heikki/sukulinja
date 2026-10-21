@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, expect, test } from 'bun:test';
 
-import { openAstia, volumeYears } from './astia';
+import { NoImageError, openAstia, volumeYears } from './astia';
 
 const ARCHIVE = '100';
 
@@ -26,7 +26,7 @@ function file(id: string) {
 // Astia's answers by request, after its base URL: an archive whose
 // population register holds one Volume, a series of movers it can skip,
 // and a series with another Volume.
-const ANSWERS: Record<string, unknown> = {
+const ANSWERS: Readonly<Record<string, unknown>> = {
   [`ws/aineisto/readOne.php?id=${ARCHIVE}`]: {
     titles: 'Juvan seurakunnan arkisto',
     sisaltyvat: [
@@ -56,6 +56,8 @@ const ANSWERS: Record<string, unknown> = {
   }
 };
 
+// As Astia answers now: ANSWERS, unless a test re-scans a Volume.
+let answers: Record<string, unknown> = {};
 let dir = '';
 // The requests that went out, after Astia's base URL.
 let sent: string[] = [];
@@ -75,7 +77,7 @@ function fakeFetch(url: string) {
   if (path.startsWith('ws/getFile.php')) {
     return Promise.resolve(new Response(new Uint8Array([0xff, 0xd8])));
   }
-  const answer = ANSWERS[path];
+  const answer = answers[path];
   return Promise.resolve(
     answer === undefined
       ? new Response('', { status: 404 })
@@ -96,6 +98,7 @@ function open(cacheDir = join(dir, 'cache')) {
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'astia-'));
+  answers = { ...ANSWERS };
   sent = [];
   failures = [];
 });
@@ -220,12 +223,59 @@ test("retries Astia's placeholder in place of an Image", async () => {
   expect(sent).toHaveLength(2);
 });
 
-test("gives up on an Image that stays Astia's placeholder", async () => {
+test("gives up on an Image that stays Astia's placeholder: it has no such file", async () => {
   failures = [PLACEHOLDER, PLACEHOLDER, PLACEHOLDER];
-  expect(await failure(open().imageBytes('121', '121-t1'))).toMatch(
-    /^AstiaError: no image /
-  );
+  const gone = await open()
+    .imageBytes('121', '121-t1')
+    .catch((err: unknown) => err);
+  expect(gone).toBeInstanceOf(NoImageError);
+  expect(String(gone)).toMatch(/^NoImageError: no image /);
   expect(sent).toHaveLength(3);
+});
+
+const IMAGES_121 = 'ws/aineisto/digitoidut.php?id=121';
+
+// Astia holds Volume 121 filmed anew, with three Images.
+function rescan121() {
+  answers[IMAGES_121] = {
+    isot: [file('121-2-f1'), file('121-2-f2'), file('121-2-f3')],
+    pienet: [file('121-2-t1'), file('121-2-t2'), file('121-2-t3')]
+  };
+}
+
+test("asks for a re-scanned Volume's list again, and keeps the new one", async () => {
+  await open().volumeImages('121');
+  rescan121();
+  const astia = open();
+  expect(await astia.volumeImages('121')).toEqual(['121-f1', '121-f2']);
+  sent = [];
+  await astia.refreshImages('121');
+  expect(sent).toEqual([IMAGES_121]);
+  const renewed = ['121-2-f1', '121-2-f2', '121-2-f3'];
+  expect(await astia.volumeImages('121')).toEqual(renewed);
+  expect(await open().volumeImages('121')).toEqual(renewed);
+  expect(sent).toEqual([IMAGES_121]);
+});
+
+test('refreshes asked for at once share one request', async () => {
+  const astia = open();
+  await astia.volumeImages('121');
+  rescan121();
+  sent = [];
+  await Promise.all([astia.refreshImages('121'), astia.refreshImages('121')]);
+  expect(sent).toEqual([IMAGES_121]);
+  expect(await astia.volumeImages('121', 'thumb')).toHaveLength(3);
+});
+
+test('a failed refresh keeps the list it had', async () => {
+  const astia = open();
+  await astia.volumeImages('121');
+  failures = [404];
+  expect(await failure(astia.refreshImages('121'))).toBe(
+    `AstiaError: 404 ${IMAGES_121}`
+  );
+  expect(await astia.volumeImages('121')).toEqual(['121-f1', '121-f2']);
+  expect(await open().volumeImages('121')).toEqual(['121-f1', '121-f2']);
 });
 
 test("doesn't wait out a rate limit on an Image", async () => {

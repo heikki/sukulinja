@@ -1,8 +1,9 @@
 import { mkdir, mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
+import { NoImageError } from './astia';
 import type { Astia } from './astia';
 import { memoryAstia } from './memory-astia';
 import { openScanCache } from './scan-cache';
@@ -234,4 +235,59 @@ test('Scan caches on two data folders share neither files nor a queue', async ()
   );
   await held;
   expect(fetched).toEqual(['101-f9', '101-f1', '101-f9']);
+});
+
+describe('a re-scanned Volume', () => {
+  // Volume 301 of ten Images, which Astia films anew with eight.
+  function rescanned() {
+    const astia = memoryAstia({
+      '3': { volumes: [{ id: '301', label: 'Volume 301', images: IMAGES }] }
+    });
+    return { astia, cache: openScanCache({ astia, root: dir }) };
+  }
+
+  function at(image: number) {
+    return { volumeId: '301', image };
+  }
+
+  const signal = new AbortController().signal;
+
+  test('fetches an Image Astia no longer has by its new id', async () => {
+    const { astia, cache: scans } = rescanned();
+    astia.rescan('301', 8);
+    expect(await scans.image(at(5), 'full', signal)).toBe(
+      join(dir, '.astia-images', '301-2-f5.jpg')
+    );
+    expect(await scans.image(at(6), 'thumb', signal)).toBe(
+      join(dir, '.astia-images', '301-2-t6.jpg')
+    );
+    expect(astia.asked.filter((a) => a.startsWith('refresh'))).toEqual([
+      'refresh 301'
+    ]);
+  });
+
+  test('has no Image past the new filming', async () => {
+    const { astia, cache: scans } = rescanned();
+    astia.rescan('301', 8);
+    expect(await scans.image(at(9), 'full', signal)).toBeNull();
+    expect(await scans.image(at(9), 'full', signal)).toBeNull();
+  });
+
+  test('throws when the list asked for again has the same id', async () => {
+    const listed = memoryAstia({
+      '3': { volumes: [{ id: '301', label: 'Volume 301', images: IMAGES }] }
+    });
+    const gone: Astia = {
+      ...listed,
+      imageBytes: () => Promise.reject(new NoImageError('no image'))
+    };
+    const scans = openScanCache({ astia: gone, root: dir });
+    const failed = await scans
+      .image(at(2), 'full', signal)
+      .catch((err: unknown) => err);
+    expect(failed).toBeInstanceOf(NoImageError);
+    expect(listed.asked.filter((a) => a.startsWith('refresh'))).toEqual([
+      'refresh 301'
+    ]);
+  });
 });

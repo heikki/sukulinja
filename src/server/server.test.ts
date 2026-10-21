@@ -82,6 +82,37 @@ describe('Astia Images', () => {
     expect(((await links.json()) as string[]).length).toBe(2);
   });
 
+  test('names the photograph in its ETag, so a re-scanned one is fetched anew', async () => {
+    const volume = memoryAstia(VOLUME_201);
+    serveWith(volume);
+    const first = await get('/astia/volumes/201/images/2');
+    const etag = first.headers.get('ETag')!;
+    expect(etag).toBe('"201-f2"');
+    expect(first.headers.get('Cache-Control')).toBe('no-cache');
+    const again = await fetch(
+      new Request('http://localhost/astia/volumes/201/images/2', {
+        headers: { 'If-None-Match': etag }
+      })
+    );
+    expect(again.status).toBe(304);
+    volume.rescan('201', 2);
+    // The cached list still names the old file, which is on disk.
+    expect((await get('/astia/volumes/201/images/2')).headers.get('ETag')).toBe(
+      etag
+    );
+    // Image 1 isn't, so Astia is asked; the list is fetched anew.
+    expect((await get('/astia/volumes/201/images/1')).headers.get('ETag')).toBe(
+      '"201-2-f1"'
+    );
+    const renewed = await fetch(
+      new Request('http://localhost/astia/volumes/201/images/2', {
+        headers: { 'If-None-Match': etag }
+      })
+    );
+    expect(renewed.status).toBe(200);
+    expect(renewed.headers.get('ETag')).toBe('"201-2-f2"');
+  });
+
   test('answers 502 when Astia fails, and throws on a bug', async () => {
     serveWith(memoryAstia(VOLUME_201, { down: true }));
     expect((await get('/astia/volumes/201/images/1')).status).toBe(502);

@@ -4,12 +4,17 @@
 // behind a full Image. The cache is capped by a size the install sets,
 // kept in the data folder rather than a viewer's cookie, and drops the
 // least recently viewed Images first.
+//
+// Astia may re-scan a Volume, giving every Image a new file id and none by
+// the old ones. An Image whose id Astia no longer has sends for the
+// Volume's list again, and is fetched once more by its new id.
 
 import { readdir, rename, rm, stat, utimes } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import type { ScanCacheStatus } from '@common/types';
 
+import { NoImageError } from './astia';
 import type { Astia, ImageSize } from './astia';
 import type { ImageRef } from './reader';
 
@@ -195,26 +200,51 @@ export function openScanCache({ astia, root }: { astia: Astia; root: string }) {
     await prune(path);
   }
 
+  async function fileAt(at: ImageRef, size: ImageSize) {
+    return (await astia.volumeImages(at.volumeId, size))[at.image - 1];
+  }
+
+  async function cached(
+    at: ImageRef,
+    size: ImageSize,
+    fileId: string,
+    signal: AbortSignal
+  ) {
+    const path = join(dir, `${fileId}.jpg`);
+    if (await touch(path)) return path;
+    if (size === 'thumb') {
+      await download(at.volumeId, fileId, path);
+    } else {
+      await inQueue(fileId, () => download(at.volumeId, fileId, path), signal);
+    }
+    return path;
+  }
+
+  // The Image's id after asking Astia for the Volume's list again, unless
+  // another request already has since `gone` was read from it.
+  async function renewed(at: ImageRef, size: ImageSize, gone: string) {
+    if ((await fileAt(at, size)) === gone) {
+      await astia.refreshImages(at.volumeId);
+    }
+    return await fileAt(at, size);
+  }
+
   return {
     // The cached file of a Volume's Image (numbered from 1), fetched if need
     // be; null when the Volume has no such Image. Throws when Astia fails,
     // or when `signal` aborts first.
     async image(at: ImageRef, size: ImageSize, signal: AbortSignal) {
-      const images = await astia.volumeImages(at.volumeId, size);
-      const fileId = images[at.image - 1];
+      const fileId = await fileAt(at, size);
       if (fileId === undefined) return null;
-      const path = join(dir, `${fileId}.jpg`);
-      if (await touch(path)) return path;
-      if (size === 'thumb') {
-        await download(at.volumeId, fileId, path);
-      } else {
-        await inQueue(
-          fileId,
-          () => download(at.volumeId, fileId, path),
-          signal
-        );
+      try {
+        return await cached(at, size, fileId, signal);
+      } catch (err) {
+        if (!(err instanceof NoImageError)) throw err;
+        const now = await renewed(at, size, fileId);
+        if (now === undefined) return null;
+        if (now === fileId) throw err;
+        return await cached(at, size, now, signal);
       }
-      return path;
     },
 
     // Whether a Volume's full-size Image is on disk already: a bulk job
