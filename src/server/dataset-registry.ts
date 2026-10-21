@@ -8,6 +8,8 @@ import type { DatasetInfo } from '@common/types';
 import { openAnyDb, openDb, OutdatedDatasetError } from './db';
 
 const SLUG_RE = /^[a-z0-9][a-z0-9_-]*$/u;
+// The database from before the last import, kept for Undo last import.
+const BEFORE_IMPORT = 'db.before-import.sqlite';
 
 function validateSlug(slug: string): void {
   if (!SLUG_RE.test(slug)) {
@@ -24,7 +26,8 @@ export interface StagingDataset {
   db: Database;
   mediaDir: string;
   // Atomically swap the staged dataset into place under its slug, replacing any
-  // existing one. Closes the staged handle; the next open() reopens fresh.
+  // existing one, whose database is kept to undo the import with. Closes the
+  // staged handle; the next open() reopens fresh.
   commit: () => Promise<void>;
   // Throw the staged dataset away without publishing it.
   discard: () => Promise<void>;
@@ -119,6 +122,7 @@ export class DatasetRegistry {
           cached.close();
           this.cache.delete(slug);
         }
+        await keepBefore(finalDir, stagingDir);
         await rm(finalDir, { recursive: true, force: true });
         await rename(stagingDir, finalDir);
       },
@@ -141,6 +145,28 @@ export class DatasetRegistry {
     }
     out.sort((a, b) => a.slug.localeCompare(b.slug));
     return out;
+  }
+
+  // Whether a dataset is stored under the slug, readable or not.
+  exists(slug: string) {
+    validateSlug(slug);
+    return existsSync(join(this.datasetDir(slug), 'db.sqlite'));
+  }
+
+  // Puts back the database from before the last import; false when none
+  // is kept.
+  async undoImport(slug: string) {
+    validateSlug(slug);
+    const dir = this.datasetDir(slug);
+    const before = join(dir, BEFORE_IMPORT);
+    if (!existsSync(before)) return false;
+    const cached = this.cache.get(slug);
+    if (cached !== undefined) {
+      cached.close();
+      this.cache.delete(slug);
+    }
+    await rename(before, join(dir, 'db.sqlite'));
+    return true;
   }
 
   open(slug: string): Database {
@@ -170,20 +196,25 @@ export class DatasetRegistry {
     }
   }
 
+  private status(slug: string, outdated: boolean) {
+    const undoable = existsSync(join(this.datasetDir(slug), BEFORE_IMPORT));
+    return { outdated, undoable };
+  }
+
   private datasetDir(slug: string): string {
     return join(this.root, slug);
   }
 
   private tryReadInfo(slug: string): DatasetInfo | null {
     try {
-      return readInfo(this.open(slug), slug, false);
+      return readInfo(this.open(slug), slug, this.status(slug, false));
     } catch (err) {
       if (!(err instanceof OutdatedDatasetError)) return null;
     }
     const db = this.readAny(slug);
     if (db === null) return null;
     try {
-      return readInfo(db, slug, true);
+      return readInfo(db, slug, this.status(slug, true));
     } catch {
       return null;
     } finally {
@@ -192,7 +223,30 @@ export class DatasetRegistry {
   }
 }
 
-function readInfo(db: Database, slug: string, outdated: boolean) {
+// What a new import of a dataset keeps of the one it replaces: its
+// database, and the photos the new one no longer has, which that database
+// still names. Photos are named by their content, so none clash.
+async function keepBefore(finalDir: string, stagingDir: string) {
+  const db = join(finalDir, 'db.sqlite');
+  if (!existsSync(db)) return;
+  await rename(db, join(stagingDir, BEFORE_IMPORT));
+  const media = join(finalDir, 'media');
+  if (!existsSync(media)) return;
+  const names = await readdir(media);
+  await Promise.all(
+    names
+      .filter((name) => !existsSync(join(stagingDir, 'media', name)))
+      .map(async (name) => {
+        await rename(join(media, name), join(stagingDir, 'media', name));
+      })
+  );
+}
+
+function readInfo(
+  db: Database,
+  slug: string,
+  status: { outdated: boolean; undoable: boolean }
+) {
   const meta = new Map<string, string>(
     db
       .query<{ key: string; value: string }, []>('SELECT key, value FROM meta')
@@ -212,6 +266,6 @@ function readInfo(db: Database, slug: string, outdated: boolean) {
     personCount: count('persons'),
     familyCount: count('families'),
     importedAt: meta.get('imported_at') ?? null,
-    outdated
+    ...status
   };
 }

@@ -289,4 +289,17 @@ export const appStyles = css`
   .import-dialog .actions {
     margin-top: 1.5rem;
   }
+  .review p {
+    font-size: 0.9rem;
+  }
+  /* What can't be kept: scrolls, so a long list keeps the buttons in view. */
+  .review ul.lost {
+    max-height: 12rem;
+    overflow-y: auto;
+    margin: 0;
+    padding-left: 1.2rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
 `;

@@ -17,16 +17,16 @@ The database is now the dataset's master copy, and a GEDZIP is how all of it lea
   - A Vision match nobody has checked keeps its imported `page` and adds the link with a note saying it wasn't checked.
   - **Rejections** have no GEDCOM form, so they get a table of their own.
 - **Facts about Volumes stay shared.** **Page pins** and **Record ranges** describe Astia's books, not a tree, so they stay in one local file that every dataset reads, beside the shipped ones. A Mark that gives a Page pin still saves it there.
-- **Re-importing merges, by stable ids.** The source program's part comes from the new export. Citations made in the app go back to the same person, by `UID`, or by record id for a file that carries no `UID`s.
-  - **Matching a citation:** an imported citation counts as the stored one when it has the same person, the same source, and the same `PAGE` as the stored `imported_page` (or `page` if the citation was never Marked). The stored citation is kept, Mark and all, so no duplicate is made.
+- **Re-importing merges, by stable ids.** The source program's part comes from the new export. A citation says whether it was made in the app (`added_in_app`). Citations made in the app go back to the same person, by `UID`, or by record id for a file that carries no `UID`s.
+  - **Matching a citation:** an imported citation counts as the stored one when it has the same person, the same source, and the same `PAGE` as the stored `imported_page` (or `page` if the citation was never Marked, or if the export now gives the Astia address). The stored citation is kept, Mark and all, so no duplicate is made. Citations alike in all three are paired in order, the first with the first.
   - **Duplicates:** an app-made Citation that the new export now has as well is dropped, and its link moves to the imported one.
   - **Before the merge:** whatever can't be reattached is listed before you confirm.
-  - **Undo:** the import keeps the database from before it, and _Undo last import_ swaps it back.
+  - **Undo:** the import keeps the database from before it, and the photos only that database names, and _Undo last import_ puts it back.
 - **A database built by an older schema won't open.** The dataset has to be imported again, which merges as above. With the source file gone, there's nothing to upgrade from.
 - **Export writes a GEDCOM 7 GEDZIP** (`gedcom.ged` and its media). It holds everything the database holds:
   - Each Mark becomes an `OBJE` under its citation, pointing at an `OBJE` record for the Image's JPEG in Astia, titled with its Volume and Image number, with the Box as its `CROP`. A Mark of only a Volume is a `NOTE` naming it.
   - `imported_page` becomes `NOTE Imported page: <url>`.
-  - An unchecked Vision match gets a `NOTE` saying so.
+  - An unchecked Vision match gets a `NOTE` saying so, and a citation made in the app `NOTE Added in Sukulinja`.
   - Importing that GEDZIP gives back the same dataset, reading those notes back into their columns.
   - A second export writes a GEDCOM 5.5.1 `.ged` for MyHeritage, with no photos and links without Boxes, since 5.5.1 has no standard crop.
 - **Verified by a round trip.** A test imports, exports and imports again and must get the same tree, on fixtures and, run locally, on the real exports. It also fails if the import listed any line it couldn't store, or if the GEDCOM 7 spec editor's validator, js-gedcom, finds an error in the exported `gedcom.ged`. The MyHeritage `.ged` is checked once by uploading it as a new tree.

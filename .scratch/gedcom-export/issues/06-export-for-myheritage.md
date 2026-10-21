@@ -14,6 +14,7 @@ It isn't known whether MyHeritage takes GEDCOM 7 or a GEDZIP, so beside the `.gd
 - **Undo what the import made GEDCOM 7** (`gedcom7-values.ts`, `03`): MIME `FORM` back to an extension, the BCP 47 `LANG` to its English name, calendar words to `@#D…@` escapes, `SNOTE` to `NOTE` records and pointers, an enumeration's `PHRASE` back to 5.5.1's free text (`EVEN Record`, `ROLE 10509:…`, `NAME.TYPE`, `ASSO.RELA`), `@VOID@` citations back to inline `SOUR <text>`.
 - **Leave photos out**: no person or family `OBJE`.
 - **Marks without Boxes**: a citation's Astia link as an `OBJE` with the Image URL and no crop, since 5.5.1 has none. The two notes of `04` as in the `.gdz`.
+- **No `Added in Sukulinja` note** (`05`): once MyHeritage has a citation made in the app, the next re-import should find it as MyHeritage's own, which the merge does by its person, source and page, and keep the app's Mark on it.
 - **`UID` as `_UID`**, the one place a person's id survives in 5.5.1, so MyHeritage has the chance to recognise people.
 - Map anything GEDCOM 7-only that `02` stores to its 5.5.1 form, or leave it out and list it in the export log.
 - **An Export for MyHeritage… action** beside Export….

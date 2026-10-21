@@ -1,7 +1,6 @@
 import { basename, join, relative, resolve } from 'node:path';
 import type { Database } from 'bun:sqlite';
 
-import { slugFromFilename, withoutExtension } from '@common/slug';
 import type { Box, LinkResolution } from '@common/types';
 
 import {
@@ -28,7 +27,7 @@ import type { Scans } from './citation-scans/scans';
 import { createCitations } from './citations';
 import type { DatasetRegistry } from './dataset-registry';
 import { saveExport } from './export-dataset';
-import { importDataset } from './import-dataset';
+import { importRoutes } from './import-route';
 import { createPersonDetails } from './person-details';
 import { createTree } from './tree';
 
@@ -160,76 +159,6 @@ function createDatasetHandlers(db: Database, scans: Scans): DatasetHandlers {
       return new Response(file);
     }
   };
-}
-
-// What an upload holds, by its extension: a GEDZIP, or a GEDCOM's text.
-async function importSource(file: File) {
-  if (/\.gdz$/iu.test(file.name)) return { gedzip: await file.bytes() };
-  if (/\.ged(?:com)?$/iu.test(file.name)) return { gedcom: await file.text() };
-  return null;
-}
-
-async function handleImport(
-  req: Request,
-  registry: DatasetRegistry
-): Promise<Response> {
-  const form = await req.formData().catch(() => null);
-  if (form === null) {
-    return new Response('expected multipart/form-data', { status: 400 });
-  }
-  const file = form.get('file');
-  if (!(file instanceof File)) {
-    return new Response('missing file field', { status: 400 });
-  }
-  const nameField = form.get('name');
-  const rawName =
-    typeof nameField === 'string' && nameField.trim() !== ''
-      ? nameField.trim()
-      : file.name;
-  const source = await importSource(file);
-  if (source === null) {
-    return new Response('expected a .ged, .gedcom or .gdz file', {
-      status: 400
-    });
-  }
-  // Keep the readable name (accents/casing) for display; the slug is derived.
-  const displayName = withoutExtension(rawName).trim();
-  const slug = slugFromFilename(rawName);
-  const sourceFilename = file.name;
-
-  // Stream the import as newline-delimited JSON: a series of {type:'log'}
-  // progress lines, then a terminal {type:'done', info} or {type:'error'}.
-  // Headers are already sent by the time the import runs, so failures surface
-  // as an error event in the body rather than an HTTP status.
-  const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const enc = new TextEncoder();
-      function send(event: unknown): void {
-        controller.enqueue(enc.encode(`${JSON.stringify(event)}\n`));
-      }
-      try {
-        const outcome = await importDataset({
-          registry,
-          slug,
-          displayName,
-          source,
-          sourceFilename,
-          log: (message) => {
-            send({ type: 'log', message });
-          }
-        });
-        send({ type: 'done', info: outcome.info });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'import failed';
-        send({ type: 'error', message });
-      } finally {
-        controller.close();
-      }
-    }
-  });
-  return new Response(stream, {
-    headers: { 'content-type': 'application/x-ndjson' }
-  });
 }
 
 async function handleDeleteDataset(
@@ -434,6 +363,19 @@ export interface ApiOptions {
 }
 
 const EXPORT_RE = /^\/datasets\/(?<slug>[^/]+)\/export$/u;
+const UNDO_RE = /^\/datasets\/(?<slug>[^/]+)\/undo-import$/u;
+
+// Puts back the dataset's database from before its last import.
+async function handleUndoImport(registry: DatasetRegistry, slug: string) {
+  try {
+    return (await registry.undoImport(slug))
+      ? new Response(null, { status: 204 })
+      : new Response('no import to undo', { status: 404 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'undo failed';
+    return new Response(message, { status: 400 });
+  }
+}
 
 async function handleExport(
   registry: DatasetRegistry,
@@ -463,6 +405,7 @@ export function createApi(
   // a dataset's Database is closed and replaced (by an import or a delete),
   // and the next request then opens the new one and gets new handlers.
   const handlersByDb = new WeakMap<Database, DatasetHandlers>();
+  const routeImport = importRoutes(registry);
 
   function pinsOf(db: Database) {
     return openPins(facts, openMarks(db));
@@ -519,6 +462,13 @@ export function createApi(
       const slug = exporting.groups!.slug!;
       return await handleExport(registry, slug, options.exportDir);
     }
+    const undoing = UNDO_RE.exec(pathname);
+    if (undoing !== null) {
+      if (req.method !== 'POST') {
+        return new Response('method not allowed', { status: 405 });
+      }
+      return await handleUndoImport(registry, undoing.groups!.slug!);
+    }
     if (pathname.startsWith('/datasets/')) {
       if (req.method !== 'DELETE') {
         return new Response('method not allowed', { status: 405 });
@@ -531,12 +481,8 @@ export function createApi(
 
   return {
     async routeApi(req, pathname) {
-      if (pathname === '/import') {
-        if (req.method !== 'POST') {
-          return new Response('method not allowed', { status: 405 });
-        }
-        return await handleImport(req, registry);
-      }
+      const imported = await routeImport(req, pathname);
+      if (imported !== null) return imported;
       const datasets = await routeDatasets(req, pathname);
       if (datasets !== null) return datasets;
       const shared = await routeShared({ astia, cache, kept }, req, pathname);

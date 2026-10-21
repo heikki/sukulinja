@@ -4,6 +4,7 @@
 
 import type { LinkColumns } from './astia-links';
 import {
+  ADDED_IN_APP,
   astiaImageOf,
   importedPageOf,
   noFileLinkOf,
@@ -30,13 +31,22 @@ export function astiaRecords(roots: GedNode[]) {
   return out;
 }
 
-function uncheckedOf(text: string) {
-  return text === UNCHECKED ? text : null;
+function noteOf(wanted: string) {
+  return (text: string) => (text === wanted ? text : null);
 }
 
-// The citation's columns for its link, in the order the import writes them.
-export function linkValues(link: LinkColumns | null) {
-  if (link === null) return Array<null>(10).fill(null);
+// What the app's own lines on a citation say: its link, and whether it was
+// made in the app.
+export interface CitationExtras {
+  link: LinkColumns | null;
+  addedInApp: boolean;
+}
+
+// The citation's columns for its link and whether it was made in the app,
+// in the order the import writes them.
+export function linkValues({ link, addedInApp }: CitationExtras) {
+  const added = addedInApp ? 1 : 0;
+  if (link === null) return [...Array<null>(10).fill(null), added];
   const { box } = link;
   return [
     link.importedPage,
@@ -48,7 +58,8 @@ export function linkValues(link: LinkColumns | null) {
     box === null ? null : box.top,
     box === null ? null : box.width,
     box === null ? null : box.height,
-    link.by
+    link.by,
+    added
   ];
 }
 
@@ -78,9 +89,8 @@ export function linkReader(roots: GedNode[], lines: LineReader) {
     return { left: left!, top: top!, width: width!, height: height! };
   }
 
-  // The link the citation's lines give, if any, with those lines taken off
-  // it.
-  return function readLink(sour: GedNode): LinkColumns | null {
+  // What the citation's lines give, with those lines taken off it.
+  return function readLink(sour: GedNode): CitationExtras {
     const taken = new Set<GedNode>();
     const object = findChildren(sour, 'OBJE').find((o) =>
       records.has(o.value ?? '')
@@ -124,10 +134,13 @@ export function linkReader(roots: GedNode[], lines: LineReader) {
         by: 'hand'
       };
     }
-    if (link !== null && noteWith(uncheckedOf) !== null) link.by = 'vision';
+    if (link !== null && noteWith(noteOf(UNCHECKED)) !== null) {
+      link.by = 'vision';
+    }
+    const addedInApp = noteWith(noteOf(ADDED_IN_APP)) !== null;
     for (let i = sour.children.length - 1; i >= 0; i -= 1) {
       if (taken.has(sour.children[i]!)) sour.children.splice(i, 1);
     }
-    return link;
+    return { link, addedInApp };
   };
 }

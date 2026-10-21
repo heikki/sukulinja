@@ -43,6 +43,30 @@ export interface DatasetInfo {
   // Built by an older version of the app, so it won't open until it's
   // imported again (ADR-0013).
   outdated: boolean;
+  // The database from before the last import is kept, to go back to.
+  undoable: boolean;
+}
+
+// What importing into an existing dataset would change, shown before it's
+// saved (ADR-0013): what the export added and no longer has, what's kept
+// from the app, and what can't be kept, its person or record gone.
+export interface ImportReview {
+  people: { added: number; gone: number };
+  citations: { added: number; gone: number };
+  kept: {
+    marks: number;
+    // Citations made in the app, attached again to their person.
+    citations: number;
+    // Citations made in the app that the export now has too: the export's
+    // is kept, with the link.
+    duplicates: number;
+    rejections: number;
+  };
+  // Each Mark or citation made in the app that can't be kept, described.
+  lost: string[];
+  // Why the dataset's database couldn't be read, so nothing is kept from
+  // it; null when it was.
+  unreadable: string | null;
 }
 
 // Returned by /api/persons/:id — what the person panel shows.

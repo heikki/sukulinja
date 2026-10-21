@@ -40,6 +40,8 @@ export interface ImportStats {
   sources: number;
   citations: number;
   notes: number;
+  // People and families the file gave no UID, who were given a new one.
+  newUids: number;
   // Standard lines left out; program-specific `_` lines aren't counted.
   unstored: Unstored[];
 }
@@ -103,6 +105,7 @@ export function importGedcom(
     sources: 0,
     citations: 0,
     notes: 0,
+    newUids: 0,
     unstored: []
   };
 
@@ -134,7 +137,9 @@ export function importGedcom(
   // A record's UID, or a new one: only a UID says reliably who is who from
   // one file to the next (ADR-0013).
   function uidOf(root: GedNode) {
-    return takeValue(root, 'UID') ?? crypto.randomUUID();
+    const uid = takeValue(root, 'UID');
+    if (uid === null) stats.newUids += 1;
+    return uid ?? crypto.randomUUID();
   }
 
   // When a record was last changed, as the file says.
@@ -446,7 +451,7 @@ export function importGedcom(
     scopeId: number
   ) {
     takeAll(holder, 'SOUR').forEach((sour, i) => {
-      const link = readLink(sour);
+      const extras = readLink(sour);
       const c = readCitation(sour);
       const res = sql.insertCitation.run(
         scope,
@@ -459,7 +464,7 @@ export function importGedcom(
         c.dataDate,
         c.text,
         i,
-        ...linkValues(link)
+        ...linkValues(extras)
       );
       const citationId = Number(res.lastInsertRowid);
       importNotes(sour, 'citation', citationId);

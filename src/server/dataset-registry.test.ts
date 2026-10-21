@@ -194,7 +194,8 @@ describe('list', () => {
         personCount: 2,
         familyCount: 1,
         importedAt: '2026-01-01T00:00:00Z',
-        outdated: false
+        outdated: false,
+        undoable: false
       },
       {
         slug: 'bravo',
@@ -202,7 +203,8 @@ describe('list', () => {
         personCount: 0,
         familyCount: 0,
         importedAt: null,
-        outdated: false
+        outdated: false,
+        undoable: false
       }
     ]);
   });
@@ -261,7 +263,8 @@ describe('a dataset an older version built', () => {
         personCount: 1,
         familyCount: 0,
         importedAt: null,
-        outdated: true
+        outdated: true,
+        undoable: false
       }
     ]);
   });

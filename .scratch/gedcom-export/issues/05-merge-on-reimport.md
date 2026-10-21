@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 Blocked by: 04
 
 # Merge a newer MyHeritage export into a dataset, with Undo last import
@@ -32,3 +32,19 @@ Importing into an existing dataset replaces it (`src/server/import-dataset.ts` b
 ## Not here
 
 A merge that settles conflicts between app edits and MyHeritage edits (deferred in ADR-0013: nothing edits imported data yet).
+
+## Answer
+
+Done, schema 5. Importing into a dataset that's there builds the new one in staging, carries over what the app added (`src/server/import-merge.ts`, matching records in `merge-records.ts`), shows the review, and saves only on Merge. Every existing dataset is now outdated, and importing its export again merges.
+
+Decided while building:
+
+- **`added_in_app`** on citations says a citation was made in the app. The GEDZIP carries it as `NOTE Added in Sukulinja`, so importing the app's own export keeps it. The MyHeritage export leaves it out (noted in `06`).
+- **When to fall back to xrefs:** when the import had to make up every person's and family's `UID`. A record that has no `UID` in the old database (an older schema) is always matched by xref.
+- **A Marked citation whose export now gives the Astia address as its `PAGE`** (after the MyHeritage export of `06` went back up) is matched by that address too, so its Mark stays.
+- **An app-made citation on a fact** goes back to the new database's fact with the same person, kind, date and place. A citation on anything else, or whose source is gone, is listed as lost. Its text notes come along; it has no photos to carry.
+- **What's kept for Undo:** `db.before-import.sqlite`, plus the photos only that database names. They stay in `media/` until the next import (photos are named by their content, so nothing clashes). Undo renames the kept database back, and nothing is left to undo after that.
+- **The review** is a `review` event in the import's stream. The import waits for `POST /import/<id>` with `{ merge }`. Closing the page while it waits cancels the import.
+- **A database that can't be read** gives a review that says why, and the import replaces it, still keeping the file to undo with.
+
+Checked on a copy of the installed app's ylonen (schema 4, 1,608 Marks), re-importing `Ylönen.ged`: all 1,608 Marks came back on the same people, pages and Boxes, with nothing added or gone. In the browser: review → Merge → Undo last import.
