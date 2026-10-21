@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 
 # Notice when Astia re-scans a Volume
 
