@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 
 # Save each pin's file id, and ignore pins made on another filming
 
@@ -25,3 +25,11 @@ A pin says "on Image n of this Volume". After a re-scan, Image n is another page
 ## Not here
 
 Showing that a Volume was re-scanned, or listing its stale pins in the app.
+
+## Answer
+
+- `PagePin`, `RecordPin`, `ReferencePin` and `Rejection` carry `fileId`. `isCurrent` in `locate.ts` decides; resolution leaves stale pins out per Volume, and `withoutStale` does it for every Volume at once (the evaluation set in `scripts/evaluate-reader`).
+- `openPins` now takes the Astia: a save looks up the Volume's list, writes the file id on every pin and Rejection on an Image, and leaves stale pins of that Volume out of the clashes it weighs. Still open: merging the local pins over the base has no lists, so a stale shipped hand Page pin keeps a vision Page pin for the same pages out of the snapshot until `pins.json` is fixed. Ticket `04` exists to catch exactly that.
+- The pins' files on disk (atomic writes, the lock, migrations) moved to `pin-files.ts`, beside `fillFileIds`; `scripts/fill-file-ids` runs it on a data folder from its own cached lists.
+- Backfilled on 2026-10-21: both data folders (2047 and 2046 pins on Images, none left without a file id) and the shipped `pins.json` (549 Page pins, from Astia's lists that day; its Volumes were sorted by id in a commit of their own first). The repo `data/` folder's I Ab:9 Record pin got the old filming's id (`5961500010`), the app folder's the new one (`15047072739`).
+- Checked on a copy of the repo `data/` folder: with I Ab:9's old list, p. 463 shows the vision match at Image 247 with its Box; after the list is fetched again it's Estimated at Image 232 from the shipped Page pin, and pp. 248 and 241 are counted to Images 126 and 123.

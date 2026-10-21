@@ -54,11 +54,15 @@ const PARISH_ARCHIVE: Record<string, string> = {
 
 // Pins say who saved them; a missing `by` is by hand, which covers the
 // shipped ones and every local file written before the vision model.
+// A pin on an Image keeps that Image's Astia file id, which tells the
+// filming it was made on: after a re-scan the Image number is another
+// page, and the pin is left out (see isCurrent).
 export interface PagePin {
   image: number;
   pages: number[];
   note?: string;
   by?: Provenance;
+  fileId?: string;
 }
 
 // MyHeritage record numbers, both ends included.
@@ -74,6 +78,7 @@ export interface RecordPin {
   by?: Provenance;
   // Where on the Image the entry is, where the vision model said.
   box?: Box;
+  fileId?: string;
 }
 
 // What's known of one volume: its Page pins, the villages found in it where
@@ -96,11 +101,52 @@ export interface ReferencePin {
   image?: number;
   by?: Provenance;
   box?: Box;
+  fileId?: string;
 }
 
 export interface Pins {
   volumes: Record<string, VolumePins>;
   references: Record<string, ReferencePin>;
+}
+
+// Whether a pin was made on the filming of its Volume that `files`, the
+// Volume's list as Astia gives it now, is of. One without an Image, or
+// saved before pins kept file ids, is taken to be.
+export function isCurrent(
+  pin: { image?: number; fileId?: string },
+  files: string[]
+) {
+  return (
+    pin.image === undefined ||
+    pin.fileId === undefined ||
+    files[pin.image - 1] === pin.fileId
+  );
+}
+
+// The pins made on each Volume's filming now, for a reader of them all;
+// resolution looks only at the Volumes it links.
+export async function withoutStale(pins: Pins, astia: Astia): Promise<Pins> {
+  const volumes = await Promise.all(
+    Object.entries(pins.volumes).map(async ([id, v]) => {
+      const files = await astia.volumeImages(id);
+      function current(p: { image?: number; fileId?: string }) {
+        return isCurrent(p, files);
+      }
+      const records = v.records?.filter(current);
+      const kept = { ...v, pages: v.pages.filter(current) };
+      return [id, records === undefined ? kept : { ...kept, records }] as const;
+    })
+  );
+  const references = await Promise.all(
+    Object.entries(pins.references).map(async ([url, p]) => {
+      const files = await astia.volumeImages(p.volumeId);
+      return isCurrent(p, files) ? [[url, p] as const] : [];
+    })
+  );
+  return {
+    volumes: Object.fromEntries(volumes),
+    references: Object.fromEntries(references.flat())
+  };
 }
 
 // Where a Record or Reference pin points, and who says so: as far down as it
@@ -261,8 +307,13 @@ interface Located {
   overran?: boolean;
 }
 
-function recordPin(v: Volume, ref: ChurchBookRef, pins: Pins) {
-  return pins.volumes[v.id]?.records?.find((r) => r.record === ref.recordId);
+// The Volume's Page pins and Record pins made on its filming now.
+function currentPins(v: Volume, files: string[], pins: Pins) {
+  const own = pins.volumes[v.id];
+  return {
+    pages: (own?.pages ?? []).filter((p) => isCurrent(p, files)),
+    records: (own?.records ?? []).filter((p) => isCurrent(p, files))
+  };
 }
 
 const ESTIMATED_VOLUME: LinkTarget = {
@@ -277,11 +328,12 @@ async function locate(
   pins: Pins
 ): Promise<Located> {
   const files = await astia.volumeImages(v.id);
-  const pin = recordPin(v, ref, pins);
+  const own = currentPins(v, files, pins);
+  const pin = own.records.find((r) => r.record === ref.recordId);
   const pinned = pin === undefined ? null : pinnedTarget(pin);
   if (pinned !== null) return { volume: v, files, target: pinned };
   if (ref.page === null) return { volume: v, files, target: ESTIMATED_VOLUME };
-  const counted = countedImage(pins.volumes[v.id]?.pages ?? [], ref.page);
+  const counted = countedImage(own.pages, ref.page);
   const image = counted ?? imageFor(defaultNumbering(ref.kind!), ref.page);
   const from = counted === null ? 'numbering' : 'pins';
   if (image < 1 || image > files.length) {
@@ -348,12 +400,14 @@ export async function parishVolumes(astia: Astia, parish: string | null) {
   return archiveId === null ? [] : await astia.archiveVolumes(archiveId);
 }
 
+// The pin's Link; null when it was made on another filming.
 async function referenceLink(
   astia: Astia,
   p: ReferencePin,
   target: LinkTarget
 ) {
   const files = await astia.volumeImages(p.volumeId);
+  if (!isCurrent(p, files)) return null;
   return linkTo(p.volumeId, p.volume, files, target);
 }
 
@@ -400,7 +454,7 @@ export async function resolveChurchBookRef(
 }
 
 // The reference's own pin decides its Link, at whatever Precision; null
-// when it has none that points anywhere.
+// when it has none that points anywhere now.
 async function pinnedLink(astia: Astia, ref: ChurchBookRef, pins: Pins) {
   const pin = pins.references[ref.url];
   const pinned = pin === undefined ? null : pinnedTarget(pin);

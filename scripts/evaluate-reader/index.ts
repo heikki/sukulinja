@@ -20,6 +20,7 @@ import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { openAstia } from '@server/citation-scans/astia';
+import { withoutStale } from '@server/citation-scans/locate';
 import { openPins } from '@server/citation-scans/pins';
 import { cachedReader } from '@server/citation-scans/reader';
 import type { ImageRef, Question, Reader } from '@server/citation-scans/reader';
@@ -205,7 +206,12 @@ async function main() {
 
   const refs = datasetRefs(join(root, values.dataset, 'db.sqlite'));
   const names = principals(refs);
-  const { volumes, references } = await openPins(root).snapshot();
+  const astia = openAstia(join(root, '.astia-cache'));
+  // Pins made on a filming Astia has since replaced name the wrong Image.
+  const { volumes, references } = await withoutStale(
+    await openPins(root, { astia }).snapshot(),
+    astia
+  );
   const pages = pageCases(volumes, limit);
   const byUrl = new Map(refs.map((r) => [r.url, r]));
   const dates = dateCases(references, byUrl, limit);
@@ -222,7 +228,6 @@ async function main() {
   const pageModels = models(values['pages-models'], DEFAULT_MODELS.pages);
   const dateModels = models(values['dates-models'], DEFAULT_MODELS.dates);
   const entryModels = models(values['entry-models'], DEFAULT_MODELS.entry);
-  const astia = openAstia(join(root, '.astia-cache'));
   const image = pacedImages(openScanCache({ astia, root }));
   const { results, lines, spentInAll } = await runAll({ root, image }, [
     ...pageModels.map((model) => ({

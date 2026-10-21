@@ -45,7 +45,10 @@ function datasetOf(cited: Cited[]) {
   for (const [i, c] of cited.entries()) {
     insert.run(c.personId, c.page, c.text, i);
   }
-  return createCitations(db, openScans({ pins: openPins(dir), astia }));
+  return createCitations(
+    db,
+    openScans({ pins: openPins(dir, { astia }), astia })
+  );
 }
 
 function cite(personId: number, c: { page: string | null; text: string }) {
@@ -87,7 +90,10 @@ test("serves a person's Citations, church books first", () => {
   ].join('\n');
   importGedcom(db, parseGedcom(gedcom), () => null);
   expect(
-    createCitations(db, openScans({ pins: openPins(dir), astia })).ofPerson(1)
+    createCitations(
+      db,
+      openScans({ pins: openPins(dir, { astia }), astia })
+    ).ofPerson(1)
   ).toEqual([
     {
       id: 2,
