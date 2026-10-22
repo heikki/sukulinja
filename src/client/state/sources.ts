@@ -17,8 +17,8 @@ export interface LinkStatus {
 }
 
 // Links arrive after the panel renders; until then the status is pending. A
-// Split reference opens on its first candidate; if that's an Estimated
-// Volume, the label counts the other candidates (+2).
+// Split reference opens on its first candidate; if that's an Estimate of
+// the Volume alone, the label counts the other candidates (+2).
 export function linkStatus(
   resolution: LinkResolution | undefined,
   pending: boolean

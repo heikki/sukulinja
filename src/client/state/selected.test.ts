@@ -141,7 +141,7 @@ test("the sources are in the panel's order, with link statuses", async () => {
     rows: g.sources.map((s) => [s.citation.id, s.status?.label])
   }));
   expect(sources).toEqual([
-    { label: 'Juvan seurakunnan arkisto', rows: [[11, 'Marked Image']] },
+    { label: 'Juvan seurakunnan arkisto', rows: [[11, 'Marked']] },
     { label: 'Church books', rows: [[12, 'Not found']] }
   ]);
   await loading;

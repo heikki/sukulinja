@@ -1,11 +1,5 @@
-import { certaintyName, linkName } from '@/client/link-labels';
-import type {
-  Box,
-  Certainty,
-  PersonRow,
-  Precision,
-  VolumeCitation
-} from '@/common/types';
+import { certaintyName } from '@/client/link-labels';
+import type { Box, Certainty, PersonRow, VolumeCitation } from '@/common/types';
 
 import { formatName } from '../tree-view/renderer';
 
@@ -27,19 +21,12 @@ function byPlace(nameOf: (row: VolumeCitation) => string) {
   };
 }
 
-// The groups, in order, named as the person panel names their Links: a
-// Mark is split by whether it says where on the Image the entry is.
-const GROUPED: Array<{ certainty: Certainty; precision?: Precision }> = [
-  { certainty: 'marked', precision: 'entry' },
-  { certainty: 'marked', precision: 'image' },
-  { certainty: 'match' },
-  { certainty: 'estimated' }
-];
+// The groups, in order, named as the person panel names their Links.
+const GROUPED: Certainty[] = ['marked', 'match', 'estimated'];
 
 // The Volume's rows linking the Image shown, grouped by who says so:
-// Marked, then Marked Image, then Matches left to confirm, then
-// Estimated ones. Those known only to be in the Volume aren't known to be
-// here, so they're left out.
+// Marked, then Matches left to confirm, then Estimates. Those known only to
+// be in the Volume aren't known to be here, so they're left out.
 export function groupCitations(
   rows: VolumeCitation[],
   image: number,
@@ -47,18 +34,9 @@ export function groupCitations(
 ) {
   const shown = rows.filter((r) => imageOf(r) === image);
   const order = byPlace(nameOf);
-  return GROUPED.map(({ certainty, precision }) => ({
-    label:
-      precision === undefined
-        ? certaintyName(certainty)
-        : linkName(certainty, precision),
-    rows: shown
-      .filter(
-        (r) =>
-          r.link.certainty === certainty &&
-          (precision === undefined || r.link.precision === precision)
-      )
-      .toSorted(order)
+  return GROUPED.map((certainty) => ({
+    label: certaintyName(certainty),
+    rows: shown.filter((r) => r.link.certainty === certainty).toSorted(order)
   })).filter((g) => g.rows.length > 0);
 }
 

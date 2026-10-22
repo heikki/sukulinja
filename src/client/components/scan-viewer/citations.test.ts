@@ -87,18 +87,17 @@ test("groups the Image's rows by who says so", () => {
     row(7, { precision: 'volume', certainty: 'marked' })
   ];
   expect(shown(rows, 7)).toEqual([
-    { label: 'Marked Image', people: ['Liisa'] },
+    { label: 'Marked', people: ['Liisa'] },
     { label: 'Match', people: ['Pekka'] },
-    { label: 'Estimated', people: ['Anna', 'Matti'] }
+    { label: 'Estimate', people: ['Anna', 'Matti'] }
   ]);
   expect(shown(rows, 8)).toEqual([{ label: 'Match', people: ['Juho'] }]);
 });
 
-test('lists Marks of the entry apart from Marks of only the Image', () => {
+test('lists Marks of the entry before Marks of only the Image', () => {
   const rows = [row(1, marked(7)), row(2, marked(7, BOX)), row(3, vision(7))];
   expect(shown(rows, 7)).toEqual([
-    { label: 'Marked', people: ['Liisa'] },
-    { label: 'Marked Image', people: ['Matti'] },
+    { label: 'Marked', people: ['Liisa', 'Matti'] },
     { label: 'Match', people: ['Anna'] }
   ]);
 });
@@ -113,7 +112,7 @@ test('lists entries in the order written on the Image', () => {
     row(3, vision(7, at(0.2)))
   ];
   expect(shown(rows, 7)).toEqual([
-    { label: 'Marked Image', people: ['Liisa'] },
+    { label: 'Marked', people: ['Liisa'] },
     { label: 'Match', people: ['Anna', 'Matti'] }
   ]);
 });

@@ -182,7 +182,7 @@ test('a hand marking replaces a Match', async () => {
   ]);
 });
 
-test('a vision pin without a box is left out, a hand one without is Marked Image', async () => {
+test('a vision pin without a box is left out, a hand one without is Marked at the Image', async () => {
   linkedAs(citation(5000, '1790 - 1796', 12), {
     ...JUVA_1,
     image: 4,

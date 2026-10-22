@@ -30,15 +30,15 @@ const VISION: LinkTarget = {
 };
 const VOLUME: LinkTarget = { precision: 'volume', certainty: 'estimated' };
 
-test('names a Link by who says so, then how far down', () => {
+test('names a Link by who says so, however far down', () => {
   expect(linkLabel(marked(7, BOX))).toBe('Marked');
-  expect(linkLabel(marked(7))).toBe('Marked Image');
+  expect(linkLabel(marked(7))).toBe('Marked');
   expect(linkLabel({ precision: 'volume', certainty: 'marked' })).toBe(
-    'Marked Volume'
+    'Marked'
   );
   expect(linkLabel(VISION)).toBe('Match');
-  expect(linkLabel(estimated(7, 'pins'))).toBe('Estimated Image');
-  expect(linkLabel(VOLUME)).toBe('Estimated Volume');
+  expect(linkLabel(estimated(7, 'pins'))).toBe('Estimate');
+  expect(linkLabel(VOLUME)).toBe('Estimate');
 });
 
 test('says why a reference has no Link: not looked for, not found, or Astia failed', () => {
