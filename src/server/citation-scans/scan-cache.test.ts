@@ -87,6 +87,18 @@ test('fetches an Image once, then serves it from the cache', async () => {
   expect(fetched).toEqual(['101-f3', '101-t3']);
 });
 
+test("keeps a Volume's Images in its own folder, thumbnails beside", async () => {
+  await open('101', 3);
+  await thumb('101', 3);
+  await open('102', 1);
+  const images = join(dir, '.astia-images');
+  expect((await readdir(images)).toSorted()).toEqual(['101', '102']);
+  expect((await readdir(join(images, '101'))).toSorted()).toEqual([
+    '101-f3.jpg',
+    '101-t3.jpg'
+  ]);
+});
+
 test('has no Image outside the Volume', async () => {
   expect(await open('102', 0)).toBeNull();
   expect(await open('102', IMAGES + 1)).toBeNull();
@@ -163,7 +175,7 @@ test('drops the least recently viewed Images past the cap', async () => {
   await open('106', 1);
   await Bun.sleep(5);
   await open('106', 3);
-  const cached = await readdir(join(dir, '.astia-images'));
+  const cached = await readdir(join(dir, '.astia-images', '106'));
   expect(cached.sort()).toEqual(['106-f1.jpg', '106-f3.jpg']);
 });
 
@@ -181,9 +193,12 @@ test('shrinks to a lowered cap at once, and clears', async () => {
   await open('109', 3);
   expect(await used()).toBe(3 * IMAGE_BYTES);
   await cache.setCap(1.5 * IMAGE_BYTES);
-  expect(await readdir(join(dir, '.astia-images'))).toEqual(['109-f3.jpg']);
+  expect(await readdir(join(dir, '.astia-images', '109'))).toEqual([
+    '109-f3.jpg'
+  ]);
   await cache.clear();
   expect(await used()).toBe(0);
+  expect(await readdir(join(dir, '.astia-images'))).toEqual([]);
 });
 
 async function writeSettings(root: string, settings: unknown) {
@@ -239,7 +254,7 @@ test('Scan caches on two data folders share neither files nor a queue', async ()
   await until(() => fetched.length === 3);
   hold.resolve();
   expect(await elsewhere).toBe(
-    join(dir, 'other', '.astia-images', '101-f9.jpg')
+    join(dir, 'other', '.astia-images', '101', '101-f9.jpg')
   );
   await held;
   expect(fetched).toEqual(['101-f9', '101-f1', '101-f9']);
@@ -265,10 +280,10 @@ describe('a re-scanned Volume', () => {
     const { astia, cache: scans } = rescanned();
     astia.rescan('301', 8);
     expect(await scans.image(at(5), 'full', signal)).toBe(
-      join(dir, '.astia-images', '301-2-f5.jpg')
+      join(dir, '.astia-images', '301', '301-2-f5.jpg')
     );
     expect(await scans.image(at(6), 'thumb', signal)).toBe(
-      join(dir, '.astia-images', '301-2-t6.jpg')
+      join(dir, '.astia-images', '301', '301-2-t6.jpg')
     );
     expect(astia.asked.filter((a) => a.startsWith('refresh'))).toEqual([
       'refresh 301'
@@ -282,9 +297,9 @@ describe('a re-scanned Volume', () => {
     await scans.image(at(3), 'full', signal);
     astia.rescan('301', 8);
     await scans.image(at(5), 'full', signal);
-    expect((await readdir(join(dir, '.astia-images'))).toSorted()).toEqual([
-      '301-2-f5.jpg'
-    ]);
+    expect(
+      (await readdir(join(dir, '.astia-images', '301'))).toSorted()
+    ).toEqual(['301-2-f5.jpg']);
   });
 
   test("one that doesn't switch on its own leaves the filming as it was", async () => {
@@ -297,12 +312,12 @@ describe('a re-scanned Volume', () => {
     expect(failed).toBeInstanceOf(NoImageError);
     expect(astia.asked.filter((a) => a.startsWith('refresh'))).toEqual([]);
     expect(await scans.image(at(2), 'full', signal)).toBe(
-      join(dir, '.astia-images', '301-f2.jpg')
+      join(dir, '.astia-images', '301', '301-f2.jpg')
     );
     await scans.refresh('301');
-    expect(await readdir(join(dir, '.astia-images'))).toEqual([]);
+    expect(await readdir(join(dir, '.astia-images', '301'))).toEqual([]);
     expect(await scans.image(at(5), 'full', signal)).toBe(
-      join(dir, '.astia-images', '301-2-f5.jpg')
+      join(dir, '.astia-images', '301', '301-2-f5.jpg')
     );
   });
 
@@ -318,7 +333,7 @@ describe('a re-scanned Volume', () => {
     expect(astia.asked).not.toContain('bytes 301-t5');
     // One on disk still shows.
     expect(await scans.image(at(2), 'full', signal)).toBe(
-      join(dir, '.astia-images', '301-f2.jpg')
+      join(dir, '.astia-images', '301', '301-f2.jpg')
     );
   });
 

@@ -170,7 +170,9 @@ test('tells of a re-scan, and what switching leaves out, without switching', asy
     stale: [...STALE.slice(0, 2), filled, ...STALE.slice(2)]
   });
   expect(await listed.volumeImages('v1')).toHaveLength(10);
-  expect(await readdir(join(dir, '.astia-images'))).toEqual(['v1-f2.jpg']);
+  expect(await readdir(join(dir, '.astia-images', 'v1'))).toEqual([
+    'v1-f2.jpg'
+  ]);
 });
 
 test('switches to the new filming when asked', async () => {
@@ -186,6 +188,6 @@ test('switches to the new filming when asked', async () => {
   expect(urls).toHaveLength(8);
   expect(urls[0]).toContain('fileId=v1-2-f1');
   expect(await listed.volumeImages('v1')).toHaveLength(8);
-  expect(await readdir(join(dir, '.astia-images'))).toEqual([]);
+  expect(await readdir(join(dir, '.astia-images', 'v1'))).toEqual([]);
   expect(await (await ask('GET', 'v1')).json()).toEqual({ rescan: null });
 });
