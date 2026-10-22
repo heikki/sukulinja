@@ -4,6 +4,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 
 import { currentAppearance, setAppearance } from '@/client/appearance';
 import type { Appearance } from '@/client/appearance';
+import { dialogStyles } from '@/client/dialog-styles';
 import { focusRingStyles } from '@/client/focus-ring';
 import {
   MAX_GENERATIONS,
@@ -45,11 +46,13 @@ const GEAR_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
 // and hears picks through `generations-change`; on the landing page there is
 // none and the row shows the preferred value. Every pick also becomes the
 // preference a dataset opens with. Scan cache is the install's, kept by the
-// app: the row asks for it each time the popover opens.
+// app: the row asks for it each time the popover opens, and Clear asks to
+// confirm in a dialog first.
 @customElement('sl-settings')
 export class SettingsElement extends LitElement {
   static override styles = [
     focusRingStyles,
+    dialogStyles,
     css`
       :host {
         position: relative;
@@ -203,6 +206,10 @@ export class SettingsElement extends LitElement {
       .caption button:hover:not(:disabled) {
         text-decoration: underline;
       }
+      /* Clear's dialog dims the popover too. */
+      .overlay {
+        z-index: 21;
+      }
       .caption button:disabled {
         color: var(--muted);
         opacity: 0.6;
@@ -219,6 +226,8 @@ export class SettingsElement extends LitElement {
   @state() private preferred = preferredGenerations();
   // Null until the app answers; a string when it couldn't.
   @state() private scanCache: ScanCacheStatus | string | null = null;
+  // Clear's dialog is up, asking to confirm.
+  @state() private confirmingClear = false;
   @state() private clearing = false;
 
   private readonly onDocumentPointerDown = (e: PointerEvent) => {
@@ -226,10 +235,12 @@ export class SettingsElement extends LitElement {
   };
 
   // Marked handled, or WKWebView hands Escape on to macOS, which beeps.
+  // Escape takes down Clear's dialog before the popover.
   private readonly onDocumentKeydown = (e: KeyboardEvent) => {
     if (e.key !== 'Escape' || !this.open) return;
     e.preventDefault();
-    this.open = false;
+    if (this.confirmingClear) this.cancelClear();
+    else this.open = false;
   };
 
   override updated(changed: PropertyValues) {
@@ -276,10 +287,15 @@ export class SettingsElement extends LitElement {
     }
   }
 
+  private cancelClear() {
+    if (!this.clearing) this.confirmingClear = false;
+  }
+
   private async clearScanCache() {
     this.clearing = true;
     await this.askScanCache('DELETE');
     this.clearing = false;
+    this.confirmingClear = false;
   }
 
   private pickAppearance(appearance: Appearance) {
@@ -301,6 +317,53 @@ export class SettingsElement extends LitElement {
         ${GEAR_ICON}
       </button>
       ${this.open ? this.renderPopover() : nothing}
+      ${this.confirmingClear ? this.renderClearDialog() : nothing}
+    `;
+  }
+
+  private renderClearDialog() {
+    const cache = this.scanCache;
+    if (cache === null || typeof cache === 'string') return nothing;
+    return html`
+      <div
+        class="overlay"
+        @click=${() => {
+          this.cancelClear();
+        }}
+      >
+        <div
+          class="dialog"
+          role="alertdialog"
+          @click=${(e: Event) => {
+            e.stopPropagation();
+          }}
+        >
+          <h2>Clear scan cache?</h2>
+          <p>
+            <strong>${formatBytes(cache.used)}</strong> of downloaded scans will
+            be removed. They download again when opened.
+          </p>
+          <div class="actions">
+            <button
+              @click=${() => {
+                this.cancelClear();
+              }}
+              ?disabled=${this.clearing}
+            >
+              Cancel
+            </button>
+            <button
+              class="danger"
+              @click=${() => {
+                void this.clearScanCache();
+              }}
+              ?disabled=${this.clearing}
+            >
+              ${this.clearing ? 'Clearing…' : 'Clear'}
+            </button>
+          </div>
+        </div>
+      </div>
     `;
   }
 
@@ -381,9 +444,9 @@ export class SettingsElement extends LitElement {
             >${formatBytes(cache.used)} of ${formatBytes(cache.cap)} used</span
           >
           <button
-            ?disabled=${this.clearing || cache.used === 0}
+            ?disabled=${cache.used === 0}
             @click=${() => {
-              void this.clearScanCache();
+              this.confirmingClear = true;
             }}
           >
             Clear
