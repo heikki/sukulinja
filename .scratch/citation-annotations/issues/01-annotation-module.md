@@ -64,4 +64,4 @@ Decided while building:
 - **The `Original page:` note is written and read whenever there is an original page**, not only beside a link.
 - **The script** leaves a database at any schema but 5 as it is, and says so, so running it twice is safe.
 
-**Still to do by hand:** run `bun run scripts/rename-original-page/index.ts` (the checkout's `data/`) and `bun run scripts/rename-original-page/index.ts --data ~/Library/Application\ Support/Sukulinja/data` (the installed app's). Then delete `scripts/rename-original-page/` in a commit of its own.
+**Moved on 2026-10-22:** `scripts/rename-original-page` renamed the column in the checkout's and the installed app's datasets. Their `db.before-import.sqlite` files, at schemas 3 and 4, were left alone by it and then deleted, as Undo would have put back a database the app won't open. The script is gone.
