@@ -8,6 +8,7 @@ import Electrobun, {
 import { DatasetRegistry } from './dataset-registry';
 import { seedDemo } from './demo';
 import { createApi, createStaticFetch } from './server';
+import { enterUrl, newWindowKey, windowOnly } from './window-only';
 import { loadWindowFrame, saveWindowFrame } from './window-state';
 
 const resourcesDir = resolve(dirname(process.argv0), '..', 'Resources');
@@ -42,10 +43,20 @@ const registry = new DatasetRegistry(dataDir);
 await seedDemo(registry, join(resourcesDir, 'app', 'demo', 'bourbon.gdz'));
 void registry.sweepStaging(); // clear staging dirs left by interrupted imports
 const api = createApi(registry);
-const fetch = createStaticFetch({ api, staticRoots: [viewsDir] });
+// Only the app's window gets in; see windowOnly.
+const windowKey = newWindowKey();
+const fetch = windowOnly(
+  windowKey,
+  createStaticFetch({ api, staticRoots: [viewsDir] })
+);
 // A GEDCOM import streams progress while photos download; bump the idle timeout
 // to its max so a quiet stretch between downloads doesn't drop the connection.
-const server = Bun.serve({ port: 0, idleTimeout: 255, fetch });
+const server = Bun.serve({
+  hostname: '127.0.0.1',
+  port: 0,
+  idleTimeout: 255,
+  fetch
+});
 
 ApplicationMenu.setApplicationMenu([
   {
@@ -103,7 +114,7 @@ ApplicationMenu.on('application-menu-clicked', (event: unknown) => {
 const savedFrame = loadWindowFrame(stateDir);
 const win = new BrowserWindow({
   title: 'Sukulinja',
-  url: server.url.toString(),
+  url: enterUrl(server.url, windowKey),
   frame: savedFrame ?? { x: 100, y: 100, width: 1200, height: 800 }
 });
 // The constructor reads `frame` as the content area and adds the title bar on
