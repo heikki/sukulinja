@@ -2,7 +2,13 @@ import love from 'eslint-config-love';
 
 export default [
   {
-    ignores: ['**/dist/**', '**/node_modules/**', '**/build/**', '**/.hutch/**']
+    ignores: [
+      '**/dist/**',
+      '**/node_modules/**',
+      '**/build/**',
+      '**/.hutch/**',
+      'scratch-*'
+    ]
   },
   {
     ...love,

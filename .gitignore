@@ -15,3 +15,6 @@ app.db-shm
 # The data folder of `bun run dev` and a dev build.
 /data/
 test/gedcom7/.cache/
+
+# Throwaway probes run from the repo root (bun test ./scratch-*.test.ts).
+/scratch-*
