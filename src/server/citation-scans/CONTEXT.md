@@ -7,6 +7,10 @@ Linking a **Church-book reference** to the Astia scan of the page it points to. 
 **Citation**:
 A reference in the tree to where a fact comes from, from any source.
 
+**Annotation**:
+What the app adds to a Citation: its Mark or Vision match, the page a Mark on an Image moved aside, and whether the app made the Citation. A re-import keeps it, while the source program's part comes from the new export.
+_Avoid_: note (a GEDCOM NOTE is the source's own text), extras, link columns.
+
 **Church-book reference**:
 The parish, **Book**, years and page a Citation points to in the church books, with the villages and farms it names. Read from a Citation; what scan linking works on. A reference read through MyHeritage also carries a **Record number**.
 _Avoid_: citation (the broader thing it's read from).
@@ -150,6 +154,7 @@ _Avoid_: "same page" alone — it doesn't say which.
 ## Flagged ambiguities
 
 - A **Citation** is not a **Church-book reference**: many Citations aren't to church books, and the reference is only what's read from one.
+- An **Annotation** is not a GEDCOM NOTE, though a GEDZIP writes parts of one as NOTEs (the page a Mark moved aside, "Added in Sukulinja"). Nor is it a **Box** ("annotating an Image" elsewhere means drawing one; here a Box is only one part of an Annotation), or a note written in a church book's margins.
 - **"Volume"** is Astia's book; MyHeritage's equivalent is a **Film**, which may hold several Volumes. **"Image"** is Astia's numbering, **"Frame"** MyHeritage's, **"Page number"** what's written in the book.
 - **Marked** and **Vision match** Links both come from a **Record pin** or **Reference pin**; only who saved it differs. A **Page pin** only improves its Volume's **Estimated** links.
 - **Precision** and **Certainty** answer different questions: how far down, and who says so. A Box exists exactly when a Link points at the entry.
