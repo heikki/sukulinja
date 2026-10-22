@@ -36,6 +36,7 @@ function row(personId: number, target: LinkTarget): VolumeCitation {
       record: null,
       text: null,
       churchBook: true,
+      madeInApp: false,
       citedPage: 12,
       cited: null
     },

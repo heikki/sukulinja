@@ -125,6 +125,7 @@ test("serves a person's Citations, church books first", () => {
       },
       text: null,
       churchBook: true,
+      madeInApp: false,
       citedPage: 139,
       cited: { parish: null, kind: 'rippi', years: { from: 1794, to: 1808 } }
     },
@@ -138,6 +139,7 @@ test("serves a person's Citations, church books first", () => {
       record: null,
       text: 'Family bible',
       churchBook: false,
+      madeInApp: false,
       citedPage: null,
       cited: null
     }
@@ -293,6 +295,7 @@ test("lists the Volume's Vision matches, Estimated Images and Estimated Volumes"
   expect(first![1]!.link).toMatchObject({ from: 'pins' });
   expect(first![0]!.citation).toMatchObject({
     churchBook: true,
+    madeInApp: false,
     citedPage: 12
   });
   expect(placesOf(await citations.inVolume('juva-2'))).toEqual([

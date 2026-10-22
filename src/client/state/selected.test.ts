@@ -22,6 +22,7 @@ function churchBook(id: number, citedPage: number | null): CitationRow {
     record: null,
     text: null,
     churchBook: true,
+    madeInApp: false,
     citedPage,
     cited: null
   };

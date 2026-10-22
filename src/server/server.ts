@@ -1,8 +1,10 @@
 import { basename, join, relative, resolve } from 'node:path';
 import type { Database } from 'bun:sqlite';
 
-import type { Box, LinkResolution } from '@common/types';
+import type { LinkResolution } from '@common/types';
 
+import { routeCitations } from './citation-routes';
+import type { CitationHandlers } from './citation-routes';
 import {
   AstiaError,
   NoImageError,
@@ -12,7 +14,6 @@ import {
 import type { Astia } from './citation-scans/astia';
 import { openMarks } from './citation-scans/marks';
 import { openPins, openVolumeFacts } from './citation-scans/pins';
-import type { BoxAt, MarkTarget } from './citation-scans/pins';
 import type { ImageRef } from './citation-scans/reader';
 import { routeRescan } from './citation-scans/rescans';
 import type { KeptPins } from './citation-scans/rescans';
@@ -40,14 +41,11 @@ interface ApiHandlers {
   routeApi: (req: Request, pathname: string) => Promise<Response | null>;
 }
 
-interface DatasetHandlers {
+interface DatasetHandlers extends CitationHandlers {
   handlePersons: () => Response;
   handleFamilies: () => Response;
   handlePerson: (id: number) => Response;
   handlePersonLinks: (id: number) => Response;
-  handleMark: (id: number, target: MarkTarget) => Promise<Response>;
-  handleDiscard: (id: number, at: BoxAt) => Promise<Response>;
-  handleVolumeChoices: (id: number) => Promise<Response>;
   handleVolumeCitations: (volumeId: string) => Promise<Response>;
   handleMedia: (rest: string, mediaRoot: string) => Promise<Response>;
 }
@@ -147,6 +145,29 @@ function createDatasetHandlers(db: Database, scans: Scans): DatasetHandlers {
       }
     },
 
+    async handleCite(personId, target) {
+      const made = await citations.cite(personId, target).catch(astiaFailed);
+      if (made instanceof Response) return made;
+      if (made === null) {
+        return new Response('person not found', { status: 404 });
+      }
+      return 'rejected' in made
+        ? new Response(made.rejected, { status: 400 })
+        : Response.json(made, { status: 201 });
+    },
+
+    handleUncite(id) {
+      const removed = citations.uncite(id);
+      if (removed === null) {
+        return new Response('citation not found', { status: 404 });
+      }
+      return removed
+        ? new Response(null, { status: 204 })
+        : new Response('Only a Citation made in the app can be deleted.', {
+            status: 400
+          });
+    },
+
     async handleMedia(rest, mediaRoot) {
       const rel = decodeURIComponent(rest.slice('/media/'.length));
       const fullPath = resolve(mediaRoot, rel);
@@ -177,75 +198,6 @@ async function handleDeleteDataset(
   }
 }
 
-// A Box's four numbers, or null for one that isn't.
-function readBox(value: unknown): Box | null {
-  if (typeof value !== 'object' || value === null) return null;
-  const { left, top, width, height } = value as Record<string, unknown>;
-  if (typeof left !== 'number' || typeof top !== 'number') return null;
-  if (typeof width !== 'number' || typeof height !== 'number') return null;
-  const box: Box = { left, top, width, height };
-  return box;
-}
-
-// `{ volumeId, image, box? }`, or `{ volumeId }` for only the Volume; `box`
-// null for none. Anything else is rejected.
-async function readMark(req: Request): Promise<MarkTarget | null> {
-  const body = (await req.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
-  if (typeof body?.volumeId !== 'string') return null;
-  const { volumeId, image, box } = body;
-  if (image === undefined) return box === undefined ? { volumeId } : null;
-  if (typeof image !== 'number') return null;
-  if (box === undefined || box === null) return { volumeId, image, box };
-  const drawn = readBox(box);
-  return drawn === null ? null : { volumeId, image, box: drawn };
-}
-
-// `{ volumeId, image }`: where a Box is. Anything else is rejected.
-async function readBoxAt(req: Request): Promise<BoxAt | null> {
-  const body = (await req.json().catch(() => null)) as Record<
-    string,
-    unknown
-  > | null;
-  const { volumeId, image } = body ?? {};
-  if (typeof volumeId !== 'string' || typeof image !== 'number') return null;
-  return { volumeId, image };
-}
-
-// POST a Mark, DELETE a Box.
-async function routeMark(req: Request, handlers: DatasetHandlers, id: number) {
-  if (req.method === 'DELETE') {
-    const at = await readBoxAt(req);
-    return at === null
-      ? new Response('expected { volumeId, image }', { status: 400 })
-      : await handlers.handleDiscard(id, at);
-  }
-  if (req.method !== 'POST') {
-    return new Response('method not allowed', { status: 405 });
-  }
-  const target = await readMark(req);
-  return target === null
-    ? new Response('expected { volumeId, image?, box? }', { status: 400 })
-    : await handlers.handleMark(id, target);
-}
-
-// GET a citation's `/volumes`; POST its `/scans` (a Mark), or DELETE its
-// Box there (a Discard).
-async function routeCitation(
-  req: Request,
-  handlers: DatasetHandlers,
-  id: number,
-  part: string
-) {
-  if (part === 'scans') return await routeMark(req, handlers, id);
-  if (req.method !== 'GET') {
-    return new Response('method not allowed', { status: 405 });
-  }
-  return await handlers.handleVolumeChoices(id);
-}
-
 async function routeDataset(
   req: Request,
   handlers: DatasetHandlers,
@@ -261,12 +213,8 @@ async function routeDataset(
       ? handlers.handlePerson(id)
       : handlers.handlePersonLinks(id);
   }
-  const citation =
-    /^\/api\/citations\/(?<id>\d+)\/(?<part>scans|volumes)$/.exec(rest);
-  if (citation !== null) {
-    const { id, part } = citation.groups!;
-    return await routeCitation(req, handlers, Number(id), part!);
-  }
+  const cited = await routeCitations(req, handlers, rest);
+  if (cited !== null) return cited;
   const volume = /^\/api\/volumes\/(?<id>[^/]+)\/citations$/.exec(rest);
   if (volume !== null) {
     return await handlers.handleVolumeCitations(volume.groups!.id!);

@@ -108,6 +108,9 @@ export interface CitationRow {
   text: string | null;
   // Cites a Finnish church book, so it may get a Link.
   churchBook: boolean;
+  // Made in the app, on an Astia Image: it has no Church-book reference,
+  // and its Link is the Mark it was made with.
+  madeInApp: boolean;
   // The church-book page cited, which a Mark places.
   citedPage: number | null;
   // What a Church-book reference cites, as far as it can be read; null for
