@@ -229,6 +229,19 @@ export function openScans({
       return await resolveRef(ref);
     },
 
+    // The title of the archive holding the Volume, as a Link names it,
+    // looked for among the `parishes`' archives; null when none holds it
+    // or Astia can't say.
+    async archiveTitleOf(volumeId: string, parishes: Array<string | null>) {
+      try {
+        const archive = await archiveOf(volumeId, parishes);
+        return archive === null ? null : await astia.archiveTitle(archive);
+      } catch (err) {
+        if (err instanceof AstiaError) return null;
+        throw err;
+      }
+    },
+
     // The label of the Volume an entry is cited in, by its Box on an Image
     // of the filming `fileId` is of; or why it can't be. The Volume must be
     // in one of the `parishes`.

@@ -39,6 +39,7 @@ The database is now the dataset's master copy, and a GEDZIP is how all of it lea
 - **Leftovers as JSON beside typed tables.** Rejected: two places to keep in step on every change.
 - **Keep Marks as notes about a record in `pins.local.json`, laid over the citations at read time.** Rejected: the database wouldn't match the GEDZIP, and a citation made in the app would hold its link differently from an imported one.
 - **Keep the source URL in `PAGE` and add the Astia link beside it.** Rejected: the citation should read as what it now cites, the Astia Image. `original_page` keeps the re-import's match working.
+- **Write `PAGE` as the spec suggests, `Image: 232, Page: 463`, with the link only in the `OBJE`.** Deferred: a URL in `PAGE` is valid GEDCOM 7, opens the scan from MyHeritage's 5.5.1 import, where there's no `CROP`, and is what a re-import matches the citation by. Everything the recommended form needs is stored (the Image in the link, the page in the citation's text), so a later change can convert every citation automatically.
 - **Replace on re-import.** Rejected: it would lose every Citation made in the app.
 - **A full merge with conflict handling.** Deferred: nothing edits imported data yet, so the app's changes are only additions. It can be built on this merge once there's something to conflict.
 - **Keep `_PRIM` in the GEDZIP, declared in the header.** Rejected: putting the photo first says the same thing in standard GEDCOM.

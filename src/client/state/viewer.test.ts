@@ -93,6 +93,10 @@ const CHOICE_201 = { id: '201', label: 'I Aa:201', years: null };
 const C15 = churchBook(15, null);
 const L15 = inVolume('201');
 
+// Person 4's 41, made in the app at the entry on Image 30 of Volume 201.
+const C41 = { ...churchBook(41, null), madeInApp: true };
+const MADE_41: Link = { ...VISION_21, image: 30, certainty: 'marked' };
+
 const S11 = { citation: C11, link: L11 };
 const S12 = { citation: C12, link: L12 };
 const S13 = { citation: C13, link: L13 };
@@ -118,7 +122,8 @@ function dataset(options: MemoryOptions = {}) {
       details: {
         1: person(1, [C11, C12, C13, C14]),
         2: person(2, [C21]),
-        3: person(3, [C15])
+        3: person(3, [C15]),
+        4: person(4, [C41])
       },
       links: {
         1: [
@@ -128,7 +133,8 @@ function dataset(options: MemoryOptions = {}) {
           { citationId: 14, unlinked: 'not-digitized' }
         ],
         2: [linksOf(21, VISION_21)],
-        3: [{ citationId: 15, links: [L15, inVolume('202')] }]
+        3: [{ citationId: 15, links: [L15, inVolume('202')] }],
+        4: [linksOf(41, MADE_41)]
       },
       volumes: {
         '201': { images: 40, citations: [ROW_11, ROW_21] },
@@ -173,6 +179,16 @@ test("open goes to the Link's Image; one to only the Volume holds anywhere in it
   // In another Volume, it opens on the first Image.
   viewer.open(S12);
   expect([viewer.volume.get()?.id, viewer.image.get()]).toEqual(['201', 1]);
+});
+
+test('a Citation made in the app opens on its Image, with its Box', async () => {
+  const { state, viewer } = await selecting(4);
+  const source = state.selected.sources.get()[0]!.sources[0]!;
+  expect(source.status?.label).toBe('Marked');
+  viewer.open({ citation: source.citation, link: source.status!.link! });
+  expect([viewer.volume.get()?.id, viewer.image.get()]).toEqual(['201', 30]);
+  expect(viewer.boxHere.get()).toEqual(BOX);
+  expect(viewer.boxPending.get()).toBe(false);
 });
 
 test('opening the source shown goes back to its Image', async () => {

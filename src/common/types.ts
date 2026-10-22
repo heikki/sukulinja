@@ -97,7 +97,8 @@ export interface CitationRow {
   // its collection: "Haukivuori · Pää- ja rippikirjat 1821–1837 · p. 2".
   reference: string | null;
   // Where in its Volume a Church-book reference points: its page, "p. 135",
-  // or failing one the date of its entry, "3.3.1761".
+  // or failing one the date of its entry, "3.3.1761". A Citation of an
+  // Astia Image gives the Image, "Image 13".
   entry: string | null;
   // PAGE as recorded; `url` repeats it when it is a link.
   page: string | null;
