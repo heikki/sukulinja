@@ -5,7 +5,12 @@ import { DatasetRegistry } from './dataset-registry';
 import { seedDemo } from './demo';
 import { createApi, createStaticFetch } from './server';
 
-const registry = new DatasetRegistry(resolve('data'));
+// The checkout's data/, unless SUKULINJA_DATA names another folder (e.g. a
+// copy of the installed app's ~/Library/Application Support/Sukulinja/data,
+// which drifts from this one).
+const registry = new DatasetRegistry(
+  resolve(process.env.SUKULINJA_DATA ?? 'data')
+);
 await seedDemo(registry, resolve('resources/demo/bourbon.gdz'));
 void registry.sweepStaging(); // clear staging dirs left by interrupted imports
 const api = createApi(registry);
