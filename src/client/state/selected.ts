@@ -43,6 +43,9 @@ export interface Selected {
   // The Links resolved again, as after switching a re-scanned Volume to
   // its new filming; resolves once they're in.
   relink: () => Promise<void>;
+  // Their details and Links read again, as after a Citation of theirs is
+  // made or deleted; the ones shown stay until the new ones are in.
+  refresh: () => Promise<void>;
 }
 
 // Long enough for Links the server has resolved before; ones it must ask
@@ -152,6 +155,21 @@ export function openSelected(
     return await settled(api.discard(citationId, at));
   }
 
+  async function refresh() {
+    const person = id.get();
+    if (person === null) return;
+    detailsAbort?.abort();
+    const abort = new AbortController();
+    detailsAbort = abort;
+    const arrived = await api
+      .person(person, abort.signal)
+      .catch((err: unknown) => {
+        if (abort.signal.aborted || err instanceof ApiError) return null;
+        throw err;
+      });
+    if (arrived !== null) await loadLinks(person, arrived);
+  }
+
   async function relink() {
     const person = id.get();
     if (person !== null) await loadLinks(person, null);
@@ -167,6 +185,7 @@ export function openSelected(
     select,
     mark,
     discard,
-    relink
+    relink,
+    refresh
   };
 }

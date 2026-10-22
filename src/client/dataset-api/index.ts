@@ -37,6 +37,16 @@ export interface BoxAt {
   image: number;
 }
 
+// An entry cited in the app: its Box on an Image of a Volume, by the
+// Image's file id, with what it is, if said.
+export interface CiteTarget {
+  volumeId: string;
+  image: number;
+  fileId: string;
+  box: Box;
+  text: string | null;
+}
+
 // Each call rejects with ApiError when it fails, and with the signal's
 // reason once `signal` aborts.
 export interface DatasetApi {
@@ -53,6 +63,11 @@ export interface DatasetApi {
   // Takes back the reference's Box at `at`, a Mark's or a Vision match's:
   // its Links, resolved again.
   discard: (citationId: number, at: BoxAt) => Promise<CitationLinks>;
+  // Makes a Citation of the entry for the person: it as the Volume's
+  // citations list it.
+  cite: (personId: number, at: CiteTarget) => Promise<VolumeCitation>;
+  // Deletes a Citation made in the app.
+  uncite: (citationId: number) => Promise<void>;
   // The Volumes a reference can be put in.
   volumeChoices: (
     citationId: number,
@@ -194,6 +209,25 @@ export function openDatasetApi(
         }
       );
       return (await res.json()) as CitationLinks;
+    },
+
+    async cite(personId, at) {
+      const res = await ask(
+        'Citing',
+        `${dataset}/api/persons/${personId}/citations`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(at)
+        }
+      );
+      return (await res.json()) as VolumeCitation;
+    },
+
+    async uncite(citationId) {
+      await ask('Deleting', `${dataset}/api/citations/${citationId}`, {
+        method: 'DELETE'
+      });
     },
 
     volumeChoices: async (citationId, signal) =>

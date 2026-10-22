@@ -11,7 +11,13 @@ import type { Database, SQLQueryBindings } from 'bun:sqlite';
 
 import { BOOK_NAMES } from '@common/books';
 import { isoDate } from '@common/dates';
-import type { Box, CitationRow, Link, VolumeCitation } from '@common/types';
+import type {
+  Box,
+  CitationRow,
+  Link,
+  LinkResolution,
+  VolumeCitation
+} from '@common/types';
 
 import {
   annotated,
@@ -271,6 +277,32 @@ export function createCitations(db: Database, scans: Scans) {
     return archive === null ? link : { ...link, archive };
   }
 
+  // A Citation of an Image moved to the entry `target` gives, in the
+  // Volume it's in; its Link there.
+  async function moveEntry(
+    citationId: number,
+    target: MarkTarget
+  ): Promise<LinkResolution | { rejected: string }> {
+    const { volumeId, image, box } = target;
+    const stored = linkedInVolume
+      .all(volumeId)
+      .some((r) => r.id === citationId);
+    if (!stored) {
+      return { rejected: 'A Citation of an Image stays in its Volume.' };
+    }
+    if (image === undefined || box === undefined || box === null) {
+      return { rejected: 'A Citation of an Image needs its entry box.' };
+    }
+    const checked = await scans.imageToCite(
+      { volumeId, image, box },
+      parishes()
+    );
+    if ('rejected' in checked) return checked;
+    made.move(citationId, { volumeId, image, box, ...checked });
+    const [c] = cited([byId.get(citationId)!]);
+    return { links: [await withArchive(c!.stored!)] };
+  }
+
   // The Citations of Images in the Volume, with no Church-book reference.
   async function storedIn(volumeId: string) {
     const rows = cited(linkedInVolume.all(volumeId)).flatMap((c) =>
@@ -344,9 +376,13 @@ export function createCitations(db: Database, scans: Scans) {
 
     // Saves a Mark. Null when there's no such Citation, or it isn't a
     // Church-book reference.
+    // A Citation of an Image takes a Mark at another entry in its Volume.
     async mark(citationId: number, target: MarkTarget) {
-      const book = churchBookOf(citationId);
-      return book === null ? null : await scans.markRef(book, target);
+      const row = byId.get(citationId);
+      if (row === null) return null;
+      const [c] = cited([row]);
+      if (c!.book !== null) return await scans.markRef(c!.book, target);
+      return c!.stored === null ? null : await moveEntry(citationId, target);
     },
 
     // Takes back the reference's Box; null as for `mark`.

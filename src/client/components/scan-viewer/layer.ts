@@ -8,19 +8,30 @@ import { appState } from '@client/state';
 import type { AppState } from '@client/state';
 import type { Box, PersonRow } from '@common/types';
 
+import type { FamilyIndices } from '../person-panel/family';
 import { entriesOn, rowName } from './citations';
+import { citeChoices, citingImage, searchable } from './cite';
 import { scanLayerStyles } from './edit-styles';
 import { boxFromStage, boxOnStage, clampBox, newBox, wholeBox } from './frame';
 import type { Frame } from './frame';
 import { linkItems } from './menu';
 
 import '../context-menu';
+import '../person-search';
 import './volumes';
 
 // The parts of a Box a drag can take: an edge, a corner, or all of it.
 type Grip = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw' | 'move';
 
 const GRIPS: Grip[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
+
+function stop(e: Event) {
+  e.stopPropagation();
+}
+
+// What a right-click opened: the menu, the Volumes chosen from it, or the
+// people an entry can be cited for, listed or searched.
+type Popup = 'menu' | 'volumes' | 'cite' | 'search';
 
 // A drag under way: from where, and the Box it started on.
 interface BoxDrag {
@@ -58,7 +69,9 @@ function dragged(start: Box, grip: Grip, d: Point, size: Viewport): Box {
 
 // Editing the current source's Link over the scan: the menu a right-click
 // opens (`openMenu`), the Volumes opened from it, a new entry Box put where
-// the menu opened, and the pending Box with handles to move and resize it. Presses on
+// the menu opened, for the source or for a new Citation of someone in the
+// Selected person's family (`indices`) or found by search, and the pending
+// Box with handles to move and resize it. Presses on
 // anything of its own stay here, so they don't pan the scan; elsewhere the
 // scan pans as ever. `canEdit` is false until the full Image is shown,
 // whose frame Boxes are measured in.
@@ -72,12 +85,11 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
   @property({ attribute: false }) frame: Frame | null = null;
   @property({ type: Boolean }) canEdit = false;
   @property({ attribute: false }) persons = new Map<number, PersonRow>();
+  @property({ attribute: false }) indices: FamilyIndices | null = null;
 
-  @state() private popup: {
-    at: Point;
-    onBox: boolean;
-    volumes: boolean;
-  } | null = null;
+  @state() private popup: { at: Point; onBox: boolean; show: Popup } | null =
+    null;
+  private searchOpened = false;
   @state() private drag: BoxDrag | null = null;
   // The Box as a drag has it, before it's let go.
   @state() private live: Box | null = null;
@@ -87,6 +99,7 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     window.addEventListener('mousemove', this.onMove);
     window.addEventListener('mouseup', this.onUp);
     window.addEventListener('keydown', this.onKey, true);
+    window.addEventListener('mousedown', this.onOutside);
   }
 
   override disconnectedCallback() {
@@ -94,14 +107,31 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     window.removeEventListener('mousemove', this.onMove);
     window.removeEventListener('mouseup', this.onUp);
     window.removeEventListener('keydown', this.onKey, true);
+    window.removeEventListener('mousedown', this.onOutside);
   }
+
+  // The search takes the typing as it opens, once it has drawn its input.
+  override updated() {
+    if (!this.searchOpened) return;
+    this.searchOpened = false;
+    const search = this.renderRoot.querySelector('sl-person-search');
+    void search?.updateComplete.then(() => {
+      search.focusInput();
+    });
+  }
+
+  // A press outside the search closes it, as one outside a menu does;
+  // presses on it stop there.
+  private readonly onOutside = () => {
+    if (this.popup?.show === 'search') this.popup = null;
+  };
 
   // The menu at `at` on the stage; `onBox` when it's on the source's own
   // entry Box, which then has a menu of its own.
   // None over a Volume on a filming Astia replaced: it's read-only.
   openMenu(at: Point, onBox: boolean) {
     if (this.viewer.oldFilming.get()) return;
-    this.popup = { at, onBox, volumes: false };
+    this.popup = { at, onBox, show: 'menu' };
   }
 
   // A Volume on a filming Astia replaced is read-only until switched.
@@ -181,16 +211,11 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     return name === '—' ? null : name;
   }
 
-  // A pending Box for the source's entry, to move and resize from there:
-  // its Link's own Box when it has one on the Image shown, as a Vision match
-  // does, else one at `at` on the stage, sized as the Image's other entries.
-  private placeBox(at: Point) {
+  // A new entry Box at `at` on the stage, sized as the Image's other
+  // entries; null until the full Image is shown.
+  private newBoxAt(at: Point) {
     const { view, frame } = this;
-    if (view === null || frame === null) return;
-    if (!this.viewer.boxPending.get() && this.viewer.boxHere.get() !== null) {
-      this.viewer.editBox();
-      return;
-    }
+    if (view === null || frame === null) return null;
     const point = boxFromStage(
       { left: at.x, top: at.y, width: 0, height: 0 },
       view
@@ -199,29 +224,117 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     const others = Array.isArray(rows)
       ? entriesOn(rows, this.viewer.image.get()).map((e) => e.box)
       : [];
-    this.viewer.setBox(
-      newBox({ x: point.left, y: point.top }, others, frame.size)
+    return newBox({ x: point.left, y: point.top }, others, frame.size);
+  }
+
+  // A pending Box for the source's entry, to move and resize from there:
+  // its Link's own Box when it has one on the Image shown, as a Vision match
+  // does, else a new one at `at`.
+  private placeBox(at: Point) {
+    if (!this.viewer.boxPending.get() && this.viewer.boxHere.get() !== null) {
+      this.viewer.editBox();
+      return;
+    }
+    const box = this.newBoxAt(at);
+    if (box !== null) this.viewer.setBox(box);
+  }
+
+  // A pending Box at `at` for a new Citation of the entry for the person.
+  private cite(at: Point, personId: number) {
+    this.popup = null;
+    const box = this.newBoxAt(at);
+    if (box !== null) this.viewer.citeFor(personId, box);
+  }
+
+  // Whose Citations already link the Image shown: not cited for again.
+  private citingHere() {
+    const rows = this.viewer.citations.get();
+    return citingImage(
+      Array.isArray(rows) ? rows : [],
+      this.viewer.image.get()
     );
+  }
+
+  private renderCite(at: Point) {
+    const selected = this.state.selected.id.get();
+    const left = this.citingHere();
+    const family =
+      selected === null || this.indices === null
+        ? []
+        : citeChoices(selected, this.indices, left);
+    const items = [
+      ...family.map((c) => ({
+        label: c.label,
+        run: () => {
+          this.cite(at, c.personId);
+        }
+      })),
+      {
+        label: 'Someone else…',
+        run: () => {
+          this.popup = { at, onBox: false, show: 'search' };
+          this.searchOpened = true;
+        }
+      }
+    ];
+    return html`<sl-context-menu
+      .items=${items}
+      .heading=${'Cite this entry for'}
+      .at=${at}
+      @close=${this.onPopupClose}
+    ></sl-context-menu>`;
+  }
+
+  // Esc clears what's typed, as the search does, then closes it; the
+  // viewer's Esc never sees it. Presses on it stay on it, so they don't
+  // pan the scan.
+  private renderSearch(at: Point) {
+    return html`<div
+      class="search"
+      style="left: ${at.x}px; top: ${at.y}px"
+      @mousedown=${stop}
+      @wheel=${stop}
+      @dblclick=${stop}
+      @contextmenu=${stop}
+      @keydown=${(e: KeyboardEvent) => {
+        if (e.key !== 'Escape') return;
+        e.stopPropagation();
+        if (!e.defaultPrevented) this.popup = null;
+        e.preventDefault();
+      }}
+    >
+      <sl-person-search
+        .persons=${searchable(this.persons, this.citingHere())}
+        @pick=${(e: CustomEvent<{ id: number }>) => {
+          this.cite(at, e.detail.id);
+        }}
+      ></sl-person-search>
+    </div>`;
   }
 
   private renderPopup() {
     if (this.popup === null) return nothing;
-    const { at, onBox, volumes } = this.popup;
-    if (volumes) {
+    const { at, onBox, show } = this.popup;
+    if (show === 'volumes') {
       return html`<sl-scan-volumes
         .at=${at}
         @close=${this.onPopupClose}
       ></sl-scan-volumes>`;
     }
+    if (show === 'cite') return this.renderCite(at);
+    if (show === 'search') return this.renderSearch(at);
     const items = linkItems(
       this.viewer,
       { onBox, canBox: this.editable },
       {
         chooseVolume: () => {
-          this.popup = { at, onBox, volumes: true };
+          this.popup = { at, onBox, show: 'volumes' };
         },
         placeBox: () => {
           this.placeBox(at);
+        },
+        cite: () => {
+          this.popup = { at, onBox, show: 'cite' };
         }
       }
     );

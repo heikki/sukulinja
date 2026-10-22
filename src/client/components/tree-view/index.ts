@@ -475,6 +475,7 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
     return html`
       <sl-scan-viewer
         .persons=${this.persons}
+        .indices=${this.indices}
         @scan-person=${(e: ScanPersonEvent) => {
           this.select(e.detail.personId);
         }}

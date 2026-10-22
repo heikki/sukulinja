@@ -75,6 +75,17 @@ export const scanEditStyles = css`
     margin: 0;
   }
 
+  p.cite {
+    white-space: nowrap;
+  }
+
+  /* What the new Citation's entry is: one line, written left to right as
+     text is, where the control styles right-align an Image number. */
+  input.cite-text {
+    width: 16rem;
+    text-align: left;
+  }
+
   .actions {
     display: flex;
     align-items: center;
@@ -130,8 +141,17 @@ export const scanLayerStyles = css`
 
   sl-context-menu,
   sl-scan-volumes,
+  .search,
   .box {
     pointer-events: auto;
+  }
+
+  /* The person search, where the menu was, to cite the entry for someone
+     outside the family. */
+  .search {
+    position: absolute;
+    z-index: 2;
+    width: 16rem;
   }
 
   /* The pending Box: red as the entries' Boxes are, but dashed, so it

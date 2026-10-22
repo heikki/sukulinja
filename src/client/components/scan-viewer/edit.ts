@@ -16,11 +16,13 @@ function stop(e: Event) {
   e.stopPropagation();
 }
 
-// At the end of the nav while a Box is pending: Cancel and Save. A way out
+// At the end of the nav while a Box is pending: Cancel and Save, and for a
+// new Citation, whom it's for and a line for what the entry is. A way out
 // of the source waiting on the Box asks there instead: Keep editing,
-// Discard or Save. A Box waiting to be discarded asks to confirm. Pointer and wheel input stays here, so a press doesn't pan. The
-// Box is on a Record pin shared by everyone citing the record, whom it
-// names from `persons`.
+// Discard or Save. A Box waiting to be discarded, or a Citation made in
+// the app to be deleted, asks to confirm. Pointer and wheel input stays
+// here, so a press doesn't pan. A Mark's Box is on a Record pin shared by
+// everyone citing the record, whom it names from `persons`.
 @customElement('sl-scan-edit')
 export class ScanEditElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanEditStyles];
@@ -94,6 +96,7 @@ export class ScanEditElement extends SignalWatcher(LitElement) {
 
   // Asked as the menu item chosen was named.
   private renderDiscard(source: LinkOpen) {
+    if (source.citation.madeInApp) return this.renderDelete();
     const what = source.link?.certainty === 'vision' ? 'match' : 'mark';
     return html`
       <p>Discard this ${what}?</p>
@@ -122,6 +125,60 @@ export class ScanEditElement extends SignalWatcher(LitElement) {
     `;
   }
 
+  private renderDelete() {
+    return html`
+      <p>Delete this citation?</p>
+      <div class="actions">
+        <button
+          ?disabled=${this.saving}
+          @click=${() => {
+            this.refused = null;
+            this.state.viewer.cancel();
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          class="discard"
+          ?disabled=${this.saving}
+          @click=${() => {
+            void this.run(true, async () => {
+              await this.state.viewer.confirmDiscard();
+            });
+          }}
+        >
+          ${this.saving ? 'Deleting…' : 'Delete'}
+        </button>
+      </div>
+    `;
+  }
+
+  // Whom the pending Citation is for, and what the entry is, as typed.
+  private renderCite(cite: { personId: number; text: string }) {
+    const person = this.persons.get(cite.personId);
+    const name = person === undefined ? 'someone' : formatName(person);
+    return html`
+      <p class="cite">New citation for ${name}</p>
+      <input
+        class="cite-text"
+        type="text"
+        placeholder="What the entry is, e.g. Baptism 12.3.1795"
+        aria-label="What the entry is"
+        .value=${cite.text}
+        @input=${(e: InputEvent) => {
+          this.state.viewer.setCiteText((e.target as HTMLInputElement).value);
+        }}
+        @keydown=${(e: KeyboardEvent) => {
+          if (e.key !== 'Enter' || e.isComposing) return;
+          e.preventDefault();
+          void this.run(true, async () => {
+            await this.state.viewer.save();
+          });
+        }}
+      />
+    `;
+  }
+
   private renderActions() {
     return html`
       <div class="actions">
@@ -144,11 +201,11 @@ export class ScanEditElement extends SignalWatcher(LitElement) {
   }
 
   // The others in the Volume citing the same record, by its URL, whose Box
-  // moves or goes with this one.
+  // moves or goes with this one. A Citation made in the app is its own.
   private also(source: LinkOpen, verb: string) {
     const rows = this.state.viewer.citations.get();
-    const { url, id } = source.citation;
-    if (url === null || !Array.isArray(rows)) return nothing;
+    const { url, id, madeInApp } = source.citation;
+    if (url === null || madeInApp || !Array.isArray(rows)) return nothing;
     const names = rows
       .filter((r) => r.citation.url === url && r.citation.id !== id)
       .map((r) => {
@@ -171,8 +228,13 @@ export class ScanEditElement extends SignalWatcher(LitElement) {
       : viewer.leaving.get()
         ? this.renderAsk()
         : this.renderActions();
+    const cite = viewer.pending.get()?.cite;
     return html`
-      ${this.also(source, discarding ? 'Also for' : 'Also moves')}
+      ${
+        cite === undefined
+          ? this.also(source, discarding ? 'Also for' : 'Also moves')
+          : this.renderCite(cite)
+      }
       ${
         this.refused === null
           ? nothing
