@@ -27,7 +27,7 @@ A Mark only links where an existing Citation points. A new Citation is new genea
 ## Tickets
 
 - 01, the server, the source per Volume, and the merge: built in 720ce9e.
-- `issues/02-cite-from-the-scan-viewer.md`: making and deleting one in the Scan viewer.
+- 02, making and deleting one in the Scan viewer: built in 122391b.
 - 03, the person panel: built in 1f4e93a.
 
 ## Comments
@@ -41,3 +41,5 @@ A Mark only links where an existing Citation points. A new Citation is new genea
 **Server built 2026-10-22** (720ce9e): making and deleting a Citation on an Astia Image, its Volume's source (found by the Citations made in the app in the Volume, so no source is marked as the app's), reading it back, and the merge carrying that source (ADR-0013). Left open: after a Re-scan of its Volume, a Citation made in the app still shows on its old file id, where a Mark is left out.
 
 **Person panel built 2026-10-22** (1f4e93a): a Citation of an Astia Image is read by its stored Link, not by its being made in the app, so MyHeritage Citations converted to that form later read the same way. It's named by its text, or by its Volume, with its Image as its entry. `PAGE` stays a URL; the spec's `Label: value` form is deferred in ADR-0013. Left open: within a Volume the panel sorts by cited page, so a Citation of an Image comes first; sorting by Image instead was suggested.
+
+**Scan viewer built 2026-10-22** (122391b): _Cite this entry for…_ lists the Selected person, then their family in the person panel's household order (each spouse with that marriage's children), then _Someone else…_. _Edit mark_ on a Citation made in the app moves it within its Volume, through the Mark route. _Delete citation_ closes the viewer, as the source it showed is gone.
