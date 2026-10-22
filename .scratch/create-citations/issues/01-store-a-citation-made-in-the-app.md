@@ -15,14 +15,13 @@ The server side of making a Citation in the Scan viewer: storing it, deleting it
   - its source is the Volume's own source record (below).
   - The Box is checked as a Mark's is (`scans.ts`: whole pixels, within the Image, using its size from the Scan cache).
   - Refused for a person whose Citation already links that Image (spec: such people aren't offered).
-- **A source record per Volume:** the first Citation made in a Volume adds a source titled with the Volume's label, published by Kansallisarkisto in Astia; later ones reuse it. The source is marked as made in the app. In the GEDZIP it carries `NOTE Added in Sukulinja`, like a Citation; the 5.5.1 export leaves that note out, as it does for Citations.
+- **A source record per Volume:** the first Citation made in a Volume adds a source titled with the Volume's label, published by Kansallisarkisto in Astia. Later ones reuse it: a Volume's source is the one cited by the Citations made in the app whose link is in that Volume. Nothing marks the source itself as the app's; no new column, and no schema change.
 - **Delete:** an API call removing a Citation made in the app, with its notes. Refused for an imported Citation. A per-Volume source no Citation cites any more goes too.
 - **Read it back:** a Citation made in the app has no Church-book reference to resolve (its page is an Astia address), so its Link is its Annotation's, Marked at the entry:
   - `ofPerson` lists it, saying it was made in the app;
   - `linksOf` gives its Link straight from the Annotation, without asking Astia;
   - `inVolume` lists it with the Volume's other rows, so it shows beside the scan.
-- **The merge carries the app's sources.** A Citation made in the app is reattached only when its source is in the new export. A per-Volume source the new export doesn't have (a re-import from MyHeritage with no upload in between) is copied into it, so the Citation isn't lost. One the export has, after an upload, is matched as other sources are.
-- **Schema 7** for the sources' made-in-the-app column, with a one-off script like `rename-original-page` (`git show 4018d81 -- scripts/rename-original-page`) to move the data folders across, deleted once it has run.
+- **The merge carries a reattached Citation's source.** Today a Citation made in the app is reattached only when its source is in the new export. When it isn't (a re-import from MyHeritage with no upload in between), its source is copied into the new import with it, once however many Citations cite it, so the Citation isn't lost. A source the export has, after an upload, is matched as other sources are. A source cited only by imported Citations is never copied, so one removed in MyHeritage stays gone.
 
 ## Tests
 
@@ -30,9 +29,8 @@ The server side of making a Citation in the Scan viewer: storing it, deleting it
 - A Box off the Image, and a person already citing the Image, are refused.
 - Deleting one, and its source going with the last Citation; an imported Citation can't be deleted.
 - `ofPerson`, `linksOf` and `inVolume` include it, with its Link Marked at the entry.
-- The round trip (`gedcom-export.test.ts`) keeps it and its source; the 5.5.1 export leaves out the source's note.
-- `import-merge.test.ts`: a re-import of an export without the source keeps the Citation and its source; one with the source doesn't duplicate it.
-- The script: a schema 6 database becomes a schema 7 one that opens.
+- The round trip (`gedcom-export.test.ts`) keeps it and its source.
+- `import-merge.test.ts`: a re-import of an export without the source keeps the Citation and copies its source once for two Citations; one with the source doesn't duplicate it; an imported source the export dropped isn't brought back.
 
 ## Not here
 
