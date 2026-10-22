@@ -33,13 +33,15 @@ export interface FamilyRow {
   child_ids: number[];
 }
 
-// Returned by /datasets and produced by DatasetRegistry.list().
+// A dataset as the registry lists it.
 export interface DatasetInfo {
   slug: string;
   displayName: string;
   personCount: number;
   familyCount: number;
   importedAt: string | null;
+  // The file it was last imported from.
+  sourceFilename: string | null;
   // Built by an older version of the app, so it won't open until it's
   // imported again (ADR-0013).
   outdated: boolean;
@@ -67,6 +69,26 @@ export interface ImportReview {
   // Why the dataset's database couldn't be read, so nothing is kept from
   // it; null when it was.
   unreadable: string | null;
+}
+
+// What an import says as it goes, one event per line: its steps, then
+// whether it was saved. One into an existing dataset first asks for its
+// review, which is answered by its id.
+export type ImportEvent =
+  | { type: 'log'; message: string }
+  | { type: 'review'; id: string; review: ImportReview }
+  | { type: 'error'; message: string }
+  | { type: 'cancelled' }
+  | { type: 'done'; info: DatasetInfo };
+
+// The two exports: the dataset's GEDZIP, and a GEDCOM 5.5.1 file for
+// MyHeritage with what it leaves out.
+export type ExportKind = 'gdz' | 'myheritage';
+
+// Where an export was saved, and what it left out.
+export interface ExportSaved {
+  path: string;
+  left: string[];
 }
 
 // Returned by /api/persons/:id — what the person panel shows.

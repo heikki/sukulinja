@@ -1,15 +1,15 @@
-// The import pipeline behind the app's import endpoint: unpack a GEDZIP, parse
-// the GEDCOM, convert it if it's a MyHeritage export (downloading remote
-// media), ingest the media, and write the dataset's SQLite DB.
+// The import pipeline the registry runs: unpack a GEDZIP, parse the GEDCOM,
+// convert it if it's a MyHeritage export (downloading remote media), ingest
+// the media, write the dataset's SQLite DB and merge it with the dataset it
+// replaces.
 
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { Database } from 'bun:sqlite';
 
-import type { DatasetInfo, ImportReview } from '@common/types';
+import type { ImportReview } from '@common/types';
 
-import type { DatasetRegistry } from './dataset-registry';
 import { importGedcom } from './gedcom-import';
 import type { ImportStats } from './gedcom-import';
 import { childValue, findChild, parseGedcom } from './gedcom-parser';
@@ -17,7 +17,6 @@ import type { GedNode } from './gedcom-parser';
 import { unpackGedzip } from './gedzip';
 import { mergeImport } from './import-merge';
 import { ingest } from './media-ingest';
-import type { IngestSkipped } from './media-ingest';
 import { localPaths } from './media-refs';
 import { convertMyHeritage, isMyHeritageExport } from './myheritage';
 import type { Downloader } from './myheritage';
@@ -48,7 +47,6 @@ export interface MyHeritageSummary {
 export type ImportSource = { gedcom: string } | { gedzip: Uint8Array };
 
 export interface ImportRequest {
-  registry: DatasetRegistry;
   slug: string;
   // Human-readable name shown in the UI; keeps accents/casing the slug drops.
   // Falls back to the slug when omitted.
@@ -70,38 +68,37 @@ export class ImportCancelled extends Error {
   }
 }
 
-export interface ImportOutcome {
-  info: DatasetInfo;
-  stats: ImportStats;
-  // What merging into the dataset there was changed; null for a new one.
-  merged: ImportReview | null;
-  skipped: IngestSkipped[];
-  myheritage: MyHeritageSummary | null;
+// Where an import is built: a staged database and media folder, beside the
+// dataset under its slug now, if any. That one's database is read-only and
+// whatever version built it, null when it can't be opened.
+export interface ImportInto {
+  db: Database;
+  mediaDir: string;
+  previous: {
+    mediaDir: string;
+    read: <T>(read: (db: Database | null) => T) => T;
+  } | null;
 }
 
-// Where each photo the dataset under `slug` has now is stored, by its
-// original path: a re-import copies those rather than download them again,
-// also from a dataset an older version built. Photos no longer in the new
-// export aren't copied, so they go with the old dataset.
-function storedPhotos(registry: DatasetRegistry, slug: string) {
+// Where each photo the dataset there now has is stored, by its original
+// path: a re-import copies those rather than download them again, also from
+// a dataset an older version built. Photos no longer in the new export
+// aren't copied, so they go with the old dataset.
+function storedPhotos(previous: ImportInto['previous']) {
   const stored = new Map<string, string>();
-  const db = registry.readAny(slug);
-  if (db === null) return stored;
-  try {
-    const mediaDir = registry.mediaDir(slug);
-    const rows = db
-      .query<{ original_path: string | null; file_path: string }, []>(
-        'SELECT original_path, file_path FROM media'
-      )
-      .all();
+  previous?.read((db) => {
+    const rows =
+      db
+        ?.query<{ original_path: string | null; file_path: string }, []>(
+          'SELECT original_path, file_path FROM media'
+        )
+        .all() ?? [];
     for (const r of rows) {
       if (r.original_path !== null) {
-        stored.set(r.original_path, join(mediaDir, r.file_path));
+        stored.set(r.original_path, join(previous.mediaDir, r.file_path));
       }
     }
-  } finally {
-    db.close();
-  }
+  });
   return stored;
 }
 
@@ -149,22 +146,21 @@ async function readSource(
   return { text, archived: files };
 }
 
-function readStored<T>(req: ImportRequest, read: (db: Database | null) => T) {
-  const stored = req.registry.readAny(req.slug);
-  try {
-    return read(stored);
-  } finally {
-    stored?.close();
-  }
-}
-
-// The import merged with the dataset already under its slug, and saved if
-// its review says so; null when there's none to merge with.
-async function mergeWith(req: ImportRequest, db: Database, stats: ImportStats) {
-  if (!req.registry.exists(req.slug)) return null;
+// The import merged with the dataset already under its slug, if its
+// review says to save it; null when there's none to merge with.
+async function mergeWith(
+  into: ImportInto,
+  req: ImportRequest,
+  stats: ImportStats
+) {
+  if (into.previous === null) return null;
   req.log?.('Merging with the dataset…');
-  const review = readStored(req, (stored) =>
-    mergeImport(db, stored, stats.newUids === stats.persons + stats.families)
+  const review = into.previous.read((stored) =>
+    mergeImport(
+      into.db,
+      stored,
+      stats.newUids === stats.persons + stats.families
+    )
   );
   if (req.review !== undefined && !(await req.review(review))) {
     throw new ImportCancelled();
@@ -172,15 +168,10 @@ async function mergeWith(req: ImportRequest, db: Database, stats: ImportStats) {
   return review;
 }
 
-export async function importDataset(
-  req: ImportRequest
-): Promise<ImportOutcome> {
+// Builds the import into `into`, and says what it read; the registry
+// writes its meta and commits it, or discards it when this throws.
+export async function buildImport(into: ImportInto, req: ImportRequest) {
   const log = req.log ?? (() => undefined);
-
-  // Build the dataset in a staging dir; publish it (commit) only once the whole
-  // import succeeds, so a network drop or error mid-download never leaves a
-  // half-imported dataset visible. Any failure discards the staged work.
-  const workspace = await req.registry.createStaging(req.slug);
   // Where the media are ingested from: a GEDZIP's unpacked, or nothing for a
   // bare GEDCOM, whose local media refs then resolve as "missing" rather
   // than matching files in the cwd. A MyHeritage export's photos are
@@ -188,8 +179,6 @@ export async function importDataset(
   let unpacked: string | null = null;
   let photoStaging: string | null = null;
   try {
-    const { db, mediaDir } = workspace;
-
     unpacked = await mkdtemp(join(tmpdir(), 'sukulinja-import-'));
     let sourceDir = unpacked;
     const { text, archived } = await readSource(req.source, unpacked, log);
@@ -200,7 +189,7 @@ export async function importDataset(
     let myheritage: MyHeritageSummary | null = null;
 
     if (isMyHeritageExport(roots)) {
-      const stored = storedPhotos(req.registry, req.slug);
+      const stored = storedPhotos(into.previous);
       photoStaging = await mkdtemp(join(tmpdir(), 'myheritage-photos-'));
       const conv = await convertMyHeritage(roots, {
         stagingDir: photoStaging,
@@ -223,50 +212,25 @@ export async function importDataset(
     const ingestResult = await ingest({
       roots,
       sourceDir,
-      targetDir: mediaDir,
+      targetDir: into.mediaDir,
       log
     });
 
     log('Writing database…');
     const stats = importGedcom(
-      db,
+      into.db,
       roots,
       (rel) => ingestResult.resolved.get(rel) ?? null
     );
     reportUnstored(stats, log);
 
-    const displayName = req.displayName ?? req.slug;
-    const importedAt = new Date().toISOString();
-    const writeMeta = db.prepare('INSERT INTO meta (key, value) VALUES (?, ?)');
-    writeMeta.run('display_name', displayName);
-    writeMeta.run('source_filename', req.sourceFilename);
-    writeMeta.run('imported_at', importedAt);
-    const version = readGedcomVersion(roots);
-    if (version !== null) writeMeta.run('gedcom_version', version);
-
-    const merged = await mergeWith(req, db, stats);
-
-    log('Finishing…');
-    await workspace.commit();
-
     return {
-      info: {
-        slug: req.slug,
-        displayName,
-        personCount: stats.persons,
-        familyCount: stats.families,
-        importedAt,
-        outdated: false,
-        undoable: merged !== null
-      },
       stats,
-      merged,
+      merged: await mergeWith(into, req, stats),
       skipped: ingestResult.skipped,
-      myheritage
+      myheritage,
+      gedcomVersion: readGedcomVersion(roots)
     };
-  } catch (err) {
-    await workspace.discard();
-    throw err;
   } finally {
     await Promise.all(
       [unpacked, photoStaging]

@@ -4,6 +4,8 @@
 import { html, nothing } from 'lit';
 import type { TemplateResult } from 'lit';
 
+import { ApiError } from '@client/dataset-api';
+import type { LifecycleApi } from '@client/dataset-api/lifecycle';
 import type { DatasetInfo } from '@common/types';
 
 import { importDate } from './import-review';
@@ -28,7 +30,7 @@ interface ActionCopy {
   label: string;
   busy: string;
   failed: string;
-  request: (d: DatasetInfo) => { url: string; method: string };
+  run: (api: LifecycleApi, d: DatasetInfo) => Promise<void>;
 }
 
 const ACTIONS: Record<DatasetAction, ActionCopy> = {
@@ -41,7 +43,9 @@ const ACTIONS: Record<DatasetAction, ActionCopy> = {
     label: 'Delete',
     busy: 'Deleting…',
     failed: 'Delete failed',
-    request: (d) => ({ url: `/datasets/${d.slug}`, method: 'DELETE' })
+    run: async (api, d) => {
+      await api.remove(d.slug);
+    }
   },
   undo: {
     title: 'Undo last import?',
@@ -52,7 +56,9 @@ const ACTIONS: Record<DatasetAction, ActionCopy> = {
     label: 'Undo import',
     busy: 'Undoing…',
     failed: 'Undo failed',
-    request: (d) => ({ url: `/datasets/${d.slug}/undo-import`, method: 'POST' })
+    run: async (api, d) => {
+      await api.undoImport(d.slug);
+    }
   }
 };
 
@@ -64,15 +70,13 @@ export interface Confirming {
 }
 
 // Runs a confirmed action; why it failed, or null.
-export async function runAction(c: Confirming) {
-  const { url, method } = ACTIONS[c.action].request(c.dataset);
+export async function runAction(api: LifecycleApi, c: Confirming) {
   try {
-    const res = await fetch(url, { method });
-    if (res.ok) return null;
-    const msg = await res.text();
-    return msg === '' ? `${c.action} failed (${res.status})` : msg;
+    await ACTIONS[c.action].run(api, c.dataset);
+    return null;
   } catch (err) {
-    return err instanceof Error ? err.message : `${c.action} failed`;
+    if (!(err instanceof ApiError)) throw err;
+    return err.message;
   }
 }
 

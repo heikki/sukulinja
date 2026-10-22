@@ -3,7 +3,6 @@
 
 import type { DatasetRegistry } from '../src/server/dataset-registry';
 import { packGedzip } from '../src/server/gedzip';
-import { importDataset } from '../src/server/import-dataset';
 
 export const FIXTURE = [
   '0 HEAD',
@@ -98,8 +97,7 @@ export async function importGedcomFixture(
       ['actes/baptism.jpg', new Uint8Array([4, 5, 6])]
     ])
   );
-  await importDataset({
-    registry,
+  await registry.import({
     slug,
     source: { gedzip },
     sourceFilename: `${slug}.gdz`

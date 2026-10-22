@@ -6,17 +6,17 @@ import { customElement, state } from 'lit/decorators.js';
 import '../settings';
 import '../tree-view';
 
-import { NOT_RESPONDING, openDatasetApi } from '@client/dataset-api';
+import { ApiError, openDatasetApi } from '@client/dataset-api';
+import { openLifecycleApi } from '@client/dataset-api/lifecycle';
 import { focusRingStyles } from '@client/focus-ring';
-import { readNdjson } from '@client/ndjson';
 import { appState, openAppState } from '@client/state';
 import { slugFromFilename, withoutExtension } from '@common/slug';
-import type { DatasetInfo, ImportReview } from '@common/types';
+import type { DatasetInfo, ExportKind, ImportReview } from '@common/types';
 
 import { confirmDialog, errorNote, runAction } from './dialogs';
 import type { Confirming, DatasetAction } from './dialogs';
 import { EXPORT_FORMATS, exportDataset } from './exports';
-import type { ExportKind, ExportNote } from './exports';
+import type { ExportNote } from './exports';
 import { renderReview } from './import-review';
 import { menuButton, renderRowMenu } from './row-menu';
 import type { RowMenu, RowMenuActions } from './row-menu';
@@ -35,12 +35,11 @@ const TRASH_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
   `}
 </svg>`;
 
-type ImportEvent =
-  | { type: 'log'; message: string }
-  | { type: 'error'; message: string }
-  | { type: 'review'; id: string; review: ImportReview }
-  | { type: 'cancelled' }
-  | { type: 'done'; info: DatasetInfo };
+// An import's review, waiting for Merge or Cancel.
+interface Reviewing {
+  review: ImportReview;
+  answer: (merge: boolean) => void;
+}
 
 const DATASET_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?=\/|$)/u;
 
@@ -87,6 +86,9 @@ function renderOutdated(d: DatasetInfo) {
 export class AppElement extends LitElement {
   static override styles = [focusRingStyles, appStyles];
 
+  // The datasets as a whole: listing, importing, exporting, undoing, deleting.
+  private readonly lifecycle = openLifecycleApi();
+
   @state() private datasets: DatasetInfo[] | null = null;
   // Why the dataset list didn't load, in the app's words.
   @state() private datasetsError: string | null = null;
@@ -111,7 +113,7 @@ export class AppElement extends LitElement {
   @state() private importError: string | null = null;
   // What importing into an existing dataset would change, waiting for
   // Merge or Cancel.
-  @state() private review: { id: string; review: ImportReview } | null = null;
+  @state() private review: Reviewing | null = null;
   // A dataset action waiting to be confirmed, or running.
   @state() private confirming: Confirming | null = null;
 
@@ -120,22 +122,14 @@ export class AppElement extends LitElement {
     void this.loadDatasets();
   }
 
-  // Worded as the Dataset API words its failures; an answer that isn't JSON
-  // is a bug, so it still throws.
   private async loadDatasets() {
-    const res = await fetch('/datasets').catch(() => null);
-    if (res === null) {
-      this.datasetsError = NOT_RESPONDING;
-      return;
+    try {
+      this.datasets = await this.lifecycle.list();
+      this.datasetsError = null;
+    } catch (err) {
+      if (!(err instanceof ApiError)) throw err;
+      this.datasetsError = err.message;
     }
-    if (!res.ok) {
-      const words = await res.text().catch(() => '');
-      this.datasetsError =
-        words === '' ? `datasets failed (${res.status})` : words;
-      return;
-    }
-    this.datasets = (await res.json()) as DatasetInfo[];
-    this.datasetsError = null;
   }
 
   // Import a GEDCOM, whose local media can't come along (MyHeritage photos
@@ -194,54 +188,38 @@ export class AppElement extends LitElement {
     this.importStatus = 'Uploading…';
     this.importError = null;
     try {
-      const body = new FormData();
-      body.append('file', file);
-      body.append('name', name);
-      const res = await fetch('/import', { method: 'POST', body });
-      if (!res.ok || res.body === null) {
-        const msg = await res.text();
-        this.importError = msg === '' ? `import failed (${res.status})` : msg;
-        return;
-      }
-      const info = await this.consumeImportStream(res.body);
-      if (info !== null) window.location.assign(`/d/${info.slug}/`);
+      const info = await this.lifecycle.importFile(
+        { file, name },
+        {
+          progress: (message) => {
+            this.importStatus = message;
+          },
+          review: async (review) => {
+            const answered = Promise.withResolvers<boolean>();
+            this.review = { review, answer: answered.resolve };
+            return await answered.promise;
+          }
+        }
+      );
+      if (info === null) this.pendingImport = null;
+      else window.location.assign(`/d/${info.slug}/`);
     } catch (err) {
-      this.importError = err instanceof Error ? err.message : 'import failed';
+      if (!(err instanceof ApiError)) throw err;
+      this.importError = err.message;
     } finally {
+      this.review = null;
       this.importing = false;
       this.importStatus = null;
     }
   }
 
-  // Read the newline-delimited JSON progress stream, updating the live status
-  // line. Returns the imported dataset on success, or null after recording an
-  // error event (the import streams 200 even when it ultimately fails).
-  private async consumeImportStream(
-    body: ReadableStream<Uint8Array>
-  ): Promise<DatasetInfo | null> {
-    let done: DatasetInfo | null = null;
-    for await (const raw of readNdjson(body)) {
-      const event = raw as ImportEvent;
-      if (event.type === 'log') this.importStatus = event.message;
-      else if (event.type === 'error') this.importError = event.message;
-      else if (event.type === 'review') this.review = event;
-      else if (event.type === 'cancelled') this.pendingImport = null;
-      else done = event.info;
-    }
-    return done;
-  }
-
-  // Merge or Cancel the import waiting on its review; its stream then ends.
-  private readonly answerReview = async (merge: boolean) => {
+  // Merge or Cancel the import waiting on its review.
+  private readonly answerReview = (merge: boolean) => {
     const waiting = this.review;
     if (waiting === null) return;
     this.review = null;
     this.importStatus = merge ? 'Saving…' : 'Cancelling…';
-    const res = await fetch(`/import/${waiting.id}`, {
-      method: 'POST',
-      body: JSON.stringify({ merge })
-    }).catch(() => null);
-    if (res?.ok !== true) this.importError = 'the import stopped waiting';
+    waiting.answer(merge);
   };
 
   private readonly exportAs = async (
@@ -252,8 +230,11 @@ export class AppElement extends LitElement {
     const { name } = EXPORT_FORMATS[kind];
     this.exporting = `Exporting ${dataset.displayName} as ${name}…`;
     this.exportNote = null;
-    this.exportNote = await exportDataset(dataset, kind);
-    this.exporting = null;
+    try {
+      this.exportNote = await exportDataset(this.lifecycle, dataset, kind);
+    } finally {
+      this.exporting = null;
+    }
   };
 
   private renderExportNote() {
@@ -293,7 +274,7 @@ export class AppElement extends LitElement {
     const c = this.confirming;
     if (c === null) return;
     this.confirming = { ...c, busy: true, error: null };
-    const error = await runAction(c);
+    const error = await runAction(this.lifecycle, c);
     if (error !== null) {
       this.confirming = { ...c, busy: false, error };
       return;
@@ -372,7 +353,7 @@ export class AppElement extends LitElement {
         <div class="actions">
           <button
             @click=${() => {
-              void this.answerReview(false);
+              this.answerReview(false);
             }}
           >
             Cancel
@@ -380,7 +361,7 @@ export class AppElement extends LitElement {
           <button
             class="primary"
             @click=${() => {
-              void this.answerReview(true);
+              this.answerReview(true);
             }}
           >
             ${waiting.review.unreadable === null ? 'Merge' : 'Replace'}

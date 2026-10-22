@@ -10,8 +10,6 @@ import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import type { DatasetRegistry } from './dataset-registry';
-import { OutdatedDatasetError } from './db';
-import { importDataset } from './import-dataset';
 
 const MARKER = '.demo-offered';
 const SLUG = 'bourbon';
@@ -19,8 +17,7 @@ const SOURCE_FILENAME = 'bourbon.gdz';
 
 async function importDemo(registry: DatasetRegistry, gedzipPath: string) {
   try {
-    await importDataset({
-      registry,
+    await registry.import({
       slug: SLUG,
       displayName: 'Bourbon',
       source: { gedzip: await Bun.file(gedzipPath).bytes() },
@@ -34,26 +31,8 @@ async function importDemo(registry: DatasetRegistry, gedzipPath: string) {
 // Whether the dataset under the demo's slug is the demo, built by an older
 // version: nobody else has its GEDZIP to import it again with.
 function isOutdatedDemo(registry: DatasetRegistry) {
-  const db = registry.readAny(SLUG);
-  if (db === null) return false;
-  try {
-    const row = db
-      .query<{ value: string }, []>(
-        "SELECT value FROM meta WHERE key = 'source_filename'"
-      )
-      .get();
-    if (row?.value !== SOURCE_FILENAME) return false;
-  } catch {
-    return false;
-  } finally {
-    db.close();
-  }
-  try {
-    registry.open(SLUG);
-    return false;
-  } catch (err) {
-    return err instanceof OutdatedDatasetError;
-  }
+  const info = registry.info(SLUG);
+  return info?.outdated === true && info.sourceFilename === SOURCE_FILENAME;
 }
 
 export async function seedDemo(registry: DatasetRegistry, gedzipPath: string) {

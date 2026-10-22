@@ -1,11 +1,11 @@
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
 import { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
-import { DatasetRegistry } from './dataset-registry';
+import { DatasetNotFound, DatasetRegistry } from './dataset-registry';
 import { OutdatedDatasetError } from './db';
 
 let root = '';
@@ -20,51 +20,26 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
-describe('createFresh', () => {
-  test('creates the directory structure and applies schema', async () => {
-    const { db, mediaDir } = await registry.createFresh('foo');
-    expect(existsSync(join(root, 'foo', 'db.sqlite'))).toBe(true);
-    expect(existsSync(mediaDir)).toBe(true);
-    expect(mediaDir).toBe(join(root, 'foo', 'media'));
-
-    const row = db
-      .query<{ name: string }, []>(
-        "SELECT name FROM sqlite_schema WHERE type='table' AND name='meta'"
-      )
-      .get();
-    expect(row?.name).toBe('meta');
-  });
-
-  test('wipes a pre-existing dirty directory', async () => {
-    await registry.createFresh('foo');
-    await writeFile(join(root, 'foo', 'junk.txt'), 'leftover');
-    await writeFile(join(root, 'foo', 'media', 'stale.jpg'), 'old bytes');
-
-    const { mediaDir } = await registry.createFresh('foo');
-    expect(existsSync(join(root, 'foo', 'junk.txt'))).toBe(false);
-    expect(await readdir(mediaDir)).toEqual([]);
-  });
-
-  test('rejects invalid slugs before any disk write', async () => {
-    const bads = ['', 'Foo', 'foo/bar', '../baz', '-leading-dash'];
-    const settled = await Promise.allSettled(
-      bads.map((bad) => registry.createFresh(bad))
-    );
-    for (const r of settled) expect(r.status).toBe('rejected');
-    expect(await readdir(root)).toEqual([]);
-  });
-});
+// A dataset under `slug`, with whatever `fill` writes into it.
+async function make(
+  slug: string,
+  fill: (db: Database) => void = () => undefined
+) {
+  const staged = await registry.createStaging(slug);
+  fill(staged.db);
+  await staged.commit();
+}
 
 describe('open', () => {
   test('returns the same Database instance on repeat calls', async () => {
-    await registry.createFresh('foo');
+    await make('foo');
     const a = registry.open('foo');
     const b = registry.open('foo');
     expect(a).toBe(b);
   });
 
-  test('throws for an unknown slug', () => {
-    expect(() => registry.open('does-not-exist')).toThrow();
+  test('throws DatasetNotFound for an unknown slug', () => {
+    expect(() => registry.open('does-not-exist')).toThrow(DatasetNotFound);
   });
 
   test('rejects invalid slugs', () => {
@@ -121,7 +96,7 @@ describe('createStaging', () => {
 
 describe('sweepStaging', () => {
   test('removes leftover .staging- dirs but keeps real datasets', async () => {
-    await registry.createFresh('keeper');
+    await make('keeper');
     await mkdtemp(join(root, '.staging-')); // an interrupted import's leftover
     await mkdtemp(join(root, '.staging-'));
 
@@ -139,7 +114,7 @@ describe('sweepStaging', () => {
 
 describe('delete', () => {
   test('removes the dataset directory and returns true', async () => {
-    await registry.createFresh('foo');
+    await make('foo');
     expect(existsSync(join(root, 'foo'))).toBe(true);
     expect(await registry.delete('foo')).toBe(true);
     expect(existsSync(join(root, 'foo'))).toBe(false);
@@ -150,12 +125,15 @@ describe('delete', () => {
   });
 
   test('closes the cached handle so the slug can be recreated', async () => {
-    await registry.createFresh('foo');
+    await make('foo');
     registry.open('foo');
     await registry.delete('foo');
-    const { db } = await registry.createFresh('foo');
+    await make('foo');
     expect(
-      db.query("SELECT 1 AS ok FROM sqlite_schema WHERE name='meta'").get()
+      registry
+        .open('foo')
+        .query("SELECT 1 AS ok FROM sqlite_schema WHERE name='meta'")
+        .get()
     ).not.toBeNull();
   });
 
@@ -171,20 +149,17 @@ describe('list', () => {
   });
 
   test('lists installed datasets sorted by slug, with meta and counts', async () => {
-    const { db: aDb } = await registry.createFresh('alpha');
-    aDb
-      .prepare(
-        "INSERT INTO meta (key, value) VALUES ('display_name', 'Alpha Tree'), ('imported_at', '2026-01-01T00:00:00Z')"
-      )
-      .run();
-    aDb.prepare("INSERT INTO persons (xref) VALUES ('@I1@'), ('@I2@')").run();
-    aDb
-      .prepare(
+    await make('alpha', (db) => {
+      db.prepare(
+        "INSERT INTO meta (key, value) VALUES ('display_name', 'Alpha Tree'), ('imported_at', '2026-01-01T00:00:00Z'), ('source_filename', 'alpha.ged')"
+      ).run();
+      db.prepare("INSERT INTO persons (xref) VALUES ('@I1@'), ('@I2@')").run();
+      db.prepare(
         "INSERT INTO families (xref, husband_id, wife_id) VALUES ('@F1@', NULL, NULL)"
-      )
-      .run();
+      ).run();
+    });
 
-    await registry.createFresh('bravo');
+    await make('bravo');
 
     const list = await registry.list();
     expect(list).toEqual([
@@ -194,6 +169,7 @@ describe('list', () => {
         personCount: 2,
         familyCount: 1,
         importedAt: '2026-01-01T00:00:00Z',
+        sourceFilename: 'alpha.ged',
         outdated: false,
         undoable: false
       },
@@ -203,6 +179,7 @@ describe('list', () => {
         personCount: 0,
         familyCount: 0,
         importedAt: null,
+        sourceFilename: null,
         outdated: false,
         undoable: false
       }
@@ -210,14 +187,14 @@ describe('list', () => {
   });
 
   test('skips junk subdirs without a db.sqlite', async () => {
-    await registry.createFresh('real');
+    await make('real');
     await mkdtemp(join(root, 'junk-')); // a dir without db.sqlite
     const list = await registry.list();
     expect(list.map((d) => d.slug)).toEqual(['real']);
   });
 
   test('skips subdirs with invalid slug names', async () => {
-    await registry.createFresh('ok');
+    await make('ok');
     await mkdtemp(join(root, 'Bad-'));
     const list = await registry.list();
     expect(list.map((d) => d.slug)).toEqual(['ok']);
@@ -263,18 +240,10 @@ describe('a dataset an older version built', () => {
         personCount: 1,
         familyCount: 0,
         importedAt: null,
+        sourceFilename: null,
         outdated: true,
         undoable: false
       }
     ]);
-  });
-
-  test('can still be read for what an import carries over', async () => {
-    await writeOldDataset('old');
-    const db = registry.readAny('old')!;
-    expect(db.query('SELECT xref FROM persons').all()).toEqual([
-      { xref: '@I1@' }
-    ]);
-    db.close();
   });
 });
