@@ -6,6 +6,15 @@ import type { DatasetInfo } from '@common/types';
 
 export type ExportKind = 'gdz' | 'myheritage';
 
+// Each export named by its format, as the menu and the note word it.
+export const EXPORT_FORMATS: Record<
+  ExportKind,
+  { name: string; detail: string }
+> = {
+  gdz: { name: 'GEDZIP', detail: 'GEDCOM 7 with photos' },
+  myheritage: { name: 'GEDCOM 5.5.1', detail: 'no photos' }
+};
+
 export interface ExportNote {
   ok: boolean;
   text: string;
@@ -25,12 +34,11 @@ export async function exportDataset(dataset: DatasetInfo, kind: ExportKind) {
       };
     }
     const saved = (await res.json()) as { path: string; left: string[] };
-    const what = kind === 'gdz' ? '' : ' for MyHeritage';
     const left =
       saved.left.length === 0 ? '' : ` Left out: ${saved.left.join('; ')}.`;
     return {
       ok: true,
-      text: `Exported ${dataset.displayName}${what} to ${saved.path}.${left}`
+      text: `Exported ${dataset.displayName} as ${EXPORT_FORMATS[kind].name} to ${saved.path}.${left}`
     };
   } catch (err) {
     return {
