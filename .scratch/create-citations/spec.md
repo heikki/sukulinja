@@ -26,7 +26,7 @@ A Mark only links where an existing Citation points. A new Citation is new genea
 
 ## Tickets
 
-- `issues/01-store-a-citation-made-in-the-app.md`: the server, the source per Volume, and the merge.
+- 01, the server, the source per Volume, and the merge: built in 720ce9e.
 - `issues/02-cite-from-the-scan-viewer.md`: making and deleting one in the Scan viewer.
 - `issues/03-show-it-in-the-person-panel.md`: the person panel.
 
@@ -37,3 +37,5 @@ A Mark only links where an existing Citation points. A new Citation is new genea
 **Merge built 2026-10-21** (f8965b7): a citation made in the app is a `citations` row with `added_in_app = 1`. A re-import reattaches it to its person, or to the same fact of theirs, and the GEDZIP carries it as `NOTE Added in Sukulinja`.
 
 **Open from the Annotation refactor (4018d81):** Discarding the Box of a Citation made in the app. It has no original page to go back to and no MyHeritage reference to estimate from, so today's rule would leave it citing the Astia address with no Link. Decide what a Discard does to one: keep the Mark at the Image without its Box, drop the Citation, or refuse.
+
+**Server built 2026-10-22** (720ce9e): making and deleting a Citation on an Astia Image, its Volume's source (found by the Citations made in the app in the Volume, so no source is marked as the app's), reading it back, and the merge carrying that source (ADR-0013). Left open: after a Re-scan of its Volume, a Citation made in the app still shows on its old file id, where a Mark is left out.
