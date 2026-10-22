@@ -1,10 +1,10 @@
 // Church-book references from a MyHeritage GEDCOM export, read from the
 // SOUR citations whose PAGE is a MyHeritage record URL.
 
-import { churchBookRefOf } from '@server/citation-scans/record';
-import type { ChurchBookRef } from '@server/citation-scans/record';
-import { parseGedcom } from '@server/gedcom-parser';
-import type { GedNode } from '@server/gedcom-parser';
+import { churchBookRefOf } from '@/server/citation-scans/record';
+import type { ChurchBookRef } from '@/server/citation-scans/record';
+import { parseGedcom } from '@/server/gedcom-parser';
+import type { GedNode } from '@/server/gedcom-parser';
 
 export function churchBookRefs(gedcom: string) {
   const out: ChurchBookRef[] = [];

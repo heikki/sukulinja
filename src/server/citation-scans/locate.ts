@@ -22,7 +22,7 @@ import type {
   LinkTarget,
   Provenance,
   Unlinked
-} from '@common/types';
+} from '@/common/types';
 
 import { viewerUrl } from './astia';
 import type { Astia, Volume } from './astia';

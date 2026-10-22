@@ -1,7 +1,7 @@
 // A person's or family's events and attributes, each a fact row with its
 // place and address; and the addresses of repositories and submitters.
 
-import type { Scope } from '@common/types';
+import type { Scope } from '@/common/types';
 
 import { isEmptyLine } from './gedcom-lines';
 import type { LineReader } from './gedcom-lines';

@@ -1,5 +1,7 @@
-import { ApiError } from '@client/dataset-api';
-import type { DatasetApi } from '@client/dataset-api';
+import { computed, signal } from '@lit-labs/signals';
+
+import { ApiError } from '@/client/dataset-api';
+import type { DatasetApi } from '@/client/dataset-api';
 import type {
   Box,
   CitationRow,
@@ -9,8 +11,7 @@ import type {
   UnlinkedResolution,
   VolumeChoice,
   VolumeCitation
-} from '@common/types';
-import { computed, signal } from '@lit-labs/signals';
+} from '@/common/types';
 
 import { Latest } from './latest';
 import type { Readable, Selected } from './selected';

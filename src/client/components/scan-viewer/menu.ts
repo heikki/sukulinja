@@ -1,4 +1,4 @@
-import type { Viewer } from '@client/state';
+import type { Viewer } from '@/client/state';
 
 import type { MenuItem } from '../context-menu';
 

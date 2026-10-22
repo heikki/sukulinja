@@ -7,11 +7,11 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { ImportReview } from '@common/types';
-import { juvaAstia } from '@server/citation-scans/test-parish';
-import { DatasetRegistry } from '@server/dataset-registry';
-import { SCHEMA_VERSION } from '@server/db';
-import { createApi, createStaticFetch } from '@server/server';
+import type { ImportReview } from '@/common/types';
+import { juvaAstia } from '@/server/citation-scans/test-parish';
+import { DatasetRegistry } from '@/server/dataset-registry';
+import { SCHEMA_VERSION } from '@/server/db';
+import { createApi, createStaticFetch } from '@/server/server';
 
 import { ApiError } from '.';
 import { openLifecycleApi } from './lifecycle';

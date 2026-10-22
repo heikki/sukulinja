@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import type { Box, LinkTarget, Unlinked } from '@common/types';
+import type { Box, LinkTarget, Unlinked } from '@/common/types';
 
 import {
   linkLabel,

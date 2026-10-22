@@ -2,8 +2,8 @@
 // thumbnail arrives first and sets it provisionally; the full Image then
 // takes over without the view moving.
 
-import type { Point, Transform, Viewport } from '@client/pan-zoom';
-import type { Box } from '@common/types';
+import type { Point, Transform, Viewport } from '@/client/pan-zoom';
+import type { Box } from '@/common/types';
 
 export interface Frame {
   size: Viewport;

@@ -1,7 +1,7 @@
 import type { Database } from 'bun:sqlite';
 import { basename, join, relative, resolve } from 'node:path';
 
-import type { LinkResolution } from '@common/types';
+import type { LinkResolution } from '@/common/types';
 
 import { routeCitations } from './citation-routes';
 import type { CitationHandlers } from './citation-routes';

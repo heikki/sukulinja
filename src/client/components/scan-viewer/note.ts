@@ -1,5 +1,6 @@
-import type { Viewer } from '@client/state';
 import { html, nothing } from 'lit';
+
+import type { Viewer } from '@/client/state';
 
 import type { Loading } from './frame';
 

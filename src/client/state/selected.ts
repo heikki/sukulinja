@@ -1,11 +1,12 @@
-import { ApiError } from '@client/dataset-api';
-import type { BoxAt, DatasetApi, MarkTarget } from '@client/dataset-api';
+import { computed, signal } from '@lit-labs/signals';
+
+import { ApiError } from '@/client/dataset-api';
+import type { BoxAt, DatasetApi, MarkTarget } from '@/client/dataset-api';
 import type {
   CitationLinks,
   LinkResolution,
   PersonDetails
-} from '@common/types';
-import { computed, signal } from '@lit-labs/signals';
+} from '@/common/types';
 
 import { groupSources } from './sources';
 import type { SourceGroup } from './sources';

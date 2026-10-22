@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import type { CitationRow, Link, LinkResolution } from '@common/types';
+import type { CitationRow, Link, LinkResolution } from '@/common/types';
 
 import { groupSources, linkStatus } from './sources';
 

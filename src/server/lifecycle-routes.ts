@@ -12,8 +12,8 @@
 // A verb refused in words the app can show answers 404 or 409; anything
 // else thrown is a bug, and is thrown on.
 
-import { slugFromFilename, withoutExtension } from '@common/slug';
-import type { ImportEvent, ImportReview } from '@common/types';
+import { slugFromFilename, withoutExtension } from '@/common/slug';
+import type { ImportEvent, ImportReview } from '@/common/types';
 
 import { DatasetNotFound } from './dataset-registry';
 import type { DatasetRegistry } from './dataset-registry';

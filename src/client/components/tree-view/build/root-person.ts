@@ -1,6 +1,6 @@
 // Root's PersonNode, the top of the layout tree, and its downward subtree.
 
-import type { FamilyRow } from '@common/types';
+import type { FamilyRow } from '@/common/types';
 
 import { buildAnchoredFamily } from './family';
 import type { SpousePlacement } from './family';

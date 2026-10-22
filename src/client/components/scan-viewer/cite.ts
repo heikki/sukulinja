@@ -1,4 +1,4 @@
-import type { PersonRow, VolumeCitation } from '@common/types';
+import type { PersonRow, VolumeCitation } from '@/common/types';
 
 import { householdsOf } from '../person-panel/family';
 import type { FamilyIndices } from '../person-panel/family';

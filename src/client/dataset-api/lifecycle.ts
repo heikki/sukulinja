@@ -2,14 +2,14 @@
 // them, importing, exporting, undoing an import and deleting. The Dataset
 // API's twin for the registry's verbs, and where their route strings live.
 
-import { readNdjson } from '@client/ndjson';
+import { readNdjson } from '@/client/ndjson';
 import type {
   DatasetInfo,
   ExportKind,
   ExportSaved,
   ImportEvent,
   ImportReview
-} from '@common/types';
+} from '@/common/types';
 
 import { ApiError, asker, NOT_RESPONDING } from '.';
 import type { FetchOptions } from '.';

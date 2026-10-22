@@ -7,7 +7,7 @@ import { mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-import type { ExportKind } from '@common/types';
+import type { ExportKind } from '@/common/types';
 
 import { exportGedcom } from './gedcom-export';
 import { exportGedcom551 } from './gedcom551';

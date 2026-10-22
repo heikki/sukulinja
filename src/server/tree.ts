@@ -4,7 +4,7 @@
 
 import type { Database } from 'bun:sqlite';
 
-import type { FamilyRow, PersonRow } from '@common/types';
+import type { FamilyRow, PersonRow } from '@/common/types';
 
 // The year of a date as written ("ABT 1757", "12 MAR 1820").
 function yearOf(date: string | null) {

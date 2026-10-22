@@ -1,8 +1,8 @@
 // The check's report, a line each: the Volumes re-scanned, each with its
 // stale pins, hand ones first.
 
-import type { StalePin } from '@common/types';
-import type { CheckResult } from '@server/citation-scans/rescans';
+import type { StalePin } from '@/common/types';
+import type { CheckResult } from '@/server/citation-scans/rescans';
 
 const KINDS: Record<StalePin['kind'], string> = {
   page: 'Page pin',

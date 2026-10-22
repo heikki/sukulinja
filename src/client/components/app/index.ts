@@ -6,12 +6,12 @@ import { customElement, state } from 'lit/decorators.js';
 import '../settings';
 import '../tree-view';
 
-import { ApiError, openDatasetApi } from '@client/dataset-api';
-import { openLifecycleApi } from '@client/dataset-api/lifecycle';
-import { focusRingStyles } from '@client/focus-ring';
-import { appState, openAppState } from '@client/state';
-import { slugFromFilename, withoutExtension } from '@common/slug';
-import type { DatasetInfo, ExportKind, ImportReview } from '@common/types';
+import { ApiError, openDatasetApi } from '@/client/dataset-api';
+import { openLifecycleApi } from '@/client/dataset-api/lifecycle';
+import { focusRingStyles } from '@/client/focus-ring';
+import { appState, openAppState } from '@/client/state';
+import { slugFromFilename, withoutExtension } from '@/common/slug';
+import type { DatasetInfo, ExportKind, ImportReview } from '@/common/types';
 
 import { confirmDialog, errorNote, runAction } from './dialogs';
 import type { Confirming, DatasetAction } from './dialogs';

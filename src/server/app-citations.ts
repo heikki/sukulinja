@@ -5,7 +5,7 @@
 
 import type { Database } from 'bun:sqlite';
 
-import type { Box } from '@common/types';
+import type { Box } from '@/common/types';
 
 import { openAnnotations } from './annotations';
 import { viewerUrl } from './citation-scans/astia';

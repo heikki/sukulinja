@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import type { Box, LinkTarget, VolumeCitation } from '@common/types';
+import type { Box, LinkTarget, VolumeCitation } from '@/common/types';
 
 import { boxOf, entriesOn, groupCitations, imageOf } from './citations';
 

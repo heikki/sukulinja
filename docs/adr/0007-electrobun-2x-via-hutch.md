@@ -17,13 +17,13 @@ Electrobun 2.x bundles through Cottontail rather than `Bun.build()`, and Cottont
 Hutch projects the SDK into a generated `.hutch/devkit/` sysroot, and the npm `electrobun` package is a bootstrap for the toolchain. Consequences worth knowing:
 
 - `.hutch/` is generated and gitignored. `electrobun sync` creates it, and **typecheck needs it** — `postinstall` runs it on every `bun install`, or `electrobun/*` imports don't resolve and `tsc` fails with TS7016.
-- `tsconfig.json` maps `electrobun` and `electrobun/main` into the devkit through `paths` rather than extending `.hutch/devkit/tsconfig.json`, because that file sets its own `baseUrl` and a child's `paths` block replaces rather than merges — extending it would silently re-root every `@common/*` and `@client/*` alias inside `.hutch/devkit/`.
+- `tsconfig.json` maps `electrobun` and `electrobun/main` into the devkit through `paths` rather than extending `.hutch/devkit/tsconfig.json`, because that file sets its own `baseUrl` and a child's `paths` block replaces rather than merges — extending it would silently re-root the `@/*` alias inside `.hutch/devkit/`.
 - The 1.16.0 SDK shipped raw `.ts` that imported the untyped `three` and indexed Bun's FFI pointers in ways newer `@types/bun` rejects, so `tsc` reported errors from inside `node_modules`. Those are gone with the SDK move; nothing in this repo imports three.
 - `hutch.config.ts` declares `packageManager: 'bun'`. Hutch's built-in resolver would otherwise own dependencies and write its own `hutch.lock`, ignoring `bun.lock` entirely.
 
 ## Bundler plugins are gone, and were not needed
 
-Electrobun 2.x serializes the config while loading it, so function-valued bundler plugins cannot cross that boundary. The inline `tsconfig-paths` plugin that resolved `@common/*` and friends at bundle time is deleted: Cottontail's bundler reads `paths` from `tsconfig.json` directly, which is what the plugin was hand-rolling. One mirror of the alias list instead of two.
+Electrobun 2.x serializes the config while loading it, so function-valued bundler plugins cannot cross that boundary. The inline `tsconfig-paths` plugin that resolved the `@/*` alias at bundle time is deleted: Cottontail's bundler reads `paths` from `tsconfig.json` directly, which is what the plugin was hand-rolling. One mirror of the alias list instead of two.
 
 The plugin also anchored itself to `resolve('.')`, which would have broken regardless — Hutch evaluates the config from a temp directory, not the project root, so a cwd-relative base resolves to nothing.
 

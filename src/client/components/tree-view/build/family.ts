@@ -5,7 +5,7 @@
 //     fans to placement.xSpouse. Used for Root's marriages, descendant
 //     marriages, and the parent-row Step-fam fan.
 
-import type { FamilyRow } from '@common/types';
+import type { FamilyRow } from '@/common/types';
 
 import { isPersonKnown, otherSpouseOf } from './indices';
 import type { LayoutIndices } from './indices';

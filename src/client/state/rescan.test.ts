@@ -1,9 +1,14 @@
 import { expect, test } from 'bun:test';
 
-import { ApiError } from '@client/dataset-api';
-import { memoryDatasetApi } from '@client/dataset-api/memory';
-import type { MemoryDataset } from '@client/dataset-api/memory';
-import type { CitationRow, Link, PersonDetails, StalePin } from '@common/types';
+import { ApiError } from '@/client/dataset-api';
+import { memoryDatasetApi } from '@/client/dataset-api/memory';
+import type { MemoryDataset } from '@/client/dataset-api/memory';
+import type {
+  CitationRow,
+  Link,
+  PersonDetails,
+  StalePin
+} from '@/common/types';
 
 import { openAppState } from '.';
 

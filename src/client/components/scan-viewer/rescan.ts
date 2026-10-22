@@ -1,10 +1,11 @@
-import { ApiError } from '@client/dataset-api';
-import { appState } from '@client/state';
-import type { AppState } from '@client/state';
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+
+import { ApiError } from '@/client/dataset-api';
+import { appState } from '@/client/state';
+import type { AppState } from '@/client/state';
 
 import { staleLines } from './stale-lines';
 import { controlStyles } from './styles';

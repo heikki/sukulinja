@@ -11,8 +11,8 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { ImageRef } from '@server/citation-scans/reader';
-import type { ScanCache } from '@server/citation-scans/scan-cache';
+import type { ImageRef } from '@/server/citation-scans/reader';
+import type { ScanCache } from '@/server/citation-scans/scan-cache';
 
 const GAP_MS = 1000;
 const MAX_EDGE = 2576;

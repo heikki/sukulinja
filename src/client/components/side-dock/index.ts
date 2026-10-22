@@ -1,8 +1,9 @@
-import { focusRingStyles } from '@client/focus-ring';
-import { easeOutCubic, reducedMotion } from '@client/pan-zoom';
 import { html, LitElement, nothing } from 'lit';
 import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+
+import { focusRingStyles } from '@/client/focus-ring';
+import { easeOutCubic, reducedMotion } from '@/client/pan-zoom';
 
 import { sideDockStyles } from './styles';
 

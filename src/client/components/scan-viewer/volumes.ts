@@ -1,12 +1,13 @@
-import { ApiError } from '@client/dataset-api';
-import type { Point } from '@client/pan-zoom';
-import { appState } from '@client/state';
-import type { AppState } from '@client/state';
-import type { VolumeChoice, VolumeChoices } from '@common/types';
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+
+import { ApiError } from '@/client/dataset-api';
+import type { Point } from '@/client/pan-zoom';
+import { appState } from '@/client/state';
+import type { AppState } from '@/client/state';
+import type { VolumeChoice, VolumeChoices } from '@/common/types';
 
 import { placedInside } from '../context-menu';
 import { scanVolumesStyles } from './edit-styles';

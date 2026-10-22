@@ -1,11 +1,11 @@
-import { certaintyName, linkName } from '@client/link-labels';
+import { certaintyName, linkName } from '@/client/link-labels';
 import type {
   Box,
   Certainty,
   PersonRow,
   Precision,
   VolumeCitation
-} from '@common/types';
+} from '@/common/types';
 
 import { formatName } from '../tree-view/renderer';
 

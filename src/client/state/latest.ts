@@ -1,4 +1,4 @@
-import { ApiError } from '@client/dataset-api';
+import { ApiError } from '@/client/dataset-api';
 
 // One request at a time: asking again aborts the last one.
 export class Latest {

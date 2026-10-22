@@ -8,7 +8,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readdir, rename, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
-import type { DatasetInfo, ExportKind } from '@common/types';
+import type { DatasetInfo, ExportKind } from '@/common/types';
 
 import { openAnyDb, openDb, OutdatedDatasetError } from './db';
 import { saveExport } from './export-dataset';

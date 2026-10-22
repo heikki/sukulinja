@@ -2,7 +2,7 @@
 // typed. `openDatasetApi` asks over HTTP, and is where every route string
 // lives; `memoryDatasetApi` (memory.ts) answers from values a test gives.
 
-import { readNdjson } from '@client/ndjson';
+import { readNdjson } from '@/client/ndjson';
 import type {
   Box,
   CitationLinks,
@@ -12,7 +12,7 @@ import type {
   Rescan,
   VolumeChoices,
   VolumeCitation
-} from '@common/types';
+} from '@/common/types';
 
 // A request the app answered with an error, or couldn't be reached for. Its
 // words are for the person using the app. Anything else thrown is a bug.

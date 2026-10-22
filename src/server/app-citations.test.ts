@@ -7,7 +7,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { CitationLinks, Link, VolumeCitation } from '@common/types';
+import type { CitationLinks, Link, VolumeCitation } from '@/common/types';
 
 import { openAnnotations } from './annotations';
 import { fileId, memoryAstia } from './citation-scans/memory-astia';

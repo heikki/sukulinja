@@ -1,6 +1,6 @@
 import type { Database } from 'bun:sqlite';
 
-import type { Scope } from '@common/types';
+import type { Scope } from '@/common/types';
 
 import { openAnnotations } from './annotations';
 import { isEmptyLine, lineReader } from './gedcom-lines';

@@ -11,6 +11,7 @@
 // such fallback, so there a decline stays unreadable.
 
 import Anthropic from '@anthropic-ai/sdk';
+
 import type {
   DatesReading,
   EntryReading,
@@ -21,7 +22,7 @@ import type {
   Question,
   Reader,
   Register
-} from '@server/citation-scans/reader';
+} from '@/server/citation-scans/reader';
 
 import type { Scan } from './images';
 

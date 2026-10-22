@@ -1,6 +1,6 @@
-import type { BookKind, Years } from '@common/types';
+import type { BookKind, Years } from '@/common/types';
 
-export type { BookKind, Years } from '@common/types';
+export type { BookKind, Years } from '@/common/types';
 
 export function decodeEntities(s: string) {
   return s

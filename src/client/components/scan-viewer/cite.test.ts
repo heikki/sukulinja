@@ -1,6 +1,11 @@
 import { expect, test } from 'bun:test';
 
-import type { FamilyRow, Link, PersonRow, VolumeCitation } from '@common/types';
+import type {
+  FamilyRow,
+  Link,
+  PersonRow,
+  VolumeCitation
+} from '@/common/types';
 
 import { citeChoices, citingImage, searchable } from './cite';
 

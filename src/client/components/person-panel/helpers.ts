@@ -1,8 +1,8 @@
-import { volumeTitle } from '@client/link-labels';
-import type { LinkStatus } from '@client/state';
-import { BOOK_NAMES } from '@common/books';
-import { gedcomDate } from '@common/dates';
-import type { CitationRow, FactRow, Link } from '@common/types';
+import { volumeTitle } from '@/client/link-labels';
+import type { LinkStatus } from '@/client/state';
+import { BOOK_NAMES } from '@/common/books';
+import { gedcomDate } from '@/common/dates';
+import type { CitationRow, FactRow, Link } from '@/common/types';
 
 const FACT_LABELS: Record<string, string> = {
   BIRT: 'Birth',

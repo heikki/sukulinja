@@ -12,7 +12,7 @@ import type {
   StalePin,
   VolumeChoices,
   VolumeCitation
-} from '@common/types';
+} from '@/common/types';
 
 import { ApiError, NOT_RESPONDING } from '.';
 import type { DatasetApi } from '.';
