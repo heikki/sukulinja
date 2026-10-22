@@ -50,7 +50,7 @@ const PERSONS = new Map<number, PersonRow>(
   ])
 );
 
-test('names stale marks first, then vision matches, then each Page pin once', () => {
+test('names stale marks first, then Matches, then each Page pin once', () => {
   const stale: StalePin[] = [
     {
       kind: 'page',
@@ -80,7 +80,7 @@ test('names stale marks first, then vision matches, then each Page pin once', ()
   expect(staleLines(stale, ROWS, PERSONS)).toEqual([
     'Mark: record 777, Image 30',
     'Mark: Person3 Esimerkki, 3.3.1761, Image 40',
-    'Vision match: Person1 Esimerkki, p. 463; Person2 Esimerkki, p. 463, Image 247',
+    'Match: Person1 Esimerkki, p. 463; Person2 Esimerkki, p. 463, Image 247',
     'Page pin: pp. 234–235, Image 125'
   ]);
 });

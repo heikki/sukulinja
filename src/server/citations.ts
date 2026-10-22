@@ -77,7 +77,7 @@ function storedLink(
     return null;
   }
   const url = viewerUrl(volumeId, fileId);
-  const certainty = by === 'hand' ? 'marked' : 'vision';
+  const certainty = by === 'hand' ? 'marked' : 'match';
   return { volumeId, volume, url, precision: 'entry', image, box, certainty };
 }
 

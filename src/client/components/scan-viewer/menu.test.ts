@@ -71,7 +71,7 @@ test('a Citation made in the app offers Delete citation on its Box; a Mark, Disc
   ]);
   const vision = await viewing(citation(3, false), {
     ...AT_ENTRY,
-    certainty: 'vision'
+    certainty: 'match'
   });
   expect(labels(vision, { onBox: true, canBox: true })).toEqual([
     'Edit match',

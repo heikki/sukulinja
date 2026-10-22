@@ -6,7 +6,7 @@ import type { MenuItem } from '../context-menu';
 // with its person. On its own entry Box (`onBox`), only that Box: a Vision
 // match's or a Mark's to edit or discard, a Citation made in the app's to
 // edit or delete, and once it's pending, the change to discard. Confirming
-// a Vision match is beside the scan. Elsewhere, only over the full Image
+// a Match is beside the scan. Elsewhere, only over the full Image
 // (`canBox`) and with nothing pending: a pending Box for the person's
 // entry, and one for a new Citation of the entry for someone; then Change
 // Volume…, which only shows another Volume.
@@ -38,7 +38,7 @@ function boxItems(viewer: Viewer): MenuItem[] {
       { label: 'Delete citation', run: viewer.discard }
     ];
   }
-  if (source?.link?.certainty === 'vision') {
+  if (source?.link?.certainty === 'match') {
     return [
       { label: 'Edit match', run: viewer.editBox },
       { label: 'Discard match', run: viewer.discard }

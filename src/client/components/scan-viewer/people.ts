@@ -23,7 +23,7 @@ const HOLD_MS = 300;
 // citation the viewer is on is marked. Hovering a row with an entry on the
 // scan names the entry's key with `scan-hover`, and rows of the entry
 // picked out there (`hovered`) are highlighted. The picked row, when a
-// vision match, can be confirmed, saved as marking its Image by hand would be.
+// Match, can be confirmed, saved as marking its Image by hand would be.
 @customElement('sl-scan-people')
 export class ScanPeopleElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanPeopleStyles];
@@ -103,7 +103,7 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
   }
 
   private renderConfirm(row: VolumeCitation, current: boolean) {
-    if (!current || row.link.certainty !== 'vision') return nothing;
+    if (!current || row.link.certainty !== 'match') return nothing;
     if (this.state.viewer.oldFilming.get()) return nothing;
     const id = row.citation.id;
     return html`

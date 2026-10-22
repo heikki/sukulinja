@@ -51,7 +51,8 @@ export interface Candidate {
   start: number | null;
 }
 
-export type Unconfirmed =
+// Why a search confirmed no Match.
+export type MissReason =
   | 'name not found'
   | 'unreadable'
   | 'did not converge'
@@ -60,29 +61,31 @@ export type Unconfirmed =
   | 'no name'
   | 'no box'
   | 'unsupported'
-  // Confirmed on an Image where a person took the match back.
+  // Confirmed on an Image where a person took the Match back.
   | 'rejected';
 
-export type Match =
-  | {
-      confirmed: true;
-      volumeId: string;
-      volume: string;
-      image: number;
-      // Whether page search read the cited Page number on this very Image,
-      // so it can stand as a Page pin.
-      onCitedPage: boolean;
-      // Where on the Image the entry is: a match saves only with one.
-      box: Fractions;
-    }
-  | {
-      confirmed: false;
-      reason: Unconfirmed;
-      // Where the search ended, to open the Scan viewer near the entry.
-      volumeId?: string;
-      volume?: string;
-      image?: number;
-    };
+// Where the vision model confirmed the entry.
+export interface Match {
+  confirmed: true;
+  volumeId: string;
+  volume: string;
+  image: number;
+  // Whether page search read the cited Page number on this very Image,
+  // so it can stand as a Page pin.
+  onCitedPage: boolean;
+  // Where on the Image the entry is: a Match saves only with one.
+  box: Fractions;
+}
+
+// A search that confirmed no Match, and where it ended, to open the Scan
+// viewer near the entry.
+export interface Miss {
+  confirmed: false;
+  reason: MissReason;
+  volumeId?: string;
+  volume?: string;
+  image?: number;
+}
 
 // Readings a search may make in one Volume before giving up.
 const MAX_READS = 24;
@@ -94,7 +97,7 @@ const WINDOW = 3;
 
 type Landing =
   | { image: number; onCitedPage?: boolean; box?: Fractions | null }
-  | { reason: Unconfirmed; image: number };
+  | { reason: MissReason; image: number };
 
 // ---------------------------------------------------------------- dates
 
@@ -384,7 +387,7 @@ function reasonOf({ landing }: Outcome) {
 }
 
 // When nothing confirms, the outcome most worth a look by hand.
-const REVIEW_ORDER: Unconfirmed[] = [
+const REVIEW_ORDER: MissReason[] = [
   'name not found',
   'did not converge',
   'unreadable',
@@ -408,7 +411,7 @@ export async function matchRef(
   ref: ChurchBookRef,
   candidates: Candidate[],
   reader: Reader
-): Promise<Match> {
+): Promise<Match | Miss> {
   if (candidates.length === 0) {
     return { confirmed: false, reason: 'no candidate volume' };
   }

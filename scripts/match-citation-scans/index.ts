@@ -1,6 +1,6 @@
 // The vision pass: match a dataset's church-book citations to their exact
 // Astia Images with Claude, and save the confirmed ones into the dataset's
-// citations as Vision matches, where the app reads them.
+// citations as Matches, where the app reads them.
 //
 //   bun run scripts/match-citation-scans/index.ts --dataset <slug>
 //     [--data <folder>] [--books rippikirjat|index] [--parish <name>]

@@ -3,8 +3,7 @@ import { join } from 'node:path';
 import { expect, test } from 'bun:test';
 
 import { memoryAstia } from './citation-scans/memory-astia';
-import { openScans } from './citation-scans/scans';
-import { pinsOf } from './citation-scans/test-pins';
+import { scansOf } from './citation-scans/test-pins';
 import { createCitations } from './citations';
 import { openDb } from './db';
 import { importGedcom } from './gedcom-import';
@@ -13,12 +12,11 @@ import { createPersonDetails } from './person-details';
 
 // Facts and names never read the pins.
 const UNREAD = memoryAstia({});
-const SCANS = openScans({
-  pins: pinsOf(join(tmpdir(), 'person-details-unread'), openDb(':memory:'), {
-    astia: UNREAD
-  }),
-  astia: UNREAD
-});
+const SCANS = scansOf(
+  join(tmpdir(), 'person-details-unread'),
+  openDb(':memory:'),
+  { astia: UNREAD }
+);
 
 const RIPPI =
   'https://www.myheritage.fi/research/collection-10509/x?itemId=1&action=showRecord';

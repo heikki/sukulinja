@@ -1,5 +1,5 @@
 // A Citation's Annotation: what the app adds to it (ADR-0013). Its Mark or
-// Vision match, the page a Mark on an Image moved aside (its original
+// Match, the page a Mark on an Image moved aside (its original
 // page), and whether the app made the Citation. Only this module knows the
 // columns an Annotation is stored in; it works on single Citation rows, and
 // the import, the merge, the export and the Marks go through it.
@@ -10,7 +10,7 @@ import type { Box, Provenance } from '@common/types';
 
 import { viewerUrl } from './citation-scans/astia';
 
-// Where a Mark or Vision match says a record is: on an Image of a Volume,
+// Where a Mark or Match says a record is: on an Image of a Volume,
 // with the entry's Box in pixels of the full-size Image, or only in the
 // Volume. `volume` is the Volume's label. The Image's file id tells the
 // filming it was made on.
@@ -239,7 +239,7 @@ export function openAnnotations(db: Database) {
       return Number(res.lastInsertRowid);
     },
 
-    // Writes a Mark or Vision match into the Citations, or clears it for a
+    // Writes a Mark or Match into the Citations, or clears it for a
     // Discard. A hand Mark on an Image makes them cite it, its page moved
     // aside as the original page; anything else gives the original page
     // back.

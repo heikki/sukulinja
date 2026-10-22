@@ -60,7 +60,7 @@ export function staleLines(
   return [
     ...marks.map((p) => `Mark: ${citing(p, rows, persons)}, Image ${p.image}`),
     ...matches.map(
-      (p) => `Vision match: ${citing(p, rows, persons)}, Image ${p.image}`
+      (p) => `Match: ${citing(p, rows, persons)}, Image ${p.image}`
     ),
     ...[...pages.values()].map(
       (p) => `Page pin: ${pagesOf(p.pages ?? [])}, Image ${p.image}`

@@ -12,7 +12,6 @@ import type { CitationLinks, Link, VolumeCitation } from '@common/types';
 import { openAnnotations } from './annotations';
 import { fileId, memoryAstia } from './citation-scans/memory-astia';
 import type { MemoryAstia } from './citation-scans/memory-astia';
-import { openScans } from './citation-scans/scans';
 import {
   IMAGES,
   JUVA,
@@ -20,7 +19,7 @@ import {
   rippiCitation,
   VOLUMES
 } from './citation-scans/test-parish';
-import { pinsOf } from './citation-scans/test-pins';
+import { scansOf } from './citation-scans/test-pins';
 import { createCitations } from './citations';
 import { openDb } from './db';
 
@@ -76,8 +75,7 @@ function withPeople(cited: Cited[], people = 3) {
   for (const [i, c] of cited.entries()) {
     insert.run(c.personId, c.page, c.text, i);
   }
-  const scans = openScans({
-    pins: pinsOf(dir, db, { astia }),
+  const scans = scansOf(dir, db, {
     astia,
     sizeOf: () => Promise.resolve({ width: 1000, height: 800 })
   });

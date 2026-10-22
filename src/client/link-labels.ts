@@ -12,7 +12,7 @@ import type {
 
 const CERTAINTY: Record<Certainty, string> = {
   marked: 'Marked',
-  vision: 'Vision match',
+  match: 'Match',
   estimated: 'Estimated'
 };
 

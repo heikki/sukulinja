@@ -26,7 +26,7 @@ const VISION: LinkTarget = {
   precision: 'entry',
   image: 7,
   box: BOX,
-  certainty: 'vision'
+  certainty: 'match'
 };
 const VOLUME: LinkTarget = { precision: 'volume', certainty: 'estimated' };
 
@@ -36,7 +36,7 @@ test('names a Link by who says so, then how far down', () => {
   expect(linkLabel({ precision: 'volume', certainty: 'marked' })).toBe(
     'Marked Volume'
   );
-  expect(linkLabel(VISION)).toBe('Vision match');
+  expect(linkLabel(VISION)).toBe('Match');
   expect(linkLabel(estimated(7, 'pins'))).toBe('Estimated Image');
   expect(linkLabel(VOLUME)).toBe('Estimated Volume');
 });

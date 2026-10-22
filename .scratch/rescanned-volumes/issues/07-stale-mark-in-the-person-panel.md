@@ -10,11 +10,11 @@ After switching to a re-scanned Volume's new filming (asked in the Scan viewer, 
 
 - Whether it's worth it at all, given re-scans are rare (1 in 208 cached Volumes so far) and the Scan viewer already lists the stale marks when switching.
 - How resolution says so: a flag on the estimated Link ("marked on a replaced filming, was Image 247"), or a separate list the panel asks for.
-- Whether vision matches made on the old filming say so too, or only hand marks.
+- Whether Matches made on the old filming say so too, or only hand marks.
 
 ## Comments
 
 **Triage 2026-10-21: parked until the next re-scan.** Not worth building for one re-scanned Volume, but not wontfix either: if Astia re-scans another pinned Volume, come back to it. Leaning on the open questions, should it be built:
 
 - **Shape**: a flag on the estimated Link, carrying the old Image number ("marked on a replaced filming, was Image 247"), so the panel needs no separate request.
-- **Which pins**: hand marks only. Vision matches can be run again by the script.
+- **Which pins**: hand marks only. Matches can be run again by the script.

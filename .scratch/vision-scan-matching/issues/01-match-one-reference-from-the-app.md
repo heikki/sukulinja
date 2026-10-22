@@ -2,9 +2,9 @@ Status: needs-triage
 
 # Run the vision match for one reference from the app
 
-Glossary: **Church-book reference**, **Vision match**, **Reader**, **Confirmation**, **Scan viewer**, **Rejection**.
+Glossary: **Church-book reference**, **Match**, **Reader**, **Confirmation**, **Scan viewer**, **Rejection**.
 
-Today the vision pass only runs as a script over a whole dataset (`scripts/match-citation-scans`), filtered at best by parish, Book or Volume. When a reference in the Scan viewer is only Estimated, and you'd rather not step through the Images yourself, you should be able to ask for a Vision match for that one reference from the app, then confirm it or Discard it as usual.
+Today the vision pass only runs as a script over a whole dataset (`scripts/match-citation-scans`), filtered at best by parish, Book or Volume. When a reference in the Scan viewer is only Estimated, and you'd rather not step through the Images yourself, you should be able to ask for a Match for that one reference from the app, then confirm it or Discard it as usual.
 
 ## Why it's more than a button
 

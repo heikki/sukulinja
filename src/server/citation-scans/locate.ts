@@ -157,7 +157,7 @@ function pinnedTarget(pin: {
   box?: Box;
   by?: Provenance;
 }): LinkTarget | null {
-  const certainty = pin.by === 'vision' ? 'vision' : 'marked';
+  const certainty = pin.by === 'vision' ? 'match' : 'marked';
   if (pin.image !== undefined && pin.box !== undefined) {
     return { precision: 'entry', image: pin.image, box: pin.box, certainty };
   }

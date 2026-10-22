@@ -21,11 +21,10 @@ import { parseArgs } from 'node:util';
 
 import { openAstia } from '@server/citation-scans/astia';
 import { withoutStale } from '@server/citation-scans/locate';
-import { openMarks } from '@server/citation-scans/marks';
-import { openPins, openVolumeFacts } from '@server/citation-scans/pins';
 import { cachedReader } from '@server/citation-scans/reader';
 import type { ImageRef, Question, Reader } from '@server/citation-scans/reader';
 import { openScanCache } from '@server/citation-scans/scan-cache';
+import { openScanFolder } from '@server/citation-scans/scans';
 import { openDb } from '@server/db';
 
 import { claudeReader, DEFAULT_MODELS } from '../vision/claude-reader';
@@ -212,10 +211,7 @@ async function main() {
   const astia = openAstia(join(root, '.astia-cache'));
   // Pins made on a filming Astia has since replaced name the wrong Image.
   const { volumes, references } = await withoutStale(
-    await openPins(
-      openVolumeFacts(root, { astia }),
-      openMarks(openDb(dbPath))
-    ).snapshot(),
+    await openScanFolder(root, { astia }).scans(openDb(dbPath)).snapshot(),
     astia
   );
   const pages = pageCases(volumes, limit);

@@ -76,7 +76,7 @@ export interface Viewer {
   pick: (row: VolumeCitation) => number | null;
   // Called by `state.select` once `id` is selected.
   selected: (id: number) => void;
-  // Marks a Vision match's Image, throwing ApiError if it's refused.
+  // Marks a Match's Image, throwing ApiError if it's refused.
   confirm: (row: VolumeCitation) => Promise<void>;
   close: () => void;
   // The current source's change not saved yet.
