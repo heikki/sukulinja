@@ -8,6 +8,7 @@ import '../tree-view';
 
 import { ApiError, openDatasetApi } from '@/client/dataset-api';
 import { openLifecycleApi } from '@/client/dataset-api/lifecycle';
+import { dialogStyles } from '@/client/dialog-styles';
 import { focusRingStyles } from '@/client/focus-ring';
 import { appState, openAppState } from '@/client/state';
 import { slugFromFilename, withoutExtension } from '@/common/slug';
@@ -84,7 +85,7 @@ function renderOutdated(d: DatasetInfo) {
 
 @customElement('sl-app')
 export class AppElement extends LitElement {
-  static override styles = [focusRingStyles, appStyles];
+  static override styles = [focusRingStyles, dialogStyles, appStyles];
 
   // The datasets as a whole: listing, importing, exporting, undoing, deleting.
   private readonly lifecycle = openLifecycleApi();
