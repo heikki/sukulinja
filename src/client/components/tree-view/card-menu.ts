@@ -40,7 +40,7 @@ export function renderCardMenu(
   if (menu === null || person === undefined) return nothing;
   const items = [
     {
-      label: 'Make Root',
+      label: 'Build tree from here',
       run: () => {
         on.makeRoot(menu);
       }

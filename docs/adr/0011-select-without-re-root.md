@@ -6,8 +6,8 @@ Who the chart is built around and who the dock shows are now separate. The **Sel
 
 - **A click selects.** The card is ringed, the dock opens on the person, and the chart stays as it is. Clicking the selected card shows or hides the dock. Selecting is only ever for the dock's details, so every selection opens it, whether by a click, making them Root, search or a pick in the dock; only the URL's selection, on arriving or with Back, leaves it as it was.
 - **The selected card is shown whole.** If it's cut off at an edge, off-screen, or about to go under the opening dock, the chart glides just far enough to bring it inside the fit margin, in step with the dock's slide. A card already in view doesn't move, so the view being compared against stays put. Of a person drawn more than once, the card needing the least travel is shown; a click shows the card clicked.
-- **A card's right-click menu makes Root.** Its one item, Make Root, under the person's name, also selects them, so the dock and the chart agree again; Root's own card opens no menu. On a row of the dock's Family list, whose people may not be drawn at all, a double-click does the same.
-- **Search selects,** as a pick in the dock does: someone the chart draws is glided into view, keeping the chart being compared against; anyone else becomes Root. Make Root on their card rebuilds the chart around them.
+- **A card's right-click menu makes Root.** Its one item, Build tree from here, under the person's name, also selects them, so the dock and the chart agree again; Root's own card opens no menu. On a row of the dock's Family list, whose people may not be drawn at all, a double-click does the same.
+- **Search selects,** as a pick in the dock does: someone the chart draws is glided into view, keeping the chart being compared against; anyone else becomes Root. Build tree from here on their card rebuilds the chart around them.
 - **The dock's own picks select.** A click on a row in the Family list, or on a person in the Scan viewer's list, selects them.
 - **Selecting someone the chart doesn't draw makes them Root.** Otherwise nothing in the chart would mark them, and the chart has nothing about them to compare against, so rebuilding it loses little. Someone drawn but panned off-screen is selected and glided into view, not rebuilt around.
 - **The Scan viewer belongs to the selected person.** Selecting another closes it, unless they were picked in the viewer itself, which goes on with their citation.
@@ -15,7 +15,7 @@ Who the chart is built around and who the dock shows are now separate. The **Sel
 
 ## Considered options
 
-- **Select someone undrawn without moving the chart,** saying "Not in the chart" in the dock. Rejected: a dead end that Make Root must undo every time.
+- **Select someone undrawn without moving the chart,** saying "Not in the chart" in the dock. Rejected: a dead end that Build tree from here must undo every time.
 - **A Center button in the dock** for a selected person who isn't Root. Rejected: a standing band of chrome over the panel, for what the card's menu already does.
 
 - **Keep click making Root; select only from the dock.** Rejected: browsing the chart and browsing the Family list would then work differently, and the chart would still move on every card click.

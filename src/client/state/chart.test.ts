@@ -115,7 +115,7 @@ test("selecting someone the chart doesn't draw builds it around them", async () 
   expect(told).toEqual(['reroot at centre, open', 'push']);
 });
 
-test('Make Root pins the new chart where asked; on Root, it only selects', async () => {
+test('makeRoot pins the new chart where asked; on Root, it only selects', async () => {
   const { state, told, selectedId, root } = await loaded([1, 2, 3], url(1, 3));
   state.chart.makeRoot(2, { x: 5, y: 6 });
   expect([root(), selectedId()]).toEqual([2, 2]);
