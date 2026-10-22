@@ -16,7 +16,7 @@ A Mark only links where an existing Citation points. A new Citation is new genea
 - **Always a Box.** _Cite this entry for_ places a pending Box where the menu was opened, to adjust, then Cancel / Save at the end of the nav, the same flow as _Mark entry_. The Box is what says which entry it is.
 - **Optional short text**, a one-line field while the Box is pending (e.g. "Baptism 12.3.1795"), stored as the Citation's DATA TEXT. Left empty, the panel names it by its Volume and Image.
 - **Discard deletes it.** On a Citation made in the app, the Box menu says _Delete citation_ instead of _Discard mark_, and asks to confirm. This answers what a Discard does to a Citation with no original page.
-- **The person panel** lists it among the person's imported sources, labelled _Added in Sukulinja_, and opens the viewer at its Box like a Mark.
+- **The person panel** lists it among the person's imported sources, under its archive, and opens the viewer at its Box like a Mark. No _Added in Sukulinja_ label (changed 2026-10-22).
 
 ### Follows from these
 
@@ -28,7 +28,7 @@ A Mark only links where an existing Citation points. A new Citation is new genea
 
 - 01, the server, the source per Volume, and the merge: built in 720ce9e.
 - `issues/02-cite-from-the-scan-viewer.md`: making and deleting one in the Scan viewer.
-- `issues/03-show-it-in-the-person-panel.md`: the person panel.
+- 03, the person panel: built in 1f4e93a.
 
 ## Comments
 
@@ -39,3 +39,5 @@ A Mark only links where an existing Citation points. A new Citation is new genea
 **Open from the Annotation refactor (4018d81):** Discarding the Box of a Citation made in the app. It has no original page to go back to and no MyHeritage reference to estimate from, so today's rule would leave it citing the Astia address with no Link. Decide what a Discard does to one: keep the Mark at the Image without its Box, drop the Citation, or refuse.
 
 **Server built 2026-10-22** (720ce9e): making and deleting a Citation on an Astia Image, its Volume's source (found by the Citations made in the app in the Volume, so no source is marked as the app's), reading it back, and the merge carrying that source (ADR-0013). Left open: after a Re-scan of its Volume, a Citation made in the app still shows on its old file id, where a Mark is left out.
+
+**Person panel built 2026-10-22** (1f4e93a): a Citation of an Astia Image is read by its stored Link, not by its being made in the app, so MyHeritage Citations converted to that form later read the same way. It's named by its text, or by its Volume, with its Image as its entry. `PAGE` stays a URL; the spec's `Label: value` form is deferred in ADR-0013. Left open: within a Volume the panel sorts by cited page, so a Citation of an Image comes first; sorting by Image instead was suggested.
