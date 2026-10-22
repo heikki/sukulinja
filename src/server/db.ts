@@ -151,9 +151,9 @@ const SCHEMA_SQL = `
     quality INTEGER,
     data_date TEXT,
     text TEXT,
-    -- A Mark's citation cites the Astia Image: page is its address,
-    -- and the page the import gave is kept here.
-    imported_page TEXT,
+    -- A hand Mark's citation cites the Astia Image: page is its address,
+    -- and the page it had before, its original page, is kept here.
+    original_page TEXT,
     -- The Astia Image or Volume a Mark or Vision match links, with the
     -- entry's Box in pixels of the full-size Image.
     link_volume_id TEXT,
@@ -221,7 +221,7 @@ const SCHEMA_SQL = `
 // Raised whenever the schema changes. A dataset's database holds the whole
 // tree and the file it came from isn't kept, so an older database can't be
 // upgraded: the dataset is imported again (ADR-0013).
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 // A dataset whose database an older version of the app built.
 export class OutdatedDatasetError extends Error {}

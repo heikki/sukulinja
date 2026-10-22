@@ -10,6 +10,7 @@ import { BOOK_NAMES } from '@common/books';
 import { isoDate } from '@common/dates';
 import type { CitationRow, VolumeCitation } from '@common/types';
 
+import { originalPageSql } from './annotations';
 import type { BoxAt, MarkTarget } from './citation-scans/pins';
 import {
   churchBookRefOf,
@@ -113,9 +114,9 @@ function onePerRecord<T extends { row: CitationDbRow }>(cited: T[]) {
 
 export function createCitations(db: Database, scans: Scans) {
   // A Mark makes its citation cite the Astia Image; the panel shows the
-  // page imported, which the reference is read from (ADR-0013).
+  // original page, which the reference is read from (ADR-0013).
   const SELECT = `SELECT c.id, c.scope_id AS personId, s.title AS source,
-    COALESCE(c.imported_page, c.page) AS page, c.text
+    ${originalPageSql('c')} AS page, c.text
     FROM citations c LEFT JOIN sources s ON s.id = c.source_id`;
   const ofPersonQuery = db.prepare<CitationDbRow, [number]>(
     `${SELECT} WHERE c.scope_type = 'person' AND c.scope_id = ?

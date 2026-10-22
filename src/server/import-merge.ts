@@ -3,42 +3,18 @@
 // Marks, citations made in the app, and Rejections.
 //
 // A citation of the export is the dataset's when it has the same person,
-// source and page: the page it was imported with, or, for a Marked one the
-// export now gives as the Astia address, that. Citations alike in all three
-// are paired in order, the first with the first.
+// source and page: its original page, or, for a Marked one the export now
+// gives as the Astia address, that. Citations alike in all three are
+// paired in order, the first with the first.
 
 import type { Database, SQLQueryBindings } from 'bun:sqlite';
 
 import type { ImportReview } from '@common/types';
 
+import { annotationOf, openAnnotations } from './annotations';
+import type { Annotation, Annotations } from './annotations';
 import { describer, ownerFinder, recordMatcher, rowsOf } from './merge-records';
 import type { Owner, Row } from './merge-records';
-
-// A Mark's columns, carried to the export's citation.
-const MARK = [
-  'page',
-  'imported_page',
-  'link_volume_id',
-  'link_volume',
-  'link_image',
-  'link_file_id',
-  'link_box_left',
-  'link_box_top',
-  'link_box_width',
-  'link_box_height',
-  'link_by'
-] as const;
-
-// What a citation made in the app holds, besides where it is.
-const HELD = [
-  ...MARK,
-  'event',
-  'role',
-  'quality',
-  'data_date',
-  'text',
-  'added_in_app'
-] as const;
 
 interface Citation {
   id: number;
@@ -48,15 +24,21 @@ interface Citation {
   holder: Owner | null;
   owner: string | null;
   source: string;
+  annotation: Annotation;
   appMade: boolean;
   linked: boolean;
-  // The page it was imported with, and the one it cites now.
-  imported: string;
-  page: string;
+  // Its original page, else its page; and the page it cites now.
+  original: string;
+  page: string | null;
 }
 
 function valueOf(row: Row, column: string) {
   return row[column] ?? null;
+}
+
+function textOf(row: Row, column: string) {
+  const value = valueOf(row, column);
+  return value === null ? null : String(value);
 }
 
 function citationsOf(db: Database, ownerKey: (o: Owner) => string | null) {
@@ -67,17 +49,19 @@ function citationsOf(db: Database, ownerKey: (o: Owner) => string | null) {
   const rows = db.query<Row, []>('SELECT * FROM citations ORDER BY id').all();
   return rows.map((row): Citation => {
     const holder = ownerOf(String(row.scope_type), Number(row.scope_id));
-    const page = valueOf(row, 'page');
+    const page = textOf(row, 'page');
+    const annotation = annotationOf(row);
     return {
       id: Number(row.id),
       row,
       holder,
       owner: holder === null ? null : ownerKey(holder),
       source: String(sources.get(valueOf(row, 'source_id')) ?? ''),
-      appMade: row.added_in_app === 1,
-      linked: valueOf(row, 'link_volume_id') !== null,
-      imported: String(valueOf(row, 'imported_page') ?? page ?? ''),
-      page: String(page ?? '')
+      annotation,
+      appMade: annotation.madeInApp,
+      linked: annotation.link !== null,
+      original: annotation.originalPage ?? page ?? '',
+      page
     };
   });
 }
@@ -86,7 +70,7 @@ function citationsOf(db: Database, ownerKey: (o: Owner) => string | null) {
 function pairUp(stored: Citation[], fresh: Citation[]) {
   const queues = new Map<string, Citation[]>();
   for (const f of fresh) {
-    const key = `${f.owner}|${f.source}|${f.imported}`;
+    const key = `${f.owner}|${f.source}|${f.original}`;
     queues.set(key, [...(queues.get(key) ?? []), f]);
   }
   const pairs = new Map<Citation, Citation>();
@@ -95,24 +79,18 @@ function pairUp(stored: Citation[], fresh: Citation[]) {
     const f = queues.get(`${s.owner}|${s.source}|${page}`)?.shift();
     if (f !== undefined) pairs.set(s, f);
   }
-  for (const s of stored) take(s, s.imported);
+  for (const s of stored) take(s, s.original);
   for (const s of stored) {
-    if (!pairs.has(s) && s.page !== s.imported) take(s, s.page);
+    const page = s.page ?? '';
+    if (!pairs.has(s) && page !== s.original) take(s, page);
   }
   return pairs;
-}
-
-function carryMark(fresh: Database, s: Citation, f: Citation) {
-  const set = MARK.map((c) => `${c} = ?`).join(', ');
-  fresh.run(`UPDATE citations SET ${set} WHERE id = ?`, [
-    ...MARK.map((c) => valueOf(s.row, c)),
-    f.id
-  ]);
 }
 
 interface Merge {
   stored: Database;
   fresh: Database;
+  annotations: Annotations;
   matchOf: (owner: Owner) => number | null;
 }
 
@@ -189,12 +167,23 @@ function reattach(m: Merge, s: Citation) {
       'SELECT COALESCE(MAX(sort_order) + 1, 0) AS n FROM citations WHERE scope_type = ? AND scope_id = ?'
     )
     .get(scope.type, scope.id)!.n;
-  const res = m.fresh.run(
-    `INSERT INTO citations (scope_type, scope_id, source_id, sort_order, ${HELD.join(', ')})
-     VALUES (?, ?, ?, ?, ${HELD.map(() => '?').join(', ')})`,
-    [scope.type, scope.id, source, next, ...HELD.map((c) => valueOf(s.row, c))]
+  const quality = valueOf(s.row, 'quality');
+  const id = m.annotations.insert(
+    {
+      scopeType: scope.type,
+      scopeId: scope.id,
+      sourceId: source,
+      sortOrder: next,
+      page: s.page,
+      event: textOf(s.row, 'event'),
+      role: textOf(s.row, 'role'),
+      quality: quality === null ? null : Number(quality),
+      dataDate: textOf(s.row, 'data_date'),
+      text: textOf(s.row, 'text')
+    },
+    s.annotation
   );
-  copyNotes(m, s.id, Number(res.lastInsertRowid));
+  copyNotes(m, s.id, id);
   return true;
 }
 
@@ -233,9 +222,21 @@ function keptAs(s: Citation, f: Citation) {
   return f.appMade ? 'citations' : 'duplicates';
 }
 
+// What a citation of the dataset the export doesn't have, and that
+// couldn't be reattached, is listed as lost as, if anything.
+function lostAs(s: Citation) {
+  if (s.appMade) return `${s.page ?? ''} (made in the app)`;
+  return s.linked ? s.original : null;
+}
+
 function merge(fresh: Database, stored: Database, byXref: boolean) {
   const { matchOf, people } = recordMatcher(stored, fresh, byXref);
-  const m: Merge = { stored, fresh, matchOf };
+  const m: Merge = {
+    stored,
+    fresh,
+    annotations: openAnnotations(fresh),
+    matchOf
+  };
   const storedCitations = citationsOf(stored, (o) => {
     const id = matchOf(o);
     return id === null ? null : `${o.kind}:${id}`;
@@ -247,19 +248,19 @@ function merge(fresh: Database, stored: Database, byXref: boolean) {
   review.people = people();
 
   for (const [s, f] of pairs) {
-    if (s.linked) carryMark(fresh, s, f);
+    if (s.linked) m.annotations.carry(f.id, s);
     const kept = keptAs(s, f);
     if (kept !== null) review.kept[kept] += 1;
   }
   for (const s of storedCitations) {
     if (pairs.has(s)) continue;
-    if (s.appMade && reattach(m, s)) review.kept.citations += 1;
-    else if (s.appMade) {
-      review.lost.push(`${describe(s.holder)}: ${s.page} (made in the app)`);
-    } else {
-      review.citations.gone += 1;
-      if (s.linked) review.lost.push(`${describe(s.holder)}: ${s.imported}`);
+    if (s.appMade && reattach(m, s)) {
+      review.kept.citations += 1;
+      continue;
     }
+    if (!s.appMade) review.citations.gone += 1;
+    const lost = lostAs(s);
+    if (lost !== null) review.lost.push(`${describe(s.holder)}: ${lost}`);
   }
   const paired = new Set(pairs.values());
   review.citations.added = freshCitations.filter(

@@ -113,7 +113,7 @@ export function gedcomTree(db: Database) {
 
   function citations(scopeType: string, scopeId: number): OutLine[] {
     return rows.citationsOf(ownerKey(scopeType, scopeId)).map((c) => {
-      const link = links.linesOf(c);
+      const link = links.linesOf(c.annotation);
       return pointer(
         'SOUR',
         c.source_id === null ? VOID : sourceXref.get(c.source_id)!,

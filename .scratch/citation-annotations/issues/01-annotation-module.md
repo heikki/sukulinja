@@ -54,3 +54,14 @@ An Annotation is what the app adds to a Citation: its Mark or Vision match, the 
 
 - **What a Discard does to a Citation made in the app.** It has no original page to go back to. This is left to create-citations, as noted on that ticket.
 - **The other candidates from the review:** saving a Mark, Vision match or Discard through one Scans interface; sending the record key to the client; the Scan viewer's Image-arrival controller.
+
+## Built
+
+Decided while building:
+
+- **The module's interface:** `openAnnotations(db)` gives `insert`, `swap`, `carry`, `firstLink` and `linked`; `annotationOf(row)` and `annotated(row)` read a row read whole; `originalPageSql(alias?)` is the "original page, else page" expression.
+- **`carry` leaves the new row's made-in-the-app as the new import gives it.** An app-made Citation the export now has stays the export's (counted as a duplicate), as before.
+- **The `Original page:` note is written and read whenever there is an original page**, not only beside a link.
+- **The script** leaves a database at any schema but 5 as it is, and says so, so running it twice is safe.
+
+**Still to do by hand:** run `bun run scripts/rename-original-page/index.ts` (the checkout's `data/`) and `bun run scripts/rename-original-page/index.ts --data ~/Library/Application\ Support/Sukulinja/data` (the installed app's). Then delete `scripts/rename-original-page/` in a commit of its own.

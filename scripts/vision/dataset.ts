@@ -4,6 +4,7 @@
 
 import { Database } from 'bun:sqlite';
 
+import { originalPageSql } from '@server/annotations';
 import type { Person } from '@server/citation-scans/reader';
 import {
   churchBookRefOf,
@@ -15,8 +16,8 @@ export function datasetRefs(dbPath: string) {
   const db = new Database(dbPath, { readonly: true });
   const rows = db
     .query<{ page: string; text: string | null }, []>(
-      `SELECT COALESCE(imported_page, page) AS page, text FROM citations
-       WHERE COALESCE(imported_page, page) LIKE '%myheritage%collection-%'
+      `SELECT ${originalPageSql()} AS page, text FROM citations
+       WHERE ${originalPageSql()} LIKE '%myheritage%collection-%'
        ORDER BY id`
     )
     .all();

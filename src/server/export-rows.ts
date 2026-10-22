@@ -3,6 +3,9 @@
 
 import type { Database } from 'bun:sqlite';
 
+import { annotated } from './annotations';
+import type { Annotation } from './annotations';
+
 interface Changed {
   change_date: string | null;
   change_time: string | null;
@@ -76,17 +79,7 @@ export interface CitationRow {
   quality: number | null;
   data_date: string | null;
   text: string | null;
-  imported_page: string | null;
-  link_volume_id: string | null;
-  link_volume: string | null;
-  link_image: number | null;
-  link_file_id: string | null;
-  link_box_left: number | null;
-  link_box_top: number | null;
-  link_box_width: number | null;
-  link_box_height: number | null;
-  link_by: 'hand' | 'vision' | null;
-  added_in_app: number;
+  annotation: Annotation;
 }
 
 export interface NoteRow {
@@ -201,7 +194,9 @@ export function readExportRows(db: Database) {
       ownerKey(r.owner_type, r.owner_id)
     ),
     citationsOf: grouped(
-      all<CitationRow>(`SELECT * FROM citations ${ordered}`),
+      all<Omit<CitationRow, 'annotation'>>(
+        `SELECT * FROM citations ${ordered}`
+      ).map(annotated),
       (r) => ownerKey(r.scope_type, r.scope_id)
     ),
     notesOf: grouped(all<NoteRow>(`SELECT * FROM notes ${ordered}`), (r) =>

@@ -4,9 +4,9 @@ import { join } from 'node:path';
 import type { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, expect, test } from 'bun:test';
 
+import type { CitationLink } from '../annotations';
 import type { Astia } from './astia';
 import { openMarks } from './marks';
-import type { CitationLink } from './marks';
 import { memoryAstia } from './memory-astia';
 import type { MemoryVolume } from './memory-astia';
 import { churchBookRefOf, markKey, parseChurchBookRef } from './record';
@@ -54,7 +54,7 @@ async function writeLocal(volumes: unknown) {
 // The citation's reference, the dataset citing it.
 function refOf(c: { page: string; text: string }) {
   const cited = db
-    .query('SELECT 1 FROM citations WHERE page = ? OR imported_page = ?')
+    .query('SELECT 1 FROM citations WHERE page = ? OR original_page = ?')
     .get(c.page, c.page);
   if (cited === null) {
     db.run(

@@ -1,13 +1,13 @@
-// Reading a citation's Mark or Vision match back from a GEDZIP the export
-// wrote (astia-links.ts). The lines it reads are taken off the citation,
-// so its notes and media are read without them.
+// Reading a citation's Annotation back from a GEDZIP the export wrote
+// (astia-links.ts). The lines it reads are taken off the citation, so its
+// notes and media are read without them.
 
-import type { LinkColumns } from './astia-links';
+import type { Annotation, CitationLink } from './annotations';
 import {
   ADDED_IN_APP,
   astiaImageOf,
-  importedPageOf,
   noFileLinkOf,
+  originalPageOf,
   UNCHECKED
 } from './astia-links';
 import type { LineReader } from './gedcom-lines';
@@ -35,40 +35,12 @@ function noteOf(wanted: string) {
   return (text: string) => (text === wanted ? text : null);
 }
 
-// What the app's own lines on a citation say: its link, and whether it was
-// made in the app.
-export interface CitationExtras {
-  link: LinkColumns | null;
-  addedInApp: boolean;
-}
-
-// The citation's columns for its link and whether it was made in the app,
-// in the order the import writes them.
-export function linkValues({ link, addedInApp }: CitationExtras) {
-  const added = addedInApp ? 1 : 0;
-  if (link === null) return [...Array<null>(10).fill(null), added];
-  const { box } = link;
-  return [
-    link.importedPage,
-    link.volumeId,
-    link.volume,
-    link.image,
-    link.fileId,
-    box === null ? null : box.left,
-    box === null ? null : box.top,
-    box === null ? null : box.width,
-    box === null ? null : box.height,
-    link.by,
-    added
-  ];
-}
-
 function toInt(value: string | undefined) {
   const n = value === undefined ? NaN : parseInt(value, 10);
   return Number.isFinite(n) ? n : null;
 }
 
-export function linkReader(roots: GedNode[], lines: LineReader) {
+export function annotationReader(roots: GedNode[], lines: LineReader) {
   const records = astiaRecords(roots);
   const { use, take } = lines;
 
@@ -89,8 +61,9 @@ export function linkReader(roots: GedNode[], lines: LineReader) {
     return { left: left!, top: top!, width: width!, height: height! };
   }
 
-  // What the citation's lines give, with those lines taken off it.
-  return function readLink(sour: GedNode): CitationExtras {
+  // The Annotation the citation's lines give, with those lines taken off
+  // it.
+  return function readAnnotation(sour: GedNode): Annotation {
     const taken = new Set<GedNode>();
     const object = findChildren(sour, 'OBJE').find((o) =>
       records.has(o.value ?? '')
@@ -107,40 +80,29 @@ export function linkReader(roots: GedNode[], lines: LineReader) {
       }
       return null;
     }
-    let link: LinkColumns | null = null;
+    let link: CitationLink | null = null;
     if (object === undefined) {
       const noFile = noteWith(noFileLinkOf);
       if (noFile !== null) {
-        link = {
-          importedPage: null,
-          ...noFile,
-          fileId: null,
-          box: null,
-          by: 'hand'
-        };
+        const { image, ...rest } = noFile;
+        link = { ...rest, ...(image === null ? {} : { image }), by: 'hand' };
       }
     } else {
       const { record, image } = records.get(object.value!)!;
       taken.add(object);
       use(object);
       useRecord(record);
-      link = {
-        importedPage: noteWith(importedPageOf),
-        volumeId: image.volumeId,
-        volume: image.volume,
-        image: image.image,
-        fileId: image.fileId,
-        box: boxOf(object),
-        by: 'hand'
-      };
+      const box = boxOf(object);
+      link = { ...image, ...(box === null ? {} : { box }), by: 'hand' };
     }
     if (link !== null && noteWith(noteOf(UNCHECKED)) !== null) {
       link.by = 'vision';
     }
-    const addedInApp = noteWith(noteOf(ADDED_IN_APP)) !== null;
+    const originalPage = noteWith(originalPageOf);
+    const madeInApp = noteWith(noteOf(ADDED_IN_APP)) !== null;
     for (let i = sour.children.length - 1; i >= 0; i -= 1) {
       if (taken.has(sour.children[i]!)) sour.children.splice(i, 1);
     }
-    return { link, addedInApp };
+    return { link, originalPage, madeInApp };
   };
 }
