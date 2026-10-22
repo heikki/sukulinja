@@ -228,14 +228,9 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     return newBox({ x: point.left, y: point.top }, others, frame.size);
   }
 
-  // A pending Box for the source's entry, to move and resize from there:
-  // its Link's own Box when it has one on the Image shown, as a Match
-  // does, else a new one at `at`.
+  // A new pending Box at `at` for the source's entry, to move and resize
+  // from there.
   private placeBox(at: Point) {
-    if (!this.viewer.boxPending.get() && this.viewer.boxHere.get() !== null) {
-      this.viewer.editBox();
-      return;
-    }
     const box = this.newBoxAt(at);
     if (box !== null) this.viewer.setBox(box);
   }
@@ -266,6 +261,7 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     const items = [
       ...family.map((c) => ({
         label: c.label,
+        muted: c.muted,
         run: () => {
           this.cite(at, c.personId);
         }
@@ -280,7 +276,7 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     ];
     return html`<sl-context-menu
       .items=${items}
-      .heading=${'Cite this entry for'}
+      .heading=${'Create entry for'}
       .at=${at}
       @close=${this.onPopupClose}
     ></sl-context-menu>`;
@@ -326,7 +322,7 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     if (show === 'search') return this.renderSearch(at);
     const items = linkItems(
       this.viewer,
-      { onBox, canBox: this.editable },
+      { onBox, canBox: this.editable, name: this.sourceName() },
       {
         chooseVolume: () => {
           this.popup = { at, onBox, show: 'volumes' };
@@ -341,7 +337,6 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     );
     return html`<sl-context-menu
       .items=${items}
-      .heading=${this.sourceName()}
       .at=${at}
       @close=${this.onPopupClose}
     ></sl-context-menu>`;

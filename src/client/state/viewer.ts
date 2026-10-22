@@ -13,6 +13,8 @@ import type {
   VolumeCitation
 } from '@/common/types';
 
+import { confirmingSource } from './confirming';
+import type { Confirming } from './confirming';
 import { Latest } from './latest';
 import type { Readable, Selected } from './selected';
 
@@ -77,7 +79,12 @@ export interface Viewer {
   // Called by the chart once `id` is selected.
   selected: (id: number) => void;
   // Marks a Match's Image, throwing ApiError if it's refused.
-  confirm: (row: VolumeCitation) => Promise<void>;
+  confirm: (row: Pick<VolumeCitation, 'citation' | 'link'>) => Promise<void>;
+  // Confirms the source's Match, as its Box's menu asks.
+  confirmSource: () => Promise<void>;
+  // How that's going. A refusal stays until the source, the Image or the
+  // Box changes.
+  confirming: Readable<Confirming | null>;
   close: () => void;
   // The current source's change not saved yet.
   pending: Readable<PendingLink | null>;
@@ -182,6 +189,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   const sourcesInView = signal(false);
   const pending = signal<PendingLink | null>(null);
   const discarding = signal(false);
+  const confirmation = confirmingSource(source, confirm);
   const leaving = signal(false);
   const rescan = signal<Rescan | null>(null);
   // Astia's re-scan of the Volume shown, kept after Not now.
@@ -239,6 +247,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
 
   function showNow(n: number) {
     discarding.set(false);
+    confirmation.forget();
     image.set(clampImage(n, count.get()));
   }
 
@@ -281,6 +290,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   function openNow(next: LinkOpen) {
     pending.set(null);
     discarding.set(false);
+    confirmation.forget();
     source.set({ ...next });
     const { link } = next;
     if (link === null) showNoVolume();
@@ -291,6 +301,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   function closeNow() {
     pending.set(null);
     discarding.set(false);
+    confirmation.forget();
     held = null;
     leaving.set(false);
     source.set(null);
@@ -340,6 +351,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     const shown = volume.get();
     if (source.get() === null || shown === null || oldFilming.get()) return;
     discarding.set(false);
+    confirmation.forget();
     const cite = pending.get()?.cite;
     pending.set({
       volumeId: shown.id,
@@ -373,6 +385,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
 
   function discard() {
     if (oldFilming.get()) return;
+    confirmation.forget();
     if (pending.get() === null && boxHere.get() !== null) discarding.set(true);
   }
 
@@ -508,7 +521,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   // A confirmation moves its row, and a Page pin its neighbours', so the
   // citations reload. The viewer follows the Link in the marked Volume only
   // when the Mark was for its own reference.
-  async function confirm(row: VolumeCitation) {
+  async function confirm(row: Pick<VolumeCitation, 'citation' | 'link'>) {
     const shown = volume.get();
     const at = imageOf(row.link);
     if (shown === null || at === null || oldFilming.get()) return;
@@ -580,6 +593,8 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     pick,
     selected: selectedNow,
     confirm,
+    confirmSource: confirmation.run,
+    confirming: confirmation.status,
     close,
     pending,
     leaving,

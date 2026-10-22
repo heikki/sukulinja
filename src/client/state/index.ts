@@ -15,6 +15,7 @@ import type { Viewer } from './viewer';
 export type { Chart, ChartView, People, UrlView } from './chart';
 export type { Readable, Selected } from './selected';
 export type { LinkStatus, Source, SourceGroup } from './sources';
+export type { Confirming } from './confirming';
 export type {
   LeaveAnswer,
   LinkOpen,

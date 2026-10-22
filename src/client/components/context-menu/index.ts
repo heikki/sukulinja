@@ -8,9 +8,11 @@ import { contextMenuStyles } from './styles';
 
 export { placedInside } from './helpers';
 
-// One thing the menu offers.
+// One thing the menu offers, with muted text beside its label when it has
+// some: who someone is to the Selected person before, their years after.
 export interface MenuItem {
   label: string;
+  muted?: { before?: string; after?: string };
   run: () => void;
 }
 
@@ -111,7 +113,15 @@ export class ContextMenuElement extends LitElement {
               this.choose(item);
             }}
           >
-            ${item.label}
+            ${
+              item.muted?.before === undefined
+                ? nothing
+                : html`<span class="muted before">${item.muted.before}</span>`
+            }${item.label}${
+              item.muted?.after === undefined
+                ? nothing
+                : html`<span class="muted after">${item.muted.after}</span>`
+            }
           </button>
         `
       )}

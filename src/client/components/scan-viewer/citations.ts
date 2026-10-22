@@ -1,7 +1,7 @@
 import { certaintyName } from '@/client/link-labels';
 import type { Box, Certainty, PersonRow, VolumeCitation } from '@/common/types';
 
-import { formatName } from '../tree-view/renderer';
+import { formatDates, formatName } from '../tree-view/renderer';
 
 // A row's person by name, or the record's name for one not in the tree.
 export function rowName(persons: Map<number, PersonRow>, row: VolumeCitation) {
@@ -9,6 +9,13 @@ export function rowName(persons: Map<number, PersonRow>, row: VolumeCitation) {
   return person === undefined
     ? (row.citation.record?.name ?? '—')
     : formatName(person);
+}
+
+// A row's person's years, as names repeat in a family; none for one not in
+// the tree.
+export function rowDates(persons: Map<number, PersonRow>, row: VolumeCitation) {
+  const person = persons.get(row.personId);
+  return person === undefined ? '' : formatDates(person);
 }
 
 // Entries in the order they're written on the Image, where the model said
