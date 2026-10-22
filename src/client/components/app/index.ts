@@ -72,15 +72,13 @@ function renderLink(d: DatasetInfo) {
 }
 
 // An older version's database doesn't open; the file it came from isn't
-// kept, so it's imported again, merging (ADR-0013).
+// kept, so it's imported again, merging (ADR-0013), from the Import… beside
+// it, whose dialog says what the app added is kept.
 function renderOutdated(d: DatasetInfo) {
   return html`
     <div class="outdated">
       <span class="name">${d.displayName}</span>
-      <span class="muted">
-        Made by an older version. Import its GEDCOM again to open it; what the
-        app added is kept.
-      </span>
+      <span class="muted">Made by an older version.</span>
     </div>
   `;
 }
