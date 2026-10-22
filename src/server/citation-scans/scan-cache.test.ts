@@ -214,13 +214,13 @@ test('reads the cap saved for the install before anything else', async () => {
   ).toEqual({
     cap: 10 * GB,
     used: 0,
-    caps: [2 * GB, 5 * GB, 10 * GB, 20 * GB]
+    caps: [5 * GB, 10 * GB, 20 * GB, 40 * GB]
   });
   // A cap no longer offered falls back to the default.
   await writeSettings(root, { scanCacheBytes: 1 * GB });
   expect(
     (await openScanCache({ astia, root, switches: false }).status()).cap
-  ).toBe(2 * GB);
+  ).toBe(5 * GB);
 });
 
 test("saving a cap keeps the install's other settings", async () => {

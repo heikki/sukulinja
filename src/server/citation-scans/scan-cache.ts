@@ -25,8 +25,8 @@ import { jpegSize } from './jpeg';
 import type { ImageRef } from './reader';
 
 const GB = 1024 ** 3;
-const CAPS = [2, 5, 10, 20].map((n) => n * GB);
-const DEFAULT_CAP_BYTES = 2 * GB;
+const CAPS = [5, 10, 20, 40].map((n) => n * GB);
+const DEFAULT_CAP_BYTES = 5 * GB;
 
 // ---------------------------------------------------------------- the queue
 
