@@ -7,7 +7,8 @@ import type { Rescan, StalePin } from '@common/types';
 
 import { viewerUrls } from './astia';
 import type { Astia } from './astia';
-import { isCurrent } from './locate';
+import { split } from './filming';
+import type { Filming } from './filming';
 import type { Pins } from './locate';
 import type { LocalPins } from './pin-files';
 import { markKey, recordMarkKey } from './record';
@@ -24,8 +25,13 @@ export interface KeptPins {
 interface Entry {
   volumeId: string;
   title: string | null;
-  pin: { image: number; fileId?: string };
+  image: number;
+  fileId?: string;
   about: Omit<StalePin, 'image'>;
+}
+
+function on(pin: { image: number; fileId?: string }) {
+  return { image: pin.image, fileId: pin.fileId };
 }
 
 function provenance(pin: { by?: string }) {
@@ -44,7 +50,7 @@ function volumeEntries(volumes: Pins['volumes'], from: StalePin['from']) {
     const pages = v.pages.map((pin) => ({
       volumeId,
       title,
-      pin,
+      ...on(pin),
       about: {
         kind: 'page' as const,
         from,
@@ -55,7 +61,7 @@ function volumeEntries(volumes: Pins['volumes'], from: StalePin['from']) {
     const records = (v.records ?? []).map((pin) => ({
       volumeId,
       title,
-      pin,
+      ...on(pin),
       about: {
         kind: 'record' as const,
         from,
@@ -75,7 +81,7 @@ function localEntries(local: LocalPins): Entry[] {
           {
             volumeId: pin.volumeId,
             title: pin.volume,
-            pin,
+            ...on(pin),
             about: {
               kind: 'reference' as const,
               from: 'local' as const,
@@ -91,7 +97,7 @@ function localEntries(local: LocalPins): Entry[] {
     list.map((pin) => ({
       volumeId: pin.volumeId,
       title: null,
-      pin,
+      ...on(pin),
       about: {
         kind: 'rejection' as const,
         from: 'local' as const,
@@ -111,12 +117,12 @@ function entriesOf(pins: KeptPins) {
   ];
 }
 
-// The pins of `entries` made on another filming than the one `files`
-// lists. One without a file id can't be told, and isn't.
-function staleIn(entries: Entry[], files: string[]) {
-  return entries
-    .filter((e) => e.pin.fileId !== undefined && !isCurrent(e.pin, files))
-    .map((e): StalePin => ({ ...e.about, image: e.pin.image }));
+// The Volume's pins of `entries` that `filming` leaves out.
+function staleIn(entries: Entry[], filming: Filming) {
+  return split(filming, entries).stale.map((e): StalePin => ({
+    ...e.about,
+    image: e.image
+  }));
 }
 
 function byVolume(entries: Entry[]) {
@@ -152,13 +158,13 @@ export async function checkRescans(
   cached: Lists
 ): Promise<CheckResult> {
   const all = entriesOf(pins);
-  const checkable = all.filter((e) => e.pin.fileId !== undefined);
+  const checkable = all.filter((e) => e.fileId !== undefined);
   const groups = byVolume(checkable);
   const rescanned: Rescanned[] = [];
   for (const [volumeId, entries] of groups) {
     // eslint-disable-next-line no-await-in-loop -- one Volume at a time
     const files = await now(volumeId);
-    const stale = staleIn(entries, files);
+    const stale = staleIn(entries, { volumeId, files });
     if (stale.length === 0) continue;
     rescanned.push({
       volumeId,
@@ -200,7 +206,7 @@ export async function rescanOf(
   return {
     cached: cached.length,
     images: now.length,
-    stale: staleIn(entries, now)
+    stale: staleIn(entries, { volumeId, files: now })
   };
 }
 

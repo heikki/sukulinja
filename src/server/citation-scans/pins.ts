@@ -17,9 +17,9 @@
 // match there isn't saved again.
 //
 // A pin on an Image keeps the Image's Astia file id, from the Volume's
-// list when saved. One made on another filming of the Volume is left out
-// of the clashes a save weighs, so it never keeps a pin for the filming
-// now from being saved. Merging the local pins over the base can't tell,
+// list when saved. One made on another filming of the Volume
+// (filming.ts) is left out of the clashes a save weighs, so it never keeps
+// a pin for the filming now from being saved. Merging the local pins over the base can't tell,
 // lacking the lists: a stale base Page pin still beats a vision one there
 // until the base is fixed.
 //
@@ -33,7 +33,8 @@ import type { Box } from '@common/types';
 
 import type { CitationLink } from '../annotations';
 import type { Astia } from './astia';
-import { isCurrent } from './locate';
+import { filmingOf, leavesOut, split } from './filming';
+import type { Filming } from './filming';
 import type {
   PagePin,
   Pins,
@@ -73,14 +74,6 @@ function overrides(entry: Saved, clashing: Saved[]) {
   return isHand(entry) || !clashing.some(isHand);
 }
 
-// Which pins of a list a save weighs: all of them, unless the list is of
-// the Volume it saves into, whose stale pins it passes over.
-type Weighs = (pin: { image?: number; fileId?: string }) => boolean;
-
-function weighsAll() {
-  return true;
-}
-
 function byImage(a: PagePin, b: PagePin) {
   return a.image - b.image;
 }
@@ -90,13 +83,12 @@ function pageClash(pin: PagePin) {
     p.image === pin.image || p.pages.some((n) => pin.pages.includes(n));
 }
 
-function withPagePin(
-  pins: PagePin[],
-  pin: PagePin,
-  weighs: Weighs = weighsAll
-) {
+// The list with the Page pin in, unless a pin it clashes with wins. Saving
+// into the Volume of `filming`, its stale pins aren't weighed.
+function withPagePin(pins: PagePin[], pin: PagePin, filming?: Filming) {
   const clashes = pageClash(pin);
-  if (!overrides(pin, pins.filter(clashes).filter(weighs))) return pins;
+  const weighed = filming === undefined ? pins : split(filming, pins).current;
+  if (!overrides(pin, weighed.filter(clashes))) return pins;
   return [...pins.filter((p) => !clashes(p)), pin].sort(byImage);
 }
 
@@ -242,31 +234,17 @@ function withMarks(volumes: Pins['volumes'], marks: Marks): Pins {
 
 // ---------------------------------------------------------------- saving Page pins
 
-// The Volume a save is about, with its list as Astia gives it now.
-interface Scope {
-  volumeId: string;
-  files: string[];
-}
-
 // One save's view of the local file, read under the lock, the base it's
-// read over, and the Volume it saves into.
+// read over, and the filming of the Volume it saves into, as Astia lists
+// it now.
 interface Draft {
   base: Pins['volumes'];
   local: LocalPins;
-  scope: Scope;
+  filming: Filming;
 }
 
-// Whether the save weighs a pin of `volumeId`: not one made on another
-// filming of the Volume it saves into.
-function weighsIn(draft: Draft, volumeId: string): Weighs {
-  const { scope } = draft;
-  return scope.volumeId === volumeId
-    ? (pin) => isCurrent(pin, scope.files)
-    : weighsAll;
-}
-
-function fileOf(scope: Scope, image: number) {
-  const fileId = scope.files[image - 1];
+function fileOf(filming: Filming, image: number) {
+  const fileId = filming.files[image - 1];
   return fileId === undefined ? {} : { fileId };
 }
 
@@ -274,21 +252,18 @@ function mergedVolumes(draft: Draft) {
   return merge(draft.base, draft.local.volumes);
 }
 
-function addPagePin(
-  draft: Draft,
-  volumeId: string,
-  title: string,
-  pin: PagePin
-) {
-  const weighs = weighsIn(draft, volumeId);
+function addPagePin(draft: Draft, title: string, pin: PagePin) {
+  const { filming } = draft;
+  const { volumeId } = filming;
   const known = mergedVolumes(draft)[volumeId]?.pages ?? [];
-  if (!overrides(pin, known.filter(pageClash(pin)).filter(weighs))) return;
+  const weighed = split(filming, known).current;
+  if (!overrides(pin, weighed.filter(pageClash(pin)))) return;
   const { volumes } = draft.local;
   const volume = volumes[volumeId];
   volumes[volumeId] = {
     ...volume,
     title: volume?.title ?? title,
-    pages: withPagePin(volume?.pages ?? [], pin, weighs)
+    pages: withPagePin(volume?.pages ?? [], pin, filming)
   };
 }
 
@@ -313,10 +288,10 @@ function pagePin(
 ): PagePin {
   return {
     image,
-    pages: pagesFor(draft, draft.scope.volumeId, ref),
+    pages: pagesFor(draft, draft.filming.volumeId, ref),
     note: by === 'hand' ? 'marked in the app' : 'read by the vision model',
     by,
-    ...fileOf(draft.scope, image)
+    ...fileOf(draft.filming, image)
   };
 }
 
@@ -382,25 +357,22 @@ export function openVolumeFacts(
     // Changes whenever the local file does, from this process or another.
     stamp,
 
-    // The Volume, with its list when the save puts a pin on an Image.
-    async scopeOf(volumeId: string, onImage: boolean): Promise<Scope> {
-      const files = onImage ? await astia.volumeImages(volumeId) : [];
-      return { volumeId, files };
-    },
+    // The Volume's filming a save on an Image is made on.
+    filmingOf: async (volumeId: string) => await filmingOf(astia, volumeId),
 
     // A Page pin for the reference's cited page on the Image, by hand or
     // the model's, unless a hand one there wins. One write.
     async savePagePin(
-      scope: Scope,
+      filming: Filming,
       ref: ChurchBookRef,
       at: { volume: string; image: number; by: 'hand' | 'vision' }
     ) {
       await migrated();
       await mkdir(folder, { recursive: true });
       await withLock(lockFile, async () => {
-        const draft = { base, local: await readLocal(), scope };
+        const draft = { base, local: await readLocal(), filming };
         const pin = pagePin(draft, ref, at.image, at.by);
-        addPagePin(draft, scope.volumeId, at.volume, pin);
+        addPagePin(draft, at.volume, pin);
         await writeLocalFile(localFile, draft.local);
       });
       merged = null;
@@ -447,24 +419,29 @@ export interface PixelMatch {
 // keeps it, as confirming a Match does.
 function boxThere(
   link: CitationLink | null,
-  scope: Scope,
+  filming: Filming,
   image: number
 ): { box?: Box } {
-  if (link?.volumeId !== scope.volumeId || link.image !== image) return {};
-  if (link.box === undefined || !isCurrent(link, scope.files)) return {};
+  if (link?.volumeId !== filming.volumeId || link.image !== image) return {};
+  if (link.box === undefined || leavesOut(filming, link)) return {};
   return { box: link.box };
 }
 
-// Whether a Match at `at` was taken back there by hand, on the
-// filming of the Volume `scope` has the list of.
-function isRejected(marks: Marks, ref: ChurchBookRef, scope: Scope, at: BoxAt) {
+// Whether a Match at `at` was taken back there by hand, on `filming`, the
+// filming of its Volume now.
+function isRejected(
+  marks: Marks,
+  ref: ChurchBookRef,
+  filming: Filming,
+  at: BoxAt
+) {
   return marks
     .rejectionsOf(ref.url)
     .some(
       (r: Rejection) =>
         r.volumeId === at.volumeId &&
         r.image === at.image &&
-        isCurrent(r, scope.files)
+        !leavesOut(filming, r)
     );
 }
 
@@ -526,16 +503,16 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
         });
         return;
       }
-      const scope = await facts.scopeOf(volumeId, true);
+      const filming = await facts.filmingOf(volumeId);
       const pagePinned = ref.page !== null && linked;
       if (pagePinned) {
-        await facts.savePagePin(scope, ref, { volume, image, by: 'hand' });
+        await facts.savePagePin(filming, ref, { volume, image, by: 'hand' });
       }
       marks.change(() => {
         const drawn = target.box;
         const box =
           drawn === undefined
-            ? boxThere(marks.linkOf(key), scope, image)
+            ? boxThere(marks.linkOf(key), filming, image)
             : drawn === null
               ? {}
               : { box: drawn };
@@ -544,7 +521,7 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
           volumeId,
           volume,
           image,
-          ...fileOf(scope, image),
+          ...fileOf(filming, image),
           ...box,
           by: 'hand'
         };
@@ -558,19 +535,17 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
     async recordMatch(ref: ChurchBookRef, match: PixelMatch) {
       const key = markKey(ref);
       const { volumeId, volume, image, box } = match;
-      const scope = await facts.scopeOf(volumeId, true);
+      const filming = await facts.filmingOf(volumeId);
       const saved = marks.change(() => {
-        if (isRejected(marks, ref, scope, match)) return false;
+        if (isRejected(marks, ref, filming, match)) return false;
         const known = marks.linkOf(key);
-        const weighed =
-          known !== null &&
-          (known.volumeId !== volumeId || isCurrent(known, scope.files));
+        const weighed = known !== null && !leavesOut(filming, known);
         if (!(weighed && isHand(known))) {
           marks.write(key, {
             volumeId,
             volume,
             image,
-            ...fileOf(scope, image),
+            ...fileOf(filming, image),
             box,
             by: 'vision'
           });
@@ -579,7 +554,11 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
       });
       if (saved && ref.recordId !== null && ref.page !== null) {
         if (match.onCitedPage) {
-          await facts.savePagePin(scope, ref, { volume, image, by: 'vision' });
+          await facts.savePagePin(filming, ref, {
+            volume,
+            image,
+            by: 'vision'
+          });
         }
       }
       return saved;
@@ -591,7 +570,7 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
     // was a Box to take back.
     async recordDiscard(ref: ChurchBookRef, at: BoxAt) {
       const key = markKey(ref);
-      const scope = await facts.scopeOf(at.volumeId, true);
+      const filming = await facts.filmingOf(at.volumeId);
       return marks.change(() => {
         const link = marks.linkOf(key);
         if (
@@ -602,8 +581,8 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
           return false;
         }
         marks.write(key, null);
-        if (!isHand(link) && !isRejected(marks, ref, scope, at)) {
-          marks.reject(ref.url, { ...at, ...fileOf(scope, at.image) });
+        if (!isHand(link) && !isRejected(marks, ref, filming, at)) {
+          marks.reject(ref.url, { ...at, ...fileOf(filming, at.image) });
         }
         return true;
       });
@@ -611,8 +590,8 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
 
     // Whether a Match at `at` was taken back by hand.
     async rejects(ref: ChurchBookRef, at: BoxAt) {
-      const scope = await facts.scopeOf(at.volumeId, true);
-      return isRejected(marks, ref, scope, at);
+      const filming = await facts.filmingOf(at.volumeId);
+      return isRejected(marks, ref, filming, at);
     }
   };
 }
