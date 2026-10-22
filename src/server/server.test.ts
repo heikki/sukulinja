@@ -251,6 +251,57 @@ describe("A dataset's Citations", () => {
     );
   });
 
+  async function send(method: string, path: string, body?: unknown) {
+    return await fetch(
+      new Request(`http://localhost/d/juva${path}`, {
+        method,
+        ...(body === undefined ? {} : { body: JSON.stringify(body) })
+      })
+    );
+  }
+
+  test('makes a Citation on an Image, and deletes it', async () => {
+    await seedDataset();
+    const db = new DatasetRegistry(join(root, 'data')).open('juva');
+    db.run("INSERT INTO persons (id, xref) VALUES (1, '@I1@'), (2, '@I2@')");
+    db.close();
+    const entry = {
+      volumeId: 'juva-1',
+      image: 13,
+      fileId: 'juva-1-f13',
+      box: { left: 100, top: 500, width: 500, height: 50 },
+      text: 'Baptism'
+    };
+
+    const made = await send('POST', '/api/persons/2/citations', entry);
+    expect(made.status).toBe(201);
+    expect(await made.json()).toMatchObject({
+      personId: 2,
+      citation: { id: 3, text: 'Baptism', madeInApp: true },
+      link: { image: 13, precision: 'entry', certainty: 'marked' }
+    });
+    // Person 1's reference is Estimated on Image 12.
+    const linked = { ...entry, image: 12, fileId: 'juva-1-f12' };
+    expect(
+      (await send('POST', '/api/persons/1/citations', linked)).status
+    ).toBe(400);
+    expect((await send('POST', '/api/persons/9/citations', entry)).status).toBe(
+      404
+    );
+    const { box: _, ...unboxed } = entry;
+    expect(
+      (await send('POST', '/api/persons/1/citations', unboxed)).status
+    ).toBe(400);
+    expect((await send('GET', '/api/persons/1/citations')).status).toBe(405);
+
+    const volume = await get('/d/juva/api/volumes/juva-1/citations');
+    expect(((await volume.json()) as unknown[]).length).toBe(2);
+
+    expect((await send('DELETE', '/api/citations/1')).status).toBe(400);
+    expect((await send('DELETE', '/api/citations/3')).status).toBe(204);
+    expect((await send('DELETE', '/api/citations/3')).status).toBe(404);
+  });
+
   test('says when Astia fails', async () => {
     await seedDataset();
     serveWith(memoryAstia({}, { down: true }));

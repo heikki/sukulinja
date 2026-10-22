@@ -75,6 +75,13 @@ export function originalPageSql(alias?: string) {
   return `COALESCE(${at}original_page, ${at}page)`;
 }
 
+// The columns an Annotation is read from, for a query to select beside its
+// own and give to annotationOf.
+export function annotationColumnsSql(alias?: string) {
+  const at = alias === undefined ? '' : `${alias}.`;
+  return COLUMNS.map((c) => `${at}${c}`).join(', ');
+}
+
 function text(value: SQLQueryBindings | undefined) {
   return typeof value === 'string' ? value : null;
 }

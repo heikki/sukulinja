@@ -7,6 +7,7 @@ import { unzipSync } from 'fflate';
 import { importGedcomFixture } from '../../test/gedcom-fixture';
 import { gedcom7Errors } from '../../test/gedcom7/validate';
 import { treeSnapshot } from '../../test/tree-snapshot';
+import { openAppCitations } from './app-citations';
 import { openMarks } from './citation-scans/marks';
 import { DatasetRegistry } from './dataset-registry';
 import { exportDataset } from './export-dataset';
@@ -218,6 +219,49 @@ describe('exporting a GEDZIP', () => {
     expect(
       registry.open('b').query('SELECT COUNT(*) AS n FROM rejections').get()
     ).toEqual({ n: 0 });
+  });
+
+  test("carries a Citation made in the app on an Image, and its Volume's source", async () => {
+    await importFixture();
+    const db = registry.open('a');
+    const volume = 'I Aa:5 Pää- ja rippikirjat (1859-1868)';
+    const made = openAppCitations(db);
+    for (const personId of [2, 3]) {
+      made.create({
+        personId,
+        volumeId: '1234',
+        volume,
+        image: 25,
+        fileId: '5678',
+        box: { left: 10, top: 20, width: 300, height: 40 },
+        text: 'Baptism 12.3.1860'
+      });
+    }
+
+    const text = gedcomOf(await roundTrip());
+    expect(treeSnapshot(registry.open('b'))).toEqual(treeSnapshot(db));
+    expect(gedcom7Errors(text)).toEqual([]);
+    expect(text).toContain(
+      [
+        '0 @ASTIA_1234@ SOUR',
+        `1 TITL ${volume}`,
+        '1 PUBL Kansallisarkisto, Astia'
+      ].join('\r\n')
+    );
+    expect(text.match(/1 SOUR @ASTIA_1234@/g)).toHaveLength(2);
+    expect(text).toContain('3 TEXT Baptism 12.3.1860');
+    expect(text).toContain('2 NOTE Added in Sukulinja');
+    const b = registry.open('b');
+    expect(
+      b
+        .query(
+          'SELECT link_image, link_box_top, added_in_app FROM citations WHERE added_in_app = 1'
+        )
+        .all()
+    ).toEqual([
+      { link_image: 25, link_box_top: 20, added_in_app: 1 },
+      { link_image: 25, link_box_top: 20, added_in_app: 1 }
+    ]);
   });
 
   test('gives back the demo, which is valid GEDCOM 7 but for one untyped event', async () => {

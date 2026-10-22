@@ -6,6 +6,11 @@
 // source and page: its original page, or, for a Marked one the export now
 // gives as the Astia address, that. Citations alike in all three are
 // paired in order, the first with the first.
+//
+// A citation made in the app whose source the export lacks brings the
+// source with it, as a re-import from the source program without an upload
+// in between wouldn't have it. A source only imported citations cite is
+// never brought back: one removed there stays gone.
 
 import type { Database, SQLQueryBindings } from 'bun:sqlite';
 
@@ -92,6 +97,8 @@ interface Merge {
   fresh: Database;
   annotations: Annotations;
   matchOf: (owner: Owner) => number | null;
+  // The sources brought into the new database, by their id in the dataset.
+  copied: Map<number, number>;
 }
 
 // Where a citation made in the app goes in the new database: under the
@@ -151,16 +158,57 @@ function copyNotes(m: Merge, from: number, to: number) {
   });
 }
 
+const SOURCE_COLUMNS = [
+  'xref',
+  'title',
+  'author',
+  'publisher',
+  'text',
+  'data_events',
+  'change_date',
+  'change_time'
+];
+
+// The dataset's source, written into the new database with its notes, once
+// however many citations bring it; its id there, or null when the dataset
+// has no such source.
+function copySource(m: Merge, id: number) {
+  const known = m.copied.get(id);
+  if (known !== undefined) return known;
+  const [row] = rowsOf(m.stored, `SELECT * FROM sources WHERE id = ${id}`);
+  if (row === undefined) return null;
+  const res = m.fresh.run(
+    `INSERT INTO sources (${SOURCE_COLUMNS.join(', ')})
+     VALUES (${SOURCE_COLUMNS.map(() => '?').join(', ')})`,
+    SOURCE_COLUMNS.map((c) => valueOf(row, c))
+  );
+  const to = Number(res.lastInsertRowid);
+  for (const n of rowsOf(
+    m.stored,
+    `SELECT text, sort_order FROM notes WHERE owner_type = 'source' AND owner_id = ${id} AND text IS NOT NULL ORDER BY sort_order`
+  )) {
+    m.fresh.run(
+      "INSERT INTO notes (owner_type, owner_id, text, sort_order) VALUES ('source', ?, ?, ?)",
+      [to, valueOf(n, 'text'), valueOf(n, 'sort_order') ?? 0]
+    );
+  }
+  m.copied.set(id, to);
+  return to;
+}
+
+// The new database's source for a citation made in the app: the export's
+// own, or the dataset's brought with it.
+function sourceIn(m: Merge, id: number) {
+  return m.matchOf({ kind: 'source', id }) ?? copySource(m, id);
+}
+
 // A citation made in the app, attached again where it was; whether it
 // could be. Its photos aren't carried, as the app adds none.
 function reattach(m: Merge, s: Citation) {
   const scope = scopeIn(m, s.row);
   if (scope === null) return false;
   const sourceId = valueOf(s.row, 'source_id');
-  const source =
-    sourceId === null
-      ? null
-      : m.matchOf({ kind: 'source', id: Number(sourceId) });
+  const source = sourceId === null ? null : sourceIn(m, Number(sourceId));
   if (sourceId !== null && source === null) return false;
   const next = m.fresh
     .query<{ n: number }, [string, number]>(
@@ -235,7 +283,8 @@ function merge(fresh: Database, stored: Database, byXref: boolean) {
     stored,
     fresh,
     annotations: openAnnotations(fresh),
-    matchOf
+    matchOf,
+    copied: new Map()
   };
   const storedCitations = citationsOf(stored, (o) => {
     const id = matchOf(o);

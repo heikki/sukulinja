@@ -102,6 +102,7 @@ function source(id: number, citedPage: number | null, churchBook = true) {
     record: null,
     text: null,
     churchBook,
+    madeInApp: false,
     citedPage,
     cited: null
   };

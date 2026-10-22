@@ -41,6 +41,8 @@ function onImage(box: Box, size: Viewport | null) {
   );
 }
 
+const OFF_IMAGE = 'The entry box must lie on the Image, in whole pixels.';
+
 // What's wrong with a Mark's entry Box, if anything.
 async function boxProblem(
   { image, box, volumeId }: MarkTarget,
@@ -49,9 +51,7 @@ async function boxProblem(
   if (box === undefined || box === null) return null;
   if (image === undefined) return 'An entry box needs its Image.';
   const size = await sizeOf({ volumeId, image });
-  return onImage(box, size)
-    ? null
-    : 'The entry box must lie on the Image, in whole pixels.';
+  return onImage(box, size) ? null : OFF_IMAGE;
 }
 
 function unknownSize() {
@@ -227,6 +227,38 @@ export function openScans({
       const linked = (await linkedVolumes(ref)).has(target.volumeId);
       await pins.recordMark(ref, target, { volume: volume.label, linked });
       return await resolveRef(ref);
+    },
+
+    // The label of the Volume an entry is cited in, by its Box on an Image
+    // of the filming `fileId` is of; or why it can't be. The Volume must be
+    // in one of the `parishes`.
+    async imageToCite(
+      at: { volumeId: string; image: number; fileId: string; box: Box },
+      parishes: Array<string | null>
+    ): Promise<{ volume: string } | { rejected: string }> {
+      const { volumeId, image } = at;
+      const archive = await archiveOf(volumeId, parishes);
+      const volume =
+        archive === null
+          ? undefined
+          : (await astia.archiveVolumes(archive)).find(
+              (v) => v.id === volumeId
+            );
+      if (volume === undefined) {
+        return { rejected: "That Volume isn't in this tree's church books." };
+      }
+      if (await onOldFilming(volumeId)) return { rejected: OLD_FILMING };
+      const files = await astia.volumeImages(volumeId);
+      if (!Number.isInteger(image) || image < 1 || image > files.length) {
+        return { rejected: `The volume has images 1–${files.length}.` };
+      }
+      if (files[image - 1] !== at.fileId) {
+        return { rejected: "That isn't the Image's file in Astia." };
+      }
+      if (!onImage(at.box, await sizeOf({ volumeId, image }))) {
+        return { rejected: OFF_IMAGE };
+      }
+      return { volume: volume.label };
     },
 
     // Takes back the reference's Box at `at`, and gives its links as they

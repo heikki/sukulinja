@@ -6,6 +6,7 @@ import { afterEach, beforeEach, expect, test } from 'bun:test';
 import type { ImportReview } from '@common/types';
 
 import { openAnnotations } from './annotations';
+import { openAppCitations } from './app-citations';
 import { DatasetRegistry } from './dataset-registry';
 import { ImportCancelled, importDataset } from './import-dataset';
 
@@ -44,8 +45,8 @@ const MATTI = { xref: '@I1@', name: 'Matti /Esimerkki/', pages: [PAGE.a] };
 const MAIJA = { xref: '@I2@', name: 'Maija /Esimerkki/', pages: [PAGE.b] };
 
 // A tree of `people`, each citing the one source at their pages; with a
-// UID each unless `uids` is false.
-function tree(people: Person[], uids = true) {
+// UID each unless `uids` is false, and the `extra` records.
+function tree(people: Person[], uids = true, extra: string[] = []) {
   return [
     '0 HEAD',
     '1 GEDC',
@@ -60,6 +61,7 @@ function tree(people: Person[], uids = true) {
       `1 NAME ${p.name}`,
       ...p.pages.flatMap((page) => ['1 SOUR @S1@', `2 PAGE ${page}`])
     ]),
+    ...extra,
     '0 TRLR',
     ''
   ].join('\n');
@@ -336,4 +338,104 @@ test('a dataset that can not be read is replaced, and says why', async () => {
   // What it couldn't read is still kept, to undo the import with.
   const before = join(root, 'tree', 'db.before-import.sqlite');
   expect(await Bun.file(before).text()).toBe('not a database');
+});
+
+// ---------------------------------------------------------------- sources
+
+// A Citation made in the Scan viewer on Image 12 of Volume v1, which gives
+// the Volume its source.
+function citeInViewer(xref: string) {
+  const db = registry.open('tree');
+  const person = db
+    .query<{ id: number }, [string]>('SELECT id FROM persons WHERE xref = ?')
+    .get(xref)!;
+  openAppCitations(db).create({
+    personId: person.id,
+    volumeId: 'v1',
+    volume: 'Juva 1790-1796',
+    image: 12,
+    fileId: 'f12',
+    box: { left: 10, top: 20, width: 300, height: 40 },
+    text: null
+  });
+}
+
+interface SourceOut {
+  xref: string;
+  title: string;
+  cited: number;
+}
+
+function sources() {
+  return registry
+    .open('tree')
+    .query<SourceOut, []>(
+      `SELECT s.xref, s.title,
+         (SELECT COUNT(*) FROM citations c WHERE c.source_id = s.id) AS cited
+       FROM sources s ORDER BY s.id`
+    )
+    .all();
+}
+
+const VOLUME_SOURCE = ['0 @ASTIA_V1@ SOUR', '1 TITL Juva 1790-1796'];
+
+test("a re-import without a Volume's source brings it once with its Citations", async () => {
+  await importTree(tree([MATTI, MAIJA]));
+  citeInViewer('@I1@');
+  citeInViewer('@I2@');
+  const outcome = await importTree(tree([MATTI, MAIJA]));
+
+  expect(outcome.merged).toMatchObject({
+    kept: { citations: 2 },
+    lost: []
+  });
+  expect(sources()).toEqual([
+    { xref: '@S1@', title: 'Church books', cited: 2 },
+    { xref: '@ASTIA_V1@', title: 'Juva 1790-1796', cited: 2 }
+  ]);
+  expect(citations().filter((c) => c.added_in_app === 1)).toEqual([
+    {
+      xref: '@I1@',
+      page: ASTIA,
+      ...PLAIN,
+      link_image: 12,
+      link_box_left: 10,
+      added_in_app: 1
+    },
+    {
+      xref: '@I2@',
+      page: ASTIA,
+      ...PLAIN,
+      link_image: 12,
+      link_box_left: 10,
+      added_in_app: 1
+    }
+  ]);
+});
+
+test("a re-import with a Volume's source keeps its Citations on it", async () => {
+  await importTree(tree([MATTI]));
+  citeInViewer('@I1@');
+  // Uploaded and exported again, the source came back with the export.
+  await importTree(tree([MATTI], true, VOLUME_SOURCE));
+  expect(sources()).toEqual([
+    { xref: '@S1@', title: 'Church books', cited: 1 },
+    { xref: '@ASTIA_V1@', title: 'Juva 1790-1796', cited: 1 }
+  ]);
+});
+
+test('a source only imported Citations cite stays gone when the export drops it', async () => {
+  const census = [
+    '0 @S2@ SOUR',
+    '1 TITL Census',
+    '0 @I3@ INDI',
+    '1 UID uid-I3',
+    '1 NAME Liisa /Esimerkki/',
+    '1 SOUR @S2@',
+    `2 PAGE ${PAGE.c}`
+  ];
+  await importTree(tree([MATTI], true, census));
+  citeInViewer('@I1@');
+  await importTree(tree([MATTI]));
+  expect(sources().map((s) => s.xref)).toEqual(['@S1@', '@ASTIA_V1@']);
 });
