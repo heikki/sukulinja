@@ -138,13 +138,12 @@ export const appStyles = css`
     opacity: 0.6;
     cursor: default;
   }
-  button.delete {
+  button.icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 2rem;
     height: 2rem;
-    margin-right: 0.6rem;
     padding: 0;
     background: none;
     color: var(--muted);
@@ -152,9 +151,17 @@ export const appStyles = css`
     border-radius: 6px;
     cursor: pointer;
   }
-  button.delete svg {
+  button.icon svg {
     width: 1rem;
     height: 1rem;
+  }
+  button.icon:hover,
+  button.icon[aria-expanded='true'] {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  button.delete {
+    margin-right: 0.6rem;
   }
   button.delete:hover {
     color: var(--danger);

@@ -20,7 +20,8 @@ function stop(e: Event) {
 
 // What a right-click offers, drawn in the page in place of WebKit's own
 // menu, at `at` in the element it's positioned in and kept inside it, under
-// its `heading` when it has one. Presses on it stay on it, so they don't pan
+// its `heading` when it has one; with `alignRight`, `at` is its top-right
+// corner, for a menu dropping from a button's right edge. Presses on it stay on it, so they don't pan
 // what's under it. A choice, Esc or a press anywhere else asks to `close`.
 // ↑/↓ move between the items.
 @customElement('sl-context-menu')
@@ -30,6 +31,7 @@ export class ContextMenuElement extends LitElement {
   @property({ attribute: false }) items: MenuItem[] = [];
   @property({ attribute: false }) heading: string | null = null;
   @property({ attribute: false }) at: Point = { x: 0, y: 0 };
+  @property({ attribute: false }) alignRight = false;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -53,7 +55,8 @@ export class ContextMenuElement extends LitElement {
   }
 
   override updated() {
-    const { x, y } = placedInside(this, this.at);
+    const left = this.alignRight ? this.at.x - this.offsetWidth : this.at.x;
+    const { x, y } = placedInside(this, { x: left, y: this.at.y });
     this.style.left = `${x}px`;
     this.style.top = `${y}px`;
   }

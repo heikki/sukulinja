@@ -15,9 +15,11 @@ import type { DatasetInfo, ImportReview } from '@common/types';
 
 import { confirmDialog, errorNote, runAction } from './dialogs';
 import type { Confirming, DatasetAction } from './dialogs';
-import { exportDataset } from './exports';
+import { EXPORT_FORMATS, exportDataset } from './exports';
 import type { ExportKind, ExportNote } from './exports';
-import { importDate, renderReview } from './import-review';
+import { renderReview } from './import-review';
+import { menuButton, renderRowMenu } from './row-menu';
+import type { RowMenu, RowMenuActions } from './row-menu';
 import { appStyles } from './styles';
 
 const TRASH_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
@@ -96,6 +98,9 @@ export class AppElement extends LitElement {
   // field can't be null, since the chooser has no dataset to provide.
   private readonly provider = provideDataset(this, currentSlug());
   @state() private pendingImport: File | null = null;
+  // A row's menu: its dataset, and the corner it drops from.
+  @state() private menu: RowMenu | null = null;
+  // What's being exported, in the note's words.
   @state() private exporting: string | null = null;
   // Where the last export was saved, or why it failed.
   @state() private exportNote: ExportNote | null = null;
@@ -245,36 +250,37 @@ export class AppElement extends LitElement {
     dataset: DatasetInfo,
     kind: ExportKind
   ) => {
-    this.exporting = `${dataset.slug} ${kind}`;
+    if (this.exporting !== null) return;
+    const { name } = EXPORT_FORMATS[kind];
+    this.exporting = `Exporting ${dataset.displayName} as ${name}…`;
     this.exportNote = null;
     this.exportNote = await exportDataset(dataset, kind);
     this.exporting = null;
   };
 
-  private renderExports(d: DatasetInfo) {
-    const button = (kind: ExportKind, label: string) =>
-      html`<button
-        class="import"
-        ?disabled=${this.exporting !== null}
-        @click=${() => {
-          void this.exportAs(d, kind);
-        }}
-      >
-        ${this.exporting === `${d.slug} ${kind}` ? 'Exporting…' : label}
-      </button>`;
-    return [
-      button('gdz', 'Export'),
-      button('myheritage', 'Export for MyHeritage')
-    ];
-  }
-
   private renderExportNote() {
+    if (this.exporting !== null) {
+      return html`<p class="export-note">${this.exporting}</p>`;
+    }
     const note = this.exportNote;
     if (note === null) return nothing;
     return note.ok
       ? html`<p class="export-note">${note.text}</p>`
       : errorNote('Export failed', note.text);
   }
+
+  private readonly menuActions: RowMenuActions = {
+    export: (d, kind) => {
+      void this.exportAs(d, kind);
+    },
+    undo: (d) => {
+      this.request('undo', d);
+    }
+  };
+
+  private readonly setMenu = (menu: RowMenu | null) => {
+    this.menu = menu;
+  };
 
   private readonly request = (action: DatasetAction, dataset: DatasetInfo) => {
     this.confirming = { action, dataset, busy: false, error: null };
@@ -423,7 +429,11 @@ export class AppElement extends LitElement {
         hidden
         @change=${this.onFileChange}
       />
-      ${this.renderScreen()} ${this.renderImportDialog()}
+      ${this.renderScreen()}
+      ${renderRowMenu(this.menu, this.menuActions, () => {
+        this.setMenu(null);
+      })}
+      ${this.renderImportDialog()}
       ${
         this.confirming === null
           ? nothing
@@ -504,21 +514,10 @@ export class AppElement extends LitElement {
               <li>
                 ${d.outdated ? renderOutdated(d) : renderLink(d)}
                 <div class="row-actions">
-                  ${d.outdated ? this.renderReimport(d) : this.renderExports(d)}
-                  ${
-                    d.undoable
-                      ? html`<button
-                          class="import"
-                          @click=${() => {
-                            this.request('undo', d);
-                          }}
-                        >
-                          Undo last import (${importDate(d.importedAt)})
-                        </button>`
-                      : nothing
-                  }
+                  ${d.outdated ? this.renderReimport(d) : nothing}
+                  ${menuButton(d, this.menu, this, this.setMenu)}
                   <button
-                    class="delete"
+                    class="icon delete"
                     aria-label=${`Delete ${d.displayName}`}
                     @click=${() => {
                       this.request('delete', d);
