@@ -33,3 +33,13 @@ describe('windowOnly', () => {
     expect((await fetch(req)).status).toBe(403);
   });
 });
+
+test('the key leads on to the page asked for, and only on this server', async () => {
+  const view = '/d/demo/#/person/7?sel=9';
+  const entered = await fetch(new Request(enterUrl(base, key, view)));
+  expect(entered.headers.get('location')).toBe(view);
+  const away = await fetch(
+    new Request(enterUrl(base, key, 'https://example.com/d/demo/'))
+  );
+  expect(away.headers.get('location')).toBe('/');
+});

@@ -6,6 +6,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import { preferredGenerations } from '@/client/generations';
+import { reportView } from '@/client/last-view';
 import { appState } from '@/client/state';
 import type { AppState, ChartView, UrlView } from '@/client/state';
 
@@ -161,6 +162,7 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
           zoom: this.hasUserZoom ? this.viewport.scale : null
         })
       );
+      reportView();
     }
   };
 
@@ -191,6 +193,7 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
     this.state.chart.follow(this.followHash, () => {
       if (back !== null) history.replaceState(null, '', back);
     });
+    reportView();
   };
 
   // The URL's view, its pan and zoom restored as the chart moves; with a
@@ -320,6 +323,7 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
   private writeUrl() {
     if (this.rootId === null) return;
     history.replaceState(null, '', this.buildCurrentHash(this.rootId));
+    reportView();
   }
 
   private buildCurrentHash(rootId: number) {
