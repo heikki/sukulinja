@@ -1,5 +1,5 @@
-import { gedcomDate } from '@common/dates';
-import type { FamilyRow, PersonRow } from '@common/types';
+import { gedcomDate } from '@/common/dates';
+import type { FamilyRow, PersonRow } from '@/common/types';
 
 import { otherSpouseOf } from '../tree-view/build/indices';
 import type { LayoutIndices } from '../tree-view/build/indices';

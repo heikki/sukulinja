@@ -1,8 +1,9 @@
-import { focusRingStyles } from '@client/focus-ring';
-import type { PersonRow } from '@common/types';
 import { css, html, LitElement, nothing } from 'lit';
 import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+
+import { focusRingStyles } from '@/client/focus-ring';
+import type { PersonRow } from '@/common/types';
 
 import type { Point } from '../tree-view/emit';
 import { formatDates, formatName } from '../tree-view/renderer';

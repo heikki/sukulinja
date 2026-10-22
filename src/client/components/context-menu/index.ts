@@ -1,6 +1,7 @@
-import type { Point } from '@client/pan-zoom';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+
+import type { Point } from '@/client/pan-zoom';
 
 import { placedInside } from './helpers';
 import { contextMenuStyles } from './styles';

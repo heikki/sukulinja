@@ -27,7 +27,7 @@
 // other copy of a Doubled volume) isn't followed: the search stays at the
 // start, near the Page pins, and Confirmation looks around it.
 
-import type { BookKind, Years } from '@common/types';
+import type { BookKind, Years } from '@/common/types';
 
 import { confirms } from './reader';
 import type {

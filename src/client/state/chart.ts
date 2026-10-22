@@ -4,11 +4,12 @@
 // the chart doesn't draw Root; the element drawing the chart is told, as
 // its ChartView, where to move and what to write into the URL.
 
-import { ApiError } from '@client/dataset-api';
-import type { DatasetApi } from '@client/dataset-api';
-import type { Point } from '@client/pan-zoom';
-import type { FamilyRow, PersonRow, VolumeCitation } from '@common/types';
 import { signal } from '@lit-labs/signals';
+
+import { ApiError } from '@/client/dataset-api';
+import type { DatasetApi } from '@/client/dataset-api';
+import type { Point } from '@/client/pan-zoom';
+import type { FamilyRow, PersonRow, VolumeCitation } from '@/common/types';
 
 import type { Readable, Selected } from './selected';
 import type { Viewer } from './viewer';

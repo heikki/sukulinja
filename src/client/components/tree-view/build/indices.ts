@@ -3,7 +3,7 @@
 // helpers below operate against that shape — used across the build/ files
 // to filter known persons, present children, and meaningful spouse fams.
 
-import type { FamilyRow, PersonRow } from '@common/types';
+import type { FamilyRow, PersonRow } from '@/common/types';
 
 export interface LayoutIndices {
   persons: Map<number, PersonRow>;

@@ -8,7 +8,7 @@ import type {
   LinkTarget,
   Precision,
   Unlinked
-} from '@common/types';
+} from '@/common/types';
 
 const CERTAINTY: Record<Certainty, string> = {
   marked: 'Marked',

@@ -1,13 +1,13 @@
 import { expect, test } from 'bun:test';
 
-import { ApiError } from '@client/dataset-api';
-import { memoryDatasetApi } from '@client/dataset-api/memory';
+import { ApiError } from '@/client/dataset-api';
+import { memoryDatasetApi } from '@/client/dataset-api/memory';
 import type {
   CitationLinks,
   CitationRow,
   Link,
   PersonDetails
-} from '@common/types';
+} from '@/common/types';
 
 import { openSelected } from './selected';
 

@@ -3,13 +3,13 @@
 
 import { expect, test } from 'bun:test';
 
-import { memoryDatasetApi } from '@client/dataset-api/memory';
+import { memoryDatasetApi } from '@/client/dataset-api/memory';
 import type {
   CitationRow,
   Link,
   PersonDetails,
   VolumeCitation
-} from '@common/types';
+} from '@/common/types';
 
 import { openAppState } from '.';
 

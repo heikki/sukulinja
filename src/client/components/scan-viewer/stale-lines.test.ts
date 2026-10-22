@@ -6,7 +6,7 @@ import type {
   PersonRow,
   StalePin,
   VolumeCitation
-} from '@common/types';
+} from '@/common/types';
 
 import { staleLines } from './stale-lines';
 

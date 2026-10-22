@@ -29,7 +29,7 @@
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import type { Box } from '@common/types';
+import type { Box } from '@/common/types';
 
 import type { CitationLink } from '../annotations';
 import type { Astia } from './astia';

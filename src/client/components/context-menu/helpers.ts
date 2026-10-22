@@ -1,4 +1,4 @@
-import type { Point } from '@client/pan-zoom';
+import type { Point } from '@/client/pan-zoom';
 
 // Where a pop-up at `at` in the element it's positioned in goes: moved in
 // from any edge it would cross.

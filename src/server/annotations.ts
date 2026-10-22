@@ -6,7 +6,7 @@
 
 import type { Database, SQLQueryBindings } from 'bun:sqlite';
 
-import type { Box, Provenance } from '@common/types';
+import type { Box, Provenance } from '@/common/types';
 
 import { viewerUrl } from './citation-scans/astia';
 

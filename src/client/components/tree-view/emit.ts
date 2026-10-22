@@ -3,7 +3,7 @@
 // both axes — sub-slot x (sibship packing), integer-generation y;
 // intra-family endpoints come in already in pixels.
 
-import type { Extents, Point } from '@client/pan-zoom';
+import type { Extents, Point } from '@/client/pan-zoom';
 
 import { FamilyNode } from './build/nodes/family-node';
 import type { PersonSlot } from './build/nodes/family-node';

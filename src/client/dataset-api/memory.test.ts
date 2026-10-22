@@ -5,7 +5,7 @@ import type {
   PersonDetails,
   PersonRow,
   VolumeCitation
-} from '@common/types';
+} from '@/common/types';
 
 import { ApiError, NOT_RESPONDING } from '.';
 import { memoryDatasetApi } from './memory';

@@ -19,13 +19,17 @@
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { openAstia } from '@server/citation-scans/astia';
-import { withoutStale } from '@server/citation-scans/filming';
-import { cachedReader } from '@server/citation-scans/reader';
-import type { ImageRef, Question, Reader } from '@server/citation-scans/reader';
-import { openScanCache } from '@server/citation-scans/scan-cache';
-import { openScanFolder } from '@server/citation-scans/scans';
-import { openDb } from '@server/db';
+import { openAstia } from '@/server/citation-scans/astia';
+import { withoutStale } from '@/server/citation-scans/filming';
+import { cachedReader } from '@/server/citation-scans/reader';
+import type {
+  ImageRef,
+  Question,
+  Reader
+} from '@/server/citation-scans/reader';
+import { openScanCache } from '@/server/citation-scans/scan-cache';
+import { openScanFolder } from '@/server/citation-scans/scans';
+import { openDb } from '@/server/db';
 
 import { claudeReader, DEFAULT_MODELS } from '../vision/claude-reader';
 import type { Spend } from '../vision/claude-reader';

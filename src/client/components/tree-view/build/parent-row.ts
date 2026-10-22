@@ -1,7 +1,7 @@
 // Parent row — chart-root parent FN and the depth-1 lateral ring (ADR-0002):
 // Aunts/Uncles, Step-fam fan, Half-siblings, BloodlineFootprint clearance.
 
-import type { FamilyRow } from '@common/types';
+import type { FamilyRow } from '@/common/types';
 
 import { buildAncestorStack } from './ancestor-stack';
 import { buildAnchoredFamily, buildCenteredFamily } from './family';

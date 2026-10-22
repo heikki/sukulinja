@@ -3,7 +3,7 @@ import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { ImportReview } from '@common/types';
+import type { ImportReview } from '@/common/types';
 
 import { openAnnotations } from './annotations';
 import { openAppCitations } from './app-citations';

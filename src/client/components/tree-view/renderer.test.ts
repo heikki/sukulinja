@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import type { PersonRow } from '@common/types';
+import type { PersonRow } from '@/common/types';
 
 import { CROSS, formatDates } from './renderer';
 

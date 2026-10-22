@@ -3,7 +3,7 @@
 
 import type { Database } from 'bun:sqlite';
 
-import type { FactRow, PersonDetails } from '@common/types';
+import type { FactRow, PersonDetails } from '@/common/types';
 
 import type { Citations } from './citations';
 

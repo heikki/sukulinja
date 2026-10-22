@@ -14,10 +14,7 @@
       // `electrobun sync`), not node_modules — see docs/adr/0007.
       "electrobun": ["./.hutch/devkit/api/sdks/main/index.ts"],
       "electrobun/main": ["./.hutch/devkit/api/sdks/main/index.ts"],
-      "@common/*": ["./src/common/*"],
-      "@components/*": ["./src/client/components/*"],
-      "@client/*": ["./src/client/*"],
-      "@server/*": ["./src/server/*"]
+      "@/*": ["./src/*"]
     }
   },
   "exclude": ["node_modules", "build"]

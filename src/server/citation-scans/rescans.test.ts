@@ -3,7 +3,7 @@ import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { Rescan, StalePin } from '@common/types';
+import type { Rescan, StalePin } from '@/common/types';
 
 import { fileId, memoryAstia } from './memory-astia';
 import type { MemoryAstia } from './memory-astia';

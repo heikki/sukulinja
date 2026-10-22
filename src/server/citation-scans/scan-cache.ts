@@ -16,7 +16,7 @@
 import { readdir, rename, rm, stat, utimes } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import type { ScanCacheStatus } from '@common/types';
+import type { ScanCacheStatus } from '@/common/types';
 
 import { NoImageError } from './astia';
 import type { Astia, ImageSize } from './astia';

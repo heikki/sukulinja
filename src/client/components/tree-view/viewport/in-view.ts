@@ -1,4 +1,4 @@
-import type { Point } from '@client/pan-zoom';
+import type { Point } from '@/client/pan-zoom';
 
 export interface Rect {
   min: Point;

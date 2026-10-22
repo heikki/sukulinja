@@ -1,7 +1,7 @@
 // Linking a GEDCOM's media to what holds them: a person, a family, an
 // event or a citation.
 
-import type { Scope } from '@common/types';
+import type { Scope } from '@/common/types';
 
 import type { LineReader } from './gedcom-lines';
 import type { GedNode } from './gedcom-parser';

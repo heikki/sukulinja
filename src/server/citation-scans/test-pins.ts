@@ -1,7 +1,7 @@
 // Test support for the pins: references, Matches, and an Astia
 // listing whatever file ids a test gives.
 
-import type { Box } from '@common/types';
+import type { Box } from '@/common/types';
 
 import { openDb } from '../db';
 import type { Astia } from './astia';

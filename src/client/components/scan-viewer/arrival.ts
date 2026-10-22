@@ -6,8 +6,9 @@
 // decodes. The element keeps pan and zoom; this tells it when an arrival
 // should fit, rescale or clear the view.
 
-import type { Viewport } from '@client/pan-zoom';
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
+
+import type { Viewport } from '@/client/pan-zoom';
 
 import { frameForFull, frameForThumb } from './frame';
 import type { Frame, Loading } from './frame';

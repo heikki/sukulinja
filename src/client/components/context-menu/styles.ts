@@ -1,5 +1,6 @@
-import { focusRingStyles } from '@client/focus-ring';
 import { css } from 'lit';
+
+import { focusRingStyles } from '@/client/focus-ring';
 
 // Over whatever it opens on: in the Scan viewer, over its Box and under
 // nothing else.

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import type { Extents, Point, Transform, Viewport } from '@client/pan-zoom';
+import type { Extents, Point, Transform, Viewport } from '@/client/pan-zoom';
 
 import { nudgeIntoView } from './nudge';
 

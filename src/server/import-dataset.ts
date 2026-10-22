@@ -8,7 +8,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { ImportReview } from '@common/types';
+import type { ImportReview } from '@/common/types';
 
 import { importGedcom } from './gedcom-import';
 import type { ImportStats } from './gedcom-import';

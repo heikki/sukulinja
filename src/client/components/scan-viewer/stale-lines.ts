@@ -1,4 +1,4 @@
-import type { PersonRow, StalePin, VolumeCitation } from '@common/types';
+import type { PersonRow, StalePin, VolumeCitation } from '@/common/types';
 
 import { rowName } from './citations';
 

@@ -6,17 +6,17 @@
 import type { Database } from 'bun:sqlite';
 import { join } from 'node:path';
 
-import { openAstia, viewerUrl } from '@server/citation-scans/astia';
-import type { Astia } from '@server/citation-scans/astia';
-import type { Viewport } from '@server/citation-scans/jpeg';
-import { matchRef } from '@server/citation-scans/matcher';
-import type { Match, Miss, MissReason } from '@server/citation-scans/matcher';
-import { cachedReader } from '@server/citation-scans/reader';
-import type { ImageRef, Reader } from '@server/citation-scans/reader';
-import { RIPPI_COLLECTION } from '@server/citation-scans/record';
-import type { ChurchBookRef } from '@server/citation-scans/record';
-import { openScanFolder } from '@server/citation-scans/scans';
-import type { Scans } from '@server/citation-scans/scans';
+import { openAstia, viewerUrl } from '@/server/citation-scans/astia';
+import type { Astia } from '@/server/citation-scans/astia';
+import type { Viewport } from '@/server/citation-scans/jpeg';
+import { matchRef } from '@/server/citation-scans/matcher';
+import type { Match, Miss, MissReason } from '@/server/citation-scans/matcher';
+import { cachedReader } from '@/server/citation-scans/reader';
+import type { ImageRef, Reader } from '@/server/citation-scans/reader';
+import { RIPPI_COLLECTION } from '@/server/citation-scans/record';
+import type { ChurchBookRef } from '@/server/citation-scans/record';
+import { openScanFolder } from '@/server/citation-scans/scans';
+import type { Scans } from '@/server/citation-scans/scans';
 
 import { gateRefusal } from '../vision/gate';
 

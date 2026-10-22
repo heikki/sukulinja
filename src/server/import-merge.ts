@@ -14,7 +14,7 @@
 
 import type { Database, SQLQueryBindings } from 'bun:sqlite';
 
-import type { ImportReview } from '@common/types';
+import type { ImportReview } from '@/common/types';
 
 import { annotationOf, openAnnotations } from './annotations';
 import type { Annotation, Annotations } from './annotations';

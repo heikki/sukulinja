@@ -4,20 +4,20 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { openMarks } from '@server/citation-scans/marks';
-import type { MemoryAstia } from '@server/citation-scans/memory-astia';
-import type { Reader } from '@server/citation-scans/reader';
+import { openMarks } from '@/server/citation-scans/marks';
+import type { MemoryAstia } from '@/server/citation-scans/memory-astia';
+import type { Reader } from '@/server/citation-scans/reader';
 import {
   churchBookRefOf,
   parseChurchBookRef
-} from '@server/citation-scans/record';
+} from '@/server/citation-scans/record';
 import {
   baptismCitation,
   juvaAstia,
   rippiCitation,
   VOLUMES
-} from '@server/citation-scans/test-parish';
-import { citing, scansOf } from '@server/citation-scans/test-pins';
+} from '@/server/citation-scans/test-parish';
+import { citing, scansOf } from '@/server/citation-scans/test-pins';
 
 import { recordEvaluation } from '../vision/gate';
 import { reviewMarkdown, runMatching } from './run';

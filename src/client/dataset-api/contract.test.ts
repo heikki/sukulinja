@@ -6,18 +6,18 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { memoryAstia } from '@server/citation-scans/memory-astia';
-import type { MemoryAstia } from '@server/citation-scans/memory-astia';
+import { memoryAstia } from '@/server/citation-scans/memory-astia';
+import type { MemoryAstia } from '@/server/citation-scans/memory-astia';
 import {
   IMAGES,
   JUVA,
   rippiCitation,
   VOLUMES
-} from '@server/citation-scans/test-parish';
-import { DatasetRegistry } from '@server/dataset-registry';
-import { importGedcom } from '@server/gedcom-import';
-import { parseGedcom } from '@server/gedcom-parser';
-import { createApi, createStaticFetch } from '@server/server';
+} from '@/server/citation-scans/test-parish';
+import { DatasetRegistry } from '@/server/dataset-registry';
+import { importGedcom } from '@/server/gedcom-import';
+import { parseGedcom } from '@/server/gedcom-parser';
+import { createApi, createStaticFetch } from '@/server/server';
 
 import { ApiError, NOT_RESPONDING, openDatasetApi } from '.';
 import type { DatasetApi } from '.';

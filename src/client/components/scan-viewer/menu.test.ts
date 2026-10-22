@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test';
 
-import { memoryDatasetApi } from '@client/dataset-api/memory';
-import { openAppState } from '@client/state';
-import type { CitationRow, Link } from '@common/types';
+import { memoryDatasetApi } from '@/client/dataset-api/memory';
+import { openAppState } from '@/client/state';
+import type { CitationRow, Link } from '@/common/types';
 
 import { linkItems } from './menu';
 

@@ -1,10 +1,10 @@
-import { linkLabel, unlinkedLabel } from '@client/link-labels';
+import { linkLabel, unlinkedLabel } from '@/client/link-labels';
 import type {
   CitationRow,
   Link,
   LinkResolution,
   UnlinkedResolution
-} from '@common/types';
+} from '@/common/types';
 
 // A church-book source's Link, in brief: how sure it is, in the Scan
 // viewer's words, or why there's none. Opening the

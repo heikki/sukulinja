@@ -1,15 +1,16 @@
-import { currentAppearance, setAppearance } from '@client/appearance';
-import type { Appearance } from '@client/appearance';
-import { focusRingStyles } from '@client/focus-ring';
+import { css, html, LitElement, nothing, svg } from 'lit';
+import type { PropertyValues } from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
+
+import { currentAppearance, setAppearance } from '@/client/appearance';
+import type { Appearance } from '@/client/appearance';
+import { focusRingStyles } from '@/client/focus-ring';
 import {
   MAX_GENERATIONS,
   preferredGenerations,
   setPreferredGenerations
-} from '@client/generations';
-import type { ScanCacheStatus } from '@common/types';
-import { css, html, LitElement, nothing, svg } from 'lit';
-import type { PropertyValues } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+} from '@/client/generations';
+import type { ScanCacheStatus } from '@/common/types';
 
 import { formatBytes } from './helpers';
 

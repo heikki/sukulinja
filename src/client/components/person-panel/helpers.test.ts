@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 
-import type { LinkStatus } from '@client/state';
-import type { CitationRow, FactRow, Link } from '@common/types';
+import type { LinkStatus } from '@/client/state';
+import type { CitationRow, FactRow, Link } from '@/common/types';
 
 import { factText, headingOf, siteName, titleText } from './helpers';
 

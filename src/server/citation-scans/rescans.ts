@@ -3,7 +3,7 @@
 // checks every pinned Volume this way; the Scan viewer asks about the one
 // it shows, and switches when the person says so.
 
-import type { Rescan, StalePin } from '@common/types';
+import type { Rescan, StalePin } from '@/common/types';
 
 import { viewerUrls } from './astia';
 import type { Astia } from './astia';

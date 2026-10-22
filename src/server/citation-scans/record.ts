@@ -2,7 +2,7 @@
 // citation's DATA/TEXT, read back into its fields for display, and into the
 // church-book reference it points to, for mapping to a scan.
 
-import type { HouseholdMember, RecordField, RecordView } from '@common/types';
+import type { HouseholdMember, RecordField, RecordView } from '@/common/types';
 
 import { bookKind, decodeEntities, stripParens, yearRange } from './text';
 import type { BookKind, Years } from './text';

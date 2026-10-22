@@ -18,9 +18,9 @@
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { openAstia } from '@server/citation-scans/astia';
-import { imageSize, openScanCache } from '@server/citation-scans/scan-cache';
-import { openDb } from '@server/db';
+import { openAstia } from '@/server/citation-scans/astia';
+import { imageSize, openScanCache } from '@/server/citation-scans/scan-cache';
+import { openDb } from '@/server/db';
 
 import { claudeReader } from '../vision/claude-reader';
 import type { Spend } from '../vision/claude-reader';

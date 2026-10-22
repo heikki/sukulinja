@@ -11,7 +11,7 @@ import type {
   LinkResolution,
   VolumeChoice,
   VolumeChoices
-} from '@common/types';
+} from '@/common/types';
 
 import { AstiaError } from './astia';
 import type { Astia, Volume } from './astia';

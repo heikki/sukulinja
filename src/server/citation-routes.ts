@@ -2,7 +2,7 @@
 // Volumes it can be put in, and making or deleting one in the app. They
 // read the request; the handlers answer it.
 
-import type { Box } from '@common/types';
+import type { Box } from '@/common/types';
 
 import type { BoxAt, MarkTarget } from './citation-scans/pins';
 import type { CiteTarget } from './citations';

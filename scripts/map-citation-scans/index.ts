@@ -13,11 +13,11 @@
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import type { Link, LinkResolution } from '@common/types';
-import { openAstia } from '@server/citation-scans/astia';
-import type { ChurchBookRef } from '@server/citation-scans/record';
-import { openScanFolder } from '@server/citation-scans/scans';
-import { openDb } from '@server/db';
+import type { Link, LinkResolution } from '@/common/types';
+import { openAstia } from '@/server/citation-scans/astia';
+import type { ChurchBookRef } from '@/server/citation-scans/record';
+import { openScanFolder } from '@/server/citation-scans/scans';
+import { openDb } from '@/server/db';
 
 import { churchBookRefs } from './citations';
 

@@ -1,4 +1,4 @@
-import type { PersonRow, PhotoCrop } from '@common/types';
+import type { PersonRow, PhotoCrop } from '@/common/types';
 
 // Avatars are derived in-browser from the original photo plus the marked crop,
 // so the crop stays adjustable (it's just metadata) while the rendered face is

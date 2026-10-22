@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { CitationLinks, VolumeCitation } from '@common/types';
+import type { CitationLinks, VolumeCitation } from '@/common/types';
 
 import { openMarks } from './citation-scans/marks';
 import type { MemoryAstia } from './citation-scans/memory-astia';

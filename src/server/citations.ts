@@ -9,15 +9,15 @@
 
 import type { Database, SQLQueryBindings } from 'bun:sqlite';
 
-import { BOOK_NAMES } from '@common/books';
-import { isoDate } from '@common/dates';
+import { BOOK_NAMES } from '@/common/books';
+import { isoDate } from '@/common/dates';
 import type {
   Box,
   CitationRow,
   Link,
   LinkResolution,
   VolumeCitation
-} from '@common/types';
+} from '@/common/types';
 
 import {
   annotated,

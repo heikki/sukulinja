@@ -3,9 +3,9 @@
 
 import { expect, test } from 'bun:test';
 
-import { memoryDatasetApi } from '@client/dataset-api/memory';
-import type { MemoryOptions } from '@client/dataset-api/memory';
-import type { PersonDetails, PersonRow } from '@common/types';
+import { memoryDatasetApi } from '@/client/dataset-api/memory';
+import type { MemoryOptions } from '@/client/dataset-api/memory';
+import type { PersonDetails, PersonRow } from '@/common/types';
 
 import { openAppState } from '.';
 import type { ChartView, UrlView } from '.';

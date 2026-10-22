@@ -1,15 +1,15 @@
 import { expect, test } from 'bun:test';
 
-import { ApiError } from '@client/dataset-api';
-import { memoryDatasetApi } from '@client/dataset-api/memory';
-import type { MemoryOptions } from '@client/dataset-api/memory';
+import { ApiError } from '@/client/dataset-api';
+import { memoryDatasetApi } from '@/client/dataset-api/memory';
+import type { MemoryOptions } from '@/client/dataset-api/memory';
 import type {
   CitationLinks,
   CitationRow,
   Link,
   PersonDetails,
   VolumeCitation
-} from '@common/types';
+} from '@/common/types';
 
 import { openAppState } from '.';
 import { clampImage } from './viewer';

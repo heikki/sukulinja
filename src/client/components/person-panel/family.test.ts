@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import type { FamilyRow, PersonRow } from '@common/types';
+import type { FamilyRow, PersonRow } from '@/common/types';
 
 import { CROSS } from '../tree-view/renderer';
 import { householdsOf, lifeText } from './family';

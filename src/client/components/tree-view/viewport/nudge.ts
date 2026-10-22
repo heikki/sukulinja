@@ -1,8 +1,8 @@
 // The re-root Nudge: the pan that keeps what matters of the chart on the
 // canvas. Pure geometry over the pan-zoom transform.
 
-import { chartToScreen } from '@client/pan-zoom';
-import type { Extents, Point, Transform, Viewport } from '@client/pan-zoom';
+import { chartToScreen } from '@/client/pan-zoom';
+import type { Extents, Point, Transform, Viewport } from '@/client/pan-zoom';
 
 interface Span {
   low: number;

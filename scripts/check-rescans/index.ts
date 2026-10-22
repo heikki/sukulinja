@@ -18,13 +18,13 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { openAstia } from '@server/citation-scans/astia';
-import { readLocalFile } from '@server/citation-scans/pin-files';
-import shipped from '@server/citation-scans/pins.json';
-import { checkRescans } from '@server/citation-scans/rescans';
-import { openScanCache } from '@server/citation-scans/scan-cache';
-import { openScanFolder } from '@server/citation-scans/scans';
-import { DatasetRegistry } from '@server/dataset-registry';
+import { openAstia } from '@/server/citation-scans/astia';
+import { readLocalFile } from '@/server/citation-scans/pin-files';
+import shipped from '@/server/citation-scans/pins.json';
+import { checkRescans } from '@/server/citation-scans/rescans';
+import { openScanCache } from '@/server/citation-scans/scan-cache';
+import { openScanFolder } from '@/server/citation-scans/scans';
+import { DatasetRegistry } from '@/server/dataset-registry';
 
 import { reportLines } from './report';
 

@@ -1,11 +1,17 @@
-import { fitTo, Panning, Pinch } from '@client/pan-zoom';
-import type { Point, ScaleBounds, Transform, Viewport } from '@client/pan-zoom';
-import { appState } from '@client/state';
-import type { AppState, LinkOpen } from '@client/state';
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
+
+import { fitTo, Panning, Pinch } from '@/client/pan-zoom';
+import type {
+  Point,
+  ScaleBounds,
+  Transform,
+  Viewport
+} from '@/client/pan-zoom';
+import { appState } from '@/client/state';
+import type { AppState, LinkOpen } from '@/client/state';
 
 import { ImageArrival } from './arrival';
 import type { ViewChange } from './arrival';
