@@ -24,4 +24,4 @@ A Mark only pins where an existing Citation points; pins live in the data folder
 
 **Merge built 2026-10-21** (f8965b7): a citation made in the app is a `citations` row with `added_in_app = 1`. A re-import reattaches it to its person, or to the same fact of theirs, and the GEDZIP carries it as `NOTE Added in Sukulinja`.
 
-**Open from the Annotation refactor 2026-10-22:** Discarding the Box of a Citation made in the app. It has no original page to go back to and no MyHeritage reference to estimate from, so today's rule would leave it citing the Astia address with no Link. Decide what a Discard does to one: keep the Mark at the Image without its Box, drop the Citation, or refuse.
+**Open from the Annotation refactor (4018d81):** Discarding the Box of a Citation made in the app. It has no original page to go back to and no MyHeritage reference to estimate from, so today's rule would leave it citing the Astia address with no Link. Decide what a Discard does to one: keep the Mark at the Image without its Box, drop the Citation, or refuse.
