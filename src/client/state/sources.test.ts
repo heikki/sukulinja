@@ -18,11 +18,11 @@ function label(s: Link) {
   return linkStatus({ links: [s] }, false).label;
 }
 
-test('names a Link by who says so and how far down', () => {
+test('names a Link by who says so, however far down', () => {
   expect(label(link)).toBe('Marked');
   expect(
     label({ ...BASE, precision: 'image', image: 18, certainty: 'marked' })
-  ).toBe('Marked Image');
+  ).toBe('Marked');
   expect(
     label({
       ...BASE,
@@ -31,12 +31,12 @@ test('names a Link by who says so and how far down', () => {
       certainty: 'estimated',
       from: 'pins'
     })
-  ).toBe('Estimated Image');
+  ).toBe('Estimate');
   expect(label({ ...BASE, precision: 'volume', certainty: 'estimated' })).toBe(
-    'Estimated Volume'
+    'Estimate'
   );
   expect(label({ ...BASE, precision: 'volume', certainty: 'marked' })).toBe(
-    'Marked Volume'
+    'Marked'
   );
   const vision: Link = { ...link, certainty: 'match' };
   expect(label(vision)).toBe('Match');
@@ -49,12 +49,12 @@ test('opens a Split reference on its first Volume', () => {
   expect(status.link).toEqual(link);
 });
 
-test('counts the other Volumes an Estimated Volume could be', () => {
+test('counts the other Volumes an Estimate of only the Volume could be', () => {
   const volume: Link = { ...BASE, precision: 'volume', certainty: 'estimated' };
   const others = ['v2', 'v3'].map((volumeId) => ({ ...volume, volumeId }));
   const status = linkStatus({ links: [volume, ...others] }, false);
-  expect(status.label).toBe('Estimated Volume +2');
-  expect(linkStatus({ links: [volume] }, false).label).toBe('Estimated Volume');
+  expect(status.label).toBe('Estimate +2');
+  expect(linkStatus({ links: [volume] }, false).label).toBe('Estimate');
 });
 
 test('says why a source has no scan', () => {

@@ -271,7 +271,7 @@ function placesOf(rows: VolumeCitation[] | null) {
   }));
 }
 
-test("lists the Volume's Matches, Estimated Images and Estimated Volumes", async () => {
+test("lists the Volume's Matches and its Estimates, of an Image or only the Volume", async () => {
   await writeLocal({ 'juva-1': { pages: [{ image: 5, pages: [3] }] } });
   const citations = datasetOf([
     cite(1, rippiCitation(5001, '1790 - 1796', 12)),

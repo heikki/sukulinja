@@ -6,20 +6,13 @@ import type {
   Certainty,
   CitedBook,
   LinkTarget,
-  Precision,
   Unlinked
 } from '@/common/types';
 
 const CERTAINTY: Record<Certainty, string> = {
   marked: 'Marked',
   match: 'Match',
-  estimated: 'Estimated'
-};
-
-const PRECISION: Record<Precision, string> = {
-  entry: '',
-  image: ' Image',
-  volume: ' Volume'
+  estimated: 'Estimate'
 };
 
 // Who says where a Link points, by name.
@@ -27,13 +20,9 @@ export function certaintyName(certainty: Certainty) {
   return CERTAINTY[certainty];
 }
 
-// A Link's name: who says so, then how far down unless it's the entry.
-export function linkName(certainty: Certainty, precision: Precision) {
-  return `${CERTAINTY[certainty]}${PRECISION[precision]}`;
-}
-
+// A Link's name: who says so, however far down it points.
 export function linkLabel(link: LinkTarget) {
-  return linkName(link.certainty, link.precision);
+  return certaintyName(link.certainty);
 }
 
 // A Volume's name without the archive's code for it ("I Aa:8"), which the

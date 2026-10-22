@@ -79,15 +79,9 @@ Who says where a Link points, most trusted first:
 
 - **Marked** — a person, with a Mark: at the entry, the Image, or only the Volume.
 - **Match** — the vision model, at the entry: a suggestion, to confirm or correct with a Mark.
-- **Estimated** — a count: the Image counted from the Volume's nearest Page pins or, failing any, guessed from the Book's usual numbering; or only the Volume, chosen by the Book's years or a Record range. Counted from Page pins it's usually right; guessed, often a few Images off.
+- **Estimate** — a count: the Image counted from the Volume's nearest Page pins or, failing any, guessed from the Book's usual numbering; or only the Volume, chosen by the Book's years or a Record range. Counted from Page pins it's usually right; guessed, often a few Images off.
 
-Not every pair occurs: a person may stop at any Precision, the vision model only saves an entry, and a count never reaches one. A Link is named by its Certainty, then its Precision unless that's the entry:
-
-| Precision | Marked        | Match | Estimated        |
-| --------- | ------------- | ----- | ---------------- |
-| entry     | Marked        | Match | —                |
-| Image     | Marked Image  | —     | Estimated Image  |
-| Volume    | Marked Volume | —     | Estimated Volume |
+Not every pair occurs: a person may stop at any Precision, the vision model only saves an entry, and a count never reaches one. A Link is named by its Certainty alone, however far down it points: Marked, Match or Estimate.
 
 A Church-book reference whose Volume can't be told apart has several candidate Volumes: it is **Split**.
 _Avoid_: method, scan method (they said how a link was found, not how far to trust it); exact (that's Precision's job).
@@ -122,7 +116,7 @@ _Avoid_: clear, delete (only the Box's pins go).
 A **Match** discarded by hand: the reference isn't on that Image. Kept in the dataset, by the reference's URL. The vision pass never saves a Match there again, and lists one landing there for review by hand.
 
 **Provenance**:
-Who saved a Pin: by hand (the shipped Page pins, and every Mark) or by the vision model. What's saved by hand always wins over the vision model's. Vision pins still count other links' estimates and extend Record ranges; the links they steer stay Estimated.
+Who saved a Pin: by hand (the shipped Page pins, and every Mark) or by the vision model. What's saved by hand always wins over the vision model's. Vision pins still count other links' estimates and extend Record ranges; the links they steer stay Estimates.
 
 ### Through MyHeritage
 
@@ -157,7 +151,7 @@ _Avoid_: "same page" alone — it doesn't say which.
 - A **Citation** is not a **Church-book reference**: many Citations aren't to church books, and the reference is only what's read from one.
 - An **Annotation** is not a GEDCOM NOTE, though a GEDZIP writes parts of one as NOTEs (the page a Mark moved aside, "Added in Sukulinja"). Nor is it a **Box** ("annotating an Image" elsewhere means drawing one; here a Box is only one part of an Annotation), or a note written in a church book's margins.
 - **"Volume"** is Astia's book; MyHeritage's equivalent is a **Film**, which may hold several Volumes. **"Image"** is Astia's numbering, **"Frame"** MyHeritage's, **"Page number"** what's written in the book.
-- **Marked** and **Match** Links both come from a **Record pin** or **Reference pin**; only who saved it differs. A **Page pin** only improves its Volume's **Estimated** links.
+- **Marked** and **Match** Links both come from a **Record pin** or **Reference pin**; only who saved it differs. A **Page pin** only improves its Volume's **Estimates**.
 - **Precision** and **Certainty** answer different questions: how far down, and who says so. A Box exists exactly when a Link points at the entry.
 - Shipped data and the data folder's pins.local.json hold only facts about Volumes (Page pins, Record ranges, villages); Marks and Matches are in each dataset's citations.
 - A **Volume** id and an **Image** number are Astia's: a Pin holds only for Astia's scans, and only for the filming it was made on. The page or record it pins holds in any filming of the book.
