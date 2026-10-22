@@ -9,10 +9,17 @@ import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { CitationLinks, Link, VolumeCitation } from '@common/types';
 
-import { fileId } from './citation-scans/memory-astia';
+import { openAnnotations } from './annotations';
+import { fileId, memoryAstia } from './citation-scans/memory-astia';
 import type { MemoryAstia } from './citation-scans/memory-astia';
 import { openScans } from './citation-scans/scans';
-import { juvaAstia, rippiCitation } from './citation-scans/test-parish';
+import {
+  IMAGES,
+  JUVA,
+  juvaAstia,
+  rippiCitation,
+  VOLUMES
+} from './citation-scans/test-parish';
 import { pinsOf } from './citation-scans/test-pins';
 import { createCitations } from './citations';
 import { openDb } from './db';
@@ -117,6 +124,7 @@ test('a Citation made in the app is stored with its Mark, page and source', asyn
     citation: {
       id: 2,
       source: JUVA_1,
+      entry: 'Image\u00a013',
       page: ENTRY_LINK.url,
       text: 'Baptism 12.3.1795',
       churchBook: true,
@@ -218,7 +226,24 @@ test('a Citation made in the app is deleted with its notes, and its source with 
   expect(sources(db)).toEqual([]);
 });
 
+const ARCHIVE = 'Juvan seurakunnan arkisto';
+
+// Juva's archive, titled as Astia titles it.
+function titledJuva() {
+  return memoryAstia({
+    [JUVA]: {
+      title: ARCHIVE,
+      volumes: Object.entries(VOLUMES).map(([id, label]) => ({
+        id,
+        label,
+        images: IMAGES
+      }))
+    }
+  });
+}
+
 test('a Citation made in the app is read back with its Link Marked at the entry', async () => {
+  astia = titledJuva();
   const { citations } = withPeople([
     cite(1, { page: null, text: 'Family bible' }),
     cite(1, rippiCitation(5002, '1797 - 1803', 4)),
@@ -236,12 +261,54 @@ test('a Citation made in the app is read back with its Link Marked at the entry'
   const lines = await linesOf(citations.linksOf(1));
   expect(lines.find((l) => l.citationId === 4)).toEqual({
     citationId: 4,
-    links: [ENTRY_LINK]
+    links: [{ ...ENTRY_LINK, archive: ARCHIVE }]
   });
   // Its Link is read as stored, without asking Astia about its Volume.
   expect(astia.asked.slice(asked)).not.toContain('images juva-1');
   expect(placesOf(await citations.inVolume('juva-1'))).toEqual([
     { personId: 2, image: 12, at: 'estimated image' },
+    { personId: 1, image: 13, at: 'marked entry' }
+  ]);
+  const rows = (await citations.inVolume('juva-1'))!;
+  expect(rows.at(-1)!.link).toEqual({ ...ENTRY_LINK, archive: ARCHIVE });
+});
+
+test('an imported Citation of an Astia Image, with no reference, is read by its stored Link', async () => {
+  const { db, citations } = withPeople([]);
+  openAnnotations(db).insert(
+    {
+      scopeType: 'person',
+      scopeId: 1,
+      sourceId: null,
+      sortOrder: 0,
+      page: ENTRY_LINK.url,
+      event: null,
+      role: null,
+      quality: null,
+      dataDate: null,
+      text: null
+    },
+    {
+      link: {
+        volumeId: 'juva-1',
+        volume: JUVA_1,
+        image: 13,
+        fileId: 'juva-1-f13',
+        box: BOX,
+        by: 'hand'
+      },
+      originalPage: null,
+      madeInApp: false
+    }
+  );
+
+  expect(citations.ofPerson(1)).toMatchObject([
+    { churchBook: true, madeInApp: false }
+  ]);
+  expect(await linesOf(citations.linksOf(1))).toEqual([
+    { citationId: 1, links: [ENTRY_LINK] }
+  ]);
+  expect(placesOf(await citations.inVolume('juva-1'))).toEqual([
     { personId: 1, image: 13, at: 'marked entry' }
   ]);
 });

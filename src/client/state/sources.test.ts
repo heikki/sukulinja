@@ -167,3 +167,28 @@ test("puts a reference its archive's books lack under that archive, after the li
     ['Church books', [3]]
   ]);
 });
+
+// What an imported Church-book reference cites.
+const CITED = {
+  parish: 'Juva',
+  kind: 'rippi' as const,
+  years: { from: 1790, to: 1796 }
+};
+
+test('files a Citation of an Image under its archive, with the references there', () => {
+  const archive = 'Juvan seurakunnan arkisto';
+  const here = { ...link, archive };
+  const ofImage = { ...source(2, null), madeInApp: true, text: 'Baptism' };
+  const rows = [{ ...source(1, 12), cited: CITED }, ofImage];
+  const scans = new Map<number, LinkResolution>([
+    [1, { links: [here] }],
+    [2, { links: [here] }]
+  ]);
+  const [group, ...rest] = groupSources(rows, scans, false);
+  expect(rest).toEqual([]);
+  expect(group!.label).toBe(archive);
+  expect(group!.sources.map((s) => [s.citation.id, s.status?.label])).toEqual([
+    [2, 'Marked'],
+    [1, 'Marked']
+  ]);
+});

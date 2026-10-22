@@ -5,7 +5,6 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import { focusRingStyles } from '@client/focus-ring';
-import { volumeTitle } from '@client/link-labels';
 import { appState } from '@client/state';
 import type {
   AppState,
@@ -14,7 +13,6 @@ import type {
   Source,
   SourceGroup
 } from '@client/state';
-import { BOOK_NAMES } from '@common/books';
 import type { CitationRow, Link, RecordView } from '@common/types';
 
 import { CROSS, formatName } from '../tree-view/renderer';
@@ -24,7 +22,7 @@ import './header';
 
 import { householdsOf, lifeText } from './family';
 import type { FamilyIndices, Household, Relative } from './family';
-import { factLabel, factText, siteName } from './helpers';
+import { factLabel, factText, headingOf, siteName, titleText } from './helpers';
 import { personPanelStyles } from './styles';
 
 function renderRecord(r: RecordView) {
@@ -85,8 +83,10 @@ function renderSite(href: string, label: string) {
 // its scan in Astia.
 function renderDetails(body: unknown, url: string | null, link: Link | null) {
   const astia = link === null || link.url === '' ? null : link.url;
+  // A Citation of an Astia Image is at its Link's own address.
+  const own = url === null || url === astia ? null : url;
   const links = [
-    url === null ? null : renderSite(url, `Open on ${siteName(url)}`),
+    own === null ? null : renderSite(own, `Open on ${siteName(own)}`),
     astia === null ? null : renderSite(astia, 'Open in Astia')
   ].filter((l) => l !== null);
   return html`
@@ -101,12 +101,6 @@ function renderDetails(body: unknown, url: string | null, link: Link | null) {
 // link to it.
 function hasDetails(body: unknown, url: string | null, link: Link | null) {
   return body !== nothing || url !== null || link !== null;
-}
-
-// A Church-book reference names itself; other sources go by their title,
-// or failing that what they say.
-function headingOf(c: CitationRow) {
-  return c.reference ?? c.source ?? c.text ?? c.page ?? 'Source';
 }
 
 // Each section open or not for the rest of the visit, across people; at
@@ -131,17 +125,6 @@ function filedEntry(c: CitationRow, filed: boolean) {
 function sourceClass(flags: Record<string, boolean>) {
   const on = Object.entries(flags).filter(([, v]) => v);
   return ['source', ...on.map(([k]) => k)].join(' ');
-}
-
-// Under its archive, a Church-book reference goes by the Volume it links,
-// named as Astia names it but for its code: "Pää- ja rippikirjat
-// (1783-1790)"; one the archive's books lack goes by its Book.
-function titleText(c: CitationRow, status: LinkStatus | null) {
-  const link = status?.link ?? null;
-  if (link !== null) return volumeTitle(link.volume);
-  const kind = c.cited?.kind ?? null;
-  if ((status?.browse ?? null) === null || kind === null) return headingOf(c);
-  return BOOK_NAMES[kind];
 }
 
 function renderBody(c: CitationRow, heading: string) {

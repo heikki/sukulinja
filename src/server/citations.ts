@@ -3,8 +3,9 @@
 // Volume's citations the Scan viewer lists. Which Citations are church
 // books is decided once, by churchBookRefOf, so a row the panel marks as a
 // church book always gets a line of Links, and no other row does. A
-// Citation made in the app on an Astia Image counts as one too: it has no
-// reference to resolve, and its Link is the Mark it was made with.
+// Citation citing an Astia Image counts as one too, such as one made in the
+// app: it has no reference to resolve, and its Link is the Mark stored on
+// it.
 
 import type { Database, SQLQueryBindings } from 'bun:sqlite';
 
@@ -39,12 +40,14 @@ interface CitationDbRow {
 }
 
 // A Citation as the panel and the Scan viewer read it: its Church-book
-// reference, or for one made in the app, its Link.
+// reference, or for one citing an Astia Image, the Link stored on it.
 interface Cited {
   row: CitationDbRow;
   book: ChurchBookRef | null;
-  made: Link | null;
+  stored: EntryLink | null;
 }
+
+type EntryLink = Link & { precision: 'entry' };
 
 // Where an entry is cited in the app, and what it says.
 export interface CiteTarget {
@@ -55,25 +58,21 @@ export interface CiteTarget {
   text: string | null;
 }
 
-// A Citation made in the app's Link: the Mark at the entry it was made
-// with. Null for any other.
-function madeLink(row: CitationDbRow, book: ChurchBookRef | null): Link | null {
-  const { madeInApp, link } = row.annotation;
-  if (book !== null || !madeInApp || link === null) return null;
-  const { volumeId, volume, image, fileId, box } = link;
+// The Link of a Citation with no Church-book reference: the Mark at the
+// entry stored on it. Null for any other.
+function storedLink(
+  row: CitationDbRow,
+  book: ChurchBookRef | null
+): EntryLink | null {
+  const { link } = row.annotation;
+  if (book !== null || link === null) return null;
+  const { volumeId, volume, image, fileId, box, by } = link;
   if (image === undefined || fileId === undefined || box === undefined) {
     return null;
   }
   const url = viewerUrl(volumeId, fileId);
-  return {
-    volumeId,
-    volume,
-    url,
-    precision: 'entry',
-    image,
-    box,
-    certainty: 'marked'
-  };
+  const certainty = by === 'hand' ? 'marked' : 'vision';
+  return { volumeId, volume, url, precision: 'entry', image, box, certainty };
 }
 
 // Parish · book and years · page, of what the reference gives. Lines break
@@ -115,17 +114,24 @@ function contentOf(url: string | null, text: string | null) {
   };
 }
 
-function toCitation({ row, book, made }: Cited) {
+// Where in its Volume the reference points, or the Image a Citation of
+// one cites.
+function entryText(book: ChurchBookRef | null, stored: EntryLink | null) {
+  if (book !== null) return entryOf(book);
+  return stored === null ? null : `Image\u00a0${stored.image}`;
+}
+
+function toCitation({ row, book, stored }: Cited) {
   const url = linkOf(row.page);
   const citation: CitationRow = {
     id: row.id,
     source: row.source,
     reference: book === null ? null : describeRef(book),
-    entry: book === null ? null : entryOf(book),
+    entry: entryText(book, stored),
     page: row.page,
     url,
     ...contentOf(url, row.text),
-    churchBook: book !== null || made !== null,
+    churchBook: book !== null || stored !== null,
     madeInApp: row.annotation.madeInApp,
     citedPage: book?.page ?? null,
     cited:
@@ -136,15 +142,15 @@ function toCitation({ row, book, made }: Cited) {
   return citation;
 }
 
-// Church books by their first year, a Citation made in the app by its
+// Church books by their first year, a Citation of an Astia Image by its
 // Volume's, then the others in recorded order.
 function isChurchBook(c: Cited) {
-  return c.book !== null || c.made !== null;
+  return c.book !== null || c.stored !== null;
 }
 
 function yearOf(c: Cited) {
   const years =
-    c.made === null ? c.book?.years : volumeYears(c.made.volume).years;
+    c.stored === null ? c.book?.years : volumeYears(c.stored.volume).years;
   return years?.from ?? Infinity;
 }
 
@@ -200,9 +206,8 @@ export function createCitations(db: Database, scans: Scans) {
   const everyPerson = query(
     `WHERE c.scope_type = 'person' ORDER BY c.scope_id, c.sort_order`
   );
-  const madeInVolume = query(
-    `WHERE c.scope_type = 'person' AND c.added_in_app = 1
-       AND c.link_volume_id = ? ORDER BY c.id`
+  const linkedInVolume = query(
+    `WHERE c.scope_type = 'person' AND c.link_volume_id = ? ORDER BY c.id`
   );
   const personExists = db.prepare<{ id: number }, [number]>(
     'SELECT id FROM persons WHERE id = ?'
@@ -227,7 +232,7 @@ export function createCitations(db: Database, scans: Scans) {
   function cited(rows: CitationDbRow[]) {
     return rows.map((row): Cited => {
       const book = bookOf(row);
-      return { row, book, made: madeLink(row, book) };
+      return { row, book, stored: storedLink(row, book) };
     });
   }
 
@@ -255,12 +260,28 @@ export function createCitations(db: Database, scans: Scans) {
     });
   }
 
-  // The Citations made in the app in the Volume, as stored.
-  function madeIn(volumeId: string) {
-    return cited(madeInVolume.all(volumeId)).flatMap((c): VolumeCitation[] =>
-      c.made === null
-        ? []
-        : [{ personId: c.row.personId, citation: toCitation(c), link: c.made }]
+  // The parishes the dataset's Church-book references cite.
+  function parishes() {
+    return cited(everyPerson.all()).map((c) => c.book?.parish ?? null);
+  }
+
+  // A stored Link, naming its archive as a resolved one does.
+  async function withArchive(link: Link): Promise<Link> {
+    const archive = await scans.archiveTitleOf(link.volumeId, parishes());
+    return archive === null ? link : { ...link, archive };
+  }
+
+  // The Citations of Images in the Volume, with no Church-book reference.
+  async function storedIn(volumeId: string) {
+    const rows = cited(linkedInVolume.all(volumeId)).flatMap((c) =>
+      c.stored === null ? [] : [{ c, link: c.stored }]
+    );
+    return await Promise.all(
+      rows.map(async ({ c, link }): Promise<VolumeCitation> => ({
+        personId: c.row.personId,
+        citation: toCitation(c),
+        link: await withArchive(link)
+      }))
     );
   }
 
@@ -275,7 +296,7 @@ export function createCitations(db: Database, scans: Scans) {
       hit = entry;
     }
     const church = await hit.rows;
-    const ours = madeIn(volumeId);
+    const ours = await storedIn(volumeId);
     return church === null && ours.length === 0
       ? null
       : [...(church ?? []), ...ours];
@@ -293,9 +314,12 @@ export function createCitations(db: Database, scans: Scans) {
     // A line for each of the person's Church-book references, as each
     // resolves: Astia is slow, so the first needn't wait for the last.
     async *linksOf(personId: number) {
-      function lineOf({ row, book, made: link }: Cited) {
-        if (link !== null) {
-          return Promise.resolve({ citationId: row.id, links: [link] });
+      function lineOf({ row, book, stored }: Cited) {
+        if (stored !== null) {
+          return withArchive(stored).then((link) => ({
+            citationId: row.id,
+            links: [link]
+          }));
         }
         return book === null
           ? null
@@ -338,8 +362,8 @@ export function createCitations(db: Database, scans: Scans) {
     },
 
     // The Church-book references resolving into the Volume, one per person
-    // and record, then the Citations made in the app there; null when the
-    // Volume is in none of the dataset's parishes and has none made in it.
+    // and record, then the Citations of its Images; null when the Volume is
+    // in none of the dataset's parishes and none cites its Images.
     // Throws when Astia can't be reached.
     inVolume,
 
@@ -352,10 +376,7 @@ export function createCitations(db: Database, scans: Scans) {
       target: CiteTarget
     ): Promise<VolumeCitation | { rejected: string } | null> {
       if (personExists.get(personId) === null) return null;
-      const parishes = cited(everyPerson.all()).map(
-        (c) => c.book?.parish ?? null
-      );
-      const checked = await scans.imageToCite(target, parishes);
+      const checked = await scans.imageToCite(target, parishes());
       if ('rejected' in checked) return checked;
       const { volumeId, image } = target;
       const there = await inVolume(volumeId);
@@ -376,7 +397,11 @@ export function createCitations(db: Database, scans: Scans) {
         text: oneLine(target.text)
       });
       const [c] = cited([byId.get(id)!]);
-      return { personId, citation: toCitation(c!), link: c!.made! };
+      return {
+        personId,
+        citation: toCitation(c!),
+        link: await withArchive(c!.stored!)
+      };
     },
 
     // Deletes a Citation made in the app; null when there's no such
