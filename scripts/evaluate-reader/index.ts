@@ -20,7 +20,7 @@ import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { openAstia } from '@server/citation-scans/astia';
-import { withoutStale } from '@server/citation-scans/locate';
+import { withoutStale } from '@server/citation-scans/filming';
 import { cachedReader } from '@server/citation-scans/reader';
 import type { ImageRef, Question, Reader } from '@server/citation-scans/reader';
 import { openScanCache } from '@server/citation-scans/scan-cache';

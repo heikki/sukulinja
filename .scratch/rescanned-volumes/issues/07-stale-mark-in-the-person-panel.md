@@ -18,3 +18,5 @@ After switching to a re-scanned Volume's new filming (asked in the Scan viewer, 
 
 - **Shape**: a flag on the estimated Link, carrying the old Image number ("marked on a replaced filming, was Image 247"), so the panel needs no separate request.
 - **Which pins**: hand marks only. Matches can be run again by the script.
+
+**2026-10-22:** resolution now reads a Volume's pins split by filming (`splitVolume` in `src/server/citation-scans/filming.ts`). If this is built, the old Image number for the flag comes from the split's `stale.records`, and for a Reference pin from `leavesOut`.

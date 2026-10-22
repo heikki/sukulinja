@@ -35,8 +35,8 @@ async function savePage(
   image: number,
   by: 'hand' | 'vision' = 'vision'
 ) {
-  const scope = await facts.scopeOf('v', true);
-  await facts.savePagePin(scope, ref(null, page), { volume: 'V', image, by });
+  const filming = await facts.filmingOf('v');
+  await facts.savePagePin(filming, ref(null, page), { volume: 'V', image, by });
 }
 
 // ---------------------------------------------------------------- writing
