@@ -13,7 +13,7 @@ It reports and never corrects: the app renders the records as recorded.
 - The same citation more than once on a person or family (same source and page; same text too).
 - A person in the same family twice, or a child born before a parent.
 - A death before a birth, or a fact dated after death.
-- Lines the import couldn't store (see `../../gedcom-export/issues/02-store-every-kind-of-data.md`), so a new export's gaps show in the same report.
+- Lines the import couldn't store (stored since 2dfda4d), so a new export's gaps show in the same report.
 
 ## Open questions
 
