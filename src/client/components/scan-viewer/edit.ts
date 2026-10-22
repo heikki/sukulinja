@@ -1,12 +1,11 @@
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { customElement, state } from 'lit/decorators.js';
 
 import { ApiError } from '@client/dataset-api';
 import { appState } from '@client/state';
 import type { AppState, LeaveAnswer, LinkOpen } from '@client/state';
-import type { PersonRow } from '@common/types';
 
 import { formatName } from '../tree-view/renderer';
 import { scanEditStyles } from './edit-styles';
@@ -22,14 +21,17 @@ function stop(e: Event) {
 // Discard or Save. A Box waiting to be discarded, or a Citation made in
 // the app to be deleted, asks to confirm. Pointer and wheel input stays
 // here, so a press doesn't pan. A Mark's Box is on a Record pin shared by
-// everyone citing the record, whom it names from `persons`.
+// everyone citing the record, whom it names from the dataset's people.
 @customElement('sl-scan-edit')
 export class ScanEditElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanEditStyles];
 
   @consume({ context: appState }) private readonly state!: AppState;
 
-  @property({ attribute: false }) persons = new Map<number, PersonRow>();
+  // The dataset's people, who name the citations.
+  private get persons() {
+    return this.state.chart.people.get().persons;
+  }
 
   @state() private saving = false;
   // The server's words when a save was refused.

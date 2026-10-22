@@ -8,6 +8,7 @@ import { focusRingStyles } from '@client/focus-ring';
 import { appState } from '@client/state';
 import type {
   AppState,
+  Chart,
   LinkOpen,
   LinkStatus,
   Source,
@@ -21,7 +22,7 @@ import './fold';
 import './header';
 
 import { householdsOf, lifeText } from './family';
-import type { FamilyIndices, Household, Relative } from './family';
+import type { Household, Relative } from './family';
 import { factLabel, factText, headingOf, siteName, titleText } from './helpers';
 import { personPanelStyles } from './styles';
 
@@ -143,16 +144,17 @@ function crossed(life: string) {
     >`;
 }
 
-// A relative's row picks them, and a double-click centers the chart on them.
-function renderRelative(r: Relative, ask: (event: string, id: number) => void) {
+// A relative's row selects them, and a double-click builds the chart
+// around them.
+function renderRelative(r: Relative, chart: Chart) {
   const life = lifeText(r.person);
   return html`<button
     class="relative"
     @click=${() => {
-      ask('pick', r.person.id);
+      chart.select(r.person.id);
     }}
     @dblclick=${() => {
-      ask('center', r.person.id);
+      chart.makeRoot(r.person.id);
     }}
   >
     <span class="relation">${r.relation}</span>
@@ -163,9 +165,8 @@ function renderRelative(r: Relative, ask: (event: string, id: number) => void) {
   </button>`;
 }
 
-// The Selected person's family, events and sources, beside the chart. A
-// relative's row asks for them with `pick`, and for the chart built around
-// them with `center`. Record links open outside the app (the desktop shell
+// The Selected person's family, events and sources, beside the chart.
+// Record links open outside the app (the desktop shell
 // hands target=_blank to the browser); a Link opens in the Scan viewer,
 // and the source it shows is marked and brought into view.
 @customElement('sl-person-panel')
@@ -174,8 +175,6 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
 
   @consume({ context: appState }) private readonly state!: AppState;
 
-  // The chart's persons and families, which name the person's households.
-  @property({ attribute: false }) indices: FamilyIndices | null = null;
   // Whether the dock holding the panel is open.
   @property({ type: Boolean }) docked = false;
 
@@ -359,14 +358,12 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
     `;
   }
 
-  private readonly ask = (event: string, id: number) => {
-    this.dispatchEvent(new CustomEvent(event, { detail: { id } }));
-  };
-
   private renderFamily(households: Household[]) {
     return households.map(
       (h) => html`
-        <div class="family">${h.map((r) => renderRelative(r, this.ask))}</div>
+        <div class="family">
+          ${h.map((r) => renderRelative(r, this.state.chart))}
+        </div>
       `
     );
   }
@@ -413,8 +410,7 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
     const d = selected.details.get();
     if (d === null) return html`<div class="body muted">Loading…</div>`;
     const stale = d.id !== selected.id.get();
-    const households =
-      this.indices === null ? [] : householdsOf(d.id, this.indices);
+    const households = householdsOf(d.id, this.state.chart.people.get());
     return html`
       <div class="body ${stale ? 'stale' : ''}">
         ${

@@ -74,7 +74,7 @@ export interface Viewer {
   // A person picked in the viewer: their id when they aren't the Selected
   // person, for the picker to ask for them.
   pick: (row: VolumeCitation) => number | null;
-  // Called by `state.select` once `id` is selected.
+  // Called by the chart once `id` is selected.
   selected: (id: number) => void;
   // Marks a Match's Image, throwing ApiError if it's refused.
   confirm: (row: VolumeCitation) => Promise<void>;

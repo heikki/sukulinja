@@ -6,9 +6,8 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type { Point, Transform, Viewport } from '@client/pan-zoom';
 import { appState } from '@client/state';
 import type { AppState } from '@client/state';
-import type { Box, PersonRow } from '@common/types';
+import type { Box } from '@common/types';
 
-import type { FamilyIndices } from '../person-panel/family';
 import { entriesOn, rowName } from './citations';
 import { citeChoices, citingImage, searchable } from './cite';
 import { scanLayerStyles } from './edit-styles';
@@ -70,7 +69,7 @@ function dragged(start: Box, grip: Grip, d: Point, size: Viewport): Box {
 // Editing the current source's Link over the scan: the menu a right-click
 // opens (`openMenu`), the Volumes opened from it, a new entry Box put where
 // the menu opened, for the source or for a new Citation of someone in the
-// Selected person's family (`indices`) or found by search, and the pending
+// Selected person's family or found by search, and the pending
 // Box with handles to move and resize it. Presses on
 // anything of its own stay here, so they don't pan the scan; elsewhere the
 // scan pans as ever. `canEdit` is false until the full Image is shown,
@@ -84,8 +83,10 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
   @property({ attribute: false }) view: Transform | null = null;
   @property({ attribute: false }) frame: Frame | null = null;
   @property({ type: Boolean }) canEdit = false;
-  @property({ attribute: false }) persons = new Map<number, PersonRow>();
-  @property({ attribute: false }) indices: FamilyIndices | null = null;
+  // The dataset's people, who name the citations.
+  private get persons() {
+    return this.state.chart.people.get().persons;
+  }
 
   @state() private popup: { at: Point; onBox: boolean; show: Popup } | null =
     null;
@@ -259,9 +260,9 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     const selected = this.state.selected.id.get();
     const left = this.citingHere();
     const family =
-      selected === null || this.indices === null
+      selected === null
         ? []
-        : citeChoices(selected, this.indices, left);
+        : citeChoices(selected, this.state.chart.people.get(), left);
     const items = [
       ...family.map((c) => ({
         label: c.label,

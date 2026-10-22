@@ -4,12 +4,12 @@ What the screens of a dataset share, such as the **Selected person** and their L
 
 App state now lives in `@lit-labs/signals` stores:
 
-- **One store per concern,** in `src/client/state/`, each named for what it holds rather than who reads it: `selected` holds the Selected person, their details and their Links, and `viewer` what the **Scan viewer** shows.
+- **One store per concern,** in `src/client/state/`, each named for what it holds rather than who reads it: `selected` holds the Selected person, their details and their Links, `viewer` what the **Scan viewer** shows, and `chart` the dataset's people and families and **Root**. Screens read the people from `chart` rather than having them passed down.
 - **Elements read signals in `render()`** through the `SignalWatcher` mixin, and re-render when what they read changes.
 - **Stores change through verbs, not events.** A signal's readers can only `get` it. A verb that touches two stores orders them itself, and no `effect()` is used where a verb can do it.
-- **Dependencies go one way between stores:** `viewer` reads `selected`, never the other way round.
+- **Dependencies go one way between stores:** `viewer` reads `selected`, and `chart` both, never the other way round.
 - **Built per dataset.** `openAppState(api)` builds the stores over the dataset's Dataset API, and the app provides them with one `@lit/context`, `appState`. Opening another dataset builds a fresh set, so nothing needs resetting. Tests build one over `memoryDatasetApi`.
-- **`state.select(id)` is the one way to select someone.** It moves `selected`, then tells `viewer`, which goes on with a person picked in it or closes (ADR-0011).
+- **`state.chart.select(id)` is the one way to select someone.** It waits on a change pending in the Scan viewer, moves `selected`, then tells `viewer`, which goes on with a person picked in it or closes; someone the chart doesn't draw becomes Root (ADR-0011). `makeRoot`, `pick` (a person picked in the Scan viewer) and `follow` (Back and Forward) order the same steps. The element drawing the chart attaches as the store's `ChartView`: it says who it draws, and is told where to move, when to open the dock and what to write into the URL, so the order is tested without the DOM.
 
 ## Considered options
 

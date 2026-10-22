@@ -1,7 +1,6 @@
 import { html, nothing } from 'lit';
 
 import type { Viewer } from '@client/state';
-import type { PersonRow } from '@common/types';
 
 import type { Loading } from './frame';
 
@@ -9,13 +8,9 @@ import './rescan';
 
 // When Astia re-scanned the Volume, along the top of the stage over any
 // Image, shown or failed: what switching to the new filming leaves out,
-// named from `persons`, and the choice; `retry` loads the Image again once
-// switched.
-function rescanNote(persons: Map<number, PersonRow>, retry: () => void) {
-  return html`<sl-scan-rescan
-    .persons=${persons}
-    .retry=${retry}
-  ></sl-scan-rescan>`;
+// and the choice; `retry` loads the Image again once switched.
+function rescanNote(retry: () => void) {
+  return html`<sl-scan-rescan .retry=${retry}></sl-scan-rescan>`;
 }
 
 // Over the stage while the Image loads, or when it can't, with a way to
@@ -48,11 +43,11 @@ function loadingNote(
 // a failed one can't be asked for again.
 export function stageNote(
   viewer: Viewer,
-  shown: { loading: Loading; over: boolean; persons: Map<number, PersonRow> },
+  shown: { loading: Loading; over: boolean },
   retry: () => void
 ) {
   const old = viewer.oldFilming.get();
   const loading = loadingNote(shown.loading, shown.over, old ? null : retry);
   if (viewer.rescan.get() === null) return loading;
-  return html`${loading}${rescanNote(shown.persons, retry)}`;
+  return html`${loading}${rescanNote(retry)}`;
 }

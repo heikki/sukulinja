@@ -5,11 +5,14 @@ import { createContext } from '@lit/context';
 
 import type { DatasetApi } from '@client/dataset-api';
 
+import { openChart } from './chart';
+import type { Chart } from './chart';
 import { openSelected } from './selected';
 import type { Selected } from './selected';
 import { openViewer } from './viewer';
 import type { Viewer } from './viewer';
 
+export type { Chart, ChartView, People, UrlView } from './chart';
 export type { Readable, Selected } from './selected';
 export type { LinkStatus, Source, SourceGroup } from './sources';
 export type {
@@ -26,8 +29,9 @@ export interface AppState {
   // What the Scan viewer shows; it depends on `selected`, not the other
   // way round.
   viewer: Viewer;
-  // The one way to select someone: moves `selected`, then the viewer.
-  select: (id: number) => void;
+  // The people, Root, and selecting someone: it moves `selected`, then
+  // the viewer.
+  chart: Chart;
 }
 
 export function openAppState(api: DatasetApi): AppState {
@@ -37,11 +41,7 @@ export function openAppState(api: DatasetApi): AppState {
     api,
     selected,
     viewer,
-    select(id) {
-      if (id === selected.id.get()) return;
-      void selected.select(id);
-      viewer.selected(id);
-    }
+    chart: openChart(api, selected, viewer)
   };
 }
 

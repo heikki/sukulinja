@@ -160,7 +160,7 @@ async function settle() {
 // The app state over `api`, with `id` selected and their Links in.
 async function selecting(id: number, api = dataset()) {
   const state = openAppState(api);
-  state.select(id);
+  state.chart.select(id);
   await settle();
   return { api, state, viewer: state.viewer };
 }
@@ -254,17 +254,16 @@ test('step walks the linked sources in order, only while they can be seen', asyn
 test('selecting someone else closes the viewer', async () => {
   const { state, viewer } = await selecting(1);
   viewer.open(S11);
-  state.select(2);
+  state.chart.select(2);
   expect(viewer.source.get()).toBe(null);
   expect(viewer.away.get()).toBe(false);
 });
 
-test('picking someone in the viewer goes on with their citation once selected', async () => {
+test('picking someone in the viewer selects them, and goes on with their citation', async () => {
   const { state, viewer } = await selecting(1);
   viewer.open(S11);
-  expect(viewer.pick(ROW_21)).toBe(2);
-  expect(viewer.source.get()?.citation.id).toBe(11);
-  state.select(2);
+  state.chart.pick(ROW_21);
+  expect(state.selected.id.get()).toBe(2);
   expect(viewer.source.get()).toEqual({ citation: C21, link: VISION_21 });
   // The Selected person's own row opens at once, back on its Image.
   viewer.show(30);
@@ -278,9 +277,9 @@ test('a pick for one person is dropped when another is selected', async () => {
   const { state, viewer } = await selecting(1);
   viewer.open(S11);
   viewer.pick(ROW_21);
-  state.select(3);
+  state.chart.select(3);
   expect(viewer.source.get()).toBe(null);
-  state.select(2);
+  state.chart.select(2);
   expect(viewer.source.get()).toBe(null);
 });
 
@@ -464,14 +463,19 @@ test('a refused save leaves the way out waiting', async () => {
   expect(viewer.source.get()).toEqual(S13);
 });
 
-test('selecting someone else drops the pending change', async () => {
+test('selecting someone else waits on the pending change, then closes', async () => {
   const { state, viewer } = await selecting(1);
   viewer.open(S11);
   await settle();
   viewer.setBox(BOX);
-  state.select(2);
-  expect(viewer.source.get()).toBe(null);
-  expect(viewer.pending.get()).toBe(null);
+  state.chart.select(2);
+  expect(viewer.leaving.get()).toBe(true);
+  await viewer.answer('keep');
+  expect(state.selected.id.get()).toBe(1);
+  state.chart.select(2);
+  await viewer.answer('discard');
+  expect(state.selected.id.get()).toBe(2);
+  expect([viewer.source.get(), viewer.pending.get()]).toEqual([null, null]);
   expect(viewer.leaving.get()).toBe(false);
 });
 
@@ -524,7 +528,7 @@ test('a Discard needs a Box, and moving off its Image drops it', async () => {
   await settle();
   viewer.discard();
   expect(viewer.discarding.get()).toBe(false);
-  state.select(2);
+  state.chart.select(2);
   await settle();
   viewer.open({ citation: C21, link: VISION_21 });
   await settle();
