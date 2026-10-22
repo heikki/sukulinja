@@ -90,6 +90,7 @@ function row(personId: number, link: Link): VolumeCitation {
       text: null,
       churchBook: true,
       madeInApp: false,
+      markKey: `citation ${personId}`,
       citedPage: null,
       cited: null
     },

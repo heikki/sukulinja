@@ -200,14 +200,14 @@ export class ScanEditElement extends SignalWatcher(LitElement) {
     `;
   }
 
-  // The others in the Volume citing the same record, by its URL, whose Box
-  // moves or goes with this one. A Citation made in the app is its own.
+  // The others in the Volume sharing this one's Mark, whose Box moves or
+  // goes with it.
   private also(source: LinkOpen, verb: string) {
     const rows = this.state.viewer.citations.get();
-    const { url, id, madeInApp } = source.citation;
-    if (url === null || madeInApp || !Array.isArray(rows)) return nothing;
+    const { markKey, id } = source.citation;
+    if (!Array.isArray(rows)) return nothing;
     const names = rows
-      .filter((r) => r.citation.url === url && r.citation.id !== id)
+      .filter((r) => r.citation.markKey === markKey && r.citation.id !== id)
       .map((r) => {
         const person = this.persons.get(r.personId);
         return person === undefined ? null : formatName(person);

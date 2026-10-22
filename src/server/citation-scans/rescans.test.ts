@@ -68,8 +68,22 @@ const LOCAL = {
 // What v1's re-scan leaves out of SHIPPED and LOCAL.
 const STALE: StalePin[] = [
   { kind: 'page', from: 'shipped', by: 'hand', image: 2, pages: [3, 4] },
-  { kind: 'record', from: 'local', by: 'vision', image: 6, record: 7 },
-  { kind: 'reference', from: 'local', by: 'hand', image: 4, url: 'ref-a' },
+  {
+    kind: 'record',
+    from: 'local',
+    by: 'vision',
+    image: 6,
+    record: 7,
+    markKey: 'record 7'
+  },
+  {
+    kind: 'reference',
+    from: 'local',
+    by: 'hand',
+    image: 4,
+    url: 'ref-a',
+    markKey: 'url ref-a'
+  },
   { kind: 'rejection', from: 'local', by: 'hand', image: 9, url: 'ref-d' }
 ];
 
@@ -147,7 +161,8 @@ test('tells of a re-scan, and what switching leaves out, without switching', asy
     from: 'local',
     by: 'hand',
     image: 7,
-    record: 8
+    record: 8,
+    markKey: 'record 8'
   };
   expect(rescan).toEqual({
     cached: 10,

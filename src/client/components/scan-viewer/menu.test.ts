@@ -29,6 +29,7 @@ function citation(id: number, madeInApp: boolean): CitationRow {
     text: null,
     churchBook: true,
     madeInApp,
+    markKey: `citation ${id}`,
     citedPage: null,
     cited: null
   };

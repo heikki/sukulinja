@@ -112,6 +112,9 @@ export interface CitationRow {
   // Made in the app, on an Astia Image: it has no Church-book reference,
   // and its Link is the Mark it was made with.
   madeInApp: boolean;
+  // Citations with the same markKey share one Mark and its Box: those of
+  // one record. A Citation with no Church-book reference has its own.
+  markKey: string;
   // The church-book page cited, which a Mark places.
   citedPage: number | null;
   // What a Church-book reference cites, as far as it can be read; null for
@@ -280,6 +283,8 @@ export interface StalePin {
   pages?: number[];
   record?: number;
   url?: string;
+  // A Record or Reference pin's: the markKey of the Citations it pins.
+  markKey?: string;
 }
 
 // GET /astia/volumes/:id/rescan: Astia's re-scan of the Volume not yet

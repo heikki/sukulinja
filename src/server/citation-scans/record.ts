@@ -300,7 +300,12 @@ export function churchBookRefOf(page: string | null, text: string | null) {
 // What a Mark of the reference is written for: every citation of its
 // record, for one with a Record number, else every citation of its URL.
 export function markKey(ref: { url: string; recordId: number | null }) {
-  return ref.recordId === null ? `url ${ref.url}` : `record ${ref.recordId}`;
+  return ref.recordId === null ? `url ${ref.url}` : recordMarkKey(ref.recordId);
+}
+
+// The markKey of every reference to the record.
+export function recordMarkKey(recordId: number) {
+  return `record ${recordId}`;
 }
 
 // The reference a citation's page makes, as far as a Mark needs it: its

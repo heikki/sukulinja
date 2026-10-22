@@ -175,6 +175,7 @@ export function memoryDatasetApi(
               text: at.text,
               churchBook: true,
               madeInApp: true,
+              markKey: `citation ${made}`,
               citedPage: null,
               cited: null
             },

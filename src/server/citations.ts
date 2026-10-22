@@ -31,6 +31,7 @@ import type { BoxAt, MarkTarget } from './citation-scans/pins';
 import {
   churchBookRefOf,
   citationText,
+  markKey,
   readRecord
 } from './citation-scans/record';
 import type { ChurchBookRef } from './citation-scans/record';
@@ -139,6 +140,7 @@ function toCitation({ row, book, stored }: Cited) {
     ...contentOf(url, row.text),
     churchBook: book !== null || stored !== null,
     madeInApp: row.annotation.madeInApp,
+    markKey: book === null ? `citation ${row.id}` : markKey(book),
     citedPage: book?.page ?? null,
     cited:
       book === null

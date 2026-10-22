@@ -10,6 +10,7 @@ import type { Astia } from './astia';
 import { isCurrent } from './locate';
 import type { Pins } from './locate';
 import type { LocalPins } from './pin-files';
+import { markKey, recordMarkKey } from './record';
 import type { ScanCache } from './scan-cache';
 
 // The pins as kept: shipped with the app, and the data folder's own, in
@@ -59,7 +60,8 @@ function volumeEntries(volumes: Pins['volumes'], from: StalePin['from']) {
         kind: 'record' as const,
         from,
         by: provenance(pin),
-        record: pin.record
+        record: pin.record,
+        markKey: recordMarkKey(pin.record)
       }
     }));
     return [...pages, ...records];
@@ -78,7 +80,8 @@ function localEntries(local: LocalPins): Entry[] {
               kind: 'reference' as const,
               from: 'local' as const,
               by: provenance(pin),
-              url
+              url,
+              markKey: markKey({ url, recordId: null })
             }
           }
         ]
