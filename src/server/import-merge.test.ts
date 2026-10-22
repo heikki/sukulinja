@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { ImportReview } from '@common/types';
 
+import { openAnnotations } from './annotations';
 import { DatasetRegistry } from './dataset-registry';
 import { ImportCancelled, importDataset } from './import-dataset';
 
@@ -80,7 +81,7 @@ async function importTree(
 interface CitationOut {
   xref: string;
   page: string | null;
-  imported_page: string | null;
+  original_page: string | null;
   link_image: number | null;
   link_box_left: number | null;
   added_in_app: number;
@@ -90,7 +91,7 @@ function citations(): CitationOut[] {
   return registry
     .open('tree')
     .query<CitationOut, []>(
-      `SELECT p.xref, c.page, c.imported_page, c.link_image, c.link_box_left,
+      `SELECT p.xref, c.page, c.original_page, c.link_image, c.link_box_left,
          c.added_in_app
        FROM citations c JOIN persons p ON p.id = c.scope_id
        WHERE c.scope_type = 'person' ORDER BY c.id`
@@ -111,15 +112,14 @@ function citationIds(xref: string) {
 
 // A hand Mark on Image 12 of Volume v1, as the Scan viewer writes it.
 function mark(id: number) {
-  registry.open('tree').run(
-    `UPDATE citations SET imported_page = page, page = ?,
-         link_volume_id = 'v1', link_volume = 'Juva 1790-1796',
-         link_image = 12, link_file_id = 'f12', link_box_left = 10,
-         link_box_top = 20, link_box_width = 300, link_box_height = 40,
-         link_by = 'hand'
-       WHERE id = ?`,
-    [ASTIA, id]
-  );
+  openAnnotations(registry.open('tree')).swap([id], {
+    volumeId: 'v1',
+    volume: 'Juva 1790-1796',
+    image: 12,
+    fileId: 'f12',
+    box: { left: 10, top: 20, width: 300, height: 40 },
+    by: 'hand'
+  });
 }
 
 // A citation made in the app on the person, with its Mark.
@@ -128,26 +128,36 @@ function citeInApp(xref: string, page: string) {
   const person = db
     .query<{ id: number }, [string]>('SELECT id FROM persons WHERE xref = ?')
     .get(xref)!;
-  const res = db.run(
-    `INSERT INTO citations (scope_type, scope_id, source_id, page,
-       added_in_app, sort_order)
-     VALUES ('person', ?, (SELECT id FROM sources), ?, 1, 9)`,
-    [person.id, page]
+  const source = db.query<{ id: number }, []>('SELECT id FROM sources').get()!;
+  const id = openAnnotations(db).insert(
+    {
+      scopeType: 'person',
+      scopeId: person.id,
+      sourceId: source.id,
+      sortOrder: 9,
+      page,
+      event: null,
+      role: null,
+      quality: null,
+      dataDate: null,
+      text: null
+    },
+    { link: null, originalPage: null, madeInApp: true }
   );
   db.run(
     "INSERT INTO notes (owner_type, owner_id, text) VALUES ('citation', ?, 'Found in the scan')",
-    [Number(res.lastInsertRowid)]
+    [id]
   );
-  mark(Number(res.lastInsertRowid));
+  mark(id);
 }
 
 const MARKED = {
   page: ASTIA,
-  imported_page: PAGE.a,
+  original_page: PAGE.a,
   link_image: 12,
   link_box_left: 10
 };
-const PLAIN = { imported_page: null, link_image: null, link_box_left: null };
+const PLAIN = { original_page: null, link_image: null, link_box_left: null };
 
 test('a newer export adds its people and citations, and a Mark stays on its citation', async () => {
   await importTree(tree([MATTI]));
@@ -198,7 +208,7 @@ test('a citation made in the app follows its person by UID', async () => {
   expect(citations().at(-1)).toEqual({
     xref: '@I9@',
     page: ASTIA,
-    imported_page: PAGE.c,
+    original_page: PAGE.c,
     link_image: 12,
     link_box_left: 10,
     added_in_app: 1
@@ -229,7 +239,7 @@ test('a citation made in the app that the export now has gives it its Mark', asy
     {
       xref: '@I1@',
       page: ASTIA,
-      imported_page: PAGE.c,
+      original_page: PAGE.c,
       link_image: 12,
       link_box_left: 10,
       added_in_app: 0

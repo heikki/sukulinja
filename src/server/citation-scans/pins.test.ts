@@ -139,7 +139,7 @@ test('a Mark is written into every citation of the record, which then cites the 
   await pins.recordMark(ref(150, 21), { ...at('a', 11), box: BOX }, linked());
   const rows = three
     .query(
-      'SELECT page, imported_page, link_image, link_box_left, link_by FROM citations ORDER BY id'
+      'SELECT page, original_page, link_image, link_box_left, link_by FROM citations ORDER BY id'
     )
     .all();
   const astia =
@@ -147,28 +147,28 @@ test('a Mark is written into every citation of the record, which then cites the 
   expect(rows).toEqual([
     {
       page: astia,
-      imported_page: ref(150).url,
+      original_page: ref(150).url,
       link_image: 11,
       link_box_left: 100,
       link_by: 'hand'
     },
     {
       page: astia,
-      imported_page: `${ref(150).url}&lang=fi`,
+      original_page: `${ref(150).url}&lang=fi`,
       link_image: 11,
       link_box_left: 100,
       link_by: 'hand'
     },
     {
       page: astia,
-      imported_page: ref(150).url,
+      original_page: ref(150).url,
       link_image: 11,
       link_box_left: 100,
       link_by: 'hand'
     },
     {
       page: ref(160).url,
-      imported_page: null,
+      original_page: null,
       link_image: null,
       link_box_left: null,
       link_by: null
@@ -183,18 +183,18 @@ test('a Mark is written into every citation of the record, which then cites the 
   expect(await pins.recordDiscard(ref(150, 21), spot('a', 11))).toBe(true);
   expect(
     three
-      .query('SELECT page, imported_page, link_by FROM citations ORDER BY id')
+      .query('SELECT page, original_page, link_by FROM citations ORDER BY id')
       .all()
   ).toEqual([
-    { page: ref(150).url, imported_page: null, link_by: null },
-    { page: `${ref(150).url}&lang=fi`, imported_page: null, link_by: null },
-    { page: ref(150).url, imported_page: null, link_by: null },
-    { page: ref(160).url, imported_page: null, link_by: null }
+    { page: ref(150).url, original_page: null, link_by: null },
+    { page: `${ref(150).url}&lang=fi`, original_page: null, link_by: null },
+    { page: ref(150).url, original_page: null, link_by: null },
+    { page: ref(160).url, original_page: null, link_by: null }
   ]);
   three.close();
 });
 
-test('a Vision match keeps the page imported, and a Mark of only the Volume too', async () => {
+test('a Vision match keeps its page, and a Mark of only the Volume too', async () => {
   lists = { a: Array.from({ length: 20 }, (_, i) => `f${i + 1}`) };
   const pins = open();
   await pins.recordVision(ref(150), vision('a', 11));
@@ -202,19 +202,19 @@ test('a Vision match keeps the page imported, and a Mark of only the Volume too'
   expect(
     db
       .query(
-        'SELECT page, imported_page, link_volume_id, link_by FROM citations WHERE link_by IS NOT NULL ORDER BY id'
+        'SELECT page, original_page, link_volume_id, link_by FROM citations WHERE link_by IS NOT NULL ORDER BY id'
       )
       .all()
   ).toEqual([
     {
       page: ref(150).url,
-      imported_page: null,
+      original_page: null,
       link_volume_id: 'a',
       link_by: 'vision'
     },
     {
       page: ref(160).url,
-      imported_page: null,
+      original_page: null,
       link_volume_id: 'b',
       link_by: 'hand'
     }

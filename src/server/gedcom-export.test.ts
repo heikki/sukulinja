@@ -131,7 +131,7 @@ describe('exporting a GEDZIP', () => {
     expect(text).toContain('2 AGE 48y');
   });
 
-  test('carries Marks and Vision matches, their Boxes, the pages imported and the citations made in the app', async () => {
+  test('carries Marks and Vision matches, their Boxes, the original pages and the citations made in the app', async () => {
     await importFixture();
     const db = registry.open('a');
     const index =
@@ -189,7 +189,7 @@ describe('exporting a GEDZIP', () => {
         '4 LEFT 10',
         '4 HEIGHT 40',
         '4 WIDTH 300',
-        '2 NOTE Imported page: https://www.myheritage.fi/research/collection-10509/x?itemId=1'
+        '2 NOTE Original page: https://www.myheritage.fi/research/collection-10509/x?itemId=1'
       ].join('\r\n')
     );
     expect(text).toContain(

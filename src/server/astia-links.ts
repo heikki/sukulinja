@@ -2,18 +2,18 @@
 // read back by the import. A link to an Image is an OBJE under the
 // citation, pointing at an OBJE record per Image whose FILE is the Image's
 // JPEG in Astia, titled with its Volume and Image number; the Box is the
-// link's CROP. `imported_page` is a NOTE, and so is a Vision match nobody
-// has checked, a link with no file to point at (only a Volume, or an Image
-// whose file id wasn't known), and a citation made in the app.
+// link's CROP. The original page is a NOTE, and so is a Vision match
+// nobody has checked, a link with no file to point at (only a Volume, or
+// an Image whose file id wasn't known), and a citation made in the app.
 
-import type { CitationRow } from './export-rows';
+import type { Annotation, CitationLink } from './annotations';
 import { line, pointer } from './gedcom-writer';
 import type { OutLine } from './gedcom-writer';
 
 const ASTIA_FILE =
   /^https:\/\/astia\.narc\.fi\/uusiastia\/ws\/getFile\.php\?fileId=(?<fileId>[^&]+)&aineistoId=(?<volumeId>[^&]+)$/u;
 const IMAGE_TITLE = /^(?<volume>.*), Image (?<image>\d+)$/su;
-const IMPORTED_PAGE = 'Imported page: ';
+const ORIGINAL_PAGE = 'Original page: ';
 export const UNCHECKED = 'Found by the vision model, not checked by hand';
 export const ADDED_IN_APP = 'Added in Sukulinja';
 const NO_FILE =
@@ -27,8 +27,8 @@ export function imageTitle(volume: string, image: number) {
   return `${volume}, Image ${image}`;
 }
 
-export function importedPageNote(page: string) {
-  return `${IMPORTED_PAGE}${page}`;
+export function originalPageNote(page: string) {
+  return `${ORIGINAL_PAGE}${page}`;
 }
 
 // The NOTE for a link no FILE points at.
@@ -55,9 +55,9 @@ export function astiaImageOf(file: string, title: string | null) {
   };
 }
 
-export function importedPageOf(note: string) {
-  return note.startsWith(IMPORTED_PAGE)
-    ? note.slice(IMPORTED_PAGE.length)
+export function originalPageOf(note: string) {
+  return note.startsWith(ORIGINAL_PAGE)
+    ? note.slice(ORIGINAL_PAGE.length)
     : null;
 }
 
@@ -71,29 +71,16 @@ export function noFileLinkOf(note: string) {
   };
 }
 
-// ---------------------------------------------------------------- reading
-
-// What a citation's lines say of its link, in the columns it's stored in.
-export interface LinkColumns {
-  importedPage: string | null;
-  volumeId: string;
-  volume: string;
-  image: number | null;
-  fileId: string | null;
-  box: { left: number; top: number; width: number; height: number } | null;
-  by: 'hand' | 'vision';
-}
-
 // ---------------------------------------------------------------- writing
 
-function cropOf(c: CitationRow) {
-  if (c.link_box_left === null) return [];
+function cropOf({ box }: CitationLink) {
+  if (box === undefined) return [];
   return [
     line('CROP', null, [
-      line('TOP', String(c.link_box_top)),
-      line('LEFT', String(c.link_box_left)),
-      line('HEIGHT', String(c.link_box_height)),
-      line('WIDTH', String(c.link_box_width))
+      line('TOP', String(box.top)),
+      line('LEFT', String(box.left)),
+      line('HEIGHT', String(box.height)),
+      line('WIDTH', String(box.width))
     ])
   ];
 }
@@ -129,33 +116,31 @@ export function astiaLinkExport(taken: Set<string>) {
     return xref;
   }
 
-  // The citation's OBJE for its link, and the notes saying what else it is.
-  function linesOf(c: CitationRow) {
-    const added = c.added_in_app === 1 ? [line('NOTE', ADDED_IN_APP)] : [];
-    if (c.link_volume_id === null) return { objects: [], notes: added };
-    const volume = c.link_volume ?? c.link_volume_id;
-    const { link_image: image, link_file_id: fileId } = c;
-    const filed = image !== null && fileId !== null;
-    const objects = filed
-      ? [
-          pointer(
-            'OBJE',
-            recordOf(c.link_volume_id, fileId, imageTitle(volume, image)),
-            cropOf(c)
-          )
-        ]
-      : [];
+  // The link's OBJE, or the NOTE naming it when it has no file.
+  function linkLines(link: CitationLink | null) {
+    if (link === null) return { objects: [], notes: [] };
+    const { volumeId, volume, image, fileId } = link;
+    if (image === undefined || fileId === undefined) {
+      const note = noFileNote(volumeId, volume, image ?? null);
+      return { objects: [], notes: [line('NOTE', note)] };
+    }
+    const record = recordOf(volumeId, fileId, imageTitle(volume, image));
+    return { objects: [pointer('OBJE', record, cropOf(link))], notes: [] };
+  }
+
+  // The citation's OBJE for its link, and the notes saying what else its
+  // Annotation holds.
+  function linesOf({ link, originalPage, madeInApp }: Annotation) {
+    const linked = linkLines(link);
     const notes = [
-      ...(c.imported_page === null
+      ...(originalPage === null
         ? []
-        : [line('NOTE', importedPageNote(c.imported_page))]),
-      ...(filed
-        ? []
-        : [line('NOTE', noFileNote(c.link_volume_id, volume, image))]),
-      ...(c.link_by === 'vision' ? [line('NOTE', UNCHECKED)] : []),
-      ...added
+        : [line('NOTE', originalPageNote(originalPage))]),
+      ...linked.notes,
+      ...(link?.by === 'vision' ? [line('NOTE', UNCHECKED)] : []),
+      ...(madeInApp ? [line('NOTE', ADDED_IN_APP)] : [])
     ];
-    return { objects, notes };
+    return { objects: linked.objects, notes };
   }
 
   return { linesOf, records };

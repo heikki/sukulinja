@@ -32,7 +32,7 @@ function scans(astia: MemoryAstia) {
 // The citation's reference, the dataset citing it.
 function refOf(c: { page: string; text: string }) {
   const cited = db
-    .query('SELECT 1 FROM citations WHERE COALESCE(imported_page, page) = ?')
+    .query('SELECT 1 FROM citations WHERE COALESCE(original_page, page) = ?')
     .get(c.page);
   if (cited === null) {
     db.run(

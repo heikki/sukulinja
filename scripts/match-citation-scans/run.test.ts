@@ -199,9 +199,9 @@ test('saves confirmed matches, which the app shows as vision matches', async () 
   expect(Object.keys(snapshot.references).toSorted()).toEqual(
     [MATTI.page, JUHO.page].toSorted()
   );
-  // A Vision match keeps the page imported.
-  expect(db.query('SELECT imported_page FROM citations').all()).toEqual(
-    CITATIONS.map(() => ({ imported_page: null }))
+  // A Vision match keeps its page.
+  expect(db.query('SELECT original_page FROM citations').all()).toEqual(
+    CITATIONS.map(() => ({ original_page: null }))
   );
 });
 

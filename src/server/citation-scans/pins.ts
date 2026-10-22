@@ -31,6 +31,7 @@ import { join } from 'node:path';
 
 import type { Box } from '@common/types';
 
+import type { CitationLink } from '../annotations';
 import type { Astia } from './astia';
 import { isCurrent } from './locate';
 import type {
@@ -41,7 +42,7 @@ import type {
   ReferencePin,
   VolumePins
 } from './locate';
-import type { CitationLink, Marks, Rejection } from './marks';
+import type { Marks, Rejection } from './marks';
 import {
   fileStamp,
   fillFileIds,
