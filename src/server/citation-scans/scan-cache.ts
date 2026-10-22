@@ -3,7 +3,8 @@
 // first; thumbnails, a few KB each, go straight away, so one never waits
 // behind a full Image. The cache is capped by a size the install sets,
 // kept in the data folder rather than a viewer's cookie, and drops the
-// least recently viewed Images first.
+// least recently viewed Images first. Each Volume's Images, full size and
+// thumbnails side by side, are kept in a folder named by its id.
 //
 // Astia may re-scan a Volume, giving every Image a new file id and none by
 // the old ones. Switching to the new filming means asking for the
@@ -13,7 +14,7 @@
 // which have no one to ask. The app's doesn't, so the Scan viewer can ask
 // first (see rescans.ts).
 
-import { readdir, rename, rm, stat, utimes } from 'node:fs/promises';
+import { readdir, rename, rm, rmdir, stat, utimes } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import type { ScanCacheStatus } from '@/common/types';
@@ -124,15 +125,26 @@ async function touch(path: string) {
   }
 }
 
-// The cached Images; none before the first is fetched. One removed while
-// they're listed is left out.
-async function cachedFiles(dir: string) {
+// The Volumes' folders, each named by its id.
+async function volumeDirs(dir: string) {
   const names = await readdir(dir).catch(() => []);
+  return names.map((name) => join(dir, name));
+}
+
+// The cached Images, in their Volumes' folders; none before the first is
+// fetched. One removed while they're listed is left out.
+async function cachedFiles(dir: string) {
+  const listed = await Promise.all(
+    (await volumeDirs(dir)).map(async (volume) => {
+      const names = await readdir(volume).catch(() => []);
+      return names.map((name) => join(volume, name));
+    })
+  );
   const files = await Promise.all(
-    names
-      .filter((name) => name.endsWith('.jpg'))
-      .map(async (name) => {
-        const path = join(dir, name);
+    listed
+      .flat()
+      .filter((path) => path.endsWith('.jpg'))
+      .map(async (path) => {
         const info = await stat(path).catch(() => null);
         return info === null
           ? null
@@ -168,7 +180,7 @@ async function savedCap(file: string) {
 // ---------------------------------------------------------------- the cache
 
 // The Scan cache of the data folder at `root`, fetching from `astia`: its
-// Images in `.astia-images`, its cap in `settings.local.json`.
+// Images in `.astia-images/<volumeId>`, its cap in `settings.local.json`.
 export function openScanCache({
   astia,
   root,
@@ -181,6 +193,9 @@ export function openScanCache({
   const dir = join(root, '.astia-images');
   const settingsFile = join(root, 'settings.local.json');
   const inQueue = openQueue();
+  function pathOf(volumeId: string, fileId: string) {
+    return join(dir, volumeId, `${fileId}.jpg`);
+  }
   let cap = DEFAULT_CAP_BYTES;
   // Read before anything prunes or reports, so the default never stands in
   // for a cap saved larger.
@@ -204,7 +219,8 @@ export function openScanCache({
     await Promise.all(dropped.map((path) => rm(path, { force: true })));
   }
 
-  // One Astia is known to no longer have isn't asked for.
+  // One Astia is known to no longer have isn't asked for. Writing the file
+  // makes the Volume's folder.
   async function download(volumeId: string, fileId: string, path: string) {
     if (await astia.isGone(volumeId, fileId)) {
       throw new NoImageError(`gone with a re-scan: ${fileId}`);
@@ -227,7 +243,7 @@ export function openScanCache({
     fileId: string,
     signal: AbortSignal
   ) {
-    const path = join(dir, `${fileId}.jpg`);
+    const path = pathOf(at.volumeId, fileId);
     if (await touch(path)) return path;
     if (size === 'thumb') {
       await download(at.volumeId, fileId, path);
@@ -255,7 +271,7 @@ export function openScanCache({
     const now = new Set(await listed(volumeId));
     const gone = before.filter((id) => !now.has(id));
     await Promise.all(
-      gone.map((id) => rm(join(dir, `${id}.jpg`), { force: true }))
+      gone.map((id) => rm(pathOf(volumeId, id), { force: true }))
     );
   }
 
@@ -289,7 +305,7 @@ export function openScanCache({
     async isCached(at: ImageRef) {
       const fileId = (await astia.volumeImages(at.volumeId))[at.image - 1];
       if (fileId === undefined) return false;
-      return await Bun.file(join(dir, `${fileId}.jpg`)).exists();
+      return await Bun.file(pathOf(at.volumeId, fileId)).exists();
     },
 
     async status(): Promise<ScanCacheStatus> {
@@ -307,9 +323,13 @@ export function openScanCache({
       await prune(null);
     },
 
+    // Drops every Image, then the Volumes' folders they leave empty.
     async clear() {
       const files = await cachedFiles(dir);
       await Promise.all(files.map((f) => rm(f.path, { force: true })));
+      const volumes = await volumeDirs(dir);
+      // One a fetch is still writing into stays.
+      await Promise.all(volumes.map((v) => rmdir(v).catch(() => undefined)));
     }
   };
 }

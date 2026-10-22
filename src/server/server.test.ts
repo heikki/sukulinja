@@ -157,7 +157,7 @@ describe('Scan cache setting', () => {
   }
 
   test('changes the cap, keeps it for the install, and clears', async () => {
-    const images = join(root, 'data', '.astia-images');
+    const images = join(root, 'data', '.astia-images', '101');
     await mkdir(images, { recursive: true });
     await writeFile(join(images, 'a.jpg'), new Uint8Array(1000));
     expect(await send('GET')).toEqual({
