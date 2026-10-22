@@ -6,14 +6,15 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { fitTo, Panning, Pinch } from '@client/pan-zoom';
 import type { Point, ScaleBounds, Transform, Viewport } from '@client/pan-zoom';
 import { appState } from '@client/state';
-import type { AppState, LinkOpen, VolumeShown } from '@client/state';
+import type { AppState, LinkOpen } from '@client/state';
 import type { PersonRow } from '@common/types';
 
 import type { FamilyIndices } from '../person-panel/family';
+import { ImageArrival } from './arrival';
+import type { ViewChange } from './arrival';
 import { EdgeWatch } from './edge-watch';
-import { entriesShown, frameForFull, frameForThumb, layers } from './frame';
-import type { Frame, Loading } from './frame';
-import { neighbours, rowsShown } from './helpers';
+import { entriesShown, layers } from './frame';
+import { rowsShown } from './helpers';
 import { stepOf } from './keys';
 import { stageNote } from './note';
 import { Prefetch } from './prefetch';
@@ -40,20 +41,7 @@ const PANNING = {
   dragThresholdPx: 4,
   zoomSettleMs: 200
 };
-// A thumbnail seen for less than this gives way at once: the full Image was
-// nearly there, and a fade would only flash the blur.
-const FADE_AFTER_MS = 100;
-// After a step, a thumbnail waits this long before taking over from the
-// last Image: a cached Image is decoded by then, and the blur would only
-// flash.
-const THUMB_GRACE_MS = 120;
 const ORIGIN: Point = { x: 0, y: 0 };
-
-// The Volume and Image last drawn.
-interface Drawn {
-  volumeId: string | null;
-  image: number;
-}
 
 // The Scan viewer: the Image the viewer store shows, over the chart, to
 // zoom into and step through its Volume. The record itself stays in the
@@ -71,41 +59,28 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
   @property({ attribute: false }) persons = new Map<number, PersonRow>();
   @property({ attribute: false }) indices: FamilyIndices | null = null;
 
-  @state() private loading: Loading = 'loading';
-  @state() private retry = 0;
-  // The shown Image's thumbnail, once loaded: shown blurred until the full
-  // Image arrives.
-  @state() private thumb: Viewport | null = null;
-  // The full Image fading in over the thumbnail.
-  @state() private fading = false;
-  // The full Image drawn: only ever one loaded and decoded, since WebKit
-  // draws an <img> blank while its new src loads or decodes. Until the next
-  // is ready, the last one stays.
-  @state() private drawnUrl: string | null = null;
-  @state() private frame: Frame | null = null;
+  // What's drawn while the Image shown arrives, and the frame it's in.
+  private readonly arrival = new ImageArrival(this, {
+    imageUrl: (volumeId, image, retry) =>
+      this.state.api.imageUrl(volumeId, image, retry),
+    thumbUrl: (volumeId, image) => this.state.api.thumbUrl(volumeId, image),
+    prefetch: new Prefetch(),
+    placeView: (change) => {
+      this.placeView(change);
+    },
+    failed: () => {
+      void this.viewer.imageFailed();
+    }
+  });
   // Null until the first Image of the Volume is fitted.
   @state() private view: Transform | null = null;
   @state() private dragging = false;
   // The key of the entry picked out, on the scan and in the list.
   @state() private hovered: string | null = null;
 
-  private readonly prefetch = new Prefetch();
-  private drawn: Drawn = { volumeId: null, image: 1 };
-  // A new Volume's first Image is fitted afresh; until something of it
-  // arrives, the last Volume's Image stays up.
-  private refit = false;
-  // The full Image being loaded and decoded out of sight, and its URL.
-  private pending: HTMLImageElement | null = null;
-  private wanted: string | null = null;
   // The source last opened; a new one moves focus here once it's shown.
   private opened: LinkOpen | null = null;
   private focusing = false;
-  // Which way the last step went, for which neighbour to prefetch first.
-  private step: 1 | -1 = 1;
-  // When the shown Image's thumbnail appeared, and when the Image was
-  // stepped to.
-  private thumbAt = 0;
-  private steppedAt = 0;
   private readonly panning = new Panning(
     {
       view: () => this.view,
@@ -166,9 +141,6 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     this.pinch.cancel();
     this.panning.dispose();
     this.edge.watch(null);
-    this.prefetch.keep([]);
-    this.pending = null;
-    this.wanted = null;
   }
 
   private get viewer() {
@@ -179,25 +151,16 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     return this.viewer.image.get();
   }
 
-  // A new Volume or Image starts its drawing afresh, over the last Image
-  // until it arrives, and a new source moves focus here.
+  private get frame() {
+    return this.arrival.frame;
+  }
+
+  // A new Volume or Image starts arriving, over the last Image until it
+  // does, and a new source moves focus here.
   override willUpdate() {
     const volumeId = this.viewer.volume.get()?.id ?? null;
-    const { image } = this;
-    const last = this.drawn;
-    this.drawn = { volumeId, image };
-    if (volumeId !== last.volumeId) {
-      this.refit = true;
-      if (volumeId === null) this.clearFrame();
-      this.prefetch.keep([]);
-      this.reset();
-    } else if (image !== last.image) {
-      this.step = image < last.image ? -1 : 1;
-      this.reset();
-      // The one now shown may already be on its way; the rest aren't wanted.
-      if (volumeId !== null) this.keepNear(volumeId, image);
-    }
-    this.load(volumeId);
+    const count = this.viewer.count.get();
+    if (this.arrival.show(volumeId, this.image, count)) this.hovered = null;
     const source = this.viewer.source.get();
     if (source !== this.opened) {
       this.opened = source;
@@ -211,59 +174,6 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
       this.focus({ preventScroll: true });
     }
     this.edge.watch(this.renderRoot.querySelector('.stage'));
-  }
-
-  private reset() {
-    this.steppedAt = performance.now();
-    this.loading = 'loading';
-    this.retry = 0;
-    this.thumb = null;
-    this.hovered = null;
-    this.fading = false;
-  }
-
-  // Starts on the full Image wanted, unless it's on its way already: a new
-  // Image, or a retry.
-  private load(volumeId: string | null) {
-    const url =
-      volumeId === null
-        ? null
-        : this.state.api.imageUrl(volumeId, this.image, this.retry);
-    if (url === this.wanted) return;
-    this.wanted = url;
-    if (url === null) {
-      this.pending = null;
-      return;
-    }
-    const img = new Image();
-    this.pending = img;
-    img.src = url;
-    void this.decode(img, url);
-  }
-
-  // Decoded at full size, which also keeps the first zoom in from stalling
-  // on a scaled-down decode. One superseded meanwhile is dropped.
-  private async decode(img: HTMLImageElement, url: string) {
-    try {
-      await img.decode();
-    } catch {
-      if (this.pending === img) this.onError();
-      return;
-    }
-    if (this.pending === img) this.onLoad(img, url);
-  }
-
-  private keepNear(volumeId: string, image: number) {
-    const near = [image, ...neighbours(image, null, 1)];
-    const { api } = this.state;
-    this.prefetch.keep(near.map((i) => api.imageUrl(volumeId, i, 0)));
-  }
-
-  private prefetchNeighbours() {
-    const id = this.viewer.volume.get()?.id;
-    if (id === undefined) return;
-    const near = neighbours(this.image, this.viewer.count.get(), this.step);
-    this.prefetch.want(near.map((i) => this.state.api.imageUrl(id, i, 0)));
   }
 
   // ------------------------------------------------------------ view
@@ -326,74 +236,20 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     return this.panning.zoomBy(factor, this.toStage(at));
   }
 
-  // Over the last Image it waits out the grace, in case the full one comes
-  // first.
-  private readonly onThumbLoad = (e: Event) => {
-    const img = e.target as HTMLImageElement;
-    const size = { width: img.naturalWidth, height: img.naturalHeight };
-    const wait =
-      this.frame === null
-        ? 0
-        : this.steppedAt + THUMB_GRACE_MS - performance.now();
-    if (wait <= 0) {
-      this.showThumb(size);
+  // As an arrival moves the view: fitted anew when it says so or there's
+  // none yet, else scaled to stay put on screen.
+  private placeView(change: ViewChange | null) {
+    if (change === null) {
+      this.view = null;
       return;
     }
-    const { wanted } = this;
-    setTimeout(() => {
-      if (this.wanted === wanted && this.loading === 'loading') {
-        this.showThumb(size);
-      }
-    }, wait);
-  };
-
-  private clearFrame() {
-    this.frame = null;
-    this.view = null;
-  }
-
-  // The frame a new Image arrives in: none for a new Volume's first.
-  private takeFrame() {
-    const last = this.refit ? null : this.frame;
-    this.refit = false;
-    return last;
-  }
-
-  private showThumb(size: Viewport) {
-    const { frame, fit } = frameForThumb(this.takeFrame(), size);
-    this.frame = frame;
-    if (fit || this.view === null) this.view = this.fitted();
-    this.thumb = size;
-    this.thumbAt = performance.now();
-  }
-
-  private onLoad(img: HTMLImageElement, url: string) {
-    const size = { width: img.naturalWidth, height: img.naturalHeight };
-    const { frame, fit, rescale } = frameForFull(this.takeFrame(), size);
-    this.frame = frame;
-    const view = this.view;
-    if (fit || view === null) {
+    const { view } = this;
+    if (change.fit || view === null) {
       this.view = this.fitted();
-    } else if (rescale !== 1) {
-      this.view = { ...view, scale: view.scale * rescale };
+    } else if (change.rescale !== 1) {
+      this.view = { ...view, scale: view.scale * change.rescale };
     }
-    // Over a thumbnail it fades in; a cached one just appears.
-    this.fading =
-      this.thumb !== null && performance.now() - this.thumbAt > FADE_AFTER_MS;
-    this.drawnUrl = url;
-    this.loading = 'shown';
-    this.prefetchNeighbours();
   }
-
-  // A new Volume's failing leaves nothing of the last one up, and none is
-  // drawn again while the next loads: stepping on past Images that fail
-  // would flash it. Astia may have re-scanned the Volume.
-  private readonly onError = () => {
-    if (this.refit) this.clearFrame();
-    this.drawnUrl = null;
-    this.loading = 'failed';
-    void this.viewer.imageFailed();
-  };
 
   private readonly onWheel = (e: WheelEvent) => {
     e.preventDefault();
@@ -484,10 +340,10 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
 
   private renderNote() {
     const retry = () => {
-      this.retry += 1;
-      this.loading = 'loading';
+      this.arrival.retry();
     };
-    const { loading, view, persons } = this;
+    const { view, persons } = this;
+    const { loading } = this.arrival;
     return stageNote(
       this.viewer,
       { loading, over: view !== null, persons },
@@ -495,10 +351,27 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     );
   }
 
-  private renderImages(volume: VolumeShown) {
+  // The thumbnail, blurred, at `transform`; hidden without one.
+  private renderThumb(transform: string | null) {
+    const { thumb } = this.arrival;
+    if (thumb === null) return nothing;
+    return html`<img
+      class="thumb ${transform === null ? 'hidden' : ''}"
+      src=${thumb.url}
+      alt=""
+      draggable="false"
+      style=${transform === null ? '' : `transform: ${transform}`}
+    />`;
+  }
+
+  private renderImages() {
     const { frame } = this;
-    const { thumb, loading, fading } = this;
-    const shown = layers(this.view, frame, { thumb, loading, fading });
+    const { thumb, loading, fading, drawnUrl } = this.arrival;
+    const shown = layers(this.view, frame, {
+      thumb: thumb?.size ?? null,
+      loading,
+      fading
+    });
     return html`
       ${
         shown.frame === null || frame === null
@@ -510,25 +383,18 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
               }px; transform: ${shown.frame}"
             ></div>`
       }
-      <img
-        class="thumb ${shown.thumb === null ? 'hidden' : ''}"
-        src=${this.state.api.thumbUrl(volume.id, this.image)}
-        alt=""
-        draggable="false"
-        style=${shown.thumb === null ? '' : `transform: ${shown.thumb}`}
-        @load=${this.onThumbLoad}
-      />
+      ${this.renderThumb(shown.thumb)}
       ${
-        this.drawnUrl === null
+        drawnUrl === null
           ? nothing
           : html`<img
               class=${shown.full === null ? 'hidden' : shown.fade ? 'fade' : ''}
-              src=${this.drawnUrl}
+              src=${drawnUrl}
               alt=${`Image ${this.image}`}
               draggable="false"
               style=${shown.frame === null ? '' : `transform: ${shown.frame}`}
               @transitionend=${() => {
-                this.fading = false;
+                this.arrival.fadeEnded();
               }}
             />`
       }
@@ -543,7 +409,7 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
   // shown; the source's own gives way to its change pending, but not to a
   // new Citation's.
   private renderEntries(source: LinkOpen) {
-    if (!entriesShown(this.frame, this.loading)) return nothing;
+    if (!entriesShown(this.frame, this.arrival.loading)) return nothing;
     const { citations, pending } = this.viewer;
     const shown = rowsShown(citations.get(), source, pending.get());
     return html`
@@ -560,7 +426,7 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     `;
   }
 
-  private renderStage(source: LinkOpen, volume: VolumeShown) {
+  private renderStage(source: LinkOpen) {
     return html`
       <div
         class="stage ${this.dragging ? 'dragging' : ''}"
@@ -572,13 +438,13 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
         @dblclick=${this.onDblClick}
         @contextmenu=${this.onContextMenu}
       >
-        ${this.renderImages(volume)} ${this.renderEntries(source)}
+        ${this.renderImages()} ${this.renderEntries(source)}
         ${this.renderNote()}
         <sl-scan-nav .persons=${this.persons}></sl-scan-nav>
         <sl-scan-layer
           .view=${this.view}
           .frame=${this.frame}
-          ?canEdit=${entriesShown(this.frame, this.loading)}
+          ?canEdit=${entriesShown(this.frame, this.arrival.loading)}
           .persons=${this.persons}
           .indices=${this.indices}
         ></sl-scan-layer>
@@ -614,9 +480,7 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     }
     return html`
       <sl-scan-toolbar></sl-scan-toolbar>
-      <div class="body">
-        ${this.renderStage(source, volume)} ${this.renderPeople()}
-      </div>
+      <div class="body">${this.renderStage(source)} ${this.renderPeople()}</div>
     `;
   }
 }
