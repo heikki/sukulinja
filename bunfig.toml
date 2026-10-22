@@ -1,2 +1,7 @@
 [serve.static]
 plugins = []
+
+[fmt]
+quoteProps = "consistent"
+singleQuote = true
+trailingComma = "none"
