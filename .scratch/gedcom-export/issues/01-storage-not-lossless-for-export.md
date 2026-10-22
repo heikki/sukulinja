@@ -119,7 +119,7 @@ link (`OBJE`), and the link a `CROP` for the part of the image meant.
 
 ### Write a GEDZIP
 
-Decided 2026-10-21: an export with media is a `.gdz` (GEDCOM 7.0 spec, chapter 4): `gedcom.ged` plus each local `FILE` at the same path (`media/…`), the mirror of the `.gdz` import in `../../gedzip-import/issues/01-import-a-gdz.md`. Zip entry names aren't percent-escaped; `FILE` payloads are. Store the photos uncompressed, since JPEGs don't shrink. Under option A, the stored canonical could itself be that `.gdz`.
+Decided 2026-10-21: an export with media is a `.gdz` (GEDCOM 7.0 spec, chapter 4): `gedcom.ged` plus each local `FILE` at the same path (`media/…`), the mirror of the `.gdz` import (3becce2). Zip entry names aren't percent-escaped; `FILE` payloads are. Store the photos uncompressed, since JPEGs don't shrink. Under option A, the stored canonical could itself be that `.gdz`.
 
 ## Related
 
