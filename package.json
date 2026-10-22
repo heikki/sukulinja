@@ -19,7 +19,7 @@
     "lint": "eslint ."
   },
   "devDependencies": {
-    "@anthropic-ai/sdk": "^0.137.0",
+    "@anthropic-ai/sdk": "^1.1.0",
     "@domorium/validator": "2.0.1",
     "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
     "@total-typescript/tsconfig": "^1.0.4",
