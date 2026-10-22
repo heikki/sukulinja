@@ -1,13 +1,12 @@
+import { preferredGenerations } from '@client/generations';
+import { appState } from '@client/state';
+import type { AppState, ChartView, UrlView } from '@client/state';
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
-
-import { preferredGenerations } from '@client/generations';
-import { appState } from '@client/state';
-import type { AppState, ChartView, UrlView } from '@client/state';
 
 import '../person-panel';
 import '../scan-viewer';

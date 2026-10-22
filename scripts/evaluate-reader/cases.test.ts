@@ -1,7 +1,7 @@
+import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { Pins } from '@server/citation-scans/locate';
 import type { Person, Reader } from '@server/citation-scans/reader';

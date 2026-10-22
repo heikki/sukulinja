@@ -1,12 +1,11 @@
-import { SignalWatcher } from '@lit-labs/signals';
-import { consume } from '@lit/context';
-import { html, LitElement, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
-
 import { ApiError } from '@client/dataset-api';
 import { appState } from '@client/state';
 import type { AppState } from '@client/state';
 import type { VolumeCitation } from '@common/types';
+import { SignalWatcher } from '@lit-labs/signals';
+import { consume } from '@lit/context';
+import { html, LitElement, nothing } from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
 
 import { boxOf, groupCitations, rowName } from './citations';
 import { controlStyles, scanPeopleStyles } from './styles';

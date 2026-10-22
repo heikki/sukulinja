@@ -1,6 +1,5 @@
-import { html, nothing } from 'lit';
-
 import type { PersonRow } from '@common/types';
+import { html, nothing } from 'lit';
 
 import '../context-menu';
 

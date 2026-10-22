@@ -1,6 +1,5 @@
-import { css } from 'lit';
-
 import { focusRingStyles } from '@client/focus-ring';
+import { css } from 'lit';
 
 // Buttons, fields and links, shared by the viewer and its toolbar.
 const controls = css`

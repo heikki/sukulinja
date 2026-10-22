@@ -1,10 +1,10 @@
 // The fetch adapter against the app's own server, in-process: the routes
 // and answers the client expects are the ones the server gives.
 
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
 import { memoryAstia } from '@server/citation-scans/memory-astia';
 import type { MemoryAstia } from '@server/citation-scans/memory-astia';

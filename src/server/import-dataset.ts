@@ -3,10 +3,10 @@
 // the media, write the dataset's SQLite DB and merge it with the dataset it
 // replaces.
 
+import type { Database } from 'bun:sqlite';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Database } from 'bun:sqlite';
 
 import type { ImportReview } from '@common/types';
 

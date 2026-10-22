@@ -1,9 +1,3 @@
-import { SignalWatcher } from '@lit-labs/signals';
-import { consume } from '@lit/context';
-import { html, LitElement, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
-import { repeat } from 'lit/directives/repeat.js';
-
 import { focusRingStyles } from '@client/focus-ring';
 import { appState } from '@client/state';
 import type {
@@ -15,6 +9,11 @@ import type {
   SourceGroup
 } from '@client/state';
 import type { CitationRow, Link, RecordView } from '@common/types';
+import { SignalWatcher } from '@lit-labs/signals';
+import { consume } from '@lit/context';
+import { html, LitElement, nothing } from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
+import { repeat } from 'lit/directives/repeat.js';
 
 import { CROSS, formatName } from '../tree-view/renderer';
 

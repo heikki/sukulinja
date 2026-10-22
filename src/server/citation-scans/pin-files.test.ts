@@ -1,7 +1,7 @@
+import { afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
 import { mkdtemp, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
 
 import type { Pins } from './locate';
 import { fillFileIds } from './pin-files';

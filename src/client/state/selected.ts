@@ -1,5 +1,3 @@
-import { computed, signal } from '@lit-labs/signals';
-
 import { ApiError } from '@client/dataset-api';
 import type { BoxAt, DatasetApi, MarkTarget } from '@client/dataset-api';
 import type {
@@ -7,6 +5,7 @@ import type {
   LinkResolution,
   PersonDetails
 } from '@common/types';
+import { computed, signal } from '@lit-labs/signals';
 
 import { groupSources } from './sources';
 import type { SourceGroup } from './sources';

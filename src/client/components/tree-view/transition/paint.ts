@@ -1,6 +1,5 @@
-import { nothing, svg } from 'lit';
-
 import type { PersonRow } from '@common/types';
+import { nothing, svg } from 'lit';
 
 import { avatarHref } from '../avatar-cache';
 import { renderBox, renderEdge } from '../renderer';

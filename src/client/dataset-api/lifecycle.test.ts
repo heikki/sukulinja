@@ -1,11 +1,11 @@
 // The lifecycle adapter against the app's own server, in-process: a
 // dataset's whole life, from upload to delete, as the chooser asks for it.
 
+import { Database } from 'bun:sqlite';
+import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Database } from 'bun:sqlite';
-import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { ImportReview } from '@common/types';
 import { juvaAstia } from '@server/citation-scans/test-parish';

@@ -1,11 +1,11 @@
 // Matches, saved through a dataset's Scans: what resolution then
 // reads, and what the dataset's citations hold.
 
+import type { Database } from 'bun:sqlite';
+import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Database } from 'bun:sqlite';
-import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { Pins } from './locate';
 import { openMarks } from './marks';

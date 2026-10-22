@@ -1,7 +1,7 @@
+import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { CitationLinks, VolumeCitation } from '@common/types';
 

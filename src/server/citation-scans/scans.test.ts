@@ -1,8 +1,8 @@
+import type { Database } from 'bun:sqlite';
+import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Database } from 'bun:sqlite';
-import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { CitationLink } from '../annotations';
 import type { Astia } from './astia';
@@ -11,9 +11,9 @@ import { memoryAstia } from './memory-astia';
 import type { MemoryVolume } from './memory-astia';
 import { churchBookRefOf, markKey, parseChurchBookRef } from './record';
 import {
-  rippiCitation as citation,
   JUVA,
   juvaAstia,
+  rippiCitation as citation,
   VOLUMES
 } from './test-parish';
 import { citing, scansOf } from './test-pins';

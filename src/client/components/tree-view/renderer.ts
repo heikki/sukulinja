@@ -1,6 +1,5 @@
-import { css, svg } from 'lit';
-
 import type { PersonRow } from '@common/types';
+import { css, svg } from 'lit';
 
 import { edgePath } from './connectors';
 import type { Box, DrawnLine } from './emit';
