@@ -17,6 +17,7 @@ const api = createApi(registry);
 const fetch = createStaticFetch({ api, staticRoots: ['src/client'] });
 
 const server = Bun.serve({
+  hostname: '127.0.0.1',
   port: 0,
   // Imports stream progress across slow photo downloads; keep the connection
   // alive through quiet stretches (default idleTimeout is only 10s).
