@@ -180,6 +180,6 @@ test('a Volume on its old filming is read-only', async () => {
   viewer.keepFilming();
   viewer.setBox({ left: 0, top: 0.5, width: 0.5, height: 0.05 });
   expect(viewer.pending.get()).toBeNull();
-  await viewer.confirm({ personId: 1, citation: C1, link: MARKED });
+  await viewer.confirm({ citation: C1, link: MARKED });
   expect(asked(api, 'mark')).toEqual([]);
 });

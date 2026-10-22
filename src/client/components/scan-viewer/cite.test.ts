@@ -53,27 +53,30 @@ const IX = {
   ])
 };
 
+// Each choice as the menu reads: relation, name, years.
 function labels(left: number[]) {
-  return citeChoices(1, IX, new Set(left)).map((c) => c.label);
+  return citeChoices(1, IX, new Set(left)).map((c) =>
+    [c.muted?.before, c.label, c.muted?.after].filter(Boolean).join(' ')
+  );
 }
 
-test('lists the Selected person, then their family, each by how related', () => {
+test('lists the Selected person, then their family, each by how related and their years', () => {
   expect(labels([])).toEqual([
-    'Matti Esimerkki',
-    'Father · Juho Esimerkki',
-    'Mother · Liisa Esimerkki',
-    'Sister · Maria Esimerkki',
-    'Wife · Anna Esimerkki',
-    'Son · Heikki Esimerkki'
+    'Matti Esimerkki (1791)',
+    'Father · Juho Esimerkki (1792)',
+    'Mother · Liisa Esimerkki (1793)',
+    'Sister · Maria Esimerkki (1794)',
+    'Wife · Anna Esimerkki (1795)',
+    'Son · Heikki Esimerkki (1796)'
   ]);
 });
 
 test('leaves out those already citing the Image, down to nobody', () => {
   expect(labels([1, 3])).toEqual([
-    'Father · Juho Esimerkki',
-    'Sister · Maria Esimerkki',
-    'Wife · Anna Esimerkki',
-    'Son · Heikki Esimerkki'
+    'Father · Juho Esimerkki (1792)',
+    'Sister · Maria Esimerkki (1794)',
+    'Wife · Anna Esimerkki (1795)',
+    'Son · Heikki Esimerkki (1796)'
   ]);
   expect(labels([1, 2, 3, 4, 5, 6])).toEqual([]);
   expect([

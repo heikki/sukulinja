@@ -49,6 +49,20 @@ const menu = css`
   button:focus-visible {
     background: color-mix(in srgb, var(--accent) 18%, transparent);
   }
+
+  .muted {
+    color: var(--muted);
+  }
+
+  .before {
+    margin-right: 0.3em;
+  }
+
+  /* As the person search shows years: a size down. */
+  .after {
+    margin-left: 0.4em;
+    font-size: 0.85em;
+  }
 `;
 
 export const contextMenuStyles = [focusRingStyles, menu];

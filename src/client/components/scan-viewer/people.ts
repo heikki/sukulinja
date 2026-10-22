@@ -3,12 +3,11 @@ import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
-import { ApiError } from '@/client/dataset-api';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { VolumeCitation } from '@/common/types';
 
-import { boxOf, groupCitations, rowName } from './citations';
+import { boxOf, groupCitations, rowDates, rowName } from './citations';
 import { controlStyles, scanPeopleStyles } from './styles';
 
 // Collapsed or not for the rest of the visit, across Volumes and citations.
@@ -22,8 +21,7 @@ const HOLD_MS = 300;
 // shown, grouped as `groupCitations` says. Clicking one picks them; the
 // citation the viewer is on is marked. Hovering a row with an entry on the
 // scan names the entry's key with `scan-hover`, and rows of the entry
-// picked out there (`hovered`) are highlighted. The picked row, when a
-// Match, can be confirmed, saved as marking its Image by hand would be.
+// picked out there (`hovered`) are highlighted.
 @customElement('sl-scan-people')
 export class ScanPeopleElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanPeopleStyles];
@@ -36,9 +34,6 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
   }
   @property({ attribute: false }) hovered: string | null = null;
 
-  // The citation being confirmed, and the last one that couldn't be.
-  @state() private confirming: number | null = null;
-  @state() private refused: { id: number; error: string } | null = null;
   // Moving to another Volume, the list last shown stays up until its
   // citations arrive, so the pane doesn't blink to a one-line note and
   // back; the note shows only once the wait is long enough to see.
@@ -88,51 +83,13 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
     this.dispatchEvent(new CustomEvent('scan-hover', { detail: key }));
   }
 
-  private async confirm(row: VolumeCitation) {
-    const id = row.citation.id;
-    this.confirming = id;
-    this.refused = null;
-    const refused = await this.state.viewer
-      .confirm(row)
-      .then(() => null)
-      .catch((err: unknown) => {
-        if (err instanceof ApiError) return err;
-        throw err;
-      })
-      .finally(() => {
-        this.confirming = null;
-      });
-    if (refused !== null) this.refused = { id, error: refused.message };
-  }
-
-  private renderConfirm(row: VolumeCitation, current: boolean) {
-    if (!current || row.link.certainty !== 'match') return nothing;
-    if (this.state.viewer.oldFilming.get()) return nothing;
-    const id = row.citation.id;
-    return html`
-      <button
-        class="confirm"
-        ?disabled=${this.confirming !== null}
-        @click=${() => {
-          void this.confirm(row);
-        }}
-      >
-        ${this.confirming === id ? 'Saving…' : 'Confirm'}
-      </button>
-      ${
-        this.refused?.id === id
-          ? html`<p class="refused">${this.refused.error}</p>`
-          : nothing
-      }
-    `;
-  }
-
   private renderRow(row: VolumeCitation) {
     const current =
       row.citation.id === this.state.viewer.source.get()?.citation.id;
     // As its entry is keyed, when it has one on the Image.
     const key = boxOf(row) === null ? null : row.citation.markKey;
     const hovered = key !== null && key === this.hovered;
+    const dates = rowDates(this.persons, row);
     return html`
       <li>
         <button
@@ -148,9 +105,10 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
             if (key !== null) this.hover(null);
           }}
         >
-          <span class="name">${this.nameOf(row)}</span>
+          <span class="name">${this.nameOf(row)}</span>${
+            dates === '' ? nothing : html`<span class="dates">(${dates})</span>`
+          }
         </button>
-        ${this.renderConfirm(row, current)}
       </li>
     `;
   }

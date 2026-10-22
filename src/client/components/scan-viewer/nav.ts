@@ -147,7 +147,8 @@ export class ScanNavElement extends SignalWatcher(LitElement) {
       ${this.renderOldFilming()}
       ${
         this.state.viewer.pending.get() === null &&
-        !this.state.viewer.discarding.get()
+        !this.state.viewer.discarding.get() &&
+        this.state.viewer.confirming.get() === null
           ? nothing
           : html`<sl-scan-edit></sl-scan-edit>`
       }

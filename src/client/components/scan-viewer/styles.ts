@@ -413,8 +413,7 @@ export const scanPeopleStyles = css`
   }
 
   button.row {
-    display: flex;
-    flex-direction: column;
+    display: block;
     width: 100%;
     padding: 0.3rem 0.75rem;
     border: 0;
@@ -443,23 +442,11 @@ export const scanPeopleStyles = css`
     font-weight: 500;
   }
 
-  li {
-    position: relative;
-  }
-
-  button.confirm {
-    position: absolute;
-    top: 50%;
-    right: 0.6rem;
-    transform: translateY(-50%);
-    padding: 0.1rem 0.5rem;
-    font-size: 0.75rem;
-  }
-
-  .refused {
-    margin: 0 0.75rem 0.3rem;
-    color: var(--danger);
-    font-size: 0.8rem;
+  /* As the person search shows them: muted, a size down. */
+  .dates {
+    margin-left: 0.4em;
+    color: var(--muted);
+    font-size: 0.85em;
   }
 `;
 

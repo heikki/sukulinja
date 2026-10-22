@@ -16,6 +16,15 @@ const AT_ENTRY: Link = {
   box: BOX,
   certainty: 'marked'
 };
+// Estimated on the Image, with no Box.
+const ON_IMAGE: Link = {
+  volumeId: '201',
+  volume: 'I Aa:201',
+  url: '',
+  precision: 'image',
+  image: 18,
+  certainty: 'estimated'
+};
 
 function citation(id: number, madeInApp: boolean): CitationRow {
   return {
@@ -56,43 +65,59 @@ function labels(
   viewer: Awaited<ReturnType<typeof viewing>>,
   where: { onBox: boolean; canBox: boolean }
 ) {
-  return linkItems(viewer, where, NONE).map((i) => i.label);
+  return linkItems(viewer, { ...where, name: 'Matti Esimerkki' }, NONE).map(
+    (i) => i.label
+  );
 }
 
-test('a Citation made in the app offers Delete citation on its Box; a Mark, Discard', async () => {
+test('a Citation made in the app offers Delete on its Box; a Mark or Match, Discard; a Match, Confirm', async () => {
   const made = await viewing(citation(1, true));
   expect(labels(made, { onBox: true, canBox: true })).toEqual([
-    'Edit mark',
-    'Delete citation'
+    'Edit',
+    'Delete'
   ]);
   const marked = await viewing(citation(2, false));
   expect(labels(marked, { onBox: true, canBox: true })).toEqual([
-    'Edit mark',
-    'Discard mark'
+    'Edit',
+    'Discard'
   ]);
   const vision = await viewing(citation(3, false), {
     ...AT_ENTRY,
     certainty: 'match'
   });
   expect(labels(vision, { onBox: true, canBox: true })).toEqual([
-    'Edit match',
-    'Discard match'
+    'Confirm',
+    'Edit',
+    'Discard'
   ]);
 });
 
-test('Cite this entry for… shows over the full Image, with nothing pending', async () => {
-  const viewer = await viewing(citation(1, false));
+test('Create entry for… shows over the full Image, with nothing pending', async () => {
+  const viewer = await viewing(citation(1, false), ON_IMAGE);
   expect(labels(viewer, { onBox: false, canBox: true })).toEqual([
-    'Mark entry',
-    'Cite this entry for…',
+    'Create entry for Matti Esimerkki',
+    'Create entry for…',
     'Change Volume…'
   ]);
   expect(labels(viewer, { onBox: false, canBox: false })).toEqual([
     'Change Volume…'
   ]);
-  viewer.editBox();
+  viewer.setBox(BOX);
   expect(labels(viewer, { onBox: false, canBox: true })).toEqual([
-    'Mark entry',
     'Change Volume…'
   ]);
+});
+
+test("Create entry isn't offered with the person's Box on the Image", async () => {
+  const viewer = await viewing(citation(1, false));
+  expect(labels(viewer, { onBox: false, canBox: true })).toEqual([
+    'Create entry for…',
+    'Change Volume…'
+  ]);
+});
+
+test("Create entry names the source's person, when they have a name", async () => {
+  const viewer = await viewing(citation(1, false), ON_IMAGE);
+  const where = { onBox: false, canBox: true, name: null };
+  expect(linkItems(viewer, where, NONE)[0]?.label).toBe('Create entry');
 });

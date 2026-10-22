@@ -283,40 +283,6 @@ test('a pick for one person is dropped when another is selected', async () => {
   expect(viewer.source.get()).toBe(null);
 });
 
-test("confirm reloads the citations and the Selected person's Links, and follows its own reference", async () => {
-  const { api, viewer } = await selecting(2);
-  viewer.open({ citation: C21, link: VISION_21 });
-  await settle();
-  await viewer.confirm(ROW_21);
-  expect(api.asked.slice(-3)).toEqual([
-    'mark 21 201/18',
-    'links 2',
-    'citations 201'
-  ]);
-  expect(viewer.source.get()?.link).toEqual(MARKED_21);
-});
-
-test("confirming another's row beside the scan leaves the viewer on its own", async () => {
-  const { viewer } = await selecting(1);
-  viewer.open(S11);
-  await settle();
-  const shown = viewer.source.get();
-  await viewer.confirm(ROW_21);
-  expect(viewer.source.get()).toBe(shown);
-});
-
-test("a refused confirm throws in the server's words", async () => {
-  const { viewer } = await selecting(1);
-  viewer.open(S11);
-  await settle();
-  const refused = await viewer
-    .confirm(ROW_11)
-    .then(() => null)
-    .catch((err: unknown) => err);
-  expect(refused).toBeInstanceOf(ApiError);
-  expect((refused as ApiError).message).toBe('citation not found');
-});
-
 test('with Astia down the count stays unknown and the citations failed', async () => {
   const state = openAppState(dataset({ down: true }));
   state.viewer.open(S11);

@@ -64,7 +64,7 @@ _Avoid_: rescan, refilming (as names).
 A Volume whose Images hold the book twice, as if filmed twice; the copies drift apart in Image numbers. Page pins point into the copy the references were indexed from.
 
 **Scan viewer**:
-Where the app shows the Image a Church-book reference links, opened from its source. You step through the link's Volume there, or look in another Volume of its Book. An **Unlinked** reference whose parish's books were looked through opens it too, on no Volume, to look through them for the entry; beside the scan are the people whose references link the Image shown, and a **Match** among them can be confirmed. A **Box** placed there for the source's entry waits until it's saved as a **Mark**, and the source's own Box can be taken back with a **Discard**.
+Where the app shows the Image a Church-book reference links, opened from its source. You step through the link's Volume there, or look in another Volume of its Book. An **Unlinked** reference whose parish's books were looked through opens it too, on no Volume, to look through them for the entry; beside the scan are the people whose references link the Image shown, and the source's **Match** can be confirmed from its Box's menu. A **Box** placed there for the source's entry waits until it's saved as a **Mark**, and the source's own Box can be taken back with a **Discard**.
 _Avoid_: record viewer (a record is MyHeritage's), Astia viewer (Astia's own site).
 
 **Scan cache**:
@@ -139,7 +139,7 @@ The vision model behind three questions about one Image: the Page numbers writte
 Finding the person's name on the Image a search landed on, or on the Images around it. Only a confirmed match is saved.
 
 **Match**:
-A link the vision model wrote into the citations of a record after a Confirmation, always with where the entry is, and the Link it gives: a suggestion, ranked above an estimate. The citations keep their original page. A match with no entry found isn't saved. Confirming it beside the Scan viewer is a Mark, which makes the Link Marked at the entry.
+A link the vision model wrote into the citations of a record after a Confirmation, always with where the entry is, and the Link it gives: a suggestion, ranked above an estimate. The citations keep their original page. A match with no entry found isn't saved. Confirming it from its Box's menu in the Scan viewer is a Mark, which makes the Link Marked at the entry.
 _Avoid_: Vision match, suggestion (as names).
 
 **Same scan** / **Different photograph**:

@@ -5,7 +5,12 @@ import { customElement, state } from 'lit/decorators.js';
 
 import { ApiError } from '@/client/dataset-api';
 import { appState } from '@/client/state';
-import type { AppState, LeaveAnswer, LinkOpen } from '@/client/state';
+import type {
+  AppState,
+  Confirming,
+  LeaveAnswer,
+  LinkOpen
+} from '@/client/state';
 
 import { formatName } from '../tree-view/renderer';
 import { scanEditStyles } from './edit-styles';
@@ -15,11 +20,18 @@ function stop(e: Event) {
   e.stopPropagation();
 }
 
+function renderConfirming(confirming: Confirming) {
+  return confirming === 'saving'
+    ? html`<p>Confirming…</p>`
+    : html`<p class="refused">${confirming.refused}</p>`;
+}
+
 // At the end of the nav while a Box is pending: Cancel and Save, and for a
 // new Citation, whom it's for and a line for what the entry is. A way out
 // of the source waiting on the Box asks there instead: Keep editing,
 // Discard or Save. A Box waiting to be discarded, or a Citation made in
-// the app to be deleted, asks to confirm. Pointer and wheel input stays
+// the app to be deleted, asks to confirm. A Match being confirmed from its
+// Box's menu says so, and why not when it's refused. Pointer and wheel input stays
 // here, so a press doesn't pan. A Mark's Box is on a Record pin shared by
 // everyone citing the record, whom it names from the dataset's people.
 @customElement('sl-scan-edit')
@@ -220,9 +232,16 @@ export class ScanEditElement extends SignalWatcher(LitElement) {
   }
 
   override render() {
-    const { viewer } = this.state;
-    const source = viewer.source.get();
+    const source = this.state.viewer.source.get();
     if (source === null) return nothing;
+    const confirming = this.state.viewer.confirming.get();
+    if (confirming !== null) return renderConfirming(confirming);
+    return this.renderChange(source);
+  }
+
+  // The pending Box, or the Discard asked for.
+  private renderChange(source: LinkOpen) {
+    const { viewer } = this.state;
     const discarding = viewer.discarding.get();
     if (!discarding && viewer.pending.get() === null) return nothing;
     const asking = discarding
