@@ -331,7 +331,6 @@ function connect() {
     return { client: new Anthropic(), openRouter: false };
   }
   const client = new Anthropic({
-    apiKey: null,
     authToken: openRouterKey,
     baseURL: OPENROUTER
   });
