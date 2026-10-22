@@ -113,6 +113,20 @@ export function openAppCitations(db: Database) {
       )();
     },
 
+    // Moves a Citation of an Image to another entry in its Volume: its
+    // link, and the Image's address it cites.
+    move(id: number, to: Omit<NewCitation, 'personId' | 'text'>) {
+      const { volumeId, volume, image, fileId, box } = to;
+      annotations.carry(id, {
+        page: viewerUrl(volumeId, fileId),
+        annotation: {
+          link: { volumeId, volume, image, fileId, box, by: 'hand' },
+          originalPage: null,
+          madeInApp: true
+        }
+      });
+    },
+
     // Deletes a Citation made in the app, with its notes, and its source
     // once nothing cites it. Null when there's no such Citation; false for
     // an imported one, which isn't deleted.

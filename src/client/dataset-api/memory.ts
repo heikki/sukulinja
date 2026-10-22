@@ -5,6 +5,7 @@
 import type {
   CitationLinks,
   FamilyRow,
+  Link,
   PersonDetails,
   PersonRow,
   Rescan,
@@ -50,16 +51,25 @@ export type MemoryDatasetApi = DatasetApi & {
   // What was asked, in order: "persons", "families", "person <id>",
   // "links <id>", "mark <citation> <volume>/<image>" (or "<volume>" for
   // only the Volume; " box" or " no box" when it says), "discard <citation>
-  // <volume>/<image>", "choices <citation>", "citations <volume>",
+  // <volume>/<image>", "cite <person> <volume>/<image> <file>[: <text>]",
+  // "uncite <citation>", "choices <citation>", "citations <volume>",
   // "images <volume>", "rescan <volume>", "switch <volume>".
+  // A Citation made by `cite` joins its Volume's citations, numbered on
+  // from 1000, and `uncite` takes one out.
   asked: string[];
 };
+
+// An Image's address, as Astia's viewer gives it.
+function viewerUrl(volumeId: string, fileId: string) {
+  return `memory:viewer/?fileId=${fileId}&aineistoId=${volumeId}`;
+}
 
 export function memoryDatasetApi(
   data: MemoryDataset,
   { down = false }: MemoryOptions = {}
 ): MemoryDatasetApi {
   const asked: string[] = [];
+  let made = 1000;
 
   async function answer<T>(
     what: string,
@@ -135,6 +145,56 @@ export function memoryDatasetApi(
         () => found(data.discards?.[citationId], 'citation not found')
       ),
 
+    cite: async (personId, at) =>
+      await answer(
+        `cite ${personId} ${at.volumeId}/${at.image} ${at.fileId}${at.text === null ? '' : `: ${at.text}`}`,
+        undefined,
+        (): VolumeCitation => {
+          const { volumeId, image, fileId, box } = at;
+          const url = viewerUrl(volumeId, fileId);
+          const link: Link = {
+            volumeId,
+            volume: volumeId,
+            url,
+            precision: 'entry',
+            image,
+            box,
+            certainty: 'marked'
+          };
+          made += 1;
+          const row: VolumeCitation = {
+            personId,
+            citation: {
+              id: made,
+              source: volumeId,
+              reference: null,
+              entry: `Image\u00a0${image}`,
+              page: url,
+              url,
+              record: null,
+              text: at.text,
+              churchBook: true,
+              madeInApp: true,
+              citedPage: null,
+              cited: null
+            },
+            link
+          };
+          volume(volumeId).citations.push(row);
+          return row;
+        }
+      ),
+
+    async uncite(citationId) {
+      await answer(`uncite ${citationId}`, undefined, () => {
+        for (const shown of Object.values(data.volumes ?? {})) {
+          shown.citations = shown.citations.filter(
+            (r) => r.citation.id !== citationId
+          );
+        }
+      });
+    },
+
     volumeChoices: async (citationId, signal) =>
       await answer(`choices ${citationId}`, signal, () =>
         found(data.choices?.[citationId], 'citation not found')
@@ -149,9 +209,8 @@ export function memoryDatasetApi(
 
     volumeImages: async (volumeId, signal) =>
       await answer(`images ${volumeId}`, signal, () =>
-        Array.from(
-          { length: volume(volumeId).images },
-          (_, i) => `memory:viewer/${volumeId}/${i + 1}`
+        Array.from({ length: volume(volumeId).images }, (_, i) =>
+          viewerUrl(volumeId, `${volumeId}-f${i + 1}`)
         )
       ),
 
@@ -168,9 +227,8 @@ export function memoryDatasetApi(
           shown.images = shown.rescan.images;
           delete shown.rescan;
         }
-        return Array.from(
-          { length: shown.images },
-          (_, i) => `memory:viewer/${volumeId}/${i + 1}`
+        return Array.from({ length: shown.images }, (_, i) =>
+          viewerUrl(volumeId, `${volumeId}-2-f${i + 1}`)
         );
       }),
 

@@ -9,10 +9,11 @@ import { appState } from '@client/state';
 import type { AppState, LinkOpen, VolumeShown } from '@client/state';
 import type { PersonRow } from '@common/types';
 
+import type { FamilyIndices } from '../person-panel/family';
 import { EdgeWatch } from './edge-watch';
 import { entriesShown, frameForFull, frameForThumb, layers } from './frame';
 import type { Frame, Loading } from './frame';
-import { neighbours } from './helpers';
+import { neighbours, rowsShown } from './helpers';
 import { stepOf } from './keys';
 import { stageNote } from './note';
 import { Prefetch } from './prefetch';
@@ -58,7 +59,8 @@ interface Drawn {
 // zoom into and step through its Volume. The record itself stays in the
 // dock, marked there, so the toolbar only names the Volume, and the Image
 // controls float over the scan. Beside the scan, the people of the tree
-// (`persons`) linked to the Image shown. A source with no Link opens on no
+// (`persons`) linked to the Image shown; an entry can be cited for the
+// Selected person's family (`indices`). A source with no Link opens on no
 // Volume, saying why, until one of its parish's is chosen.
 @customElement('sl-scan-viewer')
 export class ScanViewerElement extends SignalWatcher(LitElement) {
@@ -67,6 +69,7 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
   @consume({ context: appState }) private readonly state!: AppState;
 
   @property({ attribute: false }) persons = new Map<number, PersonRow>();
+  @property({ attribute: false }) indices: FamilyIndices | null = null;
 
   @state() private loading: Loading = 'loading';
   @state() private retry = 0;
@@ -537,14 +540,12 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
   };
 
   // Boxes around the entries whose place is known, once the full Image is
-  // shown; the source's own gives way to its change pending.
+  // shown; the source's own gives way to its change pending, but not to a
+  // new Citation's.
   private renderEntries(source: LinkOpen) {
     if (!entriesShown(this.frame, this.loading)) return nothing;
-    const rows = this.viewer.citations.get();
-    const editing = this.viewer.pending.get() !== null;
-    const shown = (Array.isArray(rows) ? rows : []).filter(
-      (r) => !editing || r.citation.id !== source.citation.id
-    );
+    const { citations, pending } = this.viewer;
+    const shown = rowsShown(citations.get(), source, pending.get());
     return html`
       <sl-scan-entries
         .rows=${shown}
@@ -579,6 +580,7 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
           .frame=${this.frame}
           ?canEdit=${entriesShown(this.frame, this.loading)}
           .persons=${this.persons}
+          .indices=${this.indices}
         ></sl-scan-layer>
       </div>
     `;

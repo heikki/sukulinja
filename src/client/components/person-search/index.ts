@@ -158,6 +158,11 @@ export class PersonSearchElement extends LitElement {
     input.select();
   };
 
+  // Puts the cursor in the search, as ⌘F does.
+  focusInput() {
+    this.renderRoot.querySelector('input')?.focus();
+  }
+
   private pick(id: number) {
     this.query = '';
     this.dispatchEvent(new CustomEvent('pick', { detail: { id } }));
@@ -290,5 +295,11 @@ export class PersonSearchElement extends LitElement {
           : nothing
       }
     `;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'sl-person-search': PersonSearchElement;
   }
 }

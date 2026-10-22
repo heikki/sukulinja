@@ -312,3 +312,58 @@ test('an imported Citation of an Astia Image, with no reference, is read by its 
     { personId: 1, image: 13, at: 'marked entry' }
   ]);
 });
+
+test('a Mark moves a Citation made in the app to another entry in its Volume', async () => {
+  const { db, citations } = withPeople([
+    cite(2, rippiCitation(5001, '1790 - 1796', 12))
+  ]);
+  await citations.cite(1, entry(13));
+  const moved = { left: 50, top: 60, width: 400, height: 40 };
+
+  expect(
+    await citations.mark(2, { volumeId: 'juva-1', image: 14, box: moved })
+  ).toEqual({
+    links: [
+      {
+        ...ENTRY_LINK,
+        url: ENTRY_LINK.url.replace('f13', 'f14'),
+        image: 14,
+        box: moved
+      }
+    ]
+  });
+  expect(
+    db
+      .query(
+        `SELECT page, original_page, link_image, added_in_app FROM citations
+         WHERE id = 2`
+      )
+      .get()
+  ).toEqual({
+    page: ENTRY_LINK.url.replace('f13', 'f14'),
+    original_page: null,
+    link_image: 14,
+    added_in_app: 1
+  });
+
+  const stays = { rejected: 'A Citation of an Image stays in its Volume.' };
+  expect(
+    await citations.mark(2, { volumeId: 'juva-2', image: 2, box: moved })
+  ).toEqual(stays);
+  expect(await citations.mark(2, { volumeId: 'juva-1', image: 14 })).toEqual({
+    rejected: 'A Citation of an Image needs its entry box.'
+  });
+  expect(
+    await citations.mark(2, {
+      volumeId: 'juva-1',
+      image: 14,
+      box: { ...moved, width: 990 }
+    })
+  ).toEqual({
+    rejected: 'The entry box must lie on the Image, in whole pixels.'
+  });
+  // A Discard is for a reference's Box; this one is deleted instead.
+  expect(
+    await citations.discard(2, { volumeId: 'juva-1', image: 14 })
+  ).toBeNull();
+});

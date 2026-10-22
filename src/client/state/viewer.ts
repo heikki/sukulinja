@@ -1,5 +1,6 @@
 import { computed, signal } from '@lit-labs/signals';
 
+import { ApiError } from '@client/dataset-api';
 import type { DatasetApi } from '@client/dataset-api';
 import type {
   Box,
@@ -29,12 +30,14 @@ export interface VolumeShown {
 }
 
 // A change to the current source's Link, not saved yet: where on an Image
-// of a Volume the entry is.
+// of a Volume the entry is. With `cite`, it's a new Citation of the entry
+// for the person instead, saying what the entry is.
 export interface PendingLink {
   volumeId: string;
   volume: string;
   image: number;
   box: Box;
+  cite?: { personId: number; text: string };
 }
 
 // What leaving the source with a change pending waits on.
@@ -92,6 +95,11 @@ export interface Viewer {
   setBox: (box: Box) => void;
   // Starts a pending change from the Link's own Box, to adjust it.
   editBox: () => void;
+  // Puts a new Citation of the entry at the Box for the person, on the
+  // Image shown, pending.
+  citeFor: (personId: number, box: Box) => void;
+  // What the pending Citation's entry is, as typed.
+  setCiteText: (text: string) => void;
   // A Discard of the Link's Box on the Image shown, waiting to be saved.
   // Moving off the Image drops it.
   discarding: Readable<boolean>;
@@ -100,10 +108,12 @@ export interface Viewer {
   // Drops the pending change, back to the Link, or the Discard asked for.
   cancel: () => void;
   // Takes the Box back, throwing ApiError if it's refused, and goes on
-  // with the Link it leaves, on the Image shown.
+  // with the Link it leaves, on the Image shown. For a Citation made in
+  // the app, deletes it instead, and the viewer closes.
   confirmDiscard: () => Promise<void>;
-  // Saves the pending change as a Mark and follows the new Link, throwing
-  // ApiError if it's refused.
+  // Saves the pending change as a Mark and follows the new Link, or makes
+  // the pending Citation and stays where it is, throwing ApiError if it's
+  // refused.
   save: () => Promise<void>;
   // Runs `go` now, or once the pending change is saved or discarded;
   // `stay` runs if the person keeps editing instead.
@@ -148,6 +158,13 @@ function boxOn(
   return here ? (at.box ?? null) : null;
 }
 
+// The file id in an Image's address in Astia's viewer.
+function fileIdOf(url: string | undefined) {
+  return url === undefined
+    ? null
+    : (/[?&]fileId=(?<id>[^&]+)/.exec(url)?.groups?.id ?? null);
+}
+
 // Of a reference's Links resolved again, the one in the Volume marked.
 function markedIn(resolved: LinkResolution, volumeId: string) {
   const links = 'links' in resolved ? resolved.links : [];
@@ -159,6 +176,8 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   const volume = signal<VolumeShown | null>(null);
   const image = signal(1);
   const count = signal<number | null>(null);
+  // Astia's viewer address of each of the Volume's Images.
+  let files: string[] = [];
   const citations = signal<VolumeCitation[] | null | 'failed'>(null);
   const sourcesInView = signal(false);
   const pending = signal<PendingLink | null>(null);
@@ -206,6 +225,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
       async (signal) => await api.volumeImages(volumeId, signal)
     );
     if (urls === null || urls === undefined) return;
+    files = urls;
     count.set(urls.length);
     image.set(clampImage(image.get(), urls.length));
   }
@@ -240,6 +260,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     volume.set({ id, label });
     image.set(clampImage(at ?? 1, null));
     count.set(null);
+    files = [];
     citations.set(null);
     void loadCount(id);
     void loadCitations(id);
@@ -313,17 +334,36 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     });
   }
 
-  // A Volume on a filming Astia replaced is read-only until switched.
+  // A Volume on a filming Astia replaced is read-only until switched. A
+  // pending Citation stays one as its Box moves.
   function setBox(box: Box) {
     const shown = volume.get();
     if (source.get() === null || shown === null || oldFilming.get()) return;
     discarding.set(false);
+    const cite = pending.get()?.cite;
     pending.set({
       volumeId: shown.id,
       volume: shown.label,
       image: image.get(),
-      box
+      box,
+      ...(cite === undefined ? {} : { cite })
     });
+  }
+
+  function citeFor(personId: number, box: Box) {
+    pending.set(null);
+    setBox(box);
+    const change = pending.get();
+    if (change !== null) {
+      pending.set({ ...change, cite: { personId, text: '' } });
+    }
+  }
+
+  function setCiteText(text: string) {
+    const change = pending.get();
+    if (change?.cite !== undefined) {
+      pending.set({ ...change, cite: { ...change.cite, text } });
+    }
   }
 
   function editBox() {
@@ -336,14 +376,16 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     if (pending.get() === null && boxHere.get() !== null) discarding.set(true);
   }
 
-  // Back to the Link; with none, it stays on the Image.
+  // Back to the Link; with none, or from a pending Citation, it stays on
+  // the Image.
   function cancel() {
-    if (pending.get() === null) {
+    const change = pending.get();
+    if (change === null) {
       discarding.set(false);
       return;
     }
     const shown = source.get();
-    if (shown?.link === null) pending.set(null);
+    if (shown?.link === null || change.cite !== undefined) pending.set(null);
     else if (shown !== null) openNow(shown);
   }
 
@@ -353,6 +395,12 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     const shown = source.get();
     const at = volume.get();
     if (shown === null || at === null || !discarding.get()) return;
+    if (shown.citation.madeInApp) {
+      await api.uncite(shown.citation.id);
+      void selected.refresh();
+      if (source.get() === shown) closeNow();
+      return;
+    }
     const resolved = await selected.discard(shown.citation.id, {
       volumeId: at.id,
       image: image.get()
@@ -374,6 +422,10 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     const shown = source.get();
     const change = pending.get();
     if (shown === null || change === null) return;
+    if (change.cite !== undefined) {
+      await saveCitation(change, change.cite);
+      return;
+    }
     const { volumeId, image: at, box } = change;
     const resolved = await selected.mark(shown.citation.id, {
       volumeId,
@@ -386,6 +438,30 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     if (source.get() !== shown) return;
     if (link === null) pending.set(null);
     else openNow({ citation: shown.citation, link });
+  }
+
+  // The new Citation shows beside the scan once the Volume's citations
+  // reload, and in the person's sources if they're the Selected person.
+  async function saveCitation(
+    change: PendingLink,
+    cite: { personId: number; text: string }
+  ) {
+    const { volumeId, image: at, box } = change;
+    const fileId = fileIdOf(files[at - 1]);
+    if (fileId === null) {
+      throw new ApiError("The Image isn't listed yet; try again.");
+    }
+    const text = cite.text.trim();
+    await api.cite(cite.personId, {
+      volumeId,
+      image: at,
+      fileId,
+      box,
+      text: text === '' ? null : text
+    });
+    if (selected.id.get() === cite.personId) void selected.refresh();
+    await loadCitations(volumeId);
+    if (pending.get() === change) pending.set(null);
   }
 
   async function answer(given: LeaveAnswer) {
@@ -476,6 +552,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     rescan.set(null);
     known.set(null);
     if (volume.get()?.id !== shown.id) return;
+    files = urls;
     count.set(urls.length);
     image.set(clampImage(image.get(), urls.length));
     await Promise.all([loadCitations(shown.id), selected.relink()]);
@@ -511,6 +588,8 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     boxPending,
     setBox,
     editBox,
+    citeFor,
+    setCiteText,
     discarding,
     discard,
     cancel,

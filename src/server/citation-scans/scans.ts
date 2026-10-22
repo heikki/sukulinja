@@ -243,12 +243,13 @@ export function openScans({
     },
 
     // The label of the Volume an entry is cited in, by its Box on an Image
-    // of the filming `fileId` is of; or why it can't be. The Volume must be
-    // in one of the `parishes`.
+    // of the filming `fileId` is of (the one listed now if not given), and
+    // the Image's file id; or why it can't be. The Volume must be in one of
+    // the `parishes`.
     async imageToCite(
-      at: { volumeId: string; image: number; fileId: string; box: Box },
+      at: { volumeId: string; image: number; fileId?: string; box: Box },
       parishes: Array<string | null>
-    ): Promise<{ volume: string } | { rejected: string }> {
+    ): Promise<{ volume: string; fileId: string } | { rejected: string }> {
       const { volumeId, image } = at;
       const archive = await archiveOf(volumeId, parishes);
       const volume =
@@ -265,13 +266,14 @@ export function openScans({
       if (!Number.isInteger(image) || image < 1 || image > files.length) {
         return { rejected: `The volume has images 1–${files.length}.` };
       }
-      if (files[image - 1] !== at.fileId) {
+      const fileId = files[image - 1]!;
+      if (at.fileId !== undefined && fileId !== at.fileId) {
         return { rejected: "That isn't the Image's file in Astia." };
       }
       if (!onImage(at.box, await sizeOf({ volumeId, image }))) {
         return { rejected: OFF_IMAGE };
       }
-      return { volume: volume.label };
+      return { volume: volume.label, fileId };
     },
 
     // Takes back the reference's Box at `at`, and gives its links as they
