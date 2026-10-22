@@ -1,4 +1,4 @@
-Status: needs-triage
+Status: ready-for-agent
 
 # Store a Citation made in the app, and read it back like a Mark
 
