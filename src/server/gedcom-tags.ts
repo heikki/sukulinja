@@ -96,16 +96,6 @@ export const EVENTS = new Set([
 
 export const NAME_PIECE_TAGS = ['NPFX', 'GIVN', 'NICK', 'SPFX', 'SURN', 'NSFX'];
 
-export const ADDRESS_PARTS = [
-  'ADR1',
-  'ADR2',
-  'ADR3',
-  'CITY',
-  'STAE',
-  'POST',
-  'CTRY'
-];
-
 // Header lines kept in `meta`, for export to write back: what the file says
 // about the tree, not about the program that wrote it.
 export const HEADER_META: Array<[string[], string]> = [
