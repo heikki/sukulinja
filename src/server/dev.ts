@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import indexHtml from '../client/index.html';
 import { DatasetRegistry } from './dataset-registry';
 import { seedDemo } from './demo';
+import { lastViewRoute } from './last-view';
 import { createApi, createStaticFetch } from './server';
 
 // The checkout's data/, unless SUKULINJA_DATA names another folder (e.g. a
@@ -14,7 +15,11 @@ const registry = new DatasetRegistry(
 await seedDemo(registry, resolve('resources/demo/bourbon.gdz'));
 void registry.sweepStaging(); // clear staging dirs left by interrupted imports
 const api = createApi(registry);
-const fetch = createStaticFetch({ api, staticRoots: ['src/client'] });
+// A browser tab keeps its own URL, so the page's last view is dropped.
+const fetch = lastViewRoute(
+  () => undefined,
+  createStaticFetch({ api, staticRoots: ['src/client'] })
+);
 
 const server = Bun.serve({
   hostname: '127.0.0.1',

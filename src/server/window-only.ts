@@ -1,9 +1,11 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 
+import { sameOriginPath } from './last-view';
+
 // The app's server answers its own window and nothing else: not a browser
 // on this Mac, not another machine. Each launch makes a fresh key; the window
 // opens on enterUrl, which trades the key for a cookie and moves on to the
-// chooser, so the key never sits in a URL the page can hand on.
+// page it was opened for, so the key never sits in a URL the page can hand on.
 
 const ENTER_PATH = '/enter';
 const COOKIE = 'sukulinja-window';
@@ -12,9 +14,11 @@ export function newWindowKey() {
   return randomBytes(32).toString('base64url');
 }
 
-export function enterUrl(base: URL, key: string) {
+// `view` is the path the window lands on, hash and all.
+export function enterUrl(base: URL, key: string, view = '/') {
   const url = new URL(ENTER_PATH, base);
   url.searchParams.set('key', key);
+  url.searchParams.set('next', view);
   return url.toString();
 }
 
@@ -49,7 +53,8 @@ export function windowOnly(
       return new Response(null, {
         status: 303,
         headers: {
-          'Location': '/',
+          'Location':
+            sameOriginPath(url.searchParams.get('next') ?? '/', url) ?? '/',
           'Set-Cookie': `${COOKIE}=${key}; Path=/; HttpOnly; SameSite=Strict`
         }
       });

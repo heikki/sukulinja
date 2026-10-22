@@ -3,7 +3,12 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { loadWindowFrame, saveWindowFrame } from './window-state';
+import {
+  loadLastView,
+  loadWindowFrame,
+  saveLastView,
+  saveWindowFrame
+} from './window-state';
 
 let root = '';
 
@@ -39,4 +44,19 @@ test('an unreadable or incomplete state file loads as null', async () => {
     JSON.stringify({ window: { x: 1, y: 2, width: 3 } })
   );
   expect(loadWindowFrame(root)).toBeNull();
+});
+
+test('the frame and the last view are kept side by side', () => {
+  const frame = { x: 40, y: 60, width: 900, height: 700 };
+  saveWindowFrame(root, frame);
+  saveLastView(root, '/d/demo/#/person/7?sel=9');
+  saveWindowFrame(root, frame);
+  expect(loadWindowFrame(root)).toEqual(frame);
+  expect(loadLastView(root)).toBe('/d/demo/#/person/7?sel=9');
+});
+
+test('a dropped last view loads as null', () => {
+  saveLastView(root, '/d/demo/');
+  saveLastView(root, null);
+  expect(loadLastView(root)).toBeNull();
 });

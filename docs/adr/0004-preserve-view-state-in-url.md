@@ -29,3 +29,4 @@ A Generations change still moves the view — its reflow pin holds Root on scree
 - Once pan or zoom appear in the URL during a session they keep being emitted, even if the underlying value happens to drift back to the auto-fit. This makes URLs slightly more verbose than strict-minimum but eliminates a class of "the URL disagrees with the view" bugs that would otherwise come from float equality.
 - Links lock in the encoding. The param keys (`pan`, `zoom`), the comma-separated integer `pan=x,y` shape, and the two-decimal trailing-zero-stripped zoom format are now part of the project's external contract.
 - A hash still carrying `gen` from before is read as an unknown param and ignored.
+- The app reopens where it was left. A moment after each change the page puts its URL to the app's own server, which keeps it in `state.json` beside the window's frame; the next launch opens on it, or on the chooser when its dataset was deleted, renamed or built by an older schema.

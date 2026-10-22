@@ -18,24 +18,44 @@ function isFrame(value: unknown): value is WindowFrame {
   );
 }
 
-// Null covers both a first launch and a state.json that can't be read: either
-// way the window opens at its default frame.
-export function loadWindowFrame(dir: string) {
+// An empty state covers both a first launch and a state.json that can't be
+// read: either way the window opens at its default frame, on the chooser.
+function load(dir: string) {
   try {
-    const state = JSON.parse(readFileSync(join(dir, STATE_FILE), 'utf-8')) as {
-      window?: unknown;
-    };
-    return isFrame(state.window) ? state.window : null;
+    const state: unknown = JSON.parse(
+      readFileSync(join(dir, STATE_FILE), 'utf-8')
+    );
+    return typeof state === 'object' && state !== null
+      ? (state as Record<string, unknown>)
+      : {};
   } catch {
-    return null;
+    return {};
   }
 }
 
-export function saveWindowFrame(dir: string, frame: WindowFrame) {
+function save(dir: string, key: string, value: unknown) {
   mkdirSync(dir, { recursive: true });
+  const state = { ...load(dir), [key]: value };
+  writeFileSync(join(dir, STATE_FILE), JSON.stringify(state));
+}
+
+export function loadWindowFrame(dir: string) {
+  const frame = load(dir).window;
+  return isFrame(frame) ? frame : null;
+}
+
+export function saveWindowFrame(dir: string, frame: WindowFrame) {
   const { x, y, width, height } = frame;
-  writeFileSync(
-    join(dir, STATE_FILE),
-    JSON.stringify({ window: { x, y, width, height } })
-  );
+  save(dir, 'window', { x, y, width, height });
+}
+
+// The page the window was last on, as a path with its hash; null when none
+// is saved.
+export function loadLastView(dir: string) {
+  const view = load(dir).view;
+  return typeof view === 'string' ? view : null;
+}
+
+export function saveLastView(dir: string, view: string | null) {
+  save(dir, 'view', view ?? undefined);
 }

@@ -8,9 +8,15 @@ import Electrobun, {
 
 import { DatasetRegistry } from './dataset-registry';
 import { seedDemo } from './demo';
+import { DATASET_PATH_RE, lastViewRoute, reopenAt } from './last-view';
 import { createApi, createStaticFetch } from './server';
 import { enterUrl, newWindowKey, windowOnly } from './window-only';
-import { loadWindowFrame, saveWindowFrame } from './window-state';
+import {
+  loadLastView,
+  loadWindowFrame,
+  saveLastView,
+  saveWindowFrame
+} from './window-state';
 
 const resourcesDir = resolve(dirname(process.argv0), '..', 'Resources');
 const viewsDir = join(resourcesDir, 'app', 'views', 'app');
@@ -48,7 +54,12 @@ const api = createApi(registry);
 const windowKey = newWindowKey();
 const fetch = windowOnly(
   windowKey,
-  createStaticFetch({ api, staticRoots: [viewsDir] })
+  lastViewRoute(
+    (view) => {
+      saveLastView(stateDir, view);
+    },
+    createStaticFetch({ api, staticRoots: [viewsDir] })
+  )
 );
 // A GEDCOM import streams progress while photos download; bump the idle timeout
 // to its max so a quiet stretch between downloads doesn't drop the connection.
@@ -112,10 +123,17 @@ ApplicationMenu.on('application-menu-clicked', (event: unknown) => {
   if (action === 'quit') process.exit(0);
 });
 
+// The window reopens on the page it was left on; see reopenAt.
+const reopen = reopenAt(
+  loadLastView(stateDir),
+  (slug) => registry.info(slug)?.outdated === false
+);
+if (reopen === null) saveLastView(stateDir, null);
+
 const savedFrame = loadWindowFrame(stateDir);
 const win = new BrowserWindow({
   title: 'Sukulinja',
-  url: enterUrl(server.url, windowKey),
+  url: enterUrl(server.url, windowKey, reopen ?? '/'),
   frame: savedFrame ?? { x: 100, y: 100, width: 1200, height: 800 }
 });
 // The constructor reads `frame` as the content area and adds the title bar on
@@ -140,7 +158,6 @@ Electrobun.events.on('new-window-open', (event: unknown) => {
 
 // The window's title names the dataset shown, or the app on the chooser.
 // Moving between them is a full page load, so each move lands here.
-const DATASET_PATH_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?=\/|$)/u;
 function windowTitle(url: string) {
   const slug = DATASET_PATH_RE.exec(new URL(url).pathname)?.groups?.slug;
   if (slug === undefined) return 'Sukulinja';

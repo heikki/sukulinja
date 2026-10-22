@@ -10,6 +10,7 @@ import { ApiError, openDatasetApi } from '@/client/dataset-api';
 import { openLifecycleApi } from '@/client/dataset-api/lifecycle';
 import { dialogStyles } from '@/client/dialog-styles';
 import { focusRingStyles } from '@/client/focus-ring';
+import { reportView } from '@/client/last-view';
 import { appState, openAppState } from '@/client/state';
 import { slugFromFilename, withoutExtension } from '@/common/slug';
 import type { DatasetInfo, ExportKind, ImportReview } from '@/common/types';
@@ -120,6 +121,7 @@ export class AppElement extends LitElement {
 
   override connectedCallback() {
     super.connectedCallback();
+    reportView();
     void this.loadDatasets();
   }
 
