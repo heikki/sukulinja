@@ -1,9 +1,8 @@
 // A dataset's app state: one store per concern, built over its Dataset API
 // and provided to the screens by the app (ADR-0012).
 
-import { createContext } from '@lit/context';
-
 import type { DatasetApi } from '@client/dataset-api';
+import { createContext } from '@lit/context';
 
 import { openChart } from './chart';
 import type { Chart } from './chart';

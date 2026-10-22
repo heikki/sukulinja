@@ -1,5 +1,3 @@
-import { computed, signal } from '@lit-labs/signals';
-
 import { ApiError } from '@client/dataset-api';
 import type { DatasetApi } from '@client/dataset-api';
 import type {
@@ -12,6 +10,7 @@ import type {
   VolumeChoice,
   VolumeCitation
 } from '@common/types';
+import { computed, signal } from '@lit-labs/signals';
 
 import { Latest } from './latest';
 import type { Readable, Selected } from './selected';

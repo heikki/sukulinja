@@ -1,8 +1,8 @@
+import { Database } from 'bun:sqlite';
+import { afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
 import { mkdir, mkdtemp, readdir, rename, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { Database } from 'bun:sqlite';
-import { afterEach, beforeEach, expect, spyOn, test } from 'bun:test';
 
 import { DatasetRegistry } from './dataset-registry';
 import { seedDemo } from './demo';

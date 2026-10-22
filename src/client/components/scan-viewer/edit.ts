@@ -1,11 +1,10 @@
+import { ApiError } from '@client/dataset-api';
+import { appState } from '@client/state';
+import type { AppState, LeaveAnswer, LinkOpen } from '@client/state';
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-
-import { ApiError } from '@client/dataset-api';
-import { appState } from '@client/state';
-import type { AppState, LeaveAnswer, LinkOpen } from '@client/state';
 
 import { formatName } from '../tree-view/renderer';
 import { scanEditStyles } from './edit-styles';

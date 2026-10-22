@@ -1,4 +1,5 @@
 import { dirname, join, resolve } from 'node:path';
+
 import Electrobun, {
   ApplicationMenu,
   BrowserWindow,

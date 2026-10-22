@@ -1,9 +1,8 @@
 // What an import into an existing dataset would change, shown before it's
 // saved (ADR-0013), and the date an Undo last import goes back from.
 
-import { html, nothing } from 'lit';
-
 import type { ImportReview } from '@common/types';
+import { html, nothing } from 'lit';
 
 function count(n: number, one: string, many: string) {
   return `${n.toLocaleString()} ${n === 1 ? one : many}`;

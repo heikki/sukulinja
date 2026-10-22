@@ -11,7 +11,6 @@
 // such fallback, so there a decline stays unreadable.
 
 import Anthropic from '@anthropic-ai/sdk';
-
 import type {
   DatesReading,
   EntryReading,

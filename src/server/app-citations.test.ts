@@ -1,11 +1,11 @@
 // Citations made in the app, through the dataset's Citations: making one
 // on an Astia Image, deleting it, and reading it back where Citations show.
 
+import type { Database } from 'bun:sqlite';
+import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Database } from 'bun:sqlite';
-import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { CitationLinks, Link, VolumeCitation } from '@common/types';
 

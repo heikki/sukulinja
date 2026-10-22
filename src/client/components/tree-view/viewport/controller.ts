@@ -3,8 +3,6 @@
 // writes the new value) and the NEW extents during updated() — which is
 // exactly what the pin-on-re-root mechanism depends on.
 
-import type { ReactiveController, ReactiveControllerHost } from 'lit';
-
 import {
   chartToScreen,
   fitTo,
@@ -23,6 +21,7 @@ import type {
   ScaleBounds,
   Transform
 } from '@client/pan-zoom';
+import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
 import { shiftIntoView } from './in-view';
 import { nudgeIntoView } from './nudge';

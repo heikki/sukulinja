@@ -1,15 +1,15 @@
 // Resolution after Astia re-scans a Volume: pins made on the filming it
 // replaced are left out.
 
+import type { Database } from 'bun:sqlite';
+import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Database } from 'bun:sqlite';
-import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { MemoryAstia } from './memory-astia';
 import { churchBookRefOf } from './record';
-import { rippiCitation as citation, juvaAstia } from './test-parish';
+import { juvaAstia, rippiCitation as citation } from './test-parish';
 import { citing, scansOf } from './test-pins';
 
 let dir = '';

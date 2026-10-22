@@ -1,12 +1,11 @@
 // The chooser's dialogs: a failure note, and the dataset actions asked to
 // confirm first, deleting a dataset and undoing its last import.
 
-import { html, nothing } from 'lit';
-import type { TemplateResult } from 'lit';
-
 import { ApiError } from '@client/dataset-api';
 import type { LifecycleApi } from '@client/dataset-api/lifecycle';
 import type { DatasetInfo } from '@common/types';
+import { html, nothing } from 'lit';
+import type { TemplateResult } from 'lit';
 
 import { importDate } from './import-review';
 

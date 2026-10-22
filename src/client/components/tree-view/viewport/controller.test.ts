@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
 import type { Extents, Point } from '../emit';

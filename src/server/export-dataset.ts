@@ -1,11 +1,11 @@
 // A dataset as a GEDZIP: its GEDCOM 7 and every media file it links,
 // the mirror of importing one (ADR-0013). Or as GEDCOM 5.5.1 for MyHeritage.
 
+import type { Database } from 'bun:sqlite';
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import type { Database } from 'bun:sqlite';
 
 import type { ExportKind } from '@common/types';
 

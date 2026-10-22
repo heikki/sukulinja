@@ -1,10 +1,9 @@
-import { SignalWatcher } from '@lit-labs/signals';
-import { html, LitElement, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
-
 import { missingText, unlinkedLabel } from '@client/link-labels';
 import type { Point } from '@client/pan-zoom';
 import type { CitedBook, UnlinkedResolution } from '@common/types';
+import { SignalWatcher } from '@lit-labs/signals';
+import { html, LitElement, nothing } from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
 
 import { controlStyles, scanEmptyStyles } from './styles';
 

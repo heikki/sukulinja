@@ -3,10 +3,10 @@
 // import, exporting and deleting. A dataset's meta is read and written only
 // here.
 
+import type { Database } from 'bun:sqlite';
 import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readdir, rename, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import type { Database } from 'bun:sqlite';
 
 import type { DatasetInfo, ExportKind } from '@common/types';
 

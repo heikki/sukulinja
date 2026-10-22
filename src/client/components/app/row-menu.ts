@@ -1,10 +1,9 @@
 // A dataset row's menu on the chooser: its exports and undo, behind a
 // button so the row shows only its name and what it most needs.
 
-import { html, nothing, svg } from 'lit';
-
 import type { Point } from '@client/pan-zoom';
 import type { DatasetInfo, ExportKind } from '@common/types';
+import { html, nothing, svg } from 'lit';
 
 import '../context-menu';
 

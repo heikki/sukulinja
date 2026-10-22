@@ -1,5 +1,5 @@
-import { basename, join, relative, resolve } from 'node:path';
 import type { Database } from 'bun:sqlite';
+import { basename, join, relative, resolve } from 'node:path';
 
 import type { LinkResolution } from '@common/types';
 

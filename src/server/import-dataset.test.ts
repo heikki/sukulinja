@@ -1,8 +1,9 @@
+import type { Database } from 'bun:sqlite';
+import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Database } from 'bun:sqlite';
-import { afterEach, beforeEach, expect, test } from 'bun:test';
+
 import { strToU8, zipSync } from 'fflate';
 
 import { DatasetRegistry } from './dataset-registry';

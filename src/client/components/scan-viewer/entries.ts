@@ -1,11 +1,10 @@
-import { consume } from '@lit/context';
-import { html, LitElement, nothing } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
-
 import type { Point, Transform } from '@client/pan-zoom';
 import { appState } from '@client/state';
 import type { AppState } from '@client/state';
 import type { VolumeCitation } from '@common/types';
+import { consume } from '@lit/context';
+import { html, LitElement, nothing } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
 
 import { entriesOn } from './citations';
 import type { Entry } from './citations';

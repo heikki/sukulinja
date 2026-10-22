@@ -1,11 +1,10 @@
+import { appState } from '@client/state';
+import type { AppState } from '@client/state';
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { live } from 'lit/directives/live.js';
-
-import { appState } from '@client/state';
-import type { AppState } from '@client/state';
 
 import { stepOf } from './keys';
 import { controlStyles, scanNavStyles } from './styles';

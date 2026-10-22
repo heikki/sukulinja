@@ -1,12 +1,11 @@
-import { SignalWatcher } from '@lit-labs/signals';
-import { consume } from '@lit/context';
-import { html, LitElement, nothing } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
-
 import { appState } from '@client/state';
 import type { AppState } from '@client/state';
 import { gedcomDate } from '@common/dates';
 import type { FactRow, PersonDetails, PersonRow } from '@common/types';
+import { SignalWatcher } from '@lit-labs/signals';
+import { consume } from '@lit/context';
+import { html, LitElement, nothing } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
 
 import { formatName } from '../tree-view/renderer';
 import { silhouette } from '../tree-view/silhouette';

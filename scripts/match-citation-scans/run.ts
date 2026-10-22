@@ -3,8 +3,8 @@
 // dataset's citations, where the app reads them. It is resumable: every
 // reading is cached, and what was saved is pinned, so a re-run skips it.
 
-import { join } from 'node:path';
 import type { Database } from 'bun:sqlite';
+import { join } from 'node:path';
 
 import { openAstia, viewerUrl } from '@server/citation-scans/astia';
 import type { Astia } from '@server/citation-scans/astia';

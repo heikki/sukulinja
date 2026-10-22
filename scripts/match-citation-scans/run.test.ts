@@ -1,8 +1,8 @@
+import type { Database } from 'bun:sqlite';
+import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import type { Database } from 'bun:sqlite';
-import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import { openMarks } from '@server/citation-scans/marks';
 import type { MemoryAstia } from '@server/citation-scans/memory-astia';

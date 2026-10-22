@@ -1,7 +1,3 @@
-import { css, html, LitElement, nothing, svg } from 'lit';
-import type { PropertyValues } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
-
 import { currentAppearance, setAppearance } from '@client/appearance';
 import type { Appearance } from '@client/appearance';
 import { focusRingStyles } from '@client/focus-ring';
@@ -11,6 +7,9 @@ import {
   setPreferredGenerations
 } from '@client/generations';
 import type { ScanCacheStatus } from '@common/types';
+import { css, html, LitElement, nothing, svg } from 'lit';
+import type { PropertyValues } from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
 
 import { formatBytes } from './helpers';
 

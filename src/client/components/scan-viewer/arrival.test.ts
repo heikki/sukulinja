@@ -1,7 +1,7 @@
 import { beforeEach, expect, test } from 'bun:test';
-import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
 import type { Viewport } from '@client/pan-zoom';
+import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
 import { ImageArrival, neighbours, THUMB_GRACE_MS } from './arrival';
 import type { ViewChange } from './arrival';

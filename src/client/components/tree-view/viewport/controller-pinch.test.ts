@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, test } from 'bun:test';
+
 import type { ReactiveControllerHost } from 'lit';
 
 import { ViewportController } from './controller';
