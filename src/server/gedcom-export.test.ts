@@ -10,9 +10,8 @@ import { treeSnapshot } from '../../test/tree-snapshot';
 import { openAppCitations } from './app-citations';
 import { openMarks } from './citation-scans/marks';
 import { DatasetRegistry } from './dataset-registry';
-import { exportDataset } from './export-dataset';
+import { packDataset } from './export-dataset';
 import { line, pointer, writeGedcom } from './gedcom-writer';
-import { importDataset } from './import-dataset';
 
 const DEMO = resolve(import.meta.dir, '../../resources/demo/bourbon.gdz');
 const MAXIMAL = resolve(import.meta.dir, '../../test/gedcom7/maximal70.gdz');
@@ -65,9 +64,8 @@ async function importFixture() {
 
 // Imports the dataset `a` exported, as `b`.
 async function roundTrip() {
-  const gdz = await exportDataset(registry, 'a');
-  await importDataset({
-    registry,
+  const gdz = await packDataset(registry.open('a'), registry.mediaDir('a'));
+  await registry.import({
     slug: 'b',
     source: { gedzip: gdz },
     sourceFilename: 'a.gdz'
@@ -265,8 +263,7 @@ describe('exporting a GEDZIP', () => {
   });
 
   test('gives back the demo, which is valid GEDCOM 7 but for one untyped event', async () => {
-    await importDataset({
-      registry,
+    await registry.import({
       slug: 'a',
       source: { gedzip: await Bun.file(DEMO).bytes() },
       sourceFilename: 'bourbon.gdz'
@@ -284,8 +281,7 @@ describe('exporting a GEDZIP', () => {
 });
 
 test("reads FamilySearch's maximal70 GEDZIP, its escaped FILE included", async () => {
-  await importDataset({
-    registry,
+  await registry.import({
     slug: 'max',
     source: { gedzip: await Bun.file(MAXIMAL).bytes() },
     sourceFilename: 'maximal70.gdz'

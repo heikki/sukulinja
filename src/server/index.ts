@@ -140,18 +140,15 @@ Electrobun.events.on('new-window-open', (event: unknown) => {
 // The window's title names the dataset shown, or the app on the chooser.
 // Moving between them is a full page load, so each move lands here.
 const DATASET_PATH_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?=\/|$)/u;
-async function windowTitle(url: string) {
+function windowTitle(url: string) {
   const slug = DATASET_PATH_RE.exec(new URL(url).pathname)?.groups?.slug;
   if (slug === undefined) return 'Sukulinja';
-  const listed = (await registry.list()).find((d) => d.slug === slug);
-  return listed?.displayName ?? slug;
+  return registry.info(slug)?.displayName ?? slug;
 }
 win.webview.on('did-navigate', (event: unknown) => {
   const url = (event as ElectrobunEvent).data?.detail;
   if (typeof url !== 'string') return;
-  void windowTitle(url).then((title) => {
-    win.setTitle(title);
-  });
+  win.setTitle(windowTitle(url));
 });
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;

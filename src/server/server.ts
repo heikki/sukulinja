@@ -25,9 +25,7 @@ import { openScanFolder } from './citation-scans/scans';
 import type { Scans } from './citation-scans/scans';
 import { createCitations } from './citations';
 import type { DatasetRegistry } from './dataset-registry';
-import { saveExport } from './export-dataset';
-import type { ExportKind } from './export-dataset';
-import { importRoutes } from './import-route';
+import { lifecycleRoutes } from './lifecycle-routes';
 import { createPersonDetails } from './person-details';
 import { createTree } from './tree';
 
@@ -181,21 +179,6 @@ function createDatasetHandlers(db: Database, scans: Scans): DatasetHandlers {
   };
 }
 
-async function handleDeleteDataset(
-  registry: DatasetRegistry,
-  slug: string
-): Promise<Response> {
-  try {
-    const existed = await registry.delete(slug);
-    return existed
-      ? new Response(null, { status: 204 })
-      : new Response('dataset not found', { status: 404 });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'delete failed';
-    return new Response(message, { status: 400 });
-  }
-}
-
 async function routeDataset(
   req: Request,
   handlers: DatasetHandlers,
@@ -309,37 +292,6 @@ export interface ApiOptions {
   exportDir?: string;
 }
 
-// POST /datasets/<slug>/export saves its GEDZIP; …/export-myheritage a
-// GEDCOM 5.5.1 file for MyHeritage.
-const EXPORT_RE =
-  /^\/datasets\/(?<slug>[^/]+)\/export(?<myheritage>-myheritage)?$/u;
-const UNDO_RE = /^\/datasets\/(?<slug>[^/]+)\/undo-import$/u;
-
-// Puts back the dataset's database from before its last import.
-async function handleUndoImport(registry: DatasetRegistry, slug: string) {
-  try {
-    return (await registry.undoImport(slug))
-      ? new Response(null, { status: 204 })
-      : new Response('no import to undo', { status: 404 });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'undo failed';
-    return new Response(message, { status: 400 });
-  }
-}
-
-async function handleExport(
-  registry: DatasetRegistry,
-  slug: string,
-  options: { dir: string | undefined; kind: ExportKind }
-) {
-  try {
-    return Response.json(await saveExport(registry, slug, options));
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'export failed';
-    return new Response(message, { status: 400 });
-  }
-}
-
 export function createApi(
   registry: DatasetRegistry,
   options: ApiOptions = {}
@@ -355,7 +307,7 @@ export function createApi(
   // a dataset's Database is closed and replaced (by an import or a delete),
   // and the next request then opens the new one and gets new handlers.
   const handlersByDb = new WeakMap<Database, DatasetHandlers>();
-  const routeImport = importRoutes(registry);
+  const routeLifecycle = lifecycleRoutes(registry, options.exportDir);
 
   // The pins on Astia's Images: the data folder's, and every dataset's
   // Marks, which a switch to a new filming leaves out alike.
@@ -392,45 +344,10 @@ export function createApi(
     return handlers;
   }
 
-  // The list of datasets, and deleting or exporting one.
-  async function routeDatasets(req: Request, pathname: string) {
-    if (pathname === '/datasets') {
-      return Response.json(await registry.list());
-    }
-    const exporting = EXPORT_RE.exec(pathname);
-    if (exporting !== null) {
-      if (req.method !== 'POST') {
-        return new Response('method not allowed', { status: 405 });
-      }
-      const { slug, myheritage } = exporting.groups!;
-      return await handleExport(registry, slug!, {
-        dir: options.exportDir,
-        kind: myheritage === undefined ? 'gdz' : 'myheritage'
-      });
-    }
-    const undoing = UNDO_RE.exec(pathname);
-    if (undoing !== null) {
-      if (req.method !== 'POST') {
-        return new Response('method not allowed', { status: 405 });
-      }
-      return await handleUndoImport(registry, undoing.groups!.slug!);
-    }
-    if (pathname.startsWith('/datasets/')) {
-      if (req.method !== 'DELETE') {
-        return new Response('method not allowed', { status: 405 });
-      }
-      const slug = pathname.slice('/datasets/'.length);
-      return await handleDeleteDataset(registry, slug);
-    }
-    return null;
-  }
-
   return {
     async routeApi(req, pathname) {
-      const imported = await routeImport(req, pathname);
-      if (imported !== null) return imported;
-      const datasets = await routeDatasets(req, pathname);
-      if (datasets !== null) return datasets;
+      const lifecycle = await routeLifecycle(req, pathname);
+      if (lifecycle !== null) return lifecycle;
       const shared = await routeShared({ astia, cache, kept }, req, pathname);
       if (shared !== null) return shared;
       const m = DATASET_RE.exec(pathname);

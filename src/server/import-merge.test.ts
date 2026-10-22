@@ -8,7 +8,7 @@ import type { ImportReview } from '@common/types';
 import { openAnnotations } from './annotations';
 import { openAppCitations } from './app-citations';
 import { DatasetRegistry } from './dataset-registry';
-import { ImportCancelled, importDataset } from './import-dataset';
+import { ImportCancelled } from './import-dataset';
 
 let root = '';
 let registry = new DatasetRegistry('');
@@ -71,8 +71,7 @@ async function importTree(
   gedcom: string,
   review?: (r: ImportReview) => Promise<boolean>
 ) {
-  return await importDataset({
-    registry,
+  return await registry.import({
     slug: 'tree',
     source: { gedcom },
     sourceFilename: 'tree.ged',

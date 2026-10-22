@@ -6,7 +6,6 @@ import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { strToU8, zipSync } from 'fflate';
 
 import { DatasetRegistry } from './dataset-registry';
-import { importDataset } from './import-dataset';
 
 let root = '';
 
@@ -60,8 +59,7 @@ async function fakeDownload(url: string, dest: string) {
 async function imported(token?: string, text = gedcom(token)) {
   fetched = [];
   const registry = new DatasetRegistry(root);
-  await importDataset({
-    registry,
+  await registry.import({
     slug: 'doe',
     source: { gedcom: text },
     sourceFilename: 'doe.ged',
@@ -173,16 +171,16 @@ async function photoStagings() {
 test('a download that throws fails the import and leaves nothing behind', async () => {
   const before = await photoStagings();
   const registry = new DatasetRegistry(root);
-  const failed = await importDataset({
-    registry,
-    slug: 'doe',
-    source: { gedcom: gedcom() },
-    sourceFilename: 'doe.ged',
-    download: async (_url, dest) => {
-      await Bun.write(dest, 'half');
-      throw new Error('connection reset');
-    }
-  })
+  const failed = await registry
+    .import({
+      slug: 'doe',
+      source: { gedcom: gedcom() },
+      sourceFilename: 'doe.ged',
+      download: async (_url, dest) => {
+        await Bun.write(dest, 'half');
+        throw new Error('connection reset');
+      }
+    })
     .then(() => null)
     .catch((err: unknown) => err);
   expect(String(failed)).toContain('connection reset');
@@ -219,8 +217,7 @@ function gedzip(entries: Record<string, string> = {}) {
 async function importedGedzip(zip: Uint8Array) {
   const registry = new DatasetRegistry(root);
   const log: string[] = [];
-  const outcome = await importDataset({
-    registry,
+  const outcome = await registry.import({
     slug: 'doe',
     source: { gedzip: zip },
     sourceFilename: 'doe.gdz',
@@ -266,12 +263,12 @@ test('a GEDZIP without gedcom.ged, or not a zip, fails the import', async () => 
   const before = await importStagings();
   const registry = new DatasetRegistry(root);
   async function failure(zip: Uint8Array) {
-    return await importDataset({
-      registry,
-      slug: 'doe',
-      source: { gedzip: zip },
-      sourceFilename: 'doe.gdz'
-    })
+    return await registry
+      .import({
+        slug: 'doe',
+        source: { gedzip: zip },
+        sourceFilename: 'doe.gdz'
+      })
       .then(() => null)
       .catch((err: unknown) => String(err));
   }

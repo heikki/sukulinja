@@ -120,6 +120,21 @@ async function settled<T>(signal: AbortSignal | undefined, run: () => T) {
   }
 }
 
+// Sends a request: the answer, if it's not an error. `what` names the
+// request when the app gives no words of its own. Shared with the
+// lifecycle adapter (lifecycle.ts).
+export function asker(send: (req: Request) => Promise<Response>) {
+  return async function ask(what: string, url: string, init: RequestInit = {}) {
+    const req = new Request(url, init);
+    const res = await send(req).catch((err: unknown) => {
+      throw new ApiError(NOT_RESPONDING, { cause: err });
+    });
+    if (res.ok) return res;
+    const words = await res.text().catch(() => '');
+    throw new ApiError(words === '' ? `${what} failed (${res.status})` : words);
+  };
+}
+
 // The dataset `slug`, over HTTP.
 export function openDatasetApi(
   slug: string,
@@ -131,17 +146,7 @@ export function openDatasetApi(
   const dataset = `${origin}/d/${slug}`;
   const astia = `${origin}/astia/volumes`;
 
-  // The answer, if it's not an error. `what` names the request when the app
-  // gives no words of its own.
-  async function ask(what: string, url: string, init: RequestInit = {}) {
-    const req = new Request(url, init);
-    const res = await send(req).catch((err: unknown) => {
-      throw new ApiError(NOT_RESPONDING, { cause: err });
-    });
-    if (res.ok) return res;
-    const words = await res.text().catch(() => '');
-    throw new ApiError(words === '' ? `${what} failed (${res.status})` : words);
-  }
+  const ask = asker(send);
 
   async function json<T>(what: string, url: string, signal?: AbortSignal) {
     return await settled(signal, async () => {

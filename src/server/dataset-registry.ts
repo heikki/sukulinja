@@ -1,11 +1,19 @@
+// The datasets in the data folder, and everything done to one as a whole:
+// listing, importing (merging into the one under its slug), undoing that
+// import, exporting and deleting. A dataset's meta is read and written only
+// here.
+
 import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readdir, rename, rm } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import type { Database } from 'bun:sqlite';
 
-import type { DatasetInfo } from '@common/types';
+import type { DatasetInfo, ExportKind } from '@common/types';
 
 import { openAnyDb, openDb, OutdatedDatasetError } from './db';
+import { saveExport } from './export-dataset';
+import { buildImport } from './import-dataset';
+import type { ImportRequest } from './import-dataset';
 
 const SLUG_RE = /^[a-z0-9][a-z0-9_-]*$/u;
 // The database from before the last import, kept for Undo last import.
@@ -17,9 +25,11 @@ function validateSlug(slug: string): void {
   }
 }
 
-interface FreshDataset {
-  db: Database;
-  mediaDir: string;
+// No dataset is stored under the slug.
+export class DatasetNotFound extends Error {
+  constructor(slug: string) {
+    super(`dataset not found: ${slug}`);
+  }
 }
 
 export interface StagingDataset {
@@ -46,32 +56,12 @@ export class DatasetRegistry {
     return join(this.datasetDir(slug), 'media');
   }
 
-  async createFresh(slug: string): Promise<FreshDataset> {
-    validateSlug(slug);
-    const dir = this.datasetDir(slug);
-    const cached = this.cache.get(slug);
-    if (cached !== undefined) {
-      cached.close();
-      this.cache.delete(slug);
-    }
-    await rm(dir, { recursive: true, force: true });
-    const mediaDir = join(dir, 'media');
-    await mkdir(mediaDir, { recursive: true });
-    const db = openDb(join(dir, 'db.sqlite'));
-    this.cache.set(slug, db);
-    return { db, mediaDir };
-  }
-
   // Close any open handle and remove the dataset from disk. Returns false if no
   // dataset by that slug existed.
   async delete(slug: string): Promise<boolean> {
     validateSlug(slug);
     const dir = this.datasetDir(slug);
-    const cached = this.cache.get(slug);
-    if (cached !== undefined) {
-      cached.close();
-      this.cache.delete(slug);
-    }
+    this.forget(slug);
     if (!existsSync(dir)) return false;
     await rm(dir, { recursive: true, force: true });
     return true;
@@ -93,10 +83,46 @@ export class DatasetRegistry {
     );
   }
 
-  // Build a dataset off to the side in a hidden staging dir (the dot prefix
-  // keeps it out of list(), so a half-finished or interrupted import is never
-  // visible) and only swap it into place on commit. This makes imports atomic:
-  // readers see either the previous dataset or the fully imported one.
+  // Imports a GEDCOM or GEDZIP under its slug, merging into the dataset
+  // there, if its review says to save it. Built off to the side, so readers
+  // see either the dataset before or the whole import, never half of one.
+  async import(req: ImportRequest) {
+    const staging = await this.createStaging(req.slug);
+    try {
+      const built = await buildImport(
+        { ...staging, previous: this.previous(req.slug) },
+        req
+      );
+      writeMeta(staging.db, {
+        display_name: req.displayName ?? req.slug,
+        source_filename: req.sourceFilename,
+        imported_at: new Date().toISOString(),
+        gedcom_version: built.gedcomVersion
+      });
+      req.log?.('Finishing…');
+      await staging.commit();
+      const info = this.readAny(req.slug, (db) =>
+        readInfo(db!, req.slug, this.status(req.slug, false))
+      );
+      return { ...built, info };
+    } catch (err) {
+      await staging.discard();
+      throw err;
+    }
+  }
+
+  // Saves the dataset as a GEDZIP, or GEDCOM 5.5.1 for MyHeritage, into
+  // `dir` (Downloads by default), and says where and what was left out.
+  async export(slug: string, options: { kind: ExportKind; dir?: string }) {
+    return await saveExport(
+      { slug, db: this.open(slug), mediaDir: this.mediaDir(slug) },
+      options
+    );
+  }
+
+  // Build a dataset by hand, as a test does, off to the side in a hidden
+  // staging dir (the dot prefix keeps it out of list()) and only swap it into
+  // place on commit.
   async createStaging(slug: string): Promise<StagingDataset> {
     validateSlug(slug);
     const finalDir = this.datasetDir(slug);
@@ -117,11 +143,7 @@ export class DatasetRegistry {
       mediaDir,
       commit: async () => {
         closeOnce();
-        const cached = this.cache.get(slug);
-        if (cached !== undefined) {
-          cached.close();
-          this.cache.delete(slug);
-        }
+        this.forget(slug);
         await keepBefore(finalDir, stagingDir);
         await rm(finalDir, { recursive: true, force: true });
         await rename(stagingDir, finalDir);
@@ -140,17 +162,29 @@ export class DatasetRegistry {
     for (const e of entries) {
       if (!e.isDirectory()) continue;
       if (!SLUG_RE.test(e.name)) continue;
-      const info = this.tryReadInfo(e.name);
+      const info = this.info(e.name);
       if (info !== null) out.push(info);
     }
     out.sort((a, b) => a.slug.localeCompare(b.slug));
     return out;
   }
 
-  // Whether a dataset is stored under the slug, readable or not.
-  exists(slug: string) {
+  // The dataset under the slug, outdated or not; null when none can be read.
+  info(slug: string) {
     validateSlug(slug);
-    return existsSync(join(this.datasetDir(slug), 'db.sqlite'));
+    try {
+      return readInfo(this.open(slug), slug, this.status(slug, false));
+    } catch (err) {
+      if (!(err instanceof OutdatedDatasetError)) return null;
+    }
+    return this.readAny(slug, (db) => {
+      if (db === null) return null;
+      try {
+        return readInfo(db, slug, this.status(slug, true));
+      } catch {
+        return null;
+      }
+    });
   }
 
   // Puts back the database from before the last import; false when none
@@ -160,39 +194,53 @@ export class DatasetRegistry {
     const dir = this.datasetDir(slug);
     const before = join(dir, BEFORE_IMPORT);
     if (!existsSync(before)) return false;
-    const cached = this.cache.get(slug);
-    if (cached !== undefined) {
-      cached.close();
-      this.cache.delete(slug);
-    }
+    this.forget(slug);
     await rename(before, join(dir, 'db.sqlite'));
     return true;
   }
 
+  // The dataset's database. Throws DatasetNotFound, or OutdatedDatasetError
+  // for one an older version built.
   open(slug: string): Database {
     validateSlug(slug);
     const cached = this.cache.get(slug);
     if (cached !== undefined) return cached;
     const dbPath = join(this.datasetDir(slug), 'db.sqlite');
-    if (!existsSync(dbPath)) {
-      throw new Error(`dataset not found: ${slug}`);
-    }
+    if (!existsSync(dbPath)) throw new DatasetNotFound(slug);
     const db = openDb(dbPath);
     this.cache.set(slug, db);
     return db;
   }
 
-  // The dataset's database, read-only and whatever version built it, for
-  // what an import carries over from it; null when there is none. The
-  // caller closes it.
-  readAny(slug: string): Database | null {
-    validateSlug(slug);
+  // Closes the dataset's open database, which is about to be replaced.
+  private forget(slug: string) {
+    this.cache.get(slug)?.close();
+    this.cache.delete(slug);
+  }
+
+  // What an import merges with: the dataset under the slug now, if any.
+  private previous(slug: string) {
+    if (!existsSync(join(this.datasetDir(slug), 'db.sqlite'))) return null;
+    return {
+      mediaDir: this.mediaDir(slug),
+      read: <T>(read: (db: Database | null) => T) => this.readAny(slug, read)
+    };
+  }
+
+  // Reads the dataset's database, read-only and whatever version built it;
+  // null when there's none or it can't be opened.
+  private readAny<T>(slug: string, read: (db: Database | null) => T) {
     const dbPath = join(this.datasetDir(slug), 'db.sqlite');
-    if (!existsSync(dbPath)) return null;
+    let db: Database | null = null;
     try {
-      return openAnyDb(dbPath);
+      if (existsSync(dbPath)) db = openAnyDb(dbPath);
     } catch {
-      return null;
+      db = null;
+    }
+    try {
+      return read(db);
+    } finally {
+      db?.close();
     }
   }
 
@@ -203,23 +251,6 @@ export class DatasetRegistry {
 
   private datasetDir(slug: string): string {
     return join(this.root, slug);
-  }
-
-  private tryReadInfo(slug: string): DatasetInfo | null {
-    try {
-      return readInfo(this.open(slug), slug, this.status(slug, false));
-    } catch (err) {
-      if (!(err instanceof OutdatedDatasetError)) return null;
-    }
-    const db = this.readAny(slug);
-    if (db === null) return null;
-    try {
-      return readInfo(db, slug, this.status(slug, true));
-    } catch {
-      return null;
-    } finally {
-      db.close();
-    }
   }
 }
 
@@ -240,6 +271,14 @@ async function keepBefore(finalDir: string, stagingDir: string) {
         await rename(join(media, name), join(stagingDir, 'media', name));
       })
   );
+}
+
+// The dataset's meta, by key; a null value isn't written.
+function writeMeta(db: Database, meta: Record<string, string | null>) {
+  const write = db.prepare('INSERT INTO meta (key, value) VALUES (?, ?)');
+  for (const [key, value] of Object.entries(meta)) {
+    if (value !== null) write.run(key, value);
+  }
 }
 
 function readInfo(
@@ -266,6 +305,7 @@ function readInfo(
     personCount: count('persons'),
     familyCount: count('families'),
     importedAt: meta.get('imported_at') ?? null,
+    sourceFilename: meta.get('source_filename') ?? null,
     ...status
   };
 }
