@@ -1,16 +1,33 @@
-// Test support for the pins: references, vision matches, and an Astia
+// Test support for the pins: references, Matches, and an Astia
 // listing whatever file ids a test gives.
+
+import type { Box } from '@common/types';
 
 import { openDb } from '../db';
 import type { Astia } from './astia';
 import type { Pins } from './locate';
-import { openMarks } from './marks';
+import type { Match } from './matcher';
 import { memoryAstia } from './memory-astia';
-import { openPins, openVolumeFacts } from './pins';
 import type { ChurchBookRef } from './record';
+import { openScanFolder } from './scans';
+import type { ImageSizeOf } from './scans';
+import { JUVA } from './test-parish';
 
 // In pixels of the full-size Image.
 export const BOX = { left: 100, top: 400, width: 500, height: 50 };
+
+// Every Image's size where a test tells one.
+export const SIZE = { width: 1000, height: 1000 };
+
+// The Box in fractions of an Image of SIZE.
+export function fractionsOf(box: Box) {
+  return {
+    left: box.left / SIZE.width,
+    top: box.top / SIZE.height,
+    width: box.width / SIZE.width,
+    height: box.height / SIZE.height
+  };
+}
 
 // A rippikirja reference to the record, on the page when given.
 export function ref(recordId: number | null, page: number | null = null) {
@@ -50,17 +67,30 @@ export function citing(
   return db;
 }
 
-// The pins of a data folder and a dataset's database.
-export function pinsOf(
+// A dataset's Scans over a data folder.
+export function scansOf(
   folder: string,
   db: ReturnType<typeof openDb>,
-  options: { astia: Astia; base?: Pins['volumes'] }
+  options: { astia: Astia; base?: Pins['volumes']; sizeOf?: ImageSizeOf }
 ) {
-  return openPins(openVolumeFacts(folder, options), openMarks(db));
+  const { sizeOf, ...opened } = options;
+  return openScanFolder(folder, opened).scans(db, { sizeOf });
 }
 
-export function vision(volumeId: string, image: number, onCitedPage = false) {
-  return { volumeId, volume: volumeId, image, onCitedPage, box: BOX };
+// A Match the vision model confirmed at BOX, on an Image of SIZE.
+export function match(
+  volumeId: string,
+  image: number,
+  onCitedPage = false
+): Match {
+  return {
+    confirmed: true,
+    volumeId,
+    volume: volumeId,
+    image,
+    onCitedPage,
+    box: fractionsOf(BOX)
+  };
 }
 
 // An Astia listing each Volume's file ids as `lists` gives them now: none
@@ -72,3 +102,41 @@ export function listedAstia(lists: () => Record<string, string[]>): Astia {
     cachedImages: (volumeId) => Promise.resolve(lists()[volumeId] ?? null)
   };
 }
+
+// Volumes a–y of Juva's archive, of 50 Images each: a is the Book the
+// rippikirja references (ref) cite, and holds a Page pin and a Record
+// range in BASE; b is another Book.
+export const LABELS = {
+  a: 'I Aa:1 Pää- ja rippikirjat (1790-1796)',
+  b: 'I Aa:2 Pää- ja rippikirjat (1797-1803)',
+  c: 'I Ab:1 Lastenkirjat (1790-1796)',
+  d: 'I Aa:3 Pää- ja rippikirjat (1804-1810)',
+  x: 'I Aa:4 Pää- ja rippikirjat (1811-1817)',
+  y: 'I Aa:5 Pää- ja rippikirjat (1818-1824)'
+};
+
+export function pinsParish() {
+  return memoryAstia({
+    [JUVA]: {
+      volumes: Object.entries(LABELS).map(([id, label]) => ({
+        id,
+        label,
+        images: 50
+      }))
+    }
+  });
+}
+
+// The records the tests save, each cited once, and a reference with no
+// Record number.
+export const CITED = [150, 160, 12, 50, 250, 450, 650, 800, 5000, null].map(
+  (r) => ref(r).url
+);
+
+export const BASE: Pins['volumes'] = {
+  a: {
+    title: 'I Aa:1',
+    pages: [{ image: 10, pages: [20] }],
+    ranges: [{ from: 100, to: 200 }]
+  }
+};

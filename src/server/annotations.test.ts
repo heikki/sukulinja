@@ -110,7 +110,7 @@ test('a hand Mark on an Image cites it, keeping the page as the original page', 
   });
 });
 
-test('a Vision match keeps the page', () => {
+test('a Match keeps the page', () => {
   const id = cite(MYHERITAGE);
   const match: CitationLink = { ...ON_IMAGE, by: 'vision' };
   annotations.swap([id], match);

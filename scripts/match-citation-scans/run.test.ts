@@ -5,19 +5,19 @@ import type { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import { openMarks } from '@server/citation-scans/marks';
+import type { MemoryAstia } from '@server/citation-scans/memory-astia';
 import type { Reader } from '@server/citation-scans/reader';
 import {
   churchBookRefOf,
   parseChurchBookRef
 } from '@server/citation-scans/record';
-import { openScans } from '@server/citation-scans/scans';
 import {
   baptismCitation,
   juvaAstia,
   rippiCitation,
   VOLUMES
 } from '@server/citation-scans/test-parish';
-import { citing, pinsOf } from '@server/citation-scans/test-pins';
+import { citing, scansOf } from '@server/citation-scans/test-pins';
 
 import { recordEvaluation } from '../vision/gate';
 import { reviewMarkdown, runMatching } from './run';
@@ -110,8 +110,9 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-function pins() {
-  return pinsOf(dir, db, { astia: juvaAstia() });
+// The dataset's Scans, as the app opens them.
+function datasetScans() {
+  return scansOf(dir, db, { astia: juvaAstia() });
 }
 
 async function passEvaluation(falseConfirmations = 0) {
@@ -134,7 +135,12 @@ async function passEvaluation(falseConfirmations = 0) {
 }
 
 async function run(
-  options: { dryRun?: boolean; limit?: number; books?: Books } = {}
+  options: {
+    dryRun?: boolean;
+    limit?: number;
+    books?: Books;
+    astia?: MemoryAstia;
+  } = {}
 ) {
   const { reader, asked } = scans();
   const result = await runMatching({
@@ -151,13 +157,13 @@ async function run(
 }
 
 async function linksOf(c: { page: string; text: string }) {
-  const astia = juvaAstia();
-  const scans = openScans({ pins: pinsOf(dir, db, { astia }), astia });
-  const resolved = await scans.resolveRef(churchBookRefOf(c.page, c.text)!);
+  const resolved = await datasetScans().resolveRef(
+    churchBookRefOf(c.page, c.text)!
+  );
   return 'links' in resolved ? resolved.links : resolved;
 }
 
-test('saves confirmed matches, which the app shows as vision matches', async () => {
+test('saves confirmed matches, which the app shows as Matches', async () => {
   await passEvaluation();
   const { result } = await run();
   expect('outcomes' in result && result.outcomes.toSorted()).toEqual([
@@ -171,17 +177,17 @@ test('saves confirmed matches, which the app shows as vision matches', async () 
     expect.objectContaining({
       volumeId: 'juva-1',
       image: 12,
-      certainty: 'vision'
+      certainty: 'match'
     })
   ]);
   expect(await linksOf(JUHO)).toEqual([
     expect.objectContaining({
       volumeId: 'juva-3',
       image: 15,
-      certainty: 'vision'
+      certainty: 'match'
     })
   ]);
-  const snapshot = await pins().snapshot();
+  const snapshot = await datasetScans().snapshot();
   const juva1 = snapshot.volumes['juva-1']!;
   expect(juva1.records).toEqual([
     { record: 5000, image: 12, by: 'vision', box: BOX, fileId: 'juva-1-f12' }
@@ -199,7 +205,7 @@ test('saves confirmed matches, which the app shows as vision matches', async () 
   expect(Object.keys(snapshot.references).toSorted()).toEqual(
     [MATTI.page, JUHO.page].toSorted()
   );
-  // A Vision match keeps its page.
+  // A Match keeps its page.
   expect(db.query('SELECT original_page FROM citations').all()).toEqual(
     CITATIONS.map(() => ({ original_page: null }))
   );
@@ -249,17 +255,38 @@ test('a match taken back by hand there goes to the review list, not the pins', a
   await passEvaluation();
   await run();
   const at = { volumeId: 'juva-1', image: 12 };
-  expect(await pins().recordDiscard(REFS[0]!, at)).toBe(true);
+  expect(await datasetScans().discardRef(REFS[0]!, at)).not.toHaveProperty(
+    'rejected'
+  );
   const { result } = await run();
   if (!('outcomes' in result)) throw new Error(result.refused);
   expect(result.outcomes).toContain('rippi rejected');
   expect(
     result.review.filter((r) => r.reason === 'rejected').map((r) => r.image)
   ).toEqual([12]);
-  expect(await pins().rejects(REFS[0]!, at)).toBe(true);
-  expect((await pins().snapshot()).volumes['juva-1']?.records ?? []).toEqual(
-    []
+  expect(await datasetScans().isRejected(REFS[0]!, at)).toBe(true);
+  expect(
+    (await datasetScans().snapshot()).volumes['juva-1']?.records ?? []
+  ).toEqual([]);
+});
+
+test('a Match Scans refuses is tallied and listed for review, not saved', async () => {
+  await passEvaluation();
+  // Astia has re-scanned juva-1 since its list was kept.
+  const astia = juvaAstia();
+  astia.rescan('juva-1', 20);
+  await astia.peekImages('juva-1');
+  const { result } = await run({ astia });
+  if (!('outcomes' in result)) throw new Error(result.refused);
+  expect(result.outcomes).toContain(
+    'rippi refused: Astia has re-scanned this Volume. It can be changed once switched to the new filming.'
   );
+  expect(
+    result.review.filter((r) => r.reason === 'refused').map((r) => r.image)
+  ).toEqual([12]);
+  expect(
+    (await datasetScans().snapshot()).volumes['juva-1']?.records ?? []
+  ).toEqual([]);
 });
 
 test('never overrides a hand pin', async () => {
@@ -286,12 +313,12 @@ test('never overrides a hand pin', async () => {
       certainty: 'marked'
     })
   ]);
-  expect((await pins().snapshot()).volumes['juva-1']!.pages).toEqual([
+  expect((await datasetScans().snapshot()).volumes['juva-1']!.pages).toEqual([
     { image: 12, pages: [12], fileId: 'juva-1-f12' }
   ]);
   // Matti is still matched, as a Record pin beside the hand Page pin.
   expect(await linksOf(MATTI)).toEqual([
-    expect.objectContaining({ image: 12, certainty: 'vision' })
+    expect.objectContaining({ image: 12, certainty: 'match' })
   ]);
 });
 

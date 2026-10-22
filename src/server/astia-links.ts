@@ -1,8 +1,8 @@
-// A Mark or Vision match in GEDCOM 7 (ADR-0013), written by the export and
+// A Mark or Match in GEDCOM 7 (ADR-0013), written by the export and
 // read back by the import. A link to an Image is an OBJE under the
 // citation, pointing at an OBJE record per Image whose FILE is the Image's
 // JPEG in Astia, titled with its Volume and Image number; the Box is the
-// link's CROP. The original page is a NOTE, and so is a Vision match
+// link's CROP. The original page is a NOTE, and so is a Match
 // nobody has checked, a link with no file to point at (only a Volume, or
 // an Image whose file id wasn't known), and a citation made in the app.
 

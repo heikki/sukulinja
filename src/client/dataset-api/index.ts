@@ -60,7 +60,7 @@ export interface DatasetApi {
   ) => AsyncGenerator<CitationLinks, void, undefined>;
   // Saves a Mark: the reference's Links, resolved again.
   mark: (citationId: number, at: MarkTarget) => Promise<CitationLinks>;
-  // Takes back the reference's Box at `at`, a Mark's or a Vision match's:
+  // Takes back the reference's Box at `at`, a Mark's or a Match's:
   // its Links, resolved again.
   discard: (citationId: number, at: BoxAt) => Promise<CitationLinks>;
   // Makes a Citation of the entry for the person: it as the Volume's

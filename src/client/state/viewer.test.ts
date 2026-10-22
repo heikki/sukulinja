@@ -68,7 +68,7 @@ const C14 = churchBook(14, null);
 const L11 = onImage('201', 18);
 const L12 = inVolume('201');
 const L13 = onImage('202', 5);
-// Maria's 21, a Vision match beside Matti's 11.
+// Maria's 21, a Match beside Matti's 11.
 const C21 = churchBook(21, null);
 const VISION_21: Link = {
   ...ARCHIVE,
@@ -77,7 +77,7 @@ const VISION_21: Link = {
   precision: 'entry',
   image: 18,
   box: BOX,
-  certainty: 'vision'
+  certainty: 'match'
 };
 const MARKED_21: Link = { ...VISION_21, certainty: 'marked' };
 
@@ -474,7 +474,7 @@ test('selecting someone else drops the pending change', async () => {
   expect(viewer.leaving.get()).toBe(false);
 });
 
-test("editing a Vision match's Box starts from it, and Save sends the Box", async () => {
+test("editing a Match's Box starts from it, and Save sends the Box", async () => {
   const { api, viewer } = await selecting(2);
   viewer.open({ citation: C21, link: VISION_21 });
   await settle();

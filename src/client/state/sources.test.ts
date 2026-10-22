@@ -38,8 +38,8 @@ test('names a Link by who says so and how far down', () => {
   expect(label({ ...BASE, precision: 'volume', certainty: 'marked' })).toBe(
     'Marked Volume'
   );
-  const vision: Link = { ...link, certainty: 'vision' };
-  expect(label(vision)).toBe('Vision match');
+  const vision: Link = { ...link, certainty: 'match' };
+  expect(label(vision)).toBe('Match');
 });
 
 test('opens a Split reference on its first Volume', () => {

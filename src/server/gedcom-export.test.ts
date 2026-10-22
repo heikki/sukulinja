@@ -132,7 +132,7 @@ describe('exporting a GEDZIP', () => {
     expect(text).toContain('2 AGE 48y');
   });
 
-  test('carries Marks and Vision matches, their Boxes, the original pages and the citations made in the app', async () => {
+  test('carries Marks and Matches, their Boxes, the original pages and the citations made in the app', async () => {
     await importFixture();
     const db = registry.open('a');
     const index =

@@ -19,12 +19,11 @@ import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { openAstia } from '@server/citation-scans/astia';
-import { openMarks } from '@server/citation-scans/marks';
 import { readLocalFile } from '@server/citation-scans/pin-files';
-import { openPins, openVolumeFacts } from '@server/citation-scans/pins';
 import shipped from '@server/citation-scans/pins.json';
 import { checkRescans } from '@server/citation-scans/rescans';
 import { openScanCache } from '@server/citation-scans/scan-cache';
+import { openScanFolder } from '@server/citation-scans/scans';
 import { DatasetRegistry } from '@server/dataset-registry';
 
 import { reportLines } from './report';
@@ -42,10 +41,10 @@ try {
   const fresh = openAstia(cache);
   const kept = openAstia(join(root, '.astia-cache'));
   const registry = new DatasetRegistry(root);
-  const facts = openVolumeFacts(root, { astia: kept });
+  const folder = openScanFolder(root, { astia: kept });
   const marked = (await registry.list())
     .filter((d) => !d.outdated)
-    .map((d) => openPins(facts, openMarks(registry.open(d.slug))).marked());
+    .map((d) => folder.scans(registry.open(d.slug)).marked());
   const result = await checkRescans(
     {
       shipped: shipped.volumes,

@@ -12,8 +12,6 @@ import {
   viewerUrls
 } from './citation-scans/astia';
 import type { Astia } from './citation-scans/astia';
-import { openMarks } from './citation-scans/marks';
-import { openPins, openVolumeFacts } from './citation-scans/pins';
 import type { ImageRef } from './citation-scans/reader';
 import { routeRescan } from './citation-scans/rescans';
 import type { KeptPins } from './citation-scans/rescans';
@@ -23,7 +21,7 @@ import {
   routeScanCache
 } from './citation-scans/scan-cache';
 import type { ScanCache } from './citation-scans/scan-cache';
-import { openScans } from './citation-scans/scans';
+import { openScanFolder } from './citation-scans/scans';
 import type { Scans } from './citation-scans/scans';
 import { createCitations } from './citations';
 import type { DatasetRegistry } from './dataset-registry';
@@ -352,28 +350,23 @@ export function createApi(
     root: registry.root,
     switches: false
   });
-  const facts = openVolumeFacts(registry.root, { astia });
+  const folder = openScanFolder(registry.root, { astia });
   // Kept by the Database they're bound to: the registry alone decides when
   // a dataset's Database is closed and replaced (by an import or a delete),
   // and the next request then opens the new one and gets new handlers.
   const handlersByDb = new WeakMap<Database, DatasetHandlers>();
   const routeImport = importRoutes(registry);
 
-  function pinsOf(db: Database) {
-    return openPins(facts, openMarks(db));
-  }
-
   // The pins on Astia's Images: the data folder's, and every dataset's
   // Marks, which a switch to a new filming leaves out alike.
   async function kept() {
-    const { shipped, local } = await facts.kept();
-    const marked = (await registry.list())
+    const dbs = (await registry.list())
       .filter((d) => !d.outdated)
       .flatMap((d) => {
         const db = tryOpen(d.slug);
-        return db === null ? [] : [pinsOf(db).marked()];
+        return db === null ? [] : [db];
       });
-    return { shipped, local: [local, ...marked] };
+    return await folder.kept(dbs);
   }
 
   function tryOpen(slug: string): Database | null {
@@ -390,9 +383,7 @@ export function createApi(
     let handlers = handlersByDb.get(db);
     if (handlers === undefined) {
       // The Scan viewer has just shown the Image a Box is drawn on.
-      const scans = openScans({
-        pins: pinsOf(db),
-        astia,
+      const scans = folder.scans(db, {
         sizeOf: async (at) => await imageSize(cache, at)
       });
       handlers = createDatasetHandlers(db, scans);

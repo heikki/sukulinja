@@ -1,5 +1,9 @@
-// Astia Links for Church-book references, resolved on demand, and the
-// Marks made in the app.
+// Astia Links for Church-book references, resolved on demand, and every
+// save of where one is: a Mark, a Match or a Discard. Opened by data
+// folder, whose Page pins and Record ranges every dataset shares, then by
+// dataset, whose Marks and Matches are in its citations.
+
+import type { Database } from 'bun:sqlite';
 
 import type {
   Box,
@@ -13,8 +17,12 @@ import { AstiaError } from './astia';
 import type { Astia, Volume } from './astia';
 import type { Viewport } from './jpeg';
 import { parishArchive, parishVolumes, resolveChurchBookRef } from './locate';
-import type { Candidate } from './matcher';
+import type { Pins } from './locate';
+import { openMarks } from './marks';
+import type { Candidate, Match } from './matcher';
+import { openPins, openVolumeFacts } from './pins';
 import type { BoxAt, MarkTarget, PinStore } from './pins';
+import type { Fractions } from './reader';
 import type { ChurchBookRef } from './record';
 
 // The pins resolution reads, but no Reference pins: a reference's links by
@@ -58,6 +66,20 @@ function unknownSize() {
   return Promise.resolve(null);
 }
 
+// A reading's Box in pixels of the full-size Image.
+function inPixels(box: Fractions, size: Viewport) {
+  const left = Math.round(box.left * size.width);
+  const top = Math.round(box.top * size.height);
+  const right = Math.round((box.left + box.width) * size.width);
+  const bottom = Math.round((box.top + box.height) * size.height);
+  return {
+    left,
+    top,
+    width: Math.max(1, Math.min(size.width, right) - left),
+    height: Math.max(1, Math.min(size.height, bottom) - top)
+  };
+}
+
 function choiceOf(v: Volume): VolumeChoice {
   return { id: v.id, label: v.label, years: v.years };
 }
@@ -70,9 +92,10 @@ function byYears(a: Volume, b: Volume) {
 const OLD_FILMING =
   'Astia has re-scanned this Volume. It can be changed once switched to the new filming.';
 
-// References resolved with the pins saved so far, against the Astia given.
-// `sizeOf` tells a Box past its Image's edges; without it, none is.
-export function openScans({
+// A dataset's references resolved with the pins saved so far, against the
+// Astia given. `sizeOf` tells a Box past its Image's edges; without it,
+// none is.
+function openScans({
   pins,
   astia,
   sizeOf = unknownSize
@@ -133,6 +156,32 @@ export function openScans({
     return first !== undefined && (await astia.isGone(volumeId, first));
   }
 
+  // Why a Mark or Match can't be saved at the target, if it can't: the
+  // Volume's label otherwise.
+  async function refusal(
+    ref: ChurchBookRef,
+    target: MarkTarget,
+    sizeOfTarget: ImageSizeOf
+  ): Promise<{ volume: string } | { rejected: string }> {
+    const volume = (await parishVolumes(astia, ref.parish)).find(
+      (v) => v.id === target.volumeId
+    );
+    if (volume === undefined) {
+      return { rejected: "That Volume isn't in this parish's church books." };
+    }
+    const boxed = await boxProblem(target, sizeOfTarget);
+    if (boxed !== null) return { rejected: boxed };
+    if (await onOldFilming(target.volumeId)) return { rejected: OLD_FILMING };
+    const { image } = target;
+    if (image !== undefined) {
+      const count = (await astia.volumeImages(target.volumeId)).length;
+      if (!Number.isInteger(image) || image < 1 || image > count) {
+        return { rejected: `The volume has images 1–${count}.` };
+      }
+    }
+    return { volume: volume.label };
+  }
+
   async function linkedVolumes(ref: ChurchBookRef) {
     const matched = await resolveChurchBookRef(astia, ref, await byBook(pins));
     const links = 'links' in matched ? matched.links : [];
@@ -141,6 +190,14 @@ export function openScans({
 
   return {
     resolveRef,
+
+    // What resolution reads: the folder's facts about Volumes with the
+    // dataset's Marks and Matches read over them.
+    snapshot: async () => await pins.snapshot(),
+
+    // The dataset's Marks and Matches as the pins they're kept as, and its
+    // Rejections.
+    marked: () => pins.marked(),
 
     // Changes when a save, or a Volume's list kept anew, changes what
     // references resolve to.
@@ -208,26 +265,47 @@ export function openScans({
 
     // Saves a Mark, and gives the reference's links as they now resolve.
     async markRef(ref: ChurchBookRef, target: MarkTarget) {
-      const volume = (await parishVolumes(astia, ref.parish)).find(
-        (v) => v.id === target.volumeId
-      );
-      if (volume === undefined) {
-        return { rejected: "That Volume isn't in this parish's church books." };
-      }
-      const boxed = await boxProblem(target, sizeOf);
-      if (boxed !== null) return { rejected: boxed };
-      if (await onOldFilming(target.volumeId)) return { rejected: OLD_FILMING };
-      const { image } = target;
-      if (image !== undefined) {
-        const count = (await astia.volumeImages(target.volumeId)).length;
-        if (!Number.isInteger(image) || image < 1 || image > count) {
-          return { rejected: `The volume has images 1–${count}.` };
-        }
-      }
+      const checked = await refusal(ref, target, sizeOf);
+      if ('rejected' in checked) return checked;
       const linked = (await linkedVolumes(ref)).has(target.volumeId);
-      await pins.recordMark(ref, target, { volume: volume.label, linked });
+      await pins.recordMark(ref, target, { volume: checked.volume, linked });
       return await resolveRef(ref);
     },
+
+    // Saves a Match the vision model confirmed, its Box in fractions of the
+    // Image, where a Mark could be saved. Not saved where it was taken back
+    // by hand. A dry run checks it and saves nothing.
+    async saveMatch(
+      ref: ChurchBookRef,
+      match: Match,
+      { dryRun = false } = {}
+    ): Promise<{ saved: boolean } | { rejected: string }> {
+      const { volumeId, image } = match;
+      const size = await sizeOf({ volumeId, image });
+      if (size === null) {
+        throw new Error(`No size for Image ${image} of Volume ${volumeId}`);
+      }
+      const box = inPixels(match.box, size);
+      const checked = await refusal(
+        ref,
+        { volumeId, image, box },
+        async () => await Promise.resolve(size)
+      );
+      if ('rejected' in checked) return checked;
+      if (dryRun) return { saved: !(await pins.rejects(ref, match)) };
+      const saved = await pins.recordMatch(ref, {
+        volumeId,
+        volume: checked.volume,
+        image,
+        onCitedPage: match.onCitedPage,
+        box
+      });
+      return { saved };
+    },
+
+    // Whether a Match at `at` was taken back by hand.
+    isRejected: async (ref: ChurchBookRef, at: BoxAt) =>
+      await pins.rejects(ref, at),
 
     // The title of the archive holding the Volume, as a Link names it,
     // looked for among the `parishes`' archives; null when none holds it
@@ -289,3 +367,33 @@ export function openScans({
 }
 
 export type Scans = ReturnType<typeof openScans>;
+
+// A data folder's scans: its Page pins and Record ranges, read and kept
+// once for every dataset, over `base` (the shipped pins unless given).
+export function openScanFolder(
+  root: string,
+  options: { astia: Astia; base?: Pins['volumes'] }
+) {
+  const { astia } = options;
+  const facts = openVolumeFacts(root, options);
+
+  function pinsOf(db: Database) {
+    return openPins(facts, openMarks(db));
+  }
+
+  return {
+    // A dataset's Scans, resolving with its Marks and Matches.
+    scans: (db: Database, { sizeOf }: { sizeOf?: ImageSizeOf } = {}) =>
+      openScans({ pins: pinsOf(db), astia, sizeOf }),
+
+    // The pins on Astia's Images: the folder's, and each dataset's Marks
+    // and Matches, which a switch to a new filming leaves out alike.
+    async kept(dbs: Database[]) {
+      const { shipped, local } = await facts.kept();
+      const marked = dbs.map((db) => pinsOf(db).marked());
+      return { shipped, local: [local, ...marked] };
+    }
+  };
+}
+
+export type ScanFolder = ReturnType<typeof openScanFolder>;

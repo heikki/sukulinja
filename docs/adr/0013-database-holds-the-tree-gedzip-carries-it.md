@@ -9,12 +9,12 @@ The database is now the dataset's master copy, and a GEDZIP is how all of it lea
 - **Everyone has a `UID`.** A person imported without one gets a new random UUID, which every export writes. The spec doesn't promise that record ids (`@I1@`) survive from one file to the next, so only `UID` reliably says who is who.
 - **Values are stored the GEDCOM 7 way**, whichever version a file is in: a file's `FORM` as a MIME type, a language as its BCP 47 tag, a calendar by its word (`JULIAN`, not `@#DJULIAN@`), `@@` decoded, and an enumeration's `PHRASE` as the value. An event line with nothing under it (`1 BIRT`) is stored as GEDCOM 7's `BIRT Y`, and other empty lines, which say nothing, aren't stored. A value outside GEDCOM's range is taken to the nearest valid one: MyHeritage's `QUAY 4` is stored as 3, and an `AGE` with no unit as years. Neither is shown in the app. So the database only holds valid GEDCOM 7, and an export writes what's stored.
 - **No source program's name appears in the schema.** Column names say what a value is (`uid`, `original_page`), not who wrote it.
-- **A Mark is written into the citations.** Marking a **Church-book reference**'s record, by hand or by confirming a **Vision match**, writes the link into every citation of that record:
+- **A Mark is written into the citations.** Marking a **Church-book reference**'s record, by hand or by confirming a **Match**, writes the link into every citation of that record:
   - `page` becomes the Astia Image's address.
   - The `PAGE` it had is kept in `original_page`.
   - A multimedia link to the Image's JPEG is added, with its **Box** in pixels, as GEDCOM's `CROP` holds it. The viewer and the vision pass scale it when they have the Image open.
   - Clearing the Mark puts `original_page` back.
-  - A Vision match nobody has checked keeps its `page` and adds the link with a note saying it wasn't checked.
+  - A Match nobody has checked keeps its `page` and adds the link with a note saying it wasn't checked.
   - **Rejections** have no GEDCOM form, so they get a table of their own.
 - **Facts about Volumes stay shared.** **Page pins** and **Record ranges** describe Astia's books, not a tree, so they stay in one local file that every dataset reads, beside the shipped ones. A Mark that gives a Page pin still saves it there.
 - **Re-importing merges, by stable ids.** The source program's part comes from the new export. A citation says whether it was made in the app (`added_in_app`). Citations made in the app go back to the same person, by `UID`, or by record id for a file that carries no `UID`s.
@@ -27,7 +27,7 @@ The database is now the dataset's master copy, and a GEDZIP is how all of it lea
 - **Export writes a GEDCOM 7 GEDZIP** (`gedcom.ged` and its media). It holds everything the database holds:
   - Each Mark becomes an `OBJE` under its citation, pointing at an `OBJE` record for the Image's JPEG in Astia, titled with its Volume and Image number, with the Box as its `CROP`. A Mark of only a Volume is a `NOTE` naming it.
   - `original_page` becomes `NOTE Original page: <url>`.
-  - An unchecked Vision match gets a `NOTE` saying so, and a citation made in the app `NOTE Added in Sukulinja`.
+  - An unchecked Match gets a `NOTE` saying so, and a citation made in the app `NOTE Added in Sukulinja`.
   - Importing that GEDZIP gives back the same dataset, reading those notes back into their columns.
   - A second export writes a GEDCOM 5.5.1 `.ged` for MyHeritage, with no photos and links without Boxes, since 5.5.1 has no standard crop.
 - **Verified by a round trip.** A test imports, exports and imports again and must get the same tree, on fixtures and, run locally, on the real exports. It also fails if the import listed any line it couldn't store, or if the GEDCOM 7 spec editor's validator, js-gedcom, finds an error in the exported `gedcom.ged`. The MyHeritage `.ged` is checked once by uploading it as a new tree.

@@ -150,7 +150,7 @@ export type Precision = 'entry' | 'image' | 'volume';
 
 // Who says where a Link points: a person (a Mark), the vision model (a
 // suggestion), or a count.
-export type Certainty = 'marked' | 'vision' | 'estimated';
+export type Certainty = 'marked' | 'match' | 'estimated';
 
 // What an estimate is counted from: the Volume's Page pins, or the Book's
 // usual numbering.
@@ -188,7 +188,7 @@ export type LinkTarget =
       precision: 'entry';
       image: number;
       box: Box;
-      certainty: 'marked' | 'vision';
+      certainty: 'marked' | 'match';
     }
   | {
       precision: 'image';

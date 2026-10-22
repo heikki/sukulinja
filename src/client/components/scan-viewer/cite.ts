@@ -12,7 +12,7 @@ export interface CiteChoice {
 }
 
 // The people listed beside the scan: their Citations link the Image shown,
-// Marked, Vision match or Estimated. An entry isn't cited for them again.
+// Marked, Match or Estimated. An entry isn't cited for them again.
 export function citingImage(rows: VolumeCitation[], image: number) {
   return new Set(
     rows.filter((r) => imageOf(r) === image).map((r) => r.personId)

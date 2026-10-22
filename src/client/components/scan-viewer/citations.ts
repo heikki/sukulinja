@@ -33,12 +33,12 @@ function byPlace(nameOf: (row: VolumeCitation) => string) {
 const GROUPED: Array<{ certainty: Certainty; precision?: Precision }> = [
   { certainty: 'marked', precision: 'entry' },
   { certainty: 'marked', precision: 'image' },
-  { certainty: 'vision' },
+  { certainty: 'match' },
   { certainty: 'estimated' }
 ];
 
 // The Volume's rows linking the Image shown, grouped by who says so:
-// Marked, then Marked Image, then Vision matches left to confirm, then
+// Marked, then Marked Image, then Matches left to confirm, then
 // Estimated ones. Those known only to be in the Volume aren't known to be
 // here, so they're left out.
 export function groupCitations(

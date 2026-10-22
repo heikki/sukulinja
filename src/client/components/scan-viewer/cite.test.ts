@@ -106,7 +106,7 @@ test('those citing the Image are the people beside it, of any certainty', () => 
       precision: 'entry',
       image: 18,
       box: { left: 0, top: 0, width: 10, height: 10 },
-      certainty: 'vision'
+      certainty: 'match'
     }),
     row(3, { ...at, precision: 'image', image: 19, certainty: 'marked' }),
     row(4, { ...at, precision: 'volume', certainty: 'estimated' })

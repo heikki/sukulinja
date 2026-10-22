@@ -7,13 +7,12 @@ import type { CitationLinks, VolumeCitation } from '@common/types';
 
 import { openMarks } from './citation-scans/marks';
 import type { MemoryAstia } from './citation-scans/memory-astia';
-import { openScans } from './citation-scans/scans';
 import {
   baptismCitation,
   juvaAstia,
   rippiCitation
 } from './citation-scans/test-parish';
-import { pinsOf } from './citation-scans/test-pins';
+import { scansOf } from './citation-scans/test-pins';
 import { createCitations, describeRef, entryOf } from './citations';
 import { openDb } from './db';
 import { importGedcom } from './gedcom-import';
@@ -46,10 +45,7 @@ function datasetOf(cited: Cited[]) {
   for (const [i, c] of cited.entries()) {
     insert.run(c.personId, c.page, c.text, i);
   }
-  return createCitations(
-    db,
-    openScans({ pins: pinsOf(dir, db, { astia }), astia })
-  );
+  return createCitations(db, scansOf(dir, db, { astia }));
 }
 
 function cite(personId: number, c: { page: string | null; text: string }) {
@@ -68,7 +64,7 @@ async function writeLocal(volumes: unknown) {
 
 const BOX = { left: 100, top: 200, width: 500, height: 50 };
 
-// A Vision match of the record on Image 9 of juva-1, saved as the vision
+// A Match of the record on Image 9 of juva-1, saved as the vision
 // pass saves it, from another process: the app isn't told.
 function visionSaved(record: number) {
   const other = openDb(join(dir, 'db.sqlite'));
@@ -103,10 +99,7 @@ test("serves a person's Citations, church books first", () => {
   ].join('\n');
   importGedcom(db, parseGedcom(gedcom), () => null);
   expect(
-    createCitations(
-      db,
-      openScans({ pins: pinsOf(dir, openDb(':memory:'), { astia }), astia })
-    ).ofPerson(1)
+    createCitations(db, scansOf(dir, openDb(':memory:'), { astia })).ofPerson(1)
   ).toEqual([
     {
       id: 2,
@@ -276,7 +269,7 @@ function placesOf(rows: VolumeCitation[] | null) {
   }));
 }
 
-test("lists the Volume's Vision matches, Estimated Images and Estimated Volumes", async () => {
+test("lists the Volume's Matches, Estimated Images and Estimated Volumes", async () => {
   await writeLocal({ 'juva-1': { pages: [{ image: 5, pages: [3] }] } });
   const citations = datasetOf([
     cite(1, rippiCitation(5001, '1790 - 1796', 12)),
@@ -288,10 +281,10 @@ test("lists the Volume's Vision matches, Estimated Images and Estimated Volumes"
 
   const first = await citations.inVolume('juva-1');
   expect(placesOf(first)).toEqual([
-    { personId: 1, image: 9, at: 'vision entry' },
+    { personId: 1, image: 9, at: 'match entry' },
     { personId: 2, image: 6, at: 'estimated image' }
   ]);
-  expect(first![0]!.link).toMatchObject({ certainty: 'vision', box: BOX });
+  expect(first![0]!.link).toMatchObject({ certainty: 'match', box: BOX });
   expect(first![1]!.link).toMatchObject({ from: 'pins' });
   expect(first![0]!.citation).toMatchObject({
     churchBook: true,
@@ -344,7 +337,7 @@ test('a Mark shows in the next answer, dropping the vision box', async () => {
   expect(pinned).toHaveLength(1);
   expect(pinned[0]!.link).toMatchObject({
     image: 9,
-    certainty: 'vision',
+    certainty: 'match',
     box: BOX
   });
 

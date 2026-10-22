@@ -13,7 +13,7 @@ function marked(image: number, box?: Box): LinkTarget {
 }
 
 function vision(image: number, box = BOX): LinkTarget {
-  return { precision: 'entry', image, box, certainty: 'vision' };
+  return { precision: 'entry', image, box, certainty: 'match' };
 }
 
 function estimated(image: number, from: 'pins' | 'numbering'): LinkTarget {
@@ -82,10 +82,10 @@ test("groups the Image's rows by who says so", () => {
   ];
   expect(shown(rows, 7)).toEqual([
     { label: 'Marked Image', people: ['Liisa'] },
-    { label: 'Vision match', people: ['Pekka'] },
+    { label: 'Match', people: ['Pekka'] },
     { label: 'Estimated', people: ['Anna', 'Matti'] }
   ]);
-  expect(shown(rows, 8)).toEqual([{ label: 'Vision match', people: ['Juho'] }]);
+  expect(shown(rows, 8)).toEqual([{ label: 'Match', people: ['Juho'] }]);
 });
 
 test('lists Marks of the entry apart from Marks of only the Image', () => {
@@ -93,7 +93,7 @@ test('lists Marks of the entry apart from Marks of only the Image', () => {
   expect(shown(rows, 7)).toEqual([
     { label: 'Marked', people: ['Liisa'] },
     { label: 'Marked Image', people: ['Matti'] },
-    { label: 'Vision match', people: ['Anna'] }
+    { label: 'Match', people: ['Anna'] }
   ]);
 });
 
@@ -108,7 +108,7 @@ test('lists entries in the order written on the Image', () => {
   ];
   expect(shown(rows, 7)).toEqual([
     { label: 'Marked Image', people: ['Liisa'] },
-    { label: 'Vision match', people: ['Anna', 'Matti'] }
+    { label: 'Match', people: ['Anna', 'Matti'] }
   ]);
 });
 
@@ -152,7 +152,7 @@ test('a Box and an Image are there only as far down as the Link points', () => {
   const vague: LinkTarget = {
     precision: 'image',
     image: 7,
-    certainty: 'vision'
+    certainty: 'match'
   };
   expect([boxed, imaged, vague]).toHaveLength(3);
 });

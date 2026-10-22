@@ -154,7 +154,7 @@ const SCHEMA_SQL = `
     -- A hand Mark's citation cites the Astia Image: page is its address,
     -- and the page it had before, its original page, is kept here.
     original_page TEXT,
-    -- The Astia Image or Volume a Mark or Vision match links, with the
+    -- The Astia Image or Volume a Mark or Match links, with the
     -- entry's Box in pixels of the full-size Image.
     link_volume_id TEXT,
     link_volume TEXT,
@@ -171,7 +171,7 @@ const SCHEMA_SQL = `
     CHECK ((link_volume_id IS NULL) = (link_by IS NULL))
   );
   CREATE INDEX IF NOT EXISTS citations_scope_idx ON citations(scope_type, scope_id);
-  -- Vision matches taken back by hand: the reference isn't on that Image.
+  -- Matches taken back by hand: the reference isn't on that Image.
   CREATE TABLE IF NOT EXISTS rejections (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     reference_url TEXT NOT NULL,

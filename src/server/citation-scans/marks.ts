@@ -1,4 +1,4 @@
-// A dataset's Marks and Vision matches, written into its citations
+// A dataset's Marks and Matches, written into its citations
 // (ADR-0013), and its Rejections. A Mark is of a record: every citation of
 // the record holds its Link, and a reference with no Record number is
 // marked by its URL (record.ts, markKey). What a Mark does to each
@@ -13,7 +13,7 @@ import { openAnnotations, originalPageSql } from '../annotations';
 import type { CitationLink } from '../annotations';
 import { markedRefOf, markKey } from './record';
 
-// A Vision match taken back by hand: the reference isn't on that Image, of
+// A Match taken back by hand: the reference isn't on that Image, of
 // the filming its file id is of.
 export interface Rejection {
   volumeId: string;
@@ -146,7 +146,7 @@ export function openMarks(db: Database) {
 
     rejectionsOf,
 
-    // A Vision match taken back at the Image, replacing one there before.
+    // A Match taken back at the Image, replacing one there before.
     reject(url: string, rejection: Rejection) {
       dropRejection.run(url, rejection.volumeId, rejection.image);
       addRejection.run(

@@ -9,9 +9,8 @@ import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { MemoryAstia } from './memory-astia';
 import { churchBookRefOf } from './record';
-import { openScans } from './scans';
 import { rippiCitation as citation, juvaAstia } from './test-parish';
-import { citing, pinsOf } from './test-pins';
+import { citing, scansOf } from './test-pins';
 
 let dir = '';
 let db: Database = citing([]);
@@ -26,7 +25,7 @@ afterEach(async () => {
 });
 
 function scans(astia: MemoryAstia) {
-  return openScans({ pins: pinsOf(dir, db, { astia }), astia });
+  return scansOf(dir, db, { astia });
 }
 
 // The citation's reference, the dataset citing it.

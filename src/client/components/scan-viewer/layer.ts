@@ -228,7 +228,7 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
   }
 
   // A pending Box for the source's entry, to move and resize from there:
-  // its Link's own Box when it has one on the Image shown, as a Vision match
+  // its Link's own Box when it has one on the Image shown, as a Match
   // does, else a new one at `at`.
   private placeBox(at: Point) {
     if (!this.viewer.boxPending.get() && this.viewer.boxHere.get() !== null) {

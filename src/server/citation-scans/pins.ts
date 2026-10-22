@@ -6,14 +6,14 @@
 // vision pass saves a Page pin. A newer Page pin replaces any on the same
 // image or claiming one of its pages, so re-marking a page moves it.
 //
-// A dataset's Marks and Vision matches are in its citations (marks.ts,
+// A dataset's Marks and Matches are in its citations (marks.ts,
 // ADR-0013). Resolution reads each as a Reference pin of every reference
 // citing its record, and, on an Image, as a Record pin, which extends its
 // Volume's Record range for that dataset only.
 //
-// A Mark always wins: a Vision match never replaces one (the base counts
-// as by hand), and a Mark replaces a Vision match. A Discard takes a Box
-// back; a Vision match taken back is kept as a Rejection, so the model's
+// A Mark always wins: a Match never replaces one (the base counts
+// as by hand), and a Mark replaces a Match. A Discard takes a Box
+// back; a Match taken back is kept as a Rejection, so the model's
 // match there isn't saved again.
 //
 // A pin on an Image keeps the Image's Astia file id, from the Volume's
@@ -426,16 +426,15 @@ export interface BoxAt {
 // Where a Mark says the record is, in any Volume of the parish: on an
 // Image, or only somewhere in the Volume. On an Image, `box` is where the
 // entry is drawn, in pixels of the full-size Image, null for none; left
-// out, a Vision match's Box on that Image is kept, as confirming one does.
+// out, a Match's Box on that Image is kept, as confirming one does.
 export interface MarkTarget {
   volumeId: string;
   image?: number;
   box?: Box | null;
 }
 
-// A match the vision model confirmed on an Image, with the entry's Box in
-// pixels of the full-size Image.
-export interface VisionMatch {
+// A Match as saved: its Box in pixels of the full-size Image.
+export interface PixelMatch {
   volumeId: string;
   volume: string;
   image: number;
@@ -445,7 +444,7 @@ export interface VisionMatch {
 }
 
 // The Link's Box, when it's on the Image of the filming now: a Mark there
-// keeps it, as confirming a Vision match does.
+// keeps it, as confirming a Match does.
 function boxThere(
   link: CitationLink | null,
   scope: Scope,
@@ -456,7 +455,7 @@ function boxThere(
   return { box: link.box };
 }
 
-// Whether a Vision match at `at` was taken back there by hand, on the
+// Whether a Match at `at` was taken back there by hand, on the
 // filming of the Volume `scope` has the list of.
 function isRejected(marks: Marks, ref: ChurchBookRef, scope: Scope, at: BoxAt) {
   return marks
@@ -556,7 +555,7 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
     // A match the vision model confirmed, unless it was taken back there by
     // hand; whether it was saved. A Mark is never replaced. The cited page
     // becomes a Page pin only where the model read it on that very Image.
-    async recordVision(ref: ChurchBookRef, match: VisionMatch) {
+    async recordMatch(ref: ChurchBookRef, match: PixelMatch) {
       const key = markKey(ref);
       const { volumeId, volume, image, box } = match;
       const scope = await facts.scopeOf(volumeId, true);
@@ -587,8 +586,8 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
     },
 
     // Takes back the Box the reference's Link shows at `at`, a Mark's or a
-    // Vision match's. Page pins and Record ranges stay, as facts about the
-    // Volume. A Vision match taken back becomes a Rejection. Whether there
+    // Match's. Page pins and Record ranges stay, as facts about the
+    // Volume. A Match taken back becomes a Rejection. Whether there
     // was a Box to take back.
     async recordDiscard(ref: ChurchBookRef, at: BoxAt) {
       const key = markKey(ref);
@@ -610,7 +609,7 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
       });
     },
 
-    // Whether a Vision match at `at` was taken back by hand.
+    // Whether a Match at `at` was taken back by hand.
     async rejects(ref: ChurchBookRef, at: BoxAt) {
       const scope = await facts.scopeOf(at.volumeId, true);
       return isRejected(marks, ref, scope, at);
