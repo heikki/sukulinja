@@ -8,11 +8,11 @@ While stepping through a Volume in the Scan viewer you find entries for people i
 
 ## Why it's more than a Mark
 
-A Mark only pins where an existing Citation points; pins live in the data folder. A new Citation is new genealogical data, which the app has never written. That runs into `../../gedcom-export/issues/01-storage-not-lossless-for-export.md`: SQLite is a display projection rebuilt from the import, so a Citation made in the app needs somewhere to live that survives a re-import and can be exported later.
+A Mark only links where an existing Citation points. A new Citation is new genealogical data, which the app has never written. It needs somewhere to live that survives a re-import and can be exported: since ADR-0013, the dataset's database holds the whole tree (2dfda4d) and a GEDZIP carries it out and back (1d27ee5).
 
 ## Open questions (decide before agent work)
 
-- Where an app-made Citation is stored, and how it survives re-importing the MyHeritage export. This is the same storage decision as the GEDCOM export issue.
+- **Answered:** where an app-made Citation is stored, and how it survives re-importing the MyHeritage export (ADR-0013; see Comments).
 - What it holds: parish, Book, years, page, the Volume / Image / Box it was made on, and the fact it supports (birth, residence…) or only the person.
 - Who it's for: the Selected person, or anyone in the tree (needs a person picker in the viewer).
 - How it's made: likely the Link-editing flow in the Scan viewer (pending Box, Cancel / Save in the nav, right-click menu): right-click → "Cite this entry for…", draw or reuse a Box, Save. Placing a Box doesn't depend on whose source it is, and the pending Box is kept apart from the stored Citation, so a new Citation can go through the same flow. Whether a new Citation is a pending change like the rest.
