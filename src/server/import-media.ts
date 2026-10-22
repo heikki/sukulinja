@@ -53,13 +53,13 @@ export function mediaLinker({
     originalPath: string,
     format: string | null
   ) {
-    const existing = sql.getMediaByPath.get(storedPath) as {
-      id: number;
-    } | null;
+    const existing = sql.getMediaByPath.get(storedPath);
     if (existing !== null) return existing.id;
-    const res = sql.insertMedia.get(storedPath, format, originalPath) as {
-      id: number;
-    };
+    const res = sql.insertMedia.get({
+      $file_path: storedPath,
+      $format: format,
+      $original_path: originalPath
+    })!;
     count('media');
     return res.id;
   }
@@ -76,18 +76,18 @@ export function mediaLinker({
     if (storedPath === null) return null;
     const mediaId = resolveMediaId(storedPath, ref.path, ref.format);
     const { crop } = ref;
-    const res = sql.insertMediaLink.run(
-      mediaId,
-      scope,
-      scopeId,
-      ref.objectOrder,
-      ref.title,
-      crop.top,
-      crop.left,
-      crop.width,
-      crop.height,
-      ref.order
-    );
+    const res = sql.insertMediaLink.run({
+      $media_id: mediaId,
+      $scope_type: scope,
+      $scope_id: scopeId,
+      $object_order: ref.objectOrder,
+      $title: ref.title,
+      $crop_top: crop.top,
+      $crop_left: crop.left,
+      $crop_width: crop.width,
+      $crop_height: crop.height,
+      $sort_order: ref.order
+    });
     count('mediaLinks');
     return Number(res.lastInsertRowid);
   }

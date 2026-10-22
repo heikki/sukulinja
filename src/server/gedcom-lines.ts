@@ -67,3 +67,12 @@ function unstoredLines(roots: GedNode[], used: Set<GedNode>): Unstored[] {
 }
 
 export type LineReader = ReturnType<typeof lineReader>;
+
+// A line with no value and nothing under it but program-specific lines:
+// GEDCOM 7 has no such structure, and it says nothing.
+export function isEmptyLine(node: GedNode): boolean {
+  return (
+    (node.value ?? '') === '' &&
+    node.children.every((c) => c.tag.startsWith('_') || isEmptyLine(c))
+  );
+}

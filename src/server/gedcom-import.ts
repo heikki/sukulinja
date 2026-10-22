@@ -3,25 +3,19 @@ import type { Database } from 'bun:sqlite';
 import type { Scope } from '@common/types';
 
 import { openAnnotations } from './annotations';
-import { lineReader } from './gedcom-lines';
+import { isEmptyLine, lineReader } from './gedcom-lines';
 import type { Unstored } from './gedcom-lines';
 import { parseName } from './gedcom-names';
 import { findChildren } from './gedcom-parser';
 import type { GedNode } from './gedcom-parser';
 import {
-  ADDRESS_PARTS,
-  EVENTS,
   FAMILY_FACT_TAGS,
   HEADER_META,
   NAME_PIECE_TAGS,
   PERSON_FACT_TAGS
 } from './gedcom-tags';
-import {
-  gedcom7Age,
-  gedcom7Date,
-  gedcom7Quality,
-  languageTag
-} from './gedcom7-values';
+import { gedcom7Date, gedcom7Quality, languageTag } from './gedcom7-values';
+import { factImporter } from './import-facts';
 import { annotationReader } from './import-links';
 import { mediaLinker } from './import-media';
 import type { MediaResolver } from './import-media';
@@ -58,15 +52,6 @@ function toInt(value: string | undefined): number | null {
 }
 
 const POINTER_RE = /^@[^@]+@$/;
-
-// A line with no value and nothing under it but program-specific lines:
-// GEDCOM 7 has no such structure, and it says nothing.
-function isEmptyLine(node: GedNode): boolean {
-  return (
-    (node.value ?? '') === '' &&
-    node.children.every((c) => c.tag.startsWith('_') || isEmptyLine(c))
-  );
-}
 
 function isPointer(value: string | undefined) {
   return POINTER_RE.test(value ?? '');
@@ -133,6 +118,17 @@ export function importGedcom(
     importNotes
   });
 
+  const { importFacts, importAddress } = factImporter({
+    sql,
+    lines,
+    count: () => {
+      stats.facts += 1;
+    },
+    importNotes,
+    importCitations,
+    importMediaLinks
+  });
+
   const citationRows = openAnnotations(db);
   const readAnnotation = annotationReader(roots, lines);
 
@@ -144,11 +140,15 @@ export function importGedcom(
     return uid ?? crypto.randomUUID();
   }
 
-  // When a record was last changed, as the file says.
+  // When a record was last changed, as the file says, by the columns it's
+  // kept in.
   function changeOf(root: GedNode) {
     const chan = take(root, 'CHAN');
     const date = chan === undefined ? undefined : take(chan, 'DATE');
-    return { date: date?.value ?? null, time: takeValue(date, 'TIME') };
+    return {
+      $change_date: date?.value ?? null,
+      $change_time: takeValue(date, 'TIME')
+    };
   }
 
   function importHeader(head: GedNode) {
@@ -159,28 +159,9 @@ export function importGedcom(
       }
       if (node?.value !== undefined) {
         const value = key === 'language' ? languageTag(node.value) : node.value;
-        sql.insertMeta.run(key, value);
+        sql.insertMeta.run({ $key: key, $value: value });
       }
     }
-  }
-
-  function addressParts(addr: GedNode) {
-    return ADDRESS_PARTS.map((tag) => takeValue(addr, tag));
-  }
-
-  function importAddress(
-    node: GedNode,
-    owner: 'repository' | 'submitter',
-    ownerId: number
-  ) {
-    const addr = take(node, 'ADDR');
-    if (addr === undefined) return;
-    sql.insertAddress.run(
-      owner,
-      ownerId,
-      addr.value ?? null,
-      ...addressParts(addr)
-    );
   }
 
   // The records others point at come first, so a pointer always finds its
@@ -190,24 +171,22 @@ export function importGedcom(
     if (root.tag === 'INDI') {
       lines.use(root);
       const change = changeOf(root);
-      const res = sql.insertPerson.run(
-        root.xref,
-        uidOf(root),
-        takeValue(root, 'SEX'),
-        change.date,
-        change.time
-      );
+      const res = sql.insertPerson.run({
+        $xref: root.xref,
+        $uid: uidOf(root),
+        $sex: takeValue(root, 'SEX'),
+        ...change
+      });
       personXrefs.set(root.xref, Number(res.lastInsertRowid));
       stats.persons += 1;
     } else if (root.tag === 'FAM') {
       lines.use(root);
       const change = changeOf(root);
-      const res = sql.insertFamily.run(
-        root.xref,
-        uidOf(root),
-        change.date,
-        change.time
-      );
+      const res = sql.insertFamily.run({
+        $xref: root.xref,
+        $uid: uidOf(root),
+        ...change
+      });
       familyXrefs.set(root.xref, Number(res.lastInsertRowid));
       stats.families += 1;
     } else if (root.tag === 'SOUR') {
@@ -215,25 +194,23 @@ export function importGedcom(
     } else if (root.tag === 'REPO') {
       lines.use(root);
       const change = changeOf(root);
-      const res = sql.insertRepository.run(
-        root.xref,
-        takeValue(root, 'NAME'),
-        takeValue(root, 'PHON'),
-        change.date,
-        change.time
-      );
+      const res = sql.insertRepository.run({
+        $xref: root.xref,
+        $name: takeValue(root, 'NAME'),
+        $phone: takeValue(root, 'PHON'),
+        ...change
+      });
       const repoId = Number(res.lastInsertRowid);
       repositoryXrefs.set(root.xref, repoId);
       importAddress(root, 'repository', repoId);
     } else if (root.tag === 'NOTE' || root.tag === 'SNOTE') {
       lines.use(root);
       const change = changeOf(root);
-      const res = sql.insertSharedNote.run(
-        root.xref,
-        root.value ?? '',
-        change.date,
-        change.time
-      );
+      const res = sql.insertSharedNote.run({
+        $xref: root.xref,
+        $text: root.value ?? '',
+        ...change
+      });
       sharedNoteXrefs.set(root.xref, Number(res.lastInsertRowid));
     } else if (root.tag === 'SUBM') {
       createSubmitter(root);
@@ -244,16 +221,15 @@ export function importGedcom(
     lines.use(root);
     const change = changeOf(root);
     const data = take(root, 'DATA');
-    const res = sql.insertSource.run(
-      root.xref,
-      takeValue(root, 'TITL'),
-      takeValue(root, 'AUTH'),
-      takeValue(root, 'PUBL'),
-      takeValue(root, 'TEXT'),
-      takeValue(data, 'EVEN'),
-      change.date,
-      change.time
-    );
+    const res = sql.insertSource.run({
+      $xref: root.xref,
+      $title: takeValue(root, 'TITL'),
+      $author: takeValue(root, 'AUTH'),
+      $publisher: takeValue(root, 'PUBL'),
+      $text: takeValue(root, 'TEXT'),
+      $data_events: takeValue(data, 'EVEN'),
+      ...change
+    });
     sourceXrefs.set(root.xref, Number(res.lastInsertRowid));
     stats.sources += 1;
   }
@@ -261,15 +237,14 @@ export function importGedcom(
   function createSubmitter(root: GedNode & { xref: string }) {
     lines.use(root);
     const change = changeOf(root);
-    const res = sql.insertSubmitter.run(
-      root.xref,
-      takeValue(root, 'NAME'),
-      takeValue(root, 'PHON'),
-      takeValue(root, 'EMAIL'),
-      takeValue(root, 'WWW'),
-      change.date,
-      change.time
-    );
+    const res = sql.insertSubmitter.run({
+      $xref: root.xref,
+      $name: takeValue(root, 'NAME'),
+      $phone: takeValue(root, 'PHON'),
+      $email: takeValue(root, 'EMAIL'),
+      $website: takeValue(root, 'WWW'),
+      ...change
+    });
     importAddress(root, 'submitter', Number(res.lastInsertRowid));
   }
 
@@ -297,7 +272,11 @@ export function importGedcom(
       const repoId = repositoryXrefs.get(repo.value ?? '');
       if (repoId === undefined) continue;
       lines.use(repo);
-      sql.insertSourceRepository.run(sourceId, repoId, order++);
+      sql.insertSourceRepository.run({
+        $source_id: sourceId,
+        $repository_id: repoId,
+        $sort_order: order++
+      });
     }
     importNotes(root, 'source', sourceId);
   }
@@ -316,13 +295,13 @@ export function importGedcom(
       if (shared === undefined) continue;
       lines.use(note);
       if (shared === null && isEmptyLine(note)) continue;
-      const res = sql.insertNote.run(
-        owner,
-        ownerId,
-        shared === null ? (note.value ?? '') : null,
-        shared,
-        order++
-      );
+      const res = sql.insertNote.run({
+        $owner_type: owner,
+        $owner_id: ownerId,
+        $text: shared === null ? (note.value ?? '') : null,
+        $shared_note_id: shared,
+        $sort_order: order++
+      });
       if (shared === null) {
         importCitations(note, 'note', Number(res.lastInsertRowid));
       }
@@ -333,27 +312,27 @@ export function importGedcom(
   function importName(name: GedNode, personId: number, order: number) {
     const full = name.value ?? '';
     const parts = parseName(full);
-    const res = sql.insertName.run(
-      personId,
-      full,
-      parts.given,
-      parts.surname,
-      parts.suffix,
-      enumValue(take(name, 'TYPE')),
-      order
-    );
+    const res = sql.insertName.run({
+      $person_id: personId,
+      $full_text: full,
+      $given: parts.given,
+      $surname: parts.surname,
+      $suffix: parts.suffix,
+      $name_type: enumValue(take(name, 'TYPE')),
+      $sort_order: order
+    });
     const nameId = Number(res.lastInsertRowid);
     let pieceOrder = 0;
     for (const piece of name.children) {
       if (!NAME_PIECE_TAGS.includes(piece.tag)) continue;
       lines.use(piece);
       if (isEmptyLine(piece)) continue;
-      sql.insertNamePiece.run(
-        nameId,
-        piece.tag,
-        piece.value ?? '',
-        pieceOrder++
-      );
+      sql.insertNamePiece.run({
+        $name_id: nameId,
+        $tag: piece.tag,
+        $value: piece.value ?? '',
+        $sort_order: pieceOrder++
+      });
     }
     importNotes(name, 'name', nameId);
     importCitations(name, 'name', nameId);
@@ -372,12 +351,12 @@ export function importGedcom(
       const associateId = personXrefs.get(asso.value ?? '');
       if (associateId === undefined) continue;
       lines.use(asso);
-      const res = sql.insertAssociation.run(
-        personId,
-        associateId,
-        takeValue(asso, 'RELA') ?? relationOf(take(asso, 'ROLE')),
-        order++
-      );
+      const res = sql.insertAssociation.run({
+        $person_id: personId,
+        $associate_id: associateId,
+        $relation: takeValue(asso, 'RELA') ?? relationOf(take(asso, 'ROLE')),
+        $sort_order: order++
+      });
       importNotes(asso, 'association', Number(res.lastInsertRowid));
     }
   }
@@ -410,13 +389,21 @@ export function importGedcom(
   function importFamilyDetails(root: GedNode, familyId: number): void {
     const husbandId = resolveParentId(takeValue(root, 'HUSB'));
     const wifeId = resolveParentId(takeValue(root, 'WIFE'));
-    sql.updateFamily.run(husbandId, wifeId, familyId);
+    sql.updateFamily.run({
+      $husband_id: husbandId,
+      $wife_id: wifeId,
+      $id: familyId
+    });
 
     let childOrder = 0;
     for (const ch of takeAll(root, 'CHIL')) {
       const childId = personXrefs.get(ch.value ?? '');
       if (childId === undefined) continue;
-      const res = sql.insertFamilyChild.run(familyId, childId, childOrder);
+      const res = sql.insertFamilyChild.run({
+        $family_id: familyId,
+        $person_id: childId,
+        $sort_order: childOrder
+      });
       if (res.changes === 0) continue;
       childOrder += 1;
       stats.familyChildren += 1;
@@ -463,93 +450,6 @@ export function importGedcom(
       importMediaLinks(sour, 'citation', citationId);
       stats.citations += 1;
     });
-  }
-
-  // An event's PLAC: its name, where it is on the map, and its notes.
-  function readPlace(node: GedNode) {
-    const plac = take(node, 'PLAC');
-    const map = plac === undefined ? undefined : take(plac, 'MAP');
-    return {
-      plac,
-      name: plac?.value ?? null,
-      latitude: takeValue(map, 'LATI'),
-      longitude: takeValue(map, 'LONG')
-    };
-  }
-
-  // An event's ADDR, its parts kept and its lines joined for showing.
-  // MyHeritage records residences this way rather than with PLAC.
-  function readAddress(node: GedNode) {
-    const addr = take(node, 'ADDR');
-    if (addr === undefined) return null;
-    const text = addr.value ?? null;
-    const parts = addressParts(addr);
-    const lines = [text, ...parts].filter(
-      (x): x is string => x !== null && x.trim() !== ''
-    );
-    return { text, parts, shown: lines.length === 0 ? null : lines.join(', ') };
-  }
-
-  // An event with nothing more to say is GEDCOM 7's `BIRT Y`: it happened.
-  // An empty attribute says nothing and isn't kept.
-  function importFacts(
-    root: GedNode,
-    scope: Scope,
-    scopeId: number,
-    tags: Set<string>
-  ) {
-    let order = 0;
-    for (const child of root.children) {
-      if (!tags.has(child.tag)) continue;
-      if (!isEmptyLine(child)) {
-        insertFactRow(
-          { scope, id: scopeId },
-          child,
-          child.value ?? null,
-          order++
-        );
-      } else if (EVENTS.has(child.tag)) {
-        insertFactRow({ scope, id: scopeId }, child, 'Y', order++);
-      } else {
-        lines.use(child);
-      }
-    }
-  }
-
-  function insertFactRow(
-    owner: { scope: Scope; id: number },
-    node: GedNode,
-    value: string | null,
-    order: number
-  ): void {
-    lines.use(node);
-    const place = readPlace(node);
-    const address = readAddress(node);
-    const res = sql.insertFact.run(
-      owner.scope,
-      owner.id,
-      node.tag,
-      takeValue(node, 'TYPE'),
-      gedcom7Date(takeValue(node, 'DATE')),
-      place.name,
-      place.latitude,
-      place.longitude,
-      address?.shown ?? null,
-      gedcom7Age(takeValue(node, 'AGE')),
-      takeValue(node, 'CAUS'),
-      takeValue(node, 'AGNC'),
-      value,
-      order
-    );
-    const factId = Number(res.lastInsertRowid);
-    if (address !== null) {
-      sql.insertAddress.run('fact', factId, address.text, ...address.parts);
-    }
-    if (place.plac !== undefined) importNotes(place.plac, 'place', factId);
-    importNotes(node, 'fact', factId);
-    importCitations(node, 'fact', factId);
-    importMediaLinks(node, 'fact', factId);
-    stats.facts += 1;
   }
 
   const tx = db.transaction(() => {
