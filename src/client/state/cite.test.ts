@@ -82,7 +82,7 @@ async function settle() {
 async function viewing() {
   const api = dataset();
   const state = openAppState(api);
-  state.select(1);
+  state.chart.select(1);
   await settle();
   state.viewer.open({ citation: C11, link: L11 });
   await settle();

@@ -1,12 +1,11 @@
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { customElement, state } from 'lit/decorators.js';
 import { live } from 'lit/directives/live.js';
 
 import { appState } from '@client/state';
 import type { AppState } from '@client/state';
-import type { PersonRow } from '@common/types';
 
 import { stepOf } from './keys';
 import { controlStyles, scanNavStyles } from './styles';
@@ -19,7 +18,7 @@ function stop(e: Event) {
 
 // Stepping through the Volume, floating over the foot of the scan: the
 // Image shown of how many, once Astia says, and while a Box is pending or
-// waits to be discarded, its Cancel and Save, named from `persons`. Pointer and wheel input stays
+// waits to be discarded, its Cancel and Save. Pointer and wheel input stays
 // here, so using it doesn't pan or zoom the scan beneath. The button a held
 // ←/→ stands for shows pressed.
 @customElement('sl-scan-nav')
@@ -27,8 +26,6 @@ export class ScanNavElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanNavStyles];
 
   @consume({ context: appState }) private readonly state!: AppState;
-
-  @property({ attribute: false }) persons = new Map<number, PersonRow>();
 
   // Which way the arrow key held steps. At the first or last Image its
   // button is disabled all the same: there's no step to show.
@@ -152,7 +149,7 @@ export class ScanNavElement extends SignalWatcher(LitElement) {
         this.state.viewer.pending.get() === null &&
         !this.state.viewer.discarding.get()
           ? nothing
-          : html`<sl-scan-edit .persons=${this.persons}></sl-scan-edit>`
+          : html`<sl-scan-edit></sl-scan-edit>`
       }
     `;
   }

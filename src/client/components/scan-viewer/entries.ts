@@ -7,7 +7,7 @@ import { appState } from '@client/state';
 import type { AppState } from '@client/state';
 import type { VolumeCitation } from '@common/types';
 
-import { entriesOn, pickRow } from './citations';
+import { entriesOn } from './citations';
 import type { Entry } from './citations';
 import { boxOnStage } from './frame';
 import type { Frame } from './frame';
@@ -52,7 +52,7 @@ export class ScanEntriesElement extends LitElement {
     const moved = Math.hypot(e.clientX - from.x, e.clientY - from.y);
     const [first] = entry.rows;
     if (moved < CLICK_SLOP_PX && first !== undefined) {
-      pickRow(this, this.state.viewer, first);
+      this.state.chart.pick(first);
     }
   }
 

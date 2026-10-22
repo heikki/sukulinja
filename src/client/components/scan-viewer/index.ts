@@ -1,15 +1,13 @@
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { customElement, state } from 'lit/decorators.js';
 
 import { fitTo, Panning, Pinch } from '@client/pan-zoom';
 import type { Point, ScaleBounds, Transform, Viewport } from '@client/pan-zoom';
 import { appState } from '@client/state';
 import type { AppState, LinkOpen } from '@client/state';
-import type { PersonRow } from '@common/types';
 
-import type { FamilyIndices } from '../person-panel/family';
 import { ImageArrival } from './arrival';
 import type { ViewChange } from './arrival';
 import { EdgeWatch } from './edge-watch';
@@ -26,8 +24,6 @@ import './layer';
 import './nav';
 import './people';
 import './toolbar';
-
-export type { ScanPerson, ScanPersonEvent } from './citations';
 
 // The chart's feel (tree-view's VIEWPORT_OPTIONS), with room to zoom in to a
 // page's detail; out, no further than the whole Image (scaleBounds).
@@ -47,17 +43,14 @@ const ORIGIN: Point = { x: 0, y: 0 };
 // zoom into and step through its Volume. The record itself stays in the
 // dock, marked there, so the toolbar only names the Volume, and the Image
 // controls float over the scan. Beside the scan, the people of the tree
-// (`persons`) linked to the Image shown; an entry can be cited for the
-// Selected person's family (`indices`). A source with no Link opens on no
+// linked to the Image shown; an entry can be cited for the Selected
+// person's family. A source with no Link opens on no
 // Volume, saying why, until one of its parish's is chosen.
 @customElement('sl-scan-viewer')
 export class ScanViewerElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanViewerStyles];
 
   @consume({ context: appState }) private readonly state!: AppState;
-
-  @property({ attribute: false }) persons = new Map<number, PersonRow>();
-  @property({ attribute: false }) indices: FamilyIndices | null = null;
 
   // What's drawn while the Image shown arrives, and the frame it's in.
   private readonly arrival = new ImageArrival(this, {
@@ -342,13 +335,8 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     const retry = () => {
       this.arrival.retry();
     };
-    const { view, persons } = this;
     const { loading } = this.arrival;
-    return stageNote(
-      this.viewer,
-      { loading, over: view !== null, persons },
-      retry
-    );
+    return stageNote(this.viewer, { loading, over: this.view !== null }, retry);
   }
 
   // The thumbnail, blurred, at `transform`; hidden without one.
@@ -440,13 +428,11 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
       >
         ${this.renderImages()} ${this.renderEntries(source)}
         ${this.renderNote()}
-        <sl-scan-nav .persons=${this.persons}></sl-scan-nav>
+        <sl-scan-nav></sl-scan-nav>
         <sl-scan-layer
           .view=${this.view}
           .frame=${this.frame}
           ?canEdit=${entriesShown(this.frame, this.arrival.loading)}
-          .persons=${this.persons}
-          .indices=${this.indices}
         ></sl-scan-layer>
       </div>
     `;
@@ -455,7 +441,6 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
   private renderPeople() {
     return html`
       <sl-scan-people
-        .persons=${this.persons}
         .hovered=${this.hovered}
         @scan-hover=${this.onHover}
       ></sl-scan-people>

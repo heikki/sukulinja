@@ -76,7 +76,7 @@ async function settle() {
 async function opened(given = data()) {
   const api = memoryDatasetApi(given);
   const state = openAppState(api);
-  state.select(1);
+  state.chart.select(1);
   await settle();
   state.viewer.open({ citation: C1, link: MARKED });
   await settle();
@@ -102,7 +102,7 @@ test('an Image failing asks again when showing the Volume got no answer', async 
   const given = data();
   const api = memoryDatasetApi(given);
   const state = openAppState(api);
-  state.select(1);
+  state.chart.select(1);
   await settle();
   const answer = api.volumeRescan;
   api.volumeRescan = () => Promise.reject(new ApiError('Astia is down'));

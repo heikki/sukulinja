@@ -6,9 +6,9 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { ApiError } from '@client/dataset-api';
 import { appState } from '@client/state';
 import type { AppState } from '@client/state';
-import type { PersonRow, VolumeCitation } from '@common/types';
+import type { VolumeCitation } from '@common/types';
 
-import { boxOf, groupCitations, pickRow, rowName } from './citations';
+import { boxOf, groupCitations, rowName } from './citations';
 import { controlStyles, scanPeopleStyles } from './styles';
 
 // Collapsed or not for the rest of the visit, across Volumes and citations.
@@ -30,7 +30,10 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
 
   @consume({ context: appState }) private readonly state!: AppState;
 
-  @property({ attribute: false }) persons = new Map<number, PersonRow>();
+  // The dataset's people, who name the citations.
+  private get persons() {
+    return this.state.chart.people.get().persons;
+  }
   @property({ attribute: false }) hovered: string | null = null;
 
   // The citation being confirmed, and the last one that couldn't be.
@@ -136,7 +139,7 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
           class="row ${current ? 'current' : ''} ${hovered ? 'hovered' : ''}"
           aria-current=${current ? 'true' : nothing}
           @click=${() => {
-            pickRow(this, this.state.viewer, row);
+            this.state.chart.pick(row);
           }}
           @mouseenter=${() => {
             if (key !== null) this.hover(key);

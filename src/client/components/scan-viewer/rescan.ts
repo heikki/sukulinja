@@ -6,7 +6,6 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { ApiError } from '@client/dataset-api';
 import { appState } from '@client/state';
 import type { AppState } from '@client/state';
-import type { PersonRow } from '@common/types';
 
 import { staleLines } from './stale-lines';
 import { controlStyles } from './styles';
@@ -81,7 +80,10 @@ export class ScanRescanElement extends SignalWatcher(LitElement) {
 
   @consume({ context: appState }) private readonly state!: AppState;
 
-  @property({ attribute: false }) persons = new Map<number, PersonRow>();
+  // The dataset's people, who name the citations.
+  private get persons() {
+    return this.state.chart.people.get().persons;
+  }
   @property({ attribute: false }) retry: (() => void) | null = null;
 
   @state() private switching = false;
