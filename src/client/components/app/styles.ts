@@ -37,7 +37,7 @@ export const appStyles = css`
      lifts it above true centre, where it reads as centred. */
   .page {
     width: 100%;
-    max-width: 42rem;
+    max-width: 32rem;
     box-sizing: border-box;
     margin: auto;
     padding: 3rem 1.5rem calc(3rem + 20vh);
