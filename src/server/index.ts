@@ -100,14 +100,6 @@ ApplicationMenu.on('application-menu-clicked', (event: unknown) => {
   if (action === 'quit') process.exit(0);
 });
 
-// A target=_blank link (a source's record or scan) opens in the default
-// browser; the webview has no windows of its own to open.
-Electrobun.events.on('new-window-open', (event: unknown) => {
-  const detail = (event as ElectrobunEvent).data?.detail;
-  const url = typeof detail === 'string' ? detail : detail?.url;
-  if (url !== undefined && /^https?:/.test(url)) Utils.openExternal(url);
-});
-
 const savedFrame = loadWindowFrame(stateDir);
 const win = new BrowserWindow({
   title: 'Sukulinja',
@@ -121,6 +113,18 @@ const win = new BrowserWindow({
 if (savedFrame !== null) {
   win.setFrame(savedFrame.x, savedFrame.y, savedFrame.width, savedFrame.height);
 }
+
+// A target=_blank link (a source's record or scan) opens in the default
+// browser; the webview has no windows of its own to open. Electrobun also
+// sends a ⌘-click on any link here, and one on the app's own page stays in
+// the window rather than opening the local server in the browser.
+Electrobun.events.on('new-window-open', (event: unknown) => {
+  const detail = (event as ElectrobunEvent).data?.detail;
+  const url = typeof detail === 'string' ? detail : detail?.url;
+  if (url === undefined || !/^https?:/.test(url)) return;
+  if (new URL(url).origin === server.url.origin) win.webview.loadURL(url);
+  else Utils.openExternal(url);
+});
 
 // The window's title names the dataset shown, or the app on the chooser.
 // Moving between them is a full page load, so each move lands here.
