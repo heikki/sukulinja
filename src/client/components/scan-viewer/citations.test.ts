@@ -22,8 +22,13 @@ function estimated(image: number, from: 'pins' | 'numbering'): LinkTarget {
 
 const VOLUME: LinkTarget = { precision: 'volume', certainty: 'estimated' };
 
-// A row with its Link pointing at `target`.
-function row(personId: number, target: LinkTarget): VolumeCitation {
+// A row with its Link pointing at `target`, sharing a Mark with those of
+// the same markKey.
+function row(
+  personId: number,
+  target: LinkTarget,
+  markKey = `citation ${personId * 10}`
+): VolumeCitation {
   return {
     personId,
     citation: {
@@ -37,6 +42,7 @@ function row(personId: number, target: LinkTarget): VolumeCitation {
       text: null,
       churchBook: true,
       madeInApp: false,
+      markKey,
       citedPage: 12,
       cited: null
     },
@@ -112,12 +118,12 @@ test('lists entries in the order written on the Image', () => {
   ]);
 });
 
-test('marks one entry per Box on the Image, shared by those it records', () => {
+test('marks one entry per record on the Image, shared by those citing it', () => {
   const box = { left: 0.1, top: 0.4, width: 0.3, height: 0.03 };
   const other = { ...box, top: 0.6 };
   const rows = [
-    row(1, vision(7, box)),
-    row(2, vision(7, box)),
+    row(1, vision(7, box), 'record 500'),
+    row(2, vision(7, box), 'record 500'),
     row(3, vision(7, other)),
     row(4, vision(8, box)),
     row(5, marked(7))
@@ -127,6 +133,14 @@ test('marks one entry per Box on the Image, shared by those it records', () => {
   ).toEqual([
     { box, people: ['Matti', 'Liisa'] },
     { box: other, people: ['Anna'] }
+  ]);
+});
+
+test('two records with Boxes alike are two entries', () => {
+  const rows = [row(1, vision(7)), row(2, vision(7))];
+  expect(entriesOn(rows, 7).map((e) => e.rows.map(nameOf))).toEqual([
+    ['Matti'],
+    ['Liisa']
   ]);
 });
 

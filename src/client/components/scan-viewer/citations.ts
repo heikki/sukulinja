@@ -101,25 +101,21 @@ export function boxOf(row: VolumeCitation) {
   return row.link.precision === 'entry' ? row.link.box : null;
 }
 
-// Names an entry's Box: people citing one record share it.
-export function boxKey(box: Box) {
-  return `${box.left} ${box.top} ${box.width} ${box.height}`;
-}
-
+// An entry marked on an Image, by the markKey its Citations share.
 export interface Entry {
   key: string;
   box: Box;
   rows: VolumeCitation[];
 }
 
-// The entries marked on the Image shown: one per Box, with the rows of
-// everyone it records.
+// The entries marked on the Image shown: one per record, with the rows of
+// everyone citing it.
 export function entriesOn(rows: VolumeCitation[], image: number) {
   const entries = new Map<string, Entry>();
   for (const row of rows) {
     const box = boxOf(row);
     if (imageOf(row) !== image || box === null) continue;
-    const key = boxKey(box);
+    const key = row.citation.markKey;
     const entry = entries.get(key) ?? { key, box, rows: [] };
     entry.rows.push(row);
     entries.set(key, entry);

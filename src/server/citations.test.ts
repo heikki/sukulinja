@@ -119,6 +119,7 @@ test("serves a person's Citations, church books first", () => {
       text: null,
       churchBook: true,
       madeInApp: false,
+      markKey: 'record 1',
       citedPage: 139,
       cited: { parish: null, kind: 'rippi', years: { from: 1794, to: 1808 } }
     },
@@ -133,6 +134,7 @@ test("serves a person's Citations, church books first", () => {
       text: 'Family bible',
       churchBook: false,
       madeInApp: false,
+      markKey: 'citation 1',
       citedPage: null,
       cited: null
     }
@@ -321,6 +323,26 @@ test('people citing one record get a row each, sharing its Image and box', async
   expect(rows!.map((r) => [r.personId, imageOf(r), boxOf(r)])).toEqual([
     [1, 9, BOX],
     [2, 9, BOX]
+  ]);
+});
+
+test('Citations of one record share a markKey, whatever their URL', async () => {
+  const record = rippiCitation(5001, '1790 - 1796', 12);
+  const citations = datasetOf([
+    cite(1, record),
+    cite(2, { ...record, page: `${record.page}&lang=fi` }),
+    cite(3, rippiCitation(5002, '1790 - 1796', 12)),
+    cite(3, { page: null, text: 'Family bible' })
+  ]);
+  const rows = await citations.inVolume('juva-1');
+  expect(rows!.map((r) => [r.personId, r.citation.markKey])).toEqual([
+    [1, 'record 5001'],
+    [2, 'record 5001'],
+    [3, 'record 5002']
+  ]);
+  expect(citations.ofPerson(3).map((c) => c.markKey)).toEqual([
+    'record 5002',
+    'citation 4'
   ]);
 });
 

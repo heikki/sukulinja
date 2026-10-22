@@ -58,6 +58,7 @@ const OF_IMAGE: CitationRow = {
   text: 'Baptism 12.3.1795',
   churchBook: true,
   madeInApp: true,
+  markKey: 'citation 4',
   citedPage: null,
   cited: null
 };

@@ -6,12 +6,6 @@ function byImage(a: StalePin, b: StalePin) {
   return a.image - b.image;
 }
 
-// The record a MyHeritage record URL is of.
-function recordOf(url: string | null) {
-  const m = url === null ? null : /[?&]itemId=(?<id>\d+)/u.exec(url);
-  return m?.groups === undefined ? null : Number(m.groups.id);
-}
-
 function pagesOf(pages: number[]) {
   return pages.length === 1 ? `p. ${pages[0]}` : `pp. ${pages.join('–')}`;
 }
@@ -23,11 +17,7 @@ function citing(
   rows: VolumeCitation[],
   persons: Map<number, PersonRow>
 ) {
-  const of = rows.filter((r) =>
-    pin.url === undefined
-      ? recordOf(r.citation.url) === pin.record
-      : r.citation.url === pin.url
-  );
+  const of = rows.filter((r) => r.citation.markKey === pin.markKey);
   if (of.length === 0) {
     return pin.record === undefined ? 'a reference' : `record ${pin.record}`;
   }

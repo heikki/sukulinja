@@ -8,7 +8,7 @@ import { appState } from '@client/state';
 import type { AppState } from '@client/state';
 import type { PersonRow, VolumeCitation } from '@common/types';
 
-import { boxKey, boxOf, groupCitations, pickRow, rowName } from './citations';
+import { boxOf, groupCitations, pickRow, rowName } from './citations';
 import { controlStyles, scanPeopleStyles } from './styles';
 
 // Collapsed or not for the rest of the visit, across Volumes and citations.
@@ -127,8 +127,8 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
   private renderRow(row: VolumeCitation) {
     const current =
       row.citation.id === this.state.viewer.source.get()?.citation.id;
-    const box = boxOf(row);
-    const key = box === null ? null : boxKey(box);
+    // As its entry is keyed, when it has one on the Image.
+    const key = boxOf(row) === null ? null : row.citation.markKey;
     const hovered = key !== null && key === this.hovered;
     return html`
       <li>

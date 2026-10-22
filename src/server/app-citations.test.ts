@@ -126,7 +126,9 @@ test('a Citation made in the app is stored with its Mark, page and source', asyn
       page: ENTRY_LINK.url,
       text: 'Baptism 12.3.1795',
       churchBook: true,
-      madeInApp: true
+      madeInApp: true,
+      // Its own Mark, shared with no other Citation.
+      markKey: 'citation 2'
     }
   });
   expect(

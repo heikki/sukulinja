@@ -103,6 +103,7 @@ function source(id: number, citedPage: number | null, churchBook = true) {
     text: null,
     churchBook,
     madeInApp: false,
+    markKey: `citation ${id}`,
     citedPage,
     cited: null
   };
