@@ -17,12 +17,14 @@
 //   - strip MyHeritage-private metadata and prune the empty leaves it leaves
 //   - move each OBJE's FORM under its FILE as a MIME type, and convert
 //     `_POSITION x1 y1 x2 y2` to a standard `CROP { TOP, LEFT, WIDTH, HEIGHT }`
+//   - cite a baptism index entry by its bare number, whoever's citation it is
 
 import { createHash } from 'node:crypto';
 import { copyFile, mkdir, rename, rm } from 'node:fs/promises';
 import { dirname, extname, join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
+import { BAPTISM_COLLECTION, collectionOf } from './citation-scans/record';
 import { findChild } from './gedcom-parser';
 import type { GedNode } from './gedcom-parser';
 import { mimeOf } from './media-refs';
@@ -181,6 +183,37 @@ export function transformObjes(roots: GedNode[]): void {
     }
   }
   for (const r of roots) walk(r);
+}
+
+// MyHeritage's baptism index numbers each entry, and gives each person it
+// names their own address for it: the number with "-" for the child, "-F"
+// or "-M" for a parent, sometimes with the site (`s`) and the person in the
+// tree (`indId`) it was saved from. Older exports give everyone the bare
+// number, which opens the same entry. Cited by the bare number alone, every
+// Citation of the entry is of one reference, so a Mark on one is on all.
+export function entryPage(page: string) {
+  if (collectionOf(page) !== BAPTISM_COLLECTION || !URL.canParse(page)) {
+    return page;
+  }
+  const url = new URL(page);
+  const item = url.searchParams.get('itemId');
+  if (item === null) return page;
+  url.searchParams.set('itemId', item.replace(/-[A-Z]*$/u, ''));
+  url.searchParams.delete('s');
+  url.searchParams.delete('indId');
+  return url.href;
+}
+
+export function plainEntryPages(roots: GedNode[]) {
+  function visit(children: GedNode[]) {
+    for (const c of children) {
+      if (c.tag === 'PAGE' && c.value !== undefined) {
+        c.value = entryPage(c.value);
+      }
+      visit(c.children);
+    }
+  }
+  visit(roots);
 }
 
 export function collectFileUrls(roots: GedNode[]) {
@@ -437,6 +470,7 @@ export async function convertMyHeritage(
   const stripped = stripCutouts(roots);
   const dropped = dropTags(roots, DROP_TAGS);
   standardUids(roots);
+  plainEntryPages(roots);
   const pruned = pruneEmptyLeaves(roots);
 
   const urls = collectFileUrls(roots);

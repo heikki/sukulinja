@@ -175,6 +175,41 @@ test('a Citation made in the app is stored with its Mark, page and source', asyn
   expect(sources(db)).toHaveLength(2);
 });
 
+test("a Citation made in the app of another source's reference doesn't lend its source to the Volume", async () => {
+  const { db, citations } = withPeople([
+    cite(3, rippiCitation(5001, '1790 - 1796', 12))
+  ]);
+  db.run(
+    "INSERT INTO sources (id, xref, title) VALUES (1, '@S1@', 'Suomi, kasteet, 1657-1890')"
+  );
+  db.run(
+    `INSERT INTO citations (scope_type, scope_id, source_id, page, original_page,
+       link_volume_id, link_volume, link_image, link_file_id, link_by, added_in_app)
+     VALUES ('person', 1, 1, ?, ?, 'juva-1', ?, 13, 'juva-1-f13', 'hand', 1)`,
+    [
+      ENTRY_LINK.url,
+      'https://www.myheritage.fi/research/collection-30233/x?itemId=7&action=showRecord',
+      JUVA_1
+    ]
+  );
+
+  await citations.cite(2, entry(14));
+  expect(sources(db)).toEqual([
+    {
+      id: 1,
+      xref: '@S1@',
+      title: 'Suomi, kasteet, 1657-1890',
+      publisher: null
+    },
+    {
+      id: 2,
+      xref: '@ASTIA_JUVA_1@',
+      title: JUVA_1,
+      publisher: 'Kansallisarkisto, Astia'
+    }
+  ]);
+});
+
 test('a Citation is refused off its Image, or where the person already links it', async () => {
   const { citations } = withPeople([
     cite(1, rippiCitation(5001, '1790 - 1796', 12))

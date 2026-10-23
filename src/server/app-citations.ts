@@ -27,9 +27,13 @@ export interface NewCitation {
 
 export function openAppCitations(db: Database) {
   const annotations = openAnnotations(db);
+  // Only a Citation of an Image cites the Volume's source: one made in the
+  // app of another source's reference, such as a MyHeritage entry, keeps the
+  // page a Mark moved aside.
   const volumeSource = db.prepare<{ id: number }, [string]>(
     `SELECT source_id AS id FROM citations
      WHERE added_in_app = 1 AND link_volume_id = ? AND source_id IS NOT NULL
+       AND original_page IS NULL
      ORDER BY id LIMIT 1`
   );
   const xrefTaken = db.prepare<{ id: number }, [string]>(

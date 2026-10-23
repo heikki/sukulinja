@@ -12,6 +12,7 @@ import {
   dropUnassociatedPhotos,
   isMyHeritageExport,
   photoNameOf,
+  plainEntryPages,
   pruneEmptyLeaves,
   standardUids,
   stripCutouts,
@@ -89,6 +90,46 @@ describe('standardUids', () => {
       '57946566E10CCFB0735B471A8829D14E'
     );
     expect(findChild(root, '_UID')).toBeUndefined();
+  });
+});
+
+describe('plainEntryPages', () => {
+  const BAPTISMS =
+    'https://www.myheritage.fi/research/collection-30233/suomi-kasteet-1657-1890';
+  const RIPPI =
+    'https://www.myheritage.fi/research/collection-10509/suomalaiset-rippi-ja-lastenkirjat-1657-1915';
+
+  function citing(page: string) {
+    return indi(node(1, 'SOUR', '@S1@', [node(2, 'PAGE', page)]));
+  }
+
+  function pageOf(root: GedNode) {
+    return findChild(findChild(root, 'SOUR')!, 'PAGE')?.value;
+  }
+
+  test("cites a baptism entry by its bare number, the child's or a parent's", () => {
+    const roots = ['-', '-F', '-M', ''].map((suffix) =>
+      citing(`${BAPTISMS}?itemId=2291819${suffix}&action=showRecord`)
+    );
+    plainEntryPages(roots);
+    expect(roots.map(pageOf)).toEqual(
+      Array<string>(4).fill(`${BAPTISMS}?itemId=2291819&action=showRecord`)
+    );
+  });
+
+  test('drops the site and the person it was saved from', () => {
+    const root = citing(
+      `${BAPTISMS}?s=SITE&itemId=367772-&action=showRecord&indId=individual-SITE-1500015`
+    );
+    plainEntryPages([root]);
+    expect(pageOf(root)).toBe(`${BAPTISMS}?itemId=367772&action=showRecord`);
+  });
+
+  test('leaves the other collections as written', () => {
+    const page = `${RIPPI}?itemId=9442069-&action=showRecord`;
+    const root = citing(page);
+    plainEntryPages([root]);
+    expect(pageOf(root)).toBe(page);
   });
 });
 
