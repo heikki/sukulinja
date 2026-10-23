@@ -63,8 +63,13 @@ export class Floating implements ReactiveController {
   readonly grip = (e: PointerEvent) => {
     const panel = this.panel();
     if (e.button !== 0 || panel === null) return;
+    const path = e.composedPath();
+    const pressed = path.slice(0, path.indexOf(panel));
+    const control = pressed.some(
+      (n) => n instanceof Element && n.matches(CONTROLS)
+    );
+    if (control) return;
     const on = e.target as HTMLElement;
-    if (on.closest(CONTROLS) !== null) return;
     if (e.offsetX > on.clientWidth || e.offsetY > on.clientHeight) return;
     e.preventDefault();
     const rect = panel.getBoundingClientRect();
