@@ -4,7 +4,7 @@ import { dialogStyles } from '@/client/dialog-styles';
 import { focusRingStyles } from '@/client/focus-ring';
 
 // The shared dialog, wider, its list scrolling between the heading and the
-// buttons. The card is what a Reminder's menu is placed in.
+// buttons.
 const list = css`
   dialog {
     width: 100%;
@@ -21,7 +21,6 @@ const list = css`
   }
 
   .dialog {
-    position: relative;
     display: flex;
     flex-direction: column;
     max-width: none;
@@ -55,10 +54,6 @@ const list = css`
     background: color-mix(in srgb, var(--fg) 8%, transparent);
   }
 
-  .dialog button.row.stale {
-    cursor: default;
-  }
-
   .dialog button.row.done {
     opacity: 0.55;
   }
@@ -83,11 +78,6 @@ const list = css`
 
   .dialog p.muted {
     color: var(--muted);
-  }
-
-  .dialog p.error {
-    margin: 0 0.75rem 0.3rem;
-    color: var(--danger);
   }
 
   .actions {

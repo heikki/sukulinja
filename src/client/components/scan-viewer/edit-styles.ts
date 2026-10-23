@@ -289,8 +289,4 @@ export const scanRemindersStyles = css`
   p {
     margin: 0.3rem 0.5rem;
   }
-
-  p.error {
-    color: var(--danger);
-  }
 `;

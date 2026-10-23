@@ -3,14 +3,13 @@ import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
-import { ApiError } from '@/client/dataset-api';
 import type { Point, Transform, Viewport } from '@/client/pan-zoom';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
-import type { Box, Reminder } from '@/common/types';
+import type { Box } from '@/common/types';
 
-import { placeOf, targetOf } from '../reminder-dialog';
 import type { ReminderDialogProps } from '../reminder-dialog';
+import { ReminderModal } from '../reminder-dialog/modal';
 import { entriesOn, rowName } from './citations';
 import { citeChoices, citingImage, searchable } from './cite';
 import { scanLayerStyles } from './edit-styles';
@@ -18,7 +17,7 @@ import { boxFromStage, boxOnStage, clampBox, newBox, wholeBox } from './frame';
 import type { Frame } from './frame';
 import { linkItems } from './menu';
 import { reminderChoices, remindersHere } from './reminder-choices';
-import type { ReminderMenuEvent } from './reminders';
+import type { ReminderOpenEvent } from './reminders';
 
 import '../context-menu';
 import '../person-search';
@@ -99,11 +98,8 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
   @state() private popup: { at: Point; onBox: boolean; show: Popup } | null =
     null;
   private searchOpened = false;
-  // A Reminder in the list whose menu is open, at a point on the stage,
-  // and why the last change to one failed.
-  @state() private reminderMenu: { reminder: Reminder; at: Point } | null =
-    null;
-  @state() private reminderError: string | null = null;
+  // A Reminder in the list, clicked, shown in the Reminder dialog.
+  private readonly reminderModal = new ReminderModal(this, () => this.state);
   @state() private dialog: ReminderDialogProps | null = null;
   @state() private drag: BoxDrag | null = null;
   // The Box as a drag has it, before it's let go.
@@ -145,8 +141,6 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
   // The Reminders on the Image shown, opened from the page nav's marker
   // at `at` on the stage, or closed when they're open.
   toggleReminders(at: Point) {
-    this.reminderMenu = null;
-    this.reminderError = null;
     this.popup =
       this.popup?.show === 'reminders'
         ? null
@@ -175,16 +169,16 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }
 
-  // Esc stops a drag, or closes a Reminder's menu or the Reminders, before
-  // the viewer's Esc closes anything.
+  // Esc stops a drag, or closes the Reminders, before the viewer's Esc
+  // closes anything; a Reminder dialog open takes it itself.
   private readonly onKey = (e: KeyboardEvent) => {
     if (e.key !== 'Escape') return;
-    const listed = this.popup?.show === 'reminders' && this.dialog === null;
+    const dialog = this.dialog !== null || this.reminderModal.isOpen;
+    const listed = this.popup?.show === 'reminders' && !dialog;
     if (this.drag === null && !listed) return;
     e.preventDefault();
     e.stopPropagation();
-    if (this.reminderMenu !== null) this.reminderMenu = null;
-    else if (listed) this.popup = null;
+    if (listed) this.popup = null;
     this.drag = null;
     this.live = null;
   };
@@ -357,89 +351,22 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     };
   }
 
-  private edit(reminder: Reminder) {
-    const label = placeOf(reminder.on, this.persons, this.here());
-    this.dialog = {
-      heading: 'Edit reminder',
-      choices: [{ label, target: targetOf(reminder.on) }],
-      chosen: 0,
-      text: reminder.text,
-      save: async (text) => {
-        await this.state.reminders.change(reminder.id, { text });
-      }
-    };
-  }
-
-  // Runs a change to a Reminder, saying in the list if it fails.
-  private changing(run: () => Promise<void>) {
-    this.reminderError = null;
-    run().catch((err: unknown) => {
-      if (!(err instanceof ApiError)) throw err;
-      this.reminderError = err.message;
-    });
-  }
-
   private here() {
     const volume = this.viewer.volume.get();
     if (volume === null) return undefined;
     return { volumeId: volume.id, image: this.viewer.image.get() };
   }
 
-  private renderReminderMenu() {
-    if (this.reminderMenu === null) return nothing;
-    const { reminder, at } = this.reminderMenu;
-    const { reminders } = this.state;
-    const items = [
-      {
-        label: 'Done',
-        run: () => {
-          this.changing(async () => {
-            await reminders.change(reminder.id, { done: true });
-          });
-        }
-      },
-      {
-        label: 'Edit…',
-        run: () => {
-          this.edit(reminder);
-        }
-      },
-      {
-        label: 'Delete',
-        run: () => {
-          this.changing(async () => {
-            await reminders.remove(reminder.id);
-          });
-        }
-      }
-    ];
-    return html`<sl-context-menu
-      .items=${items}
-      .at=${at}
-      @close=${() => {
-        this.reminderMenu = null;
-      }}
-    ></sl-context-menu>`;
-  }
-
   private renderReminders(at: Point) {
     return html`<sl-scan-reminders
-        style="left: ${at.x}px; top: ${at.y}px"
-        .reminders=${remindersHere(this.state)}
-        .persons=${this.persons}
-        .here=${this.here() ?? null}
-        .error=${this.reminderError}
-        @reminder-menu=${(e: ReminderMenuEvent) => {
-          const { reminder } = e.detail;
-          const rect = this.getBoundingClientRect();
-          const point = {
-            x: e.detail.at.x - rect.left,
-            y: e.detail.at.y - rect.top
-          };
-          this.reminderMenu = { reminder, at: point };
-        }}
-      ></sl-scan-reminders>
-      ${this.renderReminderMenu()}`;
+      style="left: ${at.x}px; top: ${at.y}px"
+      .reminders=${remindersHere(this.state)}
+      .persons=${this.persons}
+      .here=${this.here() ?? null}
+      @reminder-open=${(e: ReminderOpenEvent) => {
+        this.reminderModal.open(e.detail);
+      }}
+    ></sl-scan-reminders>`;
   }
 
   private renderDialog() {
@@ -527,7 +454,8 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
   }
 
   override render() {
-    return html`${this.renderBox()} ${this.renderPopup()} ${this.renderDialog()}`;
+    return html`${this.renderBox()} ${this.renderPopup()} ${this.renderDialog()}
+    ${this.reminderModal.render()}`;
   }
 }
 

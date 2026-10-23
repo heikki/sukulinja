@@ -4,7 +4,7 @@ import { memoryDatasetApi } from '@/client/dataset-api/memory';
 import { openAppState } from '@/client/state';
 import type { PersonRow, Reminder, ReminderOn } from '@/common/types';
 
-import { follow, listed, onLabel, pickable } from './helpers';
+import { follow, goLabel, listed, onLabel } from './helpers';
 
 const DONE = '2026-10-23T10:00:00.000Z';
 
@@ -63,10 +63,13 @@ test('names what each is on', () => {
   expect(onLabel(reminder(3, IMAGE), PERSONS)).toBe('I Aa:201, Image 18');
 });
 
-test('one on an Image from an earlier filming goes nowhere', () => {
-  expect(pickable(reminder(1, IMAGE))).toBe(true);
-  expect(pickable(reminder(2, { ...IMAGE, stale: true }))).toBe(false);
-  expect(pickable(reminder(3, CITATION))).toBe(true);
+test('each goes to its person, source or Image; a stale one nowhere', () => {
+  expect(goLabel(reminder(1, { kind: 'person', personId: 1 }))).toBe(
+    'Show person'
+  );
+  expect(goLabel(reminder(2, CITATION))).toBe('Show source');
+  expect(goLabel(reminder(3, IMAGE))).toBe('Open Image');
+  expect(goLabel(reminder(4, { ...IMAGE, stale: true }))).toBe(null);
 });
 
 function appState() {

@@ -1,8 +1,6 @@
-import { html, nothing } from 'lit';
+import { html } from 'lit';
 
 import type { Reminder } from '@/common/types';
-
-import type { ReminderError } from '../reminder-dialog/actions';
 
 // A person's Reminders as the panel lists them: their own, and each of
 // their Citations' by its id, open ones first and done ones after when
@@ -30,12 +28,10 @@ export function personReminders(
   return { own, byCitation, done: done.length };
 }
 
-// Reminders, each a button asking for its menu (`menu`) on a click or a
-// right-click; a done one dimmed, and one whose change failed saying why.
+// Reminders, each a button that opens it (`open`); a done one dimmed.
 export function renderReminders(
   reminders: Reminder[],
-  error: ReminderError | null,
-  menu: (e: MouseEvent, reminder: Reminder) => void
+  open: (reminder: Reminder) => void
 ) {
   return html`<ul class="reminders">
     ${reminders.map(
@@ -43,21 +39,13 @@ export function renderReminders(
         html`<li>
           <button
             class=${r.done === null ? 'reminder' : 'reminder done'}
-            aria-haspopup="menu"
-            @click=${(e: MouseEvent) => {
-              menu(e, r);
-            }}
-            @contextmenu=${(e: MouseEvent) => {
-              menu(e, r);
+            aria-haspopup="dialog"
+            @click=${() => {
+              open(r);
             }}
           >
             ${r.text}
           </button>
-          ${
-            error?.id === r.id
-              ? html`<p class="error">${error.message}</p>`
-              : nothing
-          }
         </li>`
     )}
   </ul>`;
