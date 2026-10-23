@@ -9,13 +9,25 @@ import type { MenuItem } from '../context-menu';
 // to discard. Elsewhere, only over the full Image (`canBox`): a pending
 // Box for the person's entry, unless one is on the Image already, and
 // with nothing pending, one for a new Citation of the entry for someone;
-// then Change Volume…, which only shows another Volume.
+// then, with nothing pending, a Reminder on the Image or someone beside it,
+// once Astia lists the Image; then Change Volume…, which only shows
+// another Volume. A Box's menu offers a Reminder too, starting on its
+// Citation.
 export function linkItems(
   viewer: Viewer,
   where: { onBox: boolean; canBox: boolean; name: string | null },
-  open: { chooseVolume: () => void; placeBox: () => void; cite: () => void }
+  open: {
+    chooseVolume: () => void;
+    placeBox: () => void;
+    cite: () => void;
+    remind: () => void;
+  }
 ) {
-  if (where.onBox) return boxItems(viewer);
+  const remind =
+    viewer.pending.get() === null && viewer.fileIdHere() !== null
+      ? [{ label: 'Add reminder…', run: open.remind }]
+      : [];
+  if (where.onBox) return [...boxItems(viewer), ...remind];
   const items: MenuItem[] = [];
   if (where.canBox) {
     const label =
@@ -27,7 +39,7 @@ export function linkItems(
       items.push({ label: 'Create entry for…', run: open.cite });
     }
   }
-  items.push({ label: 'Change Volume…', run: open.chooseVolume });
+  items.push(...remind, { label: 'Change Volume…', run: open.chooseVolume });
   return items;
 }
 

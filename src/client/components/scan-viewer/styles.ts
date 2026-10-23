@@ -262,6 +262,11 @@ export const scanNavStyles = css`
     color: var(--muted);
   }
 
+  /* Reminders open on the Image shown. */
+  button.reminders {
+    color: var(--accent);
+  }
+
   /* The Volume shown is on Astia's old filming, read-only. */
   button.old-filming {
     border-color: var(--accent);

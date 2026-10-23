@@ -3,20 +3,27 @@ import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
+import { ApiError } from '@/client/dataset-api';
 import type { Point, Transform, Viewport } from '@/client/pan-zoom';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
-import type { Box } from '@/common/types';
+import type { Box, Reminder } from '@/common/types';
 
+import { placeOf, targetOf } from '../reminder-dialog';
+import type { ReminderDialogElement } from '../reminder-dialog';
 import { entriesOn, rowName } from './citations';
 import { citeChoices, citingImage, searchable } from './cite';
 import { scanLayerStyles } from './edit-styles';
 import { boxFromStage, boxOnStage, clampBox, newBox, wholeBox } from './frame';
 import type { Frame } from './frame';
 import { linkItems } from './menu';
+import { reminderChoices, remindersHere } from './reminder-choices';
+import type { ReminderMenuEvent } from './reminders';
 
 import '../context-menu';
 import '../person-search';
+import '../reminder-dialog';
+import './reminders';
 import './volumes';
 
 // The parts of a Box a drag can take: an edge, a corner, or all of it.
@@ -29,8 +36,15 @@ function stop(e: Event) {
 }
 
 // What a right-click opened: the menu, the Volumes chosen from it, or the
-// people an entry can be cited for, listed or searched.
-type Popup = 'menu' | 'volumes' | 'cite' | 'search';
+// people an entry can be cited for, listed or searched; or the Reminders
+// on the Image, opened from the page nav.
+type Popup = 'menu' | 'volumes' | 'cite' | 'search' | 'reminders';
+
+// The Reminder writing or editing dialog, as it opens.
+type DialogProps = Pick<
+  ReminderDialogElement,
+  'heading' | 'choices' | 'chosen' | 'text' | 'save'
+>;
 
 // A drag under way: from where, and the Box it started on.
 interface BoxDrag {
@@ -91,6 +105,12 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
   @state() private popup: { at: Point; onBox: boolean; show: Popup } | null =
     null;
   private searchOpened = false;
+  // A Reminder in the list whose menu is open, at a point on the stage,
+  // and why the last change to one failed.
+  @state() private reminderMenu: { reminder: Reminder; at: Point } | null =
+    null;
+  @state() private reminderError: string | null = null;
+  @state() private dialog: DialogProps | null = null;
   @state() private drag: BoxDrag | null = null;
   // The Box as a drag has it, before it's let go.
   @state() private live: Box | null = null;
@@ -124,8 +144,20 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
   // A press outside the search closes it, as one outside a menu does;
   // presses on it stop there.
   private readonly onOutside = () => {
-    if (this.popup?.show === 'search') this.popup = null;
+    const show = this.popup?.show;
+    if (show === 'search' || show === 'reminders') this.popup = null;
   };
+
+  // The Reminders on the Image shown, opened from the page nav's marker
+  // at `at` on the stage, or closed when they're open.
+  toggleReminders(at: Point) {
+    this.reminderMenu = null;
+    this.reminderError = null;
+    this.popup =
+      this.popup?.show === 'reminders'
+        ? null
+        : { at, onBox: false, show: 'reminders' };
+  }
 
   // The menu at `at` on the stage; `onBox` when it's on the source's own
   // entry Box, which then has a menu of its own.
@@ -149,11 +181,16 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }
 
-  // Esc stops a drag before the viewer's Esc closes anything.
+  // Esc stops a drag, or closes a Reminder's menu or the Reminders, before
+  // the viewer's Esc closes anything.
   private readonly onKey = (e: KeyboardEvent) => {
-    if (e.key !== 'Escape' || this.drag === null) return;
+    if (e.key !== 'Escape') return;
+    const listed = this.popup?.show === 'reminders' && this.dialog === null;
+    if (this.drag === null && !listed) return;
     e.preventDefault();
     e.stopPropagation();
+    if (this.reminderMenu !== null) this.reminderMenu = null;
+    else if (listed) this.popup = null;
     this.drag = null;
     this.live = null;
   };
@@ -309,9 +346,127 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     </div>`;
   }
 
+  // The dialog to write a Reminder on the Image shown, starting on the
+  // source's Citation when it's opened from its Box.
+  private remind(onBox: boolean) {
+    const from = onBox ? (this.viewer.source.get()?.citation.id ?? null) : null;
+    const choices = reminderChoices(this.state, from);
+    if (choices === null) return;
+    this.popup = null;
+    this.dialog = {
+      heading: 'Add reminder',
+      ...choices,
+      text: '',
+      save: async (text, target) => {
+        await this.state.reminders.remind(text, target);
+      }
+    };
+  }
+
+  private edit(reminder: Reminder) {
+    const label = placeOf(reminder.on, this.persons, this.here());
+    this.dialog = {
+      heading: 'Edit reminder',
+      choices: [{ label, target: targetOf(reminder.on) }],
+      chosen: 0,
+      text: reminder.text,
+      save: async (text) => {
+        await this.state.reminders.change(reminder.id, { text });
+      }
+    };
+  }
+
+  // Runs a change to a Reminder, saying in the list if it fails.
+  private changing(run: () => Promise<void>) {
+    this.reminderError = null;
+    run().catch((err: unknown) => {
+      if (!(err instanceof ApiError)) throw err;
+      this.reminderError = err.message;
+    });
+  }
+
+  private here() {
+    const volume = this.viewer.volume.get();
+    if (volume === null) return undefined;
+    return { volumeId: volume.id, image: this.viewer.image.get() };
+  }
+
+  private renderReminderMenu() {
+    if (this.reminderMenu === null) return nothing;
+    const { reminder, at } = this.reminderMenu;
+    const { reminders } = this.state;
+    const items = [
+      {
+        label: 'Done',
+        run: () => {
+          this.changing(async () => {
+            await reminders.change(reminder.id, { done: true });
+          });
+        }
+      },
+      {
+        label: 'Edit…',
+        run: () => {
+          this.edit(reminder);
+        }
+      },
+      {
+        label: 'Delete',
+        run: () => {
+          this.changing(async () => {
+            await reminders.remove(reminder.id);
+          });
+        }
+      }
+    ];
+    return html`<sl-context-menu
+      .items=${items}
+      .at=${at}
+      @close=${() => {
+        this.reminderMenu = null;
+      }}
+    ></sl-context-menu>`;
+  }
+
+  private renderReminders(at: Point) {
+    return html`<sl-scan-reminders
+        style="left: ${at.x}px; top: ${at.y}px"
+        .reminders=${remindersHere(this.state)}
+        .persons=${this.persons}
+        .here=${this.here() ?? null}
+        .error=${this.reminderError}
+        @reminder-menu=${(e: ReminderMenuEvent) => {
+          const { reminder } = e.detail;
+          const rect = this.getBoundingClientRect();
+          const point = {
+            x: e.detail.at.x - rect.left,
+            y: e.detail.at.y - rect.top
+          };
+          this.reminderMenu = { reminder, at: point };
+        }}
+      ></sl-scan-reminders>
+      ${this.renderReminderMenu()}`;
+  }
+
+  private renderDialog() {
+    if (this.dialog === null) return nothing;
+    const { heading, choices, chosen, text, save } = this.dialog;
+    return html`<sl-reminder-dialog
+      .heading=${heading}
+      .choices=${choices}
+      .chosen=${chosen}
+      .text=${text}
+      .save=${save}
+      @close=${() => {
+        this.dialog = null;
+      }}
+    ></sl-reminder-dialog>`;
+  }
+
   private renderPopup() {
     if (this.popup === null) return nothing;
     const { at, onBox, show } = this.popup;
+    if (show === 'reminders') return this.renderReminders(at);
     if (show === 'volumes') {
       return html`<sl-scan-volumes
         .at=${at}
@@ -332,6 +487,9 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
         },
         cite: () => {
           this.popup = { at, onBox, show: 'cite' };
+        },
+        remind: () => {
+          this.remind(onBox);
         }
       }
     );
@@ -375,7 +533,7 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
   }
 
   override render() {
-    return html`${this.renderBox()} ${this.renderPopup()}`;
+    return html`${this.renderBox()} ${this.renderPopup()} ${this.renderDialog()}`;
   }
 }
 
