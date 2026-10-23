@@ -361,6 +361,94 @@ export const personPanelStyles = css`
     margin-top: 0.5rem;
   }
 
+  .reminders {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .source .reminders {
+    margin-top: 0.5rem;
+  }
+
+  /* A Reminder, flagged, its text as written; clicking it opens its menu. */
+  button.reminder {
+    display: flex;
+    gap: 0.45rem;
+    width: calc(100% + 1rem);
+    margin: 0 -0.5rem;
+    padding: 0.3rem 0.5rem;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: var(--fg);
+    font: inherit;
+    text-align: left;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+  }
+
+  button.reminder::before {
+    content: '⚑';
+    flex: none;
+    color: var(--accent);
+  }
+
+  button.reminder:hover {
+    background: color-mix(in srgb, var(--fg) 8%, transparent);
+  }
+
+  button.reminder:focus-visible {
+    outline-offset: -2px;
+  }
+
+  button.reminder.done {
+    opacity: 0.55;
+  }
+
+  .reminders .error {
+    margin: 0.1rem 0 0.3rem 1.4rem;
+    color: var(--danger);
+  }
+
+  .none {
+    margin: 0 0 0.3rem;
+  }
+
+  /* Shows or hides the done Reminders, under the list. */
+  button.show-done {
+    margin-top: 0.35rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+
+  button.show-done:hover {
+    text-decoration: underline;
+  }
+
+  /* A folded source's open Reminders, counted beside its chevron. */
+  button.marker {
+    flex: none;
+    padding: 0.05rem 0.45rem;
+    border: 0;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--accent);
+    font: inherit;
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+
+  button.marker:hover {
+    background: color-mix(in srgb, var(--accent) 24%, transparent);
+  }
+
   a {
     color: var(--accent);
     text-decoration: none;

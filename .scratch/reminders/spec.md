@@ -60,7 +60,7 @@ While working through the books you find things to come back to: "check the 1803
 
 - 01, the server: the table, the routes, and the merge: built.
 - 02, the Scan viewer: writing one, and the marker in the nav: built.
-- 03, the person panel's Reminders.
+- 03, the person panel's Reminders: built.
 - 04, the list of all open Reminders.
 
 ## Comments

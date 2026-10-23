@@ -10,7 +10,7 @@ import type { AppState } from '@/client/state';
 import type { Box, Reminder } from '@/common/types';
 
 import { placeOf, targetOf } from '../reminder-dialog';
-import type { ReminderDialogElement } from '../reminder-dialog';
+import type { ReminderDialogProps } from '../reminder-dialog';
 import { entriesOn, rowName } from './citations';
 import { citeChoices, citingImage, searchable } from './cite';
 import { scanLayerStyles } from './edit-styles';
@@ -39,12 +39,6 @@ function stop(e: Event) {
 // people an entry can be cited for, listed or searched; or the Reminders
 // on the Image, opened from the page nav.
 type Popup = 'menu' | 'volumes' | 'cite' | 'search' | 'reminders';
-
-// The Reminder writing or editing dialog, as it opens.
-type DialogProps = Pick<
-  ReminderDialogElement,
-  'heading' | 'choices' | 'chosen' | 'text' | 'save'
->;
 
 // A drag under way: from where, and the Box it started on.
 interface BoxDrag {
@@ -110,7 +104,7 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
   @state() private reminderMenu: { reminder: Reminder; at: Point } | null =
     null;
   @state() private reminderError: string | null = null;
-  @state() private dialog: DialogProps | null = null;
+  @state() private dialog: ReminderDialogProps | null = null;
   @state() private drag: BoxDrag | null = null;
   // The Box as a drag has it, before it's let go.
   @state() private live: Box | null = null;

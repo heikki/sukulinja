@@ -149,6 +149,12 @@ export class ReminderDialogElement extends LitElement {
   }
 }
 
+// What the dialog opens with.
+export type ReminderDialogProps = Pick<
+  ReminderDialogElement,
+  'heading' | 'choices' | 'chosen' | 'text' | 'save'
+>;
+
 declare global {
   interface HTMLElementTagNameMap {
     'sl-reminder-dialog': ReminderDialogElement;

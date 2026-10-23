@@ -14,7 +14,7 @@ import type {
   Source,
   SourceGroup
 } from '@/client/state';
-import type { CitationRow, Link, RecordView } from '@/common/types';
+import type { CitationRow, Link, RecordView, Reminder } from '@/common/types';
 
 import { CROSS, formatName } from '../tree-view/renderer';
 
@@ -24,6 +24,8 @@ import './header';
 import { householdsOf, lifeText } from './family';
 import type { Household, Relative } from './family';
 import { factLabel, factText, headingOf, siteName, titleText } from './helpers';
+import { ReminderActions } from './reminder-actions';
+import { personReminders, renderReminders } from './reminders';
 import { personPanelStyles } from './styles';
 
 function renderRecord(r: RecordView) {
@@ -105,9 +107,35 @@ function hasDetails(body: unknown, url: string | null, link: Link | null) {
 }
 
 // Each section open or not for the rest of the visit, across people; at
-// first only the sources are.
-const opened = { events: false, family: false, sources: true };
+// first only the Reminders and the sources are.
+const opened = {
+  reminders: true,
+  events: false,
+  family: false,
+  sources: true
+};
 type Section = keyof typeof opened;
+
+// Whether done Reminders are shown, for the rest of the visit.
+let showDone = false;
+
+// A source's open Reminders, as a marker with their count while it's
+// folded (not `open`); clicking it unfolds the source.
+function renderMarker(
+  reminders: Reminder[],
+  open: boolean,
+  unfold: () => void
+) {
+  const count = reminders.filter((r) => r.done === null).length;
+  if (open || count === 0) return nothing;
+  return html`<button
+    class="marker"
+    aria-label=${count === 1 ? '1 reminder' : `${count} reminders`}
+    @click=${unfold}
+  >
+    ⚑ ${count}
+  </button>`;
+}
 
 // Filed under its archive: it links a Volume there, or the archive's
 // books were looked through for it.
@@ -181,6 +209,12 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
   // The source shown in full; the others show only their heading and links.
   @state() private unfolded: number | null = null;
 
+  // A Reminder's menu and the dialog editing one.
+  private readonly reminderActions = new ReminderActions(
+    this,
+    () => this.state
+  );
+
   // Whose details are shown.
   private shownId: number | null = null;
   // The source last brought into view, and the one the viewer last showed
@@ -190,6 +224,11 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
     source: null,
     personId: null
   };
+
+  override connectedCallback() {
+    super.connectedCallback();
+    this.state.reminders.load();
+  }
 
   // The source the Scan viewer shows, unless it has moved off its Link.
   private get viewing() {
@@ -297,13 +336,21 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
   // Clicking a church-book source opens its scan; clicking another shows or
   // hides what it records, as its chevron does for both. Its record shows
   // only when selected, and opening it in the Scan viewer leaves it as it is.
-  private renderCitation({ citation: c, status }: Source) {
+  // Its Reminders show with its record, and a marker counts the open ones
+  // while it's folded.
+  private renderCitation(
+    { citation: c, status }: Source,
+    reminders: Reminder[]
+  ) {
     const viewing = this.viewing?.citation.id === c.id;
     const heading = headingOf(c);
     const body = renderBody(c, heading);
     const link = status?.link ?? null;
     const filed = isFiled(status);
-    const foldable = hasDetails(body, c.url, link);
+    const record = hasDetails(body, c.url, link)
+      ? renderDetails(body, c.url, link)
+      : nothing;
+    const foldable = record !== nothing || reminders.length > 0;
     const open = this.unfolded === c.id && foldable;
     const act = this.actionOf(c, status, foldable);
     return html`
@@ -312,7 +359,8 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
         data-citation=${c.id}
         @click=${(e: Event) => {
           const on = e.target as Element;
-          if (on.closest('a, .fold, .record') === null) act?.();
+          const inside = on.closest('a, .fold, .marker, .record, .reminders');
+          if (inside === null) act?.();
         }}
       >
         <div class="top">
@@ -326,6 +374,9 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
             </button>
             ${renderStatus(status, filedEntry(c, filed))}
           </div>
+          ${renderMarker(reminders, open, () => {
+            this.fold(c.id);
+          })}
           ${
             foldable
               ? renderFold(open, () => {
@@ -337,7 +388,7 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
         ${
           foldable
             ? html`<sl-fold .open=${open}>
-                ${renderDetails(body, c.url, link)}
+                ${record} ${this.renderSourceReminders(reminders)}
               </sl-fold>`
             : nothing
         }
@@ -345,15 +396,23 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
     `;
   }
 
+  // A source's Reminders, under what it records.
+  private renderSourceReminders(reminders: Reminder[]) {
+    if (reminders.length === 0) return nothing;
+    const { error, open } = this.reminderActions;
+    return renderReminders(reminders, error, open);
+  }
+
   // Each source keeps its own element, so another person's sources or a
   // reordering never slides one shut that was open.
-  private renderGroup(g: SourceGroup) {
+  private renderGroup(g: SourceGroup, reminders: Map<number, Reminder[]>) {
     return html`
       ${g.label === null ? nothing : html`<h4>${g.label}</h4>`}
       ${repeat(
         g.sources,
         (source) => source.citation.id,
-        (source) => this.renderCitation(source)
+        (source) =>
+          this.renderCitation(source, reminders.get(source.citation.id) ?? [])
       )}
     `;
   }
@@ -368,9 +427,40 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
     );
   }
 
-  private renderSources() {
+  private renderSources(reminders: Map<number, Reminder[]>) {
     const groups = this.state.selected.sources.get();
-    return groups.map((g) => this.renderGroup(g));
+    return groups.map((g) => this.renderGroup(g, reminders));
+  }
+
+  // The person's own Reminders, and Show done when any of theirs or their
+  // Citations' are.
+  private renderOwnReminders(own: Reminder[], done: number) {
+    const none = showDone ? 'None on them.' : 'None open on them.';
+    return html`
+      ${
+        own.length === 0
+          ? html`<p class="muted none">${none}</p>`
+          : renderReminders(
+              own,
+              this.reminderActions.error,
+              this.reminderActions.open
+            )
+      }
+      ${
+        done === 0
+          ? nothing
+          : html`<button
+              class="show-done"
+              aria-pressed=${showDone ? 'true' : 'false'}
+              @click=${() => {
+                showDone = !showDone;
+                this.requestUpdate();
+              }}
+            >
+              ${showDone ? 'Hide done' : `Show done (${done})`}
+            </button>`
+      }
+    `;
   }
 
   // A heading that shows or hides what follows it.
@@ -411,8 +501,21 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
     if (d === null) return html`<div class="body muted">Loading…</div>`;
     const stale = d.id !== selected.id.get();
     const households = householdsOf(d.id, this.state.chart.people.get());
+    const all = this.state.reminders.all.get();
+    const { own, byCitation, done } = personReminders(
+      Array.isArray(all) ? all : [],
+      d.id,
+      showDone
+    );
     return html`
       <div class="body ${stale ? 'stale' : ''}">
+        ${
+          own.length === 0 && done === 0
+            ? nothing
+            : this.renderSection('reminders', 'Reminders', () =>
+                this.renderOwnReminders(own, done)
+              )
+        }
         ${
           households.length === 0
             ? nothing
@@ -440,10 +543,11 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
           d.citations.length === 0
             ? nothing
             : this.renderSection('sources', 'Sources', () =>
-                this.renderSources()
+                this.renderSources(byCitation)
               )
         }
       </div>
+      ${this.reminderActions.render()}
     `;
   }
 }
