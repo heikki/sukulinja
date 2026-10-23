@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 
 import type { Reminder, ReminderOn } from '@/common/types';
 
-import { personReminders } from './reminders';
+import { personReminders, sourceOf } from './reminders';
 
 const DONE = '2026-10-23T10:00:00.000Z';
 
@@ -43,24 +43,27 @@ function ids(reminders: Reminder[] | undefined) {
   return reminders?.map((r) => r.id);
 }
 
-test("a person's open Reminders, their own and by Citation, counting the done", () => {
-  const { own, byCitation, done } = personReminders(ALL, 1, false);
-  expect(ids(own)).toEqual([2]);
-  expect(ids(byCitation.get(11))).toEqual([3]);
-  expect(ids(byCitation.get(12))).toEqual([5]);
+test("a person's open Reminders, on them or their Citations, counting the done", () => {
+  const { listed, done } = personReminders(ALL, 1, false);
+  expect(ids(listed)).toEqual([2, 3, 5]);
   expect(done).toBe(2);
 });
 
 test('with Show done, the done ones follow the open', () => {
-  const { own, byCitation, done } = personReminders(ALL, 1, true);
-  expect(ids(own)).toEqual([2, 1]);
-  expect(ids(byCitation.get(11))).toEqual([3, 4]);
+  const { listed, done } = personReminders(ALL, 1, true);
+  expect(ids(listed)).toEqual([2, 3, 5, 1, 4]);
   expect(done).toBe(2);
 });
 
 test("someone else's, and an Image's, aren't theirs", () => {
-  const { own, byCitation, done } = personReminders(ALL, 2, false);
-  expect(ids(own)).toEqual([6]);
-  expect(byCitation.size).toBe(0);
+  const { listed, done } = personReminders(ALL, 2, false);
+  expect(ids(listed)).toEqual([6]);
   expect(done).toBe(1);
+});
+
+test("a Citation's names its source; one on the person, none", () => {
+  expect(sourceOf(reminder(1, citation(1, 11)))).toBe('Source');
+  const named = { ...citation(1, 11), reference: 'I Aa:201, s. 18' };
+  expect(sourceOf(reminder(2, named))).toBe('I Aa:201, s. 18');
+  expect(sourceOf(reminder(3, { kind: 'person', personId: 1 }))).toBe(null);
 });

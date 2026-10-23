@@ -9,7 +9,6 @@ import type { AppState } from '@/client/state';
 import type { Box } from '@/common/types';
 
 import type { ReminderDialogProps } from '../reminder-dialog';
-import { ReminderModal } from '../reminder-dialog/modal';
 import { entriesOn, rowName } from './citations';
 import { citeChoices, citingImage, searchable } from './cite';
 import { scanLayerStyles } from './edit-styles';
@@ -98,8 +97,6 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
   @state() private popup: { at: Point; onBox: boolean; show: Popup } | null =
     null;
   private searchOpened = false;
-  // A Reminder in the list, clicked, shown in the Reminder dialog.
-  private readonly reminderModal = new ReminderModal(this, () => this.state);
   @state() private dialog: ReminderDialogProps | null = null;
   @state() private drag: BoxDrag | null = null;
   // The Box as a drag has it, before it's let go.
@@ -173,7 +170,8 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
   // closes anything; a Reminder dialog open takes it itself.
   private readonly onKey = (e: KeyboardEvent) => {
     if (e.key !== 'Escape') return;
-    const dialog = this.dialog !== null || this.reminderModal.isOpen;
+    const shown = this.state.reminders.shown.get() !== null;
+    const dialog = this.dialog !== null || shown;
     const listed = this.popup?.show === 'reminders' && !dialog;
     if (this.drag === null && !listed) return;
     e.preventDefault();
@@ -364,7 +362,7 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
       .persons=${this.persons}
       .here=${this.here() ?? null}
       @reminder-open=${(e: ReminderOpenEvent) => {
-        this.reminderModal.open(e.detail);
+        this.state.reminders.show(e.detail.id);
       }}
     ></sl-scan-reminders>`;
   }
@@ -454,8 +452,7 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
   }
 
   override render() {
-    return html`${this.renderBox()} ${this.renderPopup()} ${this.renderDialog()}
-    ${this.reminderModal.render()}`;
+    return html`${this.renderBox()} ${this.renderPopup()} ${this.renderDialog()}`;
   }
 }
 

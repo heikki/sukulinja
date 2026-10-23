@@ -3,12 +3,12 @@ import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
+import { Floating } from '@/client/floating';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { Reminder } from '@/common/types';
 
-import { ReminderModal } from '../reminder-dialog/modal';
-import { goLabel, isStale, listed, onLabel } from './helpers';
+import { isStale, listed, onLabel } from './helpers';
 import { remindersDialogStyles } from './styles';
 
 export { follow, openCount } from './helpers';
@@ -21,10 +21,9 @@ function stop(e: Event) {
 
 // Every open Reminder in the dataset, newest first, each with what it's
 // on; one on an Image from an earlier filming is flagged so. Clicking one
-// opens it in the Reminder dialog, whose actions include going to it
-// (`pick`), unless it's that stale one. Show done adds the done ones,
-// dimmed. A modal <dialog>: Close, Esc or a press on the scrim asks to
-// `close`, and keys and presses stay here.
+// picks it (`pick`). Show done adds the done ones, dimmed. A panel
+// floating over the chart, dragged by its heading: Close or Esc asks to
+// `close`, and keys and presses on it stay here.
 @customElement('sl-reminders-dialog')
 export class RemindersDialogElement extends SignalWatcher(LitElement) {
   static override styles = remindersDialogStyles;
@@ -33,19 +32,21 @@ export class RemindersDialogElement extends SignalWatcher(LitElement) {
 
   @state() private showDone = false;
 
-  private readonly modal = new ReminderModal(this, () => this.state);
+  private readonly floating = new Floating(this, 'reminders');
 
   override connectedCallback() {
     super.connectedCallback();
     this.state.reminders.load();
-    for (const type of ['mousedown', 'wheel', 'dblclick', 'contextmenu']) {
+    for (const type of [
+      'pointerdown',
+      'mousedown',
+      'wheel',
+      'dblclick',
+      'contextmenu'
+    ]) {
       this.addEventListener(type, stop);
     }
     this.addEventListener('keydown', this.onKeyDown);
-  }
-
-  override firstUpdated() {
-    this.renderRoot.querySelector('dialog')?.showModal();
   }
 
   private readonly close = () => {
@@ -59,20 +60,6 @@ export class RemindersDialogElement extends SignalWatcher(LitElement) {
     this.close();
   };
 
-  private open(reminder: Reminder) {
-    const label = goLabel(reminder);
-    const go =
-      label === null
-        ? null
-        : {
-            label,
-            run: () => {
-              this.dispatchEvent(new CustomEvent('pick', { detail: reminder }));
-            }
-          };
-    this.modal.open(reminder, go);
-  }
-
   private renderRow(reminder: Reminder) {
     const persons = this.state.chart.people.get().persons;
     const done = reminder.done !== null;
@@ -81,7 +68,7 @@ export class RemindersDialogElement extends SignalWatcher(LitElement) {
         class="row ${done ? 'done' : ''}"
         aria-haspopup="dialog"
         @click=${() => {
-          this.open(reminder);
+          this.dispatchEvent(new CustomEvent('pick', { detail: reminder }));
         }}
       >
         <span class="text">${reminder.text}</span>
@@ -135,26 +122,20 @@ export class RemindersDialogElement extends SignalWatcher(LitElement) {
 
   override render() {
     return html`
-      <dialog
+      <div
+        class="dialog"
+        popover="manual"
+        role="dialog"
         aria-label="Reminders"
-        @click=${(e: Event) => {
-          // On the scrim, outside the card.
-          if (e.target === e.currentTarget) this.close();
-        }}
-        @cancel=${(e: Event) => {
-          e.preventDefault();
-        }}
+        @pointerdown=${this.floating.grip}
       >
-        <div class="dialog">
-          <h2>Reminders</h2>
-          ${this.renderBody()}
-          <div class="actions">
-            ${this.renderShowDone()}
-            <button @click=${this.close}>Close</button>
-          </div>
-          ${this.modal.render()}
+        <h2>Reminders</h2>
+        ${this.renderBody()}
+        <div class="actions">
+          ${this.renderShowDone()}
+          <button @click=${this.close}>Close</button>
         </div>
-      </dialog>
+      </div>
     `;
   }
 }

@@ -1,28 +1,18 @@
 import { css } from 'lit';
 
 import { dialogStyles } from '@/client/dialog-styles';
+import { floatingStyles } from '@/client/floating';
 import { focusRingStyles } from '@/client/focus-ring';
 
-// The shared dialog, a little wider for a few lines of text, with its
-// fields one above the other.
+// The shared dialog's card, floating, a little wider for a few lines of
+// text, with its fields one above the other.
 const fields = css`
-  dialog {
-    width: 100%;
-    max-width: 32rem;
-    padding: 0;
-    border: none;
-    background: none;
-    color: var(--fg);
-    overflow: visible;
-  }
-
-  dialog::backdrop {
-    background: var(--scrim);
+  :host {
+    --panel-width: 32rem;
   }
 
   .dialog {
     max-width: none;
-    margin: 0;
   }
 
   label {
@@ -56,6 +46,20 @@ const fields = css`
     margin: 0 0 1rem;
   }
 
+  /* What it's on, muted, in place of a heading. */
+  .header {
+    margin: 0 0 0.75rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  /* Read-only, as written. */
+  .dialog p.text {
+    margin: 0 0 1.25rem;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
+
   p.error {
     color: var(--danger);
   }
@@ -73,4 +77,9 @@ const fields = css`
   }
 `;
 
-export const reminderDialogStyles = [focusRingStyles, dialogStyles, fields];
+export const reminderDialogStyles = [
+  focusRingStyles,
+  dialogStyles,
+  floatingStyles,
+  fields
+];

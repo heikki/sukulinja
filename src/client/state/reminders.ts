@@ -1,4 +1,4 @@
-import { signal } from '@lit-labs/signals';
+import { computed, signal } from '@lit-labs/signals';
 
 import type { DatasetApi } from '@/client/dataset-api';
 import type { Reminder, ReminderChange, ReminderTarget } from '@/common/types';
@@ -17,6 +17,11 @@ export interface Reminders {
   remind: (text: string, on: ReminderTarget) => Promise<Reminder>;
   change: (id: number, change: ReminderChange) => Promise<void>;
   remove: (id: number) => Promise<void>;
+  // The Reminder open in its dialog, as it now stands: gone once it's
+  // deleted.
+  shown: Readable<Reminder | null>;
+  // Opens one in its dialog, or closes it with null.
+  show: (id: number | null) => void;
 }
 
 // The open Reminders on an Image of a Volume, not stale, or on one of the
@@ -40,6 +45,13 @@ export function remindersOn(
 
 export function openReminders(api: DatasetApi): Reminders {
   const all = signal<Reminder[] | null | 'failed'>(null);
+  const shownId = signal<number | null>(null);
+  const shown = computed(() => {
+    const id = shownId.get();
+    const rows = all.get();
+    if (id === null || !Array.isArray(rows)) return null;
+    return rows.find((r) => r.id === id) ?? null;
+  });
   const req = new Latest();
   let asked = false;
 
@@ -76,6 +88,10 @@ export function openReminders(api: DatasetApi): Reminders {
     async remove(id) {
       await api.deleteReminder(id);
       edit((rows) => rows.filter((r) => r.id !== id));
+    },
+    shown,
+    show(id) {
+      shownId.set(id);
     }
   };
 }

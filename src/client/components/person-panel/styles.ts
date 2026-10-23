@@ -367,11 +367,8 @@ export const personPanelStyles = css`
     list-style: none;
   }
 
-  .source .reminders {
-    margin-top: 0.5rem;
-  }
-
-  /* A Reminder, flagged, its text as written; clicking it opens it. */
+  /* A Reminder, flagged, its text as written, a Citation's source beneath;
+     clicking it opens it. */
   button.reminder {
     display: flex;
     gap: 0.45rem;
@@ -384,15 +381,29 @@ export const personPanelStyles = css`
     color: var(--fg);
     font: inherit;
     text-align: left;
-    white-space: pre-line;
     overflow-wrap: anywhere;
     cursor: pointer;
+  }
+
+  button.reminder .text {
+    white-space: pre-line;
   }
 
   button.reminder::before {
     content: '⚑';
     flex: none;
     color: var(--accent);
+  }
+
+  button.reminder .lines {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  button.reminder .source {
+    color: var(--muted);
+    font-size: 0.8rem;
   }
 
   button.reminder:hover {
@@ -425,23 +436,6 @@ export const personPanelStyles = css`
 
   button.show-done:hover {
     text-decoration: underline;
-  }
-
-  /* A folded source's open Reminders, counted beside its chevron. */
-  button.marker {
-    flex: none;
-    padding: 0.05rem 0.45rem;
-    border: 0;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--accent) 14%, transparent);
-    color: var(--accent);
-    font: inherit;
-    font-size: 0.75rem;
-    cursor: pointer;
-  }
-
-  button.marker:hover {
-    background: color-mix(in srgb, var(--accent) 24%, transparent);
   }
 
   a {

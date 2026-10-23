@@ -2,9 +2,15 @@ import { expect, test } from 'bun:test';
 
 import { memoryDatasetApi } from '@/client/dataset-api/memory';
 import { openAppState } from '@/client/state';
-import type { PersonRow, Reminder, ReminderOn } from '@/common/types';
+import type {
+  CitationRow,
+  Link,
+  PersonRow,
+  Reminder,
+  ReminderOn
+} from '@/common/types';
 
-import { follow, goLabel, listed, onLabel } from './helpers';
+import { follow, isStale, listed, onLabel } from './helpers';
 
 const DONE = '2026-10-23T10:00:00.000Z';
 
@@ -63,33 +69,60 @@ test('names what each is on', () => {
   expect(onLabel(reminder(3, IMAGE), PERSONS)).toBe('I Aa:201, Image 18');
 });
 
-test('each goes to its person, source or Image; a stale one nowhere', () => {
-  expect(goLabel(reminder(1, { kind: 'person', personId: 1 }))).toBe(
-    'Show person'
-  );
-  expect(goLabel(reminder(2, CITATION))).toBe('Show source');
-  expect(goLabel(reminder(3, IMAGE))).toBe('Open Image');
-  expect(goLabel(reminder(4, { ...IMAGE, stale: true }))).toBe(null);
+test('one on an Image from an earlier filming is stale', () => {
+  expect(isStale(reminder(1, IMAGE))).toBe(false);
+  expect(isStale(reminder(2, { ...IMAGE, stale: true }))).toBe(true);
+  expect(isStale(reminder(3, CITATION))).toBe(false);
 });
+
+const C11: CitationRow = {
+  id: 11,
+  source: null,
+  reference: null,
+  entry: null,
+  page: null,
+  url: null,
+  record: null,
+  text: null,
+  churchBook: true,
+  madeInApp: false,
+  markKey: 'citation 11',
+  citedPage: null,
+  cited: null
+};
+const L11: Link = {
+  volumeId: '201',
+  volume: 'I Aa:201',
+  url: '',
+  precision: 'image',
+  image: 18,
+  certainty: 'estimated'
+};
 
 function appState() {
   return openAppState(
-    memoryDatasetApi({ volumes: { '201': { images: 40, citations: [] } } })
+    memoryDatasetApi({
+      details: {
+        1: { id: 1, name: 'Person 1', sex: 'U', facts: [], citations: [C11] }
+      },
+      links: { 1: [{ citationId: 11, links: [L11] }] },
+      volumes: { '201': { images: 40, citations: [] } }
+    })
   );
 }
 
-test("a Citation's selects its person, asking for the source unfolded", () => {
+test("a Citation's selects its person and opens its scan", async () => {
   const state = appState();
-  follow(state, reminder(1, CITATION));
+  await follow(state, reminder(1, CITATION));
   expect(state.selected.id.get()).toBe(1);
-  expect(state.selected.reveal.get()).toEqual({ personId: 1, citationId: 11 });
+  expect(state.viewer.source.get()).toEqual({ citation: C11, link: L11 });
 });
 
-test("an Image's opens the Scan viewer there; a stale one doesn't", () => {
+test("an Image's opens the Scan viewer there; a stale one doesn't", async () => {
   const state = appState();
-  follow(state, reminder(1, { ...IMAGE, stale: true }));
+  await follow(state, reminder(1, { ...IMAGE, stale: true }));
   expect(state.viewer.opened.get()).toBe(null);
-  follow(state, reminder(2, IMAGE));
+  await follow(state, reminder(2, IMAGE));
   expect(state.viewer.opened.get()).toEqual({
     volumeId: '201',
     volume: 'I Aa:201',

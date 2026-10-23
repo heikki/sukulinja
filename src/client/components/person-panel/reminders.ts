@@ -1,10 +1,10 @@
-import { html } from 'lit';
+import { html, nothing } from 'lit';
 
 import type { Reminder } from '@/common/types';
 
-// A person's Reminders as the panel lists them: their own, and each of
-// their Citations' by its id, open ones first and done ones after when
-// `showDone`; and how many of either are done, shown or not.
+// A person's Reminders as the panel lists them, on them or their
+// Citations: open ones, and done ones after with `showDone`; and how many
+// are done, shown or not.
 export function personReminders(
   all: Reminder[],
   personId: number,
@@ -15,38 +15,44 @@ export function personReminders(
   );
   const open = mine.filter((r) => r.done === null);
   const done = mine.filter((r) => r.done !== null);
-  const own: Reminder[] = [];
-  const byCitation = new Map<number, Reminder[]>();
-  for (const r of showDone ? [...open, ...done] : open) {
-    const { on } = r;
-    if (on.kind === 'person') own.push(r);
-    else if (on.kind === 'citation') {
-      const listed = byCitation.get(on.citationId) ?? [];
-      byCitation.set(on.citationId, [...listed, r]);
-    }
-  }
-  return { own, byCitation, done: done.length };
+  return { listed: showDone ? [...open, ...done] : open, done: done.length };
 }
 
-// Reminders, each a button that opens it (`open`); a done one dimmed.
+// The source a Citation's Reminder is on, as written; null for one on the
+// person.
+export function sourceOf(reminder: Reminder) {
+  const { on } = reminder;
+  if (on.kind !== 'citation') return null;
+  return on.reference ?? on.source ?? 'Source';
+}
+
+// Reminders, each a button that opens it (`open`), a Citation's naming its
+// source beneath; a done one dimmed.
 export function renderReminders(
   reminders: Reminder[],
   open: (reminder: Reminder) => void
 ) {
   return html`<ul class="reminders">
-    ${reminders.map(
-      (r) =>
-        html`<li>
-          <button
-            class=${r.done === null ? 'reminder' : 'reminder done'}
-            aria-haspopup="dialog"
-            @click=${() => {
-              open(r);
-            }}
-          >
-            ${r.text}
-          </button>
-        </li>`
-    )}
+    ${reminders.map((r) => {
+      const source = sourceOf(r);
+      return html`<li>
+        <button
+          class=${r.done === null ? 'reminder' : 'reminder done'}
+          aria-haspopup="dialog"
+          @click=${() => {
+            open(r);
+          }}
+        >
+          <span class="lines">
+            <span class="text">${r.text}</span>
+            ${
+              source === null
+                ? nothing
+                : html`<span class="source">${source}</span>`
+            }
+          </span>
+        </button>
+      </li>`;
+    })}
   </ul>`;
 }

@@ -216,13 +216,10 @@ test("a refused Mark throws in the server's words", async () => {
   expect(selected.links.get().get(11)).toEqual({ links: [ON_18] });
 });
 
-test('a source to reveal is kept for its person, and dropped for another', async () => {
+test('selecting the person already selected waits for their details and Links', async () => {
   const selected = openSelected(dataset());
-  selected.revealSource(1, 12);
+  void selected.select(1);
   await selected.select(1);
-  expect(selected.reveal.get()).toEqual({ personId: 1, citationId: 12 });
-
-  selected.revealSource(1, 11);
-  await selected.select(2);
-  expect(selected.reveal.get()).toBe(null);
+  expect(selected.details.get()).toBe(MATTI);
+  expect(selected.pending.get()).toBe(false);
 });
