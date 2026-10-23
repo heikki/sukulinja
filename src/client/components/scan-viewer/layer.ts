@@ -15,7 +15,7 @@ import { scanLayerStyles } from './edit-styles';
 import { boxFromStage, boxOnStage, clampBox, newBox, wholeBox } from './frame';
 import type { Frame } from './frame';
 import { linkItems } from './menu';
-import { reminderChoices, remindersHere } from './reminder-choices';
+import { reminderPlaces, remindersHere } from './reminder-places';
 import type { ReminderOpenEvent } from './reminders';
 
 import '../context-menu';
@@ -167,12 +167,10 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
   }
 
   // Esc stops a drag, or closes the Reminders, before the viewer's Esc
-  // closes anything; a Reminder dialog open takes it itself.
+  // closes anything.
   private readonly onKey = (e: KeyboardEvent) => {
     if (e.key !== 'Escape') return;
-    const shown = this.state.reminders.shown.get() !== null;
-    const dialog = this.dialog !== null || shown;
-    const listed = this.popup?.show === 'reminders' && !dialog;
+    const listed = this.popup?.show === 'reminders';
     if (this.drag === null && !listed) return;
     e.preventDefault();
     e.stopPropagation();
@@ -332,19 +330,21 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
     </div>`;
   }
 
-  // The dialog to write a Reminder on the Image shown, starting on the
-  // source's Citation when it's opened from its Box.
-  private remind(onBox: boolean) {
-    const from = onBox ? (this.viewer.source.get()?.citation.id ?? null) : null;
-    const choices = reminderChoices(this.state, from);
-    if (choices === null) return;
+  // The dialog to write a Reminder on the Image shown, or on the source's
+  // Citation while it links the Image, opened where it was asked for, at
+  // `at` on the stage.
+  private remind(at: Point) {
+    const places = reminderPlaces(this.state);
+    if (places === null) return;
     this.popup = null;
+    const rect = this.getBoundingClientRect();
     this.dialog = {
       heading: 'Add reminder',
-      ...choices,
+      at: { x: rect.left + at.x, y: rect.top + at.y },
+      places,
       text: '',
       save: async (text, target) => {
-        await this.state.reminders.remind(text, target);
+        if (target !== null) await this.state.reminders.remind(text, target);
       }
     };
   }
@@ -362,18 +362,18 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
       .persons=${this.persons}
       .here=${this.here() ?? null}
       @reminder-open=${(e: ReminderOpenEvent) => {
-        this.state.reminders.show(e.detail.id);
+        this.state.reminders.toggle(e.detail.id);
       }}
     ></sl-scan-reminders>`;
   }
 
   private renderDialog() {
     if (this.dialog === null) return nothing;
-    const { heading, choices, chosen, text, save } = this.dialog;
+    const { heading, places, text, save, at } = this.dialog;
     return html`<sl-reminder-dialog
       .heading=${heading}
-      .choices=${choices}
-      .chosen=${chosen}
+      .at=${at}
+      .places=${places}
       .text=${text}
       .save=${save}
       @close=${() => {
@@ -408,7 +408,7 @@ export class ScanLayerElement extends SignalWatcher(LitElement) {
           this.popup = { at, onBox, show: 'cite' };
         },
         remind: () => {
-          this.remind(onBox);
+          this.remind(at);
         }
       }
     );

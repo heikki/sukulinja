@@ -9,10 +9,9 @@ import type { MenuItem } from '../context-menu';
 // to discard. Elsewhere, only over the full Image (`canBox`): a pending
 // Box for the person's entry, unless one is on the Image already, and
 // with nothing pending, one for a new Citation of the entry for someone;
-// then, with nothing pending, a Reminder on the Image or someone beside it,
-// once Astia lists the Image; then Change Volume…, which only shows
-// another Volume. A Box's menu offers a Reminder too, starting on its
-// Citation. Opened on an Image with no source, only the Reminder.
+// then, with nothing pending, a Reminder, once Astia lists the Image; then
+// Change Volume…, which only shows another Volume. A Box's menu offers a
+// Reminder too. Opened on an Image with no source, only the Reminder.
 export function linkItems(
   viewer: Viewer,
   where: { onBox: boolean; canBox: boolean; name: string | null },

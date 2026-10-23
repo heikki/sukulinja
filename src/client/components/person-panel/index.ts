@@ -192,9 +192,9 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
   @state() private unfolded: number | null = null;
 
   // A Reminder clicked opens in its dialog, and a Citation's opens its
-  // source in the Scan viewer too.
+  // source in the Scan viewer too; clicked again, it closes.
   private readonly showReminder = (reminder: Reminder) => {
-    this.state.reminders.show(reminder.id);
+    if (!this.state.reminders.toggle(reminder.id)) return;
     const { on } = reminder;
     if (on.kind === 'citation') openSource(this.state, on.citationId);
   };

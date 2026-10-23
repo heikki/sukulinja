@@ -10,7 +10,7 @@ import type {
   ReminderOn
 } from '@/common/types';
 
-import { follow, isStale, listed, onLabel } from './helpers';
+import { follow, isStale, listed, mayOpen, onLabel, shows } from './helpers';
 
 const DONE = '2026-10-23T10:00:00.000Z';
 
@@ -128,4 +128,46 @@ test("an Image's opens the Scan viewer there; a stale one doesn't", async () => 
     volume: 'I Aa:201',
     image: 18
   });
+});
+
+test("a Citation's source may open until the person's sources show no scan", async () => {
+  const other: CitationRow = { ...C11, id: 12, churchBook: false };
+  const state = openAppState(
+    memoryDatasetApi({
+      details: {
+        1: {
+          id: 1,
+          name: 'Person 1',
+          sex: 'U',
+          facts: [],
+          citations: [C11, other]
+        }
+      },
+      links: { 1: [{ citationId: 11, links: [L11] }] },
+      volumes: { '201': { images: 40, citations: [] } }
+    })
+  );
+  expect(mayOpen(state, 12)).toBe(true);
+  await state.selected.select(1);
+  expect(mayOpen(state, 11)).toBe(true);
+  expect(mayOpen(state, 12)).toBe(false);
+});
+
+test("the Scan viewer shows where one is while open on its source's Image, or its Image", async () => {
+  const state = appState();
+  const citation = reminder(1, CITATION);
+  const image = reminder(2, { ...IMAGE, image: 20 });
+  expect(shows(state, citation)).toBe(false);
+  await follow(state, citation);
+  expect(shows(state, citation)).toBe(true);
+  expect(shows(state, image)).toBe(false);
+  state.viewer.show(19);
+  expect(shows(state, citation)).toBe(false);
+  await follow(state, image);
+  expect(shows(state, image)).toBe(true);
+  expect(shows(state, citation)).toBe(false);
+  state.viewer.show(19);
+  expect(shows(state, image)).toBe(false);
+  state.viewer.close();
+  expect(shows(state, citation)).toBe(false);
 });

@@ -92,3 +92,17 @@ test('the Reminder shown follows its changes, and goes when deleted', async () =
   await reminders.remove(1);
   expect(reminders.shown.get()).toBe(null);
 });
+
+test('a Reminder toggled opens, and toggled again closes', async () => {
+  const api = memoryDatasetApi({
+    reminders: [reminder(1, IMAGE), reminder(2, IMAGE)]
+  });
+  const reminders = openReminders(api);
+  reminders.load();
+  await Bun.sleep(0);
+  expect(reminders.toggle(1)).toBe(true);
+  expect(reminders.toggle(2)).toBe(true);
+  expect(reminders.shown.get()?.id).toBe(2);
+  expect(reminders.toggle(2)).toBe(false);
+  expect(reminders.shown.get()).toBe(null);
+});

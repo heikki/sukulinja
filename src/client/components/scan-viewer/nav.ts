@@ -9,7 +9,7 @@ import type { AppState } from '@/client/state';
 
 import { imageAfter, stepOf } from './keys';
 import type { ImageMove } from './keys';
-import { remindersHere } from './reminder-choices';
+import { remindersHere } from './reminder-places';
 import { controlStyles, scanNavStyles } from './styles';
 
 import './edit';

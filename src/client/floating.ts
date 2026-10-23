@@ -10,21 +10,29 @@ const placed = new Map<string, Point>();
 // How much of a panel stays on screen, so it can be grabbed back.
 const KEEP_PX = 48;
 
+// How far a panel opened at a point keeps from the window's edges.
+const MARGIN_PX = 8;
+
 // What a press on is for the control, not for dragging.
 const CONTROLS = 'button, input, textarea, select, a, label';
 
 // A panel floating over everything without blocking what's under it: the
 // host's `[popover]` element, shown in the top layer once it's drawn and
-// centred until it's dragged by `grip`, put on the panel itself. Panels of the same `kind` share
-// where they were last dragged to.
+// dragged by `grip`, put on the panel itself. It opens where panels of the
+// same `kind` were last dragged to, centred at first; or, when `opensAt`
+// gives a point in the window, there, all of it on screen, and then
+// dragging it is its own.
 export class Floating implements ReactiveController {
   private drag: { pointer: number; offset: Point } | null = null;
+  // Opened at a point of its own, so where it's dragged isn't kept.
+  private own = false;
 
   constructor(
     private readonly host: ReactiveControllerHost & {
       renderRoot: ParentNode;
     },
-    private readonly kind: string
+    private readonly kind: string,
+    private readonly opensAt: () => Point | null = () => null
   ) {
     host.addController(this);
   }
@@ -37,6 +45,14 @@ export class Floating implements ReactiveController {
     const panel = this.panel();
     if (panel === null || panel.matches(':popover-open')) return;
     panel.showPopover();
+    const start = this.opensAt();
+    if (start !== null) {
+      this.own = true;
+      const x = Math.min(start.x, innerWidth - panel.offsetWidth - MARGIN_PX);
+      const y = Math.min(start.y, innerHeight - panel.offsetHeight - MARGIN_PX);
+      this.place({ x: Math.max(MARGIN_PX, x), y: Math.max(MARGIN_PX, y) });
+      return;
+    }
     const at = placed.get(this.kind);
     if (at !== undefined) this.place(at);
   }
@@ -54,7 +70,7 @@ export class Floating implements ReactiveController {
     panel.style.margin = '0';
     panel.style.left = `${x}px`;
     panel.style.top = `${y}px`;
-    placed.set(this.kind, { x, y });
+    if (!this.own) placed.set(this.kind, { x, y });
   }
 
   // A press on the panel's background starts a drag, followed until the
@@ -95,6 +111,18 @@ export class Floating implements ReactiveController {
     handle.removeEventListener('pointercancel', this.onUp);
     this.drag = null;
   };
+}
+
+// Whether a key is pressed while typing in a field, where it's the field's
+// alone; other keys on a floating panel go on to what's under it, which it
+// doesn't block.
+export function typing(e: KeyboardEvent) {
+  const on = e.composedPath()[0];
+  return (
+    on instanceof HTMLInputElement ||
+    on instanceof HTMLTextAreaElement ||
+    on instanceof HTMLSelectElement
+  );
 }
 
 // A floating panel's own box: the card, centred until it's dragged by its

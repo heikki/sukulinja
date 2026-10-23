@@ -529,7 +529,15 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
     // way back to the chooser (in Settings) is always there. A Reminder
     // clicked anywhere opens over it all.
     return html`${this.renderBody()}${this.renderCorner()}
-      <sl-reminder-shown></sl-reminder-shown>`;
+      <sl-reminder-shown
+        .docked=${this.details}
+        @dock-open=${() => {
+          this.details = true;
+        }}
+        @dock-close=${() => {
+          this.details = false;
+        }}
+      ></sl-reminder-shown>`;
   }
 
   private renderBody() {

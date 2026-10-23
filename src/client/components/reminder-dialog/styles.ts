@@ -14,6 +14,7 @@ const fields = css`
   .dialog {
     max-width: none;
     min-height: 15rem;
+    padding: 1rem;
   }
 
   .dialog:popover-open {
@@ -43,8 +44,11 @@ const fields = css`
     font-size: 0.9rem;
   }
 
+  /* Growing into the note's height, down to its buttons. */
   textarea {
+    flex: 1;
     min-height: 6rem;
+    margin-bottom: 0.75rem;
     resize: vertical;
   }
 
@@ -68,10 +72,56 @@ const fields = css`
     font-size: 0.85rem;
   }
 
+  .header > div {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* A line going to what it names, brightening under the pointer; only as
+     wide as its text, so the rest of the row drags. */
+  .dialog .header button.go {
+    display: inline-block;
+    max-width: 100%;
+    padding: 0;
+    border: 0;
+    border-radius: 2px;
+    background: none;
+    color: inherit;
+    font-size: inherit;
+    text-align: left;
+    vertical-align: top;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dialog .header button.go:hover {
+    color: var(--fg);
+  }
+
+  /* The person a new one is on, ticked off to put it on the Image; only
+     as wide as the box and name, so the rest of the row drags. */
+  .who {
+    display: inline-flex;
+    max-width: 100%;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0;
+    font-size: inherit;
+    cursor: pointer;
+  }
+
+  .who input {
+    margin: 0;
+    accent-color: var(--muted);
+    cursor: pointer;
+  }
+
   .tools {
     display: flex;
     gap: 0.25rem;
-    margin: -0.5rem -0.75rem 0 0;
+    margin: -0.25rem -0.25rem 0 0;
   }
 
   .dialog .tools button {
@@ -101,6 +151,7 @@ const fields = css`
   /* Read-only, as written. */
   .dialog p.text {
     margin: 0;
+    font-size: 0.9rem;
     white-space: pre-line;
     overflow-wrap: anywhere;
   }
@@ -109,8 +160,34 @@ const fields = css`
     color: var(--danger);
   }
 
+  /* Cancel and Save, small and light at the bottom right, so the note
+     stays the main thing. */
   .actions {
     margin-top: auto;
+    gap: 0.25rem;
+  }
+
+  .dialog .actions button {
+    padding: 0.25rem 0.7rem;
+    border-color: transparent;
+    background: none;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  .dialog .actions button:hover:not(:disabled) {
+    color: var(--fg);
+    background: color-mix(in srgb, var(--fg) 8%, transparent);
+  }
+
+  /* Save in the accent, filled only under the pointer. */
+  .dialog .actions button.primary {
+    color: var(--accent);
+  }
+
+  .dialog .actions button.primary:hover:not(:disabled) {
+    background: var(--accent);
+    color: var(--on-accent);
   }
 `;
 

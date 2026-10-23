@@ -120,3 +120,17 @@ test("an Image's by its parish, once the Scan viewer shows it, Volume and Image"
     `Juva · ${volume} · Image 40`
   ]);
 });
+
+test('keeps what it found once the Scan viewer closes', async () => {
+  const state = await loaded();
+  const volume = 'I Aa:1 Pää- ja rippikirjat (1790-1796)';
+  state.viewer.open({ citation: C11, link: L11 });
+  await Bun.sleep(0);
+  const citation = headerOf(state, reminder(CITATION));
+  const image = headerOf(state, reminder(IMAGE));
+  expect(image).toEqual([`Juva · ${volume} · Image 40`]);
+  state.viewer.close();
+  await Bun.sleep(0);
+  expect(headerOf(state, reminder(CITATION))).toEqual(citation);
+  expect(headerOf(state, reminder(IMAGE))).toEqual(image);
+});

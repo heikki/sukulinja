@@ -12,6 +12,7 @@ const list = css`
   }
 
   .dialog {
+    padding: 1rem;
     flex-direction: column;
     max-width: none;
     max-height: min(36rem, calc(100vh - 4rem));
@@ -73,11 +74,46 @@ const list = css`
     color: var(--muted);
   }
 
+  /* The heading, muted as a Reminder's is, and closing in the corner. */
+  .top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin: 0 0 0.5rem;
+  }
+
+  .dialog .top h2 {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-weight: 400;
+  }
+
+  .dialog button.close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    margin: -0.25rem -0.25rem 0 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .dialog button.close:hover {
+    background: color-mix(in srgb, var(--fg) 8%, transparent);
+    color: var(--fg);
+  }
+
   .actions {
     align-items: center;
   }
 
-  /* Shows or hides the done ones, at the start of the buttons' row. */
+  /* Shows or hides the done ones, under the list. */
   .dialog button.show-done {
     margin-right: auto;
     padding: 0;
