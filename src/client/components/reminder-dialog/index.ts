@@ -5,6 +5,15 @@ import { ApiError } from '@/client/dataset-api';
 import type { ReminderTarget } from '@/common/types';
 
 import type { ReminderChoice } from './helpers';
+
+// Something else the dialog can do to the Reminder it shows, beside
+// saving its text: marking it done, deleting it, going to it. The dialog
+// closes once it's done.
+export interface ReminderDialogAction {
+  label: string;
+  // Given the text as it's typed.
+  run: (text: string) => Promise<void> | void;
+}
 import { reminderDialogStyles } from './styles';
 
 export type { ReminderChoice } from './helpers';
@@ -14,10 +23,10 @@ function stop(e: Event) {
   e.stopPropagation();
 }
 
-// Writing a Reminder, or editing one: what it's on, picked from `choices`
+// Writing a Reminder, or showing one: what it's on, picked from `choices`
 // starting at `chosen` (or named, when there's only one), and its text.
-// Save runs `save`, and closes once it's done; one refused says why and
-// stays open. Cancel, Esc or a press on the scrim asks to `close`. A modal
+// Save runs `save`, and each of `actions` its own, and closes once it's
+// done; one refused says why and stays open. Cancel, Esc or a press on the scrim asks to `close`. A modal
 // <dialog>, so it's over everything wherever it's opened from. Keys and
 // presses stay here, so nothing under it acts on them; ⌘Enter saves.
 @customElement('sl-reminder-dialog')
@@ -30,6 +39,7 @@ export class ReminderDialogElement extends LitElement {
   @property({ attribute: false }) text = '';
   @property({ attribute: false }) save:
     ((text: string, target: ReminderTarget) => Promise<void>) | null = null;
+  @property({ attribute: false }) actions: ReminderDialogAction[] = [];
 
   @state() private typed: string | null = null;
   @state() private picked: number | null = null;
@@ -72,11 +82,19 @@ export class ReminderDialogElement extends LitElement {
     const target = this.choices[this.picked ?? this.chosen]?.target;
     const { save } = this;
     if (target === undefined || save === null) return;
-    if (this.value.trim() === '' || this.saving) return;
+    if (this.value.trim() === '') return;
+    await this.running(async () => {
+      await save(this.value, target);
+    });
+  }
+
+  // Runs `run`, one at a time, closing once it's done.
+  private async running(run: () => Promise<void> | void) {
+    if (this.saving) return;
     this.saving = true;
     this.error = null;
     try {
-      await save(this.value, target);
+      await run();
       this.close();
     } catch (err) {
       if (!(err instanceof ApiError)) throw err;
@@ -84,6 +102,20 @@ export class ReminderDialogElement extends LitElement {
     } finally {
       this.saving = false;
     }
+  }
+
+  private renderActions() {
+    return this.actions.map(
+      (action) =>
+        html`<button
+          ?disabled=${this.saving}
+          @click=${() => {
+            void this.running(() => action.run(this.value));
+          }}
+        >
+          ${action.label}
+        </button>`
+    );
   }
 
   private renderOn() {
@@ -130,6 +162,11 @@ export class ReminderDialogElement extends LitElement {
           ></textarea>
           ${this.error === null ? nothing : html`<p class="error">${this.error}</p>`}
           <div class="actions">
+            ${
+              this.actions.length === 0
+                ? nothing
+                : html`<div class="more">${this.renderActions()}</div>`
+            }
             <button @click=${this.close} ?disabled=${this.saving}>
               Cancel
             </button>

@@ -16,7 +16,7 @@ import type {
 } from '@/client/state';
 import type { CitationRow, Link, RecordView, Reminder } from '@/common/types';
 
-import { ReminderActions } from '../reminder-dialog/actions';
+import { ReminderModal } from '../reminder-dialog/modal';
 import { CROSS, formatName } from '../tree-view/renderer';
 
 import './fold';
@@ -209,14 +209,8 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
   // The source shown in full; the others show only their heading and links.
   @state() private unfolded: number | null = null;
 
-  // A Reminder's menu and the dialog editing one. The menu is placed in
-  // the element the panel is positioned in, so its scrolling doesn't clip
-  // it.
-  private readonly reminderActions = new ReminderActions(
-    this,
-    () => this.state,
-    () => this.offsetParent?.getBoundingClientRect()
-  );
+  // A Reminder clicked, shown in the Reminder dialog.
+  private readonly reminderModal = new ReminderModal(this, () => this.state);
 
   // Whose details are shown.
   private shownId: number | null = null;
@@ -424,8 +418,7 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
   // A source's Reminders, under what it records.
   private renderSourceReminders(reminders: Reminder[]) {
     if (reminders.length === 0) return nothing;
-    const { error, open } = this.reminderActions;
-    return renderReminders(reminders, error, open);
+    return renderReminders(reminders, this.reminderModal.open);
   }
 
   // Each source keeps its own element, so another person's sources or a
@@ -465,11 +458,7 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
       ${
         own.length === 0
           ? html`<p class="muted none">${none}</p>`
-          : renderReminders(
-              own,
-              this.reminderActions.error,
-              this.reminderActions.open
-            )
+          : renderReminders(own, this.reminderModal.open)
       }
       ${
         done === 0
@@ -572,7 +561,7 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
               )
         }
       </div>
-      ${this.reminderActions.render()}
+      ${this.reminderModal.render()}
     `;
   }
 }

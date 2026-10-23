@@ -8,7 +8,7 @@ import { focusRingStyles } from '@/client/focus-ring';
 const fields = css`
   dialog {
     width: 100%;
-    max-width: 28rem;
+    max-width: 32rem;
     padding: 0;
     border: none;
     background: none;
@@ -58,6 +58,18 @@ const fields = css`
 
   p.error {
     color: var(--danger);
+  }
+
+  .actions {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  /* What else can be done to the Reminder, at the start of the buttons. */
+  .more {
+    display: flex;
+    gap: 0.5rem;
+    margin-right: auto;
   }
 `;
 

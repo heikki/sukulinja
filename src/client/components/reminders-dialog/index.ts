@@ -7,8 +7,8 @@ import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { Reminder } from '@/common/types';
 
-import { ReminderActions } from '../reminder-dialog/actions';
-import { listed, onLabel, pickable } from './helpers';
+import { ReminderModal } from '../reminder-dialog/modal';
+import { goLabel, isStale, listed, onLabel } from './helpers';
 import { remindersDialogStyles } from './styles';
 
 export { follow, openCount } from './helpers';
@@ -21,10 +21,10 @@ function stop(e: Event) {
 
 // Every open Reminder in the dataset, newest first, each with what it's
 // on; one on an Image from an earlier filming is flagged so. Clicking one
-// asks to go there (`pick`), unless it's that stale one; right-clicking
-// opens its menu. Show done adds the done ones, dimmed. A modal <dialog>:
-// Close, Esc or a press on the scrim asks to `close`, and keys and presses
-// stay here.
+// opens it in the Reminder dialog, whose actions include going to it
+// (`pick`), unless it's that stale one. Show done adds the done ones,
+// dimmed. A modal <dialog>: Close, Esc or a press on the scrim asks to
+// `close`, and keys and presses stay here.
 @customElement('sl-reminders-dialog')
 export class RemindersDialogElement extends SignalWatcher(LitElement) {
   static override styles = remindersDialogStyles;
@@ -33,28 +33,16 @@ export class RemindersDialogElement extends SignalWatcher(LitElement) {
 
   @state() private showDone = false;
 
-  private readonly actions = new ReminderActions(
-    this,
-    () => this.state,
-    () => this.renderRoot.querySelector('.dialog')?.getBoundingClientRect()
-  );
+  private readonly modal = new ReminderModal(this, () => this.state);
 
   override connectedCallback() {
     super.connectedCallback();
     this.state.reminders.load();
-    for (const type of ['wheel', 'dblclick', 'contextmenu']) {
+    for (const type of ['mousedown', 'wheel', 'dblclick', 'contextmenu']) {
       this.addEventListener(type, stop);
     }
-    this.addEventListener('mousedown', this.onMouseDown);
     this.addEventListener('keydown', this.onKeyDown);
   }
-
-  // A press anywhere here but on the open menu, which keeps its own,
-  // closes it, as one outside it would.
-  private readonly onMouseDown = (e: MouseEvent) => {
-    e.stopPropagation();
-    this.actions.closeMenu();
-  };
 
   override firstUpdated() {
     this.renderRoot.querySelector('dialog')?.showModal();
@@ -71,40 +59,40 @@ export class RemindersDialogElement extends SignalWatcher(LitElement) {
     this.close();
   };
 
-  private pick(reminder: Reminder) {
-    if (!pickable(reminder)) return;
-    this.dispatchEvent(new CustomEvent('pick', { detail: reminder }));
+  private open(reminder: Reminder) {
+    const label = goLabel(reminder);
+    const go =
+      label === null
+        ? null
+        : {
+            label,
+            run: () => {
+              this.dispatchEvent(new CustomEvent('pick', { detail: reminder }));
+            }
+          };
+    this.modal.open(reminder, go);
   }
 
   private renderRow(reminder: Reminder) {
     const persons = this.state.chart.people.get().persons;
-    const stale = !pickable(reminder);
     const done = reminder.done !== null;
-    const { error } = this.actions;
     return html`<li>
       <button
-        class="row ${stale ? 'stale' : ''} ${done ? 'done' : ''}"
+        class="row ${done ? 'done' : ''}"
+        aria-haspopup="dialog"
         @click=${() => {
-          this.pick(reminder);
-        }}
-        @contextmenu=${(e: MouseEvent) => {
-          this.actions.open(e, reminder);
+          this.open(reminder);
         }}
       >
         <span class="text">${reminder.text}</span>
         <span class="on"
           >${onLabel(reminder, persons)}${
-            stale
+            isStale(reminder)
               ? html`<span class="chip">From an earlier filming</span>`
               : nothing
           }</span
         >
       </button>
-      ${
-        error?.id === reminder.id
-          ? html`<p class="error">${error.message}</p>`
-          : nothing
-      }
     </li>`;
   }
 
@@ -114,7 +102,7 @@ export class RemindersDialogElement extends SignalWatcher(LitElement) {
       const none = this.showDone ? 'No Reminders.' : 'No open Reminders.';
       return html`<p class="muted">${none}</p>`;
     }
-    return html`<ul @scroll=${this.actions.closeMenu}>
+    return html`<ul>
       ${rows.map((r) => this.renderRow(r))}
     </ul>`;
   }
@@ -164,7 +152,7 @@ export class RemindersDialogElement extends SignalWatcher(LitElement) {
             ${this.renderShowDone()}
             <button @click=${this.close}>Close</button>
           </div>
-          ${this.actions.render()}
+          ${this.modal.render()}
         </div>
       </dialog>
     `;

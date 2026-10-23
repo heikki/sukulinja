@@ -22,10 +22,18 @@ export function onLabel(reminder: Reminder, persons: Map<number, PersonRow>) {
   return imageLabel(on.volume, on.image);
 }
 
-// Whether picking it goes anywhere: not one on an Image from an earlier
-// filming.
-export function pickable(reminder: Reminder) {
-  return reminder.on.kind !== 'image' || !reminder.on.stale;
+// Whether it's on an Image from an earlier filming, which it can't go to.
+export function isStale(reminder: Reminder) {
+  return reminder.on.kind === 'image' && reminder.on.stale;
+}
+
+// What going to it is called: to its person, its Citation's source, or
+// its Image; null for a stale one, which goes nowhere.
+export function goLabel(reminder: Reminder) {
+  if (isStale(reminder)) return null;
+  const kind = reminder.on.kind;
+  if (kind === 'person') return 'Show person';
+  return kind === 'citation' ? 'Show source' : 'Open Image';
 }
 
 // Goes where a Reminder is: selects its person, with a Citation's source

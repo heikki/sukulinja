@@ -39,8 +39,7 @@ const GEAR_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
 
 // The gear in the window's top-right corner (beside the person search inside a
 // dataset) and the popover it opens. Inside a dataset it first names the dataset
-// (`datasetName`) and links back to the chooser, then offers the list of
-// its Reminders (`reminders`, the open count). Non-modal, so the chart
+// (`datasetName`) and links back to the chooser. Non-modal, so the chart
 // stays in view and reflows as Generations changes; a click anywhere
 // outside, the gear again, or Escape closes it. Generations is the chart's
 // Generation limit: inside a dataset the chart owns the value (`generations`)
@@ -134,17 +133,8 @@ export class SettingsElement extends LitElement {
         color: var(--accent);
         text-decoration: none;
       }
-      .dataset a:hover,
-      .dataset button.link:hover {
+      .dataset a:hover {
         text-decoration: underline;
-      }
-      .dataset button.link {
-        padding: 0;
-        background: none;
-        color: var(--accent);
-        border: 0;
-        font: inherit;
-        cursor: pointer;
       }
       /* Equal segments, each as wide as the row's longest label; rows stretch
        to the widest so they line up as one column. */
@@ -230,8 +220,6 @@ export class SettingsElement extends LitElement {
 
   @property({ attribute: false }) generations: number | null = null;
   @property({ attribute: false }) datasetName: string | null = null;
-  // How many Reminders are open, inside a dataset once they've come.
-  @property({ attribute: false }) reminders: number | null = null;
 
   @state() private open = false;
   @state() private appearance: Appearance = currentAppearance();
@@ -382,9 +370,8 @@ export class SettingsElement extends LitElement {
   private renderPopover() {
     return html`
       <div class="popover" role="group" aria-label="Settings">
-        ${this.renderDataset()} ${this.renderReminders()}
-        ${this.renderAppearance()} ${this.renderGenerations()}
-        ${this.renderScanCache()}
+        ${this.renderDataset()} ${this.renderAppearance()}
+        ${this.renderGenerations()} ${this.renderScanCache()}
       </div>
     `;
   }
@@ -396,26 +383,6 @@ export class SettingsElement extends LitElement {
       <div class="dataset">
         <span class="name">${this.datasetName}</span>
         <a href="/">All datasets</a>
-      </div>
-    `;
-  }
-
-  // Asks for the list of every Reminder (`reminders-open`), closing the
-  // popover.
-  private renderReminders() {
-    if (this.reminders === null) return nothing;
-    return html`
-      <span class="label">Reminders</span>
-      <div class="dataset">
-        <button
-          class="link"
-          @click=${() => {
-            this.open = false;
-            this.dispatchEvent(new CustomEvent('reminders-open'));
-          }}
-        >
-          ${this.reminders} open
-        </button>
       </div>
     `;
   }

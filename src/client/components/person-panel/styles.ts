@@ -371,7 +371,7 @@ export const personPanelStyles = css`
     margin-top: 0.5rem;
   }
 
-  /* A Reminder, flagged, its text as written; clicking it opens its menu. */
+  /* A Reminder, flagged, its text as written; clicking it opens it. */
   button.reminder {
     display: flex;
     gap: 0.45rem;
@@ -405,11 +405,6 @@ export const personPanelStyles = css`
 
   button.reminder.done {
     opacity: 0.55;
-  }
-
-  .reminders .error {
-    margin: 0.1rem 0 0.3rem 1.4rem;
-    color: var(--danger);
   }
 
   .none {

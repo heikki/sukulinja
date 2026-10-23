@@ -43,11 +43,11 @@ While working through the books you find things to come back to: "check the 1803
                            [Cancel] [Save]
   ```
 
-- **Each Reminder's own menu**, wherever it's listed: _Done_ (or _Reopen_), _Edit…_ (the same dialog, its _On_ fixed), _Delete_.
+- **Clicking a Reminder**, wherever it's listed, opens it in the same dialog: its _On_ fixed, its text to change and Save, and _Done_ (or _Reopen_, keeping a change to the text too) and _Delete_. From the all-open list it also offers going to it: _Show person_, _Show source_ or _Open Image_.
 - **Where they're seen:**
   - **The Scan viewer**: a marker with a count in the page nav when the Image shown has open Reminders, on it or on the Citations that link it; clicking it lists them.
   - **The person panel**: a Reminders section with the person's own Reminders, and a Citation's shown beside that Citation in the sources. The section is there while they have open ones, or any done ones of theirs or their Citations', so _Show done_ can be reached.
-  - **All open Reminders**: a Reminders row in the dataset view's Settings popover, its link _n open_, opens a dialog listing every open one, with what it's on. Picking one closes the dialog and selects the person, the dock open (for a Citation's, the Citation's person, its source unfolded), or opens the Scan viewer at the Image with no source, where only a Reminder can be written.
+  - **All open Reminders**: a flag button beside Settings in the dataset view, counting the open ones, opens a dialog listing every open one, with what it's on. Going to one from its dialog closes the list and selects the person, the dock open (for a Citation's, the Citation's person, its source unfolded), or opens the Scan viewer at the Image with no source, where only a Reminder can be written.
 - **After a Re-scan**, a Reminder on an Image keeps the Image's old file id. It's stale: no longer shown on the Image in the Scan viewer, and flagged as from an earlier filming in the all-open list, where it can still be edited, marked done or deleted.
 
 ### Follows from these

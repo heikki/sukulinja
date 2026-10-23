@@ -1,7 +1,6 @@
-import { html, LitElement, nothing } from 'lit';
+import { html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
-import type { Point } from '@/client/pan-zoom';
 import type { PersonRow, Reminder } from '@/common/types';
 
 import { placeOf } from '../reminder-dialog/helpers';
@@ -11,11 +10,11 @@ function stop(e: Event) {
   e.stopPropagation();
 }
 
-export type ReminderMenuEvent = CustomEvent<{ reminder: Reminder; at: Point }>;
+export type ReminderOpenEvent = CustomEvent<Reminder>;
 
 // The Reminders on the Image shown, rising from the page nav: each one's
-// text, with what it's on beneath. A click or right-click on one asks for
-// its menu (`reminder-menu`, at the pointer in client coordinates).
+// text, with what it's on beneath. Clicking one asks to open it
+// (`reminder-open`).
 @customElement('sl-scan-reminders')
 export class ScanRemindersElement extends LitElement {
   static override styles = scanRemindersStyles;
@@ -26,7 +25,6 @@ export class ScanRemindersElement extends LitElement {
     volumeId: string;
     image: number;
   } | null = null;
-  @property({ attribute: false }) error: string | null = null;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -35,13 +33,8 @@ export class ScanRemindersElement extends LitElement {
     }
   }
 
-  private menu(e: MouseEvent, reminder: Reminder) {
-    e.preventDefault();
-    e.stopPropagation();
-    const at: Point = { x: e.clientX, y: e.clientY };
-    this.dispatchEvent(
-      new CustomEvent('reminder-menu', { detail: { reminder, at } })
-    );
+  private open(reminder: Reminder) {
+    this.dispatchEvent(new CustomEvent('reminder-open', { detail: reminder }));
   }
 
   override render() {
@@ -55,11 +48,9 @@ export class ScanRemindersElement extends LitElement {
                 (r) =>
                   html`<li>
                     <button
-                      @click=${(e: MouseEvent) => {
-                        this.menu(e, r);
-                      }}
-                      @contextmenu=${(e: MouseEvent) => {
-                        this.menu(e, r);
+                      aria-haspopup="dialog"
+                      @click=${() => {
+                        this.open(r);
                       }}
                     >
                       <span class="text">${r.text}</span>
@@ -71,7 +62,6 @@ export class ScanRemindersElement extends LitElement {
               )}
             </ul>`
       }
-      ${this.error === null ? nothing : html`<p class="error">${this.error}</p>`}
     `;
   }
 }
