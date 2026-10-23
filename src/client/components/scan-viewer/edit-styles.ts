@@ -141,6 +141,8 @@ export const scanLayerStyles = css`
 
   sl-context-menu,
   sl-scan-volumes,
+  sl-scan-reminders,
+  sl-reminder-dialog,
   .search,
   .box {
     pointer-events: auto;
@@ -220,5 +222,75 @@ export const scanLayerStyles = css`
   .grip.nw,
   .grip.se {
     cursor: nwse-resize;
+  }
+`;
+
+// The Reminders on the Image shown, rising from the page nav's marker.
+export const scanRemindersStyles = css`
+  :host {
+    position: absolute;
+    z-index: 3;
+    display: block;
+    width: min(22rem, calc(100% - 2rem));
+    max-height: min(20rem, 60%);
+    overflow-y: auto;
+    padding: 0.35rem;
+    transform: translate(-50%, -100%);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+    font-size: 0.875rem;
+    cursor: auto;
+  }
+
+  h3 {
+    margin: 0.2rem 0.5rem 0.3rem;
+    color: var(--muted);
+    font-size: 0.8em;
+    font-weight: 500;
+  }
+
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  button {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding: 0.35rem 0.5rem;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: none;
+    color: var(--fg);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  button:hover,
+  button:focus-visible {
+    background: color-mix(in srgb, var(--fg) 8%, transparent);
+  }
+
+  .text {
+    white-space: pre-line;
+  }
+
+  .on,
+  .muted {
+    color: var(--muted);
+    font-size: 0.85em;
+  }
+
+  p {
+    margin: 0.3rem 0.5rem;
+  }
+
+  p.error {
+    color: var(--danger);
   }
 `;

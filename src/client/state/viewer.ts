@@ -58,6 +58,9 @@ export interface Viewer {
   // The length of Astia's list of the Volume's Images; null until it
   // arrives, and if it can't.
   count: Readable<number | null>;
+  // The file id of the Image shown, in Astia's list; null until the list
+  // arrives.
+  fileIdHere: () => string | null;
   // The Volume's citations; null until they arrive.
   citations: Readable<VolumeCitation[] | null | 'failed'>;
   // Off the Link's Image. A Link to only the Volume holds anywhere in it;
@@ -587,6 +590,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     setSourcesInView(inView) {
       sourcesInView.set(inView);
     },
+    fileIdHere: () => fileIdOf(files[image.get() - 1]),
     open,
     show,
     step,

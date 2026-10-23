@@ -336,6 +336,12 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     this.renderRoot.querySelector('sl-scan-layer')?.openMenu(at, onBox);
   };
 
+  // The page nav's Reminders marker asks for the list, above it.
+  private readonly onReminders = (e: CustomEvent<Point>) => {
+    const at = this.toStage(e.detail);
+    this.renderRoot.querySelector('sl-scan-layer')?.toggleReminders(at);
+  };
+
   // ------------------------------------------------------------ render
 
   private renderNote() {
@@ -432,6 +438,7 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
         @gestureend=${this.pinch.onGestureEnd}
         @dblclick=${this.onDblClick}
         @contextmenu=${this.onContextMenu}
+        @scan-reminders=${this.onReminders}
       >
         ${this.renderImages()} ${this.renderEntries(source)}
         ${this.renderNote()}

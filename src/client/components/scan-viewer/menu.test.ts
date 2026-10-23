@@ -59,7 +59,12 @@ async function viewing(c: CitationRow, link = AT_ENTRY) {
 function unasked() {
   return undefined;
 }
-const NONE = { chooseVolume: unasked, placeBox: unasked, cite: unasked };
+const NONE = {
+  chooseVolume: unasked,
+  placeBox: unasked,
+  cite: unasked,
+  remind: unasked
+};
 
 function labels(
   viewer: Awaited<ReturnType<typeof viewing>>,
@@ -74,12 +79,14 @@ test('a Citation made in the app offers Delete on its Box; a Mark or Match, Disc
   const made = await viewing(citation(1, true));
   expect(labels(made, { onBox: true, canBox: true })).toEqual([
     'Edit',
-    'Delete'
+    'Delete',
+    'Add reminder…'
   ]);
   const marked = await viewing(citation(2, false));
   expect(labels(marked, { onBox: true, canBox: true })).toEqual([
     'Edit',
-    'Discard'
+    'Discard',
+    'Add reminder…'
   ]);
   const vision = await viewing(citation(3, false), {
     ...AT_ENTRY,
@@ -88,7 +95,8 @@ test('a Citation made in the app offers Delete on its Box; a Mark or Match, Disc
   expect(labels(vision, { onBox: true, canBox: true })).toEqual([
     'Confirm',
     'Edit',
-    'Discard'
+    'Discard',
+    'Add reminder…'
   ]);
 });
 
@@ -97,9 +105,11 @@ test('Create entry for… shows over the full Image, with nothing pending', asyn
   expect(labels(viewer, { onBox: false, canBox: true })).toEqual([
     'Create entry for Matti Esimerkki',
     'Create entry for…',
+    'Add reminder…',
     'Change Volume…'
   ]);
   expect(labels(viewer, { onBox: false, canBox: false })).toEqual([
+    'Add reminder…',
     'Change Volume…'
   ]);
   viewer.setBox(BOX);
@@ -112,8 +122,26 @@ test("Create entry isn't offered with the person's Box on the Image", async () =
   const viewer = await viewing(citation(1, false));
   expect(labels(viewer, { onBox: false, canBox: true })).toEqual([
     'Create entry for…',
+    'Add reminder…',
     'Change Volume…'
   ]);
+});
+
+test('Add reminder… waits for the pending Box, and for Astia to list the Image', async () => {
+  const viewer = await viewing(citation(1, false));
+  viewer.editBox();
+  expect(labels(viewer, { onBox: true, canBox: true })).toEqual([
+    'Discard changes'
+  ]);
+
+  const api = memoryDatasetApi({
+    volumes: { '201': { images: 40, citations: [] } }
+  });
+  const listing = openAppState(api).viewer;
+  listing.open({ citation: citation(1, false), link: AT_ENTRY });
+  expect(labels(listing, { onBox: false, canBox: true })).not.toContain(
+    'Add reminder…'
+  );
 });
 
 test("Create entry names the source's person, when they have a name", async () => {

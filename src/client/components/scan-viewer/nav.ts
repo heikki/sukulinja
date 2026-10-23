@@ -9,6 +9,7 @@ import type { AppState } from '@/client/state';
 
 import { imageAfter, stepOf } from './keys';
 import type { ImageMove } from './keys';
+import { remindersHere } from './reminder-choices';
 import { controlStyles, scanNavStyles } from './styles';
 
 import './edit';
@@ -35,6 +36,7 @@ export class ScanNavElement extends SignalWatcher(LitElement) {
 
   override connectedCallback() {
     super.connectedCallback();
+    this.state.reminders.load();
     for (const type of ['mousedown', 'wheel', 'dblclick']) {
       this.addEventListener(type, stop);
     }
@@ -89,6 +91,31 @@ export class ScanNavElement extends SignalWatcher(LitElement) {
       }}
     >
       ${icon}
+    </button>`;
+  }
+
+  // The open Reminders on the Image shown, as a marker with their count;
+  // clicking asks for them (`scan-reminders`, at the marker's top middle in
+  // client coordinates).
+  private renderReminders() {
+    const count = remindersHere(this.state).length;
+    if (count === 0) return nothing;
+    return html`<button
+      class="reminders"
+      aria-label=${count === 1 ? '1 reminder' : `${count} reminders`}
+      @click=${(e: MouseEvent) => {
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const at = { x: rect.left + rect.width / 2, y: rect.top - 6 };
+        this.dispatchEvent(
+          new CustomEvent('scan-reminders', {
+            detail: at,
+            bubbles: true,
+            composed: true
+          })
+        );
+      }}
+    >
+      ⚑ ${count}
     </button>`;
   }
 
@@ -158,7 +185,8 @@ export class ScanNavElement extends SignalWatcher(LitElement) {
       <span class="count">${count === null ? '' : `of ${count}`}</span>
       ${this.renderMove(1, 'Next image', '›')}
       ${this.renderMove(10, 'Forward 10 images', '»')}
-      ${this.renderMove('last', 'Last image', '⇥')} ${this.renderOldFilming()}
+      ${this.renderMove('last', 'Last image', '⇥')} ${this.renderReminders()}
+      ${this.renderOldFilming()}
       ${
         this.state.viewer.pending.get() === null &&
         !this.state.viewer.discarding.get() &&

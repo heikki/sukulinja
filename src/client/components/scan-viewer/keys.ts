@@ -27,12 +27,13 @@ const SHIFTED: Record<string, Step> = {
 };
 
 // What a key press steps, if it steps anything: none while typing, in the
-// Image number or anywhere else.
+// Image number or anywhere else, or choosing in a list.
 export function stepOf(e: KeyboardEvent) {
   const on = e.composedPath()[0];
   const typing =
     on instanceof HTMLInputElement ||
     on instanceof HTMLTextAreaElement ||
+    on instanceof HTMLSelectElement ||
     (on instanceof HTMLElement && on.isContentEditable);
   if (typing) return null;
   return (e.shiftKey ? SHIFTED[e.key] : undefined) ?? STEPS[e.key] ?? null;
