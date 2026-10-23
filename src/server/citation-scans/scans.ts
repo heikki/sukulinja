@@ -15,6 +15,7 @@ import type {
 
 import { AstiaError } from './astia';
 import type { Astia, Volume } from './astia';
+import { leavesOut } from './filming';
 import type { Viewport } from './jpeg';
 import { parishArchive, parishVolumes, resolveChurchBookRef } from './locate';
 import type { Pins } from './locate';
@@ -362,6 +363,14 @@ function openScans({
         return { rejected: 'There is no box there to discard.' };
       }
       return await resolveRef(ref);
+    },
+
+    // Whether the Image's file was replaced by a Re-scan: the Volume's list
+    // kept now gives the Image another file. Asks Astia nothing, so a
+    // Volume whose list isn't kept says no.
+    async replaced(at: { volumeId: string; image: number; fileId: string }) {
+      const files = await astia.cachedImages(at.volumeId);
+      return files !== null && leavesOut({ volumeId: at.volumeId, files }, at);
     }
   };
 }

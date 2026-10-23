@@ -145,6 +145,63 @@ describe('the answers', () => {
     );
   });
 
+  test('Reminders, written, listed, changed and deleted', async () => {
+    const onPerson = await api.remind(' Look for a second wife \n', {
+      personId: 3
+    });
+    expect(onPerson).toMatchObject({
+      text: 'Look for a second wife',
+      on: { kind: 'person', personId: 3 },
+      done: null
+    });
+    const onCitation = await api.remind('Is this him?', { citationId: 1 });
+    expect(onCitation.on).toMatchObject({
+      kind: 'citation',
+      personId: 1,
+      citationId: 1
+    });
+    const image = { volumeId: VOLUME, volume: VOLUMES['juva-1'], image: 7 };
+    await api.remind('Later hand', { ...image, fileId: `${VOLUME}-f7` });
+    await api.remind('Before the re-scan', { ...image, fileId: 'gone' });
+
+    const listed = await api.reminders();
+    expect(listed.map((r) => r.text)).toEqual([
+      'Before the re-scan',
+      'Later hand',
+      'Is this him?',
+      'Look for a second wife'
+    ]);
+    expect(listed.map((r) => r.on.kind === 'image' && r.on.stale)).toEqual([
+      true,
+      false,
+      false,
+      false
+    ]);
+
+    const done = await api.changeReminder(onPerson.id, { done: true });
+    expect(typeof done.done).toBe('string');
+    const reopened = await api.changeReminder(onPerson.id, {
+      text: 'Look for a third wife',
+      done: false
+    });
+    expect(reopened).toMatchObject({
+      text: 'Look for a third wife',
+      done: null
+    });
+
+    await api.deleteReminder(onPerson.id);
+    expect(await api.reminders()).toHaveLength(3);
+    expect(await failure(api.deleteReminder(onPerson.id))).toBe(
+      'reminder not found'
+    );
+    expect(await failure(api.remind(' ', { personId: 3 }))).toBe(
+      'A Reminder needs some text.'
+    );
+    expect(await failure(api.remind('Who?', { personId: 99 }))).toBe(
+      'person not found'
+    );
+  });
+
   test("a Volume's citations and Images", async () => {
     const rows = await api.volumeCitations(VOLUME);
     expect(rows.map((r) => r.personId)).toEqual([1]);

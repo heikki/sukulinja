@@ -180,6 +180,26 @@ const SCHEMA_SQL = `
     file_id TEXT
   );
   CREATE INDEX IF NOT EXISTS rejections_url_idx ON rejections(reference_url);
+  -- Reminders, on a Citation, a person or an Image. One on a Citation
+  -- keeps its person too, and falls back onto them when the Citation goes.
+  -- No export writes them.
+  CREATE TABLE IF NOT EXISTS reminders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    text TEXT NOT NULL,
+    person_id INTEGER REFERENCES persons(id) ON DELETE CASCADE,
+    citation_id INTEGER REFERENCES citations(id) ON DELETE SET NULL,
+    volume_id TEXT,
+    volume TEXT,
+    image INTEGER,
+    file_id TEXT,
+    created_at TEXT NOT NULL,
+    done_at TEXT,
+    CHECK (citation_id IS NULL OR person_id IS NOT NULL),
+    CHECK ((person_id IS NULL) = (volume_id IS NOT NULL)),
+    CHECK ((volume_id IS NULL) = (volume IS NULL)),
+    CHECK ((volume_id IS NULL) = (image IS NULL)),
+    CHECK ((volume_id IS NULL) = (file_id IS NULL))
+  );
 
   CREATE TABLE IF NOT EXISTS shared_notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -221,7 +241,7 @@ const SCHEMA_SQL = `
 // Raised whenever the schema changes. A dataset's database holds the whole
 // tree and the file it came from isn't kept, so an older database can't be
 // upgraded: the dataset is imported again (ADR-0013).
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 // A dataset whose database an older version of the app built.
 export class OutdatedDatasetError extends Error {}

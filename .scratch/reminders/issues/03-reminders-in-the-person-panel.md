@@ -1,5 +1,4 @@
 Status: ready-for-agent
-Blocked by: 01
 
 # The person panel's Reminders
 
