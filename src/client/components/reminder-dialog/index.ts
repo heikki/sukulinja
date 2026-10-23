@@ -1,13 +1,17 @@
-import { html, LitElement, nothing } from 'lit';
+import { html, LitElement, nothing, svg } from 'lit';
 import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { ApiError } from '@/client/dataset-api';
 import { Floating } from '@/client/floating';
+import type { Point } from '@/client/pan-zoom';
 import type { ReminderTarget } from '@/common/types';
 
+import type { MenuItem } from '../context-menu';
 import type { ReminderChoice } from './helpers';
 import { reminderDialogStyles } from './styles';
+
+import '../context-menu';
 
 export type { ReminderChoice } from './helpers';
 export { imageLabel, personLabel, placeOf, targetOf } from './helpers';
@@ -24,16 +28,29 @@ function stop(e: Event) {
   e.stopPropagation();
 }
 
+// Three lines, for the menu of what can be done to the Reminder.
+const MENU_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
+  ${svg`
+    <path
+      d="M 3 4.5 H 13 M 3 8 H 13 M 3 11.5 H 13"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.3"
+      stroke-linecap="round"
+    />
+  `}
+</svg>`;
+
 // Writing a Reminder, or showing one: what it's on, picked from `choices`
 // starting at `chosen` (or named, when there's only one), and its text.
-// With `viewing` it opens read-only, with `actions`, Edit and Close; Edit
-// turns the text into a field to change, and Save or Cancel turns it back.
-// Writing one, Save runs `save` and closes. Each of `actions` runs and
-// closes; one refused says why and stays open. Cancel, Close or Esc asks
-// to `close`. A panel floating over everything wherever it's opened from,
-// dragged by its heading, leaving what's under it to be worked on. Keys
-// and presses on it stay here, so nothing under it acts on them; ⌘Enter
-// saves.
+// With `viewing` it opens read-only, with a menu of Edit and `actions`
+// and a close button in its corner; Edit turns the text into a field to
+// change, and Save or Cancel turns it back. Writing one, Save runs `save`
+// and closes. Each of `actions` runs and closes; one refused says why and
+// stays open. Cancel, ✕ or Esc asks to `close`. A panel floating over
+// everything wherever it's opened from, dragged by its background, leaving
+// what's under it to be worked on. Keys and presses on it stay here, so
+// nothing under it acts on them; ⌘Enter saves.
 @customElement('sl-reminder-dialog')
 export class ReminderDialogElement extends LitElement {
   static override styles = reminderDialogStyles;
@@ -56,22 +73,26 @@ export class ReminderDialogElement extends LitElement {
   @state() private picked: number | null = null;
   @state() private saving = false;
   @state() private error: string | null = null;
+  // The menu open, at its top-right corner in the panel.
+  @state() private menuAt: Point | null = null;
 
   private readonly floating = new Floating(this, 'reminder');
 
   override connectedCallback() {
     super.connectedCallback();
-    for (const type of [
-      'pointerdown',
-      'mousedown',
-      'wheel',
-      'dblclick',
-      'contextmenu'
-    ]) {
+    for (const type of ['pointerdown', 'wheel', 'dblclick', 'contextmenu']) {
       this.addEventListener(type, stop);
     }
+    this.addEventListener('mousedown', this.onMouseDown);
     this.addEventListener('keydown', this.onKeyDown);
   }
+
+  // A press anywhere here but on the menu, which keeps its own, closes it,
+  // as one outside it would.
+  private readonly onMouseDown = (e: MouseEvent) => {
+    e.stopPropagation();
+    this.menuAt = null;
+  };
 
   override firstUpdated() {
     this.focusFirst();
@@ -82,10 +103,10 @@ export class ReminderDialogElement extends LitElement {
     if (changed.get('editing') !== undefined) this.focusFirst();
   }
 
-  // The text field, or read-only, Edit.
+  // The text field, or read-only, the menu's button.
   private focusFirst() {
     const first = this.renderRoot.querySelector<HTMLElement>(
-      'textarea, button.primary'
+      'textarea, button.menu'
     );
     first?.focus();
   }
@@ -148,18 +169,68 @@ export class ReminderDialogElement extends LitElement {
     }
   }
 
-  private renderActions() {
-    return this.actions.map(
-      (action) =>
-        html`<button
-          ?disabled=${this.saving}
-          @click=${() => {
-            void this.running(action.run);
-          }}
-        >
-          ${action.label}
-        </button>`
-    );
+  private items() {
+    const items: MenuItem[] = [
+      {
+        label: 'Edit',
+        run: () => {
+          this.editing = true;
+        }
+      },
+      ...this.actions.map((action) => ({
+        label: action.label,
+        run: () => {
+          void this.running(action.run);
+        }
+      }))
+    ];
+    return items;
+  }
+
+  // Opens the menu under its button's right edge, or closes it.
+  private toggleMenu(button: HTMLElement) {
+    if (this.menuAt !== null) {
+      this.menuAt = null;
+      return;
+    }
+    const panel = this.renderRoot.querySelector('.dialog');
+    if (panel === null) return;
+    const at = button.getBoundingClientRect();
+    const box = panel.getBoundingClientRect();
+    this.menuAt = { x: at.right - box.left, y: at.bottom - box.top + 4 };
+  }
+
+  // Read-only: the menu's button and closing, in its top-right corner.
+  private renderTools() {
+    if (!this.readOnly) return nothing;
+    return html`<div class="tools">
+      <button
+        class="icon menu"
+        aria-label="More"
+        aria-haspopup="menu"
+        aria-expanded=${this.menuAt === null ? 'false' : 'true'}
+        ?disabled=${this.saving}
+        @mousedown=${stop}
+        @click=${(e: Event) => {
+          this.toggleMenu(e.currentTarget as HTMLElement);
+        }}
+      >
+        ${MENU_ICON}
+      </button>
+      <button class="icon" aria-label="Close" @click=${this.close}>✕</button>
+    </div>`;
+  }
+
+  private renderMenu() {
+    if (this.menuAt === null) return nothing;
+    return html`<sl-context-menu
+      .items=${this.items()}
+      .at=${this.menuAt}
+      .alignRight=${true}
+      @close=${() => {
+        this.menuAt = null;
+      }}
+    ></sl-context-menu>`;
   }
 
   private renderHeader() {
@@ -168,8 +239,11 @@ export class ReminderDialogElement extends LitElement {
       return html`<h2>${this.heading}</h2>
         ${this.renderOn()}`;
     }
-    return html`<div class="header">
-      ${header.map((line) => html`<div>${line}</div>`)}
+    return html`<div class="top">
+      <div class="header">
+        ${header.map((line) => html`<div>${line}</div>`)}
+      </div>
+      ${this.renderTools()}
     </div>`;
   }
 
@@ -204,22 +278,6 @@ export class ReminderDialogElement extends LitElement {
     ></textarea>`;
   }
 
-  private renderReadOnlyButtons() {
-    return html`
-      <div class="more">${this.renderActions()}</div>
-      <button @click=${this.close} ?disabled=${this.saving}>Close</button>
-      <button
-        class="primary"
-        ?disabled=${this.saving}
-        @click=${() => {
-          this.editing = true;
-        }}
-      >
-        Edit
-      </button>
-    `;
-  }
-
   private renderEditButtons() {
     return html`
       <button
@@ -251,9 +309,12 @@ export class ReminderDialogElement extends LitElement {
       >
         ${this.renderHeader()} ${this.renderText()}
         ${this.error === null ? nothing : html`<p class="error">${this.error}</p>`}
-        <div class="actions">
-          ${this.readOnly ? this.renderReadOnlyButtons() : this.renderEditButtons()}
-        </div>
+        ${
+          this.readOnly
+            ? nothing
+            : html`<div class="actions">${this.renderEditButtons()}</div>`
+        }
+        ${this.renderMenu()}
       </div>
     `;
   }
