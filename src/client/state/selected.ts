@@ -32,6 +32,11 @@ export interface Selected {
   pending: Readable<boolean>;
   // The details' sources in the panel's order, each with its link status.
   sources: Readable<SourceGroup[]>;
+  // A source of theirs to show unfolded in the panel, as picking its
+  // Reminder asks: a new object each time, which the panel takes once
+  // their details are in. Selecting someone else drops it.
+  reveal: Readable<{ personId: number; citationId: number } | null>;
+  revealSource: (personId: number, citationId: number) => void;
   // Resolves once their details and Links are in, or the next selection
   // takes over.
   select: (id: number) => Promise<void>;
@@ -61,6 +66,7 @@ export function openSelected(
   const error = signal<string | null>(null);
   const links = signal(new Map<number, LinkResolution>());
   const pending = signal(false);
+  const reveal = signal<{ personId: number; citationId: number } | null>(null);
   const sources = computed(() => {
     const d = details.get();
     return d === null
@@ -120,6 +126,7 @@ export function openSelected(
 
   async function select(next: number) {
     if (next === id.get()) return;
+    if (reveal.get()?.personId !== next) reveal.set(null);
     id.set(next);
     detailsAbort?.abort();
     linksAbort?.abort();
@@ -182,6 +189,10 @@ export function openSelected(
     links,
     pending,
     sources,
+    reveal,
+    revealSource(personId, citationId) {
+      reveal.set({ personId, citationId });
+    },
     select,
     mark,
     discard,

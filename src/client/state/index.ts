@@ -20,6 +20,7 @@ export type { LinkStatus, Source, SourceGroup } from './sources';
 export type { Confirming } from './confirming';
 export type { Reminders } from './reminders';
 export type {
+  ImageOpen,
   LeaveAnswer,
   LinkOpen,
   PendingLink,

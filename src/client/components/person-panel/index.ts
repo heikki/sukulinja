@@ -16,6 +16,7 @@ import type {
 } from '@/client/state';
 import type { CitationRow, Link, RecordView, Reminder } from '@/common/types';
 
+import { ReminderActions } from '../reminder-dialog/actions';
 import { CROSS, formatName } from '../tree-view/renderer';
 
 import './fold';
@@ -24,7 +25,6 @@ import './header';
 import { householdsOf, lifeText } from './family';
 import type { Household, Relative } from './family';
 import { factLabel, factText, headingOf, siteName, titleText } from './helpers';
-import { ReminderActions } from './reminder-actions';
 import { personReminders, renderReminders } from './reminders';
 import { personPanelStyles } from './styles';
 
@@ -209,14 +209,19 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
   // The source shown in full; the others show only their heading and links.
   @state() private unfolded: number | null = null;
 
-  // A Reminder's menu and the dialog editing one.
+  // A Reminder's menu and the dialog editing one. The menu is placed in
+  // the element the panel is positioned in, so its scrolling doesn't clip
+  // it.
   private readonly reminderActions = new ReminderActions(
     this,
-    () => this.state
+    () => this.state,
+    () => this.offsetParent?.getBoundingClientRect()
   );
 
   // Whose details are shown.
   private shownId: number | null = null;
+  // The last source a picked Reminder asked to reveal, once it's taken.
+  private revealTaken: object | null = null;
   // The source last brought into view, and the one the viewer last showed
   // and for whom.
   private revealed: LinkOpen | null = null;
@@ -251,6 +256,21 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
   // before it's replaced.
   override willUpdate() {
     if (this.detailsId() !== this.shownId) this.unfolded = null;
+    this.takeReveal();
+  }
+
+  // A source a picked Reminder asks to show, unfolded with Sources open,
+  // once its person's details are in; brought into view once it's drawn.
+  private takeReveal() {
+    const { selected } = this.state;
+    const asked = selected.reveal.get();
+    const d = selected.details.get();
+    if (asked === null || asked === this.revealTaken) return;
+    if (d?.id !== asked.personId) return;
+    this.revealTaken = asked;
+    if (!d.citations.some((c) => c.id === asked.citationId)) return;
+    this.unfolded = asked.citationId;
+    void this.bringIntoView(asked.citationId);
   }
 
   override updated() {
@@ -284,21 +304,26 @@ export class PersonPanelElement extends SignalWatcher(LitElement) {
     if (title instanceof HTMLElement) title.focus({ preventScroll: true });
   }
 
-  // The source in the Scan viewer, scrolled to, opening Sources if need be
-  // and once they've slid open.
+  // The source in the Scan viewer, scrolled to.
   private async revealViewing() {
     const id = this.viewing?.citation.id;
-    if (id === undefined) return;
+    if (id !== undefined) await this.bringIntoView(id);
+  }
+
+  // A source scrolled to, opening Sources if need be, once they and the
+  // source itself have slid open.
+  private async bringIntoView(id: number) {
     if (!opened.sources) {
       opened.sources = true;
       this.requestUpdate();
-      await this.updateComplete;
-      await this.renderRoot
-        .querySelector('[data-section="sources"]')
-        ?.querySelector('sl-fold')
-        ?.settled();
     }
+    await this.updateComplete;
+    await this.renderRoot
+      .querySelector('[data-section="sources"]')
+      ?.querySelector('sl-fold')
+      ?.settled();
     const source = this.renderRoot.querySelector(`[data-citation="${id}"]`);
+    await source?.querySelector('sl-fold')?.settled();
     source?.scrollIntoView({ block: 'nearest' });
   }
 

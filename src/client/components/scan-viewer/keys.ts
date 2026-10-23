@@ -1,6 +1,6 @@
 // The Scan viewer's keys, and where its page nav's buttons go.
 
-import { clampImage } from '@/client/state/viewer';
+import { clampImage } from '@/client/state/places';
 
 // A move through the Volume's Images: a step of so many, or to either end.
 export type ImageMove = -10 | -1 | 1 | 10 | 'first' | 'last';

@@ -5,11 +5,11 @@ import type { VolumeCitation } from '@/common/types';
 // own Box is pending, which takes its place; a new Citation's doesn't.
 export function rowsShown(
   rows: VolumeCitation[] | null | 'failed',
-  source: LinkOpen,
+  source: LinkOpen | null,
   pending: PendingLink | null
 ) {
   const editing = pending !== null && pending.cite === undefined;
   return (Array.isArray(rows) ? rows : []).filter(
-    (r) => !editing || r.citation.id !== source.citation.id
+    (r) => !editing || r.citation.id !== source?.citation.id
   );
 }

@@ -22,10 +22,11 @@ export class ScanToolbarElement extends SignalWatcher(LitElement) {
   @consume({ context: appState }) private readonly state!: AppState;
 
   override render() {
-    const source = this.state.viewer.source.get();
-    if (source === null) return nothing;
-    const shown = this.state.viewer.volume.get();
-    const named = archiveOf(source);
+    const { viewer } = this.state;
+    if (viewer.opened.get() === null) return nothing;
+    const source = viewer.source.get();
+    const shown = viewer.volume.get();
+    const named = source === null ? undefined : archiveOf(source);
     const archive = named === undefined ? '' : `${named} · `;
     const volume = shown === null ? 'No Volume' : volumeTitle(shown.label);
     return html`

@@ -6,7 +6,6 @@ import type {
   Box,
   CitationRow,
   Link,
-  LinkResolution,
   Rescan,
   UnlinkedResolution,
   VolumeChoice,
@@ -16,6 +15,7 @@ import type {
 import { confirmingSource } from './confirming';
 import type { Confirming } from './confirming';
 import { Latest } from './latest';
+import { boxOn, clampImage, fileIdOf, imageOf, markedIn } from './places';
 import type { Readable, Selected } from './selected';
 
 // A church-book source opened in the Scan viewer, on one Link of its
@@ -24,6 +24,14 @@ import type { Readable, Selected } from './selected';
 export type LinkOpen =
   | { citation: CitationRow; link: Link }
   | { citation: CitationRow; link: null; unlinked: UnlinkedResolution };
+
+// An Image of a Volume opened in the Scan viewer with no source, as an
+// Image's Reminder opens it.
+export interface ImageOpen {
+  volumeId: string;
+  volume: string;
+  image: number;
+}
 
 // The Volume shown.
 export interface VolumeShown {
@@ -51,7 +59,10 @@ export type LeaveAnswer = 'save' | 'discard' | 'keep';
 // opening another source, stepping, showing another Image or Volume, and
 // closing.
 export interface Viewer {
-  // A new object on each `open`, even of the source shown.
+  // What it's open on: a source, or an Image with none; null while it's
+  // closed. A new object on each open, even of the one shown.
+  opened: Readable<LinkOpen | ImageOpen | null>;
+  // The source it's open on; null with none.
   source: Readable<LinkOpen | null>;
   volume: Readable<VolumeShown | null>;
   image: Readable<number>;
@@ -72,6 +83,9 @@ export interface Viewer {
   // To the source's Link, even when it shows that source already; with
   // none, to no Volume until one is chosen.
   open: (source: LinkOpen) => void;
+  // To an Image of a Volume, with no source: the people beside the scan
+  // as usual, and nothing to edit but Reminders.
+  openImage: (at: ImageOpen) => void;
   // To Image `n` of the Volume shown.
   show: (n: number) => void;
   // To the source before or after with a Link, in the panel's order.
@@ -149,40 +163,12 @@ export interface Viewer {
   keepFilming: () => void;
 }
 
-// Image numbers run 1..count; before the count is known, only from 1.
-export function clampImage(n: number, count: number | null) {
-  const high = count ?? Infinity;
-  return Math.min(Math.max(1, Math.round(n)), Math.max(1, high));
-}
-
-function imageOf(link: Link) {
-  return 'image' in link ? link.image : null;
-}
-
-// The Box of a Link or pending change, if it's on that Image.
-function boxOn(
-  at: { volumeId: string; image?: number; box?: Box },
-  on: { volumeId: string; image: number }
-) {
-  const here = at.volumeId === on.volumeId && at.image === on.image;
-  return here ? (at.box ?? null) : null;
-}
-
-// The file id in an Image's address in Astia's viewer.
-function fileIdOf(url: string | undefined) {
-  return url === undefined
-    ? null
-    : (/[?&]fileId=(?<id>[^&]+)/.exec(url)?.groups?.id ?? null);
-}
-
-// Of a reference's Links resolved again, the one in the Volume marked.
-function markedIn(resolved: LinkResolution, volumeId: string) {
-  const links = 'links' in resolved ? resolved.links : [];
-  return links.find((l) => l.volumeId === volumeId) ?? null;
-}
-
 export function openViewer(api: DatasetApi, selected: Selected): Viewer {
-  const source = signal<LinkOpen | null>(null);
+  const opened = signal<LinkOpen | ImageOpen | null>(null);
+  const source = computed(() => {
+    const at = opened.get();
+    return at !== null && 'citation' in at ? at : null;
+  });
   const volume = signal<VolumeShown | null>(null);
   const image = signal(1);
   const count = signal<number | null>(null);
@@ -294,10 +280,18 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     pending.set(null);
     discarding.set(false);
     confirmation.forget();
-    source.set({ ...next });
+    opened.set({ ...next });
     const { link } = next;
     if (link === null) showNoVolume();
     else showVolume(link.volumeId, link.volume, imageOf(link));
+  }
+
+  function openImageNow(at: ImageOpen) {
+    pending.set(null);
+    discarding.set(false);
+    confirmation.forget();
+    opened.set({ ...at });
+    showVolume(at.volumeId, at.volume, at.image);
   }
 
   // Nothing shown, so the next source opens afresh.
@@ -307,7 +301,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     confirmation.forget();
     held = null;
     leaving.set(false);
-    source.set(null);
+    opened.set(null);
     showNoVolume();
   }
 
@@ -323,6 +317,12 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   function open(next: LinkOpen) {
     leave(() => {
       openNow(next);
+    });
+  }
+
+  function openImage(at: ImageOpen) {
+    leave(() => {
+      openImageNow(at);
     });
   }
 
@@ -428,7 +428,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     discarding.set(false);
     const links = 'links' in resolved ? resolved.links : [];
     const link = markedIn(resolved, at.id) ?? links[0];
-    if (link !== undefined) source.set({ citation: shown.citation, link });
+    if (link !== undefined) opened.set({ citation: shown.citation, link });
   }
 
   // The Mark reloads the Volume's citations, as a confirmation does, and
@@ -580,6 +580,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   }
 
   return {
+    opened,
     source,
     volume,
     image,
@@ -592,6 +593,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     },
     fileIdHere: () => fileIdOf(files[image.get() - 1]),
     open,
+    openImage,
     show,
     step,
     pick,

@@ -149,3 +149,15 @@ test("Create entry names the source's person, when they have a name", async () =
   const where = { onBox: false, canBox: true, name: null };
   expect(linkItems(viewer, where, NONE)[0]?.label).toBe('Create entry');
 });
+
+test('opened on an Image with no source, only a Reminder is offered', async () => {
+  const api = memoryDatasetApi({
+    volumes: { '201': { images: 40, citations: [] } }
+  });
+  const { viewer } = openAppState(api);
+  viewer.openImage({ volumeId: '201', volume: 'I Aa:201', image: 18 });
+  await Bun.sleep(0);
+  expect(labels(viewer, { onBox: false, canBox: true })).toEqual([
+    'Add reminder…'
+  ]);
+});

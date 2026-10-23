@@ -11,7 +11,7 @@ import type {
   Viewport
 } from '@/client/pan-zoom';
 import { appState } from '@/client/state';
-import type { AppState, LinkOpen } from '@/client/state';
+import type { AppState, ImageOpen, LinkOpen } from '@/client/state';
 
 import { ImageArrival } from './arrival';
 import type { ViewChange } from './arrival';
@@ -76,8 +76,9 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
   // The key of the entry picked out, on the scan and in the list.
   @state() private hovered: string | null = null;
 
-  // The source last opened; a new one moves focus here once it's shown.
-  private opened: LinkOpen | null = null;
+  // What it was last opened on; a new source or Image moves focus here
+  // once it's shown.
+  private opened: LinkOpen | ImageOpen | null = null;
   private focusing = false;
   private readonly panning = new Panning(
     {
@@ -159,10 +160,10 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     const volumeId = this.viewer.volume.get()?.id ?? null;
     const count = this.viewer.count.get();
     if (this.arrival.show(volumeId, this.image, count)) this.hovered = null;
-    const source = this.viewer.source.get();
-    if (source !== this.opened) {
-      this.opened = source;
-      this.focusing = source !== null;
+    const opened = this.viewer.opened.get();
+    if (opened !== this.opened) {
+      this.opened = opened;
+      this.focusing = opened !== null;
     }
   }
 
@@ -409,7 +410,7 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
   // Boxes around the entries whose place is known, once the full Image is
   // shown; the source's own gives way to its change pending, but not to a
   // new Citation's.
-  private renderEntries(source: LinkOpen) {
+  private renderEntries(source: LinkOpen | null) {
     if (!entriesShown(this.frame, this.arrival.loading)) return nothing;
     const { citations, pending } = this.viewer;
     const shown = rowsShown(citations.get(), source, pending.get());
@@ -420,14 +421,14 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
         .view=${this.view}
         .frame=${this.frame}
         .hovered=${this.hovered}
-        .current=${source.citation.id}
+        .current=${source?.citation.id ?? null}
         ?discarding=${this.viewer.discarding.get()}
         @scan-hover=${this.onHover}
       ></sl-scan-entries>
     `;
   }
 
-  private renderStage(source: LinkOpen) {
+  private renderStage(source: LinkOpen | null) {
     return html`
       <div
         class="stage ${this.dragging ? 'dragging' : ''}"
@@ -462,11 +463,11 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
   }
 
   override render() {
+    if (this.viewer.opened.get() === null) return nothing;
     const source = this.viewer.source.get();
-    if (source === null) return nothing;
     const volume = this.viewer.volume.get();
     if (volume === null) {
-      if (source.link !== null) return nothing;
+      if (source?.link !== null) return nothing;
       return html`
         <sl-scan-toolbar></sl-scan-toolbar>
         <div class="body">

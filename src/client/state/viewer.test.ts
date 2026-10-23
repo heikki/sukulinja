@@ -12,7 +12,7 @@ import type {
 } from '@/common/types';
 
 import { openAppState } from '.';
-import { clampImage } from './viewer';
+import { clampImage } from './places';
 
 const ARCHIVE = { url: '', archive: 'Juvan seurakunnan arkisto' };
 const BOX = { left: 0, top: 0.5, width: 1, height: 0.05 };
@@ -249,6 +249,22 @@ test('step walks the linked sources in order, only while they can be seen', asyn
   expect(walked).toEqual([12, 13, 13]);
   viewer.step(-1);
   expect(viewer.source.get()?.citation.id).toBe(12);
+});
+
+test('an Image opens with no source, the people beside it as usual', async () => {
+  const { state, viewer } = await selecting(1);
+  viewer.openImage({ volumeId: '201', volume: 'I Aa:201', image: 18 });
+  await settle();
+  expect(viewer.opened.get()).toMatchObject({ volumeId: '201', image: 18 });
+  expect(viewer.source.get()).toBe(null);
+  expect(viewer.volume.get()?.id).toBe('201');
+  expect(viewer.image.get()).toBe(18);
+  expect(viewer.citations.get()).toEqual([ROW_11, ROW_21]);
+  expect(viewer.away.get()).toBe(false);
+  expect(viewer.boxHere.get()).toBe(null);
+
+  state.chart.select(2);
+  expect(viewer.opened.get()).toBe(null);
 });
 
 test('selecting someone else closes the viewer', async () => {

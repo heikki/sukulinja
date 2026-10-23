@@ -16,9 +16,12 @@ import '../scan-viewer';
 import { detailsWidth, setDetailsWidth } from '../person-panel/helpers';
 
 import '../person-search';
+import '../reminders-dialog';
 import '../settings';
 
 import type { PickEvent } from '../person-search';
+import { follow, openCount } from '../reminders-dialog';
+import type { ReminderPickEvent } from '../reminders-dialog';
 import type { GenerationsChangeEvent } from '../settings';
 import { RAIL_PX, SLIDE_MS } from '../side-dock';
 import type { OpenChangeEvent, WidthChangeEvent } from '../side-dock';
@@ -77,6 +80,8 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
   @state() private details = false;
   @state() private detailsWidth = detailsWidth();
   @state() private menu: CardMenu | null = null;
+  // The list of every Reminder is open.
+  @state() private remindersShown = false;
 
   // Captured during render so the viewport port can resolve chart-local
   // coords to canvas pixels using the same extents the SVG was sized to.
@@ -174,6 +179,7 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
     });
     this.detach = this.state.chart.attach(this.chartView);
     void this.state.chart.load(this.arrive);
+    this.state.reminders.load();
   }
 
   override disconnectedCallback() {
@@ -338,7 +344,7 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
   // Search and Settings, floating over the chart's top-right corner. Away
   // while the Scan viewer covers the chart: its own row ends in Close there.
   private renderCorner() {
-    if (this.state.viewer.source.get() !== null) return nothing;
+    if (this.state.viewer.opened.get() !== null) return nothing;
     return html`
       <div class="corner">
         <sl-person-search
@@ -350,6 +356,10 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
         <sl-settings
           .generations=${this.gen}
           .datasetName=${this.datasetName}
+          .reminders=${openCount(this.state.reminders.all.get())}
+          @reminders-open=${() => {
+            this.remindersShown = true;
+          }}
           @generations-change=${async (e: GenerationsChangeEvent) => {
             this.gen = e.detail;
             // Wait for the silent gen-change pin to land in updated() before
@@ -358,8 +368,24 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
             this.writeUrl();
           }}
         ></sl-settings>
+        ${this.renderReminders()}
       </div>
     `;
+  }
+
+  // Picking a Reminder goes to it, with the dock open on a person's.
+  private renderReminders() {
+    if (!this.remindersShown) return nothing;
+    return html`<sl-reminders-dialog
+      @close=${() => {
+        this.remindersShown = false;
+      }}
+      @pick=${(e: ReminderPickEvent) => {
+        this.remindersShown = false;
+        follow(this.state, e.detail);
+        if (e.detail.on.kind !== 'image') this.details = true;
+      }}
+    ></sl-reminders-dialog>`;
   }
 
   // Whom the dock shows: the person whose details the panel has, so the
@@ -402,10 +428,10 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
     `;
   }
 
-  // Over the chart while it shows a source; it belongs to the Selected
+  // Over the chart while it shows a source or an Image; it belongs to the Selected
   // person (ADR-0011).
   private renderScanViewer() {
-    if (this.state.viewer.source.get() === null) return nothing;
+    if (this.state.viewer.opened.get() === null) return nothing;
     return html`<sl-scan-viewer></sl-scan-viewer>`;
   }
 
