@@ -8,6 +8,9 @@ import type {
   Link,
   PersonDetails,
   PersonRow,
+  Reminder,
+  ReminderOn,
+  ReminderTarget,
   Rescan,
   StalePin,
   VolumeChoices,
@@ -40,6 +43,8 @@ export interface MemoryDataset {
   discards?: Record<number, CitationLinks>;
   // The Volumes each reference can be put in, by citation id.
   choices?: Record<number, VolumeChoices>;
+  // Newest first. `remind` puts a new one first, numbered on from 2000.
+  reminders?: Reminder[];
 }
 
 export interface MemoryOptions {
@@ -53,7 +58,10 @@ export type MemoryDatasetApi = DatasetApi & {
   // only the Volume; " box" or " no box" when it says), "discard <citation>
   // <volume>/<image>", "cite <person> <volume>/<image> <file>[: <text>]",
   // "uncite <citation>", "choices <citation>", "citations <volume>",
-  // "images <volume>", "rescan <volume>", "switch <volume>".
+  // "images <volume>", "rescan <volume>", "switch <volume>", "reminders",
+  // "remind person <id>: <text>" (or "citation <id>", or
+  // "<volume>/<image> <file>"), "change reminder <id>", "delete reminder
+  // <id>".
   // A Citation made by `cite` joins its Volume's citations, numbered on
   // from 1000, and `uncite` takes one out.
   asked: string[];
@@ -70,6 +78,8 @@ export function memoryDatasetApi(
 ): MemoryDatasetApi {
   const asked: string[] = [];
   let made = 1000;
+  let reminded = 2000;
+  let reminders = [...(data.reminders ?? [])];
 
   async function answer<T>(
     what: string,
@@ -95,6 +105,43 @@ export function memoryDatasetApi(
   function found<T>(value: T | undefined, missing: string) {
     if (value === undefined) throw new ApiError(missing);
     return value;
+  }
+
+  // A Citation the Volumes list, with whose it is.
+  function citationOf(citationId: number) {
+    const rows = Object.values(data.volumes ?? {}).flatMap((v) => v.citations);
+    return found(
+      rows.find((r) => r.citation.id === citationId),
+      'citation not found'
+    );
+  }
+
+  function onOf(target: ReminderTarget): ReminderOn {
+    if ('personId' in target) return { kind: 'person', ...target };
+    if ('citationId' in target) {
+      const { personId, citation } = citationOf(target.citationId);
+      return {
+        kind: 'citation',
+        personId,
+        citationId: citation.id,
+        source: citation.source,
+        reference: citation.reference ?? citation.entry
+      };
+    }
+    return { kind: 'image', ...target, stale: false };
+  }
+
+  function whereOf(target: ReminderTarget) {
+    if ('personId' in target) return `person ${target.personId}`;
+    if ('citationId' in target) return `citation ${target.citationId}`;
+    return `${target.volumeId}/${target.image} ${target.fileId}`;
+  }
+
+  function reminder(id: number) {
+    return found(
+      reminders.find((r) => r.id === id),
+      'reminder not found'
+    );
   }
 
   function volume(volumeId: string) {
@@ -238,6 +285,39 @@ export function memoryDatasetApi(
 
     thumbUrl: (volumeId, n) => `memory:thumb/${volumeId}/${n}`,
 
-    mediaUrl: (storedPath) => `memory:media/${storedPath}`
+    mediaUrl: (storedPath) => `memory:media/${storedPath}`,
+
+    reminders: async (signal) =>
+      await answer('reminders', signal, () => [...reminders]),
+
+    remind: async (text, on) =>
+      await answer(`remind ${whereOf(on)}: ${text}`, undefined, () => {
+        reminded += 1;
+        const row: Reminder = {
+          id: reminded,
+          text: text.trim(),
+          on: onOf(on),
+          created: new Date().toISOString(),
+          done: null
+        };
+        reminders = [row, ...reminders];
+        return row;
+      }),
+
+    changeReminder: async (id, change) =>
+      await answer(`change reminder ${id}`, undefined, () => {
+        const row = reminder(id);
+        if (change.text !== undefined) row.text = change.text.trim();
+        if (change.done === false) row.done = null;
+        if (change.done === true) row.done ??= new Date().toISOString();
+        return { ...row };
+      }),
+
+    async deleteReminder(id) {
+      await answer(`delete reminder ${id}`, undefined, () => {
+        reminder(id);
+        reminders = reminders.filter((r) => r.id !== id);
+      });
+    }
   };
 }

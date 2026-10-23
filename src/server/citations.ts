@@ -211,6 +211,7 @@ export function createCitations(db: Database, scans: Scans) {
     `WHERE c.scope_type = 'person' AND c.scope_id = ? ORDER BY c.sort_order`
   );
   const byId = query('WHERE c.id = ?');
+  const personCitation = query(`WHERE c.scope_type = 'person' AND c.id = ?`);
   const everyPerson = query(
     `WHERE c.scope_type = 'person' ORDER BY c.scope_id, c.sort_order`
   );
@@ -343,6 +344,15 @@ export function createCitations(db: Database, scans: Scans) {
       return cited(ofPersonQuery.all(personId))
         .sort(churchBooksFirst)
         .map(toCitation);
+    },
+
+    // One of a person's Citations, as the panel shows it, with whose it
+    // is; null when there's no such Citation of a person.
+    ofId(citationId: number) {
+      const row = personCitation.get(citationId);
+      if (row === null) return null;
+      const [c] = cited([row]);
+      return { personId: row.personId, citation: toCitation(c!) };
     },
 
     // A line for each of the person's Church-book references, as each

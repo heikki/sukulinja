@@ -9,6 +9,9 @@ import type {
   FamilyRow,
   PersonDetails,
   PersonRow,
+  Reminder,
+  ReminderChange,
+  ReminderTarget,
   Rescan,
   VolumeChoices,
   VolumeCitation
@@ -95,6 +98,14 @@ export interface DatasetApi {
   thumbUrl: (volumeId: string, n: number) => string;
   // A photo imported with the dataset.
   mediaUrl: (storedPath: string) => string;
+  // Every Reminder, newest first, open or done.
+  reminders: (signal?: AbortSignal) => Promise<Reminder[]>;
+  // Writes a Reminder on the target: it as stored.
+  remind: (text: string, on: ReminderTarget) => Promise<Reminder>;
+  // Changes a Reminder's text, or marks it done or open again: it as
+  // stored.
+  changeReminder: (id: number, change: ReminderChange) => Promise<Reminder>;
+  deleteReminder: (id: number) => Promise<void>;
 }
 
 export interface FetchOptions {
@@ -278,6 +289,37 @@ export function openDatasetApi(
 
     thumbUrl: (volumeId, n) => `${astia}/${volumeId}/images/${n}?size=thumb`,
 
-    mediaUrl: (storedPath) => `${dataset}/media/${storedPath}`
+    mediaUrl: (storedPath) => `${dataset}/media/${storedPath}`,
+
+    reminders: async (signal) =>
+      await json<Reminder[]>('Reminders', `${dataset}/api/reminders`, signal),
+
+    async remind(text, on) {
+      const res = await ask('Saving the Reminder', `${dataset}/api/reminders`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text, on })
+      });
+      return (await res.json()) as Reminder;
+    },
+
+    async changeReminder(id, change) {
+      const res = await ask(
+        'Saving the Reminder',
+        `${dataset}/api/reminders/${id}`,
+        {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(change)
+        }
+      );
+      return (await res.json()) as Reminder;
+    },
+
+    async deleteReminder(id) {
+      await ask('Deleting the Reminder', `${dataset}/api/reminders/${id}`, {
+        method: 'DELETE'
+      });
+    }
   };
 }

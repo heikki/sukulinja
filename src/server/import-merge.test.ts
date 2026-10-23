@@ -175,7 +175,13 @@ test('a newer export adds its people and citations, and a Mark stays on its cita
   expect(outcome.merged).toEqual({
     people: { added: 1, gone: 0 },
     citations: { added: 2, gone: 0 },
-    kept: { marks: 1, citations: 0, duplicates: 0, rejections: 0 },
+    kept: {
+      marks: 1,
+      citations: 0,
+      duplicates: 0,
+      rejections: 0,
+      reminders: 0
+    },
     lost: [],
     unreadable: null
   });
@@ -250,7 +256,8 @@ test('a citation made in the app that the export now has gives it its Mark', asy
     marks: 0,
     citations: 0,
     duplicates: 1,
-    rejections: 0
+    rejections: 0,
+    reminders: 0
   });
 });
 
@@ -437,4 +444,104 @@ test('a source only imported Citations cite stays gone when the export drops it'
   citeInViewer('@I1@');
   await importTree(tree([MATTI]));
   expect(sources().map((s) => s.xref)).toEqual(['@S1@', '@ASTIA_V1@']);
+});
+
+// -------------------------------------------------------------- Reminders
+
+function personId(xref: string) {
+  return registry
+    .open('tree')
+    .query<{ id: number }, [string]>('SELECT id FROM persons WHERE xref = ?')
+    .get(xref)!.id;
+}
+
+// A Reminder on the person, or on one of their citations.
+function remind(text: string, xref: string, citationId?: number) {
+  registry.open('tree').run(
+    `INSERT INTO reminders (text, person_id, citation_id, created_at)
+       VALUES (?, ?, ?, '2026-10-23T10:00:00.000Z')`,
+    [text, personId(xref), citationId ?? null]
+  );
+}
+
+function remindImage(text: string) {
+  registry.open('tree').run(
+    `INSERT INTO reminders (text, volume_id, volume, image, file_id,
+         created_at, done_at)
+       VALUES (?, 'v1', 'Juva 1790-1796', 12, 'f12',
+         '2026-10-23T10:00:00.000Z', '2026-10-23T11:00:00.000Z')`,
+    [text]
+  );
+}
+
+interface ReminderOut {
+  text: string;
+  xref: string | null;
+  page: string | null;
+  image: number | null;
+  done_at: string | null;
+}
+
+// Each Reminder as "text | whose or which Image | its citation's page |
+// when done", leaving out what it doesn't have.
+function reminders() {
+  return registry
+    .open('tree')
+    .query<ReminderOut, []>(
+      `SELECT r.text, p.xref, c.page, r.image, r.done_at FROM reminders r
+       LEFT JOIN persons p ON p.id = r.person_id
+       LEFT JOIN citations c ON c.id = r.citation_id ORDER BY r.id`
+    )
+    .all()
+    .map((r) =>
+      [r.text, r.xref ?? `Image ${r.image}`, r.page, r.done_at]
+        .filter((v) => v !== null)
+        .join(' | ')
+    );
+}
+
+test('Reminders follow their person and citation, and one on an Image stays', async () => {
+  await importTree(tree([MATTI, MAIJA]));
+  remind('Second wife?', '@I2@');
+  remind('Wrong Matti?', '@I1@', citationIds('@I1@')[0]);
+  remindImage('Later hand');
+  // The export now gives Maija another record id, and Matti a new citation
+  // before his old one.
+  const outcome = await importTree(
+    tree([
+      { ...MATTI, pages: [PAGE.c, PAGE.a] },
+      { ...MAIJA, xref: '@I9@', uid: 'uid-I2' }
+    ])
+  );
+
+  expect(reminders()).toEqual([
+    'Second wife? | @I9@',
+    `Wrong Matti? | @I1@ | ${PAGE.a}`,
+    'Later hand | Image 12 | 2026-10-23T11:00:00.000Z'
+  ]);
+  expect(outcome.merged).toMatchObject({ kept: { reminders: 3 }, lost: [] });
+});
+
+test("a citation's Reminder goes onto its person when the citation is gone, and one whose person is gone is listed", async () => {
+  await importTree(tree([MATTI, MAIJA]));
+  remind('Wrong Matti?', '@I1@', citationIds('@I1@')[0]);
+  remind('Second   wife?\nOr a third?', '@I2@');
+  const outcome = await importTree(tree([{ ...MATTI, pages: [PAGE.c] }]));
+
+  expect(reminders()).toEqual(['Wrong Matti? | @I1@']);
+  expect(outcome.merged).toMatchObject({
+    kept: { reminders: 1 },
+    lost: ['Maija /Esimerkki/: Second wife? Or a third? (a Reminder)']
+  });
+});
+
+test("a Reminder on a citation made in the app follows it, and goes onto its person when it's deleted", async () => {
+  await importTree(tree([MATTI]));
+  citeInViewer('@I1@');
+  remind('Is this the entry?', '@I1@', citationIds('@I1@')[1]);
+  await importTree(tree([MATTI]));
+  expect(reminders()).toEqual([`Is this the entry? | @I1@ | ${ASTIA}`]);
+
+  openAppCitations(registry.open('tree')).remove(citationIds('@I1@')[1]!);
+  expect(reminders()).toEqual(['Is this the entry? | @I1@']);
 });

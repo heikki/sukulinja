@@ -1,5 +1,4 @@
 Status: ready-for-agent
-Blocked by: 01
 
 # Write a Reminder in the Scan viewer, and see the Image's
 

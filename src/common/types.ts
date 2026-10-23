@@ -63,8 +63,11 @@ export interface ImportReview {
     // is kept, with the link.
     duplicates: number;
     rejections: number;
+    // Reminders, put back where they were, or a Citation's onto its person.
+    reminders: number;
   };
-  // Each Mark or citation made in the app that can't be kept, described.
+  // Each Mark, citation made in the app or Reminder that can't be kept,
+  // described.
   lost: string[];
   // Why the dataset's database couldn't be read, so nothing is kept from
   // it; null when it was.
@@ -316,4 +319,48 @@ export interface Rescan {
   cached: number;
   images: number;
   stale: StalePin[];
+}
+
+// What a Reminder is on, described: a person, one of their Citations
+// (by its source and where it points), or an Image of a Volume, by the
+// file it had when the Reminder was written. `stale` when the Volume's
+// filming has changed since.
+export type ReminderOn =
+  | { kind: 'person'; personId: number }
+  | {
+      kind: 'citation';
+      personId: number;
+      citationId: number;
+      source: string | null;
+      reference: string | null;
+    }
+  | {
+      kind: 'image';
+      volumeId: string;
+      volume: string;
+      image: number;
+      fileId: string;
+      stale: boolean;
+    };
+
+// Something to come back to, written in the app. `done` is when it was
+// marked done, null while it's open; both times are ISO 8601.
+export interface Reminder {
+  id: number;
+  text: string;
+  on: ReminderOn;
+  created: string;
+  done: string | null;
+}
+
+// What a new Reminder is put on.
+export type ReminderTarget =
+  | { personId: number }
+  | { citationId: number }
+  | { volumeId: string; volume: string; image: number; fileId: string };
+
+// A change to a Reminder: its text, or whether it's done.
+export interface ReminderChange {
+  text?: string;
+  done?: boolean;
 }

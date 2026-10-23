@@ -16,15 +16,17 @@ The database is now the dataset's master copy, and a GEDZIP is how all of it lea
   - Clearing the Mark puts `original_page` back.
   - A Match nobody has checked keeps its `page` and adds the link with a note saying it wasn't checked.
   - **Rejections** have no GEDCOM form, so they get a table of their own.
+- **Reminders stay in the app.** A Reminder, on a person, a Citation or an Image, is a note to yourself, not part of the tree, so like a Rejection it has a table of its own and no export writes it. Written into the GEDZIP as a `NOTE`, it would show up in any program the file goes to.
 - **Facts about Volumes stay shared.** **Page pins** and **Record ranges** describe Astia's books, not a tree, so they stay in one local file that every dataset reads, beside the shipped ones. A Mark that gives a Page pin still saves it there.
 - **Re-importing merges, by stable ids.** The source program's part comes from the new export. A citation says whether it was made in the app (`added_in_app`). Citations made in the app go back to the same person, by `UID`, or by record id for a file that carries no `UID`s.
   - **Matching a citation:** an imported citation counts as the stored one when it has the same person, the same source, and the same `PAGE` as the stored `original_page` (or `page` if the citation was never Marked, or if the export now gives the Astia address). The stored citation is kept, Mark and all, so no duplicate is made. Its `page` and `original_page` are carried as stored, never worked out again from the new `PAGE`: after a round trip through MyHeritage, that is already the Astia address. Citations alike in all three are paired in order, the first with the first.
   - **Duplicates:** an app-made Citation that the new export now has as well is dropped, and its link moves to the imported one.
   - **Their sources:** a Citation made in the Scan viewer cites its Volume's source record, titled with the Volume's label; nothing marks the source itself as the app's. When the new export lacks it, as after a re-import with no upload in between, it's copied in with the Citations reattached to it, once. A source only imported citations cite is never brought back, so one removed in the source program stays gone.
+  - **Reminders** go back to the same person, or to the citation they're on as paired or reattached above; a citation's Reminder goes onto its person when the citation is gone. One on an Image goes back as it was.
   - **Before the merge:** whatever can't be reattached is listed before you confirm.
   - **Undo:** the import keeps the database from before it, and the photos only that database names, and _Undo last import_ puts it back.
 - **A database built by an older schema won't open.** The dataset has to be imported again, which merges as above. With the source file gone, there's nothing to upgrade from.
-- **Export writes a GEDCOM 7 GEDZIP** (`gedcom.ged` and its media). It holds everything the database holds:
+- **Export writes a GEDCOM 7 GEDZIP** (`gedcom.ged` and its media). It holds everything the database holds but Rejections and Reminders:
   - Each Mark becomes an `OBJE` under its citation, pointing at an `OBJE` record for the Image's JPEG in Astia, titled with its Volume and Image number, with the Box as its `CROP`. A Mark of only a Volume is a `NOTE` naming it.
   - `original_page` becomes `NOTE Original page: <url>`.
   - An unchecked Match gets a `NOTE` saying so, and a citation made in the app `NOTE Added in Sukulinja`.

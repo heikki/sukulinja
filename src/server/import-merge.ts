@@ -1,6 +1,6 @@
 // A re-import merged with the dataset it replaces (ADR-0013). The new
 // export gives the tree; the dataset gives what the app added to it:
-// Marks, citations made in the app, and Rejections.
+// Marks, citations made in the app, Rejections and Reminders.
 //
 // A citation of the export is the dataset's when it has the same person,
 // source and page: its original page, or, for a Marked one the export now
@@ -202,14 +202,15 @@ function sourceIn(m: Merge, id: number) {
   return m.matchOf({ kind: 'source', id }) ?? copySource(m, id);
 }
 
-// A citation made in the app, attached again where it was; whether it
-// could be. Its photos aren't carried, as the app adds none.
+// A citation made in the app, attached again where it was: its id there,
+// or null when it can't be. Its photos aren't carried, as the app adds
+// none.
 function reattach(m: Merge, s: Citation) {
   const scope = scopeIn(m, s.row);
-  if (scope === null) return false;
+  if (scope === null) return null;
   const sourceId = valueOf(s.row, 'source_id');
   const source = sourceId === null ? null : sourceIn(m, Number(sourceId));
-  if (sourceId !== null && source === null) return false;
+  if (sourceId !== null && source === null) return null;
   const next = m.fresh
     .query<{ n: number }, [string, number]>(
       'SELECT COALESCE(MAX(sort_order) + 1, 0) AS n FROM citations WHERE scope_type = ? AND scope_id = ?'
@@ -232,7 +233,7 @@ function reattach(m: Merge, s: Citation) {
     s.annotation
   );
   copyNotes(m, s.id, id);
-  return true;
+  return id;
 }
 
 function carryRejections(m: Merge) {
@@ -254,11 +255,68 @@ function carryRejections(m: Merge) {
   return rejections.length;
 }
 
+const REMINDER_COLUMNS = [
+  'text',
+  'person_id',
+  'citation_id',
+  'volume_id',
+  'volume',
+  'image',
+  'file_id',
+  'created_at',
+  'done_at'
+];
+
+// The dataset's Reminders, each put back on the same person or Citation,
+// by the ids `citations` gives the dataset's citations in the new
+// database; a Citation's onto its person when the Citation is gone. One on
+// an Image is put back as it was. How many were, and those whose person is
+// gone, described.
+function carryReminders(
+  m: Merge,
+  citations: Map<number, number>,
+  describe: (owner: Owner) => string
+) {
+  const reminders = rowsOf(m.stored, 'SELECT * FROM reminders ORDER BY id');
+  const lost: string[] = [];
+  for (const r of reminders) {
+    const values = REMINDER_COLUMNS.map((c) => valueOf(r, c));
+    const personId = valueOf(r, 'person_id');
+    if (personId !== null) {
+      const owner: Owner = { kind: 'person', id: Number(personId) };
+      const person = m.matchOf(owner);
+      if (person === null) {
+        const text = String(valueOf(r, 'text')).replaceAll(/\s+/g, ' ');
+        lost.push(`${describe(owner)}: ${text} (a Reminder)`);
+        continue;
+      }
+      const citationId = valueOf(r, 'citation_id');
+      values[1] = person;
+      values[2] =
+        citationId === null
+          ? null
+          : (citations.get(Number(citationId)) ?? null);
+    }
+    m.fresh.run(
+      `INSERT INTO reminders (${REMINDER_COLUMNS.join(', ')})
+       VALUES (${REMINDER_COLUMNS.map(() => '?').join(', ')})`,
+      values
+    );
+  }
+  return { kept: reminders.length - lost.length, lost };
+}
+
 function emptyReview(unreadable: string | null): ImportReview {
   return {
     people: { added: 0, gone: 0 },
     citations: { added: 0, gone: 0 },
-    kept: { marks: 0, citations: 0, duplicates: 0, rejections: 0 },
+    kept: {
+      marks: 0,
+      citations: 0,
+      duplicates: 0,
+      rejections: 0,
+      reminders: 0
+    },
     lost: [],
     unreadable
   };
@@ -296,14 +354,19 @@ function merge(fresh: Database, stored: Database, byXref: boolean) {
   const review = emptyReview(null);
   review.people = people();
 
+  // The new database's id for each of the dataset's citations it has.
+  const carried = new Map<number, number>();
   for (const [s, f] of pairs) {
+    carried.set(s.id, f.id);
     if (s.linked) m.annotations.carry(f.id, s);
     const kept = keptAs(s, f);
     if (kept !== null) review.kept[kept] += 1;
   }
   for (const s of storedCitations) {
     if (pairs.has(s)) continue;
-    if (s.appMade && reattach(m, s)) {
+    const reattached = s.appMade ? reattach(m, s) : null;
+    if (reattached !== null) {
+      carried.set(s.id, reattached);
       review.kept.citations += 1;
       continue;
     }
@@ -316,6 +379,9 @@ function merge(fresh: Database, stored: Database, byXref: boolean) {
     (f) => !f.appMade && !paired.has(f)
   ).length;
   review.kept.rejections = carryRejections(m);
+  const reminders = carryReminders(m, carried, describe);
+  review.kept.reminders = reminders.kept;
+  review.lost.push(...reminders.lost);
   return review;
 }
 

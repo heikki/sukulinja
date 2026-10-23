@@ -1,7 +1,7 @@
 import type { Database } from 'bun:sqlite';
 import { basename, join, relative, resolve } from 'node:path';
 
-import type { LinkResolution } from '@/common/types';
+import type { LinkResolution, Reminder } from '@/common/types';
 
 import { routeCitations } from './citation-routes';
 import type { CitationHandlers } from './citation-routes';
@@ -27,6 +27,9 @@ import { createCitations } from './citations';
 import type { DatasetRegistry } from './dataset-registry';
 import { lifecycleRoutes } from './lifecycle-routes';
 import { createPersonDetails } from './person-details';
+import { routeReminders } from './reminder-routes';
+import type { ReminderHandlers } from './reminder-routes';
+import { createReminders } from './reminders';
 import { createTree } from './tree';
 
 const DATASET_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?<rest>\/.*)?$/u;
@@ -37,7 +40,7 @@ interface ApiHandlers {
   routeApi: (req: Request, pathname: string) => Promise<Response | null>;
 }
 
-interface DatasetHandlers extends CitationHandlers {
+interface DatasetHandlers extends CitationHandlers, ReminderHandlers {
   handlePersons: () => Response;
   handleFamilies: () => Response;
   handlePerson: (id: number) => Response;
@@ -64,6 +67,22 @@ function createDatasetHandlers(db: Database, scans: Scans): DatasetHandlers {
   const tree = createTree(db);
   const citations = createCitations(db, scans);
   const personDetails = createPersonDetails(db, citations);
+  const reminders = createReminders(db, {
+    citationOf: (id) => citations.ofId(id),
+    replaced: async (at) => await scans.replaced(at)
+  });
+
+  // A Reminder as written or changed, or why not.
+  function answerReminder(
+    result: Reminder | { rejected: string } | null,
+    missing: string,
+    status = 200
+  ) {
+    if (result === null) return new Response(missing, { status: 404 });
+    return 'rejected' in result
+      ? new Response(result.rejected, { status: 400 })
+      : Response.json(result, { status });
+  }
 
   return {
     handlePersons() {
@@ -164,6 +183,29 @@ function createDatasetHandlers(db: Database, scans: Scans): DatasetHandlers {
           });
     },
 
+    async handleReminders() {
+      return Response.json(await reminders.list());
+    },
+
+    async handleRemind(text, target) {
+      const missing =
+        'citationId' in target ? 'citation not found' : 'person not found';
+      return answerReminder(await reminders.add(text, target), missing, 201);
+    },
+
+    async handleChangeReminder(id, change) {
+      return answerReminder(
+        await reminders.change(id, change),
+        'reminder not found'
+      );
+    },
+
+    handleDeleteReminder(id) {
+      return reminders.remove(id)
+        ? new Response(null, { status: 204 })
+        : new Response('reminder not found', { status: 404 });
+    },
+
     async handleMedia(rest, mediaRoot) {
       const rel = decodeURIComponent(rest.slice('/media/'.length));
       const fullPath = resolve(mediaRoot, rel);
@@ -196,6 +238,8 @@ async function routeDataset(
   }
   const cited = await routeCitations(req, handlers, rest);
   if (cited !== null) return cited;
+  const reminded = await routeReminders(req, handlers, rest);
+  if (reminded !== null) return reminded;
   const volume = /^\/api\/volumes\/(?<id>[^/]+)\/citations$/.exec(rest);
   if (volume !== null) {
     return await handlers.handleVolumeCitations(volume.groups!.id!);

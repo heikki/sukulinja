@@ -13,6 +13,7 @@ import { openMarks } from './citation-scans/marks';
 import { DatasetRegistry } from './dataset-registry';
 import { packDataset } from './export-dataset';
 import { line, pointer, writeGedcom } from './gedcom-writer';
+import { exportGedcom551 } from './gedcom551';
 
 const DEMO = resolve(import.meta.dir, '../../resources/demo/bourbon.gdz');
 const MAXIMAL = resolve(import.meta.dir, '../../test/gedcom7/maximal70.gdz');
@@ -88,6 +89,24 @@ describe('exporting a GEDZIP', () => {
     expect(
       registry.open('b').query('SELECT COUNT(*) AS n FROM media_links').get()
     ).toEqual({ n: 2 });
+  });
+
+  test('leaves out Reminders, as does the MyHeritage export', async () => {
+    await importFixture();
+    const db = registry.open('a');
+    const person = db
+      .query<{ id: number }, []>('SELECT id FROM persons')
+      .get()!;
+    db.run(
+      `INSERT INTO reminders (text, person_id, created_at)
+       VALUES ('Remember the second wife', ?, '2026-10-23T10:00:00.000Z')`,
+      [person.id]
+    );
+    expect(gedcomOf(await roundTrip())).not.toContain('second wife');
+    expect(exportGedcom551(db).text).not.toContain('second wife');
+    expect(
+      registry.open('b').query('SELECT COUNT(*) AS n FROM reminders').get()
+    ).toEqual({ n: 0 });
   });
 
   test('writes valid GEDCOM 7', async () => {

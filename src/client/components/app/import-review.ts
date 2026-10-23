@@ -25,7 +25,8 @@ function keptLine({ kept }: ImportReview) {
       'citation made in the app',
       'citations made in the app'
     ),
-    count(kept.rejections, 'Rejection', 'Rejections')
+    count(kept.rejections, 'Rejection', 'Rejections'),
+    count(kept.reminders, 'Reminder', 'Reminders')
   ];
   const duplicates =
     kept.duplicates === 0
