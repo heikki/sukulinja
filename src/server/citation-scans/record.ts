@@ -9,7 +9,12 @@ import type { BookKind, Years } from './text';
 
 // MyHeritage collections that cite Finnish church books.
 export const RIPPI_COLLECTION = '10509';
-export const CHURCH_COLLECTIONS = new Set([RIPPI_COLLECTION, '30233', '30200']);
+export const BAPTISM_COLLECTION = '30233';
+export const CHURCH_COLLECTIONS = new Set([
+  RIPPI_COLLECTION,
+  BAPTISM_COLLECTION,
+  '30200'
+]);
 
 export interface ChurchBookRef {
   url: string;
