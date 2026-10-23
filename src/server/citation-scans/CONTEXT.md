@@ -11,6 +11,10 @@ A reference in the tree to where a fact comes from, from any source.
 What the app adds to a Citation: its Mark or Match, the page a Mark on an Image moved aside, and whether the app made the Citation. A re-import keeps it, while the source program's part comes from the new export.
 _Avoid_: note (a GEDCOM NOTE is the source's own text), extras, link columns.
 
+**Reminder**:
+Something to come back to, written in the Scan viewer on an **Image**, a Citation or a person, open until it's marked done. Only the app keeps it: no export writes it, and a re-import's merge moves it to the same person or Citation, a Citation's onto its person when the Citation is gone. One on an Image holds for one filming: after a **Re-scan** it's stale, listed but no longer shown on the Image.
+_Avoid_: note (a GEDCOM NOTE), annotation (a Citation's app-made additions), to-do.
+
 **Church-book reference**:
 The parish, **Book**, years and page a Citation points to in the church books, with the villages and farms it names. Read from a Citation; what scan linking works on. A reference read through MyHeritage also carries a **Record number**.
 _Avoid_: citation (the broader thing it's read from).
