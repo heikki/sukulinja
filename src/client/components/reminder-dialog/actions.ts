@@ -7,28 +7,34 @@ import type { AppState } from '@/client/state';
 import type { Reminder } from '@/common/types';
 
 import type { MenuItem } from '../context-menu';
-import { placeOf, targetOf } from '../reminder-dialog';
-import type { ReminderDialogProps } from '../reminder-dialog';
-import type { ReminderError } from './reminders';
+import { placeOf, targetOf } from './helpers';
+import type { ReminderDialogProps } from './index';
 
 import '../context-menu';
-import '../reminder-dialog';
+import './index';
 
-// What can be done to a Reminder the panel lists: its menu, with Done or
-// Reopen, Edit… and Delete, and the dialog editing it. The menu opens in
-// the element the panel is positioned in, so the panel's scrolling doesn't
-// clip it, and closes when the panel scrolls.
+// Why the last change to a Reminder failed.
+export interface ReminderError {
+  id: number;
+  message: string;
+}
+
+// What can be done to a Reminder a list shows: its menu, with Done or
+// Reopen, Edit… and Delete, and the dialog editing it. The menu is
+// rendered where `render` is put, and placed in the box `box` gives: the
+// element it's positioned in. It closes when the host scrolls.
 export class ReminderActions implements ReactiveController {
-  // A Reminder whose menu is open, at a point in that element.
+  // A Reminder whose menu is open, at a point in that box.
   private menu: { reminder: Reminder; at: Point } | null = null;
   private dialog: ReminderDialogProps | null = null;
   // Why the last change to one failed, to say under it.
   private failed: ReminderError | null = null;
 
-  // `state` is asked for only once the panel has it.
+  // `state` is asked for only once the host has it.
   constructor(
     private readonly host: ReactiveControllerHost & HTMLElement,
-    private readonly state: () => AppState
+    private readonly state: () => AppState,
+    private readonly box: () => DOMRect | undefined
   ) {
     host.addController(this);
   }
@@ -46,6 +52,10 @@ export class ReminderActions implements ReactiveController {
   }
 
   private readonly onScroll = () => {
+    this.closeMenu();
+  };
+
+  readonly closeMenu = () => {
     if (this.menu === null) return;
     this.menu = null;
     this.host.requestUpdate();
@@ -55,7 +65,7 @@ export class ReminderActions implements ReactiveController {
   readonly open = (e: MouseEvent, reminder: Reminder) => {
     e.preventDefault();
     e.stopPropagation();
-    const box = this.host.offsetParent?.getBoundingClientRect();
+    const box = this.box();
     if (box === undefined) return;
     const row = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const keyed = e.type === 'click' && e.detail === 0;
@@ -127,10 +137,7 @@ export class ReminderActions implements ReactiveController {
     return html`<sl-context-menu
       .items=${this.items(reminder)}
       .at=${at}
-      @close=${() => {
-        this.menu = null;
-        this.host.requestUpdate();
-      }}
+      @close=${this.closeMenu}
     ></sl-context-menu>`;
   }
 
@@ -150,8 +157,7 @@ export class ReminderActions implements ReactiveController {
     ></sl-reminder-dialog>`;
   }
 
-  // The open menu and dialog, to render at the top of the panel, outside
-  // any source.
+  // The open menu and the dialog.
   render() {
     return html`${this.renderMenu()} ${this.renderDialog()}`;
   }

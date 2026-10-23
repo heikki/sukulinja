@@ -12,7 +12,7 @@ import type { MenuItem } from '../context-menu';
 // then, with nothing pending, a Reminder on the Image or someone beside it,
 // once Astia lists the Image; then Change Volume…, which only shows
 // another Volume. A Box's menu offers a Reminder too, starting on its
-// Citation.
+// Citation. Opened on an Image with no source, only the Reminder.
 export function linkItems(
   viewer: Viewer,
   where: { onBox: boolean; canBox: boolean; name: string | null },
@@ -27,6 +27,7 @@ export function linkItems(
     viewer.pending.get() === null && viewer.fileIdHere() !== null
       ? [{ label: 'Add reminder…', run: open.remind }]
       : [];
+  if (viewer.source.get() === null) return remind;
   if (where.onBox) return [...boxItems(viewer), ...remind];
   const items: MenuItem[] = [];
   if (where.canBox) {

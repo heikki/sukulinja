@@ -2,6 +2,8 @@ import { html, nothing } from 'lit';
 
 import type { Reminder } from '@/common/types';
 
+import type { ReminderError } from '../reminder-dialog/actions';
+
 // A person's Reminders as the panel lists them: their own, and each of
 // their Citations' by its id, open ones first and done ones after when
 // `showDone`; and how many of either are done, shown or not.
@@ -26,12 +28,6 @@ export function personReminders(
     }
   }
   return { own, byCitation, done: done.length };
-}
-
-// Why the last change to a Reminder failed.
-export interface ReminderError {
-  id: number;
-  message: string;
 }
 
 // Reminders, each a button asking for its menu (`menu`) on a click or a

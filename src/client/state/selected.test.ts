@@ -215,3 +215,14 @@ test("a refused Mark throws in the server's words", async () => {
   expect((refused as ApiError).message).toBe('citation not found');
   expect(selected.links.get().get(11)).toEqual({ links: [ON_18] });
 });
+
+test('a source to reveal is kept for its person, and dropped for another', async () => {
+  const selected = openSelected(dataset());
+  selected.revealSource(1, 12);
+  await selected.select(1);
+  expect(selected.reveal.get()).toEqual({ personId: 1, citationId: 12 });
+
+  selected.revealSource(1, 11);
+  await selected.select(2);
+  expect(selected.reveal.get()).toBe(null);
+});
