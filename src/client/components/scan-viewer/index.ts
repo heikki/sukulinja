@@ -18,7 +18,7 @@ import type { ViewChange } from './arrival';
 import { EdgeWatch } from './edge-watch';
 import { entriesShown, layers } from './frame';
 import { rowsShown } from './helpers';
-import { stepOf } from './keys';
+import { imageAfter, stepOf } from './keys';
 import { stageNote } from './note';
 import { Prefetch } from './prefetch';
 import { controlStyles, scanViewerStyles } from './styles';
@@ -295,8 +295,9 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
 
   // Esc backs out one step: from a way out waiting on the pending Box back
   // to editing, from editing (dropping the Box, as Cancel does) or a
-  // Discard waiting, else out of the viewer. The arrows step (see keys.ts). Every key handled here is
-  // marked so, or WKWebView hands it on to macOS, which beeps at it.
+  // Discard waiting, else out of the viewer. The arrows, Home and End step
+  // (see keys.ts). Every key handled here is marked so, or WKWebView hands
+  // it on to macOS, which beeps at it.
   private editing() {
     return this.viewer.pending.get() !== null || this.viewer.discarding.get();
   }
@@ -314,9 +315,10 @@ export class ScanViewerElement extends SignalWatcher(LitElement) {
     e.preventDefault();
     if (step.image === undefined) {
       this.viewer.step(step.source!);
-    } else {
-      this.viewer.show(this.image + step.image);
+      return;
     }
+    const to = imageAfter(step.image, this.image, this.viewer.count.get());
+    if (to !== null) this.viewer.show(to);
   };
 
   // The scan's own menu in place of WebKit's, except in the Image number,

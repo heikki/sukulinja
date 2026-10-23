@@ -7,7 +7,8 @@ import { live } from 'lit/directives/live.js';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 
-import { stepOf } from './keys';
+import { imageAfter, stepOf } from './keys';
+import type { ImageMove } from './keys';
 import { controlStyles, scanNavStyles } from './styles';
 
 import './edit';
@@ -20,38 +21,48 @@ function stop(e: Event) {
 // Image shown of how many, once Astia says, and while a Box is pending or
 // waits to be discarded, its Cancel and Save. Pointer and wheel input stays
 // here, so using it doesn't pan or zoom the scan beneath. The button a held
-// ←/→ stands for shows pressed.
+// key stands for (←/→, with Shift or without, Home or End) shows pressed.
 @customElement('sl-scan-nav')
 export class ScanNavElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanNavStyles];
 
   @consume({ context: appState }) private readonly state!: AppState;
 
-  // Which way the arrow key held steps. At the first or last Image its
-  // button is disabled all the same: there's no step to show.
-  @state() private pressed: 1 | -1 | null = null;
+  // The move the key held made. Pressed where it goes nowhere, it shows
+  // nothing: there's no step to show. Landing on the first or last Image, its
+  // button stays pressed, not disabled, until the key is let go.
+  @state() private pressed: ImageMove | null = null;
 
   override connectedCallback() {
     super.connectedCallback();
     for (const type of ['mousedown', 'wheel', 'dblclick']) {
       this.addEventListener(type, stop);
     }
-    window.addEventListener('keydown', this.onKey);
-    window.addEventListener('keyup', this.onKey);
+    // Capturing, so it hears the key before the viewer moves.
+    window.addEventListener('keydown', this.onKey, true);
+    window.addEventListener('keyup', this.onKey, true);
     window.addEventListener('blur', this.release);
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
-    window.removeEventListener('keydown', this.onKey);
-    window.removeEventListener('keyup', this.onKey);
+    window.removeEventListener('keydown', this.onKey, true);
+    window.removeEventListener('keyup', this.onKey, true);
     window.removeEventListener('blur', this.release);
   }
 
   private readonly onKey = (e: KeyboardEvent) => {
     const step = stepOf(e)?.image;
     if (step === undefined) return;
-    this.pressed = e.type === 'keydown' ? step : null;
+    if (e.type === 'keyup') {
+      this.pressed = null;
+      return;
+    }
+    // A key held repeats; once at the end it goes nowhere, still pressed.
+    if (e.repeat && this.pressed === step) return;
+    const { viewer } = this.state;
+    const to = imageAfter(step, viewer.image.get(), viewer.count.get());
+    this.pressed = to === null ? null : step;
   };
 
   // A key let go elsewhere never says so here.
@@ -61,6 +72,24 @@ export class ScanNavElement extends SignalWatcher(LitElement) {
 
   private ask(image: number) {
     this.state.viewer.show(image);
+  }
+
+  private renderMove(move: ImageMove, label: string, icon: string) {
+    const to = imageAfter(
+      move,
+      this.state.viewer.image.get(),
+      this.state.viewer.count.get()
+    );
+    return html`<button
+      class=${this.pressed === move ? 'pressed' : ''}
+      aria-label=${label}
+      ?disabled=${to === null && this.pressed !== move}
+      @click=${() => {
+        if (to !== null) this.ask(to);
+      }}
+    >
+      ${icon}
+    </button>`;
   }
 
   // After Not now: the Volume is still on Astia's old filming, and
@@ -84,16 +113,9 @@ export class ScanNavElement extends SignalWatcher(LitElement) {
     const count = this.state.viewer.count.get();
     const image = this.state.viewer.image.get();
     return html`
-      <button
-        class=${this.pressed === -1 ? 'pressed' : ''}
-        aria-label="Previous image"
-        ?disabled=${image <= 1}
-        @click=${() => {
-          this.ask(image - 1);
-        }}
-      >
-        ‹
-      </button>
+      ${this.renderMove('first', 'First image', '⇤')}
+      ${this.renderMove(-10, 'Back 10 images', '«')}
+      ${this.renderMove(-1, 'Previous image', '‹')}
       <input
         type="number"
         min="1"
@@ -134,17 +156,9 @@ export class ScanNavElement extends SignalWatcher(LitElement) {
         }}
       />
       <span class="count">${count === null ? '' : `of ${count}`}</span>
-      <button
-        class=${this.pressed === 1 ? 'pressed' : ''}
-        aria-label="Next image"
-        ?disabled=${count !== null && image >= count}
-        @click=${() => {
-          this.ask(image + 1);
-        }}
-      >
-        ›
-      </button>
-      ${this.renderOldFilming()}
+      ${this.renderMove(1, 'Next image', '›')}
+      ${this.renderMove(10, 'Forward 10 images', '»')}
+      ${this.renderMove('last', 'Last image', '⇥')} ${this.renderOldFilming()}
       ${
         this.state.viewer.pending.get() === null &&
         !this.state.viewer.discarding.get() &&
