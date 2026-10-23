@@ -27,14 +27,28 @@ export function isStale(reminder: Reminder) {
   return reminder.on.kind === 'image' && reminder.on.stale;
 }
 
+function sourceOf(state: AppState, citationId: number) {
+  return state.selected.sources
+    .get()
+    .flatMap((g) => g.sources)
+    .find((s) => s.citation.id === citationId);
+}
+
+// Whether a Citation's source may open in the Scan viewer: until the
+// Selected person's sources are in to tell, or once they give it a Link
+// or Volumes to look through.
+export function mayOpen(state: AppState, citationId: number) {
+  const source = sourceOf(state, citationId);
+  if (source === undefined) return true;
+  const { status } = source;
+  return status !== null && (status.link !== null || status.browse !== null);
+}
+
 // Opens a source of the Selected person in the Scan viewer, as clicking
 // it in the panel does: at its Link, or with none, looking through its
 // parish's Volumes. Not one the viewer has no way into.
 export function openSource(state: AppState, citationId: number) {
-  const source = state.selected.sources
-    .get()
-    .flatMap((g) => g.sources)
-    .find((s) => s.citation.id === citationId);
+  const source = sourceOf(state, citationId);
   const status = source?.status ?? null;
   if (source === undefined || status === null) return;
   const { citation } = source;
@@ -64,6 +78,21 @@ export async function follow(state: AppState, reminder: Reminder) {
   if (state.selected.id.get() === on.personId) {
     openSource(state, on.citationId);
   }
+}
+
+// Whether the Scan viewer shows where a Reminder is: open on its
+// Citation's source, on its Link's Image; or on its Image.
+export function shows(state: AppState, reminder: Reminder) {
+  const { on } = reminder;
+  const { viewer } = state;
+  if (on.kind === 'citation') {
+    const source = viewer.source.get();
+    return source?.citation.id === on.citationId && !viewer.away.get();
+  }
+  if (on.kind !== 'image' || viewer.opened.get() === null) return false;
+  return (
+    viewer.volume.get()?.id === on.volumeId && viewer.image.get() === on.image
+  );
 }
 
 // How many are open; null until they've come.

@@ -22,6 +22,9 @@ export interface Reminders {
   shown: Readable<Reminder | null>;
   // Opens one in its dialog, or closes it with null.
   show: (id: number | null) => void;
+  // Opens one in its dialog, or closes it if it's open: true when it
+  // opened.
+  toggle: (id: number) => boolean;
 }
 
 // The open Reminders on an Image of a Volume, not stale, or on one of the
@@ -92,6 +95,11 @@ export function openReminders(api: DatasetApi): Reminders {
     shown,
     show(id) {
       shownId.set(id);
+    },
+    toggle(id) {
+      const opening = shownId.get() !== id;
+      shownId.set(opening ? id : null);
+      return opening;
     }
   };
 }

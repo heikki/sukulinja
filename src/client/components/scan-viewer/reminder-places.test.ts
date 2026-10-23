@@ -9,7 +9,7 @@ import type {
   VolumeCitation
 } from '@/common/types';
 
-import { reminderChoices, remindersHere } from './reminder-choices';
+import { reminderPlaces, remindersHere } from './reminder-places';
 
 function churchBook(id: number): CitationRow {
   return {
@@ -127,27 +127,37 @@ async function viewing() {
   return state;
 }
 
-test('a Reminder can be on the Image, or on each Citation beside it and its person', async () => {
+const IMAGE_18 = {
+  volumeId: '201',
+  volume: 'I Aa:201',
+  image: 18,
+  fileId: '201-f18'
+};
+
+test("on the source's Image, a Reminder is on its Citation, or else the Image", async () => {
   const state = await viewing();
-  const choices = reminderChoices(state, null);
-  expect(choices?.choices.map((c) => c.label)).toEqual([
-    'This Image (I Aa:201, Image 18)',
-    'Matti Esimerkki (1770) — their Citation',
-    'Matti Esimerkki (1770)',
-    'Maija Esimerkki (1772) — their Citation',
-    'Maija Esimerkki (1772)',
-    'Matti Esimerkki (1770) — their Citation'
-  ]);
-  expect(choices?.choices.map((c) => c.target)).toEqual([
-    { volumeId: '201', volume: 'I Aa:201', image: 18, fileId: '201-f18' },
-    { citationId: 11 },
-    { personId: 1 },
-    { citationId: 12 },
-    { personId: 2 },
-    { citationId: 13 }
-  ]);
-  expect(choices?.chosen).toBe(0);
-  expect(reminderChoices(state, 12)?.chosen).toBe(3);
+  const places = reminderPlaces(state);
+  expect(places?.cited).toEqual({
+    header: ['Matti Esimerkki', 'I Aa:201 · Image 18'],
+    target: { citationId: 11 }
+  });
+  expect(places?.image).toEqual({
+    header: ['I Aa:201 · Image 18'],
+    target: IMAGE_18
+  });
+});
+
+test("off the source's Image, a Reminder is on the Image shown", async () => {
+  const state = await viewing();
+  state.viewer.show(19);
+  await Bun.sleep(0);
+  expect(reminderPlaces(state)).toEqual({
+    cited: null,
+    image: {
+      header: ['I Aa:201 · Image 19'],
+      target: { ...IMAGE_18, image: 19, fileId: '201-f19' }
+    }
+  });
 });
 
 test("the Reminders here are the Image's and those of the Citations linking it", async () => {

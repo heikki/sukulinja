@@ -22,8 +22,8 @@ function stop(e: Event) {
 // Every open Reminder in the dataset, newest first, each with what it's
 // on; one on an Image from an earlier filming is flagged so. Clicking one
 // picks it (`pick`). Show done adds the done ones, dimmed. A panel
-// floating over the chart, dragged by its heading: Close or Esc asks to
-// `close`, and keys and presses on it stay here.
+// floating over the chart, dragged by its background: ✕ in its corner or
+// Esc asks to `close`, and presses on it stay here.
 @customElement('sl-reminders-dialog')
 export class RemindersDialogElement extends SignalWatcher(LitElement) {
   static override styles = remindersDialogStyles;
@@ -53,10 +53,11 @@ export class RemindersDialogElement extends SignalWatcher(LitElement) {
     this.dispatchEvent(new CustomEvent('close'));
   };
 
+  // Esc is its own; other keys go on, so what's under it still has them.
   private readonly onKeyDown = (e: KeyboardEvent) => {
-    e.stopPropagation();
     if (e.key !== 'Escape') return;
     e.preventDefault();
+    e.stopPropagation();
     this.close();
   };
 
@@ -109,15 +110,17 @@ export class RemindersDialogElement extends SignalWatcher(LitElement) {
       ? all.filter((r) => r.done !== null).length
       : 0;
     if (done === 0) return nothing;
-    return html`<button
-      class="show-done"
-      aria-pressed=${this.showDone ? 'true' : 'false'}
-      @click=${() => {
-        this.showDone = !this.showDone;
-      }}
-    >
-      ${this.showDone ? 'Hide done' : `Show done (${done})`}
-    </button>`;
+    return html`<div class="actions">
+      <button
+        class="show-done"
+        aria-pressed=${this.showDone ? 'true' : 'false'}
+        @click=${() => {
+          this.showDone = !this.showDone;
+        }}
+      >
+        ${this.showDone ? 'Hide done' : `Show done (${done})`}
+      </button>
+    </div>`;
   }
 
   override render() {
@@ -129,12 +132,13 @@ export class RemindersDialogElement extends SignalWatcher(LitElement) {
         aria-label="Reminders"
         @pointerdown=${this.floating.grip}
       >
-        <h2>Reminders</h2>
-        ${this.renderBody()}
-        <div class="actions">
-          ${this.renderShowDone()}
-          <button @click=${this.close}>Close</button>
+        <div class="top">
+          <h2>Reminders</h2>
+          <button class="close" aria-label="Close" @click=${this.close}>
+            ✕
+          </button>
         </div>
+        ${this.renderBody()} ${this.renderShowDone()}
       </div>
     `;
   }

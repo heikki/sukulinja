@@ -1,12 +1,6 @@
-import type { PersonRow, ReminderOn, ReminderTarget } from '@/common/types';
+import type { PersonRow, ReminderOn } from '@/common/types';
 
 import { formatDates, formatName } from '../tree-view/renderer';
-
-// Something a Reminder can be put on, as the dialog's On picker lists it.
-export interface ReminderChoice {
-  label: string;
-  target: ReminderTarget;
-}
 
 // A person by name, with their years, as names repeat in a family.
 export function personLabel(persons: Map<number, PersonRow>, id: number) {
@@ -15,14 +9,6 @@ export function personLabel(persons: Map<number, PersonRow>, id: number) {
   const dates = formatDates(person);
   const name = formatName(person);
   return dates === '' ? name : `${name} (${dates})`;
-}
-
-// What a Reminder is on, as a new one would be put there.
-export function targetOf(on: ReminderOn): ReminderTarget {
-  if (on.kind === 'person') return { personId: on.personId };
-  if (on.kind === 'citation') return { citationId: on.citationId };
-  const { volumeId, volume, image, fileId } = on;
-  return { volumeId, volume, image, fileId };
 }
 
 // An Image by its Volume and number.
