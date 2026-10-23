@@ -79,3 +79,16 @@ test('a failed load is asked for again', async () => {
   await Bun.sleep(0);
   expect(api.asked).toEqual(['reminders', 'reminders']);
 });
+
+test('the Reminder shown follows its changes, and goes when deleted', async () => {
+  const api = memoryDatasetApi({ reminders: [reminder(1, IMAGE)] });
+  const reminders = openReminders(api);
+  reminders.load();
+  await Bun.sleep(0);
+  reminders.show(1);
+  expect(reminders.shown.get()?.text).toBe('R1');
+  await reminders.change(1, { text: 'Changed' });
+  expect(reminders.shown.get()?.text).toBe('Changed');
+  await reminders.remove(1);
+  expect(reminders.shown.get()).toBe(null);
+});

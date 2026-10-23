@@ -27,18 +27,27 @@ export function isStale(reminder: Reminder) {
   return reminder.on.kind === 'image' && reminder.on.stale;
 }
 
-// What going to it is called: to its person, its Citation's source, or
-// its Image; null for a stale one, which goes nowhere.
-export function goLabel(reminder: Reminder) {
-  if (isStale(reminder)) return null;
-  const kind = reminder.on.kind;
-  if (kind === 'person') return 'Show person';
-  return kind === 'citation' ? 'Show source' : 'Open Image';
+// Opens a source of the Selected person in the Scan viewer, as clicking
+// it in the panel does: at its Link, or with none, looking through its
+// parish's Volumes. Not one the viewer has no way into.
+export function openSource(state: AppState, citationId: number) {
+  const source = state.selected.sources
+    .get()
+    .flatMap((g) => g.sources)
+    .find((s) => s.citation.id === citationId);
+  const status = source?.status ?? null;
+  if (source === undefined || status === null) return;
+  const { citation } = source;
+  if (status.link !== null) state.viewer.open({ citation, link: status.link });
+  else if (status.browse !== null) {
+    state.viewer.open({ citation, link: null, unlinked: status.browse });
+  }
 }
 
-// Goes where a Reminder is: selects its person, with a Citation's source
-// to unfold in the panel, or opens the Scan viewer at its Image.
-export function follow(state: AppState, reminder: Reminder) {
+// Goes where a Reminder is: selects its person, and for a Citation's,
+// opens its source in the Scan viewer once their Links are in; or opens
+// the Scan viewer at its Image. A stale one's Image, nowhere.
+export async function follow(state: AppState, reminder: Reminder) {
   const { on } = reminder;
   if (on.kind === 'image') {
     if (on.stale) return;
@@ -46,10 +55,15 @@ export function follow(state: AppState, reminder: Reminder) {
     state.viewer.openImage({ volumeId, volume, image });
     return;
   }
-  if (on.kind === 'citation') {
-    state.selected.revealSource(on.personId, on.citationId);
-  }
   state.chart.select(on.personId);
+  // Not once a change pending in the Scan viewer holds the selection up.
+  if (on.kind !== 'citation' || state.selected.id.get() !== on.personId) {
+    return;
+  }
+  await state.selected.select(on.personId);
+  if (state.selected.id.get() === on.personId) {
+    openSource(state, on.citationId);
+  }
 }
 
 // How many are open; null until they've come.

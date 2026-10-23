@@ -1,31 +1,24 @@
 import { css } from 'lit';
 
 import { dialogStyles } from '@/client/dialog-styles';
+import { floatingStyles } from '@/client/floating';
 import { focusRingStyles } from '@/client/focus-ring';
 
-// The shared dialog, wider, its list scrolling between the heading and the
-// buttons.
+// The shared dialog's card, floating, wider, its list scrolling between the
+// heading and the buttons.
 const list = css`
-  dialog {
-    width: 100%;
-    max-width: 34rem;
-    padding: 0;
-    border: none;
-    background: none;
-    color: var(--fg);
-    overflow: visible;
-  }
-
-  dialog::backdrop {
-    background: var(--scrim);
+  :host {
+    --panel-width: 34rem;
   }
 
   .dialog {
-    display: flex;
     flex-direction: column;
     max-width: none;
     max-height: min(36rem, calc(100vh - 4rem));
-    margin: 0;
+  }
+
+  .dialog:popover-open {
+    display: flex;
   }
 
   ul {
@@ -99,4 +92,9 @@ const list = css`
   }
 `;
 
-export const remindersDialogStyles = [focusRingStyles, dialogStyles, list];
+export const remindersDialogStyles = [
+  focusRingStyles,
+  dialogStyles,
+  floatingStyles,
+  list
+];

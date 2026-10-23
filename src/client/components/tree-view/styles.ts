@@ -27,7 +27,7 @@ export const treeViewStyles = css`
     right: 0.75rem;
     z-index: 5;
     display: flex;
-    gap: 0.5rem;
+    gap: 0.75rem;
   }
 
   sl-person-search {

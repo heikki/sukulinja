@@ -26,9 +26,10 @@ const FLAG_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
   `}
 </svg>`;
 
-// Beside Settings: a flag counting the open Reminders, which opens the
-// list of every one. Picking one there goes to it, and asks for the dock
-// (`dock-open`) when it's a person's or a Citation's.
+// Beside Settings, once the dataset has any Reminders: a flag that opens
+// the list of every one. Picking one there goes to it, asking for the dock
+// (`dock-open`) when it's a person's or a Citation's, and opens it in its
+// dialog over what it's on.
 @customElement('sl-reminders-button')
 export class RemindersButtonElement extends SignalWatcher(LitElement) {
   static override styles = [
@@ -37,30 +38,26 @@ export class RemindersButtonElement extends SignalWatcher(LitElement) {
       :host {
         display: inline-flex;
       }
+      :host([hidden]) {
+        display: none;
+      }
       button {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 0.3rem;
-        min-width: 2rem;
+        width: 2rem;
         height: 2rem;
-        box-sizing: border-box;
-        padding: 0 0.5rem;
+        padding: 0;
         background: var(--card);
         color: var(--muted);
         border: 1px solid var(--border);
         border-radius: 6px;
-        font: inherit;
-        font-size: 0.85rem;
         cursor: pointer;
       }
       button:hover,
       button[aria-expanded='true'] {
         color: var(--accent);
         border-color: var(--accent);
-      }
-      button.some {
-        color: var(--accent);
       }
       svg {
         width: 1rem;
@@ -79,11 +76,19 @@ export class RemindersButtonElement extends SignalWatcher(LitElement) {
   }
 
   private readonly onPick = (e: ReminderPickEvent) => {
+    const reminder = e.detail;
     this.open = false;
-    follow(this.state, e.detail);
-    if (e.detail.on.kind === 'image') return;
+    void follow(this.state, reminder);
+    this.state.reminders.show(reminder.id);
+    if (reminder.on.kind === 'image') return;
     this.dispatchEvent(new CustomEvent('dock-open'));
   };
+
+  // Hidden until there's a Reminder, open or done.
+  override willUpdate() {
+    const all = this.state.reminders.all.get();
+    this.hidden = !Array.isArray(all) || all.length === 0;
+  }
 
   override render() {
     const count = openCount(this.state.reminders.all.get()) ?? 0;
@@ -91,7 +96,6 @@ export class RemindersButtonElement extends SignalWatcher(LitElement) {
       count === 1 ? 'Reminders, 1 open' : `Reminders, ${count} open`;
     return html`
       <button
-        class=${count > 0 ? 'some' : ''}
         aria-label=${label}
         aria-haspopup="dialog"
         aria-expanded=${this.open ? 'true' : 'false'}
@@ -99,7 +103,7 @@ export class RemindersButtonElement extends SignalWatcher(LitElement) {
           this.open = true;
         }}
       >
-        ${FLAG_ICON}${count > 0 ? html`<span>${count}</span>` : nothing}
+        ${FLAG_ICON}
       </button>
       ${
         this.open
