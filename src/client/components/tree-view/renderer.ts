@@ -210,12 +210,8 @@ export const styles = css`
     text-anchor: middle;
     text-rendering: optimizeLegibility;
   }
-  /* Named, not left to fallback: the system font lacks the cross, and WebKit
-     crashes drawing the fallback glyph while a zoomed-out card slides. Zapf
-     Dingbats is the font the fallback picked anyway. */
   .node .dates .cross {
     font-size: 13px;
-    font-family: 'Zapf Dingbats';
   }
 
   .edge {
