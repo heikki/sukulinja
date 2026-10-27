@@ -4,8 +4,12 @@
      (html[data-theme], set from Settings) narrows it to one.
      Native controls and scrollbars follow color-scheme too. */
   color-scheme: light dark;
+  /* Zapf Dingbats is named, not left to fallback: the system font lacks the
+     cross (✝) and ✕, and WebKit can crash drawing a fallback glyph. It's the
+     font the fallback picked anyway, so the look doesn't change. */
   font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Zapf Dingbats',
+    sans-serif;
   --bg: light-dark(#fafafa, #0e0e10);
   --fg: light-dark(#1a1a1a, #f4f4f5);
   --muted: light-dark(#6b7280, #9ca3af);
