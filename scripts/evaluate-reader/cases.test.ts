@@ -3,12 +3,12 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { Pins } from '@/server/citation-scans/locate';
-import type { Person, Reader } from '@/server/citation-scans/reader';
-import { parseChurchBookRef } from '@/server/citation-scans/record';
+import type { Pins } from '@/server/citations/myheritage/pins/locate';
+import { parseChurchBookRef } from '@/server/citations/myheritage/record';
 
 import { gateRefusal, MIN_DECOYS, recordEvaluation } from '../vision/gate';
 import type { EntryTally } from '../vision/gate';
+import type { Person, Reader } from '../vision/reader';
 import {
   dateCases,
   entryCases,

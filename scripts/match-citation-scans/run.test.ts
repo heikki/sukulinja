@@ -4,22 +4,22 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { openMarks } from '@/server/citation-scans/marks';
-import type { MemoryAstia } from '@/server/citation-scans/memory-astia';
-import type { Reader } from '@/server/citation-scans/reader';
-import {
-  churchBookRefOf,
-  parseChurchBookRef
-} from '@/server/citation-scans/record';
+import type { MemoryAstia } from '@/server/citations/astia/memory-astia';
 import {
   baptismCitation,
   juvaAstia,
   rippiCitation,
   VOLUMES
-} from '@/server/citation-scans/test-parish';
-import { citing, scansOf } from '@/server/citation-scans/test-pins';
+} from '@/server/citations/astia/test-parish';
+import { openMarks } from '@/server/citations/myheritage/pins/marks';
+import {
+  churchBookRefOf,
+  parseChurchBookRef
+} from '@/server/citations/myheritage/record';
+import { citing, scansOf } from '@/server/citations/myheritage/test-pins';
 
 import { recordEvaluation } from '../vision/gate';
+import type { Reader } from '../vision/reader';
 import { reviewMarkdown, runMatching } from './run';
 import type { Books } from './run';
 

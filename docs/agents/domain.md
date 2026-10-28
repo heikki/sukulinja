@@ -38,7 +38,7 @@ Multi-context repo (presence of `CONTEXT-MAP.md` at the root):
         └── docs/adr/
 ```
 
-This repo is **multi-context**: `CONTEXT-MAP.md` at the root points at each context's `CONTEXT.md` (Chart in `src/client/components/tree-view/`, Citation scans in `src/server/citation-scans/`). All ADRs stay in `docs/adr/` at the root.
+This repo is **multi-context**: `CONTEXT-MAP.md` at the root points at each context's `CONTEXT.md` (Chart in `src/client/components/tree-view/`, Citations in `src/server/citations/`). All ADRs stay in `docs/adr/` at the root.
 
 ## Use the glossary's vocabulary
 

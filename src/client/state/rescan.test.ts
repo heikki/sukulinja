@@ -10,7 +10,7 @@ import type {
   StalePin
 } from '@/common/types';
 
-import { openAppState } from '.';
+import { openAppState } from './';
 
 const ARCHIVE = { url: '', archive: 'Juvan seurakunnan arkisto' };
 

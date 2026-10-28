@@ -2,7 +2,7 @@
 // stale pins, hand ones first.
 
 import type { StalePin } from '@/common/types';
-import type { CheckResult } from '@/server/citation-scans/rescans';
+import type { CheckResult } from '@/server/citations/myheritage/pins/rescans';
 
 const KINDS: Record<StalePin['kind'], string> = {
   page: 'Page pin',

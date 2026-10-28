@@ -19,17 +19,12 @@
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { openAstia } from '@/server/citation-scans/astia';
-import { withoutStale } from '@/server/citation-scans/filming';
-import { cachedReader } from '@/server/citation-scans/reader';
-import type {
-  ImageRef,
-  Question,
-  Reader
-} from '@/server/citation-scans/reader';
-import { openScanCache } from '@/server/citation-scans/scan-cache';
-import { openScanFolder } from '@/server/citation-scans/scans';
-import { openDb } from '@/server/db';
+import { openAstia } from '@/server/citations/astia/astia';
+import type { ImageRef } from '@/server/citations/astia/astia';
+import { openScanCache } from '@/server/citations/astia/scan-cache';
+import { withoutStale } from '@/server/citations/myheritage/pins/filming';
+import { openScanFolder } from '@/server/citations/myheritage/scans';
+import { openDb } from '@/server/datasets/db';
 
 import { claudeReader, DEFAULT_MODELS } from '../vision/claude-reader';
 import type { Spend } from '../vision/claude-reader';
@@ -38,6 +33,8 @@ import { gateRefusal, loadEvaluation, recordEvaluation } from '../vision/gate';
 import type { EntryTally, Evaluation, Tally } from '../vision/gate';
 import { pacedImages } from '../vision/images';
 import type { Scan } from '../vision/images';
+import { cachedReader } from '../vision/reader';
+import type { Question, Reader } from '../vision/reader';
 import type { Confirmation } from './cases';
 import {
   dateCases,

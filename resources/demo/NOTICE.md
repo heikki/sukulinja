@@ -1,7 +1,7 @@
 # bourbon.gdz
 
 House of Bourbon demo dataset (303 individuals, 139 families, 47 portraits),
-imported into a new data folder on first launch (`src/server/demo.ts`).
+imported into a new data folder on first launch (`src/server/datasets/demo.ts`).
 
 **Source**: [`D-Jeffrey/gedcom-samples`](https://github.com/D-Jeffrey/gedcom-samples)
 at commit `74040285d9e764d25d25c2f66ad1da710eeb391c`, `sample-bourbon/`

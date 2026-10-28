@@ -1,8 +1,8 @@
 // A tree in GEDCOM 5.5.1 the way MyHeritage and other programs write it,
 // with media, for the export tests.
 
-import type { DatasetRegistry } from '../src/server/dataset-registry';
-import { packGedzip } from '../src/server/gedzip';
+import type { DatasetRegistry } from '@/server/datasets/registry';
+import { packGedzip } from '@/server/gedcom/gedzip';
 
 const FIXTURE = [
   '0 HEAD',

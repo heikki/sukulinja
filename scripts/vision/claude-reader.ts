@@ -12,19 +12,19 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 
+import type { ImageRef } from '@/server/citations/astia/astia';
+import type { Fractions } from '@/server/citations/myheritage/scans';
+
+import type { Scan } from './images';
 import type {
   DatesReading,
   EntryReading,
-  Fractions,
-  ImageRef,
   PagesReading,
   Person,
   Question,
   Reader,
   Register
-} from '@/server/citation-scans/reader';
-
-import type { Scan } from './images';
+} from './reader';
 
 type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 

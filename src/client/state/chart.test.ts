@@ -7,8 +7,8 @@ import { memoryDatasetApi } from '@/client/dataset-api/memory';
 import type { MemoryOptions } from '@/client/dataset-api/memory';
 import type { PersonDetails, PersonRow } from '@/common/types';
 
-import { openAppState } from '.';
-import type { ChartView, UrlView } from '.';
+import { openAppState } from './';
+import type { ChartView, UrlView } from './';
 
 function row(id: number): PersonRow {
   return {

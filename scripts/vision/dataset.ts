@@ -4,13 +4,14 @@
 
 import { Database } from 'bun:sqlite';
 
-import { originalPageSql } from '@/server/annotations';
-import type { Person } from '@/server/citation-scans/reader';
+import { originalPageSql } from '@/server/citations/annotations';
 import {
   churchBookRefOf,
   RIPPI_COLLECTION
-} from '@/server/citation-scans/record';
-import type { ChurchBookRef } from '@/server/citation-scans/record';
+} from '@/server/citations/myheritage/record';
+import type { ChurchBookRef } from '@/server/citations/myheritage/record';
+
+import type { Person } from './reader';
 
 export function datasetRefs(dbPath: string) {
   const db = new Database(dbPath, { readonly: true });

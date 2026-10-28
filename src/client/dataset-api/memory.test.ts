@@ -7,7 +7,7 @@ import type {
   VolumeCitation
 } from '@/common/types';
 
-import { ApiError, NOT_RESPONDING } from '.';
+import { ApiError, NOT_RESPONDING } from './';
 import { memoryDatasetApi } from './memory';
 
 const MATTI: PersonRow = {

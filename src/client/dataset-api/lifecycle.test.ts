@@ -8,12 +8,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import type { ImportReview } from '@/common/types';
-import { juvaAstia } from '@/server/citation-scans/test-parish';
-import { DatasetRegistry } from '@/server/dataset-registry';
-import { SCHEMA_VERSION } from '@/server/db';
+import { juvaAstia } from '@/server/citations/testing';
+import { SCHEMA_VERSION } from '@/server/datasets/db';
+import { DatasetRegistry } from '@/server/datasets/registry';
 import { createApi, createStaticFetch } from '@/server/server';
 
-import { ApiError } from '.';
+import { ApiError } from './';
 import { openLifecycleApi } from './lifecycle';
 import type { ImportHooks, LifecycleApi } from './lifecycle';
 

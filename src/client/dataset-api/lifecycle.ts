@@ -11,8 +11,8 @@ import type {
   ImportReview
 } from '@/common/types';
 
-import { ApiError, asker, NOT_RESPONDING } from '.';
-import type { FetchOptions } from '.';
+import { ApiError, asker, NOT_RESPONDING } from './';
+import type { FetchOptions } from './';
 
 // What an import asks of the page while it runs.
 export interface ImportHooks {

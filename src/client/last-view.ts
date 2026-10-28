@@ -1,4 +1,4 @@
-// The app reopens where it was left (src/server/last-view.ts): the page puts
+// The app reopens where it was left (src/server/app/last-view.ts): the page puts
 // its URL to the server once it has stayed there a moment.
 
 const SETTLE_MS = 1000;

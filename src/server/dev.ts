@@ -1,9 +1,9 @@
 import { resolve } from 'node:path';
 
 import indexHtml from '../client/index.html';
-import { DatasetRegistry } from './dataset-registry';
-import { seedDemo } from './demo';
-import { lastViewRoute } from './last-view';
+import { lastViewRoute } from './app/last-view';
+import { seedDemo } from './datasets/demo';
+import { DatasetRegistry } from './datasets/registry';
 import { createApi, createStaticFetch } from './server';
 
 // The checkout's data/, unless SUKULINJA_DATA names another folder (e.g. a
