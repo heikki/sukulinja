@@ -3,7 +3,7 @@
 # Put the installed app back in its first-launch state, to test the demo seed.
 #
 # By default, deletes what makes a launch a first one: the datasets, the
-# marker that the demo was offered (src/server/demo.ts), state.json (the
+# marker that the demo was offered (src/server/datasets/demo.ts), state.json (the
 # window's frame) and the webview's storage (the appearance cookie). It keeps
 # what's hard or slow to get back: the pins (vision matches and hand marks),
 # settings, and Astia's answers and Images.

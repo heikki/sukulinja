@@ -6,18 +6,18 @@ import Electrobun, {
   Utils
 } from 'electrobun/main';
 
-import { DatasetRegistry } from './dataset-registry';
-import { seedDemo } from './demo';
-import { focusWebview } from './focus-webview';
-import { DATASET_PATH_RE, lastViewRoute, reopenAt } from './last-view';
-import { createApi, createStaticFetch } from './server';
-import { enterUrl, newWindowKey, windowOnly } from './window-only';
+import { focusWebview } from './app/focus-webview';
+import { DATASET_PATH_RE, lastViewRoute, reopenAt } from './app/last-view';
+import { enterUrl, newWindowKey, windowOnly } from './app/window-only';
 import {
   loadLastView,
   loadWindowFrame,
   saveLastView,
   saveWindowFrame
-} from './window-state';
+} from './app/window-state';
+import { seedDemo } from './datasets/demo';
+import { DatasetRegistry } from './datasets/registry';
+import { createApi, createStaticFetch } from './server';
 
 const resourcesDir = resolve(dirname(process.argv0), '..', 'Resources');
 const viewsDir = join(resourcesDir, 'app', 'views', 'app');

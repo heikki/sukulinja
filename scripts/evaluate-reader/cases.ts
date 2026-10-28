@@ -5,13 +5,14 @@
 // about on their own Image, and a decoy, someone recorded elsewhere, on the
 // same Image: a Reader confirming decoys can't be trusted to save matches.
 
-import type { Pins } from '@/server/citation-scans/locate';
-import { dayRange, personOf } from '@/server/citation-scans/matcher';
-import { confirms } from '@/server/citation-scans/reader';
-import type { ImageRef, Person, Reader } from '@/server/citation-scans/reader';
-import type { ChurchBookRef } from '@/server/citation-scans/record';
+import type { ImageRef } from '@/server/citations/astia/astia';
+import type { Pins } from '@/server/citations/myheritage/pins/locate';
+import type { ChurchBookRef } from '@/server/citations/myheritage/record';
 
 import type { EntryTally, Tally } from '../vision/gate';
+import { dayRange, personOf } from '../vision/matcher';
+import { confirms } from '../vision/reader';
+import type { Person, Reader } from '../vision/reader';
 
 interface PageCase {
   at: ImageRef;

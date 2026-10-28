@@ -6,19 +6,19 @@
 import type { Database } from 'bun:sqlite';
 import { join } from 'node:path';
 
-import { openAstia, viewerUrl } from '@/server/citation-scans/astia';
-import type { Astia } from '@/server/citation-scans/astia';
-import type { Viewport } from '@/server/citation-scans/jpeg';
-import { matchRef } from '@/server/citation-scans/matcher';
-import type { Match, Miss, MissReason } from '@/server/citation-scans/matcher';
-import { cachedReader } from '@/server/citation-scans/reader';
-import type { ImageRef, Reader } from '@/server/citation-scans/reader';
-import { RIPPI_COLLECTION } from '@/server/citation-scans/record';
-import type { ChurchBookRef } from '@/server/citation-scans/record';
-import { openScanFolder } from '@/server/citation-scans/scans';
-import type { Scans } from '@/server/citation-scans/scans';
+import { openAstia, viewerUrl } from '@/server/citations/astia/astia';
+import type { Astia, ImageRef } from '@/server/citations/astia/astia';
+import type { Viewport } from '@/server/citations/astia/jpeg';
+import { RIPPI_COLLECTION } from '@/server/citations/myheritage/record';
+import type { ChurchBookRef } from '@/server/citations/myheritage/record';
+import { openScanFolder } from '@/server/citations/myheritage/scans';
+import type { Match, Scans } from '@/server/citations/myheritage/scans';
 
 import { gateRefusal } from '../vision/gate';
+import { matchRef } from '../vision/matcher';
+import type { Miss, MissReason } from '../vision/matcher';
+import { cachedReader } from '../vision/reader';
+import type { Reader } from '../vision/reader';
 
 export type Books = 'rippikirjat' | 'index';
 

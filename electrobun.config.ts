@@ -31,7 +31,7 @@ export default {
     copy: {
       'src/client/index.html': 'views/app/index.html',
       'src/client/styles.css': 'views/app/styles.css',
-      // The demo a new data folder starts with — see src/server/demo.ts.
+      // The demo a new data folder starts with — see src/server/datasets/demo.ts.
       'resources/demo': 'demo'
     },
 

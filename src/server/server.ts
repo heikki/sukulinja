@@ -1,76 +1,40 @@
 import type { Database } from 'bun:sqlite';
-import { basename, join, relative, resolve } from 'node:path';
+import { relative, resolve } from 'node:path';
 
-import type { LinkResolution, Reminder } from '@/common/types';
+import type { Reminder } from '@/common/types';
 
-import { routeCitations } from './citation-routes';
-import type { CitationHandlers } from './citation-routes';
-import {
-  AstiaError,
-  NoImageError,
-  openAstia,
-  viewerUrls
-} from './citation-scans/astia';
-import type { Astia } from './citation-scans/astia';
-import type { ImageRef } from './citation-scans/reader';
-import { routeRescan } from './citation-scans/rescans';
-import type { KeptPins } from './citation-scans/rescans';
-import {
-  imageSize,
-  openScanCache,
-  routeScanCache
-} from './citation-scans/scan-cache';
-import type { ScanCache } from './citation-scans/scan-cache';
-import { openScanFolder } from './citation-scans/scans';
-import type { Scans } from './citation-scans/scans';
-import { createCitations } from './citations';
-import type { DatasetRegistry } from './dataset-registry';
-import { lifecycleRoutes } from './lifecycle-routes';
+import { openCitations } from './citations';
+import type { Astia, DatasetCitations } from './citations';
+import { lifecycleRoutes } from './datasets/lifecycle-routes';
+import type { DatasetRegistry } from './datasets/registry';
 import { createPersonDetails } from './person-details';
-import { routeReminders } from './reminder-routes';
-import type { ReminderHandlers } from './reminder-routes';
-import { createReminders } from './reminders';
+import { createReminders } from './reminders/reminders';
+import { routeReminders } from './reminders/routes';
+import type { ReminderHandlers } from './reminders/routes';
 import { createTree } from './tree';
 
 const DATASET_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?<rest>\/.*)?$/u;
-const ASTIA_RE =
-  /^\/astia\/volumes\/(?<volumeId>\d+)\/(?:images(?:\/(?<n>\d+))?|(?<rescan>rescan))$/u;
 
 interface ApiHandlers {
   routeApi: (req: Request, pathname: string) => Promise<Response | null>;
 }
 
-interface DatasetHandlers extends CitationHandlers, ReminderHandlers {
+interface DatasetHandlers extends ReminderHandlers {
   handlePersons: () => Response;
   handleFamilies: () => Response;
   handlePerson: (id: number) => Response;
-  handlePersonLinks: (id: number) => Response;
-  handleVolumeCitations: (volumeId: string) => Promise<Response>;
   handleMedia: (rest: string, mediaRoot: string) => Promise<Response>;
+  // The Citation routes; null for any other path.
+  routeCitations: DatasetCitations['route'];
 }
 
-// A reference's links as a Mark or Discard left them, or why not.
-function answerLinks(
-  id: number,
-  result: Response | LinkResolution | { rejected: string } | null
-) {
-  if (result instanceof Response) return result;
-  if (result === null) {
-    return new Response('citation not found', { status: 404 });
-  }
-  return 'rejected' in result
-    ? new Response(result.rejected, { status: 400 })
-    : Response.json({ citationId: id, ...result });
-}
-
-function createDatasetHandlers(db: Database, scans: Scans): DatasetHandlers {
+function createDatasetHandlers(
+  db: Database,
+  scans: DatasetCitations
+): DatasetHandlers {
   const tree = createTree(db);
-  const citations = createCitations(db, scans);
-  const personDetails = createPersonDetails(db, citations);
-  const reminders = createReminders(db, {
-    citationOf: (id) => citations.ofId(id),
-    replaced: async (at) => await scans.replaced(at)
-  });
+  const personDetails = createPersonDetails(db, scans);
+  const reminders = createReminders(db, scans);
 
   // A Reminder as written or changed, or why not.
   function answerReminder(
@@ -100,88 +64,7 @@ function createDatasetHandlers(db: Database, scans: Scans): DatasetHandlers {
         : Response.json(details);
     },
 
-    // One line per church-book citation as its Links resolve. Astia is slow
-    // and throttled, so a person's citations share one streamed request
-    // rather than holding a connection each.
-    handlePersonLinks(id) {
-      const lines = citations.linksOf(id);
-      const enc = new TextEncoder();
-      // A cancelled stream lets the resolutions under way finish, unread.
-      const stream = new ReadableStream<Uint8Array>({
-        async pull(controller) {
-          const next = await lines.next();
-          if (next.done === true) {
-            controller.close();
-          } else {
-            controller.enqueue(enc.encode(`${JSON.stringify(next.value)}\n`));
-          }
-        },
-        cancel() {
-          void lines.return(undefined);
-        }
-      });
-      return new Response(stream, {
-        headers: { 'content-type': 'application/x-ndjson' }
-      });
-    },
-
-    async handleMark(id, target) {
-      return answerLinks(
-        id,
-        await citations.mark(id, target).catch(astiaFailed)
-      );
-    },
-
-    async handleDiscard(id, at) {
-      return answerLinks(
-        id,
-        await citations.discard(id, at).catch(astiaFailed)
-      );
-    },
-
-    async handleVolumeChoices(id) {
-      const choices = await citations.volumeChoices(id).catch(astiaFailed);
-      if (choices instanceof Response) return choices;
-      return choices === null
-        ? new Response('citation not found', { status: 404 })
-        : Response.json(choices);
-    },
-
-    async handleVolumeCitations(volumeId) {
-      try {
-        const rows = await citations.inVolume(volumeId);
-        return rows === null
-          ? new Response("volume not in the dataset's parishes", {
-              status: 404
-            })
-          : Response.json(rows);
-      } catch (err) {
-        return astiaFailed(err);
-      }
-    },
-
-    async handleCite(personId, target) {
-      const made = await citations.cite(personId, target).catch(astiaFailed);
-      if (made instanceof Response) return made;
-      if (made === null) {
-        return new Response('person not found', { status: 404 });
-      }
-      return 'rejected' in made
-        ? new Response(made.rejected, { status: 400 })
-        : Response.json(made, { status: 201 });
-    },
-
-    handleUncite(id) {
-      const removed = citations.uncite(id);
-      if (removed === null) {
-        return new Response('citation not found', { status: 404 });
-      }
-      return removed
-        ? new Response(null, { status: 204 })
-        : new Response('Only a Citation made in the app can be deleted.', {
-            status: 400
-          });
-    },
+    routeCitations: scans.route,
 
     async handleReminders() {
       return Response.json(await reminders.list());
@@ -229,104 +112,16 @@ async function routeDataset(
 ): Promise<Response | null> {
   if (rest === '/api/persons') return handlers.handlePersons();
   if (rest === '/api/families') return handlers.handleFamilies();
-  const person = /^\/api\/persons\/(?<id>\d+)(?<scans>\/scans)?$/.exec(rest);
-  if (person !== null) {
-    const id = Number(person.groups!.id);
-    return person.groups!.scans === undefined
-      ? handlers.handlePerson(id)
-      : handlers.handlePersonLinks(id);
-  }
-  const cited = await routeCitations(req, handlers, rest);
+  const person = /^\/api\/persons\/(?<id>\d+)$/.exec(rest);
+  if (person !== null) return handlers.handlePerson(Number(person.groups!.id));
+  const cited = await handlers.routeCitations(req, rest);
   if (cited !== null) return cited;
   const reminded = await routeReminders(req, handlers, rest);
   if (reminded !== null) return reminded;
-  const volume = /^\/api\/volumes\/(?<id>[^/]+)\/citations$/.exec(rest);
-  if (volume !== null) {
-    return await handlers.handleVolumeCitations(volume.groups!.id!);
-  }
   if (rest.startsWith('/media/')) {
     return await handlers.handleMedia(rest, mediaRoot);
   }
   return null;
-}
-
-// What the routes outside any dataset read: Astia, the Scan cache its
-// Images are kept in, and the pins every dataset made on them.
-interface Shared {
-  astia: Astia;
-  cache: ScanCache;
-  kept: () => Promise<KeptPins>;
-}
-
-// An Astia Volume's Images, shared by every dataset: their Astia viewer
-// URLs in order, or one Image itself; or Astia's re-scan of the Volume.
-async function routeAstia(shared: Shared, req: Request, pathname: string) {
-  const m = ASTIA_RE.exec(pathname);
-  if (m === null) return null;
-  const { astia, cache } = shared;
-  const { volumeId, n, rescan } = m.groups!;
-  if (rescan !== undefined) {
-    return await routeRescan(shared, req, volumeId!).catch(astiaFailed);
-  }
-  if (req.method !== 'GET') {
-    return new Response('method not allowed', { status: 405 });
-  }
-  return n === undefined
-    ? await handleViewerUrls(astia, volumeId!)
-    : await handleAstiaImage(cache, req, {
-        volumeId: volumeId!,
-        image: Number(n)
-      });
-}
-
-async function handleViewerUrls(astia: Astia, volumeId: string) {
-  const urls = await viewerUrls(astia, volumeId).catch(astiaFailed);
-  return urls instanceof Response ? urls : Response.json(urls);
-}
-
-// A request to Astia failing answers 502, in words the Scan viewer can
-// show; anything else thrown is a bug, and is thrown on.
-function astiaFailed(err: unknown) {
-  // eslint-disable-next-line @typescript-eslint/only-throw-error -- rethrown as caught
-  if (!(err instanceof AstiaError)) throw err;
-  return new Response("Astia couldn't be reached or gave no answer.", {
-    status: 502
-  });
-}
-
-// `?size=thumb` gives the 250px one. The webview keeps it by its file id,
-// asking each time: a re-scan puts another photograph at the same number.
-async function handleAstiaImage(cache: ScanCache, req: Request, at: ImageRef) {
-  const thumb = new URL(req.url).searchParams.get('size') === 'thumb';
-  const size = thumb ? 'thumb' : 'full';
-  // null: the Volume has no such Image. A request given up as its client
-  // left gets the same answer as Astia failing; no one reads it.
-  const path = await cache
-    .image(at, size, req.signal)
-    .catch((err: unknown) =>
-      err instanceof NoImageError
-        ? new Response('Astia no longer has this Image.', { status: 410 })
-        : astiaFailed(req.signal.aborted ? new AstiaError('client left') : err)
-    );
-  if (path instanceof Response) return path;
-  if (path === null) return new Response('image not found', { status: 404 });
-  const etag = `"${basename(path, '.jpg')}"`;
-  const headers = { 'Cache-Control': 'no-cache', 'ETag': etag };
-  if (req.headers.get('If-None-Match') === etag) {
-    return new Response(null, { status: 304, headers });
-  }
-  return new Response(Bun.file(path), {
-    headers: { ...headers, 'Content-Type': 'image/jpeg' }
-  });
-}
-
-// Routes outside any dataset, shared by them all: Astia's Images and the
-// cache they're kept in.
-async function routeShared(shared: Shared, req: Request, pathname: string) {
-  if (pathname === '/settings/scan-cache') {
-    return await routeScanCache(shared.cache, req);
-  }
-  return await routeAstia(shared, req, pathname);
 }
 
 interface ApiOptions {
@@ -340,29 +135,24 @@ export function createApi(
   registry: DatasetRegistry,
   options: ApiOptions = {}
 ): ApiHandlers {
-  const astia = options.astia ?? openAstia(join(registry.root, '.astia-cache'));
-  const cache = openScanCache({
-    astia,
-    root: registry.root,
-    switches: false
+  const scans = openCitations(registry.root, {
+    astia: options.astia,
+    datasets: async () => await openDatasets()
   });
-  const folder = openScanFolder(registry.root, { astia });
   // Kept by the Database they're bound to: the registry alone decides when
   // a dataset's Database is closed and replaced (by an import or a delete),
   // and the next request then opens the new one and gets new handlers.
   const handlersByDb = new WeakMap<Database, DatasetHandlers>();
   const routeLifecycle = lifecycleRoutes(registry, options.exportDir);
 
-  // The pins on Astia's Images: the data folder's, and every dataset's
-  // Marks, which a switch to a new filming leaves out alike.
-  async function kept() {
-    const dbs = (await registry.list())
+  // Every dataset that opens, outdated ones left out.
+  async function openDatasets() {
+    return (await registry.list())
       .filter((d) => !d.outdated)
       .flatMap((d) => {
         const db = tryOpen(d.slug);
         return db === null ? [] : [db];
       });
-    return await folder.kept(dbs);
   }
 
   function tryOpen(slug: string): Database | null {
@@ -378,11 +168,7 @@ export function createApi(
     if (db === null) return null;
     let handlers = handlersByDb.get(db);
     if (handlers === undefined) {
-      // The Scan viewer has just shown the Image a Box is drawn on.
-      const scans = folder.scans(db, {
-        sizeOf: async (at) => await imageSize(cache, at)
-      });
-      handlers = createDatasetHandlers(db, scans);
+      handlers = createDatasetHandlers(db, scans.forDataset(db));
       handlersByDb.set(db, handlers);
     }
     return handlers;
@@ -392,7 +178,7 @@ export function createApi(
     async routeApi(req, pathname) {
       const lifecycle = await routeLifecycle(req, pathname);
       if (lifecycle !== null) return lifecycle;
-      const shared = await routeShared({ astia, cache, kept }, req, pathname);
+      const shared = await scans.route(req, pathname);
       if (shared !== null) return shared;
       const m = DATASET_RE.exec(pathname);
       if (m === null) return null;

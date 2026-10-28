@@ -7,17 +7,17 @@
 // Resolves with the pins of the data folder (default `data`), and writes
 // there citation-scans.json (one entry per citation) and
 // citation-scans-checklist.md (cited volumes still lacking a Page pin; see
-// src/server/citation-scans/locate.ts). Astia responses are cached under
+// src/server/citations/locate.ts). Astia responses are cached under
 // its .astia-cache.
 
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import type { Link, LinkResolution } from '@/common/types';
-import { openAstia } from '@/server/citation-scans/astia';
-import type { ChurchBookRef } from '@/server/citation-scans/record';
-import { openScanFolder } from '@/server/citation-scans/scans';
-import { openDb } from '@/server/db';
+import { openAstia } from '@/server/citations/astia/astia';
+import type { ChurchBookRef } from '@/server/citations/myheritage/record';
+import { openScanFolder } from '@/server/citations/myheritage/scans';
+import { openDb } from '@/server/datasets/db';
 
 import { churchBookRefs } from './citations';
 
@@ -65,7 +65,7 @@ function checklist(refs: ChurchBookRef[], resolutions: LinkResolution[]) {
     '',
     'Open the link and read the number(s) written at the top of the image.',
     'Some books number each spread once (one number), others each page (two).',
-    'Add under `volumes` in `src/server/citation-scans/pins.json`:',
+    'Add under `volumes` in `src/server/citations/myheritage/pins/pins.json`:',
     '',
     '    "<volume id>": { "pages": [{ "image": <image>, "pages": [<n>] }] }',
     '    "<volume id>": { "pages": [{ "image": <image>, "pages": [<left>, <right>] }] }',

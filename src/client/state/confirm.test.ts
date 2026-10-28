@@ -13,7 +13,7 @@ import type {
   VolumeCitation
 } from '@/common/types';
 
-import { openAppState } from '.';
+import { openAppState } from './';
 
 const BOX = { left: 0, top: 0.5, width: 1, height: 0.05 };
 

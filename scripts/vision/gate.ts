@@ -5,7 +5,7 @@
 
 import { join } from 'node:path';
 
-import type { Question } from '@/server/citation-scans/reader';
+import type { Question } from './reader';
 
 export interface Tally {
   questions: number;

@@ -17,8 +17,8 @@ import type {
   VolumeCitation
 } from '@/common/types';
 
-import { ApiError, NOT_RESPONDING } from '.';
-import type { DatasetApi } from '.';
+import { ApiError, NOT_RESPONDING } from './';
+import type { DatasetApi } from './';
 
 export interface MemoryVolume {
   images: number;

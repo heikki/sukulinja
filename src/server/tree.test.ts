@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test';
 
-import { openDb } from './db';
-import { importGedcom } from './gedcom-import';
-import { parseGedcom } from './gedcom-parser';
+import { openDb } from './datasets/db';
+import { parseGedcom } from './gedcom/parser';
+import { importGedcom } from './import/gedcom';
 import { createTree } from './tree';
 
 const GEDCOM = [

@@ -6,21 +6,21 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { memoryAstia } from '@/server/citation-scans/memory-astia';
-import type { MemoryAstia } from '@/server/citation-scans/memory-astia';
 import {
   IMAGES,
   JUVA,
+  memoryAstia,
   rippiCitation,
   VOLUMES
-} from '@/server/citation-scans/test-parish';
-import { DatasetRegistry } from '@/server/dataset-registry';
-import { importGedcom } from '@/server/gedcom-import';
-import { parseGedcom } from '@/server/gedcom-parser';
+} from '@/server/citations/testing';
+import type { MemoryAstia } from '@/server/citations/testing';
+import { DatasetRegistry } from '@/server/datasets/registry';
+import { parseGedcom } from '@/server/gedcom/parser';
+import { importGedcom } from '@/server/import/gedcom';
 import { createApi, createStaticFetch } from '@/server/server';
 
-import { ApiError, NOT_RESPONDING, openDatasetApi } from '.';
-import type { DatasetApi } from '.';
+import { ApiError, NOT_RESPONDING, openDatasetApi } from './';
+import type { DatasetApi } from './';
 
 const ORIGIN = 'http://localhost';
 

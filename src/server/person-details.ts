@@ -3,9 +3,12 @@
 
 import type { Database } from 'bun:sqlite';
 
-import type { FactRow, PersonDetails } from '@/common/types';
+import type { CitationRow, FactRow, PersonDetails } from '@/common/types';
 
-import type { Citations } from './citations';
+// Where the person's Citations come from.
+interface CitationsOf {
+  ofPerson: (personId: number) => CitationRow[];
+}
 
 function yearOf(date: string | null) {
   const m = date === null ? null : /\d{4}/.exec(date);
@@ -26,7 +29,7 @@ function byLife(a: FactRow, b: FactRow) {
   return order === 0 ? yearOf(a.date) - yearOf(b.date) : order;
 }
 
-export function createPersonDetails(db: Database, citations: Citations) {
+export function createPersonDetails(db: Database, citations: CitationsOf) {
   const person = db.prepare<{ id: number; sex: string | null }, [number]>(
     'SELECT id, sex FROM persons WHERE id = ?'
   );

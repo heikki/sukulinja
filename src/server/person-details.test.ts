@@ -2,21 +2,18 @@ import { expect, test } from 'bun:test';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { memoryAstia } from './citation-scans/memory-astia';
-import { scansOf } from './citation-scans/test-pins';
-import { createCitations } from './citations';
-import { openDb } from './db';
-import { importGedcom } from './gedcom-import';
-import { parseGedcom } from './gedcom-parser';
+import { openCitations } from './citations';
+import { memoryAstia } from './citations/testing';
+import { openDb } from './datasets/db';
+import { parseGedcom } from './gedcom/parser';
+import { importGedcom } from './import/gedcom';
 import { createPersonDetails } from './person-details';
 
 // Facts and names never read the pins.
-const UNREAD = memoryAstia({});
-const SCANS = scansOf(
-  join(tmpdir(), 'person-details-unread'),
-  openDb(':memory:'),
-  { astia: UNREAD }
-);
+const SCANS = openCitations(join(tmpdir(), 'person-details-unread'), {
+  astia: memoryAstia({}),
+  datasets: async () => await Promise.resolve([])
+});
 
 const RIPPI =
   'https://www.myheritage.fi/research/collection-10509/x?itemId=1&action=showRecord';
@@ -56,7 +53,7 @@ test('serves facts in date order, and the Citations', () => {
   importGedcom(db, parseGedcom(GEDCOM), () => null);
   const { citations, ...details } = createPersonDetails(
     db,
-    createCitations(db, SCANS)
+    SCANS.forDataset(db)
   )(1)!;
   expect(citations.map((c) => c.id)).toEqual([2, 1]);
   expect(details).toEqual({
@@ -98,7 +95,7 @@ test('serves facts in date order, and the Citations', () => {
       }
     ]
   });
-  expect(createPersonDetails(db, createCitations(db, SCANS))(99)).toBeNull();
+  expect(createPersonDetails(db, SCANS.forDataset(db))(99)).toBeNull();
 });
 
 test('serves birth first and death last, whatever their dates', () => {
@@ -118,7 +115,7 @@ test('serves birth first and death last, whatever their dates', () => {
   importGedcom(db, parseGedcom(gedcom), () => null);
   const tags = createPersonDetails(
     db,
-    createCitations(db, SCANS)
+    SCANS.forDataset(db)
   )(1)?.facts.map((f) => f.tag);
   expect(tags).toEqual(['BIRT', 'RESI', 'OCCU', 'DEAT', 'BURI']);
 });

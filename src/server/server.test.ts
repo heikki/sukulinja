@@ -3,12 +3,11 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { memoryAstia } from './citation-scans/memory-astia';
-import type { MemoryAstia } from './citation-scans/memory-astia';
-import { juvaAstia, rippiCitation } from './citation-scans/test-parish';
-import { DatasetRegistry } from './dataset-registry';
-import { importGedcom } from './gedcom-import';
-import { parseGedcom } from './gedcom-parser';
+import { juvaAstia, memoryAstia, rippiCitation } from './citations/testing';
+import type { MemoryAstia } from './citations/testing';
+import { DatasetRegistry } from './datasets/registry';
+import { parseGedcom } from './gedcom/parser';
+import { importGedcom } from './import/gedcom';
 import { createApi, createStaticFetch } from './server';
 
 let root = '';
