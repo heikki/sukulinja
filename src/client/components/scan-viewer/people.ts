@@ -3,10 +3,12 @@ import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
+import { easeOutCubic, reducedMotion } from '@/client/pan-zoom';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { VolumeCitation } from '@/common/types';
 
+import { RAIL_PX, SLIDE_MS } from '../side-dock';
 import { boxOf, groupCitations, rowDates, rowName } from './citations';
 import { controlStyles, scanPeopleStyles } from './styles';
 
@@ -16,6 +18,9 @@ let collapsed = false;
 // How long the list last shown stays up while the next Volume's citations
 // load, before the pane says it's finding them.
 const HOLD_MS = 300;
+
+// The open pane's width.
+const OPEN_PX = 256;
 
 // Beside the scan: the people of the tree whose citations link the Image
 // shown, grouped as `groupCitations` says. Clicking one picks them; the
@@ -43,11 +48,34 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
 
   private readonly nameOf = (row: VolumeCitation) => rowName(this.persons, row);
 
+  // The painted width: trails `collapsed` through the slide, as the person
+  // dock's does.
+  @state() private shown = collapsed ? RAIL_PX : OPEN_PX;
+  private slide: number | null = null;
+
   private readonly toggle = () => {
     collapsed = !collapsed;
     this.toggleAttribute('collapsed', collapsed);
-    this.requestUpdate();
+    const to = collapsed ? RAIL_PX : OPEN_PX;
+    if (reducedMotion()) this.shown = to;
+    else this.startSlide(this.shown, to);
   };
+
+  private startSlide(from: number, to: number) {
+    this.stopSlide();
+    const start = performance.now();
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / SLIDE_MS);
+      this.shown = Math.round(from + (to - from) * easeOutCubic(t));
+      this.slide = t < 1 ? requestAnimationFrame(step) : null;
+    };
+    this.slide = requestAnimationFrame(step);
+  }
+
+  private stopSlide() {
+    if (this.slide !== null) cancelAnimationFrame(this.slide);
+    this.slide = null;
+  }
 
   override connectedCallback() {
     super.connectedCallback();
@@ -72,6 +100,11 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.stopHold();
+    this.stopSlide();
+  }
+
+  protected override updated() {
+    this.style.width = `${this.shown}px`;
   }
 
   private stopHold() {
@@ -143,20 +176,18 @@ export class ScanPeopleElement extends SignalWatcher(LitElement) {
   // As the person dock does: the whole header hides the list, and hidden,
   // a rail with the heading brings it back.
   override render() {
-    if (collapsed) {
-      return html`
-        <button class="rail" @click=${this.toggle}>
-          <span aria-hidden="true">‹</span>
-          <span class="rail-heading">People here</span>
-        </button>
-      `;
-    }
     return html`
-      <button class="head" @click=${this.toggle}>
-        <h2>People here</h2>
-        <span class="chevron" aria-hidden="true">›</span>
+      <div class="content" style="width:${OPEN_PX}px" ?inert=${collapsed}>
+        <button class="head" @click=${this.toggle}>
+          <h2>People here</h2>
+          <span class="chevron" aria-hidden="true">›</span>
+        </button>
+        <div class="list">${this.renderList()}</div>
+      </div>
+      <button class="rail" ?inert=${!collapsed} @click=${this.toggle}>
+        <span aria-hidden="true">‹</span>
+        <span class="rail-heading">People here</span>
       </button>
-      <div class="list">${this.renderList()}</div>
     `;
   }
 }
