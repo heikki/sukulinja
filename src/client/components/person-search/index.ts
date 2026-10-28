@@ -18,7 +18,7 @@ export type PickEvent = CustomEvent<{ id: number }>;
 // highlighted result (aria-activedescendant), so typing is never interrupted;
 // Enter or a click fires `pick` with the person's id and clears the query.
 @customElement('sl-person-search')
-export class PersonSearchElement extends LitElement {
+class PersonSearchElement extends LitElement {
   static override styles = [
     focusRingStyles,
     css`

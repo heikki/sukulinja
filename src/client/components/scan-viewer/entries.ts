@@ -24,7 +24,7 @@ const CLICK_SLOP_PX = 4;
 // `data-own`, for the menu a right-click opens on it. Presses, wheels and
 // pinches carry on to the stage, so a drag starting on a box still pans.
 @customElement('sl-scan-entries')
-export class ScanEntriesElement extends LitElement {
+class ScanEntriesElement extends LitElement {
   static override styles = scanEntriesStyles;
 
   @consume({ context: appState }) private readonly state!: AppState;

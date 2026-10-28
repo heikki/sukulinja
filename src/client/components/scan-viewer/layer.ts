@@ -81,7 +81,7 @@ function dragged(start: Box, grip: Grip, d: Point, size: Viewport): Box {
 // scan pans as ever. `canEdit` is false until the full Image is shown,
 // whose frame Boxes are measured in.
 @customElement('sl-scan-layer')
-export class ScanLayerElement extends SignalWatcher(LitElement) {
+class ScanLayerElement extends SignalWatcher(LitElement) {
   static override styles = scanLayerStyles;
 
   @consume({ context: appState }) private readonly state!: AppState;

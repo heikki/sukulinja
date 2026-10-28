@@ -76,7 +76,7 @@ function renderPortrait(p: PersonRow, photo: string | null) {
 // draws it, their name, and when they were born and died, once the
 // Selected person's details arrive.
 @customElement('sl-person-header')
-export class PersonHeaderElement extends SignalWatcher(LitElement) {
+class PersonHeaderElement extends SignalWatcher(LitElement) {
   static override styles = personHeaderStyles;
 
   @consume({ context: appState }) private readonly state!: AppState;

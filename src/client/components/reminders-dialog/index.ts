@@ -23,7 +23,7 @@ function stop(e: Event) {
 // floating over the chart, dragged by its background: ✕ in its corner or
 // Esc asks to `close`, and presses on it stay here.
 @customElement('sl-reminders-dialog')
-export class RemindersDialogElement extends SignalWatcher(LitElement) {
+class RemindersDialogElement extends SignalWatcher(LitElement) {
   static override styles = remindersDialogStyles;
 
   @consume({ context: appState }) private readonly state!: AppState;

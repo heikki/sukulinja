@@ -23,7 +23,7 @@ function stop(e: Event) {
 // is, and asks to `close`, as Esc and a press anywhere else do. The Volume shown is marked. Pointer and wheel input stays here, so
 // scrolling it doesn't zoom the scan.
 @customElement('sl-scan-volumes')
-export class ScanVolumesElement extends SignalWatcher(LitElement) {
+class ScanVolumesElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanVolumesStyles];
 
   @consume({ context: appState }) private readonly state!: AppState;

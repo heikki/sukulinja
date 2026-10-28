@@ -49,7 +49,7 @@ const GEAR_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
 // app: the row asks for it each time the popover opens, and Clear asks to
 // confirm in a dialog first.
 @customElement('sl-settings')
-export class SettingsElement extends LitElement {
+class SettingsElement extends LitElement {
   static override styles = [
     focusRingStyles,
     dialogStyles,

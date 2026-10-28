@@ -27,7 +27,7 @@ function stop(e: Event) {
 // what's under it. A choice, Esc or a press anywhere else asks to `close`.
 // ↑/↓ move between the items.
 @customElement('sl-context-menu')
-export class ContextMenuElement extends LitElement {
+class ContextMenuElement extends LitElement {
   static override styles = contextMenuStyles;
 
   @property({ attribute: false }) items: MenuItem[] = [];

@@ -28,7 +28,7 @@ const OPEN_PX = 256;
 // scan names the entry's key with `scan-hover`, and rows of the entry
 // picked out there (`hovered`) are highlighted.
 @customElement('sl-scan-people')
-export class ScanPeopleElement extends SignalWatcher(LitElement) {
+class ScanPeopleElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanPeopleStyles];
 
   @consume({ context: appState }) private readonly state!: AppState;

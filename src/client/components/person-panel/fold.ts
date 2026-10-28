@@ -14,7 +14,7 @@ function reducedMotion() {
 // stays rendered but out of the layout, so it slides shut still showing what
 // it showed, and a slide turned back midway starts from where it got to.
 @customElement('sl-fold')
-export class FoldElement extends LitElement {
+class FoldElement extends LitElement {
   // flow-root keeps the content's margins inside whether or not it's
   // clipped, so they don't jump as a slide ends.
   static override styles = css`

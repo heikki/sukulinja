@@ -16,7 +16,7 @@ function archiveOf(source: LinkOpen) {
 
 // The Scan viewer's one row: the archive and the Volume shown, and closing.
 @customElement('sl-scan-toolbar')
-export class ScanToolbarElement extends SignalWatcher(LitElement) {
+class ScanToolbarElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanToolbarStyles];
 
   @consume({ context: appState }) private readonly state!: AppState;
