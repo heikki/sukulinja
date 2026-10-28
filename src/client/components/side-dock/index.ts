@@ -24,7 +24,7 @@ export type WidthChangeEvent = CustomEvent<number>;
 // controlled: it asks via `open-change` / `width-change` (on drag release) and
 // the host sets `open` / `width` back.
 @customElement('sl-side-dock')
-export class SideDockElement extends LitElement {
+class SideDockElement extends LitElement {
   static override styles = [focusRingStyles, sideDockStyles];
 
   @property({ type: Boolean, reflect: true }) open = false;

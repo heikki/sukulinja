@@ -35,7 +35,7 @@ function renderConfirming(confirming: Confirming) {
 // here, so a press doesn't pan. A Mark's Box is on a Record pin shared by
 // everyone citing the record, whom it names from the dataset's people.
 @customElement('sl-scan-edit')
-export class ScanEditElement extends SignalWatcher(LitElement) {
+class ScanEditElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanEditStyles];
 
   @consume({ context: appState }) private readonly state!: AppState;

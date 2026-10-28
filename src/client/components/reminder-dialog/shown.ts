@@ -22,7 +22,7 @@ import './index';
 // the Scan viewer, or closes it there. Showing a person asks for the dock
 // (`dock-open`).
 @customElement('sl-reminder-shown')
-export class ReminderShownElement extends SignalWatcher(LitElement) {
+class ReminderShownElement extends SignalWatcher(LitElement) {
   @consume({ context: appState }) private readonly state!: AppState;
 
   // The dock's open, for the person's name to close it.

@@ -52,7 +52,7 @@ const ORIGIN: Point = { x: 0, y: 0 };
 // person's family. A source with no Link opens on no
 // Volume, saying why, until one of its parish's is chosen.
 @customElement('sl-scan-viewer')
-export class ScanViewerElement extends SignalWatcher(LitElement) {
+class ScanViewerElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanViewerStyles];
 
   @consume({ context: appState }) private readonly state!: AppState;

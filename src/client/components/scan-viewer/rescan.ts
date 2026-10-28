@@ -22,7 +22,7 @@ function stop(e: Event) {
 // out, and the choice to switch. `retry` loads the Image again once
 // switched.
 @customElement('sl-scan-rescan')
-export class ScanRescanElement extends SignalWatcher(LitElement) {
+class ScanRescanElement extends SignalWatcher(LitElement) {
   static override styles = [
     controlStyles,
     css`

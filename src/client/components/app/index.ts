@@ -85,7 +85,7 @@ function renderOutdated(d: DatasetInfo) {
 }
 
 @customElement('sl-app')
-export class AppElement extends LitElement {
+class AppElement extends LitElement {
   static override styles = [focusRingStyles, dialogStyles, appStyles];
 
   // The datasets as a whole: listing, importing, exporting, undoing, deleting.

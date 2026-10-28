@@ -31,7 +31,7 @@ const FLAG_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
 // (`dock-open`) when it's a person's or a Citation's, and opens it in its
 // dialog over what it's on.
 @customElement('sl-reminders-button')
-export class RemindersButtonElement extends SignalWatcher(LitElement) {
+class RemindersButtonElement extends SignalWatcher(LitElement) {
   static override styles = [
     focusRingStyles,
     css`

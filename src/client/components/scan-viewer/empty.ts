@@ -15,7 +15,7 @@ import './volumes';
 // to look through for it, from the button or a right-click. Choosing one
 // shows it in place of this.
 @customElement('sl-scan-empty')
-export class ScanEmptyElement extends SignalWatcher(LitElement) {
+class ScanEmptyElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanEmptyStyles];
 
   @property({ attribute: false }) unlinked!: UnlinkedResolution;

@@ -24,7 +24,7 @@ function stop(e: Event) {
 // here, so using it doesn't pan or zoom the scan beneath. The button a held
 // key stands for (←/→, with Shift or without, Home or End) shows pressed.
 @customElement('sl-scan-nav')
-export class ScanNavElement extends SignalWatcher(LitElement) {
+class ScanNavElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanNavStyles];
 
   @consume({ context: appState }) private readonly state!: AppState;

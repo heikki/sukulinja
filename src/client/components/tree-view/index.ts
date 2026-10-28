@@ -66,7 +66,7 @@ function urlView(parsed: ParsedView): UrlView {
 }
 
 @customElement('sl-tree-view')
-export class TreeViewElement extends SignalWatcher(LitElement) {
+class TreeViewElement extends SignalWatcher(LitElement) {
   static override styles = treeViewStyles;
 
   @consume({ context: appState }) private readonly state!: AppState;
@@ -564,5 +564,11 @@ export class TreeViewElement extends SignalWatcher(LitElement) {
         </div>
       </div>
     `;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'sl-tree-view': TreeViewElement;
   }
 }

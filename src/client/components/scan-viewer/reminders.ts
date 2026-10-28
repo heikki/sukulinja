@@ -16,7 +16,7 @@ export type ReminderOpenEvent = CustomEvent<Reminder>;
 // text, with what it's on beneath. Clicking one asks to open it
 // (`reminder-open`).
 @customElement('sl-scan-reminders')
-export class ScanRemindersElement extends LitElement {
+class ScanRemindersElement extends LitElement {
   static override styles = scanRemindersStyles;
 
   @property({ attribute: false }) reminders: Reminder[] = [];

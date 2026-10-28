@@ -180,7 +180,7 @@ function renderRelative(r: Relative, chart: Chart) {
 // hands target=_blank to the browser); a Link opens in the Scan viewer,
 // and the source it shows is marked and brought into view.
 @customElement('sl-person-panel')
-export class PersonPanelElement extends SignalWatcher(LitElement) {
+class PersonPanelElement extends SignalWatcher(LitElement) {
   static override styles = [focusRingStyles, personPanelStyles];
 
   @consume({ context: appState }) private readonly state!: AppState;
