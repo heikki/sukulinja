@@ -9,7 +9,7 @@
 // Structural offset between layout-tree nodes, in slot units on both axes.
 // x is a float (sub-slot positions arise from sibship packing); y is an
 // integer count of generations. Pixel resolution happens at the emit seam.
-export interface LayoutOffset {
+interface LayoutOffset {
   x: number;
   y: number;
 }

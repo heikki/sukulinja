@@ -62,7 +62,7 @@ function liveElements(root: ParentNode, selector: string, attr: string) {
 
 // Everything the slide needs beyond the plan: the DOM root, the viewport scale,
 // and the Move's delay / duration / easing.
-export interface MoveCtx {
+interface MoveCtx {
   root: ParentNode;
   // The new (settled) viewport scale; fromScale is the scale at capture. They
   // differ only when a back/forward step restored a different zoom.

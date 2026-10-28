@@ -85,7 +85,7 @@ export interface Chart {
 
 // Each person's parent Family, and their spouse Families in the order
 // given.
-export function familiesByPerson(families: FamilyRow[]) {
+function familiesByPerson(families: FamilyRow[]) {
   const parentFamByPerson = new Map<number, FamilyRow>();
   const spouseFamsByPerson = new Map<number, FamilyRow[]>();
   function addSpouse(personId: number | null, fam: FamilyRow) {

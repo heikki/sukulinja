@@ -190,7 +190,7 @@ function sameList(a: string[], b: string[]) {
 
 // Astia's re-scan of the Volume the cached list is of, not yet switched
 // to: null when Astia lists the Volume as cached.
-export async function rescanOf(
+async function rescanOf(
   astia: Astia,
   kept: () => Promise<KeptPins>,
   volumeId: string

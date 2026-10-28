@@ -8,7 +8,7 @@ import { imageOf } from './citations';
 
 // Someone an entry can be cited for, named as the menu lists them: how
 // they're related and their years muted beside the name.
-export interface CiteChoice {
+interface CiteChoice {
   personId: number;
   label: string;
   muted: MenuItem['muted'];

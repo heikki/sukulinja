@@ -33,7 +33,7 @@ const VIEWER: Patience = { attempts: 3, waitMs: 500, maxWaitMs: 2000 };
 const SKIP_SERIES =
   /muutt|kuoll|haudat|vieras|rikos|asevelv|perukir|rippilast|kinkeri|eronn|ilmoitu|kirjeist|kortist|toisteet/i;
 
-export interface Unit {
+interface Unit {
   id: string;
   level: string;
   label: string;
@@ -146,9 +146,9 @@ interface ImageLists {
   pienet?: XmlNode[];
 }
 
-export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
+type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
-export interface AstiaOptions {
+interface AstiaOptions {
   // What requests go out through, and the gap kept between them.
   fetch?: Fetch;
   gapMs?: number;

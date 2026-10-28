@@ -17,7 +17,7 @@ import type { GedNode } from './gedcom-parser';
 type AstiaImage = NonNullable<ReturnType<typeof astiaImageOf>>;
 
 // The OBJE records of Astia Images, by xref.
-export function astiaRecords(roots: GedNode[]) {
+function astiaRecords(roots: GedNode[]) {
   const out = new Map<string, { record: GedNode; image: AstiaImage }>();
   for (const record of roots) {
     if (record.tag !== 'OBJE' || record.xref === undefined) continue;

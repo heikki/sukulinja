@@ -25,7 +25,7 @@ import type {
 import { transitionSchedule } from './schedule';
 import type { Schedule } from './schedule';
 
-export interface TransitionPort {
+interface TransitionPort {
   // chart→screen under the *current* viewport — the old viewport at capture, the
   // new one at settle.
   toScreen: ToScreen;
@@ -42,7 +42,7 @@ export interface TransitionPort {
 // land a ghost back where it was last seen. The layer is drawn in its own
 // canvas-sized overlay, not inside the chart's SVG, so the new chart's (possibly
 // much smaller) extents can't clip it.
-export interface LeaveLayer {
+interface LeaveLayer {
   boxes: Box[];
   edges: DrawnLine[];
   origin: Point;

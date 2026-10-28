@@ -19,24 +19,20 @@ export const ADDED_IN_APP = 'Added in Sukulinja';
 const NO_FILE =
   /^Astia Volume (?<volumeId>\S+?)(?:, Image (?<image>\d+))?: (?<volume>.*)$/su;
 
-export function astiaFile(volumeId: string, fileId: string) {
+function astiaFile(volumeId: string, fileId: string) {
   return `https://astia.narc.fi/uusiastia/ws/getFile.php?fileId=${fileId}&aineistoId=${volumeId}`;
 }
 
-export function imageTitle(volume: string, image: number) {
+function imageTitle(volume: string, image: number) {
   return `${volume}, Image ${image}`;
 }
 
-export function originalPageNote(page: string) {
+function originalPageNote(page: string) {
   return `${ORIGINAL_PAGE}${page}`;
 }
 
 // The NOTE for a link no FILE points at.
-export function noFileNote(
-  volumeId: string,
-  volume: string,
-  image: number | null
-) {
+function noFileNote(volumeId: string, volume: string, image: number | null) {
   const at = image === null ? '' : `, Image ${image}`;
   return `Astia Volume ${volumeId}${at}: ${volume}`;
 }

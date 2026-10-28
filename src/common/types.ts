@@ -172,10 +172,6 @@ export interface HouseholdMember {
   born: string | null;
 }
 
-// How far down a Link points: the entry on its Image (with its Box), the
-// Image, or only the Volume.
-export type Precision = 'entry' | 'image' | 'volume';
-
 // Who says where a Link points: a person (a Mark), the vision model (a
 // suggestion), or a count.
 export type Certainty = 'marked' | 'match' | 'estimated';

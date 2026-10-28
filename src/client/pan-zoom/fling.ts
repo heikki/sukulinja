@@ -18,7 +18,7 @@ export interface FlingHandle {
   cancel: () => void;
 }
 
-export interface FlingHandlers {
+interface FlingHandlers {
   // How far the content is past its bounds now (`overshoot`).
   over: () => Point;
   // Moves by a frame of springing back.

@@ -4,7 +4,7 @@
 import type { DatasetRegistry } from '../src/server/dataset-registry';
 import { packGedzip } from '../src/server/gedzip';
 
-export const FIXTURE = [
+const FIXTURE = [
   '0 HEAD',
   '1 GEDC',
   '2 VERS 5.5.1',

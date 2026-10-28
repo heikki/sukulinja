@@ -404,5 +404,3 @@ export function openScanFolder(
     }
   };
 }
-
-export type ScanFolder = ReturnType<typeof openScanFolder>;

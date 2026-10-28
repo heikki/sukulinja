@@ -13,7 +13,7 @@ export interface Bounds {
   maxZoom: number;
 }
 
-export interface BuildView {
+interface BuildView {
   rootId: number;
   // Written only when it isn't Root.
   selectedId?: number | null;

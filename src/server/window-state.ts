@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 const STATE_FILE = 'state.json';
 
-export interface WindowFrame {
+interface WindowFrame {
   x: number;
   y: number;
   width: number;

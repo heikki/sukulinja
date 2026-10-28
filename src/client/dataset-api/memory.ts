@@ -52,7 +52,7 @@ export interface MemoryOptions {
   down?: boolean;
 }
 
-export type MemoryDatasetApi = DatasetApi & {
+type MemoryDatasetApi = DatasetApi & {
   // What was asked, in order: "persons", "families", "person <id>",
   // "links <id>", "mark <citation> <volume>/<image>" (or "<volume>" for
   // only the Volume; " box" or " no box" when it says), "discard <citation>

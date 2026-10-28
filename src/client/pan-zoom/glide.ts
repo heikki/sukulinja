@@ -13,7 +13,7 @@ export interface GlideHandle {
   cancel: () => void;
 }
 
-export interface GlideHandlers {
+interface GlideHandlers {
   // Called per frame with that frame's share of the pan.
   onTick: (dx: number, dy: number) => void;
   // Called once the whole pan has been made; not on cancel.

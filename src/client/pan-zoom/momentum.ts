@@ -13,7 +13,7 @@ export interface MomentumHandle {
   cancel: () => void;
 }
 
-export interface MomentumHandlers {
+interface MomentumHandlers {
   // Called per RAF with the pan delta for this frame.
   onTick: (dx: number, dy: number) => void;
   // Called when velocity decays below minV. NOT called on explicit cancel —

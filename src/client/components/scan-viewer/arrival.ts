@@ -15,13 +15,13 @@ import type { Frame, Loading } from './frame';
 
 // A thumbnail seen for less than this gives way at once: the full Image was
 // nearly there, and a fade would only flash the blur.
-export const FADE_AFTER_MS = 100;
+const FADE_AFTER_MS = 100;
 // After a step, a thumbnail waits this long before taking over from the
 // last Image: a cached Image is decoded by then, and the blur would only
 // flash.
 export const THUMB_GRACE_MS = 120;
 
-export interface Clock {
+interface Clock {
   now: () => number;
   later: (ms: number, run: () => void) => void;
 }
@@ -36,7 +36,7 @@ const REAL_CLOCK: Clock = {
 // Loads and decodes the Image at `url` at full size, which also keeps the
 // first zoom in from stalling on a scaled-down decode; rejects when it
 // can't be had.
-export async function decodeImage(url: string): Promise<Viewport> {
+async function decodeImage(url: string): Promise<Viewport> {
   const img = new Image();
   img.src = url;
   await img.decode();
@@ -50,7 +50,7 @@ export interface ViewChange {
   rescale: number;
 }
 
-export interface ArrivalPorts {
+interface ArrivalPorts {
   imageUrl: (volumeId: string, image: number, retry: number) => string;
   thumbUrl: (volumeId: string, image: number) => string;
   prefetch: {

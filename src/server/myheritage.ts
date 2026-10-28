@@ -191,7 +191,7 @@ export function transformObjes(roots: GedNode[]): void {
 // tree (`indId`) it was saved from. Older exports give everyone the bare
 // number, which opens the same entry. Cited by the bare number alone, every
 // Citation of the entry is of one reference, so a Mark on one is on all.
-export function entryPage(page: string) {
+function entryPage(page: string) {
   if (collectionOf(page) !== BAPTISM_COLLECTION || !URL.canParse(page)) {
     return page;
   }
@@ -338,7 +338,7 @@ function noop(): void {
   /* default logger: discard messages */
 }
 
-export interface MyHeritageOptions {
+interface MyHeritageOptions {
   // Where the photos are gathered, each at its name (see photoNameOf). Pass
   // it as the ingest sourceDir so the rewritten FILE values resolve.
   stagingDir: string;
@@ -350,7 +350,7 @@ export interface MyHeritageOptions {
   log?: (msg: string) => void;
 }
 
-export interface MyHeritageResult {
+interface MyHeritageResult {
   stripped: number;
   dropped: number;
   pruned: number;

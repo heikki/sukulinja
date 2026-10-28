@@ -32,7 +32,7 @@ export class DatasetNotFound extends Error {
   }
 }
 
-export interface StagingDataset {
+interface StagingDataset {
   db: Database;
   mediaDir: string;
   // Atomically swap the staged dataset into place under its slug, replacing any

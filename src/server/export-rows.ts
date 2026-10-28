@@ -33,7 +33,7 @@ export interface NameRow {
   name_type: string | null;
 }
 
-export interface PieceRow {
+interface PieceRow {
   name_id: number;
   tag: string;
   value: string;
@@ -55,7 +55,7 @@ export interface FactRow {
   value: string | null;
 }
 
-export interface AddressRow {
+interface AddressRow {
   owner_type: string;
   owner_id: number;
   text: string | null;
@@ -82,7 +82,7 @@ export interface CitationRow {
   annotation: Annotation;
 }
 
-export interface NoteRow {
+interface NoteRow {
   id: number;
   owner_type: string;
   owner_id: number;
@@ -105,7 +105,7 @@ export interface MediaLinkRow {
   original_path: string | null;
 }
 
-export interface AssociationRow {
+interface AssociationRow {
   id: number;
   person_id: number;
   associate_id: number;

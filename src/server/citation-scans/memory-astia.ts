@@ -13,7 +13,7 @@ export interface MemoryVolume {
   digitized?: boolean;
 }
 
-export interface MemoryArchive {
+interface MemoryArchive {
   title?: string;
   volumes: MemoryVolume[];
 }
@@ -54,7 +54,7 @@ function filmingIds(volumeId: string, { filming, images }: Filming) {
   );
 }
 
-export interface MemoryOptions {
+interface MemoryOptions {
   // Every request fails with an AstiaError, as when Astia is down.
   down?: boolean;
 }

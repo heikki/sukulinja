@@ -10,7 +10,7 @@ import { unzipSync, zipSync } from 'fflate';
 
 const GEDCOM_ENTRY = 'gedcom.ged';
 
-export class GedzipError extends Error {}
+class GedzipError extends Error {}
 
 // An entry can be written under the folder only if its name can't climb out
 // of it: names in an archive are untrusted.

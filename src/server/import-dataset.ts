@@ -32,7 +32,7 @@ function readGedcomVersion(roots: GedNode[]): string | null {
   return childValue(gedc, 'VERS');
 }
 
-export interface MyHeritageSummary {
+interface MyHeritageSummary {
   downloaded: number;
   urls: number;
   reused: number;
@@ -71,7 +71,7 @@ export class ImportCancelled extends Error {
 // Where an import is built: a staged database and media folder, beside the
 // dataset under its slug now, if any. That one's database is read-only and
 // whatever version built it, null when it can't be opened.
-export interface ImportInto {
+interface ImportInto {
   db: Database;
   mediaDir: string;
   previous: {

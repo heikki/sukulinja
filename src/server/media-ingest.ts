@@ -12,7 +12,7 @@ const DEFAULT_CONCURRENCY = 8;
 
 type SkipReason = 'absolute' | 'missing';
 
-export interface IngestSkipped {
+interface IngestSkipped {
   originalRelpath: string;
   reason: SkipReason;
 }

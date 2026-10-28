@@ -33,7 +33,7 @@ export type Evaluation = Record<
   Partial<Record<Question, QuestionResult>>
 >;
 
-export const MAX_FALSE_CONFIRMATIONS = 0.01;
+const MAX_FALSE_CONFIRMATIONS = 0.01;
 // Fewer decoys than this can't show a rate of 1% or less.
 export const MIN_DECOYS = 100;
 
@@ -58,7 +58,7 @@ export async function recordEvaluation(root: string, results: Evaluation) {
   );
 }
 
-export function falseConfirmationRate(tally: EntryTally) {
+function falseConfirmationRate(tally: EntryTally) {
   return tally.decoys === 0 ? null : tally.falseConfirmations / tally.decoys;
 }
 

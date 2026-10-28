@@ -33,7 +33,7 @@ export interface LocalPins extends Pins {
 
 // Written whole under another name, then renamed over the file, so a
 // reader never sees half of it.
-export async function writeJson(path: string, value: unknown) {
+async function writeJson(path: string, value: unknown) {
   const part = `${path}.part`;
   await Bun.write(part, `${JSON.stringify(value, null, 2)}\n`);
   await rename(part, path);
