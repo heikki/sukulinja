@@ -16,7 +16,7 @@ import type { FlingHandle, FlingOptions } from './fling';
 import { zoomAround, zoomAt } from './transform';
 import type { Extents, Point, ScaleBounds, Transform } from './transform';
 
-export interface PanningHost {
+interface PanningHost {
   // Null until there is something to show.
   view: () => Transform | null;
   setView: (view: Transform) => void;
@@ -33,7 +33,7 @@ export interface PanningHost {
   onRest?: () => void;
 }
 
-export interface PanningOptions {
+interface PanningOptions {
   fling: FlingOptions;
   dragThresholdPx: number;
   // A wheel zoom has stopped, and is at rest, once no wheel event has come

@@ -1,6 +1,6 @@
 import type { Point } from '@/client/pan-zoom';
 
-export interface Rect {
+interface Rect {
   min: Point;
   max: Point;
 }

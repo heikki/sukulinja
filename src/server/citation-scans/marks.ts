@@ -22,7 +22,7 @@ export interface Rejection {
 }
 
 // A citation's Link, with the reference it's in.
-export interface MarkedCitation {
+interface MarkedCitation {
   url: string;
   recordId: number | null;
   link: CitationLink;

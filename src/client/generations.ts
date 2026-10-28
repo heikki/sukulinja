@@ -2,7 +2,7 @@
 // view state, so it stays out of the URL (ADR-0004). Any pick in Settings
 // updates it. Kept in a cookie for the reason appearance.ts gives.
 
-export const DEFAULT_GENERATIONS = 2;
+const DEFAULT_GENERATIONS = 2;
 export const MAX_GENERATIONS = 5;
 
 const COOKIE = 'sl-generations';

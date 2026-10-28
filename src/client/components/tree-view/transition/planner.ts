@@ -26,7 +26,7 @@ export type RelayoutKind = 'root' | 'generation';
 export type ToScreen = (p: Point) => Point | null;
 
 // A card's on-screen footprint, in screen pixels.
-export interface CardSize {
+interface CardSize {
   width: number;
   height: number;
 }
@@ -107,7 +107,7 @@ export function captureFirst(
 
 // How to read the new layout: the Relayout kind, the chart→screen mapping under
 // the settled (new) viewport, and the on-screen card size.
-export interface PlanContext {
+interface PlanContext {
   kind: RelayoutKind;
   toScreen: ToScreen;
   card: CardSize;

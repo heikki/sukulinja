@@ -19,9 +19,9 @@ const SCROLLS: Record<string, 'x' | 'y'> = {
 
 const PRESSES = new Set([' ', 'Enter']);
 
-export type KeyTarget = 'field' | 'control' | 'other';
+type KeyTarget = 'field' | 'control' | 'other';
 
-export interface KeyPress {
+interface KeyPress {
   key: string;
   metaKey: boolean;
   ctrlKey: boolean;

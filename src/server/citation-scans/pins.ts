@@ -385,7 +385,7 @@ export function openVolumeFacts(
   };
 }
 
-export type VolumeFacts = ReturnType<typeof openVolumeFacts>;
+type VolumeFacts = ReturnType<typeof openVolumeFacts>;
 
 // ---------------------------------------------------------------- the module
 
@@ -406,7 +406,7 @@ export interface MarkTarget {
 }
 
 // A Match as saved: its Box in pixels of the full-size Image.
-export interface PixelMatch {
+interface PixelMatch {
   volumeId: string;
   volume: string;
   image: number;

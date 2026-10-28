@@ -82,7 +82,7 @@ export interface Reader {
   findEntry: (at: ImageRef, person: Person) => Promise<EntryReading>;
 }
 
-export function isUnreadable(reading: object): reading is Unreadable {
+function isUnreadable(reading: object): reading is Unreadable {
   return 'unreadable' in reading;
 }
 

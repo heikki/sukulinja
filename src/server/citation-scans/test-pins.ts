@@ -20,7 +20,7 @@ export const BOX = { left: 100, top: 400, width: 500, height: 50 };
 export const SIZE = { width: 1000, height: 1000 };
 
 // The Box in fractions of an Image of SIZE.
-export function fractionsOf(box: Box) {
+function fractionsOf(box: Box) {
   return {
     left: box.left / SIZE.width,
     top: box.top / SIZE.height,

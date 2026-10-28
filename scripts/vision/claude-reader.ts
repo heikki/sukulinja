@@ -304,7 +304,7 @@ function mediaType(bytes: Uint8Array) {
   return bytes[0] === 0x89 && bytes[1] === 0x50 ? 'image/png' : 'image/jpeg';
 }
 
-export interface ClaudeReaderOptions {
+interface ClaudeReaderOptions {
   models?: Partial<Record<Question, string>>;
   effort?: Partial<Record<Question, Effort>>;
   // The Image, scaled to send: pacedImages(cache), through the Scan
@@ -313,7 +313,7 @@ export interface ClaudeReaderOptions {
   client?: Anthropic;
 }
 
-export interface ClaudeReader extends Reader {
+interface ClaudeReader extends Reader {
   spend: () => Record<string, Spend>;
 }
 

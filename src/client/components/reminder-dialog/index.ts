@@ -12,8 +12,6 @@ import { reminderDialogStyles } from './styles';
 
 import '../context-menu';
 
-export { imageLabel, personLabel, placeOf } from './helpers';
-
 // Something a new Reminder can be on, as its header shows it.
 export interface ReminderPlace {
   header: string[];

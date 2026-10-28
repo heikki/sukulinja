@@ -11,8 +11,6 @@ import type { Reminder } from '@/common/types';
 import { isStale, listed, onLabel } from './helpers';
 import { remindersDialogStyles } from './styles';
 
-export { follow, openCount } from './helpers';
-
 export type ReminderPickEvent = CustomEvent<Reminder>;
 
 function stop(e: Event) {

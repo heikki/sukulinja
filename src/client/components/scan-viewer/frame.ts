@@ -56,7 +56,7 @@ export type Loading = 'loading' | 'shown' | 'failed';
 
 // How far the shown Image has come: its thumbnail once loaded, and whether
 // the full Image is fading in over it.
-export interface Arrival {
+interface Arrival {
   thumb: Viewport | null;
   loading: Loading;
   fading: boolean;
@@ -107,7 +107,7 @@ export function boxOnStage(box: Box, view: Transform) {
 }
 
 // A rectangle on the stage, in pixels.
-export interface StageRect {
+interface StageRect {
   left: number;
   top: number;
   width: number;
@@ -126,7 +126,7 @@ export function boxFromStage(rect: StageRect, view: Transform) {
 }
 
 // The smallest Box kept, each way, in fractions of the Image.
-export const MIN_BOX = 0.002;
+const MIN_BOX = 0.002;
 
 // Kept on the Image of `size`, cut at its edges, and at least MIN_BOX of
 // it each way.
@@ -162,7 +162,7 @@ export function wholeBox(box: Box, size: Viewport): Box {
 
 // How big an entry's Box usually is, in fractions of its Image: the median
 // of the Boxes saved so far.
-export const ENTRY_SIZE = { width: 0.29, height: 0.025 };
+const ENTRY_SIZE = { width: 0.29, height: 0.025 };
 
 function median(values: number[]) {
   const sorted = values.toSorted((a, b) => a - b);

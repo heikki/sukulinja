@@ -64,7 +64,7 @@ function nudgeAxis(pan: number, span: AxisSpan, size: number, margin: number) {
   return pan + coverShift(chart, shift, size, margin);
 }
 
-export interface NudgeTarget {
+interface NudgeTarget {
   // Chart-coord rectangle to keep on screen.
   region: Extents;
   // The whole chart's extents, so the Nudge can avoid leaving the canvas empty

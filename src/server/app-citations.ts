@@ -14,7 +14,7 @@ import { viewerUrl } from './citation-scans/astia';
 const PUBLISHER = 'Kansallisarkisto, Astia';
 
 // A Citation of the entry at the Box on an Image, for the person.
-export interface NewCitation {
+interface NewCitation {
   personId: number;
   volumeId: string;
   // The Volume's label, which titles its source.
@@ -152,5 +152,3 @@ export function openAppCitations(db: Database) {
     }
   };
 }
-
-export type AppCitations = ReturnType<typeof openAppCitations>;

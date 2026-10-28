@@ -14,7 +14,7 @@ import { exportGedcom551 } from './gedcom551';
 import { packGedzip } from './gedzip';
 
 // A dataset's database and its media folder, under its slug.
-export interface Exported {
+interface Exported {
   slug: string;
   db: Database;
   mediaDir: string;
@@ -32,7 +32,7 @@ export async function packDataset(db: Database, mediaDir: string) {
 
 // Where an export is saved unless told otherwise: the app runs in a web
 // view that can't hand a download to the user, so it saves the file itself.
-export const DOWNLOADS = join(homedir(), 'Downloads');
+const DOWNLOADS = join(homedir(), 'Downloads');
 
 // A name in `dir` no file has yet: `ylonen.gdz`, then `ylonen-2.gdz`, …
 function freePath(dir: string, name: string, ext: string) {

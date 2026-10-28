@@ -22,7 +22,7 @@ import { gateRefusal } from '../vision/gate';
 
 export type Books = 'rippikirjat' | 'index';
 
-export interface RunOptions {
+interface RunOptions {
   root: string;
   // The dataset's database, which the matches are saved into.
   db: Database;
@@ -47,7 +47,7 @@ export interface RunOptions {
   spent?: () => number | null;
 }
 
-export interface ReviewEntry {
+interface ReviewEntry {
   // Or a Match Scans wouldn't save there, which only a bug makes.
   reason: MissReason | 'refused';
   parish: string;
@@ -59,7 +59,7 @@ export interface ReviewEntry {
   link: string | null;
 }
 
-export type RunResult =
+type RunResult =
   | { refused: string }
   | { outcomes: string[]; review: ReviewEntry[]; saved: number };
 

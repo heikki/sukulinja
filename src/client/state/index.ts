@@ -14,8 +14,8 @@ import type { Selected } from './selected';
 import { openViewer } from './viewer';
 import type { Viewer } from './viewer';
 
-export type { Chart, ChartView, People, UrlView } from './chart';
-export type { Readable, Selected } from './selected';
+export type { Chart, ChartView, UrlView } from './chart';
+export type { Selected } from './selected';
 export type { LinkStatus, Source, SourceGroup } from './sources';
 export type { Confirming } from './confirming';
 export type { Reminders } from './reminders';
@@ -24,8 +24,7 @@ export type {
   LeaveAnswer,
   LinkOpen,
   PendingLink,
-  Viewer,
-  VolumeShown
+  Viewer
 } from './viewer';
 
 export interface AppState {

@@ -1,9 +1,4 @@
-export {
-  chartToScreen,
-  fitTo,
-  pinChartPointAtScreen,
-  zoomAt
-} from './transform';
+export { chartToScreen, fitTo, pinChartPointAtScreen } from './transform';
 export type {
   Extents,
   FitOptions,
@@ -15,11 +10,6 @@ export type {
 
 export { easeOutCubic, reducedMotion, startGlide } from './glide';
 export type { GlideHandle } from './glide';
-export type { Reach, Screen } from './bounds';
 export { Panning } from './panning';
-export type { PanningHost, PanningOptions } from './panning';
 export type { FlingOptions } from './fling';
-export { startMomentumPan } from './momentum';
-export { Pinch, PINCH_OPTIONS } from './pinch';
-export type { PinchHandlers, PinchOptions } from './pinch';
-export type { MomentumHandle, MomentumOptions } from './momentum';
+export { Pinch } from './pinch';

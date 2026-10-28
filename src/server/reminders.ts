@@ -24,7 +24,7 @@ interface ReminderRow {
   done_at: string | null;
 }
 
-export interface ReminderSources {
+interface ReminderSources {
   // One of a person's Citations, with whose it is; null for none.
   citationOf: (
     id: number
@@ -174,5 +174,3 @@ export function createReminders(db: Database, sources: ReminderSources) {
     }
   };
 }
-
-export type Reminders = ReturnType<typeof createReminders>;

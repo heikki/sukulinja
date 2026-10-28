@@ -27,7 +27,7 @@ export interface PinchOptions {
 }
 
 // The feel the chart and the Scan viewer share.
-export const PINCH_OPTIONS: PinchOptions = {
+const PINCH_OPTIONS: PinchOptions = {
   wheelK: 0.01,
   maxWheelDelta: 25,
   wheelEaseMs: 90,
@@ -35,7 +35,7 @@ export const PINCH_OPTIONS: PinchOptions = {
   maxGlide: 1.4
 };
 
-export interface PinchHandlers {
+interface PinchHandlers {
   // Zoom by `factor` around `at`, in client coordinates; false where the
   // view is at its zoom limit, which ends a glide or an easing there so the
   // view is at rest at once.

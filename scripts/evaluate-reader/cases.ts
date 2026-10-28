@@ -13,17 +13,17 @@ import type { ChurchBookRef } from '@/server/citation-scans/record';
 
 import type { EntryTally, Tally } from '../vision/gate';
 
-export interface PageCase {
+interface PageCase {
   at: ImageRef;
   pages: number[];
 }
 
-export interface DateCase {
+interface DateCase {
   at: ImageRef;
   date: string;
 }
 
-export interface EntryCase {
+interface EntryCase {
   at: ImageRef;
   person: Person;
   // Whether the person is on the Image: false for a decoy.

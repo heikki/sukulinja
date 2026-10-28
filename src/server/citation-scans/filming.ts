@@ -23,7 +23,7 @@ interface OnImage {
   fileId?: string;
 }
 
-export interface Split<T> {
+interface Split<T> {
   current: T[];
   stale: T[];
 }

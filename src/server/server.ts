@@ -329,7 +329,7 @@ async function routeShared(shared: Shared, req: Request, pathname: string) {
   return await routeAstia(shared, req, pathname);
 }
 
-export interface ApiOptions {
+interface ApiOptions {
   // Astia's answers; by default over HTTP, kept in the data folder.
   astia?: Astia;
   // Where exports are saved; by default the user's Downloads.
