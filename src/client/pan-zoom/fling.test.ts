@@ -19,6 +19,8 @@ function runFrames(limit = 1000) {
   return n;
 }
 
+const real = { performance };
+
 beforeEach(() => {
   now = 0;
   frames = [];
@@ -34,7 +36,7 @@ afterEach(() => {
   const g = globalThis as Record<string, unknown>;
   delete g.requestAnimationFrame;
   delete g.cancelAnimationFrame;
-  delete g.performance;
+  g.performance = real.performance;
 });
 
 // Content whose bound sits at `bound` on each axis: past it is over.

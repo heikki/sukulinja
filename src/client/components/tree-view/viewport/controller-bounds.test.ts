@@ -59,7 +59,7 @@ let frames: FrameRequestCallback[] = [];
 let timers: Array<() => void> = [];
 let now = 0;
 let settles = 0;
-const real = { setTimeout, clearTimeout };
+const real = { performance, setTimeout, clearTimeout };
 
 // Runs the frames due; how far the chart, with its margin, went each way.
 function runFrames(controller: ViewportController) {
@@ -131,7 +131,7 @@ function setup() {
 
 afterEach(() => {
   const g = globalThis as Record<string, unknown>;
-  delete g.performance;
+  g.performance = real.performance;
   delete g.requestAnimationFrame;
   delete g.cancelAnimationFrame;
   delete g.ResizeObserver;

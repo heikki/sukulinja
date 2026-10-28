@@ -7,7 +7,7 @@ import type { Point, Transform } from './transform';
 let frames: FrameRequestCallback[] = [];
 let timers: Array<() => void> = [];
 let now = 0;
-const real = { setTimeout, clearTimeout };
+const real = { performance, setTimeout, clearTimeout };
 
 function runFrames() {
   for (let i = 0; i < 500 && frames.length > 0; i++) {
@@ -41,7 +41,7 @@ beforeEach(() => {
 
 afterEach(() => {
   const g = globalThis as Record<string, unknown>;
-  delete g.performance;
+  g.performance = real.performance;
   delete g.requestAnimationFrame;
   delete g.cancelAnimationFrame;
   g.setTimeout = real.setTimeout;

@@ -66,6 +66,8 @@ function runFrames() {
   }
 }
 
+const real = { performance };
+
 beforeEach(() => {
   now = 0;
   frames = [];
@@ -84,7 +86,7 @@ afterEach(() => {
   const g = globalThis as Record<string, unknown>;
   delete g.requestAnimationFrame;
   delete g.cancelAnimationFrame;
-  delete g.performance;
+  g.performance = real.performance;
 });
 
 test("zooms by each step of WebKit's gesture scale, at the pointer", () => {
