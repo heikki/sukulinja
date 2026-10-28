@@ -8,6 +8,7 @@ import Electrobun, {
 
 import { DatasetRegistry } from './dataset-registry';
 import { seedDemo } from './demo';
+import { focusWebview } from './focus-webview';
 import { DATASET_PATH_RE, lastViewRoute, reopenAt } from './last-view';
 import { createApi, createStaticFetch } from './server';
 import { enterUrl, newWindowKey, windowOnly } from './window-only';
@@ -143,6 +144,10 @@ const win = new BrowserWindow({
 if (savedFrame !== null) {
   win.setFrame(savedFrame.x, savedFrame.y, savedFrame.width, savedFrame.height);
 }
+// Once the page is there; earlier, the window turns the webview down.
+win.webview.on('dom-ready', () => {
+  focusWebview(win);
+});
 
 // A target=_blank link (a source's record or scan) opens in the default
 // browser; the webview has no windows of its own to open. Electrobun also
