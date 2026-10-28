@@ -306,18 +306,26 @@ export const scanNavStyles = css`
 // A column beside the scan; collapsed, a strip with the button to bring it
 // back.
 export const scanPeopleStyles = css`
+  /* Its width is set as it slides, to a rail as narrow as the person dock's
+     on the other side. */
   :host {
-    display: flex;
-    flex-direction: column;
-    width: 16rem;
+    position: relative;
+    flex-shrink: 0;
     min-height: 0;
+    overflow: hidden;
     background: var(--card);
     border-left: 1px solid var(--border);
   }
 
-  /* Closed, a rail as narrow as the person dock's on the other side. */
-  :host([collapsed]) {
-    width: 2.5rem;
+  /* Laid out at full width and pinned to the pane's left edge, so the list
+     slides in with the edge rather than reflowing as the pane grows. */
+  .content {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
   }
 
   /* The whole header hides the list; the chevron marks it as a control. */
@@ -365,8 +373,9 @@ export const scanPeopleStyles = css`
   }
 
   button.rail {
+    position: absolute;
+    inset: 0;
     display: flex;
-    flex: 1;
     flex-direction: column;
     align-items: center;
     gap: 0.75rem;
@@ -377,6 +386,12 @@ export const scanPeopleStyles = css`
     background: var(--card);
     color: var(--muted);
     cursor: pointer;
+    transition: opacity 120ms ease;
+  }
+
+  :host(:not([collapsed])) button.rail {
+    opacity: 0;
+    pointer-events: none;
   }
 
   .rail-heading {
