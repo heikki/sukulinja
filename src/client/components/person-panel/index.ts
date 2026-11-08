@@ -286,10 +286,16 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
     source?.scrollIntoView({ block: 'nearest' });
   }
 
+  // Whether the viewer is open on the source and not away from its Link.
+  private showing(c: CitationRow) {
+    const { viewer } = this.state;
+    return viewer.source.get()?.citation.id === c.id && !viewer.away.get();
+  }
+
   // What clicking the source does: open its scan if it is a church book
   // that has one, or the viewer to look through its parish's Volumes if it
-  // can; else show or hide its record. The viewer goes back to the Link
-  // even when it's showing this source already.
+  // can; else show or hide its record. Clicked again while the viewer
+  // shows its Link, it closes the viewer; away from the Link, it goes back.
   private actionOf(
     c: CitationRow,
     status: LinkStatus | null,
@@ -298,13 +304,15 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
     const link = status?.link ?? null;
     if (link !== null) {
       return () => {
-        this.state.viewer.open({ citation: c, link });
+        if (this.showing(c)) this.state.viewer.close();
+        else this.state.viewer.open({ citation: c, link });
       };
     }
     const unlinked = status?.browse ?? null;
     if (unlinked !== null) {
       return () => {
-        this.state.viewer.open({ citation: c, link: null, unlinked });
+        if (this.showing(c)) this.state.viewer.close();
+        else this.state.viewer.open({ citation: c, link: null, unlinked });
       };
     }
     if (!foldable) return null;
