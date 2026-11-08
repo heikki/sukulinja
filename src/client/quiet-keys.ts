@@ -19,7 +19,9 @@ const SCROLLS: Record<string, 'x' | 'y'> = {
 
 const PRESSES = new Set([' ', 'Enter']);
 
-type KeyTarget = 'field' | 'control' | 'other';
+// What a key is pressed on: a field typed in, a button or link it may
+// press, or anything else.
+export type KeyTarget = 'field' | 'control' | 'other';
 
 interface KeyPress {
   key: string;
@@ -41,7 +43,7 @@ export function quiets(
   return axis === undefined || !scrolls(axis);
 }
 
-function targetOf(target: EventTarget | undefined): KeyTarget {
+export function targetOf(target: EventTarget | undefined): KeyTarget {
   if (
     target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||

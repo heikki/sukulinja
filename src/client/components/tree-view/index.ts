@@ -8,7 +8,7 @@ import { repeat } from 'lit/directives/repeat.js';
 import { preferredGenerations } from '@/client/generations';
 import { reportView } from '@/client/last-view';
 import { appState } from '@/client/state';
-import type { AppState, ChartView, UrlView } from '@/client/state';
+import type { AppState, ChartView } from '@/client/state';
 
 import '../person-panel';
 import '../scan-viewer';
@@ -26,17 +26,19 @@ import { RAIL_PX, SLIDE_MS } from '../side-dock';
 import type { OpenChangeEvent, WidthChangeEvent } from '../side-dock';
 import { avatarHref, onAvatarReady } from './avatar-cache';
 import { buildChart } from './build';
-import { otherSpouseOf } from './build/indices';
 import { cardMenuAt, renderCardMenu } from './card-menu';
 import type { CardMenu } from './card-menu';
-import { comfortOf } from './comfort';
-import { cardsByPerson } from './emit';
+import { comfortOf, coreIds } from './comfort';
 import type { EmitOutput, Extents, Point } from './emit';
+import { chartKeyFrom } from './keys';
+import type { ChartKey } from './keys';
 import { cardHalf, dims, formatName, renderBox, renderEdge } from './renderer';
+import { SelectedBox } from './selected-box';
+import type { Step } from './steps';
 import { treeViewStyles } from './styles';
 import { TransitionController } from './transition';
 import { paintOrder, renderGhosts, scheduleVars } from './transition/paint';
-import { buildHash, parseHashView } from './url-state';
+import { buildHash, parseHashView, urlView } from './url-state';
 import type { Bounds, ParsedView } from './url-state';
 import { ViewportController } from './viewport';
 import type { Comfort, ViewportOptions } from './viewport';
@@ -55,15 +57,6 @@ const URL_BOUNDS: Bounds = {
   minZoom: VIEWPORT_OPTIONS.scaleBounds.minScale,
   maxZoom: VIEWPORT_OPTIONS.scaleBounds.maxScale
 };
-
-// Root and the Selected person as the URL gives them.
-function urlView(parsed: ParsedView): UrlView {
-  return {
-    rootId: parsed.rootId,
-    selectedId: parsed.selectedId,
-    panned: parsed.pan !== null
-  };
-}
 
 @customElement('sl-tree-view')
 class TreeViewElement extends SignalWatcher(LitElement) {
@@ -84,8 +77,13 @@ class TreeViewElement extends SignalWatcher(LitElement) {
   // coords to canvas pixels using the same extents the SVG was sized to.
   private chartExtents: Extents | null = null;
   private chartComfort: Comfort | null = null;
-  // Who the chart draws, so selecting anyone else rebuilds it around them.
-  private drawnAt = new Map<number, Point[]>();
+  // Who the chart draws, so selecting anyone else rebuilds it around them,
+  // and which of their cards is ringed.
+  private readonly ring = new SelectedBox({
+    select: (id) => {
+      this.state.chart.step(id);
+    }
+  });
   // Root as last drawn, to tell a Relayout from the first chart.
   private drawnRoot: number | null = null;
   private detach: (() => void) | null = null;
@@ -134,11 +132,14 @@ class TreeViewElement extends SignalWatcher(LitElement) {
 
   // What the chart store moves: the viewport, the dock and the URL.
   private readonly chartView: ChartView = {
-    draws: (id) => this.drawnAt.has(id),
+    draws: (id) => this.ring.copiesOf(id).length > 0,
     show: (id, at) => {
-      const cards = at ?? this.drawnAt.get(id) ?? [];
+      const copies = this.ring.copiesOf(id);
+      const cards = at ?? copies.map((b) => b.pos);
       const opening = this.details ? 0 : this.detailsWidth - RAIL_PX;
-      this.viewport.showCard(cards, cardHalf, opening, SLIDE_MS);
+      const shown = this.viewport.showCard(cards, cardHalf, opening, SLIDE_MS);
+      // A click has picked its box already.
+      if (at === null) this.ring.pick(copies[shown ?? 0]?.key ?? null);
       this.details = true;
     },
     rerooting: (pin, open) => {
@@ -171,6 +172,7 @@ class TreeViewElement extends SignalWatcher(LitElement) {
   override connectedCallback() {
     super.connectedCallback();
     window.addEventListener('hashchange', this.onHashChange);
+    window.addEventListener('keydown', this.onKeyDown);
     this.avatarUnsub = onAvatarReady(() => {
       this.requestUpdate();
     });
@@ -181,6 +183,8 @@ class TreeViewElement extends SignalWatcher(LitElement) {
   override disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener('hashchange', this.onHashChange);
+    window.removeEventListener('keydown', this.onKeyDown);
+    this.ring.cancel();
     this.avatarUnsub?.();
     this.avatarUnsub = null;
     this.detach?.();
@@ -190,6 +194,7 @@ class TreeViewElement extends SignalWatcher(LitElement) {
   // Back or forward waits on a change pending in the Scan viewer; editing
   // on puts the URL back.
   private readonly onHashChange = () => {
+    this.ring.cancel();
     const back =
       this.rootId === null ? null : this.buildCurrentHash(this.rootId);
     this.state.chart.follow(this.followHash, () => {
@@ -235,6 +240,49 @@ class TreeViewElement extends SignalWatcher(LitElement) {
     if (nextZoom !== null) this.hasUserZoom = true;
     if (parsed.pan !== null) this.hasUserPan = true;
     this.viewport.restoreViewportDeferred(parsed.pan, nextZoom);
+  }
+
+  // The chart's keys, whenever nothing that keeps its own is open.
+  private readonly onKeyDown = (e: KeyboardEvent) => {
+    if (this.keysElsewhere()) return;
+    const key = chartKeyFrom(e);
+    if (key === null) return;
+    // Handled even where it goes nowhere, so WebKit doesn't beep.
+    e.preventDefault();
+    this.press(key);
+  };
+
+  private keysElsewhere() {
+    return this.menu !== null || this.state.viewer.opened.get() !== null;
+  }
+
+  private press(key: ChartKey) {
+    if (key === 'dock') this.toggleDock();
+    else if (key === 'root') this.makeSelectedRoot();
+    else this.step(key);
+  }
+
+  // As a click on the selected card does.
+  private toggleDock() {
+    this.ring.flush();
+    this.details = !this.details;
+  }
+
+  private makeSelectedRoot() {
+    const box = this.ring.box;
+    if (box === undefined || box.personId === this.rootId) return;
+    this.ring.cancel();
+    this.state.chart.makeRoot(
+      box.personId,
+      this.viewport.chartToScreen(box.pos)
+    );
+  }
+
+  private step(step: Step) {
+    const next = this.ring.step(step);
+    if (next === null) return;
+    this.requestUpdate();
+    this.viewport.showCard([next.pos], cardHalf, 0, SLIDE_MS);
   }
 
   override willUpdate(changed: PropertyValues) {
@@ -285,18 +333,6 @@ class TreeViewElement extends SignalWatcher(LitElement) {
 
   private queryCanvas() {
     return this.renderRoot.querySelector<HTMLElement>('.canvas');
-  }
-
-  // Root and every spouse they have.
-  private coreIds(rootId: number) {
-    const ids = new Set([rootId]);
-    for (const fam of this.state.chart.people
-      .get()
-      .spouseFamsByPerson.get(rootId) ?? []) {
-      const spouse = otherSpouseOf(fam, rootId);
-      if (spouse !== null) ids.add(spouse);
-    }
-    return ids;
   }
 
   private canvasCenter(): Point | null {
@@ -479,20 +515,21 @@ class TreeViewElement extends SignalWatcher(LitElement) {
                         person,
                         {
                           photo: avatarHref(person, this.state.api.mediaUrl),
-                          selected: b.personId === this.selectedId,
+                          selected: this.ring.isRinged(b),
                           entering: enteringKeys.has(b.key)
                         },
                         {
                           click: (e: MouseEvent) => {
                             // A Ctrl-click is the Mac's right-click.
                             if (this.viewport.dragMoved || e.ctrlKey) return;
-                            if (b.personId !== this.selectedId) {
+                            if (!this.ring.isRinged(b)) {
+                              this.ring.pick(b.key);
                               this.state.chart.select(b.personId, [b.pos]);
                             } else if (e.detail <= 1) {
                               // The selected card shows or hides the dock;
                               // a quick second click, as a double-click's,
                               // doesn't.
-                              this.details = !this.details;
+                              this.toggleDock();
                             }
                           },
                           contextmenu: (e: MouseEvent) => {
@@ -554,8 +591,14 @@ class TreeViewElement extends SignalWatcher(LitElement) {
       return html`<div class="empty">No data for this person.</div>`;
     }
     this.chartExtents = chart.extents;
-    this.drawnAt = cardsByPerson(chart.boxes);
-    this.chartComfort = comfortOf(chart.boxes, this.coreIds(this.rootId));
+    this.ring.drawn(chart, this.selectedId, (centers) =>
+      this.viewport.cardInView(centers, cardHalf)
+    );
+    const { spouseFamsByPerson } = this.state.chart.people.get();
+    this.chartComfort = comfortOf(
+      chart.boxes,
+      coreIds(this.rootId, spouseFamsByPerson.get(this.rootId) ?? [])
+    );
     return html`
       <div class="main">
         ${this.renderDock()}

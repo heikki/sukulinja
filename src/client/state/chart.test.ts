@@ -108,6 +108,13 @@ test('selecting someone drawn shows their card, and keeps Root', async () => {
   expect(told).toEqual(['replace', 'show 3 at clicked']);
 });
 
+test('a step selects someone drawn, showing no card and keeping Root', async () => {
+  const { state, told, selectedId, root } = await loaded([1, 2, 3]);
+  state.chart.step(3);
+  expect([root(), selectedId()]).toEqual([1, 3]);
+  expect(told).toEqual(['replace']);
+});
+
 test("selecting someone the chart doesn't draw builds it around them", async () => {
   const { state, told, selectedId, root } = await loaded([1, 2, 3]);
   state.chart.select(4);
