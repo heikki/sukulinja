@@ -205,7 +205,7 @@ export function emitLayout(
   function sibshipLine(node: FamilyNode, place: FamilyPlace): RawLine | null {
     const { famId, husband, wife, kids, childAnchor } = node;
     const busY = rowPitch / 2;
-    // Drop is always vertical (see CONTEXT.md "Bloodline pyramid", ADR-0001).
+    // Drop is always vertical (see GLOSSARY.md "Bloodline pyramid", ADR-0001).
     // The Bar spans the union of childAnchor.x and the kid Xs — so a one-kid
     // sibship where the Tie sits off the kid's column (depth ≥ 2) still
     // connects via a horizontal run from the Drop to the kid's Leg.

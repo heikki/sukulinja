@@ -41,7 +41,7 @@ export function buildRootPerson(rootId: number, ix: LayoutIndices): PersonNode {
   return root;
 }
 
-// First spouseFam only, no kids — per CONTEXT.md "Spouse".
+// First spouseFam only, no kids — per GLOSSARY.md "Spouse".
 function buildSibling(personId: number, ix: LayoutIndices): PersonNode {
   const fams = meaningfulSpouseFams(personId, ix);
   if (fams.length === 0) return new PersonNode(personId, null, [], null);
