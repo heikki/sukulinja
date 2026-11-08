@@ -1,3 +1,5 @@
+import type { UrlView } from '@/client/state';
+
 import type { Point } from './emit';
 
 export interface ParsedView {
@@ -91,4 +93,13 @@ export function buildHash(view: BuildView): string {
   return parts.length === 0
     ? `#/person/${view.rootId}`
     : `#/person/${view.rootId}?${parts.join('&')}`;
+}
+
+// Root and the Selected person as the URL gives them.
+export function urlView(parsed: ParsedView): UrlView {
+  return {
+    rootId: parsed.rootId,
+    selectedId: parsed.selectedId,
+    panned: parsed.pan !== null
+  };
 }

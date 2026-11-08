@@ -73,6 +73,9 @@ export interface Chart {
   // is shown, or, if the chart doesn't draw them, it's built around them.
   // `at` is the card clicked, if one was.
   select: (id: number, at?: Point[] | null) => void;
+  // Selects someone the chart draws, as an arrow key's step does: the dock
+  // and the view stay as they are.
+  step: (id: number) => void;
   // Builds the chart around them, pinned at `pin` on screen, and selects
   // them.
   makeRoot: (id: number, pin?: Point | null) => void;
@@ -201,6 +204,16 @@ export function openChart(
     },
     load,
     select,
+    step(id) {
+      if (!view.draws(id)) {
+        select(id);
+        return;
+      }
+      viewer.leave(() => {
+        choose(id);
+        view.writeUrl(false);
+      });
+    },
     makeRoot(id, pin = null) {
       viewer.leave(() => {
         rerootNow(id, pin);

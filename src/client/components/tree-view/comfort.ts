@@ -1,5 +1,8 @@
 // Where the chart should keep Root in view, from its boxes.
 
+import type { FamilyRow } from '@/common/types';
+
+import { otherSpouseOf } from './build/indices';
 import type { Box, Extents } from './emit';
 import { dims } from './renderer';
 import type { Comfort } from './viewport';
@@ -35,4 +38,14 @@ export function comfortOf(
   if (couple.length === 0) return { region, cores: [region] };
   const family = [...couple, ...boxes.filter((b) => b.pos.y > 0)];
   return { region, cores: [boundsOf(family), boundsOf(couple)] };
+}
+
+// Root and every spouse they have, of their spouse Families.
+export function coreIds(rootId: number, spouseFams: FamilyRow[]) {
+  const ids = new Set([rootId]);
+  for (const fam of spouseFams) {
+    const spouse = otherSpouseOf(fam, rootId);
+    if (spouse !== null) ids.add(spouse);
+  }
+  return ids;
 }

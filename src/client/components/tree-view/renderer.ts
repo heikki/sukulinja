@@ -187,7 +187,7 @@ export const styles = css`
     stroke: var(--card-border);
     stroke-width: 1.5;
   }
-  /* The person the dock shows; Root needs no mark, the layout places them. */
+  /* The Selected box; Root needs no mark, the layout places them. */
   .node.selected .box {
     stroke: var(--selected-card);
     stroke-width: 2;

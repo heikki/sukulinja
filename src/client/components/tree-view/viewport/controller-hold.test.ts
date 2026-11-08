@@ -152,6 +152,16 @@ test('of a person drawn twice, the card needing least is shown', () => {
   const start = controller.pan;
   const far = cardAt(controller, -400, 200);
   const near = cardAt(controller, 720, 200);
-  controller.showCard([far, near], HALF, 0, 0);
+  expect(controller.showCard([far, near], HALF, 0, 0)).toBe(1);
   expect(controller.pan).toEqual({ x: start.x - 44, y: start.y });
+});
+
+test('the card in view is the one showing it would move least', () => {
+  const { controller } = setup();
+  controller.setScale(1);
+  const start = controller.pan;
+  const shown = cardAt(controller, 300, 200);
+  const off = cardAt(controller, 900, 200);
+  expect(controller.cardInView([off, shown], HALF)).toBe(1);
+  expect(controller.pan).toEqual(start);
 });

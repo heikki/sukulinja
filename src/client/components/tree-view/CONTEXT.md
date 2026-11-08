@@ -13,8 +13,11 @@ The single person the chart is built around, and the top of its layout tree. Anc
 _Avoid_: Focus (keyboard focus owns that word), proband, ego, center person.
 
 **Selected person**:
-The person the details dock shows, the only card the chart marks, with a ring. Clicking a card, or a relative in the dock's Family list, selects its person without a **Relayout**, and clicking the selected card shows or hides the dock. Build tree from here, in a card's right-click menu, or a double-click on a relative in the Family list, makes them **Root** too, as selecting someone the chart doesn't draw does (ADR-0011). Root is selected on becoming Root; afterwards the two may differ.
+The person the details dock shows, and the URL's `sel=`. Clicking a card, or a relative in the dock's Family list, selects its person without a **Relayout**, and clicking the selected card shows or hides the dock. Build tree from here, in a card's right-click menu, or a double-click on a relative in the Family list, makes them **Root** too, as selecting someone the chart doesn't draw does (ADR-0011). Root is selected on becoming Root; afterwards the two may differ.
 _Avoid_: Active person, current person, focused person.
+
+**Selected box**:
+Which of the **Selected person**'s boxes the chart marks, with a ring — the only card marked — by **Box key**, so a person drawn more than once is marked once. A click picks the box clicked; selecting from the dock, search, a reload or Back/Forward picks the copy in view, or the one the selection's pan brings into view. A Generation **Relayout** keeps it; a Root Relayout lands on Root's only box. It isn't in the URL. The arrow keys move it by the cards on screen alone — ↑ and ↓ to the nearest card on the next row up or down, ←/→ along its row — and the Selected person follows once the keys pause; Enter makes its person Root and Space shows or hides the dock.
 
 ### Horizontal regions
 

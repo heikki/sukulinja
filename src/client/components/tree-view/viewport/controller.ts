@@ -275,18 +275,32 @@ export class ViewportController implements ReactiveController {
   // Glides the pan over `ms` just far enough to show a card whole: of the
   // cards at `centers` (`half` their size, in chart units) the one needing
   // the least, inside the fit margin and clear of the `cover` px a column
-  // opening beside the canvas is about to take from its left.
+  // opening beside the canvas is about to take from its left. Which one
+  // that is, by index, or null with no canvas to measure.
   showCard(centers: Point[], half: Point, cover: number, ms: number) {
+    const best = this.leastShift(centers, half, cover);
+    if (best === null) return null;
+    const { shift } = best;
+    if (shift.x !== 0 || shift.y !== 0) this.glideBy(shift, ms);
+    return best.index;
+  }
+
+  // The card showCard would show, by index, without moving the pan.
+  cardInView(centers: Point[], half: Point) {
+    return this.leastShift(centers, half, 0)?.index ?? null;
+  }
+
+  private leastShift(centers: Point[], half: Point, cover: number) {
     const size = this.measurements.canvasSize();
-    if (size === null) return;
+    if (size === null) return null;
     const m = this.options.fitOptions.marginPx;
     const view = {
       min: { x: cover + m, y: m },
       max: { x: size.width - m, y: size.height - m }
     };
     const scaled = { x: half.x * this._scale, y: half.y * this._scale };
-    let best: Point | null = null;
-    for (const center of centers) {
+    let best: { index: number; shift: Point } | null = null;
+    for (const [index, center] of centers.entries()) {
       const at = this.chartToScreen(center);
       if (at === null) continue;
       const rect = {
@@ -296,13 +310,12 @@ export class ViewportController implements ReactiveController {
       const shift = shiftIntoView(rect, view);
       if (
         best === null ||
-        Math.hypot(shift.x, shift.y) < Math.hypot(best.x, best.y)
+        Math.hypot(shift.x, shift.y) < Math.hypot(best.shift.x, best.shift.y)
       ) {
-        best = shift;
+        best = { index, shift };
       }
     }
-    if (best === null || (best.x === 0 && best.y === 0)) return;
-    this.glideBy(best, ms);
+    return best;
   }
 
   private glideBy(shift: Point, ms: number) {
