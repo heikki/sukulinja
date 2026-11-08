@@ -66,11 +66,12 @@ const controls = css`
 export const controlStyles = [focusRingStyles, controls];
 
 export const scanViewerStyles = css`
-  /* Covers the chart, not the dock: the dock still shows whose source it is. */
+  /* Covers the chart, not the dock: the dock still shows whose source it is.
+     Under the chart's corner (Search, Reminders, Settings), which stays. */
   :host {
     position: absolute;
     inset: 0;
-    z-index: 10;
+    z-index: 4;
     display: flex;
     flex-direction: column;
     background: var(--bg);
@@ -190,14 +191,17 @@ export const scanViewerStyles = css`
 `;
 
 // One row, the Volume named in full.
-// One row: the title, shortened with an ellipsis where it must be.
+// One row: the title, shortened with an ellipsis where it must be. The
+// chart's corner floats over its right end, so the title lines up with the
+// corner, and the row leaves it room: the search's width, two buttons and
+// the gaps.
 export const scanToolbarStyles = css`
   :host {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    min-height: 2.25rem;
-    padding: 0.125rem 0.5rem 0.125rem 0.75rem;
+    min-height: 2rem;
+    padding: 0.75rem calc(min(280px, 40vw) + 6.75rem) 0.75rem 1rem;
     background: var(--card);
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
@@ -209,6 +213,13 @@ export const scanToolbarStyles = css`
     overflow: hidden;
     text-overflow: ellipsis;
     font-weight: 500;
+    /* The search field's line height, so the title's text sits level with
+       the field's; the viewer's 1.4 sets it a pixel higher. Even so it
+       reads as high, mostly small letters under its capitals: a pixel
+       lower looks centred. */
+    line-height: normal;
+    position: relative;
+    top: 1px;
   }
 `;
 

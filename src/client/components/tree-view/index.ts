@@ -374,10 +374,8 @@ class TreeViewElement extends SignalWatcher(LitElement) {
   }
 
   // Search, Reminders and Settings, floating over the chart's top-right
-  // corner. Away while the Scan viewer covers the chart: its own row ends
-  // in Close there.
+  // corner, and over the Scan viewer's row while it covers the chart.
   private renderCorner() {
-    if (this.state.viewer.opened.get() !== null) return nothing;
     return html`
       <div class="corner">
         <sl-person-search
