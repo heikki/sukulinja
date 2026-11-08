@@ -14,7 +14,8 @@ function archiveOf(source: LinkOpen) {
   return source.link === null ? source.unlinked.archive : source.link.archive;
 }
 
-// The Scan viewer's one row: the archive and the Volume shown, and closing.
+// The Scan viewer's one row: the archive and the Volume shown. The source
+// clicked again, or Escape, closes the viewer.
 @customElement('sl-scan-toolbar')
 class ScanToolbarElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanToolbarStyles];
@@ -29,18 +30,7 @@ class ScanToolbarElement extends SignalWatcher(LitElement) {
     const named = source === null ? undefined : archiveOf(source);
     const archive = named === undefined ? '' : `${named} · `;
     const volume = shown === null ? 'No Volume' : volumeTitle(shown.label);
-    return html`
-      <span class="volume">${archive}${volume}</span>
-      <button
-        class="close"
-        aria-label="Close"
-        @click=${() => {
-          this.state.viewer.close();
-        }}
-      >
-        ✕
-      </button>
-    `;
+    return html` <span class="volume">${archive}${volume}</span> `;
   }
 }
 

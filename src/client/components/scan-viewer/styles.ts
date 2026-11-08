@@ -190,8 +190,7 @@ export const scanViewerStyles = css`
 `;
 
 // One row, the Volume named in full.
-// One row: the title, shortened with an ellipsis where it must be, and
-// close.
+// One row: the title, shortened with an ellipsis where it must be.
 export const scanToolbarStyles = css`
   :host {
     display: flex;
@@ -202,27 +201,6 @@ export const scanToolbarStyles = css`
     background: var(--card);
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
-  }
-
-  /* In line with the app's settings button above, 0.5rem in. */
-  button.close {
-    display: inline-flex;
-    flex: none;
-    align-items: center;
-    justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    padding: 0;
-    border-color: transparent;
-    background: none;
-    color: var(--muted);
-  }
-
-  /* Bare, it shows it's a button on hover. */
-  button.close:hover {
-    border-color: transparent;
-    background: color-mix(in srgb, var(--fg) 8%, transparent);
-    color: var(--fg);
   }
 
   .volume {
