@@ -31,7 +31,7 @@ export type AdultSlot = PersonSlot | null;
 //   nonprimary-right  → non-primary marriage fanning to the right side
 export type TieKind = 'centered' | 'nonprimary-left' | 'nonprimary-right';
 
-// Semantic position of the Child anchor (see CONTEXT.md). y is determined by
+// Semantic position of the Child anchor (see GLOSSARY.md). y is determined by
 // kind; x is the local pivot to drop from.
 //   tie-midpoint  → Couple Tie midpoint (primary / centered marriages)
 //   box-bottom    → bottom edge of an adult's box (non-primary, lone parent)

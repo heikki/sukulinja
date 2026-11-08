@@ -101,7 +101,7 @@ export function buildAnchoredFamily(args: AnchoredFamilyArgs) {
     args.placement.xSpouse,
     args.ix
   );
-  // A primary marriage with no spouse to draw is a lone parent (CONTEXT.md
+  // A primary marriage with no spouse to draw is a lone parent (GLOSSARY.md
   // "Child anchor"): the Drop leaves the anchor's own box and the kids centre
   // under it, rather than hanging from the midpoint of a Tie that isn't there.
   const noSpouseBox = spouseAdult === null || spouseAdult.node === null;

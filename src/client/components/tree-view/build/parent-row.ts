@@ -214,7 +214,7 @@ function computeAuntShift(
 
 // Bloodline kid at the inward end; Aunts/Uncles fan outward in birth order,
 // past the step-fam reservation so step-spouses + Root's Half-siblings fit
-// between bloodline parent and Aunts/Uncles. See CONTEXT.md.
+// between bloodline parent and Aunts/Uncles. See GLOSSARY.md.
 function buildChildhoodKids(
   bloodlineId: number,
   gpFam: FamilyRow,

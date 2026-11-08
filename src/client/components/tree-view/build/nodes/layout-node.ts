@@ -15,7 +15,7 @@ interface LayoutOffset {
 }
 
 // Horizontal reach of a layout subtree from its pivot, in slot units. Slot
-// footprints include implicit half-gap padding (see CONTEXT.md).
+// footprints include implicit half-gap padding (see GLOSSARY.md).
 export interface Extents {
   left: number;
   right: number;
