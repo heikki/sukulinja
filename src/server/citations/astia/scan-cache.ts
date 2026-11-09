@@ -22,6 +22,8 @@ import type { ScanCacheStatus } from '@/common/types';
 import { NoImageError } from './astia';
 import type { Astia, ImageRef, ImageSize } from './astia';
 import { jpegSize } from './jpeg';
+import { openSettingsFile } from './settings-file';
+import type { SettingsFile } from './settings-file';
 
 const GB = 1024 ** 3;
 const CAPS = [5, 10, 20, 40].map((n) => n * GB);
@@ -159,18 +161,9 @@ function totalSize(files: Array<{ size: number }>) {
 
 // ---------------------------------------------------------------- the setting
 
-// The install's settings; none when the file is missing or unreadable.
-async function readSettings(file: string) {
-  const none: Record<string, unknown> = {};
-  const settings = Bun.file(file);
-  if (!(await settings.exists())) return none;
-  const read = (await settings.json().catch(() => null)) as typeof none | null;
-  return read ?? none;
-}
-
 // The cap saved for the install, if it's one of the choices.
-async function savedCap(file: string) {
-  const { scanCacheBytes } = await readSettings(file);
+async function savedCap(settings: SettingsFile) {
+  const { scanCacheBytes } = await settings.read();
   return typeof scanCacheBytes === 'number' && CAPS.includes(scanCacheBytes)
     ? scanCacheBytes
     : DEFAULT_CAP_BYTES;
@@ -190,7 +183,7 @@ export function openScanCache({
   switches: boolean;
 }) {
   const dir = join(root, '.astia-images');
-  const settingsFile = join(root, 'settings.local.json');
+  const settings = openSettingsFile(join(root, 'settings.local.json'));
   const inQueue = openQueue();
   function pathOf(volumeId: string, fileId: string) {
     return join(dir, volumeId, `${fileId}.jpg`);
@@ -198,7 +191,7 @@ export function openScanCache({
   let cap = DEFAULT_CAP_BYTES;
   // Read before anything prunes or reports, so the default never stands in
   // for a cap saved larger.
-  const ready = savedCap(settingsFile).then((saved) => {
+  const ready = savedCap(settings).then((saved) => {
     cap = saved;
   });
 
@@ -315,9 +308,7 @@ export function openScanCache({
     // Saves the cap for the install, and shrinks to it at once.
     async setCap(bytes: number) {
       await ready;
-      const settings = await readSettings(settingsFile);
-      const saved = { ...settings, scanCacheBytes: bytes };
-      await Bun.write(settingsFile, `${JSON.stringify(saved, null, 2)}\n`);
+      await settings.update((s) => ({ ...s, scanCacheBytes: bytes }));
       cap = bytes;
       await prune(null);
     },
