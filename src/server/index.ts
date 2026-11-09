@@ -68,7 +68,15 @@ const server = Bun.serve({
   hostname: '127.0.0.1',
   port: 0,
   idleTimeout: 255,
-  fetch
+  fetch,
+  // Electrobun runs this file in a Worker, and an error thrown out of `fetch`
+  // ends the Worker: the window stays up with no server behind it, and the
+  // next event the webview sends it brings the whole app down. A bug answers
+  // its one request instead.
+  error(err) {
+    console.error(err);
+    return new Response('Internal Server Error', { status: 500 });
+  }
 });
 
 ApplicationMenu.setApplicationMenu([

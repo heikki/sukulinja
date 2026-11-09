@@ -338,3 +338,30 @@ test("a request that can't reach Astia throws an AstiaError", async () => {
   );
   expect(await astia.archiveTitle(ARCHIVE)).toBeNull();
 });
+
+// Astia's maintenance notice, a 200 in place of any answer.
+function notice() {
+  return new TextEncoder().encode('<!DOCTYPE html><p>huoltokatko</p>');
+}
+
+test('a notice page in place of an answer throws an AstiaError, and is not kept', async () => {
+  const astia = open();
+  failures = [notice()];
+  expect(await failure(astia.archiveVolumes(ARCHIVE))).toBe(
+    `AstiaError: not JSON on ws/aineisto/readOne.php?id=${ARCHIVE}`
+  );
+  failures = [notice()];
+  expect(await failure(astia.peekImages('121'))).toBe(
+    `AstiaError: not JSON on ${IMAGES_121}`
+  );
+  await astia.volumeImages('121');
+  failures = [notice()];
+  expect(await failure(astia.refreshImages('121'))).toBe(
+    `AstiaError: not JSON on ${IMAGES_121}`
+  );
+  expect(await open().volumeImages('121')).toEqual(['121-f1', '121-f2']);
+  expect((await open().archiveVolumes(ARCHIVE)).map((v) => v.id)).toEqual([
+    '121',
+    '124'
+  ]);
+});
