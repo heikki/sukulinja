@@ -1,41 +1,41 @@
-import { expect, test } from 'bun:test';
+import { expect, test } from "bun:test";
 
-import { memoryDatasetApi } from '@/client/dataset-api/memory';
-import { openAppState } from '@/client/state';
+import { memoryDatasetApi } from "@/client/dataset-api/memory";
+import { openAppState } from "@/client/state";
 import type {
   CitationRow,
   Link,
   On,
   PersonRow,
   Reminder,
-  VolumeCitation
-} from '@/common/types';
+  VolumeCitation,
+} from "@/common/types";
 
-import { headerOf } from './header';
-import { onLines } from './lines';
+import { headerOf } from "./header";
+import { onLines } from "./lines";
 
 function reminder(on: On): Reminder {
-  return { id: 1, text: 'R', on, created: '', done: null };
+  return { id: 1, text: "R", on, created: "", done: null };
 }
 
 const MATTI: PersonRow = {
   id: 1,
-  given: 'Matti',
-  surname: 'Testinen',
-  sex: 'M',
+  given: "Matti",
+  surname: "Testinen",
+  sex: "M",
   birth_year: 1770,
   death_year: 1820,
   birth_date: null,
   death_date: null,
   died: true,
   photo_path: null,
-  crop: null
+  crop: null,
 };
 
 const C11: CitationRow = {
   id: 11,
-  source: 'Juva rippikirja',
-  reference: 'Juva rippikirja 1790-1796 s. 18',
+  source: "Juva rippikirja",
+  reference: "Juva rippikirja 1790-1796 s. 18",
   entry: null,
   page: null,
   url: null,
@@ -44,35 +44,35 @@ const C11: CitationRow = {
   churchBook: true,
   madeInApp: false,
   deletable: false,
-  markKey: 'citation 11',
+  markKey: "citation 11",
   citedPage: 18,
-  cited: { parish: 'Juva', kind: 'rippi', years: null }
+  cited: { parish: "Juva", kind: "rippi", years: null },
 };
 const L11: Link = {
-  volumeId: '201',
-  volume: 'I Aa:1 Pää- ja rippikirjat (1790-1796)',
-  url: '',
-  precision: 'image',
+  volumeId: "201",
+  volume: "I Aa:1 Pää- ja rippikirjat (1790-1796)",
+  url: "",
+  precision: "image",
   image: 40,
-  certainty: 'estimated'
+  certainty: "estimated",
 };
 const ROW_11: VolumeCitation = { personId: 1, citation: C11, link: L11 };
 
 const CITATION: On = {
-  kind: 'citation',
+  kind: "citation",
   personId: 1,
   citationId: 11,
   source: C11.source,
-  reference: C11.reference
+  reference: C11.reference,
 };
 const IMAGE: On = {
-  kind: 'image',
-  volumeId: '201',
-  volume: 'I Aa:1 Pää- ja rippikirjat (1790-1796)',
+  kind: "image",
+  volumeId: "201",
+  volume: "I Aa:1 Pää- ja rippikirjat (1790-1796)",
   image: 40,
-  fileId: '201-f40',
+  fileId: "201-f40",
   stale: false,
-  personId: null
+  personId: null,
 };
 
 async function loaded() {
@@ -80,79 +80,72 @@ async function loaded() {
     memoryDatasetApi({
       persons: [MATTI],
       details: {
-        1: { id: 1, name: 'Matti', sex: 'M', facts: [], citations: [C11] }
+        1: { id: 1, name: "Matti", sex: "M", facts: [], citations: [C11] },
       },
       links: { 1: [{ citationId: 11, links: [L11] }] },
-      volumes: { '201': { images: 60, citations: [ROW_11] } }
-    })
+      volumes: { "201": { images: 60, citations: [ROW_11] } },
+    }),
   );
   await state.chart.load(() => ({ rootId: 1, selectedId: 1, panned: false }));
   return state;
 }
 
-test('a person is headed by their name', async () => {
+test("a person is headed by their name", async () => {
   const state = await loaded();
-  const on: On = { kind: 'person', personId: 1 };
-  expect(headerOf(state, reminder(on))).toEqual(['Matti Testinen']);
+  const on: On = { kind: "person", personId: 1 };
+  expect(headerOf(state, reminder(on))).toEqual(["Matti Testinen"]);
 });
 
-test("a Citation's by its person, then the parish, Volume and page", async () => {
+test("a Citation's by its person, then the Volume, as the Scan viewer names it, and page", async () => {
   const state = await loaded();
   await state.selected.select(1);
   expect(headerOf(state, reminder(CITATION))).toEqual([
-    'Matti Testinen',
-    'Juva · I Aa:1 Pää- ja rippikirjat (1790-1796) · page 18'
+    "Matti Testinen",
+    "Pää- ja rippikirjat (1790-1796) · page 18",
   ]);
 });
 
 test("a Citation's falls back to its reference while its Link isn't in", () => {
   const state = openAppState(memoryDatasetApi({}));
   expect(headerOf(state, reminder(CITATION))).toEqual([
-    'Someone',
-    'Juva rippikirja 1790-1796 s. 18'
+    "Someone",
+    "Juva rippikirja 1790-1796 s. 18",
   ]);
 });
 
-test("an Image's by its parish, once the Scan viewer shows it, Volume and Image", async () => {
-  const state = await loaded();
-  const volume = 'I Aa:1 Pää- ja rippikirjat (1790-1796)';
-  expect(headerOf(state, reminder(IMAGE))).toEqual([`${volume} · Image 40`]);
-  state.viewer.openImage({ volumeId: '201', volume, image: 40 });
-  await Bun.sleep(0);
+test("an Image's by its Volume, as the Scan viewer names it, and Image", () => {
+  const state = openAppState(memoryDatasetApi({}));
   expect(headerOf(state, reminder(IMAGE))).toEqual([
-    `Juva · ${volume} · Image 40`
+    "Pää- ja rippikirjat (1790-1796) · Image 40",
   ]);
 });
 
-test('keeps what it found once the Scan viewer closes', async () => {
+test("keeps what it found once the Scan viewer closes", async () => {
   const state = await loaded();
-  const volume = 'I Aa:1 Pää- ja rippikirjat (1790-1796)';
   state.viewer.open({ citation: C11, link: L11 });
   await Bun.sleep(0);
   const citation = headerOf(state, reminder(CITATION));
-  const image = headerOf(state, reminder(IMAGE));
-  expect(image).toEqual([`Juva · ${volume} · Image 40`]);
+  expect(citation[1]).toBe("Pää- ja rippikirjat (1790-1796) · page 18");
   state.viewer.close();
   await Bun.sleep(0);
   expect(headerOf(state, reminder(CITATION))).toEqual(citation);
-  expect(headerOf(state, reminder(IMAGE))).toEqual(image);
 });
 
 test("a Citation's lines go to its person, then to it", async () => {
   const state = await loaded();
   const lines = onLines(state, reminder(CITATION));
   expect(lines.map((l) => l.to)).toEqual([
-    { kind: 'person', personId: 1 },
-    CITATION
+    { kind: "person", personId: 1 },
+    CITATION,
   ]);
-  expect(lines[0]?.text).toBe('Matti Testinen');
+  expect(lines[0]?.text).toBe("Matti Testinen");
 });
 
 test("a person's one line goes to them", async () => {
   const state = await loaded();
-  const on: On = { kind: 'person', personId: 1 };
+  const on: On = { kind: "person", personId: 1 };
   expect(onLines(state, reminder(on))).toEqual([
-    { text: 'Matti Testinen', to: on }
+    { text: "Matti Testinen", to: on },
   ]);
 });
 
@@ -163,11 +156,11 @@ test("an Image's line goes to it, unless it's from an earlier filming", async ()
   expect(onLines(state, reminder(stale))[0]?.to).toBeNull();
 });
 
-test('an Image about someone goes to them, then to the Image', async () => {
+test("an Image about someone goes to them, then to the Image", async () => {
   const state = await loaded();
   const on: On = { ...IMAGE, personId: 1 };
   const lines = onLines(state, reminder(on));
-  expect(lines.map((l) => l.to)).toEqual([{ kind: 'person', personId: 1 }, on]);
-  expect(lines[0]?.text).toBe('Matti Testinen');
-  expect(lines[1]?.text).toContain('Image 40');
+  expect(lines.map((l) => l.to)).toEqual([{ kind: "person", personId: 1 }, on]);
+  expect(lines[0]?.text).toBe("Matti Testinen");
+  expect(lines[1]?.text).toContain("Image 40");
 });

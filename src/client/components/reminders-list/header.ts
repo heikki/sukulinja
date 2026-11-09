@@ -1,11 +1,12 @@
-import type { AppState } from '@/client/state';
-import type { CitationRow, Link, Reminder } from '@/common/types';
+import { volumeTitle } from "@/client/link-labels";
+import type { AppState } from "@/client/state";
+import type { CitationRow, Link, Reminder } from "@/common/types";
 
-import { formatName } from '../tree-view/renderer';
+import { formatName } from "../tree-view/renderer";
 
-// What a header has found out for each app, by `citation <id>` and
-// `volume <id>`, so it keeps it once the Scan viewer that showed it
-// closes, or another person is selected.
+// What a header has found out for each app, by `citation <id>`, so it
+// keeps it once the Scan viewer that showed it closes, or another person
+// is selected.
 const found = new WeakMap<AppState, Map<string, string>>();
 
 // `value`, remembered under `key`; or while it's null, what was before.
@@ -37,33 +38,20 @@ function citationOf(state: AppState, citationId: number) {
   return row === undefined ? null : { citation: row.citation, link: row.link };
 }
 
-// The parish of a Volume the Scan viewer shows, as the references linking
-// it name it.
-function parishShown(state: AppState, volumeId: string) {
-  if (state.viewer.volume.get()?.id !== volumeId) return null;
-  const rows = state.viewer.citations.get();
-  if (!Array.isArray(rows)) return null;
-  const named = rows.map((r) => r.citation.cited?.parish ?? null);
-  return named.find((p) => p !== null) ?? null;
-}
-
-function parishOf(state: AppState, volumeId: string) {
-  return kept(state, `volume ${volumeId}`, parishShown(state, volumeId));
-}
-
 // The page a reference cites, or else the Image its Link is on.
 function pageOf(citation: CitationRow, link: Link | null) {
   if (citation.citedPage !== null) return `page ${citation.citedPage}`;
-  return link !== null && 'image' in link ? `Image ${link.image}` : null;
+  return link !== null && "image" in link ? `Image ${link.image}` : null;
 }
 
 function joined(parts: Array<string | null>) {
   const known = parts.filter((p) => p !== null);
-  return known.length === 0 ? null : known.join(' · ');
+  return known.length === 0 ? null : known.join(" · ");
 }
 
-// Where a Citation points: its parish, Volume and page, as far as the app
-// has it or had it; null when it has none of them.
+// Where a Citation points: the Volume its Link is in, named as the Scan
+// viewer names it, and its page; as far as the app has it or had it, null
+// when it has neither.
 function citedAt(state: AppState, citationId: number) {
   return kept(state, `citation ${citationId}`, citedHere(state, citationId));
 }
@@ -73,15 +61,14 @@ function citedHere(state: AppState, citationId: number) {
   if (cited === null) return null;
   const { citation, link } = cited;
   return joined([
-    citation.cited?.parish ?? null,
-    link?.volume ?? null,
-    pageOf(citation, link)
+    link === null ? null : volumeTitle(link.volume),
+    pageOf(citation, link),
   ]);
 }
 
 function nameOf(state: AppState, personId: number) {
   const person = state.chart.people.get().persons.get(personId);
-  return person === undefined ? 'Someone' : formatName(person);
+  return person === undefined ? "Someone" : formatName(person);
 }
 
 // A person, as a header: their name.
@@ -89,38 +76,35 @@ export function personHeader(state: AppState, personId: number) {
   return [nameOf(state, personId)];
 }
 
-// A person's Citation, as a header: their name, then the parish, Volume
-// and page, or while those aren't in, `written` (its reference as written)
-// or the Citation's own.
+// A person's Citation, as a header: their name, then the Volume and page,
+// or while those aren't in, `written` (its reference as written) or the
+// Citation's own.
 export function citationHeader(
   state: AppState,
   at: { personId: number; citationId: number },
-  written: string | null = null
+  written: string | null = null,
 ) {
   const cited = citationOf(state, at.citationId);
   const own = cited?.citation.reference ?? cited?.citation.source ?? null;
   const where = citedAt(state, at.citationId) ?? written ?? own;
-  return [nameOf(state, at.personId), where ?? 'their Citation'];
+  return [nameOf(state, at.personId), where ?? "their Citation"];
 }
 
-// An Image, as a header: its parish, Volume and number.
-export function imageHeader(
-  state: AppState,
-  at: { volumeId: string; volume: string; image: number }
-) {
-  const parish = parishOf(state, at.volumeId);
-  return [joined([parish, at.volume, `Image ${at.image}`])!];
+// An Image, as a header: its Volume, named as the Scan viewer names it,
+// and number.
+export function imageHeader(at: { volume: string; image: number }) {
+  return [`${volumeTitle(at.volume)} · Image ${at.image}`];
 }
 
 // What a Reminder is on, as its dialog heads it: the person's name, then
-// the parish, Volume and page; what isn't known yet is left out.
+// the Volume and page; what isn't known yet is left out.
 export function headerOf(state: AppState, reminder: Reminder) {
   const { on } = reminder;
-  if (on.kind === 'image') {
-    const image = imageHeader(state, on);
+  if (on.kind === "image") {
+    const image = imageHeader(on);
     if (on.personId === null) return image;
     return [nameOf(state, on.personId), ...image];
   }
-  if (on.kind === 'person') return personHeader(state, on.personId);
+  if (on.kind === "person") return personHeader(state, on.personId);
   return citationHeader(state, on, on.reference ?? on.source);
 }
