@@ -257,11 +257,16 @@ export function createCitations<R extends BookRef>(
 
   // Makes the citations a Mark of the reference put at the entry by hand
   // Citations of their Image (ADR-0016), which are then no references.
+  // The Volume each converted is in, by its label.
   function convert(book: R) {
     const rows = references.converts(book);
-    if (rows.length === 0) return;
+    if (rows.length === 0) return [];
+    const volumes = rows.map(
+      ({ id }) => byId.get(id)?.annotation.link?.volume ?? ''
+    );
     made.convert(rows);
     for (const { id } of rows) books.delete(id);
+    return volumes;
   }
 
   function churchBookOf(citationId: number) {
@@ -534,6 +539,23 @@ export function createCitations<R extends BookRef>(
         citation: toCitation(c!),
         link: await withArchive(c!.stored!)
       };
+    },
+
+    // Converts every reference already Marked at the entry (ADR-0016): how
+    // many citations, by the label of the Volume each is in.
+    convertMarked() {
+      const done = new Set<string>();
+      const counts = new Map<string, number>();
+      for (const { book } of cited(everyPerson.all())) {
+        if (book === null) continue;
+        const key = references.markKey(book);
+        if (done.has(key)) continue;
+        done.add(key);
+        for (const volume of convert(book)) {
+          counts.set(volume, (counts.get(volume) ?? 0) + 1);
+        }
+      }
+      return counts;
     },
 
     // Deletes a Citation made in the app, and gives it as it was, with

@@ -91,6 +91,9 @@ export function openCitations(root: string, options: Options) {
         ofPerson: (personId: number) => citations.ofPerson(personId),
         // A person's Citation by its id, with whose it is.
         citationOf: (citationId: number) => citations.ofId(citationId),
+        // Converts every reference already Marked at the entry, once
+        // (scripts/convert-marked).
+        convertMarked: () => citations.convertMarked(),
         // Whether a Re-scan replaced the Image's file.
         replaced: async (at: {
           volumeId: string;
