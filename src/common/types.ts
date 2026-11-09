@@ -284,11 +284,22 @@ export interface VolumeCitation {
 }
 
 // GET /settings/scan-cache: how much space Astia's Images may take (`cap`)
-// and take now (`used`), in bytes, and the caps to choose from.
+// and take now (`used`), in bytes, and the caps to choose from; and the
+// Volumes kept whole outside the cap, and the space they take.
 export interface ScanCacheStatus {
   cap: number;
   used: number;
   caps: number[];
+  kept: { bytes: number; volumes: number };
+}
+
+// What of a Volume the Scan cache has on disk: its full-size Images of
+// Astia's list (`images`, null until the list has been asked for), and
+// the space its files take, in bytes.
+export interface VolumeOnDisk {
+  images: number | null;
+  cached: number;
+  bytes: number;
 }
 
 // A pin made on a filming of its Volume that Astia has since replaced,
