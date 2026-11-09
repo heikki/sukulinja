@@ -1,0 +1,148 @@
+import { expect, test } from 'bun:test';
+
+import { memoryDatasetApi } from '@/client/dataset-api/memory';
+import { openAppState } from '@/client/state';
+import type { CitationRow, Link, On, PersonRow } from '@/common/types';
+
+import { goTo, isStale, mayOpen, onLabel, shows } from './on';
+
+const IMAGE: On = {
+  kind: 'image',
+  volumeId: '201',
+  volume: 'I Aa:201',
+  image: 18,
+  fileId: '201-f18',
+  stale: false
+};
+const CITATION: On = {
+  kind: 'citation',
+  personId: 1,
+  citationId: 11,
+  source: 'Juvan seurakunnan arkisto',
+  reference: 'I Aa:201, s. 18'
+};
+
+const MATTI: PersonRow = {
+  id: 1,
+  given: 'Matti',
+  surname: 'Testinen',
+  sex: 'M',
+  birth_year: 1770,
+  death_year: 1820,
+  birth_date: null,
+  death_date: null,
+  died: true,
+  photo_path: null,
+  crop: null
+};
+const PERSONS = new Map([[1, MATTI]]);
+
+test('names what each is on', () => {
+  const person = onLabel({ kind: 'person', personId: 1 }, PERSONS);
+  expect(person).toStartWith('Matti Testinen (');
+  expect(onLabel(CITATION, PERSONS)).toEndWith(' — I Aa:201, s. 18');
+  expect(onLabel(IMAGE, PERSONS)).toBe('I Aa:201, Image 18');
+});
+
+test('an Image from an earlier filming is stale', () => {
+  expect(isStale(IMAGE)).toBe(false);
+  expect(isStale({ ...IMAGE, stale: true })).toBe(true);
+  expect(isStale(CITATION)).toBe(false);
+});
+
+const C11: CitationRow = {
+  id: 11,
+  source: null,
+  reference: null,
+  entry: null,
+  page: null,
+  url: null,
+  record: null,
+  text: null,
+  churchBook: true,
+  madeInApp: false,
+  markKey: 'citation 11',
+  citedPage: null,
+  cited: null
+};
+const L11: Link = {
+  volumeId: '201',
+  volume: 'I Aa:201',
+  url: '',
+  precision: 'image',
+  image: 18,
+  certainty: 'estimated'
+};
+
+function appState() {
+  return openAppState(
+    memoryDatasetApi({
+      details: {
+        1: { id: 1, name: 'Person 1', sex: 'U', facts: [], citations: [C11] }
+      },
+      links: { 1: [{ citationId: 11, links: [L11] }] },
+      volumes: { '201': { images: 40, citations: [] } }
+    })
+  );
+}
+
+test("a Citation's selects its person and opens its scan", async () => {
+  const state = appState();
+  await goTo(state, CITATION);
+  expect(state.selected.id.get()).toBe(1);
+  expect(state.viewer.source.get()).toEqual({ citation: C11, link: L11 });
+});
+
+test("an Image's opens the Scan viewer there; a stale one doesn't", async () => {
+  const state = appState();
+  await goTo(state, { ...IMAGE, stale: true });
+  expect(state.viewer.opened.get()).toBe(null);
+  await goTo(state, IMAGE);
+  expect(state.viewer.opened.get()).toEqual({
+    volumeId: '201',
+    volume: 'I Aa:201',
+    image: 18
+  });
+});
+
+test("a Citation's source may open until the person's sources show no scan", async () => {
+  const other: CitationRow = { ...C11, id: 12, churchBook: false };
+  const state = openAppState(
+    memoryDatasetApi({
+      details: {
+        1: {
+          id: 1,
+          name: 'Person 1',
+          sex: 'U',
+          facts: [],
+          citations: [C11, other]
+        }
+      },
+      links: { 1: [{ citationId: 11, links: [L11] }] },
+      volumes: { '201': { images: 40, citations: [] } }
+    })
+  );
+  expect(mayOpen(state, 12)).toBe(true);
+  await state.selected.select(1);
+  expect(mayOpen(state, 11)).toBe(true);
+  expect(mayOpen(state, 12)).toBe(false);
+});
+
+test("the Scan viewer shows where one is while open on its source's Image, or its Image", async () => {
+  const state = appState();
+  const citation = CITATION;
+  const image = { ...IMAGE, image: 20 };
+  expect(shows(state, citation)).toBe(false);
+  await goTo(state, citation);
+  expect(shows(state, citation)).toBe(true);
+  expect(shows(state, image)).toBe(false);
+  state.viewer.show(19);
+  expect(shows(state, citation)).toBe(false);
+  await goTo(state, image);
+  expect(shows(state, image)).toBe(true);
+  expect(shows(state, citation)).toBe(false);
+  state.viewer.show(19);
+  expect(shows(state, image)).toBe(false);
+  state.viewer.close();
+  expect(shows(state, citation)).toBe(false);
+});

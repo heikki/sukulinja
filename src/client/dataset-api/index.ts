@@ -5,13 +5,14 @@
 import { readNdjson } from '@/client/ndjson';
 import type {
   Box,
+  Change,
   CitationLinks,
   FamilyRow,
+  OnTarget,
   PersonDetails,
   PersonRow,
   Reminder,
   ReminderChange,
-  ReminderTarget,
   Rescan,
   VolumeChoices,
   VolumeCitation
@@ -89,8 +90,9 @@ export interface DatasetApi {
     volumeId: string,
     signal?: AbortSignal
   ) => Promise<Rescan | null>;
-  // Switches the Volume to Astia's new filming: its Images' viewer URLs.
-  switchFilming: (volumeId: string) => Promise<string[]>;
+  // Switches the Volume, `volume` by its label, to Astia's new filming:
+  // its Images' viewer URLs.
+  switchFilming: (volumeId: string, volume: string) => Promise<string[]>;
   // An Image as the app serves and caches it; `retry` makes a failed load
   // ask again.
   imageUrl: (volumeId: string, n: number, retry: number) => string;
@@ -98,10 +100,12 @@ export interface DatasetApi {
   thumbUrl: (volumeId: string, n: number) => string;
   // A photo imported with the dataset.
   mediaUrl: (storedPath: string) => string;
+  // Every Change made to the dataset, newest first.
+  changes: (signal?: AbortSignal) => Promise<Change[]>;
   // Every Reminder, newest first, open or done.
   reminders: (signal?: AbortSignal) => Promise<Reminder[]>;
   // Writes a Reminder on the target: it as stored.
-  remind: (text: string, on: ReminderTarget) => Promise<Reminder>;
+  remind: (text: string, on: OnTarget) => Promise<Reminder>;
   // Changes a Reminder's text, or marks it done or open again: it as
   // stored.
   changeReminder: (id: number, change: ReminderChange) => Promise<Reminder>;
@@ -276,9 +280,13 @@ export function openDatasetApi(
         )
       ).rescan,
 
-    async switchFilming(volumeId) {
-      const url = `${astia}/${volumeId}/rescan`;
-      const res = await ask('Switching', url, { method: 'POST' });
+    async switchFilming(volumeId, volume) {
+      const url = `${dataset}/api/volumes/${volumeId}/filming`;
+      const res = await ask('Switching', url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ volume })
+      });
       return (await res.json()) as string[];
     },
 
@@ -290,6 +298,9 @@ export function openDatasetApi(
     thumbUrl: (volumeId, n) => `${astia}/${volumeId}/images/${n}?size=thumb`,
 
     mediaUrl: (storedPath) => `${dataset}/media/${storedPath}`,
+
+    changes: async (signal) =>
+      await json<Change[]>('Changes', `${dataset}/api/changes`, signal),
 
     reminders: async (signal) =>
       await json<Reminder[]>('Reminders', `${dataset}/api/reminders`, signal),

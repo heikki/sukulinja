@@ -5,6 +5,8 @@ import { createContext } from '@lit/context';
 
 import type { DatasetApi } from '@/client/dataset-api';
 
+import { openChanges } from './changes';
+import type { Changes } from './changes';
 import { openChart } from './chart';
 import type { Chart } from './chart';
 import { openReminders } from './reminders';
@@ -14,6 +16,7 @@ import type { Selected } from './selected';
 import { openViewer } from './viewer';
 import type { Viewer } from './viewer';
 
+export type { Changes } from './changes';
 export type { Chart, ChartView, UrlView } from './chart';
 export type { Selected } from './selected';
 export type { LinkStatus, Source, SourceGroup } from './sources';
@@ -38,6 +41,8 @@ export interface AppState {
   chart: Chart;
   // The dataset's Reminders.
   reminders: Reminders;
+  // What was done in the app to the dataset.
+  changes: Changes;
 }
 
 export function openAppState(api: DatasetApi): AppState {
@@ -48,7 +53,8 @@ export function openAppState(api: DatasetApi): AppState {
     selected,
     viewer,
     chart: openChart(api, selected, viewer),
-    reminders: openReminders(api)
+    reminders: openReminders(api),
+    changes: openChanges(api)
   };
 }
 

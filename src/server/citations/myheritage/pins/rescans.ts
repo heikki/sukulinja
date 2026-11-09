@@ -210,21 +210,30 @@ async function rescanOf(
   };
 }
 
-// GET the Volume's re-scan not yet switched to, `{ rescan }`; POST to
-// switch to the new filming, answered with its Images' viewer URLs.
+interface RescanReads {
+  astia: Astia;
+  cache: ScanCache;
+  kept: () => Promise<KeptPins>;
+}
+
+// Switches the Volume to Astia's new filming: its Images' viewer URLs, and
+// the re-scan it switched to, null when there was none.
+export async function switchFilming(
+  { astia, cache, kept }: RescanReads,
+  volumeId: string
+) {
+  const rescan = await rescanOf(astia, kept, volumeId);
+  await cache.refresh(volumeId);
+  return { urls: await viewerUrls(astia, volumeId), rescan };
+}
+
+// GET the Volume's re-scan not yet switched to, `{ rescan }`. Switching is
+// a dataset's, which says so in its Changes.
 export async function routeRescan(
-  {
-    astia,
-    cache,
-    kept
-  }: { astia: Astia; cache: ScanCache; kept: () => Promise<KeptPins> },
+  { astia, kept }: RescanReads,
   req: Request,
   volumeId: string
 ) {
-  if (req.method === 'POST') {
-    await cache.refresh(volumeId);
-    return Response.json(await viewerUrls(astia, volumeId));
-  }
   if (req.method !== 'GET') {
     return new Response('method not allowed', { status: 405 });
   }

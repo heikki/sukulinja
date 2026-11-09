@@ -281,9 +281,9 @@ test('a hand pin made on another filming never keeps a Match out', async () => {
 test('a Rejection holds on the filming it was made on', async () => {
   const scans = open();
   await scans.saveMatch(ref(150), match('a', 12));
-  expect(await scans.discardRef(ref(150), spot('a', 12))).toHaveProperty(
-    'links'
-  );
+  expect(await scans.discardRef(ref(150), spot('a', 12))).toMatchObject({
+    done: { rejection: true }
+  });
   expect(await scans.isRejected(ref(150), spot('a', 12))).toBe(true);
   expect(openMarks(cited).rejections()[ref(150).url]).toEqual([
     { volumeId: 'a', image: 12, fileId: 'a-f12' }

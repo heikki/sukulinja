@@ -1,6 +1,6 @@
 // A re-import merged with the dataset it replaces (ADR-0013). The new
 // export gives the tree; the dataset gives what the app added to it:
-// Marks, citations made in the app, Rejections and Reminders.
+// Marks, citations made in the app, Rejections, Reminders and the Changes.
 //
 // A citation of the export is the dataset's when it has the same person,
 // source and page: its original page, or, for a Marked one the export now
@@ -236,55 +236,70 @@ function reattach(m: Merge, s: Citation) {
   return id;
 }
 
-const REMINDER_COLUMNS = [
-  'text',
-  'person_id',
-  'citation_id',
-  'volume_id',
-  'volume',
-  'image',
-  'file_id',
-  'created_at',
-  'done_at'
-];
+// The columns a row of the table has in the new database, but its id.
+function columnsOf(db: Database, table: string) {
+  return db
+    .query<{ name: string }, []>(`PRAGMA table_info(${table})`)
+    .all()
+    .map((c) => c.name)
+    .filter((name) => name !== 'id');
+}
 
-// The dataset's Reminders, each put back on the same person or Citation,
-// by the ids `citations` gives the dataset's citations in the new
-// database; a Citation's onto its person when the Citation is gone. One on
-// an Image is put back as it was. How many were, and those whose person is
-// gone, described.
+// The rows of an app-only table whose rows are on something (ON_COLUMNS),
+// each put back on the same person or Citation, by the ids `citations`
+// gives the dataset's citations in the new database; a Citation's onto its
+// person when the Citation is gone. One on an Image is put back as it was.
+// One whose person is gone is left out, or with `keepGone`, kept on
+// nothing. Gives those whose person is gone, and who they were.
+function carryOn(
+  m: Merge,
+  citations: Map<number, number>,
+  table: string,
+  keepGone = false
+) {
+  const columns = columnsOf(m.fresh, table);
+  const insert = `INSERT INTO ${table} (${columns.join(', ')})
+    VALUES (${columns.map(() => '?').join(', ')})`;
+  const gone: Array<{ row: Row; owner: Owner }> = [];
+  for (const r of rowsOf(m.stored, `SELECT * FROM ${table} ORDER BY id`)) {
+    const row: Row = { ...r };
+    const personId = valueOf(r, 'person_id');
+    if (personId !== null) {
+      const owner: Owner = { kind: 'person', id: Number(personId) };
+      const person = m.matchOf(owner);
+      const citationId = valueOf(r, 'citation_id');
+      row.person_id = person;
+      row.citation_id =
+        person === null || citationId === null
+          ? null
+          : (citations.get(Number(citationId)) ?? null);
+      if (person === null) {
+        gone.push({ row: r, owner });
+        if (!keepGone) continue;
+      }
+    }
+    m.fresh.run(
+      insert,
+      columns.map((c) => valueOf(row, c) as SQLQueryBindings)
+    );
+  }
+  return gone;
+}
+
+// The dataset's Reminders, carried as `carryOn` says. How many were, and
+// those whose person is gone, described.
 function carryReminders(
   m: Merge,
   citations: Map<number, number>,
   describe: (owner: Owner) => string
 ) {
-  const reminders = rowsOf(m.stored, 'SELECT * FROM reminders ORDER BY id');
-  const lost: string[] = [];
-  for (const r of reminders) {
-    const values = REMINDER_COLUMNS.map((c) => valueOf(r, c));
-    const personId = valueOf(r, 'person_id');
-    if (personId !== null) {
-      const owner: Owner = { kind: 'person', id: Number(personId) };
-      const person = m.matchOf(owner);
-      if (person === null) {
-        const text = String(valueOf(r, 'text')).replaceAll(/\s+/g, ' ');
-        lost.push(`${describe(owner)}: ${text} (a Reminder)`);
-        continue;
-      }
-      const citationId = valueOf(r, 'citation_id');
-      values[1] = person;
-      values[2] =
-        citationId === null
-          ? null
-          : (citations.get(Number(citationId)) ?? null);
-    }
-    m.fresh.run(
-      `INSERT INTO reminders (${REMINDER_COLUMNS.join(', ')})
-       VALUES (${REMINDER_COLUMNS.map(() => '?').join(', ')})`,
-      values
-    );
-  }
-  return { kept: reminders.length - lost.length, lost };
+  const all = rowsOf(m.stored, 'SELECT COUNT(*) AS n FROM reminders');
+  const count = Number(all[0]?.n ?? 0);
+  const lost = carryOn(m, citations, 'reminders').map(({ row, owner }) => {
+    const text = String(valueOf(row, 'text')).replaceAll(/\s+/g, ' ');
+    return `${describe(owner)}: ${text} (a Reminder)`;
+  });
+  return { kept: count - lost.length, lost };
 }
 
 function emptyReview(unreadable: string | null): ImportReview {
@@ -363,6 +378,9 @@ function merge(fresh: Database, stored: Database, byXref: boolean) {
   const reminders = carryReminders(m, carried, describe);
   review.kept.reminders = reminders.kept;
   review.lost.push(...reminders.lost);
+  // The Changes stay, each still saying what was done, though what it was
+  // on may be gone.
+  carryOn(m, carried, 'changes', true);
   return review;
 }
 
