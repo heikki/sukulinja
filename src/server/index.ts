@@ -50,7 +50,8 @@ const stateDir = isDev ? dataDir : supportDir;
 const registry = new DatasetRegistry(dataDir);
 await seedDemo(registry, join(resourcesDir, 'app', 'demo', 'bourbon.gdz'));
 void registry.sweepStaging(); // clear staging dirs left by interrupted imports
-const api = createApi(registry);
+// Each dataset opened has Astia's lists in hand by the time they're needed.
+const api = createApi(registry, { warmUp: true });
 // Only the app's window gets in; see windowOnly.
 const windowKey = newWindowKey();
 const fetch = windowOnly(

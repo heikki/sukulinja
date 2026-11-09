@@ -144,6 +144,9 @@ interface ApiOptions {
   astia?: Astia;
   // Where exports are saved; by default the user's Downloads.
   exportDir?: string;
+  // Whether each dataset, once opened, asks Astia in the background for
+  // what its references resolve against.
+  warmUp?: boolean;
 }
 
 export function createApi(
@@ -152,6 +155,7 @@ export function createApi(
 ): ApiHandlers {
   const scans = openCitations(registry.root, {
     astia: options.astia,
+    warmUp: options.warmUp,
     datasets: async () => await openDatasets(),
     changed
   });

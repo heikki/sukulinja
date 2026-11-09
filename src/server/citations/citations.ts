@@ -542,6 +542,12 @@ export function createCitations<R extends BookRef>(
     // The title of the dataset's archive holding the Volume, or null.
     volumeArchive,
 
+    // Asks Astia, in the background, for the archives the references are
+    // in (Images.warmUp).
+    async warmUp() {
+      await images.warmUp(await archives().catch(() => []));
+    },
+
     // What Astia says of the Volume: its Images and its archive, asked
     // together. Throws when Astia can't be reached.
     async contentsOf(volumeId: string): Promise<VolumeContents> {
