@@ -22,11 +22,10 @@ export async function fetchVolumes(archiveId: string) {
 
 const SEND: Record<DownloadAction, { method: string; path: string }> = {
   start: { method: 'PUT', path: 'download' },
-  stop: { method: 'POST', path: 'download/stop' },
-  remove: { method: 'DELETE', path: 'download' }
+  stop: { method: 'POST', path: 'download/stop' }
 };
 
-// Starts, stops or removes the Volume's download.
+// Starts or stops the Volume's download.
 export async function sendDownload(volumeId: string, action: DownloadAction) {
   const { method, path } = SEND[action];
   const res = await fetch(`/astia/volumes/${volumeId}/${path}`, { method });

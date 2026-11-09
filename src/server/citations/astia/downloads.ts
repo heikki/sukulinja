@@ -1,18 +1,16 @@
-// Downloaded Volumes: every Image of a Volume, full size and thumbnail,
-// fetched into the Scan cache and kept there whole, so stepping through
-// it works without Astia. One Volume at a time, the rest queued behind it,
-// and one Image at a time through the cache's full-size lane: an Image the
-// Scan viewer asks for meanwhile goes first, as the lane takes the latest
-// request first and a download only ever has one waiting.
+// Downloading a Volume: every Image, full size and thumbnail, fetched into
+// the Scan cache, so stepping through it works without Astia. They're
+// ordinary cache, under its cap like any Image viewed. One Volume at a
+// time, the rest queued behind it, and one Image at a time through the
+// cache's full-size lane: an Image the Scan viewer asks for meanwhile goes
+// first, as the lane takes the latest request first and a download only
+// ever has one waiting.
 //
-// Nothing here is saved but which Volumes the cache keeps: quitting the
-// app stops a download, and nothing starts again on its own at launch.
+// Nothing here is saved: quitting the app stops a download, and nothing
+// starts again on its own at launch. Started again, a download carries on
+// from what's in the cache.
 
-import type {
-  DownloadError,
-  DownloadState,
-  DownloadStatus
-} from '@/common/types';
+import type { DownloadError, DownloadStatus } from '@/common/types';
 
 import { AstiaError, NoImageError } from './astia';
 import type { Astia, ImageRef } from './astia';
@@ -78,8 +76,8 @@ export function openDownloads(
   const retries = options.retries ?? RETRIES;
   const queue: string[] = [];
   let running: { volumeId: string; stop: AbortController } | null = null;
-  // Why each stopped, until it's started again.
-  const errors = new Map<string, DownloadError>();
+  // Those stopped short this run, and why: null when stopped by hand.
+  const ended = new Map<string, DownloadError | null>();
   let idle = Promise.withResolvers<undefined>();
   idle.resolve(undefined);
 
@@ -151,8 +149,11 @@ export function openDownloads(
     const stop = new AbortController();
     running = { volumeId, stop };
     void download(volumeId, stop.signal)
+      .then(() => {
+        if (stop.signal.aborted) ended.set(volumeId, null);
+      })
       .catch((err: unknown) => {
-        errors.set(volumeId, errorOf(err));
+        ended.set(volumeId, errorOf(err));
       })
       .finally(() => {
         running = null;
@@ -162,28 +163,30 @@ export function openDownloads(
 
   function unqueue(volumeId: string) {
     const at = queue.indexOf(volumeId);
-    if (at !== -1) queue.splice(at, 1);
+    if (at !== -1) {
+      queue.splice(at, 1);
+      ended.set(volumeId, null);
+    }
     if (running?.volumeId === volumeId) running.stop.abort();
   }
 
-  async function stateOf(volumeId: string): Promise<DownloadStatus> {
-    const onDisk = await cache.onDisk(volumeId);
-    const whole = onDisk.images !== null && onDisk.cached === onDisk.images;
-    let state: DownloadState = 'stopped';
-    if (running?.volumeId === volumeId) state = 'downloading';
-    else if (queue.includes(volumeId)) state = 'queued';
-    else if (whole) state = 'complete';
-    const error = state === 'stopped' ? (errors.get(volumeId) ?? null) : null;
-    return { volumeId, state, error, ...onDisk };
+  function stateOf(volumeId: string): DownloadStatus | null {
+    if (running?.volumeId === volumeId) {
+      return { volumeId, state: 'downloading', error: null };
+    }
+    if (queue.includes(volumeId)) {
+      return { volumeId, state: 'queued', error: null };
+    }
+    const error = ended.get(volumeId);
+    return error === undefined ? null : { volumeId, state: 'stopped', error };
   }
 
   return {
     // Downloads the Volume, or carries on from the first Image not on
     // disk; one queued or on its way already stays as it is.
-    async start(volumeId: string) {
-      await cache.keep(volumeId);
+    start(volumeId: string) {
       if (running?.volumeId === volumeId || queue.includes(volumeId)) return;
-      errors.delete(volumeId);
+      ended.delete(volumeId);
       if (running === null && queue.length === 0) {
         idle = Promise.withResolvers();
       }
@@ -191,27 +194,23 @@ export function openDownloads(
       pump();
     },
 
-    // Stops the Volume's download, keeping what's on disk kept.
+    // Stops the Volume's download; what it fetched stays in the cache.
     stop(volumeId: string) {
       unqueue(volumeId);
     },
 
-    // Stops it, and hands its Images back to the cap.
-    async remove(volumeId: string) {
-      unqueue(volumeId);
-      errors.delete(volumeId);
-      await cache.release(volumeId);
-    },
+    // The Volume's download this run; null for none, or one that finished.
+    of: stateOf,
 
-    // The Volume's download; null when it isn't a Downloaded Volume.
-    async of(volumeId: string) {
-      const kept = await cache.kept();
-      return kept.includes(volumeId) ? await stateOf(volumeId) : null;
-    },
-
-    // Every Downloaded Volume, in the order asked for.
-    async list() {
-      return await Promise.all((await cache.kept()).map(stateOf));
+    // Every download this run that hasn't finished: on its way, queued in
+    // the order asked for, then those stopped short.
+    list() {
+      const ids = [
+        ...(running === null ? [] : [running.volumeId]),
+        ...queue,
+        ...ended.keys()
+      ];
+      return ids.map((id) => stateOf(id)!);
     },
 
     // Settles once nothing is queued or on its way.
@@ -221,28 +220,18 @@ export function openDownloads(
 
 export type Downloads = ReturnType<typeof openDownloads>;
 
-// GET every Downloaded Volume; on one Volume, PUT to download or resume,
-// POST `stop`, DELETE to remove. Each answers with the downloads.
-export async function routeDownloads(
+// GET the downloads this run; on one Volume, PUT to download or carry on,
+// POST `stop` to stop. Each answers with the downloads.
+export function routeDownloads(
   downloads: Downloads,
   req: Request,
   at: { volumeId: string; stop: boolean } | null
 ) {
-  if (at === null) {
-    if (req.method !== 'GET') {
-      return new Response('method not allowed', { status: 405 });
-    }
-  } else if (at.stop) {
-    if (req.method !== 'POST') {
-      return new Response('method not allowed', { status: 405 });
-    }
-    downloads.stop(at.volumeId);
-  } else if (req.method === 'PUT') {
-    await downloads.start(at.volumeId);
-  } else if (req.method === 'DELETE') {
-    await downloads.remove(at.volumeId);
-  } else {
+  const method = at === null ? 'GET' : at.stop ? 'POST' : 'PUT';
+  if (req.method !== method) {
     return new Response('method not allowed', { status: 405 });
   }
-  return Response.json(await downloads.list());
+  if (at?.stop === true) downloads.stop(at.volumeId);
+  else if (at !== null) downloads.start(at.volumeId);
+  return Response.json(downloads.list());
 }

@@ -1,6 +1,6 @@
 // The routes outside any dataset, shared by them all: an Astia Volume's
 // Images, the Scan cache they're kept in, whether Astia has re-scanned a
-// Volume, the church books by parish, and the Volumes downloaded whole.
+// Volume, the church books by parish, and their downloads.
 // Switching to a re-scan's new filming is a dataset's (citation-routes).
 
 import { basename } from 'node:path';
@@ -93,20 +93,20 @@ async function routeAstia(shared: Shared, req: Request, pathname: string) {
       });
 }
 
-// The known parishes, one parish's Volumes, and the Volumes downloaded
-// whole; null for any other path.
+// The known parishes, one parish's Volumes, and their downloads; null for
+// any other path.
 async function routeChurchBooks(
   shared: Shared,
   req: Request,
   pathname: string
 ) {
   if (pathname === '/astia/downloads') {
-    return await routeDownloads(shared.downloads, req, null);
+    return routeDownloads(shared.downloads, req, null);
   }
   const download = DOWNLOAD_RE.exec(pathname);
   if (download !== null) {
     const { volumeId, stop } = download.groups!;
-    return await routeDownloads(shared.downloads, req, {
+    return routeDownloads(shared.downloads, req, {
       volumeId: volumeId!,
       stop: stop !== undefined
     });

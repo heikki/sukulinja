@@ -76,15 +76,11 @@ Where the app shows the Image a Church-book reference links, opened from its sou
 _Avoid_: record viewer (a record is MyHeritage's), Astia viewer (Astia's own site).
 
 **Scan cache**:
-The Images kept on disk for the Scan viewer and the vision pass, up to a size the install sets; the least recently viewed go first. A **Downloaded Volume**'s Images are kept apart from that size.
+The Images kept on disk for the Scan viewer and the vision pass, up to a size the install sets; the least recently viewed go first.
 _Avoid_: image cache, Astia cache (that's Astia's answers about archives and Volumes).
 
-**Downloaded Volume**:
-A Volume asked, in the **Church books** view, to be kept whole in the Scan cache, so stepping through it works without Astia: every Image, full size and thumbnail, fetched one at a time and kept outside the cap until the download is removed, when they go back under it. Kept for the install, not per dataset. Stopped, by hand or by Astia failing or re-scanning it, it keeps what it has and resumes from there; nothing resumes on its own.
-_Avoid_: offline volume, pinned volume (a Pin is something else).
-
 **Church books**:
-The view of the known parishes' Volumes apart from any citation, with how many of the dataset's Citations link into each and what of it is on disk: where a Volume is downloaded, or opened in the Scan viewer with no source.
+The view of the known parishes' Volumes apart from any citation, with how many of the dataset's Citations link into each and what of it is on disk: where a Volume is downloaded into the Scan cache, every Image at once under the same cap, or opened in the Scan viewer with no source.
 _Avoid_: archive (a parish's fonds in Astia), library.
 
 **Precision**:

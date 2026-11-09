@@ -1,36 +1,29 @@
 import type {
   ChurchBookVolume,
   DownloadError,
-  DownloadStatus
+  DownloadStatus,
+  VolumeOnDisk
 } from '@/common/types';
 
 import { formatBytes } from '../settings/helpers';
 
-export type DownloadAction = 'start' | 'stop' | 'remove';
+export type DownloadAction = 'start' | 'stop';
 
-// What can be done with a Volume's download, as each button says it.
+function whole(d: VolumeOnDisk) {
+  return d.images !== null && d.images > 0 && d.cached === d.images;
+}
+
+// What can be done with a Volume's download, as its button says it: stop
+// one on its way, or download one not yet whole on disk.
 export function downloadActions(
   volume: ChurchBookVolume
 ): Array<{ action: DownloadAction; label: string }> {
-  const { download } = volume;
-  if (download === null) {
-    if (!volume.digitized) return [];
-    // Viewed whole already: downloading it only keeps it.
-    const label = whole(volume.onDisk) ? 'Keep' : 'Download';
-    return [{ action: 'start', label }];
+  const state = volume.download?.state;
+  if (state === 'queued' || state === 'downloading') {
+    return [{ action: 'stop', label: 'Stop' }];
   }
-  switch (download.state) {
-    case 'queued':
-    case 'downloading':
-      return [{ action: 'stop', label: 'Stop' }];
-    case 'stopped':
-      return [
-        { action: 'start', label: 'Resume' },
-        { action: 'remove', label: 'Remove' }
-      ];
-    case 'complete':
-      return [{ action: 'remove', label: 'Remove' }];
-  }
+  if (!volume.digitized || whole(volume.onDisk)) return [];
+  return [{ action: 'start', label: 'Download' }];
 }
 
 const WHY: Record<DownloadError, string> = {
@@ -39,37 +32,35 @@ const WHY: Record<DownloadError, string> = {
   'rescanned': 'Astia has re-scanned it'
 };
 
-function whole(d: { cached: number; images: number | null }) {
-  return d.images !== null && d.images > 0 && d.cached === d.images;
-}
-
-function ofImages(d: { cached: number; images: number | null }) {
+function ofImages(d: VolumeOnDisk) {
   return d.images === null ? `${d.cached}` : `${d.cached} of ${d.images}`;
 }
 
-function stateLine(d: DownloadStatus) {
-  switch (d.state) {
+// Where a download this run is, or why it stopped.
+function downloadLine(download: DownloadStatus, onDisk: VolumeOnDisk) {
+  switch (download.state) {
     case 'queued':
       return 'Waiting to download';
     case 'downloading':
-      return `Downloading ${ofImages(d)}`;
-    case 'complete':
-      return 'Downloaded';
+      return `Downloading ${ofImages(onDisk)}`;
     case 'stopped': {
-      const at = `Stopped at ${ofImages(d)}`;
-      return d.error === null ? at : `${at}: ${WHY[d.error]}`;
+      const why = download.error === null ? '' : `: ${WHY[download.error]}`;
+      return `Stopped at ${ofImages(onDisk)}${why}`;
     }
   }
 }
 
-// What of a Volume is on disk, in a line under its title.
+// What of a Volume is on disk, and its download, in a line under its
+// title.
 export function diskLine(volume: ChurchBookVolume) {
   if (!volume.digitized) return 'Not digitized';
   const { download, onDisk } = volume;
   const size = onDisk.bytes > 0 ? ` · ${formatBytes(onDisk.bytes)}` : '';
-  if (download !== null) return `${stateLine(download)}${size}`;
+  const going =
+    download?.state === 'queued' || download?.state === 'downloading';
+  if (whole(onDisk) && !going) return `On disk${size}`;
+  if (download !== null) return `${downloadLine(download, onDisk)}${size}`;
   if (onDisk.cached === 0) return 'Not on disk';
-  if (whole(onDisk)) return `All on disk, not kept${size}`;
   return `${ofImages(onDisk)} Images on disk${size}`;
 }
 

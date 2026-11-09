@@ -1,5 +1,7 @@
 Status: ready-for-human (built 2026-11-09, to try in the app; ADR-0015)
 
+> **Revised 2026-11-09 (Heikki: "simplify the concept").** Downloads are ordinary Scan cache, under the same cap and least-recently-viewed rule; there is no "Downloaded Volume", no Keep or Remove, and no separate size in Settings. See ADR-0015 (downloaded books share the Scan cache's cap). Where this spec says otherwise below, the ADR wins. Each Volume's row also shows how many of the dataset's Citations link into it.
+
 # Download whole Volumes for use without Astia
 
 From [issues/01-download-whole-volumes.md](issues/01-download-whole-volumes.md). Glossary: **Volume**, **Image**, **Scan cache**, **Scan viewer**, **Re-scan**.

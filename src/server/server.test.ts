@@ -187,8 +187,7 @@ describe('Scan cache setting', () => {
       body: {
         cap: 5 * GB,
         used: 1000,
-        caps: [5 * GB, 10 * GB, 20 * GB, 40 * GB],
-        kept: { bytes: 0, volumes: 0 }
+        caps: [5 * GB, 10 * GB, 20 * GB, 40 * GB]
       }
     });
     expect((await send('PUT', { cap: 3 * GB })).status).toBe(400);
@@ -242,7 +241,7 @@ describe('Church books', () => {
     expect(new Set(names).size).toBe(names.length);
   });
 
-  test("lists a parish's Volumes, and downloads one whole", async () => {
+  test("lists a parish's Volumes, and downloads one into the cache", async () => {
     serveWith(memoryAstia(JUVA_BOOKS));
     const before = await send('GET', `/astia/archives/${JUVA_ARCHIVE}/volumes`);
     expect(before.body).toEqual([
@@ -255,18 +254,21 @@ describe('Church books', () => {
       },
       expect.objectContaining({ id: '302', download: null })
     ]);
-    expect((await send('PUT', '/astia/volumes/302/download')).status).toBe(200);
+    const started = await send('PUT', '/astia/volumes/302/download');
+    expect(started.body).toEqual([
+      { volumeId: '302', state: 'downloading', error: null }
+    ]);
     await until(async () => {
       const { body } = await send('GET', '/astia/downloads');
-      return (body as Array<{ state: string }>)[0]?.state === 'complete';
+      return (body as unknown[]).length === 0;
     });
     const after = await send('GET', `/astia/archives/${JUVA_ARCHIVE}/volumes`);
     expect((after.body as unknown[])[1]).toMatchObject({
       onDisk: { images: 3, cached: 3 },
-      download: { volumeId: '302', state: 'complete', error: null }
+      download: null
     });
-    expect((await send('DELETE', '/astia/volumes/302/download')).body).toEqual(
-      []
+    expect((await send('DELETE', '/astia/volumes/302/download')).status).toBe(
+      405
     );
   });
 
