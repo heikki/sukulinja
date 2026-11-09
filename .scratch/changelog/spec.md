@@ -34,7 +34,7 @@ Working through the books, you Mark, Discard and cite dozens of entries in a sit
   Not a URL: the chart's hash (ADR-0004) only holds Root, pan and zoom, not the Scan viewer, and the app has no address bar to share one from.
 
 - **Only for finding your way.** No undo from the list. Taking a Mark back is a Discard, done in the Scan viewer where you can see it.
-- **Where it's shown.** A clock button beside the Reminders flag and the Settings gear opens a floating dialog like the Reminders list: grouped by day, each row the time, what was done and where (_Marked at the entry · Juho Mikonpoika (1771–1832) — Mikkeli I Aa:5, Image 232_). Shown once the dataset has any Changes.
+- **Where it's shown.** A clock button beside the Reminders flag and the Settings gear opens a floating dialog like the Reminders list: grouped by day, each row the time, what was done and where (_Marked at the entry · Juho Mikonpoika (1771–1832) — Mikkeli I Aa:5, Image 232_). Always shown: every import writes a Change, so a dataset always has some.
 - **How long kept.** All of them. A row is a few hundred bytes; a year of work is far under a megabyte.
 
 - **Re-scan.** Switching a Volume to its new filming is a Change in the dataset it was switched from: it's what leaves that dataset's Marks on the Volume stale. The switch moves from the shared Astia route to a dataset route.
