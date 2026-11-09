@@ -357,11 +357,11 @@ export interface Rescan {
   stale: StalePin[];
 }
 
-// What a Reminder is on, described: a person, one of their Citations
-// (by its source and where it points), or an Image of a Volume, by the
-// file it had when the Reminder was written. `stale` when the Volume's
-// filming has changed since.
-export type ReminderOn =
+// What something the app keeps beside the tree is on, such as a Reminder,
+// described: a person, one of their Citations (by its source and where it
+// points), or an Image of a Volume, by the file it had when it was put
+// there. `stale` when the Volume's filming has changed since.
+export type On =
   | { kind: 'person'; personId: number }
   | {
       kind: 'citation';
@@ -384,13 +384,13 @@ export type ReminderOn =
 export interface Reminder {
   id: number;
   text: string;
-  on: ReminderOn;
+  on: On;
   created: string;
   done: string | null;
 }
 
-// What a new Reminder is put on.
-export type ReminderTarget =
+// What a new one is put on.
+export type OnTarget =
   | { personId: number }
   | { citationId: number }
   | { volumeId: string; volume: string; image: number; fileId: string };

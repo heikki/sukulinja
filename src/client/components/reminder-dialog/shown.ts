@@ -4,11 +4,11 @@ import { html, LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { keyed } from 'lit/directives/keyed.js';
 
+import { goTo, mayOpen, shows } from '@/client/on';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { Reminder } from '@/common/types';
 
-import { follow, mayOpen, shows } from '../reminders-dialog/helpers';
 import { headerOf } from './header';
 import type { HeaderGo, ReminderDialogAction } from './index';
 
@@ -39,13 +39,13 @@ class ReminderShownElement extends SignalWatcher(LitElement) {
       this.dispatchEvent(new CustomEvent(open ? 'dock-open' : 'dock-close'));
     };
     const there: HeaderGo = {
-      open: shows(state, reminder),
+      open: shows(state, on),
       toggle: () => {
-        if (shows(state, reminder)) {
+        if (shows(state, on)) {
           state.viewer.close();
           return;
         }
-        void follow(state, reminder);
+        void goTo(state, on);
         if (on.kind !== 'image') dock(true);
       }
     };

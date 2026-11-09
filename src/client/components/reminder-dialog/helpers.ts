@@ -1,25 +1,10 @@
-import type { PersonRow, ReminderOn } from '@/common/types';
-
-import { formatDates, formatName } from '../tree-view/renderer';
-
-// A person by name, with their years, as names repeat in a family.
-export function personLabel(persons: Map<number, PersonRow>, id: number) {
-  const person = persons.get(id);
-  if (person === undefined) return 'Someone';
-  const dates = formatDates(person);
-  const name = formatName(person);
-  return dates === '' ? name : `${name} (${dates})`;
-}
-
-// An Image by its Volume and number.
-export function imageLabel(volume: string, image: number) {
-  return `${volume}, Image ${image}`;
-}
+import { imageLabel, personLabel } from '@/client/on';
+import type { On, PersonRow } from '@/common/types';
 
 // What a Reminder is on, in words. An Image is "This Image" when it's
 // the one `here` names.
 export function placeOf(
-  on: ReminderOn,
+  on: On,
   persons: Map<number, PersonRow>,
   here?: { volumeId: string; image: number }
 ) {

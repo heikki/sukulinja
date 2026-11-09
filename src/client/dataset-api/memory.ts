@@ -6,11 +6,11 @@ import type {
   CitationLinks,
   FamilyRow,
   Link,
+  On,
+  OnTarget,
   PersonDetails,
   PersonRow,
   Reminder,
-  ReminderOn,
-  ReminderTarget,
   Rescan,
   StalePin,
   VolumeChoices,
@@ -116,7 +116,7 @@ export function memoryDatasetApi(
     );
   }
 
-  function onOf(target: ReminderTarget): ReminderOn {
+  function onOf(target: OnTarget): On {
     if ('personId' in target) return { kind: 'person', ...target };
     if ('citationId' in target) {
       const { personId, citation } = citationOf(target.citationId);
@@ -131,7 +131,7 @@ export function memoryDatasetApi(
     return { kind: 'image', ...target, stale: false };
   }
 
-  function whereOf(target: ReminderTarget) {
+  function whereOf(target: OnTarget) {
     if ('personId' in target) return `person ${target.personId}`;
     if ('citationId' in target) return `citation ${target.citationId}`;
     return `${target.volumeId}/${target.image} ${target.fileId}`;

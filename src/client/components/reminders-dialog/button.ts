@@ -3,13 +3,14 @@ import { consume } from '@lit/context';
 import { css, html, LitElement, nothing, svg } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
-import { focusRingStyles } from '@/client/focus-ring';
+import { goTo } from '@/client/on';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 
-import { follow, openCount } from './helpers';
+import { openCount } from './helpers';
 import type { ReminderPickEvent } from './index';
 
+import '../corner-panel/button';
 import './index';
 
 // A flag on its pole, in currentColor like the gear beside it.
@@ -32,39 +33,14 @@ const FLAG_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
 // dialog over what it's on.
 @customElement('sl-reminders-button')
 class RemindersButtonElement extends SignalWatcher(LitElement) {
-  static override styles = [
-    focusRingStyles,
-    css`
-      :host {
-        display: inline-flex;
-      }
-      :host([hidden]) {
-        display: none;
-      }
-      button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 2rem;
-        height: 2rem;
-        padding: 0;
-        background: var(--card);
-        color: var(--muted);
-        border: 1px solid var(--border);
-        border-radius: 6px;
-        cursor: pointer;
-      }
-      button:hover,
-      button[aria-expanded='true'] {
-        color: var(--accent);
-        border-color: var(--accent);
-      }
-      svg {
-        width: 1rem;
-        height: 1rem;
-      }
-    `
-  ];
+  static override styles = css`
+    :host {
+      display: inline-flex;
+    }
+    :host([hidden]) {
+      display: none;
+    }
+  `;
 
   @consume({ context: appState }) private readonly state!: AppState;
 
@@ -78,7 +54,7 @@ class RemindersButtonElement extends SignalWatcher(LitElement) {
   private readonly onPick = (e: ReminderPickEvent) => {
     const reminder = e.detail;
     this.open = false;
-    void follow(this.state, reminder);
+    void goTo(this.state, reminder.on);
     this.state.reminders.show(reminder.id);
     if (reminder.on.kind === 'image') return;
     this.dispatchEvent(new CustomEvent('dock-open'));
@@ -95,16 +71,15 @@ class RemindersButtonElement extends SignalWatcher(LitElement) {
     const label =
       count === 1 ? 'Reminders, 1 open' : `Reminders, ${count} open`;
     return html`
-      <button
-        aria-label=${label}
-        aria-haspopup="dialog"
-        aria-expanded=${this.open ? 'true' : 'false'}
+      <sl-corner-button
+        label=${label}
+        ?expanded=${this.open}
         @click=${() => {
           this.open = !this.open;
         }}
       >
         ${FLAG_ICON}
-      </button>
+      </sl-corner-button>
       ${
         this.open
           ? html`<sl-reminders-dialog
