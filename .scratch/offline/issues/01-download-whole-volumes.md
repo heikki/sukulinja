@@ -31,4 +31,4 @@ Later, a way to download a whole Volume into the Scan cache, so stepping through
 
 ## Comments
 
-2026-11-09: designed in [../spec.md](../spec.md) and built: a Church books view lists the known parishes' Volumes; a Volume is downloaded there, kept outside the cap (ADR-0015), or opened in the Scan viewer with no citation.
+2026-11-09: designed in [../spec.md](../spec.md) and built: a Church books view lists the known parishes' Volumes; a Volume is downloaded there, kept outside the cap (ADR-0016), or opened in the Scan viewer with no citation.
