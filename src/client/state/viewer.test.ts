@@ -222,8 +222,22 @@ test('show keeps to the Images Astia lists, once it has said how many', async ()
   expect(api.asked.filter((a) => a.endsWith(' 201'))).toEqual([
     'images 201',
     'citations 201',
+    'archive 201',
     'rescan 201'
   ]);
+});
+
+test("names the Volume's archive, however it was opened", async () => {
+  const api = memoryDatasetApi({
+    volumes: {
+      '201': { images: 3, citations: [], archive: 'Juvan seurakunnan arkisto' }
+    }
+  });
+  const viewer = openAppState(api).viewer;
+  viewer.openImage({ volumeId: '201', volume: 'I Aa:201', image: 2 });
+  expect(viewer.archive.get()).toBeNull();
+  await Bun.sleep(0);
+  expect(viewer.archive.get()).toBe('Juvan seurakunnan arkisto');
 });
 
 test('keeps an image number inside the Volume', () => {

@@ -362,6 +362,9 @@ describe("A dataset's Citations", () => {
     expect(await archives.json()).toEqual([
       { archiveId: '1212295491', title: '1212295491' }
     ]);
+    // Nor names the archive a Volume is in.
+    const named = await get('/d/juva/api/volumes/juva-1/archive');
+    expect(await named.json()).toEqual({ archive: null });
   });
 
   test("counts the Citations in each of a parish's Volumes", async () => {

@@ -85,6 +85,12 @@ export interface DatasetApi {
   ) => Promise<VolumeCitation[]>;
   // The archives the dataset's church books are in, most cited first.
   archives: (signal?: AbortSignal) => Promise<ChurchBookArchive[]>;
+  // The title of the dataset's archive holding the Volume; null when none
+  // of them does, or Astia can't say.
+  volumeArchive: (
+    volumeId: string,
+    signal?: AbortSignal
+  ) => Promise<string | null>;
   // How many of the dataset's Citations link into each of a parish
   // archive's Volumes, by Volume id; one with none is left out.
   archiveCitations: (
@@ -272,6 +278,15 @@ export function openDatasetApi(
         `${dataset}/api/volumes/${volumeId}/citations`,
         signal
       ),
+
+    volumeArchive: async (volumeId, signal) =>
+      (
+        await json<{ archive: string | null }>(
+          "the Volume's archive",
+          `${dataset}/api/volumes/${volumeId}/archive`,
+          signal
+        )
+      ).archive,
 
     archives: async (signal) =>
       await json<ChurchBookArchive[]>(

@@ -330,6 +330,12 @@ export function createCitations<R extends BookRef>(
     );
   }
 
+  // The title of the archive holding the Volume, among the dataset's;
+  // null when none of them does, or Astia can't say.
+  async function volumeArchive(volumeId: string) {
+    return await images.archiveTitleOf(volumeId, await archives());
+  }
+
   // A stored Link, naming its archive as a resolved one does.
   async function withArchive(link: Link): Promise<Link> {
     const archive = await images.archiveTitleOf(
@@ -540,6 +546,9 @@ export function createCitations<R extends BookRef>(
 
     // The archives the dataset's church books are in, most cited first.
     churchBookArchives,
+
+    // The title of the dataset's archive holding the Volume, or null.
+    volumeArchive,
 
     // Makes a Citation of the entry for the person, and gives it as the
     // Scan viewer lists it. Null when there's no such person; rejected

@@ -15,11 +15,7 @@ import type { DownloadAction } from './helpers';
 // How often a parish's Volumes are asked for again while one downloads.
 const POLL_MS = 2000;
 
-export type VolumeOpenEvent = CustomEvent<{
-  volumeId: string;
-  label: string;
-  archive: string | undefined;
-}>;
+export type VolumeOpenEvent = CustomEvent<{ volumeId: string; label: string }>;
 
 // The church books apart from any citation: the archives the dataset's
 // sources are in, most cited first, by their titles in Astia, then an
@@ -179,11 +175,7 @@ class ChurchBooksListElement extends LitElement {
         @click=${() => {
           this.dispatchEvent(
             new CustomEvent('open-volume', {
-              detail: {
-                volumeId: volume.id,
-                label: volume.label,
-                archive: this.parish?.title
-              }
+              detail: { volumeId: volume.id, label: volume.label }
             })
           );
         }}

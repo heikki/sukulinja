@@ -26,13 +26,11 @@ export type LinkOpen =
   | { citation: CitationRow; link: null; unlinked: UnlinkedResolution };
 
 // An Image of a Volume opened in the Scan viewer with no source, as an
-// Image's Reminder opens it; `archive` is the Volume's archive by its
-// title in Astia, when it's known.
+// Image's Reminder opens it.
 export interface ImageOpen {
   volumeId: string;
   volume: string;
   image: number;
-  archive?: string;
 }
 
 // The Volume shown.
@@ -76,6 +74,9 @@ export interface Viewer {
   fileIdHere: () => string | null;
   // The Volume's citations; null until they arrive.
   citations: Readable<VolumeCitation[] | null | 'failed'>;
+  // The title of the archive the Volume is in, however it was opened; null
+  // until it's known, and if it can't be.
+  archive: Readable<string | null>;
   // Off the Link's Image. A Link to only the Volume holds anywhere in it;
   // with no Link, nothing is away.
   away: Readable<boolean>;
@@ -177,6 +178,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   // Astia's viewer address of each of the Volume's Images.
   let files: string[] = [];
   const citations = signal<VolumeCitation[] | null | 'failed'>(null);
+  const archive = signal<string | null>(null);
   const sourcesInView = signal(false);
   const pending = signal<PendingLink | null>(null);
   const discarding = signal(false);
@@ -215,6 +217,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   const countReq = new Latest();
   const citationsReq = new Latest();
   const rescanReq = new Latest();
+  const archiveReq = new Latest();
   // A person picked in the viewer, whose citation it goes on with once
   // they're selected.
   let noted: { personId: number; source: LinkOpen } | null = null;
@@ -234,6 +237,13 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
       async (signal) => await api.volumeCitations(volumeId, signal)
     );
     if (rows !== undefined) citations.set(rows ?? 'failed');
+  }
+
+  async function loadArchive(volumeId: string) {
+    const title = await archiveReq.run(
+      async (signal) => await api.volumeArchive(volumeId, signal)
+    );
+    if (title !== undefined) archive.set(title);
   }
 
   function showNow(n: number) {
@@ -262,8 +272,10 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     count.set(null);
     files = [];
     citations.set(null);
+    archive.set(null);
     void loadCount(id);
     void loadCitations(id);
+    void loadArchive(id);
     void askRescan(id);
   }
 
@@ -272,6 +284,8 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     forgetRescan();
     countReq.stop();
     citationsReq.stop();
+    archiveReq.stop();
+    archive.set(null);
     volume.set(null);
     image.set(1);
     count.set(null);
@@ -588,6 +602,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     image,
     count,
     citations,
+    archive,
     away,
     sourcesInView,
     setSourcesInView(inView) {

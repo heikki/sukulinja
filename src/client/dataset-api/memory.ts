@@ -28,6 +28,8 @@ export interface MemoryVolume {
   // Astia's re-scan of it, until switched to: its Image count and the pins
   // switching leaves out.
   rescan?: { images: number; stale: StalePin[] };
+  // The title of the archive it's in.
+  archive?: string;
 }
 
 export interface MemoryDataset {
@@ -271,6 +273,13 @@ export function memoryDatasetApi(
         `citations ${volumeId}`,
         signal,
         () => volume(volumeId).citations
+      ),
+
+    volumeArchive: async (volumeId, signal) =>
+      await answer(
+        `archive ${volumeId}`,
+        signal,
+        () => data.volumes?.[volumeId]?.archive ?? null
       ),
 
     // Every Volume given is taken as the archive's.
