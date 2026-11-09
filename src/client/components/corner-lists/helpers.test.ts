@@ -1,17 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { pressed, remindersLabel, tabsOf } from './helpers';
-
-describe('tabsOf', () => {
-  test('lists the Reminders only once there are some', () => {
-    expect(tabsOf(true).map((t) => t.id)).toEqual([
-      'reminders',
-      'changes',
-      'church-books'
-    ]);
-    expect(tabsOf(false).map((t) => t.id)).toEqual(['changes', 'church-books']);
-  });
-});
+import { pressed, remindersLabel } from './helpers';
 
 describe('pressed', () => {
   test('opens the list, or another in its place', () => {

@@ -6,13 +6,13 @@ import { customElement, state } from 'lit/decorators.js';
 import { goTo } from '@/client/on';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
+import type { On } from '@/common/types';
 
 import type { ChangePickEvent } from '../changes-list';
 import type { VolumeOpenEvent } from '../church-books';
 import type { TabPickEvent } from '../corner-panel/panel';
-import type { ReminderPickEvent } from '../reminders-list';
 import { openCount } from '../reminders-list/helpers';
-import { pressed, remindersLabel, tabsOf } from './helpers';
+import { pressed, remindersLabel, TABS } from './helpers';
 import type { CornerList } from './helpers';
 import { BOOK_ICON, CLOCK_ICON, FLAG_ICON } from './icons';
 
@@ -22,12 +22,14 @@ import '../corner-panel/button';
 import '../corner-panel/panel';
 import '../reminders-list';
 
-// Beside Settings: a button each for the Reminders (once there are any),
-// the Changes and the Church books, all opening one corner panel on their
-// own tab, or closing it. Only the open tab's list is drawn. Picking a
-// Reminder or a Change goes to it, asking for the dock (`dock-open`) when
-// it's a person's or a Citation's; picking a Volume opens it in the Scan
-// viewer on its first Image.
+// Beside Settings: a button each for the Reminders, the Changes and the
+// Church books, all opening one corner panel on their own tab, or closing
+// it; a Reminder being drafted, as from the Scan viewer's menu, opens the
+// Reminders. Only the open tab's list is drawn. A line of a Reminder goes
+// where it says, the list staying open to finish with it; picking a Change
+// goes where it was done. Either asks for the dock (`dock-open`) for a
+// person or a Citation. Picking a Volume opens it in the Scan viewer on its
+// first Image.
 @customElement('sl-corner-lists')
 class CornerListsElement extends SignalWatcher(LitElement) {
   static override styles = css`
@@ -45,10 +47,9 @@ class CornerListsElement extends SignalWatcher(LitElement) {
     this.state.reminders.load();
   }
 
-  private hasReminders() {
-    const all = this.state.reminders.all.get();
-    return Array.isArray(all) && all.length > 0;
-  }
+  // Whether a Reminder was being drafted at the last update, so one just
+  // started opens the Reminders.
+  private drafted = false;
 
   private readonly close = () => {
     this.open = null;
@@ -58,21 +59,18 @@ class CornerListsElement extends SignalWatcher(LitElement) {
     this.open = e.detail as CornerList;
   };
 
-  private readonly onReminder = (e: ReminderPickEvent) => {
-    const reminder = e.detail;
-    this.open = null;
-    void goTo(this.state, reminder.on);
-    this.state.reminders.show(reminder.id);
-    if (reminder.on.kind !== 'image') {
-      this.dispatchEvent(new CustomEvent('dock-open'));
-    }
+  private goTo(on: On) {
+    void goTo(this.state, on);
+    if (on.kind !== 'image') this.dispatchEvent(new CustomEvent('dock-open'));
+  }
+
+  private readonly onReminderGo = (e: CustomEvent<On>) => {
+    this.goTo(e.detail);
   };
 
   private readonly onChange = (e: ChangePickEvent) => {
-    const on = e.detail;
     this.open = null;
-    void goTo(this.state, on);
-    if (on.kind !== 'image') this.dispatchEvent(new CustomEvent('dock-open'));
+    this.goTo(e.detail);
   };
 
   private readonly onVolume = (e: VolumeOpenEvent) => {
@@ -81,9 +79,10 @@ class CornerListsElement extends SignalWatcher(LitElement) {
     this.state.viewer.openImage({ volumeId, volume: label, image: 1 });
   };
 
-  // The Reminders tab goes once the last Reminder does.
   override willUpdate() {
-    if (this.open === 'reminders' && !this.hasReminders()) this.open = null;
+    const drafting = this.state.reminders.drafting.get() !== null;
+    if (drafting && !this.drafted) this.open = 'reminders';
+    this.drafted = drafting;
   }
 
   private renderButton(list: CornerList, label: string, icon: unknown) {
@@ -102,7 +101,7 @@ class CornerListsElement extends SignalWatcher(LitElement) {
     switch (this.open) {
       case 'reminders':
         return html`<sl-reminders-list
-          @pick=${this.onReminder}
+          @go=${this.onReminderGo}
         ></sl-reminders-list>`;
       case 'changes':
         return html`<sl-changes-list @pick=${this.onChange}></sl-changes-list>`;
@@ -118,18 +117,14 @@ class CornerListsElement extends SignalWatcher(LitElement) {
   override render() {
     const count = openCount(this.state.reminders.all.get()) ?? 0;
     return html`
-      ${
-        this.hasReminders()
-          ? this.renderButton('reminders', remindersLabel(count), FLAG_ICON)
-          : nothing
-      }
+      ${this.renderButton('reminders', remindersLabel(count), FLAG_ICON)}
       ${this.renderButton('changes', 'Changes', CLOCK_ICON)}
       ${this.renderButton('church-books', 'Church books', BOOK_ICON)}
       ${
         this.open === null
           ? nothing
           : html`<sl-corner-panel
-              .tabs=${tabsOf(this.hasReminders())}
+              .tabs=${TABS}
               active=${this.open}
               @tab=${this.onTab}
               @close=${this.close}

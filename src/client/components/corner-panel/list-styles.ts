@@ -97,8 +97,13 @@ const list = css`
     font-size: 0.85rem;
   }
 
-  button.toggle:hover {
+  button.toggle:hover:not(:disabled) {
     text-decoration: underline;
+  }
+
+  button.toggle:disabled {
+    color: var(--muted);
+    cursor: default;
   }
 `;
 

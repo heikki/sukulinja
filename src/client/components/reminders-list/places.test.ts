@@ -9,7 +9,7 @@ import type {
   VolumeCitation
 } from '@/common/types';
 
-import { reminderPlaces, remindersHere } from './reminder-places';
+import { placesHere, reminderPlaces } from './places';
 
 function churchBook(id: number): CitationRow {
   return {
@@ -142,7 +142,7 @@ test("on the source's Image, a Reminder is on its Citation, or else the Image", 
     header: ['Matti Esimerkki', 'I Aa:201 · Image 18'],
     target: { citationId: 11 }
   });
-  expect(places?.image).toEqual({
+  expect(places?.base).toEqual({
     header: ['I Aa:201 · Image 18'],
     target: IMAGE_18
   });
@@ -154,16 +154,18 @@ test("off the source's Image, a Reminder is on the Image shown", async () => {
   await Bun.sleep(0);
   expect(reminderPlaces(state)).toEqual({
     cited: null,
-    image: {
+    base: {
       header: ['I Aa:201 · Image 19'],
       target: { ...IMAGE_18, image: 19, fileId: '201-f19' }
     }
   });
 });
 
-test("the Reminders here are the Image's and those of the Citations linking it", async () => {
+test('with no Image shown, a Reminder is on the Selected person', async () => {
   const state = await viewing();
-  expect(remindersHere(state).map((r) => r.id)).toEqual([1, 3]);
-  state.viewer.show(19);
-  expect(remindersHere(state).map((r) => r.id)).toEqual([2]);
+  state.viewer.close();
+  expect(placesHere(state)).toEqual({
+    cited: null,
+    base: { header: ['Matti Esimerkki'], target: { personId: 1 } }
+  });
 });

@@ -16,7 +16,6 @@ import '../scan-viewer';
 import { detailsWidth, setDetailsWidth } from '../person-panel/helpers';
 
 import '../person-search';
-import '../reminder-dialog/shown';
 import '../corner-lists';
 import '../settings';
 
@@ -564,18 +563,8 @@ class TreeViewElement extends SignalWatcher(LitElement) {
 
   override render() {
     // The corner renders through the loading and empty states too, so the
-    // way back to the chooser (in Settings) is always there. A Reminder
-    // clicked anywhere opens over it all.
-    return html`${this.renderBody()}${this.renderCorner()}
-      <sl-reminder-shown
-        .docked=${this.details}
-        @dock-open=${() => {
-          this.details = true;
-        }}
-        @dock-close=${() => {
-          this.details = false;
-        }}
-      ></sl-reminder-shown>`;
+    // way back to the chooser (in Settings) is always there.
+    return html`${this.renderBody()}${this.renderCorner()}`;
   }
 
   private renderBody() {

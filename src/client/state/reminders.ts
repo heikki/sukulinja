@@ -1,10 +1,24 @@
-import { computed, signal } from '@lit-labs/signals';
+import { signal } from '@lit-labs/signals';
 
 import type { DatasetApi } from '@/client/dataset-api';
 import type { OnTarget, Reminder, ReminderChange } from '@/common/types';
 
 import { Latest } from './latest';
 import type { Readable } from './selected';
+
+// Something a new Reminder can be on, as it's said where it's written.
+export interface ReminderPlace {
+  header: string[];
+  target: OnTarget;
+}
+
+// What a new Reminder is on: `base` (the Image shown, or the Selected
+// person), or with `cited`, the person's Citation while the person's line
+// is ticked.
+export interface ReminderPlaces {
+  cited: ReminderPlace | null;
+  base: ReminderPlace;
+}
 
 // The dataset's Reminders, asked for once something shows them, and kept
 // in step with what's written, changed and deleted here. Each change
@@ -17,44 +31,16 @@ export interface Reminders {
   remind: (text: string, on: OnTarget) => Promise<Reminder>;
   change: (id: number, change: ReminderChange) => Promise<void>;
   remove: (id: number) => Promise<void>;
-  // The Reminder open in its dialog, as it now stands: gone once it's
-  // deleted.
-  shown: Readable<Reminder | null>;
-  // Opens one in its dialog, or closes it with null.
-  show: (id: number | null) => void;
-  // Opens one in its dialog, or closes it if it's open: true when it
-  // opened.
-  toggle: (id: number) => boolean;
-}
-
-// The open Reminders on an Image of a Volume, not stale, or on one of the
-// Citations `citations` names.
-export function remindersOn(
-  all: Reminder[],
-  at: { volumeId: string; image: number },
-  citations: Set<number>
-) {
-  return all.filter(({ on, done }) => {
-    if (done !== null) return false;
-    if (on.kind === 'citation') return citations.has(on.citationId);
-    return (
-      on.kind === 'image' &&
-      !on.stale &&
-      on.volumeId === at.volumeId &&
-      on.image === at.image
-    );
-  });
+  // A new Reminder being written in the list, on what it can be on; null
+  // while none is.
+  drafting: Readable<ReminderPlaces | null>;
+  // Starts writing one on `places`, or with null, stops.
+  draft: (places: ReminderPlaces | null) => void;
 }
 
 export function openReminders(api: DatasetApi): Reminders {
   const all = signal<Reminder[] | null | 'failed'>(null);
-  const shownId = signal<number | null>(null);
-  const shown = computed(() => {
-    const id = shownId.get();
-    const rows = all.get();
-    if (id === null || !Array.isArray(rows)) return null;
-    return rows.find((r) => r.id === id) ?? null;
-  });
+  const drafting = signal<ReminderPlaces | null>(null);
   const req = new Latest();
   let asked = false;
 
@@ -92,14 +78,9 @@ export function openReminders(api: DatasetApi): Reminders {
       await api.deleteReminder(id);
       edit((rows) => rows.filter((r) => r.id !== id));
     },
-    shown,
-    show(id) {
-      shownId.set(id);
-    },
-    toggle(id) {
-      const opening = shownId.get() !== id;
-      shownId.set(opening ? id : null);
-      return opening;
+    drafting,
+    draft(places) {
+      drafting.set(places);
     }
   };
 }

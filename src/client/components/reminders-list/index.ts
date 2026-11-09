@@ -1,25 +1,55 @@
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
-import { html, LitElement, nothing } from 'lit';
+import { css, html, LitElement, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
+import { repeat } from 'lit/directives/repeat.js';
 
-import { isStale, onLabel } from '@/client/on';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { Reminder } from '@/common/types';
 
 import { cornerListStyles } from '../corner-panel/list-styles';
 import { listed } from './helpers';
+import { placesHere } from './places';
 
-export type ReminderPickEvent = CustomEvent<Reminder>;
+import './add';
+import './row';
 
-// Every open Reminder in the dataset, newest first, each with what it's
-// on; one on an Image from an earlier filming is flagged so. Clicking one
-// picks it (`pick`). Show done adds the done ones, dimmed. A tab of the
-// corner panel.
+// The only place Reminders are: every open one, newest first, each with
+// what it's on, a line going to each (`go`, from its row); Show done adds
+// the done ones, dimmed. Each is edited, done or deleted in its row. A new
+// one is written at the top, on what's in view: Add reminder starts it, as
+// the Scan viewer's menu does. A tab of the corner panel; leaving it drops
+// the draft.
 @customElement('sl-reminders-list')
 class RemindersListElement extends SignalWatcher(LitElement) {
-  static override styles = cornerListStyles;
+  static override styles = [
+    cornerListStyles,
+    css`
+      li {
+        padding: 0.45rem 0.75rem;
+        border-radius: 6px;
+      }
+
+      li.done {
+        opacity: 0.55;
+      }
+
+      /* Add reminder at the start, Show done at the end. */
+      .actions {
+        justify-content: space-between;
+      }
+
+      .actions button.toggle {
+        margin-right: 0;
+      }
+
+      sl-reminder-add {
+        flex: none;
+        margin-bottom: 0.75rem;
+      }
+    `
+  ];
 
   @consume({ context: appState }) private readonly state!: AppState;
 
@@ -30,27 +60,9 @@ class RemindersListElement extends SignalWatcher(LitElement) {
     this.state.reminders.load();
   }
 
-  private renderRow(reminder: Reminder) {
-    const persons = this.state.chart.people.get().persons;
-    const done = reminder.done !== null;
-    return html`<li>
-      <button
-        class="row ${done ? 'done' : ''}"
-        aria-haspopup="dialog"
-        @click=${() => {
-          this.dispatchEvent(new CustomEvent('pick', { detail: reminder }));
-        }}
-      >
-        <span class="text">${reminder.text}</span>
-        <span class="on"
-          >${onLabel(reminder.on, persons)}${
-            isStale(reminder.on)
-              ? html`<span class="chip">From an earlier filming</span>`
-              : nothing
-          }</span
-        >
-      </button>
-    </li>`;
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.state.reminders.draft(null);
   }
 
   private renderList(all: Reminder[]) {
@@ -60,7 +72,14 @@ class RemindersListElement extends SignalWatcher(LitElement) {
       return html`<p class="muted">${none}</p>`;
     }
     return html`<ul>
-      ${rows.map((r) => this.renderRow(r))}
+      ${repeat(
+        rows,
+        (r) => r.id,
+        (r) =>
+          html`<li class=${r.done === null ? '' : 'done'}>
+            <sl-reminder-row .reminder=${r}></sl-reminder-row>
+          </li>`
+      )}
     </ul>`;
   }
 
@@ -73,27 +92,48 @@ class RemindersListElement extends SignalWatcher(LitElement) {
     return this.renderList(all);
   }
 
+  private renderDraft() {
+    const places = this.state.reminders.drafting.get();
+    if (places === null) return nothing;
+    return html`<sl-reminder-add .places=${places}></sl-reminder-add>`;
+  }
+
+  private renderAdd() {
+    const { reminders } = this.state;
+    if (reminders.drafting.get() !== null) return nothing;
+    const places = placesHere(this.state);
+    return html`<button
+      class="toggle"
+      ?disabled=${places === null}
+      title=${places === null ? 'Select someone, or open a scan, first' : ''}
+      @click=${() => {
+        reminders.draft(places);
+      }}
+    >
+      Add reminder
+    </button>`;
+  }
+
   private renderShowDone() {
     const all = this.state.reminders.all.get();
     const done = Array.isArray(all)
       ? all.filter((r) => r.done !== null).length
       : 0;
     if (done === 0) return nothing;
-    return html`<div class="actions">
-      <button
-        class="toggle"
-        aria-pressed=${this.showDone ? 'true' : 'false'}
-        @click=${() => {
-          this.showDone = !this.showDone;
-        }}
-      >
-        ${this.showDone ? 'Hide done' : `Show done (${done})`}
-      </button>
-    </div>`;
+    return html`<button
+      class="toggle"
+      aria-pressed=${this.showDone ? 'true' : 'false'}
+      @click=${() => {
+        this.showDone = !this.showDone;
+      }}
+    >
+      ${this.showDone ? 'Hide done' : `Show done (${done})`}
+    </button>`;
   }
 
   override render() {
-    return html`${this.renderBody()} ${this.renderShowDone()}`;
+    return html`${this.renderDraft()} ${this.renderBody()}
+      <div class="actions">${this.renderAdd()} ${this.renderShowDone()}</div>`;
   }
 }
 

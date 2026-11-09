@@ -12,6 +12,7 @@ import type {
 } from '@/common/types';
 
 import { headerOf } from './header';
+import { onLines } from './lines';
 
 function reminder(on: On): Reminder {
   return { id: 1, text: 'R', on, created: '', done: null };
@@ -134,4 +135,29 @@ test('keeps what it found once the Scan viewer closes', async () => {
   await Bun.sleep(0);
   expect(headerOf(state, reminder(CITATION))).toEqual(citation);
   expect(headerOf(state, reminder(IMAGE))).toEqual(image);
+});
+
+test("a Citation's lines go to its person, then to it", async () => {
+  const state = await loaded();
+  const lines = onLines(state, reminder(CITATION));
+  expect(lines.map((l) => l.to)).toEqual([
+    { kind: 'person', personId: 1 },
+    CITATION
+  ]);
+  expect(lines[0]?.text).toBe('Matti Testinen');
+});
+
+test("a person's one line goes to them", async () => {
+  const state = await loaded();
+  const on: On = { kind: 'person', personId: 1 };
+  expect(onLines(state, reminder(on))).toEqual([
+    { text: 'Matti Testinen', to: on }
+  ]);
+});
+
+test("an Image's line goes to it, unless it's from an earlier filming", async () => {
+  const state = await loaded();
+  expect(onLines(state, reminder(IMAGE))[0]?.to).toEqual(IMAGE);
+  const stale: On = { ...IMAGE, stale: true };
+  expect(onLines(state, reminder(stale))[0]?.to).toBeNull();
 });

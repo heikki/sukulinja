@@ -84,6 +84,11 @@ function nameOf(state: AppState, personId: number) {
   return person === undefined ? 'Someone' : formatName(person);
 }
 
+// A person, as a header: their name.
+export function personHeader(state: AppState, personId: number) {
+  return [nameOf(state, personId)];
+}
+
 // A person's Citation, as a header: their name, then the parish, Volume
 // and page, or while those aren't in, `written` (its reference as written)
 // or the Citation's own.
@@ -112,6 +117,6 @@ export function imageHeader(
 export function headerOf(state: AppState, reminder: Reminder) {
   const { on } = reminder;
   if (on.kind === 'image') return imageHeader(state, on);
-  if (on.kind === 'person') return [nameOf(state, on.personId)];
+  if (on.kind === 'person') return personHeader(state, on.personId);
   return citationHeader(state, on, on.reference ?? on.source);
 }

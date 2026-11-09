@@ -1,24 +1,8 @@
 import type { AppState } from '@/client/state';
-import { remindersOn } from '@/client/state/reminders';
-import type { Link, VolumeCitation } from '@/common/types';
+import type { ReminderPlace, ReminderPlaces } from '@/client/state/reminders';
+import type { Link } from '@/common/types';
 
-import type { ReminderPlace, ReminderPlaces } from '../reminder-dialog';
-import { citationHeader, imageHeader } from '../reminder-dialog/header';
-import { groupCitations, rowName } from './citations';
-
-// The Volume's rows linking the Image shown, in the order the people
-// beside the scan list them.
-function rowsHere(state: AppState) {
-  const rows = state.viewer.citations.get();
-  if (!Array.isArray(rows)) return [];
-  const persons = state.chart.people.get().persons;
-  function nameOf(row: VolumeCitation) {
-    return rowName(persons, row);
-  }
-  return groupCitations(rows, state.viewer.image.get(), nameOf).flatMap(
-    (g) => g.rows
-  );
-}
+import { citationHeader, imageHeader, personHeader } from './header';
 
 // Whether a Link points to that Image of the Volume.
 function linksImage(
@@ -49,7 +33,7 @@ export function reminderPlaces(state: AppState) {
   const source = state.viewer.source.get();
   const personId = state.selected.id.get();
   if (source === null || personId === null || !linksImage(source.link, at)) {
-    return { cited: null, image: onImage };
+    return { cited: null, base: onImage };
   }
   const citationId = source.citation.id;
   const places: ReminderPlaces = {
@@ -57,18 +41,20 @@ export function reminderPlaces(state: AppState) {
       header: citationHeader(state, { personId, citationId }),
       target: { citationId }
     },
-    image: onImage
+    base: onImage
   };
   return places;
 }
 
-// The open Reminders on the Image shown, or on a Citation linking it; a
-// stale one isn't.
-export function remindersHere(state: AppState) {
-  const all = state.reminders.all.get();
-  const volume = state.viewer.volume.get();
-  if (!Array.isArray(all) || volume === null) return [];
-  const ids = new Set(rowsHere(state).map((r) => r.citation.id));
-  const image = state.viewer.image.get();
-  return remindersOn(all, { volumeId: volume.id, image }, ids);
+// What a Reminder written now is on: as `reminderPlaces` says while the
+// Scan viewer shows an Image, or else the Selected person; null with
+// neither.
+export function placesHere(state: AppState): ReminderPlaces | null {
+  if (state.viewer.opened.get() !== null) return reminderPlaces(state);
+  const personId = state.selected.id.get();
+  if (personId === null) return null;
+  return {
+    cited: null,
+    base: { header: personHeader(state, personId), target: { personId } }
+  };
 }
