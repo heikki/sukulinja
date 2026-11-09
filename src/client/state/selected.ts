@@ -17,7 +17,7 @@ export interface Readable<T> {
 }
 
 // The Selected person: who they are, their details, and the Links of their
-// church-book references as they stream in.
+// church-book references, shown together once they're all in.
 export interface Selected {
   id: Readable<number | null>;
   // The last person's stay until the new person's arrive with their Links,
@@ -28,7 +28,7 @@ export interface Selected {
   error: Readable<string | null>;
   // By citation id.
   links: Readable<Map<number, LinkResolution>>;
-  // The Links are still streaming.
+  // The Links are still coming in.
   pending: Readable<boolean>;
   // The details' sources in the panel's order, each with its link status.
   sources: Readable<SourceGroup[]>;
@@ -49,7 +49,7 @@ export interface Selected {
 }
 
 // Long enough for Links the server has resolved before; ones it must ask
-// Astia for stream in after.
+// Astia for come in together after.
 const GRACE_MS = 250;
 
 export function openSelected(
@@ -78,9 +78,11 @@ export function openSelected(
     links.set(new Map(links.get()).set(citationId, resolution));
   }
 
-  // One stream at a time. With `arrived`, the new person's details, their
-  // Links are gathered and shown with them, all at once; without, the
-  // Links known stay until their new ones arrive.
+  // One stream at a time. Its Links are gathered and shown all at once,
+  // once the stream ends, so a source doesn't change its name or move
+  // under another archive as each comes in. With `arrived`, the new
+  // person's details, those gathered by `grace` are shown with them, the
+  // rest pending; without, the Links known stay until the new ones are in.
   async function loadLinks(person: number, arrived: PersonDetails | null) {
     linksAbort?.abort();
     const abort = new AbortController();
@@ -92,19 +94,15 @@ export function openSelected(
       shown = true;
       details.set(arrived);
       error.set(null);
-      links.set(gathered);
+      links.set(new Map(gathered));
       pending.set(true);
     }
     if (shown) pending.set(true);
     const timer = shown ? undefined : setTimeout(show, grace);
     try {
       for await (const line of api.personLinks(person, abort.signal)) {
-        if (shown) {
-          setLinks(line);
-        } else {
-          const { citationId, ...resolution } = line;
-          gathered.set(citationId, resolution);
-        }
+        const { citationId, ...resolution } = line;
+        gathered.set(citationId, resolution);
       }
     } catch (err) {
       // Unresolved references show as unavailable once pending clears.
@@ -113,6 +111,7 @@ export function openSelected(
       clearTimeout(timer);
       if (!abort.signal.aborted) {
         show();
+        links.set(new Map([...links.get(), ...gathered]));
         pending.set(false);
       }
     }

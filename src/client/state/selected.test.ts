@@ -172,6 +172,28 @@ test('Links still streaming after the grace show the details, and arrive after',
   expect([...selected.links.get().keys()]).toEqual([11, 12]);
 });
 
+test('Links after the grace are shown together, once all are in', async () => {
+  const api = dataset();
+  const end = Promise.withResolvers<undefined>();
+  const slow = {
+    ...api,
+    async *personLinks(id: number, signal?: AbortSignal) {
+      await Bun.sleep(5);
+      yield* api.personLinks(id, signal);
+      await end.promise;
+    }
+  };
+  const selected = openSelected(slow, { grace: 0 });
+  const loading = selected.select(1);
+  await Bun.sleep(20);
+  // Both are in, past the grace, but the stream hasn't ended.
+  expect(selected.pending.get()).toBe(true);
+  expect(selected.links.get().size).toBe(0);
+  end.resolve(undefined);
+  await loading;
+  expect([...selected.links.get().keys()]).toEqual([11, 12]);
+});
+
 test("mark saves, sets the reference's Links, and reloads the others keeping the known", async () => {
   const data = {
     details: { 1: MATTI },
