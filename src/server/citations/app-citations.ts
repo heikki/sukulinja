@@ -1,6 +1,6 @@
 // Citations made in the app, on an Astia Image: storing and deleting one,
-// with the source record of the Volume it's in. A Volume's source is the
-// one the Citations made in the app whose link is in that Volume cite;
+// with the source record of the Volume it's in. A Volume's source is known
+// by its own record, the xref the app gave it or its title and publisher;
 // nothing marks the source itself as the app's.
 
 import type { Database } from 'bun:sqlite';
@@ -27,14 +27,14 @@ interface NewCitation {
 
 export function openAppCitations(db: Database) {
   const annotations = openAnnotations(db);
-  // Only a Citation of an Image cites the Volume's source: one made in the
-  // app of another source's reference, such as a MyHeritage entry, keeps the
-  // page a Mark moved aside.
-  const volumeSource = db.prepare<{ id: number }, [string]>(
-    `SELECT source_id AS id FROM citations
-     WHERE added_in_app = 1 AND link_volume_id = ? AND source_id IS NOT NULL
-       AND original_page IS NULL
-     ORDER BY id LIMIT 1`
+  // The Volume's source is known by its own record: the xref the app gave
+  // it, else its title and publisher, as one brought back under another
+  // xref has them. Never by the Citations that cite it, which may cite
+  // another source's reference (ADR-0016).
+  const volumeSource = db.prepare<{ id: number }, [string, string, string]>(
+    `SELECT id FROM sources
+     WHERE xref = ?1 OR (title = ?2 AND publisher = ?3)
+     ORDER BY xref = ?1 DESC, id LIMIT 1`
   );
   const xrefTaken = db.prepare<{ id: number }, [string]>(
     'SELECT id FROM sources WHERE xref = ?'
@@ -67,18 +67,22 @@ export function openAppCitations(db: Database) {
   );
   const deleteSource = db.prepare('DELETE FROM sources WHERE id = ?');
 
-  // An xref no MyHeritage export gives, so a re-import never takes another
-  // source for it.
+  // The xref the app gives the Volume's source first: one no MyHeritage
+  // export gives, so a re-import never takes another source for it.
+  function baseXref(volumeId: string) {
+    return `@ASTIA_${volumeId.toUpperCase().replaceAll(/[^A-Z0-9]/g, '_')}@`;
+  }
+
   function newXref(volumeId: string) {
-    const base = `ASTIA_${volumeId.toUpperCase().replaceAll(/[^A-Z0-9]/g, '_')}`;
+    const base = baseXref(volumeId);
     for (let n = 1; ; n += 1) {
-      const xref = n === 1 ? `@${base}@` : `@${base}_${n}@`;
+      const xref = n === 1 ? base : `${base.slice(0, -1)}_${n}@`;
       if (xrefTaken.get(xref) === null) return xref;
     }
   }
 
   function sourceOf(volumeId: string, volume: string) {
-    const known = volumeSource.get(volumeId);
+    const known = volumeSource.get(baseXref(volumeId), volume, PUBLISHER);
     if (known !== null) return known.id;
     const res = insertSource.run(newXref(volumeId), volume, PUBLISHER);
     return Number(res.lastInsertRowid);
