@@ -58,6 +58,11 @@ function serveWith(other: MemoryAstia) {
   });
 }
 
+async function until(done: () => Promise<boolean>) {
+  // eslint-disable-next-line no-await-in-loop -- polling, one look at a time
+  while (!(await done())) await Bun.sleep(5);
+}
+
 // What the request failed with; it must fail.
 async function failure(request: Promise<unknown>) {
   return await request
@@ -202,6 +207,77 @@ describe('Scan cache setting', () => {
   });
 });
 
+describe('Church books', () => {
+  const JUVA_ARCHIVE = '1212295491';
+  const JUVA_BOOKS = {
+    [JUVA_ARCHIVE]: {
+      volumes: [
+        {
+          id: '301',
+          label: 'I Aa:1 Pää- ja rippikirjat (1790-1796)',
+          images: 2
+        },
+        {
+          id: '302',
+          label: 'I C:1 Syntyneiden ja kastettujen luettelot',
+          images: 3
+        }
+      ]
+    }
+  };
+
+  async function send(method: string, path: string) {
+    const res = await fetch(new Request(`http://localhost${path}`, { method }));
+    return {
+      status: res.status,
+      body: (await res.json().catch(() => null)) as unknown
+    };
+  }
+
+  test('lists the known parishes, each once', async () => {
+    const { body } = await send('GET', '/astia/parishes');
+    const names = (body as Array<{ name: string }>).map((p) => p.name);
+    expect(names).toContain('Juva');
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  test("lists a parish's Volumes, and downloads one into the cache", async () => {
+    serveWith(memoryAstia(JUVA_BOOKS));
+    const before = await send('GET', `/astia/archives/${JUVA_ARCHIVE}/volumes`);
+    expect(before.body).toEqual([
+      {
+        id: '301',
+        label: 'I Aa:1 Pää- ja rippikirjat (1790-1796)',
+        digitized: true,
+        onDisk: { images: 2, cached: 0, bytes: 0 },
+        download: null
+      },
+      expect.objectContaining({ id: '302', download: null })
+    ]);
+    const started = await send('PUT', '/astia/volumes/302/download');
+    expect(started.body).toEqual([
+      { volumeId: '302', state: 'downloading', error: null }
+    ]);
+    await until(async () => {
+      const { body } = await send('GET', '/astia/downloads');
+      return (body as unknown[]).length === 0;
+    });
+    const after = await send('GET', `/astia/archives/${JUVA_ARCHIVE}/volumes`);
+    expect((after.body as unknown[])[1]).toMatchObject({
+      onDisk: { images: 3, cached: 3 },
+      download: null
+    });
+    expect((await send('DELETE', '/astia/volumes/302/download')).status).toBe(
+      405
+    );
+  });
+
+  test('knows only the parishes it lists', async () => {
+    expect((await send('GET', '/astia/archives/999/volumes')).status).toBe(404);
+    expect((await send('GET', '/astia/volumes/302/download')).status).toBe(405);
+  });
+});
+
 describe("A dataset's Citations", () => {
   async function seedDataset() {
     const data = join(root, 'data');
@@ -286,6 +362,14 @@ describe("A dataset's Citations", () => {
     expect((await get('/d/juva/api/volumes/elsewhere/citations')).status).toBe(
       404
     );
+  });
+
+  test("counts the Citations in each of a parish's Volumes", async () => {
+    await seedDataset();
+    const juva = await get('/d/juva/api/archives/1212295491/citations');
+    expect(await juva.json()).toEqual({ 'juva-1': 1 });
+    const elsewhere = await get('/d/juva/api/archives/1200716382/citations');
+    expect(await elsewhere.json()).toEqual({});
   });
 
   async function send(method: string, path: string, body?: unknown) {

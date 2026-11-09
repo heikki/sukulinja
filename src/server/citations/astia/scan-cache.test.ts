@@ -362,3 +362,19 @@ describe('a re-scanned Volume', () => {
     ]);
   });
 });
+
+test('says what of a Volume is on disk', async () => {
+  expect(await cache.onDisk('105')).toEqual({
+    images: IMAGES,
+    cached: 0,
+    bytes: 0
+  });
+  await open('105', 1);
+  await thumb('105', 1);
+  await open('105', 2);
+  expect(await cache.onDisk('105')).toEqual({
+    images: IMAGES,
+    cached: 2,
+    bytes: 3 * IMAGE_BYTES
+  });
+});

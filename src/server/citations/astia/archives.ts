@@ -4,33 +4,49 @@
 import { AstiaError } from './astia';
 import type { Astia } from './astia';
 
-// Astia fonds ("… seurakunnan arkisto") per parish as MyHeritage and
-// FamilySearch spell it. Parish archives are top-level in Astia, so these
-// were looked up once by hand. FamilySearch's "Mikkeli" baptisms predate
-// the town parish (1844) and live in the rural parish's books.
-const PARISH_ARCHIVE: Record<string, string> = {
-  'Antrea': '1200716382',
-  'Hankasalmi': '1194659536',
-  'Haukivuori': '1202439501',
-  'Hirvensalmi': '1203505721',
-  'Joroinen': '1212061565',
-  'Juva': '1212295491',
-  'Kangasniemi': '1212989643',
-  'Kirvu': '1852428855',
-  'Kivennapa': '1853665727',
-  'Mikkeli': '1854401336',
-  'Mikkeli Maaseurakunta': '1854401336',
-  'Mäntyharju': '1856083369',
-  'Pieksamaki': '1225495701',
-  'Pieksämäki': '1225495701',
-  'Rautalampi': '1192981148',
-  'Sääminki': '1231967062'
-};
+// A parish whose church books Astia holds: its name, and its fonds ("…
+// seurakunnan arkisto"), with the other spellings MyHeritage and
+// FamilySearch give it.
+export interface Parish {
+  name: string;
+  archiveId: string;
+  spellings: string[];
+}
+
+// Parish archives are top-level in Astia, so these were looked up once by
+// hand. FamilySearch's "Mikkeli" baptisms predate the town parish (1844)
+// and live in the rural parish's books.
+export const PARISHES: Parish[] = [
+  { name: 'Antrea', archiveId: '1200716382', spellings: [] },
+  { name: 'Hankasalmi', archiveId: '1194659536', spellings: [] },
+  { name: 'Haukivuori', archiveId: '1202439501', spellings: [] },
+  { name: 'Hirvensalmi', archiveId: '1203505721', spellings: [] },
+  { name: 'Joroinen', archiveId: '1212061565', spellings: [] },
+  { name: 'Juva', archiveId: '1212295491', spellings: [] },
+  { name: 'Kangasniemi', archiveId: '1212989643', spellings: [] },
+  { name: 'Kirvu', archiveId: '1852428855', spellings: [] },
+  { name: 'Kivennapa', archiveId: '1853665727', spellings: [] },
+  {
+    name: 'Mikkelin maaseurakunta',
+    archiveId: '1854401336',
+    spellings: ['Mikkeli', 'Mikkeli Maaseurakunta']
+  },
+  { name: 'Mäntyharju', archiveId: '1856083369', spellings: [] },
+  { name: 'Pieksämäki', archiveId: '1225495701', spellings: ['Pieksamaki'] },
+  { name: 'Rautalampi', archiveId: '1192981148', spellings: [] },
+  { name: 'Sääminki', archiveId: '1231967062', spellings: [] }
+];
+
+const ARCHIVE_OF = new Map(
+  PARISHES.flatMap((p) =>
+    [p.name, ...p.spellings].map((spelling) => [spelling, p.archiveId])
+  )
+);
 
 // The Astia fonds of the parish, however it's spelled; null for one not
 // looked up.
 export function parishArchive(parish: string | null) {
-  return parish === null ? null : (PARISH_ARCHIVE[parish] ?? null);
+  return parish === null ? null : (ARCHIVE_OF.get(parish) ?? null);
 }
 
 // The parish's Volumes of every series, for checking a Mark and choosing
