@@ -304,9 +304,10 @@ export interface VolumeOnDisk {
 
 // A Downloaded Volume: on its way (`queued`, then `downloading`), whole
 // (`complete`), or stopped short, by hand or by why: Astia couldn't be
-// reached, or re-scanned the Volume under it.
+// reached, kept giving no image for a file it still lists, or re-scanned
+// the Volume under it.
 export type DownloadState = 'queued' | 'downloading' | 'complete' | 'stopped';
-export type DownloadError = 'unreachable' | 'rescanned';
+export type DownloadError = 'unreachable' | 'no-image' | 'rescanned';
 
 // GET /astia/downloads: each Downloaded Volume, and what of it is on disk.
 export interface DownloadStatus extends VolumeOnDisk {

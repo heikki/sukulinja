@@ -42,6 +42,12 @@ describe('downloadActions', () => {
     expect(labels(volume({ state: 'complete' }))).toEqual(['Remove']);
   });
 
+  test('offers to keep a Volume viewed whole already', () => {
+    const viewed = { images: 3, cached: 3, bytes: 3 * MB };
+    expect(labels(volume(null, viewed))).toEqual(['Keep']);
+    expect(diskLine(volume(null, viewed))).toBe('All on disk, not kept · 3 MB');
+  });
+
   test('offers nothing for a Volume with no scans', () => {
     expect(labels(volume(null, undefined, false))).toEqual([]);
   });
@@ -70,6 +76,9 @@ describe('diskLine', () => {
     expect(
       diskLine(volume({ state: 'stopped', error: 'unreachable' }, at))
     ).toBe("Stopped at 42 of 180: Astia couldn't be reached · 105 MB");
+    expect(diskLine(volume({ state: 'stopped', error: 'no-image' }, at))).toBe(
+      'Stopped at 42 of 180: Astia gave no image · 105 MB'
+    );
     expect(diskLine(volume({ state: 'complete' }, at))).toBe(
       'Downloaded · 105 MB'
     );

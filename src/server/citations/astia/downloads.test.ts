@@ -3,7 +3,7 @@ import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { AstiaError } from './astia';
+import { AstiaError, NoImageError } from './astia';
 import type { Astia } from './astia';
 import { openDownloads } from './downloads';
 import type { Downloads } from './downloads';
@@ -22,6 +22,10 @@ let fetched: string[] = [];
 let hold: PromiseWithResolvers<void> | null = null;
 // How many more requests for an Image fail as if Astia were down.
 let failing = 0;
+// How many more requests for an Image get Astia's "no preview" placeholder,
+// and whether every thumbnail does.
+let placeholders = 0;
+let noThumbs = false;
 let cache: ScanCache = openScanCache({
   astia: astia(),
   root: dir,
@@ -48,6 +52,13 @@ function astia(): Astia {
         failing -= 1;
         throw new AstiaError('down');
       }
+      if (noThumbs && fileId.includes('-t')) {
+        throw new NoImageError(`no image ${fileId}`);
+      }
+      if (placeholders > 0) {
+        placeholders -= 1;
+        throw new NoImageError(`no image ${fileId}`);
+      }
       await listed.imageBytes(volumeId, fileId);
       fetched.push(fileId);
       if (fileId.includes('-f')) await hold?.promise;
@@ -71,6 +82,8 @@ beforeEach(async () => {
   fetched = [];
   hold = null;
   failing = 0;
+  placeholders = 0;
+  noThumbs = false;
   const a = astia();
   cache = openScanCache({ astia: a, root: dir, switches: false });
   downloads = openDownloads(
@@ -230,4 +243,30 @@ test('removed, stops and hands its Images back to the cap', async () => {
   expect(await downloads.of('201')).toBeNull();
   // Under the default cap they stay, as ordinary cache.
   expect(await readdir(join(dir, '.astia-images', '201'))).toHaveLength(8);
+});
+
+test("Astia's placeholder for a file it still lists is no re-scan", async () => {
+  placeholders = 2;
+  await downloads.start('202');
+  await downloads.idle();
+  expect(await stateOf('202')).toBe('complete');
+  placeholders = Infinity;
+  await downloads.remove('202');
+  await cache.clear();
+  await downloads.start('202');
+  await downloads.idle();
+  expect(await downloads.of('202')).toMatchObject({
+    state: 'stopped',
+    error: 'no-image'
+  });
+});
+
+test('thumbnails Astia gives no image for stop nothing', async () => {
+  noThumbs = true;
+  await downloads.start('202');
+  await downloads.idle();
+  expect(await downloads.of('202')).toMatchObject({
+    state: 'complete',
+    cached: 3
+  });
 });

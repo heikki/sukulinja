@@ -52,11 +52,21 @@ function stopped(signal: AbortSignal) {
   return signal.aborted;
 }
 
-// Why a download stopped, from what Astia threw; anything else is a bug.
+// A download stopped by what Astia answered.
+class Stopped extends Error {
+  override name = 'Stopped';
+  constructor(readonly why: DownloadError) {
+    super(why);
+  }
+}
+
+// Why a download stopped, from what was thrown: Astia failing, or what it
+// answered; anything else is a bug.
 function errorOf(err: unknown): DownloadError {
+  if (err instanceof Stopped) return err.why;
   // eslint-disable-next-line @typescript-eslint/only-throw-error -- rethrown as caught
   if (!(err instanceof AstiaError)) throw err;
-  return err instanceof NoImageError ? 'rescanned' : 'unreachable';
+  return 'unreachable';
 }
 
 export function openDownloads(
@@ -73,27 +83,46 @@ export function openDownloads(
   let idle = Promise.withResolvers<undefined>();
   idle.resolve(undefined);
 
-  // One size of an Image, tried again while Astia fails, up to `retries`
-  // times. Says whether it fetched a full-size one from Astia.
-  async function fetchOne(
-    at: ImageRef,
-    size: 'full' | 'thumb',
-    signal: AbortSignal
-  ) {
-    const fetched = size === 'full' && !(await cache.isCached(at));
+  // Whether Astia's own list, asked for past the cache, no longer has the
+  // Image's file: a re-scan. Astia answers a file it has with its "no
+  // preview" placeholder now and then too, so that alone says nothing.
+  async function rescanned(at: ImageRef) {
+    const kept = (await astia.volumeImages(at.volumeId))[at.image - 1];
+    const now = await astia.peekImages(at.volumeId);
+    return kept !== undefined && !now.includes(kept);
+  }
+
+  // The full-size Image, tried again while Astia fails or gives no image,
+  // up to `retries` times. Says whether it was fetched from Astia.
+  async function fetchFull(at: ImageRef, signal: AbortSignal) {
+    const fetched = !(await cache.isCached(at));
     for (let attempt = 0; ; attempt += 1) {
       try {
         // eslint-disable-next-line no-await-in-loop -- one try at a time
-        await cache.image(at, size, signal);
+        await cache.image(at, 'full', signal);
         return fetched;
       } catch (err) {
-        if (signal.aborted) return false;
-        if (err instanceof NoImageError || attempt >= retries) throw err;
+        if (stopped(signal)) return false;
         // Stops on anything but Astia failing.
         errorOf(err);
+        if (attempt >= retries) {
+          if (!(err instanceof NoImageError)) throw err;
+          // eslint-disable-next-line no-await-in-loop -- once, at the end
+          throw new Stopped((await rescanned(at)) ? 'rescanned' : 'no-image');
+        }
         // eslint-disable-next-line no-await-in-loop -- waiting out Astia
         await pause(retryMs, signal);
       }
+    }
+  }
+
+  // The Image's thumbnail, if Astia gives it: only the Scan viewer's
+  // placeholder while the full Image loads, so one missing stops nothing.
+  async function fetchThumb(at: ImageRef, signal: AbortSignal) {
+    try {
+      await cache.image(at, 'thumb', signal);
+    } catch (err) {
+      if (!stopped(signal)) errorOf(err);
     }
   }
 
@@ -102,11 +131,11 @@ export function openDownloads(
     for (let image = 1; image <= images && !signal.aborted; image += 1) {
       const at = { volumeId, image };
       // eslint-disable-next-line no-await-in-loop -- one Image at a time
-      const full = await fetchOne(at, 'full', signal);
+      const full = await fetchFull(at, signal);
       // Stopped while the full Image came, its thumbnail can wait too.
       if (stopped(signal)) break;
       // eslint-disable-next-line no-await-in-loop -- its thumbnail beside it
-      await fetchOne(at, 'thumb', signal);
+      await fetchThumb(at, signal);
       // eslint-disable-next-line no-await-in-loop -- paced, only past the cache
       if (full) await pause(gapMs, signal);
     }
