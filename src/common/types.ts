@@ -302,6 +302,35 @@ export interface VolumeOnDisk {
   bytes: number;
 }
 
+// A Downloaded Volume: on its way (`queued`, then `downloading`), whole
+// (`complete`), or stopped short, by hand or by why: Astia couldn't be
+// reached, or re-scanned the Volume under it.
+export type DownloadState = 'queued' | 'downloading' | 'complete' | 'stopped';
+export type DownloadError = 'unreachable' | 'rescanned';
+
+// GET /astia/downloads: each Downloaded Volume, and what of it is on disk.
+export interface DownloadStatus extends VolumeOnDisk {
+  volumeId: string;
+  state: DownloadState;
+  error: DownloadError | null;
+}
+
+// GET /astia/parishes: the parishes whose church books the app can list.
+export interface ChurchBookParish {
+  name: string;
+  archiveId: string;
+}
+
+// GET /astia/archives/<id>/volumes: one of a parish's Volumes in Astia's
+// order, what of it is on disk, and its download if it has one.
+export interface ChurchBookVolume {
+  id: string;
+  label: string;
+  digitized: boolean;
+  onDisk: VolumeOnDisk;
+  download: DownloadStatus | null;
+}
+
 // A pin made on a filming of its Volume that Astia has since replaced,
 // which switching to the new filming leaves out: shipped with the app or
 // saved in the data folder, on the Image it gives. A Page pin gives its
