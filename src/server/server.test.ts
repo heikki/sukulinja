@@ -321,16 +321,27 @@ describe("A dataset's Citations", () => {
     expect(await mark(1, { image: 7 })).toBe(400);
     expect(await mark(1, { volumeId: 'juva-1', image: '7' })).toBe(400);
     const box = { left: 100, top: 500, width: 500, height: 50 };
-    expect(await mark(1, { volumeId: 'juva-1', image: 7, box })).toBe(200);
-    expect(await mark(1, { volumeId: 'juva-1', image: 7, box: null })).toBe(
-      200
-    );
     expect(
       await mark(1, { volumeId: 'juva-1', image: 7, box: { left: 1 } })
     ).toBe(400);
     expect(await mark(1, { volumeId: 'juva-1', box })).toBe(400);
     expect(await mark(2, { volumeId: 'juva-1', image: 7 })).toBe(404);
     expect(await mark(1, { volumeId: 'juva-1' })).toBe(200);
+
+    const choices = await get('/d/juva/api/citations/1/volumes');
+    expect(await choices.json()).toMatchObject({
+      fits: [{ id: 'juva-1' }],
+      others: [{ id: 'juva-2' }]
+    });
+    expect((await get('/d/juva/api/citations/2/volumes')).status).toBe(404);
+
+    // A Mark at the entry converts the reference to a Citation of its Image
+    // (ADR-0016): it can't lose its Box, nor go in another Volume.
+    expect(await mark(1, { volumeId: 'juva-1', image: 7, box })).toBe(200);
+    expect(await mark(1, { volumeId: 'juva-1', image: 7, box: null })).toBe(
+      400
+    );
+    expect((await get('/d/juva/api/citations/1/volumes')).status).toBe(404);
 
     // Each Mark saved is a Change on its Citation, newest first; one refused
     // is none.
@@ -339,23 +350,11 @@ describe("A dataset's Citations", () => {
       on: { kind: string; citationId: number } | null;
       who: string | null;
     }>;
-    expect(changes.map((c) => c.what.at)).toEqual([
-      'volume',
-      'image',
-      'entry',
-      'image'
-    ]);
+    expect(changes.map((c) => c.what.at)).toEqual(['entry', 'volume', 'image']);
     expect(changes[0]).toMatchObject({
       on: { kind: 'citation', citationId: 1 },
       who: 'Matti /Testinen/'
     });
-
-    const choices = await get('/d/juva/api/citations/1/volumes');
-    expect(await choices.json()).toMatchObject({
-      fits: [{ id: 'juva-1' }],
-      others: [{ id: 'juva-2' }]
-    });
-    expect((await get('/d/juva/api/citations/2/volumes')).status).toBe(404);
 
     const volume = await get('/d/juva/api/volumes/juva-1/citations');
     expect(((await volume.json()) as unknown[]).length).toBe(1);
