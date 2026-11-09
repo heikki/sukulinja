@@ -73,6 +73,14 @@ export function diskLine(volume: ChurchBookVolume) {
   return `${ofImages(onDisk)} Images on disk${size}`;
 }
 
+// A Volume's line: how many of the dataset's Citations link into it, when
+// known and any do, then what of it is on disk.
+export function volumeLine(volume: ChurchBookVolume, cited: number | null) {
+  const disk = diskLine(volume);
+  if (cited === null || cited === 0) return disk;
+  return `${cited === 1 ? '1 citation' : `${cited} citations`} · ${disk}`;
+}
+
 // Whether any of the Volumes is downloading or waiting to: then the list
 // is asked for again until none is.
 export function busy(volumes: ChurchBookVolume[]) {

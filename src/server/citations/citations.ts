@@ -394,6 +394,28 @@ export function createCitations<R extends BookRef>(
       : [...(church ?? []), ...ours];
   }
 
+  // How many of the dataset's Citations link into each of the parish
+  // archive's Volumes, by its id: a Split reference counts in each of its
+  // candidates, and a Citation of an Image in its Volume.
+  async function countInArchive(archiveId: string) {
+    const all = cited(everyPerson.all());
+    const church = all.filter(
+      (c): c is Cited & { book: ChurchBookRef } => c.book !== null
+    );
+    const linked = await references.archiveLinks(
+      archiveId,
+      church.map((c) => c.book)
+    );
+    const stored = all.flatMap((c) =>
+      c.book === null && c.stored !== null ? [[c.stored.volumeId]] : []
+    );
+    const counts: Record<string, number> = {};
+    for (const volumes of [...linked, ...stored]) {
+      for (const id of new Set(volumes)) counts[id] = (counts[id] ?? 0) + 1;
+    }
+    return counts;
+  }
+
   // One of a person's Citations, as the panel shows it, with whose it is;
   // null when there's no such Citation of a person.
   function ofId(citationId: number) {
@@ -499,6 +521,10 @@ export function createCitations<R extends BookRef>(
     // in none of the dataset's parishes and none cites its Images.
     // Throws when Astia can't be reached.
     inVolume,
+
+    // How many Citations link into each of the parish archive's Volumes.
+    // Throws when Astia can't be reached.
+    countInArchive,
 
     // Makes a Citation of the entry for the person, and gives it as the
     // Scan viewer lists it. Null when there's no such person; rejected

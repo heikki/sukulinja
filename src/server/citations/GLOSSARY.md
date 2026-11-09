@@ -84,7 +84,7 @@ A Volume asked, in the **Church books** view, to be kept whole in the Scan cache
 _Avoid_: offline volume, pinned volume (a Pin is something else).
 
 **Church books**:
-The view of the known parishes' Volumes apart from any citation, with what of each is on disk: where a Volume is downloaded, or opened in the Scan viewer with no source.
+The view of the known parishes' Volumes apart from any citation, with how many of the dataset's Citations link into each and what of it is on disk: where a Volume is downloaded, or opened in the Scan viewer with no source.
 _Avoid_: archive (a parish's fonds in Astia), library.
 
 **Precision**:

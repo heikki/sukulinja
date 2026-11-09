@@ -1,12 +1,15 @@
+import { consume } from '@lit/context';
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
 import { volumeTitle } from '@/client/link-labels';
+import { appState } from '@/client/state';
+import type { AppState } from '@/client/state';
 import type { ChurchBookParish, ChurchBookVolume } from '@/common/types';
 
 import { cornerListStyles } from '../corner-panel/list-styles';
 import { fetchParishes, fetchVolumes, sendDownload } from './api';
-import { busy, diskLine, downloadActions } from './helpers';
+import { busy, downloadActions, volumeLine } from './helpers';
 import type { DownloadAction } from './helpers';
 
 import '../corner-panel/panel';
@@ -62,6 +65,12 @@ class ChurchBooksDialogElement extends LitElement {
 
   @state() private volumes: ChurchBookVolume[] | 'failed' | null = null;
 
+  // How many of the dataset's Citations link into each of the parish's
+  // Volumes; null until known, and if it can't be.
+  @state() private cited: Record<string, number> | null = null;
+
+  @consume({ context: appState }) private readonly state!: AppState;
+
   private poll: ReturnType<typeof setTimeout> | null = null;
 
   override connectedCallback() {
@@ -108,7 +117,17 @@ class ChurchBooksDialogElement extends LitElement {
     this.stopPolling();
     this.parish = parish;
     this.volumes = null;
-    if (parish !== null) void this.load(parish);
+    this.cited = null;
+    if (parish === null) return;
+    void this.load(parish);
+    void this.loadCited(parish);
+  }
+
+  private async loadCited(parish: ChurchBookParish) {
+    const cited = await this.state.api
+      .archiveCitations(parish.archiveId)
+      .catch(() => null);
+    if (this.parish === parish) this.cited = cited;
   }
 
   private async act(volume: ChurchBookVolume, action: DownloadAction) {
@@ -154,7 +173,9 @@ class ChurchBooksDialogElement extends LitElement {
         }}
       >
         <span class="text">${volumeTitle(volume.label)}</span>
-        <span class="on">${diskLine(volume)}</span>
+        <span class="on"
+          >${volumeLine(volume, this.cited?.[volume.id] ?? null)}</span
+        >
       </button>
       ${downloadActions(volume).map(
         ({ action, label }) =>

@@ -183,6 +183,22 @@ function openScans({
     // references resolve to.
     stamp: async () => `${await pins.stamp()}/${astia.refreshed()}`,
 
+    // The Volumes each reference links, in the parish archive; none for a
+    // reference in another parish, which is never resolved: it would crawl
+    // that parish's Volumes from Astia.
+    async archiveLinks(archiveId: string, refs: ChurchBookRef[]) {
+      const snapshot = await pins.snapshot();
+      return await Promise.all(
+        refs.map(async (ref): Promise<string[]> => {
+          if (parishArchive(ref.parish) !== archiveId) return [];
+          const resolved = await resolveChurchBookRef(astia, ref, snapshot);
+          return 'unlinked' in resolved
+            ? []
+            : resolved.links.map((l) => l.volumeId);
+        })
+      );
+    },
+
     // Each reference's Link in the Volume, or null for one resolving
     // elsewhere; null for them all when the Volume is in none of their
     // parishes. Only the Volume's parish's references are resolved:

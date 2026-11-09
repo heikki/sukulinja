@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 
 import type { ChurchBookVolume, DownloadStatus } from '@/common/types';
 
-import { busy, diskLine, downloadActions } from './helpers';
+import { busy, diskLine, downloadActions, volumeLine } from './helpers';
 
 const MB = 1024 ** 2;
 
@@ -88,4 +88,11 @@ describe('diskLine', () => {
 test('busy while any is downloading or waiting to', () => {
   expect(busy([volume(null), volume({ state: 'complete' })])).toBe(false);
   expect(busy([volume(null), volume({ state: 'queued' })])).toBe(true);
+});
+
+test('volumeLine leads with the Citations linking into it', () => {
+  expect(volumeLine(volume(null), 12)).toBe('12 citations · Not on disk');
+  expect(volumeLine(volume(null), 1)).toBe('1 citation · Not on disk');
+  expect(volumeLine(volume(null), 0)).toBe('Not on disk');
+  expect(volumeLine(volume(null), null)).toBe('Not on disk');
 });

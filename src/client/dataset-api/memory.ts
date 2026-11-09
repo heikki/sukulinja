@@ -260,6 +260,16 @@ export function memoryDatasetApi(
         () => volume(volumeId).citations
       ),
 
+    // Every Volume given is taken as the archive's.
+    archiveCitations: async (archiveId, signal) =>
+      await answer(`archive citations ${archiveId}`, signal, () =>
+        Object.fromEntries(
+          Object.entries(data.volumes ?? {})
+            .filter(([, v]) => v.citations.length > 0)
+            .map(([id, v]) => [id, v.citations.length])
+        )
+      ),
+
     volumeImages: async (volumeId, signal) =>
       await answer(`images ${volumeId}`, signal, () =>
         Array.from({ length: volume(volumeId).images }, (_, i) =>
