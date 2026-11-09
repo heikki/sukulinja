@@ -1,7 +1,7 @@
 // The routes of a dataset's Reminders: listing them, writing one, changing
 // or deleting one. They read the request; the handlers answer it.
 
-import type { ReminderChange, OnTarget } from '@/common/types';
+import type { OnTarget, ReminderChange } from '@/common/types';
 
 export interface ReminderHandlers {
   handleReminders: () => Promise<Response>;
