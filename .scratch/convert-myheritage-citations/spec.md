@@ -2,7 +2,7 @@ Status: ready-for-agent
 
 # Convert MyHeritage references to Citations of their Image
 
-Glossary: **Citation**, **Church-book reference**, **Annotation**, **Mark**, **Match**, **Link**, **Box**, **Image**, **Volume**, **Record pin**, **Conversion** (`src/server/citations/GLOSSARY.md`). Decision: ADR-0015, amending ADR-0013.
+Glossary: **Citation**, **Church-book reference**, **Annotation**, **Mark**, **Match**, **Link**, **Box**, **Image**, **Volume**, **Record pin**, **Conversion** (`src/server/citations/GLOSSARY.md`). Decision: ADR-0016, amending ADR-0013.
 
 A Citation made in the Scan viewer cites an Astia Image directly. A Church-book reference from MyHeritage points at a record in a MyHeritage collection instead, and reaching its scan takes the Record ranges, Page pins, Record and Reference pins and the vision pass, all in `src/server/citations/myheritage/`. The MyHeritage import is to be given up step by step. Each reference Marked at the entry is turned into a Citation of its Image, its **Conversion**, until no reference is left and the folder can go.
 
@@ -23,7 +23,7 @@ A Citation made in the Scan viewer cites an Astia Image directly. A Church-book 
 
 - **A Citation made in the app is never a Church-book reference.** On an app-made Citation, `original_page` is the page it cited before it cited the Image: the key a re-import recognises it by, and its provenance in the GEDZIP's `NOTE Original page:`.
 - **Plain text is enough.** The household table's layout in the panel is lost; its words aren't. No record reader is kept outside the folder.
-- **A re-import** drops the export's citation of the same person at a converted Citation's original page, whatever its source, with its notes and media, and reattaches the converted Citation as an app-made one. The review counts it kept. MyHeritage round trips (uploading the 5.5.1 file back) aren't a workflow, so ADR-0013's duplicate rule is enough for them.
+- **A re-import** drops the export's citation of the same person at a converted Citation's original page, under another source, with its notes and media, and reattaches the converted Citation as an app-made one. The review counts it kept. MyHeritage round trips (uploading the 5.5.1 file back) aren't a workflow, so ADR-0013's duplicate rule is enough for them.
 - **Parishes:** the dataset's parish archives are the remaining references' parishes, and the archives holding the Volumes its Citations of Images cite, found among the known parish archives (`astia/archives.ts`). Not the tree's places.
 - **Exports:** nothing new. The GEDZIP writes it as a Scan viewer Citation plus `NOTE Original page:`. The 5.5.1 file writes the Astia URL as `PAGE`, with no Box and no _Added in Sukulinja_ note, as now. The recommended `PAGE` form stays deferred.
 - **No deleting a converted Citation, for now.** `uncite` refuses an app-made Citation with an original page, as an imported one can't be deleted: the next MyHeritage import would bring the reference back unmarked. Its Box can still be moved within its Volume. It may be allowed once MyHeritage imports have stopped.

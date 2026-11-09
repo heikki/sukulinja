@@ -9,7 +9,7 @@ Such a reference is now converted into a Citation of its Image, its **Conversion
 - **Its text is the record's transcription as plain lines**, read once at conversion: name, the shown fields, the household rows.
 - **Its original page keeps MyHeritage's URL.** On an app-made Citation, the original page is the page it cited before it cited the Image: its provenance in the GEDZIP's `NOTE Original page:`, and the key a re-import knows it by.
 - **When:** a hand Mark at the entry, or confirming a Match, converts every citation of the record. A one-off script converts those already Marked. A Mark at the Image or the Volume only, an unchecked Match, an Estimate and an Unlinked reference stay references.
-- **Re-importing:** before pairing (ADR-0013), an app-made Citation with an original page replaces the export's citation of the same person at that page, whatever its source. A new reference of a record already converted is converted at import.
+- **Re-importing:** before pairing (ADR-0013), an app-made Citation with an original page replaces the export's citation of the same person at that page, under another source. A new reference of a record already converted is converted at import.
 - **It still counts as a Record pin**, read by its original page, so its Film's other Estimates don't get worse. No Mark or Discard writes to it.
 - **It can't be deleted**, as an imported citation can't: the next MyHeritage import would bring the reference back unmarked. Its Box moves within its Volume.
 - **The dataset's parish archives** come from its remaining references and the Volumes its Citations of Images cite.

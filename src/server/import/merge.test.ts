@@ -179,6 +179,7 @@ test('a newer export adds its people and citations, and a Mark stays on its cita
       marks: 1,
       citations: 0,
       duplicates: 0,
+      converted: 0,
       rejections: 0,
       reminders: 0
     },
@@ -256,6 +257,7 @@ test('a citation made in the app that the export now has gives it its Mark', asy
     marks: 0,
     citations: 0,
     duplicates: 1,
+    converted: 0,
     rejections: 0,
     reminders: 0
   });
@@ -544,4 +546,81 @@ test("a Reminder on a citation made in the app follows it, and goes onto its per
 
   openAppCitations(registry.open('tree')).remove(citationIds('@I1@')[1]!);
   expect(reminders()).toEqual(['Is this the entry? | @I1@']);
+});
+
+// The person's citation at `page` converted to a Citation of its Image
+// (ADR-0016): made in the app, under the Volume's own source, its page
+// kept as its original page.
+function convert(xref: string, page: string) {
+  const db = registry.open('tree');
+  const id = db
+    .query<{ id: number }, [string, string]>(
+      `SELECT c.id FROM citations c JOIN persons p ON p.id = c.scope_id
+       WHERE p.xref = ? AND c.page = ? ORDER BY c.id LIMIT 1`
+    )
+    .get(xref, page)!.id;
+  mark(id);
+  const source = db.run(
+    "INSERT INTO sources (xref, title, publisher) VALUES ('@ASTIA_V1@', 'Juva 1790-1796', 'Kansallisarkisto, Astia')"
+  );
+  db.run(
+    "UPDATE citations SET source_id = ?, added_in_app = 1, text = 'Matti Esimerkki' WHERE id = ?",
+    [Number(source.lastInsertRowid), id]
+  );
+  return id;
+}
+
+const CONVERTED = { ...MARKED, added_in_app: 1 };
+
+test('a converted Citation stands for its reference in the export', async () => {
+  await importTree(tree([MATTI]));
+  convert('@I1@', PAGE.a);
+  const outcome = await importTree(tree([MATTI]));
+  expect(citations()).toEqual([{ xref: '@I1@', ...CONVERTED }]);
+  expect(outcome.merged).toMatchObject({
+    citations: { added: 0, gone: 0 },
+    kept: { marks: 0, citations: 0, converted: 1 },
+    lost: []
+  });
+  const kept = registry
+    .open('tree')
+    .query(
+      'SELECT s.title, c.text FROM citations c JOIN sources s ON s.id = c.source_id'
+    )
+    .all();
+  expect(kept).toEqual([{ title: 'Juva 1790-1796', text: 'Matti Esimerkki' }]);
+});
+
+test('a converted Citation stays when the export no longer has its reference', async () => {
+  await importTree(tree([MATTI]));
+  convert('@I1@', PAGE.a);
+  const outcome = await importTree(tree([{ ...MATTI, pages: [PAGE.c] }]));
+  expect(citations()).toEqual([
+    { xref: '@I1@', page: PAGE.c, ...PLAIN, added_in_app: 0 },
+    { xref: '@I1@', ...CONVERTED }
+  ]);
+  expect(outcome.merged?.kept).toMatchObject({ citations: 1, converted: 0 });
+});
+
+test('of references alike, a converted Citation stands for one', async () => {
+  await importTree(tree([{ ...MATTI, pages: [PAGE.a, PAGE.a] }]));
+  convert('@I1@', PAGE.a);
+  await importTree(tree([{ ...MATTI, pages: [PAGE.a, PAGE.a] }]));
+  expect(citations()).toEqual([
+    { xref: '@I1@', page: PAGE.a, ...PLAIN, added_in_app: 0 },
+    { xref: '@I1@', ...CONVERTED }
+  ]);
+});
+
+test('a Reminder on a converted Citation stays on it', async () => {
+  await importTree(tree([MATTI]));
+  remind('Check the household', '@I1@', convert('@I1@', PAGE.a));
+  await importTree(tree([MATTI]));
+  const on = registry
+    .open('tree')
+    .query(
+      'SELECT r.text, c.added_in_app FROM reminders r JOIN citations c ON c.id = r.citation_id'
+    )
+    .all();
+  expect(on).toEqual([{ text: 'Check the household', added_in_app: 1 }]);
 });

@@ -62,6 +62,9 @@ export interface ImportReview {
     // Citations made in the app that the export now has too: the export's
     // is kept, with the link.
     duplicates: number;
+    // Citations converted from a reference (ADR-0016), which the export
+    // still has as the reference: the export's is left out.
+    converted: number;
     rejections: number;
     // Reminders, put back where they were, or a Citation's onto its person.
     reminders: number;

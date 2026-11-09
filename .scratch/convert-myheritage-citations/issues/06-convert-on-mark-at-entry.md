@@ -3,7 +3,7 @@ Blocked by: 01, 02, 03, 04, 05
 
 # Convert a reference when it's Marked at the entry
 
-Spec: `.scratch/convert-myheritage-citations/spec.md`. Glossary: **Conversion**, **Mark**, **Match**, **Box**, **Church-book reference**, **Citation** (`src/server/citations/GLOSSARY.md`). ADR-0015.
+Spec: `.scratch/convert-myheritage-citations/spec.md`. Glossary: **Conversion**, **Mark**, **Match**, **Box**, **Church-book reference**, **Citation** (`src/server/citations/GLOSSARY.md`). ADR-0016.
 
 - **A Conversion module in `src/server/citations/`**, outside `myheritage/`: given citation ids and each one's plain text, it makes them app-made Citations of their Image, through `app-citations.ts`: the Volume's source, the plain text, `added_in_app = 1`, page and link as the Mark left them, original page kept. One transaction with the Mark.
 - **The port supplies what's MyHeritage's**: which citations a Mark at the entry wrote to (every citation of the record, or of the URL), and each one's transcription as plain lines (name, the shown fields, then the household rows), from `readRecord`.

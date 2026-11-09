@@ -92,6 +92,46 @@ function pairUp(stored: Citation[], fresh: Citation[]) {
   return pairs;
 }
 
+// The export's citations a converted Citation of the dataset replaces
+// (ADR-0016): one made in the app with an original page stands for the
+// imported citation of the same person at that page, under another source
+// (the one under its own source pairs, as any Citation made in the app
+// does). Alike ones are taken in order, the first with the first.
+function replacements(stored: Citation[], fresh: Citation[]) {
+  const queues = new Map<string, Citation[]>();
+  for (const f of fresh) {
+    if (f.appMade) continue;
+    const key = `${f.owner}|${f.original}`;
+    queues.set(key, [...(queues.get(key) ?? []), f]);
+  }
+  const replaced = new Map<Citation, Citation>();
+  for (const s of stored) {
+    const page = s.annotation.originalPage;
+    if (!s.appMade || page === null || s.owner === null) continue;
+    const queue = queues.get(`${s.owner}|${page}`) ?? [];
+    const i = queue.findIndex((f) => f.source !== s.source);
+    if (i >= 0) replaced.set(s, queue.splice(i, 1)[0]!);
+  }
+  return replaced;
+}
+
+// Deletes a citation of the new database, with its notes and media links.
+function dropCitation(db: Database, id: number) {
+  db.run(
+    `DELETE FROM notes WHERE owner_type = 'media_link' AND owner_id IN
+       (SELECT id FROM media_links WHERE scope_type = 'citation' AND scope_id = ?)`,
+    [id]
+  );
+  db.run(
+    "DELETE FROM media_links WHERE scope_type = 'citation' AND scope_id = ?",
+    [id]
+  );
+  db.run("DELETE FROM notes WHERE owner_type = 'citation' AND owner_id = ?", [
+    id
+  ]);
+  db.run('DELETE FROM citations WHERE id = ?', [id]);
+}
+
 interface Merge {
   stored: Database;
   fresh: Database;
@@ -310,6 +350,7 @@ function emptyReview(unreadable: string | null): ImportReview {
       marks: 0,
       citations: 0,
       duplicates: 0,
+      converted: 0,
       rejections: 0,
       reminders: 0
     },
@@ -344,7 +385,11 @@ function merge(fresh: Database, stored: Database, byXref: boolean) {
     const id = matchOf(o);
     return id === null ? null : `${o.kind}:${id}`;
   });
-  const freshCitations = citationsOf(fresh, (o) => `${o.kind}:${o.id}`);
+  const exported = citationsOf(fresh, (o) => `${o.kind}:${o.id}`);
+  const replaced = replacements(storedCitations, exported);
+  const dropped = new Set(replaced.values());
+  for (const f of dropped) dropCitation(fresh, f.id);
+  const freshCitations = exported.filter((f) => !dropped.has(f));
   const pairs = pairUp(storedCitations, freshCitations);
   const describe = describer(stored);
   const review = emptyReview(null);
@@ -363,7 +408,7 @@ function merge(fresh: Database, stored: Database, byXref: boolean) {
     const reattached = s.appMade ? reattach(m, s) : null;
     if (reattached !== null) {
       carried.set(s.id, reattached);
-      review.kept.citations += 1;
+      review.kept[replaced.has(s) ? 'converted' : 'citations'] += 1;
       continue;
     }
     if (!s.appMade) review.citations.gone += 1;

@@ -25,6 +25,15 @@ function keptLine({ kept }: ImportReview) {
       'citation made in the app',
       'citations made in the app'
     ),
+    ...(kept.converted === 0
+      ? []
+      : [
+          count(
+            kept.converted,
+            'Citation converted from a reference',
+            'Citations converted from a reference'
+          )
+        ]),
     count(kept.rejections, 'Rejection', 'Rejections'),
     count(kept.reminders, 'Reminder', 'Reminders')
   ];

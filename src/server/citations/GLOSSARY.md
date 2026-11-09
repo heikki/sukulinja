@@ -113,7 +113,7 @@ Saying by hand, in the Scan viewer, which Image a Church-book reference's record
 _Avoid_: correction (the link it replaces is often not wrong, only less exact).
 
 **Conversion**:
-Turning a Church-book reference Marked at the entry, with its Box, into a Citation of its Image, as if made in the app: it cites the Volume's source, its text is the record's transcription as plain lines, and its original page keeps the reference's URL, by which a re-import knows it. A Citation made in the app is never a Church-book reference. Every citation of the record converts together. A converted Citation can't be deleted, for now, and still counts as a **Record pin** (ADR-0015).
+Turning a Church-book reference Marked at the entry, with its Box, into a Citation of its Image, as if made in the app: it cites the Volume's source, its text is the record's transcription as plain lines, and its original page keeps the reference's URL, by which a re-import knows it. A Citation made in the app is never a Church-book reference. Every citation of the record converts together. A converted Citation can't be deleted, for now, and still counts as a **Record pin** (ADR-0016).
 _Avoid_: migration (that's the one-off script), import (the merge).
 
 **Discard**:

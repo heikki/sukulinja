@@ -3,7 +3,7 @@ Blocked by: 06
 
 # Convert a new reference of a converted record at import
 
-Spec: `.scratch/convert-myheritage-citations/spec.md`. Glossary: **Conversion**, **Record pin**, **Church-book reference** (`src/server/citations/GLOSSARY.md`). ADR-0015.
+Spec: `.scratch/convert-myheritage-citations/spec.md`. Glossary: **Conversion**, **Record pin**, **Church-book reference** (`src/server/citations/GLOSSARY.md`). ADR-0016.
 
 A re-import can bring a new citation of a record already converted, such as a new person citing the same rippikirja household. Its Record pin, read from the converted Citation (ticket 04), already gives it a Link Marked at the entry.
 
