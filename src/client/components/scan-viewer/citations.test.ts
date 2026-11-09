@@ -42,6 +42,7 @@ function row(
       text: null,
       churchBook: true,
       madeInApp: false,
+      deletable: false,
       markKey,
       citedPage: 12,
       cited: null

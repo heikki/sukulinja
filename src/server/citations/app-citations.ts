@@ -47,10 +47,21 @@ export function openAppCitations(db: Database) {
      WHERE scope_type = 'person' AND scope_id = ?`
   );
   const rowOf = db.prepare<
-    { madeInApp: number; sourceId: number | null },
+    { madeInApp: number; sourceId: number | null; originalPage: string | null },
     [number]
   >(
-    'SELECT added_in_app AS madeInApp, source_id AS sourceId FROM citations WHERE id = ?'
+    `SELECT added_in_app AS madeInApp, source_id AS sourceId,
+       original_page AS originalPage FROM citations WHERE id = ?`
+  );
+  const linkedVolume = db.prepare<
+    { volumeId: string; volume: string },
+    [number]
+  >(
+    `SELECT link_volume_id AS volumeId, link_volume AS volume FROM citations
+     WHERE id = ? AND link_volume_id IS NOT NULL`
+  );
+  const adopt = db.prepare(
+    'UPDATE citations SET source_id = ?, text = ?, added_in_app = 1 WHERE id = ?'
   );
   const deleteNotes = db.prepare(
     "DELETE FROM notes WHERE owner_type = 'citation' AND owner_id = ?"
@@ -135,13 +146,28 @@ export function openAppCitations(db: Database) {
       });
     },
 
+    // Makes each of the citations, a reference Marked at the entry, a
+    // Citation of its Image (ADR-0016): it cites its Volume's source, its
+    // text is the one given, and it's the app's. Its page, link and
+    // original page stay as the Mark left them.
+    convert(rows: Array<{ id: number; text: string | null }>) {
+      db.transaction(() => {
+        for (const { id, text } of rows) {
+          const at = linkedVolume.get(id);
+          if (at === null) continue;
+          adopt.run(sourceOf(at.volumeId, at.volume), text, id);
+        }
+      })();
+    },
+
     // Deletes a Citation made in the app, with its notes, and its source
     // once nothing cites it. Null when there's no such Citation; false for
-    // an imported one, which isn't deleted.
+    // an imported one, which isn't deleted, nor one converted from a
+    // reference (ADR-0016), which the next import would bring back.
     remove(id: number) {
       const row = rowOf.get(id);
       if (row === null) return null;
-      if (row.madeInApp !== 1) return false;
+      if (row.madeInApp !== 1 || row.originalPage !== null) return false;
       db.transaction(() => {
         deleteNotes.run(id);
         deleteMedia.run(id);

@@ -104,6 +104,11 @@ export interface References<R extends BookRef = BookRef> {
   ) => Promise<{ resolution: LinkResolution; done: DiscardDone } | Refused>;
   // The Volumes the reference can be put in.
   volumeChoices: (ref: R) => Promise<VolumeChoices>;
+  // The citations the reference's Mark is written into that it puts at
+  // the entry by hand, each with its text as plain lines: what a
+  // Conversion makes Citations of their Image. None for a Mark that
+  // doesn't, or a Match not yet confirmed.
+  converts: (ref: R) => Array<{ id: number; text: string | null }>;
 }
 
 const NONE = Promise.resolve(null);
@@ -119,5 +124,6 @@ export const noReferences: References<never> = {
   stamp: async () => await Promise.resolve(''),
   mark: async () => await Promise.resolve({ rejected: NO_REFERENCE }),
   discard: async () => await Promise.resolve({ rejected: NO_REFERENCE }),
-  volumeChoices: async () => await Promise.resolve({ fits: [], others: [] })
+  volumeChoices: async () => await Promise.resolve({ fits: [], others: [] }),
+  converts: () => []
 };

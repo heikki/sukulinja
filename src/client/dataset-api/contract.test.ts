@@ -132,9 +132,17 @@ describe('the answers', () => {
     });
   });
 
-  test('a Discard takes the Box back to the estimate, once', async () => {
-    const box = { left: 100, top: 400, width: 300, height: 30 };
-    await api.mark(1, { volumeId: VOLUME, image: 7, box });
+  test("a Discard takes a Match's Box back to the estimate, once", async () => {
+    // As the vision pass saves one: a Mark at the entry would convert the
+    // reference to a Citation of its Image instead (ADR-0016).
+    new DatasetRegistry(join(root, 'data')).open('juva').run(
+      `UPDATE citations SET link_volume_id = ?, link_volume = ?,
+         link_image = 7, link_file_id = ?, link_box_left = 100,
+         link_box_top = 400, link_box_width = 300, link_box_height = 30,
+         link_by = 'vision'
+       WHERE id = 1`,
+      [VOLUME, VOLUMES['juva-1'], `${VOLUME}-f7`]
+    );
     const resolved = await api.discard(1, { volumeId: VOLUME, image: 7 });
     expect(resolved).toMatchObject({
       citationId: 1,

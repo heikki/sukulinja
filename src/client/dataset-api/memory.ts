@@ -226,6 +226,7 @@ export function memoryDatasetApi(
               text: at.text,
               churchBook: true,
               madeInApp: true,
+              deletable: true,
               markKey: `citation ${made}`,
               citedPage: null,
               cited: null

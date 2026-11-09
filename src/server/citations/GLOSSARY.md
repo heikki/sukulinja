@@ -113,7 +113,7 @@ One Church-book reference known to be in a Volume, and on which Image when known
 _Avoid_: placement.
 
 **Mark**:
-Saying by hand, in the Scan viewer, which Image a Church-book reference's record is on, or only which Volume. It's written into every citation of the record (by its Record number, or by the reference's URL for one without): on an Image, the citation then cites the Image, its original page kept beside. A cited page found in a Volume the reference already links also becomes a Page pin; a reference with neither a Record number nor a Box then needs no Link of its own. A Mark may also say where on the Image the entry is, its **Box**, drawn by hand. Confirming a **Match** is a Mark too, and keeps where the model said the entry is.
+Saying by hand, in the Scan viewer, which Image a Church-book reference's record is on, or only which Volume. It's written into every citation of the record (by its Record number, or by the reference's URL for one without): on an Image, the citation then cites the Image, its original page kept beside. A cited page found in a Volume the reference already links also becomes a Page pin; a reference with neither a Record number nor a Box then needs no Link of its own. A Mark may also say where on the Image the entry is, its **Box**, drawn by hand. Confirming a **Match** is a Mark too, and keeps where the model said the entry is. A Mark at the entry, with its Box, is a **Conversion** of every citation of the record.
 _Avoid_: correction (the link it replaces is often not wrong, only less exact).
 
 **Conversion**:

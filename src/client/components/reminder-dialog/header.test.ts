@@ -42,6 +42,7 @@ const C11: CitationRow = {
   text: null,
   churchBook: true,
   madeInApp: false,
+  deletable: false,
   markKey: 'citation 11',
   citedPage: 18,
   cited: { parish: 'Juva', kind: 'rippi', years: null }

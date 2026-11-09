@@ -30,18 +30,33 @@ interface MarkedCitation {
 
 export function openMarks(db: Database) {
   const annotations = openAnnotations(db);
-  // Each church-book citation's reference, by its original page, which a
-  // Mark never changes: read once. A Mark or Discard writes only to a
-  // reference (`byKey`); a Citation converted from one (made in the app,
-  // ADR-0016) is read with them as a pin (`byId`), and never written.
+  // The dataset's version: it changes with every write to it, from this
+  // connection or another.
+  function version() {
+    const { changes } = db
+      .query<{ changes: number }, []>('SELECT total_changes() AS changes')
+      .get()!;
+    const { data_version: other } = db
+      .query<{ data_version: number }, []>('PRAGMA data_version')
+      .get()!;
+    return `${other}.${changes}`;
+  }
+
+  // Each church-book citation's reference, by its original page, read
+  // again once the dataset has changed: a Conversion takes a reference out.
+  // A Mark or Discard writes only to a reference (`byKey`); a Citation
+  // converted from one (made in the app, ADR-0016) is read with them as a
+  // pin (`byId`), and never written.
   let index: {
+    version: string;
     byKey: Map<string, number[]>;
     byId: Map<number, { url: string; recordId: number | null }>;
     urls: Set<string>;
   } | null = null;
 
   function indexed() {
-    if (index !== null) return index;
+    const now = version();
+    if (index?.version === now) return index;
     const rows = db
       .query<{ id: number; page: string; madeInApp: number }, []>(
         `SELECT id, ${originalPageSql()} AS page, added_in_app AS madeInApp
@@ -59,6 +74,7 @@ export function openMarks(db: Database) {
       byKey.set(key, [...(byKey.get(key) ?? []), row.id]);
     }
     index = {
+      version: now,
       byKey,
       byId,
       urls: new Set([...byKey.values()].flat().map((id) => byId.get(id)!.url))
@@ -184,11 +200,11 @@ export function openMarks(db: Database) {
 
     // Changes whenever the Marks do, from this process or another.
     stamp() {
-      const version = db
-        .query<{ data_version: number }, []>('PRAGMA data_version')
-        .get()!.data_version;
-      return `${version}.${writes}`;
-    }
+      return `${version()}.${writes}`;
+    },
+
+    // The citations a Mark of the key is written into.
+    idsOf
   };
 }
 

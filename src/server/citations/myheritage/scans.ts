@@ -330,7 +330,10 @@ export function openScanFolder(
 
     // A dataset's references, as the rest of the Citations reach them.
     references: (db: Database, { sizeOf }: { sizeOf?: ImageSizeOf } = {}) =>
-      referencesOf(openScans({ pins: pinsOf(db), astia, sizeOf })),
+      referencesOf(openScans({ pins: pinsOf(db), astia, sizeOf }), {
+        db,
+        marks: openMarks(db)
+      }),
 
     // The pins on Astia's Images: the folder's, and each dataset's Marks
     // and Matches, which a switch to a new filming leaves out alike.

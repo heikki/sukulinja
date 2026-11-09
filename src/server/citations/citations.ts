@@ -137,6 +137,8 @@ function citationOf<R extends BookRef>(references: References<R>) {
           : citationText(row.text).trim(),
       churchBook: book !== null || stored !== null,
       madeInApp: row.annotation.madeInApp,
+      deletable:
+        row.annotation.madeInApp && row.annotation.originalPage === null,
       markKey: book === null ? `citation ${row.id}` : references.markKey(book),
       citedPage: book?.page ?? null,
       cited:
@@ -251,6 +253,15 @@ export function createCitations<R extends BookRef>(
       books.set(row.id, book);
     }
     return book;
+  }
+
+  // Makes the citations a Mark of the reference put at the entry by hand
+  // Citations of their Image (ADR-0016), which are then no references.
+  function convert(book: R) {
+    const rows = references.converts(book);
+    if (rows.length === 0) return;
+    made.convert(rows);
+    for (const { id } of rows) books.delete(id);
   }
 
   function churchBookOf(citationId: number) {
@@ -445,6 +456,7 @@ export function createCitations<R extends BookRef>(
         ? await moveEntry(citationId, target)
         : await references.mark(c!.book!, target);
       if ('rejected' in result) return result;
+      if (!moved) convert(c!.book!);
       const { at, volume, confirmed, citations, pagePin } = result.done;
       const image = target.image ?? null;
       changed({
