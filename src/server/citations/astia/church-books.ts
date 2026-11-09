@@ -28,18 +28,14 @@ export async function parishBooks(
   archiveId: string
 ): Promise<ChurchBookVolume[] | null> {
   if (!PARISHES.some((p) => p.archiveId === archiveId)) return null;
-  const [volumes, downloaded] = await Promise.all([
-    astia.archiveVolumes(archiveId),
-    downloads.list()
-  ]);
-  const byId = new Map(downloaded.map((d) => [d.volumeId, d]));
+  const volumes = await astia.archiveVolumes(archiveId);
   return await Promise.all(
     volumes.map(async (v) => ({
       id: v.id,
       label: v.label,
       digitized: v.digitized,
       onDisk: await cache.onDisk(v.id),
-      download: byId.get(v.id) ?? null
+      download: downloads.of(v.id)
     }))
   );
 }

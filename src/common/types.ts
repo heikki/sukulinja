@@ -284,13 +284,11 @@ export interface VolumeCitation {
 }
 
 // GET /settings/scan-cache: how much space Astia's Images may take (`cap`)
-// and take now (`used`), in bytes, and the caps to choose from; and the
-// Volumes kept whole outside the cap, and the space they take.
+// and take now (`used`), in bytes, and the caps to choose from.
 export interface ScanCacheStatus {
   cap: number;
   used: number;
   caps: number[];
-  kept: { bytes: number; volumes: number };
 }
 
 // What of a Volume the Scan cache has on disk: its full-size Images of
@@ -302,15 +300,15 @@ export interface VolumeOnDisk {
   bytes: number;
 }
 
-// A Downloaded Volume: on its way (`queued`, then `downloading`), whole
-// (`complete`), or stopped short, by hand or by why: Astia couldn't be
-// reached, kept giving no image for a file it still lists, or re-scanned
-// the Volume under it.
-export type DownloadState = 'queued' | 'downloading' | 'complete' | 'stopped';
+// A Volume's download this run: waiting its turn, on its way, or stopped
+// short, by hand or by why: Astia couldn't be reached, kept giving no image
+// for a file it still lists, or re-scanned the Volume under it. One that
+// finished is no longer listed; what's on disk says the rest.
+export type DownloadState = 'queued' | 'downloading' | 'stopped';
 export type DownloadError = 'unreachable' | 'no-image' | 'rescanned';
 
-// GET /astia/downloads: each Downloaded Volume, and what of it is on disk.
-export interface DownloadStatus extends VolumeOnDisk {
+// GET /astia/downloads: each download this run.
+export interface DownloadStatus {
   volumeId: string;
   state: DownloadState;
   error: DownloadError | null;

@@ -341,10 +341,7 @@ class SettingsElement extends LitElement {
           <h2>Clear scan cache?</h2>
           <p>
             <strong>${formatBytes(cache.used)}</strong> of downloaded scans will
-            be removed. They download again when
-            opened.${
-              cache.kept.volumes > 0 ? ' Downloaded church books stay.' : ''
-            }
+            be removed. They download again when opened.
           </p>
           <div class="actions">
             <button
@@ -410,8 +407,8 @@ class SettingsElement extends LitElement {
     `;
   }
 
-  // Astia's Images kept on disk: the cap to keep them under, the space
-  // they take now, and the church books downloaded outside it.
+  // Astia's Images kept on disk: the cap to keep them under, and the space
+  // they take now.
   private renderScanCache() {
     const cache = this.scanCache;
     if (cache === null || typeof cache === 'string') {
@@ -455,7 +452,6 @@ class SettingsElement extends LitElement {
             Clear
           </button>
         </div>
-        ${renderKept(cache.kept)}
       </div>
     `;
   }
@@ -487,14 +483,4 @@ declare global {
   interface HTMLElementTagNameMap {
     'sl-settings': SettingsElement;
   }
-}
-
-// The church books downloaded whole, outside the cap; none, nothing.
-function renderKept(kept: ScanCacheStatus['kept']) {
-  if (kept.volumes === 0) return nothing;
-  const books =
-    kept.volumes === 1 ? '1 church book' : `${kept.volumes} church books`;
-  return html`<div class="caption">
-    <span>${formatBytes(kept.bytes)} more in ${books} downloaded</span>
-  </div>`;
 }

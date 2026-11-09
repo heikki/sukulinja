@@ -214,8 +214,7 @@ test('reads the cap saved for the install before anything else', async () => {
   ).toEqual({
     cap: 10 * GB,
     used: 0,
-    caps: [5 * GB, 10 * GB, 20 * GB, 40 * GB],
-    kept: { bytes: 0, volumes: 0 }
+    caps: [5 * GB, 10 * GB, 20 * GB, 40 * GB]
   });
   // A cap no longer offered falls back to the default.
   await writeSettings(root, { scanCacheBytes: 1 * GB });
@@ -361,67 +360,6 @@ describe('a re-scanned Volume', () => {
     expect(listed.asked.filter((a) => a.startsWith('refresh'))).toEqual([
       'refresh 301'
     ]);
-  });
-});
-
-describe('a Volume kept whole', () => {
-  test('stays outside the cap, and out of what it uses', async () => {
-    await cache.setCap(1.5 * IMAGE_BYTES);
-    await cache.keep('102');
-    await open('102', 1);
-    await Bun.sleep(5);
-    await open('102', 2);
-    await Bun.sleep(5);
-    await open('103', 1);
-    await Bun.sleep(5);
-    await open('103', 2);
-    expect((await readdir(join(dir, '.astia-images', '102'))).sort()).toEqual([
-      '102-f1.jpg',
-      '102-f2.jpg'
-    ]);
-    expect(await readdir(join(dir, '.astia-images', '103'))).toEqual([
-      '103-f2.jpg'
-    ]);
-    expect(await cache.status()).toMatchObject({
-      used: IMAGE_BYTES,
-      kept: { bytes: 2 * IMAGE_BYTES, volumes: 1 }
-    });
-  });
-
-  test('is kept by any cache on the data folder', async () => {
-    await cache.keep('104');
-    const other = openScanCache({ astia, root: dir, switches: true });
-    expect(await other.kept()).toEqual(['104']);
-  });
-
-  test('released, goes back under the cap at once', async () => {
-    await cache.setCap(1.5 * IMAGE_BYTES);
-    await cache.keep('102');
-    await open('102', 1);
-    await Bun.sleep(5);
-    await open('102', 2);
-    await cache.release('102');
-    expect(await cache.kept()).toEqual([]);
-    expect(await readdir(join(dir, '.astia-images', '102'))).toEqual([
-      '102-f2.jpg'
-    ]);
-  });
-
-  test("isn't cleared", async () => {
-    await cache.keep('102');
-    await open('102', 1);
-    await open('103', 1);
-    await cache.clear();
-    expect(await readdir(join(dir, '.astia-images'))).toEqual(['102']);
-  });
-
-  test('keeps the cap saved beside it', async () => {
-    await cache.setCap(20 * GB);
-    await Promise.all([cache.keep('101'), cache.keep('102')]);
-    expect(await Bun.file(join(dir, 'settings.local.json')).json()).toEqual({
-      scanCacheBytes: 20 * GB,
-      keptVolumes: ['101', '102']
-    });
   });
 });
 
