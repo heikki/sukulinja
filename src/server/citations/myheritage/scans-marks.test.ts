@@ -394,3 +394,21 @@ test('a Discard finds no Box elsewhere, nor on a Mark without one', async () => 
   expect(await scans.discardRef(ref(160, 21), spot('a', 11))).toEqual(none);
   expect((await scans.snapshot()).volumes.a!.records).toHaveLength(2);
 });
+
+test('a Citation converted from a reference is a Record pin no Mark writes to', async () => {
+  const two = citing([ref(150).url, ref(160).url], join(dir, 'two.sqlite'));
+  await open(BASE, two).markRef(ref(150, 21), { ...at('a', 11), box: BOX });
+  // Converted (ADR-0016): made in the app, its original page kept.
+  two.run('UPDATE citations SET added_in_app = 1 WHERE id = 1');
+
+  const scans = open(BASE, two);
+  const { volumes } = await scans.snapshot();
+  const pins = (volumes.a?.records ?? []).map((r) => [r.record, r.image]);
+  expect(pins).toContainEqual([150, 11]);
+  await scans.markRef(ref(150, 21), { ...at('a', 12), box: BOX });
+  const row = two
+    .query('SELECT link_image, added_in_app FROM citations WHERE id = 1')
+    .get();
+  expect(row).toEqual({ link_image: 11, added_in_app: 1 });
+  two.close();
+});
