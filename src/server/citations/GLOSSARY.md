@@ -15,6 +15,10 @@ _Avoid_: note (a GEDCOM NOTE is the source's own text), extras, link columns.
 Something to come back to, written in the Scan viewer on an **Image**, a Citation or a person, open until it's marked done. Only the app keeps it: no export writes it, and a re-import's merge moves it to the same person or Citation, a Citation's onto its person when the Citation is gone. One on an Image holds for one filming: after a **Re-scan** it's stale, listed but no longer shown on the Image.
 _Avoid_: note (a GEDCOM NOTE), annotation (a Citation's app-made additions), to-do.
 
+**Change**:
+One thing done in the app that changed the dataset: a **Mark** (or a **Match** confirmed), a **Discard**, a Citation made in the Scan viewer or deleted, an import, _Undo last import_, or a Volume switched to a **Re-scan**'s new filming. Each says what it did and what it was on (a person, a Citation, or nothing), and is listed under _Changes_, newest first, where picking one goes back there. Only the app keeps them; a re-import keeps them all, one whose person is gone on nothing, and undoing an import puts back those from before it.
+_Avoid_: log, history (alone; the browser's Back is history), edit.
+
 **Church-book reference**:
 The parish, **Book**, years and page a Citation points to in the church books, with the villages and farms it names. Read from a Citation; what scan linking works on. A reference read through MyHeritage also carries a **Record number**.
 _Avoid_: citation (the broader thing it's read from).

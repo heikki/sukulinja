@@ -120,6 +120,11 @@ export function openMarks(db: Database) {
     // Writes the Link into every citation of the key, or clears it.
     write,
 
+    // How many citations are of the key.
+    countOf(key: string) {
+      return idsOf(key).length;
+    },
+
     // Whether a citation is of the key.
     cites(key: string) {
       return indexed().byKey.has(key);

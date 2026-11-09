@@ -228,9 +228,17 @@ test('a Mark is saved, and the scan lines show it', async () => {
   expect(
     await citations.mark(1, { volumeId: 'juva-1', image: 7 })
   ).toMatchObject({
-    links: [
-      { volumeId: 'juva-1', image: 7, precision: 'image', certainty: 'marked' }
-    ]
+    resolution: {
+      links: [
+        {
+          volumeId: 'juva-1',
+          image: 7,
+          precision: 'image',
+          certainty: 'marked'
+        }
+      ]
+    },
+    done: { confirmed: false, citations: 1 }
   });
   const [line] = await linesOf(citations.linksOf(1));
   expect(line).toMatchObject({

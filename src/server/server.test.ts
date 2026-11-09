@@ -113,12 +113,30 @@ describe('Astia Images', () => {
       rescan: { cached: number; images: number } | null;
     };
     expect(asked.rescan).toMatchObject({ cached: 2, images: 2 });
+    // Switched from a dataset's Scan viewer, which says so in its Changes.
+    const staging = await new DatasetRegistry(join(root, 'data')).createStaging(
+      'tree'
+    );
+    await staging.commit();
     const switched = await fetch(
-      new Request('http://localhost/astia/volumes/201/rescan', {
-        method: 'POST'
+      new Request('http://localhost/d/tree/api/volumes/201/filming', {
+        method: 'POST',
+        body: JSON.stringify({ volume: 'I Aa:1' })
       })
     );
     expect(((await switched.json()) as string[])[0]).toContain('201-2-f1');
+    expect(await (await get('/d/tree/api/changes')).json()).toMatchObject([
+      {
+        on: null,
+        what: {
+          kind: 'switch-filming',
+          volume: 'I Aa:1',
+          from: 2,
+          to: 2,
+          stale: 0
+        }
+      }
+    ]);
     const renewed = await fetch(
       new Request('http://localhost/astia/volumes/201/images/2', {
         headers: { 'If-None-Match': etag }
@@ -262,6 +280,10 @@ describe("A dataset's Citations", () => {
   async function seedDataset() {
     const data = join(root, 'data');
     const staging = await new DatasetRegistry(data).createStaging('juva');
+    staging.db.run("INSERT INTO persons (id, xref) VALUES (1, '@I1@')");
+    staging.db.run(
+      "INSERT INTO names (person_id, full_text, sort_order) VALUES (1, 'Matti /Testinen/', 0)"
+    );
     const insert = staging.db.prepare(
       `INSERT INTO citations (scope_type, scope_id, page, text, sort_order)
        VALUES ('person', 1, ?, ?, ?)`
@@ -308,6 +330,24 @@ describe("A dataset's Citations", () => {
     expect(await mark(2, { volumeId: 'juva-1', image: 7 })).toBe(404);
     expect(await mark(1, { volumeId: 'juva-1' })).toBe(200);
 
+    // Each Mark saved is a Change on its Citation, newest first; one refused
+    // is none.
+    const changes = (await (await get('/d/juva/api/changes')).json()) as Array<{
+      what: { kind: string; at: string };
+      on: { kind: string; citationId: number } | null;
+      who: string | null;
+    }>;
+    expect(changes.map((c) => c.what.at)).toEqual([
+      'volume',
+      'image',
+      'entry',
+      'image'
+    ]);
+    expect(changes[0]).toMatchObject({
+      on: { kind: 'citation', citationId: 1 },
+      who: 'Matti /Testinen/'
+    });
+
     const choices = await get('/d/juva/api/citations/1/volumes');
     expect(await choices.json()).toMatchObject({
       fits: [{ id: 'juva-1' }],
@@ -334,7 +374,7 @@ describe("A dataset's Citations", () => {
   test('makes a Citation on an Image, and deletes it', async () => {
     await seedDataset();
     const db = new DatasetRegistry(join(root, 'data')).open('juva');
-    db.run("INSERT INTO persons (id, xref) VALUES (1, '@I1@'), (2, '@I2@')");
+    db.run("INSERT INTO persons (id, xref) VALUES (2, '@I2@')");
     db.close();
     const entry = {
       volumeId: 'juva-1',
@@ -371,6 +411,23 @@ describe("A dataset's Citations", () => {
     expect((await send('DELETE', '/api/citations/1')).status).toBe(400);
     expect((await send('DELETE', '/api/citations/3')).status).toBe(204);
     expect((await send('DELETE', '/api/citations/3')).status).toBe(404);
+
+    // Made, then deleted: the deleted one's Change falls back on its person.
+    const changes = (await (await get('/d/juva/api/changes')).json()) as Array<{
+      what: { kind: string; cited?: string };
+      on: { kind: string; personId: number } | null;
+    }>;
+    expect(changes[0]!.what.cited).toEndWith(', Image\u00a013');
+    expect(changes).toMatchObject([
+      {
+        what: { kind: 'uncite' },
+        on: { kind: 'person', personId: 2 }
+      },
+      {
+        what: { kind: 'cite', image: 13 },
+        on: { kind: 'person', personId: 2 }
+      }
+    ]);
   });
 
   test('says when Astia fails', async () => {

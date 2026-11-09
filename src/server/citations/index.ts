@@ -5,6 +5,8 @@
 import type { Database } from 'bun:sqlite';
 import { join } from 'node:path';
 
+import type { NewChange } from '@/common/types';
+
 import { routeShared } from './astia-routes';
 import { openAstia } from './astia/astia';
 import type { Astia, ImageRef } from './astia/astia';
@@ -13,7 +15,7 @@ import { imageSize, openScanCache } from './astia/scan-cache';
 import { citationRoutes } from './citation-routes';
 import { createCitations } from './citations';
 import { openImages } from './images';
-import { openScanFolder } from './myheritage';
+import { openScanFolder, switchFilming } from './myheritage';
 
 export type { Astia } from './astia/astia';
 export { annotated, annotationOf, openAnnotations } from './annotations';
@@ -29,6 +31,8 @@ interface Options {
   astia?: Astia;
   // The datasets whose Marks a re-scan of a Volume has to keep.
   datasets: () => Promise<Database[]>;
+  // Told of each change made to a dataset through its Citations.
+  changed?: (db: Database, change: NewChange) => void;
 }
 
 // The Citations of the data folder at `root`, for every dataset in it.
@@ -60,10 +64,32 @@ export function openCitations(root: string, options: Options) {
     // each Database, which a re-import replaces rather than changes.
     forDataset(db: Database) {
       const references = folder.scans(db, { sizeOf });
-      const citations = createCitations(db, { images, references });
+      function changed(change: NewChange) {
+        options.changed?.(db, change);
+      }
+      const citations = createCitations(db, { images, references, changed });
+      // Switches the Volume, `volume` by its label, to Astia's new filming,
+      // which every dataset then sees, and says so in this one's Changes.
+      async function switchTo(volumeId: string, volume: string) {
+        const { urls, rescan } = await switchFilming(
+          { astia, cache, kept },
+          volumeId
+        );
+        if (rescan !== null) {
+          const { cached: from, images: to, stale } = rescan;
+          changed({
+            on: null,
+            what: {
+              kind: 'switch-filming',
+              ...{ volume, from, to, stale: stale.length }
+            }
+          });
+        }
+        return urls;
+      }
       return {
         // The Citation routes under /d/<slug>; null for any other path.
-        route: citationRoutes(citations),
+        route: citationRoutes(citations, switchTo),
         // The person's Citations, as the panel lists them.
         ofPerson: (personId: number) => citations.ofPerson(personId),
         // A person's Citation by its id, with whose it is.

@@ -17,6 +17,7 @@ import { detailsWidth, setDetailsWidth } from '../person-panel/helpers';
 
 import '../person-search';
 import '../reminder-dialog/shown';
+import '../changes-dialog/button';
 import '../church-books/button';
 import '../reminders-dialog/button';
 import '../settings';
@@ -374,8 +375,14 @@ class TreeViewElement extends SignalWatcher(LitElement) {
     });
   }
 
-  // Search, Reminders, Church books and Settings, floating over the chart's top-right
-  // corner, and over the Scan viewer's row while it covers the chart.
+  // A row picked in the Reminders or Changes list shows the person's details.
+  private readonly openDock = () => {
+    this.details = true;
+  };
+
+  // Search, Reminders, Changes, Church books and Settings, floating over the
+  // chart's top-right corner, and over the Scan viewer's row while it covers
+  // the chart.
   private renderCorner() {
     return html`
       <div class="corner">
@@ -385,11 +392,8 @@ class TreeViewElement extends SignalWatcher(LitElement) {
             this.state.chart.select(e.detail.id);
           }}
         ></sl-person-search>
-        <sl-reminders-button
-          @dock-open=${() => {
-            this.details = true;
-          }}
-        ></sl-reminders-button>
+        <sl-reminders-button @dock-open=${this.openDock}></sl-reminders-button>
+        <sl-changes-button @dock-open=${this.openDock}></sl-changes-button>
         <sl-church-books-button></sl-church-books-button>
         <sl-settings
           .generations=${this.gen}
