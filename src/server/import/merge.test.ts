@@ -1,164 +1,32 @@
-import { afterEach, beforeEach, expect, test } from 'bun:test';
-import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { expect, test } from 'bun:test';
+import { readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import type { ImportReview } from '@/common/types';
 
-import { openAnnotations } from '../citations';
 import { openAppCitations } from '../citations/testing';
-import { DatasetRegistry } from '../datasets/registry';
 import { ImportCancelled } from './dataset';
+import {
+  ASTIA,
+  citationIds,
+  citations,
+  citeInApp,
+  folder,
+  importTree,
+  MAIJA,
+  mark,
+  MARKED,
+  MATTI,
+  PAGE,
+  PLAIN,
+  registry,
+  remind,
+  reopen,
+  tree,
+  useDataFolder
+} from './merge-testing';
 
-let root = '';
-let registry = new DatasetRegistry('');
-
-beforeEach(async () => {
-  root = await mkdtemp(join(tmpdir(), 'import-merge-'));
-  registry = new DatasetRegistry(root);
-});
-// A registry with no database open, after one was changed behind its back.
-function reopen() {
-  registry = new DatasetRegistry(root);
-}
-
-afterEach(async () => {
-  await rm(root, { recursive: true, force: true });
-});
-
-interface Person {
-  xref: string;
-  uid?: string;
-  name: string;
-  pages: string[];
-}
-
-const PAGE = {
-  a: 'https://example.org/record/1',
-  b: 'https://example.org/record/2',
-  c: 'https://example.org/record/3'
-};
-const ASTIA =
-  'https://astia.narc.fi/uusiastia/viewer/?fileId=f12&aineistoId=v1';
-
-const MATTI = { xref: '@I1@', name: 'Matti /Esimerkki/', pages: [PAGE.a] };
-const MAIJA = { xref: '@I2@', name: 'Maija /Esimerkki/', pages: [PAGE.b] };
-
-// A tree of `people`, each citing the one source at their pages; with a
-// UID each unless `uids` is false, and the `extra` records.
-function tree(people: Person[], uids = true, extra: string[] = []) {
-  return [
-    '0 HEAD',
-    '1 GEDC',
-    '2 VERS 5.5.1',
-    '0 @S1@ SOUR',
-    '1 TITL Church books',
-    ...people.flatMap((p) => [
-      `0 ${p.xref} INDI`,
-      ...(uids
-        ? [`1 UID ${p.uid ?? `uid-${p.xref.replaceAll('@', '')}`}`]
-        : []),
-      `1 NAME ${p.name}`,
-      ...p.pages.flatMap((page) => ['1 SOUR @S1@', `2 PAGE ${page}`])
-    ]),
-    ...extra,
-    '0 TRLR',
-    ''
-  ].join('\n');
-}
-
-async function importTree(
-  gedcom: string,
-  review?: (r: ImportReview) => Promise<boolean>
-) {
-  return await registry.import({
-    slug: 'tree',
-    source: { gedcom },
-    sourceFilename: 'tree.ged',
-    ...(review === undefined ? {} : { review })
-  });
-}
-
-interface CitationOut {
-  xref: string;
-  page: string | null;
-  original_page: string | null;
-  link_image: number | null;
-  link_box_left: number | null;
-  added_in_app: number;
-}
-
-function citations(): CitationOut[] {
-  return registry
-    .open('tree')
-    .query<CitationOut, []>(
-      `SELECT p.xref, c.page, c.original_page, c.link_image, c.link_box_left,
-         c.added_in_app
-       FROM citations c JOIN persons p ON p.id = c.scope_id
-       WHERE c.scope_type = 'person' ORDER BY c.id`
-    )
-    .all();
-}
-
-function citationIds(xref: string) {
-  return registry
-    .open('tree')
-    .query<{ id: number }, [string]>(
-      `SELECT c.id FROM citations c JOIN persons p ON p.id = c.scope_id
-       WHERE c.scope_type = 'person' AND p.xref = ? ORDER BY c.id`
-    )
-    .all(xref)
-    .map((r) => r.id);
-}
-
-// A hand Mark on Image 12 of Volume v1, as the Scan viewer writes it.
-function mark(id: number) {
-  openAnnotations(registry.open('tree')).swap([id], {
-    volumeId: 'v1',
-    volume: 'Juva 1790-1796',
-    image: 12,
-    fileId: 'f12',
-    box: { left: 10, top: 20, width: 300, height: 40 },
-    by: 'hand'
-  });
-}
-
-// A citation made in the app on the person, with its Mark.
-function citeInApp(xref: string, page: string) {
-  const db = registry.open('tree');
-  const person = db
-    .query<{ id: number }, [string]>('SELECT id FROM persons WHERE xref = ?')
-    .get(xref)!;
-  const source = db.query<{ id: number }, []>('SELECT id FROM sources').get()!;
-  const id = openAnnotations(db).insert(
-    {
-      scopeType: 'person',
-      scopeId: person.id,
-      sourceId: source.id,
-      sortOrder: 9,
-      page,
-      event: null,
-      role: null,
-      quality: null,
-      dataDate: null,
-      text: null
-    },
-    { link: null, originalPage: null, madeInApp: true }
-  );
-  db.run(
-    "INSERT INTO notes (owner_type, owner_id, text) VALUES ('citation', ?, 'Found in the scan')",
-    [id]
-  );
-  mark(id);
-}
-
-const MARKED = {
-  page: ASTIA,
-  original_page: PAGE.a,
-  link_image: 12,
-  link_box_left: 10
-};
-const PLAIN = { original_page: null, link_image: null, link_box_left: null };
+useDataFolder();
 
 test('a newer export adds its people and citations, and a Mark stays on its citation', async () => {
   await importTree(tree([MATTI]));
@@ -222,7 +90,7 @@ test('a citation made in the app follows its person by UID', async () => {
     added_in_app: 1
   });
   expect(outcome.merged?.kept.citations).toBe(1);
-  const notes = registry
+  const notes = registry()
     .open('tree')
     .query("SELECT text FROM notes WHERE owner_type = 'citation'")
     .all();
@@ -281,7 +149,7 @@ test('a Mark whose citation the export no longer has is listed as lost', async (
 test('Rejections carry over, and Undo last import gives back the dataset from before', async () => {
   await importTree(tree([MATTI]));
   mark(citationIds('@I1@')[0]!);
-  registry
+  registry()
     .open('tree')
     .run(
       "INSERT INTO rejections (reference_url, volume_id, image, file_id) VALUES (?, 'v1', 11, 'f11')",
@@ -289,17 +157,17 @@ test('Rejections carry over, and Undo last import gives back the dataset from be
     );
   await importTree(tree([MATTI, MAIJA]));
   const rejections = 'SELECT reference_url, image FROM rejections';
-  expect(registry.open('tree').query(rejections).all()).toEqual([
+  expect(registry().open('tree').query(rejections).all()).toEqual([
     { reference_url: PAGE.a, image: 11 }
   ]);
 
   // Undone after the dataset changed since.
-  registry.open('tree').run('DELETE FROM rejections');
-  expect(await registry.undoImport('tree')).toBe(true);
+  registry().open('tree').run('DELETE FROM rejections');
+  expect(await registry().undoImport('tree')).toBe(true);
   expect(citations()).toEqual([{ xref: '@I1@', ...MARKED, added_in_app: 0 }]);
-  expect(registry.open('tree').query(rejections).all()).toHaveLength(1);
-  expect(await registry.list()).toMatchObject([{ undoable: false }]);
-  expect(await registry.undoImport('tree')).toBe(false);
+  expect(registry().open('tree').query(rejections).all()).toHaveLength(1);
+  expect(await registry().list()).toMatchObject([{ undoable: false }]);
+  expect(await registry().undoImport('tree')).toBe(false);
 });
 
 test('a cancelled review leaves the dataset as it was', async () => {
@@ -314,20 +182,20 @@ test('a cancelled review leaves the dataset as it was', async () => {
   expect(result).toBeInstanceOf(ImportCancelled);
   expect(asked).toMatchObject({ people: { added: 1, gone: 0 } });
   expect(citations()).toEqual([{ xref: '@I1@', ...MARKED, added_in_app: 0 }]);
-  expect(await readdir(root)).toEqual(['tree']);
-  expect(await registry.list()).toMatchObject([{ undoable: false }]);
+  expect(await readdir(folder())).toEqual(['tree']);
+  expect(await registry().list()).toMatchObject([{ undoable: false }]);
 });
 
 test('a dataset an older schema built merges its Marks', async () => {
   await importTree(tree([MATTI]));
   mark(citationIds('@I1@')[0]!);
   // As schema 4 left it, before citations could be made in the app.
-  const db = registry.open('tree');
+  const db = registry().open('tree');
   db.run('ALTER TABLE citations DROP COLUMN added_in_app');
   db.run("UPDATE meta SET value = '4' WHERE key = 'schema_version'");
   db.close();
   reopen();
-  expect(await registry.list()).toMatchObject([{ outdated: true }]);
+  expect(await registry().list()).toMatchObject([{ outdated: true }]);
 
   const outcome = await importTree(tree([MATTI]));
   expect(outcome.merged?.kept.marks).toBe(1);
@@ -336,15 +204,15 @@ test('a dataset an older schema built merges its Marks', async () => {
 
 test('a dataset that can not be read is replaced, and says why', async () => {
   await importTree(tree([MATTI]));
-  registry.open('tree').close();
+  registry().open('tree').close();
   reopen();
-  await writeFile(join(root, 'tree', 'db.sqlite'), 'not a database');
+  await writeFile(join(folder(), 'tree', 'db.sqlite'), 'not a database');
 
   const outcome = await importTree(tree([MATTI, MAIJA]));
   expect(typeof outcome.merged?.unreadable).toBe('string');
   expect(citations()).toHaveLength(2);
   // What it couldn't read is still kept, to undo the import with.
-  const before = join(root, 'tree', 'db.before-import.sqlite');
+  const before = join(folder(), 'tree', 'db.before-import.sqlite');
   expect(await Bun.file(before).text()).toBe('not a database');
 });
 
@@ -353,7 +221,7 @@ test('a dataset that can not be read is replaced, and says why', async () => {
 // A Citation made in the Scan viewer on Image 12 of Volume v1, which gives
 // the Volume its source.
 function citeInViewer(xref: string) {
-  const db = registry.open('tree');
+  const db = registry().open('tree');
   const person = db
     .query<{ id: number }, [string]>('SELECT id FROM persons WHERE xref = ?')
     .get(xref)!;
@@ -375,7 +243,7 @@ interface SourceOut {
 }
 
 function sources() {
-  return registry
+  return registry()
     .open('tree')
     .query<SourceOut, []>(
       `SELECT s.xref, s.title,
@@ -450,30 +318,16 @@ test('a source only imported Citations cite stays gone when the export drops it'
 
 // -------------------------------------------------------------- Reminders
 
-function personId(xref: string) {
-  return registry
-    .open('tree')
-    .query<{ id: number }, [string]>('SELECT id FROM persons WHERE xref = ?')
-    .get(xref)!.id;
-}
-
-// A Reminder on the person, or on one of their citations.
-function remind(text: string, xref: string, citationId?: number) {
-  registry.open('tree').run(
-    `INSERT INTO reminders (text, person_id, citation_id, created_at)
-       VALUES (?, ?, ?, '2026-10-23T10:00:00.000Z')`,
-    [text, personId(xref), citationId ?? null]
-  );
-}
-
 function remindImage(text: string) {
-  registry.open('tree').run(
-    `INSERT INTO reminders (text, volume_id, volume, image, file_id,
+  registry()
+    .open('tree')
+    .run(
+      `INSERT INTO reminders (text, volume_id, volume, image, file_id,
          created_at, done_at)
        VALUES (?, 'v1', 'Juva 1790-1796', 12, 'f12',
          '2026-10-23T10:00:00.000Z', '2026-10-23T11:00:00.000Z')`,
-    [text]
-  );
+      [text]
+    );
 }
 
 interface ReminderOut {
@@ -487,7 +341,7 @@ interface ReminderOut {
 // Each Reminder as "text | whose or which Image | its citation's page |
 // when done", leaving out what it doesn't have.
 function reminders() {
-  return registry
+  return registry()
     .open('tree')
     .query<ReminderOut, []>(
       `SELECT r.text, p.xref, c.page, r.image, r.done_at FROM reminders r
@@ -544,83 +398,6 @@ test("a Reminder on a citation made in the app follows it, and goes onto its per
   await importTree(tree([MATTI]));
   expect(reminders()).toEqual([`Is this the entry? | @I1@ | ${ASTIA}`]);
 
-  openAppCitations(registry.open('tree')).remove(citationIds('@I1@')[1]!);
+  openAppCitations(registry().open('tree')).remove(citationIds('@I1@')[1]!);
   expect(reminders()).toEqual(['Is this the entry? | @I1@']);
-});
-
-// The person's citation at `page` converted to a Citation of its Image
-// (ADR-0016): made in the app, under the Volume's own source, its page
-// kept as its original page.
-function convert(xref: string, page: string) {
-  const db = registry.open('tree');
-  const id = db
-    .query<{ id: number }, [string, string]>(
-      `SELECT c.id FROM citations c JOIN persons p ON p.id = c.scope_id
-       WHERE p.xref = ? AND c.page = ? ORDER BY c.id LIMIT 1`
-    )
-    .get(xref, page)!.id;
-  mark(id);
-  const source = db.run(
-    "INSERT INTO sources (xref, title, publisher) VALUES ('@ASTIA_V1@', 'Juva 1790-1796', 'Kansallisarkisto, Astia')"
-  );
-  db.run(
-    "UPDATE citations SET source_id = ?, added_in_app = 1, text = 'Matti Esimerkki' WHERE id = ?",
-    [Number(source.lastInsertRowid), id]
-  );
-  return id;
-}
-
-const CONVERTED = { ...MARKED, added_in_app: 1 };
-
-test('a converted Citation stands for its reference in the export', async () => {
-  await importTree(tree([MATTI]));
-  convert('@I1@', PAGE.a);
-  const outcome = await importTree(tree([MATTI]));
-  expect(citations()).toEqual([{ xref: '@I1@', ...CONVERTED }]);
-  expect(outcome.merged).toMatchObject({
-    citations: { added: 0, gone: 0 },
-    kept: { marks: 0, citations: 0, converted: 1 },
-    lost: []
-  });
-  const kept = registry
-    .open('tree')
-    .query(
-      'SELECT s.title, c.text FROM citations c JOIN sources s ON s.id = c.source_id'
-    )
-    .all();
-  expect(kept).toEqual([{ title: 'Juva 1790-1796', text: 'Matti Esimerkki' }]);
-});
-
-test('a converted Citation stays when the export no longer has its reference', async () => {
-  await importTree(tree([MATTI]));
-  convert('@I1@', PAGE.a);
-  const outcome = await importTree(tree([{ ...MATTI, pages: [PAGE.c] }]));
-  expect(citations()).toEqual([
-    { xref: '@I1@', page: PAGE.c, ...PLAIN, added_in_app: 0 },
-    { xref: '@I1@', ...CONVERTED }
-  ]);
-  expect(outcome.merged?.kept).toMatchObject({ citations: 1, converted: 0 });
-});
-
-test('of references alike, a converted Citation stands for one', async () => {
-  await importTree(tree([{ ...MATTI, pages: [PAGE.a, PAGE.a] }]));
-  convert('@I1@', PAGE.a);
-  await importTree(tree([{ ...MATTI, pages: [PAGE.a, PAGE.a] }]));
-  expect(citations()).toEqual([
-    { xref: '@I1@', page: PAGE.a, ...PLAIN, added_in_app: 0 },
-    { xref: '@I1@', ...CONVERTED }
-  ]);
-});
-
-test('a Reminder on a converted Citation stays on it', async () => {
-  await importTree(tree([MATTI]));
-  remind('Check the household', '@I1@', convert('@I1@', PAGE.a));
-  await importTree(tree([MATTI]));
-  const on = registry
-    .open('tree')
-    .query(
-      'SELECT r.text, c.added_in_app FROM reminders r JOIN citations c ON c.id = r.citation_id'
-    )
-    .all();
-  expect(on).toEqual([{ text: 'Check the household', added_in_app: 1 }]);
 });

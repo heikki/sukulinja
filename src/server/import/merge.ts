@@ -372,6 +372,36 @@ function lostAs(s: Citation) {
   return s.linked ? s.original : null;
 }
 
+// The export's citations, but those the dataset's converted Citations
+// stand for, which are dropped from the new database; and which those are.
+function exportedCitations(fresh: Database, stored: Citation[]) {
+  const exported = citationsOf(fresh, (o) => `${o.kind}:${o.id}`);
+  const replaced = replacements(stored, exported);
+  const dropped = new Set(replaced.values());
+  for (const f of dropped) dropCitation(fresh, f.id);
+  return {
+    freshCitations: exported.filter((f) => !dropped.has(f)),
+    replaced
+  };
+}
+
+// A citation of the dataset the export doesn't have: one made in the app
+// attached again, counted kept (as `converted` when it stands for one the
+// export has), else counted gone if imported, and lost if it held what the
+// app added.
+function keepUnpaired(m: Merge, s: Citation, converted: boolean) {
+  const id = s.appMade ? reattach(m, s) : null;
+  if (id !== null) {
+    return {
+      id,
+      kept: converted ? 'converted' : 'citations',
+      gone: false,
+      lost: null
+    } as const;
+  }
+  return { id, kept: null, gone: !s.appMade, lost: lostAs(s) };
+}
+
 function merge(fresh: Database, stored: Database, byXref: boolean) {
   const { matchOf, people } = recordMatcher(stored, fresh, byXref);
   const m: Merge = {
@@ -385,11 +415,10 @@ function merge(fresh: Database, stored: Database, byXref: boolean) {
     const id = matchOf(o);
     return id === null ? null : `${o.kind}:${id}`;
   });
-  const exported = citationsOf(fresh, (o) => `${o.kind}:${o.id}`);
-  const replaced = replacements(storedCitations, exported);
-  const dropped = new Set(replaced.values());
-  for (const f of dropped) dropCitation(fresh, f.id);
-  const freshCitations = exported.filter((f) => !dropped.has(f));
+  const { freshCitations, replaced } = exportedCitations(
+    fresh,
+    storedCitations
+  );
   const pairs = pairUp(storedCitations, freshCitations);
   const describe = describer(stored);
   const review = emptyReview(null);
@@ -405,14 +434,10 @@ function merge(fresh: Database, stored: Database, byXref: boolean) {
   }
   for (const s of storedCitations) {
     if (pairs.has(s)) continue;
-    const reattached = s.appMade ? reattach(m, s) : null;
-    if (reattached !== null) {
-      carried.set(s.id, reattached);
-      review.kept[replaced.has(s) ? 'converted' : 'citations'] += 1;
-      continue;
-    }
-    if (!s.appMade) review.citations.gone += 1;
-    const lost = lostAs(s);
+    const { id, kept, gone, lost } = keepUnpaired(m, s, replaced.has(s));
+    if (id !== null) carried.set(s.id, id);
+    if (kept !== null) review.kept[kept] += 1;
+    if (gone) review.citations.gone += 1;
     if (lost !== null) review.lost.push(`${describe(s.holder)}: ${lost}`);
   }
   const paired = new Set(pairs.values());
