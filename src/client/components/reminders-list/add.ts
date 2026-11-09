@@ -3,11 +3,11 @@ import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { ApiError } from '@/client/dataset-api';
-import { typing } from '@/client/floating';
 import { focusRingStyles } from '@/client/focus-ring';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { ReminderPlaces } from '@/client/state/reminders';
+import { typing } from '@/client/typing';
 
 import { reminderStyles } from './styles';
 

@@ -1,5 +1,4 @@
 import { css, html, LitElement, nothing, svg } from 'lit';
-import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { currentAppearance, setAppearance } from '@/client/appearance';
@@ -13,6 +12,7 @@ import {
 } from '@/client/generations';
 import type { ScanCacheStatus } from '@/common/types';
 
+import { CornerPopover, popoverStyles } from '../corner-panel/popover';
 import { formatBytes } from './helpers';
 
 export type GenerationsChangeEvent = CustomEvent<number>;
@@ -53,6 +53,7 @@ class SettingsElement extends LitElement {
   static override styles = [
     focusRingStyles,
     dialogStyles,
+    popoverStyles,
     css`
       :host {
         position: relative;
@@ -81,39 +82,14 @@ class SettingsElement extends LitElement {
         height: 1rem;
       }
       /* Sized to its content: shrink-to-fit would otherwise measure against the
-       gear-sized host it is positioned in. Dropped just under the gear, arrow
-       tip included. */
+       gear-sized host it is positioned in. */
       .popover {
-        position: absolute;
         width: max-content;
-        top: calc(100% + 0.6rem);
-        right: 0;
-        z-index: 20;
         display: grid;
         grid-template-columns: auto auto;
         align-items: center;
         gap: 0.75rem 1.25rem;
-        padding: 1rem;
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        box-shadow: 0 8px 24px var(--shadow);
         white-space: nowrap;
-      }
-      /* The arrow up to the gear: a square turned 45° on the top edge, centred
-       under the gear (whose right edge the popover shares). Only its outer two
-       sides carry the border, so it reads as part of the popover's outline. */
-      .popover::before {
-        content: '';
-        position: absolute;
-        top: -6px;
-        right: calc(1rem - 5px);
-        width: 10px;
-        height: 10px;
-        background: var(--card);
-        border-top: 1px solid var(--border);
-        border-left: 1px solid var(--border);
-        transform: rotate(45deg);
       }
       .label {
         font-size: 0.85rem;
@@ -221,7 +197,6 @@ class SettingsElement extends LitElement {
   @property({ attribute: false }) generations: number | null = null;
   @property({ attribute: false }) datasetName: string | null = null;
 
-  @state() private open = false;
   @state() private appearance: Appearance = currentAppearance();
   @state() private preferred = preferredGenerations();
   // Null until the app answers; a string when it couldn't.
@@ -230,37 +205,15 @@ class SettingsElement extends LitElement {
   @state() private confirmingClear = false;
   @state() private clearing = false;
 
-  private readonly onDocumentPointerDown = (e: PointerEvent) => {
-    if (!e.composedPath().includes(this)) this.open = false;
-  };
-
-  // Marked handled, or WKWebView hands Escape on to macOS, which beeps.
-  // Escape takes down Clear's dialog before the popover.
-  private readonly onDocumentKeydown = (e: KeyboardEvent) => {
-    if (e.key !== 'Escape' || !this.open) return;
-    e.preventDefault();
+  // Closed by another popover opening, a press outside or Esc, which
+  // takes down Clear's dialog first.
+  private readonly corner = new CornerPopover(this, () => {
     if (this.confirmingClear) this.cancelClear();
-    else this.open = false;
-  };
+    else this.corner.set(false);
+  });
 
-  override updated(changed: PropertyValues) {
-    if (changed.has('open') && this.open) void this.askScanCache('GET');
-    if (this.open) {
-      document.addEventListener('pointerdown', this.onDocumentPointerDown);
-      document.addEventListener('keydown', this.onDocumentKeydown);
-    } else {
-      this.removeListeners();
-    }
-  }
-
-  override disconnectedCallback() {
-    super.disconnectedCallback();
-    this.removeListeners();
-  }
-
-  private removeListeners() {
-    document.removeEventListener('pointerdown', this.onDocumentPointerDown);
-    document.removeEventListener('keydown', this.onDocumentKeydown);
+  private get open() {
+    return this.corner.open;
   }
 
   private pickGenerations(n: number) {
@@ -311,7 +264,8 @@ class SettingsElement extends LitElement {
         aria-haspopup="true"
         aria-expanded=${this.open}
         @click=${() => {
-          this.open = !this.open;
+          this.corner.set(!this.open);
+          if (this.open) void this.askScanCache('GET');
         }}
       >
         ${GEAR_ICON}

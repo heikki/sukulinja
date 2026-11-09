@@ -4,11 +4,11 @@ import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { ApiError } from '@/client/dataset-api';
-import { typing } from '@/client/floating';
 import { focusRingStyles } from '@/client/focus-ring';
 import { isStale } from '@/client/on';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
+import { typing } from '@/client/typing';
 import type { Reminder } from '@/common/types';
 
 import { onLines, renderLines } from './lines';

@@ -9,13 +9,8 @@ export const TABS: Array<CornerTab & { id: CornerList }> = [
   { id: 'church-books', label: 'Church books' }
 ];
 
-// What's open once a corner button is pressed: its list, or nothing when
-// its list was the one open.
-export function pressed(open: CornerList | null, list: CornerList) {
-  return open === list ? null : list;
-}
-
-// The Reminders button's name, with how many are open.
-export function remindersLabel(open: number) {
-  return open === 1 ? 'Reminders, 1 open' : `Reminders, ${open} open`;
+// The lists button's name, with how many Reminders are open.
+export function listsLabel(open: number) {
+  const reminders = open === 1 ? '1 open Reminder' : `${open} open Reminders`;
+  return `Reminders, Changes and Church books (${reminders})`;
 }

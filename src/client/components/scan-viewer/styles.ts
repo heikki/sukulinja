@@ -67,7 +67,7 @@ export const controlStyles = [focusRingStyles, controls];
 
 export const scanViewerStyles = css`
   /* Covers the chart, not the dock: the dock still shows whose source it is.
-     Under the chart's corner (Search, Reminders, Settings), which stays. */
+     Under the chart's corner (Search, the lists, Settings), which stays. */
   :host {
     position: absolute;
     inset: 0;

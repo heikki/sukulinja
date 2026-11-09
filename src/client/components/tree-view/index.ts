@@ -378,9 +378,9 @@ class TreeViewElement extends SignalWatcher(LitElement) {
     this.details = true;
   };
 
-  // Search, Reminders, Changes, Church books and Settings, floating over the
-  // chart's top-right corner, and over the Scan viewer's row while it covers
-  // the chart.
+  // Search, the lists (Reminders, Changes, Church books) and Settings,
+  // floating over the chart's top-right corner, and over the Scan viewer's
+  // row while it covers the chart.
   private renderCorner() {
     return html`
       <div class="corner">

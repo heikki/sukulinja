@@ -1,21 +1,8 @@
-import { describe, expect, test } from 'bun:test';
+import { expect, test } from 'bun:test';
 
-import { pressed, remindersLabel } from './helpers';
+import { listsLabel } from './helpers';
 
-describe('pressed', () => {
-  test('opens the list, or another in its place', () => {
-    expect(pressed(null, 'changes')).toBe('changes');
-    expect(pressed('reminders', 'changes')).toBe('changes');
-  });
-
-  test('closes the list that was open', () => {
-    expect(pressed('changes', 'changes')).toBeNull();
-  });
-});
-
-describe('remindersLabel', () => {
-  test('says how many are open', () => {
-    expect(remindersLabel(1)).toBe('Reminders, 1 open');
-    expect(remindersLabel(3)).toBe('Reminders, 3 open');
-  });
+test('the lists button says how many Reminders are open', () => {
+  expect(listsLabel(1)).toContain('(1 open Reminder)');
+  expect(listsLabel(3)).toContain('(3 open Reminders)');
 });
