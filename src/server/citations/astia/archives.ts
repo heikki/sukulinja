@@ -68,7 +68,7 @@ export function rankedArchives(parishes: Array<string | null>) {
 
 // Every parish archive looked up, once each.
 export function knownArchives() {
-  return [...new Set(Object.values(PARISH_ARCHIVE))];
+  return [...new Set(PARISHES.map((p) => p.archiveId))];
 }
 
 // The archive holding the Volume, looked for among `archives` in order; an
