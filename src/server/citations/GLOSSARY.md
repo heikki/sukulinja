@@ -12,7 +12,7 @@ What the app adds to a Citation: its Mark or Match, the page a Mark on an Image 
 _Avoid_: note (a GEDCOM NOTE is the source's own text), extras, link columns.
 
 **Reminder**:
-Something to come back to, written in the Scan viewer on an **Image**, a Citation or a person, open until it's marked done. Only the app keeps it: no export writes it, and a re-import's merge moves it to the same person or Citation, a Citation's onto its person when the Citation is gone. One on an Image holds for one filming: after a **Re-scan** it's stale, listed but no longer shown on the Image.
+Something to come back to, on a person, or on an **Image**, maybe about a person too; open until it's marked done. Reminders live only in their list, which writes, edits and completes them and links to what each is on; a new one is started from a card's menu, on its person, or from the Scan viewer's, on its Image and about the Selected person. Only the app keeps it: no export writes it, and a re-import's merge moves it to the same person; one an older app put on a Citation goes onto its person. One on an Image holds for one filming: after a **Re-scan** it's stale, listed but leading nowhere.
 _Avoid_: note (a GEDCOM NOTE), annotation (a Citation's app-made additions), to-do.
 
 **Change**:
@@ -80,7 +80,7 @@ The Images kept on disk for the Scan viewer and the vision pass, up to a size th
 _Avoid_: image cache, Astia cache (that's Astia's answers about archives and Volumes).
 
 **Church books**:
-The view of the known parishes' Volumes apart from any citation, with how many of the dataset's Citations link into each and what of it is on disk: where a Volume is downloaded into the Scan cache, every Image at once under the same cap, or opened in the Scan viewer with no source.
+The view of the Volumes of the archives the dataset's church books are in (by their titles in Astia, most cited first) apart from any citation, with how many of the dataset's Citations link into each and what of it is on disk: where a Volume is downloaded into the Scan cache, every Image at once under the same cap, or opened in the Scan viewer with no source.
 _Avoid_: archive (a parish's fonds in Astia), library.
 
 **Precision**:

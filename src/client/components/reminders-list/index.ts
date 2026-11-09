@@ -1,9 +1,9 @@
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
-import { html, LitElement, nothing } from 'lit';
+import { css, html, LitElement, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
+import { repeat } from 'lit/directives/repeat.js';
 
-import { isStale, onLabel } from '@/client/on';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { Reminder } from '@/common/types';
@@ -11,17 +11,35 @@ import type { Reminder } from '@/common/types';
 import { cornerListStyles } from '../corner-panel/list-styles';
 import { listed } from './helpers';
 
-import '../corner-panel/panel';
+import './add';
+import './row';
 
-export type ReminderPickEvent = CustomEvent<Reminder>;
+// The only place Reminders are: every open one, newest first, each with
+// what it's on, a line going to each (`go`, from its row); Show done adds
+// the done ones, dimmed. Each is edited, done or deleted in its row. A new
+// one, started from a card's menu or the Scan viewer's, is written at the
+// top. A tab of the corner panel; leaving it drops
+// the draft.
+@customElement('sl-reminders-list')
+class RemindersListElement extends SignalWatcher(LitElement) {
+  static override styles = [
+    cornerListStyles,
+    css`
+      li {
+        padding: 0.45rem 0.75rem;
+        border-radius: 6px;
+      }
 
-// Every open Reminder in the dataset, newest first, each with what it's
-// on; one on an Image from an earlier filming is flagged so. Clicking one
-// picks it (`pick`). Show done adds the done ones, dimmed. In a corner
-// panel over the chart, which asks to `close`.
-@customElement('sl-reminders-dialog')
-class RemindersDialogElement extends SignalWatcher(LitElement) {
-  static override styles = cornerListStyles;
+      li.done {
+        opacity: 0.55;
+      }
+
+      sl-reminder-add {
+        flex: none;
+        margin-bottom: 0.75rem;
+      }
+    `
+  ];
 
   @consume({ context: appState }) private readonly state!: AppState;
 
@@ -32,27 +50,9 @@ class RemindersDialogElement extends SignalWatcher(LitElement) {
     this.state.reminders.load();
   }
 
-  private renderRow(reminder: Reminder) {
-    const persons = this.state.chart.people.get().persons;
-    const done = reminder.done !== null;
-    return html`<li>
-      <button
-        class="row ${done ? 'done' : ''}"
-        aria-haspopup="dialog"
-        @click=${() => {
-          this.dispatchEvent(new CustomEvent('pick', { detail: reminder }));
-        }}
-      >
-        <span class="text">${reminder.text}</span>
-        <span class="on"
-          >${onLabel(reminder.on, persons)}${
-            isStale(reminder.on)
-              ? html`<span class="chip">From an earlier filming</span>`
-              : nothing
-          }</span
-        >
-      </button>
-    </li>`;
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.state.reminders.draft(null);
   }
 
   private renderList(all: Reminder[]) {
@@ -62,7 +62,14 @@ class RemindersDialogElement extends SignalWatcher(LitElement) {
       return html`<p class="muted">${none}</p>`;
     }
     return html`<ul>
-      ${rows.map((r) => this.renderRow(r))}
+      ${repeat(
+        rows,
+        (r) => r.id,
+        (r) =>
+          html`<li class=${r.done === null ? '' : 'done'}>
+            <sl-reminder-row .reminder=${r}></sl-reminder-row>
+          </li>`
+      )}
     </ul>`;
   }
 
@@ -75,6 +82,12 @@ class RemindersDialogElement extends SignalWatcher(LitElement) {
     return this.renderList(all);
   }
 
+  private renderDraft() {
+    const places = this.state.reminders.drafting.get();
+    if (places === null) return nothing;
+    return html`<sl-reminder-add .places=${places}></sl-reminder-add>`;
+  }
+
   private renderShowDone() {
     const all = this.state.reminders.all.get();
     const done = Array.isArray(all)
@@ -82,7 +95,6 @@ class RemindersDialogElement extends SignalWatcher(LitElement) {
       : 0;
     if (done === 0) return nothing;
     return html`<button
-      slot="actions"
       class="toggle"
       aria-pressed=${this.showDone ? 'true' : 'false'}
       @click=${() => {
@@ -94,20 +106,13 @@ class RemindersDialogElement extends SignalWatcher(LitElement) {
   }
 
   override render() {
-    return html`<sl-corner-panel
-      heading="Reminders"
-      kind="reminders"
-      @close=${() => {
-        this.dispatchEvent(new CustomEvent('close'));
-      }}
-    >
-      ${this.renderBody()} ${this.renderShowDone()}
-    </sl-corner-panel>`;
+    return html`${this.renderDraft()} ${this.renderBody()}
+      <div class="actions">${this.renderShowDone()}</div>`;
   }
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'sl-reminders-dialog': RemindersDialogElement;
+    'sl-reminders-list': RemindersListElement;
   }
 }

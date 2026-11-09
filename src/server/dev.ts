@@ -14,7 +14,7 @@ const registry = new DatasetRegistry(
 );
 await seedDemo(registry, resolve('resources/demo/bourbon.gdz'));
 void registry.sweepStaging(); // clear staging dirs left by interrupted imports
-const api = createApi(registry);
+const api = createApi(registry, { warmUp: true });
 // A browser tab keeps its own URL, so the page's last view is dropped.
 const fetch = lastViewRoute(
   () => undefined,

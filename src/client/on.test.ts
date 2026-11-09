@@ -4,7 +4,7 @@ import { memoryDatasetApi } from '@/client/dataset-api/memory';
 import { openAppState } from '@/client/state';
 import type { CitationRow, Link, On, PersonRow } from '@/common/types';
 
-import { goTo, isStale, mayOpen, onLabel, shows } from './on';
+import { goTo, isStale, onLabel } from './on';
 
 const IMAGE: On = {
   kind: 'image',
@@ -12,7 +12,8 @@ const IMAGE: On = {
   volume: 'I Aa:201',
   image: 18,
   fileId: '201-f18',
-  stale: false
+  stale: false,
+  personId: null
 };
 const CITATION: On = {
   kind: 'citation',
@@ -104,46 +105,4 @@ test("an Image's opens the Scan viewer there; a stale one doesn't", async () => 
     volume: 'I Aa:201',
     image: 18
   });
-});
-
-test("a Citation's source may open until the person's sources show no scan", async () => {
-  const other: CitationRow = { ...C11, id: 12, churchBook: false };
-  const state = openAppState(
-    memoryDatasetApi({
-      details: {
-        1: {
-          id: 1,
-          name: 'Person 1',
-          sex: 'U',
-          facts: [],
-          citations: [C11, other]
-        }
-      },
-      links: { 1: [{ citationId: 11, links: [L11] }] },
-      volumes: { '201': { images: 40, citations: [] } }
-    })
-  );
-  expect(mayOpen(state, 12)).toBe(true);
-  await state.selected.select(1);
-  expect(mayOpen(state, 11)).toBe(true);
-  expect(mayOpen(state, 12)).toBe(false);
-});
-
-test("the Scan viewer shows where one is while open on its source's Image, or its Image", async () => {
-  const state = appState();
-  const citation = CITATION;
-  const image = { ...IMAGE, image: 20 };
-  expect(shows(state, citation)).toBe(false);
-  await goTo(state, citation);
-  expect(shows(state, citation)).toBe(true);
-  expect(shows(state, image)).toBe(false);
-  state.viewer.show(19);
-  expect(shows(state, citation)).toBe(false);
-  await goTo(state, image);
-  expect(shows(state, image)).toBe(true);
-  expect(shows(state, citation)).toBe(false);
-  state.viewer.show(19);
-  expect(shows(state, image)).toBe(false);
-  state.viewer.close();
-  expect(shows(state, citation)).toBe(false);
 });

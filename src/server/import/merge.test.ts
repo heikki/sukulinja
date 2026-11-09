@@ -18,6 +18,7 @@ import {
   MARKED,
   MATTI,
   PAGE,
+  personId,
   PLAIN,
   registry,
   remind,
@@ -318,48 +319,48 @@ test('a source only imported Citations cite stays gone when the export drops it'
 
 // -------------------------------------------------------------- Reminders
 
-function remindImage(text: string) {
+// A Reminder on Image 12, done; about the person `about` too.
+function remindImage(text: string, about: string | null = null) {
   registry()
     .open('tree')
     .run(
-      `INSERT INTO reminders (text, volume_id, volume, image, file_id,
-         created_at, done_at)
-       VALUES (?, 'v1', 'Juva 1790-1796', 12, 'f12',
-         '2026-10-23T10:00:00.000Z', '2026-10-23T11:00:00.000Z')`,
-      [text]
+      `INSERT INTO reminders (text, person_id, volume_id, volume, image,
+         file_id, created_at, done_at)
+       VALUES (?, (SELECT id FROM persons WHERE xref = ?), 'v1',
+         'Juva 1790-1796', 12, 'f12', '2026-10-23T10:00:00.000Z',
+         '2026-10-23T11:00:00.000Z')`,
+      [text, about]
     );
 }
 
 interface ReminderOut {
   text: string;
   xref: string | null;
-  page: string | null;
   image: number | null;
   done_at: string | null;
 }
 
-// Each Reminder as "text | whose or which Image | its citation's page |
-// when done", leaving out what it doesn't have.
+// Each Reminder as "text | whose | which Image | when done", leaving out
+// what it doesn't have.
 function reminders() {
   return registry()
     .open('tree')
     .query<ReminderOut, []>(
-      `SELECT r.text, p.xref, c.page, r.image, r.done_at FROM reminders r
-       LEFT JOIN persons p ON p.id = r.person_id
-       LEFT JOIN citations c ON c.id = r.citation_id ORDER BY r.id`
+      `SELECT r.text, p.xref, r.image, r.done_at FROM reminders r
+       LEFT JOIN persons p ON p.id = r.person_id ORDER BY r.id`
     )
     .all()
     .map((r) =>
-      [r.text, r.xref ?? `Image ${r.image}`, r.page, r.done_at]
+      [r.text, r.xref, r.image === null ? null : `Image ${r.image}`, r.done_at]
         .filter((v) => v !== null)
         .join(' | ')
     );
 }
 
-test('Reminders follow their person and citation, and one on an Image stays', async () => {
+test('Reminders follow their person, and one on an Image stays', async () => {
   await importTree(tree([MATTI, MAIJA]));
   remind('Second wife?', '@I2@');
-  remind('Wrong Matti?', '@I1@', citationIds('@I1@')[0]);
+  remind('Wrong Matti?', '@I1@');
   remindImage('Later hand');
   // The export now gives Maija another record id, and Matti a new citation
   // before his old one.
@@ -372,15 +373,28 @@ test('Reminders follow their person and citation, and one on an Image stays', as
 
   expect(reminders()).toEqual([
     'Second wife? | @I9@',
-    `Wrong Matti? | @I1@ | ${PAGE.a}`,
+    'Wrong Matti? | @I1@',
     'Later hand | Image 12 | 2026-10-23T11:00:00.000Z'
   ]);
   expect(outcome.merged).toMatchObject({ kept: { reminders: 3 }, lost: [] });
 });
 
-test("a citation's Reminder goes onto its person when the citation is gone, and one whose person is gone is listed", async () => {
+test('a Reminder on an Image about someone follows them, and stays on the Image once they are gone', async () => {
   await importTree(tree([MATTI, MAIJA]));
-  remind('Wrong Matti?', '@I1@', citationIds('@I1@')[0]);
+  remindImage('His hand?', '@I1@');
+  remindImage('Her hand?', '@I2@');
+  const outcome = await importTree(tree([MATTI]));
+
+  expect(reminders()).toEqual([
+    'His hand? | @I1@ | Image 12 | 2026-10-23T11:00:00.000Z',
+    'Her hand? | Image 12 | 2026-10-23T11:00:00.000Z'
+  ]);
+  expect(outcome.merged).toMatchObject({ kept: { reminders: 2 }, lost: [] });
+});
+
+test('a Reminder whose person is gone is listed', async () => {
+  await importTree(tree([MATTI, MAIJA]));
+  remind('Wrong Matti?', '@I1@');
   remind('Second   wife?\nOr a third?', '@I2@');
   const outcome = await importTree(tree([{ ...MATTI, pages: [PAGE.c] }]));
 
@@ -391,13 +405,21 @@ test("a citation's Reminder goes onto its person when the citation is gone, and 
   });
 });
 
-test("a Reminder on a citation made in the app follows it, and goes onto its person when it's deleted", async () => {
+test('a Reminder an older app put on a citation goes onto its person', async () => {
   await importTree(tree([MATTI]));
-  citeInViewer('@I1@');
-  remind('Is this the entry?', '@I1@', citationIds('@I1@')[1]);
-  await importTree(tree([MATTI]));
-  expect(reminders()).toEqual([`Is this the entry? | @I1@ | ${ASTIA}`]);
+  // As schema 9 left it, when a Reminder could be on a citation.
+  const db = registry().open('tree');
+  db.run('ALTER TABLE reminders ADD COLUMN citation_id INTEGER');
+  db.run(
+    `INSERT INTO reminders (text, person_id, citation_id, created_at)
+     VALUES ('Is this the entry?', ?, ?, '2026-10-23T10:00:00.000Z')`,
+    [personId('@I1@'), citationIds('@I1@')[0]!]
+  );
+  db.run("UPDATE meta SET value = '9' WHERE key = 'schema_version'");
+  db.close();
+  reopen();
 
-  openAppCitations(registry().open('tree')).remove(citationIds('@I1@')[1]!);
+  const outcome = await importTree(tree([MATTI]));
   expect(reminders()).toEqual(['Is this the entry? | @I1@']);
+  expect(outcome.merged).toMatchObject({ kept: { reminders: 1 }, lost: [] });
 });

@@ -1,11 +1,11 @@
 // The routes of a dataset's Reminders: listing them, writing one, changing
 // or deleting one. They read the request; the handlers answer it.
 
-import type { OnTarget, ReminderChange } from '@/common/types';
+import type { ReminderChange, ReminderTarget } from '@/common/types';
 
 export interface ReminderHandlers {
   handleReminders: () => Promise<Response>;
-  handleRemind: (text: string, target: OnTarget) => Promise<Response>;
+  handleRemind: (text: string, target: ReminderTarget) => Promise<Response>;
   handleChangeReminder: (
     id: number,
     change: ReminderChange
@@ -24,14 +24,19 @@ function isId(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value > 0;
 }
 
-// `{ personId }`, `{ citationId }` or `{ volumeId, volume, image, fileId }`.
-// Anything else is null.
-function readTarget(on: unknown) {
+// `{ volumeId, volume, image, fileId }`, with `personId` too for one about
+// someone; or `{ personId }`. Anything else is null.
+function readTarget(on: unknown): ReminderTarget | null {
   if (typeof on !== 'object' || on === null) return null;
-  const { personId, citationId } = on as Record<string, unknown>;
-  if (isId(personId)) return { personId };
-  if (isId(citationId)) return { citationId };
-  return readImage(on as Record<string, unknown>);
+  const fields = on as Record<string, unknown>;
+  const { personId } = fields;
+  if ('volumeId' in fields) {
+    const image = readImage(fields);
+    if (image === null) return null;
+    if (personId === undefined) return image;
+    return isId(personId) ? { ...image, personId } : null;
+  }
+  return isId(personId) ? { personId } : null;
 }
 
 function readImage(on: Record<string, unknown>) {

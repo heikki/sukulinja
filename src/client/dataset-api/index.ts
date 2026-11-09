@@ -6,16 +6,18 @@ import { readNdjson } from '@/client/ndjson';
 import type {
   Box,
   Change,
+  ChurchBookArchive,
   CitationLinks,
   FamilyRow,
-  OnTarget,
   PersonDetails,
   PersonRow,
   Reminder,
   ReminderChange,
+  ReminderTarget,
   Rescan,
   VolumeChoices,
-  VolumeCitation
+  VolumeCitation,
+  VolumeContents
 } from '@/common/types';
 
 // A request the app answered with an error, or couldn't be reached for. Its
@@ -82,14 +84,17 @@ export interface DatasetApi {
     volumeId: string,
     signal?: AbortSignal
   ) => Promise<VolumeCitation[]>;
+  // The archives the dataset's church books are in, most cited first.
+  archives: (signal?: AbortSignal) => Promise<ChurchBookArchive[]>;
   // How many of the dataset's Citations link into each of a parish
   // archive's Volumes, by Volume id; one with none is left out.
   archiveCitations: (
     archiveId: string,
     signal?: AbortSignal
   ) => Promise<Record<string, number>>;
-  // Astia's viewer URL for each Image of a Volume, in order.
-  volumeImages: (volumeId: string, signal?: AbortSignal) => Promise<string[]>;
+  // What Astia says of a Volume, in one answer: its Images and its
+  // archive.
+  volume: (volumeId: string, signal?: AbortSignal) => Promise<VolumeContents>;
   // Astia's re-scan of the Volume not yet switched to, and what switching
   // leaves out; null when there's none.
   volumeRescan: (
@@ -111,7 +116,7 @@ export interface DatasetApi {
   // Every Reminder, newest first, open or done.
   reminders: (signal?: AbortSignal) => Promise<Reminder[]>;
   // Writes a Reminder on the target: it as stored.
-  remind: (text: string, on: OnTarget) => Promise<Reminder>;
+  remind: (text: string, on: ReminderTarget) => Promise<Reminder>;
   // Changes a Reminder's text, or marks it done or open again: it as
   // stored.
   changeReminder: (id: number, change: ReminderChange) => Promise<Reminder>;
@@ -270,6 +275,13 @@ export function openDatasetApi(
         signal
       ),
 
+    archives: async (signal) =>
+      await json<ChurchBookArchive[]>(
+        'the church books',
+        `${dataset}/api/archives`,
+        signal
+      ),
+
     archiveCitations: async (archiveId, signal) =>
       await json<Record<string, number>>(
         "the parish's citations",
@@ -277,10 +289,10 @@ export function openDatasetApi(
         signal
       ),
 
-    volumeImages: async (volumeId, signal) =>
-      await json<string[]>(
-        "the Volume's Images",
-        `${astia}/${volumeId}/images`,
+    volume: async (volumeId, signal) =>
+      await json<VolumeContents>(
+        'the Volume',
+        `${dataset}/api/volumes/${volumeId}`,
         signal
       ),
 

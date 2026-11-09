@@ -220,6 +220,30 @@ test('a person with no church books gets no scan lines', async () => {
   expect(await linesOf(citations.linksOf(99))).toEqual([]);
 });
 
+test("a warm-up asks Astia for the references' archives, not their Volumes' Images", async () => {
+  const citations = datasetOf([
+    cite(1, rippiCitation(5001, '1790 - 1796', 12)),
+    cite(2, rippiCitation(5002, '1790 - 1796', 13)),
+    cite(2, { page: null, text: 'Family bible' })
+  ]);
+  await citations.warmUp();
+  // Astia's own keeps each answer on disk for a person selected later.
+  expect(new Set(astia.asked)).toEqual(
+    new Set(['title 1212295491', 'volumes 1212295491'])
+  );
+});
+
+test('a warm-up ends quietly once the Database is closed', async () => {
+  const db = openDb(join(dir, 'db.sqlite'));
+  const citations = createCitations(db, {
+    images: openImages({ astia }),
+    references: referencesFor(dir, db, { astia })
+  });
+  db.close();
+  // Ends without throwing.
+  await citations.warmUp();
+});
+
 // ---------------------------------------------------------------- Marks
 
 test('a Mark is saved, and the scan lines show it', async () => {

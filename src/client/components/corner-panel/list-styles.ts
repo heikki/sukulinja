@@ -2,11 +2,18 @@ import { css } from 'lit';
 
 import { focusRingStyles } from '@/client/focus-ring';
 
-// What a corner panel lists, in the shadow root of the element that slots
-// it in: rows that scroll between the panel's heading and its actions, each
-// a button with its text and what it's on, a note when there's nothing to
-// list, and a link-like toggle under the list.
+// What a corner panel's tab lists, in the shadow root of the element
+// slotted in: rows that scroll between the panel's tabs and the list's
+// actions, each a button with its text and what it's on, a note when
+// there's nothing to list, and a link-like toggle under the list.
 const list = css`
+  :host {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    flex-direction: column;
+  }
+
   ul {
     flex: 1;
     min-height: 0;
@@ -72,6 +79,12 @@ const list = css`
   p.muted {
     margin: 0 0 1rem;
     color: var(--muted);
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
   }
 
   /* A toggle under the list, such as showing the done ones. */

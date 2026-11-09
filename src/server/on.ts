@@ -5,11 +5,12 @@
 
 import type { Database } from 'bun:sqlite';
 
+import { bookLabel } from '@/common/books';
 import type { CitationRow, On, OnTarget } from '@/common/types';
 
 // The columns that say what a row is on, in this order. A person's row
 // fills person_id; a Citation's both person_id and citation_id; an
-// Image's the other four.
+// Image's the other four, and person_id too when it's about someone.
 export const ON_COLUMNS = [
   'person_id',
   'citation_id',
@@ -50,6 +51,15 @@ const NOTHING: OnRow = {
   file_id: null
 };
 
+// A Citation's reference as a list names it: a church book by its name,
+// years and page, as the Scan viewer does, leaving out the parish the
+// reference wrote; any other as written.
+function referenceOf(citation: CitationRow) {
+  const { cited } = citation;
+  const book = cited === null ? null : bookLabel(cited, citation.citedPage);
+  return book ?? citation.reference ?? citation.entry;
+}
+
 export function openOn(db: Database, sources: OnSources) {
   const personExists = db.prepare<{ id: number }, [number]>(
     'SELECT id FROM persons WHERE id = ?'
@@ -57,11 +67,21 @@ export function openOn(db: Database, sources: OnSources) {
 
   return {
     // The columns a new row on the target fills. Null when its person or
-    // Citation isn't in the dataset.
+    // Citation isn't in the dataset; an Image's is anywhere.
     columnsOf(target: OnTarget): OnRow | null {
-      if ('personId' in target) {
-        if (personExists.get(target.personId) === null) return null;
-        return { ...NOTHING, person_id: target.personId };
+      if ('volumeId' in target) {
+        const { volumeId, volume, image, fileId, personId } = target;
+        if (personId !== undefined && personExists.get(personId) === null) {
+          return null;
+        }
+        return {
+          ...NOTHING,
+          person_id: personId ?? null,
+          volume_id: volumeId,
+          volume,
+          image,
+          file_id: fileId
+        };
       }
       if ('citationId' in target) {
         const cited = sources.citationOf(target.citationId);
@@ -72,14 +92,8 @@ export function openOn(db: Database, sources: OnSources) {
           citation_id: target.citationId
         };
       }
-      const { volumeId, volume, image, fileId } = target;
-      return {
-        ...NOTHING,
-        volume_id: volumeId,
-        volume,
-        image,
-        file_id: fileId
-      };
+      if (personExists.get(target.personId) === null) return null;
+      return { ...NOTHING, person_id: target.personId };
     },
 
     // What a row is on, described; null when it's on nothing. A Citation's
@@ -89,7 +103,8 @@ export function openOn(db: Database, sources: OnSources) {
       if (volumeId !== null) {
         const at = { volumeId, image: image!, fileId: fileId! };
         const stale = await sources.replaced(at);
-        return { kind: 'image', volume: volume!, ...at, stale };
+        const personId = row.person_id;
+        return { kind: 'image', volume: volume!, ...at, stale, personId };
       }
       const personId = row.person_id;
       if (personId === null) return null;
@@ -102,7 +117,7 @@ export function openOn(db: Database, sources: OnSources) {
         personId,
         citationId: citation.id,
         source: citation.source,
-        reference: citation.reference ?? citation.entry
+        reference: referenceOf(citation)
       };
     }
   };
