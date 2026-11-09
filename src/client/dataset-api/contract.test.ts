@@ -171,6 +171,13 @@ describe('the answers', () => {
     const image = { volumeId: VOLUME, volume: VOLUMES['juva-1'], image: 7 };
     await api.remind('Later hand', { ...image, fileId: `${VOLUME}-f7` });
     await api.remind('Before the re-scan', { ...image, fileId: 'gone' });
+    const about = await api.remind('His hand?', {
+      ...image,
+      fileId: `${VOLUME}-f7`,
+      personId: 3
+    });
+    expect(about.on).toMatchObject({ kind: 'image', image: 7, personId: 3 });
+    await api.deleteReminder(about.id);
 
     const listed = await api.reminders();
     expect(listed.map((r) => r.text)).toEqual([

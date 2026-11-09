@@ -24,14 +24,20 @@ function isId(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value > 0;
 }
 
-// `{ personId }`, `{ citationId }` or `{ volumeId, volume, image, fileId }`.
-// Anything else is null.
-function readTarget(on: unknown) {
+// `{ volumeId, volume, image, fileId }`, with `personId` too for one about
+// someone; or `{ citationId }` or `{ personId }`. Anything else is null.
+function readTarget(on: unknown): OnTarget | null {
   if (typeof on !== 'object' || on === null) return null;
-  const { personId, citationId } = on as Record<string, unknown>;
-  if (isId(personId)) return { personId };
+  const fields = on as Record<string, unknown>;
+  const { personId, citationId } = fields;
+  if ('volumeId' in fields) {
+    const image = readImage(fields);
+    if (image === null) return null;
+    if (personId === undefined) return image;
+    return isId(personId) ? { ...image, personId } : null;
+  }
   if (isId(citationId)) return { citationId };
-  return readImage(on as Record<string, unknown>);
+  return isId(personId) ? { personId } : null;
 }
 
 function readImage(on: Record<string, unknown>) {
