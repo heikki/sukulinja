@@ -1,4 +1,4 @@
-Status: needs-triage (design proposed 2026-11-09, waiting on Heikki)
+Status: ready-for-human (built 2026-11-09, to try in the app; ADR-0015)
 
 # Download whole Volumes for use without Astia
 
@@ -27,9 +27,9 @@ This changes the 2026-10-21 decision "the cap and least-recently-viewed rule app
 
 ### Pace, stopping and resuming
 
-- **One download at a time**, a queue of Volumes behind it. Each Image goes through the Scan cache's existing one-at-a-time full-size lane, one at a time, so a viewer request queued meanwhile goes first (the lane takes latest first and a download only ever has one Image waiting).
+- **One download at a time**, a queue of Volumes behind it. Each Image goes through the Scan cache's existing one-at-a-time full-size lane, so a viewer request queued meanwhile goes first (the lane takes latest first and a download only ever has one Image waiting).
 - **A gap of 1 s between Images** fetched from Astia, the same as `REQUEST_GAP_MS` for answers; Images already cached are skipped without a gap (as `isCached` lets the vision pass do). I Ab:5's 180 Images then take roughly 5–10 minutes.
-- **Throttling**: a 429 already backs off 30 s in `astia.ts`. Uses the crawl's patience (rides out a blip, unattended), not the viewer's.
+- **Throttling and blips**: an Image Astia fails on is tried again after 30 s, three times, before the download stops; the viewer's own patience in `astia.ts` is left as it is.
 - **Astia failing** (502, refused, notice page) after its retries stops the download, which is listed as **Stopped: Astia couldn't be reached**, with Resume.
 - **Stop / Resume**: Stop leaves what's fetched and keeps it a Downloaded Volume, listed as incomplete ("120 of 180"). Resume carries on from the first Image not on disk. Quitting the app is a Stop; nothing resumes on its own at launch (opening the app offline shouldn't start hammering a recovering Astia).
 - **Re-scan**: the download uses the app's cache (`switches: false`), so an Image gone with a re-scan stops it as **Re-scanned in Astia**; switching to the new filming in the Scan viewer, as today, drops the old Images and the download shows incomplete again, to Resume onto the new filming.
@@ -38,19 +38,19 @@ This changes the 2026-10-21 decision "the cap and least-recently-viewed rule app
 
 A view of its own for the church books, not tied to a citation: opened from its own button in the chart's top-right corner, between Reminders (the flag) and Settings (the gear), as a dialog over the chart like the Reminders list. The changelog work adds a clock button there too; the corner button and its floating list should be one shared piece that Reminders, the changelog and Church books all use, so this builds on that once it lands rather than copying `reminders-dialog/button.ts`.
 
-- **Parishes**: the parishes whose archives are known (`archives.ts`), one row per archive, with how much of its Volumes is on disk.
+- **Parishes**: the parishes whose archives are known (`archives.ts`), one row per archive.
 - **A parish's Volumes**, grouped by series (Pää- ja rippikirjat, Lastenkirjat, …) in Astia's order, as `archiveVolumes` lists them. Each row: label, years, Images on disk of total (known once Astia's list of Images has been asked for), size on disk, and its download state.
 - **Open**: opens the Volume in the Scan viewer on Image 1 with no source, as a Reminder opens an Image today (`viewer.openImage`). This is the start of browsing without a citation; nothing in the viewer changes for it.
 - **Download / Stop / Resume / Remove** on each Volume row; one being downloaded shows "42 / 180".
 - **Settings** keeps only the totals ("Scan cache: 1.2 GB of 5 GB · Downloaded: 450 MB in 1 Volume") and a link to the view.
-- **Scan viewer toolbar**: beside the Volume's title, "Downloaded" or "Downloading 42/180" for that Volume. No menu items there; downloads are managed in the view.
+- No download controls or status in the Scan viewer; downloads are managed in the view. (A "Downloaded" mark beside the Volume's title there is left for after trying it.)
 
 ## Groundwork first (refactor, its own commit)
 
 The Scan cache owns `settings.local.json` today: `readSettings`/`savedCap` and `setCap`'s read-modify-write live inside `scan-cache.ts`. Downloads would be a second writer of the same file, and two read-modify-writes can lose each other's change. So before the feature:
 
-- **`install-settings.ts`**: the install's settings file, read once and written through one serialized writer, typed per key. The Scan cache reads and saves its cap through it, unchanged in behaviour.
-- **The Scan cache takes what it must keep**: `openScanCache({ …, kept })`, where `kept(volumeId)` says a Volume's folder is outside the cap. `prune` and `used` honour it; the cache knows nothing about downloads beyond that.
+- **`settings-file.ts`**: the install's settings file, written through one serialized writer, each change on the file as it is now. The Scan cache reads and saves its cap through it, unchanged in behaviour.
+- **The Scan cache keeps Volumes whole** as a mechanism of its own (see Server); it knows nothing about downloads beyond that.
 
 Then downloads are a module of their own on top of the cache's public `image()`, not code inside it.
 
@@ -58,11 +58,10 @@ Also groundwork: `archives.ts` maps parish spellings to archive ids, so one arch
 
 ## Server
 
-- Downloaded Volumes are kept, through `install-settings.ts`, in `settings.local.json` as `downloadedVolumes: [{ volumeId, label }]`, beside `scanCacheBytes`.
-- `prune` skips files where `kept(volumeId)`, and they're left out of `used`; `status()` adds `downloaded: { bytes, volumes }`.
+- The Scan cache keeps Volumes whole (`keep`, `release`, `kept`), saved through `settings-file.ts` in `settings.local.json` as `keptVolumes: [volumeId]` beside `scanCacheBytes`, read each time so every cache on the data folder honours them. `prune` and `clear` skip them, `used` leaves them out, and `status()` adds `kept: { bytes, volumes }`. `onDisk(volumeId)` says what of a Volume is on disk without asking Astia.
 - A new module `astia/downloads.ts`: the queue of Volumes, the one running, its progress, Stop. Reads the Volume's list via `astia.volumeImages`, fetches each Image through `cache.image(…, 'full' | 'thumb', signal)`, aborting the signal on Stop.
 - Routes, outside any dataset beside the others in `astia-routes.ts`:
-  - `GET /astia/parishes`: the known parishes, each with its archive id and how much is on disk.
+  - `GET /astia/parishes`: the known parishes, each with its archive id.
   - `GET /astia/archives/:id/volumes`: the archive's Volumes, each with its Images on disk and download state.
   - `GET /astia/downloads`: every Downloaded Volume and its state (`queued | downloading | stopped | complete`, `cached`, `images`, `bytes`, `error?`).
   - `PUT /astia/volumes/:id/download`: download or resume (idempotent).
