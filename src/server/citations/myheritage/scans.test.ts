@@ -283,7 +283,9 @@ test('an entry box must lie on its Image', async () => {
     image: 7,
     box: { ...box, left: 100 }
   });
-  expect(marked).toMatchObject({ links: [{ precision: 'entry', image: 7 }] });
+  expect(marked).toMatchObject({
+    resolution: { links: [{ precision: 'entry', image: 7 }] }
+  });
 });
 
 test("the Volumes to choose from are the cited Book's, those it links first", async () => {

@@ -7,7 +7,7 @@
 export { routeRescan } from './pins/rescans';
 export type { KeptPins } from './pins/rescans';
 export { carryRejections } from './pins/marks';
-export type { BoxAt, MarkTarget } from './pins/pins';
+export type { BoxAt, DiscardDone, MarkDone, MarkTarget } from './pins/pins';
 export {
   BAPTISM_COLLECTION,
   churchBookRefOf,

@@ -390,6 +390,21 @@ type VolumeFacts = ReturnType<typeof openVolumeFacts>;
 // ---------------------------------------------------------------- the module
 
 // Where a Box is: on an Image of a Volume.
+// What a Mark did: whether it confirmed a Match on that Image, how many
+// citations of the record it was written into, and the cited page it
+// saved as a Page pin, if any.
+export interface MarkDone {
+  confirmed: boolean;
+  citations: number;
+  pagePin: number | null;
+}
+
+// What a Discard did: whether it took back a Match, and so made a
+// Rejection.
+export interface DiscardDone {
+  rejection: boolean;
+}
+
 export interface BoxAt {
   volumeId: string;
   image: number;
@@ -488,21 +503,28 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
     // count from. On an Image, a cited page found in a Volume the reference
     // already links is also a Page pin, which moves the Volume's other
     // references near it too; a reference with neither a Record number nor
-    // a Box then needs no Link of its own.
+    // a Box then needs no Link of its own. Says what it did.
     async recordMark(
       ref: ChurchBookRef,
       target: MarkTarget,
       where: { volume: string; linked: boolean }
-    ) {
+    ): Promise<MarkDone> {
       const key = markKey(ref);
       const { volumeId, image } = target;
       const { volume, linked } = where;
+      const before = marks.linkOf(key);
+      const citations = marks.countOf(key);
       if (image === undefined) {
         marks.change(() => {
           marks.write(key, { volumeId, volume, by: 'hand' });
         });
-        return;
+        return { confirmed: false, citations, pagePin: null };
       }
+      const confirmed =
+        before !== null &&
+        !isHand(before) &&
+        before.volumeId === volumeId &&
+        before.image === image;
       const filming = await facts.filmingOf(volumeId);
       const pagePinned = ref.page !== null && linked;
       if (pagePinned) {
@@ -527,6 +549,7 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
         };
         marks.write(key, own ? link : null);
       });
+      return { confirmed, citations, pagePin: pagePinned ? ref.page : null };
     },
 
     // A match the vision model confirmed, unless it was taken back there by
@@ -566,9 +589,12 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
 
     // Takes back the Box the reference's Link shows at `at`, a Mark's or a
     // Match's. Page pins and Record ranges stay, as facts about the
-    // Volume. A Match taken back becomes a Rejection. Whether there
-    // was a Box to take back.
-    async recordDiscard(ref: ChurchBookRef, at: BoxAt) {
+    // Volume. A Match taken back becomes a Rejection. What it did, or null
+    // when there was no Box there to take back.
+    async recordDiscard(
+      ref: ChurchBookRef,
+      at: BoxAt
+    ): Promise<DiscardDone | null> {
       const key = markKey(ref);
       const filming = await facts.filmingOf(at.volumeId);
       return marks.change(() => {
@@ -578,13 +604,14 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
           link.image !== at.image ||
           link.box === undefined
         ) {
-          return false;
+          return null;
         }
         marks.write(key, null);
-        if (!isHand(link) && !isRejected(marks, ref, filming, at)) {
+        const rejection = !isHand(link);
+        if (rejection && !isRejected(marks, ref, filming, at)) {
           marks.reject(ref.url, { ...at, ...fileOf(filming, at.image) });
         }
-        return true;
+        return { rejection };
       });
     },
 

@@ -104,7 +104,7 @@ test('a Volume found re-scanned is read-only until switched', async () => {
   // Not known yet: a change still goes through.
   expect(
     await app.markRef(refOf(marked), { volumeId: 'juva-1', image: 8 })
-  ).toHaveProperty('links');
+  ).toHaveProperty('resolution.links');
   await astia.peekImages('juva-1');
   const refused = {
     rejected:
@@ -122,5 +122,5 @@ test('a Volume found re-scanned is read-only until switched', async () => {
   await astia.refreshImages('juva-1');
   expect(
     await app.markRef(refOf(marked), { volumeId: 'juva-1', image: 9 })
-  ).toHaveProperty('links');
+  ).toHaveProperty('resolution.links');
 });
