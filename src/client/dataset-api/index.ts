@@ -7,11 +7,11 @@ import type {
   Box,
   CitationLinks,
   FamilyRow,
+  OnTarget,
   PersonDetails,
   PersonRow,
   Reminder,
   ReminderChange,
-  ReminderTarget,
   Rescan,
   VolumeChoices,
   VolumeCitation
@@ -101,7 +101,7 @@ export interface DatasetApi {
   // Every Reminder, newest first, open or done.
   reminders: (signal?: AbortSignal) => Promise<Reminder[]>;
   // Writes a Reminder on the target: it as stored.
-  remind: (text: string, on: ReminderTarget) => Promise<Reminder>;
+  remind: (text: string, on: OnTarget) => Promise<Reminder>;
   // Changes a Reminder's text, or marks it done or open again: it as
   // stored.
   changeReminder: (id: number, change: ReminderChange) => Promise<Reminder>;

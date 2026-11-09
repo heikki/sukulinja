@@ -1,16 +1,16 @@
 import { expect, test } from 'bun:test';
 
 import { memoryDatasetApi } from '@/client/dataset-api/memory';
-import type { Reminder, ReminderOn } from '@/common/types';
+import type { On, Reminder } from '@/common/types';
 
 import { openReminders, remindersOn } from './reminders';
 
-function reminder(id: number, on: ReminderOn, done: string | null = null) {
+function reminder(id: number, on: On, done: string | null = null) {
   const row: Reminder = { id, text: `R${id}`, on, created: '', done };
   return row;
 }
 
-const IMAGE: ReminderOn = {
+const IMAGE: On = {
   kind: 'image',
   volumeId: '201',
   volume: 'I Aa:201',

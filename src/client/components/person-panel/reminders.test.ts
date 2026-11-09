@@ -1,17 +1,17 @@
 import { expect, test } from 'bun:test';
 
-import type { Reminder, ReminderOn } from '@/common/types';
+import type { On, Reminder } from '@/common/types';
 
 import { personReminders, sourceOf } from './reminders';
 
 const DONE = '2026-10-23T10:00:00.000Z';
 
-function reminder(id: number, on: ReminderOn, done: string | null = null) {
+function reminder(id: number, on: On, done: string | null = null) {
   const row: Reminder = { id, text: `R${id}`, on, created: '', done };
   return row;
 }
 
-function citation(personId: number, citationId: number): ReminderOn {
+function citation(personId: number, citationId: number): On {
   return {
     kind: 'citation',
     personId,

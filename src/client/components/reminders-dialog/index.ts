@@ -3,12 +3,13 @@ import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
+import { isStale, onLabel } from '@/client/on';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { Reminder } from '@/common/types';
 
 import { cornerListStyles } from '../corner-panel/list-styles';
-import { isStale, listed, onLabel } from './helpers';
+import { listed } from './helpers';
 
 import '../corner-panel/panel';
 
@@ -44,8 +45,8 @@ class RemindersDialogElement extends SignalWatcher(LitElement) {
       >
         <span class="text">${reminder.text}</span>
         <span class="on"
-          >${onLabel(reminder, persons)}${
-            isStale(reminder)
+          >${onLabel(reminder.on, persons)}${
+            isStale(reminder.on)
               ? html`<span class="chip">From an earlier filming</span>`
               : nothing
           }</span
