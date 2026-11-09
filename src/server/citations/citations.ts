@@ -272,14 +272,25 @@ export function createCitations<R extends BookRef>(
     });
   }
 
-  // The parishes the dataset's Church-book references cite.
-  function parishes() {
-    return cited(everyPerson.all()).map((c) => c.book?.parish ?? null);
+  // The parish archives the dataset's church books are in: its
+  // references' parishes', and those holding the Volumes its Citations of
+  // Images cite.
+  async function archives() {
+    const all = cited(everyPerson.all());
+    return await images.archivesOf({
+      parishes: all.map((c) => c.book?.parish ?? null),
+      volumes: all.flatMap((c) =>
+        c.stored === null ? [] : [c.stored.volumeId]
+      )
+    });
   }
 
   // A stored Link, naming its archive as a resolved one does.
   async function withArchive(link: Link): Promise<Link> {
-    const archive = await images.archiveTitleOf(link.volumeId, parishes());
+    const archive = await images.archiveTitleOf(
+      link.volumeId,
+      await archives()
+    );
     return archive === null ? link : { ...link, archive };
   }
 
@@ -303,7 +314,7 @@ export function createCitations<R extends BookRef>(
     }
     const checked = await images.imageToCite(
       { volumeId, image, box },
-      parishes()
+      await archives()
     );
     if ('rejected' in checked) return checked;
     made.move(citationId, { volumeId, image, box, ...checked });
@@ -436,7 +447,7 @@ export function createCitations<R extends BookRef>(
       target: CiteTarget
     ): Promise<VolumeCitation | { rejected: string } | null> {
       if (personExists.get(personId) === null) return null;
-      const checked = await images.imageToCite(target, parishes());
+      const checked = await images.imageToCite(target, await archives());
       if ('rejected' in checked) return checked;
       const { volumeId, image } = target;
       const there = await inVolume(volumeId);

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { GedcomDocument } from '@domorium/validator';
 
 import { importGedcomFixture } from '../../../test/gedcom-fixture';
-import { openMarks } from '../citations/testing';
+import { openAnnotations } from '../citations';
 import { DatasetRegistry } from '../datasets/registry';
 import { line } from '../gedcom/writer';
 import { writeGedcom551 } from '../gedcom/writer-551';
@@ -136,11 +136,12 @@ describe('exporting for MyHeritage', () => {
     const db = registry.open('a');
     const page =
       'https://www.myheritage.fi/research/collection-30233/x?itemId=7';
-    db.run(
+    const { lastInsertRowid } = db.run(
       "INSERT INTO citations (scope_type, scope_id, source_id, page, added_in_app, sort_order) VALUES ('person', 2, 1, ?, 1, 0)",
       [page]
     );
-    openMarks(db).write(`url ${page}`, {
+    // Not through a Mark: one made in the app is never a reference to mark.
+    openAnnotations(db).swap([Number(lastInsertRowid)], {
       volumeId: '1234',
       volume: 'I Aa:5 Rippikirja',
       image: 25,

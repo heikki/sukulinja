@@ -11,15 +11,9 @@ import type { CitationLinks, Link, VolumeCitation } from '@/common/types';
 
 import { openDb } from '../datasets/db';
 import { openAnnotations } from './annotations';
-import { fileId, memoryAstia } from './astia/memory-astia';
+import { fileId } from './astia/memory-astia';
 import type { MemoryAstia } from './astia/memory-astia';
-import {
-  IMAGES,
-  JUVA,
-  juvaAstia,
-  rippiCitation,
-  VOLUMES
-} from './astia/test-parish';
+import { juvaAstia, rippiCitation } from './astia/test-parish';
 import { createCitations } from './citations';
 import { openImages } from './images';
 import { referencesFor } from './myheritage/test-pins';
@@ -270,16 +264,7 @@ const ARCHIVE = 'Juvan seurakunnan arkisto';
 
 // Juva's archive, titled as Astia titles it.
 function titledJuva() {
-  return memoryAstia({
-    [JUVA]: {
-      title: ARCHIVE,
-      volumes: Object.entries(VOLUMES).map(([id, label]) => ({
-        id,
-        label,
-        images: IMAGES
-      }))
-    }
-  });
+  return juvaAstia(ARCHIVE);
 }
 
 test('a Citation made in the app is read back with its Link Marked at the entry', async () => {
@@ -441,4 +426,24 @@ test("a Volume's source is found by its record, whatever cites it", async () => 
     )
     .all();
   expect(cited).toEqual([{ id: 1 }]);
+});
+
+test("with no references, the Volumes cited give the dataset's parishes", async () => {
+  astia = titledJuva();
+  const { db, citations } = withPeople([
+    cite(3, rippiCitation(5001, '1790 - 1796', 12))
+  ]);
+  await citations.cite(1, entry(13));
+  // As if every reference were converted: nothing but Citations of Images.
+  db.run('DELETE FROM citations WHERE added_in_app = 0');
+  expect(await linesOf(citations.linksOf(1))).toEqual([
+    { citationId: 2, links: [{ ...ENTRY_LINK, archive: ARCHIVE }] }
+  ]);
+  expect(await citations.cite(2, entry(14))).toMatchObject({
+    personId: 2,
+    link: { image: 14, archive: ARCHIVE }
+  });
+  expect(
+    await citations.mark(2, { volumeId: 'juva-1', image: 15, box: BOX })
+  ).toHaveProperty('resolution.links');
 });
