@@ -105,13 +105,16 @@ async function viewing(row: VolumeCitation) {
   return { api, viewer: state.viewer };
 }
 
-test("confirm reloads the citations and the Selected person's Links, and follows its own reference", async () => {
+test("confirm reloads the citations and the Selected person's details and Links, and follows its own reference", async () => {
   const { api, viewer } = await viewing(ROW_21);
   await viewer.confirm(ROW_21);
-  expect(api.asked.slice(-3)).toEqual([
+  await settle();
+  // Confirmed, it's a Citation of its Image (ADR-0016): their details too.
+  expect(api.asked.slice(-4)).toEqual([
     'mark 21 201/18',
-    'links 2',
-    'citations 201'
+    'person 2',
+    'citations 201',
+    'links 2'
   ]);
   expect(viewer.source.get()?.link).toEqual(MARKED_21);
 });

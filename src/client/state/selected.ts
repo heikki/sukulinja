@@ -148,12 +148,12 @@ export function openSelected(
 
   // A Page pin can move the person's other references in the Volume too,
   // and a Record pin taken back theirs citing the record, so their Links
-  // reload.
+  // reload; a Mark at the entry converts the reference to a Citation of
+  // its Image (ADR-0016), so their details do too.
   async function settled(saving: Promise<CitationLinks>) {
     const resolved = await saving;
     setLinks(resolved);
-    const person = id.get();
-    if (person !== null) void loadLinks(person, null);
+    void refresh();
     return resolved;
   }
 

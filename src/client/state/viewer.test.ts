@@ -507,10 +507,12 @@ test('a Discard waits to be saved, and takes the Box back where it is', async ()
   expect(viewer.source.get()?.link).toEqual(VISION_21);
   viewer.discard();
   await viewer.confirmDiscard();
-  expect(api.asked.slice(-3)).toEqual([
+  await settle();
+  expect(api.asked.slice(-4)).toEqual([
     'discard 21 201/18',
-    'links 2',
-    'citations 201'
+    'person 2',
+    'citations 201',
+    'links 2'
   ]);
   expect(viewer.discarding.get()).toBe(false);
   expect(viewer.source.get()?.link).toEqual(onImage('201', 20));
