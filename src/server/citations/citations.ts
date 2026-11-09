@@ -1,8 +1,8 @@
 // A dataset's Citations: each person's, as the panel shows them, and for the
 // Church-book references among them their Links, their Marks, and the
-// Volume's citations the Scan viewer lists. Which Citations are church
-// books is decided once, by churchBookRefOf, so a row the panel marks as a
-// church book always gets a line of Links, and no other row does. A
+// Volume's citations the Scan viewer lists. Which Citations are references
+// is the References port's to say, once per row, so a row the panel marks
+// as a church book always gets a line of Links, and no other row does. A
 // Citation citing an Astia Image counts as one too, such as one made in the
 // app: it has no reference to resolve, and its Link is the Mark stored on
 // it.
@@ -29,14 +29,13 @@ import type { Annotation } from './annotations';
 import { openAppCitations } from './app-citations';
 import { viewerUrl, volumeYears } from './astia/astia';
 import type { Images } from './images';
-import { churchBookRefOf, markKey, readRecord } from './myheritage';
 import type {
+  BookRef,
   BoxAt,
-  ChurchBookRef,
   MarkDone,
   MarkTarget,
-  Scans
-} from './myheritage';
+  References
+} from './references';
 import { citationText } from './text';
 
 interface CitationDbRow {
@@ -50,9 +49,9 @@ interface CitationDbRow {
 
 // A Citation as the panel and the Scan viewer read it: its Church-book
 // reference, or for one citing an Astia Image, the Link stored on it.
-interface Cited {
+interface Cited<R extends BookRef = BookRef> {
   row: CitationDbRow;
-  book: ChurchBookRef | null;
+  book: R | null;
   stored: EntryLink | null;
 }
 
@@ -71,7 +70,7 @@ export interface CiteTarget {
 // entry stored on it. Null for any other.
 function storedLink(
   row: CitationDbRow,
-  book: ChurchBookRef | null
+  book: BookRef | null
 ): EntryLink | null {
   const { link } = row.annotation;
   if (book !== null || link === null) return null;
@@ -86,7 +85,7 @@ function storedLink(
 
 // Parish · book and years · page, of what the reference gives. Lines break
 // only after a dot.
-export function describeRef(ref: ChurchBookRef) {
+export function describeRef(ref: BookRef) {
   const { from, to } = ref.years ?? { from: null, to: null };
   const years =
     from === null ? null : from === to ? `${from}` : `${from}–${to}`;
@@ -103,7 +102,7 @@ export function describeRef(ref: ChurchBookRef) {
 }
 
 // Where in its Volume the reference points: the page, else the entry's date.
-export function entryOf(ref: ChurchBookRef) {
+export function entryOf(ref: BookRef) {
   if (ref.page !== null) return `p.\u00a0${ref.page}`;
   return ref.date === null ? null : isoDate(ref.date);
 }
@@ -112,44 +111,43 @@ function linkOf(page: string | null) {
   return page !== null && /^https?:/.test(page) ? page : null;
 }
 
-// A MyHeritage record is read into its fields; others keep their text.
-function contentOf(url: string | null, text: string | null) {
-  if (url?.includes('myheritage.') === true) {
-    return { record: readRecord(text ?? ''), text: null };
-  }
-  return {
-    record: null,
-    text: text === null ? null : citationText(text).trim()
-  };
-}
-
 // Where in its Volume the reference points, or the Image a Citation of
 // one cites.
-function entryText(book: ChurchBookRef | null, stored: EntryLink | null) {
+function entryText(book: BookRef | null, stored: EntryLink | null) {
   if (book !== null) return entryOf(book);
   return stored === null ? null : `Image\u00a0${stored.image}`;
 }
 
-function toCitation({ row, book, stored }: Cited) {
-  const url = linkOf(row.page);
-  const citation: CitationRow = {
-    id: row.id,
-    source: row.source,
-    reference: book === null ? null : describeRef(book),
-    entry: entryText(book, stored),
-    page: row.page,
-    url,
-    ...contentOf(url, row.text),
-    churchBook: book !== null || stored !== null,
-    madeInApp: row.annotation.madeInApp,
-    markKey: book === null ? `citation ${row.id}` : markKey(book),
-    citedPage: book?.page ?? null,
-    cited:
-      book === null
-        ? null
-        : { parish: book.parish, kind: book.kind, years: book.years }
+// A Citation as the panel and the Scan viewer show it: a record the port
+// reads into its fields, or its text.
+function citationOf<R extends BookRef>(references: References<R>) {
+  return function toCitation({ row, book, stored }: Cited<R>) {
+    const record = references.recordOf(row);
+    const citation: CitationRow = {
+      id: row.id,
+      source: row.source,
+      reference: book === null ? null : describeRef(book),
+      entry: entryText(book, stored),
+      page: row.page,
+      url: linkOf(row.page),
+      record,
+      text:
+        record !== null || row.text === null
+          ? null
+          : citationText(row.text).trim(),
+      churchBook: book !== null || stored !== null,
+      madeInApp: row.annotation.madeInApp,
+      deletable:
+        row.annotation.madeInApp && row.annotation.originalPage === null,
+      markKey: book === null ? `citation ${row.id}` : references.markKey(book),
+      citedPage: book?.page ?? null,
+      cited:
+        book === null
+          ? null
+          : { parish: book.parish, kind: book.kind, years: book.years }
+    };
+    return citation;
   };
-  return citation;
 }
 
 // Church books by their first year, a Citation of an Astia Image by its
@@ -193,9 +191,9 @@ type DbRow = Omit<CitationDbRow, 'annotation'>;
 // references they make.
 // What the dataset's Citations read, and `changed`, told of each change
 // they make to the dataset.
-interface CitationDeps {
+interface CitationDeps<R extends BookRef> {
   images: Images;
-  references: Scans;
+  references: References<R>;
   changed?: (change: NewChange) => void;
 }
 
@@ -207,11 +205,12 @@ function citedText(c: CitationRow) {
   return entry === null ? c.source : `${c.source}, ${entry}`;
 }
 
-export function createCitations(
+export function createCitations<R extends BookRef>(
   db: Database,
-  { images, references, changed = () => undefined }: CitationDeps
+  { images, references, changed = () => undefined }: CitationDeps<R>
 ) {
   const made = openAppCitations(db);
+  const toCitation = citationOf(references);
   // A Mark makes its citation cite the Astia Image; the panel shows the
   // original page, which the reference is read from (ADR-0013).
   const SELECT = `SELECT c.id, c.scope_id AS personId, s.title AS source,
@@ -246,14 +245,28 @@ export function createCitations(
   );
 
   // The dataset doesn't change under a module: a re-import makes a new one.
-  const books = new Map<number, ChurchBookRef | null>();
+  const books = new Map<number, R | null>();
   function bookOf(row: CitationDbRow) {
     let book = books.get(row.id);
     if (book === undefined) {
-      book = churchBookRefOf(row.page, row.text);
+      book = references.refOf(row);
       books.set(row.id, book);
     }
     return book;
+  }
+
+  // Makes the citations a Mark of the reference put at the entry by hand
+  // Citations of their Image (ADR-0016), which are then no references.
+  // The Volume each converted is in, by its label.
+  function convert(book: R) {
+    const rows = references.converts(book);
+    if (rows.length === 0) return [];
+    const volumes = rows.map(
+      ({ id }) => byId.get(id)?.annotation.link?.volume ?? ''
+    );
+    made.convert(rows);
+    for (const { id } of rows) books.delete(id);
+    return volumes;
   }
 
   function churchBookOf(citationId: number) {
@@ -262,7 +275,7 @@ export function createCitations(
   }
 
   function cited(rows: CitationDbRow[]) {
-    return rows.map((row): Cited => {
+    return rows.map((row): Cited<R> => {
       const book = bookOf(row);
       return { row, book, stored: storedLink(row, book) };
     });
@@ -277,7 +290,7 @@ export function createCitations(
   async function resolveVolume(volumeId: string) {
     const church = onePerRecord(
       cited(everyPerson.all()).filter(
-        (c): c is Cited & { book: ChurchBookRef } => c.book !== null
+        (c): c is Cited<R> & { book: R } => c.book !== null
       )
     );
     const links = await references.volumeLinks(
@@ -292,14 +305,25 @@ export function createCitations(
     });
   }
 
-  // The parishes the dataset's Church-book references cite.
-  function parishes() {
-    return cited(everyPerson.all()).map((c) => c.book?.parish ?? null);
+  // The parish archives the dataset's church books are in: its
+  // references' parishes', and those holding the Volumes its Citations of
+  // Images cite.
+  async function archives() {
+    const all = cited(everyPerson.all());
+    return await images.archivesOf({
+      parishes: all.map((c) => c.book?.parish ?? null),
+      volumes: all.flatMap((c) =>
+        c.stored === null ? [] : [c.stored.volumeId]
+      )
+    });
   }
 
   // A stored Link, naming its archive as a resolved one does.
   async function withArchive(link: Link): Promise<Link> {
-    const archive = await images.archiveTitleOf(link.volumeId, parishes());
+    const archive = await images.archiveTitleOf(
+      link.volumeId,
+      await archives()
+    );
     return archive === null ? link : { ...link, archive };
   }
 
@@ -323,7 +347,7 @@ export function createCitations(
     }
     const checked = await images.imageToCite(
       { volumeId, image, box },
-      parishes()
+      await archives()
     );
     if ('rejected' in checked) return checked;
     made.move(citationId, { volumeId, image, box, ...checked });
@@ -395,7 +419,7 @@ export function createCitations(
     // A line for each of the person's Church-book references, as each
     // resolves: Astia is slow, so the first needn't wait for the last.
     async *linksOf(personId: number) {
-      function lineOf({ row, book, stored }: Cited) {
+      function lineOf({ row, book, stored }: Cited<R>) {
         if (stored !== null) {
           return withArchive(stored).then((link) => ({
             citationId: row.id,
@@ -404,7 +428,7 @@ export function createCitations(
         }
         return book === null
           ? null
-          : references.resolveRef(book).then((resolved) => ({
+          : references.resolve(book).then((resolved) => ({
               citationId: row.id,
               ...resolved
             }));
@@ -435,8 +459,9 @@ export function createCitations(
       if (moved && c!.stored === null) return null;
       const result = moved
         ? await moveEntry(citationId, target)
-        : await references.markRef(c!.book!, target);
+        : await references.mark(c!.book!, target);
       if ('rejected' in result) return result;
+      if (!moved) convert(c!.book!);
       const { at, volume, confirmed, citations, pagePin } = result.done;
       const image = target.image ?? null;
       changed({
@@ -453,7 +478,7 @@ export function createCitations(
     async discard(citationId: number, at: BoxAt) {
       const book = churchBookOf(citationId);
       if (book === null) return null;
-      const result = await references.discardRef(book, at);
+      const result = await references.discard(book, at);
       if ('rejected' in result) return result;
       const { volume, rejection } = result.done;
       changed({
@@ -484,7 +509,7 @@ export function createCitations(
       target: CiteTarget
     ): Promise<VolumeCitation | { rejected: string } | null> {
       if (personExists.get(personId) === null) return null;
-      const checked = await images.imageToCite(target, parishes());
+      const checked = await images.imageToCite(target, await archives());
       if ('rejected' in checked) return checked;
       const { volumeId, image } = target;
       const there = await inVolume(volumeId);
@@ -514,6 +539,23 @@ export function createCitations(
         citation: toCitation(c!),
         link: await withArchive(c!.stored!)
       };
+    },
+
+    // Converts every reference already Marked at the entry (ADR-0016): how
+    // many citations, by the label of the Volume each is in.
+    convertMarked() {
+      const done = new Set<string>();
+      const counts = new Map<string, number>();
+      for (const { book } of cited(everyPerson.all())) {
+        if (book === null) continue;
+        const key = references.markKey(book);
+        if (done.has(key)) continue;
+        done.add(key);
+        for (const volume of convert(book)) {
+          counts.set(volume, (counts.get(volume) ?? 0) + 1);
+        }
+      }
+      return counts;
     },
 
     // Deletes a Citation made in the app, and gives it as it was, with

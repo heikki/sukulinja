@@ -11,18 +11,12 @@ import type { CitationLinks, Link, VolumeCitation } from '@/common/types';
 
 import { openDb } from '../datasets/db';
 import { openAnnotations } from './annotations';
-import { fileId, memoryAstia } from './astia/memory-astia';
+import { fileId } from './astia/memory-astia';
 import type { MemoryAstia } from './astia/memory-astia';
-import {
-  IMAGES,
-  JUVA,
-  juvaAstia,
-  rippiCitation,
-  VOLUMES
-} from './astia/test-parish';
+import { juvaAstia, rippiCitation } from './astia/test-parish';
 import { createCitations } from './citations';
 import { openImages } from './images';
-import { scansOf } from './myheritage/test-pins';
+import { referencesFor } from './myheritage/test-pins';
 
 let dir = '';
 let astia: MemoryAstia = juvaAstia();
@@ -79,7 +73,7 @@ function withPeople(cited: Cited[], people = 3) {
   async function sizeOf() {
     return await Promise.resolve({ width: 1000, height: 800 });
   }
-  const references = scansOf(dir, db, { astia, sizeOf });
+  const references = referencesFor(dir, db, { astia, sizeOf });
   const images = openImages({ astia, sizeOf });
   return { db, citations: createCitations(db, { images, references }) };
 }
@@ -270,16 +264,7 @@ const ARCHIVE = 'Juvan seurakunnan arkisto';
 
 // Juva's archive, titled as Astia titles it.
 function titledJuva() {
-  return memoryAstia({
-    [JUVA]: {
-      title: ARCHIVE,
-      volumes: Object.entries(VOLUMES).map(([id, label]) => ({
-        id,
-        label,
-        images: IMAGES
-      }))
-    }
-  });
+  return juvaAstia(ARCHIVE);
 }
 
 test('a Citation made in the app is read back with its Link Marked at the entry', async () => {
@@ -415,4 +400,56 @@ test('a Mark moves a Citation made in the app to another entry in its Volume', a
   expect(
     await citations.discard(2, { volumeId: 'juva-1', image: 14 })
   ).toBeNull();
+});
+
+test("a Volume's source is found by its record, whatever cites it", async () => {
+  const { db, citations } = withPeople([
+    cite(3, rippiCitation(5001, '1790 - 1796', 12))
+  ]);
+  // Brought back under another xref, and cited by a converted Citation
+  // with an original page.
+  db.run(
+    "INSERT INTO sources (id, xref, title, publisher) VALUES (1, '@S7@', ?, 'Kansallisarkisto, Astia')",
+    [JUVA_1]
+  );
+  db.run(
+    `INSERT INTO citations (scope_type, scope_id, source_id, page, original_page,
+       link_volume_id, link_volume, link_image, link_file_id, link_by, added_in_app)
+     VALUES ('person', 1, 1, ?, ?, 'juva-1', ?, 13, 'juva-1-f13', 'hand', 1)`,
+    [
+      ENTRY_LINK.url,
+      'https://www.myheritage.fi/research/collection-10509/x?itemId=5001&action=showRecord',
+      JUVA_1
+    ]
+  );
+
+  await citations.cite(2, entry(14));
+  await citations.cite(3, entry(15));
+  expect(sources(db)).toHaveLength(1);
+  const cited = db
+    .query(
+      'SELECT DISTINCT source_id AS id FROM citations WHERE added_in_app = 1'
+    )
+    .all();
+  expect(cited).toEqual([{ id: 1 }]);
+});
+
+test("with no references, the Volumes cited give the dataset's parishes", async () => {
+  astia = titledJuva();
+  const { db, citations } = withPeople([
+    cite(3, rippiCitation(5001, '1790 - 1796', 12))
+  ]);
+  await citations.cite(1, entry(13));
+  // As if every reference were converted: nothing but Citations of Images.
+  db.run('DELETE FROM citations WHERE added_in_app = 0');
+  expect(await linesOf(citations.linksOf(1))).toEqual([
+    { citationId: 2, links: [{ ...ENTRY_LINK, archive: ARCHIVE }] }
+  ]);
+  expect(await citations.cite(2, entry(14))).toMatchObject({
+    personId: 2,
+    link: { image: 14, archive: ARCHIVE }
+  });
+  expect(
+    await citations.mark(2, { volumeId: 'juva-1', image: 15, box: BOX })
+  ).toHaveProperty('resolution.links');
 });

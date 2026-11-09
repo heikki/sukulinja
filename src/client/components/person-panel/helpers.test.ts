@@ -58,6 +58,7 @@ const OF_IMAGE: CitationRow = {
   text: 'Baptism 12.3.1795',
   churchBook: true,
   madeInApp: true,
+  deletable: true,
   markKey: 'citation 4',
   citedPage: null,
   cited: null
@@ -76,6 +77,7 @@ test('names a linked Church-book reference by its Volume, whatever its text', ()
     ...OF_IMAGE,
     reference: 'Juva · Pää- ja rippikirjat 1790–1796 · p. 12',
     madeInApp: false,
+    deletable: false,
     cited: { parish: 'Juva', kind: 'rippi' as const, years: null }
   };
   expect(titleText(imported, MARKED)).toBe('Pää- ja rippikirjat (1790-1796)');

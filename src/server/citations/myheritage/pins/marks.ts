@@ -30,35 +30,58 @@ interface MarkedCitation {
 
 export function openMarks(db: Database) {
   const annotations = openAnnotations(db);
-  // Each church-book citation's reference, by its original page, which a
-  // Mark never changes: read once.
+  // The dataset's version: it changes with every write to it, from this
+  // connection or another.
+  function version() {
+    const { changes } = db
+      .query<{ changes: number }, []>('SELECT total_changes() AS changes')
+      .get()!;
+    const { data_version: other } = db
+      .query<{ data_version: number }, []>('PRAGMA data_version')
+      .get()!;
+    return `${other}.${changes}`;
+  }
+
+  // Each church-book citation's reference, by its original page, read
+  // again once the dataset has changed: a Conversion takes a reference out.
+  // A Mark or Discard writes only to a reference (`byKey`); a Citation
+  // converted from one (made in the app, ADR-0016) is read with them as a
+  // pin (`byId`), and never written.
   let index: {
+    version: string;
     byKey: Map<string, number[]>;
+    // The Citations converted from a reference of the key.
+    converted: Map<string, number[]>;
     byId: Map<number, { url: string; recordId: number | null }>;
     urls: Set<string>;
   } | null = null;
 
   function indexed() {
-    if (index !== null) return index;
+    const now = version();
+    if (index?.version === now) return index;
     const rows = db
-      .query<{ id: number; page: string }, []>(
-        `SELECT id, ${originalPageSql()} AS page FROM citations
-         WHERE ${originalPageSql()} LIKE 'http%' ORDER BY id`
+      .query<{ id: number; page: string; madeInApp: number }, []>(
+        `SELECT id, ${originalPageSql()} AS page, added_in_app AS madeInApp
+         FROM citations WHERE ${originalPageSql()} LIKE 'http%' ORDER BY id`
       )
       .all();
     const byKey = new Map<string, number[]>();
+    const converted = new Map<string, number[]>();
     const byId = new Map<number, { url: string; recordId: number | null }>();
     for (const row of rows) {
       const ref = markedRefOf(row.page);
       if (ref === null) continue;
       byId.set(row.id, ref);
       const key = markKey(ref);
-      byKey.set(key, [...(byKey.get(key) ?? []), row.id]);
+      const into = row.madeInApp === 1 ? converted : byKey;
+      into.set(key, [...(into.get(key) ?? []), row.id]);
     }
     index = {
+      version: now,
       byKey,
+      converted,
       byId,
-      urls: new Set([...byId.values()].map((r) => r.url))
+      urls: new Set([...byKey.values()].flat().map((id) => byId.get(id)!.url))
     };
     return index;
   }
@@ -181,11 +204,22 @@ export function openMarks(db: Database) {
 
     // Changes whenever the Marks do, from this process or another.
     stamp() {
-      const version = db
-        .query<{ data_version: number }, []>('PRAGMA data_version')
-        .get()!.data_version;
-      return `${version}.${writes}`;
-    }
+      return `${version()}.${writes}`;
+    },
+
+    // The references of a record or URL a converted Citation cites, by the
+    // Link that Citation holds: what a re-import converts too.
+    kinOfConverted() {
+      const { byKey, converted } = indexed();
+      return [...converted].flatMap(([key, ids]) => {
+        const refs = byKey.get(key) ?? [];
+        const link = annotations.firstLink(ids);
+        return refs.length === 0 || link === null ? [] : [{ link, ids: refs }];
+      });
+    },
+
+    // The citations a Mark of the key is written into.
+    idsOf
   };
 }
 

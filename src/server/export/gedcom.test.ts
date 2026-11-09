@@ -8,6 +8,7 @@ import { unzipSync } from 'fflate';
 import { importGedcomFixture } from '../../../test/gedcom-fixture';
 import { gedcom7Errors } from '../../../test/gedcom7/validate';
 import { treeSnapshot } from '../../../test/tree-snapshot';
+import { openAnnotations } from '../citations';
 import { openAppCitations, openMarks } from '../citations/testing';
 import { DatasetRegistry } from '../datasets/registry';
 import { line, pointer, writeGedcom } from '../gedcom/writer';
@@ -168,15 +169,18 @@ describe('exporting a GEDZIP', () => {
       'https://www.myheritage.fi/research/collection-30233/x?itemId=7';
     const other =
       'https://www.myheritage.fi/research/collection-10509/x?itemId=2';
-    for (const [person, page, added] of [
-      [2, index, 0],
-      [3, other, 1]
-    ] as const) {
-      db.run(
-        "INSERT INTO citations (scope_type, scope_id, source_id, page, added_in_app, sort_order) VALUES ('person', ?, 1, ?, ?, 0)",
-        [person, page, added]
-      );
-    }
+    const ids = (
+      [
+        [2, index, 0],
+        [3, other, 1]
+      ] as const
+    ).map(
+      ([person, page, added]) =>
+        db.run(
+          "INSERT INTO citations (scope_type, scope_id, source_id, page, added_in_app, sort_order) VALUES ('person', ?, 1, ?, ?, 0)",
+          [person, page, added]
+        ).lastInsertRowid
+    );
     const marks = openMarks(db);
     const volume =
       'I Aa:5 Pää- ja rippikirjat, I Haapakoski - Längelmäki (1859-1868)';
@@ -196,7 +200,13 @@ describe('exporting a GEDZIP', () => {
       box: { left: 10, top: 80, width: 300, height: 40 },
       by: 'vision'
     });
-    marks.write('record 2', { volumeId: '999', volume: 'I Ab:1', by: 'hand' });
+    // A Mark writes only to references; a Citation made in the app holds
+    // its Link as it was written (ADR-0016).
+    openAnnotations(db).swap([Number(ids[1])], {
+      volumeId: '999',
+      volume: 'I Ab:1',
+      by: 'hand'
+    });
     db.run(
       "INSERT INTO rejections (reference_url, volume_id, image) VALUES (?, '1234', 3)",
       [index]

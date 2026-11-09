@@ -4,10 +4,11 @@
 
 import type { Box } from '@/common/types';
 
-import { archiveOf } from './astia/archives';
+import { archiveAmong } from './astia/archives';
 import { AstiaError } from './astia/astia';
 import type { Astia, ImageRef } from './astia/astia';
 import type { Viewport } from './astia/jpeg';
+import { openDatasetArchives } from './dataset-archives';
 
 // The full-size Image's size in pixels, or null when it can't be told.
 export type ImageSizeOf = (at: ImageRef) => Promise<Viewport | null>;
@@ -56,12 +57,15 @@ export function openImages({
   sizeOf?: ImageSizeOf;
 }) {
   return {
+    // The parish archives a dataset's church books are in, in order.
+    archivesOf: openDatasetArchives(astia),
+
     // The title of the archive holding the Volume, as a Link names it,
-    // looked for among the `parishes`' archives; null when none holds it
-    // or Astia can't say.
-    async archiveTitleOf(volumeId: string, parishes: Array<string | null>) {
+    // looked for among the `archives`; null when none holds it or Astia
+    // can't say.
+    async archiveTitleOf(volumeId: string, archives: string[]) {
       try {
-        const archive = await archiveOf(astia, volumeId, parishes);
+        const archive = await archiveAmong(astia, volumeId, archives);
         return archive === null ? null : await astia.archiveTitle(archive);
       } catch (err) {
         if (err instanceof AstiaError) return null;
@@ -72,13 +76,13 @@ export function openImages({
     // The label of the Volume an entry is cited in, by its Box on an Image
     // of the filming `fileId` is of (the one listed now if not given), and
     // the Image's file id; or why it can't be. The Volume must be in one of
-    // the `parishes`.
+    // the `archives`.
     async imageToCite(
       at: { volumeId: string; image: number; fileId?: string; box: Box },
-      parishes: Array<string | null>
+      archives: string[]
     ): Promise<{ volume: string; fileId: string } | { rejected: string }> {
       const { volumeId, image } = at;
-      const archive = await archiveOf(astia, volumeId, parishes);
+      const archive = await archiveAmong(astia, volumeId, archives);
       const volume =
         archive === null
           ? undefined

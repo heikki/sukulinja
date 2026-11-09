@@ -33,6 +33,12 @@ import type { Box } from '@/common/types';
 
 import type { CitationLink } from '../../annotations';
 import type { Astia } from '../../astia/astia';
+import type {
+  BoxAt,
+  DiscardDone,
+  MarkDone,
+  MarkTarget
+} from '../../references';
 import { markKey } from '../record';
 import type { ChurchBookRef } from '../record';
 import {
@@ -389,40 +395,7 @@ type VolumeFacts = ReturnType<typeof openVolumeFacts>;
 
 // ---------------------------------------------------------------- the module
 
-// Where a Box is: on an Image of a Volume.
-// What a Mark did: how far down it put the record in which Volume,
-// whether it confirmed a Match on that Image, how many citations of the
-// record it was written into, and the cited page it saved as a Page pin,
-// if any.
-export interface MarkDone {
-  at: 'entry' | 'image' | 'volume';
-  volume: string;
-  confirmed: boolean;
-  citations: number;
-  pagePin: number | null;
-}
-
-// What a Discard did: in which Volume, and whether it took back a Match,
-// and so made a Rejection.
-export interface DiscardDone {
-  volume: string;
-  rejection: boolean;
-}
-
-export interface BoxAt {
-  volumeId: string;
-  image: number;
-}
-
-// Where a Mark says the record is, in any Volume of the parish: on an
-// Image, or only somewhere in the Volume. On an Image, `box` is where the
-// entry is drawn, in pixels of the full-size Image, null for none; left
-// out, a Match's Box on that Image is kept, as confirming one does.
-export interface MarkTarget {
-  volumeId: string;
-  image?: number;
-  box?: Box | null;
-}
+export type { BoxAt, DiscardDone, MarkDone, MarkTarget };
 
 // A Match as saved: its Box in pixels of the full-size Image.
 interface PixelMatch {

@@ -56,24 +56,32 @@ export async function parishVolumes(astia: Astia, parish: string | null) {
   return archiveId === null ? [] : await astia.archiveVolumes(archiveId);
 }
 
-// The parish archive holding the Volume, looked for among the archives
-// of the parishes given, most cited first; an archive already crawled
-// costs no request. Null when none holds it; an archive that can't be
-// read is passed over, and throws only if the Volume isn't found
-// elsewhere.
-export async function archiveOf(
-  astia: Astia,
-  volumeId: string,
-  parishes: Array<string | null>
-) {
+// The parishes' archives, most cited first.
+export function rankedArchives(parishes: Array<string | null>) {
   const cited = new Map<string, number>();
   for (const p of parishes) {
     const archive = parishArchive(p);
     if (archive !== null) cited.set(archive, (cited.get(archive) ?? 0) + 1);
   }
-  const order = [...cited.keys()].sort((a, b) => cited.get(b)! - cited.get(a)!);
+  return [...cited.keys()].sort((a, b) => cited.get(b)! - cited.get(a)!);
+}
+
+// Every parish archive looked up, once each.
+export function knownArchives() {
+  return [...new Set(Object.values(PARISH_ARCHIVE))];
+}
+
+// The archive holding the Volume, looked for among `archives` in order; an
+// archive already crawled costs no request. Null when none holds it; an
+// archive that can't be read is passed over, and throws only if the
+// Volume isn't found elsewhere.
+export async function archiveAmong(
+  astia: Astia,
+  volumeId: string,
+  archives: string[]
+) {
   let failed: AstiaError | null = null;
-  for (const archive of order) {
+  for (const archive of archives) {
     try {
       // eslint-disable-next-line no-await-in-loop -- stop at the first holding it
       const volumes = await astia.archiveVolumes(archive);
@@ -85,4 +93,14 @@ export async function archiveOf(
   }
   if (failed !== null) throw failed;
   return null;
+}
+
+// The parish archive holding the Volume, looked for among the archives
+// of the parishes given, most cited first, as archiveAmong does.
+export async function archiveOf(
+  astia: Astia,
+  volumeId: string,
+  parishes: Array<string | null>
+) {
+  return await archiveAmong(astia, volumeId, rankedArchives(parishes));
 }

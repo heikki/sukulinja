@@ -62,6 +62,9 @@ export interface ImportReview {
     // Citations made in the app that the export now has too: the export's
     // is kept, with the link.
     duplicates: number;
+    // Citations converted from a reference (ADR-0016), which the export
+    // still has as the reference: the export's is left out.
+    converted: number;
     rejections: number;
     // Reminders, put back where they were, or a Citation's onto its person.
     reminders: number;
@@ -137,6 +140,9 @@ export interface CitationRow {
   // Made in the app, on an Astia Image: it has no Church-book reference,
   // and its Link is the Mark it was made with.
   madeInApp: boolean;
+  // Whether it can be deleted: made in the app, not converted from a
+  // reference (ADR-0016).
+  deletable: boolean;
   // Citations with the same markKey share one Mark and its Box: those of
   // one record. A Citation with no Church-book reference has its own.
   markKey: string;
