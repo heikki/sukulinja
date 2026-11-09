@@ -358,7 +358,13 @@ test('a Mark moves a Citation made in the app to another entry in its Volume', a
         }
       ]
     },
-    done: { confirmed: false, citations: 1, pagePin: null }
+    done: {
+      at: 'entry',
+      volume: 'I Aa:1 Pää- ja rippikirjat (1790-1796)',
+      confirmed: false,
+      citations: 1,
+      pagePin: null
+    }
   });
   expect(
     db

@@ -1,7 +1,7 @@
 // The routes of a dataset's Citations: a person's Links, a Mark or Discard
-// on one, the Volumes it can be put in, a Volume's Citations, and making or
-// deleting one in the app. The routes read the request; the handlers answer
-// it.
+// on one, the Volumes it can be put in, a Volume's Citations, making or
+// deleting one in the app, and switching a Volume to Astia's new filming.
+// The routes read the request; the handlers answer it.
 
 import type { Box, LinkResolution } from '@/common/types';
 
@@ -17,7 +17,12 @@ interface CitationHandlers {
   handleVolumeCitations: (volumeId: string) => Promise<Response>;
   handleCite: (personId: number, target: CiteTarget) => Promise<Response>;
   handleUncite: (id: number) => Response;
+  handleSwitchFilming: (volumeId: string, volume: string) => Promise<Response>;
 }
+
+// Switches a Volume, `volume` by its label, to Astia's new filming: its
+// Images' viewer URLs.
+type SwitchFilming = (volumeId: string, volume: string) => Promise<string[]>;
 
 // A Box's four numbers, or null for one that isn't.
 function readBox(value: unknown): Box | null {
@@ -74,6 +79,23 @@ async function readCite(req: Request): Promise<CiteTarget | null> {
   return { volumeId, image, fileId, box: drawn, text: text ?? null };
 }
 
+// POST `{ volume }`, the Volume's label, to switch it to the new filming.
+async function routeFilming(
+  req: Request,
+  handlers: CitationHandlers,
+  volumeId: string
+) {
+  if (req.method !== 'POST') {
+    return new Response('method not allowed', { status: 405 });
+  }
+  const body = (await req.json().catch(() => null)) as {
+    volume?: unknown;
+  } | null;
+  return typeof body?.volume === 'string'
+    ? await handlers.handleSwitchFilming(volumeId, body.volume)
+    : new Response('expected { volume }', { status: 400 });
+}
+
 // POST a Citation of an entry for the person.
 async function routeCite(
   req: Request,
@@ -125,8 +147,9 @@ async function routeCitation(
 
 // GET /api/persons/:id/scans streams the person's Links; POST
 // /api/persons/:id/citations makes a Citation; DELETE /api/citations/:id
-// deletes one made in the app; a Citation's `/scans` and `/volumes`; and GET
-// /api/volumes/:id/citations. Null for any other path.
+// deletes one made in the app; a Citation's `/scans` and `/volumes`; GET
+// /api/volumes/:id/citations, and POST its `/filming`. Null for any other
+// path.
 async function routeCitations(
   req: Request,
   handlers: CitationHandlers,
@@ -141,9 +164,13 @@ async function routeCitations(
       ? handlers.handlePersonLinks(personId)
       : await routeCite(req, handlers, personId);
   }
-  const volume = /^\/api\/volumes\/(?<id>[^/]+)\/citations$/.exec(rest);
+  const volume =
+    /^\/api\/volumes\/(?<id>[^/]+)\/(?<part>citations|filming)$/.exec(rest);
   if (volume !== null) {
-    return await handlers.handleVolumeCitations(volume.groups!.id!);
+    const { id, part } = volume.groups!;
+    return part === 'filming'
+      ? await routeFilming(req, handlers, id!)
+      : await handlers.handleVolumeCitations(id!);
   }
   const made = /^\/api\/citations\/(?<id>\d+)$/.exec(rest);
   if (made !== null) {
@@ -173,7 +200,10 @@ function answerLinks(
     : Response.json({ citationId: id, ...result.resolution });
 }
 
-function citationHandlers(citations: Citations): CitationHandlers {
+function citationHandlers(
+  citations: Citations,
+  switchFilming: SwitchFilming
+): CitationHandlers {
   return {
     // One line per church-book citation as its Links resolve. Astia is slow
     // and throttled, so a person's citations share one streamed request
@@ -256,14 +286,22 @@ function citationHandlers(citations: Citations): CitationHandlers {
             status: 400
           })
         : new Response(null, { status: 204 });
+    },
+
+    async handleSwitchFilming(volumeId, volume) {
+      const urls = await switchFilming(volumeId, volume).catch(astiaFailed);
+      return urls instanceof Response ? urls : Response.json(urls);
     }
   };
 }
 
 // The routes of the dataset's Citations; each answers null for a path that
 // isn't one of them.
-export function citationRoutes(citations: Citations) {
-  const handlers = citationHandlers(citations);
+export function citationRoutes(
+  citations: Citations,
+  switchFilming: SwitchFilming
+) {
+  const handlers = citationHandlers(citations, switchFilming);
   return async (req: Request, rest: string) =>
     await routeCitations(req, handlers, rest);
 }

@@ -43,18 +43,22 @@ export interface MarkTarget {
   box?: Box | null;
 }
 
-// What a Mark did: whether it confirmed a Match on that Image, how many
-// citations of the record it was written into, and the cited page it
-// saved as a Page pin, if any.
+// What a Mark did: how far down it put the record in which Volume,
+// whether it confirmed a Match on that Image, how many citations of the
+// record it was written into, and the cited page it saved as a Page pin,
+// if any.
 export interface MarkDone {
+  at: 'entry' | 'image' | 'volume';
+  volume: string;
   confirmed: boolean;
   citations: number;
   pagePin: number | null;
 }
 
-// What a Discard did: whether it took back a Match, and so made a
-// Rejection.
+// What a Discard did: in which Volume, and whether it took back a Match,
+// and so made a Rejection.
 export interface DiscardDone {
+  volume: string;
   rejection: boolean;
 }
 

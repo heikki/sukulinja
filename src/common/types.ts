@@ -358,6 +358,55 @@ export type OnTarget =
   | { citationId: number }
   | { volumeId: string; volume: string; image: number; fileId: string };
 
+// What a Change did, as it was said when it was done: a Mark, at the
+// entry, the Image or only the Volume (`confirmed` when it confirmed a
+// Match there; `moved` for a Citation of an Image moved to another entry;
+// `pagePin` the cited page it pinned); a Discard (`rejection` when it took
+// back a Match); a Citation made in the Scan viewer, or deleted (with what
+// it cited); an import (`merged` into the dataset there, with how much it
+// couldn't keep), or its undoing; or a Volume switched to Astia's new
+// filming, with the Image counts and how many pins it left out.
+export type ChangeWhat =
+  | {
+      kind: 'mark';
+      at: 'entry' | 'image' | 'volume';
+      volume: string;
+      image: number | null;
+      confirmed: boolean;
+      moved: boolean;
+      citations: number;
+      pagePin: number | null;
+    }
+  | { kind: 'discard'; volume: string; image: number; rejection: boolean }
+  | { kind: 'cite'; volume: string; image: number }
+  | { kind: 'uncite'; cited: string | null }
+  | { kind: 'import'; file: string; merged: boolean; lost: number }
+  | { kind: 'undo-import' }
+  | {
+      kind: 'switch-filming';
+      volume: string;
+      from: number;
+      to: number;
+      stale: number;
+    };
+
+// A Change as it's written: what it did, and what it was on, if anything.
+export interface NewChange {
+  on: OnTarget | null;
+  what: ChangeWhat;
+}
+
+// Something done in the app that changed the dataset, when (ISO 8601).
+// `on` is null when it was on nothing, or what it was on is gone; `who`
+// names the person it was on as they were named then.
+export interface Change {
+  id: number;
+  at: string;
+  what: ChangeWhat;
+  on: On | null;
+  who: string | null;
+}
+
 // A change to a Reminder: its text, or whether it's done.
 export interface ReminderChange {
   text?: string;

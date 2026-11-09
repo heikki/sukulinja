@@ -1,6 +1,6 @@
 // A re-import merged with the dataset it replaces (ADR-0013). The new
 // export gives the tree; the dataset gives what the app added to it:
-// Marks, citations made in the app, Rejections and Reminders.
+// Marks, citations made in the app, Rejections, Reminders and the Changes.
 //
 // A citation of the export is the dataset's when it has the same person,
 // source and page: its original page, or, for a Marked one the export now
@@ -448,6 +448,9 @@ function merge(fresh: Database, stored: Database, byXref: boolean) {
   const reminders = carryReminders(m, carried, describe);
   review.kept.reminders = reminders.kept;
   review.lost.push(...reminders.lost);
+  // The Changes stay, each still saying what was done, though what it was
+  // on may be gone.
+  carryOn(m, carried, 'changes', true);
   return review;
 }
 

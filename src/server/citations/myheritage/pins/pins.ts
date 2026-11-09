@@ -495,7 +495,13 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
         marks.change(() => {
           marks.write(key, { volumeId, volume, by: 'hand' });
         });
-        return { confirmed: false, citations, pagePin: null };
+        return {
+          at: 'volume',
+          volume,
+          confirmed: false,
+          citations,
+          pagePin: null
+        };
       }
       const confirmed =
         before !== null &&
@@ -507,7 +513,7 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
       if (pagePinned) {
         await facts.savePagePin(filming, ref, { volume, image, by: 'hand' });
       }
-      marks.change(() => {
+      const entry = marks.change(() => {
         const drawn = target.box;
         const box =
           drawn === undefined
@@ -525,8 +531,15 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
           by: 'hand'
         };
         marks.write(key, own ? link : null);
+        return 'box' in box;
       });
-      return { confirmed, citations, pagePin: pagePinned ? ref.page : null };
+      return {
+        at: entry ? 'entry' : 'image',
+        volume,
+        confirmed,
+        citations,
+        pagePin: pagePinned ? ref.page : null
+      };
     },
 
     // A match the vision model confirmed, unless it was taken back there by
@@ -588,7 +601,7 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
         if (rejection && !isRejected(marks, ref, filming, at)) {
           marks.reject(ref.url, { ...at, ...fileOf(filming, at.image) });
         }
-        return { rejection };
+        return { volume: link.volume, rejection };
       });
     },
 

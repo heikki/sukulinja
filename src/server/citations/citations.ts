@@ -16,6 +16,7 @@ import type {
   CitationRow,
   Link,
   LinkResolution,
+  NewChange,
   VolumeCitation
 } from '@/common/types';
 
@@ -186,9 +187,25 @@ type DbRow = Omit<CitationDbRow, 'annotation'>;
 
 // A dataset's Citations, with the Images they can cite and the MyHeritage
 // references they make.
+// What the dataset's Citations read, and `changed`, told of each change
+// they make to the dataset.
+interface CitationDeps<R extends BookRef> {
+  images: Images;
+  references: References<R>;
+  changed?: (change: NewChange) => void;
+}
+
+// What a Citation cites, in words: its source and entry, for one the app
+// made, or its reference.
+function citedText(c: CitationRow) {
+  const entry = c.reference ?? c.entry;
+  if (c.source === null) return entry;
+  return entry === null ? c.source : `${c.source}, ${entry}`;
+}
+
 export function createCitations<R extends BookRef>(
   db: Database,
-  { images, references }: { images: Images; references: References<R> }
+  { images, references, changed = () => undefined }: CitationDeps<R>
 ) {
   const made = openAppCitations(db);
   const toCitation = citationOf(references);
@@ -320,7 +337,13 @@ export function createCitations<R extends BookRef>(
     made.move(citationId, { volumeId, image, box, ...checked });
     const [c] = cited([byId.get(citationId)!]);
     const links = [await withArchive(c!.stored!)];
-    const done = { confirmed: false, citations: 1, pagePin: null };
+    const done: MarkDone = {
+      at: 'entry',
+      volume: checked.volume,
+      confirmed: false,
+      citations: 1,
+      pagePin: null
+    };
     return { resolution: { links }, done };
   }
 
@@ -416,14 +439,36 @@ export function createCitations<R extends BookRef>(
       const row = byId.get(citationId);
       if (row === null) return null;
       const [c] = cited([row]);
-      if (c!.book !== null) return await references.mark(c!.book, target);
-      return c!.stored === null ? null : await moveEntry(citationId, target);
+      const moved = c!.book === null;
+      if (moved && c!.stored === null) return null;
+      const result = moved
+        ? await moveEntry(citationId, target)
+        : await references.mark(c!.book!, target);
+      if ('rejected' in result) return result;
+      const { at, volume, confirmed, citations, pagePin } = result.done;
+      const image = target.image ?? null;
+      changed({
+        on: { citationId },
+        what: {
+          kind: 'mark',
+          ...{ at, volume, image, confirmed, moved, citations, pagePin }
+        }
+      });
+      return result;
     },
 
     // Takes back the reference's Box; null as for `mark`.
     async discard(citationId: number, at: BoxAt) {
       const book = churchBookOf(citationId);
-      return book === null ? null : await references.discard(book, at);
+      if (book === null) return null;
+      const result = await references.discard(book, at);
+      if ('rejected' in result) return result;
+      const { volume, rejection } = result.done;
+      changed({
+        on: { citationId },
+        what: { kind: 'discard', volume, image: at.image, rejection }
+      });
+      return result;
     },
 
     // The Volumes the reference can be put in; null as for `mark`.
@@ -467,6 +512,10 @@ export function createCitations<R extends BookRef>(
         box: target.box,
         text: oneLine(target.text)
       });
+      changed({
+        on: { citationId: id },
+        what: { kind: 'cite', volume: checked.volume, image }
+      });
       const [c] = cited([byId.get(id)!]);
       return {
         personId,
@@ -481,7 +530,14 @@ export function createCitations<R extends BookRef>(
     uncite(citationId: number) {
       const was = ofId(citationId);
       const removed = made.remove(citationId);
-      return removed === true ? was : removed;
+      if (removed !== true) return removed;
+      if (was !== null) {
+        changed({
+          on: { personId: was.personId },
+          what: { kind: 'uncite', cited: citedText(was.citation) }
+        });
+      }
+      return was;
     }
   };
 }
