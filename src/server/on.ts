@@ -5,6 +5,7 @@
 
 import type { Database } from 'bun:sqlite';
 
+import { bookLabel } from '@/common/books';
 import type { CitationRow, On, OnTarget } from '@/common/types';
 
 // The columns that say what a row is on, in this order. A person's row
@@ -49,6 +50,15 @@ const NOTHING: OnRow = {
   image: null,
   file_id: null
 };
+
+// A Citation's reference as a list names it: a church book by its name,
+// years and page, as the Scan viewer does, leaving out the parish the
+// reference wrote; any other as written.
+function referenceOf(citation: CitationRow) {
+  const { cited } = citation;
+  const book = cited === null ? null : bookLabel(cited, citation.citedPage);
+  return book ?? citation.reference ?? citation.entry;
+}
 
 export function openOn(db: Database, sources: OnSources) {
   const personExists = db.prepare<{ id: number }, [number]>(
@@ -107,7 +117,7 @@ export function openOn(db: Database, sources: OnSources) {
         personId,
         citationId: citation.id,
         source: citation.source,
-        reference: citation.reference ?? citation.entry
+        reference: referenceOf(citation)
       };
     }
   };

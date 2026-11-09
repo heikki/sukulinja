@@ -9,7 +9,7 @@
 
 import type { Database, SQLQueryBindings } from 'bun:sqlite';
 
-import { BOOK_NAMES } from '@/common/books';
+import { bookLabel } from '@/common/books';
 import { isoDate } from '@/common/dates';
 import type {
   Box,
@@ -87,18 +87,9 @@ function storedLink(
 // Parish · book and years · page, of what the reference gives. Lines break
 // only after a dot.
 export function describeRef(ref: BookRef) {
-  const { from, to } = ref.years ?? { from: null, to: null };
-  const years =
-    from === null ? null : from === to ? `${from}` : `${from}–${to}`;
-  const book = [ref.kind === null ? null : BOOK_NAMES[ref.kind], years]
-    .filter((s) => s !== null)
-    .join(' ');
-  const parts = [
-    ref.parish,
-    book,
-    ref.page === null ? '' : `p.\u00a0${ref.page}`
-  ];
-  const named = parts.filter((s) => s !== null && s !== '');
+  const named = [ref.parish, bookLabel(ref, ref.page)].filter(
+    (s) => s !== null
+  );
   return named.length === 0 ? null : named.join('\u00a0· ');
 }
 

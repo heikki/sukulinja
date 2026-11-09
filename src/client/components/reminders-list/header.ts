@@ -1,8 +1,9 @@
-import { volumeTitle } from "@/client/link-labels";
-import type { AppState } from "@/client/state";
-import type { CitationRow, Link, Reminder } from "@/common/types";
+import { volumeTitle } from '@/client/link-labels';
+import type { AppState } from '@/client/state';
+import { bookLabel } from '@/common/books';
+import type { CitationRow, Link, Reminder } from '@/common/types';
 
-import { formatName } from "../tree-view/renderer";
+import { formatName } from '../tree-view/renderer';
 
 // What a header has found out for each app, by `citation <id>`, so it
 // keeps it once the Scan viewer that showed it closes, or another person
@@ -41,17 +42,17 @@ function citationOf(state: AppState, citationId: number) {
 // The page a reference cites, or else the Image its Link is on.
 function pageOf(citation: CitationRow, link: Link | null) {
   if (citation.citedPage !== null) return `page ${citation.citedPage}`;
-  return link !== null && "image" in link ? `Image ${link.image}` : null;
+  return link !== null && 'image' in link ? `Image ${link.image}` : null;
 }
 
 function joined(parts: Array<string | null>) {
   const known = parts.filter((p) => p !== null);
-  return known.length === 0 ? null : known.join(" · ");
+  return known.length === 0 ? null : known.join(' · ');
 }
 
 // Where a Citation points: the Volume its Link is in, named as the Scan
 // viewer names it, and its page; as far as the app has it or had it, null
-// when it has neither.
+// with no Link.
 function citedAt(state: AppState, citationId: number) {
   return kept(state, `citation ${citationId}`, citedHere(state, citationId));
 }
@@ -60,15 +61,13 @@ function citedHere(state: AppState, citationId: number) {
   const cited = citationOf(state, citationId);
   if (cited === null) return null;
   const { citation, link } = cited;
-  return joined([
-    link === null ? null : volumeTitle(link.volume),
-    pageOf(citation, link),
-  ]);
+  if (link === null) return null;
+  return joined([volumeTitle(link.volume), pageOf(citation, link)]);
 }
 
 function nameOf(state: AppState, personId: number) {
   const person = state.chart.people.get().persons.get(personId);
-  return person === undefined ? "Someone" : formatName(person);
+  return person === undefined ? 'Someone' : formatName(person);
 }
 
 // A person, as a header: their name.
@@ -76,18 +75,26 @@ export function personHeader(state: AppState, personId: number) {
   return [nameOf(state, personId)];
 }
 
+// A Citation as its own says: a church book by its name, years and page,
+// as the reference gives them, or else as written, or its source.
+function ownOf(citation: CitationRow) {
+  const { cited } = citation;
+  const book = cited === null ? null : bookLabel(cited, citation.citedPage);
+  return book ?? citation.reference ?? citation.source;
+}
+
 // A person's Citation, as a header: their name, then the Volume and page,
-// or while those aren't in, `written` (its reference as written) or the
-// Citation's own.
+// or without a Link, its book as the reference gives it; while the
+// Citation isn't in, `written`, as the Reminder gave it.
 export function citationHeader(
   state: AppState,
   at: { personId: number; citationId: number },
-  written: string | null = null,
+  written: string | null = null
 ) {
   const cited = citationOf(state, at.citationId);
-  const own = cited?.citation.reference ?? cited?.citation.source ?? null;
-  const where = citedAt(state, at.citationId) ?? written ?? own;
-  return [nameOf(state, at.personId), where ?? "their Citation"];
+  const own = cited === null ? null : ownOf(cited.citation);
+  const where = citedAt(state, at.citationId) ?? own ?? written;
+  return [nameOf(state, at.personId), where ?? 'their Citation'];
 }
 
 // An Image, as a header: its Volume, named as the Scan viewer names it,
@@ -100,11 +107,11 @@ export function imageHeader(at: { volume: string; image: number }) {
 // the Volume and page; what isn't known yet is left out.
 export function headerOf(state: AppState, reminder: Reminder) {
   const { on } = reminder;
-  if (on.kind === "image") {
+  if (on.kind === 'image') {
     const image = imageHeader(on);
     if (on.personId === null) return image;
     return [nameOf(state, on.personId), ...image];
   }
-  if (on.kind === "person") return personHeader(state, on.personId);
+  if (on.kind === 'person') return personHeader(state, on.personId);
   return citationHeader(state, on, on.reference ?? on.source);
 }
