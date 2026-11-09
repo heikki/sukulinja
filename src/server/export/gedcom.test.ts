@@ -90,7 +90,7 @@ describe('exporting a GEDZIP', () => {
     ).toEqual({ n: 2 });
   });
 
-  test('leaves out Reminders, as does the MyHeritage export', async () => {
+  test('leaves out Reminders and Changes, as does the MyHeritage export', async () => {
     await importFixture();
     const db = registry.open('a');
     const person = db
@@ -101,10 +101,22 @@ describe('exporting a GEDZIP', () => {
        VALUES ('Remember the second wife', ?, '2026-10-23T10:00:00.000Z')`,
       [person.id]
     );
-    expect(gedcomOf(await roundTrip())).not.toContain('second wife');
-    expect(exportGedcom551(db).text).not.toContain('second wife');
+    db.run(
+      `INSERT INTO changes (at, what, person_id)
+       VALUES ('2026-11-09T10:00:00.000Z', ?, ?)`,
+      [JSON.stringify({ kind: 'uncite', cited: 'The 1803 book' }), person.id]
+    );
+    const gedcom = gedcomOf(await roundTrip());
+    const myheritage = exportGedcom551(db).text;
+    for (const text of ['second wife', '1803 book']) {
+      expect(gedcom).not.toContain(text);
+      expect(myheritage).not.toContain(text);
+    }
     expect(
       registry.open('b').query('SELECT COUNT(*) AS n FROM reminders').get()
+    ).toEqual({ n: 0 });
+    expect(
+      registry.open('b').query('SELECT COUNT(*) AS n FROM changes').get()
     ).toEqual({ n: 0 });
   });
 

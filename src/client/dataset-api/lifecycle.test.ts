@@ -7,7 +7,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { ImportReview } from '@/common/types';
+import type { Change, ImportReview } from '@/common/types';
 import { juvaAstia } from '@/server/citations/testing';
 import { SCHEMA_VERSION } from '@/server/datasets/db';
 import { DatasetRegistry } from '@/server/datasets/registry';
@@ -23,10 +23,11 @@ const GEDCOM =
 
 let root = '';
 let api: LifecycleApi = openLifecycleApi();
+let serve: ((req: Request) => Promise<Response>) | null = null;
 
-beforeEach(async () => {
-  root = await mkdtemp(join(tmpdir(), 'lifecycle-api-'));
-  const serve = createStaticFetch({
+// The app as it starts over the data folder in `root`.
+function launch() {
+  serve = createStaticFetch({
     api: createApi(new DatasetRegistry(join(root, 'data')), {
       astia: juvaAstia(),
       exportDir: join(root, 'Downloads')
@@ -34,6 +35,11 @@ beforeEach(async () => {
     staticRoots: []
   });
   api = openLifecycleApi({ fetch: serve, origin: 'http://localhost' });
+}
+
+beforeEach(async () => {
+  root = await mkdtemp(join(tmpdir(), 'lifecycle-api-'));
+  launch();
 });
 
 afterEach(async () => {
@@ -115,6 +121,32 @@ test('a dataset from upload to delete', async () => {
   expect(await failure(api.remove('tree'))).toBe('dataset not found');
 });
 
+// What each of the dataset's Changes did, newest first.
+async function changesDone(slug: string) {
+  const res = await serve!(
+    new Request(`http://localhost/d/${slug}/api/changes`)
+  );
+  const all = (await res.json()) as Change[];
+  return all.map((c) => c.what);
+}
+
+test('an import, and undoing it, are Changes, and undoing puts back the ones from before', async () => {
+  await upload();
+  expect(await changesDone('tree')).toEqual([
+    { kind: 'import', file: 'tree.ged', merged: false, lost: 0 }
+  ]);
+  await upload(true, 'Tree', 'again.ged');
+  expect(await changesDone('tree')).toEqual([
+    { kind: 'import', file: 'again.ged', merged: true, lost: 0 },
+    { kind: 'import', file: 'tree.ged', merged: false, lost: 0 }
+  ]);
+  await api.undoImport('tree');
+  expect(await changesDone('tree')).toEqual([
+    { kind: 'undo-import' },
+    { kind: 'import', file: 'tree.ged', merged: false, lost: 0 }
+  ]);
+});
+
 test("an upload it can't read is refused", async () => {
   expect(await failure(upload(true, 'Tree', 'tree.txt'))).toBe(
     'expected a .ged, .gedcom or .gdz file'
@@ -148,6 +180,8 @@ test("an export of a dataset that isn't there, or won't open, says why", async (
   const db = new Database(join(root, 'data', 'tree', 'db.sqlite'));
   db.run("UPDATE meta SET value = '1' WHERE key = 'schema_version'");
   db.close();
+  // Found so as the app starts, as one an older version left.
+  launch();
   expect(await failure(api.exportAs('tree', 'gdz'))).toBe(
     `This dataset was made by an older version of the app (schema 1, now ${SCHEMA_VERSION}).`
   );

@@ -1,8 +1,10 @@
 import type { Database } from 'bun:sqlite';
 import { relative, resolve } from 'node:path';
 
-import type { Reminder } from '@/common/types';
+import type { NewChange, Reminder } from '@/common/types';
 
+import { openChanges } from './changes/changes';
+import type { Changes } from './changes/changes';
 import { openCitations } from './citations';
 import type { Astia, DatasetCitations } from './citations';
 import { lifecycleRoutes } from './datasets/lifecycle-routes';
@@ -20,6 +22,9 @@ interface ApiHandlers {
 }
 
 interface DatasetHandlers extends ReminderHandlers {
+  // The dataset's Changes, which the rest of the app writes into.
+  changes: Changes;
+  handleChanges: () => Promise<Response>;
   handlePersons: () => Response;
   handleFamilies: () => Response;
   handlePerson: (id: number) => Response;
@@ -35,6 +40,7 @@ function createDatasetHandlers(
   const tree = createTree(db);
   const personDetails = createPersonDetails(db, scans);
   const reminders = createReminders(db, scans);
+  const changes = openChanges(db, scans);
 
   // A Reminder as written or changed, or why not.
   function answerReminder(
@@ -49,6 +55,12 @@ function createDatasetHandlers(
   }
 
   return {
+    changes,
+
+    async handleChanges() {
+      return Response.json(await changes.list());
+    },
+
     handlePersons() {
       return Response.json(tree.persons());
     },
@@ -112,6 +124,7 @@ async function routeDataset(
 ): Promise<Response | null> {
   if (rest === '/api/persons') return handlers.handlePersons();
   if (rest === '/api/families') return handlers.handleFamilies();
+  if (rest === '/api/changes') return await handlers.handleChanges();
   const person = /^\/api\/persons\/(?<id>\d+)$/.exec(rest);
   if (person !== null) return handlers.handlePerson(Number(person.groups!.id));
   const cited = await handlers.routeCitations(req, rest);
@@ -137,13 +150,27 @@ export function createApi(
 ): ApiHandlers {
   const scans = openCitations(registry.root, {
     astia: options.astia,
-    datasets: async () => await openDatasets()
+    datasets: async () => await openDatasets(),
+    changed
   });
   // Kept by the Database they're bound to: the registry alone decides when
   // a dataset's Database is closed and replaced (by an import or a delete),
   // and the next request then opens the new one and gets new handlers.
   const handlersByDb = new WeakMap<Database, DatasetHandlers>();
-  const routeLifecycle = lifecycleRoutes(registry, options.exportDir);
+  const routeLifecycle = lifecycleRoutes(registry, {
+    exportDir: options.exportDir,
+    // Not into one an older version built, as undoing its first import
+    // since then puts back.
+    changed: (slug, change) => {
+      const db = tryOpen(slug);
+      if (db !== null) changed(db, change);
+    }
+  });
+
+  // Writes a Change into the dataset whose Database it is.
+  function changed(db: Database, change: NewChange) {
+    handlersOf(db).changes.add(change);
+  }
 
   // Every dataset that opens, outdated ones left out.
   async function openDatasets() {
@@ -163,15 +190,18 @@ export function createApi(
     }
   }
 
-  function getHandlers(slug: string): DatasetHandlers | null {
-    const db = tryOpen(slug);
-    if (db === null) return null;
+  function handlersOf(db: Database) {
     let handlers = handlersByDb.get(db);
     if (handlers === undefined) {
       handlers = createDatasetHandlers(db, scans.forDataset(db));
       handlersByDb.set(db, handlers);
     }
     return handlers;
+  }
+
+  function getHandlers(slug: string): DatasetHandlers | null {
+    const db = tryOpen(slug);
+    return db === null ? null : handlersOf(db);
   }
 
   return {

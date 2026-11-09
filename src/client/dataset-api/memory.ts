@@ -3,6 +3,7 @@
 // Volumes and Marks throw ApiError with the server's words.
 
 import type {
+  Change,
   CitationLinks,
   FamilyRow,
   Link,
@@ -45,6 +46,8 @@ export interface MemoryDataset {
   choices?: Record<number, VolumeChoices>;
   // Newest first. `remind` puts a new one first, numbered on from 2000.
   reminders?: Reminder[];
+  // Newest first, as given: nothing done here writes one.
+  changes?: Change[];
 }
 
 export interface MemoryOptions {
@@ -58,7 +61,8 @@ type MemoryDatasetApi = DatasetApi & {
   // only the Volume; " box" or " no box" when it says), "discard <citation>
   // <volume>/<image>", "cite <person> <volume>/<image> <file>[: <text>]",
   // "uncite <citation>", "choices <citation>", "citations <volume>",
-  // "images <volume>", "rescan <volume>", "switch <volume>", "reminders",
+  // "images <volume>", "rescan <volume>", "switch <volume>", "changes",
+  // "reminders",
   // "remind person <id>: <text>" (or "citation <id>", or
   // "<volume>/<image> <file>"), "change reminder <id>", "delete reminder
   // <id>".
@@ -268,7 +272,7 @@ export function memoryDatasetApi(
         return rescan === undefined ? null : { cached: images, ...rescan };
       }),
 
-    switchFilming: async (volumeId) =>
+    switchFilming: async (volumeId, _volume) =>
       await answer(`switch ${volumeId}`, undefined, () => {
         const shown = volume(volumeId);
         if (shown.rescan !== undefined) {
@@ -286,6 +290,9 @@ export function memoryDatasetApi(
     thumbUrl: (volumeId, n) => `memory:thumb/${volumeId}/${n}`,
 
     mediaUrl: (storedPath) => `memory:media/${storedPath}`,
+
+    changes: async (signal) =>
+      await answer('changes', signal, () => [...(data.changes ?? [])]),
 
     reminders: async (signal) =>
       await answer('reminders', signal, () => [...reminders]),

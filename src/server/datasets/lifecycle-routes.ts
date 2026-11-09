@@ -13,7 +13,7 @@
 // else thrown is a bug, and is thrown on.
 
 import { slugFromFilename, withoutExtension } from '@/common/slug';
-import type { ImportEvent, ImportReview } from '@/common/types';
+import type { ImportEvent, ImportReview, NewChange } from '@/common/types';
 
 import { ImportCancelled } from '../import/dataset';
 import { OutdatedDatasetError } from './db';
@@ -71,10 +71,16 @@ async function readUpload(req: Request) {
 
 type Upload = Exclude<Awaited<ReturnType<typeof readUpload>>, string>;
 
+interface LifecycleOptions {
+  // Where exports are saved; by default the user's Downloads.
+  exportDir?: string;
+  // Told of an import saved into a dataset, and of one undone.
+  changed?: (slug: string, change: NewChange) => void;
+}
+
 export function lifecycleRoutes(
   registry: DatasetRegistry,
-  // Where exports are saved; by default the user's Downloads.
-  exportDir?: string
+  { exportDir, changed = () => undefined }: LifecycleOptions = {}
 ) {
   // The imports waiting on their review, by id.
   const waiting = new Map<string, (merge: boolean) => void>();
@@ -101,6 +107,16 @@ export function lifecycleRoutes(
             review,
             log: (message) => {
               send({ type: 'log', message });
+            }
+          });
+          const { merged } = outcome;
+          changed(upload.slug, {
+            on: null,
+            what: {
+              kind: 'import',
+              file: upload.sourceFilename,
+              merged: merged !== null,
+              lost: merged?.lost.length ?? 0
             }
           });
           send({ type: 'done', info: outcome.info });
@@ -162,9 +178,11 @@ export function lifecycleRoutes(
         : new Response('dataset not found', { status: 404 });
     }
     if (verb === '/undo-import') {
-      return (await registry.undoImport(slug))
-        ? new Response(null, { status: 204 })
-        : new Response('no import to undo', { status: 404 });
+      if (!(await registry.undoImport(slug))) {
+        return new Response('no import to undo', { status: 404 });
+      }
+      changed(slug, { on: null, what: { kind: 'undo-import' } });
+      return new Response(null, { status: 204 });
     }
     const kind = verb === '/export' ? 'gdz' : 'myheritage';
     return Response.json(await registry.export(slug, { kind, dir: exportDir }));

@@ -564,7 +564,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     const shown = volume.get();
     const opened = source.get();
     if (shown === null || !oldFilming.get()) return;
-    const urls = await api.switchFilming(shown.id);
+    const urls = await api.switchFilming(shown.id, shown.label);
     rescan.set(null);
     known.set(null);
     if (volume.get()?.id !== shown.id) return;
