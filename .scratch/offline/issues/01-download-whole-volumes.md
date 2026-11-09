@@ -1,4 +1,4 @@
-Status: needs-triage
+Status: ready-for-human
 
 # Download whole Volumes for use without Astia
 
@@ -28,3 +28,9 @@ Later, a way to download a whole Volume into the Scan cache, so stepping through
 - **Size against the cap**: a Volume is a few hundred Images at ~2.5 MB each (I Ab:5 has 180, ~450 MB). Does a downloaded Volume count against the cap, and survive least-recently-viewed eviction?
 - **Pace**: Astia throttles. Full Images are fetched one at a time, and the vision pass paces its own. How fast, and can it be stopped and resumed?
 - **Where it's asked for**: the Scan viewer's right-click menu, per Volume, or a list in Settings.
+
+## Comments
+
+2026-11-09: designed in [../spec.md](../spec.md) and built: a Church books view lists the known parishes' Volumes; a Volume is downloaded there, kept outside the cap (ADR-0015), or opened in the Scan viewer with no citation.
+
+2026-11-09, later: simplified at Heikki's ask. A download only fills the ordinary Scan cache, under its cap (ADR-0015); nothing is kept apart.

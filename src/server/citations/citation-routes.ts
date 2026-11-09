@@ -1,6 +1,7 @@
 // The routes of a dataset's Citations: a person's Links, a Mark or Discard
-// on one, the Volumes it can be put in, a Volume's Citations, making or
-// deleting one in the app, and switching a Volume to Astia's new filming.
+// on one, the Volumes it can be put in, a Volume's Citations, how many link
+// into each of a parish's Volumes, making or deleting one in the app, and
+// switching a Volume to Astia's new filming.
 // The routes read the request; the handlers answer it.
 
 import type { Box, LinkResolution } from '@/common/types';
@@ -15,6 +16,7 @@ interface CitationHandlers {
   handleDiscard: (id: number, at: BoxAt) => Promise<Response>;
   handleVolumeChoices: (id: number) => Promise<Response>;
   handleVolumeCitations: (volumeId: string) => Promise<Response>;
+  handleArchiveCitations: (archiveId: string) => Promise<Response>;
   handleCite: (personId: number, target: CiteTarget) => Promise<Response>;
   handleUncite: (id: number) => Response;
   handleSwitchFilming: (volumeId: string, volume: string) => Promise<Response>;
@@ -148,8 +150,8 @@ async function routeCitation(
 // GET /api/persons/:id/scans streams the person's Links; POST
 // /api/persons/:id/citations makes a Citation; DELETE /api/citations/:id
 // deletes one made in the app; a Citation's `/scans` and `/volumes`; GET
-// /api/volumes/:id/citations, and POST its `/filming`. Null for any other
-// path.
+// /api/volumes/:id/citations, and POST its `/filming`; GET
+// /api/archives/:id/citations. Null for any other path.
 async function routeCitations(
   req: Request,
   handlers: CitationHandlers,
@@ -171,6 +173,12 @@ async function routeCitations(
     return part === 'filming'
       ? await routeFilming(req, handlers, id!)
       : await handlers.handleVolumeCitations(id!);
+  }
+  const archive = /^\/api\/archives\/(?<id>\d+)\/citations$/.exec(rest);
+  if (archive !== null) {
+    return req.method === 'GET'
+      ? await handlers.handleArchiveCitations(archive.groups!.id!)
+      : new Response('method not allowed', { status: 405 });
   }
   const made = /^\/api\/citations\/(?<id>\d+)$/.exec(rest);
   if (made !== null) {
@@ -250,6 +258,14 @@ function citationHandlers(
       return choices === null
         ? new Response('citation not found', { status: 404 })
         : Response.json(choices);
+    },
+
+    async handleArchiveCitations(archiveId) {
+      try {
+        return Response.json(await citations.countInArchive(archiveId));
+      } catch (err) {
+        return astiaFailed(err);
+      }
     },
 
     async handleVolumeCitations(volumeId) {

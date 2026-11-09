@@ -79,6 +79,10 @@ _Avoid_: record viewer (a record is MyHeritage's), Astia viewer (Astia's own sit
 The Images kept on disk for the Scan viewer and the vision pass, up to a size the install sets; the least recently viewed go first.
 _Avoid_: image cache, Astia cache (that's Astia's answers about archives and Volumes).
 
+**Church books**:
+The view of the known parishes' Volumes apart from any citation, with how many of the dataset's Citations link into each and what of it is on disk: where a Volume is downloaded into the Scan cache, every Image at once under the same cap, or opened in the Scan viewer with no source.
+_Avoid_: archive (a parish's fonds in Astia), library.
+
 **Precision**:
 How far down a Link points: the **entry** on its Image (where on the Image, its Box), the **Image**, or only the **Volume**.
 

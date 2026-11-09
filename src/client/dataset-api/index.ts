@@ -82,6 +82,12 @@ export interface DatasetApi {
     volumeId: string,
     signal?: AbortSignal
   ) => Promise<VolumeCitation[]>;
+  // How many of the dataset's Citations link into each of a parish
+  // archive's Volumes, by Volume id; one with none is left out.
+  archiveCitations: (
+    archiveId: string,
+    signal?: AbortSignal
+  ) => Promise<Record<string, number>>;
   // Astia's viewer URL for each Image of a Volume, in order.
   volumeImages: (volumeId: string, signal?: AbortSignal) => Promise<string[]>;
   // Astia's re-scan of the Volume not yet switched to, and what switching
@@ -261,6 +267,13 @@ export function openDatasetApi(
       await json<VolumeCitation[]>(
         "the Volume's citations",
         `${dataset}/api/volumes/${volumeId}/citations`,
+        signal
+      ),
+
+    archiveCitations: async (archiveId, signal) =>
+      await json<Record<string, number>>(
+        "the parish's citations",
+        `${dataset}/api/archives/${archiveId}/citations`,
         signal
       ),
 

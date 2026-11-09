@@ -17,7 +17,7 @@
 import { readdir, rename, rm, rmdir, stat, utimes } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import type { ScanCacheStatus } from '@/common/types';
+import type { ScanCacheStatus, VolumeOnDisk } from '@/common/types';
 
 import { NoImageError } from './astia';
 import type { Astia, ImageRef, ImageSize } from './astia';
@@ -310,6 +310,26 @@ export function openScanCache({
     async status(): Promise<ScanCacheStatus> {
       await ready;
       return { cap, used: totalSize(await cachedFiles(dir)), caps: CAPS };
+    },
+
+    // What of the Volume is on disk: its full-size Images of Astia's list
+    // (`images`, null until the list has been asked for), and the space
+    // its files take, thumbnails and all. Never asks Astia.
+    async onDisk(volumeId: string): Promise<VolumeOnDisk> {
+      const names = await readdir(join(dir, volumeId)).catch(() => []);
+      const files = new Set(names.filter((n) => n.endsWith('.jpg')));
+      const listed = await astia.cachedImages(volumeId);
+      const sizes = await Promise.all(
+        [...files].map(
+          async (n) =>
+            (await stat(join(dir, volumeId, n)).catch(() => null))?.size ?? 0
+        )
+      );
+      return {
+        images: listed?.length ?? null,
+        cached: (listed ?? []).filter((id) => files.has(`${id}.jpg`)).length,
+        bytes: sizes.reduce((sum, b) => sum + b, 0)
+      };
     },
 
     // Saves the cap for the install, and shrinks to it at once.

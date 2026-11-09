@@ -291,6 +291,45 @@ export interface ScanCacheStatus {
   caps: number[];
 }
 
+// What of a Volume the Scan cache has on disk: its full-size Images of
+// Astia's list (`images`, null until the list has been asked for), and
+// the space its files take, in bytes.
+export interface VolumeOnDisk {
+  images: number | null;
+  cached: number;
+  bytes: number;
+}
+
+// A Volume's download this run: waiting its turn, on its way, or stopped
+// short, by hand or by why: Astia couldn't be reached, kept giving no image
+// for a file it still lists, or re-scanned the Volume under it. One that
+// finished is no longer listed; what's on disk says the rest.
+export type DownloadState = 'queued' | 'downloading' | 'stopped';
+export type DownloadError = 'unreachable' | 'no-image' | 'rescanned';
+
+// GET /astia/downloads: each download this run.
+export interface DownloadStatus {
+  volumeId: string;
+  state: DownloadState;
+  error: DownloadError | null;
+}
+
+// GET /astia/parishes: the parishes whose church books the app can list.
+export interface ChurchBookParish {
+  name: string;
+  archiveId: string;
+}
+
+// GET /astia/archives/<id>/volumes: one of a parish's Volumes in Astia's
+// order, what of it is on disk, and its download if it has one.
+export interface ChurchBookVolume {
+  id: string;
+  label: string;
+  digitized: boolean;
+  onDisk: VolumeOnDisk;
+  download: DownloadStatus | null;
+}
+
 // A pin made on a filming of its Volume that Astia has since replaced,
 // which switching to the new filming leaves out: shipped with the app or
 // saved in the data folder, on the Image it gives. A Page pin gives its

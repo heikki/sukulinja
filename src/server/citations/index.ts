@@ -10,6 +10,7 @@ import type { NewChange } from '@/common/types';
 import { routeShared } from './astia-routes';
 import { openAstia } from './astia/astia';
 import type { Astia, ImageRef } from './astia/astia';
+import { openDownloads } from './astia/downloads';
 import { imageSize, openScanCache } from './astia/scan-cache';
 import { citationRoutes } from './citation-routes';
 import { createCitations } from './citations';
@@ -38,6 +39,7 @@ interface Options {
 export function openCitations(root: string, options: Options) {
   const astia = options.astia ?? openAstia(join(root, '.astia-cache'));
   const cache = openScanCache({ astia, root, switches: false });
+  const downloads = openDownloads({ astia, cache });
   // The Scan viewer has just shown the Image a Box is drawn on.
   async function sizeOf(at: ImageRef) {
     return await imageSize(cache, at);
@@ -52,10 +54,11 @@ export function openCitations(root: string, options: Options) {
   }
 
   return {
-    // Astia's Images, the Scan cache's settings and a Volume's re-scan,
-    // shared by every dataset. Null for any other path.
+    // Astia's Images, the Scan cache's settings, a Volume's re-scan, the
+    // church books and their downloads, shared by every dataset. Null for
+    // any other path.
     route: async (req: Request, pathname: string) =>
-      await routeShared({ astia, cache, kept }, req, pathname),
+      await routeShared({ astia, cache, downloads, kept }, req, pathname),
 
     // One dataset's Citations, resolved against the scans. Opened once for
     // each Database, which a re-import replaces rather than changes.
