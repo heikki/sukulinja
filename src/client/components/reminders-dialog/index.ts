@@ -3,61 +3,33 @@ import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
-import { Floating } from '@/client/floating';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { Reminder } from '@/common/types';
 
+import { cornerListStyles } from '../corner-panel/list-styles';
 import { isStale, listed, onLabel } from './helpers';
-import { remindersDialogStyles } from './styles';
+
+import '../corner-panel/panel';
 
 export type ReminderPickEvent = CustomEvent<Reminder>;
 
-function stop(e: Event) {
-  e.stopPropagation();
-}
-
 // Every open Reminder in the dataset, newest first, each with what it's
 // on; one on an Image from an earlier filming is flagged so. Clicking one
-// picks it (`pick`). Show done adds the done ones, dimmed. A panel
-// floating over the chart, dragged by its background: ✕ in its corner or
-// Esc asks to `close`, and presses on it stay here.
+// picks it (`pick`). Show done adds the done ones, dimmed. In a corner
+// panel over the chart, which asks to `close`.
 @customElement('sl-reminders-dialog')
 class RemindersDialogElement extends SignalWatcher(LitElement) {
-  static override styles = remindersDialogStyles;
+  static override styles = cornerListStyles;
 
   @consume({ context: appState }) private readonly state!: AppState;
 
   @state() private showDone = false;
 
-  private readonly floating = new Floating(this, 'reminders');
-
   override connectedCallback() {
     super.connectedCallback();
     this.state.reminders.load();
-    for (const type of [
-      'pointerdown',
-      'mousedown',
-      'wheel',
-      'dblclick',
-      'contextmenu'
-    ]) {
-      this.addEventListener(type, stop);
-    }
-    this.addEventListener('keydown', this.onKeyDown);
   }
-
-  private readonly close = () => {
-    this.dispatchEvent(new CustomEvent('close'));
-  };
-
-  // Esc is its own; other keys go on, so what's under it still has them.
-  private readonly onKeyDown = (e: KeyboardEvent) => {
-    if (e.key !== 'Escape') return;
-    e.preventDefault();
-    e.stopPropagation();
-    this.close();
-  };
 
   private renderRow(reminder: Reminder) {
     const persons = this.state.chart.people.get().persons;
@@ -108,37 +80,28 @@ class RemindersDialogElement extends SignalWatcher(LitElement) {
       ? all.filter((r) => r.done !== null).length
       : 0;
     if (done === 0) return nothing;
-    return html`<div class="actions">
-      <button
-        class="show-done"
-        aria-pressed=${this.showDone ? 'true' : 'false'}
-        @click=${() => {
-          this.showDone = !this.showDone;
-        }}
-      >
-        ${this.showDone ? 'Hide done' : `Show done (${done})`}
-      </button>
-    </div>`;
+    return html`<button
+      slot="actions"
+      class="toggle"
+      aria-pressed=${this.showDone ? 'true' : 'false'}
+      @click=${() => {
+        this.showDone = !this.showDone;
+      }}
+    >
+      ${this.showDone ? 'Hide done' : `Show done (${done})`}
+    </button>`;
   }
 
   override render() {
-    return html`
-      <div
-        class="dialog"
-        popover="manual"
-        role="dialog"
-        aria-label="Reminders"
-        @pointerdown=${this.floating.grip}
-      >
-        <div class="top">
-          <h2>Reminders</h2>
-          <button class="close" aria-label="Close" @click=${this.close}>
-            ✕
-          </button>
-        </div>
-        ${this.renderBody()} ${this.renderShowDone()}
-      </div>
-    `;
+    return html`<sl-corner-panel
+      heading="Reminders"
+      kind="reminders"
+      @close=${() => {
+        this.dispatchEvent(new CustomEvent('close'));
+      }}
+    >
+      ${this.renderBody()} ${this.renderShowDone()}
+    </sl-corner-panel>`;
   }
 }
 
