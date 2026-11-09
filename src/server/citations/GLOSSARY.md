@@ -80,7 +80,7 @@ The Images kept on disk for the Scan viewer and the vision pass, up to a size th
 _Avoid_: image cache, Astia cache (that's Astia's answers about archives and Volumes).
 
 **Church books**:
-The view of the known parishes' Volumes apart from any citation, with how many of the dataset's Citations link into each and what of it is on disk: where a Volume is downloaded into the Scan cache, every Image at once under the same cap, or opened in the Scan viewer with no source.
+The view of the Volumes of the archives the dataset's church books are in (by their titles in Astia, most cited first) apart from any citation, with how many of the dataset's Citations link into each and what of it is on disk: where a Volume is downloaded into the Scan cache, every Image at once under the same cap, or opened in the Scan viewer with no source.
 _Avoid_: archive (a parish's fonds in Astia), library.
 
 **Precision**:

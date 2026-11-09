@@ -77,9 +77,9 @@ class CornerListsElement extends SignalWatcher(LitElement) {
   };
 
   private readonly onVolume = (e: VolumeOpenEvent) => {
-    const { volumeId, label } = e.detail;
+    const { volumeId, label, archive } = e.detail;
     this.corner.set(false);
-    this.state.viewer.openImage({ volumeId, volume: label, image: 1 });
+    this.state.viewer.openImage({ volumeId, volume: label, image: 1, archive });
   };
 
   override willUpdate() {

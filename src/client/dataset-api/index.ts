@@ -6,6 +6,7 @@ import { readNdjson } from '@/client/ndjson';
 import type {
   Box,
   Change,
+  ChurchBookArchive,
   CitationLinks,
   FamilyRow,
   OnTarget,
@@ -82,6 +83,8 @@ export interface DatasetApi {
     volumeId: string,
     signal?: AbortSignal
   ) => Promise<VolumeCitation[]>;
+  // The archives the dataset's church books are in, most cited first.
+  archives: (signal?: AbortSignal) => Promise<ChurchBookArchive[]>;
   // How many of the dataset's Citations link into each of a parish
   // archive's Volumes, by Volume id; one with none is left out.
   archiveCitations: (
@@ -267,6 +270,13 @@ export function openDatasetApi(
       await json<VolumeCitation[]>(
         "the Volume's citations",
         `${dataset}/api/volumes/${volumeId}/citations`,
+        signal
+      ),
+
+    archives: async (signal) =>
+      await json<ChurchBookArchive[]>(
+        'the church books',
+        `${dataset}/api/archives`,
         signal
       ),
 

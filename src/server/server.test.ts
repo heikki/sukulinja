@@ -234,13 +234,6 @@ describe('Church books', () => {
     };
   }
 
-  test('lists the known parishes, each once', async () => {
-    const { body } = await send('GET', '/astia/parishes');
-    const names = (body as Array<{ name: string }>).map((p) => p.name);
-    expect(names).toContain('Juva');
-    expect(new Set(names).size).toBe(names.length);
-  });
-
   test("lists a parish's Volumes, and downloads one into the cache", async () => {
     serveWith(memoryAstia(JUVA_BOOKS));
     const before = await send('GET', `/astia/archives/${JUVA_ARCHIVE}/volumes`);
@@ -272,8 +265,7 @@ describe('Church books', () => {
     );
   });
 
-  test('knows only the parishes it lists', async () => {
-    expect((await send('GET', '/astia/archives/999/volumes')).status).toBe(404);
+  test('downloads are started and stopped, not read one by one', async () => {
     expect((await send('GET', '/astia/volumes/302/download')).status).toBe(405);
   });
 });
@@ -361,6 +353,15 @@ describe("A dataset's Citations", () => {
     expect((await get('/d/juva/api/volumes/elsewhere/citations')).status).toBe(
       404
     );
+  });
+
+  test("lists the archives the dataset's church books are in", async () => {
+    await seedDataset();
+    const archives = await get('/d/juva/api/archives');
+    // Astia gives no title here, so each goes by its id.
+    expect(await archives.json()).toEqual([
+      { archiveId: '1212295491', title: '1212295491' }
+    ]);
   });
 
   test("counts the Citations in each of a parish's Volumes", async () => {

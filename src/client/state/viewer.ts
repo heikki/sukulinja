@@ -26,11 +26,13 @@ export type LinkOpen =
   | { citation: CitationRow; link: null; unlinked: UnlinkedResolution };
 
 // An Image of a Volume opened in the Scan viewer with no source, as an
-// Image's Reminder opens it.
+// Image's Reminder opens it; `archive` is the Volume's archive by its
+// title in Astia, when it's known.
 export interface ImageOpen {
   volumeId: string;
   volume: string;
   image: number;
+  archive?: string;
 }
 
 // The Volume shown.

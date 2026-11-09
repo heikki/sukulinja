@@ -7,7 +7,7 @@ import { basename } from 'node:path';
 
 import { AstiaError, NoImageError, viewerUrls } from './astia/astia';
 import type { Astia, ImageRef } from './astia/astia';
-import { parishBooks, parishes } from './astia/church-books';
+import { parishBooks } from './astia/church-books';
 import { routeDownloads } from './astia/downloads';
 import type { Downloads } from './astia/downloads';
 import { routeScanCache } from './astia/scan-cache';
@@ -93,8 +93,8 @@ async function routeAstia(shared: Shared, req: Request, pathname: string) {
       });
 }
 
-// The known parishes, one parish's Volumes, and their downloads; null for
-// any other path.
+// A parish archive's Volumes, and their downloads; null for any other
+// path.
 async function routeChurchBooks(
   shared: Shared,
   req: Request,
@@ -112,15 +112,13 @@ async function routeChurchBooks(
     });
   }
   const archive = ARCHIVE_RE.exec(pathname);
-  if (pathname !== '/astia/parishes' && archive === null) return null;
+  if (archive === null) return null;
   if (req.method !== 'GET') {
     return new Response('method not allowed', { status: 405 });
   }
-  if (archive === null) return Response.json(parishes());
   const books = await parishBooks(shared, archive.groups!.archiveId!).catch(
     astiaFailed
   );
-  if (books === null) return new Response('parish not known', { status: 404 });
   return books instanceof Response ? books : Response.json(books);
 }
 

@@ -4,6 +4,7 @@
 
 import type {
   Change,
+  ChurchBookArchive,
   CitationLinks,
   FamilyRow,
   Link,
@@ -48,6 +49,8 @@ export interface MemoryDataset {
   reminders?: Reminder[];
   // Newest first, as given: nothing done here writes one.
   changes?: Change[];
+  // The archives the church books are in, as given.
+  archives?: ChurchBookArchive[];
 }
 
 export interface MemoryOptions {
@@ -271,6 +274,9 @@ export function memoryDatasetApi(
       ),
 
     // Every Volume given is taken as the archive's.
+    archives: async (signal) =>
+      await answer('archives', signal, () => [...(data.archives ?? [])]),
+
     archiveCitations: async (archiveId, signal) =>
       await answer(`archive citations ${archiveId}`, signal, () =>
         Object.fromEntries(

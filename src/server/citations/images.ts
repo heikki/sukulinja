@@ -60,6 +60,11 @@ export function openImages({
     // The parish archives a dataset's church books are in, in order.
     archivesOf: openDatasetArchives(astia),
 
+    // The archive's title in Astia; null when Astia can't say.
+    async titleOf(archiveId: string) {
+      return await astia.archiveTitle(archiveId);
+    },
+
     // The title of the archive holding the Volume, as a Link names it,
     // looked for among the `archives`; null when none holds it or Astia
     // can't say.

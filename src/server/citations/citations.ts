@@ -13,6 +13,7 @@ import { BOOK_NAMES } from '@/common/books';
 import { isoDate } from '@/common/dates';
 import type {
   Box,
+  ChurchBookArchive,
   CitationRow,
   Link,
   LinkResolution,
@@ -318,6 +319,17 @@ export function createCitations<R extends BookRef>(
     });
   }
 
+  // The archives the dataset's church books are in, as `archives` orders
+  // them, each by its title in Astia.
+  async function churchBookArchives(): Promise<ChurchBookArchive[]> {
+    return await Promise.all(
+      (await archives()).map(async (archiveId) => ({
+        archiveId,
+        title: (await images.titleOf(archiveId)) ?? archiveId
+      }))
+    );
+  }
+
   // A stored Link, naming its archive as a resolved one does.
   async function withArchive(link: Link): Promise<Link> {
     const archive = await images.archiveTitleOf(
@@ -525,6 +537,9 @@ export function createCitations<R extends BookRef>(
     // How many Citations link into each of the parish archive's Volumes.
     // Throws when Astia can't be reached.
     countInArchive,
+
+    // The archives the dataset's church books are in, most cited first.
+    churchBookArchives,
 
     // Makes a Citation of the entry for the person, and gives it as the
     // Scan viewer lists it. Null when there's no such person; rejected

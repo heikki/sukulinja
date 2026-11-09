@@ -5,20 +5,25 @@ import { customElement, state } from 'lit/decorators.js';
 import { volumeTitle } from '@/client/link-labels';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
-import type { ChurchBookParish, ChurchBookVolume } from '@/common/types';
+import type { ChurchBookArchive, ChurchBookVolume } from '@/common/types';
 
 import { cornerListStyles } from '../corner-panel/list-styles';
-import { fetchParishes, fetchVolumes, sendDownload } from './api';
+import { fetchVolumes, sendDownload } from './api';
 import { busy, downloadActions, volumeLine } from './helpers';
 import type { DownloadAction } from './helpers';
 
 // How often a parish's Volumes are asked for again while one downloads.
 const POLL_MS = 2000;
 
-export type VolumeOpenEvent = CustomEvent<{ volumeId: string; label: string }>;
+export type VolumeOpenEvent = CustomEvent<{
+  volumeId: string;
+  label: string;
+  archive: string | undefined;
+}>;
 
-// The church books apart from any citation: the known parishes, then a
-// parish's Volumes in Astia's order, each with what of it is on disk and
+// The church books apart from any citation: the archives the dataset's
+// sources are in, most cited first, by their titles in Astia, then an
+// archive's Volumes in Astia's order, each with what of it is on disk and
 // its download to start, stop or remove. Clicking a Volume opens it
 // (`open-volume`). A tab of the corner panel; leaving it, by another tab
 // or closing, stops asking.
@@ -62,9 +67,9 @@ class ChurchBooksListElement extends LitElement {
     `
   ];
 
-  @state() private parishes: ChurchBookParish[] | 'failed' | null = null;
+  @state() private parishes: ChurchBookArchive[] | 'failed' | null = null;
 
-  @state() private parish: ChurchBookParish | null = null;
+  @state() private parish: ChurchBookArchive | null = null;
 
   @state() private volumes: ChurchBookVolume[] | 'failed' | null = null;
 
@@ -78,7 +83,8 @@ class ChurchBooksListElement extends LitElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    void fetchParishes()
+    void this.state.api
+      .archives()
       .then((parishes) => {
         this.parishes = parishes;
       })
@@ -99,7 +105,7 @@ class ChurchBooksListElement extends LitElement {
 
   // The parish's Volumes, asked for again while any downloads; one that
   // fails keeps what was shown, once something was.
-  private async load(parish: ChurchBookParish) {
+  private async load(parish: ChurchBookArchive) {
     this.stopPolling();
     try {
       const volumes = await fetchVolumes(parish.archiveId);
@@ -116,7 +122,7 @@ class ChurchBooksListElement extends LitElement {
     }
   }
 
-  private pickParish(parish: ChurchBookParish | null) {
+  private pickParish(parish: ChurchBookArchive | null) {
     this.stopPolling();
     this.parish = parish;
     this.volumes = null;
@@ -126,7 +132,7 @@ class ChurchBooksListElement extends LitElement {
     void this.loadCited(parish);
   }
 
-  private async loadCited(parish: ChurchBookParish) {
+  private async loadCited(parish: ChurchBookArchive) {
     const cited = await this.state.api
       .archiveCitations(parish.archiveId)
       .catch(() => null);
@@ -145,6 +151,9 @@ class ChurchBooksListElement extends LitElement {
     if (all === 'failed') {
       return html`<p class="muted">Couldn't reach the app.</p>`;
     }
+    if (all.length === 0) {
+      return html`<p class="muted">No sources here cite a church book.</p>`;
+    }
     return html`<ul>
       ${all.map(
         (p) =>
@@ -155,7 +164,7 @@ class ChurchBooksListElement extends LitElement {
                 this.pickParish(p);
               }}
             >
-              <span class="text">${p.name}</span>
+              <span class="text">${p.title}</span>
             </button>
           </li>`
       )}
@@ -170,7 +179,11 @@ class ChurchBooksListElement extends LitElement {
         @click=${() => {
           this.dispatchEvent(
             new CustomEvent('open-volume', {
-              detail: { volumeId: volume.id, label: volume.label }
+              detail: {
+                volumeId: volume.id,
+                label: volume.label,
+                archive: this.parish?.title
+              }
             })
           );
         }}
@@ -221,14 +234,14 @@ class ChurchBooksListElement extends LitElement {
           this.pickParish(null);
         }}
       >
-        ‹ All parishes
+        ‹ All archives
       </button>
     </div>`;
   }
 
   override render() {
     if (this.parish === null) return this.renderParishes();
-    return html`<p class="parish">${this.parish.name}</p>
+    return html`<p class="parish">${this.parish.title}</p>
       ${this.renderVolumes()} ${this.renderBack()}`;
   }
 }

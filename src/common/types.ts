@@ -320,10 +320,12 @@ export interface DownloadStatus {
   error: DownloadError | null;
 }
 
-// GET /astia/parishes: the parishes whose church books the app can list.
-export interface ChurchBookParish {
-  name: string;
+// GET /d/<slug>/api/archives: an archive the dataset's church books are
+// in, by its title in Astia ("Juvan seurakunnan arkisto"), as a Link's
+// `archive` names it; its id when Astia can't say.
+export interface ChurchBookArchive {
   archiveId: string;
+  title: string;
 }
 
 // GET /astia/archives/<id>/volumes: one of a parish's Volumes in Astia's
