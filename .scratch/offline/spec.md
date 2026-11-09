@@ -40,10 +40,19 @@ This changes the 2026-10-21 decision "the cap and least-recently-viewed rule app
 - **Scan viewer toolbar**: beside the Volume's title, "Downloading 42/180" while that Volume downloads, "Downloaded" once whole.
 - **Settings**, under Scan cache: a list of Downloaded Volumes (title, Images on disk of total, size, state) with Stop/Resume and Remove. Settings is where the space is managed, and where one is removed without opening it.
 
+## Groundwork first (refactor, its own commit)
+
+The Scan cache owns `settings.local.json` today: `readSettings`/`savedCap` and `setCap`'s read-modify-write live inside `scan-cache.ts`. Downloads would be a second writer of the same file, and two read-modify-writes can lose each other's change. So before the feature:
+
+- **`install-settings.ts`**: the install's settings file, read once and written through one serialized writer, typed per key. The Scan cache reads and saves its cap through it, unchanged in behaviour.
+- **The Scan cache takes what it must keep**: `openScanCache({ …, kept })`, where `kept(volumeId)` says a Volume's folder is outside the cap. `prune` and `used` honour it; the cache knows nothing about downloads beyond that.
+
+Then downloads are a module of their own on top of the cache's public `image()`, not code inside it.
+
 ## Server
 
-- Downloaded Volumes are kept in `settings.local.json` as `downloadedVolumes: [{ volumeId, label }]`, beside `scanCacheBytes`.
-- `prune` skips files in a Downloaded Volume's folder, and they're left out of `used`; `status()` adds `downloaded: { bytes, volumes }`.
+- Downloaded Volumes are kept, through `install-settings.ts`, in `settings.local.json` as `downloadedVolumes: [{ volumeId, label }]`, beside `scanCacheBytes`.
+- `prune` skips files where `kept(volumeId)`, and they're left out of `used`; `status()` adds `downloaded: { bytes, volumes }`.
 - A new module `astia/downloads.ts`: the queue of Volumes, the one running, its progress, Stop. Reads the Volume's list via `astia.volumeImages`, fetches each Image through `cache.image(…, 'full' | 'thumb', signal)`, aborting the signal on Stop.
 - Routes, outside any dataset beside the others in `astia-routes.ts`:
   - `GET /astia/downloads`: every Downloaded Volume and its state (`queued | downloading | stopped | complete`, `cached`, `images`, `bytes`, `error?`).
