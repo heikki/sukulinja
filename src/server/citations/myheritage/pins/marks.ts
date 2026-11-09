@@ -31,7 +31,9 @@ interface MarkedCitation {
 export function openMarks(db: Database) {
   const annotations = openAnnotations(db);
   // Each church-book citation's reference, by its original page, which a
-  // Mark never changes: read once.
+  // Mark never changes: read once. A Mark or Discard writes only to a
+  // reference (`byKey`); a Citation converted from one (made in the app,
+  // ADR-0016) is read with them as a pin (`byId`), and never written.
   let index: {
     byKey: Map<string, number[]>;
     byId: Map<number, { url: string; recordId: number | null }>;
@@ -41,9 +43,9 @@ export function openMarks(db: Database) {
   function indexed() {
     if (index !== null) return index;
     const rows = db
-      .query<{ id: number; page: string }, []>(
-        `SELECT id, ${originalPageSql()} AS page FROM citations
-         WHERE ${originalPageSql()} LIKE 'http%' ORDER BY id`
+      .query<{ id: number; page: string; madeInApp: number }, []>(
+        `SELECT id, ${originalPageSql()} AS page, added_in_app AS madeInApp
+         FROM citations WHERE ${originalPageSql()} LIKE 'http%' ORDER BY id`
       )
       .all();
     const byKey = new Map<string, number[]>();
@@ -52,13 +54,14 @@ export function openMarks(db: Database) {
       const ref = markedRefOf(row.page);
       if (ref === null) continue;
       byId.set(row.id, ref);
+      if (row.madeInApp === 1) continue;
       const key = markKey(ref);
       byKey.set(key, [...(byKey.get(key) ?? []), row.id]);
     }
     index = {
       byKey,
       byId,
-      urls: new Set([...byId.values()].map((r) => r.url))
+      urls: new Set([...byKey.values()].flat().map((id) => byId.get(id)!.url))
     };
     return index;
   }
