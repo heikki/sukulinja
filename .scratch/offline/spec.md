@@ -36,7 +36,7 @@ This changes the 2026-10-21 decision "the cap and least-recently-viewed rule app
 
 ### Where it's asked for: the Church books view (Heikki, 2026-11-09)
 
-A view of its own for the church books, not tied to a citation: opened from the side dock beside Reminders, as a dialog over the chart like the Reminders list.
+A view of its own for the church books, not tied to a citation: opened from its own button in the chart's top-right corner, between Reminders (the flag) and Settings (the gear), as a dialog over the chart like the Reminders list.
 
 - **Parishes**: the parishes whose archives are known (`archives.ts`), one row per archive, with how much of its Volumes is on disk.
 - **A parish's Volumes**, grouped by series (Pää- ja rippikirjat, Lastenkirjat, …) in Astia's order, as `archiveVolumes` lists them. Each row: label, years, Images on disk of total (known once Astia's list of Images has been asked for), size on disk, and its download state.
