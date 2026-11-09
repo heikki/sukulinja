@@ -252,14 +252,17 @@ test('a Citation made in the app is deleted with its notes, and its source with 
 
   expect(citations.uncite(1)).toBe(false);
   expect(citations.uncite(99)).toBeNull();
-  expect(citations.uncite(2)).toBe(true);
+  expect(citations.uncite(2)).toMatchObject({
+    personId: 2,
+    citation: { id: 2, madeInApp: true }
+  });
   expect(db.query('SELECT id FROM citations ORDER BY id').all()).toEqual([
     { id: 1 },
     { id: 3 }
   ]);
   expect(db.query('SELECT * FROM notes').all()).toEqual([]);
   expect(sources(db)).toHaveLength(1);
-  expect(citations.uncite(3)).toBe(true);
+  expect(citations.uncite(3)).toHaveProperty('personId', 3);
   expect(sources(db)).toEqual([]);
 });
 
@@ -360,14 +363,17 @@ test('a Mark moves a Citation made in the app to another entry in its Volume', a
   expect(
     await citations.mark(2, { volumeId: 'juva-1', image: 14, box: moved })
   ).toEqual({
-    links: [
-      {
-        ...ENTRY_LINK,
-        url: ENTRY_LINK.url.replace('f13', 'f14'),
-        image: 14,
-        box: moved
-      }
-    ]
+    resolution: {
+      links: [
+        {
+          ...ENTRY_LINK,
+          url: ENTRY_LINK.url.replace('f13', 'f14'),
+          image: 14,
+          box: moved
+        }
+      ]
+    },
+    done: { confirmed: false, citations: 1, pagePin: null }
   });
   expect(
     db

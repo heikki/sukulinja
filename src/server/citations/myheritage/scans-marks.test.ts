@@ -126,7 +126,10 @@ test('a Mark is written into every citation of the record, which then cites the 
   const scans = open(BASE, three);
   expect(
     await scans.markRef(ref(150, 21), { ...at('a', 11), box: BOX })
-  ).toHaveProperty('links');
+  ).toMatchObject({
+    resolution: { links: [{ image: 11 }] },
+    done: { confirmed: false, citations: 3 }
+  });
   const rows = three
     .query(
       'SELECT page, original_page, link_image, link_box_left, link_by FROM citations ORDER BY id'
@@ -171,7 +174,7 @@ test('a Mark is written into every citation of the record, which then cites the 
   );
 
   expect(await scans.discardRef(ref(150, 21), spot('a', 11))).toHaveProperty(
-    'links'
+    'resolution.links'
   );
   expect(
     three
@@ -340,16 +343,19 @@ test("a drawn Box replaces a Match's, and none drops it", async () => {
 test("discarding a Mark's Box takes its pins back, leaving the Page pin", async () => {
   const scans = open();
   await scans.markRef(ref(150, 21), { ...at('a', 11), box: DRAWN });
-  expect(await scans.discardRef(ref(150, 21), spot('a', 11))).toHaveProperty(
-    'links'
-  );
+  expect(await scans.discardRef(ref(150, 21), spot('a', 11))).toMatchObject({
+    resolution: { links: [{ certainty: 'estimated' }] },
+    done: { rejection: false }
+  });
   const { volumes, references } = await scans.snapshot();
   expect(volumes.a!.records).toBeUndefined();
   expect(volumes.a!.pages.map((p) => p.image)).toEqual([10, 11]);
   expect(references).toEqual({});
   const index = ref(null);
   await scans.markRef(index, { ...at('b', 5), box: DRAWN });
-  expect(await scans.discardRef(index, spot('b', 5))).toHaveProperty('links');
+  expect(await scans.discardRef(index, spot('b', 5))).toHaveProperty(
+    'resolution.links'
+  );
   expect((await scans.snapshot()).references).toEqual({});
   // A Mark taken back is no Rejection: the model may match it again.
   expect(await scans.isRejected(index, spot('b', 5))).toBe(false);
@@ -359,9 +365,9 @@ test("discarding a Mark's Box takes its pins back, leaving the Page pin", async 
 test('discarding a Match rejects it there, and only there', async () => {
   const scans = open();
   await scans.saveMatch(ref(150, 21), match('a', 11, true));
-  expect(await scans.discardRef(ref(150, 21), spot('a', 11))).toHaveProperty(
-    'links'
-  );
+  expect(await scans.discardRef(ref(150, 21), spot('a', 11))).toMatchObject({
+    done: { rejection: true }
+  });
   const { volumes } = await scans.snapshot();
   expect(volumes.a!.records).toBeUndefined();
   // The Page pin the model read stays.
