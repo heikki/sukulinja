@@ -15,13 +15,15 @@
 // first (see pins/rescans.ts).
 
 import { readdir, rename, rm, rmdir, stat, utimes } from 'node:fs/promises';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
-import type { ScanCacheStatus } from '@/common/types';
+import type { ScanCacheStatus, VolumeOnDisk } from '@/common/types';
 
 import { NoImageError } from './astia';
 import type { Astia, ImageRef, ImageSize } from './astia';
 import { jpegSize } from './jpeg';
+import { openSettingsFile } from './settings-file';
+import type { SettingsFile } from './settings-file';
 
 const GB = 1024 ** 3;
 const CAPS = [5, 10, 20, 40].map((n) => n * GB);
@@ -136,18 +138,19 @@ async function cachedFiles(dir: string) {
   const listed = await Promise.all(
     (await volumeDirs(dir)).map(async (volume) => {
       const names = await readdir(volume).catch(() => []);
-      return names.map((name) => join(volume, name));
+      return names.map((name) => ({ volumeId: basename(volume), name }));
     })
   );
   const files = await Promise.all(
     listed
       .flat()
-      .filter((path) => path.endsWith('.jpg'))
-      .map(async (path) => {
+      .filter(({ name }) => name.endsWith('.jpg'))
+      .map(async ({ volumeId, name }) => {
+        const path = join(dir, volumeId, name);
         const info = await stat(path).catch(() => null);
         return info === null
           ? null
-          : { path, size: info.size, viewed: info.mtimeMs };
+          : { volumeId, path, size: info.size, viewed: info.mtimeMs };
       })
   );
   return files.filter((f) => f !== null);
@@ -159,27 +162,33 @@ function totalSize(files: Array<{ size: number }>) {
 
 // ---------------------------------------------------------------- the setting
 
-// The install's settings; none when the file is missing or unreadable.
-async function readSettings(file: string) {
-  const none: Record<string, unknown> = {};
-  const settings = Bun.file(file);
-  if (!(await settings.exists())) return none;
-  const read = (await settings.json().catch(() => null)) as typeof none | null;
-  return read ?? none;
-}
-
 // The cap saved for the install, if it's one of the choices.
-async function savedCap(file: string) {
-  const { scanCacheBytes } = await readSettings(file);
+async function savedCap(settings: SettingsFile) {
+  const { scanCacheBytes } = await settings.read();
   return typeof scanCacheBytes === 'number' && CAPS.includes(scanCacheBytes)
     ? scanCacheBytes
     : DEFAULT_CAP_BYTES;
 }
 
+// The Volumes kept whole, outside the cap: read each time, as a script's
+// cache on the same data folder may be running beside the app's.
+async function keptVolumes(settings: SettingsFile) {
+  return new Set(keepList(await settings.read()));
+}
+
+// The kept Volumes' ids as saved; none when unreadable.
+function keepList(settings: Record<string, unknown>): string[] {
+  const { keptVolumes: kept } = settings;
+  return Array.isArray(kept)
+    ? kept.filter((id): id is string => typeof id === 'string')
+    : [];
+}
+
 // ---------------------------------------------------------------- the cache
 
 // The Scan cache of the data folder at `root`, fetching from `astia`: its
-// Images in `.astia-images/<volumeId>`, its cap in `settings.local.json`.
+// Images in `.astia-images/<volumeId>`, its cap and the Volumes it keeps
+// whole in `settings.local.json`.
 export function openScanCache({
   astia,
   root,
@@ -190,7 +199,7 @@ export function openScanCache({
   switches: boolean;
 }) {
   const dir = join(root, '.astia-images');
-  const settingsFile = join(root, 'settings.local.json');
+  const settings = openSettingsFile(join(root, 'settings.local.json'));
   const inQueue = openQueue();
   function pathOf(volumeId: string, fileId: string) {
     return join(dir, volumeId, `${fileId}.jpg`);
@@ -198,15 +207,26 @@ export function openScanCache({
   let cap = DEFAULT_CAP_BYTES;
   // Read before anything prunes or reports, so the default never stands in
   // for a cap saved larger.
-  const ready = savedCap(settingsFile).then((saved) => {
+  const ready = savedCap(settings).then((saved) => {
     cap = saved;
   });
+
+  // The cached files, those of kept Volumes apart: they're outside the cap.
+  async function filesByCap() {
+    const kept = await keptVolumes(settings);
+    const files = await cachedFiles(dir);
+    return {
+      kept,
+      capped: files.filter((f) => !kept.has(f.volumeId)),
+      outside: files.filter((f) => kept.has(f.volumeId))
+    };
+  }
 
   // Drops the least recently viewed files until the cache fits its cap; the
   // file just fetched stays even when it alone is over.
   async function prune(keep: string | null) {
     await ready;
-    const files = await cachedFiles(dir);
+    const files = (await filesByCap()).capped;
     let total = totalSize(files);
     const dropped: string[] = [];
     for (const f of files.sort((a, b) => a.viewed - b.viewed)) {
@@ -309,22 +329,70 @@ export function openScanCache({
 
     async status(): Promise<ScanCacheStatus> {
       await ready;
-      return { cap, used: totalSize(await cachedFiles(dir)), caps: CAPS };
+      const { kept, capped, outside } = await filesByCap();
+      return {
+        cap,
+        used: totalSize(capped),
+        caps: CAPS,
+        kept: { bytes: totalSize(outside), volumes: kept.size }
+      };
+    },
+
+    // The Volumes kept whole, outside the cap, by id.
+    async kept() {
+      return [...(await keptVolumes(settings))];
+    },
+
+    // Keeps the Volume's Images, and those it fetches from now on, outside
+    // the cap and never dropped as least recently viewed.
+    async keep(volumeId: string) {
+      await settings.update((s) => ({
+        ...s,
+        keptVolumes: [...new Set([...keepList(s), volumeId])]
+      }));
+    },
+
+    // Hands the Volume's Images back to the cap, which may drop them at once.
+    async release(volumeId: string) {
+      await settings.update((s) => ({
+        ...s,
+        keptVolumes: keepList(s).filter((id) => id !== volumeId)
+      }));
+      await prune(null);
+    },
+
+    // What of the Volume is on disk: its full-size Images of Astia's list
+    // (`images`, null until the list has been asked for), and the space
+    // its files take, thumbnails and all. Never asks Astia.
+    async onDisk(volumeId: string): Promise<VolumeOnDisk> {
+      const names = await readdir(join(dir, volumeId)).catch(() => []);
+      const files = new Set(names.filter((n) => n.endsWith('.jpg')));
+      const listed = await astia.cachedImages(volumeId);
+      const sizes = await Promise.all(
+        [...files].map(
+          async (n) =>
+            (await stat(join(dir, volumeId, n)).catch(() => null))?.size ?? 0
+        )
+      );
+      return {
+        images: listed?.length ?? null,
+        cached: (listed ?? []).filter((id) => files.has(`${id}.jpg`)).length,
+        bytes: sizes.reduce((sum, b) => sum + b, 0)
+      };
     },
 
     // Saves the cap for the install, and shrinks to it at once.
     async setCap(bytes: number) {
       await ready;
-      const settings = await readSettings(settingsFile);
-      const saved = { ...settings, scanCacheBytes: bytes };
-      await Bun.write(settingsFile, `${JSON.stringify(saved, null, 2)}\n`);
+      await settings.update((s) => ({ ...s, scanCacheBytes: bytes }));
       cap = bytes;
       await prune(null);
     },
 
-    // Drops every Image, then the Volumes' folders they leave empty.
+    // Drops every Image but the kept Volumes', then the Volumes' folders
+    // they leave empty.
     async clear() {
-      const files = await cachedFiles(dir);
+      const files = (await filesByCap()).capped;
       await Promise.all(files.map((f) => rm(f.path, { force: true })));
       const volumes = await volumeDirs(dir);
       // One a fetch is still writing into stays.
