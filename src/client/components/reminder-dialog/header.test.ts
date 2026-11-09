@@ -5,15 +5,15 @@ import { openAppState } from '@/client/state';
 import type {
   CitationRow,
   Link,
+  On,
   PersonRow,
   Reminder,
-  ReminderOn,
   VolumeCitation
 } from '@/common/types';
 
 import { headerOf } from './header';
 
-function reminder(on: ReminderOn): Reminder {
+function reminder(on: On): Reminder {
   return { id: 1, text: 'R', on, created: '', done: null };
 }
 
@@ -56,14 +56,14 @@ const L11: Link = {
 };
 const ROW_11: VolumeCitation = { personId: 1, citation: C11, link: L11 };
 
-const CITATION: ReminderOn = {
+const CITATION: On = {
   kind: 'citation',
   personId: 1,
   citationId: 11,
   source: C11.source,
   reference: C11.reference
 };
-const IMAGE: ReminderOn = {
+const IMAGE: On = {
   kind: 'image',
   volumeId: '201',
   volume: 'I Aa:1 Pää- ja rippikirjat (1790-1796)',
@@ -89,7 +89,7 @@ async function loaded() {
 
 test('a person is headed by their name', async () => {
   const state = await loaded();
-  const on: ReminderOn = { kind: 'person', personId: 1 };
+  const on: On = { kind: 'person', personId: 1 };
   expect(headerOf(state, reminder(on))).toEqual(['Matti Testinen']);
 });
 

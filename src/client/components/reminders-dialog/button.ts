@@ -3,10 +3,11 @@ import { consume } from '@lit/context';
 import { css, html, LitElement, nothing, svg } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
+import { goTo } from '@/client/on';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 
-import { follow, openCount } from './helpers';
+import { openCount } from './helpers';
 import type { ReminderPickEvent } from './index';
 
 import '../corner-panel/button';
@@ -53,7 +54,7 @@ class RemindersButtonElement extends SignalWatcher(LitElement) {
   private readonly onPick = (e: ReminderPickEvent) => {
     const reminder = e.detail;
     this.open = false;
-    void follow(this.state, reminder);
+    void goTo(this.state, reminder.on);
     this.state.reminders.show(reminder.id);
     if (reminder.on.kind === 'image') return;
     this.dispatchEvent(new CustomEvent('dock-open'));
