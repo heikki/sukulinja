@@ -220,9 +220,8 @@ test('show keeps to the Images Astia lists, once it has said how many', async ()
   viewer.show(0);
   expect(viewer.image.get()).toBe(1);
   expect(api.asked.filter((a) => a.endsWith(' 201'))).toEqual([
-    'images 201',
+    'volume 201',
     'citations 201',
-    'archive 201',
     'rescan 201'
   ]);
 });

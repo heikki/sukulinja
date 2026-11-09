@@ -18,7 +18,8 @@ import type {
   Link,
   LinkResolution,
   NewChange,
-  VolumeCitation
+  VolumeCitation,
+  VolumeContents
 } from '@/common/types';
 
 import {
@@ -540,6 +541,16 @@ export function createCitations<R extends BookRef>(
 
     // The title of the dataset's archive holding the Volume, or null.
     volumeArchive,
+
+    // What Astia says of the Volume: its Images and its archive, asked
+    // together. Throws when Astia can't be reached.
+    async contentsOf(volumeId: string): Promise<VolumeContents> {
+      const [urls, archive] = await Promise.all([
+        images.urlsOf(volumeId),
+        volumeArchive(volumeId)
+      ]);
+      return { images: urls, archive };
+    },
 
     // Makes a Citation of the entry for the person, and gives it as the
     // Scan viewer lists it. Null when there's no such person; rejected

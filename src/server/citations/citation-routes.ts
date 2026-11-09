@@ -18,7 +18,7 @@ interface CitationHandlers {
   handleVolumeCitations: (volumeId: string) => Promise<Response>;
   handleArchiveCitations: (archiveId: string) => Promise<Response>;
   handleArchives: () => Promise<Response>;
-  handleVolumeArchive: (volumeId: string) => Promise<Response>;
+  handleVolume: (volumeId: string) => Promise<Response>;
   handleCite: (personId: number, target: CiteTarget) => Promise<Response>;
   handleUncite: (id: number) => Response;
   handleSwitchFilming: (volumeId: string, volume: string) => Promise<Response>;
@@ -83,15 +83,15 @@ async function readCite(req: Request): Promise<CiteTarget | null> {
   return { volumeId, image, fileId, box: drawn, text: text ?? null };
 }
 
-// A Volume's /citations and /archive, and POST its /filming; null for any
-// other path.
+// A Volume, its /citations, and POST its /filming; null for any other
+// path.
 async function routeVolume(
   req: Request,
   handlers: CitationHandlers,
   rest: string
 ) {
   const volume =
-    /^\/api\/volumes\/(?<id>[^/]+)\/(?<part>citations|archive|filming)$/.exec(
+    /^\/api\/volumes\/(?<id>[^/]+)(?:\/(?<part>citations|filming))?$/.exec(
       rest
     );
   if (volume === null) return null;
@@ -100,8 +100,8 @@ async function routeVolume(
   if (req.method !== 'GET') {
     return new Response('method not allowed', { status: 405 });
   }
-  return part === 'archive'
-    ? await handlers.handleVolumeArchive(id!)
+  return part === undefined
+    ? await handlers.handleVolume(id!)
     : await handlers.handleVolumeCitations(id!);
 }
 
@@ -191,9 +191,8 @@ async function routeArchives(
 // GET /api/persons/:id/scans streams the person's Links; POST
 // /api/persons/:id/citations makes a Citation; DELETE /api/citations/:id
 // deletes one made in the app; a Citation's `/scans` and `/volumes`; GET
-// /api/volumes/:id/citations and `/archive`, and POST its `/filming`; GET
-// /api/archives
-// and /api/archives/:id/citations. Null for any other path.
+// /api/volumes/:id and its `/citations`, and POST its `/filming`; GET
+// /api/archives and /api/archives/:id/citations. Null for any other path.
 async function routeCitations(
   req: Request,
   handlers: CitationHandlers,
@@ -308,11 +307,9 @@ function citationHandlers(
       }
     },
 
-    async handleVolumeArchive(volumeId) {
+    async handleVolume(volumeId) {
       try {
-        return Response.json({
-          archive: await citations.volumeArchive(volumeId)
-        });
+        return Response.json(await citations.contentsOf(volumeId));
       } catch (err) {
         return astiaFailed(err);
       }

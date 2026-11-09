@@ -5,7 +5,7 @@
 import type { Box } from '@/common/types';
 
 import { archiveAmong } from './astia/archives';
-import { AstiaError } from './astia/astia';
+import { AstiaError, viewerUrls } from './astia/astia';
 import type { Astia, ImageRef } from './astia/astia';
 import type { Viewport } from './astia/jpeg';
 import { openDatasetArchives } from './dataset-archives';
@@ -59,6 +59,11 @@ export function openImages({
   return {
     // The parish archives a dataset's church books are in, in order.
     archivesOf: openDatasetArchives(astia),
+
+    // Astia's viewer URL for each of the Volume's Images, in order.
+    async urlsOf(volumeId: string) {
+      return await viewerUrls(astia, volumeId);
+    },
 
     // The archive's title in Astia; null when Astia can't say.
     async titleOf(archiveId: string) {

@@ -280,6 +280,16 @@ export interface VolumeChoices {
   others: VolumeChoice[];
 }
 
+// GET /d/<slug>/api/volumes/:id: what Astia says of a Volume, which
+// doesn't change as the app is used, in one answer: its viewer URL for
+// each Image, in order, and the title of the dataset's archive holding it,
+// null when none does or Astia can't say. The people citing it, which
+// can, are asked for apart (/citations).
+export interface VolumeContents {
+  images: string[];
+  archive: string | null;
+}
+
 // A row of /api/volumes/:id/citations: one person's church-book citation
 // that resolves into the Volume.
 export interface VolumeCitation {

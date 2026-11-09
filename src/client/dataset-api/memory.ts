@@ -66,7 +66,7 @@ type MemoryDatasetApi = DatasetApi & {
   // only the Volume; " box" or " no box" when it says), "discard <citation>
   // <volume>/<image>", "cite <person> <volume>/<image> <file>[: <text>]",
   // "uncite <citation>", "choices <citation>", "citations <volume>",
-  // "images <volume>", "rescan <volume>", "switch <volume>", "changes",
+  // "volume <volume>", "rescan <volume>", "switch <volume>", "changes",
   // "reminders", "remind person <id>: <text>" (or "<volume>/<image>
   // <file>"), "change reminder <id>", "delete reminder <id>".
   // A Citation made by `cite` joins its Volume's citations, numbered on
@@ -253,13 +253,6 @@ export function memoryDatasetApi(
         () => volume(volumeId).citations
       ),
 
-    volumeArchive: async (volumeId, signal) =>
-      await answer(
-        `archive ${volumeId}`,
-        signal,
-        () => data.volumes?.[volumeId]?.archive ?? null
-      ),
-
     // Every Volume given is taken as the archive's.
     archives: async (signal) =>
       await answer('archives', signal, () => [...(data.archives ?? [])]),
@@ -273,12 +266,16 @@ export function memoryDatasetApi(
         )
       ),
 
-    volumeImages: async (volumeId, signal) =>
-      await answer(`images ${volumeId}`, signal, () =>
-        Array.from({ length: volume(volumeId).images }, (_, i) =>
-          viewerUrl(volumeId, `${volumeId}-f${i + 1}`)
-        )
-      ),
+    volume: async (volumeId, signal) =>
+      await answer(`volume ${volumeId}`, signal, () => {
+        const shown = volume(volumeId);
+        return {
+          images: Array.from({ length: shown.images }, (_, i) =>
+            viewerUrl(volumeId, `${volumeId}-f${i + 1}`)
+          ),
+          archive: shown.archive ?? null
+        };
+      }),
 
     volumeRescan: async (volumeId, signal) =>
       await answer(`rescan ${volumeId}`, signal, (): Rescan | null => {

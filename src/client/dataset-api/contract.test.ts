@@ -209,10 +209,12 @@ describe('the answers', () => {
     );
   });
 
-  test("a Volume's citations and Images", async () => {
+  test("a Volume's Images and archive, and its citations", async () => {
+    const volume = await api.volume(VOLUME);
+    expect(volume.images).toHaveLength(IMAGES);
+    expect(volume).toHaveProperty('archive');
     const rows = await api.volumeCitations(VOLUME);
     expect(rows.map((r) => r.personId)).toEqual([1]);
-    expect(await api.volumeImages(VOLUME)).toHaveLength(IMAGES);
   });
 
   test('the URLs it builds are served', async () => {
@@ -237,7 +239,7 @@ describe('failing', () => {
 
   test('says when Astia fails', async () => {
     serveWith(memoryAstia({}, { down: true }));
-    expect(await failure(api.volumeImages(VOLUME))).toBe(
+    expect(await failure(api.volume(VOLUME))).toBe(
       "Astia couldn't be reached or gave no answer."
     );
   });

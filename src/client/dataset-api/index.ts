@@ -16,7 +16,8 @@ import type {
   ReminderTarget,
   Rescan,
   VolumeChoices,
-  VolumeCitation
+  VolumeCitation,
+  VolumeContents
 } from '@/common/types';
 
 // A request the app answered with an error, or couldn't be reached for. Its
@@ -85,20 +86,15 @@ export interface DatasetApi {
   ) => Promise<VolumeCitation[]>;
   // The archives the dataset's church books are in, most cited first.
   archives: (signal?: AbortSignal) => Promise<ChurchBookArchive[]>;
-  // The title of the dataset's archive holding the Volume; null when none
-  // of them does, or Astia can't say.
-  volumeArchive: (
-    volumeId: string,
-    signal?: AbortSignal
-  ) => Promise<string | null>;
   // How many of the dataset's Citations link into each of a parish
   // archive's Volumes, by Volume id; one with none is left out.
   archiveCitations: (
     archiveId: string,
     signal?: AbortSignal
   ) => Promise<Record<string, number>>;
-  // Astia's viewer URL for each Image of a Volume, in order.
-  volumeImages: (volumeId: string, signal?: AbortSignal) => Promise<string[]>;
+  // What Astia says of a Volume, in one answer: its Images and its
+  // archive.
+  volume: (volumeId: string, signal?: AbortSignal) => Promise<VolumeContents>;
   // Astia's re-scan of the Volume not yet switched to, and what switching
   // leaves out; null when there's none.
   volumeRescan: (
@@ -279,15 +275,6 @@ export function openDatasetApi(
         signal
       ),
 
-    volumeArchive: async (volumeId, signal) =>
-      (
-        await json<{ archive: string | null }>(
-          "the Volume's archive",
-          `${dataset}/api/volumes/${volumeId}/archive`,
-          signal
-        )
-      ).archive,
-
     archives: async (signal) =>
       await json<ChurchBookArchive[]>(
         'the church books',
@@ -302,10 +289,10 @@ export function openDatasetApi(
         signal
       ),
 
-    volumeImages: async (volumeId, signal) =>
-      await json<string[]>(
-        "the Volume's Images",
-        `${astia}/${volumeId}/images`,
+    volume: async (volumeId, signal) =>
+      await json<VolumeContents>(
+        'the Volume',
+        `${dataset}/api/volumes/${volumeId}`,
         signal
       ),
 
