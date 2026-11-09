@@ -1,4 +1,4 @@
-Status: ready-for-human (built 2026-11-09, to try in the app; ADR-0016)
+Status: ready-for-human (built 2026-11-09, to try in the app; ADR-0015)
 
 # Download whole Volumes for use without Astia
 
@@ -14,7 +14,7 @@ A new **Church books** view lists each known parish's Volumes, with how much of 
 A Volume asked to be kept whole in the Scan cache, so stepping through it works without Astia. Its Images don't count against the cap and aren't dropped as least recently viewed; removing the download hands them back to the cap's rules (nothing is deleted then). Kept for the install, like the cap, not per dataset.
 _Avoid_: offline volume, pinned volume (a Pin is something else).
 
-This changes the 2026-10-21 decision "the cap and least-recently-viewed rule apply to every Image alike": they still apply to every Image not in a Downloaded Volume. Viewing alone still never keeps anything; only asking for a download does. Worth an ADR (0016) when it lands.
+This changes the 2026-10-21 decision "the cap and least-recently-viewed rule apply to every Image alike": they still apply to every Image not in a Downloaded Volume. Viewing alone still never keeps anything; only asking for a download does. Worth an ADR (0015) when it lands.
 
 ## Answers to the ticket's open questions
 
