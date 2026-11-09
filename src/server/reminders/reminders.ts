@@ -4,37 +4,16 @@
 
 import type { Database } from 'bun:sqlite';
 
-import type {
-  CitationRow,
-  ReminderChange,
-  ReminderOn,
-  ReminderTarget
-} from '@/common/types';
+import type { OnTarget, ReminderChange } from '@/common/types';
 
-interface ReminderRow {
+import { ON_COLUMNS, openOn } from '../on';
+import type { OnRow, OnSources } from '../on';
+
+interface ReminderRow extends OnRow {
   id: number;
   text: string;
-  person_id: number | null;
-  citation_id: number | null;
-  volume_id: string | null;
-  volume: string | null;
-  image: number | null;
-  file_id: string | null;
   created_at: string;
   done_at: string | null;
-}
-
-interface ReminderSources {
-  // One of a person's Citations, with whose it is; null for none.
-  citationOf: (
-    id: number
-  ) => { personId: number; citation: CitationRow } | null;
-  // Whether a Re-scan replaced the Image's file.
-  replaced: (at: {
-    volumeId: string;
-    image: number;
-    fileId: string;
-  }) => Promise<boolean>;
 }
 
 type Binding = string | number | null;
@@ -46,91 +25,31 @@ function textOf(text: string) {
   return text.trim();
 }
 
-export function createReminders(db: Database, sources: ReminderSources) {
+export function createReminders(db: Database, sources: OnSources) {
+  const ons = openOn(db, sources);
   const all = db.prepare<ReminderRow, []>(
     'SELECT * FROM reminders ORDER BY created_at DESC, id DESC'
   );
   const byId = db.prepare<ReminderRow, [number]>(
     'SELECT * FROM reminders WHERE id = ?'
   );
-  const personExists = db.prepare<{ id: number }, [number]>(
-    'SELECT id FROM persons WHERE id = ?'
-  );
-  const insert = db.prepare<{ id: number }, [Record<string, Binding>]>(
-    `INSERT INTO reminders
-       (text, person_id, citation_id, volume_id, volume, image, file_id,
-        created_at)
-     VALUES ($text, $person, $citation, $volumeId, $volume, $image, $fileId,
-       $created)
+  const insert = db.prepare<{ id: number }, Binding[]>(
+    `INSERT INTO reminders (text, ${ON_COLUMNS.join(', ')}, created_at)
+     VALUES (${['text', ...ON_COLUMNS, 'created_at'].map(() => '?').join(', ')})
      RETURNING id`
   );
   const setText = db.prepare('UPDATE reminders SET text = ? WHERE id = ?');
   const setDone = db.prepare('UPDATE reminders SET done_at = ? WHERE id = ?');
   const deleteRow = db.prepare('DELETE FROM reminders WHERE id = ?');
 
-  async function onOf(row: ReminderRow): Promise<ReminderOn> {
-    const { volume_id: volumeId, volume, image, file_id: fileId } = row;
-    if (volumeId !== null) {
-      const at = { volumeId, image: image!, fileId: fileId! };
-      const stale = await sources.replaced(at);
-      return { kind: 'image', volume: volume!, ...at, stale };
-    }
-    const personId = row.person_id!;
-    const cited =
-      row.citation_id === null ? null : sources.citationOf(row.citation_id);
-    if (cited === null) return { kind: 'person', personId };
-    const { citation } = cited;
-    return {
-      kind: 'citation',
-      personId,
-      citationId: citation.id,
-      source: citation.source,
-      reference: citation.reference ?? citation.entry
-    };
-  }
-
   async function reminderOf(row: ReminderRow) {
     return {
       id: row.id,
       text: row.text,
-      on: await onOf(row),
+      // A Reminder is always on something.
+      on: (await ons.describe(row))!,
       created: row.created_at,
       done: row.done_at
-    };
-  }
-
-  // The columns a new Reminder on the target fills. Null when its person
-  // or Citation isn't in the dataset.
-  function columnsOf(target: ReminderTarget) {
-    const none = {
-      $person: null,
-      $citation: null,
-      $volumeId: null,
-      $volume: null,
-      $image: null,
-      $fileId: null,
-      $created: new Date().toISOString()
-    };
-    if ('personId' in target) {
-      if (personExists.get(target.personId) === null) return null;
-      return { ...none, $person: target.personId };
-    }
-    if ('citationId' in target) {
-      const cited = sources.citationOf(target.citationId);
-      if (cited === null) return null;
-      return {
-        ...none,
-        $person: cited.personId,
-        $citation: target.citationId
-      };
-    }
-    const { volumeId, volume, image, fileId } = target;
-    return {
-      ...none,
-      $volumeId: volumeId,
-      $volume: volume,
-      $image: image,
-      $fileId: fileId
     };
   }
 
@@ -142,12 +61,14 @@ export function createReminders(db: Database, sources: ReminderSources) {
 
     // Writes a Reminder on the target. Null when its person or Citation
     // isn't in the dataset.
-    async add(text: string, target: ReminderTarget) {
+    async add(text: string, target: OnTarget) {
       const kept = textOf(text);
       if (kept === '') return { rejected: NO_TEXT };
-      const columns = columnsOf(target);
-      if (columns === null) return null;
-      const { id } = insert.get({ ...columns, $text: kept })!;
+      const on = ons.columnsOf(target);
+      if (on === null) return null;
+      const created = new Date().toISOString();
+      const values = ON_COLUMNS.map((c) => on[c]);
+      const { id } = insert.get(kept, ...values, created)!;
       return await reminderOf(byId.get(id)!);
     },
 

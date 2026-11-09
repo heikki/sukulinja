@@ -4,10 +4,10 @@
 // through here, so that once every reference is converted to a Citation of
 // its Image, this folder can go.
 
-export { routeRescan } from './pins/rescans';
+export { routeRescan, switchFilming } from './pins/rescans';
 export type { KeptPins } from './pins/rescans';
 export { carryRejections } from './pins/marks';
-export type { BoxAt, MarkTarget } from './pins/pins';
+export type { BoxAt, DiscardDone, MarkDone, MarkTarget } from './pins/pins';
 export {
   BAPTISM_COLLECTION,
   churchBookRefOf,

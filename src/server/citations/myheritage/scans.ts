@@ -243,13 +243,17 @@ function openScans({
       return { fits: fits.map(choiceOf), others: others.map(choiceOf) };
     },
 
-    // Saves a Mark, and gives the reference's links as they now resolve.
+    // Saves a Mark, and gives the reference's links as they now resolve,
+    // with what it did.
     async markRef(ref: ChurchBookRef, target: MarkTarget) {
       const checked = await refusal(ref, target, sizeOf);
       if ('rejected' in checked) return checked;
       const linked = (await linkedVolumes(ref)).has(target.volumeId);
-      await pins.recordMark(ref, target, { volume: checked.volume, linked });
-      return await resolveRef(ref);
+      const done = await pins.recordMark(ref, target, {
+        volume: checked.volume,
+        linked
+      });
+      return { resolution: await resolveRef(ref), done };
     },
 
     // Saves a Match the vision model confirmed, its Box in fractions of the
@@ -288,15 +292,17 @@ function openScans({
       await pins.rejects(ref, at),
 
     // Takes back the reference's Box at `at`, and gives its links as they
-    // now resolve: its estimate, or a pin left without a Box.
+    // now resolve, its estimate or a pin left without a Box, with what it
+    // did.
     async discardRef(ref: ChurchBookRef, at: BoxAt) {
       if (await onOldFilming(astia, at.volumeId)) {
         return { rejected: OLD_FILMING };
       }
-      if (!(await pins.recordDiscard(ref, at))) {
+      const done = await pins.recordDiscard(ref, at);
+      if (done === null) {
         return { rejected: 'There is no box there to discard.' };
       }
-      return await resolveRef(ref);
+      return { resolution: await resolveRef(ref), done };
     }
   };
 }

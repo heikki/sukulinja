@@ -16,6 +16,7 @@ import type {
   CitationRow,
   Link,
   LinkResolution,
+  NewChange,
   VolumeCitation
 } from '@/common/types';
 
@@ -29,7 +30,13 @@ import { openAppCitations } from './app-citations';
 import { viewerUrl, volumeYears } from './astia/astia';
 import type { Images } from './images';
 import { churchBookRefOf, markKey, readRecord } from './myheritage';
-import type { BoxAt, ChurchBookRef, MarkTarget, Scans } from './myheritage';
+import type {
+  BoxAt,
+  ChurchBookRef,
+  MarkDone,
+  MarkTarget,
+  Scans
+} from './myheritage';
 import { citationText } from './text';
 
 interface CitationDbRow {
@@ -184,9 +191,25 @@ type DbRow = Omit<CitationDbRow, 'annotation'>;
 
 // A dataset's Citations, with the Images they can cite and the MyHeritage
 // references they make.
+// What the dataset's Citations read, and `changed`, told of each change
+// they make to the dataset.
+interface CitationDeps {
+  images: Images;
+  references: Scans;
+  changed?: (change: NewChange) => void;
+}
+
+// What a Citation cites, in words: its source and entry, for one the app
+// made, or its reference.
+function citedText(c: CitationRow) {
+  const entry = c.reference ?? c.entry;
+  if (c.source === null) return entry;
+  return entry === null ? c.source : `${c.source}, ${entry}`;
+}
+
 export function createCitations(
   db: Database,
-  { images, references }: { images: Images; references: Scans }
+  { images, references, changed = () => undefined }: CitationDeps
 ) {
   const made = openAppCitations(db);
   // A Mark makes its citation cite the Astia Image; the panel shows the
@@ -281,11 +304,13 @@ export function createCitations(
   }
 
   // A Citation of an Image moved to the entry `target` gives, in the
-  // Volume it's in; its Link there.
+  // Volume it's in; its Link there, and what that did.
   async function moveEntry(
     citationId: number,
     target: MarkTarget
-  ): Promise<LinkResolution | { rejected: string }> {
+  ): Promise<
+    { resolution: LinkResolution; done: MarkDone } | { rejected: string }
+  > {
     const { volumeId, image, box } = target;
     const stored = linkedInVolume
       .all(volumeId)
@@ -303,7 +328,15 @@ export function createCitations(
     if ('rejected' in checked) return checked;
     made.move(citationId, { volumeId, image, box, ...checked });
     const [c] = cited([byId.get(citationId)!]);
-    return { links: [await withArchive(c!.stored!)] };
+    const links = [await withArchive(c!.stored!)];
+    const done: MarkDone = {
+      at: 'entry',
+      volume: checked.volume,
+      confirmed: false,
+      citations: 1,
+      pagePin: null
+    };
+    return { resolution: { links }, done };
   }
 
   // The Citations of Images in the Volume, with no Church-book reference.
@@ -337,6 +370,15 @@ export function createCitations(
       : [...(church ?? []), ...ours];
   }
 
+  // One of a person's Citations, as the panel shows it, with whose it is;
+  // null when there's no such Citation of a person.
+  function ofId(citationId: number) {
+    const row = personCitation.get(citationId);
+    if (row === null) return null;
+    const [c] = cited([row]);
+    return { personId: row.personId, citation: toCitation(c!) };
+  }
+
   return {
     // Every one of the person's Citations: church books first, by year,
     // then the others in recorded order.
@@ -348,12 +390,7 @@ export function createCitations(
 
     // One of a person's Citations, as the panel shows it, with whose it
     // is; null when there's no such Citation of a person.
-    ofId(citationId: number) {
-      const row = personCitation.get(citationId);
-      if (row === null) return null;
-      const [c] = cited([row]);
-      return { personId: row.personId, citation: toCitation(c!) };
-    },
+    ofId,
 
     // A line for each of the person's Church-book references, as each
     // resolves: Astia is slow, so the first needn't wait for the last.
@@ -386,21 +423,44 @@ export function createCitations(
       }
     },
 
-    // Saves a Mark. Null when there's no such Citation, or it isn't a
-    // Church-book reference.
+    // Saves a Mark: the reference's Links as they now resolve, and what it
+    // did. Null when there's no such Citation, or it isn't a Church-book
+    // reference.
     // A Citation of an Image takes a Mark at another entry in its Volume.
     async mark(citationId: number, target: MarkTarget) {
       const row = byId.get(citationId);
       if (row === null) return null;
       const [c] = cited([row]);
-      if (c!.book !== null) return await references.markRef(c!.book, target);
-      return c!.stored === null ? null : await moveEntry(citationId, target);
+      const moved = c!.book === null;
+      if (moved && c!.stored === null) return null;
+      const result = moved
+        ? await moveEntry(citationId, target)
+        : await references.markRef(c!.book!, target);
+      if ('rejected' in result) return result;
+      const { at, volume, confirmed, citations, pagePin } = result.done;
+      const image = target.image ?? null;
+      changed({
+        on: { citationId },
+        what: {
+          kind: 'mark',
+          ...{ at, volume, image, confirmed, moved, citations, pagePin }
+        }
+      });
+      return result;
     },
 
     // Takes back the reference's Box; null as for `mark`.
     async discard(citationId: number, at: BoxAt) {
       const book = churchBookOf(citationId);
-      return book === null ? null : await references.discardRef(book, at);
+      if (book === null) return null;
+      const result = await references.discardRef(book, at);
+      if ('rejected' in result) return result;
+      const { volume, rejection } = result.done;
+      changed({
+        on: { citationId },
+        what: { kind: 'discard', volume, image: at.image, rejection }
+      });
+      return result;
     },
 
     // The Volumes the reference can be put in; null as for `mark`.
@@ -444,6 +504,10 @@ export function createCitations(
         box: target.box,
         text: oneLine(target.text)
       });
+      changed({
+        on: { citationId: id },
+        what: { kind: 'cite', volume: checked.volume, image }
+      });
       const [c] = cited([byId.get(id)!]);
       return {
         personId,
@@ -452,10 +516,20 @@ export function createCitations(
       };
     },
 
-    // Deletes a Citation made in the app; null when there's no such
-    // Citation, false for an imported one.
+    // Deletes a Citation made in the app, and gives it as it was, with
+    // whose it was; null when there's no such Citation, false for an
+    // imported one.
     uncite(citationId: number) {
-      return made.remove(citationId);
+      const was = ofId(citationId);
+      const removed = made.remove(citationId);
+      if (removed !== true) return removed;
+      if (was !== null) {
+        changed({
+          on: { personId: was.personId },
+          what: { kind: 'uncite', cited: citedText(was.citation) }
+        });
+      }
+      return was;
     }
   };
 }

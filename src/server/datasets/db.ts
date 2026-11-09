@@ -201,6 +201,23 @@ const SCHEMA_SQL = `
     CHECK ((volume_id IS NULL) = (file_id IS NULL))
   );
 
+  -- The Changes: what was done in the app, oldest first. Its what is a
+  -- ChangeWhat as JSON. What it was on is held as a Reminder's is, with
+  -- who naming the person as they were then. A person or Citation gone leaves
+  -- it on nothing, or on the Citation's person. No export writes them.
+  CREATE TABLE IF NOT EXISTS changes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    at TEXT NOT NULL,
+    what TEXT NOT NULL,
+    who TEXT,
+    person_id INTEGER REFERENCES persons(id) ON DELETE SET NULL,
+    citation_id INTEGER REFERENCES citations(id) ON DELETE SET NULL,
+    volume_id TEXT,
+    volume TEXT,
+    image INTEGER,
+    file_id TEXT
+  );
+
   CREATE TABLE IF NOT EXISTS shared_notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     xref TEXT UNIQUE NOT NULL,
@@ -241,7 +258,7 @@ const SCHEMA_SQL = `
 // Raised whenever the schema changes. A dataset's database holds the whole
 // tree and the file it came from isn't kept, so an older database can't be
 // upgraded: the dataset is imported again (ADR-0013).
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 // A dataset whose database an older version of the app built.
 export class OutdatedDatasetError extends Error {}

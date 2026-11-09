@@ -5,7 +5,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { ApiError } from '@/client/dataset-api';
 import { Floating, typing } from '@/client/floating';
 import type { Point } from '@/client/pan-zoom';
-import type { ReminderTarget } from '@/common/types';
+import type { OnTarget } from '@/common/types';
 
 import type { MenuItem } from '../context-menu';
 import { reminderDialogStyles } from './styles';
@@ -15,7 +15,7 @@ import '../context-menu';
 // Something a new Reminder can be on, as its header shows it.
 export interface ReminderPlace {
   header: string[];
-  target: ReminderTarget;
+  target: OnTarget;
 }
 
 // What a new Reminder is on: the Image, or with `cited`, the person's
@@ -107,8 +107,7 @@ export class ReminderDialogElement extends LitElement {
   @property({ attribute: false }) text = '';
   // Given the target `places` leaves it on, writing a new one.
   @property({ attribute: false }) save:
-    ((text: string, target: ReminderTarget | null) => Promise<void>) | null =
-    null;
+    ((text: string, target: OnTarget | null) => Promise<void>) | null = null;
   @property({ attribute: false }) actions: ReminderDialogAction[] = [];
   @property({ attribute: false }) viewing = false;
   // Where in the window it opens, as where it was asked for; null for

@@ -5,6 +5,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import { focusRingStyles } from '@/client/focus-ring';
+import { openSource } from '@/client/on';
 import { appState } from '@/client/state';
 import type {
   AppState,
@@ -16,7 +17,6 @@ import type {
 } from '@/client/state';
 import type { CitationRow, Link, RecordView, Reminder } from '@/common/types';
 
-import { openSource } from '../reminders-dialog/helpers';
 import { CROSS, formatName } from '../tree-view/renderer';
 
 import './fold';
