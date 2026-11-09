@@ -251,11 +251,11 @@ function citationHandlers(citations: Citations): CitationHandlers {
       if (removed === null) {
         return new Response('citation not found', { status: 404 });
       }
-      return removed !== false
-        ? new Response(null, { status: 204 })
-        : new Response('Only a Citation made in the app can be deleted.', {
+      return removed === false
+        ? new Response('Only a Citation made in the app can be deleted.', {
             status: 400
-          });
+          })
+        : new Response(null, { status: 204 });
     }
   };
 }
