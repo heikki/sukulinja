@@ -362,6 +362,14 @@ describe("A dataset's Citations", () => {
     );
   });
 
+  test("counts the Citations in each of a parish's Volumes", async () => {
+    await seedDataset();
+    const juva = await get('/d/juva/api/archives/1212295491/citations');
+    expect(await juva.json()).toEqual({ 'juva-1': 1 });
+    const elsewhere = await get('/d/juva/api/archives/1200716382/citations');
+    expect(await elsewhere.json()).toEqual({});
+  });
+
   async function send(method: string, path: string, body?: unknown) {
     return await fetch(
       new Request(`http://localhost/d/juva${path}`, {
