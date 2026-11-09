@@ -12,7 +12,8 @@ const IMAGE: On = {
   volume: 'I Aa:201',
   image: 18,
   fileId: '201-f18',
-  stale: false
+  stale: false,
+  personId: null
 };
 const CITATION: On = {
   kind: 'citation',

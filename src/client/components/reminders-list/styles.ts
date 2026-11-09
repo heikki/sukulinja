@@ -67,19 +67,6 @@ export const reminderStyles = css`
     resize: vertical;
   }
 
-  /* The person a new one is on, ticked off to put it on the Image. */
-  label.who {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    cursor: pointer;
-  }
-
-  label.who input {
-    margin: 0;
-    accent-color: var(--muted);
-  }
-
   .buttons {
     display: flex;
     gap: 0.25rem;

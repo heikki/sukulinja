@@ -318,15 +318,17 @@ test('a source only imported Citations cite stays gone when the export drops it'
 
 // -------------------------------------------------------------- Reminders
 
-function remindImage(text: string) {
+// A Reminder on Image 12, done; about the person `about` too.
+function remindImage(text: string, about: string | null = null) {
   registry()
     .open('tree')
     .run(
-      `INSERT INTO reminders (text, volume_id, volume, image, file_id,
-         created_at, done_at)
-       VALUES (?, 'v1', 'Juva 1790-1796', 12, 'f12',
-         '2026-10-23T10:00:00.000Z', '2026-10-23T11:00:00.000Z')`,
-      [text]
+      `INSERT INTO reminders (text, person_id, volume_id, volume, image,
+         file_id, created_at, done_at)
+       VALUES (?, (SELECT id FROM persons WHERE xref = ?), 'v1',
+         'Juva 1790-1796', 12, 'f12', '2026-10-23T10:00:00.000Z',
+         '2026-10-23T11:00:00.000Z')`,
+      [text, about]
     );
 }
 
@@ -350,7 +352,13 @@ function reminders() {
     )
     .all()
     .map((r) =>
-      [r.text, r.xref ?? `Image ${r.image}`, r.page, r.done_at]
+      [
+        r.text,
+        r.xref,
+        r.image === null ? null : `Image ${r.image}`,
+        r.page,
+        r.done_at
+      ]
         .filter((v) => v !== null)
         .join(' | ')
     );
@@ -376,6 +384,19 @@ test('Reminders follow their person and citation, and one on an Image stays', as
     'Later hand | Image 12 | 2026-10-23T11:00:00.000Z'
   ]);
   expect(outcome.merged).toMatchObject({ kept: { reminders: 3 }, lost: [] });
+});
+
+test('a Reminder on an Image about someone follows them, and stays on the Image once they are gone', async () => {
+  await importTree(tree([MATTI, MAIJA]));
+  remindImage('His hand?', '@I1@');
+  remindImage('Her hand?', '@I2@');
+  const outcome = await importTree(tree([MATTI]));
+
+  expect(reminders()).toEqual([
+    'His hand? | @I1@ | Image 12 | 2026-10-23T11:00:00.000Z',
+    'Her hand? | Image 12 | 2026-10-23T11:00:00.000Z'
+  ]);
+  expect(outcome.merged).toMatchObject({ kept: { reminders: 2 }, lost: [] });
 });
 
 test("a citation's Reminder goes onto its person when the citation is gone, and one whose person is gone is listed", async () => {

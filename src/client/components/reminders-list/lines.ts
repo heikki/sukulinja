@@ -19,7 +19,10 @@ export function onLines(state: AppState, reminder: Reminder): OnLine[] {
   const { on } = reminder;
   const header = headerOf(state, reminder);
   if (on.kind === 'image') {
-    return [{ text: header[0] ?? '', to: on.stale ? null : on }];
+    const image = { text: header.at(-1) ?? '', to: on.stale ? null : on };
+    if (on.personId === null) return [image];
+    const about: On = { kind: 'person', personId: on.personId };
+    return [{ text: header[0] ?? '', to: about }, image];
   }
   const person: On = { kind: 'person', personId: on.personId };
   const [name = '', where] = header;

@@ -71,7 +71,8 @@ const IMAGE: On = {
   volume: 'I Aa:1 Pää- ja rippikirjat (1790-1796)',
   image: 40,
   fileId: '201-f40',
-  stale: false
+  stale: false,
+  personId: null
 };
 
 async function loaded() {
@@ -160,4 +161,13 @@ test("an Image's line goes to it, unless it's from an earlier filming", async ()
   expect(onLines(state, reminder(IMAGE))[0]?.to).toEqual(IMAGE);
   const stale: On = { ...IMAGE, stale: true };
   expect(onLines(state, reminder(stale))[0]?.to).toBeNull();
+});
+
+test('an Image about someone goes to them, then to the Image', async () => {
+  const state = await loaded();
+  const on: On = { ...IMAGE, personId: 1 };
+  expect(onLines(state, reminder(on))).toEqual([
+    { text: 'Matti Testinen', to: { kind: 'person', personId: 1 } },
+    { text: expect.stringContaining('Image 40'), to: on }
+  ]);
 });

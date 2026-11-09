@@ -17,7 +17,8 @@ const IMAGE: On = {
   volume: 'I Aa:201',
   image: 18,
   fileId: '201-f18',
-  stale: false
+  stale: false,
+  personId: null
 };
 
 test('lists the open ones, then with Show done the done ones', () => {

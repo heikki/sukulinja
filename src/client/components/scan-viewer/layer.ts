@@ -8,7 +8,7 @@ import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { Box } from '@/common/types';
 
-import { reminderPlaces } from '../reminders-list/places';
+import { placesHere } from '../reminders-list/places';
 import { entriesOn, rowName } from './citations';
 import { citeChoices, citingImage, searchable } from './cite';
 import { scanLayerStyles } from './edit-styles';
@@ -313,10 +313,10 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     </div>`;
   }
 
-  // A Reminder on the Image shown, or on the source's Citation while it
-  // links the Image, written in the Reminders list.
+  // A Reminder on the Image shown and the Selected person, written in the
+  // Reminders list.
   private remind() {
-    const places = reminderPlaces(this.state);
+    const places = placesHere(this.state);
     if (places === null) return;
     this.popup = null;
     this.state.reminders.draft(places);

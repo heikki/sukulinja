@@ -6,15 +6,16 @@ import { ApiError } from '@/client/dataset-api';
 import { focusRingStyles } from '@/client/focus-ring';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
+import { targetOf } from '@/client/state/reminders';
 import type { ReminderPlaces } from '@/client/state/reminders';
 import { typing } from '@/client/typing';
 
 import { reminderStyles } from './styles';
 
 // Writing a new Reminder, at the top of the list: what it will be on, in
-// muted lines, the person's line ticked to put it on their Citation, or not
-// to put it on the Image; then its text. Save or ⌘Enter writes it, and it
-// and Cancel stop the draft.
+// muted lines (the Selected person, and while the Scan viewer is open, the
+// Image it shows); then its text. Save or ⌘Enter writes it, and it and
+// Cancel stop the draft.
 @customElement('sl-reminder-add')
 class ReminderAddElement extends LitElement {
   static override styles = [focusRingStyles, reminderStyles];
@@ -24,17 +25,11 @@ class ReminderAddElement extends LitElement {
   @property({ attribute: false }) places!: ReminderPlaces;
 
   @state() private text = '';
-  @state() private withPerson = true;
   @state() private saving = false;
   @state() private error: string | null = null;
 
   override firstUpdated() {
     this.renderRoot.querySelector('textarea')?.focus();
-  }
-
-  private get target() {
-    const { cited, base } = this.places;
-    return this.withPerson && cited !== null ? cited.target : base.target;
   }
 
   private readonly stop = () => {
@@ -46,7 +41,7 @@ class ReminderAddElement extends LitElement {
     this.saving = true;
     this.error = null;
     try {
-      await this.state.reminders.remind(this.text, this.target);
+      await this.state.reminders.remind(this.text, targetOf(this.places));
       this.stop();
     } catch (err) {
       if (!(err instanceof ApiError)) throw err;
@@ -66,32 +61,17 @@ class ReminderAddElement extends LitElement {
     }
   };
 
-  private renderPlace() {
-    const { cited, base } = this.places;
-    if (cited === null) {
-      return html`<div class="lines">
-        ${base.header.map((line) => html`<div>${line}</div>`)}
-      </div>`;
-    }
-    const [who, ...where] = cited.header;
-    const lines = this.withPerson ? where : base.header;
+  private renderPlaces() {
+    const { person, image } = this.places;
     return html`<div class="lines">
-      <label class="who">
-        <input
-          type="checkbox"
-          .checked=${this.withPerson}
-          @change=${(e: Event) => {
-            this.withPerson = (e.target as HTMLInputElement).checked;
-          }}
-        />${who}
-      </label>
-      ${lines.map((line) => html`<div>${line}</div>`)}
+      ${person === null ? nothing : html`<div>${person.header}</div>`}
+      ${image === null ? nothing : html`<div>${image.header}</div>`}
     </div>`;
   }
 
   override render() {
     return html`
-      ${this.renderPlace()}
+      ${this.renderPlaces()}
       <textarea
         aria-label="New reminder"
         placeholder="What to come back to…"

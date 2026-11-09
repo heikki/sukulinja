@@ -382,6 +382,8 @@ export type On =
       image: number;
       fileId: string;
       stale: boolean;
+      // Whom it's about too, if anyone: it was written with them selected.
+      personId: number | null;
     };
 
 // Something to come back to, written in the app. `done` is when it was
@@ -398,7 +400,13 @@ export interface Reminder {
 export type OnTarget =
   | { personId: number }
   | { citationId: number }
-  | { volumeId: string; volume: string; image: number; fileId: string };
+  | {
+      volumeId: string;
+      volume: string;
+      image: number;
+      fileId: string;
+      personId?: number;
+    };
 
 // What a Change did, as it was said when it was done: a Mark, at the
 // entry, the Image or only the Volume (`confirmed` when it confirmed a

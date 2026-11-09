@@ -116,7 +116,11 @@ export function imageHeader(
 // the parish, Volume and page; what isn't known yet is left out.
 export function headerOf(state: AppState, reminder: Reminder) {
   const { on } = reminder;
-  if (on.kind === 'image') return imageHeader(state, on);
+  if (on.kind === 'image') {
+    const image = imageHeader(state, on);
+    if (on.personId === null) return image;
+    return [nameOf(state, on.personId), ...image];
+  }
   if (on.kind === 'person') return personHeader(state, on.personId);
   return citationHeader(state, on, on.reference ?? on.source);
 }

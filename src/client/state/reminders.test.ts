@@ -3,7 +3,7 @@ import { expect, test } from 'bun:test';
 import { memoryDatasetApi } from '@/client/dataset-api/memory';
 import type { On, Reminder } from '@/common/types';
 
-import { openReminders } from './reminders';
+import { openReminders, targetOf } from './reminders';
 import type { ReminderPlaces } from './reminders';
 
 function reminder(id: number, on: On, done: string | null = null) {
@@ -17,7 +17,8 @@ const IMAGE: On = {
   volume: 'I Aa:201',
   image: 18,
   fileId: '201-f18',
-  stale: false
+  stale: false,
+  personId: null
 };
 
 test('Reminders are asked for once, and kept in step with what changes here', async () => {
@@ -59,11 +60,20 @@ test('a Reminder is drafted on its places, until it stops', () => {
   const reminders = openReminders(memoryDatasetApi({}));
   expect(reminders.drafting.get()).toBe(null);
   const places: ReminderPlaces = {
-    cited: null,
-    base: { header: ['Matti Testinen'], target: { personId: 1 } }
+    person: { personId: 1, header: 'Matti Testinen' },
+    image: null
   };
   reminders.draft(places);
   expect(reminders.drafting.get()).toBe(places);
   reminders.draft(null);
   expect(reminders.drafting.get()).toBe(null);
+});
+
+test('a new Reminder is on the Image about the person, or on the person', () => {
+  const at = { volumeId: '201', volume: 'I Aa:201', image: 18, fileId: 'f' };
+  const person = { personId: 1, header: 'Matti' };
+  const image = { at, header: 'I Aa:201 · Image 18' };
+  expect(targetOf({ person, image })).toEqual({ ...at, personId: 1 });
+  expect(targetOf({ person: null, image })).toEqual(at);
+  expect(targetOf({ person, image: null })).toEqual({ personId: 1 });
 });

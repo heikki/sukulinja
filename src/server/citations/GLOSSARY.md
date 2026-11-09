@@ -12,7 +12,7 @@ What the app adds to a Citation: its Mark or Match, the page a Mark on an Image 
 _Avoid_: note (a GEDCOM NOTE is the source's own text), extras, link columns.
 
 **Reminder**:
-Something to come back to, on an **Image**, a Citation or a person, open until it's marked done. Reminders live only in their list, which writes, edits and completes them and links to what each is on; a new one is on what's in view, the Scan viewer's Image or Citation, or else the Selected person. Only the app keeps it: no export writes it, and a re-import's merge moves it to the same person or Citation, a Citation's onto its person when the Citation is gone. One on an Image holds for one filming: after a **Re-scan** it's stale, listed but leading nowhere.
+Something to come back to, on an **Image**, a Citation or a person, open until it's marked done. Reminders live only in their list, which writes, edits and completes them and links to what each is on; a new one is on what's in view: with the Scan viewer open, its Image, about the Selected person too; else the Selected person. Only the app keeps it: no export writes it, and a re-import's merge moves it to the same person or Citation, a Citation's onto its person when the Citation is gone. One on an Image holds for one filming: after a **Re-scan** it's stale, listed but leading nowhere.
 _Avoid_: note (a GEDCOM NOTE), annotation (a Citation's app-made additions), to-do.
 
 **Change**:

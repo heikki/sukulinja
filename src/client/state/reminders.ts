@@ -6,18 +6,23 @@ import type { OnTarget, Reminder, ReminderChange } from '@/common/types';
 import { Latest } from './latest';
 import type { Readable } from './selected';
 
-// Something a new Reminder can be on, as it's said where it's written.
-export interface ReminderPlace {
-  header: string[];
-  target: OnTarget;
+// What a new Reminder is on, each as it's said where it's written: the
+// Selected person, and the Image the Scan viewer shows; at least one.
+export interface ReminderPlaces {
+  person: { personId: number; header: string } | null;
+  image: {
+    at: { volumeId: string; volume: string; image: number; fileId: string };
+    header: string;
+  } | null;
 }
 
-// What a new Reminder is on: `base` (the Image shown, or the Selected
-// person), or with `cited`, the person's Citation while the person's line
-// is ticked.
-export interface ReminderPlaces {
-  cited: ReminderPlace | null;
-  base: ReminderPlace;
+// Where a new Reminder is written: on the Image, about the person too; or
+// with no Image, on the person.
+export function targetOf({ person, image }: ReminderPlaces): OnTarget {
+  if (image === null) return { personId: person!.personId };
+  return person === null
+    ? image.at
+    : { ...image.at, personId: person.personId };
 }
 
 // The dataset's Reminders, asked for once something shows them, and kept

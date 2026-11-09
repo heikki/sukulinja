@@ -318,7 +318,9 @@ function carryOn(
         person === null || citationId === null
           ? null
           : (citations.get(Number(citationId)) ?? null);
-      if (person === null) {
+      // One on an Image stays on it, whoever it was about.
+      const onImage = valueOf(r, 'volume_id') !== null;
+      if (person === null && !onImage) {
         gone.push({ row: r, owner });
         if (!keepGone) continue;
       }

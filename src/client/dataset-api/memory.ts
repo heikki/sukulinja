@@ -121,7 +121,14 @@ export function memoryDatasetApi(
   }
 
   function onOf(target: OnTarget): On {
-    if ('personId' in target) return { kind: 'person', ...target };
+    if ('volumeId' in target) {
+      return {
+        kind: 'image',
+        ...target,
+        stale: false,
+        personId: target.personId ?? null
+      };
+    }
     if ('citationId' in target) {
       const { personId, citation } = citationOf(target.citationId);
       return {
@@ -132,13 +139,16 @@ export function memoryDatasetApi(
         reference: citation.reference ?? citation.entry
       };
     }
-    return { kind: 'image', ...target, stale: false };
+    return { kind: 'person', personId: target.personId };
   }
 
   function whereOf(target: OnTarget) {
-    if ('personId' in target) return `person ${target.personId}`;
+    if ('volumeId' in target) {
+      const of = target.personId === undefined ? '' : ` of ${target.personId}`;
+      return `${target.volumeId}/${target.image} ${target.fileId}${of}`;
+    }
     if ('citationId' in target) return `citation ${target.citationId}`;
-    return `${target.volumeId}/${target.image} ${target.fileId}`;
+    return `person ${target.personId}`;
   }
 
   function reminder(id: number) {

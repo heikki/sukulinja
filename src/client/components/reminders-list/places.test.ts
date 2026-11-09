@@ -9,7 +9,7 @@ import type {
   VolumeCitation
 } from '@/common/types';
 
-import { placesHere, reminderPlaces } from './places';
+import { placesHere } from './places';
 
 function churchBook(id: number): CitationRow {
   return {
@@ -86,7 +86,8 @@ async function viewing() {
           volume: 'I Aa:201',
           image: 18,
           fileId: '201-f18',
-          stale: false
+          stale: false,
+          personId: null
         },
         created: '',
         done: null
@@ -135,29 +136,17 @@ const IMAGE_18 = {
   fileId: '201-f18'
 };
 
-test("on the source's Image, a Reminder is on its Citation, or else the Image", async () => {
+test('on a scan, a Reminder may be on the Selected person and the Image', async () => {
   const state = await viewing();
-  const places = reminderPlaces(state);
-  expect(places?.cited).toEqual({
-    header: ['Matti Esimerkki', 'I Aa:201 · Image 18'],
-    target: { citationId: 11 }
+  expect(placesHere(state)).toEqual({
+    person: { personId: 1, header: 'Matti Esimerkki' },
+    image: { at: IMAGE_18, header: 'I Aa:201 · Image 18' }
   });
-  expect(places?.base).toEqual({
-    header: ['I Aa:201 · Image 18'],
-    target: IMAGE_18
-  });
-});
-
-test("off the source's Image, a Reminder is on the Image shown", async () => {
-  const state = await viewing();
   state.viewer.show(19);
   await Bun.sleep(0);
-  expect(reminderPlaces(state)).toEqual({
-    cited: null,
-    base: {
-      header: ['I Aa:201 · Image 19'],
-      target: { ...IMAGE_18, image: 19, fileId: '201-f19' }
-    }
+  expect(placesHere(state)?.image).toEqual({
+    at: { ...IMAGE_18, image: 19, fileId: '201-f19' },
+    header: 'I Aa:201 · Image 19'
   });
 });
 
@@ -165,7 +154,7 @@ test('with no Image shown, a Reminder is on the Selected person', async () => {
   const state = await viewing();
   state.viewer.close();
   expect(placesHere(state)).toEqual({
-    cited: null,
-    base: { header: ['Matti Esimerkki'], target: { personId: 1 } }
+    person: { personId: 1, header: 'Matti Esimerkki' },
+    image: null
   });
 });
