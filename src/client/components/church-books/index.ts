@@ -12,8 +12,6 @@ import { fetchParishes, fetchVolumes, sendDownload } from './api';
 import { busy, downloadActions, volumeLine } from './helpers';
 import type { DownloadAction } from './helpers';
 
-import '../corner-panel/panel';
-
 // How often a parish's Volumes are asked for again while one downloads.
 const POLL_MS = 2000;
 
@@ -22,10 +20,10 @@ export type VolumeOpenEvent = CustomEvent<{ volumeId: string; label: string }>;
 // The church books apart from any citation: the known parishes, then a
 // parish's Volumes in Astia's order, each with what of it is on disk and
 // its download to start, stop or remove. Clicking a Volume opens it
-// (`open-volume`). In a corner panel over the chart, which asks to
-// `close`.
-@customElement('sl-church-books-dialog')
-class ChurchBooksDialogElement extends LitElement {
+// (`open-volume`). A tab of the corner panel; leaving it, by another tab
+// or closing, stops asking.
+@customElement('sl-church-books-list')
+class ChurchBooksListElement extends LitElement {
   static override styles = [
     cornerListStyles,
     css`
@@ -50,6 +48,11 @@ class ChurchBooksDialogElement extends LitElement {
         background: none;
         color: var(--fg);
         font-size: 0.8rem;
+      }
+
+      p.parish {
+        margin: 0 0 0.25rem;
+        font-weight: 500;
       }
 
       button.act:hover {
@@ -211,37 +214,27 @@ class ChurchBooksDialogElement extends LitElement {
 
   private renderBack() {
     if (this.parish === null) return nothing;
-    return html`<button
-      slot="actions"
-      class="toggle"
-      @click=${() => {
-        this.pickParish(null);
-      }}
-    >
-      ‹ All parishes
-    </button>`;
+    return html`<div class="actions">
+      <button
+        class="toggle"
+        @click=${() => {
+          this.pickParish(null);
+        }}
+      >
+        ‹ All parishes
+      </button>
+    </div>`;
   }
 
   override render() {
-    const heading =
-      this.parish === null
-        ? 'Church books'
-        : `Church books · ${this.parish.name}`;
-    return html`<sl-corner-panel
-      heading=${heading}
-      kind="church-books"
-      @close=${() => {
-        this.dispatchEvent(new CustomEvent('close'));
-      }}
-    >
-      ${this.parish === null ? this.renderParishes() : this.renderVolumes()}
-      ${this.renderBack()}
-    </sl-corner-panel>`;
+    if (this.parish === null) return this.renderParishes();
+    return html`<p class="parish">${this.parish.name}</p>
+      ${this.renderVolumes()} ${this.renderBack()}`;
   }
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'sl-church-books-dialog': ChurchBooksDialogElement;
+    'sl-church-books-list': ChurchBooksListElement;
   }
 }

@@ -17,9 +17,7 @@ import { detailsWidth, setDetailsWidth } from '../person-panel/helpers';
 
 import '../person-search';
 import '../reminder-dialog/shown';
-import '../changes-dialog/button';
-import '../church-books/button';
-import '../reminders-dialog/button';
+import '../corner-lists';
 import '../settings';
 
 import type { PickEvent } from '../person-search';
@@ -375,7 +373,8 @@ class TreeViewElement extends SignalWatcher(LitElement) {
     });
   }
 
-  // A row picked in the Reminders or Changes list shows the person's details.
+  // A Reminder or Change picked in the corner panel shows the person's
+  // details.
   private readonly openDock = () => {
     this.details = true;
   };
@@ -392,9 +391,7 @@ class TreeViewElement extends SignalWatcher(LitElement) {
             this.state.chart.select(e.detail.id);
           }}
         ></sl-person-search>
-        <sl-reminders-button @dock-open=${this.openDock}></sl-reminders-button>
-        <sl-changes-button @dock-open=${this.openDock}></sl-changes-button>
-        <sl-church-books-button></sl-church-books-button>
+        <sl-corner-lists @dock-open=${this.openDock}></sl-corner-lists>
         <sl-settings
           .generations=${this.gen}
           .datasetName=${this.datasetName}

@@ -1,5 +1,6 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { repeat } from 'lit/directives/repeat.js';
 
 import { dialogStyles } from '@/client/dialog-styles';
 import { Floating, floatingStyles } from '@/client/floating';
@@ -9,10 +10,17 @@ function stop(e: Event) {
   e.stopPropagation();
 }
 
-// The panel a corner button opens: a card floating over the chart, headed
-// by `heading`, its content slotted in and anything under the list in the
-// `actions` slot. It's dragged by its background and opens where panels
-// of its `kind` were last left. ✕ in its corner or Esc asks to `close`, and
+export interface CornerTab {
+  id: string;
+  label: string;
+}
+
+export type TabPickEvent = CustomEvent<string>;
+
+// The panel the corner buttons open: one card floating over the chart,
+// headed by its `tabs`, the `active` one's content slotted in. Picking
+// another tab asks for it (`tab`). It's dragged by its background and opens
+// where it was last left. ✕ in its corner or Esc asks to `close`, and
 // presses on it stay here.
 @customElement('sl-corner-panel')
 class CornerPanelElement extends LitElement {
@@ -29,14 +37,15 @@ class CornerPanelElement extends LitElement {
         padding: 1rem;
         flex-direction: column;
         max-width: none;
-        max-height: min(36rem, calc(100vh - 4rem));
+        /* One height for every tab, so switching doesn't move it. */
+        height: min(36rem, calc(100vh - 4rem));
       }
 
       .dialog:popover-open {
         display: flex;
       }
 
-      /* The heading, muted as a Reminder's is, and closing in the corner. */
+      /* The tabs, muted but the active one, and closing in the corner. */
       .top {
         display: flex;
         align-items: flex-start;
@@ -45,11 +54,36 @@ class CornerPanelElement extends LitElement {
         margin: 0 0 0.5rem;
       }
 
-      .dialog .top h2 {
-        margin: 0;
+      .tabs {
+        display: flex;
+        gap: 1rem;
+      }
+
+      .dialog .tabs button {
+        padding: 0 0 0.2rem;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        border-radius: 0;
+        background: none;
         color: var(--muted);
         font-size: 0.85rem;
-        font-weight: 400;
+      }
+
+      .dialog .tabs button:hover {
+        color: var(--fg);
+      }
+
+      .dialog .tabs button[aria-selected='true'] {
+        border-bottom-color: var(--accent);
+        color: var(--fg);
+      }
+
+      /* What the active tab lists fills the rest, scrolling itself. */
+      .content {
+        display: flex;
+        flex: 1;
+        min-height: 0;
+        flex-direction: column;
       }
 
       .dialog button.close {
@@ -70,18 +104,14 @@ class CornerPanelElement extends LitElement {
         background: color-mix(in srgb, var(--fg) 8%, transparent);
         color: var(--fg);
       }
-
-      .actions {
-        align-items: center;
-      }
     `
   ];
 
-  @property() heading = '';
+  @property({ attribute: false }) tabs: CornerTab[] = [];
 
-  @property() kind = '';
+  @property() active = '';
 
-  private readonly floating = new Floating(this, () => this.kind);
+  private readonly floating = new Floating(this, 'corner');
 
   override connectedCallback() {
     super.connectedCallback();
@@ -109,23 +139,42 @@ class CornerPanelElement extends LitElement {
     this.close();
   };
 
+  private renderTabs() {
+    return html`<div class="tabs" role="tablist">
+      ${repeat(
+        this.tabs,
+        (t) => t.id,
+        (t) =>
+          html`<button
+            role="tab"
+            aria-selected=${t.id === this.active ? 'true' : 'false'}
+            @click=${() => {
+              this.dispatchEvent(new CustomEvent('tab', { detail: t.id }));
+            }}
+          >
+            ${t.label}
+          </button>`
+      )}
+    </div>`;
+  }
+
   override render() {
+    const active = this.tabs.find((t) => t.id === this.active);
     return html`
       <div
         class="dialog"
         popover="manual"
         role="dialog"
-        aria-label=${this.heading}
+        aria-label=${active?.label ?? ''}
         @pointerdown=${this.floating.grip}
       >
         <div class="top">
-          <h2>${this.heading}</h2>
+          ${this.renderTabs()}
           <button class="close" aria-label="Close" @click=${this.close}>
             ✕
           </button>
         </div>
-        <slot></slot>
-        <div class="actions"><slot name="actions"></slot></div>
+        <div class="content" role="tabpanel"><slot></slot></div>
       </div>
     `;
   }

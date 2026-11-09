@@ -11,16 +11,14 @@ import type { Reminder } from '@/common/types';
 import { cornerListStyles } from '../corner-panel/list-styles';
 import { listed } from './helpers';
 
-import '../corner-panel/panel';
-
 export type ReminderPickEvent = CustomEvent<Reminder>;
 
 // Every open Reminder in the dataset, newest first, each with what it's
 // on; one on an Image from an earlier filming is flagged so. Clicking one
-// picks it (`pick`). Show done adds the done ones, dimmed. In a corner
-// panel over the chart, which asks to `close`.
-@customElement('sl-reminders-dialog')
-class RemindersDialogElement extends SignalWatcher(LitElement) {
+// picks it (`pick`). Show done adds the done ones, dimmed. A tab of the
+// corner panel.
+@customElement('sl-reminders-list')
+class RemindersListElement extends SignalWatcher(LitElement) {
   static override styles = cornerListStyles;
 
   @consume({ context: appState }) private readonly state!: AppState;
@@ -81,33 +79,26 @@ class RemindersDialogElement extends SignalWatcher(LitElement) {
       ? all.filter((r) => r.done !== null).length
       : 0;
     if (done === 0) return nothing;
-    return html`<button
-      slot="actions"
-      class="toggle"
-      aria-pressed=${this.showDone ? 'true' : 'false'}
-      @click=${() => {
-        this.showDone = !this.showDone;
-      }}
-    >
-      ${this.showDone ? 'Hide done' : `Show done (${done})`}
-    </button>`;
+    return html`<div class="actions">
+      <button
+        class="toggle"
+        aria-pressed=${this.showDone ? 'true' : 'false'}
+        @click=${() => {
+          this.showDone = !this.showDone;
+        }}
+      >
+        ${this.showDone ? 'Hide done' : `Show done (${done})`}
+      </button>
+    </div>`;
   }
 
   override render() {
-    return html`<sl-corner-panel
-      heading="Reminders"
-      kind="reminders"
-      @close=${() => {
-        this.dispatchEvent(new CustomEvent('close'));
-      }}
-    >
-      ${this.renderBody()} ${this.renderShowDone()}
-    </sl-corner-panel>`;
+    return html`${this.renderBody()} ${this.renderShowDone()}`;
   }
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'sl-reminders-dialog': RemindersDialogElement;
+    'sl-reminders-list': RemindersListElement;
   }
 }
