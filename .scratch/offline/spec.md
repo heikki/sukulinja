@@ -6,7 +6,7 @@ From [issues/01-download-whole-volumes.md](issues/01-download-whole-volumes.md).
 
 ## In one line
 
-From the Scan viewer's right-click menu, **Download Volume** fetches every Image of the Volume shown, full size and thumbnail, into the Scan cache and keeps them there until removed; Settings lists the downloaded Volumes.
+A new **Church books** view lists each known parish's Volumes, with how much of each is on disk; from there a Volume is opened in the Scan viewer with no citation, or **downloaded**: every Image, full size and thumbnail, fetched into the Scan cache and kept there until removed.
 
 ## New term
 
@@ -34,11 +34,16 @@ This changes the 2026-10-21 decision "the cap and least-recently-viewed rule app
 - **Stop / Resume**: Stop leaves what's fetched and keeps it a Downloaded Volume, listed as incomplete ("120 of 180"). Resume carries on from the first Image not on disk. Quitting the app is a Stop; nothing resumes on its own at launch (opening the app offline shouldn't start hammering a recovering Astia).
 - **Re-scan**: the download uses the app's cache (`switches: false`), so an Image gone with a re-scan stops it as **Re-scanned in Astia**; switching to the new filming in the Scan viewer, as today, drops the old Images and the download shows incomplete again, to Resume onto the new filming.
 
-### Where it's asked for
+### Where it's asked for: the Church books view (Heikki, 2026-11-09)
 
-- **Scan viewer, right-click menu**, after Change Volume…: **Download Volume…** for the Volume shown; on one being or already downloaded, **Stop download** / **Resume download** / **Remove download**. Only when a Volume is shown and Astia has listed its Images.
-- **Scan viewer toolbar**: beside the Volume's title, "Downloading 42/180" while that Volume downloads, "Downloaded" once whole.
-- **Settings**, under Scan cache: a list of Downloaded Volumes (title, Images on disk of total, size, state) with Stop/Resume and Remove. Settings is where the space is managed, and where one is removed without opening it.
+A view of its own for the church books, not tied to a citation: opened from the side dock beside Reminders, as a dialog over the chart like the Reminders list.
+
+- **Parishes**: the parishes whose archives are known (`archives.ts`), one row per archive, with how much of its Volumes is on disk.
+- **A parish's Volumes**, grouped by series (Pää- ja rippikirjat, Lastenkirjat, …) in Astia's order, as `archiveVolumes` lists them. Each row: label, years, Images on disk of total (known once Astia's list of Images has been asked for), size on disk, and its download state.
+- **Open**: opens the Volume in the Scan viewer on Image 1 with no source, as a Reminder opens an Image today (`viewer.openImage`). This is the start of browsing without a citation; nothing in the viewer changes for it.
+- **Download / Stop / Resume / Remove** on each Volume row; one being downloaded shows "42 / 180".
+- **Settings** keeps only the totals ("Scan cache: 1.2 GB of 5 GB · Downloaded: 450 MB in 1 Volume") and a link to the view.
+- **Scan viewer toolbar**: beside the Volume's title, "Downloaded" or "Downloading 42/180" for that Volume. No menu items there; downloads are managed in the view.
 
 ## Groundwork first (refactor, its own commit)
 
@@ -49,17 +54,21 @@ The Scan cache owns `settings.local.json` today: `readSettings`/`savedCap` and `
 
 Then downloads are a module of their own on top of the cache's public `image()`, not code inside it.
 
+Also groundwork: `archives.ts` maps parish spellings to archive ids, so one archive has several keys and no name of its own. It becomes a list of archives, each with its name and the spellings that lead to it, so the view can list each parish once. `parishArchive` keeps its behaviour.
+
 ## Server
 
 - Downloaded Volumes are kept, through `install-settings.ts`, in `settings.local.json` as `downloadedVolumes: [{ volumeId, label }]`, beside `scanCacheBytes`.
 - `prune` skips files where `kept(volumeId)`, and they're left out of `used`; `status()` adds `downloaded: { bytes, volumes }`.
 - A new module `astia/downloads.ts`: the queue of Volumes, the one running, its progress, Stop. Reads the Volume's list via `astia.volumeImages`, fetches each Image through `cache.image(…, 'full' | 'thumb', signal)`, aborting the signal on Stop.
 - Routes, outside any dataset beside the others in `astia-routes.ts`:
+  - `GET /astia/parishes`: the known parishes, each with its archive id and how much is on disk.
+  - `GET /astia/archives/:id/volumes`: the archive's Volumes, each with its Images on disk and download state.
   - `GET /astia/downloads`: every Downloaded Volume and its state (`queued | downloading | stopped | complete`, `cached`, `images`, `bytes`, `error?`).
   - `PUT /astia/volumes/:id/download`: download or resume (idempotent).
   - `POST /astia/volumes/:id/download/stop`: stop, keep.
   - `DELETE /astia/volumes/:id/download`: stop and remove.
-- Progress reaches the client by polling `GET /astia/downloads` every 2 s while anything is queued or downloading, only while the Scan viewer or Settings is open. (Import progress streams; a poll is simpler here and nothing else needs a stream.)
+- Progress reaches the client by polling `GET /astia/downloads` every 2 s while anything is queued or downloading, only while the Church books view or the Scan viewer is open. (Import progress streams; a poll is simpler here and nothing else needs a stream.)
 
 ## Tests
 
@@ -71,9 +80,12 @@ With `memory-astia.ts` and a temp data folder:
 - Stop mid-way leaves `stopped` with what's fetched; Resume fetches only the rest.
 - Astia failing stops it with the error; a re-scan stops it as re-scanned, and after `refresh` it's incomplete again.
 - The setting survives reopening the cache; Clear leaves downloads alone.
-- Client: the menu items for each state (`menu.test.ts`).
+- The parishes list each archive once; an archive's Volumes carry what's on disk.
+- Client: the view's row actions for each download state, and Open calling `openImage` on Image 1.
 
 ## Not in this
+
+- Browsing beyond opening a Volume: searching across parishes, adding parishes not yet in `archives.ts` from Astia, or Change Volume… with no source.
 
 - Downloading a whole parish or Book at once (the Settings list could later take "Download every Volume of this Book").
 - Resolving references never resolved before: that needs Astia's archive answers, which `.astia-cache` already keeps for good once fetched.
