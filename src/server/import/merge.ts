@@ -16,7 +16,12 @@ import type { Database, SQLQueryBindings } from 'bun:sqlite';
 
 import type { ImportReview } from '@/common/types';
 
-import { annotationOf, carryRejections, openAnnotations } from '../citations';
+import {
+  annotationOf,
+  carryRejections,
+  convertKin,
+  openAnnotations
+} from '../citations';
 import type { Annotation, Annotations } from '../citations';
 import { describer, ownerFinder, recordMatcher, rowsOf } from './merge-records';
 import type { Owner, Row } from './merge-records';
@@ -444,6 +449,8 @@ function merge(fresh: Database, stored: Database, byXref: boolean) {
   review.citations.added = freshCitations.filter(
     (f) => !f.appMade && !paired.has(f)
   ).length;
+  // A new reference of a record already converted converts too.
+  review.kept.converted += convertKin(fresh);
   review.kept.rejections = carryRejections(m.stored, m.fresh);
   const reminders = carryReminders(m, carried, describe);
   review.kept.reminders = reminders.kept;

@@ -9,6 +9,7 @@ import type { RecordView } from '@/common/types';
 
 import { annotated, annotationColumnsSql } from '../annotations';
 import type { References } from '../references';
+import { openMarks } from './pins/marks';
 import type { Marks } from './pins/marks';
 import { churchBookRefOf, markKey, readRecord } from './record';
 import type { ChurchBookRef } from './record';
@@ -74,4 +75,22 @@ export function referencesOf(
       });
     }
   };
+}
+
+// The dataset's references of a record or URL a converted Citation cites:
+// each group with the Link to give them, and their texts as plain lines,
+// for a Conversion of their own.
+export function kinOfConverted(db: Database) {
+  const textOf = db.prepare<{ text: string | null }, [number]>(
+    'SELECT text FROM citations WHERE id = ?'
+  );
+  return openMarks(db)
+    .kinOfConverted()
+    .map(({ link, ids }) => ({
+      link,
+      rows: ids.map((id) => ({
+        id,
+        text: plainRecord(readRecord(textOf.get(id)?.text ?? ''))
+      }))
+    }));
 }

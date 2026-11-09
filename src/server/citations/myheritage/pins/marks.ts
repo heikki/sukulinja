@@ -50,6 +50,8 @@ export function openMarks(db: Database) {
   let index: {
     version: string;
     byKey: Map<string, number[]>;
+    // The Citations converted from a reference of the key.
+    converted: Map<string, number[]>;
     byId: Map<number, { url: string; recordId: number | null }>;
     urls: Set<string>;
   } | null = null;
@@ -64,18 +66,20 @@ export function openMarks(db: Database) {
       )
       .all();
     const byKey = new Map<string, number[]>();
+    const converted = new Map<string, number[]>();
     const byId = new Map<number, { url: string; recordId: number | null }>();
     for (const row of rows) {
       const ref = markedRefOf(row.page);
       if (ref === null) continue;
       byId.set(row.id, ref);
-      if (row.madeInApp === 1) continue;
       const key = markKey(ref);
-      byKey.set(key, [...(byKey.get(key) ?? []), row.id]);
+      const into = row.madeInApp === 1 ? converted : byKey;
+      into.set(key, [...(into.get(key) ?? []), row.id]);
     }
     index = {
       version: now,
       byKey,
+      converted,
       byId,
       urls: new Set([...byKey.values()].flat().map((id) => byId.get(id)!.url))
     };
@@ -201,6 +205,17 @@ export function openMarks(db: Database) {
     // Changes whenever the Marks do, from this process or another.
     stamp() {
       return `${version()}.${writes}`;
+    },
+
+    // The references of a record or URL a converted Citation cites, by the
+    // Link that Citation holds: what a re-import converts too.
+    kinOfConverted() {
+      const { byKey, converted } = indexed();
+      return [...converted].flatMap(([key, ids]) => {
+        const refs = byKey.get(key) ?? [];
+        const link = annotations.firstLink(ids);
+        return refs.length === 0 || link === null ? [] : [{ link, ids: refs }];
+      });
     },
 
     // The citations a Mark of the key is written into.

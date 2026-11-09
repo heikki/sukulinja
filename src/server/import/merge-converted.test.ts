@@ -1,10 +1,12 @@
 import { expect, test } from 'bun:test';
 
 import {
+  ASTIA,
   citations,
   convert,
   CONVERTED,
   importTree,
+  MAIJA,
   MATTI,
   PAGE,
   PLAIN,
@@ -67,4 +69,28 @@ test('a Reminder on a converted Citation stays on it', async () => {
     )
     .all();
   expect(on).toEqual([{ text: 'Check the household', added_in_app: 1 }]);
+});
+
+const RECORD =
+  'https://www.myheritage.fi/research/collection-10509/x?itemId=5001&action=showRecord';
+const OTHER =
+  'https://www.myheritage.fi/research/collection-10509/x?itemId=5002&action=showRecord';
+
+test("a new person's citation of a converted record converts at import", async () => {
+  await importTree(tree([{ ...MATTI, pages: [RECORD] }]));
+  convert('@I1@', RECORD);
+  const outcome = await importTree(
+    tree([
+      { ...MATTI, pages: [RECORD] },
+      { ...MAIJA, pages: [RECORD, OTHER] }
+    ])
+  );
+  const marked = { page: ASTIA, original_page: RECORD, link_image: 12 };
+  // The export's own first, then the converted Citation reattached.
+  expect(citations()).toEqual([
+    { xref: '@I2@', ...marked, link_box_left: 10, added_in_app: 1 },
+    { xref: '@I2@', page: OTHER, ...PLAIN, added_in_app: 0 },
+    { xref: '@I1@', ...marked, link_box_left: 10, added_in_app: 1 }
+  ]);
+  expect(outcome.merged?.kept.converted).toBe(2);
 });
