@@ -31,10 +31,15 @@ export class Floating implements ReactiveController {
     private readonly host: ReactiveControllerHost & {
       renderRoot: ParentNode;
     },
-    private readonly kind: string,
+    // Its kind, or how to read it once the host has its properties.
+    private readonly kind: string | (() => string),
     private readonly opensAt: () => Point | null = () => null
   ) {
     host.addController(this);
+  }
+
+  private kindOf() {
+    return typeof this.kind === 'string' ? this.kind : this.kind();
   }
 
   private panel() {
@@ -53,7 +58,7 @@ export class Floating implements ReactiveController {
       this.place({ x: Math.max(MARGIN_PX, x), y: Math.max(MARGIN_PX, y) });
       return;
     }
-    const at = placed.get(this.kind);
+    const at = placed.get(this.kindOf());
     if (at !== undefined) this.place(at);
   }
 
@@ -70,7 +75,7 @@ export class Floating implements ReactiveController {
     panel.style.margin = '0';
     panel.style.left = `${x}px`;
     panel.style.top = `${y}px`;
-    if (!this.own) placed.set(this.kind, { x, y });
+    if (!this.own) placed.set(this.kindOf(), { x, y });
   }
 
   // A press on the panel's background starts a drag, followed until the

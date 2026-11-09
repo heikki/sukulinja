@@ -17,6 +17,7 @@ Working through the books, you Mark, Discard and cite dozens of entries in a sit
   - _Undo last import_.
 
   Not logged: Reminders (they are their own list already, with open and done); the vision pass's Matches (a script, not the app, and it writes thousands); a view change (selecting someone, panning).
+
 - **Shared facts ride on the Change that made them.** A Page pin saved by a Mark is said in that Mark's Change (_also pinned page 463_), not logged on its own. A **Re-scan** switch is shared by every dataset and made through a shared route; see the open question below.
 - **Per dataset, in its database.** A `changes` table, like `reminders`: when, what kind, what it was on (a person, a Citation, an Image as Volume id, label, Image number and file id), and a short text written when it happened (the person's name and years, the source, the Volume and Image) so it still reads once what it was on is gone. Bump `SCHEMA_VERSION`, so each dataset is imported again once, as for Reminders; the merge reads the older database as it does today.
 - **App only.** No export writes it, like Rejections and Reminders (ADR-0013 gets the line).
@@ -31,6 +32,7 @@ Working through the books, you Mark, Discard and cite dozens of entries in a sit
   - an import or undo: leads nowhere.
 
   Not a URL: the chart's hash (ADR-0004) only holds Root, pan and zoom, not the Scan viewer, and the app has no address bar to share one from.
+
 - **Only for finding your way.** No undo from the list. Taking a Mark back is a Discard, done in the Scan viewer where you can see it.
 - **Where it's shown.** A clock button beside the Reminders flag and the Settings gear opens a floating dialog like the Reminders list: grouped by day, each row the time, what was done and where (_Marked at the entry · Juho Mikonpoika (1771–1832) — Mikkeli I Aa:5, Image 232_). Shown once the dataset has any Changes.
 - **How long kept.** All of them. A row is a few hundred bytes; a year of work is far under a megabyte.
