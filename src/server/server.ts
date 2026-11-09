@@ -83,9 +83,11 @@ function createDatasetHandlers(
     },
 
     async handleRemind(text, target) {
-      const missing =
-        'citationId' in target ? 'citation not found' : 'person not found';
-      return answerReminder(await reminders.add(text, target), missing, 201);
+      return answerReminder(
+        await reminders.add(text, target),
+        'person not found',
+        201
+      );
     },
 
     async handleChangeReminder(id, change) {

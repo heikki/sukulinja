@@ -8,11 +8,11 @@ import type {
   CitationLinks,
   FamilyRow,
   Link,
-  On,
-  OnTarget,
   PersonDetails,
   PersonRow,
   Reminder,
+  ReminderOn,
+  ReminderTarget,
   Rescan,
   StalePin,
   VolumeChoices,
@@ -67,10 +67,8 @@ type MemoryDatasetApi = DatasetApi & {
   // <volume>/<image>", "cite <person> <volume>/<image> <file>[: <text>]",
   // "uncite <citation>", "choices <citation>", "citations <volume>",
   // "images <volume>", "rescan <volume>", "switch <volume>", "changes",
-  // "reminders",
-  // "remind person <id>: <text>" (or "citation <id>", or
-  // "<volume>/<image> <file>"), "change reminder <id>", "delete reminder
-  // <id>".
+  // "reminders", "remind person <id>: <text>" (or "<volume>/<image>
+  // <file>"), "change reminder <id>", "delete reminder <id>".
   // A Citation made by `cite` joins its Volume's citations, numbered on
   // from 1000, and `uncite` takes one out.
   asked: string[];
@@ -116,16 +114,7 @@ export function memoryDatasetApi(
     return value;
   }
 
-  // A Citation the Volumes list, with whose it is.
-  function citationOf(citationId: number) {
-    const rows = Object.values(data.volumes ?? {}).flatMap((v) => v.citations);
-    return found(
-      rows.find((r) => r.citation.id === citationId),
-      'citation not found'
-    );
-  }
-
-  function onOf(target: OnTarget): On {
+  function onOf(target: ReminderTarget): ReminderOn {
     if ('volumeId' in target) {
       return {
         kind: 'image',
@@ -134,25 +123,14 @@ export function memoryDatasetApi(
         personId: target.personId ?? null
       };
     }
-    if ('citationId' in target) {
-      const { personId, citation } = citationOf(target.citationId);
-      return {
-        kind: 'citation',
-        personId,
-        citationId: citation.id,
-        source: citation.source,
-        reference: citation.reference ?? citation.entry
-      };
-    }
     return { kind: 'person', personId: target.personId };
   }
 
-  function whereOf(target: OnTarget) {
+  function whereOf(target: ReminderTarget) {
     if ('volumeId' in target) {
       const of = target.personId === undefined ? '' : ` of ${target.personId}`;
       return `${target.volumeId}/${target.image} ${target.fileId}${of}`;
     }
-    if ('citationId' in target) return `citation ${target.citationId}`;
     return `person ${target.personId}`;
   }
 

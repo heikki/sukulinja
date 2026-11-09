@@ -295,7 +295,7 @@ function columnsOf(db: Database, table: string) {
 // gives the dataset's citations in the new database; a Citation's onto its
 // person when the Citation is gone. One on an Image is put back as it was.
 // One whose person is gone is left out, or with `keepGone`, kept on
-// nothing. Gives those whose person is gone, and who they were.
+// nothing. Only the columns the new table has are filled. Gives those whose person is gone, and who they were.
 function carryOn(
   m: Merge,
   citations: Map<number, number>,
@@ -333,7 +333,8 @@ function carryOn(
   return gone;
 }
 
-// The dataset's Reminders, carried as `carryOn` says. How many were, and
+// The dataset's Reminders, carried as `carryOn` says; one on a Citation,
+// as an older app kept them, is put on its person. How many were, and
 // those whose person is gone, described.
 function carryReminders(
   m: Merge,

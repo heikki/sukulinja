@@ -1,7 +1,7 @@
 import { signal } from '@lit-labs/signals';
 
 import type { DatasetApi } from '@/client/dataset-api';
-import type { OnTarget, Reminder, ReminderChange } from '@/common/types';
+import type { Reminder, ReminderChange, ReminderTarget } from '@/common/types';
 
 import { Latest } from './latest';
 import type { Readable } from './selected';
@@ -18,7 +18,7 @@ export interface ReminderPlaces {
 
 // Where a new Reminder is written: on the Image, about the person too; or
 // with no Image, on the person.
-export function targetOf({ person, image }: ReminderPlaces): OnTarget {
+export function targetOf({ person, image }: ReminderPlaces): ReminderTarget {
   if (image === null) return { personId: person!.personId };
   return person === null
     ? image.at
@@ -33,7 +33,7 @@ export interface Reminders {
   all: Readable<Reminder[] | null | 'failed'>;
   // Asks for them, unless they've come or are coming.
   load: () => void;
-  remind: (text: string, on: OnTarget) => Promise<Reminder>;
+  remind: (text: string, on: ReminderTarget) => Promise<Reminder>;
   change: (id: number, change: ReminderChange) => Promise<void>;
   remove: (id: number) => Promise<void>;
   // A new Reminder being written in the list, on what it can be on; null

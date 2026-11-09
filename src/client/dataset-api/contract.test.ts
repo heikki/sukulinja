@@ -162,12 +162,6 @@ describe('the answers', () => {
       on: { kind: 'person', personId: 3 },
       done: null
     });
-    const onCitation = await api.remind('Is this him?', { citationId: 1 });
-    expect(onCitation.on).toMatchObject({
-      kind: 'citation',
-      personId: 1,
-      citationId: 1
-    });
     const image = { volumeId: VOLUME, volume: VOLUMES['juva-1'], image: 7 };
     await api.remind('Later hand', { ...image, fileId: `${VOLUME}-f7` });
     await api.remind('Before the re-scan', { ...image, fileId: 'gone' });
@@ -183,12 +177,10 @@ describe('the answers', () => {
     expect(listed.map((r) => r.text)).toEqual([
       'Before the re-scan',
       'Later hand',
-      'Is this him?',
       'Look for a second wife'
     ]);
     expect(listed.map((r) => r.on.kind === 'image' && r.on.stale)).toEqual([
       true,
-      false,
       false,
       false
     ]);
@@ -205,7 +197,7 @@ describe('the answers', () => {
     });
 
     await api.deleteReminder(onPerson.id);
-    expect(await api.reminders()).toHaveLength(3);
+    expect(await api.reminders()).toHaveLength(2);
     expect(await failure(api.deleteReminder(onPerson.id))).toBe(
       'reminder not found'
     );

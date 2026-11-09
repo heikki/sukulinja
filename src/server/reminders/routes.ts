@@ -1,11 +1,11 @@
 // The routes of a dataset's Reminders: listing them, writing one, changing
 // or deleting one. They read the request; the handlers answer it.
 
-import type { OnTarget, ReminderChange } from '@/common/types';
+import type { ReminderChange, ReminderTarget } from '@/common/types';
 
 export interface ReminderHandlers {
   handleReminders: () => Promise<Response>;
-  handleRemind: (text: string, target: OnTarget) => Promise<Response>;
+  handleRemind: (text: string, target: ReminderTarget) => Promise<Response>;
   handleChangeReminder: (
     id: number,
     change: ReminderChange
@@ -25,18 +25,17 @@ function isId(value: unknown): value is number {
 }
 
 // `{ volumeId, volume, image, fileId }`, with `personId` too for one about
-// someone; or `{ citationId }` or `{ personId }`. Anything else is null.
-function readTarget(on: unknown): OnTarget | null {
+// someone; or `{ personId }`. Anything else is null.
+function readTarget(on: unknown): ReminderTarget | null {
   if (typeof on !== 'object' || on === null) return null;
   const fields = on as Record<string, unknown>;
-  const { personId, citationId } = fields;
+  const { personId } = fields;
   if ('volumeId' in fields) {
     const image = readImage(fields);
     if (image === null) return null;
     if (personId === undefined) return image;
     return isId(personId) ? { ...image, personId } : null;
   }
-  if (isId(citationId)) return { citationId };
   return isId(personId) ? { personId } : null;
 }
 

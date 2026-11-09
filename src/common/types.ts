@@ -393,10 +393,16 @@ export type On =
 export interface Reminder {
   id: number;
   text: string;
-  on: On;
+  on: ReminderOn;
   created: string;
   done: string | null;
 }
+
+// What a Reminder is on: a person, or an Image, maybe about a person too.
+export type ReminderOn = Exclude<On, { kind: 'citation' }>;
+
+// What a new Reminder is put on.
+export type ReminderTarget = Exclude<OnTarget, { citationId: number }>;
 
 // What a new one is put on.
 export type OnTarget =

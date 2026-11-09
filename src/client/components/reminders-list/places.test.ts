@@ -91,32 +91,6 @@ async function viewing() {
         },
         created: '',
         done: null
-      },
-      {
-        id: 2,
-        text: "On Matti's 14",
-        on: {
-          kind: 'citation',
-          personId: 1,
-          citationId: 14,
-          source: null,
-          reference: null
-        },
-        created: '',
-        done: null
-      },
-      {
-        id: 3,
-        text: "On Maija's 12",
-        on: {
-          kind: 'citation',
-          personId: 2,
-          citationId: 12,
-          source: null,
-          reference: null
-        },
-        created: '',
-        done: null
       }
     ]
   });

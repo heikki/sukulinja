@@ -13,24 +13,16 @@ export interface OnLine {
 }
 
 // What a Reminder is on, a line each: the person's name, going to them,
-// then a Citation's source or an Image, going to it; an Image from an
-// earlier filming goes nowhere.
+// then an Image, going to it; an Image from an earlier filming goes
+// nowhere.
 export function onLines(state: AppState, reminder: Reminder): OnLine[] {
   const { on } = reminder;
   const header = headerOf(state, reminder);
-  if (on.kind === 'image') {
-    const image = { text: header.at(-1) ?? '', to: on.stale ? null : on };
-    if (on.personId === null) return [image];
-    const about: On = { kind: 'person', personId: on.personId };
-    return [{ text: header[0] ?? '', to: about }, image];
-  }
-  const person: On = { kind: 'person', personId: on.personId };
-  const [name = '', where] = header;
-  if (on.kind === 'person') return [{ text: name, to: person }];
-  return [
-    { text: name, to: person },
-    { text: where ?? '', to: on }
-  ];
+  if (on.kind === 'person') return [{ text: header[0] ?? '', to: on }];
+  const image = { text: header.at(-1) ?? '', to: on.stale ? null : on };
+  if (on.personId === null) return [image];
+  const about: On = { kind: 'person', personId: on.personId };
+  return [{ text: header[0] ?? '', to: about }, image];
 }
 
 // The lines, each that goes somewhere a button asking to (`go`, bubbling
