@@ -533,7 +533,7 @@ class TreeViewElement extends SignalWatcher(LitElement) {
                             }
                           },
                           contextmenu: (e: MouseEvent) => {
-                            this.menu = cardMenuAt(e, b, this.rootId);
+                            this.menu = cardMenuAt(e, b);
                           }
                         }
                       );
@@ -543,7 +543,7 @@ class TreeViewElement extends SignalWatcher(LitElement) {
               </div>`
             : nothing
         }
-        ${renderCardMenu(this.menu, this.persons, {
+        ${renderCardMenu(this.menu, this.persons, this.rootId, {
           // The card's person's pin is where their card is drawn, from
           // layout coords: label widths vary by name length and would
           // drift it across back-and-forth re-roots.
@@ -552,6 +552,13 @@ class TreeViewElement extends SignalWatcher(LitElement) {
               menu.personId,
               this.viewport.chartToScreen(menu.pos)
             );
+          },
+          // On the person alone, written in the Reminders list.
+          remind: (menu, name) => {
+            this.state.reminders.draft({
+              person: { personId: menu.personId, header: name },
+              image: null
+            });
           },
           close: () => {
             this.menu = null;

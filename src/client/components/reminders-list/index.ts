@@ -10,7 +10,6 @@ import type { Reminder } from '@/common/types';
 
 import { cornerListStyles } from '../corner-panel/list-styles';
 import { listed } from './helpers';
-import { placesHere } from './places';
 
 import './add';
 import './row';
@@ -18,8 +17,8 @@ import './row';
 // The only place Reminders are: every open one, newest first, each with
 // what it's on, a line going to each (`go`, from its row); Show done adds
 // the done ones, dimmed. Each is edited, done or deleted in its row. A new
-// one is written at the top, on what's in view: Add reminder starts it, as
-// the Scan viewer's menu does. A tab of the corner panel; leaving it drops
+// one, started from a card's menu or the Scan viewer's, is written at the
+// top. A tab of the corner panel; leaving it drops
 // the draft.
 @customElement('sl-reminders-list')
 class RemindersListElement extends SignalWatcher(LitElement) {
@@ -33,15 +32,6 @@ class RemindersListElement extends SignalWatcher(LitElement) {
 
       li.done {
         opacity: 0.55;
-      }
-
-      /* Add reminder at the start, Show done at the end. */
-      .actions {
-        justify-content: space-between;
-      }
-
-      .actions button.toggle {
-        margin-right: 0;
       }
 
       sl-reminder-add {
@@ -98,22 +88,6 @@ class RemindersListElement extends SignalWatcher(LitElement) {
     return html`<sl-reminder-add .places=${places}></sl-reminder-add>`;
   }
 
-  private renderAdd() {
-    const { reminders } = this.state;
-    if (reminders.drafting.get() !== null) return nothing;
-    const places = placesHere(this.state);
-    return html`<button
-      class="toggle"
-      ?disabled=${places === null}
-      title=${places === null ? 'Select someone, or open a scan, first' : ''}
-      @click=${() => {
-        reminders.draft(places);
-      }}
-    >
-      Add reminder
-    </button>`;
-  }
-
   private renderShowDone() {
     const all = this.state.reminders.all.get();
     const done = Array.isArray(all)
@@ -133,7 +107,7 @@ class RemindersListElement extends SignalWatcher(LitElement) {
 
   override render() {
     return html`${this.renderDraft()} ${this.renderBody()}
-      <div class="actions">${this.renderAdd()} ${this.renderShowDone()}</div>`;
+      <div class="actions">${this.renderShowDone()}</div>`;
   }
 }
 
