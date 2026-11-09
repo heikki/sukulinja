@@ -8,20 +8,16 @@ import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { Box } from '@/common/types';
 
-import type { ReminderDialogProps } from '../reminder-dialog';
+import { placesHere } from '../reminders-list/places';
 import { entriesOn, rowName } from './citations';
 import { citeChoices, citingImage, searchable } from './cite';
 import { scanLayerStyles } from './edit-styles';
 import { boxFromStage, boxOnStage, clampBox, newBox, wholeBox } from './frame';
 import type { Frame } from './frame';
 import { linkItems } from './menu';
-import { reminderPlaces, remindersHere } from './reminder-places';
-import type { ReminderOpenEvent } from './reminders';
 
 import '../context-menu';
 import '../person-search';
-import '../reminder-dialog';
-import './reminders';
 import './volumes';
 
 // The parts of a Box a drag can take: an edge, a corner, or all of it.
@@ -36,7 +32,7 @@ function stop(e: Event) {
 // What a right-click opened: the menu, the Volumes chosen from it, or the
 // people an entry can be cited for, listed or searched; or the Reminders
 // on the Image, opened from the page nav.
-type Popup = 'menu' | 'volumes' | 'cite' | 'search' | 'reminders';
+type Popup = 'menu' | 'volumes' | 'cite' | 'search';
 
 // A drag under way: from where, and the Box it started on.
 interface BoxDrag {
@@ -97,7 +93,6 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   @state() private popup: { at: Point; onBox: boolean; show: Popup } | null =
     null;
   private searchOpened = false;
-  @state() private dialog: ReminderDialogProps | null = null;
   @state() private drag: BoxDrag | null = null;
   // The Box as a drag has it, before it's let go.
   @state() private live: Box | null = null;
@@ -132,17 +127,8 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   // presses on it stop there.
   private readonly onOutside = () => {
     const show = this.popup?.show;
-    if (show === 'search' || show === 'reminders') this.popup = null;
+    if (show === 'search') this.popup = null;
   };
-
-  // The Reminders on the Image shown, opened from the page nav's marker
-  // at `at` on the stage, or closed when they're open.
-  toggleReminders(at: Point) {
-    this.popup =
-      this.popup?.show === 'reminders'
-        ? null
-        : { at, onBox: false, show: 'reminders' };
-  }
 
   // The menu at `at` on the stage; `onBox` when it's on the source's own
   // entry Box, which then has a menu of its own.
@@ -166,15 +152,12 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }
 
-  // Esc stops a drag, or closes the Reminders, before the viewer's Esc
-  // closes anything.
+  // Esc stops a drag before the viewer's Esc closes anything.
   private readonly onKey = (e: KeyboardEvent) => {
     if (e.key !== 'Escape') return;
-    const listed = this.popup?.show === 'reminders';
-    if (this.drag === null && !listed) return;
+    if (this.drag === null) return;
     e.preventDefault();
     e.stopPropagation();
-    if (listed) this.popup = null;
     this.drag = null;
     this.live = null;
   };
@@ -330,62 +313,18 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     </div>`;
   }
 
-  // The dialog to write a Reminder on the Image shown, or on the source's
-  // Citation while it links the Image, opened where it was asked for, at
-  // `at` on the stage.
-  private remind(at: Point) {
-    const places = reminderPlaces(this.state);
+  // A Reminder on the Image shown and the Selected person, written in the
+  // Reminders list.
+  private remind() {
+    const places = placesHere(this.state);
     if (places === null) return;
     this.popup = null;
-    const rect = this.getBoundingClientRect();
-    this.dialog = {
-      heading: 'Add reminder',
-      at: { x: rect.left + at.x, y: rect.top + at.y },
-      places,
-      text: '',
-      save: async (text, target) => {
-        if (target !== null) await this.state.reminders.remind(text, target);
-      }
-    };
-  }
-
-  private here() {
-    const volume = this.viewer.volume.get();
-    if (volume === null) return undefined;
-    return { volumeId: volume.id, image: this.viewer.image.get() };
-  }
-
-  private renderReminders(at: Point) {
-    return html`<sl-scan-reminders
-      style="left: ${at.x}px; top: ${at.y}px"
-      .reminders=${remindersHere(this.state)}
-      .persons=${this.persons}
-      .here=${this.here() ?? null}
-      @reminder-open=${(e: ReminderOpenEvent) => {
-        this.state.reminders.toggle(e.detail.id);
-      }}
-    ></sl-scan-reminders>`;
-  }
-
-  private renderDialog() {
-    if (this.dialog === null) return nothing;
-    const { heading, places, text, save, at } = this.dialog;
-    return html`<sl-reminder-dialog
-      .heading=${heading}
-      .at=${at}
-      .places=${places}
-      .text=${text}
-      .save=${save}
-      @close=${() => {
-        this.dialog = null;
-      }}
-    ></sl-reminder-dialog>`;
+    this.state.reminders.draft(places);
   }
 
   private renderPopup() {
     if (this.popup === null) return nothing;
     const { at, onBox, show } = this.popup;
-    if (show === 'reminders') return this.renderReminders(at);
     if (show === 'volumes') {
       return html`<sl-scan-volumes
         .at=${at}
@@ -408,7 +347,7 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
           this.popup = { at, onBox, show: 'cite' };
         },
         remind: () => {
-          this.remind(at);
+          this.remind();
         }
       }
     );
@@ -452,7 +391,7 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   }
 
   override render() {
-    return html`${this.renderBox()} ${this.renderPopup()} ${this.renderDialog()}`;
+    return html`${this.renderBox()} ${this.renderPopup()}`;
   }
 }
 

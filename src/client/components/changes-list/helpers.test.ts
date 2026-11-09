@@ -122,7 +122,8 @@ test('leads to what it was on, but nowhere from nothing or a stale Image', () =>
     volumeId: '201',
     volume: 'I Aa:201',
     image: 18,
-    fileId: '201-f18'
+    fileId: '201-f18',
+    personId: null
   } as const;
   expect(leadsTo(change(MARK, { on: { ...image, stale: true } }))).toBeNull();
 });

@@ -6,6 +6,7 @@ import type { AppState } from '@/client/state';
 import type { On, PersonRow } from '@/common/types';
 
 import { formatDates, formatName } from './components/tree-view/renderer';
+import { volumeTitle } from './link-labels';
 
 // A person by name, with their years, as names repeat in a family.
 export function personLabel(persons: Map<number, PersonRow>, id: number) {
@@ -16,9 +17,9 @@ export function personLabel(persons: Map<number, PersonRow>, id: number) {
   return dates === '' ? name : `${name} (${dates})`;
 }
 
-// An Image by its Volume and number.
+// An Image by its Volume, named as the Scan viewer names it, and number.
 export function imageLabel(volume: string, image: number) {
-  return `${volume}, Image ${image}`;
+  return `${volumeTitle(volume)}, Image ${image}`;
 }
 
 // What it's on, as a list names it: the person and their years, the
@@ -42,16 +43,6 @@ function sourceOf(state: AppState, citationId: number) {
     .get()
     .flatMap((g) => g.sources)
     .find((s) => s.citation.id === citationId);
-}
-
-// Whether a Citation's source may open in the Scan viewer: until the
-// Selected person's sources are in to tell, or once they give it a Link
-// or Volumes to look through.
-export function mayOpen(state: AppState, citationId: number) {
-  const source = sourceOf(state, citationId);
-  if (source === undefined) return true;
-  const { status } = source;
-  return status !== null && (status.link !== null || status.browse !== null);
 }
 
 // Opens a source of the Selected person in the Scan viewer, as clicking
@@ -87,18 +78,4 @@ export async function goTo(state: AppState, on: On) {
   if (state.selected.id.get() === on.personId) {
     openSource(state, on.citationId);
   }
-}
-
-// Whether the Scan viewer shows where it is: open on its Citation's
-// source, on its Link's Image; or on its Image.
-export function shows(state: AppState, on: On) {
-  const { viewer } = state;
-  if (on.kind === 'citation') {
-    const source = viewer.source.get();
-    return source?.citation.id === on.citationId && !viewer.away.get();
-  }
-  if (on.kind !== 'image' || viewer.opened.get() === null) return false;
-  return (
-    viewer.volume.get()?.id === on.volumeId && viewer.image.get() === on.image
-  );
 }

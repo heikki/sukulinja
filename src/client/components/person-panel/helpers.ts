@@ -2,7 +2,7 @@ import { volumeTitle } from '@/client/link-labels';
 import type { LinkStatus } from '@/client/state';
 import { BOOK_NAMES } from '@/common/books';
 import { gedcomDate } from '@/common/dates';
-import type { CitationRow, FactRow, Link } from '@/common/types';
+import type { CitationRow, FactRow } from '@/common/types';
 
 const FACT_LABELS: Record<string, string> = {
   BIRT: 'Birth',
@@ -113,24 +113,20 @@ function citesImage(c: CitationRow) {
 }
 
 // A Church-book reference names itself, and a Citation of an Image its
-// text; other sources go by their title, or failing that what they say.
+// source, its text unfolding below; other sources go by their title, or
+// failing that what they say.
 export function headingOf(c: CitationRow) {
-  if (citesImage(c)) return c.text ?? c.source ?? 'Source';
+  if (citesImage(c)) return c.source ?? 'Source';
   return c.reference ?? c.source ?? c.text ?? c.page ?? 'Source';
-}
-
-function linkedTitle(c: CitationRow, link: Link) {
-  if (citesImage(c) && c.text !== null) return c.text;
-  return volumeTitle(link.volume);
 }
 
 // Under its archive, a Church-book reference goes by the Volume it links,
 // named as Astia names it but for its code: "Pää- ja rippikirjat
-// (1783-1790)"; one the archive's books lack goes by its Book. A Citation
-// of an Image goes by its text, if it has one.
+// (1783-1790)", as a Citation of an Image does, its text unfolding below;
+// one the archive's books lack goes by its Book.
 export function titleText(c: CitationRow, status: LinkStatus | null) {
   const link = status?.link ?? null;
-  if (link !== null) return linkedTitle(c, link);
+  if (link !== null) return volumeTitle(link.volume);
   const kind = c.cited?.kind ?? null;
   if ((status?.browse ?? null) === null || kind === null) return headingOf(c);
   return BOOK_NAMES[kind];

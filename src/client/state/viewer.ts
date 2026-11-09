@@ -74,6 +74,9 @@ export interface Viewer {
   fileIdHere: () => string | null;
   // The Volume's citations; null until they arrive.
   citations: Readable<VolumeCitation[] | null | 'failed'>;
+  // The title of the archive the Volume is in, however it was opened; null
+  // until it's known, and if it can't be.
+  archive: Readable<string | null>;
   // Off the Link's Image. A Link to only the Volume holds anywhere in it;
   // with no Link, nothing is away.
   away: Readable<boolean>;
@@ -175,6 +178,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   // Astia's viewer address of each of the Volume's Images.
   let files: string[] = [];
   const citations = signal<VolumeCitation[] | null | 'failed'>(null);
+  const archive = signal<string | null>(null);
   const sourcesInView = signal(false);
   const pending = signal<PendingLink | null>(null);
   const discarding = signal(false);
@@ -210,21 +214,27 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     );
   });
 
-  const countReq = new Latest();
+  const volumeReq = new Latest();
   const citationsReq = new Latest();
   const rescanReq = new Latest();
   // A person picked in the viewer, whose citation it goes on with once
   // they're selected.
   let noted: { personId: number; source: LinkOpen } | null = null;
 
-  async function loadCount(volumeId: string) {
-    const urls = await countReq.run(
-      async (signal) => await api.volumeImages(volumeId, signal)
+  // What Astia says of the Volume, its Images and its archive, asked for
+  // at once, so the viewer names it as it shows it. Until they come, the
+  // archive named before stays: the title doesn't blink each time the
+  // Volume changes.
+  async function loadVolume(volumeId: string) {
+    const shown = await volumeReq.run(
+      async (signal) => await api.volume(volumeId, signal)
     );
-    if (urls === null || urls === undefined) return;
-    files = urls;
-    count.set(urls.length);
-    image.set(clampImage(image.get(), urls.length));
+    if (shown === undefined) return;
+    archive.set(shown?.archive ?? null);
+    if (shown === null) return;
+    files = shown.images;
+    count.set(files.length);
+    image.set(clampImage(image.get(), files.length));
   }
 
   async function loadCitations(volumeId: string) {
@@ -260,7 +270,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     count.set(null);
     files = [];
     citations.set(null);
-    void loadCount(id);
+    void loadVolume(id);
     void loadCitations(id);
     void askRescan(id);
   }
@@ -268,8 +278,9 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   // Nothing of a Volume shown, as before the first is chosen.
   function showNoVolume() {
     forgetRescan();
-    countReq.stop();
+    volumeReq.stop();
     citationsReq.stop();
+    archive.set(null);
     volume.set(null);
     image.set(1);
     count.set(null);
@@ -586,6 +597,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     image,
     count,
     citations,
+    archive,
     away,
     sourcesInView,
     setSourcesInView(inView) {

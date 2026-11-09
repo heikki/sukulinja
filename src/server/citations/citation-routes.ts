@@ -17,6 +17,8 @@ interface CitationHandlers {
   handleVolumeChoices: (id: number) => Promise<Response>;
   handleVolumeCitations: (volumeId: string) => Promise<Response>;
   handleArchiveCitations: (archiveId: string) => Promise<Response>;
+  handleArchives: () => Promise<Response>;
+  handleVolume: (volumeId: string) => Promise<Response>;
   handleCite: (personId: number, target: CiteTarget) => Promise<Response>;
   handleUncite: (id: number) => Response;
   handleSwitchFilming: (volumeId: string, volume: string) => Promise<Response>;
@@ -79,6 +81,28 @@ async function readCite(req: Request): Promise<CiteTarget | null> {
   const drawn = readBox(box);
   if (drawn === null) return null;
   return { volumeId, image, fileId, box: drawn, text: text ?? null };
+}
+
+// A Volume, its /citations, and POST its /filming; null for any other
+// path.
+async function routeVolume(
+  req: Request,
+  handlers: CitationHandlers,
+  rest: string
+) {
+  const volume =
+    /^\/api\/volumes\/(?<id>[^/]+)(?:\/(?<part>citations|filming))?$/.exec(
+      rest
+    );
+  if (volume === null) return null;
+  const { id, part } = volume.groups!;
+  if (part === 'filming') return await routeFilming(req, handlers, id!);
+  if (req.method !== 'GET') {
+    return new Response('method not allowed', { status: 405 });
+  }
+  return part === undefined
+    ? await handlers.handleVolume(id!)
+    : await handlers.handleVolumeCitations(id!);
 }
 
 // POST `{ volume }`, the Volume's label, to switch it to the new filming.
@@ -147,11 +171,28 @@ async function routeCitation(
   return await handlers.handleVolumeChoices(id);
 }
 
+// GET /api/archives, and an archive's /citations; null for any other path.
+async function routeArchives(
+  req: Request,
+  handlers: CitationHandlers,
+  rest: string
+) {
+  const archive = /^\/api\/archives(?:\/(?<id>\d+)\/citations)?$/.exec(rest);
+  if (archive === null) return null;
+  if (req.method !== 'GET') {
+    return new Response('method not allowed', { status: 405 });
+  }
+  const id = archive.groups?.id;
+  return id === undefined
+    ? await handlers.handleArchives()
+    : await handlers.handleArchiveCitations(id);
+}
+
 // GET /api/persons/:id/scans streams the person's Links; POST
 // /api/persons/:id/citations makes a Citation; DELETE /api/citations/:id
 // deletes one made in the app; a Citation's `/scans` and `/volumes`; GET
-// /api/volumes/:id/citations, and POST its `/filming`; GET
-// /api/archives/:id/citations. Null for any other path.
+// /api/volumes/:id and its `/citations`, and POST its `/filming`; GET
+// /api/archives and /api/archives/:id/citations. Null for any other path.
 async function routeCitations(
   req: Request,
   handlers: CitationHandlers,
@@ -166,20 +207,10 @@ async function routeCitations(
       ? handlers.handlePersonLinks(personId)
       : await routeCite(req, handlers, personId);
   }
-  const volume =
-    /^\/api\/volumes\/(?<id>[^/]+)\/(?<part>citations|filming)$/.exec(rest);
-  if (volume !== null) {
-    const { id, part } = volume.groups!;
-    return part === 'filming'
-      ? await routeFilming(req, handlers, id!)
-      : await handlers.handleVolumeCitations(id!);
-  }
-  const archive = /^\/api\/archives\/(?<id>\d+)\/citations$/.exec(rest);
-  if (archive !== null) {
-    return req.method === 'GET'
-      ? await handlers.handleArchiveCitations(archive.groups!.id!)
-      : new Response('method not allowed', { status: 405 });
-  }
+  const volume = await routeVolume(req, handlers, rest);
+  if (volume !== null) return volume;
+  const archives = await routeArchives(req, handlers, rest);
+  if (archives !== null) return archives;
   const made = /^\/api\/citations\/(?<id>\d+)$/.exec(rest);
   if (made !== null) {
     return req.method === 'DELETE'
@@ -263,6 +294,22 @@ function citationHandlers(
     async handleArchiveCitations(archiveId) {
       try {
         return Response.json(await citations.countInArchive(archiveId));
+      } catch (err) {
+        return astiaFailed(err);
+      }
+    },
+
+    async handleArchives() {
+      try {
+        return Response.json(await citations.churchBookArchives());
+      } catch (err) {
+        return astiaFailed(err);
+      }
+    },
+
+    async handleVolume(volumeId) {
+      try {
+        return Response.json(await citations.contentsOf(volumeId));
       } catch (err) {
         return astiaFailed(err);
       }

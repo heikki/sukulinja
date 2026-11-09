@@ -4,14 +4,15 @@
 
 import type {
   Change,
+  ChurchBookArchive,
   CitationLinks,
   FamilyRow,
   Link,
-  On,
-  OnTarget,
   PersonDetails,
   PersonRow,
   Reminder,
+  ReminderOn,
+  ReminderTarget,
   Rescan,
   StalePin,
   VolumeChoices,
@@ -27,6 +28,8 @@ export interface MemoryVolume {
   // Astia's re-scan of it, until switched to: its Image count and the pins
   // switching leaves out.
   rescan?: { images: number; stale: StalePin[] };
+  // The title of the archive it's in.
+  archive?: string;
 }
 
 export interface MemoryDataset {
@@ -48,6 +51,8 @@ export interface MemoryDataset {
   reminders?: Reminder[];
   // Newest first, as given: nothing done here writes one.
   changes?: Change[];
+  // The archives the church books are in, as given.
+  archives?: ChurchBookArchive[];
 }
 
 export interface MemoryOptions {
@@ -61,11 +66,9 @@ type MemoryDatasetApi = DatasetApi & {
   // only the Volume; " box" or " no box" when it says), "discard <citation>
   // <volume>/<image>", "cite <person> <volume>/<image> <file>[: <text>]",
   // "uncite <citation>", "choices <citation>", "citations <volume>",
-  // "images <volume>", "rescan <volume>", "switch <volume>", "changes",
-  // "reminders",
-  // "remind person <id>: <text>" (or "citation <id>", or
-  // "<volume>/<image> <file>"), "change reminder <id>", "delete reminder
-  // <id>".
+  // "volume <volume>", "rescan <volume>", "switch <volume>", "changes",
+  // "reminders", "remind person <id>: <text>" (or "<volume>/<image>
+  // <file>"), "change reminder <id>", "delete reminder <id>".
   // A Citation made by `cite` joins its Volume's citations, numbered on
   // from 1000, and `uncite` takes one out.
   asked: string[];
@@ -111,34 +114,24 @@ export function memoryDatasetApi(
     return value;
   }
 
-  // A Citation the Volumes list, with whose it is.
-  function citationOf(citationId: number) {
-    const rows = Object.values(data.volumes ?? {}).flatMap((v) => v.citations);
-    return found(
-      rows.find((r) => r.citation.id === citationId),
-      'citation not found'
-    );
-  }
-
-  function onOf(target: OnTarget): On {
-    if ('personId' in target) return { kind: 'person', ...target };
-    if ('citationId' in target) {
-      const { personId, citation } = citationOf(target.citationId);
+  function onOf(target: ReminderTarget): ReminderOn {
+    if ('volumeId' in target) {
       return {
-        kind: 'citation',
-        personId,
-        citationId: citation.id,
-        source: citation.source,
-        reference: citation.reference ?? citation.entry
+        kind: 'image',
+        ...target,
+        stale: false,
+        personId: target.personId ?? null
       };
     }
-    return { kind: 'image', ...target, stale: false };
+    return { kind: 'person', personId: target.personId };
   }
 
-  function whereOf(target: OnTarget) {
-    if ('personId' in target) return `person ${target.personId}`;
-    if ('citationId' in target) return `citation ${target.citationId}`;
-    return `${target.volumeId}/${target.image} ${target.fileId}`;
+  function whereOf(target: ReminderTarget) {
+    if ('volumeId' in target) {
+      const of = target.personId === undefined ? '' : ` of ${target.personId}`;
+      return `${target.volumeId}/${target.image} ${target.fileId}${of}`;
+    }
+    return `person ${target.personId}`;
   }
 
   function reminder(id: number) {
@@ -261,6 +254,9 @@ export function memoryDatasetApi(
       ),
 
     // Every Volume given is taken as the archive's.
+    archives: async (signal) =>
+      await answer('archives', signal, () => [...(data.archives ?? [])]),
+
     archiveCitations: async (archiveId, signal) =>
       await answer(`archive citations ${archiveId}`, signal, () =>
         Object.fromEntries(
@@ -270,12 +266,16 @@ export function memoryDatasetApi(
         )
       ),
 
-    volumeImages: async (volumeId, signal) =>
-      await answer(`images ${volumeId}`, signal, () =>
-        Array.from({ length: volume(volumeId).images }, (_, i) =>
-          viewerUrl(volumeId, `${volumeId}-f${i + 1}`)
-        )
-      ),
+    volume: async (volumeId, signal) =>
+      await answer(`volume ${volumeId}`, signal, () => {
+        const shown = volume(volumeId);
+        return {
+          images: Array.from({ length: shown.images }, (_, i) =>
+            viewerUrl(volumeId, `${volumeId}-f${i + 1}`)
+          ),
+          archive: shown.archive ?? null
+        };
+      }),
 
     volumeRescan: async (volumeId, signal) =>
       await answer(`rescan ${volumeId}`, signal, (): Rescan | null => {

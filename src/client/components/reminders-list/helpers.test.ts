@@ -1,23 +1,24 @@
 import { expect, test } from 'bun:test';
 
-import type { On, Reminder } from '@/common/types';
+import type { Reminder, ReminderOn } from '@/common/types';
 
 import { listed } from './helpers';
 
 const DONE = '2026-10-23T10:00:00.000Z';
 
-function reminder(id: number, on: On, done: string | null = null) {
+function reminder(id: number, on: ReminderOn, done: string | null = null) {
   const row: Reminder = { id, text: `R${id}`, on, created: '', done };
   return row;
 }
 
-const IMAGE: On = {
+const IMAGE: ReminderOn = {
   kind: 'image',
   volumeId: '201',
   volume: 'I Aa:201',
   image: 18,
   fileId: '201-f18',
-  stale: false
+  stale: false,
+  personId: null
 };
 
 test('lists the open ones, then with Show done the done ones', () => {

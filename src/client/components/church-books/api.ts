@@ -1,16 +1,13 @@
-// The church books as the app's server lists them, outside any dataset.
+// A parish archive's church books as the app's server lists them, outside
+// any dataset, and their downloads.
 
-import type { ChurchBookParish, ChurchBookVolume } from '@/common/types';
+import type { ChurchBookVolume } from '@/common/types';
 
 import type { DownloadAction } from './helpers';
 
 async function json<T>(res: Response) {
   if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
   return (await res.json()) as T;
-}
-
-export async function fetchParishes() {
-  return await json<ChurchBookParish[]>(await fetch('/astia/parishes'));
 }
 
 // The parish archive's Volumes, with what of each is on disk.

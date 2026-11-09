@@ -10,16 +10,14 @@ import type { Change, On } from '@/common/types';
 import { cornerListStyles } from '../corner-panel/list-styles';
 import { byDay, doneLabel, leadsTo, timeLabel, whereLabel } from './helpers';
 
-import '../corner-panel/panel';
-
 export type ChangePickEvent = CustomEvent<On>;
 
 // Every Change made to the dataset, newest first, by day: when, what was
 // done, and whom and where. Clicking one that leads somewhere picks where
-// (`pick`); one on nothing is shown but can't be picked. In a corner panel
-// over the chart, which asks to `close`.
-@customElement('sl-changes-dialog')
-class ChangesDialogElement extends SignalWatcher(LitElement) {
+// (`pick`); one on nothing is shown but can't be picked. A tab of the
+// corner panel.
+@customElement('sl-changes-list')
+class ChangesListElement extends SignalWatcher(LitElement) {
   static override styles = [
     cornerListStyles,
     css`
@@ -108,20 +106,12 @@ class ChangesDialogElement extends SignalWatcher(LitElement) {
   }
 
   override render() {
-    return html`<sl-corner-panel
-      heading="Changes"
-      kind="changes"
-      @close=${() => {
-        this.dispatchEvent(new CustomEvent('close'));
-      }}
-    >
-      ${this.renderBody()}
-    </sl-corner-panel>`;
+    return this.renderBody();
   }
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'sl-changes-dialog': ChangesDialogElement;
+    'sl-changes-list': ChangesListElement;
   }
 }

@@ -1,3 +1,4 @@
+import { volumeTitle } from '@/client/link-labels';
 import { imageLabel, isStale, onLabel, personLabel } from '@/client/on';
 import type { Change, ChangeWhat, On, PersonRow } from '@/common/types';
 
@@ -7,7 +8,7 @@ function count(n: number, one: string, many: string) {
 
 // Where in a Volume: its Image, or only the Volume.
 function inVolume(volume: string, image: number | null) {
-  return image === null ? volume : imageLabel(volume, image);
+  return image === null ? volumeTitle(volume) : imageLabel(volume, image);
 }
 
 // What a Change did, in a few words.
@@ -57,7 +58,7 @@ export function detailOf(what: ChangeWhat) {
     case 'undo-import':
       return null;
     case 'switch-filming': {
-      const images = `${what.volume}, ${what.from} → ${what.to} Images`;
+      const images = `${volumeTitle(what.volume)}, ${what.from} → ${what.to} Images`;
       return what.stale === 0
         ? images
         : `${images}, ${count(what.stale, 'pin', 'pins')} left out`;
