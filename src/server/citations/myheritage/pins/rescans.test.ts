@@ -9,7 +9,7 @@ import { fileId, memoryAstia } from '../../astia/memory-astia';
 import type { MemoryAstia } from '../../astia/memory-astia';
 import { openScanCache } from '../../astia/scan-cache';
 import { openVolumeFacts } from './pins';
-import { checkRescans, routeRescan } from './rescans';
+import { checkRescans, routeRescan, switchFilming } from './rescans';
 
 let dir = '';
 
@@ -133,7 +133,11 @@ async function app(listed: MemoryAstia) {
     });
     return await routeRescan(shared, req, volumeId);
   }
-  return { ...shared, ask };
+  return {
+    ...shared,
+    ask,
+    switchTo: async (volumeId: string) => await switchFilming(shared, volumeId)
+  };
 }
 
 test("says there's no re-scan of a Volume Astia lists as cached", async () => {
@@ -175,19 +179,22 @@ test('tells of a re-scan, and what switching leaves out, without switching', asy
   ]);
 });
 
-test('switches to the new filming when asked', async () => {
+test('switches to the new filming when asked, saying what it switched from', async () => {
   const listed = astia();
-  const { ask, cache } = await app(listed);
+  const { ask, cache, switchTo } = await app(listed);
   await cache.image(
     { volumeId: 'v1', image: 2 },
     'full',
     new AbortController().signal
   );
   listed.rescan('v1', 8);
-  const urls = (await (await ask('POST', 'v1')).json()) as string[];
+  const { urls, rescan } = await switchTo('v1');
+  expect(rescan).toMatchObject({ cached: 10, images: 8 });
   expect(urls).toHaveLength(8);
   expect(urls[0]).toContain('fileId=v1-2-f1');
   expect(await listed.volumeImages('v1')).toHaveLength(8);
   expect(await readdir(join(dir, '.astia-images', 'v1'))).toEqual([]);
   expect(await (await ask('GET', 'v1')).json()).toEqual({ rescan: null });
+  expect((await switchTo('v1')).rescan).toBeNull();
+  expect((await ask('POST', 'v1')).status).toBe(405);
 });
