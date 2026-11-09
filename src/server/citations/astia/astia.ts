@@ -202,6 +202,17 @@ function retryWait(
   return wait <= patience.maxWaitMs ? wait : null;
 }
 
+// Astia's answers are JSON. Down for maintenance, it answers every path
+// with its notice page instead, as a 200: an answer that isn't JSON is Astia
+// failing, not a bug.
+function parseAnswer(body: string, path: string) {
+  try {
+    return JSON.parse(body) as unknown;
+  } catch (err) {
+    throw new AstiaError(`not JSON on ${path}`, { cause: err });
+  }
+}
+
 function fileIds(json: ImageLists, size: ImageSize) {
   const files = size === 'full' ? json.isot : json.pienet;
   return (files ?? []).map((f) => childValue(f, 'URL'));
@@ -286,8 +297,10 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
     if (await cached.exists()) return (await cached.json()) as unknown;
     const bytes = await throttled(() => request(path, CRAWL, 1));
     const body = bytes === null ? '{}' : new TextDecoder().decode(bytes);
+    // Read before it's kept, so a notice page never is.
+    const json = parseAnswer(body, path);
     await Bun.write(cached, body);
-    return JSON.parse(body) as unknown;
+    return json;
   }
 
   function fetchJson(path: string) {
@@ -327,7 +340,7 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
   async function refetchJson(path: string) {
     const key = cacheKey(path);
     const body = await fetchPast(path);
-    const json = JSON.parse(body) as unknown;
+    const json = parseAnswer(body, path);
     await Bun.write(cacheFile(key), body);
     inflight.set(key, Promise.resolve(json));
     refreshes += 1;
@@ -381,8 +394,9 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
     async peekImages(volumeId) {
       let hit = peeked.get(volumeId);
       if (hit === undefined) {
-        hit = fetchPast(imagesPath(volumeId)).then(
-          (body) => JSON.parse(body) as ImageLists
+        const path = imagesPath(volumeId);
+        hit = fetchPast(path).then(
+          (body) => parseAnswer(body, path) as ImageLists
         );
         peeked.set(volumeId, hit);
         // A failure isn't kept: Astia comes back.
