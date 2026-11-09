@@ -191,12 +191,12 @@ export function personId(xref: string) {
     .get(xref)!.id;
 }
 
-// A Reminder on the person, or on one of their citations.
-export function remind(text: string, xref: string, citationId?: number) {
+// A Reminder on the person.
+export function remind(text: string, xref: string) {
   current.open('tree').run(
-    `INSERT INTO reminders (text, person_id, citation_id, created_at)
-       VALUES (?, ?, ?, '2026-10-23T10:00:00.000Z')`,
-    [text, personId(xref), citationId ?? null]
+    `INSERT INTO reminders (text, person_id, created_at)
+       VALUES (?, ?, '2026-10-23T10:00:00.000Z')`,
+    [text, personId(xref)]
   );
 }
 

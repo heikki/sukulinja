@@ -9,7 +9,7 @@ import type {
   VolumeCitation
 } from '@/common/types';
 
-import { reminderPlaces, remindersHere } from './reminder-places';
+import { placesHere } from './places';
 
 function churchBook(id: number): CitationRow {
   return {
@@ -86,33 +86,8 @@ async function viewing() {
           volume: 'I Aa:201',
           image: 18,
           fileId: '201-f18',
-          stale: false
-        },
-        created: '',
-        done: null
-      },
-      {
-        id: 2,
-        text: "On Matti's 14",
-        on: {
-          kind: 'citation',
-          personId: 1,
-          citationId: 14,
-          source: null,
-          reference: null
-        },
-        created: '',
-        done: null
-      },
-      {
-        id: 3,
-        text: "On Maija's 12",
-        on: {
-          kind: 'citation',
-          personId: 2,
-          citationId: 12,
-          source: null,
-          reference: null
+          stale: false,
+          personId: null
         },
         created: '',
         done: null
@@ -135,35 +110,25 @@ const IMAGE_18 = {
   fileId: '201-f18'
 };
 
-test("on the source's Image, a Reminder is on its Citation, or else the Image", async () => {
+test('on a scan, a Reminder may be on the Selected person and the Image', async () => {
   const state = await viewing();
-  const places = reminderPlaces(state);
-  expect(places?.cited).toEqual({
-    header: ['Matti Esimerkki', 'I Aa:201 · Image 18'],
-    target: { citationId: 11 }
+  expect(placesHere(state)).toEqual({
+    person: { personId: 1, header: 'Matti Esimerkki' },
+    image: { at: IMAGE_18, header: 'I Aa:201 · Image 18' }
   });
-  expect(places?.image).toEqual({
-    header: ['I Aa:201 · Image 18'],
-    target: IMAGE_18
-  });
-});
-
-test("off the source's Image, a Reminder is on the Image shown", async () => {
-  const state = await viewing();
   state.viewer.show(19);
   await Bun.sleep(0);
-  expect(reminderPlaces(state)).toEqual({
-    cited: null,
-    image: {
-      header: ['I Aa:201 · Image 19'],
-      target: { ...IMAGE_18, image: 19, fileId: '201-f19' }
-    }
+  expect(placesHere(state)?.image).toEqual({
+    at: { ...IMAGE_18, image: 19, fileId: '201-f19' },
+    header: 'I Aa:201 · Image 19'
   });
 });
 
-test("the Reminders here are the Image's and those of the Citations linking it", async () => {
+test('with no Image shown, a Reminder is on the Selected person', async () => {
   const state = await viewing();
-  expect(remindersHere(state).map((r) => r.id)).toEqual([1, 3]);
-  state.viewer.show(19);
-  expect(remindersHere(state).map((r) => r.id)).toEqual([2]);
+  state.viewer.close();
+  expect(placesHere(state)).toEqual({
+    person: { personId: 1, header: 'Matti Esimerkki' },
+    image: null
+  });
 });

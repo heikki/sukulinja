@@ -61,7 +61,7 @@ test('answers what it was given, and records what was asked', async () => {
   expect(lines).toEqual([UNLINKED]);
   expect(await api.mark(7, { volumeId: '201', image: 2 })).toBe(MARKED);
   expect(await api.volumeCitations('201')).toBe(ROWS);
-  expect(await api.volumeImages('201')).toHaveLength(3);
+  expect((await api.volume('201')).images).toHaveLength(3);
   expect(api.asked).toEqual([
     'persons',
     'families',
@@ -69,7 +69,7 @@ test('answers what it was given, and records what was asked', async () => {
     'links 1',
     'mark 7 201/2',
     'citations 201',
-    'images 201'
+    'volume 201'
   ]);
 });
 
@@ -79,7 +79,7 @@ test("fails in the server's words for what it wasn't given", async () => {
   expect(await failure(api.mark(8, { volumeId: '201', image: 1 }))).toBe(
     'citation not found'
   );
-  expect(await failure(api.volumeImages('202'))).toBe(
+  expect(await failure(api.volume('202'))).toBe(
     "volume not in the dataset's parishes"
   );
 });

@@ -172,7 +172,29 @@ test('Links still streaming after the grace show the details, and arrive after',
   expect([...selected.links.get().keys()]).toEqual([11, 12]);
 });
 
-test("mark saves, sets the reference's Links, and reloads the others keeping the known", async () => {
+test('Links after the grace are shown together, once all are in', async () => {
+  const api = dataset();
+  const end = Promise.withResolvers<undefined>();
+  const slow = {
+    ...api,
+    async *personLinks(id: number, signal?: AbortSignal) {
+      await Bun.sleep(5);
+      yield* api.personLinks(id, signal);
+      await end.promise;
+    }
+  };
+  const selected = openSelected(slow, { grace: 0 });
+  const loading = selected.select(1);
+  await Bun.sleep(20);
+  // Both are in, past the grace, but the stream hasn't ended.
+  expect(selected.pending.get()).toBe(true);
+  expect(selected.links.get().size).toBe(0);
+  end.resolve(undefined);
+  await loading;
+  expect([...selected.links.get().keys()]).toEqual([11, 12]);
+});
+
+test("mark saves, sets the reference's Links, and reloads the person's details and Links", async () => {
   const data = {
     details: { 1: MATTI },
     links: { 1: [MATTI_11, MATTI_12] },
@@ -185,18 +207,19 @@ test("mark saves, sets the reference's Links, and reloads the others keeping the
   data.links[1] = [MATTI_11, MARKED_12];
   const resolved = await selected.mark(12, { volumeId: '201', image: 19 });
   expect(resolved).toBe(MARKED_12);
-  expect(api.asked).toEqual([
-    'person 1',
-    'links 1',
-    'mark 12 201/19',
-    'links 1'
-  ]);
-  expect(selected.pending.get()).toBe(true);
   expect([...selected.links.get()]).toEqual([
     [11, { links: [ON_18] }],
     [12, { links: [ON_19] }]
   ]);
   await settle();
+  // A Mark at the entry may have converted the reference (ADR-0016).
+  expect(api.asked).toEqual([
+    'person 1',
+    'links 1',
+    'mark 12 201/19',
+    'person 1',
+    'links 1'
+  ]);
   expect(selected.pending.get()).toBe(false);
   // Both in the Volume now, by page.
   const rows = selected.sources

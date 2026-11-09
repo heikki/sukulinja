@@ -5,7 +5,6 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import { focusRingStyles } from '@/client/focus-ring';
-import { openSource } from '@/client/on';
 import { appState } from '@/client/state';
 import type {
   AppState,
@@ -15,7 +14,7 @@ import type {
   Source,
   SourceGroup
 } from '@/client/state';
-import type { CitationRow, Link, RecordView, Reminder } from '@/common/types';
+import type { CitationRow, Link, RecordView } from '@/common/types';
 
 import { CROSS, formatName } from '../tree-view/renderer';
 
@@ -25,7 +24,6 @@ import './header';
 import { householdsOf, lifeText } from './family';
 import type { Household, Relative } from './family';
 import { factLabel, factText, headingOf, siteName, titleText } from './helpers';
-import { personReminders, renderReminders } from './reminders';
 import { personPanelStyles } from './styles';
 
 function renderRecord(r: RecordView) {
@@ -110,17 +108,13 @@ function hasDetails(body: unknown, url: string | null, link: Link | null) {
 }
 
 // Each section open or not for the rest of the visit, across people; at
-// first only the Reminders and the sources are.
+// first only the sources are.
 const opened = {
-  reminders: true,
   events: false,
   family: false,
   sources: true
 };
 type Section = keyof typeof opened;
-
-// Whether done Reminders are shown, for the rest of the visit.
-let showDone = false;
 
 // Filed under its archive: it links a Volume there, or the archive's
 // books were looked through for it.
@@ -194,14 +188,6 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
   // The source shown in full; the others show only their heading and links.
   @state() private unfolded: number | null = null;
 
-  // A Reminder clicked opens in its dialog, and a Citation's opens its
-  // source in the Scan viewer too; clicked again, it closes.
-  private readonly showReminder = (reminder: Reminder) => {
-    if (!this.state.reminders.toggle(reminder.id)) return;
-    const { on } = reminder;
-    if (on.kind === 'citation') openSource(this.state, on.citationId);
-  };
-
   // Whose details are shown.
   private shownId: number | null = null;
   // The source last brought into view, and the one the viewer last showed
@@ -211,11 +197,6 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
     source: null,
     personId: null
   };
-
-  override connectedCallback() {
-    super.connectedCallback();
-    this.state.reminders.load();
-  }
 
   // The source the Scan viewer shows, unless it has moved off its Link.
   private get viewing() {
@@ -407,33 +388,6 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
     return groups.map((g) => this.renderGroup(g));
   }
 
-  // The person's Reminders and their Citations', and Show done when any
-  // are done.
-  private renderReminders(listed: Reminder[], done: number) {
-    const none = showDone ? 'None on them.' : 'None open on them.';
-    return html`
-      ${
-        listed.length === 0
-          ? html`<p class="muted none">${none}</p>`
-          : renderReminders(listed, this.showReminder)
-      }
-      ${
-        done === 0
-          ? nothing
-          : html`<button
-              class="show-done"
-              aria-pressed=${showDone ? 'true' : 'false'}
-              @click=${() => {
-                showDone = !showDone;
-                this.requestUpdate();
-              }}
-            >
-              ${showDone ? 'Hide done' : `Show done (${done})`}
-            </button>`
-      }
-    `;
-  }
-
   // A heading that shows or hides what follows it.
   private renderSection(
     section: Section,
@@ -472,21 +426,8 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
     if (d === null) return html`<div class="body muted">Loading…</div>`;
     const stale = d.id !== selected.id.get();
     const households = householdsOf(d.id, this.state.chart.people.get());
-    const all = this.state.reminders.all.get();
-    const { listed, done } = personReminders(
-      Array.isArray(all) ? all : [],
-      d.id,
-      showDone
-    );
     return html`
       <div class="body ${stale ? 'stale' : ''}">
-        ${
-          listed.length === 0 && done === 0
-            ? nothing
-            : this.renderSection('reminders', 'Reminders', () =>
-                this.renderReminders(listed, done)
-              )
-        }
         ${
           households.length === 0
             ? nothing

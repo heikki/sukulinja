@@ -11,7 +11,6 @@ import {
   PAGE,
   PLAIN,
   registry,
-  remind,
   tree,
   useDataFolder
 } from './merge-testing';
@@ -56,19 +55,6 @@ test('of references alike, a converted Citation stands for one', async () => {
     { xref: '@I1@', page: PAGE.a, ...PLAIN, added_in_app: 0 },
     { xref: '@I1@', ...CONVERTED }
   ]);
-});
-
-test('a Reminder on a converted Citation stays on it', async () => {
-  await importTree(tree([MATTI]));
-  remind('Check the household', '@I1@', convert('@I1@', PAGE.a));
-  await importTree(tree([MATTI]));
-  const on = registry()
-    .open('tree')
-    .query(
-      'SELECT r.text, c.added_in_app FROM reminders r JOIN citations c ON c.id = r.citation_id'
-    )
-    .all();
-  expect(on).toEqual([{ text: 'Check the household', added_in_app: 1 }]);
 });
 
 const RECORD =

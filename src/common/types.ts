@@ -280,6 +280,16 @@ export interface VolumeChoices {
   others: VolumeChoice[];
 }
 
+// GET /d/<slug>/api/volumes/:id: what Astia says of a Volume, which
+// doesn't change as the app is used, in one answer: its viewer URL for
+// each Image, in order, and the title of the dataset's archive holding it,
+// null when none does or Astia can't say. The people citing it, which
+// can, are asked for apart (/citations).
+export interface VolumeContents {
+  images: string[];
+  archive: string | null;
+}
+
 // A row of /api/volumes/:id/citations: one person's church-book citation
 // that resolves into the Volume.
 export interface VolumeCitation {
@@ -320,10 +330,12 @@ export interface DownloadStatus {
   error: DownloadError | null;
 }
 
-// GET /astia/parishes: the parishes whose church books the app can list.
-export interface ChurchBookParish {
-  name: string;
+// GET /d/<slug>/api/archives: an archive the dataset's church books are
+// in, by its title in Astia ("Juvan seurakunnan arkisto"), as a Link's
+// `archive` names it; its id when Astia can't say.
+export interface ChurchBookArchive {
   archiveId: string;
+  title: string;
 }
 
 // GET /astia/archives/<id>/volumes: one of a parish's Volumes in Astia's
@@ -382,6 +394,8 @@ export type On =
       image: number;
       fileId: string;
       stale: boolean;
+      // Whom it's about too, if anyone: it was written with them selected.
+      personId: number | null;
     };
 
 // Something to come back to, written in the app. `done` is when it was
@@ -389,16 +403,28 @@ export type On =
 export interface Reminder {
   id: number;
   text: string;
-  on: On;
+  on: ReminderOn;
   created: string;
   done: string | null;
 }
+
+// What a Reminder is on: a person, or an Image, maybe about a person too.
+export type ReminderOn = Exclude<On, { kind: 'citation' }>;
+
+// What a new Reminder is put on.
+export type ReminderTarget = Exclude<OnTarget, { citationId: number }>;
 
 // What a new one is put on.
 export type OnTarget =
   | { personId: number }
   | { citationId: number }
-  | { volumeId: string; volume: string; image: number; fileId: string };
+  | {
+      volumeId: string;
+      volume: string;
+      image: number;
+      fileId: string;
+      personId?: number;
+    };
 
 // What a Change did, as it was said when it was done: a Mark, at the
 // entry, the Image or only the Volume (`confirmed` when it confirmed a

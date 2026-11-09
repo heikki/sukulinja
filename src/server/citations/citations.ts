@@ -9,15 +9,17 @@
 
 import type { Database, SQLQueryBindings } from 'bun:sqlite';
 
-import { BOOK_NAMES } from '@/common/books';
+import { bookLabel } from '@/common/books';
 import { isoDate } from '@/common/dates';
 import type {
   Box,
+  ChurchBookArchive,
   CitationRow,
   Link,
   LinkResolution,
   NewChange,
-  VolumeCitation
+  VolumeCitation,
+  VolumeContents
 } from '@/common/types';
 
 import {
@@ -86,18 +88,9 @@ function storedLink(
 // Parish · book and years · page, of what the reference gives. Lines break
 // only after a dot.
 export function describeRef(ref: BookRef) {
-  const { from, to } = ref.years ?? { from: null, to: null };
-  const years =
-    from === null ? null : from === to ? `${from}` : `${from}–${to}`;
-  const book = [ref.kind === null ? null : BOOK_NAMES[ref.kind], years]
-    .filter((s) => s !== null)
-    .join(' ');
-  const parts = [
-    ref.parish,
-    book,
-    ref.page === null ? '' : `p.\u00a0${ref.page}`
-  ];
-  const named = parts.filter((s) => s !== null && s !== '');
+  const named = [ref.parish, bookLabel(ref, ref.page)].filter(
+    (s) => s !== null
+  );
   return named.length === 0 ? null : named.join('\u00a0· ');
 }
 
@@ -318,6 +311,23 @@ export function createCitations<R extends BookRef>(
     });
   }
 
+  // The archives the dataset's church books are in, as `archives` orders
+  // them, each by its title in Astia.
+  async function churchBookArchives(): Promise<ChurchBookArchive[]> {
+    return await Promise.all(
+      (await archives()).map(async (archiveId) => ({
+        archiveId,
+        title: (await images.titleOf(archiveId)) ?? archiveId
+      }))
+    );
+  }
+
+  // The title of the archive holding the Volume, among the dataset's;
+  // null when none of them does, or Astia can't say.
+  async function volumeArchive(volumeId: string) {
+    return await images.archiveTitleOf(volumeId, await archives());
+  }
+
   // A stored Link, naming its archive as a resolved one does.
   async function withArchive(link: Link): Promise<Link> {
     const archive = await images.archiveTitleOf(
@@ -525,6 +535,28 @@ export function createCitations<R extends BookRef>(
     // How many Citations link into each of the parish archive's Volumes.
     // Throws when Astia can't be reached.
     countInArchive,
+
+    // The archives the dataset's church books are in, most cited first.
+    churchBookArchives,
+
+    // The title of the dataset's archive holding the Volume, or null.
+    volumeArchive,
+
+    // Asks Astia, in the background, for the archives the references are
+    // in (Images.warmUp).
+    async warmUp() {
+      await images.warmUp(await archives().catch(() => []));
+    },
+
+    // What Astia says of the Volume: its Images and its archive, asked
+    // together. Throws when Astia can't be reached.
+    async contentsOf(volumeId: string): Promise<VolumeContents> {
+      const [urls, archive] = await Promise.all([
+        images.urlsOf(volumeId),
+        volumeArchive(volumeId)
+      ]);
+      return { images: urls, archive };
+    },
 
     // Makes a Citation of the entry for the person, and gives it as the
     // Scan viewer lists it. Null when there's no such person; rejected

@@ -162,26 +162,25 @@ describe('the answers', () => {
       on: { kind: 'person', personId: 3 },
       done: null
     });
-    const onCitation = await api.remind('Is this him?', { citationId: 1 });
-    expect(onCitation.on).toMatchObject({
-      kind: 'citation',
-      personId: 1,
-      citationId: 1
-    });
     const image = { volumeId: VOLUME, volume: VOLUMES['juva-1'], image: 7 };
     await api.remind('Later hand', { ...image, fileId: `${VOLUME}-f7` });
     await api.remind('Before the re-scan', { ...image, fileId: 'gone' });
+    const about = await api.remind('His hand?', {
+      ...image,
+      fileId: `${VOLUME}-f7`,
+      personId: 3
+    });
+    expect(about.on).toMatchObject({ kind: 'image', image: 7, personId: 3 });
+    await api.deleteReminder(about.id);
 
     const listed = await api.reminders();
     expect(listed.map((r) => r.text)).toEqual([
       'Before the re-scan',
       'Later hand',
-      'Is this him?',
       'Look for a second wife'
     ]);
     expect(listed.map((r) => r.on.kind === 'image' && r.on.stale)).toEqual([
       true,
-      false,
       false,
       false
     ]);
@@ -198,7 +197,7 @@ describe('the answers', () => {
     });
 
     await api.deleteReminder(onPerson.id);
-    expect(await api.reminders()).toHaveLength(3);
+    expect(await api.reminders()).toHaveLength(2);
     expect(await failure(api.deleteReminder(onPerson.id))).toBe(
       'reminder not found'
     );
@@ -210,10 +209,12 @@ describe('the answers', () => {
     );
   });
 
-  test("a Volume's citations and Images", async () => {
+  test("a Volume's Images and archive, and its citations", async () => {
+    const volume = await api.volume(VOLUME);
+    expect(volume.images).toHaveLength(IMAGES);
+    expect(volume).toHaveProperty('archive');
     const rows = await api.volumeCitations(VOLUME);
     expect(rows.map((r) => r.personId)).toEqual([1]);
-    expect(await api.volumeImages(VOLUME)).toHaveLength(IMAGES);
   });
 
   test('the URLs it builds are served', async () => {
@@ -238,7 +239,7 @@ describe('failing', () => {
 
   test('says when Astia fails', async () => {
     serveWith(memoryAstia({}, { down: true }));
-    expect(await failure(api.volumeImages(VOLUME))).toBe(
+    expect(await failure(api.volume(VOLUME))).toBe(
       "Astia couldn't be reached or gave no answer."
     );
   });

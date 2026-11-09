@@ -5,27 +5,26 @@ import { customElement, state } from 'lit/decorators.js';
 import { volumeTitle } from '@/client/link-labels';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
-import type { ChurchBookParish, ChurchBookVolume } from '@/common/types';
+import type { ChurchBookArchive, ChurchBookVolume } from '@/common/types';
 
 import { cornerListStyles } from '../corner-panel/list-styles';
-import { fetchParishes, fetchVolumes, sendDownload } from './api';
+import { fetchVolumes, sendDownload } from './api';
 import { busy, downloadActions, volumeLine } from './helpers';
 import type { DownloadAction } from './helpers';
-
-import '../corner-panel/panel';
 
 // How often a parish's Volumes are asked for again while one downloads.
 const POLL_MS = 2000;
 
 export type VolumeOpenEvent = CustomEvent<{ volumeId: string; label: string }>;
 
-// The church books apart from any citation: the known parishes, then a
-// parish's Volumes in Astia's order, each with what of it is on disk and
+// The church books apart from any citation: the archives the dataset's
+// sources are in, most cited first, by their titles in Astia, then an
+// archive's Volumes in Astia's order, each with what of it is on disk and
 // its download to start, stop or remove. Clicking a Volume opens it
-// (`open-volume`). In a corner panel over the chart, which asks to
-// `close`.
-@customElement('sl-church-books-dialog')
-class ChurchBooksDialogElement extends LitElement {
+// (`open-volume`). A tab of the corner panel; leaving it, by another tab
+// or closing, stops asking.
+@customElement('sl-church-books-list')
+class ChurchBooksListElement extends LitElement {
   static override styles = [
     cornerListStyles,
     css`
@@ -52,6 +51,11 @@ class ChurchBooksDialogElement extends LitElement {
         font-size: 0.8rem;
       }
 
+      p.parish {
+        margin: 0 0 0.25rem;
+        font-weight: 500;
+      }
+
       button.act:hover {
         border-color: var(--accent);
         color: var(--accent);
@@ -59,9 +63,9 @@ class ChurchBooksDialogElement extends LitElement {
     `
   ];
 
-  @state() private parishes: ChurchBookParish[] | 'failed' | null = null;
+  @state() private parishes: ChurchBookArchive[] | 'failed' | null = null;
 
-  @state() private parish: ChurchBookParish | null = null;
+  @state() private parish: ChurchBookArchive | null = null;
 
   @state() private volumes: ChurchBookVolume[] | 'failed' | null = null;
 
@@ -75,7 +79,8 @@ class ChurchBooksDialogElement extends LitElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    void fetchParishes()
+    void this.state.api
+      .archives()
       .then((parishes) => {
         this.parishes = parishes;
       })
@@ -96,7 +101,7 @@ class ChurchBooksDialogElement extends LitElement {
 
   // The parish's Volumes, asked for again while any downloads; one that
   // fails keeps what was shown, once something was.
-  private async load(parish: ChurchBookParish) {
+  private async load(parish: ChurchBookArchive) {
     this.stopPolling();
     try {
       const volumes = await fetchVolumes(parish.archiveId);
@@ -113,7 +118,7 @@ class ChurchBooksDialogElement extends LitElement {
     }
   }
 
-  private pickParish(parish: ChurchBookParish | null) {
+  private pickParish(parish: ChurchBookArchive | null) {
     this.stopPolling();
     this.parish = parish;
     this.volumes = null;
@@ -123,7 +128,7 @@ class ChurchBooksDialogElement extends LitElement {
     void this.loadCited(parish);
   }
 
-  private async loadCited(parish: ChurchBookParish) {
+  private async loadCited(parish: ChurchBookArchive) {
     const cited = await this.state.api
       .archiveCitations(parish.archiveId)
       .catch(() => null);
@@ -142,6 +147,9 @@ class ChurchBooksDialogElement extends LitElement {
     if (all === 'failed') {
       return html`<p class="muted">Couldn't reach the app.</p>`;
     }
+    if (all.length === 0) {
+      return html`<p class="muted">No sources here cite a church book.</p>`;
+    }
     return html`<ul>
       ${all.map(
         (p) =>
@@ -152,7 +160,7 @@ class ChurchBooksDialogElement extends LitElement {
                 this.pickParish(p);
               }}
             >
-              <span class="text">${p.name}</span>
+              <span class="text">${p.title}</span>
             </button>
           </li>`
       )}
@@ -211,37 +219,27 @@ class ChurchBooksDialogElement extends LitElement {
 
   private renderBack() {
     if (this.parish === null) return nothing;
-    return html`<button
-      slot="actions"
-      class="toggle"
-      @click=${() => {
-        this.pickParish(null);
-      }}
-    >
-      ‹ All parishes
-    </button>`;
+    return html`<div class="actions">
+      <button
+        class="toggle"
+        @click=${() => {
+          this.pickParish(null);
+        }}
+      >
+        ‹ All archives
+      </button>
+    </div>`;
   }
 
   override render() {
-    const heading =
-      this.parish === null
-        ? 'Church books'
-        : `Church books · ${this.parish.name}`;
-    return html`<sl-corner-panel
-      heading=${heading}
-      kind="church-books"
-      @close=${() => {
-        this.dispatchEvent(new CustomEvent('close'));
-      }}
-    >
-      ${this.parish === null ? this.renderParishes() : this.renderVolumes()}
-      ${this.renderBack()}
-    </sl-corner-panel>`;
+    if (this.parish === null) return this.renderParishes();
+    return html`<p class="parish">${this.parish.title}</p>
+      ${this.renderVolumes()} ${this.renderBack()}`;
   }
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'sl-church-books-dialog': ChurchBooksDialogElement;
+    'sl-church-books-list': ChurchBooksListElement;
   }
 }

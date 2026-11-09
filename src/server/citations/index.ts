@@ -35,6 +35,9 @@ interface Options {
   datasets: () => Promise<Database[]>;
   // Told of each change made to a dataset through its Citations.
   changed?: (db: Database, change: NewChange) => void;
+  // Whether each dataset, once opened, asks Astia in the background for
+  // what its references resolve against (the app's; not tests').
+  warmUp?: boolean;
 }
 
 // The Citations of the data folder at `root`, for every dataset in it.
@@ -70,6 +73,7 @@ export function openCitations(root: string, options: Options) {
         options.changed?.(db, change);
       }
       const citations = createCitations(db, { images, references, changed });
+      if (options.warmUp === true) void citations.warmUp();
       // Switches the Volume, `volume` by its label, to Astia's new filming,
       // which every dataset then sees, and says so in this one's Changes.
       async function switchTo(volumeId: string, volume: string) {

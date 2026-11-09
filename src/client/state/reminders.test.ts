@@ -1,49 +1,25 @@
 import { expect, test } from 'bun:test';
 
 import { memoryDatasetApi } from '@/client/dataset-api/memory';
-import type { On, Reminder } from '@/common/types';
+import type { Reminder, ReminderOn } from '@/common/types';
 
-import { openReminders, remindersOn } from './reminders';
+import { openReminders, targetOf } from './reminders';
+import type { ReminderPlaces } from './reminders';
 
-function reminder(id: number, on: On, done: string | null = null) {
+function reminder(id: number, on: ReminderOn, done: string | null = null) {
   const row: Reminder = { id, text: `R${id}`, on, created: '', done };
   return row;
 }
 
-const IMAGE: On = {
+const IMAGE: ReminderOn = {
   kind: 'image',
   volumeId: '201',
   volume: 'I Aa:201',
   image: 18,
   fileId: '201-f18',
-  stale: false
+  stale: false,
+  personId: null
 };
-
-test('the open Reminders on an Image, or on a Citation linking it', () => {
-  const all = [
-    reminder(1, IMAGE),
-    reminder(2, { ...IMAGE, image: 19 }),
-    reminder(3, { ...IMAGE, stale: true }),
-    reminder(4, IMAGE, '2026-10-23T10:00:00.000Z'),
-    reminder(5, {
-      kind: 'citation',
-      personId: 1,
-      citationId: 11,
-      source: null,
-      reference: null
-    }),
-    reminder(6, {
-      kind: 'citation',
-      personId: 1,
-      citationId: 12,
-      source: null,
-      reference: null
-    }),
-    reminder(7, { kind: 'person', personId: 1 })
-  ];
-  const here = remindersOn(all, { volumeId: '201', image: 18 }, new Set([11]));
-  expect(here.map((r) => r.id)).toEqual([1, 5]);
-});
 
 test('Reminders are asked for once, and kept in step with what changes here', async () => {
   const api = memoryDatasetApi({ reminders: [reminder(1, IMAGE)] });
@@ -80,29 +56,24 @@ test('a failed load is asked for again', async () => {
   expect(api.asked).toEqual(['reminders', 'reminders']);
 });
 
-test('the Reminder shown follows its changes, and goes when deleted', async () => {
-  const api = memoryDatasetApi({ reminders: [reminder(1, IMAGE)] });
-  const reminders = openReminders(api);
-  reminders.load();
-  await Bun.sleep(0);
-  reminders.show(1);
-  expect(reminders.shown.get()?.text).toBe('R1');
-  await reminders.change(1, { text: 'Changed' });
-  expect(reminders.shown.get()?.text).toBe('Changed');
-  await reminders.remove(1);
-  expect(reminders.shown.get()).toBe(null);
+test('a Reminder is drafted on its places, until it stops', () => {
+  const reminders = openReminders(memoryDatasetApi({}));
+  expect(reminders.drafting.get()).toBe(null);
+  const places: ReminderPlaces = {
+    person: { personId: 1, header: 'Matti Testinen' },
+    image: null
+  };
+  reminders.draft(places);
+  expect(reminders.drafting.get()).toBe(places);
+  reminders.draft(null);
+  expect(reminders.drafting.get()).toBe(null);
 });
 
-test('a Reminder toggled opens, and toggled again closes', async () => {
-  const api = memoryDatasetApi({
-    reminders: [reminder(1, IMAGE), reminder(2, IMAGE)]
-  });
-  const reminders = openReminders(api);
-  reminders.load();
-  await Bun.sleep(0);
-  expect(reminders.toggle(1)).toBe(true);
-  expect(reminders.toggle(2)).toBe(true);
-  expect(reminders.shown.get()?.id).toBe(2);
-  expect(reminders.toggle(2)).toBe(false);
-  expect(reminders.shown.get()).toBe(null);
+test('a new Reminder is on the Image about the person, or on the person', () => {
+  const at = { volumeId: '201', volume: 'I Aa:201', image: 18, fileId: 'f' };
+  const person = { personId: 1, header: 'Matti' };
+  const image = { at, header: 'I Aa:201 · Image 18' };
+  expect(targetOf({ person, image })).toEqual({ ...at, personId: 1 });
+  expect(targetOf({ person: null, image })).toEqual(at);
+  expect(targetOf({ person, image: null })).toEqual({ personId: 1 });
 });

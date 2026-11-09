@@ -220,10 +220,23 @@ test('show keeps to the Images Astia lists, once it has said how many', async ()
   viewer.show(0);
   expect(viewer.image.get()).toBe(1);
   expect(api.asked.filter((a) => a.endsWith(' 201'))).toEqual([
-    'images 201',
+    'volume 201',
     'citations 201',
     'rescan 201'
   ]);
+});
+
+test("names the Volume's archive, however it was opened", async () => {
+  const api = memoryDatasetApi({
+    volumes: {
+      '201': { images: 3, citations: [], archive: 'Juvan seurakunnan arkisto' }
+    }
+  });
+  const viewer = openAppState(api).viewer;
+  viewer.openImage({ volumeId: '201', volume: 'I Aa:201', image: 2 });
+  expect(viewer.archive.get()).toBeNull();
+  await Bun.sleep(0);
+  expect(viewer.archive.get()).toBe('Juvan seurakunnan arkisto');
 });
 
 test('keeps an image number inside the Volume', () => {
@@ -494,10 +507,12 @@ test('a Discard waits to be saved, and takes the Box back where it is', async ()
   expect(viewer.source.get()?.link).toEqual(VISION_21);
   viewer.discard();
   await viewer.confirmDiscard();
-  expect(api.asked.slice(-3)).toEqual([
+  await settle();
+  expect(api.asked.slice(-4)).toEqual([
     'discard 21 201/18',
-    'links 2',
-    'citations 201'
+    'person 2',
+    'citations 201',
+    'links 2'
   ]);
   expect(viewer.discarding.get()).toBe(false);
   expect(viewer.source.get()?.link).toEqual(onImage('201', 20));

@@ -1,15 +1,24 @@
-// A dataset's Reminders: on a person, one of their Citations, or an Image
-// of a Volume. Only the app keeps them; no export writes them, and a
+// A dataset's Reminders: on a person, or an Image of a Volume, maybe
+// about a person too. Only the app keeps them; no export writes them, and a
 // re-import's merge carries them (import/merge.ts).
 
 import type { Database } from 'bun:sqlite';
 
-import type { OnTarget, ReminderChange } from '@/common/types';
+import type {
+  On,
+  ReminderChange,
+  ReminderOn,
+  ReminderTarget
+} from '@/common/types';
 
 import { ON_COLUMNS, openOn } from '../on';
 import type { OnRow, OnSources } from '../on';
 
-interface ReminderRow extends OnRow {
+// The columns that say what a Reminder is on: those of anything on
+// something, but for a Citation's.
+const COLUMNS = ON_COLUMNS.filter((c) => c !== 'citation_id');
+
+interface ReminderRow extends Omit<OnRow, 'citation_id'> {
   id: number;
   text: string;
   created_at: string;
@@ -19,6 +28,14 @@ interface ReminderRow extends OnRow {
 type Binding = string | number | null;
 
 const NO_TEXT = 'A Reminder needs some text.';
+
+// What a Reminder is on, as its row describes it: never a Citation, as a
+// Reminder can't be on one.
+function reminderOn(on: On): ReminderOn {
+  return on.kind === 'citation'
+    ? { kind: 'person', personId: on.personId }
+    : on;
+}
 
 // The text as kept: without blank lines around it.
 function textOf(text: string) {
@@ -34,8 +51,8 @@ export function createReminders(db: Database, sources: OnSources) {
     'SELECT * FROM reminders WHERE id = ?'
   );
   const insert = db.prepare<{ id: number }, Binding[]>(
-    `INSERT INTO reminders (text, ${ON_COLUMNS.join(', ')}, created_at)
-     VALUES (${['text', ...ON_COLUMNS, 'created_at'].map(() => '?').join(', ')})
+    `INSERT INTO reminders (text, ${COLUMNS.join(', ')}, created_at)
+     VALUES (${['text', ...COLUMNS, 'created_at'].map(() => '?').join(', ')})
      RETURNING id`
   );
   const setText = db.prepare('UPDATE reminders SET text = ? WHERE id = ?');
@@ -47,7 +64,7 @@ export function createReminders(db: Database, sources: OnSources) {
       id: row.id,
       text: row.text,
       // A Reminder is always on something.
-      on: (await ons.describe(row))!,
+      on: reminderOn((await ons.describe({ ...row, citation_id: null }))!),
       created: row.created_at,
       done: row.done_at
     };
@@ -59,15 +76,15 @@ export function createReminders(db: Database, sources: OnSources) {
       return await Promise.all(all.all().map(reminderOf));
     },
 
-    // Writes a Reminder on the target. Null when its person or Citation
-    // isn't in the dataset.
-    async add(text: string, target: OnTarget) {
+    // Writes a Reminder on the target. Null when its person isn't in the
+    // dataset.
+    async add(text: string, target: ReminderTarget) {
       const kept = textOf(text);
       if (kept === '') return { rejected: NO_TEXT };
       const on = ons.columnsOf(target);
       if (on === null) return null;
       const created = new Date().toISOString();
-      const values = ON_COLUMNS.map((c) => on[c]);
+      const values = COLUMNS.map((c) => on[c]);
       const { id } = insert.get(kept, ...values, created)!;
       return await reminderOf(byId.get(id)!);
     },

@@ -16,10 +16,7 @@ import '../scan-viewer';
 import { detailsWidth, setDetailsWidth } from '../person-panel/helpers';
 
 import '../person-search';
-import '../reminder-dialog/shown';
-import '../changes-dialog/button';
-import '../church-books/button';
-import '../reminders-dialog/button';
+import '../corner-lists';
 import '../settings';
 
 import type { PickEvent } from '../person-search';
@@ -375,14 +372,15 @@ class TreeViewElement extends SignalWatcher(LitElement) {
     });
   }
 
-  // A row picked in the Reminders or Changes list shows the person's details.
+  // A Reminder or Change picked in the corner panel shows the person's
+  // details.
   private readonly openDock = () => {
     this.details = true;
   };
 
-  // Search, Reminders, Changes, Church books and Settings, floating over the
-  // chart's top-right corner, and over the Scan viewer's row while it covers
-  // the chart.
+  // Search, the lists (Reminders, Changes, Church books) and Settings,
+  // floating over the chart's top-right corner, and over the Scan viewer's
+  // row while it covers the chart.
   private renderCorner() {
     return html`
       <div class="corner">
@@ -392,9 +390,7 @@ class TreeViewElement extends SignalWatcher(LitElement) {
             this.state.chart.select(e.detail.id);
           }}
         ></sl-person-search>
-        <sl-reminders-button @dock-open=${this.openDock}></sl-reminders-button>
-        <sl-changes-button @dock-open=${this.openDock}></sl-changes-button>
-        <sl-church-books-button></sl-church-books-button>
+        <sl-corner-lists @dock-open=${this.openDock}></sl-corner-lists>
         <sl-settings
           .generations=${this.gen}
           .datasetName=${this.datasetName}
@@ -537,7 +533,7 @@ class TreeViewElement extends SignalWatcher(LitElement) {
                             }
                           },
                           contextmenu: (e: MouseEvent) => {
-                            this.menu = cardMenuAt(e, b, this.rootId);
+                            this.menu = cardMenuAt(e, b);
                           }
                         }
                       );
@@ -547,7 +543,7 @@ class TreeViewElement extends SignalWatcher(LitElement) {
               </div>`
             : nothing
         }
-        ${renderCardMenu(this.menu, this.persons, {
+        ${renderCardMenu(this.menu, this.persons, this.rootId, {
           // The card's person's pin is where their card is drawn, from
           // layout coords: label widths vary by name length and would
           // drift it across back-and-forth re-roots.
@@ -556,6 +552,13 @@ class TreeViewElement extends SignalWatcher(LitElement) {
               menu.personId,
               this.viewport.chartToScreen(menu.pos)
             );
+          },
+          // On the person alone, written in the Reminders list.
+          remind: (menu, name) => {
+            this.state.reminders.draft({
+              person: { personId: menu.personId, header: name },
+              image: null
+            });
           },
           close: () => {
             this.menu = null;
@@ -567,18 +570,8 @@ class TreeViewElement extends SignalWatcher(LitElement) {
 
   override render() {
     // The corner renders through the loading and empty states too, so the
-    // way back to the chooser (in Settings) is always there. A Reminder
-    // clicked anywhere opens over it all.
-    return html`${this.renderBody()}${this.renderCorner()}
-      <sl-reminder-shown
-        .docked=${this.details}
-        @dock-open=${() => {
-          this.details = true;
-        }}
-        @dock-close=${() => {
-          this.details = false;
-        }}
-      ></sl-reminder-shown>`;
+    // way back to the chooser (in Settings) is always there.
+    return html`${this.renderBody()}${this.renderCorner()}`;
   }
 
   private renderBody() {

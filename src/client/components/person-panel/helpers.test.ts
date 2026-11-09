@@ -64,12 +64,10 @@ const OF_IMAGE: CitationRow = {
   cited: null
 };
 
-test('names a Citation of an Image by its text, or by its Volume', () => {
-  expect(titleText(OF_IMAGE, MARKED)).toBe('Baptism 12.3.1795');
-  expect(headingOf(OF_IMAGE)).toBe('Baptism 12.3.1795');
-  const untold = { ...OF_IMAGE, text: null };
-  expect(titleText(untold, MARKED)).toBe('Pää- ja rippikirjat (1790-1796)');
-  expect(headingOf(untold)).toBe(VOLUME);
+test('names a Citation of an Image by its Volume, whatever its text', () => {
+  expect(titleText(OF_IMAGE, MARKED)).toBe('Pää- ja rippikirjat (1790-1796)');
+  // Its text isn't its heading, so it unfolds below.
+  expect(headingOf(OF_IMAGE)).toBe(VOLUME);
 });
 
 test('names a linked Church-book reference by its Volume, whatever its text', () => {

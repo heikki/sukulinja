@@ -67,7 +67,7 @@ export const controlStyles = [focusRingStyles, controls];
 
 export const scanViewerStyles = css`
   /* Covers the chart, not the dock: the dock still shows whose source it is.
-     Under the chart's corner (Search, Reminders, Settings), which stays. */
+     Under the chart's corner (Search, the lists, Settings), which stays. */
   :host {
     position: absolute;
     inset: 0;
@@ -249,11 +249,6 @@ export const scanNavStyles = css`
     border-color: transparent;
     background: none;
     color: var(--muted);
-  }
-
-  /* Reminders open on the Image shown. */
-  button.reminders {
-    color: var(--accent);
   }
 
   /* The Volume shown is on Astia's old filming, read-only. */
