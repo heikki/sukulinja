@@ -17,6 +17,7 @@ import { detailsWidth, setDetailsWidth } from '../person-panel/helpers';
 
 import '../person-search';
 import '../reminder-dialog/shown';
+import '../church-books/button';
 import '../reminders-dialog/button';
 import '../settings';
 
@@ -373,7 +374,7 @@ class TreeViewElement extends SignalWatcher(LitElement) {
     });
   }
 
-  // Search, Reminders and Settings, floating over the chart's top-right
+  // Search, Reminders, Church books and Settings, floating over the chart's top-right
   // corner, and over the Scan viewer's row while it covers the chart.
   private renderCorner() {
     return html`
@@ -389,6 +390,7 @@ class TreeViewElement extends SignalWatcher(LitElement) {
             this.details = true;
           }}
         ></sl-reminders-button>
+        <sl-church-books-button></sl-church-books-button>
         <sl-settings
           .generations=${this.gen}
           .datasetName=${this.datasetName}

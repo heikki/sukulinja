@@ -34,15 +34,22 @@ interface Options {
 // Waits, unless `signal` aborts first.
 async function pause(ms: number, signal: AbortSignal) {
   if (signal.aborted) return;
-  const waited = Promise.withResolvers<void>();
-  const timer = setTimeout(waited.resolve, ms);
-  const stop = () => {
+  const waited = Promise.withResolvers<undefined>();
+  const timer = setTimeout(() => {
+    waited.resolve(undefined);
+  }, ms);
+  function stop() {
     clearTimeout(timer);
-    waited.resolve();
-  };
+    waited.resolve(undefined);
+  }
   signal.addEventListener('abort', stop, { once: true });
   await waited.promise;
   signal.removeEventListener('abort', stop);
+}
+
+// Whether the download was stopped by now, however it looked before.
+function stopped(signal: AbortSignal) {
+  return signal.aborted;
 }
 
 // Why a download stopped, from what Astia threw; anything else is a bug.
@@ -63,8 +70,8 @@ export function openDownloads(
   let running: { volumeId: string; stop: AbortController } | null = null;
   // Why each stopped, until it's started again.
   const errors = new Map<string, DownloadError>();
-  let idle = Promise.withResolvers<void>();
-  idle.resolve();
+  let idle = Promise.withResolvers<undefined>();
+  idle.resolve(undefined);
 
   // One size of an Image, tried again while Astia fails, up to `retries`
   // times. Says whether it fetched a full-size one from Astia.
@@ -73,7 +80,6 @@ export function openDownloads(
     size: 'full' | 'thumb',
     signal: AbortSignal
   ) {
-    if (signal.aborted) return false;
     const fetched = size === 'full' && !(await cache.isCached(at));
     for (let attempt = 0; ; attempt += 1) {
       try {
@@ -97,6 +103,8 @@ export function openDownloads(
       const at = { volumeId, image };
       // eslint-disable-next-line no-await-in-loop -- one Image at a time
       const full = await fetchOne(at, 'full', signal);
+      // Stopped while the full Image came, its thumbnail can wait too.
+      if (stopped(signal)) break;
       // eslint-disable-next-line no-await-in-loop -- its thumbnail beside it
       await fetchOne(at, 'thumb', signal);
       // eslint-disable-next-line no-await-in-loop -- paced, only past the cache
@@ -108,7 +116,7 @@ export function openDownloads(
     if (running !== null) return;
     const volumeId = queue.shift();
     if (volumeId === undefined) {
-      idle.resolve();
+      idle.resolve(undefined);
       return;
     }
     const stop = new AbortController();

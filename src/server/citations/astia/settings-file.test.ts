@@ -47,7 +47,7 @@ test('a change that throws leaves the next one to run', async () => {
   const failed = settings.update(() => {
     throw new Error('no');
   });
-  await expect(failed).rejects.toThrow('no');
+  expect(await failed.catch((err: unknown) => String(err))).toBe('Error: no');
   await settings.update((s) => ({ ...s, a: 1 }));
   expect(await settings.read()).toEqual({ a: 1 });
 });

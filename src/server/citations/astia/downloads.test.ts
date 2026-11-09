@@ -22,8 +22,12 @@ let fetched: string[] = [];
 let hold: PromiseWithResolvers<void> | null = null;
 // How many more requests for an Image fail as if Astia were down.
 let failing = 0;
-let cache: ScanCache;
-let downloads: Downloads;
+let cache: ScanCache = openScanCache({
+  astia: astia(),
+  root: dir,
+  switches: false
+});
+let downloads: Downloads = openDownloads({ astia: astia(), cache });
 
 function fresh() {
   return memoryAstia({
