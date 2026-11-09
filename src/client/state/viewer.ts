@@ -411,7 +411,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     const shown = source.get();
     const at = volume.get();
     if (shown === null || at === null || !discarding.get()) return;
-    if (shown.citation.madeInApp) {
+    if (shown.citation.deletable) {
       await api.uncite(shown.citation.id);
       void selected.refresh();
       if (source.get() === shown) closeNow();

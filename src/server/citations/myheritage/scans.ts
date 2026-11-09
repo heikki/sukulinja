@@ -31,6 +31,7 @@ import { openMarks } from './pins/marks';
 import { openPins, openVolumeFacts } from './pins/pins';
 import type { BoxAt, MarkTarget, PinStore } from './pins/pins';
 import type { ChurchBookRef } from './record';
+import { referencesOf } from './references';
 
 // The pins resolution reads, but no Reference pins: a reference's links by
 // the Book it cites, not by where it was pinned before.
@@ -342,6 +343,13 @@ export function openScanFolder(
     // A dataset's Scans, resolving with its Marks and Matches.
     scans: (db: Database, { sizeOf }: { sizeOf?: ImageSizeOf } = {}) =>
       openScans({ pins: pinsOf(db), astia, sizeOf }),
+
+    // A dataset's references, as the rest of the Citations reach them.
+    references: (db: Database, { sizeOf }: { sizeOf?: ImageSizeOf } = {}) =>
+      referencesOf(openScans({ pins: pinsOf(db), astia, sizeOf }), {
+        db,
+        marks: openMarks(db)
+      }),
 
     // The pins on Astia's Images: the folder's, and each dataset's Marks
     // and Matches, which a switch to a new filming leaves out alike.

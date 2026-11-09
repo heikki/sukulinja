@@ -1,6 +1,6 @@
 // Citations made in the app, on an Astia Image: storing and deleting one,
-// with the source record of the Volume it's in. A Volume's source is the
-// one the Citations made in the app whose link is in that Volume cite;
+// with the source record of the Volume it's in. A Volume's source is known
+// by its own record, the xref the app gave it or its title and publisher;
 // nothing marks the source itself as the app's.
 
 import type { Database } from 'bun:sqlite';
@@ -27,14 +27,14 @@ interface NewCitation {
 
 export function openAppCitations(db: Database) {
   const annotations = openAnnotations(db);
-  // Only a Citation of an Image cites the Volume's source: one made in the
-  // app of another source's reference, such as a MyHeritage entry, keeps the
-  // page a Mark moved aside.
-  const volumeSource = db.prepare<{ id: number }, [string]>(
-    `SELECT source_id AS id FROM citations
-     WHERE added_in_app = 1 AND link_volume_id = ? AND source_id IS NOT NULL
-       AND original_page IS NULL
-     ORDER BY id LIMIT 1`
+  // The Volume's source is known by its own record: the xref the app gave
+  // it, else its title and publisher, as one brought back under another
+  // xref has them. Never by the Citations that cite it, which may cite
+  // another source's reference (ADR-0016).
+  const volumeSource = db.prepare<{ id: number }, [string, string, string]>(
+    `SELECT id FROM sources
+     WHERE xref = ?1 OR (title = ?2 AND publisher = ?3)
+     ORDER BY xref = ?1 DESC, id LIMIT 1`
   );
   const xrefTaken = db.prepare<{ id: number }, [string]>(
     'SELECT id FROM sources WHERE xref = ?'
@@ -47,10 +47,21 @@ export function openAppCitations(db: Database) {
      WHERE scope_type = 'person' AND scope_id = ?`
   );
   const rowOf = db.prepare<
-    { madeInApp: number; sourceId: number | null },
+    { madeInApp: number; sourceId: number | null; originalPage: string | null },
     [number]
   >(
-    'SELECT added_in_app AS madeInApp, source_id AS sourceId FROM citations WHERE id = ?'
+    `SELECT added_in_app AS madeInApp, source_id AS sourceId,
+       original_page AS originalPage FROM citations WHERE id = ?`
+  );
+  const linkedVolume = db.prepare<
+    { volumeId: string; volume: string },
+    [number]
+  >(
+    `SELECT link_volume_id AS volumeId, link_volume AS volume FROM citations
+     WHERE id = ? AND link_volume_id IS NOT NULL`
+  );
+  const adopt = db.prepare(
+    'UPDATE citations SET source_id = ?, text = ?, added_in_app = 1 WHERE id = ?'
   );
   const deleteNotes = db.prepare(
     "DELETE FROM notes WHERE owner_type = 'citation' AND owner_id = ?"
@@ -67,18 +78,22 @@ export function openAppCitations(db: Database) {
   );
   const deleteSource = db.prepare('DELETE FROM sources WHERE id = ?');
 
-  // An xref no MyHeritage export gives, so a re-import never takes another
-  // source for it.
+  // The xref the app gives the Volume's source first: one no MyHeritage
+  // export gives, so a re-import never takes another source for it.
+  function baseXref(volumeId: string) {
+    return `@ASTIA_${volumeId.toUpperCase().replaceAll(/[^A-Z0-9]/g, '_')}@`;
+  }
+
   function newXref(volumeId: string) {
-    const base = `ASTIA_${volumeId.toUpperCase().replaceAll(/[^A-Z0-9]/g, '_')}`;
+    const base = baseXref(volumeId);
     for (let n = 1; ; n += 1) {
-      const xref = n === 1 ? `@${base}@` : `@${base}_${n}@`;
+      const xref = n === 1 ? base : `${base.slice(0, -1)}_${n}@`;
       if (xrefTaken.get(xref) === null) return xref;
     }
   }
 
   function sourceOf(volumeId: string, volume: string) {
-    const known = volumeSource.get(volumeId);
+    const known = volumeSource.get(baseXref(volumeId), volume, PUBLISHER);
     if (known !== null) return known.id;
     const res = insertSource.run(newXref(volumeId), volume, PUBLISHER);
     return Number(res.lastInsertRowid);
@@ -131,13 +146,28 @@ export function openAppCitations(db: Database) {
       });
     },
 
+    // Makes each of the citations, a reference Marked at the entry, a
+    // Citation of its Image (ADR-0016): it cites its Volume's source, its
+    // text is the one given, and it's the app's. Its page, link and
+    // original page stay as the Mark left them.
+    convert(rows: Array<{ id: number; text: string | null }>) {
+      db.transaction(() => {
+        for (const { id, text } of rows) {
+          const at = linkedVolume.get(id);
+          if (at === null) continue;
+          adopt.run(sourceOf(at.volumeId, at.volume), text, id);
+        }
+      })();
+    },
+
     // Deletes a Citation made in the app, with its notes, and its source
     // once nothing cites it. Null when there's no such Citation; false for
-    // an imported one, which isn't deleted.
+    // an imported one, which isn't deleted, nor one converted from a
+    // reference (ADR-0016), which the next import would bring back.
     remove(id: number) {
       const row = rowOf.get(id);
       if (row === null) return null;
-      if (row.madeInApp !== 1) return false;
+      if (row.madeInApp !== 1 || row.originalPage !== null) return false;
       db.transaction(() => {
         deleteNotes.run(id);
         deleteMedia.run(id);

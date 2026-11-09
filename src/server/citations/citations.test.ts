@@ -13,7 +13,7 @@ import { baptismCitation, juvaAstia, rippiCitation } from './astia/test-parish';
 import { createCitations, describeRef, entryOf } from './citations';
 import { openImages } from './images';
 import { openMarks } from './myheritage/pins/marks';
-import { scansOf } from './myheritage/test-pins';
+import { referencesFor } from './myheritage/test-pins';
 
 let dir = '';
 let astia: MemoryAstia = juvaAstia();
@@ -44,7 +44,7 @@ function datasetOf(cited: Cited[]) {
   }
   return createCitations(db, {
     images: openImages({ astia }),
-    references: scansOf(dir, db, { astia })
+    references: referencesFor(dir, db, { astia })
   });
 }
 
@@ -101,7 +101,7 @@ test("serves a person's Citations, church books first", () => {
   expect(
     createCitations(db, {
       images: openImages({ astia }),
-      references: scansOf(dir, openDb(':memory:'), { astia })
+      references: referencesFor(dir, openDb(':memory:'), { astia })
     }).ofPerson(1)
   ).toEqual([
     {
@@ -122,6 +122,7 @@ test("serves a person's Citations, church books first", () => {
       text: null,
       churchBook: true,
       madeInApp: false,
+      deletable: false,
       markKey: 'record 1',
       citedPage: 139,
       cited: { parish: null, kind: 'rippi', years: { from: 1794, to: 1808 } }
@@ -137,6 +138,7 @@ test("serves a person's Citations, church books first", () => {
       text: 'Family bible',
       churchBook: false,
       madeInApp: false,
+      deletable: false,
       markKey: 'citation 1',
       citedPage: null,
       cited: null
@@ -302,6 +304,7 @@ test("lists the Volume's Matches and its Estimates, of an Image or only the Volu
   expect(first![0]!.citation).toMatchObject({
     churchBook: true,
     madeInApp: false,
+    deletable: false,
     citedPage: 12
   });
   expect(placesOf(await citations.inVolume('juva-2'))).toEqual([
