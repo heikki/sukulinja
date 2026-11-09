@@ -403,9 +403,8 @@ test('a Citation converted from a reference is a Record pin no Mark writes to', 
 
   const scans = open(BASE, two);
   const { volumes } = await scans.snapshot();
-  expect(volumes.a?.records).toContainEqual(
-    expect.objectContaining({ record: 150, image: 11 })
-  );
+  const pins = (volumes.a?.records ?? []).map((r) => [r.record, r.image]);
+  expect(pins).toContainEqual([150, 11]);
   await scans.markRef(ref(150, 21), { ...at('a', 12), box: BOX });
   const row = two
     .query('SELECT link_image, added_in_app FROM citations WHERE id = 1')
