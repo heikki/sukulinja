@@ -92,6 +92,9 @@ export interface References<R extends BookRef = BookRef> {
     volumeId: string,
     refs: R[]
   ) => Promise<Array<Link | null> | null>;
+  // The Volumes each reference links in the parish archive, by id; none
+  // for one in another parish.
+  archiveLinks: (archiveId: string, refs: R[]) => Promise<string[][]>;
   // Changes whenever what references resolve to may have.
   stamp: () => Promise<string>;
   mark: (
@@ -121,6 +124,7 @@ export const noReferences: References<never> = {
   recordOf: () => null,
   resolve: async () => await Promise.resolve({ unlinked: 'unparsed' }),
   volumeLinks: async () => await NONE,
+  archiveLinks: async () => await Promise.resolve([]),
   stamp: async () => await Promise.resolve(''),
   mark: async () => await Promise.resolve({ rejected: NO_REFERENCE }),
   discard: async () => await Promise.resolve({ rejected: NO_REFERENCE }),

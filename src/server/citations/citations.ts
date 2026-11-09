@@ -400,7 +400,7 @@ export function createCitations<R extends BookRef>(
   async function countInArchive(archiveId: string) {
     const all = cited(everyPerson.all());
     const church = all.filter(
-      (c): c is Cited & { book: ChurchBookRef } => c.book !== null
+      (c): c is Cited<R> & { book: R } => c.book !== null
     );
     const linked = await references.archiveLinks(
       archiveId,
