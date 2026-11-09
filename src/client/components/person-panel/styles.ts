@@ -354,6 +354,21 @@ export const personPanelStyles = css`
     color: var(--muted);
   }
 
+  /* The less a Link can be trusted, the louder its chip: a Marked one stays
+     plain, a Match is orange, an Estimate red. The label still names it. */
+  .chip[data-certainty='match'] {
+    --tone: var(--caution);
+  }
+
+  .chip[data-certainty='estimated'] {
+    --tone: var(--danger);
+  }
+
+  .chip:is([data-certainty='match'], [data-certainty='estimated']) {
+    background: color-mix(in srgb, var(--tone) 16%, transparent);
+    color: var(--tone);
+  }
+
   .sites {
     display: flex;
     flex-wrap: wrap;

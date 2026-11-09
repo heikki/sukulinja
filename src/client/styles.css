@@ -20,6 +20,8 @@
   --on-accent: light-dark(#fff, #0e0e10);
   --danger: light-dark(#c0392b, #e5675a);
   --on-danger: light-dark(#fff, #0e0e10);
+  /* A warning short of --danger. */
+  --caution: light-dark(#b45309, #f0a04b);
   /* No focus ring until focus is moved from the keyboard (focus-ring.ts). */
   --focus-ring: none;
   /* Dims the page behind a dialog; shadow under floating panels. */

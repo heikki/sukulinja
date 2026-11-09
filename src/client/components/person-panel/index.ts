@@ -69,12 +69,15 @@ function renderFold(open: boolean, fold: () => void) {
   ></button>`;
 }
 
-// Where in its Volume the reference points, if it links one, and how.
+// Where in its Volume the reference points, if it links one, and how. The
+// chip carries its Link's Certainty, for the styles to tint.
 function renderStatus(status: LinkStatus | null, entry: string | null) {
   if (status === null) return nothing;
   return html`<div class="status">
     ${entry === null ? nothing : html`<span class="entry">${entry}</span>`}
-    <span class="chip">${status.label}</span>
+    <span class="chip" data-certainty=${status.link?.certainty ?? nothing}
+      >${status.label}</span
+    >
   </div>`;
 }
 
