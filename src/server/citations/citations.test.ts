@@ -13,7 +13,7 @@ import { baptismCitation, juvaAstia, rippiCitation } from './astia/test-parish';
 import { createCitations, describeRef, entryOf } from './citations';
 import { openImages } from './images';
 import { openMarks } from './myheritage/pins/marks';
-import { scansOf } from './myheritage/test-pins';
+import { referencesFor } from './myheritage/test-pins';
 
 let dir = '';
 let astia: MemoryAstia = juvaAstia();
@@ -44,7 +44,7 @@ function datasetOf(cited: Cited[]) {
   }
   return createCitations(db, {
     images: openImages({ astia }),
-    references: scansOf(dir, db, { astia })
+    references: referencesFor(dir, db, { astia })
   });
 }
 
@@ -101,7 +101,7 @@ test("serves a person's Citations, church books first", () => {
   expect(
     createCitations(db, {
       images: openImages({ astia }),
-      references: scansOf(dir, openDb(':memory:'), { astia })
+      references: referencesFor(dir, openDb(':memory:'), { astia })
     }).ofPerson(1)
   ).toEqual([
     {

@@ -7,7 +7,7 @@ import type { Box, LinkResolution } from '@/common/types';
 
 import { astiaFailed } from './astia-routes';
 import type { Citations, CiteTarget } from './citations';
-import type { BoxAt, MarkTarget } from './myheritage';
+import type { BoxAt, MarkTarget } from './references';
 
 interface CitationHandlers {
   handlePersonLinks: (id: number) => Response;

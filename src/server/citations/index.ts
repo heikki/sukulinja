@@ -56,7 +56,7 @@ export function openCitations(root: string, options: Options) {
     // One dataset's Citations, resolved against the scans. Opened once for
     // each Database, which a re-import replaces rather than changes.
     forDataset(db: Database) {
-      const references = folder.scans(db, { sizeOf });
+      const references = folder.references(db, { sizeOf });
       const citations = createCitations(db, { images, references });
       return {
         // The Citation routes under /d/<slug>; null for any other path.

@@ -16,5 +16,6 @@ export {
   readRecord
 } from './record';
 export type { ChurchBookRef } from './record';
+export { referencesOf } from './references';
 export { openScanFolder } from './scans';
 export type { Scans } from './scans';

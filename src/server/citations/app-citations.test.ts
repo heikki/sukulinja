@@ -22,7 +22,7 @@ import {
 } from './astia/test-parish';
 import { createCitations } from './citations';
 import { openImages } from './images';
-import { scansOf } from './myheritage/test-pins';
+import { referencesFor } from './myheritage/test-pins';
 
 let dir = '';
 let astia: MemoryAstia = juvaAstia();
@@ -79,7 +79,7 @@ function withPeople(cited: Cited[], people = 3) {
   async function sizeOf() {
     return await Promise.resolve({ width: 1000, height: 800 });
   }
-  const references = scansOf(dir, db, { astia, sizeOf });
+  const references = referencesFor(dir, db, { astia, sizeOf });
   const images = openImages({ astia, sizeOf });
   return { db, citations: createCitations(db, { images, references }) };
 }

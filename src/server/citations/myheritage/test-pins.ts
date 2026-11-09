@@ -77,6 +77,16 @@ export function scansOf(
   return openScanFolder(folder, opened).scans(db, { sizeOf });
 }
 
+// A dataset's references, as the rest of the Citations reach them.
+export function referencesFor(
+  folder: string,
+  db: ReturnType<typeof openDb>,
+  options: { astia: Astia; base?: Pins['volumes']; sizeOf?: ImageSizeOf }
+) {
+  const { sizeOf, ...opened } = options;
+  return openScanFolder(folder, opened).references(db, { sizeOf });
+}
+
 // A Match the vision model confirmed at BOX, on an Image of SIZE.
 export function match(
   volumeId: string,
