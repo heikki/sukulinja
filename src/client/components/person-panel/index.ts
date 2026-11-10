@@ -127,10 +127,15 @@ function filedEntry(c: CitationRow, filed: boolean) {
   return filed ? c.entry : null;
 }
 
-// A source clicking opens (`active`), the one the Scan viewer shows
-// (`viewing`), the one it was opened on once it has moved off its Link
-// (`away`), and one filed under its archive, titled by its Volume or
-// Book (`linked`).
+// Whether a source's Link is to an Image of its Volume, so the viewer
+// shows its own.
+function hasImage(source: { link: Link | null }) {
+  return source.link !== null && source.link.precision !== 'volume';
+}
+
+// A source clicking opens (`active`), the one the Scan viewer shows on its
+// Image (`viewing`), the one it's open on otherwise (`elsewhere`), and one
+// filed under its archive, titled by its Volume or Book (`linked`).
 function sourceClass(flags: Record<string, boolean>) {
   const on = Object.entries(flags).filter(([, v]) => v);
   return ['source', ...on.map(([k]) => k)].join(' ');
@@ -310,22 +315,25 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
     this.unfolded = this.unfolded === id ? null : id;
   }
 
+  // Whether the source is the one the Scan viewer shows on its Image, or
+  // one it's open on elsewhere: moved off its Image, or with none to show,
+  // its Link only to the Volume or none at all. Marked in full as shown
+  // while the menu's item placing it is pointed at.
+  private markOf(c: CitationRow) {
+    const { viewer } = this.state;
+    const { viewing: on } = this;
+    const shown = on?.citation.id === c.id && hasImage(on);
+    const open = !shown && viewer.source.get()?.citation.id === c.id;
+    const viewing = shown || (open && viewer.placing.get());
+    return { viewing, elsewhere: open && !viewing };
+  }
+
   // Clicking a church-book source opens its scan; clicking another shows or
   // hides what it records, as its chevron does for both. Its record shows
   // only when selected, and opening it in the Scan viewer leaves it as it is.
-  // Whether the source is the one the Scan viewer shows, or the one it was
-  // opened on but has moved off; marked in full as shown while the
-  // menu's item placing it is pointed at.
-  private markOf(c: CitationRow) {
-    const { viewer } = this.state;
-    const shown = this.viewing?.citation.id === c.id;
-    const opened = !shown && viewer.source.get()?.citation.id === c.id;
-    const viewing = shown || (opened && viewer.placing.get());
-    return { viewing, away: opened && !viewing };
-  }
 
   private renderCitation({ citation: c, status }: Source) {
-    const { viewing, away } = this.markOf(c);
+    const { viewing, elsewhere } = this.markOf(c);
     const heading = headingOf(c);
     const body = renderBody(c, heading);
     const link = status?.link ?? null;
@@ -338,7 +346,7 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
         class=${sourceClass({
           active: act !== null,
           viewing,
-          away,
+          elsewhere,
           linked: filed
         })}
         data-citation=${c.id}
