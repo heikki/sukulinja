@@ -13,7 +13,8 @@ import {
 import type { ScanCacheStatus } from '@/common/types';
 
 import { CornerPopover, popoverStyles } from '../corner-panel/popover';
-import { formatBytes } from './helpers';
+import { capDrop, clearDrop, formatBytes } from './helpers';
+import type { ScanCacheDrop } from './helpers';
 
 export type GenerationsChangeEvent = CustomEvent<number>;
 
@@ -46,8 +47,9 @@ const GEAR_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
 // and hears picks through `generations-change`; on the landing page there is
 // none and the row shows the preferred value. Every pick also becomes the
 // preference a dataset opens with. Scan cache is the install's, kept by the
-// app: the row asks for it each time the popover opens, and Clear asks to
-// confirm in a dialog first.
+// app: the row asks for it each time the popover opens. Anything that would
+// remove downloaded scans, Clear or a cap below the space used, asks to
+// confirm in a dialog first, naming how much goes.
 @customElement('sl-settings')
 class SettingsElement extends LitElement {
   static override styles = [
@@ -182,7 +184,7 @@ class SettingsElement extends LitElement {
       .caption button:hover:not(:disabled) {
         text-decoration: underline;
       }
-      /* Clear's dialog dims the popover too. */
+      /* The confirming dialog dims the popover too. */
       .overlay {
         z-index: 21;
       }
@@ -201,14 +203,14 @@ class SettingsElement extends LitElement {
   @state() private preferred = preferredGenerations();
   // Null until the app answers; a string when it couldn't.
   @state() private scanCache: ScanCacheStatus | string | null = null;
-  // Clear's dialog is up, asking to confirm.
-  @state() private confirmingClear = false;
-  @state() private clearing = false;
+  // The removal the dialog is asking to confirm, if it's up.
+  @state() private confirming: ScanCacheDrop | null = null;
+  @state() private dropping = false;
 
   // Closed by another popover opening, a press outside or Esc, which
-  // takes down Clear's dialog first.
+  // takes down the confirming dialog first.
   private readonly corner = new CornerPopover(this, () => {
-    if (this.confirmingClear) this.cancelClear();
+    if (this.confirming !== null) this.cancelDrop();
     else this.corner.set(false);
   });
 
@@ -240,15 +242,24 @@ class SettingsElement extends LitElement {
     }
   }
 
-  private cancelClear() {
-    if (!this.clearing) this.confirmingClear = false;
+  // A cap that keeps everything on disk is saved at once; one that would
+  // drop scans asks first.
+  private pickCap(cache: ScanCacheStatus, cap: number) {
+    const drop = capDrop(cache.used, cap);
+    if (drop === null) void this.askScanCache('PUT', { cap });
+    else this.confirming = drop;
   }
 
-  private async clearScanCache() {
-    this.clearing = true;
-    await this.askScanCache('DELETE');
-    this.clearing = false;
-    this.confirmingClear = false;
+  private cancelDrop() {
+    if (!this.dropping) this.confirming = null;
+  }
+
+  private async confirmDrop(drop: ScanCacheDrop) {
+    this.dropping = true;
+    if (drop.kind === 'clear') await this.askScanCache('DELETE');
+    else await this.askScanCache('PUT', { cap: drop.cap });
+    this.dropping = false;
+    this.confirming = null;
   }
 
   private pickAppearance(appearance: Appearance) {
@@ -271,49 +282,66 @@ class SettingsElement extends LitElement {
         ${GEAR_ICON}
       </button>
       ${this.open ? this.renderPopover() : nothing}
-      ${this.confirmingClear ? this.renderClearDialog() : nothing}
+      ${
+        this.confirming === null
+          ? nothing
+          : this.renderDropDialog(this.confirming)
+      }
     `;
   }
 
-  private renderClearDialog() {
-    const cache = this.scanCache;
-    if (cache === null || typeof cache === 'string') return nothing;
+  private renderDropDialog(drop: ScanCacheDrop) {
+    const clear = drop.kind === 'clear';
     return html`
       <div
         class="overlay"
         @click=${() => {
-          this.cancelClear();
+          this.cancelDrop();
         }}
       >
         <div
           class="dialog"
           role="alertdialog"
+          aria-labelledby="drop-title"
           @click=${(e: Event) => {
             e.stopPropagation();
           }}
         >
-          <h2>Clear scan cache?</h2>
+          <h2 id="drop-title">
+            ${
+              clear
+                ? 'Clear scan cache?'
+                : `Lower the cap to ${formatBytes(drop.cap)}?`
+            }
+          </h2>
           <p>
-            <strong>${formatBytes(cache.used)}</strong> of downloaded scans will
-            be removed. They download again when opened.
+            ${
+              clear
+                ? html`All <strong>${formatBytes(drop.bytes)}</strong> of
+                    downloaded scans will be removed.`
+                : html`About <strong>${formatBytes(drop.bytes)}</strong> of
+                    downloaded scans, the least recently viewed, will be removed
+                    to fit.`
+            }
+            They download again from Astia when opened.
           </p>
           <div class="actions">
             <button
               @click=${() => {
-                this.cancelClear();
+                this.cancelDrop();
               }}
-              ?disabled=${this.clearing}
+              ?disabled=${this.dropping}
             >
               Cancel
             </button>
             <button
               class="danger"
               @click=${() => {
-                void this.clearScanCache();
+                void this.confirmDrop(drop);
               }}
-              ?disabled=${this.clearing}
+              ?disabled=${this.dropping}
             >
-              ${this.clearing ? 'Clearing…' : 'Clear'}
+              ${this.dropping ? 'Removing…' : clear ? 'Clear' : 'Lower cap'}
             </button>
           </div>
         </div>
@@ -379,7 +407,7 @@ class SettingsElement extends LitElement {
             <button
               aria-pressed=${cap === cache.cap}
               @click=${() => {
-                void this.askScanCache('PUT', { cap });
+                this.pickCap(cache, cap);
               }}
             >
               ${formatBytes(cap)}
@@ -400,7 +428,7 @@ class SettingsElement extends LitElement {
           <button
             ?disabled=${cache.used === 0}
             @click=${() => {
-              this.confirmingClear = true;
+              this.confirming = clearDrop(cache.used);
             }}
           >
             Clear
