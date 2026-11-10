@@ -13,3 +13,7 @@ Canonical strings: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-h
 ### Domain docs
 
 Multi-context layout: `GLOSSARY-MAP.md` at the repo root points at each context's `GLOSSARY.md`; ADRs in `docs/adr/`. See `docs/agents/domain.md`.
+
+## Commit messages
+
+Short, plain, imperative subject, like "Ask before clearing the scan cache". Body only if the why isn't obvious, in 1–2 sentences.
