@@ -83,6 +83,10 @@ export interface Viewer {
   // Whether the dock's Sources list can be seen; the panel says.
   sourcesInView: Readable<boolean>;
   setSourcesInView: (inView: boolean) => void;
+  // Whether the menu's item placing the source's Citation is pointed at,
+  // for the panel to mark the source as it does one shown.
+  placing: Readable<boolean>;
+  setPlacing: (on: boolean) => void;
   // To the source's Link, even when it shows that source already; with
   // none, to no Volume until one is chosen.
   open: (source: LinkOpen) => void;
@@ -180,6 +184,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   const citations = signal<VolumeCitation[] | null | 'failed'>(null);
   const archive = signal<string | null>(null);
   const sourcesInView = signal(false);
+  const placing = signal(false);
   const pending = signal<PendingLink | null>(null);
   const discarding = signal(false);
   const confirmation = confirmingSource(source, confirm);
@@ -600,6 +605,10 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     archive,
     away,
     sourcesInView,
+    placing,
+    setPlacing(on) {
+      placing.set(on);
+    },
     setSourcesInView(inView) {
       sourcesInView.set(inView);
     },

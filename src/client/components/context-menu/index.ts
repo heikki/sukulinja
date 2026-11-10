@@ -11,10 +11,12 @@ export { placedInside } from './helpers';
 // One thing the menu offers, with muted text beside its label when it has
 // some: who someone is to the Selected person before, their years after;
 // and with `detail`, what it acts on, muted on a line of its own below.
+// `hover` hears when it's pointed at or focused, and when that ends.
 export interface MenuItem {
   label: string;
   muted?: { before?: string; after?: string };
   detail?: string;
+  hover?: (on: boolean) => void;
   run: () => void;
 }
 
@@ -50,6 +52,7 @@ class ContextMenuElement extends LitElement {
 
   override disconnectedCallback() {
     super.disconnectedCallback();
+    for (const item of this.items) item.hover?.(false);
     window.removeEventListener('mousedown', this.onOutside);
     window.removeEventListener('blur', this.close);
   }
@@ -114,6 +117,10 @@ class ContextMenuElement extends LitElement {
             @click=${() => {
               this.choose(item);
             }}
+            @mouseenter=${() => item.hover?.(true)}
+            @mouseleave=${() => item.hover?.(false)}
+            @focus=${() => item.hover?.(true)}
+            @blur=${() => item.hover?.(false)}
           >
             ${
               item.muted?.before === undefined

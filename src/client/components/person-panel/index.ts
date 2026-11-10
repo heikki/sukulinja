@@ -313,10 +313,19 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
   // Clicking a church-book source opens its scan; clicking another shows or
   // hides what it records, as its chevron does for both. Its record shows
   // only when selected, and opening it in the Scan viewer leaves it as it is.
+  // Whether the source is the one the Scan viewer shows, or the one it was
+  // opened on but has moved off; marked in full as shown while the
+  // menu's item placing it is pointed at.
+  private markOf(c: CitationRow) {
+    const { viewer } = this.state;
+    const shown = this.viewing?.citation.id === c.id;
+    const opened = !shown && viewer.source.get()?.citation.id === c.id;
+    const viewing = shown || (opened && viewer.placing.get());
+    return { viewing, away: opened && !viewing };
+  }
+
   private renderCitation({ citation: c, status }: Source) {
-    const viewing = this.viewing?.citation.id === c.id;
-    const away =
-      !viewing && this.state.viewer.source.get()?.citation.id === c.id;
+    const { viewing, away } = this.markOf(c);
     const heading = headingOf(c);
     const body = renderBody(c, heading);
     const link = status?.link ?? null;

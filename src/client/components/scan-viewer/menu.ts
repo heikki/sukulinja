@@ -37,6 +37,7 @@ export function linkItems(
       items.push({
         label: 'Place citation here',
         detail: sourceName(viewer) ?? undefined,
+        hover: viewer.setPlacing,
         run: open.placeBox
       });
     }

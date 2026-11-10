@@ -184,3 +184,12 @@ test('opened on an Image with no source, only a Reminder is offered', async () =
     'Add reminder…'
   ]);
 });
+
+test('pointing at Place citation here says so, for the panel to mark it', async () => {
+  const viewer = await viewing(citation(1, false), ON_IMAGE);
+  const [place] = linkItems(viewer, { onBox: false, canBox: true }, NONE);
+  place?.hover?.(true);
+  expect(viewer.placing.get()).toBe(true);
+  place?.hover?.(false);
+  expect(viewer.placing.get()).toBe(false);
+});
