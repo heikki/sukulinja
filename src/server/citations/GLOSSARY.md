@@ -72,7 +72,7 @@ _Avoid_: rescan, refilming (as names).
 A Volume whose Images hold the book twice, as if filmed twice; the copies drift apart in Image numbers. Page pins point into the copy the references were indexed from.
 
 **Scan viewer**:
-Where the app shows the Image a Church-book reference links, opened from its source. You step through the link's Volume there, or look in another Volume of its Book. An **Unlinked** reference whose parish's books were looked through opens it too, on no Volume, to look through them for the entry, and an Image's **Reminder** opens it on that Image with no source; beside the scan are the people whose references link the Image shown, and the source's **Match** can be confirmed from its Box's menu. A **Box** placed there for the source's entry waits until it's saved as a **Mark**, and the source's own Box can be taken back with a **Discard**.
+Where the app shows the Image a Church-book reference links, opened from its source. You step through the link's Volume there, or look in another Volume of its Book. An **Unlinked** reference whose parish's books were looked through opens it too, on no Volume, to look through them for the entry, and an Image's **Reminder** or the **Church books** view opens it on an Image with no source; there or with one, a new Citation of an entry can be made for someone, and the viewer then opens on it as its source. Beside the scan are the people whose references link the Image shown, and the source's **Match** can be confirmed from its Box's menu. A **Box** placed there for the source's entry waits until it's saved as a **Mark**, and the source's own Box can be taken back with a **Discard**.
 _Avoid_: record viewer (a record is MyHeritage's), Astia viewer (Astia's own site).
 
 **Scan cache**:

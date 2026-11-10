@@ -41,9 +41,10 @@ export interface VolumeShown {
   label: string;
 }
 
-// A change to the current source's Link, not saved yet: where on an Image
-// of a Volume the entry is. With `cite`, it's a new Citation of the entry
-// for the person instead, saying what the entry is.
+// A change not saved yet: where on an Image of a Volume the entry is.
+// Without `cite`, it moves the current source's Link there. With `cite`,
+// it's a new Citation of the entry for the person instead, saying what the
+// entry is: it belongs to the Image shown, with a source or none.
 export interface PendingLink {
   volumeId: string;
   volume: string;
@@ -93,7 +94,7 @@ export interface Viewer {
   // none, to no Volume until one is chosen.
   open: (source: LinkOpen) => void;
   // To an Image of a Volume, with no source: the people beside the scan
-  // as usual, and nothing to edit but Reminders.
+  // as usual, and nothing to edit but new Citations and Reminders.
   openImage: (at: ImageOpen) => void;
   // To Image `n` of the Volume shown.
   show: (n: number) => void;
@@ -151,9 +152,10 @@ export interface Viewer {
   // the app, deletes it instead, and the viewer closes.
   confirmDiscard: () => Promise<void>;
   // Saves the pending change as a Mark and follows the new Link, or makes
-  // the pending Citation and stays where it is, throwing ApiError if it's
-  // refused.
-  save: () => Promise<void>;
+  // the pending Citation and opens on it, throwing ApiError if it's
+  // refused. Its person's id when they aren't the Selected person, for the
+  // caller to select them, as `pick` gives it.
+  save: () => Promise<number | null>;
   // Runs `go` now, or once the pending change is saved or discarded;
   // `stay` runs if the person keeps editing instead.
   leave: (go: () => void, stay?: () => void) => void;
@@ -361,14 +363,15 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     });
   }
 
-  // A Volume on a filming Astia replaced is read-only until switched. A
-  // pending Citation stays one as its Box moves.
-  function setBox(box: Box) {
+  // A Box on the Image shown, pending: for the source's entry, or with
+  // `cite`, for a new Citation, which needs no source. A Volume on a
+  // filming Astia replaced is read-only until switched.
+  function placeBox(box: Box, cite: PendingLink['cite']) {
     const shown = volume.get();
-    if (source.get() === null || shown === null || oldFilming.get()) return;
+    if (shown === null || oldFilming.get()) return;
+    if (cite === undefined && source.get() === null) return;
     discarding.set(false);
     confirmation.forget();
-    const cite = pending.get()?.cite;
     pending.set({
       volumeId: shown.id,
       volume: shown.label,
@@ -378,13 +381,13 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     });
   }
 
+  // A pending Citation stays one as its Box moves.
+  function setBox(box: Box) {
+    placeBox(box, pending.get()?.cite);
+  }
+
   function citeFor(personId: number, box: Box) {
-    pending.set(null);
-    setBox(box);
-    const change = pending.get();
-    if (change !== null) {
-      pending.set({ ...change, cite: { personId, text: '' } });
-    }
+    placeBox(box, { personId, text: '' });
   }
 
   function setCiteText(text: string) {
@@ -444,17 +447,30 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     if (link !== undefined) opened.set({ citation: shown.citation, link });
   }
 
+  // A new Citation opens as picking it beside the scan would, so a wrong
+  // Image is put right with Place citation here.
+  async function save() {
+    const made = await saveChange();
+    return made === null ? null : pick(made);
+  }
+
+  // The pending change saved: a Mark, or a new Citation, given back.
+  async function saveChange() {
+    const change = pending.get();
+    if (change?.cite !== undefined) {
+      return await saveCitation(change, change.cite);
+    }
+    await saveMark();
+    return null;
+  }
+
   // The Mark reloads the Volume's citations, as a confirmation does, and
   // the viewer follows the new Link. The pending Box stays until they're
   // in, or the Link's old Box shows again in between.
-  async function save() {
+  async function saveMark() {
     const shown = source.get();
     const change = pending.get();
     if (shown === null || change === null) return;
-    if (change.cite !== undefined) {
-      await saveCitation(change, change.cite);
-      return;
-    }
     const { volumeId, image: at, box } = change;
     const resolved = await selected.mark(shown.citation.id, {
       volumeId,
@@ -471,6 +487,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
 
   // The new Citation shows beside the scan once the Volume's citations
   // reload, and in the person's sources if they're the Selected person.
+  // Null when the viewer moved on meanwhile.
   async function saveCitation(
     change: PendingLink,
     cite: { personId: number; text: string }
@@ -481,7 +498,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
       throw new ApiError("The Image isn't listed yet; try again.");
     }
     const text = cite.text.trim();
-    await api.cite(cite.personId, {
+    const made = await api.cite(cite.personId, {
       volumeId,
       image: at,
       fileId,
@@ -490,11 +507,15 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     });
     if (selected.id.get() === cite.personId) void selected.refresh();
     await loadCitations(volumeId);
-    if (pending.get() === change) pending.set(null);
+    if (pending.get() !== change) return null;
+    pending.set(null);
+    return made;
   }
 
+  // A way out goes where it was going: a new Citation saved on the way
+  // isn't opened.
   async function answer(given: LeaveAnswer) {
-    if (given === 'save') await save();
+    if (given === 'save') await saveChange();
     else if (given === 'discard') pending.set(null);
     const waiting = held;
     held = null;

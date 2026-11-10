@@ -1,5 +1,6 @@
-// Citing an entry from the Scan viewer: a pending Box for someone's new
-// Citation, saved or cancelled, and deleting a Citation made in the app.
+// Citing an entry from the Scan viewer, with a source or none: a pending
+// Box for someone's new Citation, saved and opened, or cancelled, and
+// deleting a Citation made in the app.
 
 import { expect, test } from 'bun:test';
 
@@ -90,8 +91,8 @@ async function viewing() {
   return { api, state, viewer: state.viewer };
 }
 
-test('a pending Citation is saved for its person, with its text, and the viewer stays', async () => {
-  const { api, viewer } = await viewing();
+test('a pending Citation is saved for its person, with its text, and opens', async () => {
+  const { api, state, viewer } = await viewing();
   viewer.citeFor(2, BOX);
   expect(viewer.boxHere.get()).toEqual(BOX);
   expect(viewer.boxPending.get()).toBe(true);
@@ -103,10 +104,13 @@ test('a pending Citation is saved for its person, with its text, and the viewer 
     text: '  Baptism 12.3.1795 '
   });
 
-  await viewer.save();
+  await state.chart.save();
+  await settle();
   expect(api.asked).toContain('cite 2 201/18 201-f18: Baptism 12.3.1795');
   expect(viewer.pending.get()).toBeNull();
-  expect(viewer.source.get()?.citation.id).toBe(11);
+  // Made for Person 2, who's selected, the viewer on it.
+  expect(state.selected.id.get()).toBe(2);
+  expect(viewer.source.get()?.citation.madeInApp).toBe(true);
   expect(viewer.image.get()).toBe(18);
   const rows = viewer.citations.get();
   const made = Array.isArray(rows) ? rows.find((r) => r.personId === 2) : null;
@@ -121,10 +125,13 @@ test('a pending Citation without text is saved with none, and Cancel leaves noth
   expect(viewer.source.get()?.citation.id).toBe(11);
 
   viewer.citeFor(1, BOX);
-  await viewer.save();
+  expect(await viewer.save()).toBeNull();
   expect(api.asked.filter((a) => a.startsWith('cite'))).toEqual([
     'cite 1 201/18 201-f18'
   ]);
+  // Matti's own: the viewer opens on it, him still selected.
+  expect(viewer.source.get()?.citation.text).toBeNull();
+  expect(viewer.source.get()?.citation.madeInApp).toBe(true);
   // Matti's sources read again, with the new Citation.
   expect(api.asked.filter((a) => a === 'person 1')).toHaveLength(2);
 });
@@ -138,6 +145,41 @@ test('a way out of a pending Citation waits to save it', async () => {
   await viewer.answer('save');
   expect(api.asked).toContain('cite 2 201/18 201-f18');
   expect(viewer.image.get()).toBe(19);
+  expect(viewer.source.get()?.citation.id).toBe(11);
+});
+
+test('opened on an Image with no source, a new Citation is made and opens', async () => {
+  const api = dataset();
+  const state = openAppState(api);
+  state.chart.select(1);
+  await settle();
+  const { viewer } = state;
+  viewer.openImage({ volumeId: '201', volume: 'I Aa:201', image: 22 });
+  await settle();
+  viewer.citeFor(1, BOX);
+  viewer.setBox({ ...BOX, top: 300 });
+  expect(viewer.pending.get()).toMatchObject({
+    image: 22,
+    box: { top: 300 },
+    cite: { personId: 1 }
+  });
+  viewer.setCiteText('Baptism 1.2.1800');
+  await state.chart.save();
+  expect(api.asked).toContain('cite 1 201/22 201-f22: Baptism 1.2.1800');
+  expect(viewer.source.get()?.citation.text).toBe('Baptism 1.2.1800');
+  expect(viewer.source.get()?.link).toMatchObject({ image: 22 });
+  expect(viewer.pending.get()).toBeNull();
+});
+
+test('opened on an Image with no source, Cancel drops the pending Citation', async () => {
+  const { viewer } = await viewing();
+  viewer.openImage({ volumeId: '201', volume: 'I Aa:201', image: 22 });
+  await settle();
+  viewer.citeFor(2, BOX);
+  viewer.cancel();
+  expect(viewer.pending.get()).toBeNull();
+  expect(viewer.image.get()).toBe(22);
+  expect(viewer.source.get()).toBeNull();
 });
 
 test('a Discard of a Citation made in the app deletes it, once confirmed', async () => {

@@ -84,6 +84,9 @@ export interface Chart {
   // Selects the person and opens their Citation in the Scan viewer, which
   // stays open meanwhile, as a list goes to it.
   toCitation: (personId: number, citationId: number) => void;
+  // Saves the Scan viewer's pending change, throwing ApiError if it's
+  // refused; a new Citation opens there, its person selected.
+  save: () => Promise<void>;
   // Back or Forward: once the Scan viewer's change is dealt with, Root and
   // the Selected person `read` gives; `stay` runs if editing goes on.
   follow: (read: () => UrlView, stay: () => void) => void;
@@ -233,6 +236,10 @@ export function openChart(
         const id = viewer.toCitation(personId, citationId);
         if (id !== null) select(id);
       });
+    },
+    async save() {
+      const id = await viewer.save();
+      if (id !== null) select(id);
     },
     follow(read, stay) {
       viewer.leave(() => {

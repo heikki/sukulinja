@@ -173,7 +173,7 @@ test('Place citation here names one made in the app by its Image', async () => {
   expect(linkItems(viewer, where, NONE)[0]?.detail).toBe('I Aa:201, Image 18');
 });
 
-test('opened on an Image with no source, only a Reminder is offered', async () => {
+test('opened on an Image with no source, a new Citation and a Reminder are offered', async () => {
   const api = memoryDatasetApi({
     volumes: { '201': { images: 40, citations: [] } }
   });
@@ -181,7 +181,15 @@ test('opened on an Image with no source, only a Reminder is offered', async () =
   viewer.openImage({ volumeId: '201', volume: 'I Aa:201', image: 18 });
   await Bun.sleep(0);
   expect(labels(viewer, { onBox: false, canBox: true })).toEqual([
+    'New citation for…',
     'Add reminder…'
+  ]);
+  expect(labels(viewer, { onBox: false, canBox: false })).toEqual([
+    'Add reminder…'
+  ]);
+  viewer.citeFor(1, BOX);
+  expect(labels(viewer, { onBox: true, canBox: true })).toEqual([
+    'Discard changes'
   ]);
 });
 

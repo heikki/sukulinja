@@ -69,6 +69,12 @@ class ScanEditElement extends SignalWatcher(LitElement) {
     }
   }
 
+  private async save() {
+    await this.run(true, async () => {
+      await this.state.chart.save();
+    });
+  }
+
   private answer(given: LeaveAnswer) {
     void this.run(given === 'save', async () => {
       await this.state.viewer.answer(given);
@@ -185,9 +191,7 @@ class ScanEditElement extends SignalWatcher(LitElement) {
         @keydown=${(e: KeyboardEvent) => {
           if (e.key !== 'Enter' || e.isComposing) return;
           e.preventDefault();
-          void this.run(true, async () => {
-            await this.state.viewer.save();
-          });
+          void this.save();
         }}
       />
     `;
@@ -206,9 +210,7 @@ class ScanEditElement extends SignalWatcher(LitElement) {
           Cancel
         </button>
         ${this.renderSave(() => {
-          void this.run(true, async () => {
-            await this.state.viewer.save();
-          });
+          void this.save();
         })}
       </div>
     `;
@@ -231,31 +233,47 @@ class ScanEditElement extends SignalWatcher(LitElement) {
     return html`<p class="also">${verb} ${names.join(', ')}.</p>`;
   }
 
+  // A pending Citation, with a source or none; else what's asked of the
+  // source.
   override render() {
-    const source = this.state.viewer.source.get();
+    const { viewer } = this.state;
+    const cite = viewer.pending.get()?.cite;
+    if (cite !== undefined) {
+      return this.renderAsking(this.renderCite(cite), this.renderSaving());
+    }
+    const source = viewer.source.get();
     if (source === null) return nothing;
-    const confirming = this.state.viewer.confirming.get();
+    const confirming = viewer.confirming.get();
     if (confirming !== null) return renderConfirming(confirming);
     return this.renderChange(source);
   }
 
-  // The pending Box, or the Discard asked for.
+  // The source's pending Box, or the Discard asked for.
   private renderChange(source: LinkOpen) {
     const { viewer } = this.state;
-    const discarding = viewer.discarding.get();
-    if (!discarding && viewer.pending.get() === null) return nothing;
-    const asking = discarding
-      ? this.renderDiscard(source)
-      : viewer.leaving.get()
-        ? this.renderAsk()
-        : this.renderActions();
-    const cite = viewer.pending.get()?.cite;
+    if (viewer.discarding.get()) {
+      return this.renderAsking(
+        this.also(source, 'Also for'),
+        this.renderDiscard(source)
+      );
+    }
+    if (viewer.pending.get() === null) return nothing;
+    return this.renderAsking(
+      this.also(source, 'Also moves'),
+      this.renderSaving()
+    );
+  }
+
+  private renderSaving() {
+    return this.state.viewer.leaving.get()
+      ? this.renderAsk()
+      : this.renderActions();
+  }
+
+  // What the change is about, why a save was refused, and what's asked.
+  private renderAsking(about: unknown, asking: unknown) {
     return html`
-      ${
-        cite === undefined
-          ? this.also(source, discarding ? 'Also for' : 'Also moves')
-          : this.renderCite(cite)
-      }
+      ${about}
       ${
         this.refused === null
           ? nothing
