@@ -210,8 +210,8 @@ class SettingsElement extends LitElement {
   // Closed by another popover opening, a press outside or Esc, which
   // takes down the confirming dialog first.
   private readonly corner = new CornerPopover(this, () => {
-    if (this.confirming !== null) this.cancelDrop();
-    else this.corner.set(false);
+    if (this.confirming === null) this.corner.set(false);
+    else this.cancelDrop();
   });
 
   private get open() {
