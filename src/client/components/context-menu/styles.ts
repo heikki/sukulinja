@@ -63,6 +63,11 @@ const menu = css`
     margin-left: 0.4em;
     font-size: 0.85em;
   }
+
+  .detail {
+    display: block;
+    font-size: 0.85em;
+  }
 `;
 
 export const contextMenuStyles = [focusRingStyles, menu];

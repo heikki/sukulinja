@@ -1,4 +1,4 @@
-import type { BookKind, Years } from './types';
+import type { BookKind, CitationRow, Years } from './types';
 
 // Each kind of church book by its Astia series name.
 export const BOOK_NAMES: Record<BookKind, string> = {
@@ -24,4 +24,14 @@ export function bookLabel(
   const parts = [name, page === null ? '' : `p.\u00a0${page}`];
   const named = parts.filter((s) => s !== '');
   return named.length === 0 ? null : named.join('\u00a0· ');
+}
+
+// A Church-book reference as the lists name it: by its Book and page when
+// they could be read, else as it was written.
+export function referenceName(
+  citation: Pick<CitationRow, 'cited' | 'citedPage' | 'reference' | 'entry'>
+) {
+  const { cited } = citation;
+  const book = cited === null ? null : bookLabel(cited, citation.citedPage);
+  return book ?? citation.reference ?? citation.entry;
 }
