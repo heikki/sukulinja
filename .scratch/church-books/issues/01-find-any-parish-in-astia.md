@@ -4,7 +4,7 @@ Status: needs-triage
 
 Glossary: **Church books**, **Volume**, **Book**.
 
-The Church books view lists only the parishes whose Astia archive was looked up by hand (`PARISHES` in `src/server/citations/astia/archives.ts`, 14 today). Browsing the books of any other parish, or starting a tree with no references at all, needs the app to find a parish's archive ("… seurakunnan arkisto") in Astia itself.
+The Church books view lists only the parishes whose Astia archive was looked up by hand (`PARISHES` in `src/server/citations/astia/archives.ts`, 14 today). Browsing the books of any other parish, or starting a tree with no references at all (its first Citation made from the scans, as ticket 02 makes one from a listed Volume), needs the app to find a parish's archive ("… seurakunnan arkisto") in Astia itself.
 
 ## Open questions
 
