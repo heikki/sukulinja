@@ -65,10 +65,14 @@ export class CornerPopover implements ReactiveController {
     if (!e.composedPath().includes(this.host)) this.set(false);
   };
 
-  // Marked handled, or WKWebView hands Escape on to macOS, which beeps.
+  // The popover lies over everything else, the Scan viewer too, so Esc is
+  // its alone: heard on the document, it's stopped before the viewer's on
+  // the window. Marked handled, or WKWebView hands it on to macOS, which
+  // beeps.
   private readonly onKeyDown = (e: KeyboardEvent) => {
     if (e.key !== 'Escape') return;
     e.preventDefault();
+    e.stopPropagation();
     this.escape();
   };
 }

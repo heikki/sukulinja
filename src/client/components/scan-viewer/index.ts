@@ -296,9 +296,10 @@ class ScanViewerElement extends SignalWatcher(LitElement) {
 
   // Esc backs out one step: from a way out waiting on the pending Box back
   // to editing, from editing (dropping the Box, as Cancel does) or a
-  // Discard waiting, else out of the viewer. The arrows, Home and End step
-  // (see keys.ts). Every key handled here is marked so, or WKWebView hands
-  // it on to macOS, which beeps at it.
+  // Discard waiting, else out of the viewer. What lies over the viewer, a
+  // menu or a corner popover, takes Esc first and stops it. The arrows,
+  // Home and End step (see keys.ts). Every key handled here is marked so,
+  // or WKWebView hands it on to macOS, which beeps at it.
   private editing() {
     return this.viewer.pending.get() !== null || this.viewer.discarding.get();
   }
