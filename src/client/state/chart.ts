@@ -81,6 +81,9 @@ export interface Chart {
   makeRoot: (id: number, pin?: Point | null) => void;
   // A person picked in the Scan viewer, which goes on with their citation.
   pick: (row: VolumeCitation) => void;
+  // Selects the person and opens their Citation in the Scan viewer, which
+  // stays open meanwhile, as a list goes to it.
+  toCitation: (personId: number, citationId: number) => void;
   // Back or Forward: once the Scan viewer's change is dealt with, Root and
   // the Selected person `read` gives; `stay` runs if editing goes on.
   follow: (read: () => UrlView, stay: () => void) => void;
@@ -222,6 +225,12 @@ export function openChart(
     pick(row) {
       viewer.leave(() => {
         const id = viewer.pick(row);
+        if (id !== null) select(id);
+      });
+    },
+    toCitation(personId, citationId) {
+      viewer.leave(() => {
+        const id = viewer.toCitation(personId, citationId);
         if (id !== null) select(id);
       });
     },

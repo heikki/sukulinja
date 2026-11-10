@@ -38,44 +38,17 @@ export function isStale(on: On) {
   return on.kind === 'image' && on.stale;
 }
 
-function sourceOf(state: AppState, citationId: number) {
-  return state.selected.sources
-    .get()
-    .flatMap((g) => g.sources)
-    .find((s) => s.citation.id === citationId);
-}
-
-// Opens a source of the Selected person in the Scan viewer, as clicking
-// it in the panel does: at its Link, or with none, looking through its
-// parish's Volumes. Not one the viewer has no way into.
-export function openSource(state: AppState, citationId: number) {
-  const source = sourceOf(state, citationId);
-  const status = source?.status ?? null;
-  if (source === undefined || status === null) return;
-  const { citation } = source;
-  if (status.link !== null) state.viewer.open({ citation, link: status.link });
-  else if (status.browse !== null) {
-    state.viewer.open({ citation, link: null, unlinked: status.browse });
-  }
-}
-
 // Goes where it is: selects its person, and for a Citation, opens its
 // source in the Scan viewer once their Links are in; or opens the Scan
 // viewer at its Image. A stale Image, nowhere.
-export async function goTo(state: AppState, on: On) {
+export function goTo(state: AppState, on: On) {
   if (on.kind === 'image') {
     if (on.stale) return;
     const { volumeId, volume, image } = on;
     state.viewer.openImage({ volumeId, volume, image });
     return;
   }
-  state.chart.select(on.personId);
-  // Not once a change pending in the Scan viewer holds the selection up.
-  if (on.kind !== 'citation' || state.selected.id.get() !== on.personId) {
-    return;
-  }
-  await state.selected.select(on.personId);
-  if (state.selected.id.get() === on.personId) {
-    openSource(state, on.citationId);
-  }
+  if (on.kind === 'citation') {
+    state.chart.toCitation(on.personId, on.citationId);
+  } else state.chart.select(on.personId);
 }

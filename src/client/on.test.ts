@@ -90,16 +90,17 @@ function appState() {
 
 test("a Citation's selects its person and opens its scan", async () => {
   const state = appState();
-  await goTo(state, CITATION);
+  goTo(state, CITATION);
+  await Bun.sleep(0);
   expect(state.selected.id.get()).toBe(1);
   expect(state.viewer.source.get()).toEqual({ citation: C11, link: L11 });
 });
 
-test("an Image's opens the Scan viewer there; a stale one doesn't", async () => {
+test("an Image's opens the Scan viewer there; a stale one doesn't", () => {
   const state = appState();
-  await goTo(state, { ...IMAGE, stale: true });
+  goTo(state, { ...IMAGE, stale: true });
   expect(state.viewer.opened.get()).toBe(null);
-  await goTo(state, IMAGE);
+  goTo(state, IMAGE);
   expect(state.viewer.opened.get()).toEqual({
     volumeId: '201',
     volume: 'I Aa:201',

@@ -63,7 +63,7 @@ class CornerListsElement extends SignalWatcher(LitElement) {
   };
 
   private goTo(on: On) {
-    void goTo(this.state, on);
+    goTo(this.state, on);
     if (on.kind !== 'image') this.dispatchEvent(new CustomEvent('dock-open'));
   }
 

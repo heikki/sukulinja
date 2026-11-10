@@ -10,7 +10,7 @@ Who the chart is built around and who the dock shows are now separate. The **Sel
 - **Search selects,** as a pick in the dock does: someone the chart draws is glided into view, keeping the chart being compared against; anyone else becomes Root. Build tree from here on their card rebuilds the chart around them.
 - **The dock's own picks select.** A click on a row in the Family list, or on a person in the Scan viewer's list, selects them.
 - **Selecting someone the chart doesn't draw makes them Root.** Otherwise nothing in the chart would mark them, and the chart has nothing about them to compare against, so rebuilding it loses little. Someone drawn but panned off-screen is selected and glided into view, not rebuilt around.
-- **The Scan viewer belongs to the selected person.** Selecting another closes it, unless they were picked in the viewer itself, which goes on with their citation.
+- **The Scan viewer belongs to the selected person.** Selecting another closes it, unless it goes on with a citation of theirs: one picked in the viewer itself, or a Citation a list goes to, as a Change does. Going to one from a list, the viewer stays as it is until their Links are in, then turns to it, so stepping through Changes in one Volume only turns its Images.
 - **The URL keeps the selection** as `sel=` when it isn't Root (ADR-0004). Selecting replaces the current history entry; only a Root change pushes one, so Back steps through charts, not through every card looked at.
 
 ## Considered options

@@ -15,6 +15,7 @@ import type {
 import { confirmingSource } from './confirming';
 import type { Confirming } from './confirming';
 import { Latest } from './latest';
+import { viewerOnward } from './onward';
 import { boxOn, clampImage, fileIdOf, imageOf, markedIn } from './places';
 import type { Readable, Selected } from './selected';
 
@@ -100,6 +101,12 @@ export interface Viewer {
   // A person picked in the viewer: their id when they aren't the Selected
   // person, for the picker to ask for them.
   pick: (row: VolumeCitation) => number | null;
+  // To a Citation of the person's, as a list goes to one: once their
+  // Links are in, at its Link, or with none, looking through its parish's
+  // Volumes; with no way in, as it is, or closed if it showed someone
+  // else's. Until then the viewer stays as it is. Their id when they aren't the Selected person, for the caller to
+  // ask for them.
+  toCitation: (personId: number, citationId: number) => number | null;
   // Called by the chart once `id` is selected.
   selected: (id: number) => void;
   // Marks a Match's Image, throwing ApiError if it's refused.
@@ -222,9 +229,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   const volumeReq = new Latest();
   const citationsReq = new Latest();
   const rescanReq = new Latest();
-  // A person picked in the viewer, whose citation it goes on with once
-  // they're selected.
-  let noted: { personId: number; source: LinkOpen } | null = null;
+  const onward = viewerOnward(selected, { openNow, open, close, closeNow });
 
   // What Astia says of the Volume, its Images and its archive, asked for
   // at once, so the viewer names it as it shows it. Until they come, the
@@ -293,6 +298,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   }
 
   function openNow(next: LinkOpen) {
+    onward.moved();
     pending.set(null);
     discarding.set(false);
     confirmation.forget();
@@ -303,6 +309,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   }
 
   function openImageNow(at: ImageOpen) {
+    onward.moved();
     pending.set(null);
     discarding.set(false);
     confirmation.forget();
@@ -312,6 +319,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
 
   // Nothing shown, so the next source opens afresh.
   function closeNow() {
+    onward.moved();
     pending.set(null);
     discarding.set(false);
     confirmation.forget();
@@ -526,15 +534,8 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
       open(picked);
       return null;
     }
-    noted = { personId: row.personId, source: picked };
+    onward.pick(row.personId, picked);
     return row.personId;
-  }
-
-  function selectedNow(id: number) {
-    const going = noted?.personId === id ? noted.source : null;
-    noted = null;
-    if (going === null) closeNow();
-    else openNow(going);
   }
 
   // A confirmation moves its row, and a Page pin its neighbours', so the
@@ -618,7 +619,8 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     show,
     step,
     pick,
-    selected: selectedNow,
+    toCitation: onward.toCitation,
+    selected: onward.selected,
     confirm,
     confirmSource: confirmation.run,
     confirming: confirmation.status,
