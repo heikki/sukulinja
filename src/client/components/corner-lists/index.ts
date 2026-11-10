@@ -28,10 +28,10 @@ import '../reminders-list';
 // one popover is open at a time. It opens on the tab last shown, and a
 // Reminder being drafted, as from the Scan viewer's menu, opens it on the
 // Reminders. Only the open tab's list is drawn. A line of a Reminder goes
-// where it says, the popover staying open to finish with it; picking a
-// Change goes where it was done. Either asks for the dock (`dock-open`) for
-// a person or a Citation. Picking a Volume opens it in the Scan viewer on
-// its first Image.
+// where it says; picking a Change goes where it was done. Either asks for
+// the dock (`dock-open`) for a person or a Citation. Picking a Volume opens
+// it in the Scan viewer on its first Image. The popover stays open through
+// all of these, to go on down the list.
 @customElement('sl-corner-lists')
 class CornerListsElement extends SignalWatcher(LitElement) {
   static override styles = css`
@@ -72,13 +72,11 @@ class CornerListsElement extends SignalWatcher(LitElement) {
   };
 
   private readonly onChange = (e: ChangePickEvent) => {
-    this.corner.set(false);
     this.goTo(e.detail);
   };
 
   private readonly onVolume = (e: VolumeOpenEvent) => {
     const { volumeId, label } = e.detail;
-    this.corner.set(false);
     this.state.viewer.openImage({ volumeId, volume: label, image: 1 });
   };
 
