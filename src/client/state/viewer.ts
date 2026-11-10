@@ -14,6 +14,7 @@ import type {
 
 import { confirmingSource } from './confirming';
 import type { Confirming } from './confirming';
+import { filmingOf } from './filming';
 import { Latest } from './latest';
 import { viewerOnward } from './onward';
 import { boxOn, clampImage, fileIdOf, imageOf, markedIn } from './places';
@@ -196,12 +197,8 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   const discarding = signal(false);
   const confirmation = confirmingSource(source, confirm);
   const leaving = signal(false);
-  const rescan = signal<Rescan | null>(null);
-  // Astia's re-scan of the Volume shown, kept after Not now.
-  const known = signal<Rescan | null>(null);
-  const oldFilming = computed(() => known.get() !== null);
-  // The Volume shown, once Astia answered whether it was re-scanned.
-  const answered = new Set<string>();
+  const filming = filmingOf(api, () => volume.get()?.id);
+  const { oldFilming } = filming;
   // The way out waiting on an answer, and what keeping on editing does.
   let held: { go: () => void; stay?: () => void } | null = null;
   // Where the pending change or the Link puts the entry on the Image shown.
@@ -228,7 +225,6 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
 
   const volumeReq = new Latest();
   const citationsReq = new Latest();
-  const rescanReq = new Latest();
   const onward = viewerOnward(selected, { openNow, open, close, closeNow });
 
   // What Astia says of the Volume, its Images and its archive, asked for
@@ -260,20 +256,13 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     image.set(clampImage(n, count.get()));
   }
 
-  function forgetRescan() {
-    rescanReq.stop();
-    answered.clear();
-    rescan.set(null);
-    known.set(null);
-  }
-
   // A Volume already shown stays on its Image unless `at` gives one.
   function showVolume(id: string, label: string, at: number | null) {
     if (volume.get()?.id === id) {
       if (at !== null) showNow(at);
       return;
     }
-    forgetRescan();
+    filming.forget();
     discarding.set(false);
     volume.set({ id, label });
     image.set(clampImage(at ?? 1, null));
@@ -282,12 +271,12 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     citations.set(null);
     void loadVolume(id);
     void loadCitations(id);
-    void askRescan(id);
+    void filming.ask(id);
   }
 
   // Nothing of a Volume shown, as before the first is chosen.
   function showNoVolume() {
-    forgetRescan();
+    filming.forget();
     volumeReq.stop();
     citationsReq.stop();
     archive.set(null);
@@ -558,21 +547,9 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     await reload;
   }
 
-  async function askRescan(volumeId: string) {
-    if (answered.has(volumeId)) return;
-    const answer = await rescanReq.run(async (signal) => ({
-      found: await api.volumeRescan(volumeId, signal)
-    }));
-    if (answer === null || answer === undefined) return;
-    if (volume.get()?.id !== volumeId) return;
-    answered.add(volumeId);
-    rescan.set(answer.found);
-    known.set(answer.found);
-  }
-
   async function imageFailed() {
     const shown = volume.get();
-    if (shown !== null) await askRescan(shown.id);
+    if (shown !== null) await filming.ask(shown.id);
   }
 
   // The source's Link may have been made on the filming replaced, so the
@@ -582,8 +559,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     const opened = source.get();
     if (shown === null || !oldFilming.get()) return;
     const urls = await api.switchFilming(shown.id, shown.label);
-    rescan.set(null);
-    known.set(null);
+    filming.switched();
     if (volume.get()?.id !== shown.id) return;
     files = urls;
     count.set(urls.length);
@@ -641,15 +617,11 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
     save,
     leave,
     answer,
-    rescan,
+    rescan: filming.rescan,
     oldFilming,
-    askAgain() {
-      rescan.set(known.get());
-    },
+    askAgain: filming.askAgain,
     imageFailed,
     switchFilming,
-    keepFilming() {
-      rescan.set(null);
-    }
+    keepFilming: filming.keep
   };
 }
