@@ -71,9 +71,7 @@ function labels(
   viewer: Awaited<ReturnType<typeof viewing>>,
   where: { onBox: boolean; canBox: boolean }
 ) {
-  return linkItems(viewer, { ...where, name: 'Matti Esimerkki' }, NONE).map(
-    (i) => i.label
-  );
+  return linkItems(viewer, where, NONE).map((i) => i.label);
 }
 
 test('a Citation made in the app offers Delete on its Box; a Mark or Match, Discard; a Match, Confirm', async () => {
@@ -107,11 +105,11 @@ test('a Citation made in the app offers Delete on its Box; a Mark or Match, Disc
   ]);
 });
 
-test('Create entry for… shows over the full Image, with nothing pending', async () => {
+test('New citation for… shows over the full Image, with nothing pending', async () => {
   const viewer = await viewing(citation(1, false), ON_IMAGE);
   expect(labels(viewer, { onBox: false, canBox: true })).toEqual([
-    'Create entry for Matti Esimerkki',
-    'Create entry for…',
+    'Place citation here',
+    'New citation for…',
     'Add reminder…',
     'Change Volume…'
   ]);
@@ -125,10 +123,10 @@ test('Create entry for… shows over the full Image, with nothing pending', asyn
   ]);
 });
 
-test("Create entry isn't offered with the person's Box on the Image", async () => {
+test("Place citation here isn't offered with the source's Box on the Image", async () => {
   const viewer = await viewing(citation(1, false));
   expect(labels(viewer, { onBox: false, canBox: true })).toEqual([
-    'Create entry for…',
+    'New citation for…',
     'Add reminder…',
     'Change Volume…'
   ]);
@@ -151,10 +149,28 @@ test('Add reminder… waits for the pending Box, and for Astia to list the Image
   );
 });
 
-test("Create entry names the source's person, when they have a name", async () => {
-  const viewer = await viewing(citation(1, false), ON_IMAGE);
-  const where = { onBox: false, canBox: true, name: null };
-  expect(linkItems(viewer, where, NONE)[0]?.label).toBe('Create entry');
+test('Place citation here names the source by its reference, under the label', async () => {
+  const cited = {
+    ...citation(1, false),
+    cited: {
+      parish: null,
+      kind: 'rippi' as const,
+      years: { from: 1790, to: 1796 }
+    },
+    citedPage: 18
+  };
+  const viewer = await viewing(cited, ON_IMAGE);
+  const where = { onBox: false, canBox: true };
+  expect(linkItems(viewer, where, NONE)[0]).toMatchObject({
+    label: 'Place citation here',
+    detail: 'Pää- ja rippikirjat 1790–1796\u00a0· p.\u00a018'
+  });
+});
+
+test('Place citation here names one made in the app by its Image', async () => {
+  const viewer = await viewing(citation(1, true), ON_IMAGE);
+  const where = { onBox: false, canBox: true };
+  expect(linkItems(viewer, where, NONE)[0]?.detail).toBe('I Aa:201, Image 18');
 });
 
 test('opened on an Image with no source, only a Reminder is offered', async () => {
@@ -167,4 +183,13 @@ test('opened on an Image with no source, only a Reminder is offered', async () =
   expect(labels(viewer, { onBox: false, canBox: true })).toEqual([
     'Add reminder…'
   ]);
+});
+
+test('pointing at Place citation here says so, for the panel to mark it', async () => {
+  const viewer = await viewing(citation(1, false), ON_IMAGE);
+  const [place] = linkItems(viewer, { onBox: false, canBox: true }, NONE);
+  place?.hover?.(true);
+  expect(viewer.placing.get()).toBe(true);
+  place?.hover?.(false);
+  expect(viewer.placing.get()).toBe(false);
 });

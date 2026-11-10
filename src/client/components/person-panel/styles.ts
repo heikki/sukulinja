@@ -201,6 +201,13 @@ export const personPanelStyles = css`
     background: var(--bg);
   }
 
+  /* The one it's open on while it shows no Image of its own, moved off
+     it or with none set: on the page background still, but without the
+     bar, so a Citation placed there is seen to be this one. */
+  .source.elsewhere {
+    background: var(--bg);
+  }
+
   .source.viewing::before {
     content: '';
     position: absolute;
