@@ -9,10 +9,12 @@ import { contextMenuStyles } from './styles';
 export { placedInside } from './helpers';
 
 // One thing the menu offers, with muted text beside its label when it has
-// some: who someone is to the Selected person before, their years after.
+// some: who someone is to the Selected person before, their years after;
+// and with `detail`, what it acts on, muted on a line of its own below.
 export interface MenuItem {
   label: string;
   muted?: { before?: string; after?: string };
+  detail?: string;
   run: () => void;
 }
 
@@ -121,6 +123,10 @@ class ContextMenuElement extends LitElement {
               item.muted?.after === undefined
                 ? nothing
                 : html`<span class="muted after">${item.muted.after}</span>`
+            }${
+              item.detail === undefined
+                ? nothing
+                : html`<span class="muted detail">${item.detail}</span>`
             }
           </button>
         `

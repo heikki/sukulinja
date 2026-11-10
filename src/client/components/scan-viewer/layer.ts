@@ -9,7 +9,7 @@ import type { AppState } from '@/client/state';
 import type { Box } from '@/common/types';
 
 import { placesHere } from '../reminders-list/places';
-import { entriesOn, rowName } from './citations';
+import { entriesOn } from './citations';
 import { citeChoices, citingImage, searchable } from './cite';
 import { scanLayerStyles } from './edit-styles';
 import { boxFromStage, boxOnStage, clampBox, newBox, wholeBox } from './frame';
@@ -205,17 +205,6 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     this.popup = null;
   };
 
-  // The current source's person, as the people beside the scan name them.
-  private sourceName() {
-    const id = this.viewer.source.get()?.citation.id;
-    const rows = this.viewer.citations.get();
-    const row = Array.isArray(rows)
-      ? rows.find((r) => r.citation.id === id)
-      : undefined;
-    const name = row === undefined ? '—' : rowName(this.persons, row);
-    return name === '—' ? null : name;
-  }
-
   // A new entry Box at `at` on the stage, sized as the Image's other
   // entries; null until the full Image is shown.
   private newBoxAt(at: Point) {
@@ -280,7 +269,7 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     ];
     return html`<sl-context-menu
       .items=${items}
-      .heading=${'Create entry for'}
+      .heading=${'New citation for'}
       .at=${at}
       @close=${this.onPopupClose}
     ></sl-context-menu>`;
@@ -335,7 +324,7 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     if (show === 'search') return this.renderSearch(at);
     const items = linkItems(
       this.viewer,
-      { onBox, canBox: this.editable, name: this.sourceName() },
+      { onBox, canBox: this.editable },
       {
         chooseVolume: () => {
           this.popup = { at, onBox, show: 'volumes' };

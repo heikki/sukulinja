@@ -128,7 +128,8 @@ function filedEntry(c: CitationRow, filed: boolean) {
 }
 
 // A source clicking opens (`active`), the one the Scan viewer shows
-// (`viewing`), and one filed under its archive, titled by its Volume or
+// (`viewing`), the one it was opened on once it has moved off its Link
+// (`away`), and one filed under its archive, titled by its Volume or
 // Book (`linked`).
 function sourceClass(flags: Record<string, boolean>) {
   const on = Object.entries(flags).filter(([, v]) => v);
@@ -314,6 +315,8 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
   // only when selected, and opening it in the Scan viewer leaves it as it is.
   private renderCitation({ citation: c, status }: Source) {
     const viewing = this.viewing?.citation.id === c.id;
+    const away =
+      !viewing && this.state.viewer.source.get()?.citation.id === c.id;
     const heading = headingOf(c);
     const body = renderBody(c, heading);
     const link = status?.link ?? null;
@@ -323,7 +326,12 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
     const act = this.actionOf(c, status, foldable);
     return html`
       <article
-        class=${sourceClass({ active: act !== null, viewing, linked: filed })}
+        class=${sourceClass({
+          active: act !== null,
+          viewing,
+          away,
+          linked: filed
+        })}
         data-citation=${c.id}
         @click=${(e: Event) => {
           const on = e.target as Element;
