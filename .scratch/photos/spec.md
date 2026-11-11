@@ -36,4 +36,4 @@ A photo an import links to a person without a `CROP` is the export's link, not a
 ## Later
 
 - After tagging: choosing the portrait, a title or date, adding a photo from disk, removing a photo.
-- The **Photos** view of every Photo, for those linked to no one or with no one tagged.
+- The **Photos** view of every Photo, for those linked to no one or with no one tagged: ticket 03.
