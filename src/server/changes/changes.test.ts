@@ -115,3 +115,52 @@ test("one on a Citation that's gone is its person's; one whose person is gone is
     { on: null, who: 'Matti /Esimerkki/' }
   ]);
 });
+
+test('one like the newest, on the same thing, is written into it', async () => {
+  const db = await dataset();
+  db.run("INSERT INTO media (id, file_path) VALUES (10, 'kesa.jpg')");
+  const changes = changesOf(db);
+  const onTag = { personId: 1, photoId: 10 };
+  function tag(moved: boolean) {
+    return { kind: 'tag', photo: 'kesa.jpg', moved } as const;
+  }
+  changes.add({ on: onTag, what: tag(false) });
+  changes.add({ on: onTag, what: tag(true) });
+  changes.add({ on: onTag, what: tag(true) });
+
+  const list = await changes.list();
+  expect(list).toHaveLength(1);
+  expect(list[0]!.what).toEqual(tag(false));
+});
+
+test('a Fact edited again and again is one Change, from how it read first', async () => {
+  const db = await dataset();
+  const changes = changesOf(db);
+  function fact(did: 'add' | 'edit', was: string | null, now: string) {
+    return { kind: 'fact', did, tag: 'BIRT', was, now } as const;
+  }
+  changes.add({ on: { personId: 1 }, what: fact('add', null, '1771') });
+  changes.add({ on: { personId: 1 }, what: fact('edit', '1771', '1772') });
+  changes.add({ on: { personId: 1 }, what: fact('edit', '1772', '1773') });
+
+  expect((await changes.list()).map((c) => c.what)).toEqual([
+    fact('add', null, '1773')
+  ]);
+});
+
+test('stays apart from one of another kind, on something else, or with one between', async () => {
+  const db = await dataset();
+  db.run("INSERT INTO media (id, file_path) VALUES (10, 'kesa.jpg')");
+  const changes = changesOf(db);
+  const tag = { kind: 'tag', photo: 'kesa.jpg', moved: true } as const;
+  const birth = { kind: 'fact', did: 'edit', tag: 'BIRT' } as const;
+  changes.add({ on: { personId: 1, photoId: 10 }, what: tag });
+  changes.add({ on: { personId: 1 }, what: { ...birth, was: 'a', now: 'b' } });
+  // Another Fact of the same tag: it didn't read as the last one left it.
+  changes.add({ on: { personId: 1 }, what: { ...birth, was: 'x', now: 'y' } });
+  changes.add({ on: { personId: 1, photoId: 10 }, what: tag });
+  changes.add({ on: { citationId: 11 }, what: DISCARD });
+  changes.add({ on: { citationId: 11 }, what: DISCARD });
+
+  expect(await changes.list()).toHaveLength(6);
+});

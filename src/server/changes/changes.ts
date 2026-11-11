@@ -2,7 +2,8 @@
 // what it was on (on.ts), or the Photo a Tag was in, with its person. Only
 // the app keeps them; no export writes them, a re-import's merge carries
 // them (import/merge.ts), and undoing an import puts back the ones its
-// database had. They can be cleared, all at once.
+// database had. They can be cleared, all at once. One like the newest,
+// on the same thing, is written into it (combine.ts).
 
 import type { Database } from 'bun:sqlite';
 
@@ -16,6 +17,7 @@ import type {
 
 import { ON_COLUMNS, openOn } from '../on';
 import type { OnRow, OnSources } from '../on';
+import { combined } from './combine';
 
 interface ChangeRow extends OnRow {
   id: number;
@@ -37,6 +39,12 @@ export function openChanges(db: Database, sources: OnSources) {
   const insert = db.prepare<null, Binding[]>(
     `INSERT INTO changes (${COLUMNS.join(', ')})
      VALUES (${COLUMNS.map(() => '?').join(', ')})`
+  );
+  const newest = db.prepare<ChangeRow, []>(
+    'SELECT * FROM changes ORDER BY id DESC LIMIT 1'
+  );
+  const rewrite = db.prepare<null, [string, string, Binding, number]>(
+    'UPDATE changes SET at = ?, what = ?, who = ? WHERE id = ?'
   );
   const removeAll = db.prepare('DELETE FROM changes');
   // A person's first name as it's sorted.
@@ -85,16 +93,30 @@ export function openChanges(db: Database, sources: OnSources) {
     },
 
     // Writes a Change. One whose person or Citation isn't in the dataset is
-    // written on nothing; one whose Photo isn't, on its person.
+    // written on nothing; one whose Photo isn't, on its person. One that
+    // goes with the newest Change, on the same thing, is written into it,
+    // as done now.
     add(change: NewChange) {
       const { on, mediaId } = columnsOf(change.on);
       const personId = on?.person_id ?? null;
-      const who = personId === null ? null : nameOf.get(personId)?.full_text;
+      const who =
+        personId === null ? null : (nameOf.get(personId)?.full_text ?? null);
+      const at = new Date().toISOString();
+      const onValues = ON_COLUMNS.map((c) => on?.[c] ?? null);
+      const last = newest.get();
+      const into =
+        last === null || on === null || !sameOn(last, onValues, mediaId)
+          ? null
+          : combined(JSON.parse(last.what) as ChangeWhat, change.what);
+      if (into !== null) {
+        rewrite.run(at, JSON.stringify(into), who, last!.id);
+        return;
+      }
       const values: Binding[] = [
-        new Date().toISOString(),
+        at,
         JSON.stringify(change.what),
-        who ?? null,
-        ...ON_COLUMNS.map((c) => on?.[c] ?? null),
+        who,
+        ...onValues,
         mediaId
       ];
       insert.run(...values);
@@ -105,6 +127,13 @@ export function openChanges(db: Database, sources: OnSources) {
       removeAll.run();
     }
   };
+}
+
+// Whether the row is on what the columns say.
+function sameOn(row: ChangeRow, on: Binding[], mediaId: number | null) {
+  return (
+    ON_COLUMNS.every((c, i) => row[c] === on[i]) && row.media_id === mediaId
+  );
 }
 
 export type Changes = ReturnType<typeof openChanges>;
