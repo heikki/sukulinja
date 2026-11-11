@@ -23,7 +23,8 @@ Heikki decided on 2026-11-11 to cut the MyHeritage connection: Sukulinja becomes
   - A sibling goes into the person's parents' family, made with no parents if there's none.
 - **Or link someone who's already in the tree** in that place, from the same menu: the person search in place of the name form. A church-book entry often names someone the tree has, and a second copy of them is the mistake to avoid.
 - **A duplicate check** before a new person is made: people with a name alike (the person search's matching) are offered first, "Is it one of these?".
-- **Add someone from the Scan viewer**: the picker's "Someone else…" also offers _New person…_, so the person an Entry names can be made and cited in one go, linked as the Entry tells (a baptism's child to its father and mother, a marriage's couple as spouses). The Photo viewer gets the same, for a Tag.
+- **Add someone from the Scan viewer**, always as a relative of the Selected person, never as someone linked to no one. The picker lists the Selected person's family as now, and under them _New father…_, _New mother…_, _New spouse…_, _New child…_, _New sibling…_ of the Selected person: the same adds as the card menu, with the new person cited from the Entry in the same go. "Someone else…" stays a search of people who exist. The Photo viewer gets the same, for a Tag.
+- **No one is added unlinked.** Every new person is made in a place in the tree, from a card or relative to the Selected person, so the chart can always reach them.
 - **A new person's facts** (birth, death, a residence) are entered with the fact form of the facts spec, right after the name, not with a form of this feature's own.
 - **Each is a Change**: a person added, or linked to another as a parent, spouse or child, on that person. Picking it selects them.
 - **The chart takes the new person in place**: they're selected, and the chart moves to them as when re-rooted.
