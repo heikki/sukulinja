@@ -45,13 +45,14 @@ export interface BoxAt {
 }
 
 // An entry cited in the app: its Box on an Image of a Volume, by the
-// Image's file id, with what it is, if said.
+// Image's file id, with what it is and the person's Role in it, if said.
 export interface CiteTarget {
   volumeId: string;
   image: number;
   fileId: string;
   box: Box;
   text: string | null;
+  role: string | null;
 }
 
 // Each call rejects with ApiError when it fails, and with the signal's

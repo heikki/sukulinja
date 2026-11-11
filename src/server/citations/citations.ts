@@ -9,7 +9,7 @@
 
 import type { Database, SQLQueryBindings } from 'bun:sqlite';
 
-import { bookLabel } from '@/common/books';
+import { bookLabel, entryRoles } from '@/common/books';
 import { isoDate } from '@/common/dates';
 import type {
   Box,
@@ -59,13 +59,15 @@ interface Cited<R extends BookRef = BookRef> {
 
 type EntryLink = Link & { precision: 'entry' };
 
-// Where an entry is cited in the app, and what it says.
+// Where an entry is cited in the app, what it says, and who the person is
+// in it: one of its Volume's entryRoles, or none.
 export interface CiteTarget {
   volumeId: string;
   image: number;
   fileId: string;
   box: Box;
   text: string | null;
+  role: string | null;
 }
 
 // The Link of a Citation with no Church-book reference: the Mark at the
@@ -534,7 +536,11 @@ export function createCitations<R extends BookRef>(
       if (personExists.get(personId) === null) return null;
       const checked = await images.imageToCite(target, await citable());
       if ('rejected' in checked) return checked;
-      const { volumeId, image } = target;
+      const { volumeId, image, role } = target;
+      const roles = entryRoles(checked.volume).map((r) => r.role);
+      if (role !== null && !roles.includes(role)) {
+        return { rejected: "That isn't a Role in this kind of entry." };
+      }
       const there = await inVolume(volumeId);
       const linked = there?.some(
         (r) =>
@@ -551,7 +557,8 @@ export function createCitations<R extends BookRef>(
         image,
         fileId: target.fileId,
         box: target.box,
-        text: oneLine(target.text)
+        text: oneLine(target.text),
+        role
       });
       changed({
         on: { citationId: id },

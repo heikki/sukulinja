@@ -106,14 +106,18 @@ test('a pending Citation is saved for its person, with its text, and opens', asy
   const moved = { ...BOX, top: 260 };
   viewer.setBox(moved);
   viewer.setCiteText('  Baptism 12.3.1795 ');
+  viewer.setCiteRole('FATH');
   expect(viewer.pending.get()?.cite).toEqual({
     personId: 2,
-    text: '  Baptism 12.3.1795 '
+    text: '  Baptism 12.3.1795 ',
+    role: 'FATH'
   });
 
   await state.chart.save();
   await settle();
-  expect(api.asked).toContain('cite 2 201/18 201-f18: Baptism 12.3.1795');
+  expect(api.asked).toContain(
+    'cite 2 201/18 201-f18 as FATH: Baptism 12.3.1795'
+  );
   expect(viewer.pending.get()).toBeNull();
   // Made for Person 2, who's selected, the viewer on it.
   expect(state.selected.id.get()).toBe(2);

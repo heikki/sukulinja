@@ -41,6 +41,14 @@ export interface VolumeShown {
   label: string;
 }
 
+// A new Citation not saved yet: for whom, what the entry is, as typed, and
+// their Role in it, if picked.
+export interface PendingCite {
+  personId: number;
+  text: string;
+  role: string | null;
+}
+
 // A change not saved yet: where on an Image of a Volume the entry is.
 // Without `cite`, it moves the current source's Link there. With `cite`,
 // it's a new Citation of the entry for the person instead, saying what the
@@ -50,7 +58,7 @@ export interface PendingLink {
   volume: string;
   image: number;
   box: Box;
-  cite?: { personId: number; text: string };
+  cite?: PendingCite;
 }
 
 // What leaving the source with a change pending waits on.
@@ -140,6 +148,8 @@ export interface Viewer {
   citeFor: (personId: number, box: Box) => void;
   // What the pending Citation's entry is, as typed.
   setCiteText: (text: string) => void;
+  // The person's Role in the pending Citation's entry, or none.
+  setCiteRole: (role: string | null) => void;
   // A Discard of the Link's Box on the Image shown, waiting to be saved.
   // Moving off the Image drops it.
   discarding: Readable<boolean>;
@@ -394,14 +404,22 @@ export function openViewer(
   }
 
   function citeFor(personId: number, box: Box) {
-    placeBox(box, { personId, text: '' });
+    placeBox(box, { personId, text: '', role: null });
+  }
+
+  function changeCite(to: Partial<PendingCite>) {
+    const change = pending.get();
+    if (change?.cite !== undefined) {
+      pending.set({ ...change, cite: { ...change.cite, ...to } });
+    }
   }
 
   function setCiteText(text: string) {
-    const change = pending.get();
-    if (change?.cite !== undefined) {
-      pending.set({ ...change, cite: { ...change.cite, text } });
-    }
+    changeCite({ text });
+  }
+
+  function setCiteRole(role: string | null) {
+    changeCite({ role });
   }
 
   function editBox() {
@@ -495,10 +513,7 @@ export function openViewer(
   // The new Citation shows beside the scan once the Volume's citations
   // reload, and in the person's sources if they're the Selected person.
   // Null when the viewer moved on meanwhile.
-  async function saveCitation(
-    change: PendingLink,
-    cite: { personId: number; text: string }
-  ) {
+  async function saveCitation(change: PendingLink, cite: PendingCite) {
     const { volumeId, image: at, box } = change;
     const fileId = fileIdOf(files[at - 1]);
     if (fileId === null) {
@@ -510,7 +525,8 @@ export function openViewer(
       image: at,
       fileId,
       box,
-      text: text === '' ? null : text
+      text: text === '' ? null : text,
+      role: cite.role
     });
     if (selected.id.get() === cite.personId) void selected.refresh();
     await loadCitations(volumeId);
@@ -638,6 +654,7 @@ export function openViewer(
     editBox,
     citeFor,
     setCiteText,
+    setCiteRole,
     discarding,
     discard,
     cancel,

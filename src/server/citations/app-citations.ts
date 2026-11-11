@@ -9,6 +9,8 @@ import type { Box } from '@/common/types';
 
 import { openAnnotations } from './annotations';
 import { viewerUrl } from './astia/astia';
+import type { Converting } from './references';
+import { bookKind } from './text';
 
 // Who publishes every Volume, and where.
 export const PUBLISHER = 'Kansallisarkisto, Astia';
@@ -17,6 +19,19 @@ export const PUBLISHER = 'Kansallisarkisto, Astia';
 // book is cited (ADR-0019); the label alone where the archive isn't known.
 export function volumeSourceTitle(volume: string, archive: string | null) {
   return archive === null ? volume : `${archive}, ${volume}`;
+}
+
+// The Event an entry records, by its Volume's Book: GEDCOM's citation EVEN.
+const EVENTS = {
+  kastetut: 'CHR',
+  vihityt: 'MARR',
+  rippi: 'RESI',
+  lasten: 'RESI'
+} as const;
+
+export function entryEvent(volume: string) {
+  const kind = bookKind(volume);
+  return kind === null ? null : EVENTS[kind];
 }
 
 // A Citation of the entry at the Box on an Image, for the person.
@@ -30,6 +45,8 @@ interface NewCitation {
   fileId: string;
   box: Box;
   text: string | null;
+  // The person's Role in the entry, GEDCOM's citation ROLE.
+  role?: string | null;
 }
 
 // A Volume's archive title, or null when it isn't known.
@@ -89,7 +106,8 @@ export function openAppCitations(db: Database) {
      WHERE id = ? AND link_volume_id IS NOT NULL`
   );
   const adopt = db.prepare(
-    'UPDATE citations SET source_id = ?, text = ?, added_in_app = 1 WHERE id = ?'
+    `UPDATE citations SET source_id = ?, text = ?, event = ?, role = ?,
+       added_in_app = 1 WHERE id = ?`
   );
   const deleteNotes = db.prepare(
     "DELETE FROM notes WHERE owner_type = 'citation' AND owner_id = ?"
@@ -121,15 +139,16 @@ export function openAppCitations(db: Database) {
   }
 
   function convertNow(
-    rows: Array<{ id: number; text: string | null }>,
+    rows: Converting[],
     archiveOf: (volumeId: string) => string | null
   ) {
     db.transaction(() => {
-      for (const { id, text } of rows) {
+      for (const { id, text, role } of rows) {
         const at = linkedVolume.get(id);
         if (at === null) continue;
-        const archive = archiveOf(at.volumeId);
-        adopt.run(sourceOf(at.volumeId, at.volume, archive), text, id);
+        const source = sourceOf(at.volumeId, at.volume, archiveOf(at.volumeId));
+        // MyHeritage's EVEN and ROLE, not GEDCOM's, give way (ADR-0016).
+        adopt.run(source, text, entryEvent(at.volume), role, id);
       }
     })();
   }
@@ -154,8 +173,8 @@ export function openAppCitations(db: Database) {
             sourceId: sourceOf(c.volumeId, c.volume, c.archive ?? null),
             sortOrder: nextOrder.get(c.personId)!.n,
             page: viewerUrl(c.volumeId, c.fileId),
-            event: null,
-            role: null,
+            event: entryEvent(c.volume),
+            role: c.role ?? null,
             quality: null,
             dataDate: null,
             text: c.text
@@ -196,10 +215,7 @@ export function openAppCitations(db: Database) {
     // original page stay as the Mark left them. Its source is named by the
     // archive `archiveOf` gives, when known (ADR-0019); the import knows
     // none, and finds the source by its xref.
-    async convert(
-      rows: Array<{ id: number; text: string | null }>,
-      archiveOf?: ArchiveOf
-    ) {
+    async convert(rows: Converting[], archiveOf?: ArchiveOf) {
       const archives = new Map<string, string | null>();
       for (const { id } of rows) {
         const at = linkedVolume.get(id);
@@ -211,7 +227,7 @@ export function openAppCitations(db: Database) {
     },
 
     // The same, at once, knowing no archive: for the import's merge.
-    convertNow(rows: Array<{ id: number; text: string | null }>) {
+    convertNow(rows: Converting[]) {
       convertNow(rows, () => null);
     },
 

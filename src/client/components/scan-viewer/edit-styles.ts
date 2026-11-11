@@ -68,19 +68,56 @@ export const scanEditStyles = css`
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    min-width: 0;
     padding-left: 0.5rem;
     border-left: 1px solid var(--border);
   }
 
+  /* The person's name gives way before the controls do. */
   p.cite {
+    min-width: 3rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   /* What the new Citation's entry is: one line, written left to right as
      text is, where the control styles right-align an Image number. */
   input.cite-text {
+    flex: 0 1 16rem;
     width: 16rem;
+    min-width: 6rem;
     text-align: left;
+  }
+
+  /* The person's Role in the new Citation's entry, one or none, as the
+     settings' choices look. */
+  .segmented {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--bg);
+  }
+
+  .segmented button {
+    padding: 0.2rem 0.55rem;
+    border: 0;
+    border-radius: 5px;
+    background: none;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  .segmented button:hover:not(:disabled) {
+    color: var(--accent);
+  }
+
+  .segmented button[aria-pressed='true'] {
+    background: var(--card);
+    color: var(--fg);
+    box-shadow: 0 0 0 1px var(--border);
   }
 
   .also {

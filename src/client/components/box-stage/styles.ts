@@ -516,6 +516,10 @@ export const footBarStyles = css`
     align-items: center;
     gap: 0.5rem;
     padding: 0.35rem 0.5rem;
+    box-sizing: border-box;
+    /* Within the stage: a long row gives way where it can, as the new
+       Citation's text does. */
+    max-width: calc(100% - 2rem);
     transform: translateX(-50%);
     border: 1px solid var(--border);
     border-radius: 10px;

@@ -65,22 +65,29 @@ async function readBoxAt(req: Request): Promise<BoxAt | null> {
   return { volumeId, image };
 }
 
-// `{ volumeId, image, fileId, box, text? }`: an entry to cite. Anything
-// else is rejected.
+// An optional string of a request's body: the string, null when it's left
+// out or null, undefined when it's anything else.
+function optionalString(value: unknown) {
+  if (value === undefined || value === null) return null;
+  return typeof value === 'string' ? value : undefined;
+}
+
+// `{ volumeId, image, fileId, box, text?, role? }`: an entry to cite.
+// Anything else is rejected.
 async function readCite(req: Request): Promise<CiteTarget | null> {
   const body = (await req.json().catch(() => null)) as Record<
     string,
     unknown
   > | null;
-  const { volumeId, image, fileId, box, text } = body ?? {};
+  const { volumeId, image, fileId, box } = body ?? {};
   if (typeof volumeId !== 'string' || typeof image !== 'number') return null;
   if (typeof fileId !== 'string') return null;
-  if (text !== undefined && text !== null && typeof text !== 'string') {
-    return null;
-  }
+  const text = optionalString(body?.text);
+  const role = optionalString(body?.role);
+  if (text === undefined || role === undefined) return null;
   const drawn = readBox(box);
   if (drawn === null) return null;
-  return { volumeId, image, fileId, box: drawn, text: text ?? null };
+  return { volumeId, image, fileId, box: drawn, text, role };
 }
 
 // A Volume, its /citations, and POST its /filming; null for any other

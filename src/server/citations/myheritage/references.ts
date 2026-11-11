@@ -11,7 +11,7 @@ import { annotated, annotationColumnsSql } from '../annotations';
 import type { References } from '../references';
 import { openMarks } from './pins/marks';
 import type { Marks } from './pins/marks';
-import { churchBookRefOf, markKey, readRecord } from './record';
+import { churchBookRefOf, indexRoleOf, markKey, readRecord } from './record';
 import type { ChurchBookRef } from './record';
 import type { Scans } from './scans';
 
@@ -34,6 +34,7 @@ export function plainRecord({ name, fields, household }: RecordView) {
 interface TextRow {
   id: number;
   text: string | null;
+  role: string | null;
 }
 
 export function referencesOf(
@@ -41,7 +42,7 @@ export function referencesOf(
   { db, marks }: { db: Database; marks: Marks }
 ): References<ChurchBookRef> {
   const rowOf = db.prepare<TextRow, [number]>(
-    `SELECT id, text, ${annotationColumnsSql()} FROM citations WHERE id = ?`
+    `SELECT id, text, role, ${annotationColumnsSql()} FROM citations WHERE id = ?`
   );
 
   return {
@@ -73,7 +74,8 @@ export function referencesOf(
           link.fileId !== undefined &&
           link.box !== undefined;
         if (!atEntry) return [];
-        return [{ id, text: plainRecord(readRecord(text ?? '')) }];
+        const role = indexRoleOf(row.role);
+        return [{ id, text: plainRecord(readRecord(text ?? '')), role }];
       });
     }
   };
@@ -83,16 +85,18 @@ export function referencesOf(
 // each group with the Link to give them, and their texts as plain lines,
 // for a Conversion of their own.
 export function kinOfConverted(db: Database) {
-  const textOf = db.prepare<{ text: string | null }, [number]>(
-    'SELECT text FROM citations WHERE id = ?'
-  );
+  const rowOf = db.prepare<
+    { text: string | null; role: string | null },
+    [number]
+  >('SELECT text, role FROM citations WHERE id = ?');
   return openMarks(db)
     .kinOfConverted()
     .map(({ link, ids }) => ({
       link,
       rows: ids.map((id) => ({
         id,
-        text: plainRecord(readRecord(textOf.get(id)?.text ?? ''))
+        text: plainRecord(readRecord(rowOf.get(id)?.text ?? '')),
+        role: indexRoleOf(rowOf.get(id)?.role ?? null)
       }))
     }));
 }

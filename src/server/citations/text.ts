@@ -1,4 +1,4 @@
-import type { BookKind, Years } from '@/common/types';
+import type { Years } from '@/common/types';
 
 export type { BookKind, Years } from '@/common/types';
 
@@ -19,13 +19,7 @@ export function decodeEntities(s: string) {
     .replace(/&amp;/g, '&');
 }
 
-export function bookKind(name: string): BookKind | null {
-  if (/lasten/i.test(name)) return 'lasten';
-  if (/ripp|pääkirj|kirkonkirj|historiakirj/i.test(name)) return 'rippi';
-  if (/synty|kastet/i.test(name)) return 'kastetut';
-  if (/vihit|kuulut/i.test(name)) return 'vihityt';
-  return null;
-}
+export { bookKind } from '@/common/books';
 
 export function yearRange(s: string): Years | null {
   const range = /(?<from>1[5-9]\d\d)\s*-\s*(?<to>1[5-9]\d\d)/.exec(s)?.groups;

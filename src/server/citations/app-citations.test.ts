@@ -87,7 +87,8 @@ function entry(image: number, text: string | null = null) {
     image,
     fileId: fileId('juva-1', image, 'full'),
     box: BOX,
-    text
+    text,
+    role: null
   };
 }
 
@@ -132,8 +133,9 @@ test('a Citation made in the app is stored with its Mark, page and source', asyn
   expect(
     db
       .query(
-        `SELECT scope_id, page, original_page, text, link_image, link_file_id,
-           link_box_left, link_by, added_in_app FROM citations WHERE id = 2`
+        `SELECT scope_id, page, original_page, text, event, role, link_image,
+           link_file_id, link_box_left, link_by, added_in_app
+         FROM citations WHERE id = 2`
       )
       .get()
   ).toEqual({
@@ -141,6 +143,9 @@ test('a Citation made in the app is stored with its Mark, page and source', asyn
     page: ENTRY_LINK.url,
     original_page: null,
     text: 'Baptism 12.3.1795',
+    // A rippikirja's entry records a household.
+    event: 'RESI',
+    role: null,
     link_image: 13,
     link_file_id: 'juva-1-f13',
     link_box_left: BOX.left,
@@ -515,4 +520,30 @@ test('the Volume sources made before are retitled by their archive, once', async
   ]);
   expect(sources(db)).toMatchObject([{ title: `${ARCHIVE}, ${JUVA_1}` }]);
   expect(await citations.retitleVolumeSources()).toEqual([]);
+});
+
+test("a Citation made in a baptism Volume keeps the person's Role in the entry, and refuses another kind's", async () => {
+  const { db, citations } = withPeople([
+    cite(1, rippiCitation(5001, '1790 - 1796', 12))
+  ]);
+  const baptisms = {
+    ...entry(3),
+    volumeId: 'juva-3',
+    fileId: 'juva-3-f3'
+  };
+
+  expect(await citations.cite(2, { ...baptisms, role: 'FATH' })).toMatchObject({
+    personId: 2
+  });
+  expect(
+    db.query('SELECT event, role FROM citations WHERE id = 2').get()
+  ).toEqual({ event: 'CHR', role: 'FATH' });
+  // A marriage's Role in a baptism, or any Role in a rippikirja's entry.
+  const refused = { rejected: "That isn't a Role in this kind of entry." };
+  expect(await citations.cite(3, { ...baptisms, role: 'HUSB' })).toEqual(
+    refused
+  );
+  expect(await citations.cite(3, { ...entry(13), role: 'CHIL' })).toEqual(
+    refused
+  );
 });

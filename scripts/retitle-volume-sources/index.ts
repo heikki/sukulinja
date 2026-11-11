@@ -40,6 +40,7 @@ for (const slug of slugs) {
   // eslint-disable-next-line no-await-in-loop -- one dataset at a time
   const done = await citations.forDataset(db).retitleVolumeSources();
   console.log(`${slug}: ${done.length} sources retitled`);
-  for (const { from, to } of done)
-    {console.log(`  ${from ?? '(none)'}\n  → ${to}`);}
+  for (const { from, to } of done) {
+    console.log(`  ${from ?? '(none)'}\n  → ${to}`);
+  }
 }

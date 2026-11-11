@@ -83,6 +83,8 @@ const RECORD =
 
 test('a hand Mark at the entry converts every citation of the record', async () => {
   const { db, citations } = dataset();
+  // MyHeritage's own EVEN and ROLE, which aren't GEDCOM's.
+  db.run("UPDATE citations SET event = 'Record', role = '10509:5001-:ab'");
   await citations.mark(1, { volumeId: 'juva-1', image: 13, box: BOX });
 
   const converted = {
@@ -102,6 +104,14 @@ test('a hand Mark at the entry converts every citation of the record', async () 
     link_image: null,
     added_in_app: 0
   });
+  // A rippikirja's entry records a household: RESI, with no Role.
+  expect(
+    db.query('SELECT event, role FROM citations ORDER BY id').all()
+  ).toEqual([
+    { event: 'RESI', role: null },
+    { event: 'RESI', role: null },
+    { event: 'Record', role: '10509:5001-:ab' }
+  ]);
   // No longer a reference: a Citation of its Image, which keeps its Box.
   expect(citations.ofPerson(1)).toMatchObject([
     {

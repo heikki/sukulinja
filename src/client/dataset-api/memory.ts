@@ -68,7 +68,7 @@ type MemoryDatasetApi = DatasetApi & {
   // What was asked, in order: "persons", "families", "person <id>",
   // "links <id>", "mark <citation> <volume>/<image>" (or "<volume>" for
   // only the Volume; " box" or " no box" when it says), "discard <citation>
-  // <volume>/<image>", "cite <person> <volume>/<image> <file>[: <text>]",
+  // <volume>/<image>", "cite <person> <volume>/<image> <file>[ as <role>][: <text>]",
   // "uncite <citation>", "choices <citation>", "citations <volume>",
   // "volume <volume>", "rescan <volume>", "switch <volume>", "changes",
   // "reminders", "remind person <id>: <text>" (or "<volume>/<image>
@@ -200,7 +200,7 @@ export function memoryDatasetApi(
 
     cite: async (personId, at) =>
       await answer(
-        `cite ${personId} ${at.volumeId}/${at.image} ${at.fileId}${at.text === null ? '' : `: ${at.text}`}`,
+        `cite ${personId} ${at.volumeId}/${at.image} ${at.fileId}${at.role === null ? '' : ` as ${at.role}`}${at.text === null ? '' : `: ${at.text}`}`,
         undefined,
         (): VolumeCitation => {
           const { volumeId, image, fileId, box } = at;

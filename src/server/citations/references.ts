@@ -111,7 +111,15 @@ export interface References<R extends BookRef = BookRef> {
   // the entry by hand, each with its text as plain lines: what a
   // Conversion makes Citations of their Image. None for a Mark that
   // doesn't, or a Match not yet confirmed.
-  converts: (ref: R) => Array<{ id: number; text: string | null }>;
+  converts: (ref: R) => Converting[];
+}
+
+// A citation a Conversion makes a Citation of its Image: its text as plain
+// lines, and the person's Role in the entry, where the reference says it.
+export interface Converting {
+  id: number;
+  text: string | null;
+  role: string | null;
 }
 
 const NONE = Promise.resolve(null);

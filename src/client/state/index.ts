@@ -32,6 +32,7 @@ export type {
   ImageOpen,
   LeaveAnswer,
   LinkOpen,
+  PendingCite,
   PendingLink,
   Viewer
 } from './viewer';

@@ -67,6 +67,18 @@ export interface Household {
   members: HouseholdMember[];
 }
 
+// The Role a baptism index entry's person has in it, by the suffix
+// MyHeritage gives each person's address of the entry ("-", "-F", "-M"),
+// which its export writes under ROLE ("30233:548464-F:"); null for any
+// other.
+export function indexRoleOf(role: string | null) {
+  const suffix = new RegExp(`^${BAPTISM_COLLECTION}:\\d+-(?<s>[A-Z]*):`).exec(
+    role ?? ''
+  )?.groups?.s;
+  if (suffix === undefined) return null;
+  return { '': 'CHIL', 'F': 'FATH', 'M': 'MOTH' }[suffix] ?? null;
+}
+
 export function collectionOf(url: string) {
   return /collection-(?<c>\d+)/.exec(url)?.groups?.c ?? null;
 }

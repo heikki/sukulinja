@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { isoDate, parseChurchBookRef, readRecord } from './record';
+import { indexRoleOf, isoDate, parseChurchBookRef, readRecord } from './record';
 
 const URL =
   'https://www.myheritage.fi/research/collection-10509/x?itemId=1&action=showRecord';
@@ -191,4 +191,14 @@ describe('isoDate', () => {
     expect(isoDate('noin 1799')).toBe('1799');
     expect(isoDate('tuntematon')).toBeNull();
   });
+});
+
+test("a baptism index entry's Role is read from its person's suffix", () => {
+  expect(indexRoleOf('30233:548464-:')).toBe('CHIL');
+  expect(indexRoleOf('30233:548464-F:')).toBe('FATH');
+  expect(indexRoleOf('30233:4641184-M:')).toBe('MOTH');
+  // Another collection's, or none.
+  expect(indexRoleOf('10509:6877741-:d2c425')).toBeNull();
+  expect(indexRoleOf('30200:140231-S:')).toBeNull();
+  expect(indexRoleOf(null)).toBeNull();
 });

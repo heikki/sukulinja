@@ -9,8 +9,10 @@ import type {
   AppState,
   Confirming,
   LeaveAnswer,
-  LinkOpen
+  LinkOpen,
+  PendingCite
 } from '@/client/state';
+import { entryRoles } from '@/common/books';
 
 import { controlStyles, editActionsStyles } from '../box-stage/styles';
 import { formatName } from '../tree-view/renderer';
@@ -173,12 +175,14 @@ class ScanEditElement extends SignalWatcher(LitElement) {
     `;
   }
 
-  // Whom the pending Citation is for, and what the entry is, as typed.
-  private renderCite(cite: { personId: number; text: string }) {
+  // Whom the pending Citation is for, their Role in the entry where its
+  // kind of book has Roles, and what the entry is, as typed.
+  private renderCite(cite: PendingCite, volume: string) {
     const person = this.persons.get(cite.personId);
     const name = person === undefined ? 'someone' : formatName(person);
     return html`
       <p class="cite">New citation for ${name}</p>
+      ${this.renderRoles(cite, volume)}
       <input
         class="cite-text"
         type="text"
@@ -194,6 +198,29 @@ class ScanEditElement extends SignalWatcher(LitElement) {
           void this.save();
         }}
       />
+    `;
+  }
+
+  // The Roles to pick from, one or none: picking the one picked takes it
+  // back.
+  private renderRoles(cite: PendingCite, volume: string) {
+    const roles = entryRoles(volume);
+    if (roles.length === 0) return nothing;
+    return html`
+      <div class="segmented" role="group" aria-label="Their role in the entry">
+        ${roles.map(
+          ({ role, label }) => html`
+            <button
+              aria-pressed=${cite.role === role}
+              @click=${() => {
+                this.state.viewer.setCiteRole(cite.role === role ? null : role);
+              }}
+            >
+              ${label}
+            </button>
+          `
+        )}
+      </div>
     `;
   }
 
@@ -237,9 +264,12 @@ class ScanEditElement extends SignalWatcher(LitElement) {
   // source.
   override render() {
     const { viewer } = this.state;
-    const cite = viewer.pending.get()?.cite;
-    if (cite !== undefined) {
-      return this.renderAsking(this.renderCite(cite), this.renderSaving());
+    const pending = viewer.pending.get();
+    if (pending?.cite !== undefined) {
+      return this.renderAsking(
+        this.renderCite(pending.cite, pending.volume),
+        this.renderSaving()
+      );
     }
     const source = viewer.source.get();
     if (source === null) return nothing;
