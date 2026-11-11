@@ -11,6 +11,8 @@ A **Photos** view opened from the top-right corner beside **Church books**, list
 
 ## Open questions
 
+- An import keeps only the Photos under people and families (`allMediaRefs` in `gedcom/media-refs.ts`, which the media ingest copies): an `OBJE` record nothing points at, or one only a source record points at, is dropped today. Whether the import should keep those, so they show here.
+
 - Order: by who's in it, by date, or as the import listed them; and whether Photos with no one come first.
 - Whether it waits for adding photos from disk, the main way a Photo with no one would arrive.
 
