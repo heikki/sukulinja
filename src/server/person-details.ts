@@ -42,8 +42,11 @@ export function createPersonDetails(db: Database, citations: CitationsOf) {
   >(
     'SELECT given, surname FROM names WHERE person_id = ? ORDER BY sort_order LIMIT 1'
   );
-  const personFacts = db.prepare<Omit<FactRow, 'spouse'>, [number]>(
-    `SELECT tag, date_text AS date, place, address, value FROM facts
+  const personFacts = db.prepare<
+    Omit<FactRow, 'familyId' | 'spouse'>,
+    [number]
+  >(
+    `SELECT id, tag, type, date_text AS date, place, address, value FROM facts
      WHERE scope_type = 'person' AND scope_id = ? ORDER BY sort_order`
   );
   const marriageFacts = db.prepare<
@@ -53,7 +56,8 @@ export function createPersonDetails(db: Database, citations: CitationsOf) {
     },
     [number]
   >(
-    `SELECT f.tag, f.date_text AS date, f.place, f.address, f.value,
+    `SELECT f.id, fam.id AS familyId, f.tag, f.type, f.date_text AS date,
+       f.place, f.address, f.value,
        n.given AS spouseGiven, n.surname AS spouseSurname
      FROM families fam
      JOIN facts f ON f.scope_type = 'family' AND f.scope_id = fam.id
@@ -75,7 +79,9 @@ export function createPersonDetails(db: Database, citations: CitationsOf) {
     if (p === null) return null;
     const n = name.get(id);
     const facts: FactRow[] = [
-      ...personFacts.all(id).map((f) => ({ ...f, spouse: null })),
+      ...personFacts
+        .all(id)
+        .map((f) => ({ ...f, familyId: null, spouse: null })),
       ...marriageFacts.all(id).map(({ spouseGiven, spouseSurname, ...f }) => ({
         ...f,
         spouse: fullName(spouseGiven, spouseSurname)

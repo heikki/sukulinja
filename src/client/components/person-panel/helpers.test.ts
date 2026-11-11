@@ -23,7 +23,10 @@ test('names a record link by its site', () => {
 });
 
 const DEATH: FactRow = {
+  id: 1,
+  familyId: null,
   tag: 'DEAT',
+  type: null,
   date: null,
   place: null,
   address: null,

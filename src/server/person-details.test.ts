@@ -63,6 +63,9 @@ test('serves facts in date order, and the Citations', () => {
     photos: [],
     facts: [
       {
+        id: 2,
+        familyId: null,
+        type: null,
         tag: 'BIRT',
         date: '1757',
         place: 'Pitäjä',
@@ -71,6 +74,9 @@ test('serves facts in date order, and the Citations', () => {
         spouse: null
       },
       {
+        id: 4,
+        familyId: 1,
+        type: null,
         tag: 'MARR',
         date: '1780',
         place: null,
@@ -79,6 +85,9 @@ test('serves facts in date order, and the Citations', () => {
         spouse: 'Liisa Malli'
       },
       {
+        id: 3,
+        familyId: null,
+        type: null,
         tag: 'RESI',
         date: 'BET 1794 AND 1808',
         place: null,
@@ -87,6 +96,9 @@ test('serves facts in date order, and the Citations', () => {
         spouse: null
       },
       {
+        id: 1,
+        familyId: null,
+        type: null,
         tag: 'DEAT',
         date: '1820',
         place: null,

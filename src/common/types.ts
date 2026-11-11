@@ -126,7 +126,13 @@ export interface PhotoPerson {
 
 // A person's own fact, or a fact of a marriage they're in (with the spouse).
 export interface FactRow {
+  id: number;
+  // The family whose fact it is, for a marriage's; null for the person's own.
+  familyId: number | null;
   tag: string;
+  // An EVEN's or FACT's kind, in words ("Muutto").
+  type: string | null;
+  // As stored, a GEDCOM date.
   date: string | null;
   place: string | null;
   // ADDR, for events recorded with an address rather than a place.
