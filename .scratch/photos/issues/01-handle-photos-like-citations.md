@@ -22,10 +22,10 @@ Photos get what Citations have: a list on the person, a viewer to look at them i
 - **Re-import keeps the app's tags** (Heikki, 2026-11-11), as a Citation's Annotation is kept: the export's own part of a photo (its file, its links and crops) comes from the new export, the tags made in the app stay. Only what a tag needs is saved: the photo, the person and the Box ("ei tallenneta mitään turhaa tauhkaa").
 - **Opened from a _Photos_ section in the person panel** (Heikki, 2026-11-11), beside _Sources_: the person's own photos and those they're tagged in. A family's or an event's photos are left out for now.
 - **Later: browsing every photo**, as the **Church books** view in the top-right corner browses the Volumes, since a photo may be linked to no one and have no one tagged yet.
+- **Terms** (Heikki, 2026-11-11), in a Photos context of its own: **Photo** (one picture), **Tag** (a person in a Photo, with their Box: who and where, as a Citation is to an Image), **Photo viewer**, and later **Photos** (the view browsing every Photo). **Box** is the same term as on an Image: only where, a rectangle in pixels of the full-size picture.
 
 ## Open questions
 
 - **What comes after tagging:** choosing the portrait, a title or date, adding a photo from disk, removing one.
 - **Who's in it:** does tagging a person in a photo link the photo to them (a `media_link` per person, each with its own crop), as a Citation is made for each person in a record?
-- **Glossary:** "photo" isn't a term yet, and "Image" is taken by Astia's scans. A Photos context of its own, or a term in Citations'.
 - **Export:** GEDCOM 7 `OBJE` with `CROP` per link already carries faces and tags; anything else the app adds (a title, who's in it) needs a home there.
