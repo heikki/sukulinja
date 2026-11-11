@@ -33,9 +33,9 @@ function typing(e: KeyboardEvent) {
 // The Photo viewer: a Photo of the Selected person's, or any picked in
 // the Photos view, over the chart, to pan and zoom as the Scan viewer
 // does. The Boxes of the people marked on
-// it show as their rows beside it are hovered, the Selected person's
-// while the pointer is on the Photo or a Tag is edited, so the Photo
-// itself can be looked at; each Box and row leads to its person. A right-click tags someone
+// it show only while they or their rows beside it are hovered, so the
+// Photo can be looked at and zoomed bare, the Selected person's also
+// while a Tag is edited; each Box and row leads to its person. A right-click tags someone
 // there, or moves or removes a Tag (ADR-0017). Esc backs out of a Tag
 // pending, else closes it, as the Photo clicked again in the panel does.
 @customElement('sl-photo-viewer')
@@ -58,8 +58,6 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
   @state() private failed = false;
   // The key of the person picked out, on the Photo and in the list.
   @state() private hovered: string | null = null;
-  // The pointer is on the Photo.
-  @state() private pointing = false;
   private focusing = false;
 
   private readonly stage = new PictureStage(this, {
@@ -151,14 +149,6 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
     );
   }
 
-  private readonly onPointerIn = () => {
-    this.pointing = true;
-  };
-
-  private readonly onPointerOut = () => {
-    this.pointing = false;
-  };
-
   private readonly onHover = (e: CustomEvent<string | null>) => {
     this.hovered = e.detail;
   };
@@ -210,8 +200,7 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
 
   private boxes(photo: PhotoRow) {
     const viewer = this.state.photoViewer;
-    const selected =
-      this.pointing || this.editing ? this.state.selected.id.get() : null;
+    const selected = this.editing ? this.state.selected.id.get() : null;
     return photoBoxes(photo.people, selected, {
       pending: viewer.pending.get()?.personId ?? null,
       removing: viewer.removing.get()
@@ -232,8 +221,6 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
       <div
         class="stage ${this.stage.dragging ? 'dragging' : ''}"
         @mousedown=${this.stage.onMouseDown}
-        @mouseenter=${this.onPointerIn}
-        @mouseleave=${this.onPointerOut}
         @wheel=${this.stage.onWheel}
         @gesturestart=${this.stage.onGestureStart}
         @gesturechange=${this.stage.onGestureChange}
