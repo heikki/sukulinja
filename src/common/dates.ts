@@ -56,3 +56,51 @@ export function gedcomDate(text: string) {
   }
   return gedcomDay(date) ?? text;
 }
+
+// A day, month and year typed the Finnish way, as GEDCOM writes it: "3.3.1761"
+// as "3 MAR 1761", "3/1761" as "MAR 1761". Null when it isn't one, or isn't
+// a day of the calendar.
+function typedDay(text: string) {
+  const m =
+    /^(?:(?:(?<day>\d{1,2})\.)?(?<month>\d{1,2})[./])?(?<year>\d{3,4})$/.exec(
+      text
+    );
+  if (m?.groups === undefined) return null;
+  const { day, month, year = '' } = m.groups;
+  if (month === undefined) return year;
+  const name = MONTHS[Number(month) - 1];
+  if (name === undefined) return null;
+  if (day === undefined) return `${name} ${year}`;
+  const days = new Date(Date.UTC(Number(year), Number(month), 0)).getUTCDate();
+  if (Number(day) < 1 || Number(day) > days) return null;
+  return `${Number(day)} ${name} ${year}`;
+}
+
+const TYPED: Array<[RegExp, (a: string, b: string) => string]> = [
+  [/^(?<a>[^–-]+?)\s*[–-]\s*(?<b>[^–-]+)$/, (a, b) => `BET ${a} AND ${b}`],
+  [/^(?<a>[^–-]+?)\s*[–-]$/, (a) => `FROM ${a}`],
+  [/^[–-]\s*(?<a>[^–-]+)$/, (a) => `TO ${a}`],
+  [/^n\.\s*(?<a>.+)$/i, (a) => `ABT ${a}`],
+  [/^ennen\s+(?<a>.+)$/i, (a) => `BEF ${a}`],
+  [/^(?<a>.+?)\s+jälkeen$/i, (a) => `AFT ${a}`]
+];
+
+// A date typed the way the panel shows one, as GEDCOM 7 stores it:
+// "3.3.1761", "3/1761", "1761", "n. 1761", "ennen 1761", "1761 jälkeen",
+// "1870–1879" (or with a hyphen), "1870–" and "–1879". Null when it's none
+// of these. A span reads back as a range ("BET … AND …"), the more common.
+export function typedDate(text: string) {
+  const date = text.trim().replaceAll(/\s+/g, ' ');
+  for (const [re, write] of TYPED) {
+    const groups = re.exec(date)?.groups;
+    if (groups === undefined) continue;
+    const a = typedDay(groups.a ?? '');
+    const b = groups.b === undefined ? '' : typedDay(groups.b);
+    return a === null || b === null ? null : write(a, b);
+  }
+  return typedDay(date);
+}
+
+// The forms typedDate reads, for saying so when it can't.
+export const TYPED_DATE_FORMS =
+  '3.3.1761, 3/1761, 1761, n. 1761, ennen 1761, 1761 jälkeen, 1870–1879';

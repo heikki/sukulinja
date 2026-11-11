@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { gedcomDate, isoDate } from './dates';
+import { gedcomDate, isoDate, typedDate } from './dates';
 
 describe('gedcomDate', () => {
   test('writes a day, month or year the Finnish way', () => {
@@ -39,5 +39,56 @@ describe('isoDate', () => {
     expect(isoDate('1761-03-03')).toBe('3.3.1761');
     expect(isoDate('1761-03')).toBe('3/1761');
     expect(isoDate('1761')).toBe('1761');
+  });
+});
+
+describe('typedDate', () => {
+  test('reads a day, month or year typed the Finnish way', () => {
+    expect(typedDate('12.3.1850')).toBe('12 MAR 1850');
+    expect(typedDate(' 03.03.1761 ')).toBe('3 MAR 1761');
+    expect(typedDate('3/1850')).toBe('MAR 1850');
+    expect(typedDate('3.1850')).toBe('MAR 1850');
+    expect(typedDate('1850')).toBe('1850');
+  });
+
+  test('reads ranges, open spans and approximate dates', () => {
+    expect(typedDate('1867–1879')).toBe('BET 1867 AND 1879');
+    expect(typedDate('1867 - 1879')).toBe('BET 1867 AND 1879');
+    expect(typedDate('2.9.1850–16.2.1851')).toBe(
+      'BET 2 SEP 1850 AND 16 FEB 1851'
+    );
+    expect(typedDate('1867–')).toBe('FROM 1867');
+    expect(typedDate('–1879')).toBe('TO 1879');
+    expect(typedDate('n. 27.7.1850')).toBe('ABT 27 JUL 1850');
+    expect(typedDate('N.1850')).toBe('ABT 1850');
+    expect(typedDate('ennen 5/1850')).toBe('BEF MAY 1850');
+    expect(typedDate('25.10.1850 jälkeen')).toBe('AFT 25 OCT 1850');
+  });
+
+  test("refuses what isn't a date of the calendar", () => {
+    expect(typedDate('')).toBeNull();
+    expect(typedDate('keväällä 1850')).toBeNull();
+    expect(typedDate('31.2.1850')).toBeNull();
+    expect(typedDate('29.2.1900')).toBeNull();
+    expect(typedDate('29.2.1904')).toBe('29 FEB 1904');
+    expect(typedDate('13/1850')).toBeNull();
+    expect(typedDate('1850–spring')).toBeNull();
+    expect(typedDate('n. ')).toBeNull();
+  });
+
+  test('reads back each date the panel shows', () => {
+    for (const date of [
+      '12 MAR 1850',
+      'MAR 1850',
+      '1850',
+      'BET 2 SEP 1850 AND 16 FEB 1851',
+      'FROM 1867',
+      'TO 1879',
+      'ABT 1850',
+      'BEF MAY 1850',
+      'AFT 25 OCT 1850'
+    ]) {
+      expect(typedDate(gedcomDate(date))).toBe(date);
+    }
   });
 });
