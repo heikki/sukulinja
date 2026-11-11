@@ -37,7 +37,9 @@ export function createTree(db: Database) {
   // Each person's first name, and their portrait: the photo marked primary,
   // else the first linked, cropped to where they are on it: that link's
   // CROP, else another of theirs to it, the import's before their Tag's
-  // (ADR-0017). Sorted by surname, then given name.
+  // (ADR-0017). Sorted by surname, then given name. The link's own CROP is
+  // picked outside the subquery: macOS's older SQLite can't see ml in its
+  // ORDER BY.
   const listPersons = db.prepare<PersonDbRow, []>(`
     SELECT
       p.id,
@@ -62,13 +64,16 @@ export function createTree(db: Database) {
       LIMIT 1
     )
     LEFT JOIN media m ON m.id = ml.media_id
-    LEFT JOIN media_links cr ON cr.id = (
-      SELECT c.id FROM media_links c
-      WHERE c.media_id = ml.media_id AND c.scope_type='person'
-        AND c.scope_id=p.id AND c.crop_top IS NOT NULL
-      ORDER BY c.id = ml.id DESC, c.added_in_app ASC, c.sort_order, c.id
-      LIMIT 1
-    )
+    LEFT JOIN media_links cr ON cr.id = CASE
+      WHEN ml.crop_top IS NOT NULL THEN ml.id
+      ELSE (
+        SELECT c.id FROM media_links c
+        WHERE c.media_id = ml.media_id AND c.scope_type='person'
+          AND c.scope_id=p.id AND c.crop_top IS NOT NULL
+        ORDER BY c.added_in_app ASC, c.sort_order, c.id
+        LIMIT 1
+      )
+    END
     ORDER BY n.surname COLLATE NOCASE, n.given COLLATE NOCASE
   `);
   const listFamilies = db.prepare<Omit<FamilyRow, 'child_ids'>, []>(
