@@ -22,26 +22,35 @@ function viewer() {
 
 function labels(
   photos: ReturnType<typeof viewer>,
-  where: { onPending?: boolean; onTag?: number | null; canTag?: boolean }
+  where: {
+    onPending?: boolean;
+    onBox?: number | null;
+    tagged?: boolean;
+    canTag?: boolean;
+  }
 ) {
   return photoItems(
     photos,
-    { onPending: false, onTag: null, canTag: true, ...where },
+    { onPending: false, onBox: null, tagged: false, canTag: true, ...where },
     { tag: () => undefined }
   ).map((i) => i.label);
 }
 
-test('offers a new Tag on the Photo once it shows, and a Tag its own', () => {
+test('offers a new Tag on the Photo once it shows, and a Box its own', () => {
   const photos = viewer();
   expect(labels(photos, {})).toEqual(['Tag someone here…']);
   expect(labels(photos, { canTag: false })).toEqual([]);
-  expect(labels(photos, { onTag: 3 })).toEqual(['Move tag', 'Remove tag']);
+  expect(labels(photos, { onBox: 3, tagged: true })).toEqual([
+    'Edit',
+    'Delete'
+  ]);
+  expect(labels(photos, { onBox: 3 })).toEqual(['Edit']);
 });
 
 test('with a Tag pending, only its Box offers to discard it', () => {
   const photos = viewer();
   photos.tagFor(4, BOX);
   expect(labels(photos, {})).toEqual([]);
-  expect(labels(photos, { onTag: 3 })).toEqual([]);
+  expect(labels(photos, { onBox: 3, tagged: true })).toEqual([]);
   expect(labels(photos, { onPending: true })).toEqual(['Discard changes']);
 });

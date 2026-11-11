@@ -1,7 +1,7 @@
 // Tagging people in a Photo (ADR-0017): a Tag is the person's media link
 // to it with their Box, made in the app. Making, moving and taking back a
-// Tag is a Change on the person. A person the import already marked on
-// the Photo isn't tagged there.
+// Tag is a Change on the person. A Tag of someone the import already marks
+// on the Photo stands in for the import's Box, which stays as it was.
 
 import type { Database } from 'bun:sqlite';
 
@@ -59,12 +59,6 @@ export function openTags(
      WHERE media_id = ? AND scope_type = 'person' AND scope_id = ?
        AND added_in_app = 1`
   );
-  // A link of the import's that marks the person on the Photo.
-  const boxedOf = db.prepare<{ id: number }, [number, number]>(
-    `SELECT id FROM media_links
-     WHERE media_id = ? AND scope_type = 'person' AND scope_id = ?
-       AND added_in_app = 0 AND crop_top IS NOT NULL`
-  );
   // After the person's other photos, in an OBJE of its own.
   const next = db.prepare<{ sort: number; object: number }, [number]>(
     `SELECT COALESCE(MAX(sort_order) + 1, 0) AS sort,
@@ -111,12 +105,6 @@ export function openTags(
       const { left, top, width, height } = box;
       const had = tagOf.get(photoId, personId);
       if (had === null) {
-        if (boxedOf.get(photoId, personId) !== null) {
-          return {
-            refused: "They're marked on this photo already.",
-            missing: false
-          };
-        }
         const { sort, object } = next.get(personId)!;
         insert.run(photoId, personId, object, left, top, width, height, sort);
       } else {

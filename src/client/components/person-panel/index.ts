@@ -130,11 +130,11 @@ function hasDetails(body: unknown, url: string | null, link: Link | null) {
 }
 
 // Each section open or not for the rest of the visit, across people; at
-// first only the photos and the sources are.
+// first only the sources are.
 const opened = {
   events: false,
   family: false,
-  photos: true,
+  photos: false,
   sources: true
 };
 type Section = keyof typeof opened;
@@ -201,7 +201,7 @@ function renderRelative(r: Relative, chart: Chart) {
   </button>`;
 }
 
-// The Selected person's family, events, Photos and sources, beside the
+// The Selected person's family, events, sources and Photos, beside the
 // chart. A Photo opens in the Photo viewer.
 // Record links open outside the app (the desktop shell
 // hands target=_blank to the browser); a Link opens in the Scan viewer,
@@ -587,17 +587,17 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
               )
         }
         ${
-          d.photos.length === 0
-            ? nothing
-            : this.renderSection('photos', 'Photos', () =>
-                this.renderPhotos(d.photos)
-              )
-        }
-        ${
           d.citations.length === 0
             ? nothing
             : this.renderSection('sources', 'Sources', () =>
                 this.renderSources()
+              )
+        }
+        ${
+          d.photos.length === 0
+            ? nothing
+            : this.renderSection('photos', 'Photos', () =>
+                this.renderPhotos(d.photos)
               )
         }
       </div>

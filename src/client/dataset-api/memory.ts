@@ -320,9 +320,6 @@ export function memoryDatasetApi(
       await answer(`tag ${photoId} ${personId}`, undefined, () => {
         const shown = photo(photoId);
         const had = shown.people.find((p) => p.personId === personId);
-        if (had?.tagged === false && had.box !== null) {
-          throw new ApiError("They're marked on this photo already.");
-        }
         const tag = { personId, box, tagged: true };
         shown.people =
           had === undefined

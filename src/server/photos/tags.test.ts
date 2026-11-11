@@ -67,7 +67,7 @@ test('a Tag gives someone the import linked without a Box their Box', () => {
   });
 });
 
-test("moves a Tag, and doesn't tag someone the import marked there", () => {
+test("moves a Tag, and a Tag stands in for the import's Box", () => {
   const { tags, changes } = dataset();
   tags.tag(10, 3, BOX);
   const moved = { ...BOX, left: 50 };
@@ -78,9 +78,11 @@ test("moves a Tag, and doesn't tag someone the import marked there", () => {
     photo: 'Kesä talo.jpg',
     moved: true
   });
-  expect(tags.tag(10, 2, BOX)).toEqual({
-    refused: "They're marked on this photo already.",
-    missing: false
+  const edited = tags.tag(10, 2, BOX);
+  expect('refused' in edited ? null : edited.people[1]).toEqual({
+    personId: 2,
+    box: BOX,
+    tagged: true
   });
 });
 

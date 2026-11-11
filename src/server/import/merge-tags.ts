@@ -1,7 +1,8 @@
 // The dataset's Tags carried into a re-import (ADR-0017): each put back on
 // the same person, in the same Photo, found by the path the export gave
-// its file. One whose person the export now marks on that Photo is kept
-// as the export has it; one whose person or Photo is gone is lost.
+// its file, where it stands in for any Box the export gives them there.
+// One the new import has already, from a GEDZIP, isn't made twice; one
+// whose person or Photo is gone is lost.
 
 import type { Database } from 'bun:sqlite';
 
@@ -29,10 +30,10 @@ export function carryTags({ stored, fresh, matchOf, describe }: TagMerge) {
     `SELECT id FROM media WHERE original_path = ? OR file_path = ?
      ORDER BY original_path = ?1 DESC LIMIT 1`
   );
-  const boxed = fresh.prepare<{ id: number }, [number, number]>(
+  const tagged = fresh.prepare<{ id: number }, [number, number]>(
     `SELECT id FROM media_links
      WHERE media_id = ? AND scope_type = 'person' AND scope_id = ?
-       AND crop_top IS NOT NULL`
+       AND added_in_app = 1`
   );
   const next = fresh.prepare<{ sort: number; object: number }, [number]>(
     `SELECT COALESCE(MAX(sort_order) + 1, 0) AS sort,
@@ -62,7 +63,7 @@ export function carryTags({ stored, fresh, matchOf, describe }: TagMerge) {
       continue;
     }
     kept += 1;
-    if (boxed.get(media.id, person) !== null) continue;
+    if (tagged.get(media.id, person) !== null) continue;
     const { sort, object } = next.get(person)!;
     insert.run(
       media.id,

@@ -122,14 +122,26 @@ test('tags someone: the Box pending, then saved, and the Photo as saved', async 
   expect(api.asked.filter((a) => a === 'photos')).toHaveLength(2);
 });
 
-test("moves a Tag from its Box, but not the import's", async () => {
+test("edits a Tag's Box, and the import's, which saving makes a Tag", async () => {
   const { photos } = await tagging();
-  photos.tagFor(3, BOX);
+  photos.tagFor(3, MOVED);
   await photos.save();
-  photos.move(2);
-  expect(photos.pending.get()).toBeNull();
-  photos.move(3);
-  expect(photos.pending.get()).toEqual({ personId: 3, box: BOX, moving: true });
+  photos.edit(3);
+  expect(photos.pending.get()).toEqual({
+    personId: 3,
+    box: MOVED,
+    moving: true
+  });
+  photos.edit(2);
+  expect(photos.pending.get()).toEqual({ personId: 2, box: BOX, moving: true });
+  photos.setBox(MOVED);
+  await photos.save();
+  expect(photos.opened.get()?.people[1]).toEqual({
+    personId: 2,
+    box: MOVED,
+    tagged: true
+  });
+  photos.edit(2);
   photos.cancel();
   expect(photos.pending.get()).toBeNull();
 });
@@ -150,10 +162,9 @@ test('takes back a Tag once confirmed', async () => {
 
 test("a refused Tag stays pending, with the app's words", async () => {
   const { photos } = await tagging();
+  photos.open({ ...GROUP, id: 99 });
   photos.tagFor(2, BOX);
-  expect(photos.save()).rejects.toThrow(
-    "They're marked on this photo already."
-  );
+  expect(photos.save()).rejects.toThrow('photo not found');
   await Promise.resolve();
   expect(photos.pending.get()?.personId).toBe(2);
 });

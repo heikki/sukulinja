@@ -109,15 +109,15 @@ class PhotoEditElement extends SignalWatcher(LitElement) {
       const name = this.nameOf(pending.personId);
       return html`
         <p>
-          ${pending.moving ? `Moving the tag of ${name}` : `Tagging ${name}`}
+          ${pending.moving ? `Editing the box of ${name}` : `Tagging ${name}`}
         </p>
         ${refused} ${this.renderActions('Save', 'Saving…', 'save')}
       `;
     }
     if (removing !== null) {
       return html`
-        <p>Remove the tag of ${this.nameOf(removing)}?</p>
-        ${refused} ${this.renderActions('Remove', 'Removing…', 'discard')}
+        <p>Delete the tag of ${this.nameOf(removing)}?</p>
+        ${refused} ${this.renderActions('Delete', 'Deleting…', 'discard')}
       `;
     }
     return nothing;

@@ -3,12 +3,18 @@ import type { PhotoViewer } from '@/client/state';
 import type { MenuItem } from '../context-menu';
 
 // What a right-click on the Photo offers. With a Tag pending, on its Box,
-// only to discard it. Elsewhere, with nothing pending: on someone's Tag
-// (`onTag`, their id), to move or remove it; anywhere else once the Photo
-// is shown (`canTag`), a new Tag for someone.
+// only to discard it. Elsewhere, with nothing pending: on someone's Box
+// (`onBox`, their id), to edit it, and a Tag's (`tagged`) to delete; as a
+// Citation's Box offers. Anywhere else once the Photo is shown (`canTag`),
+// a new Tag for someone.
 export function photoItems(
   viewer: PhotoViewer,
-  where: { onPending: boolean; onTag: number | null; canTag: boolean },
+  where: {
+    onPending: boolean;
+    onBox: number | null;
+    tagged: boolean;
+    canTag: boolean;
+  },
   open: { tag: () => void }
 ): MenuItem[] {
   if (viewer.pending.get() !== null) {
@@ -16,19 +22,21 @@ export function photoItems(
       ? [{ label: 'Discard changes', run: viewer.cancel }]
       : [];
   }
-  const { onTag } = where;
-  if (onTag !== null) {
+  const { onBox } = where;
+  if (onBox !== null) {
+    const edit: MenuItem = {
+      label: 'Edit',
+      run: () => {
+        viewer.edit(onBox);
+      }
+    };
+    if (!where.tagged) return [edit];
     return [
+      edit,
       {
-        label: 'Move tag',
+        label: 'Delete',
         run: () => {
-          viewer.move(onTag);
-        }
-      },
-      {
-        label: 'Remove tag',
-        run: () => {
-          viewer.untag(onTag);
+          viewer.untag(onBox);
         }
       }
     ];

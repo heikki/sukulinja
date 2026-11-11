@@ -18,11 +18,12 @@ import '../context-menu';
 import '../person-search/pick';
 
 // Where a right-click opened its menu: on the pending Box, on someone's
-// Tag, or elsewhere; and whether it's the menu or the people to tag.
+// Box (a Tag's or not), or elsewhere; and whether it's the menu or the people to tag.
 interface Popup {
   at: Point;
   onPending: boolean;
-  onTag: number | null;
+  onBox: number | null;
+  tagged: boolean;
   show: 'menu' | 'pick';
 }
 
@@ -62,13 +63,14 @@ class PhotoLayerElement extends SignalWatcher(LitElement) {
   // the key of someone's Box. None when it has nothing to offer.
   openMenu(at: Point, on: { pending: boolean; key: string | null }) {
     const person = on.key === null ? null : Number(on.key);
-    const tagged = this.photo?.people.some(
-      (p) => p.personId === person && p.tagged
+    const boxed = this.photo?.people.find(
+      (p) => p.personId === person && p.box !== null
     );
     const popup: Popup = {
       at,
       onPending: on.pending,
-      onTag: tagged === true ? person : null,
+      onBox: boxed?.personId ?? null,
+      tagged: boxed?.tagged === true,
       show: 'menu'
     };
     this.popup = this.items(popup).length === 0 ? null : popup;
@@ -79,7 +81,8 @@ class PhotoLayerElement extends SignalWatcher(LitElement) {
       this.viewer,
       {
         onPending: popup.onPending,
-        onTag: popup.onTag,
+        onBox: popup.onBox,
+        tagged: popup.tagged,
         canTag: this.size !== null && this.view !== null
       },
       {

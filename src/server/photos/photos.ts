@@ -25,18 +25,21 @@ function boxOf(r: LinkRow): Box | null {
     : null;
 }
 
-// One per person, in the order first linked; a link with a Box wins over
-// one without, as a person linked twice keeps where they were marked.
+// One per person, in the order first linked; their Tag wins, as it stands
+// in for the import's Box, else a link with a Box wins over one without,
+// as a person linked twice keeps where they were marked.
 function peopleOf(links: LinkRow[]): PhotoPerson[] {
   const people = new Map<number, PhotoPerson>();
   for (const link of links) {
     const box = boxOf(link);
     const had = people.get(link.person_id);
-    if (had === undefined || (had.box === null && box !== null)) {
+    const tag = link.added_in_app === 1;
+    const better = tag || (had?.box === null && box !== null);
+    if (had === undefined || (better && !had.tagged)) {
       people.set(link.person_id, {
         personId: link.person_id,
         box,
-        tagged: link.added_in_app === 1
+        tagged: tag
       });
     }
   }

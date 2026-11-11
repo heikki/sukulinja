@@ -7,7 +7,7 @@ import type { Photos } from './photos';
 import type { Readable, Selected } from './selected';
 
 // A Tag being placed: whose, and its Box as it's dragged so far. `moving`
-// when it's their Tag's Box moved, not a new Tag.
+// when it's their Box on the Photo edited, not a new Tag.
 export interface PendingTag {
   personId: number;
   box: Box;
@@ -44,8 +44,9 @@ export interface PhotoViewer {
   removing: Readable<number | null>;
   // A new Tag for the person at `box`, pending.
   tagFor: (personId: number, box: Box) => void;
-  // The person's Tag, pending to be moved.
-  move: (personId: number) => void;
+  // The person's Box, pending to be moved: their Tag's, or the import's,
+  // which saving makes a Tag that stands in for it (ADR-0017).
+  edit: (personId: number) => void;
   // The pending Tag's Box, as dragged to.
   setBox: (box: Box) => void;
   // Asks to take back the person's Tag.
@@ -129,11 +130,13 @@ export function openPhotoViewer(
       removing.set(null);
       pending.set({ personId, box, moving: false });
     },
-    move(personId) {
-      const tag = tagOf(personId);
-      if (tag?.box === undefined || tag.box === null) return;
+    edit(personId) {
+      const box = opened
+        .get()
+        ?.people.find((p) => p.personId === personId)?.box;
+      if (box === undefined || box === null) return;
       removing.set(null);
-      pending.set({ personId, box: tag.box, moving: true });
+      pending.set({ personId, box, moving: true });
     },
     setBox(box) {
       const was = pending.get();
