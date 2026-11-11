@@ -34,7 +34,8 @@ function typing(e: KeyboardEvent) {
 // the Photos view, over the chart, to pan and zoom as the Scan viewer
 // does. The Boxes of the people marked on
 // it show as their rows beside it are hovered, the Selected person's
-// always; each Box and row leads to its person. A right-click tags someone
+// while the pointer is on the Photo or a Tag is edited, so the Photo
+// itself can be looked at; each Box and row leads to its person. A right-click tags someone
 // there, or moves or removes a Tag (ADR-0017). Esc backs out of a Tag
 // pending, else closes it, as the Photo clicked again in the panel does.
 @customElement('sl-photo-viewer')
@@ -57,6 +58,8 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
   @state() private failed = false;
   // The key of the person picked out, on the Photo and in the list.
   @state() private hovered: string | null = null;
+  // The pointer is on the Photo.
+  @state() private pointing = false;
   private focusing = false;
 
   private readonly stage = new PictureStage(this, {
@@ -128,11 +131,7 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
     const viewer = this.state.photoViewer;
     if (e.key === 'Escape') {
       e.preventDefault();
-      const editing =
-        viewer.pending.get() !== null ||
-        viewer.removing.get() !== null ||
-        viewer.refused.get() !== null;
-      if (editing) viewer.cancel();
+      if (this.editing) viewer.cancel();
       else viewer.close();
       return;
     }
@@ -140,6 +139,24 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
     if (by === undefined || typing(e)) return;
     e.preventDefault();
     this.state.photoViewer.step(by);
+  };
+
+  // A Tag pending, waiting to be taken back, or refused.
+  private get editing() {
+    const viewer = this.state.photoViewer;
+    return (
+      viewer.pending.get() !== null ||
+      viewer.removing.get() !== null ||
+      viewer.refused.get() !== null
+    );
+  }
+
+  private readonly onPointerIn = () => {
+    this.pointing = true;
+  };
+
+  private readonly onPointerOut = () => {
+    this.pointing = false;
   };
 
   private readonly onHover = (e: CustomEvent<string | null>) => {
@@ -193,19 +210,16 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
 
   private boxes(photo: PhotoRow) {
     const viewer = this.state.photoViewer;
-    return photoBoxes(photo.people, this.state.selected.id.get(), {
+    const selected =
+      this.pointing || this.editing ? this.state.selected.id.get() : null;
+    return photoBoxes(photo.people, selected, {
       pending: viewer.pending.get()?.personId ?? null,
       removing: viewer.removing.get()
     });
   }
 
   private renderEdit() {
-    const viewer = this.state.photoViewer;
-    return viewer.pending.get() === null &&
-      viewer.removing.get() === null &&
-      viewer.refused.get() === null
-      ? nothing
-      : html`<sl-photo-edit></sl-photo-edit>`;
+    return this.editing ? html`<sl-photo-edit></sl-photo-edit>` : nothing;
   }
 
   private renderStage(photo: PhotoRow) {
@@ -218,6 +232,8 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
       <div
         class="stage ${this.stage.dragging ? 'dragging' : ''}"
         @mousedown=${this.stage.onMouseDown}
+        @mouseenter=${this.onPointerIn}
+        @mouseleave=${this.onPointerOut}
         @wheel=${this.stage.onWheel}
         @gesturestart=${this.stage.onGestureStart}
         @gesturechange=${this.stage.onGestureChange}
