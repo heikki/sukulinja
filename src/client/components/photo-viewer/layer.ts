@@ -117,7 +117,7 @@ class PhotoLayerElement extends SignalWatcher(LitElement) {
     const selected = this.state.selected.id.get();
     const people = this.state.chart.people.get();
     return html`<sl-person-pick
-      .heading=${'New tag for'}
+      .heading=${'Who is here?'}
       .at=${at}
       .choices=${selected === null ? [] : familyChoices(selected, people, left)}
       .persons=${searchable(people.persons, left)}

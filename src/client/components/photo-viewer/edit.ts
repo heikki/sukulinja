@@ -108,7 +108,9 @@ class PhotoEditElement extends SignalWatcher(LitElement) {
     if (pending !== null) {
       const name = this.nameOf(pending.personId);
       return html`
-        <p>${pending.moving ? `Tag of ${name}` : `New tag for ${name}`}</p>
+        <p>
+          ${pending.moving ? `Moving the tag of ${name}` : `Tagging ${name}`}
+        </p>
         ${refused} ${this.renderActions('Save', 'Saving…', 'save')}
       `;
     }

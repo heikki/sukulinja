@@ -33,5 +33,5 @@ export function photoItems(
       }
     ];
   }
-  return where.canTag ? [{ label: 'New tag for…', run: open.tag }] : [];
+  return where.canTag ? [{ label: 'Tag someone here…', run: open.tag }] : [];
 }

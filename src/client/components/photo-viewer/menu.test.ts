@@ -33,7 +33,7 @@ function labels(
 
 test('offers a new Tag on the Photo once it shows, and a Tag its own', () => {
   const photos = viewer();
-  expect(labels(photos, {})).toEqual(['New tag for…']);
+  expect(labels(photos, {})).toEqual(['Tag someone here…']);
   expect(labels(photos, { canTag: false })).toEqual([]);
   expect(labels(photos, { onTag: 3 })).toEqual(['Move tag', 'Remove tag']);
 });
