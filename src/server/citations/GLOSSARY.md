@@ -79,8 +79,12 @@ _Avoid_: record viewer (a record is MyHeritage's), Astia viewer (Astia's own sit
 The Images kept on disk for the Scan viewer and the vision pass, up to a size the install sets; the least recently viewed go first.
 _Avoid_: image cache, Astia cache (that's Astia's answers about archives and Volumes).
 
+**Parish**:
+A parish whose church books the app finds in Astia: its archive ("… seurakunnan arkisto"), shown by the archive's title, and the spellings references give it, each linking into it. Kept per install in the data folder, so every dataset uses them. A spelling gets its archive where an **Unlinked** reference offers to find it in Astia, and is changed the same way; the Church books view adds one with no spelling.
+_Avoid_: parish name (it has none of its own).
+
 **Church books**:
-The view of the Volumes of the archives the dataset's church books are in (by their titles in Astia, most cited first) apart from any citation, with how many of the dataset's Citations link into each and what of it is on disk: where a Volume is downloaded into the Scan cache, every Image at once under the same cap, or opened in the Scan viewer with no source.
+The view of the Volumes of the archives the dataset's church books are in (by their titles in Astia, most cited first), then apart the install's other **Parishes**, apart from any citation, with how many of the dataset's Citations link into each and what of it is on disk: where a Volume is downloaded into the Scan cache, every Image at once under the same cap, or opened in the Scan viewer with no source.
 _Avoid_: archive (a parish's fonds in Astia), library.
 
 **Precision**:

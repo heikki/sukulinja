@@ -20,6 +20,7 @@ import { citationRoutes } from './citation-routes';
 import { createCitations } from './citations';
 import { openImages } from './images';
 import { kinOfConverted, openScanFolder, switchFilming } from './myheritage';
+import { routeParishes } from './parish-routes';
 
 export type { Astia } from './astia/astia';
 export { annotated, annotationOf, openAnnotations } from './annotations';
@@ -65,11 +66,12 @@ export function openCitations(root: string, options: Options) {
   }
 
   return {
-    // Astia's Images, the Scan cache's settings, a Volume's re-scan, the
-    // church books and their downloads, shared by every dataset. Null for
-    // any other path.
+    // The parishes, Astia's Images, the Scan cache's settings, a Volume's
+    // re-scan, the church books and their downloads, shared by every
+    // dataset. Null for any other path.
     route: async (req: Request, pathname: string) =>
-      await routeShared({ astia, cache, downloads, kept }, req, pathname),
+      (await routeParishes({ astia, parishes }, req, pathname)) ??
+      (await routeShared({ astia, cache, downloads, kept }, req, pathname)),
 
     // One dataset's Citations, resolved against the scans. Opened once for
     // each Database, which a re-import replaces rather than changes.

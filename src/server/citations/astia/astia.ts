@@ -80,9 +80,19 @@ export interface Astia {
   // The archive's title as Astia gives it ("Pieksämäen seurakunnan
   // arkisto"); null when Astia can't say.
   archiveTitle: (archiveId: string) => Promise<string | null>;
+  // Every top-level archive whose title starts with `letter` (lower case),
+  // as Astia's "Selaa aineistoja" lists them.
+  archivesByLetter: (letter: string) => Promise<ListedArchive[]>;
   // One image file, for someone waiting on it. Throws NoImageError when
   // Astia has no file by that id.
   imageBytes: (volumeId: string, fileId: string) => Promise<Uint8Array>;
+}
+
+// An archive in Astia's list of them, its title followed by who formed it:
+// "Puumalan seurakunnan arkisto ( Puumalan seurakunta )".
+export interface ListedArchive {
+  id: string;
+  title: string;
 }
 
 // A request to Astia failed: it couldn't be reached, refused, or gave
@@ -426,6 +436,18 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
       } catch {
         return null;
       }
+    },
+
+    async archivesByLetter(letter) {
+      const path = `ws/getArkistoList.php?letter=${encodeURIComponent(letter)}`;
+      const listed = await fetchJson(path);
+      if (!Array.isArray(listed)) return [];
+      return (listed as Array<{ id?: unknown; nimekkeet?: unknown }>).flatMap(
+        ({ id, nimekkeet }) =>
+          typeof id === 'string' && typeof nimekkeet === 'string'
+            ? [{ id, title: decodeEntities(nimekkeet) }]
+            : []
+      );
     },
 
     async imageBytes(volumeId, fileId) {

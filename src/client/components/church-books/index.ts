@@ -7,10 +7,13 @@ import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { ChurchBookArchive, ChurchBookVolume } from '@/common/types';
 
+import { addParish, fetchParishes } from '../archive-search/api';
 import { cornerListStyles } from '../corner-panel/list-styles';
 import { fetchVolumes, sendDownload } from './api';
-import { busy, downloadActions, volumeLine } from './helpers';
+import { busy, downloadActions, othersOf, volumeLine } from './helpers';
 import type { DownloadAction } from './helpers';
+
+import '../archive-search';
 
 // How often a parish's Volumes are asked for again while one downloads.
 const POLL_MS = 2000;
@@ -18,7 +21,8 @@ const POLL_MS = 2000;
 export type VolumeOpenEvent = CustomEvent<{ volumeId: string; label: string }>;
 
 // The church books apart from any citation: the archives the dataset's
-// sources are in, most cited first, by their titles in Astia, then an
+// sources are in, most cited first, by their titles in Astia, then apart
+// the install's other parishes, and finding another in Astia; then an
 // archive's Volumes in Astia's order, each with what of it is on disk and
 // its download to start, stop or remove. Clicking a Volume opens it
 // (`open-volume`). A tab of the corner panel; leaving it, by another tab
@@ -56,6 +60,18 @@ class ChurchBooksListElement extends LitElement {
         font-weight: 500;
       }
 
+      /* The install's other parishes, under the dataset's own. */
+      li.apart {
+        margin-top: 0.5rem;
+        padding: 0.45rem 0.75rem 0.2rem;
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+
+      sl-archive-search {
+        margin-bottom: 1rem;
+      }
+
       button.act:hover {
         border-color: var(--accent);
         color: var(--accent);
@@ -64,6 +80,15 @@ class ChurchBooksListElement extends LitElement {
   ];
 
   @state() private parishes: ChurchBookArchive[] | 'failed' | null = null;
+
+  // The install's parishes the dataset's sources aren't in.
+  @state() private others: ChurchBookArchive[] = [];
+
+  // Whether a parish is being looked for in Astia, while the one chosen
+  // is added, and why that failed.
+  @state() private finding = false;
+  @state() private adding = false;
+  @state() private addError: string | null = null;
 
   @state() private parish: ChurchBookArchive | null = null;
 
@@ -79,14 +104,34 @@ class ChurchBooksListElement extends LitElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    void this.state.api
-      .archives()
-      .then((parishes) => {
-        this.parishes = parishes;
-      })
-      .catch(() => {
-        this.parishes = 'failed';
-      });
+    void this.loadParishes();
+  }
+
+  // The dataset's archives, then the install's other parishes; those only
+  // when the app can say.
+  private async loadParishes() {
+    const [own, all] = await Promise.all([
+      this.state.api.archives().catch(() => 'failed' as const),
+      fetchParishes().catch(() => [])
+    ]);
+    this.parishes = own;
+    this.others = own === 'failed' ? [] : othersOf(own, all);
+  }
+
+  // The archive found joins the install's parishes, and its books open.
+  private async addFound(archive: ChurchBookArchive) {
+    this.adding = true;
+    this.addError = null;
+    try {
+      await addParish(archive.archiveId);
+      this.finding = false;
+      await this.loadParishes();
+      this.pickParish(archive);
+    } catch (err) {
+      this.addError = err instanceof Error ? err.message : String(err);
+    } finally {
+      this.adding = false;
+    }
   }
 
   override disconnectedCallback() {
@@ -141,30 +186,74 @@ class ChurchBooksListElement extends LitElement {
     if (parish !== null && parish === this.parish) await this.load(parish);
   }
 
+  private renderParish(p: ChurchBookArchive) {
+    return html`<li>
+      <button
+        class="row"
+        @click=${() => {
+          this.pickParish(p);
+        }}
+      >
+        <span class="text">${p.title}</span>
+      </button>
+    </li>`;
+  }
+
+  private renderFind() {
+    if (!this.finding) {
+      return html`<div class="actions">
+        <button
+          class="toggle"
+          @click=${() => {
+            this.finding = true;
+            this.addError = null;
+          }}
+        >
+          Find a parish in Astia
+        </button>
+      </div>`;
+    }
+    return html`<sl-archive-search
+      label="Parish in Astia"
+      ?busy=${this.adding}
+      .error=${this.addError}
+      @archive-chosen=${(e: CustomEvent<ChurchBookArchive>) => {
+        void this.addFound(e.detail);
+      }}
+      @cancel=${() => {
+        this.finding = false;
+      }}
+    ></sl-archive-search>`;
+  }
+
   private renderParishes() {
-    const all = this.parishes;
-    if (all === null) return html`<p class="muted">Loading…</p>`;
-    if (all === 'failed') {
+    const own = this.parishes;
+    if (own === null) return html`<p class="muted">Loading…</p>`;
+    if (own === 'failed') {
       return html`<p class="muted">Couldn't reach the app.</p>`;
     }
-    if (all.length === 0) {
-      return html`<p class="muted">No sources here cite a church book.</p>`;
-    }
-    return html`<ul>
-      ${all.map(
-        (p) =>
-          html`<li>
-            <button
-              class="row"
-              @click=${() => {
-                this.pickParish(p);
-              }}
-            >
-              <span class="text">${p.title}</span>
-            </button>
-          </li>`
-      )}
-    </ul>`;
+    const { others } = this;
+    return html`
+      ${
+        own.length === 0
+          ? html`<p class="muted">No sources here cite a church book.</p>`
+          : nothing
+      }
+      ${
+        own.length + others.length === 0
+          ? nothing
+          : html`<ul>
+              ${own.map((p) => this.renderParish(p))}
+              ${
+                others.length === 0
+                  ? nothing
+                  : html`<li class="apart">Other parishes</li>
+                      ${others.map((p) => this.renderParish(p))}`
+              }
+            </ul>`
+      }
+      ${this.renderFind()}
+    `;
   }
 
   private renderVolume(volume: ChurchBookVolume) {

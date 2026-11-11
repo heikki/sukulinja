@@ -6,7 +6,13 @@ import type {
   VolumeOnDisk
 } from '@/common/types';
 
-import { busy, diskLine, downloadActions, volumeLine } from './helpers';
+import {
+  busy,
+  diskLine,
+  downloadActions,
+  othersOf,
+  volumeLine
+} from './helpers';
 
 const MB = 1024 ** 2;
 
@@ -91,4 +97,10 @@ test('volumeLine leads with the Citations linking into it', () => {
 test('busy while any is downloading or waiting to', () => {
   expect(busy([volume(null), volume({ state: 'stopped' })])).toBe(false);
   expect(busy([volume(null), volume({ state: 'queued' })])).toBe(true);
+});
+
+test("the install's other parishes leave out the dataset's own", () => {
+  const juva = { archiveId: '1', title: 'Juvan seurakunnan arkisto' };
+  const puumala = { archiveId: '2', title: 'Puumalan seurakunnan arkisto' };
+  expect(othersOf([juva], [juva, puumala])).toEqual([puumala]);
 });

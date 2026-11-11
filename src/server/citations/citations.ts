@@ -322,10 +322,18 @@ export function createCitations<R extends BookRef>(
     );
   }
 
-  // The title of the archive holding the Volume, among the dataset's;
-  // null when none of them does, or Astia can't say.
+  // The dataset's archives, then every other parish's: where an entry
+  // can be cited from, so that a tree's first Citation in a parish can be.
+  async function citable() {
+    const own = await archives();
+    const others = images.parishArchives().filter((a) => !own.includes(a));
+    return [...own, ...others];
+  }
+
+  // The title of the archive holding the Volume, among those an entry can
+  // be cited from; null when none of them does, or Astia can't say.
   async function volumeArchive(volumeId: string) {
-    return await images.archiveTitleOf(volumeId, await archives());
+    return await images.archiveTitleOf(volumeId, await citable());
   }
 
   // A stored Link, naming its archive as a resolved one does.
@@ -567,7 +575,7 @@ export function createCitations<R extends BookRef>(
       target: CiteTarget
     ): Promise<VolumeCitation | { rejected: string } | null> {
       if (personExists.get(personId) === null) return null;
-      const checked = await images.imageToCite(target, await archives());
+      const checked = await images.imageToCite(target, await citable());
       if ('rejected' in checked) return checked;
       const { volumeId, image } = target;
       const there = await inVolume(volumeId);

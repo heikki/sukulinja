@@ -63,6 +63,10 @@ export function openImages({
     // The parish archives a dataset's church books are in, in order.
     archivesOf: openDatasetArchives(astia, parishes),
 
+    // Every parish's archive, cited or not: where an entry can be cited
+    // from.
+    parishArchives: () => parishes.archives(),
+
     // Astia's viewer URL for each of the Volume's Images, in order.
     async urlsOf(volumeId: string) {
       return await viewerUrls(astia, volumeId);

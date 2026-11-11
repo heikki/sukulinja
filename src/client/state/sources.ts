@@ -3,6 +3,7 @@ import type {
   CitationRow,
   Link,
   LinkResolution,
+  Unlinked,
   UnlinkedResolution
 } from '@/common/types';
 
@@ -10,10 +11,12 @@ import type {
 // viewer's words, or why there's none. Opening the
 // source shows `link` in the Scan viewer, if there is one; without one,
 // `browse` is set when its parish's Volumes can be looked through for it.
+// `unlinked` says why it has no Link, once that's known.
 export interface LinkStatus {
   label: string;
   link: Link | null;
   browse: UnlinkedResolution | null;
+  unlinked: Unlinked | null;
 }
 
 // Links arrive after the panel renders; until then the status is pending. A
@@ -25,19 +28,20 @@ export function linkStatus(
 ): LinkStatus {
   if (resolution === undefined) {
     const label = pending ? 'Finding scan…' : 'Scan unavailable';
-    return { label, link: null, browse: null };
+    return { label, link: null, browse: null, unlinked: null };
   }
   if ('unlinked' in resolution) {
     return {
       label: unlinkedLabel(resolution.unlinked),
       link: null,
-      browse: resolution.archive === undefined ? null : resolution
+      browse: resolution.archive === undefined ? null : resolution,
+      unlinked: resolution.unlinked
     };
   }
   const { links } = resolution;
   const [first] = links;
   if (first === undefined) {
-    return { label: 'No scan', link: null, browse: null };
+    return { label: 'No scan', link: null, browse: null, unlinked: null };
   }
   const others = links.length - 1;
   const counted =
@@ -47,7 +51,8 @@ export function linkStatus(
   return {
     label: counted ? `${linkLabel(first)} +${others}` : linkLabel(first),
     link: first,
-    browse: null
+    browse: null,
+    unlinked: null
   };
 }
 

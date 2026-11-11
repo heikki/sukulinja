@@ -1,4 +1,5 @@
 import type {
+  ChurchBookArchive,
   ChurchBookVolume,
   DownloadError,
   DownloadStatus,
@@ -78,4 +79,11 @@ export function busy(volumes: ChurchBookVolume[]) {
   return volumes.some(
     (v) => v.download?.state === 'queued' || v.download?.state === 'downloading'
   );
+}
+
+// The install's parishes the dataset's own archives leave out, in the
+// order they were added.
+export function othersOf(own: ChurchBookArchive[], all: ChurchBookArchive[]) {
+  const ids = new Set(own.map((a) => a.archiveId));
+  return all.filter((a) => !ids.has(a.archiveId));
 }

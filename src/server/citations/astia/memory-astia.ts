@@ -20,7 +20,8 @@ interface MemoryArchive {
 
 export type MemoryAstia = Astia & {
   // What was asked, in order: "volumes <archive>", "images <volume>",
-  // "peek <volume>", "refresh <volume>", "title <archive>", "bytes <file>".
+  // "peek <volume>", "refresh <volume>", "title <archive>", "bytes <file>",
+  // "list <letter>".
   asked: string[];
   // Astia re-scans the Volume: it now holds `images` Images under new file
   // ids, and has none by the old ones. Its list stays as it was until
@@ -173,6 +174,17 @@ export function memoryAstia(
       asked.push(`title ${archiveId}`);
       return await Promise.resolve(
         down ? null : (archives[archiveId]?.title ?? null)
+      );
+    },
+
+    async archivesByLetter(letter) {
+      ask(`list ${letter}`);
+      return await Promise.resolve(
+        Object.entries(archives).flatMap(([id, { title }]) =>
+          title?.toLowerCase().startsWith(letter) === true
+            ? [{ id, title }]
+            : []
+        )
       );
     },
 

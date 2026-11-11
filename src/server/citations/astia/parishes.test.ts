@@ -52,3 +52,36 @@ test("a data folder's parishes.json is read over the starting ones", async () =>
     await rm(folder, { recursive: true });
   }
 });
+
+test('a spelling linked into an archive moves there from any other', async () => {
+  const parishes = memoryParishes();
+  const before = parishes.stamp();
+  await parishes.link('Pieksamaki', '1');
+  expect(parishes.archiveOf('Pieksamaki')).toBe('1');
+  expect(parishes.archiveOf('Pieksämäki')).toBe('1225495701');
+  expect(parishes.archives().at(-1)).toBe('1');
+  expect(parishes.stamp()).not.toBe(before);
+
+  await parishes.link('Pieksamaki', '1225495701');
+  expect(parishes.archiveOf('Pieksamaki')).toBe('1225495701');
+  expect(parishes.all().at(-1)).toEqual({ archiveId: '1', spellings: [] });
+});
+
+test('an archive added has no spelling, and is added once', async () => {
+  const parishes = memoryParishes([]);
+  await parishes.add('7');
+  await parishes.add('7');
+  expect(parishes.all()).toEqual([{ archiveId: '7', spellings: [] }]);
+});
+
+test('a change is saved in the data folder', async () => {
+  const folder = await mkdtemp(join(tmpdir(), 'parishes-'));
+  try {
+    await openParishes(folder).link('Puumala', '1227046432');
+    const again = openParishes(folder);
+    expect(again.archiveOf('Puumala')).toBe('1227046432');
+    expect(again.archiveOf('Juva')).toBe('1212295491');
+  } finally {
+    await rm(folder, { recursive: true });
+  }
+});

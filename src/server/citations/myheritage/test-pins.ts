@@ -7,6 +7,7 @@ import { openDb } from '../../datasets/db';
 import type { Astia } from '../astia/astia';
 import { memoryAstia } from '../astia/memory-astia';
 import { memoryParishes } from '../astia/parishes';
+import type { Parishes } from '../astia/parishes';
 import { JUVA } from '../astia/test-parish';
 import type { ImageSizeOf } from '../images';
 import type { Pins } from './pins/locate';
@@ -68,14 +69,22 @@ export function citing(
   return db;
 }
 
+// A data folder's Astia, shipped pins and parishes (the starting ones
+// unless given), and its Images' sizes.
+interface FolderOptions {
+  astia: Astia;
+  base?: Pins['volumes'];
+  parishes?: Parishes;
+  sizeOf?: ImageSizeOf;
+}
+
 // A dataset's Scans over a data folder.
 export function scansOf(
   folder: string,
   db: ReturnType<typeof openDb>,
-  options: { astia: Astia; base?: Pins['volumes']; sizeOf?: ImageSizeOf }
+  options: FolderOptions
 ) {
-  const { sizeOf, ...opened } = options;
-  const parishes = memoryParishes();
+  const { sizeOf, parishes = memoryParishes(), ...opened } = options;
   return openScanFolder(folder, { ...opened, parishes }).scans(db, { sizeOf });
 }
 
@@ -83,10 +92,9 @@ export function scansOf(
 export function referencesFor(
   folder: string,
   db: ReturnType<typeof openDb>,
-  options: { astia: Astia; base?: Pins['volumes']; sizeOf?: ImageSizeOf }
+  options: FolderOptions
 ) {
-  const { sizeOf, ...opened } = options;
-  const parishes = memoryParishes();
+  const { sizeOf, parishes = memoryParishes(), ...opened } = options;
   return openScanFolder(folder, { ...opened, parishes }).references(db, {
     sizeOf
   });

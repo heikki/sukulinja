@@ -18,10 +18,16 @@ export interface CitedBooks {
 }
 
 export function openDatasetArchives(astia: Astia, parishes: Parishes) {
-  // The archive holding a Volume, once found; a failure isn't kept.
+  // The archive holding a Volume, once found among the parishes as they
+  // were then; a failure isn't kept.
   const holders = new Map<string, Promise<string | null>>();
+  let holdersAt = parishes.stamp();
 
   function holderOf(volumeId: string, among: string[]) {
+    if (parishes.stamp() !== holdersAt) {
+      holders.clear();
+      holdersAt = parishes.stamp();
+    }
     let hit = holders.get(volumeId);
     if (hit === undefined) {
       hit = archiveAmong(astia, volumeId, among);

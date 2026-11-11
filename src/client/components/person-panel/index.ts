@@ -14,16 +14,30 @@ import type {
   Source,
   SourceGroup
 } from '@/client/state';
-import type { CitationRow, Link, RecordView } from '@/common/types';
+import type {
+  ChurchBookArchive,
+  CitationRow,
+  Link,
+  RecordView
+} from '@/common/types';
 
+import { linkSpelling } from '../archive-search/api';
 import { CROSS, formatName } from '../tree-view/renderer';
 
+import '../archive-search';
 import './fold';
 import './header';
 
 import { householdsOf, lifeText } from './family';
 import type { Household, Relative } from './family';
-import { factLabel, factText, headingOf, siteName, titleText } from './helpers';
+import {
+  archiveAction,
+  factLabel,
+  factText,
+  headingOf,
+  siteName,
+  titleText
+} from './helpers';
 import { personPanelStyles } from './styles';
 
 function renderRecord(r: RecordView) {
@@ -84,8 +98,13 @@ function renderSite(href: string, label: string) {
 }
 
 // What the source records, then links to the record on its own site and to
-// its scan in Astia.
-function renderDetails(body: unknown, url: string | null, link: Link | null) {
+// its scan in Astia, and what can be done of its archive.
+function renderDetails(
+  body: unknown,
+  url: string | null,
+  link: Link | null,
+  archive: unknown
+) {
   const astia = link === null || link.url === '' ? null : link.url;
   // A Citation of an Astia Image is at its Link's own address.
   const own = url === null || url === astia ? null : url;
@@ -97,6 +116,7 @@ function renderDetails(body: unknown, url: string | null, link: Link | null) {
     <div class="record">
       ${body}
       ${links.length === 0 ? nothing : html`<div class="sites">${links}</div>`}
+      ${archive}
     </div>
   `;
 }
@@ -193,6 +213,12 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
 
   // The source shown in full; the others show only their heading and links.
   @state() private unfolded: number | null = null;
+
+  // The source whose parish's archive is being looked for in Astia, while
+  // its choice is saved, and why that failed.
+  @state() private finding: number | null = null;
+  @state() private linking = false;
+  @state() private linkError: string | null = null;
 
   // Whose details are shown.
   private shownId: number | null = null;
@@ -315,6 +341,73 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
     this.unfolded = this.unfolded === id ? null : id;
   }
 
+  private find(id: number | null) {
+    this.finding = id;
+    this.linkError = null;
+  }
+
+  // Every source giving the parish's spelling links into the archive from
+  // now on; the person's Links are resolved again.
+  private async link(spelling: string, archive: ChurchBookArchive) {
+    this.linking = true;
+    this.linkError = null;
+    try {
+      await linkSpelling(spelling, archive.archiveId);
+      this.finding = null;
+      await this.state.selected.refresh();
+    } catch (err) {
+      this.linkError = err instanceof Error ? err.message : String(err);
+    } finally {
+      this.linking = false;
+    }
+  }
+
+  // Finding the reference's parish's archive in Astia where none is known,
+  // or changing the one it links into: for every source giving the same
+  // spelling.
+  private renderArchive(c: CitationRow, status: LinkStatus | null) {
+    const action = archiveAction(c, status);
+    const spelling = c.cited?.parish ?? null;
+    if (action === null || spelling === null) return nothing;
+    if (this.finding !== c.id) {
+      // Kept from the source's own click, as the search replacing it has
+      // already left the source by then.
+      return html`<button
+        class="archive"
+        @click=${(e: Event) => {
+          e.stopPropagation();
+          this.find(c.id);
+        }}
+      >
+        ${action === 'find' ? 'Find archive in Astia' : 'Change archive'}
+      </button>`;
+    }
+    // A click in the search isn't the source's: Cancel would fold it.
+    return html`<div
+      class="finding"
+      @click=${(e: Event) => {
+        e.stopPropagation();
+      }}
+    >
+      <p class="hint">
+        Sources giving the parish as “${spelling}” will all link into the
+        archive chosen.
+      </p>
+      <sl-archive-search
+        .name=${spelling}
+        label="Parish's archive in Astia"
+        ?busy=${this.linking}
+        .error=${this.linkError}
+        @archive-chosen=${(e: CustomEvent<ChurchBookArchive>) => {
+          void this.link(spelling, e.detail);
+        }}
+        @cancel=${() => {
+          this.find(null);
+        }}
+      ></sl-archive-search>
+    </div>`;
+  }
+
   // Whether the source is the one the Scan viewer shows on its Image, or
   // one it's open on elsewhere: moved off its Image, or with none to show,
   // its Link only to the Volume or none at all. Marked in full as shown
@@ -377,7 +470,7 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
         ${
           foldable
             ? html`<sl-fold .open=${open}>
-                ${renderDetails(body, c.url, link)}
+                ${renderDetails(body, c.url, link, this.renderArchive(c, status))}
               </sl-fold>`
             : nothing
         }

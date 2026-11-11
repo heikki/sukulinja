@@ -5,6 +5,7 @@
 // that references give, each of which links into it.
 
 import { readFileSync } from 'node:fs';
+import { mkdir, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 
 export interface Parish {
@@ -43,21 +44,58 @@ export interface Parishes {
   ranked: (spellings: Array<string | null>) => string[];
   // Every parish's archive, once each, in the order they were added.
   archives: () => string[];
+  // Every parish, in the order they were added.
+  all: () => Parish[];
+  // The spelling links into the archive from now on, and into no other;
+  // a parish is made for an archive not among them.
+  link: (spelling: string, archiveId: string) => Promise<void>;
+  // The archive joins the parishes, with no spelling yet, unless it's
+  // among them.
+  add: (archiveId: string) => Promise<void>;
+  // Changes whenever a spelling's archive or the archives may have.
+  stamp: () => number;
 }
 
-// Parishes read with `load` when first asked.
-function parishesOver(load: () => Parish[]) {
+// Parishes read with `load` when first asked, each change saved whole
+// with `save`, one after another.
+function parishesOver(
+  load: () => Parish[],
+  save: (list: Parish[]) => Promise<void>
+) {
   let list: Parish[] | null = null;
   let archiveOf = new Map<string, string>();
+  let version = 0;
+  let saving: Promise<void> = Promise.resolve();
+
+  function index(of: Parish[]) {
+    list = of;
+    archiveOf = new Map(
+      of.flatMap((p) => p.spellings.map((s) => [s, p.archiveId]))
+    );
+  }
 
   function read() {
-    if (list === null) {
-      list = load();
-      archiveOf = new Map(
-        list.flatMap((p) => p.spellings.map((s) => [s, p.archiveId]))
-      );
-    }
-    return list;
+    if (list === null) index(load());
+    return list!;
+  }
+
+  // Applies the change to the list, and saves it.
+  async function change(next: Parish[]) {
+    index(next);
+    version += 1;
+    const saved = copyOf(next);
+    saving = saving
+      .catch(() => undefined)
+      .then(async () => {
+        await save(saved);
+      });
+    await saving;
+  }
+
+  function withArchive(of: Parish[], archiveId: string) {
+    return of.some((p) => p.archiveId === archiveId)
+      ? of
+      : [...of, { archiveId, spellings: [] }];
   }
 
   const parishes: Parishes = {
@@ -73,7 +111,24 @@ function parishesOver(load: () => Parish[]) {
       }
       return [...cited.keys()].sort((a, b) => cited.get(b)! - cited.get(a)!);
     },
-    archives: () => [...new Set(read().map((p) => p.archiveId))]
+    archives: () => [...new Set(read().map((p) => p.archiveId))],
+    all: () => copyOf(read()),
+    async link(spelling, archiveId) {
+      const next = withArchive(read(), archiveId).map((p) => {
+        const others = p.spellings.filter((s) => s !== spelling);
+        return {
+          archiveId: p.archiveId,
+          spellings: p.archiveId === archiveId ? [...others, spelling] : others
+        };
+      });
+      await change(next);
+    },
+    async add(archiveId) {
+      const now = read();
+      const next = withArchive(now, archiveId);
+      if (next !== now) await change(next);
+    },
+    stamp: () => version
   };
   return parishes;
 }
@@ -85,8 +140,18 @@ function copyOf(list: readonly Parish[]) {
   }));
 }
 
+// Written whole under another name, then renamed over the file, so a
+// reader never sees half of it.
+async function writeJson(folder: string, path: string, value: unknown) {
+  await mkdir(folder, { recursive: true });
+  const part = `${path}.part`;
+  await Bun.write(part, `${JSON.stringify(value, null, 2)}\n`);
+  await rename(part, path);
+}
+
 // The data folder's parishes: its parishes.json, or the starting ones
-// while it has none. Read once, when first asked.
+// until the first change writes it. Read once, when first asked; only the
+// app changes them.
 export function openParishes(folder: string): Parishes {
   const path = join(folder, 'parishes.json');
   function load() {
@@ -100,7 +165,9 @@ export function openParishes(folder: string): Parishes {
       throw err;
     }
   }
-  return parishesOver(load);
+  return parishesOver(load, async (parishes) => {
+    await writeJson(folder, path, { parishes });
+  });
 }
 
 // Parishes kept in memory only, the starting ones unless given: for tests
@@ -108,5 +175,10 @@ export function openParishes(folder: string): Parishes {
 export function memoryParishes(
   list: readonly Parish[] = STARTING_PARISHES
 ): Parishes {
-  return parishesOver(() => copyOf(list));
+  return parishesOver(
+    () => copyOf(list),
+    async () => {
+      // Kept in memory only.
+    }
+  );
 }

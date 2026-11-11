@@ -3,7 +3,13 @@ import { expect, test } from 'bun:test';
 import type { LinkStatus } from '@/client/state';
 import type { CitationRow, FactRow, Link } from '@/common/types';
 
-import { factText, headingOf, siteName, titleText } from './helpers';
+import {
+  archiveAction,
+  factText,
+  headingOf,
+  siteName,
+  titleText
+} from './helpers';
 
 test('names a record link by its site', () => {
   expect(
@@ -44,7 +50,12 @@ const LINK: Link = {
   certainty: 'marked',
   archive: 'Juvan seurakunnan arkisto'
 };
-const MARKED: LinkStatus = { label: 'Marked', link: LINK, browse: null };
+const MARKED: LinkStatus = {
+  label: 'Marked',
+  link: LINK,
+  browse: null,
+  unlinked: null
+};
 
 // A Citation of the Image, as the server gives one made in the app.
 const OF_IMAGE: CitationRow = {
@@ -79,4 +90,24 @@ test('names a linked Church-book reference by its Volume, whatever its text', ()
     cited: { parish: 'Juva', kind: 'rippi' as const, years: null }
   };
   expect(titleText(imported, MARKED)).toBe('Pää- ja rippikirjat (1790-1796)');
+});
+
+test("a reference's archive is found where none is known, else changed", () => {
+  const imported = {
+    ...OF_IMAGE,
+    madeInApp: false,
+    cited: { parish: 'Puumala', kind: 'rippi' as const, years: null }
+  };
+  const none: LinkStatus = {
+    label: 'No scan',
+    link: null,
+    browse: null,
+    unlinked: 'no-archive'
+  };
+  expect(archiveAction(imported, none)).toBe('find');
+  expect(archiveAction(imported, MARKED)).toBe('change');
+  const failed = { ...none, unlinked: 'astia-error' as const };
+  expect(archiveAction(imported, failed)).toBeNull();
+  // A Citation of an Image has no parish's spelling to link.
+  expect(archiveAction(OF_IMAGE, MARKED)).toBeNull();
 });

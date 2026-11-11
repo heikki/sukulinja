@@ -120,6 +120,24 @@ export function headingOf(c: CitationRow) {
   return c.reference ?? c.source ?? c.text ?? c.page ?? 'Source';
 }
 
+// The archive a resolved reference's Link or looking through names.
+function archiveNamed(status: LinkStatus) {
+  return status.link?.archive ?? status.browse?.archive ?? null;
+}
+
+// What can be done of a Church-book reference's archive: finding its
+// parish's in Astia where none is known, or changing the one its parish's
+// spelling links into. Nothing for another source, one whose parish can't
+// be read, or one not yet resolved.
+export function archiveAction(
+  c: CitationRow,
+  status: LinkStatus | null
+): 'find' | 'change' | null {
+  if ((c.cited?.parish ?? null) === null || status === null) return null;
+  if (status.unlinked === 'no-archive') return 'find';
+  return archiveNamed(status) === null ? null : 'change';
+}
+
 // Under its archive, a Church-book reference goes by the Volume it links,
 // named as Astia names it but for its code: "Pää- ja rippikirjat
 // (1783-1790)", as a Citation of an Image does, its text unfolding below;

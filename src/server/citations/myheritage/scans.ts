@@ -195,9 +195,10 @@ function openScans({
     // Rejections.
     marked: () => pins.marked(),
 
-    // Changes when a save, or a Volume's list kept anew, changes what
-    // references resolve to.
-    stamp: async () => `${await pins.stamp()}/${astia.refreshed()}`,
+    // Changes when a save, a Volume's list kept anew, or a spelling given
+    // another archive changes what references resolve to.
+    stamp: async () =>
+      `${await pins.stamp()}/${astia.refreshed()}/${parishes.stamp()}`,
 
     // The Volumes each reference links, in the parish archive; none for a
     // reference in another parish, which is never resolved: it would crawl

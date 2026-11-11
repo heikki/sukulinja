@@ -383,6 +383,31 @@ export const personPanelStyles = css`
     margin-top: 0.5rem;
   }
 
+  /* Finding the parish's archive in Astia, or changing it. */
+  button.archive {
+    margin-top: 0.4rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  button.archive:hover {
+    text-decoration: underline;
+  }
+
+  .finding {
+    margin-top: 0.5rem;
+  }
+
+  .finding .hint {
+    margin: 0 0 0.35rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
   a {
     color: var(--accent);
     text-decoration: none;

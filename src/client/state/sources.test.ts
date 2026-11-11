@@ -69,7 +69,8 @@ test('says why a source has no scan', () => {
   expect(linkStatus({ unlinked: 'not-digitized' }, false)).toEqual({
     label: 'Not found',
     link: null,
-    browse: null
+    browse: null,
+    unlinked: 'not-digitized'
   });
   expect(linkStatus({ unlinked: 'astia-error' }, false)).toMatchObject({
     label: 'Astia error',
