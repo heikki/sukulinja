@@ -23,10 +23,9 @@ Photos get what Citations have: a list on the person, a viewer to look at them i
 - **Opened from a _Photos_ section in the person panel** (Heikki, 2026-11-11), beside _Sources_: the person's own photos and those they're tagged in. A family's or an event's photos are left out for now.
 - **Later: browsing every photo**, as the **Church books** view in the top-right corner browses the Volumes, since a photo may be linked to no one and have no one tagged yet.
 - **Terms** (Heikki, 2026-11-11), in a Photos context of its own: **Photo** (one picture), **Tag** (a person in a Photo, with their Box: who and where, as a Citation is to an Image), **Photo viewer**, and later **Photos** (the view browsing every Photo). **Box** is the same term as on an Image: only where, a rectangle in pixels of the full-size picture.
-- **A Tag always has its Box** (Heikki, 2026-11-11). A photo an import links to a person without a `CROP` is the export's link, not a Tag, and is listed on the person all the same.
+- **A Tag always has its Box** (Heikki, 2026-11-11). A photo an import links to a person without a `CROP` is the export's link, not a Tag, and is listed on the person all the same. Each person tagged in a group photo has a Tag of their own, as each person in a record has a Citation of their own.
 - **Export writes a Tag as the person's `OBJE` link with a `CROP`** (Heikki, 2026-11-11), the form a Citation's Astia link and its Box already take, and the form MyHeritage's own face crops come in. The 5.5.1 file for MyHeritage leaves photos and crops out, as it does today.
 
 ## Open questions
 
 - **What comes after tagging:** choosing the portrait, a title or date, adding a photo from disk, removing one.
-- **Who's in it:** does tagging a person in a photo link the photo to them (a `media_link` per person, each with its own crop), as a Citation is made for each person in a record?
