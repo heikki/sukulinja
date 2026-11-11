@@ -6,8 +6,10 @@
 // POST /import streams the import as newline-delimited ImportEvents: log
 // lines, then done, cancelled or error. Headers are already sent by the time
 // the import runs, so failures surface as an error event rather than an
-// HTTP status. An import into an existing dataset first sends a review and
-// waits for POST /import/<id> with `{ merge }` to say whether to save it.
+// HTTP status. An import only makes a new dataset, as the tree is edited in
+// the app (ADR-0021); the one exception is a dataset an older version
+// built, which an import first sends a review for and waits for POST
+// /import/<id> with `{ merge }` to say whether to save it into.
 //
 // A verb refused in words the app can show answers 404 or 409; anything
 // else thrown is a bug, and is thrown on.
@@ -166,6 +168,12 @@ export function lifecycleRoutes(
     const upload = await readUpload(req);
     if (typeof upload === 'string') {
       return new Response(upload, { status: 400 });
+    }
+    if (registry.info(upload.slug)?.outdated === false) {
+      return new Response(
+        `There's a dataset named ${upload.displayName} already. Import this under another name.`,
+        { status: 409 }
+      );
     }
     return handleImport(upload);
   }

@@ -79,6 +79,15 @@ async function undoable() {
   return (await api.list()).map((d) => d.undoable);
 }
 
+// Makes the dataset look as one an older version built, as the app finds
+// it when it starts.
+function outdate(slug: string) {
+  const db = new Database(join(root, 'data', slug, 'db.sqlite'));
+  db.run('PRAGMA user_version = 0');
+  db.close();
+  launch();
+}
+
 test('a dataset from upload to delete', async () => {
   expect(await api.list()).toEqual([]);
 
@@ -98,6 +107,31 @@ test('a dataset from upload to delete', async () => {
   expect(first.reviews).toEqual([]);
   expect(first.steps).toContain('Parsing GEDCOM…');
 
+  await api.remove('tree');
+  expect(await api.list()).toEqual([]);
+  expect(await failure(api.remove('tree'))).toBe('dataset not found');
+});
+
+test("an import doesn't replace a dataset, as its tree is edited in the app", async () => {
+  await upload();
+  const again = answering(true);
+  expect(
+    await failure(
+      api.importFile(
+        { file: new File([GEDCOM], 'again.ged'), name: 'Tree' },
+        again.hooks
+      )
+    )
+  ).toBe(
+    "There's a dataset named Tree already. Import this under another name."
+  );
+  expect(again.reviews).toEqual([]);
+  expect(await undoable()).toEqual([false]);
+});
+
+test('an import into a dataset an older version built is reviewed, and can be undone', async () => {
+  await upload();
+  outdate('tree');
   const cancelling = answering(false);
   expect(
     await api.importFile(
@@ -114,10 +148,6 @@ test('a dataset from upload to delete', async () => {
   await api.undoImport('tree');
   expect(await undoable()).toEqual([false]);
   expect(await failure(api.undoImport('tree'))).toBe('no import to undo');
-
-  await api.remove('tree');
-  expect(await api.list()).toEqual([]);
-  expect(await failure(api.remove('tree'))).toBe('dataset not found');
 });
 
 // What each of the dataset's Changes did, newest first.
@@ -129,19 +159,15 @@ async function changesDone(slug: string) {
   return all.map((c) => c.what);
 }
 
-test('an import, and undoing it, are Changes, and undoing puts back the ones from before', async () => {
+test('an import is a Change, one into an older dataset keeping those from before', async () => {
   await upload();
   expect(await changesDone('tree')).toEqual([
     { kind: 'import', file: 'tree.ged', merged: false, lost: 0 }
   ]);
+  outdate('tree');
   await upload(true, 'Tree', 'again.ged');
   expect(await changesDone('tree')).toEqual([
     { kind: 'import', file: 'again.ged', merged: true, lost: 0 },
-    { kind: 'import', file: 'tree.ged', merged: false, lost: 0 }
-  ]);
-  await api.undoImport('tree');
-  expect(await changesDone('tree')).toEqual([
-    { kind: 'undo-import' },
     { kind: 'import', file: 'tree.ged', merged: false, lost: 0 }
   ]);
 });
@@ -176,11 +202,7 @@ test("an export of a dataset that isn't there, or won't open, says why", async (
     'dataset not found: nope'
   );
   await upload();
-  const db = new Database(join(root, 'data', 'tree', 'db.sqlite'));
-  db.run('PRAGMA user_version = 0');
-  db.close();
-  // Found so as the app starts, as one an older version left.
-  launch();
+  outdate('tree');
   expect(await failure(api.exportAs('tree', 'gdz'))).toBe(
     'This dataset was made by an older version of the app, from before schema 1.'
   );
