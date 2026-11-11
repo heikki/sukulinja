@@ -479,9 +479,17 @@ export type ChangeWhat =
       stale: number;
     };
 
+// What a Change is on: what a Reminder can be, a Citation, or a Photo,
+// with the person tagged or untagged in it.
+export type ChangeOn =
+  On | { kind: 'photo'; personId: number; photoId: number };
+
+// What a new Change is put on.
+export type ChangeTarget = OnTarget | { personId: number; photoId: number };
+
 // A Change as it's written: what it did, and what it was on, if anything.
 export interface NewChange {
-  on: OnTarget | null;
+  on: ChangeTarget | null;
   what: ChangeWhat;
 }
 
@@ -492,7 +500,7 @@ export interface Change {
   id: number;
   at: string;
   what: ChangeWhat;
-  on: On | null;
+  on: ChangeOn | null;
   who: string | null;
 }
 

@@ -128,3 +128,26 @@ test('the Changes follow their person and citation, and one whose person is gone
   // Nothing about them is in the review: they're kept, whatever they're on.
   expect(outcome.merged).toMatchObject({ lost: [] });
 });
+
+test('a Change on a Photo is put back on its person', async () => {
+  await importTree(tree([MATTI]));
+  const db = registry.open('tree');
+  db.run("INSERT INTO media (id, file_path) VALUES (900, 'kesa.jpg')");
+  db.run(
+    `INSERT INTO changes (at, what, person_id, media_id)
+       VALUES ('2026-11-09T10:00:00.000Z', ?, ?, 900)`,
+    [JSON.stringify({ kind: 'untag', photo: 'kesa.jpg' }), personId('@I1@')]
+  );
+  await importTree(tree([MATTI]));
+
+  expect(
+    registry
+      .open('tree')
+      .query(
+        `SELECT p.xref, ch.media_id FROM changes ch
+         JOIN persons p ON p.id = ch.person_id
+         WHERE ch.what LIKE '%untag%'`
+      )
+      .all()
+  ).toEqual([{ xref: '@I1@', media_id: null }]);
+});

@@ -51,7 +51,7 @@ test('tags someone in a Photo, and they have it among their Photos', () => {
   expect(photos.ofPerson(3).map((p) => p.id)).toEqual([10]);
   expect(changes).toEqual([
     {
-      on: { personId: 3 },
+      on: { personId: 3, photoId: 10 },
       what: { kind: 'tag', photo: 'Kesä talo.jpg', moved: false }
     }
   ]);
@@ -100,7 +100,7 @@ test('takes back a Tag; the Photo stays, linked to no one if so', () => {
   expect(tags.untag(10, 3)).toEqual({ id: 10, path: 'abc.jpg', people: [] });
   expect(photos.photo(10)).not.toBeNull();
   expect(changes.at(-1)).toEqual({
-    on: { personId: 3 },
+    on: { personId: 3, photoId: 10 },
     what: { kind: 'untag', photo: 'Kesä talo.jpg' }
   });
   expect(tags.untag(10, 3)).toEqual({

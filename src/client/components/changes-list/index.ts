@@ -5,12 +5,12 @@ import { customElement } from 'lit/decorators.js';
 
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
-import type { Change, On } from '@/common/types';
+import type { Change, ChangeOn } from '@/common/types';
 
 import { cornerListStyles } from '../corner-panel/list-styles';
 import { byDay, doneLabel, leadsTo, timeLabel, whereLabel } from './helpers';
 
-export type ChangePickEvent = CustomEvent<On>;
+export type ChangePickEvent = CustomEvent<ChangeOn>;
 
 // Every Change made to the dataset, newest first, by day: when, what was
 // done, and whom and where. Clicking one that leads somewhere picks where

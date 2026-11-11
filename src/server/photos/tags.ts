@@ -111,7 +111,7 @@ export function openTags(
         move.run(left, top, width, height, had.id);
       }
       changed({
-        on: { personId },
+        on: { personId, photoId },
         what: { kind: 'tag', photo: at.name, moved: had !== null }
       });
       return photos.photo(photoId)!;
@@ -125,7 +125,10 @@ export function openTags(
       const had = tagOf.get(photoId, personId);
       if (had === null) return { refused: 'tag not found', missing: true };
       remove.run(had.id);
-      changed({ on: { personId }, what: { kind: 'untag', photo: at.name } });
+      changed({
+        on: { personId, photoId },
+        what: { kind: 'untag', photo: at.name }
+      });
       return photos.photo(photoId)!;
     }
   };

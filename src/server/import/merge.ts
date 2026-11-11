@@ -309,7 +309,8 @@ function columnsOf(db: Database, table: string) {
 // The rows of an app-only table whose rows are on something (ON_COLUMNS),
 // each put back on the same person or Citation, by the ids `citations`
 // gives the dataset's citations in the new database; a Citation's onto its
-// person when the Citation is gone. One on an Image is put back as it was.
+// person when the Citation is gone. One on an Image is put back as it was,
+// and a Change on a Photo on its person.
 // One whose person is gone is left out, or with `keepGone`, kept on
 // nothing. Only the columns the new table has are filled. Gives those whose person is gone, and who they were.
 function carryOn(
@@ -341,6 +342,9 @@ function carryOn(
         if (!keepGone) continue;
       }
     }
+    // The new database's Photos have ids of their own: a Change on one is
+    // put back on its person.
+    row.media_id = null;
     m.fresh.run(
       insert,
       columns.map((c) => valueOf(row, c) as SQLQueryBindings)

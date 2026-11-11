@@ -117,6 +117,8 @@ test('leads to what it was on, but nowhere from nothing or a stale Image', () =>
   } as const;
   expect(leadsTo(change(MARK, { on: citation }))).toEqual(citation);
   expect(leadsTo(change(MARK))).toBeNull();
+  const photo = { kind: 'photo', personId: 1, photoId: 10 } as const;
+  expect(leadsTo(change(MARK, { on: photo }))).toEqual(photo);
   const image = {
     kind: 'image',
     volumeId: '201',

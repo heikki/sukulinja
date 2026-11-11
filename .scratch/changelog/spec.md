@@ -29,6 +29,7 @@ Working through the books, you Mark, Discard and cite dozens of entries in a sit
   - a Mark, Discard or new Citation: selects the person and opens the Citation's source in the Scan viewer, at its Link as it stands now;
   - a deleted Citation: selects the person;
   - an Image: opens the Scan viewer on it; one from an earlier filming is flagged and leads nowhere;
+  - a Tag made, moved or taken back: selects the person and opens the Photo in the Photo viewer, among their Photos while they're in it, else among every Photo; once the Photo is gone, only selects the person;
   - an import or undo: leads nowhere.
 
   Not a URL: the chart's hash (ADR-0004) only holds Root, pan and zoom, not the Scan viewer, and the app has no address bar to share one from.

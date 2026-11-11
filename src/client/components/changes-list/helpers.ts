@@ -1,6 +1,6 @@
 import { volumeTitle } from '@/client/link-labels';
 import { imageLabel, isStale, onLabel, personLabel } from '@/client/on';
-import type { Change, ChangeWhat, On, PersonRow } from '@/common/types';
+import type { Change, ChangeOn, ChangeWhat, PersonRow } from '@/common/types';
 
 function count(n: number, one: string, many: string) {
   return `${n} ${n === 1 ? one : many}`;
@@ -95,7 +95,7 @@ export function whereLabel(change: Change, persons: Map<number, PersonRow>) {
 
 // Where picking it goes; null for nowhere: a Change on nothing, or on an
 // Image from an earlier filming.
-export function leadsTo(change: Change): On | null {
+export function leadsTo(change: Change): ChangeOn | null {
   const { on } = change;
   return on === null || isStale(on) ? null : on;
 }

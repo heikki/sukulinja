@@ -1,9 +1,9 @@
 // What something kept beside the tree is on (a person, one of their
-// Citations, or an Image), as the app names it and goes to it: what a
-// Reminder or a Change is on.
+// Citations, an Image, or for a Change a Photo), as the app names it and
+// goes to it: what a Reminder or a Change is on.
 
 import type { AppState } from '@/client/state';
-import type { On, PersonRow } from '@/common/types';
+import type { ChangeOn, On, PersonRow } from '@/common/types';
 
 import { formatDates, formatName } from './components/tree-view/renderer';
 import { volumeTitle } from './link-labels';
@@ -34,14 +34,31 @@ export function onLabel(on: On, persons: Map<number, PersonRow>) {
 }
 
 // Whether it's on an Image from an earlier filming, which it can't go to.
-export function isStale(on: On) {
+export function isStale(on: ChangeOn) {
   return on.kind === 'image' && on.stale;
 }
 
+// Selects the person and opens the Photo, stepping through their Photos
+// while they're in it, else through every Photo. One that's gone, or
+// that can't be read, is left closed.
+async function openPhotoOf(state: AppState, personId: number, id: number) {
+  state.chart.select(personId);
+  const photos = await state.api.photos().catch(() => null);
+  const photo = photos?.find((p) => p.id === id);
+  if (photo === undefined) return;
+  const theirs = photo.people.some((p) => p.personId === personId);
+  state.chart.openPhoto(photo, theirs ? 'person' : 'all');
+}
+
 // Goes where it is: selects its person, and for a Citation, opens its
-// source in the Scan viewer once their Links are in; or opens the Scan
-// viewer at its Image. A stale Image, nowhere.
-export function goTo(state: AppState, on: On) {
+// source in the Scan viewer once their Links are in, or for a Photo, opens
+// it in the Photo viewer; or opens the Scan viewer at its Image. A stale
+// Image, nowhere.
+export function goTo(state: AppState, on: ChangeOn) {
+  if (on.kind === 'photo') {
+    void openPhotoOf(state, on.personId, on.photoId);
+    return;
+  }
   if (on.kind === 'image') {
     if (on.stale) return;
     const { volumeId, volume, image } = on;

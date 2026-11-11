@@ -218,8 +218,9 @@ const SCHEMA_SQL = `
 
   -- The Changes: what was done in the app, oldest first. Its what is a
   -- ChangeWhat as JSON. What it was on is held as a Reminder's is, with
-  -- who naming the person as they were then. A person or Citation gone leaves
-  -- it on nothing, or on the Citation's person. No export writes them.
+  -- who naming the person as they were then, and a Tag's media_id its
+  -- Photo. A person or Citation gone leaves it on nothing, or on the
+  -- Citation's person, and a Photo gone, on its person. No export writes them.
   CREATE TABLE IF NOT EXISTS changes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     at TEXT NOT NULL,
@@ -230,7 +231,8 @@ const SCHEMA_SQL = `
     volume_id TEXT,
     volume TEXT,
     image INTEGER,
-    file_id TEXT
+    file_id TEXT,
+    media_id INTEGER REFERENCES media(id) ON DELETE SET NULL
   );
 
   CREATE TABLE IF NOT EXISTS shared_notes (

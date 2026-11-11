@@ -79,6 +79,25 @@ test('lists each Change newest first, with what it was on and who that was', asy
   ]);
 });
 
+test("one on a Photo is on it, and once it's gone, on its person", async () => {
+  const db = await dataset();
+  db.run("INSERT INTO media (id, file_path) VALUES (10, 'kesa.jpg')");
+  const changes = changesOf(db);
+  const untag = { kind: 'untag', photo: 'kesa.jpg' } as const;
+  changes.add({ on: { personId: 1, photoId: 10 }, what: untag });
+  changes.add({ on: { personId: 1, photoId: 99 }, what: untag });
+
+  expect((await changes.list()).map((c) => c.on)).toEqual([
+    { kind: 'person', personId: 1 },
+    { kind: 'photo', personId: 1, photoId: 10 }
+  ]);
+  db.run('DELETE FROM media WHERE id = 10');
+  expect((await changes.list())[1]!.on).toEqual({
+    kind: 'person',
+    personId: 1
+  });
+});
+
 test("one on a Citation that's gone is its person's; one whose person is gone is on nothing, and says who", async () => {
   const db = await dataset();
   const changes = changesOf(db);

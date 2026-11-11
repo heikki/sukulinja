@@ -6,7 +6,7 @@ import { customElement, state } from 'lit/decorators.js';
 import { goTo } from '@/client/on';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
-import type { On } from '@/common/types';
+import type { ChangeOn, On } from '@/common/types';
 
 import type { ChangePickEvent } from '../changes-list';
 import type { VolumeOpenEvent } from '../church-books';
@@ -64,7 +64,7 @@ class CornerListsElement extends SignalWatcher(LitElement) {
     if (tab !== undefined) this.tab = tab.id;
   };
 
-  private goTo(on: On) {
+  private goTo(on: ChangeOn) {
     goTo(this.state, on);
     if (on.kind !== 'image') this.dispatchEvent(new CustomEvent('dock-open'));
   }
