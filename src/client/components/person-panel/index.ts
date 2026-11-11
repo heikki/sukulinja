@@ -568,16 +568,15 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
                 this.renderFamily(households)
               )
         }
-        ${
-          d.facts.length === 0
-            ? nothing
-            : this.renderSection(
-                'events',
-                'Events',
-                () =>
-                  html`<sl-person-events .facts=${d.facts}></sl-person-events>`
-              )
-        }
+        ${this.renderSection(
+          'events',
+          'Events',
+          () =>
+            html`<sl-person-events
+              .facts=${d.facts}
+              .marriages=${d.marriages}
+            ></sl-person-events>`
+        )}
         ${
           d.citations.length === 0
             ? nothing
