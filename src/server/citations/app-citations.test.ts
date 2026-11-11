@@ -11,6 +11,7 @@ import type { CitationLinks, Link, VolumeCitation } from '@/common/types';
 
 import { openDb } from '../datasets/db';
 import { openAnnotations } from './annotations';
+import { openAppCitations } from './app-citations';
 import { fileId } from './astia/memory-astia';
 import type { MemoryAstia } from './astia/memory-astia';
 import { memoryParishes } from './astia/parishes';
@@ -404,6 +405,7 @@ test('a Mark moves a Citation made in the app to another entry in its Volume', a
 });
 
 test("a Volume's source is found by its record, whatever cites it", async () => {
+  astia = titledJuva();
   const { db, citations } = withPeople([
     cite(3, rippiCitation(5001, '1790 - 1796', 12))
   ]);
@@ -411,7 +413,7 @@ test("a Volume's source is found by its record, whatever cites it", async () => 
   // with an original page.
   db.run(
     "INSERT INTO sources (id, xref, title, publisher) VALUES (1, '@S7@', ?, 'Kansallisarkisto, Astia')",
-    [JUVA_1]
+    [`${ARCHIVE}, ${JUVA_1}`]
   );
   db.run(
     `INSERT INTO citations (scope_type, scope_id, source_id, page, original_page,
@@ -453,4 +455,64 @@ test("with no references, the Volumes cited give the dataset's parishes", async 
   expect(
     await citations.mark(2, { volumeId: 'juva-1', image: 15, box: BOX })
   ).toHaveProperty('resolution.links');
+});
+
+test("a Volume's source is titled by its archive, so another parish's Volume of the same label gets its own", () => {
+  const db = openDb(join(dir, 'db.sqlite'));
+  db.run("INSERT INTO persons (id, xref) VALUES (1, '@I1@')");
+  const made = openAppCitations(db);
+  const at = { personId: 1, volume: JUVA_1, image: 1, box: BOX, text: null };
+  made.create({ ...at, volumeId: 'juva-5', fileId: 'f1', archive: ARCHIVE });
+  made.create({
+    ...at,
+    volumeId: 'mikkeli-5',
+    fileId: 'f2',
+    archive: 'Mikkelin seurakunnan arkisto'
+  });
+  // Without its archive, a Volume's label alone finds no other's source.
+  made.create({ ...at, volumeId: 'pieksamaki-5', fileId: 'f3', archive: null });
+  expect(sources(db)).toEqual([
+    {
+      id: 1,
+      xref: '@ASTIA_JUVA_5@',
+      title: `${ARCHIVE}, ${JUVA_1}`,
+      publisher: 'Kansallisarkisto, Astia'
+    },
+    {
+      id: 2,
+      xref: '@ASTIA_MIKKELI_5@',
+      title: `Mikkelin seurakunnan arkisto, ${JUVA_1}`,
+      publisher: 'Kansallisarkisto, Astia'
+    },
+    {
+      id: 3,
+      xref: '@ASTIA_PIEKSAMAKI_5@',
+      title: JUVA_1,
+      publisher: 'Kansallisarkisto, Astia'
+    }
+  ]);
+});
+
+test('the Volume sources made before are retitled by their archive, once', async () => {
+  astia = titledJuva();
+  const { db, citations } = withPeople([
+    cite(1, rippiCitation(5001, '1790 - 1796', 12))
+  ]);
+  // Made before a source named its archive.
+  db.run(
+    "INSERT INTO sources (id, xref, title, publisher) VALUES (7, '@ASTIA_JUVA_1@', ?, 'Kansallisarkisto, Astia')",
+    [JUVA_1]
+  );
+  db.run(
+    `INSERT INTO citations (scope_type, scope_id, source_id, page,
+       link_volume_id, link_volume, link_image, link_file_id, link_by, added_in_app)
+     VALUES ('person', 2, 7, ?, 'juva-1', ?, 13, 'juva-1-f13', 'hand', 1)`,
+    [ENTRY_LINK.url, JUVA_1]
+  );
+
+  expect(await citations.retitleVolumeSources()).toEqual([
+    { from: JUVA_1, to: `${ARCHIVE}, ${JUVA_1}` }
+  ]);
+  expect(sources(db)).toMatchObject([{ title: `${ARCHIVE}, ${JUVA_1}` }]);
+  expect(await citations.retitleVolumeSources()).toEqual([]);
 });

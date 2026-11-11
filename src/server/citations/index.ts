@@ -110,7 +110,11 @@ export function openCitations(root: string, options: Options) {
         citationOf: (citationId: number) => citations.ofId(citationId),
         // Converts every reference already Marked at the entry, once
         // (scripts/convert-marked).
-        convertMarked: () => citations.convertMarked(),
+        convertMarked: async () => await citations.convertMarked(),
+        // Titles the Volume sources made before with their archive, once
+        // (scripts/retitle-volume-sources).
+        retitleVolumeSources: async () =>
+          await citations.retitleVolumeSources(),
         // Whether a Re-scan replaced the Image's file.
         replaced: async (at: {
           volumeId: string;
@@ -140,7 +144,7 @@ export function convertKin(db: Database) {
         rows.map((r) => r.id),
         link
       );
-      made.convert(rows);
+      made.convertNow(rows);
       count += rows.length;
     }
     return count;

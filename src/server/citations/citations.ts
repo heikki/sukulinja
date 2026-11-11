@@ -13,7 +13,6 @@ import { bookLabel } from '@/common/books';
 import { isoDate } from '@/common/dates';
 import type {
   Box,
-  ChurchBookArchive,
   CitationRow,
   Link,
   LinkResolution,
@@ -30,6 +29,7 @@ import {
 import type { Annotation } from './annotations';
 import { openAppCitations } from './app-citations';
 import { viewerUrl, volumeYears } from './astia/astia';
+import { citedArchives } from './cited-archives';
 import type { Images } from './images';
 import type {
   BookRef,
@@ -250,14 +250,15 @@ export function createCitations<R extends BookRef>(
 
   // Makes the citations a Mark of the reference put at the entry by hand
   // Citations of their Image (ADR-0016), which are then no references.
-  // The Volume each converted is in, by its label.
-  function convert(book: R) {
+  // The Volume each converted is in, by its label. Each cites its Volume's
+  // source, named by its archive (ADR-0019).
+  async function convert(book: R) {
     const rows = references.converts(book);
     if (rows.length === 0) return [];
     const volumes = rows.map(
       ({ id }) => byId.get(id)?.annotation.link?.volume ?? ''
     );
-    made.convert(rows);
+    await made.convert(rows, volumeArchive);
     for (const { id } of rows) books.delete(id);
     return volumes;
   }
@@ -298,52 +299,8 @@ export function createCitations<R extends BookRef>(
     });
   }
 
-  // The parish archives the dataset's church books are in: its
-  // references' parishes', and those holding the Volumes its Citations of
-  // Images cite.
-  async function archives() {
-    const all = cited(everyPerson.all());
-    return await images.archivesOf({
-      parishes: all.map((c) => c.book?.parish ?? null),
-      volumes: all.flatMap((c) =>
-        c.stored === null ? [] : [c.stored.volumeId]
-      )
-    });
-  }
-
-  // The archives the dataset's church books are in, as `archives` orders
-  // them, each by its title in Astia.
-  async function churchBookArchives(): Promise<ChurchBookArchive[]> {
-    return await Promise.all(
-      (await archives()).map(async (archiveId) => ({
-        archiveId,
-        title: (await images.titleOf(archiveId)) ?? archiveId
-      }))
-    );
-  }
-
-  // The dataset's archives, then every other parish's: where an entry
-  // can be cited from, so that a tree's first Citation in a parish can be.
-  async function citable() {
-    const own = await archives();
-    const others = images.parishArchives().filter((a) => !own.includes(a));
-    return [...own, ...others];
-  }
-
-  // The title of the archive holding the Volume, among those an entry can
-  // be cited from; null when none of them does, or Astia can't say.
-  async function volumeArchive(volumeId: string) {
-    return await images.archiveTitleOf(volumeId, await citable());
-  }
-
-  // A stored Link, naming its archive as a resolved one does.
-  async function withArchive(link: Link): Promise<Link> {
-    const archive = await images.archiveTitleOf(
-      link.volumeId,
-      await archives()
-    );
-    return archive === null ? link : { ...link, archive };
-  }
+  const { archives, churchBookArchives, citable, volumeArchive, withArchive } =
+    citedArchives(images, () => cited(everyPerson.all()));
 
   // A Citation of an Image moved to the entry `target` gives, in the
   // Volume it's in; its Link there, and what that did.
@@ -501,7 +458,7 @@ export function createCitations<R extends BookRef>(
         ? await moveEntry(citationId, target)
         : await references.mark(c!.book!, target);
       if ('rejected' in result) return result;
-      if (!moved) convert(c!.book!);
+      if (!moved) await convert(c!.book!);
       const { at, volume, confirmed, citations, pagePin } = result.done;
       const image = target.image ?? null;
       changed({
@@ -590,6 +547,7 @@ export function createCitations<R extends BookRef>(
         personId,
         volumeId,
         volume: checked.volume,
+        archive: await volumeArchive(volumeId),
         image,
         fileId: target.fileId,
         box: target.box,
@@ -609,7 +567,7 @@ export function createCitations<R extends BookRef>(
 
     // Converts every reference already Marked at the entry (ADR-0016): how
     // many citations, by the label of the Volume each is in.
-    convertMarked() {
+    async convertMarked() {
       const done = new Set<string>();
       const counts = new Map<string, number>();
       for (const { book } of cited(everyPerson.all())) {
@@ -617,12 +575,16 @@ export function createCitations<R extends BookRef>(
         const key = references.markKey(book);
         if (done.has(key)) continue;
         done.add(key);
-        for (const volume of convert(book)) {
+        // eslint-disable-next-line no-await-in-loop -- one record at a time
+        for (const volume of await convert(book)) {
           counts.set(volume, (counts.get(volume) ?? 0) + 1);
         }
       }
       return counts;
     },
+
+    // Titles the Volume sources made before with their archive (ADR-0019).
+    retitleVolumeSources: () => made.retitleVolumeSources(volumeArchive),
 
     // Deletes a Citation made in the app, and gives it as it was, with
     // whose it was; null when there's no such Citation, false for an

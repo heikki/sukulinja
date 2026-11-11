@@ -149,7 +149,7 @@ test('confirming a Match converts it', async () => {
   });
 });
 
-test('converting the Marked once takes only those at the entry by hand, and again changes nothing', () => {
+test('converting the Marked once takes only those at the entry by hand, and again changes nothing', async () => {
   const { db, citations } = dataset();
   db.run("INSERT INTO persons (id, xref) VALUES (4, '@I4@'), (5, '@I5@')");
   const insert = db.prepare(
@@ -185,7 +185,9 @@ test('converting the Marked once takes only those at the entry by hand, and agai
   link(4, 'hand', null, false);
   link(5, 'vision', 15, true);
 
-  expect([...citations.convertMarked()]).toEqual([[VOLUMES['juva-1'], 2]]);
+  expect([...(await citations.convertMarked())]).toEqual([
+    [VOLUMES['juva-1'], 2]
+  ]);
   expect(rows(db).map((r) => r.added_in_app)).toEqual([1, 1, 0, 0, 0]);
-  expect(citations.convertMarked().size).toBe(0);
+  expect((await citations.convertMarked()).size).toBe(0);
 });

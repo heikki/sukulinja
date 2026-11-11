@@ -42,7 +42,8 @@ for (const slug of slugs) {
   // eslint-disable-next-line no-await-in-loop -- one dataset at a time
   await rm(before, { force: true });
   db.run('VACUUM INTO ?', [before]);
-  const counts = citations.forDataset(db).convertMarked();
+  // eslint-disable-next-line no-await-in-loop -- one dataset at a time
+  const counts = await citations.forDataset(db).convertMarked();
   const total = [...counts.values()].reduce((a, b) => a + b, 0);
   console.log(`${slug}: ${total} citations converted`);
   for (const [volume, n] of [...counts].sort((a, b) => b[1] - a[1])) {
