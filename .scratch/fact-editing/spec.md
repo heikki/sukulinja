@@ -12,15 +12,15 @@ The panel's _Events_ lists a person's Facts and their marriages' (`person-detail
 
 "Suositukset vaikuttaa hyviltä."
 
-1. **An import only makes a new dataset.** Importing over a dataset would replace the edited tree. The merge (`import/merge*.ts`), _Undo last import_ and the import review go, and a GEDZIP backup is restored by importing it as a new dataset. Until ticket 08 removes them, ticket 01 refuses an import over an existing dataset.
+1. **An import only makes a new dataset.** Importing over a dataset would replace the edited tree. The merge (`import/merge*.ts`), _Undo last import_ and the import review go, and a GEDZIP backup is restored by importing it as a new dataset. Until ticket 08 removes them, ticket 01 refuses an import over an existing dataset, but for one an older version built, which still merges so what the app made is kept.
 2. **The GEDCOM 5.5.1 export goes** (`export/gedcom551.ts`, _Export for MyHeritage_). Nothing is uploaded back to MyHeritage.
 3. **A place is free text that suggests the dataset's places.** A Fact's place is text (`facts.place`); the field suggests the places already in the dataset, so a known place is picked rather than typed again. A place list of its own (with parish, coordinates) would be a feature of its own.
 
 ## Decided
 
-- **Where:** in the person panel's _Events_, on each Fact: _Edit_ and _Delete_ in a row menu, and _Add event_ below the list. _Events_ is shown even when a person has none, so there's somewhere to add the first.
+- **Where:** in the person panel's _Events_: clicking a Fact opens its form in its place, with _Delete_ (asked first), and _Add event_ below the list opens a new one. _Events_ is shown even when a person has none, so there's somewhere to add the first.
 - **What can be added:** the kinds the tree uses, in this order: Birth, Christening, Death, Burial, Residence, Occupation, Marriage, Divorce, Emigration, Immigration, Census, Event (with a type). Other GEDCOM kinds an import brought are shown and edited as now, but not offered. The kinds and their labels live in one module, `src/common/facts.ts`, which `FACT_LABELS` moves into.
-- **What can be edited:** date and place, the value of an attribute (an occupation's title), and an Event's type. A Fact's kind isn't changed: delete it and add another. Everything else stored on the Fact (coordinates, address, age, cause, agency, notes, media, Citations) is kept as it was.
+- **What can be edited:** date and place, the value of an attribute (an occupation's title), and an Event's type. A Fact's kind isn't changed: delete it and add another. Everything else stored on the Fact (address, age, cause, agency, notes, media, Citations) is kept as it was; a new place drops the old one's coordinates and notes.
 - **Dates are typed the way the panel shows them:** `3.3.1761`, `3/1761`, `1761`, `n. 1761`, `ennen 1761`, `1761 jälkeen`, `1870–1879` (also with a hyphen), `1870–`, `–1879`. `src/common/dates.ts` gets the inverse of `gedcomDate`, stored as GEDCOM 7 (`3 MAR 1761`, `ABT 1761`, `BEF 1761`, `AFT 1761`, `BET 1870 AND 1879`, `FROM 1870`, `TO 1879`); a test holds the two to a round trip. Input that isn't one of these is refused with the forms listed. A date the app can't show (another calendar, a date phrase) is shown as stored and kept unless it's changed. An empty date is allowed.
 - **Several of a kind are allowed**, two births too: conflicting Facts are evidence to keep until it's resolved. The chart's years use the first (`tree.ts` already takes `LIMIT 1`), so a Fact's `sort_order` decides; a new one goes last.
 - **A marriage is its family's Fact.** _Events_ shows it on both spouses, with the spouse's name, and editing it from either edits the same row. Adding a marriage asks which family, when there's more than one; with no family it isn't offered, as making a family is adding a relationship (`.scratch/add-people/spec.md`).
@@ -34,8 +34,8 @@ The panel's _Events_ lists a person's Facts and their marriages' (`person-detail
 ## Structure
 
 - **Server:** `src/server/facts/`, its own module beside `reminders/`: `facts.ts` writes a Fact and its Change in one transaction, `routes.ts` answers `POST /datasets/:slug/facts`, `PATCH …/facts/:id` and `DELETE …/facts/:id`. It validates the kind against `common/facts.ts` and the date through `common/dates.ts`.
-- **What a Fact owns** (Citations, notes, media links, address, all by `scope_type`/`owner_type`, with no foreign key) is removed in one helper, which deleting a person can use too, rather than each caller knowing the polymorphic tables.
-- **Client:** _Events_ becomes its own component, `person-panel/events.ts`, as `family.ts` and `photos.ts` are, before it gets the editing. The form is a small dialog like the Reminders', not inline editing in the `<dl>`.
+- **What a Fact owns** (notes, media links, place notes, address, all by `scope_type`/`owner_type`, with no foreign key) is removed in one helper, `deleteHeld` in `src/server/datasets/records.ts`, beside `touchRecord` for `CHAN`; deleting a person can grow them.
+- **Client:** _Events_ becomes its own component, `person-panel/events.ts`, as `family.ts` and `photos.ts` are, before it gets the editing. The form, `person-panel/fact-form.ts`, opens in place of the row, as a Reminder's does in its list.
 - **`FactRow`** gains the Fact's id, whether it's the person's or the family's, its type and value as stored, and its raw date, so the panel can edit what it shows.
 
 ## Refactors first
@@ -47,6 +47,8 @@ No behaviour change, each a commit, tests passing unchanged:
 3. `FactRow` with id, owner, type, value and raw date.
 
 ## Tickets
+
+Done 2026-11-11: 01–06 and 10. Open: 07, 08, 09 (`issues/`).
 
 | #   | Ticket                                                                | Blocked by |
 | --- | --------------------------------------------------------------------- | ---------- |
