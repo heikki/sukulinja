@@ -18,11 +18,13 @@ import '../context-menu';
 import '../person-search/pick';
 
 // Where a right-click opened its menu: on the pending Box, on someone's
-// Box, or elsewhere; and whether it's the menu or the people to tag.
+// Box, or elsewhere, and whether that Box's Photo is their portrait; and
+// whether it's the menu or the people to tag.
 interface Popup {
   at: Point;
   onPending: boolean;
   onBox: number | null;
+  portrait: boolean;
   show: 'menu' | 'pick';
 }
 
@@ -69,9 +71,17 @@ class PhotoLayerElement extends SignalWatcher(LitElement) {
       at,
       onPending: on.pending,
       onBox: boxed?.personId ?? null,
+      portrait: boxed !== undefined && this.isPortrait(boxed.personId),
       show: 'menu'
     };
     this.popup = this.items(popup).length === 0 ? null : popup;
+  }
+
+  // Whether the Photo is the person's portrait already, as the chart has
+  // it.
+  private isPortrait(personId: number) {
+    const person = this.state.chart.people.get().persons.get(personId);
+    return person !== undefined && person.photo_path === this.photo?.path;
   }
 
   private items(popup: Popup) {
@@ -80,6 +90,7 @@ class PhotoLayerElement extends SignalWatcher(LitElement) {
       {
         onPending: popup.onPending,
         onBox: popup.onBox,
+        portrait: popup.portrait,
         canTag: this.size !== null && this.view !== null
       },
       {

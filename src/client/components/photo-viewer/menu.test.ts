@@ -25,12 +25,13 @@ function labels(
   where: {
     onPending?: boolean;
     onBox?: number | null;
+    portrait?: boolean;
     canTag?: boolean;
   }
 ) {
   return photoItems(
     photos,
-    { onPending: false, onBox: null, canTag: true, ...where },
+    { onPending: false, onBox: null, portrait: false, canTag: true, ...where },
     { tag: () => undefined }
   ).map((i) => i.label);
 }
@@ -39,7 +40,15 @@ test('offers a new Tag on the Photo once it shows, and a Box its own', () => {
   const photos = viewer();
   expect(labels(photos, {})).toEqual(['Tag someone here…']);
   expect(labels(photos, { canTag: false })).toEqual([]);
-  expect(labels(photos, { onBox: 3 })).toEqual(['Edit', 'Delete']);
+  expect(labels(photos, { onBox: 3 })).toEqual([
+    'Edit',
+    'Use as portrait',
+    'Delete'
+  ]);
+  expect(labels(photos, { onBox: 3, portrait: true })).toEqual([
+    'Edit',
+    'Delete'
+  ]);
 });
 
 test('with a Tag pending, only its Box offers to discard it', () => {

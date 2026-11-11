@@ -1,3 +1,4 @@
+import type { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -13,6 +14,7 @@ import { openAppCitations, openMarks } from '../citations/testing';
 import { DatasetRegistry } from '../datasets/registry';
 import { line, pointer, writeGedcom } from '../gedcom/writer';
 import { createPhotos, openTags } from '../photos';
+import { createTree } from '../tree';
 import { packDataset } from './dataset';
 import { exportGedcom551 } from './gedcom551';
 
@@ -170,6 +172,39 @@ describe('exporting a GEDZIP', () => {
     const myheritage = exportGedcom551(db).text;
     expect(myheritage).not.toContain('Added in Sukulinja');
     expect(myheritage).not.toContain('Unknown family');
+  });
+
+  test('writes the chosen portrait first, and an import gives it back', async () => {
+    await importFixture();
+    const db = registry.open('a');
+    function idOf(sql: string) {
+      return db.query<{ id: number }, []>(sql).get()!.id;
+    }
+    const jane = idOf("SELECT id FROM persons WHERE xref = '@I1@'");
+    const family = idOf(
+      "SELECT id FROM media WHERE original_path LIKE '%Unknown%'"
+    );
+    const tags = openTags(db, createPhotos(db), () => undefined);
+    tags.tag(family, jane, { left: 5, top: 6, width: 7, height: 8 });
+    expect(tags.choosePortrait(family, jane)).toMatchObject({ id: family });
+    function portraitOf(of: Database) {
+      const id = of
+        .query<{ id: number }, []>("SELECT id FROM persons WHERE xref = '@I1@'")
+        .get()!.id;
+      const p = createTree(of)
+        .persons()
+        .find((r) => r.id === id)!;
+      const file = of
+        .query<{ original_path: string }, [string]>(
+          'SELECT original_path FROM media WHERE file_path = ?'
+        )
+        .get(p.photo_path!)!.original_path;
+      return { crop: p.crop, file: decodeURIComponent(file) };
+    }
+    const chosen = portraitOf(db);
+    expect(chosen.file).toContain('Unknown');
+    await roundTrip();
+    expect(portraitOf(registry.open('b'))).toEqual(chosen);
   });
 
   test('writes valid GEDCOM 7', async () => {

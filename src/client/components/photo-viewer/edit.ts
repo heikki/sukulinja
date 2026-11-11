@@ -20,7 +20,7 @@ function stop(e: Event) {
 
 // At the foot of the Photo while a Tag is pending: whose it is, Cancel and
 // Save; or, for a Tag taken back, asking to confirm. Why a save was
-// refused shows beside. Pointer and wheel input stays here, so a press
+// refused shows beside, and why choosing a portrait was, with OK. Pointer and wheel input stays here, so a press
 // doesn't pan.
 @customElement('sl-photo-edit')
 class PhotoEditElement extends SignalWatcher(LitElement) {
@@ -118,6 +118,21 @@ class PhotoEditElement extends SignalWatcher(LitElement) {
       return html`
         <p>Delete the tag of ${this.nameOf(removing)}?</p>
         ${refused} ${this.renderActions('Delete', 'Deleting…', 'discard')}
+      `;
+    }
+    const portrait = this.viewer.refused.get();
+    if (portrait !== null) {
+      return html`
+        <p class="refused">Couldn't use it as the portrait: ${portrait}</p>
+        <div class="actions">
+          <button
+            @click=${() => {
+              this.cancel();
+            }}
+          >
+            OK
+          </button>
+        </div>
       `;
     }
     return nothing;

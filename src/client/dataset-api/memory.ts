@@ -73,7 +73,8 @@ type MemoryDatasetApi = DatasetApi & {
   // "volume <volume>", "rescan <volume>", "switch <volume>", "changes",
   // "reminders", "remind person <id>: <text>" (or "<volume>/<image>
   // <file>"), "change reminder <id>", "delete reminder <id>", "tag
-  // <photo> <person>", "untag <photo> <person>", "photos".
+  // <photo> <person>", "untag <photo> <person>", "portrait <photo>
+  // <person>", "photos".
   // A Citation made by `cite` joins its Volume's citations, numbered on
   // from 1000, and `uncite` takes one out.
   asked: string[];
@@ -339,6 +340,17 @@ export function memoryDatasetApi(
         shown.people = shown.people.filter(
           (p) => p.personId !== personId || p.box === null
         );
+        return structuredClone(shown);
+      }),
+
+    choosePortrait: async (photoId, personId) =>
+      await answer(`portrait ${photoId} ${personId}`, undefined, () => {
+        const shown = photo(photoId);
+        if (
+          !shown.people.some((p) => p.personId === personId && p.box !== null)
+        ) {
+          throw new ApiError('tag not found');
+        }
         return structuredClone(shown);
       }),
 

@@ -121,6 +121,9 @@ export interface DatasetApi {
   tag: (photoId: number, personId: number, box: Box) => Promise<PhotoRow>;
   // Takes back the person's Tag in the Photo; the Photo as it is now.
   untag: (photoId: number, personId: number) => Promise<PhotoRow>;
+  // Makes the Photo the person's portrait, cropped to their Tag's Box; the
+  // Photo as it is now.
+  choosePortrait: (photoId: number, personId: number) => Promise<PhotoRow>;
   // Every Change made to the dataset, newest first.
   changes: (signal?: AbortSignal) => Promise<Change[]>;
   // Every Reminder, newest first, open or done.
@@ -350,6 +353,12 @@ export function openDatasetApi(
     async untag(photoId, personId) {
       const url = `${dataset}/api/photos/${photoId}/tags/${personId}`;
       const res = await ask('Taking back the Tag', url, { method: 'DELETE' });
+      return (await res.json()) as PhotoRow;
+    },
+
+    async choosePortrait(photoId, personId) {
+      const url = `${dataset}/api/photos/${photoId}/tags/${personId}/portrait`;
+      const res = await ask('Choosing the portrait', url, { method: 'PUT' });
       return (await res.json()) as PhotoRow;
     },
 

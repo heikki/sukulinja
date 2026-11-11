@@ -2,6 +2,8 @@
 // media link to it with their Box, and every Box is a Tag. Making, moving
 // and taking back a Tag is a Change on the person. Taking it back leaves
 // them linked to the Photo without a Box where the import linked them.
+// A Tag's Photo is chosen as the person's portrait by putting the Tag
+// first among their links, as GEDCOM 7 takes the first as preferred.
 
 import type { Database } from 'bun:sqlite';
 
@@ -81,6 +83,17 @@ export function openTags(
   const remove = db.prepare<null, [number]>(
     'DELETE FROM media_links WHERE id = ?'
   );
+  // The person's links numbered again, the link first and the rest as
+  // they were.
+  const toFront = db.prepare<null, [number, number]>(
+    `UPDATE media_links SET sort_order = ranked.n
+     FROM (
+       SELECT id,
+         ROW_NUMBER() OVER (ORDER BY id = ?1 DESC, sort_order, id) - 1 AS n
+       FROM media_links WHERE scope_type = 'person' AND scope_id = ?2
+     ) AS ranked
+     WHERE media_links.id = ranked.id`
+  );
 
   // The Photo and person, or why they can't be tagged.
   function found(
@@ -128,6 +141,21 @@ export function openTags(
       changed({
         on: { personId, photoId },
         what: { kind: 'untag', photo: at.name }
+      });
+      return photos.photo(photoId)!;
+    },
+
+    // Makes the Photo the person's portrait, cropped to their Tag's Box:
+    // the Photo as it is now.
+    choosePortrait(photoId: number, personId: number): PhotoRow | TagRefused {
+      const at = found(photoId, personId);
+      if ('refused' in at) return at;
+      const had = tagOf.get(photoId, personId);
+      if (had === null) return { refused: 'tag not found', missing: true };
+      toFront.run(had.id, personId);
+      changed({
+        on: { personId, photoId },
+        what: { kind: 'portrait', photo: at.name }
       });
       return photos.photo(photoId)!;
     }

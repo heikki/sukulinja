@@ -150,6 +150,58 @@ test("the portrait is cropped to the person's Tag on it", () => {
   });
 });
 
+test('choosing a Tagged Photo makes it the portrait and first of their Photos', () => {
+  const { db, photos, tags, changes } = dataset();
+  db.run(`INSERT INTO media (id, file_path, format) VALUES
+    (11, 'kesa.jpg', 'image/jpeg')`);
+  db.run(`INSERT INTO media_links
+    (media_id, scope_type, scope_id, sort_order, object_order)
+    VALUES (11, 'person', 1, 0, 0)`);
+  db.run('UPDATE media_links SET sort_order = 1 WHERE media_id = 10');
+  tags.tag(10, 1, BOX);
+  function portrait() {
+    return createTree(db)
+      .persons()
+      .find((p) => p.id === 1);
+  }
+  expect(portrait()).toMatchObject({ photo_path: 'kesa.jpg', crop: null });
+  changes.length = 0;
+
+  expect(tags.choosePortrait(10, 1)).toMatchObject({ id: 10 });
+  expect(portrait()).toMatchObject({
+    photo_path: 'abc.jpg',
+    crop: { top: 20, left: 10, width: 30, height: 40 }
+  });
+  expect(photos.ofPerson(1).map((p) => p.id)).toEqual([10, 11]);
+  expect(changes).toEqual([
+    {
+      on: { personId: 1, photoId: 10 },
+      what: { kind: 'portrait', photo: 'Kesä talo.jpg' }
+    }
+  ]);
+  // Another person's links stay as they were.
+  expect(
+    db
+      .query<{ sort_order: number }, []>(
+        'SELECT sort_order FROM media_links WHERE scope_id = 2 ORDER BY id'
+      )
+      .all()
+  ).toEqual([{ sort_order: 1 }, { sort_order: 1 }]);
+});
+
+test("only a Photo they're tagged in can be the portrait", () => {
+  const { tags, changes } = dataset();
+  expect(tags.choosePortrait(10, 1)).toEqual({
+    refused: 'tag not found',
+    missing: true
+  });
+  expect(tags.choosePortrait(99, 2)).toEqual({
+    refused: 'photo not found',
+    missing: true
+  });
+  expect(changes).toEqual([]);
+});
+
 test('names a Photo by its file', () => {
   expect(photoName({ original_path: null, file_path: 'abc.jpg' })).toBe(
     'abc.jpg'

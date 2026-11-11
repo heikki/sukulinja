@@ -34,8 +34,9 @@ function cropOf(r: PersonDbRow) {
 }
 
 export function createTree(db: Database) {
-  // Each person's first name, and their portrait: the photo marked primary,
-  // else the first linked, cropped to their Tag's Box on it (ADR-0020).
+  // Each person's first name, and their portrait: the first linked (the
+  // import puts the one marked primary first; choosing one puts it
+  // first), cropped to their Tag's Box on it (ADR-0020).
   // Sorted by surname, then given name.
   const listPersons = db.prepare<PersonDbRow, []>(`
     SELECT

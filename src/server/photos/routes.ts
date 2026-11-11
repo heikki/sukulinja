@@ -1,14 +1,16 @@
 // The routes of a dataset's Photos: GET /api/photos lists every Photo, as
 // the Photos view shows them; PUT /api/photos/:id/tags/:personId with
 // `{ box }` tags the person there or moves their Tag, DELETE takes it
-// back, each answering the Photo as it is now. Null for any other path.
+// back, and PUT …/:personId/portrait makes the Photo their portrait, each
+// answering the Photo as it is now. Null for any other path.
 
 import type { Box, PhotoRow } from '@/common/types';
 
 import type { Photos } from './photos';
 import type { TagRefused, Tags } from './tags';
 
-const TAG_RE = /^\/api\/photos\/(?<photo>\d+)\/tags\/(?<person>\d+)$/u;
+const TAG_RE =
+  /^\/api\/photos\/(?<photo>\d+)\/tags\/(?<person>\d+)(?<portrait>\/portrait)?$/u;
 
 function readBox(body: unknown): Box | null {
   if (typeof body !== 'object' || body === null) return null;
@@ -46,6 +48,11 @@ export async function routePhotos(
   if (m === null) return null;
   const photoId = Number(m.groups!.photo);
   const personId = Number(m.groups!.person);
+  if (m.groups!.portrait !== undefined) {
+    return req.method === 'PUT'
+      ? answer(tags.choosePortrait(photoId, personId))
+      : new Response('method not allowed', { status: 405 });
+  }
   if (req.method === 'DELETE') return answer(tags.untag(photoId, personId));
   if (req.method !== 'PUT') {
     return new Response('method not allowed', { status: 405 });

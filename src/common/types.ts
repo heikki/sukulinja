@@ -469,6 +469,8 @@ export type ChangeWhat =
   // A Tag made, its Box moved, or taken back, in the Photo named.
   | { kind: 'tag'; photo: string; moved: boolean }
   | { kind: 'untag'; photo: string }
+  // The Photo named chosen as the person's portrait.
+  | { kind: 'portrait'; photo: string }
   | { kind: 'import'; file: string; merged: boolean; lost: number }
   | { kind: 'undo-import' }
   | {

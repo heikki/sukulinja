@@ -129,7 +129,9 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
     if (e.key === 'Escape') {
       e.preventDefault();
       const editing =
-        viewer.pending.get() !== null || viewer.removing.get() !== null;
+        viewer.pending.get() !== null ||
+        viewer.removing.get() !== null ||
+        viewer.refused.get() !== null;
       if (editing) viewer.cancel();
       else viewer.close();
       return;
@@ -199,7 +201,9 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
 
   private renderEdit() {
     const viewer = this.state.photoViewer;
-    return viewer.pending.get() === null && viewer.removing.get() === null
+    return viewer.pending.get() === null &&
+      viewer.removing.get() === null &&
+      viewer.refused.get() === null
       ? nothing
       : html`<sl-photo-edit></sl-photo-edit>`;
   }

@@ -28,6 +28,8 @@ export function doneLabel(what: ChangeWhat) {
       return what.moved ? 'Moved the Tag' : 'Tagged in a photo';
     case 'untag':
       return 'Took back the Tag';
+    case 'portrait':
+      return 'Chose the portrait';
     case 'import':
       return what.merged
         ? `Imported ${what.file} again`
@@ -59,6 +61,7 @@ export function detailOf(what: ChangeWhat) {
       return what.cited;
     case 'tag':
     case 'untag':
+    case 'portrait':
       return what.photo;
     case 'import':
       return what.lost === 0 ? null : `${what.lost} not kept`;

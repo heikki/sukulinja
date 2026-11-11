@@ -166,3 +166,19 @@ test("a refused Tag stays pending, with the app's words", async () => {
   await Promise.resolve();
   expect(photos.pending.get()?.personId).toBe(2);
 });
+
+test('chooses the Photo as a tagged person’s portrait, and says why not when refused', async () => {
+  const { api, photos, tagged } = await tagging();
+  await photos.choosePortrait(4);
+  expect(api.asked).not.toContain('portrait 11 4');
+  await photos.choosePortrait(2);
+  expect(api.asked).toContain('portrait 11 2');
+  expect(tagged).toEqual([2]);
+  expect(photos.refused.get()).toBeNull();
+
+  photos.open({ ...GROUP, id: 99 });
+  await photos.choosePortrait(2);
+  expect(photos.refused.get()).toBe('photo not found');
+  photos.cancel();
+  expect(photos.refused.get()).toBeNull();
+});

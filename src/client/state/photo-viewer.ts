@@ -1,5 +1,6 @@
 import { signal } from '@lit-labs/signals';
 
+import { ApiError } from '@/client/dataset-api';
 import type { DatasetApi } from '@/client/dataset-api';
 import type { Box, PhotoRow } from '@/common/types';
 
@@ -24,7 +25,8 @@ export type PhotosFrom = 'person' | 'all';
 // does, it belongs to the Selected person (ADR-0011): selecting someone in
 // the Photo keeps it open, as it's theirs too; selecting anyone else
 // closes it. People are tagged in it (ADR-0017, ADR-0020): a Tag is placed, then
-// saved or dropped, and one taken back is asked about first.
+// saved or dropped, and one taken back is asked about first. A Tag's
+// Photo is chosen as the person's portrait at once.
 export interface PhotoViewer {
   // The Photo shown; null while it's closed.
   opened: Readable<PhotoRow | null>;
@@ -55,6 +57,11 @@ export interface PhotoViewer {
   // Saves the pending Tag, or takes back the one asked, throwing ApiError
   // if it's refused.
   save: () => Promise<void>;
+  // Makes the Photo shown the person's portrait, cropped to their Tag's
+  // Box.
+  choosePortrait: (personId: number) => Promise<void>;
+  // Why choosing the portrait was refused, until anything else is done.
+  refused: Readable<string | null>;
 }
 
 export function openPhotoViewer(
@@ -62,14 +69,15 @@ export function openPhotoViewer(
   selected: Selected,
   // Read again once a Tag is saved or taken back.
   photos: Photos,
-  // Told once a Tag is saved or taken back, as it may change the person's
-  // portrait.
+  // Told once a Tag is saved or taken back, or a portrait chosen, as it
+  // may change the person's portrait.
   { tagged = () => undefined }: { tagged?: (personId: number) => void } = {}
 ): PhotoViewer {
   const opened = signal<PhotoRow | null>(null);
   const pending = signal<PendingTag | null>(null);
   const removing = signal<number | null>(null);
   const from = signal<PhotosFrom>('person');
+  const refused = signal<string | null>(null);
 
   function among() {
     if (from.get() === 'person') return selected.details.get()?.photos ?? [];
@@ -80,6 +88,7 @@ export function openPhotoViewer(
   function show(photo: PhotoRow | null) {
     pending.set(null);
     removing.set(null);
+    refused.set(null);
     opened.set(photo);
   }
 
@@ -127,6 +136,7 @@ export function openPhotoViewer(
     removing,
     tagFor(personId, box) {
       removing.set(null);
+      refused.set(null);
       pending.set({ personId, box, moving: false });
     },
     edit(personId) {
@@ -135,6 +145,7 @@ export function openPhotoViewer(
         ?.people.find((p) => p.personId === personId)?.box;
       if (box === undefined || box === null) return;
       removing.set(null);
+      refused.set(null);
       pending.set({ personId, box, moving: true });
     },
     setBox(box) {
@@ -144,11 +155,13 @@ export function openPhotoViewer(
     untag(personId) {
       if (tagOf(personId) === undefined) return;
       pending.set(null);
+      refused.set(null);
       removing.set(personId);
     },
     cancel() {
       pending.set(null);
       removing.set(null);
+      refused.set(null);
     },
     async save() {
       const photo = opened.get();
@@ -160,6 +173,18 @@ export function openPhotoViewer(
       } else if (gone !== null) {
         saved(await api.untag(photo.id, gone), gone);
       }
-    }
+    },
+    async choosePortrait(personId) {
+      const photo = opened.get();
+      if (photo === null || tagOf(personId) === undefined) return;
+      refused.set(null);
+      try {
+        saved(await api.choosePortrait(photo.id, personId), personId);
+      } catch (err) {
+        if (!(err instanceof ApiError)) throw err;
+        refused.set(err.message);
+      }
+    },
+    refused
   };
 }

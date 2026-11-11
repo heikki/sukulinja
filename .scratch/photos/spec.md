@@ -26,7 +26,7 @@ A photo an import links to a person without a `CROP` is the export's link, not a
 - **First: tagging people.** Draw a Box around a face and pick the person, as a Citation is made for someone from an Image. A person's Tag is also the crop their portrait can use.
 - **A re-import keeps the app's Tags**, as a Citation's Annotation is kept: the export's own part of a photo (its file, links and crops) comes from the new export. Only what a Tag needs is saved: the Photo, the person and the Box ("ei tallenneta mitään turhaa tauhkaa").
 - **An import keeps every Photo** (Heikki, 2026-11-11), also one linked to no one, which it drops today: ticket 04.
-- **Choosing the portrait** (Heikki, 2026-11-11) from a Box's menu in the Photo viewer. The choice is stored as the person's link order: ticket 05.
+- **Choosing the portrait** (Heikki, 2026-11-11): _Use as portrait_ on a person's Box in the Photo viewer puts their Tag first among their links. Done.
 - **The export writes a Tag as the person's `OBJE` link with a `CROP`**, the form a Citation's Astia link and Box already take in the GEDZIP, and the form MyHeritage's face crops come in. The 5.5.1 file leaves them out, as today.
 
 ## Architecture notes
