@@ -1,4 +1,4 @@
-Status: needs-triage
+Status: ready-for-agent
 Blocked by: 01, 04
 
 # Browse every Photo in a Photos view
@@ -11,11 +11,7 @@ A **Photos** view opened from the top-right corner beside **Church books**, list
 
 Photos linked to no one are kept by the import from ticket 04 (Heikki, 2026-11-11).
 
-## Open questions
-
-
-- Order: by who's in it, by date, or as the import listed them; and whether Photos with no one come first.
-- Whether it waits for adding photos from disk, the main way a Photo with no one would arrive.
+Order (Heikki, 2026-11-11): Photos with no one linked or tagged first, then the rest as the import listed them, as **Church books** puts the most cited first.
 
 ## Done when
 
