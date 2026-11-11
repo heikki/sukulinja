@@ -55,7 +55,7 @@ Yksi kirkonkirjamerkintä tukee usein monta faktaa. Rippikirjan rivi antaa synty
 
 ## Suositus
 
-**Ensin D, sitten A sovelluksen omille sitaateille. B ei kannata nyt, ja C vain väliaikaisena näkymänä, jos sitä tarvitaan.**
+**Ensin D, sitten A sovelluksen omille sitaateille** (MyHeritage-kierros ei ole este, ks. kysymys 1). B ei kannata nyt, ja C vain väliaikaisena näkymänä, jos sitä tarvitaan.**
 
 1. **D ensin.** Kun Citation tehdään sovelluksessa tai se konvertoidaan (ADR-0016), kirjoitetaan `EVEN` ja `ROLE` Book-lajista ja Index referencen päätteestä. Konversiossa ne korvaavat MyHeritagen `EVEN Record`-arvot, jotka eivät ole GEDCOMia. Scan viewerin "New citation for…" voi tarjota roolin (lapsi, isä, äiti, kummi, puoliso), jos sitä ei voi päätellä. Tämä on pieni ja tekee B:n ja A:n myöhemmin helpommiksi.
 2. **Sitten A, vain sovelluksen omille sitaateille** (`added_in_app`). Lähdeohjelman tuomat sitaatit pysyvät siellä, minne se ne pani. Tämä noudattaa ADR-0013:a: tuotu osa tulee aina uudesta viennistä. Kastemerkintä menee lapsen CHR-faktalle (tai BIRT, jos CHR:ää ei ole), vihkimerkintä MARR-faktalle ja rippikirjan rivi RESI-faktalle, jonka vuodet osuvat kirjan vuosiin. Muuten sitaatti jää henkilölle. Valinta johdetaan EVEN-arvosta, eli käyttäjän ei tarvitse valita.
@@ -65,6 +65,6 @@ Yksi kirkonkirjamerkintä tukee usein monta faktaa. Rippikirjan rivi antaa synty
 
 ## Avoimet kysymykset Heikille
 
-1. **Meneekö mitään takaisin MyHeritageen?** Jos 5.5.1-tiedosto ladataan MyHeritageen ja sieltä viedään taas, palaako faktan alle pantu `SOUR` faktan alla vai henkilön alla? Jos henkilön alla, ADR-0013:n Duplicates-sääntö pudottaa sovelluksen version, ja sijoitus faktalle katoaa joka kierroksella. Tämä pitää testata yhdellä henkilöllä ennen A:ta.
+1. ~~**Meneekö mitään takaisin MyHeritageen?**~~ Ratkaistu (Heikki, 2026-11-11): "en lataa takaisin". 5.5.1-tiedostoa ei ladata MyHeritageen, joten faktalle pantu sitaatti ei palaa henkilön alle eikä sitä tarvitse testata. Re-importissa MyHeritagen vienti tuo vain sen omat henkilötason sitaatit, ja ADR-0016:n korvaussääntö parittaa ne sovelluksen faktalla oleviin, koska paritus nousee faktasta henkilöön. Este A:lle poistui.
 2. **Rippikirjan rivi: RESI vai ei mitään?** Datassa on 2 347 RESI-faktaa, oletettavasti MyHeritagen rippikirjasitaateista. Onko rippikirjamerkinnän luonteva koti asuinpaikka, vai pitäisikö sen jäädä henkilölle?
 3. **Kummit.** Kastemerkintä kummin kohdalla (`ROLE` muu, `PHRASE Kummi`) ei tue mitään hänen faktoistaan. Jääkö sellainen henkilölle, ja tarvitaanko sitä ylipäätään?
