@@ -9,6 +9,7 @@ import { join } from 'node:path';
 
 import { openDb } from '../datasets/db';
 import { openAnnotations } from './annotations';
+import { memoryParishes } from './astia/parishes';
 import { juvaAstia, rippiCitation, VOLUMES } from './astia/test-parish';
 import { createCitations } from './citations';
 import { openImages } from './images';
@@ -54,7 +55,7 @@ function dataset() {
     return await Promise.resolve({ width: 1000, height: 800 });
   }
   const references = referencesFor(dir, db, { astia, sizeOf });
-  const images = openImages({ astia, sizeOf });
+  const images = openImages({ astia, parishes: memoryParishes(), sizeOf });
   return { db, citations: createCitations(db, { images, references }) };
 }
 

@@ -13,6 +13,7 @@ import { openDb } from '../datasets/db';
 import { openAnnotations } from './annotations';
 import { fileId } from './astia/memory-astia';
 import type { MemoryAstia } from './astia/memory-astia';
+import { memoryParishes } from './astia/parishes';
 import { juvaAstia, rippiCitation } from './astia/test-parish';
 import { createCitations } from './citations';
 import { openImages } from './images';
@@ -74,7 +75,7 @@ function withPeople(cited: Cited[], people = 3) {
     return await Promise.resolve({ width: 1000, height: 800 });
   }
   const references = referencesFor(dir, db, { astia, sizeOf });
-  const images = openImages({ astia, sizeOf });
+  const images = openImages({ astia, parishes: memoryParishes(), sizeOf });
   return { db, citations: createCitations(db, { images, references }) };
 }
 

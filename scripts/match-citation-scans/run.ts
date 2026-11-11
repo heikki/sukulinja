@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { openAstia, viewerUrl } from '@/server/citations/astia/astia';
 import type { Astia, ImageRef } from '@/server/citations/astia/astia';
 import type { Viewport } from '@/server/citations/astia/jpeg';
+import { openParishes } from '@/server/citations/astia/parishes';
 import { RIPPI_COLLECTION } from '@/server/citations/myheritage/record';
 import type { ChurchBookRef } from '@/server/citations/myheritage/record';
 import { openScanFolder } from '@/server/citations/myheritage/scans';
@@ -235,7 +236,8 @@ async function matchOne(
 export async function runMatching(options: RunOptions): Promise<RunResult> {
   const { root } = options;
   const astia = options.astia ?? openAstia(join(root, '.astia-cache'));
-  const scans = openScanFolder(root, { astia }).scans(options.db, {
+  const parishes = openParishes(root);
+  const scans = openScanFolder(root, { astia, parishes }).scans(options.db, {
     sizeOf: options.sizeOf
   });
   const reader = cachedReader(options.reader, join(root, '.vision-readings'));

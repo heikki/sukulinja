@@ -13,6 +13,8 @@ import { routeShared } from './astia-routes';
 import { openAstia } from './astia/astia';
 import type { Astia, ImageRef } from './astia/astia';
 import { openDownloads } from './astia/downloads';
+import { openParishes } from './astia/parishes';
+import type { Parishes } from './astia/parishes';
 import { imageSize, openScanCache } from './astia/scan-cache';
 import { citationRoutes } from './citation-routes';
 import { createCitations } from './citations';
@@ -31,6 +33,9 @@ export {
 interface Options {
   // Astia's answers; by default over HTTP, kept in the data folder.
   astia?: Astia;
+  // The parishes whose church books are found; by default the data
+  // folder's.
+  parishes?: Parishes;
   // The datasets whose Marks a re-scan of a Volume has to keep.
   datasets: () => Promise<Database[]>;
   // Told of each change made to a dataset through its Citations.
@@ -49,8 +54,9 @@ export function openCitations(root: string, options: Options) {
   async function sizeOf(at: ImageRef) {
     return await imageSize(cache, at);
   }
-  const images = openImages({ astia, sizeOf });
-  const folder = openScanFolder(root, { astia });
+  const parishes = options.parishes ?? openParishes(root);
+  const images = openImages({ astia, parishes, sizeOf });
+  const folder = openScanFolder(root, { astia, parishes });
 
   // The pins on Astia's Images: the data folder's, and every dataset's
   // Marks, which a switch to a new filming leaves out alike.

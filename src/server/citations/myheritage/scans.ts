@@ -13,10 +13,11 @@ import type {
   Years
 } from '@/common/types';
 
-import { archiveOf, parishArchive, parishVolumes } from '../astia/archives';
+import { archiveAmong } from '../astia/archives';
 import { AstiaError } from '../astia/astia';
 import type { Astia, Volume } from '../astia/astia';
 import type { Viewport } from '../astia/jpeg';
+import type { Parishes } from '../astia/parishes';
 import {
   OFF_IMAGE,
   OLD_FILMING,
@@ -111,23 +112,38 @@ function byYears(a: Volume, b: Volume) {
 }
 
 // A dataset's references resolved with the pins saved so far, against the
-// Astia given. `sizeOf` tells a Box past its Image's edges; without it,
-// none is.
+// Astia given, each in its parish's archive. `sizeOf` tells a Box past its
+// Image's edges; without it, none is.
 function openScans({
   pins,
   astia,
+  parishes,
   sizeOf = unknownSize
 }: {
   pins: PinStore;
   astia: Astia;
+  parishes: Parishes;
   sizeOf?: ImageSizeOf;
 }) {
+  // Where the reference links in its parish's archive, with `snapshot`.
+  async function resolveIn(ref: ChurchBookRef, snapshot: Pins) {
+    const archiveId = parishes.archiveOf(ref.parish);
+    return await resolveChurchBookRef(astia, ref, snapshot, archiveId);
+  }
+
+  // The Volumes of every series of the reference's parish, for checking a
+  // Mark and choosing another Volume.
+  async function parishVolumes(ref: ChurchBookRef) {
+    const archiveId = parishes.archiveOf(ref.parish);
+    return archiveId === null ? [] : await astia.archiveVolumes(archiveId);
+  }
+
   // Where the reference links, with the pins saved so far. A request to
   // Astia failing is a reason it has none for now; anything else thrown is
   // a bug, and is thrown on.
   async function resolveRef(ref: ChurchBookRef): Promise<LinkResolution> {
     try {
-      return await resolveChurchBookRef(astia, ref, await pins.snapshot());
+      return await resolveIn(ref, await pins.snapshot());
     } catch (err) {
       if (err instanceof AstiaError) return { unlinked: 'astia-error' };
       throw err;
@@ -141,7 +157,7 @@ function openScans({
     target: MarkTarget,
     sizeOfTarget: ImageSizeOf
   ): Promise<{ volume: string } | { rejected: string }> {
-    const volume = (await parishVolumes(astia, ref.parish)).find(
+    const volume = (await parishVolumes(ref)).find(
       (v) => v.id === target.volumeId
     );
     if (volume === undefined) {
@@ -163,7 +179,7 @@ function openScans({
   }
 
   async function linkedVolumes(ref: ChurchBookRef) {
-    const matched = await resolveChurchBookRef(astia, ref, await byBook(pins));
+    const matched = await resolveIn(ref, await byBook(pins));
     const links = 'links' in matched ? matched.links : [];
     return new Set(links.map((l) => l.volumeId));
   }
@@ -190,8 +206,8 @@ function openScans({
       const snapshot = await pins.snapshot();
       return await Promise.all(
         refs.map(async (ref): Promise<string[]> => {
-          if (parishArchive(ref.parish) !== archiveId) return [];
-          const resolved = await resolveChurchBookRef(astia, ref, snapshot);
+          if (parishes.archiveOf(ref.parish) !== archiveId) return [];
+          const resolved = await resolveIn(ref, snapshot);
           return 'unlinked' in resolved
             ? []
             : resolved.links.map((l) => l.volumeId);
@@ -204,17 +220,17 @@ function openScans({
     // parishes. Only the Volume's parish's references are resolved:
     // another parish's would crawl its Volumes from Astia.
     async volumeLinks(volumeId: string, refs: ChurchBookRef[]) {
-      const archive = await archiveOf(
+      const archive = await archiveAmong(
         astia,
         volumeId,
-        refs.map((r) => r.parish)
+        parishes.ranked(refs.map((r) => r.parish))
       );
       if (archive === null) return null;
       const snapshot = await pins.snapshot();
       return await Promise.all(
         refs.map(async (ref): Promise<Link | null> => {
-          if (parishArchive(ref.parish) !== archive) return null;
-          const resolved = await resolveChurchBookRef(astia, ref, snapshot);
+          if (parishes.archiveOf(ref.parish) !== archive) return null;
+          const resolved = await resolveIn(ref, snapshot);
           if ('unlinked' in resolved) return null;
           return resolved.links.find((l) => l.volumeId === volumeId) ?? null;
         })
@@ -225,13 +241,9 @@ function openScans({
     // Book it cites, with each one's Image count, years and the Image it
     // links if any: where the matcher searches.
     async matchCandidates(ref: ChurchBookRef) {
-      const resolved = await resolveChurchBookRef(
-        astia,
-        ref,
-        await byBook(pins)
-      );
+      const resolved = await resolveIn(ref, await byBook(pins));
       if ('unlinked' in resolved) return [];
-      const volumes = await parishVolumes(astia, ref.parish);
+      const volumes = await parishVolumes(ref);
       return await Promise.all(
         resolved.links.map(async (l): Promise<Candidate> => ({
           volumeId: l.volumeId,
@@ -246,7 +258,7 @@ function openScans({
     // The digitized Volumes of the parish a reference can be put in: of
     // the Book it cites, those it links by that Book first.
     async volumeChoices(ref: ChurchBookRef): Promise<VolumeChoices> {
-      const volumes = (await parishVolumes(astia, ref.parish)).filter(
+      const volumes = (await parishVolumes(ref)).filter(
         (v) => v.digitized && ref.kind !== null && v.kind === ref.kind
       );
       const linked = [...(await linkedVolumes(ref))];
@@ -327,12 +339,13 @@ function openScans({
 export type Scans = ReturnType<typeof openScans>;
 
 // A data folder's scans: its Page pins and Record ranges, read and kept
-// once for every dataset, over `base` (the shipped pins unless given).
+// once for every dataset, over `base` (the shipped pins unless given), and
+// its parishes.
 export function openScanFolder(
   root: string,
-  options: { astia: Astia; base?: Pins['volumes'] }
+  options: { astia: Astia; parishes: Parishes; base?: Pins['volumes'] }
 ) {
-  const { astia } = options;
+  const { astia, parishes } = options;
   const facts = openVolumeFacts(root, options);
 
   function pinsOf(db: Database) {
@@ -342,11 +355,11 @@ export function openScanFolder(
   return {
     // A dataset's Scans, resolving with its Marks and Matches.
     scans: (db: Database, { sizeOf }: { sizeOf?: ImageSizeOf } = {}) =>
-      openScans({ pins: pinsOf(db), astia, sizeOf }),
+      openScans({ pins: pinsOf(db), astia, parishes, sizeOf }),
 
     // A dataset's references, as the rest of the Citations reach them.
     references: (db: Database, { sizeOf }: { sizeOf?: ImageSizeOf } = {}) =>
-      referencesOf(openScans({ pins: pinsOf(db), astia, sizeOf }), {
+      referencesOf(openScans({ pins: pinsOf(db), astia, parishes, sizeOf }), {
         db,
         marks: openMarks(db)
       }),

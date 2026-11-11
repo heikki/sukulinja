@@ -24,7 +24,6 @@ import type {
   Unlinked
 } from '@/common/types';
 
-import { parishArchive } from '../../astia/archives';
 import { viewerUrl } from '../../astia/astia';
 import type { Astia, Volume } from '../../astia/astia';
 import type { BookKind, Years } from '../../text';
@@ -342,12 +341,6 @@ async function volumesFor(
     : candidateVolumes(volumes, ref.kind!, ref.years!);
 }
 
-// The title of the parish's archive in Astia, if it's known.
-async function archiveTitleOf(astia: Astia, parish: string | null) {
-  const archiveId = parishArchive(parish);
-  return archiveId === null ? null : await astia.archiveTitle(archiveId);
-}
-
 // Unlinked after looking through the parish's books: no Volume fits, or
 // the one that does can't be shown.
 const LOOKED: ReadonlySet<Unlinked> = new Set([
@@ -356,16 +349,19 @@ const LOOKED: ReadonlySet<Unlinked> = new Set([
   'no-images'
 ]);
 
-// Each Link says whose archive its Volume is in; so does an Unlinked
-// reference whose parish's books were looked through.
+// Where the reference links, in `archiveId`, its parish's archive (null
+// when that isn't known). Each Link says whose archive its Volume is in;
+// so does an Unlinked reference whose parish's books were looked through.
 export async function resolveChurchBookRef(
   astia: Astia,
   ref: ChurchBookRef,
-  pins: Pins
+  pins: Pins,
+  archiveId: string | null
 ): Promise<LinkResolution> {
-  const resolved = await resolveLinks(astia, ref, pins);
+  const resolved = await resolveLinks(astia, ref, pins, archiveId);
   if ('unlinked' in resolved && !LOOKED.has(resolved.unlinked)) return resolved;
-  const archive = await archiveTitleOf(astia, ref.parish);
+  const archive =
+    archiveId === null ? null : await astia.archiveTitle(archiveId);
   if (archive === null) return resolved;
   if ('unlinked' in resolved) return { ...resolved, archive };
   return { links: resolved.links.map((l) => ({ ...l, archive })) };
@@ -384,14 +380,14 @@ async function pinnedLink(astia: Astia, ref: ChurchBookRef, pins: Pins) {
 async function resolveLinks(
   astia: Astia,
   ref: ChurchBookRef,
-  pins: Pins
+  pins: Pins,
+  archiveId: string | null
 ): Promise<LinkResolution> {
   const pinned = await pinnedLink(astia, ref, pins);
   if (pinned !== null) return { links: [pinned] };
   if (ref.parish === null || ref.kind === null || ref.years === null) {
     return { unlinked: 'unparsed' };
   }
-  const archiveId = parishArchive(ref.parish);
   if (archiveId === null) return { unlinked: 'no-archive' };
   const candidates = await volumesFor(astia, ref, archiveId, pins);
   if (candidates.length === 0) return { unlinked: 'no-volume' };

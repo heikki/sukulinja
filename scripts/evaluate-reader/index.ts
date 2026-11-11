@@ -21,6 +21,7 @@ import { parseArgs } from 'node:util';
 
 import { openAstia } from '@/server/citations/astia/astia';
 import type { ImageRef } from '@/server/citations/astia/astia';
+import { openParishes } from '@/server/citations/astia/parishes';
 import { openScanCache } from '@/server/citations/astia/scan-cache';
 import { withoutStale } from '@/server/citations/myheritage/pins/filming';
 import { openScanFolder } from '@/server/citations/myheritage/scans';
@@ -212,7 +213,9 @@ async function main() {
   const astia = openAstia(join(root, '.astia-cache'));
   // Pins made on a filming Astia has since replaced name the wrong Image.
   const { volumes, references } = await withoutStale(
-    await openScanFolder(root, { astia }).scans(openDb(dbPath)).snapshot(),
+    await openScanFolder(root, { astia, parishes: openParishes(root) })
+      .scans(openDb(dbPath))
+      .snapshot(),
     astia
   );
   const pages = pageCases(volumes, limit);

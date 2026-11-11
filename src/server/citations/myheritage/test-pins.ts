@@ -6,6 +6,7 @@ import type { Box } from '@/common/types';
 import { openDb } from '../../datasets/db';
 import type { Astia } from '../astia/astia';
 import { memoryAstia } from '../astia/memory-astia';
+import { memoryParishes } from '../astia/parishes';
 import { JUVA } from '../astia/test-parish';
 import type { ImageSizeOf } from '../images';
 import type { Pins } from './pins/locate';
@@ -74,7 +75,8 @@ export function scansOf(
   options: { astia: Astia; base?: Pins['volumes']; sizeOf?: ImageSizeOf }
 ) {
   const { sizeOf, ...opened } = options;
-  return openScanFolder(folder, opened).scans(db, { sizeOf });
+  const parishes = memoryParishes();
+  return openScanFolder(folder, { ...opened, parishes }).scans(db, { sizeOf });
 }
 
 // A dataset's references, as the rest of the Citations reach them.
@@ -84,7 +86,10 @@ export function referencesFor(
   options: { astia: Astia; base?: Pins['volumes']; sizeOf?: ImageSizeOf }
 ) {
   const { sizeOf, ...opened } = options;
-  return openScanFolder(folder, opened).references(db, { sizeOf });
+  const parishes = memoryParishes();
+  return openScanFolder(folder, { ...opened, parishes }).references(db, {
+    sizeOf
+  });
 }
 
 // A Match the vision model confirmed at BOX, on an Image of SIZE.

@@ -9,6 +9,7 @@ import { openDb } from '../datasets/db';
 import { parseGedcom } from '../gedcom/parser';
 import { importGedcom } from '../import/gedcom';
 import type { MemoryAstia } from './astia/memory-astia';
+import { memoryParishes } from './astia/parishes';
 import { baptismCitation, juvaAstia, rippiCitation } from './astia/test-parish';
 import { createCitations, describeRef, entryOf } from './citations';
 import { openImages } from './images';
@@ -43,7 +44,7 @@ function datasetOf(cited: Cited[]) {
     insert.run(c.personId, c.page, c.text, i);
   }
   return createCitations(db, {
-    images: openImages({ astia }),
+    images: openImages({ astia, parishes: memoryParishes() }),
     references: referencesFor(dir, db, { astia })
   });
 }
@@ -100,7 +101,7 @@ test("serves a person's Citations, church books first", () => {
   importGedcom(db, parseGedcom(gedcom), () => null);
   expect(
     createCitations(db, {
-      images: openImages({ astia }),
+      images: openImages({ astia, parishes: memoryParishes() }),
       references: referencesFor(dir, openDb(':memory:'), { astia })
     }).ofPerson(1)
   ).toEqual([
@@ -236,7 +237,7 @@ test("a warm-up asks Astia for the references' archives, not their Volumes' Imag
 test('a warm-up ends quietly once the Database is closed', async () => {
   const db = openDb(join(dir, 'db.sqlite'));
   const citations = createCitations(db, {
-    images: openImages({ astia }),
+    images: openImages({ astia, parishes: memoryParishes() }),
     references: referencesFor(dir, db, { astia })
   });
   db.close();

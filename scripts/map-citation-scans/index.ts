@@ -15,6 +15,7 @@ import { parseArgs } from 'node:util';
 
 import type { Link, LinkResolution } from '@/common/types';
 import { openAstia } from '@/server/citations/astia/astia';
+import { openParishes } from '@/server/citations/astia/parishes';
 import type { ChurchBookRef } from '@/server/citations/myheritage/record';
 import { openScanFolder } from '@/server/citations/myheritage/scans';
 import { openDb } from '@/server/datasets/db';
@@ -115,7 +116,10 @@ async function main() {
 
   const astia = openAstia(join(root, '.astia-cache'));
   // References read from a GEDCOM file, in no dataset: no Marks.
-  const scans = openScanFolder(root, { astia }).scans(openDb(':memory:'));
+  const parishes = openParishes(root);
+  const scans = openScanFolder(root, { astia, parishes }).scans(
+    openDb(':memory:')
+  );
   const resolutions = await Promise.all(refs.map((c) => scans.resolveRef(c)));
   const results = refs.map((c, i) => ({ ...c, ...resolutions[i] }));
   await Bun.write(outFile, `${JSON.stringify(results, null, 2)}\n`);

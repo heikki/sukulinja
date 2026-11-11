@@ -1,12 +1,13 @@
 // The parish archives a dataset's church books are in (ADR-0016): those of
 // the parishes its Church-book references give, most cited first, then
 // those holding the Volumes its Citations of Images cite, which are found
-// among every parish archive looked up. A Link names its archive from
-// them, and a Volume is cited only from one of them.
+// among every parish's archive. A Link names its archive from them, and a
+// Volume is cited only from one of them.
 
-import { archiveAmong, knownArchives, rankedArchives } from './astia/archives';
+import { archiveAmong } from './astia/archives';
 import { AstiaError } from './astia/astia';
 import type { Astia } from './astia/astia';
+import type { Parishes } from './astia/parishes';
 
 // What a dataset's Citations say of the church books they're in.
 export interface CitedBooks {
@@ -16,7 +17,7 @@ export interface CitedBooks {
   volumes: string[];
 }
 
-export function openDatasetArchives(astia: Astia) {
+export function openDatasetArchives(astia: Astia, parishes: Parishes) {
   // The archive holding a Volume, once found; a failure isn't kept.
   const holders = new Map<string, Promise<string | null>>();
 
@@ -35,7 +36,7 @@ export function openDatasetArchives(astia: Astia) {
   async function otherHolder(volumeId: string, ranked: string[]) {
     try {
       if ((await archiveAmong(astia, volumeId, ranked)) !== null) return null;
-      const others = knownArchives().filter((a) => !ranked.includes(a));
+      const others = parishes.archives().filter((a) => !ranked.includes(a));
       return await holderOf(volumeId, others);
     } catch (err) {
       if (err instanceof AstiaError) return null;
@@ -43,8 +44,9 @@ export function openDatasetArchives(astia: Astia) {
     }
   }
 
-  return async function archivesOf({ parishes, volumes }: CitedBooks) {
-    const ranked = rankedArchives(parishes);
+  return async function archivesOf(cited: CitedBooks) {
+    const ranked = parishes.ranked(cited.parishes);
+    const { volumes } = cited;
     const found = await Promise.all(
       [...new Set(volumes)].map(async (v) => await otherHolder(v, ranked))
     );

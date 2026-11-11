@@ -2,8 +2,8 @@
 // resolve citations without a request going out. Two rippikirja Volumes
 // and a baptism one, of 20 Images each.
 
-import { knownArchives } from './archives';
 import { memoryAstia } from './memory-astia';
+import { STARTING_PARISHES } from './parishes';
 
 export const JUVA = '1212295491';
 export const VOLUMES = {
@@ -14,9 +14,11 @@ export const VOLUMES = {
 export const IMAGES = 20;
 
 // Juva's archive holds the Volumes, titled `title` if given; every other
-// parish archive looked up is there too, holding none of them.
+// starting parish's archive is there too, holding none of them.
 export function juvaAstia(title?: string) {
-  const others = knownArchives().map((id) => [id, { volumes: [] }] as const);
+  const others = STARTING_PARISHES.map(
+    (p) => [p.archiveId, { volumes: [] }] as const
+  );
   return memoryAstia({
     ...Object.fromEntries(others),
     [JUVA]: {

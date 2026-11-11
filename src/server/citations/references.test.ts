@@ -11,6 +11,7 @@ import type { CitationLinks, Link } from '@/common/types';
 import { openDb } from '../datasets/db';
 import { openAnnotations } from './annotations';
 import { fileId } from './astia/memory-astia';
+import { memoryParishes } from './astia/parishes';
 import { juvaAstia } from './astia/test-parish';
 import { createCitations } from './citations';
 import { openImages } from './images';
@@ -66,7 +67,7 @@ test('with no references, a Citation of an Image is listed and linked by its sto
       madeInApp: true
     }
   );
-  const images = openImages({ astia: juvaAstia() });
+  const images = openImages({ astia: juvaAstia(), parishes: memoryParishes() });
   const citations = createCitations(db, { images, references: noReferences });
 
   const [row] = citations.ofPerson(1);

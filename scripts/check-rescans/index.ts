@@ -19,6 +19,7 @@ import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 
 import { openAstia } from '@/server/citations/astia/astia';
+import { openParishes } from '@/server/citations/astia/parishes';
 import { openScanCache } from '@/server/citations/astia/scan-cache';
 import { readLocalFile } from '@/server/citations/myheritage/pins/files';
 import shipped from '@/server/citations/myheritage/pins/pins.json';
@@ -41,7 +42,10 @@ try {
   const fresh = openAstia(cache);
   const kept = openAstia(join(root, '.astia-cache'));
   const registry = new DatasetRegistry(root);
-  const folder = openScanFolder(root, { astia: kept });
+  const folder = openScanFolder(root, {
+    astia: kept,
+    parishes: openParishes(root)
+  });
   const marked = (await registry.list())
     .filter((d) => !d.outdated)
     .map((d) => folder.scans(registry.open(d.slug)).marked());

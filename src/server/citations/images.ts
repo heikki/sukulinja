@@ -8,6 +8,7 @@ import { archiveAmong } from './astia/archives';
 import { AstiaError, viewerUrls } from './astia/astia';
 import type { Astia, ImageRef } from './astia/astia';
 import type { Viewport } from './astia/jpeg';
+import type { Parishes } from './astia/parishes';
 import { openDatasetArchives } from './dataset-archives';
 
 // The full-size Image's size in pixels, or null when it can't be told.
@@ -47,18 +48,20 @@ export async function onOldFilming(astia: Astia, volumeId: string) {
   return first !== undefined && (await astia.isGone(volumeId, first));
 }
 
-// The Images of the Astia given. `sizeOf` tells a Box past its Image's
-// edges; without it, none is.
+// The Images of the Astia given, in the parishes' archives. `sizeOf` tells
+// a Box past its Image's edges; without it, none is.
 export function openImages({
   astia,
+  parishes,
   sizeOf = unknownSize
 }: {
   astia: Astia;
+  parishes: Parishes;
   sizeOf?: ImageSizeOf;
 }) {
   return {
     // The parish archives a dataset's church books are in, in order.
-    archivesOf: openDatasetArchives(astia),
+    archivesOf: openDatasetArchives(astia, parishes),
 
     // Astia's viewer URL for each of the Volume's Images, in order.
     async urlsOf(volumeId: string) {
