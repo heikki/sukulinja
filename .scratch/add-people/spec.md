@@ -27,7 +27,7 @@ Heikki decided on 2026-11-11 to cut the MyHeritage connection: Sukulinja becomes
 - **The first person starts a new dataset.** Today a dataset only comes from an import, and the chooser offers nothing else ("No datasets yet" → Import). Beside _Import_ comes _New dataset…_: it asks the dataset's name and its first person's name and sex, and that person is the Root. Everyone after them is added as a relative, as below. This is the only person made with no place in the tree, since there's no tree yet.
 - **No one is added unlinked.** Every new person is made in a place in the tree, from a card or relative to the Selected person, so the chart can always reach them.
 - **A new person's facts** (birth, death, a residence) are entered with the fact form of the facts spec, right after the name, not with a form of this feature's own.
-- **Each is a Change**, on the person: `person-add`, `person-link`, `person-unlink`, `person-edit` and `person-delete` in `ChangeWhat`, written the way the panel names them (_Added Matti Virtanen as father of Juho Virtanen_), so the Change reads the same once they're gone. Picking one selects them. The person's `CHAN`, and the family's, gets today's date and time, as the facts spec does.
+- **Each is a Change**, on the person: a `ChangeWhat` of kind `person` whose `did` is `add` (done: _Added as father · of Juho Virtanen_), and later `link`, `unlink`, `edit` and `delete`, written the way the panel names them (_Added Matti Virtanen as father of Juho Virtanen_), so the Change reads the same once they're gone. Picking one selects them. The person's `CHAN`, and the family's, gets today's date and time, as the facts spec does.
 - **The chart takes the new person in place**: they're selected, and the chart moves to them as when re-rooted.
 
 ## What a new person is in the database
@@ -64,14 +64,14 @@ Heikki decided on 2026-11-11 to cut the MyHeritage connection: Sukulinja becomes
 
 ## Tickets
 
-| #   | Ticket                                                         | Blocked by          |
-| --- | -------------------------------------------------------------- | ------------------- |
-| 01  | Add a parent, spouse, child or sibling from a card's menu      | none                |
-| 02  | Link someone already in the tree, and the duplicate check      | 01                  |
-| 03  | Edit a person's name and sex                                   | 01                  |
-| 04  | Order children by birth date                                   | 01, fact-editing 04 |
-| 05  | Unlink a person from a family                                  | 01                  |
-| 06  | Delete a person                                                | 05, fact-editing 06 |
-| 07  | New relatives from the Scan viewer's and Photo viewer's picker | 01                  |
-| 08  | Start a new dataset with its first person                      | 01                  |
-| 09  | Glossary: Person, Family and the new Change kinds              | 01                  |
+| #   | Ticket                                                             | Blocked by          |
+| --- | ------------------------------------------------------------------ | ------------------- |
+| 01  | ~~Add a parent, spouse, child or sibling from a card's menu~~ done | none                |
+| 02  | Link someone already in the tree, and the duplicate check          | 01                  |
+| 03  | Edit a person's name and sex                                       | 01                  |
+| 04  | Order children by birth date                                       | 01, fact-editing 04 |
+| 05  | Unlink a person from a family                                      | 01                  |
+| 06  | Delete a person                                                    | 05, fact-editing 06 |
+| 07  | New relatives from the Scan viewer's and Photo viewer's picker     | 01                  |
+| 08  | Start a new dataset with its first person                          | 01                  |
+| 09  | Glossary: Person, Family and the new Change kinds                  | 01                  |

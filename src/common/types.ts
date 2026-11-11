@@ -166,6 +166,23 @@ export interface NewFact extends FactFields {
   familyId: number | null;
 }
 
+// How a new person is related to the one they're added for.
+export type Relation = 'father' | 'mother' | 'spouse' | 'child' | 'sibling';
+
+// A person's sex as GEDCOM 7 has it: male, female, other, unknown.
+export type Sex = 'M' | 'F' | 'X' | 'U';
+
+// A person added to the tree as someone's relative: their name, empty for
+// none, and sex. A child goes into `familyId`, one of the person's families
+// as a spouse, when they have more than one; null otherwise.
+export interface NewRelative {
+  relation: Relation;
+  given: string;
+  surname: string;
+  sex: Sex;
+  familyId: number | null;
+}
+
 export interface CitationRow {
   id: number;
   // Title of the cited source record, e.g. a MyHeritage collection.
@@ -511,6 +528,9 @@ export type ChangeWhat =
       was: string | null;
       now: string | null;
     }
+  // A person added as the relation of the person named, as they were
+  // named then.
+  | { kind: 'person'; did: 'add'; relation: Relation; of: string }
   | { kind: 'import'; file: string; merged: boolean; lost: number }
   | { kind: 'undo-import' }
   | {

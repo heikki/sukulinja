@@ -5,7 +5,7 @@ Blocked by: 01
 
 Spec: `.scratch/add-people/spec.md`.
 
-The card menu gets _Remove as child of …_ and _Remove as spouse of …_, the person themself staying in the tree. A family left with no one in it is deleted, one left with one person stays. A `person-unlink` Change; `CHAN` of the family.
+The card menu gets _Remove as child of …_ and _Remove as spouse of …_, the person themself staying in the tree. A family left with no one in it is deleted, one left with one person stays. A `person` Change (`did: 'unlink'`); `CHAN` of the family.
 
 An unlinking that would cut anyone off from the Root isn't in the menu (spec, Decisions: Nothing cuts the tree in two), and the server refuses it too. The connectivity check is worked out as the menu opens.
 

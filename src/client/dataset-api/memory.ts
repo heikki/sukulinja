@@ -79,7 +79,9 @@ type MemoryDatasetApi = DatasetApi & {
   // <person>", "photos", "places", "add fact <person> <tag>[ in <family>]: <date>",
   // "edit fact <person> <fact>: <date>", "delete fact <person> <fact>".
   // `addFact` answers ids numbered on from 3000; Facts don't change the
-  // details given.
+  // details given. "add <relation> of <person>: <given> <surname>": a
+  // person `addRelative` adds joins `persons`, numbered on from 4000, in
+  // no family.
   // A Citation made by `cite` joins its Volume's citations, numbered on
   // from 1000, and `uncite` takes one out.
   asked: string[];
@@ -98,6 +100,8 @@ export function memoryDatasetApi(
   let made = 1000;
   let reminded = 2000;
   let factsAdded = 3000;
+  let personsAdded = 4000;
+  const persons = [...(data.persons ?? [])];
   let reminders = [...(data.reminders ?? [])];
   let changes = [...(data.changes ?? [])];
 
@@ -169,7 +173,7 @@ export function memoryDatasetApi(
     asked,
 
     persons: async (signal) =>
-      await answer('persons', signal, () => data.persons ?? []),
+      await answer('persons', signal, () => [...persons]),
 
     families: async (signal) =>
       await answer('families', signal, () => data.families ?? []),
@@ -413,6 +417,33 @@ export function memoryDatasetApi(
         () => {
           factsAdded += 1;
           return factsAdded;
+        }
+      ),
+
+    addRelative: async (personId, relative) =>
+      await answer(
+        `add ${relative.relation} of ${personId}: ${relative.given} ${relative.surname}`,
+        undefined,
+        () => {
+          found(
+            persons.find((p) => p.id === personId),
+            'person not found'
+          );
+          personsAdded += 1;
+          persons.push({
+            id: personsAdded,
+            given: relative.given,
+            surname: relative.surname,
+            sex: relative.sex,
+            birth_year: null,
+            death_year: null,
+            birth_date: null,
+            death_date: null,
+            died: false,
+            photo_path: null,
+            crop: null
+          });
+          return personsAdded;
         }
       ),
 

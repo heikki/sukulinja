@@ -175,3 +175,14 @@ test('says what was done to a Fact, and what it said before and after', () => {
   expect(detailOf(fact('delete', 'torppari', null))).toBe('torppari');
   expect(detailOf(fact('add', null, null))).toBeNull();
 });
+
+test('says whose relative a person was added as', () => {
+  const added = {
+    kind: 'person',
+    did: 'add',
+    relation: 'father',
+    of: 'Juho Esimerkki'
+  } as const;
+  expect(doneLabel(added)).toBe('Added as father');
+  expect(detailOf(added)).toBe('of Juho Esimerkki');
+});

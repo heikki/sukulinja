@@ -26,7 +26,7 @@ import { RAIL_PX, SLIDE_MS } from '../side-dock';
 import type { OpenChangeEvent, WidthChangeEvent } from '../side-dock';
 import { avatarHref, onAvatarReady } from './avatar-cache';
 import { buildChart } from './build';
-import { cardMenuAt, renderCardMenu } from './card-menu';
+import { cardMenuAt } from './card-menu';
 import type { CardMenu } from './card-menu';
 import { comfortOf, coreIds } from './comfort';
 import type { EmitOutput, Extents, Point } from './emit';
@@ -166,6 +166,10 @@ class TreeViewElement extends SignalWatcher(LitElement) {
         })
       );
       reportView();
+    },
+    // Drawing reads the people afresh, and the ring learns who's drawn.
+    redrawn: async () => {
+      await this.updateComplete;
     }
   };
 
@@ -554,27 +558,22 @@ class TreeViewElement extends SignalWatcher(LitElement) {
               </div>`
             : nothing
         }
-        ${renderCardMenu(this.menu, this.persons, this.rootId, {
-          // The card's person's pin is where their card is drawn, from
-          // layout coords: label widths vary by name length and would
-          // drift it across back-and-forth re-roots.
-          makeRoot: (menu) => {
+        <sl-card-menu
+          .menu=${this.menu}
+          .rootId=${this.rootId}
+          @make-root=${(e: CustomEvent<CardMenu>) => {
+            // The card's person's pin is where their card is drawn, from
+            // layout coords: label widths vary by name length and would
+            // drift it across back-and-forth re-roots.
             this.state.chart.makeRoot(
-              menu.personId,
-              this.viewport.chartToScreen(menu.pos)
+              e.detail.personId,
+              this.viewport.chartToScreen(e.detail.pos)
             );
-          },
-          // On the person alone, written in the Reminders list.
-          remind: (menu, name) => {
-            this.state.reminders.draft({
-              person: { personId: menu.personId, header: name },
-              image: null
-            });
-          },
-          close: () => {
+          }}
+          @close=${() => {
             this.menu = null;
-          }
-        })}
+          }}
+        ></sl-card-menu>
       </div>
     `;
   }

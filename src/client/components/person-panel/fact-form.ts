@@ -5,6 +5,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 
 import { ApiError } from '@/client/dataset-api';
 import { focusRingStyles } from '@/client/focus-ring';
+import { formStyles } from '@/client/form-styles';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import { gedcomDate } from '@/common/dates';
@@ -15,8 +16,6 @@ import {
   hasValue
 } from '@/common/facts';
 import type { FactFields, FactRow, Marriage } from '@/common/types';
-
-import { factFormStyles } from './events-styles';
 
 // What a Fact says, as the form shows it.
 function fieldsOf(fact: FactRow): FactFields {
@@ -42,7 +41,7 @@ function spouseLabel(m: Marriage) {
 // changed can be deleted, asked first.
 @customElement('sl-fact-form')
 class FactFormElement extends SignalWatcher(LitElement) {
-  static override styles = [focusRingStyles, factFormStyles];
+  static override styles = [focusRingStyles, formStyles];
 
   @consume({ context: appState }) private readonly state!: AppState;
 

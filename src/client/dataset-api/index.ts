@@ -11,6 +11,7 @@ import type {
   FactFields,
   FamilyRow,
   NewFact,
+  NewRelative,
   PersonDetails,
   PersonRow,
   PhotoRow,
@@ -142,6 +143,8 @@ export interface DatasetApi {
   places: (signal?: AbortSignal) => Promise<string[]>;
   // Adds a Fact to the person, or to one of their families: its id.
   addFact: (personId: number, fact: NewFact) => Promise<number>;
+  // Adds a new person to the tree as the person's relative: their id.
+  addRelative: (personId: number, relative: NewRelative) => Promise<number>;
   // Changes what one of the person's Facts, or their families', says.
   editFact: (
     personId: number,
@@ -420,6 +423,19 @@ export function openDatasetApi(
 
     places: async (signal) =>
       await json<string[]>('Places', `${dataset}/api/places`, signal),
+
+    async addRelative(personId, relative) {
+      const res = await ask(
+        'Adding the person',
+        `${dataset}/api/persons/${personId}/relatives`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(relative)
+        }
+      );
+      return ((await res.json()) as { id: number }).id;
+    },
 
     async addFact(personId, fact) {
       const res = await ask(

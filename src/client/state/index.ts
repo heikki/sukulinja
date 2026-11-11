@@ -15,6 +15,8 @@ import { openPhotoViewer } from './photo-viewer';
 import type { PhotoViewer } from './photo-viewer';
 import { openPhotos } from './photos';
 import type { Photos } from './photos';
+import { openRelatives } from './relatives';
+import type { Relatives } from './relatives';
 import { openReminders } from './reminders';
 import type { Reminders } from './reminders';
 import { openSelected } from './selected';
@@ -30,6 +32,7 @@ export type { LinkStatus, Source, SourceGroup } from './sources';
 export type { Confirming } from './confirming';
 export type { PendingTag, PhotosFrom, PhotoViewer } from './photo-viewer';
 export type { Photos } from './photos';
+export type { Relatives } from './relatives';
 export type { Reminders } from './reminders';
 export type {
   ImageOpen,
@@ -59,6 +62,8 @@ export interface AppState {
   changes: Changes;
   // Adding, changing and deleting the Selected person's Facts.
   facts: Facts;
+  // Adding people to the tree as someone's relatives.
+  relatives: Relatives;
 }
 
 export function openAppState(api: DatasetApi): AppState {
@@ -87,7 +92,8 @@ export function openAppState(api: DatasetApi): AppState {
     chart,
     reminders: openReminders(api),
     changes: openChanges(api),
-    facts
+    facts,
+    relatives: openRelatives(api, chart)
   };
 }
 

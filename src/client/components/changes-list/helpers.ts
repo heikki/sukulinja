@@ -52,6 +52,8 @@ export function doneLabel(what: ChangeWhat) {
       return 'Chose the portrait';
     case 'fact':
       return factDone(what);
+    case 'person':
+      return `Added as ${what.relation}`;
     case 'import':
       return what.merged
         ? `Imported ${what.file} again`
@@ -87,6 +89,8 @@ export function detailOf(what: ChangeWhat) {
       return what.photo;
     case 'fact':
       return factDetail(what);
+    case 'person':
+      return `of ${what.of}`;
     case 'import':
       return what.lost === 0 ? null : `${what.lost} not kept`;
     case 'undo-import':

@@ -259,6 +259,47 @@ describe('the answers', () => {
     expect(await api.changes()).toEqual([]);
   });
 
+  test('a relative added to someone, in their family, and why not', async () => {
+    const blank = { surname: 'Esimerkki', familyId: null };
+    const brother = await api.addRelative(3, {
+      ...blank,
+      relation: 'sibling',
+      given: 'Pekka',
+      sex: 'M'
+    });
+    expect((await api.persons()).find((p) => p.id === brother)).toMatchObject({
+      given: 'Pekka',
+      sex: 'M'
+    });
+    expect(await api.families()).toEqual([
+      { id: 1, husband_id: 1, wife_id: 2, child_ids: [3, brother] }
+    ]);
+    expect(
+      await failure(
+        api.addRelative(3, {
+          ...blank,
+          relation: 'father',
+          given: '',
+          surname: '',
+          sex: 'M'
+        })
+      )
+    ).toBe('Write a name.');
+    expect(
+      await failure(
+        api.addRelative(99, {
+          ...blank,
+          relation: 'child',
+          given: 'X',
+          sex: 'U'
+        })
+      )
+    ).toBe('person not found');
+    expect((await api.changes()).map((c) => c.what)).toMatchObject([
+      { kind: 'person', did: 'add', relation: 'sibling', of: 'Juho Esimerkki' }
+    ]);
+  });
+
   test("a Volume's Images and archive, and its citations", async () => {
     const volume = await api.volume(VOLUME);
     expect(volume.images).toHaveLength(IMAGES);

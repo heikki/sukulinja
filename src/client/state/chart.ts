@@ -49,6 +49,8 @@ export interface ChartView {
   // Writes Root and the Selected person into the URL: a new Root pushes
   // an entry, anything else replaces it (ADR-0011).
   writeUrl: (push: boolean) => void;
+  // Settles once the chart is drawn with the people as they are now.
+  redrawn: () => Promise<void>;
 }
 
 // With no chart drawn, no one is, and nothing moves.
@@ -56,7 +58,10 @@ const UNDRAWN: ChartView = {
   draws: () => false,
   show: () => undefined,
   rerooting: () => undefined,
-  writeUrl: () => undefined
+  writeUrl: () => undefined,
+  redrawn: async () => {
+    await Promise.resolve();
+  }
 };
 
 // Whom the chart starts from when the URL names no one the dataset has.
@@ -77,6 +82,10 @@ export interface Chart {
   // The people read again, their families kept, as after a Tag changes
   // someone's portrait. Kept as they were if they can't be.
   reloadPeople: () => Promise<void>;
+  // Someone added to the tree: the people and their families read again,
+  // and once the chart is drawn with them, they're selected, as a card
+  // clicked, or built around if the chart doesn't draw them.
+  added: (id: number) => Promise<void>;
   // The one way to select someone (ADR-0012), for the dock's details. Once
   // a change pending in the Scan viewer is saved or discarded, their card
   // is shown, or, if the chart doesn't draw them, it's built around them.
@@ -183,16 +192,21 @@ export function openChart(
     return first.done === true ? null : first.value;
   }
 
+  // The people and their families, as they are now.
+  async function readPeople() {
+    const [persons, families] = await Promise.all([
+      api.persons(),
+      api.families()
+    ]);
+    people.set({
+      persons: new Map(persons.map((p) => [p.id, p])),
+      ...familiesByPerson(families)
+    });
+  }
+
   async function load(read: () => UrlView) {
     try {
-      const [persons, families] = await Promise.all([
-        api.persons(),
-        api.families()
-      ]);
-      people.set({
-        persons: new Map(persons.map((p) => [p.id, p])),
-        ...familiesByPerson(families)
-      });
+      await readPeople();
       const at = read();
       const id = startingRoot(at.rootId);
       root.set(id);
@@ -233,6 +247,11 @@ export function openChart(
       } catch (err) {
         if (!(err instanceof ApiError)) throw err;
       }
+    },
+    async added(id) {
+      await readPeople();
+      await view.redrawn();
+      select(id);
     },
     select,
     step(id) {

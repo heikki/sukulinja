@@ -14,6 +14,10 @@ import type { FactAnswer } from './facts/facts';
 import { routeFacts } from './facts/routes';
 import type { FactHandlers } from './facts/routes';
 import { createPersonDetails } from './person-details';
+import { createRelatives } from './persons/relatives';
+import type { RelativeAnswer } from './persons/relatives';
+import { routePersons } from './persons/routes';
+import type { PersonHandlers } from './persons/routes';
 import { createPhotos, openTags, routePhotos } from './photos';
 import type { Photos, Tags } from './photos';
 import { createReminders } from './reminders/reminders';
@@ -27,7 +31,8 @@ interface ApiHandlers {
   routeApi: (req: Request, pathname: string) => Promise<Response | null>;
 }
 
-interface DatasetHandlers extends ReminderHandlers, FactHandlers {
+interface DatasetHandlers
+  extends ReminderHandlers, FactHandlers, PersonHandlers {
   // The dataset's Changes, which the rest of the app writes into.
   changes: Changes;
   // GET lists the Changes, DELETE clears them.
@@ -58,6 +63,9 @@ function createDatasetHandlers(
   const tags = openTags(db, photos, (change) => {
     changes.add(change);
   });
+  const relatives = createRelatives(db, (change) => {
+    changes.add(change);
+  });
 
   // A Reminder as written or changed, or why not.
   function answerReminder(
@@ -77,6 +85,16 @@ function createDatasetHandlers(
     return 'rejected' in result
       ? new Response(result.rejected, { status: 400 })
       : Response.json(result, { status });
+  }
+
+  // A person as added, or why not.
+  function answerPerson(result: RelativeAnswer) {
+    if (result === null) {
+      return new Response('person not found', { status: 404 });
+    }
+    return 'rejected' in result
+      ? new Response(result.rejected, { status: 400 })
+      : Response.json(result, { status: 201 });
   }
 
   return {
@@ -136,6 +154,10 @@ function createDatasetHandlers(
         : new Response('reminder not found', { status: 404 });
     },
 
+    handleAddRelative(personId, relative) {
+      return answerPerson(relatives.add(personId, relative));
+    },
+
     handlePlaces() {
       return Response.json(facts.places());
     },
@@ -169,21 +191,35 @@ function createDatasetHandlers(
   };
 }
 
+// The tree as the chart and the panel read it, and the Changes, listed or
+// cleared; null for any other path.
+async function routeReads(
+  req: Request,
+  handlers: DatasetHandlers,
+  rest: string
+) {
+  if (rest === '/api/persons') return handlers.handlePersons();
+  if (rest === '/api/families') return handlers.handleFamilies();
+  if (rest === '/api/changes') return await handlers.handleChanges(req);
+  const person = /^\/api\/persons\/(?<id>\d+)$/.exec(rest);
+  if (person !== null) return handlers.handlePerson(Number(person.groups!.id));
+  return null;
+}
+
 async function routeDataset(
   req: Request,
   handlers: DatasetHandlers,
   rest: string,
   mediaRoot: string
 ): Promise<Response | null> {
-  if (rest === '/api/persons') return handlers.handlePersons();
-  if (rest === '/api/families') return handlers.handleFamilies();
-  if (rest === '/api/changes') return await handlers.handleChanges(req);
-  const person = /^\/api\/persons\/(?<id>\d+)$/.exec(rest);
-  if (person !== null) return handlers.handlePerson(Number(person.groups!.id));
+  const read = await routeReads(req, handlers, rest);
+  if (read !== null) return read;
   const cited = await handlers.routeCitations(req, rest);
   if (cited !== null) return cited;
   const facts = await routeFacts(req, handlers, rest);
   if (facts !== null) return facts;
+  const persons = await routePersons(req, handlers, rest);
+  if (persons !== null) return persons;
   const reminded = await routeReminders(req, handlers, rest);
   if (reminded !== null) return reminded;
   const photo = await routePhotos(req, handlers, rest);
