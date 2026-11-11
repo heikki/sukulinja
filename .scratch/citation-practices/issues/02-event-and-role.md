@@ -1,17 +1,22 @@
 # Say what an Entry records and who the person is in it
 
-Status: needs-info
+Status: ready-for-agent
 
 From [fact-citations.md](../fact-citations.md), askel D. Terms: **Event** and **Role** in the Citations glossary.
 
-A Citation made in the app, or converted (ADR-0016), writes GEDCOM's citation `EVEN` and `ROLE`:
+## What to build
+
+A Citation made in the app, or converted (ADR-0016), writes GEDCOM's citation `EVEN` and `ROLE`. No schema change: the columns are there and the export writes them.
 
 - **Event** from the Volume's **Book**: kastetut `CHR`, vihityt `MARR`, rippikirja and lastenkirja `RESI`, haudatut `BURI`. A converted Citation's MyHeritage `EVEN Record` and its record id under `ROLE` are replaced, as they aren't GEDCOM.
-- **Role** on a converted **Index reference** from its suffix: none `CHIL`, "-F" `FATH`, "-M" `MOTH`. Elsewhere, none for now.
+- **Role on a converted Index reference** from its suffix: none `CHIL`, "-F" `FATH`, "-M" `MOTH`.
+- **Role in "New citation for…"**, only for a baptism or a marriage (Heikki, 2026-11-11): beside picking the person, an optional choice of child, father, mother, godparent (`GODP`) for a baptism, and groom (`HUSB`), bride (`WIFE`) for a marriage. Not asked for a rippikirja or lastenkirja.
+- **No Role for a household line** (Heikki, 2026-11-11): isäntä, emäntä or piika says who the person is in the household, which the Transcription holds, not their Role in the Entry. No `OTHER` with a phrase.
 
-No schema change: the columns are there and the export writes them.
+## Acceptance
 
-## Open
-
-- **Role for a Citation made in the Scan viewer.** Asking for it means a choice in "New citation for…" (child, father, mother, godparent, spouse, other). Ask there, or leave it empty until the Entry model?
-- **A household line's Role.** GEDCOM's roles don't name a rippikirja's (isäntä, emäntä, lapsi, piika). `OTHER` with a phrase, or none?
+- A Citation made in a kastetut Volume has `EVEN CHR`, and the Role chosen, in the GEDZIP.
+- A converted "-F" reference has `ROLE FATH`; MyHeritage's `EVEN Record` is gone from it.
+- A rippikirja Citation has `EVEN RESI` and no `ROLE`.
+- UI checked in the browser with `bun dev`, in dark mode.
+- `bun fmt`, lint, typecheck and tests pass.
