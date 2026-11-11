@@ -1,4 +1,4 @@
-Status: needs-triage
+Status: ready-for-agent
 
 # Add, edit and delete Facts
 
@@ -8,13 +8,15 @@ Heikki, 2026-11-11: "Onko meillä tikettiä tai paikkaa jo faktojen lisäämisel
 
 The panel's _Events_ lists a person's Facts and their marriages' (`person-details.ts`), read only. Corrections had to be made in MyHeritage and imported again. Now the tree is worked on in the app, and a Fact is added, corrected or deleted where it's shown.
 
-## Open, for Heikki
+## Decided by Heikki, 2026-11-11
 
-1. **Import into an existing dataset.** With the app as the master, importing over a dataset would replace the edited tree. Recommended: **import only makes a new dataset.** The merge (`import/merge*.ts`), _Undo last import_ and the import review go, in a ticket of their own after this feature, and a GEDZIP backup is restored by importing it as a new dataset. Alternative: keep importing a GEDZIP over a dataset as a plain restore, replacing it, with no merge. Until decided, ticket 01 only refuses a MyHeritage export over an existing dataset.
-2. **The GEDCOM 5.5.1 export** (`export/gedcom551.ts`, _Export for MyHeritage_). Heikki doesn't upload back. Recommended: remove it with the import.
-3. **Place names.** A Fact's place is text (`facts.place`), and the tree's places are spelled as MyHeritage spelled them. Recommended: a free text field that suggests the places already in the dataset, so a known place is picked rather than typed again. A place list of its own (with parish, coordinates) would be a feature of its own.
+"Suositukset vaikuttaa hyviltä."
 
-## Decided (proposed)
+1. **An import only makes a new dataset.** Importing over a dataset would replace the edited tree. The merge (`import/merge*.ts`), _Undo last import_ and the import review go, and a GEDZIP backup is restored by importing it as a new dataset. Until ticket 08 removes them, ticket 01 refuses an import over an existing dataset.
+2. **The GEDCOM 5.5.1 export goes** (`export/gedcom551.ts`, _Export for MyHeritage_). Nothing is uploaded back to MyHeritage.
+3. **A place is free text that suggests the dataset's places.** A Fact's place is text (`facts.place`); the field suggests the places already in the dataset, so a known place is picked rather than typed again. A place list of its own (with parish, coordinates) would be a feature of its own.
+
+## Decided
 
 - **Where:** in the person panel's _Events_, on each Fact: _Edit_ and _Delete_ in a row menu, and _Add event_ below the list. _Events_ is shown even when a person has none, so there's somewhere to add the first.
 - **What can be added:** the kinds the tree uses, in this order: Birth, Christening, Death, Burial, Residence, Occupation, Marriage, Divorce, Emigration, Immigration, Census, Event (with a type). Other GEDCOM kinds an import brought are shown and edited as now, but not offered. The kinds and their labels live in one module, `src/common/facts.ts`, which `FACT_LABELS` moves into.
@@ -48,13 +50,13 @@ No behaviour change, each a commit, tests passing unchanged:
 
 | #   | Ticket                                                                | Blocked by |
 | --- | --------------------------------------------------------------------- | ---------- |
-| 01  | Refuse a MyHeritage export over an existing dataset (ADR-0021)        | none       |
+| 01  | Refuse an import over an existing dataset (ADR-0021)                  | none       |
 | 02  | The refactors above                                                   | none       |
 | 03  | Typed Finnish dates to GEDCOM, round trip with `gedcomDate`           | none       |
 | 04  | Edit a Fact's date, place, value and type, with its Change and `CHAN` | 02, 03     |
 | 05  | Add a Fact, a marriage to a chosen family                             | 04         |
 | 06  | Delete a Fact, its Citations moved to its owner                       | 04         |
 | 07  | Allow deleting imported and converted Citations (ADR-0021)            | none       |
-| 08  | Remove the re-import, or keep it as a restore (open question 1)       | 01         |
-| 09  | Remove the 5.5.1 export (open question 2)                             | none       |
+| 08  | Remove the re-import: merge, Undo last import, import review          | 01         |
+| 09  | Remove the 5.5.1 export                                               | none       |
 | 10  | Glossary: **Fact** made in the app too; the new Change kinds          | 04         |
