@@ -1,8 +1,8 @@
 # Adding people to the tree
 
-Status: needs-triage
+Status: ready-for-agent
 
-Heikki, 2026-11-11: "Henkilöiden lisäys on yksi isompi feature, mikä pitäisi kirjata ylös." Recorded here as an idea, not yet grilled or ticketed.
+Heikki, 2026-11-11: "Henkilöiden lisäys on yksi isompi feature, mikä pitäisi kirjata ylös." Open questions settled with Heikki the same evening; tickets in `issues/`.
 
 ## Why now
 
@@ -27,24 +27,25 @@ Heikki decided on 2026-11-11 to cut the MyHeritage connection: Sukulinja becomes
 - **The first person starts a new dataset.** Today a dataset only comes from an import, and the chooser offers nothing else ("No datasets yet" → Import). Beside _Import_ comes _New dataset…_: it asks the dataset's name and its first person's name and sex, and that person is the Root. Everyone after them is added as a relative, as below. This is the only person made with no place in the tree, since there's no tree yet.
 - **No one is added unlinked.** Every new person is made in a place in the tree, from a card or relative to the Selected person, so the chart can always reach them.
 - **A new person's facts** (birth, death, a residence) are entered with the fact form of the facts spec, right after the name, not with a form of this feature's own.
-- **Each is a Change**: a person added, or linked to another as a parent, spouse or child, on that person. Picking it selects them.
+- **Each is a Change**, on the person: `person-add`, `person-link`, `person-unlink`, `person-edit` and `person-delete` in `ChangeWhat`, written the way the panel names them (_Added Matti Virtanen as father of Juho Virtanen_), so the Change reads the same once they're gone. Picking one selects them. The person's `CHAN`, and the family's, gets today's date and time, as the facts spec does.
 - **The chart takes the new person in place**: they're selected, and the chart moves to them as when re-rooted.
 
 ## What a new person is in the database
 
 - A `persons` row with a new random `UID` (ADR-0013) and a new xref that no import gave, and their sex: `M`, `F`, `X` or `U`, GEDCOM 7's values.
-- One `names` row: given names and surname, its `full_text` written the GEDCOM way (`Matti /Virtanen/`). A patronymic, farm name or a name at birth are for name editing (see open questions), not this.
-- A family is a `families` row with a new xref and `UID`; a child a `family_children` row at the end of its order.
+- One `names` row: given names and surname, its `full_text` written the GEDCOM way (`Matti /Virtanen/`). A patronymic, farm name or a name at birth are a later feature (see Decisions).
+- A family is a `families` row with a new xref and `UID`; a child a `family_children` row, in birth order (see Decisions).
 - No marker that the app made it: with MyHeritage cut there's no re-import to tell the app's people from the import's. The export writes them like everyone else.
 
-## Open questions
+## Decisions (Heikki, 2026-11-11)
 
-- **Editing a person's name and sex**, and more than one name (a woman's name at birth and married, a farm name): the facts spec leaves them out, so they're this feature's. In the same tickets as adding, or after?
-- **Deleting a person, or unlinking them from a family.** Deleting takes their names, facts, Citations, Tags and family places with them (the facts spec's helper that deletes what a person or fact holds does most of it), and leaves Changes and Reminders on nothing, as a person gone does now. Wanted in the same feature, or later?
-- **Merging two people** who turn out to be one: the duplicate check only prevents it going forward. Later, probably its own feature.
-- **Family order**: is a child put last, or by birth date once one is known? Is a person's second spouse ordered by marriage date?
-- **Who's a "parent" in a family with two of the same sex**, as GEDCOM 7 allows: husband and wife columns say nothing of sex. Probably as entered, first `husband_id`.
-- **Undo**: is a person added by mistake deleted, or is there an Undo on its Change?
+- **Name and sex are edited in this feature**, in the same tickets as adding, so a typo in a new person's name is fixed at once. One name per person for now.
+- **A person added by mistake is deleted**, from the card's menu, and the deletion is a Change. No Undo of its own. The same deletion works for imported people, since nothing brings them back now (ADR-0021). Deleting takes their names, Facts, Citations, Tags and places in families with them, through the facts spec's helper for what a person or Fact holds; their Changes and Reminders stay, on nothing, as a person gone does now. A family left with no one in it goes too.
+- **A person is unlinked from a family** without deleting them: _Remove as child_, _Remove as spouse_. A family left with no one goes, one left with one person stays.
+- **Children are ordered by birth date** when it's known, else in the order they were added: the order is written to `family_children` when a child is added and when a child's birth (or baptism) date changes.
+- **Later, each its own feature**: more than one name (at birth, married, a farm name), and merging two people who turn out to be one. The duplicate check keeps new copies from being made meanwhile.
+- **Who's the "parent"**: as entered. The first parent of a family is `husband_id`, the second `wife_id`, whatever their sex; GEDCOM 7 allows two of the same.
+- **What the Root is after a deletion**: deleting the Root makes the Selected person's nearest relative the Root (a parent, else a spouse, else a child); the last person in a dataset can't be deleted.
 
 ## Architecture notes
 
@@ -56,6 +57,20 @@ Heikki decided on 2026-11-11 to cut the MyHeritage connection: Sukulinja becomes
 
 ## Related
 
-- ADR-0021 and `.scratch/fact-editing/spec.md`: the basis of this. ADR-0021 asks whether importing into an existing dataset goes away; if it stays, a person added here has to survive a re-import, which this spec assumes it needn't.
+- ADR-0021 and `.scratch/fact-editing/spec.md`: the basis of this. ADR-0021 ends importing into an existing dataset, so a person added here needn't survive a re-import.
 - `.scratch/citation-practices/entries.md`: an Entry names the people in it with their Roles; adding the ones the tree lacks is where this feature is most used.
 - `.scratch/photos/spec.md`: the person picker this extends.
+
+## Tickets
+
+| #   | Ticket                                                         | Blocked by          |
+| --- | -------------------------------------------------------------- | ------------------- |
+| 01  | Add a parent, spouse, child or sibling from a card's menu      | none                |
+| 02  | Link someone already in the tree, and the duplicate check      | 01                  |
+| 03  | Edit a person's name and sex                                   | 01                  |
+| 04  | Order children by birth date                                   | 01, fact-editing 04 |
+| 05  | Unlink a person from a family                                  | 01                  |
+| 06  | Delete a person                                                | 05, fact-editing 06 |
+| 07  | New relatives from the Scan viewer's and Photo viewer's picker | 01                  |
+| 08  | Start a new dataset with its first person                      | 01                  |
+| 09  | Glossary: Person, Family and the new Change kinds              | 01                  |
