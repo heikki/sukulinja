@@ -41,8 +41,8 @@ test('offers a new Tag on the Photo once it shows, and a Box its own', () => {
   expect(labels(photos, {})).toEqual(['Tag someone here…']);
   expect(labels(photos, { canTag: false })).toEqual([]);
   expect(labels(photos, { onBox: 3 })).toEqual([
-    'Edit',
     'Use as portrait',
+    'Edit',
     'Delete'
   ]);
   expect(labels(photos, { onBox: 3, portrait: true })).toEqual([

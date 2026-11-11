@@ -36,13 +36,13 @@ export function photoItems(
           }
         ];
     return [
+      ...portrait,
       {
         label: 'Edit',
         run: () => {
           viewer.edit(onBox);
         }
       },
-      ...portrait,
       {
         label: 'Delete',
         run: () => {
