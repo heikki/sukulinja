@@ -1,4 +1,4 @@
-Status: needs-triage
+Status: ready-for-agent
 
 # View a person's Photos in the Photo viewer
 
