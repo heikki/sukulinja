@@ -20,17 +20,17 @@ Elizabeth Shown Millsin _Evidence Explained_ ja BCG:n _Genealogy Standards_ erot
 
 Evidence Explainedin "who, what, when, where in, where is" -malli, sovitettuna kirkonkirjoihin:
 
-| Osa | Kirkonkirjassa | Sukulinjassa nyt |
-|---|---|---|
-| Kuka loi | seurakunta, arkistonmuodostaja ("Haukivuoren seurakunnan arkisto") | Parish-tieto on, mutta app-sitaatin lähteen otsikko on pelkkä Volumen nimi, ilman seurakuntaa |
-| Mikä | kirjan sarja ja signum ("I Aa:5 Pää- ja rippikirjat") | on (Volumen nimi) |
-| Milloin | kirjan vuodet; merkinnän päivä | kirjan vuodet nimessä; merkinnän päivää ei erikseen |
-| Missä kohtaa | sivu kirjassa, kuva Astiassa, kohta kuvassa | Image, Box ja Page number tallessa; PAGE on pelkkä Astian viewer-URL |
-| Missä aineisto on | Kansallisarkisto, Astia + pysyvä linkki | julkaisija "Kansallisarkisto, Astia", URL |
-| Milloin katsottu | viittauspäivä ("viitattu 11.11.2026") | Change-lokissa on päivä, sitaatissa ei |
-| Mitä siinä lukee | litterointi alkuperäisellä kielellä ja kirjoitusasulla | TEXT on MyHeritagen litterointi tai tyhjä |
-| Kuinka luotettava | lähteen ja tiedon laatu, oma arvio | Certainty kertoo linkin varmuuden, ei tiedon laatua; `quality`-sarake on olemassa, mutta käyttämätön |
-| Mitä se todistaa | mihin tapahtumaan/faktaan sitaatti liittyy, ja kenen rooli | app-sitaatti on aina henkilötasolla, ei faktalla; EVEN/ROLE tyhjiä |
+| Osa               | Kirkonkirjassa                                                     | Sukulinjassa nyt                                                                                     |
+| ----------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| Kuka loi          | seurakunta, arkistonmuodostaja ("Haukivuoren seurakunnan arkisto") | Parish-tieto on, mutta app-sitaatin lähteen otsikko on pelkkä Volumen nimi, ilman seurakuntaa        |
+| Mikä              | kirjan sarja ja signum ("I Aa:5 Pää- ja rippikirjat")              | on (Volumen nimi)                                                                                    |
+| Milloin           | kirjan vuodet; merkinnän päivä                                     | kirjan vuodet nimessä; merkinnän päivää ei erikseen                                                  |
+| Missä kohtaa      | sivu kirjassa, kuva Astiassa, kohta kuvassa                        | Image, Box ja Page number tallessa; PAGE on pelkkä Astian viewer-URL                                 |
+| Missä aineisto on | Kansallisarkisto, Astia + pysyvä linkki                            | julkaisija "Kansallisarkisto, Astia", URL                                                            |
+| Milloin katsottu  | viittauspäivä ("viitattu 11.11.2026")                              | Change-lokissa on päivä, sitaatissa ei                                                               |
+| Mitä siinä lukee  | litterointi alkuperäisellä kielellä ja kirjoitusasulla             | TEXT on MyHeritagen litterointi tai tyhjä                                                            |
+| Kuinka luotettava | lähteen ja tiedon laatu, oma arvio                                 | Certainty kertoo linkin varmuuden, ei tiedon laatua; `quality`-sarake on olemassa, mutta käyttämätön |
+| Mitä se todistaa  | mihin tapahtumaan/faktaan sitaatti liittyy, ja kenen rooli         | app-sitaatti on aina henkilötasolla, ei faktalla; EVEN/ROLE tyhjiä                                   |
 
 Suomalainen tapa kirjoittaa kirkonkirjaviite (Kansallisarkiston ja yliopistojen viittausohjeiden mukaan, sukututkimuksessa vakiintunut):
 
