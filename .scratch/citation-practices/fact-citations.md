@@ -55,7 +55,7 @@ Yksi kirkonkirjamerkintä tukee usein monta faktaa. Rippikirjan rivi antaa synty
 
 ## Suositus
 
-**Ensin D, sitten A sovelluksen omille sitaateille** (MyHeritage-kierros ei ole este, ks. kysymys 1). B ei kannata nyt, ja C vain väliaikaisena näkymänä, jos sitä tarvitaan.**
+**Ensin D, sitten A sovelluksen omille sitaateille** (MyHeritage-kierros ei ole este, ks. kysymys 1). B ei kannata nyt, ja C vain väliaikaisena näkymänä, jos sitä tarvitaan.
 
 1. **D ensin.** Kun Citation tehdään sovelluksessa tai se konvertoidaan (ADR-0016), kirjoitetaan `EVEN` ja `ROLE` Book-lajista ja Index referencen päätteestä. Konversiossa ne korvaavat MyHeritagen `EVEN Record`-arvot, jotka eivät ole GEDCOMia. Scan viewerin "New citation for…" voi tarjota roolin (lapsi, isä, äiti, kummi, puoliso), jos sitä ei voi päätellä. Tämä on pieni ja tekee B:n ja A:n myöhemmin helpommiksi.
 2. **Sitten A, vain sovelluksen omille sitaateille** (`added_in_app`). Lähdeohjelman tuomat sitaatit pysyvät siellä, minne se ne pani. Tämä noudattaa ADR-0013:a: tuotu osa tulee aina uudesta viennistä. Kastemerkintä menee lapsen CHR-faktalle (tai BIRT, jos CHR:ää ei ole), vihkimerkintä MARR-faktalle ja rippikirjan rivi RESI-faktalle, jonka vuodet osuvat kirjan vuosiin. Muuten sitaatti jää henkilölle. Valinta johdetaan EVEN-arvosta, eli käyttäjän ei tarvitse valita.
