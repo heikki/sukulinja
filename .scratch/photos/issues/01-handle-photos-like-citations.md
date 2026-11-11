@@ -15,9 +15,12 @@ Heikki, 2026-11-11: "Valokuvien käsittely samalla tavalla tai samalla tyylillä
 
 Photos get what Citations have: a list on the person, a viewer to look at them in, and editing done in the app, kept across a re-import and listed under _Changes_. A group photo is the closest thing to a church-book Image: one picture, many people, each a Box on it.
 
+## Decisions so far
+
+- **A Photo viewer beside the Scan viewer** (Heikki, 2026-11-11): "Scanweaverin lisäksi meillä olisi Photoweaver ja ne toimisivat melko lailla samalla tavalla." Its own viewer, working much like the Scan viewer, not one viewer for both. What the two share (zooming and panning an image, Boxes on it, the people beside it, the menu on a Box) is to be one set of parts both use, not a copy of the Scan viewer's.
+
 ## Open questions
 
-- **Same way or same style?** One viewer for both scans and photos, or a photo viewer of its own that looks and works like the Scan viewer.
 - **What's edited first:** choosing the portrait, drawing a person's face (the `CROP`), tagging the people in a group photo, a title or date, adding a photo from disk, removing one.
 - **Where photos are listed:** a _Photos_ section in the person panel beside _Sources_, and whether a family's or an event's photos show on its people.
 - **Who's in it:** does tagging a person in a photo link the photo to them (a `media_link` per person, each with its own crop), as a Citation is made for each person in a record?
