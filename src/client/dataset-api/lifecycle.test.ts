@@ -9,7 +9,6 @@ import { join } from 'node:path';
 
 import type { Change, ImportReview } from '@/common/types';
 import { juvaAstia } from '@/server/citations/testing';
-import { SCHEMA_VERSION } from '@/server/datasets/db';
 import { DatasetRegistry } from '@/server/datasets/registry';
 import { createApi, createStaticFetch } from '@/server/server';
 
@@ -178,11 +177,11 @@ test("an export of a dataset that isn't there, or won't open, says why", async (
   );
   await upload();
   const db = new Database(join(root, 'data', 'tree', 'db.sqlite'));
-  db.run("UPDATE meta SET value = '1' WHERE key = 'schema_version'");
+  db.run('PRAGMA user_version = 0');
   db.close();
   // Found so as the app starts, as one an older version left.
   launch();
   expect(await failure(api.exportAs('tree', 'gdz'))).toBe(
-    `This dataset was made by an older version of the app (schema 1, now ${SCHEMA_VERSION}).`
+    'This dataset was made by an older version of the app, from before schema 1.'
   );
 });

@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import { openDb, SCHEMA_VERSION } from '../datasets/db';
+import { openDb } from '../datasets/db';
 import { parseGedcom } from '../gedcom/parser';
 import { importGedcom } from './gedcom';
 
@@ -372,7 +372,6 @@ test('stores what other programs write: change dates, map, citations and media o
     { key: 'header_note', value: 'About this tree' },
     { key: 'language', value: 'fr' },
     { key: 'place_form', value: 'Commune, Pays' },
-    { key: 'schema_version', value: String(SCHEMA_VERSION) },
     { key: 'submitter', value: '@B1@' }
   ]);
   expect(db.query('SELECT name, email FROM submitters').all()).toEqual([

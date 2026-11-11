@@ -192,10 +192,10 @@ test('a cancelled review leaves the dataset as it was', async () => {
 test('a dataset an older schema built merges its Marks', async () => {
   await importTree(tree([MATTI]));
   mark(citationIds('@I1@')[0]!);
-  // As schema 4 left it, before citations could be made in the app.
+  // As an older app left it, before citations could be made in the app.
   const db = registry().open('tree');
   db.run('ALTER TABLE citations DROP COLUMN added_in_app');
-  db.run("UPDATE meta SET value = '4' WHERE key = 'schema_version'");
+  db.run('PRAGMA user_version = 0');
   db.close();
   reopen();
   expect(await registry().list()).toMatchObject([{ outdated: true }]);
@@ -409,7 +409,7 @@ test('a Reminder whose person is gone is listed', async () => {
 
 test('a Reminder an older app put on a citation goes onto its person', async () => {
   await importTree(tree([MATTI]));
-  // As schema 9 left it, when a Reminder could be on a citation.
+  // As an older app left it, when a Reminder could be on a citation.
   const db = registry().open('tree');
   db.run('ALTER TABLE reminders ADD COLUMN citation_id INTEGER');
   db.run(
@@ -417,7 +417,7 @@ test('a Reminder an older app put on a citation goes onto its person', async () 
      VALUES ('Is this the entry?', ?, ?, '2026-10-23T10:00:00.000Z')`,
     [personId('@I1@'), citationIds('@I1@')[0]!]
   );
-  db.run("UPDATE meta SET value = '9' WHERE key = 'schema_version'");
+  db.run('PRAGMA user_version = 0');
   db.close();
   reopen();
 

@@ -1,5 +1,13 @@
 import { Database } from 'bun:sqlite';
 
+import {
+  latestOf,
+  migrate,
+  MIGRATIONS,
+  OLDEST_MIGRATED,
+  versionOf
+} from './migrations';
+
 const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS persons (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -262,12 +270,13 @@ const SCHEMA_SQL = `
   );
 `;
 
-// Raised whenever the schema changes. A dataset's database holds the whole
-// tree and the file it came from isn't kept, so an older database can't be
-// upgraded: the dataset is imported again (ADR-0013).
-export const SCHEMA_VERSION = 11;
+// The schema a new database is built with. A change to it is a step in
+// MIGRATIONS too, which takes a database built before it there, ending in
+// the same tables (ADR-0018). A column a step adds goes last in its table
+// here, where ALTER TABLE puts it.
+export const SCHEMA_VERSION = latestOf(MIGRATIONS);
 
-// A dataset whose database an older version of the app built.
+// A dataset whose database is too old to migrate, or a newer app built.
 export class OutdatedDatasetError extends Error {}
 
 function hasTables(db: Database) {
@@ -280,33 +289,42 @@ function hasTables(db: Database) {
   );
 }
 
-function schemaVersion(db: Database) {
-  const hasMeta = db
-    .query("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'meta'")
-    .get();
-  if (hasMeta === null) return null;
-  const row = db
-    .query<{ value: string }, []>(
-      "SELECT value FROM meta WHERE key = 'schema_version'"
-    )
-    .get();
-  return row === null ? null : Number(row.value);
+// Where a database's copy from before its last migration is kept, beside
+// it; none for one in memory.
+function backupOf(path: string) {
+  if (path === ':memory:' || path === '') return null;
+  return `${path.replace(/\.sqlite$/u, '')}.before-migration.sqlite`;
 }
 
-// Opens a dataset's database, creating the schema in a new one. Throws
-// OutdatedDatasetError for one built with another schema.
+// Opens a dataset's database, creating the schema in a new one and
+// migrating an older one. Throws OutdatedDatasetError for one built before
+// the oldest schema migrated, or by a newer app.
 export function openDb(path: string): Database {
   const db = new Database(path, { create: true });
   db.run('PRAGMA foreign_keys = ON;');
   // The app and the vision pass write Marks at once, from two processes.
   db.run('PRAGMA busy_timeout = 5000;');
   if (hasTables(db)) {
-    const version = schemaVersion(db);
-    if (version !== SCHEMA_VERSION) {
+    const version = versionOf(db);
+    if (version < OLDEST_MIGRATED) {
       db.close();
       throw new OutdatedDatasetError(
-        `made by an older version of the app (schema ${version ?? 1}, now ${SCHEMA_VERSION})`
+        `made by an older version of the app, from before schema ${OLDEST_MIGRATED}`
       );
+    }
+    if (version > SCHEMA_VERSION) {
+      db.close();
+      throw new OutdatedDatasetError(
+        `made by a newer version of the app (schema ${version}, now ${SCHEMA_VERSION})`
+      );
+    }
+    if (version < SCHEMA_VERSION) {
+      try {
+        migrate(db, MIGRATIONS, backupOf(path));
+      } catch (err) {
+        db.close();
+        throw err;
+      }
     }
     return db;
   }
@@ -315,9 +333,7 @@ export function openDb(path: string): Database {
     .filter((s) => s !== '')) {
     db.run(stmt);
   }
-  db.run("INSERT INTO meta (key, value) VALUES ('schema_version', ?)", [
-    String(SCHEMA_VERSION)
-  ]);
+  db.run(`PRAGMA user_version = ${SCHEMA_VERSION};`);
   return db;
 }
 

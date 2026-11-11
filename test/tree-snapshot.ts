@@ -17,8 +17,7 @@ const META_KEPT = new Set([
   'copyright',
   'language',
   'place_form',
-  'submitter',
-  'schema_version'
+  'submitter'
 ]);
 
 export function treeSnapshot(db: Database) {

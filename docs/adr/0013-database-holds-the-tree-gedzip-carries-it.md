@@ -26,7 +26,7 @@ The database is now the dataset's master copy, and a GEDZIP is how all of it lea
   - **Reminders** go back to the same person; one on a citation, as an older app kept them, goes onto its person. One on an Image goes back as it was.
   - **Before the merge:** whatever can't be reattached is listed before you confirm.
   - **Undo:** the import keeps the database from before it, and the photos only that database names, and _Undo last import_ puts it back.
-- **A database built by an older schema won't open.** The dataset has to be imported again, which merges as above. With the source file gone, there's nothing to upgrade from.
+- **A database built by an older schema is migrated as it opens** (ADR-0018). One from before that won't open, and the dataset has to be imported again, which merges as above.
 - **Export writes a GEDCOM 7 GEDZIP** (`gedcom.ged` and its media). It holds everything the database holds but Rejections, Reminders and the Changes:
   - Each Mark becomes an `OBJE` under its citation, pointing at an `OBJE` record for the Image's JPEG in Astia, titled with its Volume and Image number, with the Box as its `CROP`. A Mark of only a Volume is a `NOTE` naming it.
   - `original_page` becomes `NOTE Original page: <url>`.

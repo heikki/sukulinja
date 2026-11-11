@@ -71,7 +71,7 @@ test('a demo that fails to import is logged, and not tried again', async () => {
 // which file it says it came from.
 function age(sourceFilename?: string) {
   const db = new Database(join(registry.root, 'bourbon', 'db.sqlite'));
-  db.run("UPDATE meta SET value = '1' WHERE key = 'schema_version'");
+  db.run('PRAGMA user_version = 0');
   if (sourceFilename !== undefined) {
     db.run("UPDATE meta SET value = ? WHERE key = 'source_filename'", [
       sourceFilename
