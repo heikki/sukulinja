@@ -1,5 +1,5 @@
 Status: needs-triage
-Blocked by: 01
+Blocked by: 01, 04
 
 # Browse every Photo in a Photos view
 
@@ -9,9 +9,10 @@ Heikki, 2026-11-11: browsing all photos, "vähän niin kuin oikeassa ylänurkass
 
 A **Photos** view opened from the top-right corner beside **Church books**, listing every Photo of the dataset as thumbnails, with how many people each is linked to or tagged in. Picking one opens the Photo viewer on it with no person.
 
+Photos linked to no one are kept by the import from ticket 04 (Heikki, 2026-11-11).
+
 ## Open questions
 
-- An import keeps only the Photos under people and families (`allMediaRefs` in `gedcom/media-refs.ts`, which the media ingest copies): an `OBJE` record nothing points at, or one only a source record points at, is dropped today. Whether the import should keep those, so they show here.
 
 - Order: by who's in it, by date, or as the import listed them; and whether Photos with no one come first.
 - Whether it waits for adding photos from disk, the main way a Photo with no one would arrive.
