@@ -2,59 +2,11 @@ import { volumeTitle } from '@/client/link-labels';
 import type { LinkStatus } from '@/client/state';
 import { BOOK_NAMES } from '@/common/books';
 import { gedcomDate } from '@/common/dates';
+import { factKindLabel } from '@/common/facts';
 import type { CitationRow, FactRow } from '@/common/types';
 
-const FACT_LABELS: Record<string, string> = {
-  BIRT: 'Birth',
-  CHR: 'Christening',
-  BAPM: 'Baptism',
-  DEAT: 'Death',
-  BURI: 'Burial',
-  CREM: 'Cremation',
-  ADOP: 'Adoption',
-  CONF: 'Confirmation',
-  ORDN: 'Ordination',
-  EVEN: 'Event',
-  OCCU: 'Occupation',
-  RESI: 'Residence',
-  EDUC: 'Education',
-  NATI: 'Nationality',
-  IMMI: 'Immigration',
-  EMIG: 'Emigration',
-  NATU: 'Naturalization',
-  GRAD: 'Graduation',
-  RETI: 'Retirement',
-  CENS: 'Census',
-  BARM: 'Bar mitzvah',
-  BASM: 'Bat mitzvah',
-  BLES: 'Blessing',
-  CHRA: 'Adult christening',
-  FCOM: 'First communion',
-  PROB: 'Probate',
-  WILL: 'Will',
-  CAST: 'Caste',
-  DSCR: 'Description',
-  IDNO: 'Identity number',
-  NCHI: 'Number of children',
-  NMR: 'Number of marriages',
-  PROP: 'Property',
-  RELI: 'Religion',
-  SSN: 'Social security number',
-  TITL: 'Title',
-  FACT: 'Fact',
-  MARR: 'Marriage',
-  DIV: 'Divorce',
-  ENGA: 'Engagement',
-  ANUL: 'Annulment',
-  MARB: 'Marriage banns',
-  MARC: 'Marriage contract',
-  MARL: 'Marriage licence',
-  MARS: 'Marriage settlement',
-  DIVF: 'Divorce filing'
-};
-
 export function factLabel(fact: FactRow) {
-  return FACT_LABELS[fact.tag] ?? fact.tag;
+  return factKindLabel(fact.tag);
 }
 
 // The date, read, then place, address and value as recorded, joined; a

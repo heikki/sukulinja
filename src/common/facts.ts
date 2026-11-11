@@ -1,0 +1,55 @@
+// The kinds of Fact, by GEDCOM tag, as the app names them.
+
+const FACT_LABELS: Record<string, string> = {
+  BIRT: 'Birth',
+  CHR: 'Christening',
+  BAPM: 'Baptism',
+  DEAT: 'Death',
+  BURI: 'Burial',
+  CREM: 'Cremation',
+  ADOP: 'Adoption',
+  CONF: 'Confirmation',
+  ORDN: 'Ordination',
+  EVEN: 'Event',
+  OCCU: 'Occupation',
+  RESI: 'Residence',
+  EDUC: 'Education',
+  NATI: 'Nationality',
+  IMMI: 'Immigration',
+  EMIG: 'Emigration',
+  NATU: 'Naturalization',
+  GRAD: 'Graduation',
+  RETI: 'Retirement',
+  CENS: 'Census',
+  BARM: 'Bar mitzvah',
+  BASM: 'Bat mitzvah',
+  BLES: 'Blessing',
+  CHRA: 'Adult christening',
+  FCOM: 'First communion',
+  PROB: 'Probate',
+  WILL: 'Will',
+  CAST: 'Caste',
+  DSCR: 'Description',
+  IDNO: 'Identity number',
+  NCHI: 'Number of children',
+  NMR: 'Number of marriages',
+  PROP: 'Property',
+  RELI: 'Religion',
+  SSN: 'Social security number',
+  TITL: 'Title',
+  FACT: 'Fact',
+  MARR: 'Marriage',
+  DIV: 'Divorce',
+  ENGA: 'Engagement',
+  ANUL: 'Annulment',
+  MARB: 'Marriage banns',
+  MARC: 'Marriage contract',
+  MARL: 'Marriage licence',
+  MARS: 'Marriage settlement',
+  DIVF: 'Divorce filing'
+};
+
+// A kind's name, or its tag when the app has none for it.
+export function factKindLabel(tag: string) {
+  return FACT_LABELS[tag] ?? tag;
+}
