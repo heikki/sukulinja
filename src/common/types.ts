@@ -105,8 +105,16 @@ export interface PersonDetails {
   name: string | null;
   sex: string | null;
   facts: FactRow[];
+  // The families they're a spouse in, with the spouse named: where a
+  // marriage's Facts go.
+  marriages: Marriage[];
   citations: CitationRow[];
   photos: PhotoRow[];
+}
+
+export interface Marriage {
+  familyId: number;
+  spouse: string | null;
 }
 
 // A Photo of the person's: one picture in the dataset, by its stored path,

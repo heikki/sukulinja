@@ -61,6 +61,7 @@ test('serves facts in date order, and the Citations', () => {
     name: 'Matti Esimerkki',
     sex: 'M',
     photos: [],
+    marriages: [{ familyId: 1, spouse: 'Liisa Malli' }],
     facts: [
       {
         id: 2,

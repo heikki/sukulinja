@@ -28,6 +28,7 @@ const DETAILS: PersonDetails = {
   name: 'Matti Esimerkki',
   sex: 'M',
   facts: [],
+  marriages: [],
   citations: [],
   photos: []
 };

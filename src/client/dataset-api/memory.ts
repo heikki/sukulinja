@@ -52,6 +52,8 @@ export interface MemoryDataset {
   reminders?: Reminder[];
   // Newest first, as given: nothing done here writes one.
   changes?: Change[];
+  // The places Facts name, as given.
+  places?: string[];
   // The archives the church books are in, as given.
   archives?: ChurchBookArchive[];
   // By Photo id: what `tag` and `untag` change, and `photos` lists by
@@ -74,7 +76,10 @@ type MemoryDatasetApi = DatasetApi & {
   // "reminders", "remind person <id>: <text>" (or "<volume>/<image>
   // <file>"), "change reminder <id>", "delete reminder <id>", "tag
   // <photo> <person>", "untag <photo> <person>", "portrait <photo>
-  // <person>", "photos".
+  // <person>", "photos", "places", "add fact <person> <tag>[ in <family>]: <date>",
+  // "edit fact <person> <fact>: <date>", "delete fact <person> <fact>".
+  // `addFact` answers ids numbered on from 3000; Facts don't change the
+  // details given.
   // A Citation made by `cite` joins its Volume's citations, numbered on
   // from 1000, and `uncite` takes one out.
   asked: string[];
@@ -92,6 +97,7 @@ export function memoryDatasetApi(
   const asked: string[] = [];
   let made = 1000;
   let reminded = 2000;
+  let factsAdded = 3000;
   let reminders = [...(data.reminders ?? [])];
 
   async function answer<T>(
@@ -388,6 +394,35 @@ export function memoryDatasetApi(
         reminder(id);
         reminders = reminders.filter((r) => r.id !== id);
       });
+    },
+
+    places: async (signal) =>
+      await answer('places', signal, () => [...(data.places ?? [])]),
+
+    addFact: async (personId, fact) =>
+      await answer(
+        `add fact ${personId} ${fact.tag}${fact.familyId === null ? '' : ` in ${fact.familyId}`}: ${fact.date}`,
+        undefined,
+        () => {
+          factsAdded += 1;
+          return factsAdded;
+        }
+      ),
+
+    async editFact(personId, factId, fields) {
+      await answer(
+        `edit fact ${personId} ${factId}: ${fields.date}`,
+        undefined,
+        () => undefined
+      );
+    },
+
+    async deleteFact(personId, factId) {
+      await answer(
+        `delete fact ${personId} ${factId}`,
+        undefined,
+        () => undefined
+      );
     }
   };
 }

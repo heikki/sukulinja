@@ -85,6 +85,7 @@ function appState() {
           name: 'Person 1',
           sex: 'U',
           facts: [],
+          marriages: [],
           citations: [C11],
           photos: []
         }

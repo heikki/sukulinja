@@ -23,7 +23,15 @@ const GROUP: PhotoRow = {
 };
 
 function person(id: number, photos: PhotoRow[]): PersonDetails {
-  return { id, name: null, sex: null, facts: [], citations: [], photos };
+  return {
+    id,
+    name: null,
+    sex: null,
+    facts: [],
+    marriages: [],
+    citations: [],
+    photos
+  };
 }
 
 async function opened() {

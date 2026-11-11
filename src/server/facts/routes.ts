@@ -5,6 +5,7 @@
 import type { FactFields, NewFact } from '@/common/types';
 
 export interface FactHandlers {
+  handlePlaces: () => Response;
   handleAddFact: (personId: number, fact: NewFact) => Response;
   handleEditFact: (
     personId: number,
@@ -40,7 +41,8 @@ function readNew(body: Record<string, unknown>): NewFact | null {
 
 const FACTS_RE = /^\/api\/persons\/(?<person>\d+)\/facts(?:\/(?<fact>\d+))?$/;
 
-// POST /api/persons/:id/facts adds one; PATCH or DELETE
+// GET /api/places lists the places Facts name; POST
+// /api/persons/:id/facts adds one; PATCH or DELETE
 // /api/persons/:id/facts/:factId changes or deletes one. Null for any
 // other path.
 export async function routeFacts(
@@ -48,6 +50,11 @@ export async function routeFacts(
   handlers: FactHandlers,
   rest: string
 ) {
+  if (rest === '/api/places') {
+    return req.method === 'GET'
+      ? handlers.handlePlaces()
+      : new Response('method not allowed', { status: 405 });
+  }
   const m = FACTS_RE.exec(rest);
   if (m === null) return null;
   const personId = Number(m.groups!.person);

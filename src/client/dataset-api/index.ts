@@ -8,7 +8,9 @@ import type {
   Change,
   ChurchBookArchive,
   CitationLinks,
+  FactFields,
   FamilyRow,
+  NewFact,
   PersonDetails,
   PersonRow,
   PhotoRow,
@@ -134,6 +136,18 @@ export interface DatasetApi {
   // stored.
   changeReminder: (id: number, change: ReminderChange) => Promise<Reminder>;
   deleteReminder: (id: number) => Promise<void>;
+  // The places the dataset's Facts name, the most named first.
+  places: (signal?: AbortSignal) => Promise<string[]>;
+  // Adds a Fact to the person, or to one of their families: its id.
+  addFact: (personId: number, fact: NewFact) => Promise<number>;
+  // Changes what one of the person's Facts, or their families', says.
+  editFact: (
+    personId: number,
+    factId: number,
+    fields: FactFields
+  ) => Promise<void>;
+  // Deletes one, its Citations moving to its person or family.
+  deleteFact: (personId: number, factId: number) => Promise<void>;
 }
 
 export interface FetchOptions {
@@ -394,6 +408,42 @@ export function openDatasetApi(
       await ask('Deleting the Reminder', `${dataset}/api/reminders/${id}`, {
         method: 'DELETE'
       });
+    },
+
+    places: async (signal) =>
+      await json<string[]>('Places', `${dataset}/api/places`, signal),
+
+    async addFact(personId, fact) {
+      const res = await ask(
+        'Adding the event',
+        `${dataset}/api/persons/${personId}/facts`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(fact)
+        }
+      );
+      return ((await res.json()) as { id: number }).id;
+    },
+
+    async editFact(personId, factId, fields) {
+      await ask(
+        'Saving the event',
+        `${dataset}/api/persons/${personId}/facts/${factId}`,
+        {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(fields)
+        }
+      );
+    },
+
+    async deleteFact(personId, factId) {
+      await ask(
+        'Deleting the event',
+        `${dataset}/api/persons/${personId}/facts/${factId}`,
+        { method: 'DELETE' }
+      );
     }
   };
 }

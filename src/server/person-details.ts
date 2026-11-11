@@ -67,6 +67,17 @@ export function createPersonDetails(db: Database, citations: CitationsOf) {
      ORDER BY fam.id, f.sort_order`
   );
 
+  const marriages = db.prepare<
+    { familyId: number; given: string | null; surname: string | null },
+    [number]
+  >(
+    `SELECT fam.id AS familyId, n.given, n.surname FROM families fam
+     LEFT JOIN names n ON n.sort_order = 0 AND n.person_id =
+       CASE WHEN fam.husband_id = ?1 THEN fam.wife_id ELSE fam.husband_id END
+     WHERE fam.husband_id = ?1 OR fam.wife_id = ?1
+     ORDER BY fam.id`
+  );
+
   function fullName(given: string | null, surname: string | null) {
     const parts = [given, surname].filter((x) => x !== null && x !== '');
     return parts.length === 0 ? null : parts.join(' ');
@@ -92,6 +103,10 @@ export function createPersonDetails(db: Database, citations: CitationsOf) {
       name: n === null ? null : fullName(n.given, n.surname),
       sex: p.sex,
       facts,
+      marriages: marriages.all(id).map((m) => ({
+        familyId: m.familyId,
+        spouse: fullName(m.given, m.surname)
+      })),
       citations: citations.ofPerson(id),
       photos: photos.ofPerson(id)
     };

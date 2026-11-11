@@ -130,6 +130,10 @@ function createDatasetHandlers(
         : new Response('reminder not found', { status: 404 });
     },
 
+    handlePlaces() {
+      return Response.json(facts.places());
+    },
+
     handleAddFact(personId, fact) {
       return answerFact(facts.add(personId, fact), 'person not found', 201);
     },

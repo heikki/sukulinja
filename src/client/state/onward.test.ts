@@ -33,6 +33,7 @@ function person(id: number, citations: CitationRow[]): PersonDetails {
     name: `Person ${id}`,
     sex: 'U',
     facts: [],
+    marriages: [],
     citations,
     photos: []
   };

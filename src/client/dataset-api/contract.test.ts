@@ -209,6 +209,48 @@ describe('the answers', () => {
     );
   });
 
+  test("a person's Facts, added, changed and deleted, and a marriage", async () => {
+    const blank = { date: '', place: '', value: '', type: '' };
+    const birth = await api.addFact(3, {
+      ...blank,
+      tag: 'BIRT',
+      familyId: null,
+      date: '3.3.1761'
+    });
+    await api.editFact(3, birth, { ...blank, date: '4.3.1761', place: 'Juva' });
+    expect((await api.person(3)).facts).toMatchObject([
+      { id: birth, tag: 'BIRT', date: '4 MAR 1761', place: 'Juva' }
+    ]);
+    const marriage = await api.addFact(2, {
+      ...blank,
+      tag: 'MARR',
+      familyId: 1,
+      date: '1760'
+    });
+    expect((await api.person(1)).facts).toMatchObject([
+      { id: marriage, familyId: 1, spouse: 'Maria Esimerkki' }
+    ]);
+    expect(await api.places()).toEqual(['Juva']);
+    await api.deleteFact(3, birth);
+    expect((await api.person(3)).facts).toEqual([]);
+    expect(await failure(api.deleteFact(3, birth))).toBe('fact not found');
+    expect(
+      await failure(
+        api.addFact(3, { ...blank, tag: 'BIRT', familyId: null, date: 'x' })
+      )
+    ).toStartWith('Write the date like this:');
+    expect(
+      await failure(api.addFact(99, { ...blank, tag: 'BIRT', familyId: null }))
+    ).toBe('person not found');
+    const did = (await api.changes()).map((c) => c.what);
+    expect(did).toMatchObject([
+      { kind: 'fact', did: 'delete' },
+      { kind: 'fact', did: 'add', tag: 'MARR' },
+      { kind: 'fact', did: 'edit', was: '3.3.1761', now: '4.3.1761 · Juva' },
+      { kind: 'fact', did: 'add', tag: 'BIRT' }
+    ]);
+  });
+
   test("a Volume's Images and archive, and its citations", async () => {
     const volume = await api.volume(VOLUME);
     expect(volume.images).toHaveLength(IMAGES);

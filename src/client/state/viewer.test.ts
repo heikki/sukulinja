@@ -57,7 +57,7 @@ function churchBook(id: number, citedPage: number | null): CitationRow {
   };
 }
 
-const UNKNOWN = { sex: 'U', facts: [], photos: [] };
+const UNKNOWN = { sex: 'U', facts: [], marriages: [], photos: [] };
 
 function person(id: number, citations: CitationRow[]): PersonDetails {
   return { id, name: `Person ${id}`, ...UNKNOWN, citations };

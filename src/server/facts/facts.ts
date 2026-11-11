@@ -99,6 +99,10 @@ export function createFacts(
      WHERE scope_type = 'fact' AND scope_id = ?`
   );
   const deleteRow = db.prepare('DELETE FROM facts WHERE id = ?');
+  const allPlaces = db.prepare<{ place: string }, []>(
+    `SELECT place FROM facts WHERE place IS NOT NULL
+     GROUP BY place ORDER BY COUNT(*) DESC, place`
+  );
 
   function change(
     personId: number,
@@ -108,6 +112,12 @@ export function createFacts(
   }
 
   return {
+    // The places the dataset's Facts name, the most named first, for the
+    // form to suggest.
+    places() {
+      return allPlaces.all().map((r) => r.place);
+    },
+
     // Adds the Fact to the person, or to one of their families: its id.
     // Null when there's no such person.
     add(personId: number, fact: NewFact): FactAnswer {

@@ -60,6 +60,7 @@ function person(): PersonDetails {
     name: 'Person 1',
     sex: 'U',
     facts: [],
+    marriages: [],
     citations: [C1],
     photos: []
   };

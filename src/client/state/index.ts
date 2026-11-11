@@ -9,6 +9,8 @@ import { openChanges } from './changes';
 import type { Changes } from './changes';
 import { openChart } from './chart';
 import type { Chart } from './chart';
+import { openFacts } from './facts';
+import type { Facts } from './facts';
 import { openPhotoViewer } from './photo-viewer';
 import type { PhotoViewer } from './photo-viewer';
 import { openPhotos } from './photos';
@@ -22,6 +24,7 @@ import type { Viewer } from './viewer';
 
 export type { Changes } from './changes';
 export type { Chart, ChartView, UrlView } from './chart';
+export type { Facts } from './facts';
 export type { Selected } from './selected';
 export type { LinkStatus, Source, SourceGroup } from './sources';
 export type { Confirming } from './confirming';
@@ -54,6 +57,8 @@ export interface AppState {
   reminders: Reminders;
   // What was done in the app to the dataset.
   changes: Changes;
+  // Adding, changing and deleting the Selected person's Facts.
+  facts: Facts;
 }
 
 export function openAppState(api: DatasetApi): AppState {
@@ -67,6 +72,12 @@ export function openAppState(api: DatasetApi): AppState {
   });
   const viewer = openViewer(api, selected, { opening: photoViewer.close });
   const chart = openChart(api, selected, viewer, photoViewer);
+  const facts = openFacts(api, selected, {
+    // A birth or death gives a card its years.
+    saved: () => {
+      void chart.reloadPeople();
+    }
+  });
   return {
     api,
     selected,
@@ -75,7 +86,8 @@ export function openAppState(api: DatasetApi): AppState {
     photos,
     chart,
     reminders: openReminders(api),
-    changes: openChanges(api)
+    changes: openChanges(api),
+    facts
   };
 }
 
