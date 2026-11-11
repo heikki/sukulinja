@@ -13,6 +13,8 @@ export interface Changes {
   all: Readable<Change[] | null | 'failed'>;
   // Asks for them again, keeping the last ones until they come.
   load: () => void;
+  // Forgets every Change; throws an ApiError when the app can't.
+  clear: () => Promise<void>;
 }
 
 export function openChanges(api: DatasetApi): Changes {
@@ -29,6 +31,11 @@ export function openChanges(api: DatasetApi): Changes {
     all,
     load() {
       void load();
+    },
+    async clear() {
+      await api.clearChanges();
+      req.stop();
+      all.set([]);
     }
   };
 }

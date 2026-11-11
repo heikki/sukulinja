@@ -251,6 +251,14 @@ describe('the answers', () => {
     ]);
   });
 
+  test('the Changes, cleared', async () => {
+    const blank = { date: '', place: '', value: '', type: '' };
+    await api.addFact(3, { ...blank, tag: 'BIRT', familyId: null });
+    expect(await api.changes()).toHaveLength(1);
+    await api.clearChanges();
+    expect(await api.changes()).toEqual([]);
+  });
+
   test("a Volume's Images and archive, and its citations", async () => {
     const volume = await api.volume(VOLUME);
     expect(volume.images).toHaveLength(IMAGES);

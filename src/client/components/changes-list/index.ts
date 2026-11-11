@@ -1,8 +1,10 @@
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
-import { css, html, LitElement } from 'lit';
-import { customElement } from 'lit/decorators.js';
+import { css, html, LitElement, nothing } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
 
+import { ApiError } from '@/client/dataset-api';
+import { dialogStyles } from '@/client/dialog-styles';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { Change, ChangeOn } from '@/common/types';
@@ -14,12 +16,13 @@ export type ChangePickEvent = CustomEvent<ChangeOn>;
 
 // Every Change made to the dataset, newest first, by day: when, what was
 // done, and whom and where. Clicking one that leads somewhere picks where
-// (`pick`); one on nothing is shown but can't be picked. A tab of the
-// corner panel.
+// (`pick`); one on nothing is shown but can't be picked. Clear forgets them
+// all, once asked. A tab of the corner panel.
 @customElement('sl-changes-list')
 class ChangesListElement extends SignalWatcher(LitElement) {
   static override styles = [
     cornerListStyles,
+    dialogStyles,
     css`
       h3 {
         margin: 0.5rem 0 0.15rem;
@@ -48,6 +51,10 @@ class ChangesListElement extends SignalWatcher(LitElement) {
         padding: 0 0.75rem;
       }
 
+      .dialog p.refused {
+        color: var(--danger);
+      }
+
       .time {
         color: var(--muted);
         font-variant-numeric: tabular-nums;
@@ -57,6 +64,10 @@ class ChangesListElement extends SignalWatcher(LitElement) {
   ];
 
   @consume({ context: appState }) private readonly state!: AppState;
+
+  // Asking before clearing: open, clearing, or refused in the app's words.
+  @state() private asking: null | 'open' | 'clearing' | { refused: string } =
+    null;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -105,8 +116,78 @@ class ChangesListElement extends SignalWatcher(LitElement) {
     </div>`;
   }
 
+  private async clear() {
+    this.asking = 'clearing';
+    try {
+      await this.state.changes.clear();
+      this.asking = null;
+    } catch (err) {
+      if (!(err instanceof ApiError)) throw err;
+      this.asking = { refused: err.message };
+    }
+  }
+
+  private renderClear() {
+    const all = this.state.changes.all.get();
+    if (!Array.isArray(all) || all.length === 0) return nothing;
+    return html`<div class="actions">
+      <button
+        class="toggle"
+        @click=${() => {
+          this.asking = 'open';
+        }}
+      >
+        Clear…
+      </button>
+    </div>`;
+  }
+
+  private renderDialog() {
+    const asking = this.asking;
+    if (asking === null) return nothing;
+    const count = this.state.changes.all.get()?.length ?? 0;
+    const clearing = asking === 'clearing';
+    const close = () => {
+      if (!clearing) this.asking = null;
+    };
+    return html`<div class="overlay" @click=${close}>
+      <div
+        class="dialog"
+        role="alertdialog"
+        aria-labelledby="clear-title"
+        @click=${(e: Event) => {
+          e.stopPropagation();
+        }}
+      >
+        <h2 id="clear-title">Clear the Changes?</h2>
+        <p>
+          ${count === 1 ? 'The one Change' : `All ${count} Changes`} will be
+          removed from the list. What they did stays done.
+        </p>
+        ${
+          typeof asking === 'object'
+            ? html`<p class="refused">${asking.refused}</p>`
+            : nothing
+        }
+        <div class="actions">
+          <button @click=${close} ?disabled=${clearing}>Cancel</button>
+          <button
+            class="danger"
+            @click=${() => {
+              void this.clear();
+            }}
+            ?disabled=${clearing}
+          >
+            ${clearing ? 'Clearing…' : 'Clear'}
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }
+
   override render() {
-    return this.renderBody();
+    return html`${this.renderBody()} ${this.renderClear()}
+    ${this.renderDialog()}`;
   }
 }
 

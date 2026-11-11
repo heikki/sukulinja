@@ -25,6 +25,7 @@ Working through the books, you Mark, Discard and cite dozens of entries in a sit
   - An import's merge carries the Changes like Reminders: on a person by `UID`, on a Citation through the pairing, onto its person when the Citation is gone. One whose person is gone stays in the list with its text, but leads nowhere. Nothing is dropped, and nothing is added to the review.
   - The merged import then writes its own Change.
   - _Undo last import_ puts the old database back, with its Changes as they were (the import's Change and everything after it go with it), then writes an _Undid the import of …_ Change into it.
+- **Clearing.** _Clear…_ under the list forgets every Change, once asked (Heikki: not every Change needs keeping forever). What they did stays done; nothing else changes.
 - **Going back.** Picking a Change goes where it was done, the same way picking a Reminder does (`follow` in `reminders-dialog/helpers.ts`, moved somewhere both share):
   - a Mark, Discard or new Citation: selects the person and opens the Citation's source in the Scan viewer, at its Link as it stands now;
   - a deleted Citation: selects the person;

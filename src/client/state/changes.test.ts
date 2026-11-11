@@ -31,3 +31,15 @@ test("says when they couldn't be had", async () => {
   await Bun.sleep(0);
   expect(changes.all.get()).toBe('failed');
 });
+
+test('clearing forgets them all', async () => {
+  const api = memoryDatasetApi({ changes: [UNDONE] });
+  const changes = openChanges(api);
+  changes.load();
+  await Bun.sleep(0);
+  await changes.clear();
+  expect(changes.all.get()).toEqual([]);
+  changes.load();
+  await Bun.sleep(0);
+  expect(changes.all.get()).toEqual([]);
+});

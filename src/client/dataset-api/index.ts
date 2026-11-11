@@ -128,6 +128,8 @@ export interface DatasetApi {
   choosePortrait: (photoId: number, personId: number) => Promise<PhotoRow>;
   // Every Change made to the dataset, newest first.
   changes: (signal?: AbortSignal) => Promise<Change[]>;
+  // Forgets every Change.
+  clearChanges: () => Promise<void>;
   // Every Reminder, newest first, open or done.
   reminders: (signal?: AbortSignal) => Promise<Reminder[]>;
   // Writes a Reminder on the target: it as stored.
@@ -378,6 +380,12 @@ export function openDatasetApi(
 
     changes: async (signal) =>
       await json<Change[]>('Changes', `${dataset}/api/changes`, signal),
+
+    async clearChanges() {
+      await ask('Clearing the Changes', `${dataset}/api/changes`, {
+        method: 'DELETE'
+      });
+    },
 
     reminders: async (signal) =>
       await json<Reminder[]>('Reminders', `${dataset}/api/reminders`, signal),

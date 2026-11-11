@@ -99,6 +99,7 @@ export function memoryDatasetApi(
   let reminded = 2000;
   let factsAdded = 3000;
   let reminders = [...(data.reminders ?? [])];
+  let changes = [...(data.changes ?? [])];
 
   async function answer<T>(
     what: string,
@@ -361,7 +362,13 @@ export function memoryDatasetApi(
       }),
 
     changes: async (signal) =>
-      await answer('changes', signal, () => [...(data.changes ?? [])]),
+      await answer('changes', signal, () => [...changes]),
+
+    async clearChanges() {
+      await answer('clear changes', undefined, () => {
+        changes = [];
+      });
+    },
 
     reminders: async (signal) =>
       await answer('reminders', signal, () => [...reminders]),

@@ -2,7 +2,7 @@
 // what it was on (on.ts), or the Photo a Tag was in, with its person. Only
 // the app keeps them; no export writes them, a re-import's merge carries
 // them (import/merge.ts), and undoing an import puts back the ones its
-// database had.
+// database had. They can be cleared, all at once.
 
 import type { Database } from 'bun:sqlite';
 
@@ -38,6 +38,7 @@ export function openChanges(db: Database, sources: OnSources) {
     `INSERT INTO changes (${COLUMNS.join(', ')})
      VALUES (${COLUMNS.map(() => '?').join(', ')})`
   );
+  const removeAll = db.prepare('DELETE FROM changes');
   // A person's first name as it's sorted.
   const nameOf = db.prepare<{ full_text: string }, [number]>(
     'SELECT full_text FROM names WHERE person_id = ? ORDER BY sort_order LIMIT 1'
@@ -97,6 +98,11 @@ export function openChanges(db: Database, sources: OnSources) {
         mediaId
       ];
       insert.run(...values);
+    },
+
+    // Forgets every Change. What they did stays done.
+    clear() {
+      removeAll.run();
     }
   };
 }

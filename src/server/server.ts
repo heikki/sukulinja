@@ -30,7 +30,8 @@ interface ApiHandlers {
 interface DatasetHandlers extends ReminderHandlers, FactHandlers {
   // The dataset's Changes, which the rest of the app writes into.
   changes: Changes;
-  handleChanges: () => Promise<Response>;
+  // GET lists the Changes, DELETE clears them.
+  handleChanges: (req: Request) => Promise<Response>;
   handlePersons: () => Response;
   handleFamilies: () => Response;
   handlePerson: (id: number) => Response;
@@ -81,8 +82,13 @@ function createDatasetHandlers(
   return {
     changes,
 
-    async handleChanges() {
-      return Response.json(await changes.list());
+    async handleChanges(req) {
+      if (req.method === 'GET') return Response.json(await changes.list());
+      if (req.method !== 'DELETE') {
+        return new Response('method not allowed', { status: 405 });
+      }
+      changes.clear();
+      return new Response(null, { status: 204 });
     },
 
     handlePersons() {
@@ -171,7 +177,7 @@ async function routeDataset(
 ): Promise<Response | null> {
   if (rest === '/api/persons') return handlers.handlePersons();
   if (rest === '/api/families') return handlers.handleFamilies();
-  if (rest === '/api/changes') return await handlers.handleChanges();
+  if (rest === '/api/changes') return await handlers.handleChanges(req);
   const person = /^\/api\/persons\/(?<id>\d+)$/.exec(rest);
   if (person !== null) return handlers.handlePerson(Number(person.groups!.id));
   const cited = await handlers.routeCitations(req, rest);
