@@ -20,9 +20,12 @@ The Church books view lists only the parishes whose Astia archive was looked up 
 - `arkistot.html` ("Selaa aineistoja") lists every fonds alphabetically with its creator in brackets ("Pieksämäen seurakunnan arkisto (Pieksämäen seurakunta)"), filtered by a "Hae listalta" box; `aineistot.html` is the detailed search. Both load their results in the browser; the `ws/` request behind them isn't known yet.
 - `ws/aineisto/readOne.php?id=<fonds>` gives the creator (`relaatiot` → `T_R`, ROOLI "Arkistonmuodostaja", `T_ID` "EAC_…") and related archives (`A_R`, ROOLI "On jatkoa": Pieksämäki's names Jäppilä and Virtasalmi). Text comes as HTML entities.
 
-## First step: find the search request
+## The search request (found 2026-11-11)
 
-Astia is blocked in the cloud sandbox. Before any code, find the request `arkistot.html` or `aineistot.html` sends (browser DevTools on Heikki's Mac, or a fetch from where Astia is reachable): its path, parameters and answer. Whether search results can be narrowed to parish archives (those with an `I VÄESTÖREKISTERIARKISTO` series) depends on it.
+- `arkistot.html` loads `js/arkistot.js`, which lists fonds by first letter: `GET ws/getArkistoList.php?letter=<a–z, å, ä, ö, 0–9>`. The answer is a JSON array of `{"nimekkeet": "<title> ( <creator> )", "tunnisteet": null, "id": "<fonds>"}` in alphabetical order; text comes as `\uXXXX` escapes, not HTML entities. A letter is 13–70 kB ("ä" 13.6 kB, "p" 67 kB). `&extra=true` is meant to add `hasDigi` but answered the same as without it.
+- Parish archives are told apart by title: "Äänekosken seurakunnan arkisto ( Äänekosken seurakunta )" (1197406384), "Urjalan seurakunnan arkisto ( Urjalan seurakunta )" (1184441000). Narrowing by an `I VÄESTÖREKISTERIARKISTO` series would cost a readOne per hit, so the title is enough.
+- `aineistot.html` (`js/aineistot.js`) searches with `POST ws/aineisto/read.php`, a JSON body (`searchString`, `target: "aineisto"`, `level: ["materiallevel", ["fonds"]]`, `facetSearch: 1`, `maxResults`, …) and an answer that may be `status: 2` (still working, ask again in 2 s). Heavier and not needed: the letter list does the job.
+- Search therefore: the letter of what's typed, the list's "seurakunnan arkisto" entries, matched by how much of the start they share with it, since Astia's title is in the genitive ("Pieksämäki" → "Pieksämäen").
 
 ## Left out
 
