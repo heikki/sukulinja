@@ -1,9 +1,11 @@
 // A GEDCOM's media in the database: each linked to what holds it (a
 // person, a family, an event or a citation), and the Photos linked to no
-// one kept on their own.
+// one kept on their own. A person's link with a CROP to a record noting
+// it was added in the app is a Tag (ADR-0017).
 
 import type { Scope } from '@/common/types';
 
+import { ADDED_IN_APP } from '../gedcom/astia-links';
 import { mediaRefsOf, objectsOf } from '../gedcom/media-refs';
 import type {
   MediaRef,
@@ -75,12 +77,16 @@ export function mediaLinker({
   function importMediaLink(
     ref: MediaRef & { objectOrder: number },
     scope: MediaScope,
-    scopeId: number
+    scopeId: number,
+    tag: boolean
   ) {
     const storedPath = resolve(ref.path);
     if (storedPath === null) return null;
     const mediaId = resolveMediaId(storedPath, ref.path, ref.format);
     const { crop } = ref;
+    const boxed = Object.values(crop).every((side) => side !== null);
+    const tagged =
+      tag && scope === 'person' && boxed && takeTag(mediaId, scopeId);
     const res = sql.insertMediaLink.run({
       $media_id: mediaId,
       $scope_type: scope,
@@ -91,7 +97,8 @@ export function mediaLinker({
       $crop_left: crop.left,
       $crop_width: crop.width,
       $crop_height: crop.height,
-      $sort_order: ref.order
+      $sort_order: ref.order,
+      $added_in_app: tagged ? 1 : 0
     });
     count('mediaLinks');
     return Number(res.lastInsertRowid);
@@ -118,6 +125,31 @@ export function mediaLinker({
 
   // An OBJE record's notes are kept once, with the first link to it.
   const noted = new Set<GedNode>();
+  // The records noting they're a Tag's, that note taken off them.
+  const tagRecords = new Set<GedNode>();
+  // A person is tagged once in a Photo, by "<media>:<person>".
+  const tags = new Set<string>();
+
+  function takeTag(mediaId: number, personId: number) {
+    const key = `${mediaId}:${personId}`;
+    if (tags.has(key)) return false;
+    tags.add(key);
+    return true;
+  }
+
+  // Whether the record is a Tag's: its note saying so is used, and taken
+  // off it so it's not kept as a note.
+  function isTagRecord(files: GedNode) {
+    const at = files.children.findIndex(
+      (c) => c.tag === 'NOTE' && c.value === ADDED_IN_APP
+    );
+    if (at >= 0) {
+      use(files.children[at]!);
+      files.children.splice(at, 1);
+      tagRecords.add(files);
+    }
+    return tagRecords.has(files);
+  }
 
   // An OBJE's notes go with the first of its files that was stored.
   function importMediaLinks(
@@ -127,9 +159,11 @@ export function mediaLinker({
   ) {
     const objects = objectsOf(holder, records);
     for (const { link, files } of objects) markMediaLines(link, files);
+    const tagged = objects.map(({ files }) => isTagRecord(files));
     const firstLink = new Map<number, number>();
     for (const ref of primaryFirst(mediaRefsOf(holder, records))) {
-      const linkId = importMediaLink(ref, scope, scopeId);
+      const tag = tagged[ref.object] ?? false;
+      const linkId = importMediaLink(ref, scope, scopeId, tag);
       if (linkId !== null && !firstLink.has(ref.object)) {
         firstLink.set(ref.object, linkId);
       }

@@ -101,7 +101,7 @@ export async function importGedcomFixture(
       ['photos/Unknown family.jpg', new Uint8Array([7, 8, 9])]
     ])
   );
-  await registry.import({
+  return await registry.import({
     slug,
     source: { gedzip },
     sourceFilename: `${slug}.gdz`

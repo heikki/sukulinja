@@ -50,7 +50,8 @@ test('a newer export adds its people and citations, and a Mark stays on its cita
       duplicates: 0,
       converted: 0,
       rejections: 0,
-      reminders: 0
+      reminders: 0,
+      tags: 0
     },
     lost: [],
     unreadable: null
@@ -128,7 +129,8 @@ test('a citation made in the app that the export now has gives it its Mark', asy
     duplicates: 1,
     converted: 0,
     rejections: 0,
-    reminders: 0
+    reminders: 0,
+    tags: 0
   });
 });
 

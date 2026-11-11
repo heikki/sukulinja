@@ -1,6 +1,7 @@
 // A person's Photos: the pictures linked to them, each with everyone it's
-// linked to and where the import marked them on it. A family's or an
-// event's photos, and files that aren't pictures, are left out.
+// linked to and where they are on it, the import's crops and the app's
+// Tags (ADR-0017). A family's or an event's photos, and files that aren't
+// pictures, are left out.
 
 import type { Database } from 'bun:sqlite';
 
@@ -12,6 +13,7 @@ interface LinkRow {
   crop_left: number | null;
   crop_width: number | null;
   crop_height: number | null;
+  added_in_app: number;
 }
 
 function boxOf(r: LinkRow): Box | null {
@@ -30,7 +32,11 @@ function peopleOf(links: LinkRow[]): PhotoPerson[] {
     const box = boxOf(link);
     const had = people.get(link.person_id);
     if (had === undefined || (had.box === null && box !== null)) {
-      people.set(link.person_id, { personId: link.person_id, box });
+      people.set(link.person_id, {
+        personId: link.person_id,
+        box,
+        tagged: link.added_in_app === 1
+      });
     }
   }
   return [...people.values()];
@@ -45,19 +51,33 @@ export function createPhotos(db: Database) {
      GROUP BY m.id
      ORDER BY MIN(ml.sort_order), MIN(ml.id)`
   );
+  const ofId = db.prepare<{ id: number; path: string }, [number]>(
+    `SELECT id, file_path AS path FROM media
+     WHERE id = ? AND format LIKE 'image/%'`
+  );
   const linksOf = db.prepare<LinkRow, [number]>(
-    `SELECT scope_id AS person_id, crop_top, crop_left, crop_width, crop_height
+    `SELECT scope_id AS person_id, crop_top, crop_left, crop_width,
+       crop_height, added_in_app
      FROM media_links
      WHERE media_id = ? AND scope_type = 'person'
      ORDER BY id`
   );
 
+  function withPeople(m: { id: number; path: string }): PhotoRow {
+    return { ...m, people: peopleOf(linksOf.all(m.id)) };
+  }
+
   return {
     ofPerson(personId: number): PhotoRow[] {
-      return ofPerson.all(personId).map((m) => ({
-        ...m,
-        people: peopleOf(linksOf.all(m.id))
-      }));
+      return ofPerson.all(personId).map(withPeople);
+    },
+
+    // A Photo by its id; null when there's none, or it isn't a picture.
+    photo(id: number): PhotoRow | null {
+      const m = ofId.get(id);
+      return m === null ? null : withPeople(m);
     }
   };
 }
+
+export type Photos = ReturnType<typeof createPhotos>;

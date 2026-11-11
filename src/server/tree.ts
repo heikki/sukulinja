@@ -35,7 +35,9 @@ function cropOf(r: PersonDbRow) {
 
 export function createTree(db: Database) {
   // Each person's first name, and their portrait: the photo marked primary,
-  // else the first linked. Sorted by surname, then given name.
+  // else the first linked, cropped to where they are on it: that link's
+  // CROP, else another of theirs to it, the import's before their Tag's
+  // (ADR-0017). Sorted by surname, then given name.
   const listPersons = db.prepare<PersonDbRow, []>(`
     SELECT
       p.id,
@@ -46,10 +48,10 @@ export function createTree(db: Database) {
       (SELECT date_text FROM facts WHERE scope_type='person' AND scope_id=p.id AND tag='DEAT' LIMIT 1) AS death_date,
       EXISTS (SELECT 1 FROM facts WHERE scope_type='person' AND scope_id=p.id AND tag IN ('DEAT','BURI','CREM')) AS died,
       m.file_path AS photo_path,
-      ml.crop_top,
-      ml.crop_left,
-      ml.crop_width,
-      ml.crop_height
+      cr.crop_top,
+      cr.crop_left,
+      cr.crop_width,
+      cr.crop_height
     FROM persons p
     LEFT JOIN names n ON n.person_id = p.id AND n.sort_order = 0
     LEFT JOIN media_links ml ON ml.id = (
@@ -60,6 +62,13 @@ export function createTree(db: Database) {
       LIMIT 1
     )
     LEFT JOIN media m ON m.id = ml.media_id
+    LEFT JOIN media_links cr ON cr.id = (
+      SELECT c.id FROM media_links c
+      WHERE c.media_id = ml.media_id AND c.scope_type='person'
+        AND c.scope_id=p.id AND c.crop_top IS NOT NULL
+      ORDER BY c.id = ml.id DESC, c.added_in_app ASC, c.sort_order, c.id
+      LIMIT 1
+    )
     ORDER BY n.surname COLLATE NOCASE, n.given COLLATE NOCASE
   `);
   const listFamilies = db.prepare<Omit<FamilyRow, 'child_ids'>, []>(

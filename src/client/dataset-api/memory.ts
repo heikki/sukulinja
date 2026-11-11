@@ -10,6 +10,7 @@ import type {
   Link,
   PersonDetails,
   PersonRow,
+  PhotoRow,
   Reminder,
   ReminderOn,
   ReminderTarget,
@@ -53,6 +54,8 @@ export interface MemoryDataset {
   changes?: Change[];
   // The archives the church books are in, as given.
   archives?: ChurchBookArchive[];
+  // By Photo id: what `tag` and `untag` change.
+  photos?: Record<number, PhotoRow>;
 }
 
 export interface MemoryOptions {
@@ -68,7 +71,8 @@ type MemoryDatasetApi = DatasetApi & {
   // "uncite <citation>", "choices <citation>", "citations <volume>",
   // "volume <volume>", "rescan <volume>", "switch <volume>", "changes",
   // "reminders", "remind person <id>: <text>" (or "<volume>/<image>
-  // <file>"), "change reminder <id>", "delete reminder <id>".
+  // <file>"), "change reminder <id>", "delete reminder <id>", "tag
+  // <photo> <person>", "untag <photo> <person>".
   // A Citation made by `cite` joins its Volume's citations, numbered on
   // from 1000, and `uncite` takes one out.
   asked: string[];
@@ -139,6 +143,10 @@ export function memoryDatasetApi(
       reminders.find((r) => r.id === id),
       'reminder not found'
     );
+  }
+
+  function photo(id: number) {
+    return found(data.photos?.[id], 'photo not found');
   }
 
   function volume(volumeId: string) {
@@ -301,6 +309,33 @@ export function memoryDatasetApi(
     thumbUrl: (volumeId, n) => `memory:thumb/${volumeId}/${n}`,
 
     mediaUrl: (storedPath) => `memory:media/${storedPath}`,
+
+    tag: async (photoId, personId, box) =>
+      await answer(`tag ${photoId} ${personId}`, undefined, () => {
+        const shown = photo(photoId);
+        const had = shown.people.find((p) => p.personId === personId);
+        if (had?.tagged === false && had.box !== null) {
+          throw new ApiError("They're marked on this photo already.");
+        }
+        const tag = { personId, box, tagged: true };
+        shown.people =
+          had === undefined
+            ? [...shown.people, tag]
+            : shown.people.map((p) => (p === had ? tag : p));
+        return structuredClone(shown);
+      }),
+
+    untag: async (photoId, personId) =>
+      await answer(`untag ${photoId} ${personId}`, undefined, () => {
+        const shown = photo(photoId);
+        if (!shown.people.some((p) => p.personId === personId && p.tagged)) {
+          throw new ApiError('tag not found');
+        }
+        shown.people = shown.people.filter(
+          (p) => p.personId !== personId || !p.tagged
+        );
+        return structuredClone(shown);
+      }),
 
     changes: async (signal) =>
       await answer('changes', signal, () => [...(data.changes ?? [])]),

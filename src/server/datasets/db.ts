@@ -109,9 +109,19 @@ const SCHEMA_SQL = `
     crop_left INTEGER,
     crop_width INTEGER,
     crop_height INTEGER,
-    sort_order INTEGER NOT NULL DEFAULT 0
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    -- A Tag: a person in a Photo with their Box, made in the app, which a
+    -- re-import keeps (ADR-0017).
+    added_in_app INTEGER NOT NULL DEFAULT 0,
+    CHECK (added_in_app = 0 OR (
+      scope_type = 'person' AND crop_top IS NOT NULL AND crop_left IS NOT NULL
+      AND crop_width IS NOT NULL AND crop_height IS NOT NULL
+    ))
   );
   CREATE INDEX IF NOT EXISTS media_links_scope_idx ON media_links(scope_type, scope_id);
+  -- A person is tagged once in a Photo.
+  CREATE UNIQUE INDEX IF NOT EXISTS media_links_tag_idx
+    ON media_links(media_id, scope_id) WHERE added_in_app = 1;
 
   CREATE TABLE IF NOT EXISTS repositories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -255,7 +265,7 @@ const SCHEMA_SQL = `
 // Raised whenever the schema changes. A dataset's database holds the whole
 // tree and the file it came from isn't kept, so an older database can't be
 // upgraded: the dataset is imported again (ADR-0013).
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 // A dataset whose database an older version of the app built.
 export class OutdatedDatasetError extends Error {}

@@ -7,7 +7,7 @@ import { live } from 'lit/directives/live.js';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 
-import { controlStyles } from '../box-stage/styles';
+import { controlStyles, footBarStyles } from '../box-stage/styles';
 import { imageAfter, stepOf } from './keys';
 import type { ImageMove } from './keys';
 import { scanNavStyles } from './styles';
@@ -25,7 +25,7 @@ function stop(e: Event) {
 // key stands for (←/→, with Shift or without, Home or End) shows pressed.
 @customElement('sl-scan-nav')
 class ScanNavElement extends SignalWatcher(LitElement) {
-  static override styles = [controlStyles, scanNavStyles];
+  static override styles = [controlStyles, footBarStyles, scanNavStyles];
 
   @consume({ context: appState }) private readonly state!: AppState;
 

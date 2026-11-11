@@ -74,6 +74,9 @@ export interface Chart {
   // Loads the people, then starts from Root and the Selected person in
   // the URL, which `read` gives once they're in.
   load: (read: () => UrlView) => Promise<void>;
+  // The people read again, their families kept, as after a Tag changes
+  // someone's portrait. Kept as they were if they can't be.
+  reloadPeople: () => Promise<void>;
   // The one way to select someone (ADR-0012), for the dock's details. Once
   // a change pending in the Scan viewer is saved or discarded, their card
   // is shown, or, if the chart doesn't draw them, it's built around them.
@@ -220,6 +223,17 @@ export function openChart(
       };
     },
     load,
+    async reloadPeople() {
+      try {
+        const persons = await api.persons();
+        people.set({
+          ...people.get(),
+          persons: new Map(persons.map((p) => [p.id, p]))
+        });
+      } catch (err) {
+        if (!(err instanceof ApiError)) throw err;
+      }
+    },
     select,
     step(id) {
       if (!view.draws(id)) {

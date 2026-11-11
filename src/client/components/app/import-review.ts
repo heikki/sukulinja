@@ -35,7 +35,8 @@ function keptLine({ kept }: ImportReview) {
           )
         ]),
     count(kept.rejections, 'Rejection', 'Rejections'),
-    count(kept.reminders, 'Reminder', 'Reminders')
+    count(kept.reminders, 'Reminder', 'Reminders'),
+    count(kept.tags, 'Tag', 'Tags')
   ];
   const duplicates =
     kept.duplicates === 0

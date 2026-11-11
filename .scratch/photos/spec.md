@@ -31,7 +31,7 @@ A photo an import links to a person without a `CROP` is the export's link, not a
 ## Architecture notes
 
 - **Shared with the Scan viewer.** `src/client/pan-zoom/` is shared already. What's Scan-viewer-only but not about Astia: drawing, moving and clamping a Box on the stage (`scan-viewer/frame.ts`'s `newBox`, `clampBox`, `boxOnStage`, `boxFromStage`), the layer of Boxes with their menus (`scan-viewer/layer.ts`), and the people pane beside the picture (`scan-viewer/people.ts`). These move to a shared component folder first, with the Scan viewer using them as before, before the Photo viewer is built on them. The Astia parts (thumbnails first, Volumes, Re-scans, prefetch) stay in the Scan viewer.
-- **Keeping Tags across a re-import.** The merge (`import/merge.ts`) now keeps Annotations of Citations only; a photo's `media_links` come from the new export. A Tag needs to be told apart from an import's link and found again after a re-import, by its Photo's `original_path` and its person. Whether that's a column on `media_links` (like `added_in_app` on citations) or a table of its own is the first design question of ticket 02, and likely an ADR. Either is a schema change (now 10).
+- **Keeping Tags across a re-import.** The merge (`import/merge.ts`) now keeps Annotations of Citations only; a photo's `media_links` come from the new export. A Tag needs to be told apart from an import's link and found again after a re-import, by its Photo's `original_path` and its person. Settled in ADR-0017: a Tag is a person's `media_links` row marked `added_in_app` (schema 11).
 - **Changes.** Tagging and untagging someone is a **Change**, on the person; `changes` has no column for a Photo yet.
 
 ## Later

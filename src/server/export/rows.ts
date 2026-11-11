@@ -107,6 +107,8 @@ export interface MediaLinkRow extends MediaRow {
   crop_left: number | null;
   crop_width: number | null;
   crop_height: number | null;
+  // A Tag (ADR-0017).
+  added_in_app: number;
 }
 
 interface AssociationRow {

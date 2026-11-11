@@ -14,6 +14,8 @@ import { photoBoxes } from './photo-boxes';
 
 import '../box-stage/boxes';
 import '../box-stage/toolbar';
+import './edit';
+import './layer';
 import './people';
 
 // ←/→ step through the Selected person's Photos.
@@ -31,8 +33,9 @@ function typing(e: KeyboardEvent) {
 // The Photo viewer: a Photo of the Selected person's, over the chart, to
 // pan and zoom as the Scan viewer does. The Boxes of the people marked on
 // it show as their rows beside it are hovered, the Selected person's
-// always; each Box and row leads to its person. Esc, or the Photo clicked
-// again in the panel, closes it.
+// always; each Box and row leads to its person. A right-click tags someone
+// there, or moves or removes a Tag (ADR-0017). Esc backs out of a Tag
+// pending, else closes it, as the Photo clicked again in the panel does.
 @customElement('sl-photo-viewer')
 class PhotoViewerElement extends SignalWatcher(LitElement) {
   static override styles = [
@@ -121,9 +124,13 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
   // macOS, which beeps at it. What lies over the viewer, a menu or a
   // corner popover, takes Esc first and stops it.
   private readonly onKeyDown = (e: KeyboardEvent) => {
+    const viewer = this.state.photoViewer;
     if (e.key === 'Escape') {
       e.preventDefault();
-      this.state.photoViewer.close();
+      const editing =
+        viewer.pending.get() !== null || viewer.removing.get() !== null;
+      if (editing) viewer.cancel();
+      else viewer.close();
       return;
     }
     const by = STEPS[e.key];
@@ -138,6 +145,28 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
 
   private readonly onPick = (e: CustomEvent<string>) => {
     this.state.chart.select(Number(e.detail));
+  };
+
+  // The Photo's own menu in place of WebKit's, on the Box it's opened on,
+  // if any.
+  private readonly onContextMenu = (e: MouseEvent) => {
+    e.preventDefault();
+    this.stage.stopMomentum();
+    const path = e.composedPath();
+    const on = path.find(
+      (t): t is HTMLElement =>
+        t instanceof HTMLElement && t.dataset.key !== undefined
+    );
+    const pending = path.some(
+      (t) =>
+        t instanceof HTMLElement &&
+        t.dataset.own === 'true' &&
+        t.dataset.key === undefined
+    );
+    const at = this.stage.toStage({ x: e.clientX, y: e.clientY });
+    this.renderRoot
+      .querySelector('sl-photo-layer')
+      ?.openMenu(at, { pending, key: on?.dataset.key ?? null });
   };
 
   // "Photo 2 of 3", of the Selected person's.
@@ -159,6 +188,21 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
     </div>`;
   }
 
+  private boxes(photo: PhotoRow) {
+    const viewer = this.state.photoViewer;
+    return photoBoxes(photo.people, this.state.selected.id.get(), {
+      pending: viewer.pending.get()?.personId ?? null,
+      removing: viewer.removing.get()
+    });
+  }
+
+  private renderEdit() {
+    const viewer = this.state.photoViewer;
+    return viewer.pending.get() === null && viewer.removing.get() === null
+      ? nothing
+      : html`<sl-photo-edit></sl-photo-edit>`;
+  }
+
   private renderStage(photo: PhotoRow) {
     const { view } = this.stage;
     const at =
@@ -174,6 +218,7 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
         @gesturechange=${this.stage.onGestureChange}
         @gestureend=${this.stage.onGestureEnd}
         @dblclick=${this.stage.onDblClick}
+        @contextmenu=${this.onContextMenu}
       >
         <img
           class=${view === null ? 'hidden' : ''}
@@ -189,7 +234,7 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
             ? nothing
             : html`<sl-stage-boxes
                 live
-                .boxes=${photoBoxes(photo.people, this.state.selected.id.get())}
+                .boxes=${this.boxes(photo)}
                 .view=${view}
                 .hovered=${this.hovered}
                 @box-hover=${this.onHover}
@@ -197,6 +242,12 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
               ></sl-stage-boxes>`
         }
         ${this.renderNote()}
+        <sl-photo-layer
+          .photo=${photo}
+          .view=${view}
+          .size=${view === null ? null : this.size}
+        ></sl-photo-layer>
+        ${this.renderEdit()}
       </div>
     `;
   }

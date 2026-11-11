@@ -12,7 +12,7 @@ import type {
   LinkOpen
 } from '@/client/state';
 
-import { controlStyles } from '../box-stage/styles';
+import { controlStyles, editActionsStyles } from '../box-stage/styles';
 import { formatName } from '../tree-view/renderer';
 import { scanEditStyles } from './edit-styles';
 
@@ -36,7 +36,7 @@ function renderConfirming(confirming: Confirming) {
 // everyone citing the record, whom it names from the dataset's people.
 @customElement('sl-scan-edit')
 class ScanEditElement extends SignalWatcher(LitElement) {
-  static override styles = [controlStyles, scanEditStyles];
+  static override styles = [controlStyles, editActionsStyles, scanEditStyles];
 
   @consume({ context: appState }) private readonly state!: AppState;
 

@@ -24,7 +24,8 @@ const CLICK_SLOP_PX = 4;
 // marked or its key is `hovered`. The marked ones take the pointer, and
 // with `live` all do. Hovering one names its key with `box-hover` (null on
 // leaving), and clicking it names it with `box-pick`. A marked one is
-// marked `data-own`, for a menu a right-click opens on it. Presses, wheels
+// marked `data-own`, for a menu a right-click opens on it, and each one
+// carries its key as `data-key`. Presses, wheels
 // and pinches carry on to the stage, so a drag starting on a Box still
 // pans.
 @customElement('sl-stage-boxes')
@@ -62,6 +63,7 @@ class StageBoxesElement extends LitElement {
       <div
         class=${classes}
         data-own=${b.marked ? 'true' : nothing}
+        data-key=${b.key}
         style="left: ${at.left}px; top: ${at.top}px; width: ${
           at.width
         }px; height: ${at.height}px"

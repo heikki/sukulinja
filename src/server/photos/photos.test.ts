@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import { openDb } from './datasets/db';
+import { openDb } from '../datasets/db';
 import { createPhotos } from './photos';
 
 // Three people; a group photo of 1 and 2, a portrait of 1, and a PDF.
@@ -28,13 +28,25 @@ function dataset() {
 test("lists a person's pictures in their order, with everyone in each", () => {
   const photos = createPhotos(dataset()).ofPerson(1);
   expect(photos).toEqual([
-    { id: 11, path: 'portrait.png', people: [{ personId: 1, box: null }] },
+    {
+      id: 11,
+      path: 'portrait.png',
+      people: [{ personId: 1, box: null, tagged: false }]
+    },
     {
       id: 10,
       path: 'group.jpg',
       people: [
-        { personId: 1, box: { left: 100, top: 10, width: 30, height: 40 } },
-        { personId: 2, box: { left: 40, top: 5, width: 30, height: 35 } }
+        {
+          personId: 1,
+          box: { left: 100, top: 10, width: 30, height: 40 },
+          tagged: false
+        },
+        {
+          personId: 2,
+          box: { left: 40, top: 5, width: 30, height: 35 },
+          tagged: false
+        }
       ]
     }
   ]);

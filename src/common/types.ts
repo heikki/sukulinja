@@ -68,9 +68,11 @@ export interface ImportReview {
     rejections: number;
     // Reminders, put back where they were, or a Citation's onto its person.
     reminders: number;
+    // Tags, put back on their person in the same Photo (ADR-0017).
+    tags: number;
   };
-  // Each Mark, citation made in the app or Reminder that can't be kept,
-  // described.
+  // Each Mark, citation made in the app, Reminder or Tag that can't be
+  // kept, described.
   lost: string[];
   // Why the dataset's database couldn't be read, so nothing is kept from
   // it; null when it was.
@@ -109,8 +111,8 @@ export interface PersonDetails {
 
 // A Photo of the person's: one picture in the dataset, by its stored path,
 // and the people it's linked to, in the order linked. A person's Box is
-// where the import marked them on it (its CROP), null where it marked
-// nowhere.
+// where they are on it: the import's CROP, or their Tag's, `tagged`, made
+// in the app (ADR-0017); null where nothing marks them.
 export interface PhotoRow {
   id: number;
   path: string;
@@ -120,6 +122,7 @@ export interface PhotoRow {
 export interface PhotoPerson {
   personId: number;
   box: Box | null;
+  tagged: boolean;
 }
 
 // A person's own fact, or a fact of a marriage they're in (with the spouse).
@@ -464,6 +467,9 @@ export type ChangeWhat =
   | { kind: 'discard'; volume: string; image: number; rejection: boolean }
   | { kind: 'cite'; volume: string; image: number }
   | { kind: 'uncite'; cited: string | null }
+  // A Tag made, its Box moved, or taken back, in the Photo named.
+  | { kind: 'tag'; photo: string; moved: boolean }
+  | { kind: 'untag'; photo: string }
   | { kind: 'import'; file: string; merged: boolean; lost: number }
   | { kind: 'undo-import' }
   | {

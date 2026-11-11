@@ -1,11 +1,13 @@
 // A dataset's media in GEDCOM 7: an OBJE record holding the FILEs of each
 // OBJE a person, family, event or citation has, and a link to it carrying
 // the CROP and TITL; and an OBJE record nothing points at for each Photo
-// linked to no one. Each file is packed into the GEDZIP under the path it
+// linked to no one. A Tag is a person's OBJE whose record notes it was
+// added in the app (ADR-0017). Each file is packed into the GEDZIP under the path it
 // was imported from, when that's a safe one, so names stay readable.
 
 import { extname } from 'node:path';
 
+import { ADDED_IN_APP } from '../gedcom/astia-links';
 import { mimeOf } from '../gedcom/media-refs';
 import { line, optional, pointer } from '../gedcom/writer';
 import type { OutLine } from '../gedcom/writer';
@@ -124,10 +126,15 @@ export function mediaExport(
     return [...groups.values()].map((group) => {
       const xref = newXref();
       const first = group.reduce((a, b) => (a.id < b.id ? a : b));
+      const tagged = group.some((r) => r.added_in_app === 1);
       records.push({
         tag: 'OBJE',
         xref,
-        children: [...group.map(fileOf), ...notes('media_link', first.id)]
+        children: [
+          ...group.map(fileOf),
+          ...notes('media_link', first.id),
+          ...(tagged ? [line('NOTE', ADDED_IN_APP)] : [])
+        ]
       });
       return pointer('OBJE', xref, [
         ...cropOf(group),

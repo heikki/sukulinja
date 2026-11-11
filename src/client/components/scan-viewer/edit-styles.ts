@@ -61,7 +61,8 @@ export const scanVolumesStyles = css`
   }
 `;
 
-// In the nav, after its divider: one row, as the nav is.
+// In the nav, after its divider: one row, as the nav is, over the shared
+// edit actions' styles.
 export const scanEditStyles = css`
   :host {
     display: flex;
@@ -69,10 +70,6 @@ export const scanEditStyles = css`
     gap: 0.5rem;
     padding-left: 0.5rem;
     border-left: 1px solid var(--border);
-  }
-
-  p {
-    margin: 0;
   }
 
   p.cite {
@@ -84,43 +81,6 @@ export const scanEditStyles = css`
   input.cite-text {
     width: 16rem;
     text-align: left;
-  }
-
-  .actions {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  button {
-    white-space: nowrap;
-  }
-
-  button.save {
-    border-color: var(--accent);
-    background: var(--accent);
-    color: var(--bg);
-  }
-
-  button.save:hover:not(:disabled) {
-    color: var(--bg);
-    filter: brightness(1.1);
-  }
-
-  button.discard {
-    border-color: var(--danger);
-    background: var(--danger);
-    color: var(--bg);
-  }
-
-  button.discard:hover:not(:disabled) {
-    color: var(--bg);
-    filter: brightness(1.1);
-  }
-
-  .refused {
-    color: var(--danger);
-    font-size: 0.8rem;
   }
 
   .also {
@@ -140,16 +100,7 @@ export const scanLayerStyles = css`
   }
 
   sl-context-menu,
-  sl-scan-volumes,
-  .search {
+  sl-scan-volumes {
     pointer-events: auto;
-  }
-
-  /* The person search, where the menu was, to cite the entry for someone
-     outside the family. */
-  .search {
-    position: absolute;
-    z-index: 2;
-    width: 16rem;
   }
 `;

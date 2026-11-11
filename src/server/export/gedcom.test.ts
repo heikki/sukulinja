@@ -12,6 +12,7 @@ import { openAnnotations } from '../citations';
 import { openAppCitations, openMarks } from '../citations/testing';
 import { DatasetRegistry } from '../datasets/registry';
 import { line, pointer, writeGedcom } from '../gedcom/writer';
+import { createPhotos, openTags } from '../photos';
 import { packDataset } from './dataset';
 import { exportGedcom551 } from './gedcom551';
 
@@ -137,6 +138,38 @@ describe('exporting a GEDZIP', () => {
     expect(
       registry.open('b').query('SELECT COUNT(*) AS n FROM changes').get()
     ).toEqual({ n: 0 });
+  });
+
+  test("carries Tags as the person's OBJE links with a CROP, and as Tags", async () => {
+    await importFixture();
+    const db = registry.open('a');
+    function idOf(sql: string) {
+      return db.query<{ id: number }, []>(sql).get()!.id;
+    }
+    const jane = idOf("SELECT id FROM persons WHERE xref = '@I1@'");
+    const child = idOf("SELECT id FROM persons WHERE xref = '@I3@'");
+    const portrait = idOf(
+      "SELECT id FROM media WHERE original_path LIKE '%Bront%'"
+    );
+    const family = idOf(
+      "SELECT id FROM media WHERE original_path LIKE '%Unknown%'"
+    );
+    const tags = openTags(db, createPhotos(db), () => undefined);
+    tags.tag(portrait, jane, { left: 1, top: 2, width: 3, height: 4 });
+    tags.tag(family, child, { left: 5, top: 6, width: 7, height: 8 });
+    const zip = await roundTrip();
+    expect(treeSnapshot(registry.open('b'))).toEqual(treeSnapshot(db));
+    const text = gedcomOf(zip);
+    expect(text).toContain(
+      '1 FILE photos/Unknown%20family.jpg\r\n2 FORM image/jpeg\r\n1 NOTE Added in Sukulinja'
+    );
+    expect(text).toContain(
+      '2 CROP\r\n3 TOP 6\r\n3 LEFT 5\r\n3 HEIGHT 8\r\n3 WIDTH 7'
+    );
+    expect(gedcom7Errors(text)).toEqual([]);
+    const myheritage = exportGedcom551(db).text;
+    expect(myheritage).not.toContain('Added in Sukulinja');
+    expect(myheritage).not.toContain('Unknown family');
   });
 
   test('writes valid GEDCOM 7', async () => {

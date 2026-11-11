@@ -4,7 +4,8 @@ import { focusRingStyles } from '@/client/focus-ring';
 
 // What the Scan viewer and the Photo viewer share: their controls, the
 // viewer over the chart with its stage, its toolbar, the pane beside the
-// picture, and the Boxes over it.
+// picture, the Boxes over it, the bar floating at its foot, and Cancel and
+// Save there while a Box is pending.
 
 // Buttons, fields and links, shared by the viewer and its toolbar.
 const controls = css`
@@ -501,5 +502,71 @@ export const boxHandlesStyles = css`
   .grip.nw,
   .grip.se {
     cursor: nwse-resize;
+  }
+`;
+
+// Floating over the foot of the picture, centred, in one row.
+export const footBarStyles = css`
+  :host {
+    position: absolute;
+    bottom: 1rem;
+    left: 50%;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.5rem;
+    transform: translateX(-50%);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--card) 92%, transparent);
+    box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+    white-space: nowrap;
+    cursor: auto;
+  }
+`;
+
+// What's asked while a Box is pending, or a removal waits: Cancel beside
+// Save or the removal, and why a save was refused.
+export const editActionsStyles = css`
+  p {
+    margin: 0;
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  button {
+    white-space: nowrap;
+  }
+
+  button.save {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--bg);
+  }
+
+  button.save:hover:not(:disabled) {
+    color: var(--bg);
+    filter: brightness(1.1);
+  }
+
+  button.discard {
+    border-color: var(--danger);
+    background: var(--danger);
+    color: var(--bg);
+  }
+
+  button.discard:hover:not(:disabled) {
+    color: var(--bg);
+    filter: brightness(1.1);
+  }
+
+  .refused {
+    color: var(--danger);
+    font-size: 0.8rem;
   }
 `;

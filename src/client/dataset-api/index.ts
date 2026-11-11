@@ -11,6 +11,7 @@ import type {
   FamilyRow,
   PersonDetails,
   PersonRow,
+  PhotoRow,
   Reminder,
   ReminderChange,
   ReminderTarget,
@@ -111,6 +112,11 @@ export interface DatasetApi {
   thumbUrl: (volumeId: string, n: number) => string;
   // A photo imported with the dataset.
   mediaUrl: (storedPath: string) => string;
+  // Tags the person in the Photo at `box`, or moves their Tag there; the
+  // Photo as it is now.
+  tag: (photoId: number, personId: number, box: Box) => Promise<PhotoRow>;
+  // Takes back the person's Tag in the Photo; the Photo as it is now.
+  untag: (photoId: number, personId: number) => Promise<PhotoRow>;
   // Every Change made to the dataset, newest first.
   changes: (signal?: AbortSignal) => Promise<Change[]>;
   // Every Reminder, newest first, open or done.
@@ -323,6 +329,22 @@ export function openDatasetApi(
     thumbUrl: (volumeId, n) => `${astia}/${volumeId}/images/${n}?size=thumb`,
 
     mediaUrl: (storedPath) => `${dataset}/media/${storedPath}`,
+
+    async tag(photoId, personId, box) {
+      const url = `${dataset}/api/photos/${photoId}/tags/${personId}`;
+      const res = await ask('Saving the Tag', url, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ box })
+      });
+      return (await res.json()) as PhotoRow;
+    },
+
+    async untag(photoId, personId) {
+      const url = `${dataset}/api/photos/${photoId}/tags/${personId}`;
+      const res = await ask('Taking back the Tag', url, { method: 'DELETE' });
+      return (await res.json()) as PhotoRow;
+    },
 
     changes: async (signal) =>
       await json<Change[]>('Changes', `${dataset}/api/changes`, signal),

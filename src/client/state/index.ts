@@ -23,7 +23,7 @@ export type { Chart, ChartView, UrlView } from './chart';
 export type { Selected } from './selected';
 export type { LinkStatus, Source, SourceGroup } from './sources';
 export type { Confirming } from './confirming';
-export type { PhotoViewer } from './photo-viewer';
+export type { PendingTag, PhotoViewer } from './photo-viewer';
 export type { Reminders } from './reminders';
 export type {
   ImageOpen,
@@ -52,14 +52,20 @@ export interface AppState {
 
 export function openAppState(api: DatasetApi): AppState {
   const selected = openSelected(api);
-  const photoViewer = openPhotoViewer(selected);
+  const photoViewer = openPhotoViewer(api, selected, {
+    // A Tag may be the crop of someone's portrait.
+    tagged: () => {
+      void chart.reloadPeople();
+    }
+  });
   const viewer = openViewer(api, selected, { opening: photoViewer.close });
+  const chart = openChart(api, selected, viewer, photoViewer);
   return {
     api,
     selected,
     viewer,
     photoViewer,
-    chart: openChart(api, selected, viewer, photoViewer),
+    chart,
     reminders: openReminders(api),
     changes: openChanges(api)
   };

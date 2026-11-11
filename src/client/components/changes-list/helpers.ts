@@ -24,6 +24,10 @@ export function doneLabel(what: ChangeWhat) {
       return 'Cited the entry';
     case 'uncite':
       return 'Deleted a Citation';
+    case 'tag':
+      return what.moved ? 'Moved the Tag' : 'Tagged in a photo';
+    case 'untag':
+      return 'Took back the Tag';
     case 'import':
       return what.merged
         ? `Imported ${what.file} again`
@@ -36,7 +40,7 @@ export function doneLabel(what: ChangeWhat) {
 }
 
 // Where it was done, and what more it said: the Volume and Image, a
-// deleted Citation's text, what an import couldn't keep, or a filming's
+// deleted Citation's text, a Tag's Photo, what an import couldn't keep, or a filming's
 // Image counts. Null when there's nothing more.
 export function detailOf(what: ChangeWhat) {
   switch (what.kind) {
@@ -53,6 +57,9 @@ export function detailOf(what: ChangeWhat) {
       return imageLabel(what.volume, what.image);
     case 'uncite':
       return what.cited;
+    case 'tag':
+    case 'untag':
+      return what.photo;
     case 'import':
       return what.lost === 0 ? null : `${what.lost} not kept`;
     case 'undo-import':

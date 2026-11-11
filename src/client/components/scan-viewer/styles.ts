@@ -22,27 +22,9 @@ export const scanViewerStyles = css`
   }
 `;
 
-// Floating over the foot of the scan, centred, and as wide whatever the
-// Volume: the count keeps room for four digits.
+// Over the foot bar's: as wide whatever the Volume, the count keeps room
+// for four digits.
 export const scanNavStyles = css`
-  :host {
-    position: absolute;
-    bottom: 1rem;
-    left: 50%;
-    z-index: 2;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.35rem 0.5rem;
-    transform: translateX(-50%);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--card) 92%, transparent);
-    box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
-    white-space: nowrap;
-    cursor: auto;
-  }
-
   /* Bare, as the close button is; a tint shows them on hover. */
   button {
     border-color: transparent;

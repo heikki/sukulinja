@@ -9,9 +9,10 @@ import type { AppState } from '@/client/state';
 import type { Box } from '@/common/types';
 
 import { boxFromStage } from '../box-stage/geometry';
+import { familyChoices, searchable } from '../person-search/choices';
 import { placesHere } from '../reminders-list/places';
 import { entriesOn } from './citations';
-import { citeChoices, citingImage, searchable } from './cite';
+import { citingImage } from './cite';
 import { scanLayerStyles } from './edit-styles';
 import { newEntryBox } from './frame';
 import type { Frame } from './frame';
@@ -19,17 +20,12 @@ import { linkItems } from './menu';
 
 import '../box-stage/handles';
 import '../context-menu';
-import '../person-search';
+import '../person-search/pick';
 import './volumes';
 
-function stop(e: Event) {
-  e.stopPropagation();
-}
-
 // What a right-click opened: the menu, the Volumes chosen from it, or the
-// people an entry can be cited for, listed or searched; or the Reminders
-// on the Image, opened from the page nav.
-type Popup = 'menu' | 'volumes' | 'cite' | 'search';
+// people an entry can be cited for, listed or searched.
+type Popup = 'menu' | 'volumes' | 'cite';
 
 // Editing the current source's Link over the scan: the menu a right-click
 // opens (`openMenu`), the Volumes opened from it, a new entry Box put where
@@ -55,34 +51,6 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
 
   @state() private popup: { at: Point; onBox: boolean; show: Popup } | null =
     null;
-  private searchOpened = false;
-
-  override connectedCallback() {
-    super.connectedCallback();
-    window.addEventListener('mousedown', this.onOutside);
-  }
-
-  override disconnectedCallback() {
-    super.disconnectedCallback();
-    window.removeEventListener('mousedown', this.onOutside);
-  }
-
-  // The search takes the typing as it opens, once it has drawn its input.
-  override updated() {
-    if (!this.searchOpened) return;
-    this.searchOpened = false;
-    const search = this.renderRoot.querySelector('sl-person-search');
-    void search?.updateComplete.then(() => {
-      search.focusInput();
-    });
-  }
-
-  // A press outside the search closes it, as one outside a menu does;
-  // presses on it stop there.
-  private readonly onOutside = () => {
-    const show = this.popup?.show;
-    if (show === 'search') this.popup = null;
-  };
 
   // The menu at `at` on the stage; `onBox` when it's on the source's own
   // entry Box, which then has a menu of its own.
@@ -144,62 +112,25 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     );
   }
 
+  // The Selected person's family and the search, but those citing the
+  // Image already.
   private renderCite(at: Point) {
     const selected = this.state.selected.id.get();
     const left = this.citingHere();
     const family =
       selected === null
         ? []
-        : citeChoices(selected, this.state.chart.people.get(), left);
-    const items = [
-      ...family.map((c) => ({
-        label: c.label,
-        muted: c.muted,
-        run: () => {
-          this.cite(at, c.personId);
-        }
-      })),
-      {
-        label: 'Someone else…',
-        run: () => {
-          this.popup = { at, onBox: false, show: 'search' };
-          this.searchOpened = true;
-        }
-      }
-    ];
-    return html`<sl-context-menu
-      .items=${items}
+        : familyChoices(selected, this.state.chart.people.get(), left);
+    return html`<sl-person-pick
       .heading=${'New citation for'}
       .at=${at}
-      @close=${this.onPopupClose}
-    ></sl-context-menu>`;
-  }
-
-  // Esc clears what's typed, as the search does, then closes it; the
-  // viewer's Esc never sees it. Presses on it stay on it, so they don't
-  // pan the scan.
-  private renderSearch(at: Point) {
-    return html`<div
-      class="search"
-      style="left: ${at.x}px; top: ${at.y}px"
-      @mousedown=${stop}
-      @wheel=${stop}
-      @dblclick=${stop}
-      @contextmenu=${stop}
-      @keydown=${(e: KeyboardEvent) => {
-        if (e.key !== 'Escape') return;
-        e.stopPropagation();
-        if (!e.defaultPrevented) this.popup = null;
-        e.preventDefault();
+      .choices=${family}
+      .persons=${searchable(this.persons, left)}
+      @pick=${(e: CustomEvent<{ id: number }>) => {
+        this.cite(at, e.detail.id);
       }}
-    >
-      <sl-person-search
-        .persons=${searchable(this.persons, this.citingHere())}
-        @pick=${(e: CustomEvent<{ id: number }>) => {
-          this.cite(at, e.detail.id);
-        }}
-      ></sl-person-search>
-    </div>`;
+      @close=${this.onPopupClose}
+    ></sl-person-pick>`;
   }
 
   // A Reminder on the Image shown and the Selected person, written in the
@@ -221,7 +152,6 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
       ></sl-scan-volumes>`;
     }
     if (show === 'cite') return this.renderCite(at);
-    if (show === 'search') return this.renderSearch(at);
     const items = linkItems(
       this.viewer,
       { onBox, canBox: this.editable },
