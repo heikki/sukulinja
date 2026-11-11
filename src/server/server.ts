@@ -9,6 +9,10 @@ import { openCitations } from './citations';
 import type { Astia, DatasetCitations } from './citations';
 import { lifecycleRoutes } from './datasets/lifecycle-routes';
 import type { DatasetRegistry } from './datasets/registry';
+import { createFacts } from './facts/facts';
+import type { FactAnswer } from './facts/facts';
+import { routeFacts } from './facts/routes';
+import type { FactHandlers } from './facts/routes';
 import { createPersonDetails } from './person-details';
 import { createPhotos, openTags, routePhotos } from './photos';
 import type { Photos, Tags } from './photos';
@@ -23,7 +27,7 @@ interface ApiHandlers {
   routeApi: (req: Request, pathname: string) => Promise<Response | null>;
 }
 
-interface DatasetHandlers extends ReminderHandlers {
+interface DatasetHandlers extends ReminderHandlers, FactHandlers {
   // The dataset's Changes, which the rest of the app writes into.
   changes: Changes;
   handleChanges: () => Promise<Response>;
@@ -47,6 +51,9 @@ function createDatasetHandlers(
   const reminders = createReminders(db, scans);
   const changes = openChanges(db, scans);
   const photos = createPhotos(db);
+  const facts = createFacts(db, (change) => {
+    changes.add(change);
+  });
   const tags = openTags(db, photos, (change) => {
     changes.add(change);
   });
@@ -57,6 +64,14 @@ function createDatasetHandlers(
     missing: string,
     status = 200
   ) {
+    if (result === null) return new Response(missing, { status: 404 });
+    return 'rejected' in result
+      ? new Response(result.rejected, { status: 400 })
+      : Response.json(result, { status });
+  }
+
+  // A Fact as added or changed, or why not.
+  function answerFact(result: FactAnswer, missing: string, status = 200) {
     if (result === null) return new Response(missing, { status: 404 });
     return 'rejected' in result
       ? new Response(result.rejected, { status: 400 })
@@ -115,6 +130,20 @@ function createDatasetHandlers(
         : new Response('reminder not found', { status: 404 });
     },
 
+    handleAddFact(personId, fact) {
+      return answerFact(facts.add(personId, fact), 'person not found', 201);
+    },
+
+    handleEditFact(personId, factId, fields) {
+      return answerFact(facts.edit(personId, factId, fields), 'fact not found');
+    },
+
+    handleDeleteFact(personId, factId) {
+      return facts.remove(personId, factId)
+        ? new Response(null, { status: 204 })
+        : new Response('fact not found', { status: 404 });
+    },
+
     async handleMedia(rest, mediaRoot) {
       const rel = decodeURIComponent(rest.slice('/media/'.length));
       const fullPath = resolve(mediaRoot, rel);
@@ -143,6 +172,8 @@ async function routeDataset(
   if (person !== null) return handlers.handlePerson(Number(person.groups!.id));
   const cited = await handlers.routeCitations(req, rest);
   if (cited !== null) return cited;
+  const facts = await routeFacts(req, handlers, rest);
+  if (facts !== null) return facts;
   const reminded = await routeReminders(req, handlers, rest);
   if (reminded !== null) return reminded;
   const photo = await routePhotos(req, handlers, rest);

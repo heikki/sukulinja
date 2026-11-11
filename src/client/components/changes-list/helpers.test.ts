@@ -150,3 +150,28 @@ test('runs them by day: today, yesterday, then the date', () => {
     ['23 Oct 2026', [1]]
   ]);
 });
+
+test('says what was done to a Fact, and what it said before and after', () => {
+  function fact(
+    did: 'add' | 'edit' | 'delete',
+    was: string | null,
+    now: string | null
+  ) {
+    return { kind: 'fact', did, tag: 'OCCU', was, now } as const;
+  }
+  expect(doneLabel(fact('add', null, 'torppari'))).toBe('Added an occupation');
+  expect(doneLabel({ ...fact('add', null, '1757'), tag: 'BIRT' })).toBe(
+    'Added a birth'
+  );
+  expect(doneLabel(fact('edit', 'torppari', 'talollinen'))).toBe(
+    'Changed the occupation'
+  );
+  expect(detailOf(fact('edit', 'torppari', 'talollinen'))).toBe(
+    'torppari → talollinen'
+  );
+  expect(doneLabel(fact('delete', 'torppari', null))).toBe(
+    'Deleted the occupation'
+  );
+  expect(detailOf(fact('delete', 'torppari', null))).toBe('torppari');
+  expect(detailOf(fact('add', null, null))).toBeNull();
+});

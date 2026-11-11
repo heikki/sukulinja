@@ -1,0 +1,223 @@
+// Adding, changing and deleting a person's Facts and their marriages', now
+// that the tree is edited in the app (ADR-0021). Each is a Change on the
+// person, and brings the record's CHAN up to now.
+
+import type { Database } from 'bun:sqlite';
+
+import { ADDABLE_FACTS, factKindLabel, factWords } from '@/common/facts';
+import type { FactFields, NewChange, NewFact } from '@/common/types';
+
+import { deleteHeld, deletePlaceHeld, touchRecord } from '../datasets/records';
+import { readFields } from './fields';
+import type { Said } from './fields';
+
+interface FactRecord {
+  id: number;
+  scope_type: 'person' | 'family';
+  scope_id: number;
+  tag: string;
+  type: string | null;
+  date_text: string | null;
+  place: string | null;
+  address: string | null;
+  value: string | null;
+}
+
+export type FactAnswer = { id: number } | { rejected: string } | null;
+
+function rejected(words: string) {
+  return { rejected: words };
+}
+
+function wordsOf(f: Said & { address: string | null }) {
+  return factWords(f);
+}
+
+// The record a Fact is on, by its table.
+function recordOf(f: Pick<FactRecord, 'scope_type' | 'scope_id'>) {
+  return {
+    table:
+      f.scope_type === 'person' ? ('persons' as const) : ('families' as const),
+    id: f.scope_id
+  };
+}
+
+export function createFacts(
+  db: Database,
+  changed: (change: NewChange) => void
+) {
+  const personExists = db.prepare<{ id: number }, [number]>(
+    'SELECT id FROM persons WHERE id = ?'
+  );
+  // A family the person is a spouse in.
+  const familyOf = db.prepare<{ id: number }, [number, number]>(
+    `SELECT id FROM families WHERE id = ?1
+     AND (husband_id = ?2 OR wife_id = ?2)`
+  );
+  // The Fact, when it's the person's or a family's they're a spouse in.
+  const factOf = db.prepare<FactRecord, [number, number]>(
+    `SELECT f.id, f.scope_type, f.scope_id, f.tag, f.type, f.date_text,
+       f.place, f.address, f.value
+     FROM facts f
+     LEFT JOIN families fam ON f.scope_type = 'family' AND fam.id = f.scope_id
+     WHERE f.id = ?1 AND (
+       (f.scope_type = 'person' AND f.scope_id = ?2)
+       OR fam.husband_id = ?2 OR fam.wife_id = ?2
+     )`
+  );
+  const lastOrder = db.prepare<{ last: number | null }, [string, number]>(
+    'SELECT MAX(sort_order) AS last FROM facts WHERE scope_type = ? AND scope_id = ?'
+  );
+  const insert = db.prepare<
+    { id: number },
+    [
+      string,
+      number,
+      string,
+      string | null,
+      string | null,
+      string | null,
+      string | null,
+      number
+    ]
+  >(
+    `INSERT INTO facts
+       (scope_type, scope_id, tag, type, date_text, place, value, sort_order)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+  );
+  const update = db.prepare<
+    null,
+    [string | null, string | null, string | null, string | null, number]
+  >(
+    'UPDATE facts SET type = ?, date_text = ?, place = ?, value = ? WHERE id = ?'
+  );
+  const forgetCoordinates = db.prepare(
+    'UPDATE facts SET latitude = NULL, longitude = NULL WHERE id = ?'
+  );
+  const moveCitations = db.prepare<null, [string, number, number]>(
+    `UPDATE citations SET scope_type = ?, scope_id = ?
+     WHERE scope_type = 'fact' AND scope_id = ?`
+  );
+  const deleteRow = db.prepare('DELETE FROM facts WHERE id = ?');
+
+  function change(
+    personId: number,
+    what: Omit<Extract<NewChange['what'], { kind: 'fact' }>, 'kind'>
+  ) {
+    changed({ on: { personId }, what: { kind: 'fact', ...what } });
+  }
+
+  return {
+    // Adds the Fact to the person, or to one of their families: its id.
+    // Null when there's no such person.
+    add(personId: number, fact: NewFact): FactAnswer {
+      if (personExists.get(personId) === null) return null;
+      const kind = ADDABLE_FACTS.find((k) => k.tag === fact.tag);
+      if (kind === undefined) return rejected(`A ${fact.tag} can't be added.`);
+      if (kind.family !== (fact.familyId !== null)) {
+        return rejected(
+          kind.family
+            ? `A ${factKindLabel(fact.tag).toLowerCase()} is a family's.`
+            : `A ${factKindLabel(fact.tag).toLowerCase()} is a person's.`
+        );
+      }
+      if (
+        fact.familyId !== null &&
+        familyOf.get(fact.familyId, personId) === null
+      ) {
+        return rejected("They aren't a spouse in that family.");
+      }
+      const read = readFields(fact.tag, fact, null);
+      if ('rejected' in read) return read;
+      const s = read.ok;
+      const scope = fact.familyId === null ? 'person' : 'family';
+      const scopeId = fact.familyId ?? personId;
+      return db.transaction(() => {
+        const order = (lastOrder.get(scope, scopeId)?.last ?? -1) + 1;
+        const { id } = insert.get(
+          scope,
+          scopeId,
+          fact.tag,
+          s.type,
+          s.date,
+          s.place,
+          s.value,
+          order
+        )!;
+        touchRecord(db, recordOf({ scope_type: scope, scope_id: scopeId }));
+        change(personId, {
+          did: 'add',
+          tag: fact.tag,
+          was: null,
+          now: wordsOf({ ...s, address: null })
+        });
+        return { id };
+      })();
+    },
+
+    // Changes what the Fact says: its date, place, value and type. Null
+    // when it isn't the person's or their family's.
+    edit(personId: number, factId: number, fields: FactFields): FactAnswer {
+      const f = factOf.get(factId, personId);
+      if (f === null) return null;
+      const stored = {
+        date: f.date_text,
+        place: f.place,
+        value: f.value,
+        type: f.type
+      };
+      const read = readFields(f.tag, fields, stored);
+      if ('rejected' in read) return read;
+      const s = read.ok;
+      const same = (Object.keys(s) as Array<keyof Said>).every(
+        (k) => s[k] === stored[k]
+      );
+      if (same) return { id: factId };
+      db.transaction(() => {
+        update.run(s.type, s.date, s.place, s.value, factId);
+        // Coordinates and notes are of the place they were recorded for.
+        if (s.place !== stored.place) {
+          forgetCoordinates.run(factId);
+          deletePlaceHeld(db, { fact: factId });
+        }
+        touchRecord(db, recordOf(f));
+        change(personId, {
+          did: 'edit',
+          tag: f.tag,
+          was: wordsOf({ ...stored, address: f.address }),
+          now: wordsOf({ ...s, address: f.address })
+        });
+      })();
+      return { id: factId };
+    },
+
+    // Deletes the Fact, moving its Citations to its person or family, so
+    // the evidence stays. False when it isn't the person's or their
+    // family's.
+    remove(personId: number, factId: number) {
+      const f = factOf.get(factId, personId);
+      if (f === null) return false;
+      db.transaction(() => {
+        moveCitations.run(f.scope_type, f.scope_id, factId);
+        deleteHeld(db, { fact: factId });
+        deleteRow.run(factId);
+        touchRecord(db, recordOf(f));
+        change(personId, {
+          did: 'delete',
+          tag: f.tag,
+          was: wordsOf({
+            date: f.date_text,
+            place: f.place,
+            value: f.value,
+            type: f.type,
+            address: f.address
+          }),
+          now: null
+        });
+      })();
+      return true;
+    }
+  };
+}
+
+export type Facts = ReturnType<typeof createFacts>;

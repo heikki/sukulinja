@@ -141,6 +141,23 @@ export interface FactRow {
   spouse: string | null;
 }
 
+// What a Fact says, as typed in the panel: its date the Finnish way
+// (typedDate), its place, an attribute's value and an Event's type. Empty
+// for none.
+export interface FactFields {
+  date: string;
+  place: string;
+  value: string;
+  type: string;
+}
+
+// A Fact to add to a person, of a kind the app offers (ADDABLE_FACTS); a
+// family's, a marriage's, to one of their families.
+export interface NewFact extends FactFields {
+  tag: string;
+  familyId: number | null;
+}
+
 export interface CitationRow {
   id: number;
   // Title of the cited source record, e.g. a MyHeritage collection.
@@ -477,6 +494,15 @@ export type ChangeWhat =
   | { kind: 'untag'; photo: string }
   // The Photo named chosen as the person's portrait.
   | { kind: 'portrait'; photo: string }
+  // A Fact added, changed or deleted, by its tag, as it read before and
+  // after (factWords), null for none.
+  | {
+      kind: 'fact';
+      did: 'add' | 'edit' | 'delete';
+      tag: string;
+      was: string | null;
+      now: string | null;
+    }
   | { kind: 'import'; file: string; merged: boolean; lost: number }
   | { kind: 'undo-import' }
   | {

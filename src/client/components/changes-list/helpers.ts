@@ -1,5 +1,6 @@
 import { volumeTitle } from '@/client/link-labels';
 import { imageLabel, isStale, onLabel, personLabel } from '@/client/on';
+import { factKindLabel } from '@/common/facts';
 import type { Change, ChangeOn, ChangeWhat, PersonRow } from '@/common/types';
 
 function count(n: number, one: string, many: string) {
@@ -9,6 +10,25 @@ function count(n: number, one: string, many: string) {
 // Where in a Volume: its Image, or only the Volume.
 function inVolume(volume: string, image: number | null) {
   return image === null ? volumeTitle(volume) : imageLabel(volume, image);
+}
+
+type FactChange = Extract<ChangeWhat, { kind: 'fact' }>;
+
+// A Fact added, changed or deleted, by its kind: "Changed the birth".
+function factDone({ did, tag }: FactChange) {
+  const kind = factKindLabel(tag).toLowerCase();
+  if (did === 'add') return `Added ${aOrAn(kind)} ${kind}`;
+  return `${did === 'edit' ? 'Changed' : 'Deleted'} the ${kind}`;
+}
+
+function aOrAn(word: string) {
+  return /^[aeiou]/.test(word) ? 'an' : 'a';
+}
+
+// What the Fact said, before and after: "1757 → 3.3.1757".
+function factDetail({ was, now }: FactChange) {
+  if (was === null || now === null) return was ?? now;
+  return `${was} → ${now}`;
 }
 
 // What a Change did, in a few words.
@@ -30,6 +50,8 @@ export function doneLabel(what: ChangeWhat) {
       return 'Took back the Tag';
     case 'portrait':
       return 'Chose the portrait';
+    case 'fact':
+      return factDone(what);
     case 'import':
       return what.merged
         ? `Imported ${what.file} again`
@@ -63,6 +85,8 @@ export function detailOf(what: ChangeWhat) {
     case 'untag':
     case 'portrait':
       return what.photo;
+    case 'fact':
+      return factDetail(what);
     case 'import':
       return what.lost === 0 ? null : `${what.lost} not kept`;
     case 'undo-import':

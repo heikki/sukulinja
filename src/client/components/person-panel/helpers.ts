@@ -1,26 +1,20 @@
 import { volumeTitle } from '@/client/link-labels';
 import type { LinkStatus } from '@/client/state';
 import { BOOK_NAMES } from '@/common/books';
-import { gedcomDate } from '@/common/dates';
-import { factKindLabel } from '@/common/facts';
+import { factKindLabel, factWords } from '@/common/facts';
 import type { CitationRow, FactRow } from '@/common/types';
 
 export function factLabel(fact: FactRow) {
   return factKindLabel(fact.tag);
 }
 
-// The date, read, then place, address and value as recorded, joined; a
-// marriage names the spouse. A value of "Y" is GEDCOM's flag that the
-// event happened ("DEAT Y"), not text, so an event with nothing else
-// reads as a dash.
+// The Fact in words; a marriage names the spouse. An event with nothing
+// else reads as a dash.
 export function factText(fact: FactRow) {
-  const date = fact.date === null ? null : gedcomDate(fact.date);
-  const value = fact.value === 'Y' ? null : fact.value;
-  const parts = [date, fact.place, fact.address, value].filter(
-    (x) => x !== null && x !== ''
-  );
+  const parts = [factWords(fact)];
   if (fact.spouse !== null) parts.push(`with ${fact.spouse}`);
-  return parts.length === 0 ? '—' : parts.join(' · ');
+  const said = parts.filter((x) => x !== null);
+  return said.length === 0 ? '—' : said.join(' · ');
 }
 
 // Kept in a cookie for the reason appearance.ts gives: the app's origin
