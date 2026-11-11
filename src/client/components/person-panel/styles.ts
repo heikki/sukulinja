@@ -2,6 +2,25 @@ import { css } from 'lit';
 
 import { silhouetteStyles } from '../tree-view/silhouette';
 
+// Label and value side by side, the labels muted in a column of their own.
+export const definitionListStyles = css`
+  dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.2rem 0.75rem;
+    margin: 0;
+  }
+
+  dt {
+    color: var(--muted);
+  }
+
+  dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+`;
+
 export const personPanelStyles = css`
   :host {
     display: block;
@@ -87,22 +106,6 @@ export const personPanelStyles = css`
 
   .muted {
     color: var(--muted);
-  }
-
-  dl {
-    display: grid;
-    grid-template-columns: max-content 1fr;
-    gap: 0.2rem 0.75rem;
-    margin: 0;
-  }
-
-  dt {
-    color: var(--muted);
-  }
-
-  dd {
-    margin: 0;
-    overflow-wrap: anywhere;
   }
 
   /* Each household after the first, ruled off from the one before. */

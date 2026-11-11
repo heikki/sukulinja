@@ -26,21 +26,15 @@ import { linkSpelling } from '../archive-search/api';
 import { CROSS, formatName } from '../tree-view/renderer';
 
 import '../archive-search';
+import './events';
 import './fold';
 import './header';
 
 import { householdsOf, lifeText } from './family';
 import type { Household, Relative } from './family';
-import {
-  archiveAction,
-  factLabel,
-  factText,
-  headingOf,
-  siteName,
-  titleText
-} from './helpers';
+import { archiveAction, headingOf, siteName, titleText } from './helpers';
 import { renderPhotos } from './photos';
-import { personPanelStyles } from './styles';
+import { definitionListStyles, personPanelStyles } from './styles';
 
 function renderRecord(r: RecordView) {
   return html`
@@ -208,7 +202,11 @@ function renderRelative(r: Relative, chart: Chart) {
 // and the source it shows is marked and brought into view.
 @customElement('sl-person-panel')
 class PersonPanelElement extends SignalWatcher(LitElement) {
-  static override styles = [focusRingStyles, personPanelStyles];
+  static override styles = [
+    focusRingStyles,
+    definitionListStyles,
+    personPanelStyles
+  ];
 
   @consume({ context: appState }) private readonly state!: AppState;
 
@@ -577,13 +575,7 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
                 'events',
                 'Events',
                 () =>
-                  html`<dl>
-                    ${d.facts.map(
-                      (f) =>
-                        html`<dt>${factLabel(f)}</dt>
-                          <dd>${factText(f)}</dd>`
-                    )}
-                  </dl>`
+                  html`<sl-person-events .facts=${d.facts}></sl-person-events>`
               )
         }
         ${
