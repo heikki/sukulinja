@@ -10,7 +10,7 @@ import { openTags, photoName } from './tags';
 const BOX = { left: 10, top: 20, width: 30, height: 40 };
 
 // Three people; a group photo the import links 1 to without a Box and 2
-// with one, and a PDF.
+// with one, as their Tag beside the link, and a PDF.
 function dataset() {
   const db = openDb(':memory:');
   db.run(
@@ -20,10 +20,11 @@ function dataset() {
     (10, 'abc.jpg', 'image/jpeg', 'photos/Kes%C3%A4%20talo.jpg'),
     (12, 'letter.pdf', 'application/pdf', 'letter.pdf')`);
   db.run(`INSERT INTO media_links
-    (media_id, scope_type, scope_id, sort_order, crop_top, crop_left, crop_width, crop_height)
+    (media_id, scope_type, scope_id, sort_order, crop_top, crop_left, crop_width, crop_height, added_in_app)
     VALUES
-    (10, 'person', 1, 0, NULL, NULL, NULL, NULL),
-    (10, 'person', 2, 0, 5, 40, 30, 35)`);
+    (10, 'person', 1, 0, NULL, NULL, NULL, NULL, 0),
+    (10, 'person', 2, 0, NULL, NULL, NULL, NULL, 0),
+    (10, 'person', 2, 0, 5, 40, 30, 35, 1)`);
   const changes: NewChange[] = [];
   const photos = createPhotos(db);
   const tags = openTags(db, photos, (c) => {
@@ -39,13 +40,12 @@ test('tags someone in a Photo, and they have it among their Photos', () => {
     id: 10,
     path: 'abc.jpg',
     people: [
-      { personId: 1, box: null, tagged: false },
+      { personId: 1, box: null },
       {
         personId: 2,
-        box: { left: 40, top: 5, width: 30, height: 35 },
-        tagged: false
+        box: { left: 40, top: 5, width: 30, height: 35 }
       },
-      { personId: 3, box: BOX, tagged: true }
+      { personId: 3, box: BOX }
     ]
   });
   expect(photos.ofPerson(3).map((p) => p.id)).toEqual([10]);
@@ -62,12 +62,11 @@ test('a Tag gives someone the import linked without a Box their Box', () => {
   const photo = tags.tag(10, 1, BOX);
   expect('refused' in photo ? null : photo.people[0]).toEqual({
     personId: 1,
-    box: BOX,
-    tagged: true
+    box: BOX
   });
 });
 
-test("moves a Tag, and a Tag stands in for the import's Box", () => {
+test("moves a Tag, the app's or the import's", () => {
   const { tags, changes } = dataset();
   tags.tag(10, 3, BOX);
   const moved = { ...BOX, left: 50 };
@@ -81,9 +80,17 @@ test("moves a Tag, and a Tag stands in for the import's Box", () => {
   const edited = tags.tag(10, 2, BOX);
   expect('refused' in edited ? null : edited.people[1]).toEqual({
     personId: 2,
-    box: BOX,
-    tagged: true
+    box: BOX
   });
+});
+
+test("taking back the import's Tag leaves them linked, with no Box", () => {
+  const { tags } = dataset();
+  const photo = tags.untag(10, 2);
+  expect('refused' in photo ? null : photo.people).toEqual([
+    { personId: 1, box: null },
+    { personId: 2, box: null }
+  ]);
 });
 
 test('takes back a Tag; the Photo stays, linked to no one if so', () => {

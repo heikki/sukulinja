@@ -14,14 +14,14 @@ function dataset() {
     (11, 'portrait.png', 'image/png'),
     (12, 'letter.pdf', 'application/pdf')`);
   db.run(`INSERT INTO media_links
-    (media_id, scope_type, scope_id, sort_order, crop_top, crop_left, crop_width, crop_height)
+    (media_id, scope_type, scope_id, sort_order, crop_top, crop_left, crop_width, crop_height, added_in_app)
     VALUES
-    (11, 'person', 1, 0, NULL, NULL, NULL, NULL),
-    (10, 'person', 1, 1, NULL, NULL, NULL, NULL),
-    (10, 'person', 2, 0, 5, 40, 30, 35),
-    (10, 'person', 1, 2, 10, 100, 30, 40),
-    (12, 'person', 1, 3, NULL, NULL, NULL, NULL),
-    (10, 'family', 1, 0, NULL, NULL, NULL, NULL)`);
+    (11, 'person', 1, 0, NULL, NULL, NULL, NULL, 0),
+    (10, 'person', 1, 1, NULL, NULL, NULL, NULL, 0),
+    (10, 'person', 2, 0, 5, 40, 30, 35, 1),
+    (10, 'person', 1, 2, 10, 100, 30, 40, 1),
+    (12, 'person', 1, 3, NULL, NULL, NULL, NULL, 0),
+    (10, 'family', 1, 0, NULL, NULL, NULL, NULL, 0)`);
   return db;
 }
 
@@ -31,7 +31,7 @@ test("lists a person's pictures in their order, with everyone in each", () => {
     {
       id: 11,
       path: 'portrait.png',
-      people: [{ personId: 1, box: null, tagged: false }]
+      people: [{ personId: 1, box: null }]
     },
     {
       id: 10,
@@ -39,13 +39,11 @@ test("lists a person's pictures in their order, with everyone in each", () => {
       people: [
         {
           personId: 1,
-          box: { left: 100, top: 10, width: 30, height: 40 },
-          tagged: false
+          box: { left: 100, top: 10, width: 30, height: 40 }
         },
         {
           personId: 2,
-          box: { left: 40, top: 5, width: 30, height: 35 },
-          tagged: false
+          box: { left: 40, top: 5, width: 30, height: 35 }
         }
       ]
     }

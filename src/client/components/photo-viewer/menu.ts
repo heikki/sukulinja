@@ -3,16 +3,15 @@ import type { PhotoViewer } from '@/client/state';
 import type { MenuItem } from '../context-menu';
 
 // What a right-click on the Photo offers. With a Tag pending, on its Box,
-// only to discard it. Elsewhere, with nothing pending: on someone's Box
-// (`onBox`, their id), to edit it, and a Tag's (`tagged`) to delete; as a
-// Citation's Box offers. Anywhere else once the Photo is shown (`canTag`),
+// only to discard it. Elsewhere, with nothing pending: on someone's Box,
+// their Tag's (`onBox`, their id), to edit or delete it, as a Citation's
+// Box offers. Anywhere else once the Photo is shown (`canTag`),
 // a new Tag for someone.
 export function photoItems(
   viewer: PhotoViewer,
   where: {
     onPending: boolean;
     onBox: number | null;
-    tagged: boolean;
     canTag: boolean;
   },
   open: { tag: () => void }
@@ -24,15 +23,13 @@ export function photoItems(
   }
   const { onBox } = where;
   if (onBox !== null) {
-    const edit: MenuItem = {
-      label: 'Edit',
-      run: () => {
-        viewer.edit(onBox);
-      }
-    };
-    if (!where.tagged) return [edit];
     return [
-      edit,
+      {
+        label: 'Edit',
+        run: () => {
+          viewer.edit(onBox);
+        }
+      },
       {
         label: 'Delete',
         run: () => {

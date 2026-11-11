@@ -1,6 +1,6 @@
 // A re-import's merge carrying the Tags (merge-tags.ts): each goes back on
-// its person in the same Photo, and one whose Photo is gone is lost.
-
+// its person in the same Photo, and one whose Photo is gone is lost. A
+// CROP becomes a Tag only on a link new to the dataset (ADR-0020).
 import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -82,4 +82,88 @@ test('a Tag whose Photo the new export lacks is listed as lost', async () => {
   ]);
   expect(merged?.kept.tags).toBe(1);
   expect(merged?.lost).toEqual(['Child /Doe/: Gone.jpg (a Tag)']);
+});
+
+// The fixture with a CROP on Jane's portrait, and with the child linked to
+// the family photo with one too.
+function cropped(child = false) {
+  return (gedcom: string) => {
+    function crop(level: number) {
+      return [
+        `${String(level)} CROP`,
+        `${String(level + 1)} TOP 1`,
+        `${String(level + 1)} LEFT 2`,
+        `${String(level + 1)} HEIGHT 3`,
+        `${String(level + 1)} WIDTH 4`
+      ].join('\r\n');
+    }
+    const portrait = gedcom.replace(
+      '2 TITL Portrait',
+      `2 TITL Portrait\r\n${crop(2)}`
+    );
+    if (!child) return portrait;
+    return portrait.replace(
+      '1 NAME Child /Doe/',
+      `1 NAME Child /Doe/\r\n1 OBJE @O1@\r\n${crop(2)}`
+    );
+  };
+}
+
+// Jane's links to her portrait: their Boxes' left, a Tag's or not.
+function janesLinks() {
+  return registry
+    .open('a')
+    .query(
+      `SELECT ml.added_in_app AS tag, ml.crop_left AS 'left'
+       FROM media_links ml JOIN persons p ON p.id = ml.scope_id
+       JOIN media m ON m.id = ml.media_id
+       WHERE p.xref = '@I1@' AND m.original_path LIKE '%Bront%'
+       ORDER BY ml.id`
+    )
+    .all();
+}
+
+function idsOf() {
+  const db = registry.open('a');
+  function id(sql: string) {
+    return db.query<{ id: number }, []>(sql).get()!.id;
+  }
+  return {
+    tags: openTags(db, createPhotos(db), () => undefined),
+    jane: id("SELECT id FROM persons WHERE xref = '@I1@'"),
+    portrait: id("SELECT id FROM media WHERE original_path LIKE '%Bront%'")
+  };
+}
+
+test("the import makes a person's CROP their Tag, beside the link", async () => {
+  await importGedcomFixture(registry, 'a', cropped());
+  expect(janesLinks()).toEqual([
+    { tag: 0, left: null },
+    { tag: 1, left: 2 }
+  ]);
+});
+
+test('a Tag moved or taken back stays so over the CROP again', async () => {
+  await importGedcomFixture(registry, 'a', cropped());
+  const first = idsOf();
+  first.tags.tag(first.portrait, first.jane, BOX);
+  await importGedcomFixture(registry, 'a', cropped());
+  expect(janesLinks()).toEqual([
+    { tag: 0, left: null },
+    { tag: 1, left: 5 }
+  ]);
+  const second = idsOf();
+  second.tags.untag(second.portrait, second.jane);
+  await importGedcomFixture(registry, 'a', cropped());
+  expect(janesLinks()).toEqual([{ tag: 0, left: null }]);
+});
+
+test('a CROP is a Tag only on a link new to the dataset', async () => {
+  await importGedcomFixture(registry, 'a');
+  const { merged } = await importGedcomFixture(registry, 'a', cropped(true));
+  expect(janesLinks()).toEqual([{ tag: 0, left: null }]);
+  expect(tagsNow()).toEqual([
+    { xref: '@I3@', photo: 'photos/Unknown family.jpg', left: 2 }
+  ]);
+  expect(merged?.kept.tags).toBe(0);
 });

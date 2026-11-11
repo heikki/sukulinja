@@ -44,8 +44,8 @@ export function newTagBox(at: Point, others: Box[], size: Viewport) {
   });
 }
 
-// Who's marked on the Photo already, by the import or a Tag: their Box is
-// edited, not tagged anew.
+// Who has a Tag on the Photo already: it is
+// edited, not made anew.
 export function boxedOn(people: PhotoPerson[]) {
   return new Set(people.filter((p) => p.box !== null).map((p) => p.personId));
 }

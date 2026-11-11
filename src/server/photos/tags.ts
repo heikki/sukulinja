@@ -1,7 +1,7 @@
-// Tagging people in a Photo (ADR-0017): a Tag is the person's media link
-// to it with their Box, made in the app. Making, moving and taking back a
-// Tag is a Change on the person. A Tag of someone the import already marks
-// on the Photo stands in for the import's Box, which stays as it was.
+// Tagging people in a Photo (ADR-0017, ADR-0020): a Tag is the person's
+// media link to it with their Box, and every Box is a Tag. Making, moving
+// and taking back a Tag is a Change on the person. Taking it back leaves
+// them linked to the Photo without a Box where the import linked them.
 
 import type { Database } from 'bun:sqlite';
 

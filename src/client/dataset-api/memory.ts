@@ -320,7 +320,7 @@ export function memoryDatasetApi(
       await answer(`tag ${photoId} ${personId}`, undefined, () => {
         const shown = photo(photoId);
         const had = shown.people.find((p) => p.personId === personId);
-        const tag = { personId, box, tagged: true };
+        const tag = { personId, box };
         shown.people =
           had === undefined
             ? [...shown.people, tag]
@@ -331,11 +331,13 @@ export function memoryDatasetApi(
     untag: async (photoId, personId) =>
       await answer(`untag ${photoId} ${personId}`, undefined, () => {
         const shown = photo(photoId);
-        if (!shown.people.some((p) => p.personId === personId && p.tagged)) {
+        if (
+          !shown.people.some((p) => p.personId === personId && p.box !== null)
+        ) {
           throw new ApiError('tag not found');
         }
         shown.people = shown.people.filter(
-          (p) => p.personId !== personId || !p.tagged
+          (p) => p.personId !== personId || p.box === null
         );
         return structuredClone(shown);
       }),

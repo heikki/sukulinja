@@ -4,9 +4,9 @@ import { boxedOn, newTagBox, photoBoxes } from './photo-boxes';
 
 const BOX = { left: 10, top: 20, width: 30, height: 40 };
 const PEOPLE = [
-  { personId: 1, box: BOX, tagged: false },
-  { personId: 2, box: null, tagged: false },
-  { personId: 3, box: BOX, tagged: true }
+  { personId: 1, box: BOX },
+  { personId: 2, box: null },
+  { personId: 3, box: BOX }
 ];
 
 test("boxes the people marked on the Photo, the Selected person's marked", () => {

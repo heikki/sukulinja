@@ -89,12 +89,14 @@ const FIXTURE = [
   ''
 ].join('\r\n');
 
+// Imports the fixture into `slug`, its GEDCOM changed by `edit` first.
 export async function importGedcomFixture(
   registry: DatasetRegistry,
-  slug: string
+  slug: string,
+  edit: (gedcom: string) => string = (gedcom) => gedcom
 ) {
   const gedzip = packGedzip(
-    FIXTURE,
+    edit(FIXTURE),
     new Map([
       ['photos/Charlotte Brontë.jpg', new Uint8Array([1, 2, 3])],
       ['actes/baptism.jpg', new Uint8Array([4, 5, 6])],

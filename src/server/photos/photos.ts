@@ -1,6 +1,5 @@
 // A dataset's Photos, each with everyone it's linked to and where they are
-// on it, the import's crops and the app's Tags (ADR-0017): a person's, or
-// every one. Files that aren't pictures are left out, and so are a
+// on it, their Tag's Box (ADR-0020): a person's, or every one. Files that aren't pictures are left out, and so are a
 // family's or an event's links.
 
 import type { Database } from 'bun:sqlite';
@@ -25,22 +24,14 @@ function boxOf(r: LinkRow): Box | null {
     : null;
 }
 
-// One per person, in the order first linked; their Tag wins, as it stands
-// in for the import's Box, else a link with a Box wins over one without,
-// as a person linked twice keeps where they were marked.
+// One per person, in the order first linked, with their Tag's Box.
 function peopleOf(links: LinkRow[]): PhotoPerson[] {
   const people = new Map<number, PhotoPerson>();
   for (const link of links) {
-    const box = boxOf(link);
+    const box = link.added_in_app === 1 ? boxOf(link) : null;
     const had = people.get(link.person_id);
-    const tag = link.added_in_app === 1;
-    const better = tag || (had?.box === null && box !== null);
-    if (had === undefined || (better && !had.tagged)) {
-      people.set(link.person_id, {
-        personId: link.person_id,
-        box,
-        tagged: tag
-      });
+    if (had === undefined || (had.box === null && box !== null)) {
+      people.set(link.person_id, { personId: link.person_id, box });
     }
   }
   return [...people.values()];

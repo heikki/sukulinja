@@ -11,14 +11,14 @@ const BOX = { left: 1, top: 2, width: 3, height: 4 };
 const PORTRAIT: PhotoRow = {
   id: 10,
   path: 'a.jpg',
-  people: [{ personId: 1, box: null, tagged: false }]
+  people: [{ personId: 1, box: null }]
 };
 const GROUP: PhotoRow = {
   id: 11,
   path: 'b.jpg',
   people: [
-    { personId: 1, box: BOX, tagged: false },
-    { personId: 2, box: BOX, tagged: false }
+    { personId: 1, box: BOX },
+    { personId: 2, box: BOX }
   ]
 };
 
@@ -115,14 +115,13 @@ test('tags someone: the Box pending, then saved, and the Photo as saved', async 
   expect(photos.pending.get()).toBeNull();
   expect(photos.opened.get()?.people.at(-1)).toEqual({
     personId: 3,
-    box: MOVED,
-    tagged: true
+    box: MOVED
   });
   expect(tagged).toEqual([3]);
   expect(api.asked.filter((a) => a === 'photos')).toHaveLength(2);
 });
 
-test("edits a Tag's Box, and the import's, which saving makes a Tag", async () => {
+test("edits someone's Tag, the app's or the import's", async () => {
   const { photos } = await tagging();
   photos.tagFor(3, MOVED);
   await photos.save();
@@ -138,8 +137,7 @@ test("edits a Tag's Box, and the import's, which saving makes a Tag", async () =
   await photos.save();
   expect(photos.opened.get()?.people[1]).toEqual({
     personId: 2,
-    box: MOVED,
-    tagged: true
+    box: MOVED
   });
   photos.edit(2);
   photos.cancel();
@@ -150,7 +148,7 @@ test('takes back a Tag once confirmed', async () => {
   const { api, photos } = await tagging();
   photos.tagFor(3, BOX);
   await photos.save();
-  photos.untag(2);
+  photos.untag(4);
   expect(photos.removing.get()).toBeNull();
   photos.untag(3);
   expect(photos.removing.get()).toBe(3);

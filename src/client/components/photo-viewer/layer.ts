@@ -18,12 +18,11 @@ import '../context-menu';
 import '../person-search/pick';
 
 // Where a right-click opened its menu: on the pending Box, on someone's
-// Box (a Tag's or not), or elsewhere; and whether it's the menu or the people to tag.
+// Box, or elsewhere; and whether it's the menu or the people to tag.
 interface Popup {
   at: Point;
   onPending: boolean;
   onBox: number | null;
-  tagged: boolean;
   show: 'menu' | 'pick';
 }
 
@@ -70,7 +69,6 @@ class PhotoLayerElement extends SignalWatcher(LitElement) {
       at,
       onPending: on.pending,
       onBox: boxed?.personId ?? null,
-      tagged: boxed?.tagged === true,
       show: 'menu'
     };
     this.popup = this.items(popup).length === 0 ? null : popup;
@@ -82,7 +80,6 @@ class PhotoLayerElement extends SignalWatcher(LitElement) {
       {
         onPending: popup.onPending,
         onBox: popup.onBox,
-        tagged: popup.tagged,
         canTag: this.size !== null && this.view !== null
       },
       {

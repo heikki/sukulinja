@@ -11,6 +11,8 @@
 import type { Database } from 'bun:sqlite';
 import { copyFileSync } from 'node:fs';
 
+import { BOXES_BECOME_TAGS } from './migration-2';
+
 export interface Migration {
   to: number;
   up: (db: Database) => void;
@@ -19,7 +21,7 @@ export interface Migration {
 // The oldest schema a database is taken from. One older is imported again.
 export const OLDEST_MIGRATED = 1;
 
-export const MIGRATIONS: Migration[] = [];
+export const MIGRATIONS: Migration[] = [BOXES_BECOME_TAGS];
 
 // The version the steps take a database to.
 export function latestOf(steps: Migration[]) {

@@ -177,6 +177,93 @@ describe('a database of the oldest schema migrated', () => {
   });
 });
 
+describe('schema 2', () => {
+  test("makes each person's Box from the import their Tag", () => {
+    const db = oldest();
+    runAll(
+      db,
+      `
+      INSERT INTO persons (id, xref) VALUES (1, '@I1@'), (2, '@I2@');
+      INSERT INTO media (id, file_path) VALUES (1, 'a.jpg'), (2, 'b.jpg');
+      INSERT INTO media_links (media_id, scope_type, scope_id, object_order,
+        crop_top, crop_left, crop_width, crop_height, sort_order, added_in_app)
+        VALUES (1, 'person', 1, 0, 1, 2, 3, 4, 0, 0),
+          (2, 'person', 1, 1, NULL, NULL, NULL, NULL, 1, 0),
+          (1, 'person', 2, 0, 1, 2, 3, 4, 0, 0),
+          (1, 'person', 2, 1, 5, 6, 7, 8, 1, 1),
+          (1, 'family', 1, 0, 1, 2, 3, 4, 0, 0);
+    `
+    );
+    db.close();
+    const migrated = openDb(path);
+    expect(
+      migrated
+        .query(
+          `SELECT media_id, scope_type, scope_id, object_order, crop_top,
+             sort_order, added_in_app
+           FROM media_links ORDER BY id`
+        )
+        .all()
+    ).toEqual([
+      {
+        media_id: 1,
+        scope_type: 'person',
+        scope_id: 1,
+        object_order: 0,
+        crop_top: null,
+        sort_order: 0,
+        added_in_app: 0
+      },
+      {
+        media_id: 2,
+        scope_type: 'person',
+        scope_id: 1,
+        object_order: 1,
+        crop_top: null,
+        sort_order: 1,
+        added_in_app: 0
+      },
+      {
+        media_id: 1,
+        scope_type: 'person',
+        scope_id: 2,
+        object_order: 0,
+        crop_top: null,
+        sort_order: 0,
+        added_in_app: 0
+      },
+      {
+        media_id: 1,
+        scope_type: 'person',
+        scope_id: 2,
+        object_order: 1,
+        crop_top: 5,
+        sort_order: 1,
+        added_in_app: 1
+      },
+      {
+        media_id: 1,
+        scope_type: 'family',
+        scope_id: 1,
+        object_order: 0,
+        crop_top: 1,
+        sort_order: 0,
+        added_in_app: 0
+      },
+      {
+        media_id: 1,
+        scope_type: 'person',
+        scope_id: 1,
+        object_order: 2,
+        crop_top: 1,
+        sort_order: 0,
+        added_in_app: 1
+      }
+    ]);
+    migrated.close();
+  });
+});
+
 describe('opening a database', () => {
   test('older than the oldest schema migrated, it has to be imported again', () => {
     oldest(OLDEST_MIGRATED - 1).close();

@@ -111,8 +111,8 @@ export interface PersonDetails {
 
 // A Photo of the person's: one picture in the dataset, by its stored path,
 // and the people it's linked to, in the order linked. A person's Box is
-// where they are on it: the import's CROP, or their Tag's, `tagged`, made
-// in the app (ADR-0017); null where nothing marks them.
+// where their Tag puts them on it (ADR-0020); null when they're linked
+// with none.
 export interface PhotoRow {
   id: number;
   path: string;
@@ -122,7 +122,6 @@ export interface PhotoRow {
 export interface PhotoPerson {
   personId: number;
   box: Box | null;
-  tagged: boolean;
 }
 
 // A person's own fact, or a fact of a marriage they're in (with the spouse).

@@ -1,7 +1,8 @@
 // A GEDCOM's media in the database: each linked to what holds it (a
 // person, a family, an event or a citation), and the Photos linked to no
-// one kept on their own. A person's link with a CROP to a record noting
-// it was added in the app is a Tag (ADR-0017).
+// one kept on their own. A person's Box is their Tag (ADR-0020): a
+// record noting it was added in the app holds a Tag (ADR-0017), and
+// another's CROP becomes one beside its link.
 
 import type { Scope } from '@/common/types';
 
@@ -71,37 +72,70 @@ export function mediaLinker({
     return res.id;
   }
 
+  function insertLink(
+    link: {
+      mediaId: number;
+      scope: MediaScope;
+      scopeId: number;
+      objectOrder: number;
+      title: string | null;
+      order: number;
+      tag: boolean;
+    },
+    crop: MediaRef['crop'] | null
+  ) {
+    const res = sql.insertMediaLink.run({
+      $media_id: link.mediaId,
+      $scope_type: link.scope,
+      $scope_id: link.scopeId,
+      $object_order: link.objectOrder,
+      $title: link.title,
+      $crop_top: crop?.top ?? null,
+      $crop_left: crop?.left ?? null,
+      $crop_width: crop?.width ?? null,
+      $crop_height: crop?.height ?? null,
+      $sort_order: link.order,
+      $added_in_app: link.tag ? 1 : 0
+    });
+    count('mediaLinks');
+    return Number(res.lastInsertRowid);
+  }
+
   // A media row for the stored file, which files with the same content
-  // share, and a link to it from what holds it. Null when the file couldn't
-  // be stored, which the media ingest reports.
+  // share, and a link to it from what holds it. A person's Box is their
+  // Tag (ADR-0020): on a Tag's record the link is the Tag, else the link
+  // stays without it and the Tag is `extra`, made once the holder's own
+  // OBJEs are in. Null when the file couldn't be stored, which the media
+  // ingest reports.
   function importMediaLink(
     ref: MediaRef & { objectOrder: number },
-    scope: MediaScope,
-    scopeId: number,
-    tag: boolean
+    { scope, scopeId }: { scope: MediaScope; scopeId: number },
+    tagRecord: boolean,
+    extra: (tag: (objectOrder: number) => void) => void
   ) {
     const storedPath = resolve(ref.path);
     if (storedPath === null) return null;
     const mediaId = resolveMediaId(storedPath, ref.path, ref.format);
     const { crop } = ref;
+    const link = {
+      mediaId,
+      scope,
+      scopeId,
+      objectOrder: ref.objectOrder,
+      title: ref.title,
+      order: ref.order,
+      tag: false
+    };
+    if (scope !== 'person') return insertLink(link, crop);
     const boxed = Object.values(crop).every((side) => side !== null);
-    const tagged =
-      tag && scope === 'person' && boxed && takeTag(mediaId, scopeId);
-    const res = sql.insertMediaLink.run({
-      $media_id: mediaId,
-      $scope_type: scope,
-      $scope_id: scopeId,
-      $object_order: ref.objectOrder,
-      $title: ref.title,
-      $crop_top: crop.top,
-      $crop_left: crop.left,
-      $crop_width: crop.width,
-      $crop_height: crop.height,
-      $sort_order: ref.order,
-      $added_in_app: tagged ? 1 : 0
-    });
-    count('mediaLinks');
-    return Number(res.lastInsertRowid);
+    const tag = boxed && takeTag(mediaId, scopeId);
+    if (tagRecord) return insertLink({ ...link, tag }, tag ? crop : null);
+    if (tag) {
+      extra((objectOrder) => {
+        insertLink({ ...link, objectOrder, title: null, tag: true }, crop);
+      });
+    }
+    return insertLink(link, null);
   }
 
   function markCrop(holder: GedNode) {
@@ -161,13 +195,20 @@ export function mediaLinker({
     for (const { link, files } of objects) markMediaLines(link, files);
     const tagged = objects.map(({ files }) => isTagRecord(files));
     const firstLink = new Map<number, number>();
+    const extras: Array<(objectOrder: number) => void> = [];
     for (const ref of primaryFirst(mediaRefsOf(holder, records))) {
       const tag = tagged[ref.object] ?? false;
-      const linkId = importMediaLink(ref, scope, scopeId, tag);
+      const holderOf = { scope, scopeId };
+      const linkId = importMediaLink(ref, holderOf, tag, (t) => {
+        extras.push(t);
+      });
       if (linkId !== null && !firstLink.has(ref.object)) {
         firstLink.set(ref.object, linkId);
       }
     }
+    extras.forEach((made, i) => {
+      made(objects.length + i);
+    });
     objects.forEach(({ files }, object) => {
       const linkId = firstLink.get(object);
       if (linkId === undefined || noted.has(files)) return;

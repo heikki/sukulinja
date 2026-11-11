@@ -7,7 +7,7 @@ import type { Photos } from './photos';
 import type { Readable, Selected } from './selected';
 
 // A Tag being placed: whose, and its Box as it's dragged so far. `moving`
-// when it's their Box on the Photo edited, not a new Tag.
+// when it's their Tag edited, not a new one.
 export interface PendingTag {
   personId: number;
   box: Box;
@@ -23,7 +23,7 @@ export type PhotosFrom = 'person' | 'all';
 // any Photo picked in the Photos view, with no one. As the Scan viewer
 // does, it belongs to the Selected person (ADR-0011): selecting someone in
 // the Photo keeps it open, as it's theirs too; selecting anyone else
-// closes it. People are tagged in it (ADR-0017): a Tag is placed, then
+// closes it. People are tagged in it (ADR-0017, ADR-0020): a Tag is placed, then
 // saved or dropped, and one taken back is asked about first.
 export interface PhotoViewer {
   // The Photo shown; null while it's closed.
@@ -44,8 +44,7 @@ export interface PhotoViewer {
   removing: Readable<number | null>;
   // A new Tag for the person at `box`, pending.
   tagFor: (personId: number, box: Box) => void;
-  // The person's Box, pending to be moved: their Tag's, or the import's,
-  // which saving makes a Tag that stands in for it (ADR-0017).
+  // The person's Tag, pending to be moved.
   edit: (personId: number) => void;
   // The pending Tag's Box, as dragged to.
   setBox: (box: Box) => void;
@@ -91,7 +90,7 @@ export function openPhotoViewer(
   function tagOf(personId: number) {
     return opened
       .get()
-      ?.people.find((p) => p.personId === personId && p.tagged);
+      ?.people.find((p) => p.personId === personId && p.box !== null);
   }
 
   // The Photo as the save left it, if it's still the one shown; the
