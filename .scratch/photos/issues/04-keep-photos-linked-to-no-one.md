@@ -8,7 +8,7 @@ Heikki, 2026-11-11: an import's Photos linked to no one should be kept ("pitäis
 
 Today an import keeps only the Photos under people and families: `allMediaRefs` in `gedcom/media-refs.ts` walks `INDI` and `FAM`, and the media ingest copies only what it finds. An `OBJE` record nothing points at is dropped with its file.
 
-Every `OBJE` record is kept instead: a `media` row with its file copied, with no `media_links` when nothing holds it. The GEDZIP export writes it back as an `OBJE` record, so a dataset exported and imported again keeps it.
+Every such `OBJE` record whose file is a picture (an image `FORM`, such as JPEG or PNG) is kept instead; other files GEDCOM allows there, like PDFs, aren't Photos and stay out: a `media` row with its file copied, with no `media_links` when nothing holds it. The GEDZIP export writes it back as an `OBJE` record, so a dataset exported and imported again keeps it.
 
 Not here: a photo a source record holds (a picture of the source itself) is dropped today too, but it isn't linked to no one; it's a case of its own, if it ever comes up.
 
