@@ -17,11 +17,12 @@ Photos get what Citations have: a list on the person, a viewer to look at them i
 
 ## Decisions so far
 
-- **A Photo viewer beside the Scan viewer** (Heikki, 2026-11-11): "Scanweaverin lisäksi meillä olisi Photoweaver ja ne toimisivat melko lailla samalla tavalla." Its own viewer, working much like the Scan viewer, not one viewer for both. What the two share (zooming and panning an image, Boxes on it, the people beside it, the menu on a Box) is to be one set of parts both use, not a copy of the Scan viewer's.
+- **A Photo viewer beside the Scan viewer** (Heikki, 2026-11-11): "Scanweaverin lisäksi meillä olisi Photoweaver ja ne toimisivat melko lailla samalla tavalla." Its own viewer, working much like the Scan viewer, not one viewer for both. What the two share (zooming and panning an image, Boxes on it, the people beside it, the menu on a Box) is to be one set of parts both use, not a copy of the Scan viewer's, where sharing makes sense (Heikki: "Mikä nyt onkin järkevää").
+- **First: tagging people in a photo** (Heikki, 2026-11-11). Draw a Box around a face and pick the person, as a Citation is made for someone from an Image. A person's tag is also the crop their portrait can use. Adding photos from disk comes later.
 
 ## Open questions
 
-- **What's edited first:** choosing the portrait, drawing a person's face (the `CROP`), tagging the people in a group photo, a title or date, adding a photo from disk, removing one.
+- **What comes after tagging:** choosing the portrait, a title or date, adding a photo from disk, removing one.
 - **Where photos are listed:** a _Photos_ section in the person panel beside _Sources_, and whether a family's or an event's photos show on its people.
 - **Who's in it:** does tagging a person in a photo link the photo to them (a `media_link` per person, each with its own crop), as a Citation is made for each person in a record?
 - **Re-import:** a photo edited in the app against the next MyHeritage export, which brings its photos and crops back. Kept as an Annotation like a Citation's, or the app's edit wins outright?
