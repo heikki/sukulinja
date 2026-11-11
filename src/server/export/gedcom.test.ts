@@ -322,6 +322,7 @@ describe('exporting a GEDZIP', () => {
         personId,
         volumeId: '1234',
         volume,
+        archive: 'Juvan seurakunnan arkisto',
         image: 25,
         fileId: '5678',
         box: { left: 10, top: 20, width: 300, height: 40 },
@@ -335,11 +336,16 @@ describe('exporting a GEDZIP', () => {
     expect(text).toContain(
       [
         '0 @ASTIA_1234@ SOUR',
-        `1 TITL ${volume}`,
+        `1 TITL Juvan seurakunnan arkisto, ${volume}`,
         '1 PUBL Kansallisarkisto, Astia'
       ].join('\r\n')
     );
     expect(text.match(/1 SOUR @ASTIA_1234@/g)).toHaveLength(2);
+    // Its PAGE reads as an archive's book is cited, its address last, which
+    // the import reads back as its page (ADR-0019).
+    expect(text).toContain(
+      `2 PAGE Juvan seurakunnan arkisto, ${volume}. Kansallisarkisto, Astia, kuva 25. https://astia.narc.fi/uusiastia/viewer/?fileId=5678&aineistoId=1234`
+    );
     expect(text).toContain('3 TEXT Baptism 12.3.1860');
     expect(text).toContain('2 NOTE Added in Sukulinja');
     const b = registry.open('b');

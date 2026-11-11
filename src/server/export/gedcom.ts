@@ -4,7 +4,7 @@
 
 import type { Database } from 'bun:sqlite';
 
-import { astiaLinkExport } from '../gedcom/astia-links';
+import { astiaLinkExport, citationPage } from '../gedcom/astia-links';
 import { EVENTS } from '../gedcom/tags';
 import { enumeration, EVENT_TYPES, NAME_TYPES, ROLES } from '../gedcom/values';
 import { line, optional, pointer, writeGedcom } from '../gedcom/writer';
@@ -70,6 +70,7 @@ export function gedcomTree(db: Database) {
   const personXref = xrefsById(rows.persons);
   const familyXref = xrefsById(rows.families);
   const sourceXref = xrefsById(rows.sources);
+  const sourceById = new Map(rows.sources.map((s) => [s.id, s]));
   const repositoryXref = xrefsById(rows.repositories);
   const sharedNoteXref = xrefsById(rows.sharedNotes);
   const taken = new Set(
@@ -118,7 +119,14 @@ export function gedcomTree(db: Database) {
         'SOUR',
         c.source_id === null ? VOID : sourceXref.get(c.source_id)!,
         [
-          ...optional('PAGE', c.page),
+          ...optional(
+            'PAGE',
+            citationPage(
+              c.page,
+              c.annotation.link,
+              c.source_id === null ? undefined : sourceById.get(c.source_id)
+            )
+          ),
           ...citationData(c),
           ...citationEvent(c),
           ...optional('QUAY', c.quality === null ? null : String(c.quality)),

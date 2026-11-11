@@ -25,6 +25,8 @@ import { routeParishes } from './parish-routes';
 export type { Astia } from './astia/astia';
 export { annotated, annotationOf, openAnnotations } from './annotations';
 export type { Annotation, Annotations, CitationLink } from './annotations';
+export { PUBLISHER as ASTIA_PUBLISHER } from './app-citations';
+export { viewerUrl } from './astia/astia';
 export {
   BAPTISM_COLLECTION,
   carryRejections,

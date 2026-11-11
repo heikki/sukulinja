@@ -6,6 +6,7 @@
 // nobody has checked, a link with no file to point at (only a Volume, or
 // an Image whose file id wasn't known), and a citation made in the app.
 
+import { ASTIA_PUBLISHER, viewerUrl } from '../citations';
 import type { Annotation, CitationLink } from '../citations';
 import { line, pointer } from './writer';
 import type { OutLine } from './writer';
@@ -65,6 +66,38 @@ export function noFileLinkOf(note: string) {
     volume: g.volume!,
     image: g.image === undefined ? null : Number(g.image)
   };
+}
+
+// The Image's address a Citation of it cites, when its page ends with it:
+// the page a GEDZIP's PAGE text gives back (ADR-0019).
+function imageAddress(link: CitationLink | null) {
+  if (link?.image === undefined || link.fileId === undefined) return null;
+  return viewerUrl(link.volumeId, link.fileId);
+}
+
+// A citation's page as read: the Image's address where its PAGE is the
+// text `citationPage` writes, else the PAGE as it is.
+export function pageOf(page: string | null, link: CitationLink | null) {
+  const address = imageAddress(link);
+  return address !== null && page?.endsWith(` ${address}`) === true
+    ? address
+    : page;
+}
+
+// A citation's PAGE: for a Citation of an Image in its Volume's source,
+// as an archive's book is cited (ADR-0019), "<archive>, <Volume>.
+// Kansallisarkisto, Astia, kuva <Image>. <address>"; else its page.
+export function citationPage(
+  page: string | null,
+  link: CitationLink | null,
+  source: { title: string | null; publisher: string | null } | undefined
+) {
+  const address = imageAddress(link);
+  if (address === null || page !== address) return page;
+  if (source?.publisher !== ASTIA_PUBLISHER || source.title === null) {
+    return page;
+  }
+  return `${source.title}. ${ASTIA_PUBLISHER}, kuva ${link!.image}. ${address}`;
 }
 
 // ---------------------------------------------------------------- writing

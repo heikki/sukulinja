@@ -3,6 +3,7 @@ import type { Database } from 'bun:sqlite';
 import type { Scope } from '@/common/types';
 
 import { openAnnotations } from '../citations';
+import { pageOf } from '../gedcom/astia-links';
 import { objectRecords, unlinkedPhotos } from '../gedcom/media-refs';
 import { parseName } from '../gedcom/names';
 import { findChildren } from '../gedcom/parser';
@@ -442,8 +443,10 @@ export function importGedcom(
     takeAll(holder, 'SOUR').forEach((sour, i) => {
       const annotation = readAnnotation(sour);
       const c = readCitation(sour);
+      // A Citation of an Image's PAGE text gives back its page (ADR-0019).
+      const page = pageOf(c.page, annotation.link);
       const citationId = citationRows.insert(
-        { scopeType: scope, scopeId, sortOrder: i, ...c },
+        { scopeType: scope, scopeId, sortOrder: i, ...c, page },
         annotation
       );
       importNotes(sour, 'citation', citationId);
