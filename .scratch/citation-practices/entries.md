@@ -54,7 +54,14 @@ GEDCOM 7:ssä ei ole merkintä-tietuetta, joten vienti litistää mallin:
 
 ## Ajoitus
 
-Tämä on skeemamuutos (nyt 11), ja jokainen datasetti pitää tuoda uudelleen. ADR-0016 suunnittelee jo yhtä skeemamuutosta, joka poistaa `myheritage/`-kansion, `link_by = 'vision'`-arvon ja `rejections`-taulun, kun MyHeritage-import on lopetettu. **Suositus: tehdään merkintämalli samassa muutoksessa.** Silloin `link_*`-sarakkeet siirtyvät kokonaan `entries`-tauluun eikä kahta paikkaa Boxille tarvita välivaiheessa. Jos se tehtäisiin ennen MyHeritagen lopettamista, Boxilla olisi kaksi kotia (merkintä ja Match-sitaatti), ja juuri sellaista liimaamista projektin sääntö kieltää.
+Tämä on skeemamuutos (nyt 11). Erillinen työ ("Migrate database schema automatically") tuo järjestetyt migraatiot, joten skeemamuutos ei enää vaadi uudelleentuontia. Ajoitus ei siis enää riipu siitä.
+
+**Suositus: tehdään merkintämalli MyHeritage-kansion poiston yhteydessä (ADR-0016) tai sen jälkeen.** Perusteet:
+
+- `myheritage/`-kansio ryhmittelee "saman merkinnän sitaatit" Record numberilla ja kirjoittaa Markit, Matchit ja vision passin tulokset jokaiselle riville. Jos merkintämalli tehdään ennen poistoa, koko tämä koodi pitää kirjoittaa uudelleen `entries`-taululle, vaikka se on poistumassa.
+- Ilman tätä uudelleenkirjoitusta Boxilla olisi välivaiheessa kaksi kotia (merkintä ja Match-sitaatti), ja juuri sellaista liimaamista projektin sääntö kieltää.
+
+Jos merkintämalli halutaan aiemmin, siisti tapa on siirtää kaikki Boxit (käsin ja vision) merkinnöille migraatiolla ja kirjoittaa `myheritage/`-kansion Mark-, Match- ja Discard-polut merkinnöille. Se on tehtävissä, mutta se on iso työ koodiin, joka on poistumassa.
 
 Ennen sitä voi tehdä ilman skeemamuutosta: luettavan PAGE-tekstin (idea.md, kohta 1) ja EVEN/ROLE-arvot sovelluksen sitaateille (fact-citations.md, askel D). Molemmat siirtyvät suoraan uuteen malliin.
 
@@ -82,6 +89,6 @@ Sanaston yhtenäistäminen kannattaa tehdä glossaariin heti, ennen koodia, kosk
 
 ## Avoimet kysymykset
 
-1. Tehdäänkö merkintämalli samassa skeemamuutoksessa kuin MyHeritage-kansion poisto (suositus), vai aiemmin, vaikka se tarkoittaa välivaihetta?
+1. Tehdäänkö merkintämalli MyHeritage-kansion poiston yhteydessä (suositus), vai aiemmin, jolloin kansion Mark-, Match- ja Discard-polut kirjoitetaan merkinnöille?
 2. Riittääkö Role ilman erillistä "persona"-käsitettä (merkinnän henkilö sellaisena kuin hänet on kirjattu, esim. "Lovisa Johdr. Wäisänen")? Suositus: riittää. Nimi kirjoitusasussaan on jo litteroinnissa.
 3. Glossaarin päivitys nyt: lisätäänkö Entry, Transcription, Event, Role ja Fact Citations-kontekstiin heti, vai vasta ADR:n kanssa?
