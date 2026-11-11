@@ -5,7 +5,18 @@ A person's **Citations**, as the panel lists them, and linking each **Church-boo
 ## Language
 
 **Citation**:
-A reference in the tree to where a fact comes from, from any source.
+A reference in the tree to where a fact comes from, from any source. An import may put one on a **Fact**, but the panel lists a person's own, and the app makes only those. A church-book one may say which **Event** its **Entry** records and the person's **Role** in it; none does yet.
+
+**Fact**:
+What the tree says about a person or family: an event (birth, baptism, marriage, residence) or an attribute (occupation), with its date and place. A conclusion, which Citations support; it comes from the source program, and the app doesn't edit one.
+_Avoid_: event (alone; that's what an Entry records), claim.
+
+**Event**:
+What an **Entry** records, as GEDCOM's citation `EVEN` names it: a baptism (`CHR`), a marriage (`MARR`), a burial (`BURI`), or a household in a rippikirja or lastenkirja (`RESI`). Told by the Entry's **Book**. MyHeritage's `EVEN Record` isn't one.
+_Avoid_: fact (that's the tree's conclusion).
+
+**Role**:
+Who a person is in an **Entry**, as GEDCOM's citation `ROLE` names it: the child (`CHIL`), father (`FATH`), mother (`MOTH`), a godparent (`GODP`), a spouse (`HUSB`, `WIFE`), or another (`OTHER`). On an **Index reference**, its suffix tells it: none for the child, "-F" the father, "-M" the mother. MyHeritage's record id under `ROLE` isn't one.
 
 **Annotation**:
 What the app adds to a Citation: its Mark or Match, the page a Mark on an Image moved aside, and whether the app made the Citation. A re-import keeps it, while the source program's part comes from the new export.
@@ -47,8 +58,16 @@ _Avoid_: book (the kind a reference cites, which a Volume may hold more than one
 One scan in a Volume, numbered from 1 in Astia's order. What a **Link** opens.
 _Avoid_: page (written on the scan), frame (MyHeritage's numbering).
 
+**Entry**:
+One record written in a church book: a baptism, a marriage, or a person's line in a household, on one **Image**, where its **Box** is. What a church-book Citation is evidence from. Several people's Citations may cite one Entry, each in their own **Role**: a baptism names the child, the parents and the godparents. The app keeps no Entry of its own yet; its Citations of an Entry each hold the Box.
+_Avoid_: record (MyHeritage's record of an Entry, with its **Record number**), citation (one person's reference to it).
+
+**Transcription**:
+What an **Entry** says, written out: today a Citation's text, as MyHeritage's volunteers transcribed it or as a **Conversion** read it into plain lines.
+_Avoid_: text (alone), abstract.
+
 **Box**:
-Where an entry is written on its Image, as a rectangle in whole pixels of the full-size Image, as GEDCOM's `CROP` holds it. The Scan viewer and the vision pass scale it by the Image they have open. People citing the same record share one.
+Where an entry is written on its Image, as a rectangle in whole pixels of the full-size Image, as GEDCOM's `CROP` holds it. The Scan viewer and the vision pass scale it by the Image they have open. People citing the same **Entry** share one.
 
 **Link**:
 Where a Church-book reference points in Astia, as far down as its **Precision** goes, and who says so: its **Certainty**. A Split reference has one per candidate Volume.
@@ -168,6 +187,8 @@ _Avoid_: "same page" alone — it doesn't say which.
 
 ## Flagged ambiguities
 
+- An **Entry** is evidence and a **Fact** a conclusion: an Entry says what the book says, and a Fact what the tree concludes from Entries. **"Record"** is MyHeritage's: its record of an Entry, with a **Record number**.
+- An **Event** is what an Entry records, a **Fact** what the tree says happened: a father's Citation of his child's baptism records `CHR`, and supports none of his own Facts' births.
 - A **Citation** is not a **Church-book reference**: many Citations aren't to church books, and the reference is only what's read from one.
 - An **Annotation** is not a GEDCOM NOTE, though a GEDZIP writes parts of one as NOTEs (the page a Mark moved aside, "Added in Sukulinja"). Nor is it a **Box** ("annotating an Image" elsewhere means drawing one; here a Box is only one part of an Annotation), or a note written in a church book's margins.
 - **"Volume"** is Astia's book; MyHeritage's equivalent is a **Film**, which may hold several Volumes. **"Image"** is Astia's numbering, **"Frame"** MyHeritage's, **"Page number"** what's written in the book.
