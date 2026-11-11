@@ -3,7 +3,7 @@ import type { Database } from 'bun:sqlite';
 import type { Scope } from '@/common/types';
 
 import { openAnnotations } from '../citations';
-import { objectRecords } from '../gedcom/media-refs';
+import { objectRecords, unlinkedPhotos } from '../gedcom/media-refs';
 import { parseName } from '../gedcom/names';
 import { findChildren } from '../gedcom/parser';
 import type { GedNode } from '../gedcom/parser';
@@ -107,7 +107,7 @@ export function importGedcom(
   }
 
   const sql = importStatements(db);
-  const importMediaLinks = mediaLinker({
+  const { importMediaLinks, importUnlinkedPhotos } = mediaLinker({
     sql,
     lines,
     count: (kind) => {
@@ -455,6 +455,7 @@ export function importGedcom(
   const tx = db.transaction(() => {
     for (const root of roots) createRecord(root);
     for (const root of roots) populateRecord(root);
+    importUnlinkedPhotos(unlinkedPhotos(roots));
   });
 
   tx();

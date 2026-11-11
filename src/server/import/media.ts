@@ -1,10 +1,15 @@
-// Linking a GEDCOM's media to what holds them: a person, a family, an
-// event or a citation.
+// A GEDCOM's media in the database: each linked to what holds it (a
+// person, a family, an event or a citation), and the Photos linked to no
+// one kept on their own.
 
 import type { Scope } from '@/common/types';
 
 import { mediaRefsOf, objectsOf } from '../gedcom/media-refs';
-import type { MediaRef, ObjectRecords } from '../gedcom/media-refs';
+import type {
+  MediaRef,
+  ObjectRecords,
+  UnlinkedPhoto
+} from '../gedcom/media-refs';
 import type { GedNode } from '../gedcom/parser';
 import type { ImportStatements } from './statements';
 import type { LineReader } from './unstored';
@@ -137,5 +142,19 @@ export function mediaLinker({
     });
   }
 
-  return importMediaLinks;
+  // A media row for each stored file of a Photo linked to no one, and no
+  // link. Its record's other lines, a TITL or NOTE, have nowhere to go.
+  function importUnlinkedPhotos(photos: UnlinkedPhoto[]) {
+    for (const { record, files } of photos) {
+      use(record);
+      for (const { file, path, format } of files) {
+        use(file);
+        take(file, 'FORM');
+        const storedPath = resolve(path);
+        if (storedPath !== null) resolveMediaId(storedPath, path, format);
+      }
+    }
+  }
+
+  return { importMediaLinks, importUnlinkedPhotos };
 }

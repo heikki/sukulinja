@@ -1,5 +1,5 @@
 // A tree in GEDCOM 5.5.1 the way MyHeritage and other programs write it,
-// with media, for the export tests.
+// with media and a photo linked to no one, for the export tests.
 
 import type { DatasetRegistry } from '@/server/datasets/registry';
 import { packGedzip } from '@/server/gedcom/gedzip';
@@ -82,6 +82,9 @@ const FIXTURE = [
   '1 CHIL @I3@',
   '1 MARR',
   '2 DATE 1890',
+  '0 @O1@ OBJE',
+  '1 FILE photos/Unknown family.jpg',
+  '2 FORM jpg',
   '0 TRLR',
   ''
 ].join('\r\n');
@@ -94,7 +97,8 @@ export async function importGedcomFixture(
     FIXTURE,
     new Map([
       ['photos/Charlotte Brontë.jpg', new Uint8Array([1, 2, 3])],
-      ['actes/baptism.jpg', new Uint8Array([4, 5, 6])]
+      ['actes/baptism.jpg', new Uint8Array([4, 5, 6])],
+      ['photos/Unknown family.jpg', new Uint8Array([7, 8, 9])]
     ])
   );
   await registry.import({

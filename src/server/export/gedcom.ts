@@ -344,7 +344,7 @@ export function gedcomTree(db: Database) {
   return {
     header: header(),
     records,
-    photos: media.records,
+    photos: [...media.records, ...media.unlinked()],
     images: links.records,
     entries: media.entries
   };

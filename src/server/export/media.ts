@@ -1,6 +1,7 @@
 // A dataset's media in GEDCOM 7: an OBJE record holding the FILEs of each
 // OBJE a person, family, event or citation has, and a link to it carrying
-// the CROP and TITL. Each file is packed into the GEDZIP under the path it
+// the CROP and TITL; and an OBJE record nothing points at for each Photo
+// linked to no one. Each file is packed into the GEDZIP under the path it
 // was imported from, when that's a safe one, so names stay readable.
 
 import { extname } from 'node:path';
@@ -8,7 +9,7 @@ import { extname } from 'node:path';
 import { mimeOf } from '../gedcom/media-refs';
 import { line, optional, pointer } from '../gedcom/writer';
 import type { OutLine } from '../gedcom/writer';
-import type { ExportRows, MediaLinkRow } from './rows';
+import type { ExportRows, MediaLinkRow, MediaRow } from './rows';
 import { ownerKey } from './rows';
 
 const SCHEME_RE = /^[a-z][a-z0-9+.-]*:/iu;
@@ -67,7 +68,7 @@ function cropOf(rows: MediaLinkRow[]) {
   ];
 }
 
-function formOf(row: MediaLinkRow) {
+function formOf(row: MediaRow) {
   return (
     row.format ??
     mimeOf(extname(row.file_path).slice(1)) ??
@@ -94,7 +95,7 @@ export function mediaExport(
     }
   }
 
-  function entryOf(row: MediaLinkRow) {
+  function entryOf(row: MediaRow) {
     const known = entries.get(row.file_path);
     if (known !== undefined) return known;
     const imported = plainPath(row.original_path ?? '');
@@ -105,6 +106,10 @@ export function mediaExport(
     entries.set(row.file_path, entry);
     used.add(entry);
     return entry;
+  }
+
+  function fileOf(row: MediaRow) {
+    return line('FILE', fileUrl(entryOf(row)), [line('FORM', formOf(row))]);
   }
 
   // One OBJE line per OBJE the holder had, in order; the notes went with
@@ -122,12 +127,7 @@ export function mediaExport(
       records.push({
         tag: 'OBJE',
         xref,
-        children: [
-          ...group.map((row) =>
-            line('FILE', fileUrl(entryOf(row)), [line('FORM', formOf(row))])
-          ),
-          ...notes('media_link', first.id)
-        ]
+        children: [...group.map(fileOf), ...notes('media_link', first.id)]
       });
       return pointer('OBJE', xref, [
         ...cropOf(group),
@@ -136,5 +136,15 @@ export function mediaExport(
     });
   }
 
-  return { linksOf, records, entries };
+  // The records of the Photos linked to no one, once every link is
+  // written.
+  function unlinked(): OutLine[] {
+    return rows.unlinkedMedia.map((row) => ({
+      tag: 'OBJE',
+      xref: newXref(),
+      children: [fileOf(row)]
+    }));
+  }
+
+  return { linksOf, unlinked, records, entries };
 }

@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 
+import { packGedzip } from '../gedcom/gedzip';
 import {
   ASTIA,
   citations,
@@ -34,6 +35,30 @@ test('a converted Citation stands for its reference in the export', async () => 
     )
     .all();
   expect(kept).toEqual([{ title: 'Juva 1790-1796', text: 'Matti Esimerkki' }]);
+});
+
+test("the photo of a reference a converted Citation stands for isn't kept as linked to no one", async () => {
+  const gedcom = tree([MATTI]).replace(
+    `2 PAGE ${PAGE.a}\n`,
+    `2 PAGE ${PAGE.a}\n2 OBJE\n3 FILE record.jpg\n`
+  );
+  const gedzip = packGedzip(
+    gedcom,
+    new Map([['record.jpg', new Uint8Array([1])]])
+  );
+  async function importGedzip() {
+    await registry().import({
+      slug: 'tree',
+      source: { gedzip },
+      sourceFilename: 'tree.gdz'
+    });
+  }
+  await importGedzip();
+  convert('@I1@', PAGE.a);
+  await importGedzip();
+  expect(
+    registry().open('tree').query('SELECT COUNT(*) AS n FROM media').get()
+  ).toEqual({ n: 0 });
 });
 
 test('a converted Citation stays when the export no longer has its reference', async () => {

@@ -152,20 +152,23 @@ describe('ingest', () => {
     expect(result.skipped).toEqual([]);
   });
 
-  test('top-level OBJE record (referenced by pointer) is ignored', async () => {
+  test('an OBJE record nothing points at is copied when it is a picture', async () => {
     await Bun.write(join(sourceDir, 'top.jpg'), 'TOP');
-    const topObjeRecord: GedNode = {
-      level: 0,
-      xref: '@M1@',
-      tag: 'OBJE',
-      children: [{ level: 1, tag: 'FILE', value: 'top.jpg', children: [] }]
-    };
+    await Bun.write(join(sourceDir, 'top.pdf'), 'PDF');
+    function record(xref: string, file: string): GedNode {
+      return {
+        level: 0,
+        xref,
+        tag: 'OBJE',
+        children: [{ level: 1, tag: 'FILE', value: file, children: [] }]
+      };
+    }
     const result = await ingest({
-      roots: [topObjeRecord, indi()],
+      roots: [record('@M1@', 'top.jpg'), record('@M2@', 'top.pdf'), indi()],
       sourceDir,
       targetDir
     });
-    expect(result.resolved.size).toBe(0);
+    expect([...result.resolved.keys()]).toEqual(['top.jpg']);
   });
 
   test('empty roots produce empty result without creating the target dir', async () => {

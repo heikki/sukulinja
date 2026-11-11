@@ -202,7 +202,7 @@ test('lists each kind of line it has nowhere to store, by path and count', () =>
     '1 NOTE @N9@',
     '0 @I2@ INDI',
     '0 @O1@ OBJE',
-    '1 FILE a.jpg',
+    '1 FILE a.pdf',
     '0 TRLR'
   ]);
   expect(stats.unstored).toEqual([
@@ -210,6 +210,43 @@ test('lists each kind of line it has nowhere to store, by path and count', () =>
     { path: 'INDI.BIRT.PLAC.FORM', count: 1 },
     { path: 'INDI.NOTE', count: 1 },
     { path: 'OBJE', count: 1 }
+  ]);
+});
+
+test('keeps the pictures of an OBJE record nothing points at, with no link', () => {
+  const { db, stats } = importText([
+    '0 @S1@ SOUR',
+    '1 TITL Rippikirja',
+    '1 OBJE @O3@',
+    '0 @O1@ OBJE',
+    '1 FILE family.jpg',
+    '2 FORM image/jpeg',
+    '1 FILE letter.pdf',
+    '2 FORM application/pdf',
+    '0 @O2@ OBJE',
+    '1 FILE scan.png',
+    '0 @O3@ OBJE',
+    '1 FILE page.jpg',
+    '2 FORM image/jpeg',
+    '0 @O4@ OBJE',
+    '1 FILE will.pdf',
+    '0 TRLR'
+  ]);
+  expect(
+    db.query('SELECT file_path, format FROM media ORDER BY id').all()
+  ).toEqual([
+    { file_path: 'family.jpg', format: 'image/jpeg' },
+    { file_path: 'scan.png', format: null }
+  ]);
+  expect(db.query('SELECT COUNT(*) AS n FROM media_links').get()).toEqual({
+    n: 0
+  });
+  expect(stats.media).toBe(2);
+  // A source's photo isn't linked to no one; its case is one of its own.
+  expect(stats.unstored).toEqual([
+    { path: 'OBJE', count: 2 },
+    { path: 'OBJE.FILE', count: 1 },
+    { path: 'SOUR.OBJE', count: 1 }
   ]);
 });
 

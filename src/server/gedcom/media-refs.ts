@@ -1,5 +1,6 @@
-// Which media a person or family has: the one rule both the copying into a
-// dataset's media/ (import/media-ingest.ts) and the linking in its database
+// Which media a dataset keeps: those a person or family has, and the
+// Photos linked to no one. The one rule both the copying into a dataset's
+// media/ (import/media-ingest.ts) and the rows in its database
 // (import/gedcom.ts) follow, so the two can't disagree.
 //
 // Read: each OBJE under a person or family, at any depth (on the record,
@@ -7,6 +8,8 @@
 // out where it's used (GEDCOM 5.5.1, MyHeritage), or points at an OBJE
 // record that holds the FILEs (GEDCOM 7), and the link then holds its CROP
 // and TITL.
+
+import { extname } from 'node:path';
 
 import { astiaImageOf } from './astia-links';
 import { childValue, findChild, findChildren } from './parser';
@@ -135,9 +138,8 @@ export function mediaRefsOf(holder: GedNode, records: ObjectRecords) {
   return refs;
 }
 
-// Every media reference under the people and families, which the media
-// ingest copies into the dataset.
-export function allMediaRefs(roots: GedNode[]) {
+// Every media reference under the people and families.
+function allMediaRefs(roots: GedNode[]) {
   const records = objectRecords(roots);
   const refs: MediaRef[] = [];
   function walk(node: GedNode) {
@@ -148,6 +150,55 @@ export function allMediaRefs(roots: GedNode[]) {
     if (root.tag === 'INDI' || root.tag === 'FAM') walk(root);
   }
   return refs;
+}
+
+// A Photo linked to no one: an OBJE record nothing points at, and those of
+// its FILEs that are pictures.
+export interface UnlinkedPhoto {
+  record: GedNode;
+  files: Array<{ file: GedNode; path: string; format: string | null }>;
+}
+
+function isPicture(path: string, format: string | null) {
+  const mime = format ?? mimeOf(extname(path).slice(1));
+  return mime?.startsWith('image/') === true;
+}
+
+// Every OBJE record no OBJE line points at, with the FILEs that are
+// pictures; a record with none isn't a Photo. One a source record points at
+// is linked, if not to a person.
+export function unlinkedPhotos(roots: GedNode[]): UnlinkedPhoto[] {
+  const pointed = new Set<string>();
+  function walk(node: GedNode) {
+    for (const child of node.children) {
+      if (child.tag === 'OBJE' && POINTER_RE.test(child.value ?? '')) {
+        pointed.add(child.value!);
+      }
+      walk(child);
+    }
+  }
+  for (const root of roots) walk(root);
+  return [...objectRecords(roots)]
+    .filter(([xref]) => !pointed.has(xref))
+    .map(([, record]) => ({
+      record,
+      files: findChildren(record, 'FILE').flatMap((file) => {
+        const path = file.value ?? '';
+        const format = mimeOf(childValue(file, 'FORM'));
+        return path !== '' && isPicture(path, format)
+          ? [{ file, path, format }]
+          : [];
+      })
+    }))
+    .filter((photo) => photo.files.length > 0);
+}
+
+// The FILEs an import copies into the dataset.
+export function storedPaths(roots: GedNode[]) {
+  return [
+    ...allMediaRefs(roots).map((r) => r.path),
+    ...unlinkedPhotos(roots).flatMap((p) => p.files.map((f) => f.path))
+  ];
 }
 
 // The local paths a FILE may name: as written, and percent-decoded, since

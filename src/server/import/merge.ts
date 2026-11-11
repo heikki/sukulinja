@@ -120,8 +120,15 @@ function replacements(stored: Citation[], fresh: Citation[]) {
   return replaced;
 }
 
-// Deletes a citation of the new database, with its notes and media links.
+// Deletes a citation of the new database, with its notes and media links,
+// and the media nothing else links: a media row without a link is a Photo
+// linked to no one.
 function dropCitation(db: Database, id: number) {
+  const media = db
+    .query<{ id: number }, [number]>(
+      "SELECT media_id AS id FROM media_links WHERE scope_type = 'citation' AND scope_id = ?"
+    )
+    .all(id);
   db.run(
     `DELETE FROM notes WHERE owner_type = 'media_link' AND owner_id IN
        (SELECT id FROM media_links WHERE scope_type = 'citation' AND scope_id = ?)`,
@@ -131,6 +138,13 @@ function dropCitation(db: Database, id: number) {
     "DELETE FROM media_links WHERE scope_type = 'citation' AND scope_id = ?",
     [id]
   );
+  for (const { id: mediaId } of media) {
+    db.run(
+      `DELETE FROM media WHERE id = ?
+       AND NOT EXISTS (SELECT 1 FROM media_links WHERE media_id = ?)`,
+      [mediaId, mediaId]
+    );
+  }
   db.run("DELETE FROM notes WHERE owner_type = 'citation' AND owner_id = ?", [
     id
   ]);

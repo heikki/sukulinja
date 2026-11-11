@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import { extname, isAbsolute, join, relative, resolve } from 'node:path';
 
-import { allMediaRefs, localPaths } from '../gedcom/media-refs';
+import { localPaths, storedPaths } from '../gedcom/media-refs';
 import type { GedNode } from '../gedcom/parser';
 import { runPool } from './pool';
 
@@ -63,8 +63,9 @@ async function existing(sourceDir: string, relpaths: string[]) {
 }
 
 export async function ingest(input: IngestInput): Promise<IngestResult> {
-  // What the GEDCOM import (import/gedcom.ts) links, so every file copied gets a media row.
-  const refs = allMediaRefs(input.roots).map((r) => r.path);
+  // What the GEDCOM import (import/gedcom.ts) keeps, so every file copied
+  // gets a media row.
+  const refs = storedPaths(input.roots);
   const resolved = new Map<string, string>();
   const skipped: IngestSkipped[] = [];
   if (refs.length === 0) return { resolved, skipped };

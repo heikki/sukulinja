@@ -90,7 +90,14 @@ interface NoteRow {
   shared_note_id: number | null;
 }
 
-export interface MediaLinkRow {
+// A stored media file.
+export interface MediaRow {
+  file_path: string;
+  format: string | null;
+  original_path: string | null;
+}
+
+export interface MediaLinkRow extends MediaRow {
   id: number;
   scope_type: string;
   scope_id: number;
@@ -100,9 +107,6 @@ export interface MediaLinkRow {
   crop_left: number | null;
   crop_width: number | null;
   crop_height: number | null;
-  file_path: string;
-  format: string | null;
-  original_path: string | null;
 }
 
 interface AssociationRow {
@@ -208,6 +212,12 @@ export function readExportRows(db: Database) {
          JOIN media m ON m.id = ml.media_id ORDER BY ml.sort_order, ml.id`
       ),
       (r) => ownerKey(r.scope_type, r.scope_id)
+    ),
+    // The Photos linked to no one.
+    unlinkedMedia: all<MediaRow>(
+      `SELECT file_path, format, original_path FROM media m
+       WHERE NOT EXISTS (SELECT 1 FROM media_links ml WHERE ml.media_id = m.id)
+       ORDER BY id`
     ),
     associationsOf: grouped(
       all<AssociationRow>(`SELECT * FROM associations ${ordered}`),

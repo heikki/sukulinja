@@ -91,6 +91,24 @@ describe('exporting a GEDZIP', () => {
     ).toEqual({ n: 2 });
   });
 
+  test('writes a photo linked to no one as an OBJE record, and keeps it', async () => {
+    await importFixture();
+    const zip = await roundTrip();
+    expect(gedcomOf(zip)).toContain(
+      '1 FILE photos/Unknown%20family.jpg\r\n2 FORM image/jpeg'
+    );
+    const unlinked = registry
+      .open('b')
+      .query(
+        `SELECT original_path FROM media m WHERE NOT EXISTS
+           (SELECT 1 FROM media_links ml WHERE ml.media_id = m.id)`
+      )
+      .all();
+    expect(unlinked).toEqual([
+      { original_path: 'photos/Unknown%20family.jpg' }
+    ]);
+  });
+
   test('leaves out Reminders and Changes, as does the MyHeritage export', async () => {
     await importFixture();
     const db = registry.open('a');
@@ -133,7 +151,8 @@ describe('exporting a GEDZIP', () => {
     expect(Object.keys(zip).sort()).toEqual([
       'actes/baptism.jpg',
       'gedcom.ged',
-      'photos/Charlotte Brontë.jpg'
+      'photos/Charlotte Brontë.jpg',
+      'photos/Unknown family.jpg'
     ]);
     expect(gedcomOf(zip)).toContain(
       '1 FILE photos/Charlotte%20Bront%C3%AB.jpg'
@@ -253,7 +272,7 @@ describe('exporting a GEDZIP', () => {
     expect(text.match(/0 @A\d+@ OBJE/g)).toHaveLength(1);
     expect(
       registry.open('b').query('SELECT COUNT(*) AS n FROM media').get()
-    ).toEqual({ n: 2 });
+    ).toEqual({ n: 3 });
     // Rejections stay out of the GEDZIP.
     expect(
       registry.open('b').query('SELECT COUNT(*) AS n FROM rejections').get()
