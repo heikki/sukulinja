@@ -366,3 +366,41 @@ describe('migrate', () => {
     db.close();
   });
 });
+
+describe('schema 4', () => {
+  test('names the Photo of a tag Change from before, by its file name', () => {
+    const db = oldest(3);
+    db.run(
+      'ALTER TABLE changes ADD COLUMN media_id INTEGER REFERENCES media(id) ON DELETE SET NULL'
+    );
+    runAll(
+      db,
+      `
+      INSERT INTO persons (id, xref) VALUES (1, '@I1@'), (2, '@I2@');
+      INSERT INTO media (id, file_path, original_path)
+        VALUES (1, 'm/1.jpg', 'photos/Kes%C3%A4.jpg'),
+          (2, 'm/2.jpg', 'a/Talvi.jpg'), (3, 'm/3.jpg', 'b/Talvi.jpg');
+      INSERT INTO media_links (media_id, scope_type, scope_id)
+        VALUES (3, 'person', 1);
+      INSERT INTO changes (at, what, person_id) VALUES
+        ('t', '{"kind":"tag","photo":"Kesä.jpg","moved":false}', 2),
+        ('t', '{"kind":"untag","photo":"Talvi.jpg"}', 1),
+        ('t', '{"kind":"portrait","photo":"Talvi.jpg"}', 2),
+        ('t', '{"kind":"tag","photo":"Poissa.jpg","moved":false}', 1),
+        ('t', '{"kind":"uncite","cited":"Kesä.jpg"}', 1);
+    `
+    );
+    db.close();
+    const migrated = openDb(path);
+    expect(
+      migrated.query('SELECT media_id FROM changes ORDER BY id').all()
+    ).toEqual([
+      { media_id: 1 },
+      { media_id: 3 },
+      { media_id: null },
+      { media_id: null },
+      { media_id: null }
+    ]);
+    migrated.close();
+  });
+});

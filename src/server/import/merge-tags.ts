@@ -20,6 +20,24 @@ interface TagMerge {
   describe: (owner: Owner) => string;
 }
 
+// The new database's id for each of the dataset's Photos it has, found by
+// the path its file was imported from, else its stored one.
+export function photoMatcher(stored: Database, fresh: Database) {
+  const pathsOf = stored.prepare<
+    { original_path: string | null; file_path: string },
+    [number]
+  >('SELECT original_path, file_path FROM media WHERE id = ?');
+  const mediaOf = fresh.prepare<{ id: number }, [string, string]>(
+    `SELECT id FROM media WHERE original_path = ? OR file_path = ?
+     ORDER BY original_path = ?1 DESC LIMIT 1`
+  );
+  return (storedId: number) => {
+    const m = pathsOf.get(storedId);
+    if (m === null) return null;
+    return mediaOf.get(m.original_path ?? m.file_path, m.file_path)?.id ?? null;
+  };
+}
+
 export function carryTags({ stored, fresh, matchOf, describe }: TagMerge) {
   // Every person's link to a Photo, their Box on it first: a Tag's, else,
   // from before schema 2, the import's CROP. A database from before Tags
@@ -37,10 +55,7 @@ export function carryTags({ stored, fresh, matchOf, describe }: TagMerge) {
   }
   const tagged = linksIn('ml.added_in_app DESC,');
   const links = tagged.length > 0 ? tagged : linksIn('');
-  const mediaOf = fresh.prepare<{ id: number }, [string, string]>(
-    `SELECT id FROM media WHERE original_path = ? OR file_path = ?
-     ORDER BY original_path = ?1 DESC LIMIT 1`
-  );
+  const photoIn = photoMatcher(stored, fresh);
   const tagOf = fresh.prepare<{ id: number }, [number, number]>(
     `SELECT id FROM media_links
      WHERE media_id = ? AND scope_type = 'person' AND scope_id = ?
@@ -68,15 +83,6 @@ export function carryTags({ stored, fresh, matchOf, describe }: TagMerge) {
      VALUES (?, 'person', ?, ?, ?, ?, ?, ?, ?, 1)`
   );
 
-  // A stored link's Photo, by the path its file was imported from, else
-  // its stored one.
-  function pathsOf(l: Row): [string, string] {
-    const filePath = String(l.file_path);
-    return [
-      l.original_path === null ? filePath : String(l.original_path),
-      filePath
-    ];
-  }
   function photoOf(l: Row) {
     const original = l.original_path === null ? null : String(l.original_path);
     return photoName({
@@ -117,13 +123,13 @@ export function carryTags({ stored, fresh, matchOf, describe }: TagMerge) {
     const owner: Owner = { kind: 'person', id: Number(l.person_id) };
     const boxed = l.crop_top !== null;
     const person = matchOf(owner);
-    const media = mediaOf.get(...pathsOf(l));
+    const media = photoIn(Number(l.media_id));
     if (person === null || media === null) {
       if (boxed) lost.push(`${describe(owner)}: ${photoOf(l)} (a Tag)`);
       continue;
     }
     if (boxed) kept += 1;
-    put(media.id, person, boxed ? l : null);
+    put(media, person, boxed ? l : null);
   }
   return { kept, lost };
 }

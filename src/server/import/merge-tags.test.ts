@@ -167,3 +167,36 @@ test('a CROP is a Tag only on a link new to the dataset', async () => {
   ]);
   expect(merged?.kept.tags).toBe(0);
 });
+
+// Each tag Change as its person's xref and its Photo's original path.
+function tagChanges() {
+  return registry
+    .open('a')
+    .query(
+      `SELECT p.xref, m.original_path AS photo FROM changes ch
+       JOIN persons p ON p.id = ch.person_id
+       LEFT JOIN media m ON m.id = ch.media_id ORDER BY ch.id`
+    )
+    .all();
+}
+
+test('a tag Change stays on its Photo where the new export has it, else on its person', async () => {
+  const { family, portrait } = await tagged();
+  const db = registry.open('a');
+  const jane = db
+    .query<{ id: number }, []>("SELECT id FROM persons WHERE xref = '@I1@'")
+    .get()!.id;
+  const insert = `INSERT INTO changes (at, what, person_id, media_id)
+    VALUES ('2026-11-09T10:00:00.000Z', '{"kind":"tag"}', ?, ?)`;
+  db.run(insert, [jane, portrait]);
+  db.run(insert, [jane, family]);
+  db.run(
+    "UPDATE media SET original_path = 'photos/Gone.jpg', file_path = 'gone.jpg' WHERE id = ?",
+    [family]
+  );
+  await importGedcomFixture(registry, 'a');
+  expect(tagChanges()).toEqual([
+    { xref: '@I1@', photo: 'photos/Charlotte Brontë.jpg' },
+    { xref: '@I1@', photo: null }
+  ]);
+});

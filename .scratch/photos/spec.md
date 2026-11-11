@@ -33,7 +33,7 @@ A photo an import links to a person without a `CROP` is the export's link, not a
 
 - **Shared with the Scan viewer.** `src/client/pan-zoom/` is shared already. What's Scan-viewer-only but not about Astia: drawing, moving and clamping a Box on the stage (`scan-viewer/frame.ts`'s `newBox`, `clampBox`, `boxOnStage`, `boxFromStage`), the layer of Boxes with their menus (`scan-viewer/layer.ts`), and the people pane beside the picture (`scan-viewer/people.ts`). These move to a shared component folder first, with the Scan viewer using them as before, before the Photo viewer is built on them. The Astia parts (thumbnails first, Volumes, Re-scans, prefetch) stay in the Scan viewer.
 - **Keeping Tags across a re-import.** The merge (`import/merge.ts`) now keeps Annotations of Citations only; a photo's `media_links` come from the new export. A Tag needs to be told apart from an import's link and found again after a re-import, by its Photo's `original_path` and its person. Settled in ADR-0017: a Tag is a person's `media_links` row marked `added_in_app` (schema 11).
-- **Changes.** Tagging and untagging someone is a **Change**, on the person and the Photo (`changes.media_id`, schema 3). Picking it selects the person and opens the Photo: among their Photos while they're in it, else among every Photo. A re-import puts it back on the person only.
+- **Changes.** Tagging and untagging someone is a **Change**, on the person and the Photo (`changes.media_id`, schema 3; schema 4 finds it for older ones by the Photo's file name). Picking it selects the person and opens the Photo: among their Photos while they're in it, else among every Photo. A re-import keeps it on the same Photo, found by its path as a Tag is, or on the person when that's gone.
 
 ## Later
 

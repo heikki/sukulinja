@@ -26,7 +26,7 @@ import {
 import type { Annotation, Annotations } from '../citations';
 import { describer, ownerFinder, recordMatcher, rowsOf } from './merge-records';
 import type { Owner, Row } from './merge-records';
-import { carryTags } from './merge-tags';
+import { carryTags, photoMatcher } from './merge-tags';
 
 interface Citation {
   id: number;
@@ -158,6 +158,8 @@ interface Merge {
   fresh: Database;
   annotations: Annotations;
   matchOf: (owner: Owner) => number | null;
+  // The new database's id for each of the dataset's Photos it has.
+  photoOf: (storedId: number) => number | null;
   // The sources brought into the new database, by their id in the dataset.
   copied: Map<number, number>;
 }
@@ -306,11 +308,20 @@ function columnsOf(db: Database, table: string) {
     .filter((name) => name !== 'id');
 }
 
+// A Change's Photo in the new database: the same Photo where it has it and
+// the Change's person, else none, which leaves it on its person.
+function photoIn(m: Merge, stored: Row, carried: Row) {
+  const mediaId = valueOf(stored, 'media_id');
+  if (mediaId === null || valueOf(carried, 'person_id') === null) return null;
+  return m.photoOf(Number(mediaId));
+}
+
 // The rows of an app-only table whose rows are on something (ON_COLUMNS),
 // each put back on the same person or Citation, by the ids `citations`
 // gives the dataset's citations in the new database; a Citation's onto its
 // person when the Citation is gone. One on an Image is put back as it was,
-// and a Change on a Photo on its person.
+// and a Change on a Photo on the same Photo, or on its person when that's
+// gone.
 // One whose person is gone is left out, or with `keepGone`, kept on
 // nothing. Only the columns the new table has are filled. Gives those whose person is gone, and who they were.
 function carryOn(
@@ -342,9 +353,7 @@ function carryOn(
         if (!keepGone) continue;
       }
     }
-    // The new database's Photos have ids of their own: a Change on one is
-    // put back on its person.
-    row.media_id = null;
+    row.media_id = photoIn(m, r, row);
     m.fresh.run(
       insert,
       columns.map((c) => valueOf(row, c) as SQLQueryBindings)
@@ -438,6 +447,7 @@ function merge(fresh: Database, stored: Database, byXref: boolean) {
     fresh,
     annotations: openAnnotations(fresh),
     matchOf,
+    photoOf: photoMatcher(stored, fresh),
     copied: new Map()
   };
   const storedCitations = citationsOf(stored, (o) => {
