@@ -28,7 +28,8 @@ const DETAILS: PersonDetails = {
   name: 'Matti Esimerkki',
   sex: 'M',
   facts: [],
-  citations: []
+  citations: [],
+  photos: []
 };
 const ROWS: VolumeCitation[] = [];
 const UNLINKED: CitationLinks = { citationId: 7, unlinked: 'no-volume' };

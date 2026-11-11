@@ -60,6 +60,7 @@ test('serves facts in date order, and the Citations', () => {
     id: 1,
     name: 'Matti Esimerkki',
     sex: 'M',
+    photos: [],
     facts: [
       {
         tag: 'BIRT',

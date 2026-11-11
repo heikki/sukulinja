@@ -10,6 +10,7 @@ import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
 import type { Viewport } from '@/client/pan-zoom';
 
+import type { ViewChange } from '../box-stage/stage';
 import { frameForFull, frameForThumb } from './frame';
 import type { Frame, Loading } from './frame';
 
@@ -41,13 +42,6 @@ async function decodeImage(url: string): Promise<Viewport> {
   img.src = url;
   await img.decode();
   return { width: img.naturalWidth, height: img.naturalHeight };
-}
-
-// How an arrival moves the view: fitted anew, or scaled to stay where it
-// is on screen. Null clears it, with the frame.
-export interface ViewChange {
-  fit: boolean;
-  rescale: number;
 }
 
 interface ArrivalPorts {

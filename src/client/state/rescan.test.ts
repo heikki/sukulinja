@@ -55,7 +55,14 @@ const STALE: StalePin[] = [
 ];
 
 function person(): PersonDetails {
-  return { id: 1, name: 'Person 1', sex: 'U', facts: [], citations: [C1] };
+  return {
+    id: 1,
+    name: 'Person 1',
+    sex: 'U',
+    facts: [],
+    citations: [C1],
+    photos: []
+  };
 }
 
 // Person 1's reference, Marked on Image 247 of Volume 301, which Astia

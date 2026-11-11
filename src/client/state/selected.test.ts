@@ -31,7 +31,14 @@ function churchBook(id: number, citedPage: number | null): CitationRow {
 }
 
 function person(id: number, citations: CitationRow[]): PersonDetails {
-  return { id, name: `Person ${id}`, sex: 'U', facts: [], citations };
+  return {
+    id,
+    name: `Person ${id}`,
+    sex: 'U',
+    facts: [],
+    citations,
+    photos: []
+  };
 }
 
 function marked(volumeId: string, image: number): Link {

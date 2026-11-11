@@ -57,8 +57,10 @@ function churchBook(id: number, citedPage: number | null): CitationRow {
   };
 }
 
+const UNKNOWN = { sex: 'U', facts: [], photos: [] };
+
 function person(id: number, citations: CitationRow[]): PersonDetails {
-  return { id, name: `Person ${id}`, sex: 'U', facts: [], citations };
+  return { id, name: `Person ${id}`, ...UNKNOWN, citations };
 }
 
 // Matti's references: 11 on Image 18 of Volume 201 and 12 somewhere in it,

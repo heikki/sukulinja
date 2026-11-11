@@ -9,8 +9,14 @@ import { signal } from '@lit-labs/signals';
 import { ApiError } from '@/client/dataset-api';
 import type { DatasetApi } from '@/client/dataset-api';
 import type { Point } from '@/client/pan-zoom';
-import type { FamilyRow, PersonRow, VolumeCitation } from '@/common/types';
+import type {
+  FamilyRow,
+  PersonRow,
+  PhotoRow,
+  VolumeCitation
+} from '@/common/types';
 
+import type { PhotoViewer } from './photo-viewer';
 import type { Readable, Selected } from './selected';
 import type { Viewer } from './viewer';
 
@@ -84,6 +90,9 @@ export interface Chart {
   // Selects the person and opens their Citation in the Scan viewer, which
   // stays open meanwhile, as a list goes to it.
   toCitation: (personId: number, citationId: number) => void;
+  // Opens the Photo in the Photo viewer, once the Scan viewer's change
+  // pending is dealt with and it's closed.
+  openPhoto: (photo: PhotoRow) => void;
   // Saves the Scan viewer's pending change, throwing ApiError if it's
   // refused; a new Citation opens there, its person selected.
   save: () => Promise<void>;
@@ -113,7 +122,8 @@ function familiesByPerson(families: FamilyRow[]) {
 export function openChart(
   api: DatasetApi,
   selected: Selected,
-  viewer: Viewer
+  viewer: Viewer,
+  photoViewer: PhotoViewer
 ): Chart {
   const people = signal<People>({
     persons: new Map(),
@@ -133,6 +143,7 @@ export function openChart(
     if (id === selected.id.get()) return;
     void selected.select(id);
     viewer.selected(id);
+    photoViewer.selected(id);
   }
 
   function selectHere(id: number, at: Point[] | null) {
@@ -235,6 +246,12 @@ export function openChart(
       viewer.leave(() => {
         const id = viewer.toCitation(personId, citationId);
         if (id !== null) select(id);
+      });
+    },
+    openPhoto(photo) {
+      viewer.leave(() => {
+        viewer.close();
+        photoViewer.open(photo);
       });
     },
     async save() {

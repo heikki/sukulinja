@@ -131,7 +131,7 @@ export const scanEditStyles = css`
 
 // Over the whole stage, letting presses through to the scan except on its
 // own parts. No stacking of its own, so its parts stack with the viewer's:
-// the Box under the nav (2), the menus over it.
+// the pending Box under the nav (2), the menus over it.
 export const scanLayerStyles = css`
   :host {
     position: absolute;
@@ -141,8 +141,7 @@ export const scanLayerStyles = css`
 
   sl-context-menu,
   sl-scan-volumes,
-  .search,
-  .box {
+  .search {
     pointer-events: auto;
   }
 
@@ -152,73 +151,5 @@ export const scanLayerStyles = css`
     position: absolute;
     z-index: 2;
     width: 16rem;
-  }
-
-  /* The pending Box: red as the entries' Boxes are, but dashed, so it
-     reads as not saved yet. */
-  .box {
-    position: absolute;
-    z-index: 1;
-    box-sizing: border-box;
-    border: 2px dashed var(--danger);
-    border-radius: 3px;
-    background: color-mix(in srgb, var(--danger) 12%, transparent);
-    cursor: move;
-  }
-
-  .grip {
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    margin: -6px 0 0 -6px;
-    border: 1px solid color-mix(in srgb, var(--danger) 70%, black);
-    border-radius: 2px;
-    background: var(--danger);
-  }
-
-  .grip.n,
-  .grip.s {
-    left: 50%;
-    cursor: ns-resize;
-  }
-
-  .grip.e,
-  .grip.w {
-    top: 50%;
-    cursor: ew-resize;
-  }
-
-  .grip.n,
-  .grip.ne,
-  .grip.nw {
-    top: 0;
-  }
-
-  .grip.s,
-  .grip.se,
-  .grip.sw {
-    top: 100%;
-  }
-
-  .grip.w,
-  .grip.nw,
-  .grip.sw {
-    left: 0;
-  }
-
-  .grip.e,
-  .grip.ne,
-  .grip.se {
-    left: 100%;
-  }
-
-  .grip.ne,
-  .grip.sw {
-    cursor: nesw-resize;
-  }
-
-  .grip.nw,
-  .grip.se {
-    cursor: nwse-resize;
   }
 `;

@@ -18,6 +18,7 @@ import type {
   ChurchBookArchive,
   CitationRow,
   Link,
+  PhotoRow,
   RecordView
 } from '@/common/types';
 
@@ -38,6 +39,7 @@ import {
   siteName,
   titleText
 } from './helpers';
+import { renderPhotos } from './photos';
 import { personPanelStyles } from './styles';
 
 function renderRecord(r: RecordView) {
@@ -128,10 +130,11 @@ function hasDetails(body: unknown, url: string | null, link: Link | null) {
 }
 
 // Each section open or not for the rest of the visit, across people; at
-// first only the sources are.
+// first only the photos and the sources are.
 const opened = {
   events: false,
   family: false,
+  photos: true,
   sources: true
 };
 type Section = keyof typeof opened;
@@ -198,7 +201,8 @@ function renderRelative(r: Relative, chart: Chart) {
   </button>`;
 }
 
-// The Selected person's family, events and sources, beside the chart.
+// The Selected person's family, events, Photos and sources, beside the
+// chart. A Photo opens in the Photo viewer.
 // Record links open outside the app (the desktop shell
 // hands target=_blank to the browser); a Link opens in the Scan viewer,
 // and the source it shows is marked and brought into view.
@@ -501,6 +505,19 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
     );
   }
 
+  // Clicked again while the Photo viewer shows it, it closes the viewer.
+  private renderPhotos(photos: PhotoRow[]) {
+    const { photoViewer, chart, api } = this.state;
+    const shown = photoViewer.opened.get()?.id ?? null;
+    return renderPhotos(photos, shown, {
+      url: api.mediaUrl,
+      open: (p) => {
+        if (p.id === shown) photoViewer.close();
+        else chart.openPhoto(p);
+      }
+    });
+  }
+
   private renderSources() {
     const groups = this.state.selected.sources.get();
     return groups.map((g) => this.renderGroup(g));
@@ -567,6 +584,13 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
                           <dd>${factText(f)}</dd>`
                     )}
                   </dl>`
+              )
+        }
+        ${
+          d.photos.length === 0
+            ? nothing
+            : this.renderSection('photos', 'Photos', () =>
+                this.renderPhotos(d.photos)
               )
         }
         ${

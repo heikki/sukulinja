@@ -27,7 +27,7 @@ function row(id: number): PersonRow {
 }
 
 function details(id: number): PersonDetails {
-  return { id, name: null, sex: null, facts: [], citations: [] };
+  return { id, name: null, sex: null, facts: [], citations: [], photos: [] };
 }
 
 // A couple, 1 and 2, and their child 3; 4 is in no family.

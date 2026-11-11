@@ -22,7 +22,7 @@ const PRESSES = new Set<ChartKey>(['root', 'dock']);
 
 // These keep their keys while they hold focus.
 const HOLDS_KEYS =
-  '[role="dialog"], [role="menu"], sl-settings, sl-scan-viewer';
+  '[role="dialog"], [role="menu"], sl-settings, sl-scan-viewer, sl-photo-viewer';
 
 const MODIFIERS = ['metaKey', 'ctrlKey', 'altKey', 'shiftKey'] as const;
 
@@ -47,7 +47,7 @@ export function chartKeyOf(press: KeyPress, on: KeyTarget) {
 }
 
 // What a key pressed does on the chart: nothing while a dialog, a menu,
-// Settings or the Scan viewer holds focus.
+// Settings or a viewer holds focus.
 export function chartKeyFrom(e: KeyboardEvent) {
   const path = e.composedPath();
   if (path.some((at) => at instanceof Element && at.matches(HOLDS_KEYS))) {

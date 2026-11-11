@@ -176,6 +176,40 @@ export const personPanelStyles = css`
 
   /* A source, tinted across the panel's width when clicking it does
      something. */
+  /* The Photos as square thumbnails, cut to fill; the one the Photo
+     viewer shows ringed in accent. */
+  .photos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr));
+    gap: 0.4rem;
+  }
+
+  button.photo {
+    aspect-ratio: 1;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    cursor: pointer;
+  }
+
+  button.photo:hover {
+    border-color: var(--accent);
+  }
+
+  button.photo.viewing {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  button.photo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
   .source {
     position: relative;
     margin: 0 -1.1rem;

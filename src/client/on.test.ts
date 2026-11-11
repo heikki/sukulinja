@@ -80,7 +80,14 @@ function appState() {
   return openAppState(
     memoryDatasetApi({
       details: {
-        1: { id: 1, name: 'Person 1', sex: 'U', facts: [], citations: [C11] }
+        1: {
+          id: 1,
+          name: 'Person 1',
+          sex: 'U',
+          facts: [],
+          citations: [C11],
+          photos: []
+        }
       },
       links: { 1: [{ citationId: 11, links: [L11] }] },
       volumes: { '201': { images: 40, citations: [] } }

@@ -28,7 +28,14 @@ function churchBook(id: number): CitationRow {
 }
 
 function person(id: number, citations: CitationRow[]): PersonDetails {
-  return { id, name: `Person ${id}`, sex: 'U', facts: [], citations };
+  return {
+    id,
+    name: `Person ${id}`,
+    sex: 'U',
+    facts: [],
+    citations,
+    photos: []
+  };
 }
 
 function onImage(image: number): Link {

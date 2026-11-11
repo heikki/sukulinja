@@ -12,9 +12,9 @@ import type {
   LinkOpen
 } from '@/client/state';
 
+import { controlStyles } from '../box-stage/styles';
 import { formatName } from '../tree-view/renderer';
 import { scanEditStyles } from './edit-styles';
-import { controlStyles } from './styles';
 
 function stop(e: Event) {
   e.stopPropagation();

@@ -11,6 +11,7 @@ import { appState } from '@/client/state';
 import type { AppState, ChartView } from '@/client/state';
 
 import '../person-panel';
+import '../photo-viewer';
 import '../scan-viewer';
 
 import { detailsWidth, setDetailsWidth } from '../person-panel/helpers';
@@ -252,7 +253,11 @@ class TreeViewElement extends SignalWatcher(LitElement) {
   };
 
   private keysElsewhere() {
-    return this.menu !== null || this.state.viewer.opened.get() !== null;
+    return (
+      this.menu !== null ||
+      this.state.viewer.opened.get() !== null ||
+      this.state.photoViewer.opened.get() !== null
+    );
   }
 
   private press(key: ChartKey) {
@@ -446,11 +451,17 @@ class TreeViewElement extends SignalWatcher(LitElement) {
     `;
   }
 
-  // Over the chart while it shows a source or an Image; it belongs to the Selected
-  // person (ADR-0011).
-  private renderScanViewer() {
-    if (this.state.viewer.opened.get() === null) return nothing;
-    return html`<sl-scan-viewer></sl-scan-viewer>`;
+  // Over the chart while one shows a source, an Image or a Photo; both
+  // belong to the Selected person (ADR-0011), and only one is open at a
+  // time.
+  private renderViewer() {
+    if (this.state.viewer.opened.get() !== null) {
+      return html`<sl-scan-viewer></sl-scan-viewer>`;
+    }
+    if (this.state.photoViewer.opened.get() !== null) {
+      return html`<sl-photo-viewer></sl-photo-viewer>`;
+    }
+    return nothing;
   }
 
   private renderCanvas(chart: EmitOutput) {
@@ -600,7 +611,7 @@ class TreeViewElement extends SignalWatcher(LitElement) {
       <div class="main">
         ${this.renderDock()}
         <div class="chart-area">
-          ${this.renderCanvas(chart)} ${this.renderScanViewer()}
+          ${this.renderCanvas(chart)} ${this.renderViewer()}
         </div>
       </div>
     `;

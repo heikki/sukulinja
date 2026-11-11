@@ -180,7 +180,12 @@ export interface Viewer {
   keepFilming: () => void;
 }
 
-export function openViewer(api: DatasetApi, selected: Selected): Viewer {
+// `opening` is told as it opens on anything, for the Photo viewer to close.
+export function openViewer(
+  api: DatasetApi,
+  selected: Selected,
+  { opening = () => undefined }: { opening?: () => void } = {}
+): Viewer {
   const opened = signal<LinkOpen | ImageOpen | null>(null);
   const source = computed(() => {
     const at = opened.get();
@@ -289,6 +294,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   }
 
   function openNow(next: LinkOpen) {
+    opening();
     onward.moved();
     pending.set(null);
     discarding.set(false);
@@ -300,6 +306,7 @@ export function openViewer(api: DatasetApi, selected: Selected): Viewer {
   }
 
   function openImageNow(at: ImageOpen) {
+    opening();
     onward.moved();
     pending.set(null);
     discarding.set(false);

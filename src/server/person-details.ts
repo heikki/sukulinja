@@ -1,9 +1,11 @@
 // What the person panel shows for one person: their facts, the facts of their
-// marriages, and their Citations.
+// marriages, their Citations and their Photos.
 
 import type { Database } from 'bun:sqlite';
 
 import type { CitationRow, FactRow, PersonDetails } from '@/common/types';
+
+import { createPhotos } from './photos';
 
 // Where the person's Citations come from.
 interface CitationsOf {
@@ -30,6 +32,7 @@ function byLife(a: FactRow, b: FactRow) {
 }
 
 export function createPersonDetails(db: Database, citations: CitationsOf) {
+  const photos = createPhotos(db);
   const person = db.prepare<{ id: number; sex: string | null }, [number]>(
     'SELECT id, sex FROM persons WHERE id = ?'
   );
@@ -83,7 +86,8 @@ export function createPersonDetails(db: Database, citations: CitationsOf) {
       name: n === null ? null : fullName(n.given, n.surname),
       sex: p.sex,
       facts,
-      citations: citations.ofPerson(id)
+      citations: citations.ofPerson(id),
+      photos: photos.ofPerson(id)
     };
   };
 }

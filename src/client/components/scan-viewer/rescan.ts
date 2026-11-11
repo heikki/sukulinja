@@ -7,8 +7,8 @@ import { ApiError } from '@/client/dataset-api';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 
+import { controlStyles } from '../box-stage/styles';
 import { staleLines } from './stale-lines';
-import { controlStyles } from './styles';
 
 // The pins switching leaves out, shown before the rest are folded.
 const SHOWN = 5;

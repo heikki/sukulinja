@@ -9,6 +9,8 @@ import { openChanges } from './changes';
 import type { Changes } from './changes';
 import { openChart } from './chart';
 import type { Chart } from './chart';
+import { openPhotoViewer } from './photo-viewer';
+import type { PhotoViewer } from './photo-viewer';
 import { openReminders } from './reminders';
 import type { Reminders } from './reminders';
 import { openSelected } from './selected';
@@ -21,6 +23,7 @@ export type { Chart, ChartView, UrlView } from './chart';
 export type { Selected } from './selected';
 export type { LinkStatus, Source, SourceGroup } from './sources';
 export type { Confirming } from './confirming';
+export type { PhotoViewer } from './photo-viewer';
 export type { Reminders } from './reminders';
 export type {
   ImageOpen,
@@ -36,6 +39,8 @@ export interface AppState {
   // What the Scan viewer shows; it depends on `selected`, not the other
   // way round.
   viewer: Viewer;
+  // The Photo the Photo viewer shows. Only one viewer is open at a time.
+  photoViewer: PhotoViewer;
   // The people, Root, and selecting someone: it moves `selected`, then
   // the viewer.
   chart: Chart;
@@ -47,12 +52,14 @@ export interface AppState {
 
 export function openAppState(api: DatasetApi): AppState {
   const selected = openSelected(api);
-  const viewer = openViewer(api, selected);
+  const photoViewer = openPhotoViewer(selected);
+  const viewer = openViewer(api, selected, { opening: photoViewer.close });
   return {
     api,
     selected,
     viewer,
-    chart: openChart(api, selected, viewer),
+    photoViewer,
+    chart: openChart(api, selected, viewer, photoViewer),
     reminders: openReminders(api),
     changes: openChanges(api)
   };

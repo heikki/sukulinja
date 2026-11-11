@@ -4,8 +4,8 @@ import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
 import type { Viewport } from '@/client/pan-zoom';
 
+import type { ViewChange } from '../box-stage/stage';
 import { ImageArrival, neighbours, THUMB_GRACE_MS } from './arrival';
-import type { ViewChange } from './arrival';
 
 // Full Images and thumbnails of one shape, a thumbnail a thirtieth or so.
 const FULL = { width: 3000, height: 2000 };

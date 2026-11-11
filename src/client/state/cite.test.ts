@@ -36,7 +36,14 @@ function churchBook(id: number, madeInApp = false): CitationRow {
 }
 
 function person(id: number, citations: CitationRow[]): PersonDetails {
-  return { id, name: `Person ${id}`, sex: 'U', facts: [], citations };
+  return {
+    id,
+    name: `Person ${id}`,
+    sex: 'U',
+    facts: [],
+    citations,
+    photos: []
+  };
 }
 
 // Matti's 11, Estimated on Image 18 of Volume 201; his 12, made in the app

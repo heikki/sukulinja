@@ -1,35 +1,37 @@
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
-import { html, LitElement, nothing } from 'lit';
+import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
-import { easeOutCubic, reducedMotion } from '@/client/pan-zoom';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { VolumeCitation } from '@/common/types';
 
-import { RAIL_PX, SLIDE_MS } from '../side-dock';
+import { controlStyles, paneRowsStyles } from '../box-stage/styles';
 import { boxOf, groupCitations, rowDates, rowName } from './citations';
-import { controlStyles, scanPeopleStyles } from './styles';
 
-// Collapsed or not for the rest of the visit, across Volumes and citations.
-let collapsed = false;
+import '../box-stage/side-pane';
 
 // How long the list last shown stays up while the next Volume's citations
 // load, before the pane says it's finding them.
 const HOLD_MS = 300;
 
-// The open pane's width.
-const OPEN_PX = 256;
-
 // Beside the scan: the people of the tree whose citations link the Image
 // shown, grouped as `groupCitations` says. Clicking one picks them; the
 // citation the viewer is on is marked. Hovering a row with an entry on the
-// scan names the entry's key with `scan-hover`, and rows of the entry
+// scan names the entry's key with `box-hover`, and rows of the entry
 // picked out there (`hovered`) are highlighted.
 @customElement('sl-scan-people')
 class ScanPeopleElement extends SignalWatcher(LitElement) {
-  static override styles = [controlStyles, scanPeopleStyles];
+  static override styles = [
+    controlStyles,
+    paneRowsStyles,
+    css`
+      :host {
+        display: contents;
+      }
+    `
+  ];
 
   @consume({ context: appState }) private readonly state!: AppState;
 
@@ -47,40 +49,6 @@ class ScanPeopleElement extends SignalWatcher(LitElement) {
   private holdTimer: ReturnType<typeof setTimeout> | null = null;
 
   private readonly nameOf = (row: VolumeCitation) => rowName(this.persons, row);
-
-  // The painted width: trails `collapsed` through the slide, as the person
-  // dock's does.
-  @state() private shown = collapsed ? RAIL_PX : OPEN_PX;
-  private slide: number | null = null;
-
-  private readonly toggle = () => {
-    collapsed = !collapsed;
-    this.toggleAttribute('collapsed', collapsed);
-    const to = collapsed ? RAIL_PX : OPEN_PX;
-    if (reducedMotion()) this.shown = to;
-    else this.startSlide(this.shown, to);
-  };
-
-  private startSlide(from: number, to: number) {
-    this.stopSlide();
-    const start = performance.now();
-    const step = (now: number) => {
-      const t = Math.min(1, (now - start) / SLIDE_MS);
-      this.shown = Math.round(from + (to - from) * easeOutCubic(t));
-      this.slide = t < 1 ? requestAnimationFrame(step) : null;
-    };
-    this.slide = requestAnimationFrame(step);
-  }
-
-  private stopSlide() {
-    if (this.slide !== null) cancelAnimationFrame(this.slide);
-    this.slide = null;
-  }
-
-  override connectedCallback() {
-    super.connectedCallback();
-    this.toggleAttribute('collapsed', collapsed);
-  }
 
   override willUpdate() {
     const { citations, image } = this.state.viewer;
@@ -100,11 +68,6 @@ class ScanPeopleElement extends SignalWatcher(LitElement) {
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.stopHold();
-    this.stopSlide();
-  }
-
-  protected override updated() {
-    this.style.width = `${this.shown}px`;
   }
 
   private stopHold() {
@@ -113,7 +76,7 @@ class ScanPeopleElement extends SignalWatcher(LitElement) {
   }
 
   private hover(key: string | null) {
-    this.dispatchEvent(new CustomEvent('scan-hover', { detail: key }));
+    this.dispatchEvent(new CustomEvent('box-hover', { detail: key }));
   }
 
   private renderRow(row: VolumeCitation) {
@@ -173,22 +136,10 @@ class ScanPeopleElement extends SignalWatcher(LitElement) {
     );
   }
 
-  // As the person dock does: the whole header hides the list, and hidden,
-  // a rail with the heading brings it back.
   override render() {
-    return html`
-      <div class="content" style="width:${OPEN_PX}px" ?inert=${collapsed}>
-        <button class="head" @click=${this.toggle}>
-          <h2>People here</h2>
-          <span class="chevron" aria-hidden="true">›</span>
-        </button>
-        <div class="list">${this.renderList()}</div>
-      </div>
-      <button class="rail" ?inert=${!collapsed} @click=${this.toggle}>
-        <span aria-hidden="true">‹</span>
-        <span class="rail-heading">People here</span>
-      </button>
-    `;
+    return html`<sl-side-pane heading="People here"
+      >${this.renderList()}</sl-side-pane
+    >`;
   }
 }
 

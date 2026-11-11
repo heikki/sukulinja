@@ -9,9 +9,9 @@ import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { VolumeChoice, VolumeChoices } from '@/common/types';
 
+import { controlStyles } from '../box-stage/styles';
 import { placedInside } from '../context-menu';
 import { scanVolumesStyles } from './edit-styles';
-import { controlStyles } from './styles';
 
 function stop(e: Event) {
   e.stopPropagation();

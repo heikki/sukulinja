@@ -7,9 +7,10 @@ import { live } from 'lit/directives/live.js';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 
+import { controlStyles } from '../box-stage/styles';
 import { imageAfter, stepOf } from './keys';
 import type { ImageMove } from './keys';
-import { controlStyles, scanNavStyles } from './styles';
+import { scanNavStyles } from './styles';
 
 import './edit';
 

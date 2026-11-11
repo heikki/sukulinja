@@ -3,27 +3,24 @@ import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
-import type { Point, Transform, Viewport } from '@/client/pan-zoom';
+import type { Point, Transform } from '@/client/pan-zoom';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { Box } from '@/common/types';
 
+import { boxFromStage } from '../box-stage/geometry';
 import { placesHere } from '../reminders-list/places';
 import { entriesOn } from './citations';
 import { citeChoices, citingImage, searchable } from './cite';
 import { scanLayerStyles } from './edit-styles';
-import { boxFromStage, boxOnStage, clampBox, newBox, wholeBox } from './frame';
+import { newEntryBox } from './frame';
 import type { Frame } from './frame';
 import { linkItems } from './menu';
 
+import '../box-stage/handles';
 import '../context-menu';
 import '../person-search';
 import './volumes';
-
-// The parts of a Box a drag can take: an edge, a corner, or all of it.
-type Grip = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw' | 'move';
-
-const GRIPS: Grip[] = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'];
 
 function stop(e: Event) {
   e.stopPropagation();
@@ -33,40 +30,6 @@ function stop(e: Event) {
 // people an entry can be cited for, listed or searched; or the Reminders
 // on the Image, opened from the page nav.
 type Popup = 'menu' | 'volumes' | 'cite' | 'search';
-
-// A drag under way: from where, and the Box it started on.
-interface BoxDrag {
-  grip: Grip;
-  from: Point;
-  start: Box;
-}
-
-// The Box a drag of `grip` by `d` (in pixels of the Image of `size`)
-// gives.
-function dragged(start: Box, grip: Grip, d: Point, size: Viewport): Box {
-  if (grip === 'move') {
-    const left = Math.min(
-      Math.max(0, start.left + d.x),
-      size.width - start.width
-    );
-    const top = Math.min(
-      Math.max(0, start.top + d.y),
-      size.height - start.height
-    );
-    return { ...start, left, top };
-  }
-  let { left, top } = start;
-  let right = left + start.width;
-  let bottom = top + start.height;
-  if (grip.includes('w')) left = Math.min(left + d.x, right);
-  if (grip.includes('e')) right = Math.max(right + d.x, left);
-  if (grip.includes('n')) top = Math.min(top + d.y, bottom);
-  if (grip.includes('s')) bottom = Math.max(bottom + d.y, top);
-  return clampBox(
-    { left, top, width: right - left, height: bottom - top },
-    size
-  );
-}
 
 // Editing the current source's Link over the scan: the menu a right-click
 // opens (`openMenu`), the Volumes opened from it, a new entry Box put where
@@ -93,23 +56,14 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   @state() private popup: { at: Point; onBox: boolean; show: Popup } | null =
     null;
   private searchOpened = false;
-  @state() private drag: BoxDrag | null = null;
-  // The Box as a drag has it, before it's let go.
-  @state() private live: Box | null = null;
 
   override connectedCallback() {
     super.connectedCallback();
-    window.addEventListener('mousemove', this.onMove);
-    window.addEventListener('mouseup', this.onUp);
-    window.addEventListener('keydown', this.onKey, true);
     window.addEventListener('mousedown', this.onOutside);
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
-    window.removeEventListener('mousemove', this.onMove);
-    window.removeEventListener('mouseup', this.onUp);
-    window.removeEventListener('keydown', this.onKey, true);
     window.removeEventListener('mousedown', this.onOutside);
   }
 
@@ -147,60 +101,6 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     return this.state.viewer;
   }
 
-  private toStage(e: MouseEvent): Point {
-    const rect = this.getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-  }
-
-  // Esc stops a drag before the viewer's Esc closes anything.
-  private readonly onKey = (e: KeyboardEvent) => {
-    if (e.key !== 'Escape') return;
-    if (this.drag === null) return;
-    e.preventDefault();
-    e.stopPropagation();
-    this.drag = null;
-    this.live = null;
-  };
-
-  private start(e: MouseEvent, grip: Grip, start: Box) {
-    if (e.button !== 0) return;
-    e.preventDefault();
-    e.stopPropagation();
-    this.drag = { grip, from: this.toStage(e), start };
-    this.live = start;
-  }
-
-  private readonly onMove = (e: MouseEvent) => {
-    const { drag, view, frame } = this;
-    if (drag === null || view === null || frame === null) return;
-    const at = this.toStage(e);
-    const d = boxFromStage(
-      {
-        left: view.pan.x + at.x - drag.from.x,
-        top: view.pan.y + at.y - drag.from.y,
-        width: 0,
-        height: 0
-      },
-      view
-    );
-    this.live = dragged(
-      drag.start,
-      drag.grip,
-      { x: d.left, y: d.top },
-      frame.size
-    );
-  };
-
-  private readonly onUp = () => {
-    const { drag, live, frame } = this;
-    if (drag === null) return;
-    this.drag = null;
-    this.live = null;
-    if (live !== null && frame !== null) {
-      this.viewer.setBox(wholeBox(live, frame.size));
-    }
-  };
-
   private readonly onPopupClose = () => {
     this.popup = null;
   };
@@ -218,7 +118,7 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     const others = Array.isArray(rows)
       ? entriesOn(rows, this.viewer.image.get()).map((e) => e.box)
       : [];
-    return newBox({ x: point.left, y: point.top }, others, frame.size);
+    return newEntryBox({ x: point.left, y: point.top }, others, frame.size);
   }
 
   // A new pending Box at `at` for the source's entry, to move and resize
@@ -347,36 +247,21 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     ></sl-context-menu>`;
   }
 
-  // The pending Box, or the one being dragged.
+  // The pending Box, to move and resize.
   private renderBox() {
     const { view, frame } = this;
-    if (view === null || frame === null || !this.editable) return nothing;
+    if (frame === null || !this.editable) return nothing;
     const pending = this.viewer.boxPending.get()
       ? this.viewer.boxHere.get()
       : null;
-    const box = this.live ?? pending;
-    if (box === null) return nothing;
-    const at = boxOnStage(box, view);
-    return html`
-      <div
-        class="box"
-        data-own="true"
-        style="left: ${at.left}px; top: ${at.top}px; width: ${at.width}px; height: ${at.height}px"
-        @mousedown=${(e: MouseEvent) => {
-          this.start(e, 'move', box);
-        }}
-      >
-        ${GRIPS.map(
-          (g) =>
-            html`<span
-              class="grip ${g}"
-              @mousedown=${(e: MouseEvent) => {
-                this.start(e, g, box);
-              }}
-            ></span>`
-        )}
-      </div>
-    `;
+    return html`<sl-box-handles
+      .box=${pending}
+      .view=${view}
+      .size=${frame.size}
+      @box-set=${(e: CustomEvent<Box>) => {
+        this.viewer.setBox(e.detail);
+      }}
+    ></sl-box-handles>`;
   }
 
   override render() {

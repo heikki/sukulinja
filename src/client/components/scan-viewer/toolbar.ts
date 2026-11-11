@@ -1,19 +1,23 @@
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
-import { html, LitElement, nothing } from 'lit';
+import { css, html, LitElement, nothing } from 'lit';
 import { customElement } from 'lit/decorators.js';
 
 import { volumeTitle } from '@/client/link-labels';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 
-import { controlStyles, scanToolbarStyles } from './styles';
+import '../box-stage/toolbar';
 
 // The Scan viewer's one row: the archive and the Volume shown. The source
 // clicked again, or Escape, closes the viewer.
 @customElement('sl-scan-toolbar')
 class ScanToolbarElement extends SignalWatcher(LitElement) {
-  static override styles = [controlStyles, scanToolbarStyles];
+  static override styles = css`
+    :host {
+      display: contents;
+    }
+  `;
 
   @consume({ context: appState }) private readonly state!: AppState;
 
@@ -30,7 +34,9 @@ class ScanToolbarElement extends SignalWatcher(LitElement) {
         : viewer.archive.get();
     const archive = named === null || named === undefined ? '' : `${named} · `;
     const volume = shown === null ? 'No Volume' : volumeTitle(shown.label);
-    return html` <span class="volume">${archive}${volume}</span> `;
+    return html`<sl-viewer-toolbar
+      heading=${`${archive}${volume}`}
+    ></sl-viewer-toolbar>`;
   }
 }
 

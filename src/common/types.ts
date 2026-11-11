@@ -104,6 +104,22 @@ export interface PersonDetails {
   sex: string | null;
   facts: FactRow[];
   citations: CitationRow[];
+  photos: PhotoRow[];
+}
+
+// A Photo of the person's: one picture in the dataset, by its stored path,
+// and the people it's linked to, in the order linked. A person's Box is
+// where the import marked them on it (its CROP), null where it marked
+// nowhere.
+export interface PhotoRow {
+  id: number;
+  path: string;
+  people: PhotoPerson[];
+}
+
+export interface PhotoPerson {
+  personId: number;
+  box: Box | null;
 }
 
 // A person's own fact, or a fact of a marriage they're in (with the spouse).
