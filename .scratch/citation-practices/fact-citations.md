@@ -34,18 +34,22 @@ Yksi kirkonkirjamerkintä tukee usein monta faktaa. Rippikirjan rivi antaa synty
 ## Vaihtoehdot
 
 **A. Sitaatti siirtyy faktalle, jota tietue koskee.** Yksi Citation tietuetta ja henkilöä kohden, kuten nyt, mutta `scope_type = 'fact'`: kastemerkintä lapsen CHR/BIRT-faktalle, rippikirjan rivi henkilön RESI-faktalle, jos sellainen on. Jos sopivaa faktaa ei ole, sitaatti jää henkilölle.
+
 - Plussat: GEDCOM-natiivi, ei skeemamuutosta, ja merge tukee jo. Mark, Box ja Change koskevat edelleen yhtä Citationia.
 - Miinukset: rippikirjan rivi tukee vain yhtä faktaa, vaikka antaa useamman tiedon. `factIn` hukkaa sitaatin, jos lähdeohjelmassa korjataan faktan päivää tai paikkaa, ja juuri sitä uusi sitaatti usein aiheuttaa.
 
 **B. Kopio jokaisen tuetun faktan alle.** GEDCOMin puhdas tapa.
+
 - Plussat: jokainen fakta näyttää kaikki lähteensä, ja ristiriidat näkyvät suoraan.
 - Miinukset: monta riviä yhtä merkintää kohden. Kaikki, mikä nyt käsittelee "yhtä sitaattia" (Mark, Discard, Delete, Change, paneelin lista, Scan viewerin People), joutuisi ryhmittelemään kopiot. Tämä on iso refaktorointi läpi `citations/`-kansion.
 
 **C. Sitaatti jää henkilölle, tuetut faktat johdetaan näyttöön.** Paneeli vertaa sitaatin litteroinnin päiviä ja paikkoja henkilön faktoihin ja näyttää sitaatin niiden faktojen alla, joihin se osuu. Mitään ei tallenneta.
+
 - Plussat: ei tallenneta mitään turhaa, ei skeemaa eikä mergeä. Se toimisi heti kaikille 3 835 sitaatille ja näyttäisi ristiriidat (eri päivä samassa tapahtumassa).
 - Miinukset: lukee MyHeritagen kenttiä (`myheritage/record.ts`), ja kansio on ADR-0016:n mukaan poistumassa. Scan viewerissä tehdyllä sitaatilla ei välttämättä ole litterointia. Vienti ei hyödy.
 
 **D. Pelkät `EVEN`/`ROLE` sovelluksen sitaateille.** Sitaatti jää henkilölle, mutta kertoo mitä tietue on ja kenen roolissa (CHR/FATH).
+
 - Plussat: johdettavissa (Book-laji: kastetut → CHR, vihityt → MARR, rippikirja → RESI tai CENS; Index referencen pääte: `-` lapsi, `-F` isä, `-M` äiti). Ei skeemamuutosta, ja kirjoittuu vientiin oikein.
 - Miinukset: ei vielä kytke sitaattia puun faktaan.
 
