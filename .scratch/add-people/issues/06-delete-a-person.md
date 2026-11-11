@@ -11,4 +11,6 @@ _Delete person…_ in the card menu, after a confirm naming what goes with them 
 - Their Changes and Reminders stay, on nothing. A `person-delete` Change, naming them as they were.
 - Deleting the Root makes the nearest relative the Root (a parent, else a spouse, else a child). The last person in a dataset can't be deleted.
 
-Tests: nothing the person held is left in any table; Changes and Reminders stay; the Root moves.
+- Refused when it would cut anyone off from the Root, naming them, as in ticket 05; a person at the edge of the tree can always go. The connectivity check is ticket 05's.
+
+Tests: a person in the middle of a chain is refused, one at its end deleted; nothing the person held is left in any table; Changes and Reminders stay; the Root moves.
