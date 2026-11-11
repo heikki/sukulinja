@@ -12,7 +12,8 @@ import { formatDates, formatName } from '../tree-view/renderer';
 
 import '../box-stage/side-pane';
 
-// Beside the Photo: the people it's linked to, as the import lists them.
+// Beside the Photo: the people it's linked to, as the import lists them,
+// or that there's no one.
 // Clicking one selects them, and the Selected person is marked. Hovering a
 // row of someone with a Box names their key with `box-hover`, and the row
 // of the Box hovered on the Photo (`hovered`) is highlighted.
@@ -69,9 +70,13 @@ class PhotoPeopleElement extends SignalWatcher(LitElement) {
 
   override render() {
     return html`<sl-side-pane heading="People here">
-      <ul>
-        ${this.people.map((p) => this.renderRow(p))}
-      </ul>
+      ${
+        this.people.length === 0
+          ? html`<p class="muted">No one is linked to or tagged here.</p>`
+          : html`<ul>
+              ${this.people.map((p) => this.renderRow(p))}
+            </ul>`
+      }
     </sl-side-pane>`;
   }
 }

@@ -1,9 +1,11 @@
-// The routes of a dataset's Tags: PUT /api/photos/:id/tags/:personId with
+// The routes of a dataset's Photos: GET /api/photos lists every Photo, as
+// the Photos view shows them; PUT /api/photos/:id/tags/:personId with
 // `{ box }` tags the person there or moves their Tag, DELETE takes it
-// back; each answers the Photo as it is now. Null for any other path.
+// back, each answering the Photo as it is now. Null for any other path.
 
 import type { Box, PhotoRow } from '@/common/types';
 
+import type { Photos } from './photos';
 import type { TagRefused, Tags } from './tags';
 
 const TAG_RE = /^\/api\/photos\/(?<photo>\d+)\/tags\/(?<person>\d+)$/u;
@@ -30,7 +32,16 @@ function answer(result: PhotoRow | TagRefused) {
   return new Response(result.refused, { status: result.missing ? 404 : 400 });
 }
 
-export async function routeTags(req: Request, tags: Tags, rest: string) {
+export async function routePhotos(
+  req: Request,
+  { photos, tags }: { photos: Photos; tags: Tags },
+  rest: string
+) {
+  if (rest === '/api/photos') {
+    return req.method === 'GET'
+      ? Response.json(photos.all())
+      : new Response('method not allowed', { status: 405 });
+  }
   const m = TAG_RE.exec(rest);
   if (m === null) return null;
   const photoId = Number(m.groups!.photo);

@@ -54,7 +54,8 @@ export interface MemoryDataset {
   changes?: Change[];
   // The archives the church books are in, as given.
   archives?: ChurchBookArchive[];
-  // By Photo id: what `tag` and `untag` change.
+  // By Photo id: what `tag` and `untag` change, and `photos` lists by
+  // id.
   photos?: Record<number, PhotoRow>;
 }
 
@@ -72,7 +73,7 @@ type MemoryDatasetApi = DatasetApi & {
   // "volume <volume>", "rescan <volume>", "switch <volume>", "changes",
   // "reminders", "remind person <id>: <text>" (or "<volume>/<image>
   // <file>"), "change reminder <id>", "delete reminder <id>", "tag
-  // <photo> <person>", "untag <photo> <person>".
+  // <photo> <person>", "untag <photo> <person>", "photos".
   // A Citation made by `cite` joins its Volume's citations, numbered on
   // from 1000, and `uncite` takes one out.
   asked: string[];
@@ -307,6 +308,11 @@ export function memoryDatasetApi(
       `memory:image/${volumeId}/${n}${retry === 0 ? '' : `?retry=${retry}`}`,
 
     thumbUrl: (volumeId, n) => `memory:thumb/${volumeId}/${n}`,
+
+    photos: async (signal) =>
+      await answer('photos', signal, () =>
+        structuredClone(Object.values(data.photos ?? {}))
+      ),
 
     mediaUrl: (storedPath) => `memory:media/${storedPath}`,
 

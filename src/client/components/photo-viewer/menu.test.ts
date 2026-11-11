@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test';
 
 import { memoryDatasetApi } from '@/client/dataset-api/memory';
 import { openPhotoViewer } from '@/client/state/photo-viewer';
+import { openPhotos } from '@/client/state/photos';
 import { openSelected } from '@/client/state/selected';
 
 import { photoItems } from './menu';
@@ -10,7 +11,7 @@ const BOX = { left: 1, top: 2, width: 3, height: 4 };
 
 function viewer() {
   const api = memoryDatasetApi({});
-  const photos = openPhotoViewer(api, openSelected(api));
+  const photos = openPhotoViewer(api, openSelected(api), openPhotos(api));
   photos.open({
     id: 11,
     path: 'b.jpg',

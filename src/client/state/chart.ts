@@ -16,7 +16,7 @@ import type {
   VolumeCitation
 } from '@/common/types';
 
-import type { PhotoViewer } from './photo-viewer';
+import type { PhotosFrom, PhotoViewer } from './photo-viewer';
 import type { Readable, Selected } from './selected';
 import type { Viewer } from './viewer';
 
@@ -95,7 +95,7 @@ export interface Chart {
   toCitation: (personId: number, citationId: number) => void;
   // Opens the Photo in the Photo viewer, once the Scan viewer's change
   // pending is dealt with and it's closed.
-  openPhoto: (photo: PhotoRow) => void;
+  openPhoto: (photo: PhotoRow, from?: PhotosFrom) => void;
   // Saves the Scan viewer's pending change, throwing ApiError if it's
   // refused; a new Citation opens there, its person selected.
   save: () => Promise<void>;
@@ -262,10 +262,10 @@ export function openChart(
         if (id !== null) select(id);
       });
     },
-    openPhoto(photo) {
+    openPhoto(photo, from) {
       viewer.leave(() => {
         viewer.close();
-        photoViewer.open(photo);
+        photoViewer.open(photo, from);
       });
     },
     async save() {

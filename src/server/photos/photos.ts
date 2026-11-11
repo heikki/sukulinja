@@ -1,13 +1,14 @@
-// A person's Photos: the pictures linked to them, each with everyone it's
-// linked to and where they are on it, the import's crops and the app's
-// Tags (ADR-0017). A family's or an event's photos, and files that aren't
-// pictures, are left out.
+// A dataset's Photos, each with everyone it's linked to and where they are
+// on it, the import's crops and the app's Tags (ADR-0017): a person's, or
+// every one. Files that aren't pictures are left out, and so are a
+// family's or an event's links.
 
 import type { Database } from 'bun:sqlite';
 
 import type { Box, PhotoPerson, PhotoRow } from '@/common/types';
 
 interface LinkRow {
+  media_id: number;
   person_id: number;
   crop_top: number | null;
   crop_left: number | null;
@@ -56,10 +57,23 @@ export function createPhotos(db: Database) {
      WHERE id = ? AND format LIKE 'image/%'`
   );
   const linksOf = db.prepare<LinkRow, [number]>(
-    `SELECT scope_id AS person_id, crop_top, crop_left, crop_width,
-       crop_height, added_in_app
+    `SELECT media_id, scope_id AS person_id, crop_top, crop_left,
+       crop_width, crop_height, added_in_app
      FROM media_links
      WHERE media_id = ? AND scope_type = 'person'
+     ORDER BY id`
+  );
+  // Every picture as the import listed them, and every person's link.
+  const allMedia = db.prepare<{ id: number; path: string }, []>(
+    `SELECT id, file_path AS path FROM media
+     WHERE format LIKE 'image/%'
+     ORDER BY id`
+  );
+  const allLinks = db.prepare<LinkRow, []>(
+    `SELECT media_id, scope_id AS person_id, crop_top, crop_left,
+       crop_width, crop_height, added_in_app
+     FROM media_links
+     WHERE scope_type = 'person'
      ORDER BY id`
   );
 
@@ -70,6 +84,19 @@ export function createPhotos(db: Database) {
   return {
     ofPerson(personId: number): PhotoRow[] {
       return ofPerson.all(personId).map(withPeople);
+    },
+
+    // Every Photo: those no one is linked to or tagged in first, then the
+    // rest, each as the import listed them.
+    all(): PhotoRow[] {
+      const links = Map.groupBy(allLinks.all(), (l) => l.media_id);
+      const photos = allMedia
+        .all()
+        .map((m) => ({ ...m, people: peopleOf(links.get(m.id) ?? []) }));
+      return [
+        ...photos.filter((p) => p.people.length === 0),
+        ...photos.filter((p) => p.people.length > 0)
+      ];
     },
 
     // A Photo by its id; null when there's none, or it isn't a picture.

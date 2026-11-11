@@ -3,6 +3,7 @@ import { signal } from '@lit-labs/signals';
 import type { DatasetApi } from '@/client/dataset-api';
 import type { Box, PhotoRow } from '@/common/types';
 
+import type { Photos } from './photos';
 import type { Readable, Selected } from './selected';
 
 // A Tag being placed: whose, and its Box as it's dragged so far. `moving`
@@ -13,18 +14,25 @@ export interface PendingTag {
   moving: boolean;
 }
 
-// What the Photo viewer shows: one of the Selected person's Photos. As the
-// Scan viewer does, it belongs to the Selected person (ADR-0011):
-// selecting someone in the Photo keeps it open, as it's theirs too;
-// selecting anyone else closes it. People are tagged in it (ADR-0017): a
-// Tag is placed, then saved or dropped, and one taken back is asked about
-// first.
+// Where a Photo was opened from, and so what it steps through: the
+// Selected person's Photos in the panel, or every Photo in the Photos
+// view.
+export type PhotosFrom = 'person' | 'all';
+
+// What the Photo viewer shows: one of the Selected person's Photos, or
+// any Photo picked in the Photos view, with no one. As the Scan viewer
+// does, it belongs to the Selected person (ADR-0011): selecting someone in
+// the Photo keeps it open, as it's theirs too; selecting anyone else
+// closes it. People are tagged in it (ADR-0017): a Tag is placed, then
+// saved or dropped, and one taken back is asked about first.
 export interface PhotoViewer {
   // The Photo shown; null while it's closed.
   opened: Readable<PhotoRow | null>;
-  open: (photo: PhotoRow) => void;
-  // To the Selected person's Photo before or after, in the panel's order;
-  // not while a Tag is pending or taken back.
+  open: (photo: PhotoRow, from?: PhotosFrom) => void;
+  // The Photos it steps through, in their list's order.
+  among: () => PhotoRow[];
+  // To the Photo before or after; not while a Tag is pending or taken
+  // back.
   step: (by: 1 | -1) => void;
   close: () => void;
   // Called by the chart once `id` is selected.
@@ -52,6 +60,8 @@ export interface PhotoViewer {
 export function openPhotoViewer(
   api: DatasetApi,
   selected: Selected,
+  // Read again once a Tag is saved or taken back.
+  photos: Photos,
   // Told once a Tag is saved or taken back, as it may change the person's
   // portrait.
   { tagged = () => undefined }: { tagged?: (personId: number) => void } = {}
@@ -59,6 +69,13 @@ export function openPhotoViewer(
   const opened = signal<PhotoRow | null>(null);
   const pending = signal<PendingTag | null>(null);
   const removing = signal<number | null>(null);
+  const from = signal<PhotosFrom>('person');
+
+  function among() {
+    if (from.get() === 'person') return selected.details.get()?.photos ?? [];
+    const all = photos.all.get();
+    return Array.isArray(all) ? all : [];
+  }
 
   function show(photo: PhotoRow | null) {
     pending.set(null);
@@ -77,22 +94,27 @@ export function openPhotoViewer(
   }
 
   // The Photo as the save left it, if it's still the one shown; the
-  // Selected person's Photos read again.
+  // Selected person's Photos and every Photo read again.
   function saved(photo: PhotoRow, personId: number) {
     if (opened.get()?.id === photo.id) show(photo);
     tagged(personId);
     void selected.refresh();
+    photos.refresh();
   }
 
   return {
     opened,
-    open: show,
+    open(photo, at = 'person') {
+      from.set(at);
+      show(photo);
+    },
+    among,
     step(by) {
       if (pending.get() !== null || removing.get() !== null) return;
       const shown = opened.get();
-      const photos = selected.details.get()?.photos ?? [];
-      const at = photos.findIndex((p) => p.id === shown?.id);
-      const next = at === -1 ? undefined : photos[at + by];
+      const list = among();
+      const at = list.findIndex((p) => p.id === shown?.id);
+      const next = at === -1 ? undefined : list[at + by];
       if (next !== undefined) show(next);
     },
     close,

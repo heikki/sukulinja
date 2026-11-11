@@ -21,17 +21,19 @@ import '../changes-list';
 import '../church-books';
 import '../corner-panel/button';
 import '../corner-panel/panel';
+import '../photos-list';
 import '../reminders-list';
 
 // Beside Settings: one button opening a popover of the Reminders, the
-// Changes and the Church books, a tab each, as Settings opens its own; only
-// one popover is open at a time. It opens on the tab last shown, and a
-// Reminder being drafted, as from the Scan viewer's menu, opens it on the
-// Reminders. Only the open tab's list is drawn. A line of a Reminder goes
-// where it says; picking a Change goes where it was done. Either asks for
-// the dock (`dock-open`) for a person or a Citation. Picking a Volume opens
-// it in the Scan viewer on its first Image. The popover stays open through
-// all of these, to go on down the list.
+// Changes, the Church books and the Photos, a tab each, as Settings opens
+// its own; only one popover is open at a time. It opens on the tab last
+// shown, and a Reminder being drafted, as from the Scan viewer's menu,
+// opens it on the Reminders. Only the open tab's list is drawn. A line of
+// a Reminder goes where it says; picking a Change goes where it was done.
+// Either asks for the dock (`dock-open`) for a person or a Citation.
+// Picking a Volume opens it in the Scan viewer on its first Image, and
+// picking a Photo opens it in the Photo viewer. The popover stays open
+// through all of these, to go on down the list.
 @customElement('sl-corner-lists')
 class CornerListsElement extends SignalWatcher(LitElement) {
   static override styles = css`
@@ -101,6 +103,8 @@ class CornerListsElement extends SignalWatcher(LitElement) {
         return html`<sl-church-books-list
           @open-volume=${this.onVolume}
         ></sl-church-books-list>`;
+      case 'photos':
+        return html`<sl-photos-list></sl-photos-list>`;
     }
   }
 

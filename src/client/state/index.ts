@@ -11,6 +11,8 @@ import { openChart } from './chart';
 import type { Chart } from './chart';
 import { openPhotoViewer } from './photo-viewer';
 import type { PhotoViewer } from './photo-viewer';
+import { openPhotos } from './photos';
+import type { Photos } from './photos';
 import { openReminders } from './reminders';
 import type { Reminders } from './reminders';
 import { openSelected } from './selected';
@@ -23,7 +25,8 @@ export type { Chart, ChartView, UrlView } from './chart';
 export type { Selected } from './selected';
 export type { LinkStatus, Source, SourceGroup } from './sources';
 export type { Confirming } from './confirming';
-export type { PendingTag, PhotoViewer } from './photo-viewer';
+export type { PendingTag, PhotosFrom, PhotoViewer } from './photo-viewer';
+export type { Photos } from './photos';
 export type { Reminders } from './reminders';
 export type {
   ImageOpen,
@@ -41,6 +44,8 @@ export interface AppState {
   viewer: Viewer;
   // The Photo the Photo viewer shows. Only one viewer is open at a time.
   photoViewer: PhotoViewer;
+  // Every Photo, as the Photos view lists them.
+  photos: Photos;
   // The people, Root, and selecting someone: it moves `selected`, then
   // the viewer.
   chart: Chart;
@@ -52,7 +57,8 @@ export interface AppState {
 
 export function openAppState(api: DatasetApi): AppState {
   const selected = openSelected(api);
-  const photoViewer = openPhotoViewer(api, selected, {
+  const photos = openPhotos(api);
+  const photoViewer = openPhotoViewer(api, selected, photos, {
     // A Tag may be the crop of someone's portrait.
     tagged: () => {
       void chart.reloadPeople();
@@ -65,6 +71,7 @@ export function openAppState(api: DatasetApi): AppState {
     selected,
     viewer,
     photoViewer,
+    photos,
     chart,
     reminders: openReminders(api),
     changes: openChanges(api)

@@ -4,6 +4,7 @@ import { memoryDatasetApi } from '@/client/dataset-api/memory';
 import type { PersonDetails, PhotoRow } from '@/common/types';
 
 import { openPhotoViewer } from './photo-viewer';
+import { openPhotos } from './photos';
 import { openSelected } from './selected';
 
 const BOX = { left: 1, top: 2, width: 3, height: 4 };
@@ -31,7 +32,7 @@ async function opened() {
   });
   const selected = openSelected(api, { grace: 0 });
   await selected.select(1);
-  return openPhotoViewer(api, selected);
+  return openPhotoViewer(api, selected, openPhotos(api));
 }
 
 test("steps through the Selected person's Photos, stopping at the ends", async () => {
@@ -43,6 +44,27 @@ test("steps through the Selected person's Photos, stopping at the ends", async (
   expect(photos.opened.get()).toBe(GROUP);
   photos.step(1);
   expect(photos.opened.get()).toBe(GROUP);
+});
+
+test('opened from the Photos view, steps through every Photo', async () => {
+  const LONE: PhotoRow = { id: 12, path: 'c.jpg', people: [] };
+  const api = memoryDatasetApi({
+    details: { 1: person(1, [PORTRAIT, GROUP]) },
+    photos: { 10: PORTRAIT, 11: GROUP, 12: LONE }
+  });
+  const selected = openSelected(api, { grace: 0 });
+  await selected.select(1);
+  const all = openPhotos(api);
+  all.load();
+  await Bun.sleep(0);
+  const photos = openPhotoViewer(api, selected, all);
+  photos.open(GROUP, 'all');
+  expect(photos.among().map((p) => p.id)).toEqual([10, 11, 12]);
+  photos.step(1);
+  expect(photos.opened.get()?.id).toBe(12);
+  photos.open(GROUP);
+  photos.step(1);
+  expect(photos.opened.get()?.id).toBe(11);
 });
 
 test('stays open for someone in the Photo, and closes for anyone else', async () => {
@@ -64,13 +86,15 @@ async function tagging() {
   const selected = openSelected(api, { grace: 0 });
   await selected.select(1);
   const tagged: number[] = [];
-  const photos = openPhotoViewer(api, selected, {
+  const all = openPhotos(api);
+  all.load();
+  const photos = openPhotoViewer(api, selected, all, {
     tagged: (id) => {
       tagged.push(id);
     }
   });
   photos.open(group);
-  return { api, photos, tagged };
+  return { api, photos, all, tagged };
 }
 
 const MOVED = { left: 5, top: 6, width: 7, height: 8 };
@@ -95,6 +119,7 @@ test('tags someone: the Box pending, then saved, and the Photo as saved', async 
     tagged: true
   });
   expect(tagged).toEqual([3]);
+  expect(api.asked.filter((a) => a === 'photos')).toHaveLength(2);
 });
 
 test("moves a Tag from its Box, but not the import's", async () => {

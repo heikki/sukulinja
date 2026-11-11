@@ -383,7 +383,7 @@ class TreeViewElement extends SignalWatcher(LitElement) {
     this.details = true;
   };
 
-  // Search, the lists (Reminders, Changes, Church books) and Settings,
+  // Search, the lists (Reminders, Changes, Church books, Photos) and Settings,
   // floating over the chart's top-right corner, and over the Scan viewer's
   // row while it covers the chart.
   private renderCorner() {

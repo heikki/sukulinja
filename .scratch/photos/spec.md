@@ -15,7 +15,7 @@ A Photos context of its own in the glossary (GLOSSARY-MAP.md):
 - **Tag**: a person in a Photo, with their **Box**: who and where, as a Citation is to an Image. A Tag always has its Box. Each person in a group photo has a Tag of their own.
 - **Box**: the same term as on an Image: only where, a rectangle in pixels of the full-size picture.
 - **Photo viewer**: where a Photo is looked at and its people tagged.
-- **Photos** (later): the view browsing every Photo, as **Church books** browses the Volumes.
+- **Photos**: the view browsing every Photo, as **Church books** browses the Volumes.
 
 A photo an import links to a person without a `CROP` is the export's link, not a Tag, and is listed on the person all the same.
 
@@ -37,4 +37,3 @@ A photo an import links to a person without a `CROP` is the export's link, not a
 ## Later
 
 - After tagging: choosing the portrait, a title or date, adding a photo from disk, removing a photo.
-- The **Photos** view of every Photo, for those linked to no one or with no one tagged: ticket 03.

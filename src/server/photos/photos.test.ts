@@ -55,3 +55,20 @@ test("lists a person's pictures in their order, with everyone in each", () => {
 test('a person with no pictures has no Photos', () => {
   expect(createPhotos(dataset()).ofPerson(3)).toEqual([]);
 });
+
+test('lists every Photo, those with no one first, then as imported', () => {
+  const db = dataset();
+  db.run(`INSERT INTO media (id, file_path, format) VALUES
+    (13, 'house.jpg', 'image/jpeg'),
+    (14, 'wedding.jpg', 'image/jpeg')`);
+  db.run(`INSERT INTO media_links (media_id, scope_type, scope_id, sort_order)
+    VALUES (14, 'family', 1, 0)`);
+  const photos = createPhotos(db).all();
+  expect(photos.map((p) => [p.id, p.people.length])).toEqual([
+    [13, 0],
+    [14, 0],
+    [10, 2],
+    [11, 1]
+  ]);
+  expect(photos[2]).toEqual(createPhotos(db).photo(10)!);
+});

@@ -110,6 +110,9 @@ export interface DatasetApi {
   imageUrl: (volumeId: string, n: number, retry: number) => string;
   // Astia's 250px thumbnail of an Image.
   thumbUrl: (volumeId: string, n: number) => string;
+  // Every Photo of the dataset, those no one is linked to or tagged in
+  // first, then as the import listed them.
+  photos: (signal?: AbortSignal) => Promise<PhotoRow[]>;
   // A photo imported with the dataset.
   mediaUrl: (storedPath: string) => string;
   // Tags the person in the Photo at `box`, or moves their Tag there; the
@@ -327,6 +330,9 @@ export function openDatasetApi(
     },
 
     thumbUrl: (volumeId, n) => `${astia}/${volumeId}/images/${n}?size=thumb`,
+
+    photos: async (signal) =>
+      await json<PhotoRow[]>('Photos', `${dataset}/api/photos`, signal),
 
     mediaUrl: (storedPath) => `${dataset}/media/${storedPath}`,
 

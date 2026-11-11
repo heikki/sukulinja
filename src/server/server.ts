@@ -10,8 +10,8 @@ import type { Astia, DatasetCitations } from './citations';
 import { lifecycleRoutes } from './datasets/lifecycle-routes';
 import type { DatasetRegistry } from './datasets/registry';
 import { createPersonDetails } from './person-details';
-import { createPhotos, openTags, routeTags } from './photos';
-import type { Tags } from './photos';
+import { createPhotos, openTags, routePhotos } from './photos';
+import type { Photos, Tags } from './photos';
 import { createReminders } from './reminders/reminders';
 import { routeReminders } from './reminders/routes';
 import type { ReminderHandlers } from './reminders/routes';
@@ -33,7 +33,8 @@ interface DatasetHandlers extends ReminderHandlers {
   handleMedia: (rest: string, mediaRoot: string) => Promise<Response>;
   // The Citation routes; null for any other path.
   routeCitations: DatasetCitations['route'];
-  // Tagging people in the dataset's Photos.
+  // The dataset's Photos, and tagging people in them.
+  photos: Photos;
   tags: Tags;
 }
 
@@ -45,7 +46,8 @@ function createDatasetHandlers(
   const personDetails = createPersonDetails(db, scans);
   const reminders = createReminders(db, scans);
   const changes = openChanges(db, scans);
-  const tags = openTags(db, createPhotos(db), (change) => {
+  const photos = createPhotos(db);
+  const tags = openTags(db, photos, (change) => {
     changes.add(change);
   });
 
@@ -85,6 +87,7 @@ function createDatasetHandlers(
 
     routeCitations: scans.route,
 
+    photos,
     tags,
 
     async handleReminders() {
@@ -142,8 +145,8 @@ async function routeDataset(
   if (cited !== null) return cited;
   const reminded = await routeReminders(req, handlers, rest);
   if (reminded !== null) return reminded;
-  const tagged = await routeTags(req, handlers.tags, rest);
-  if (tagged !== null) return tagged;
+  const photo = await routePhotos(req, handlers, rest);
+  if (photo !== null) return photo;
   if (rest.startsWith('/media/')) {
     return await handlers.handleMedia(rest, mediaRoot);
   }

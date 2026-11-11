@@ -18,7 +18,7 @@ import './edit';
 import './layer';
 import './people';
 
-// ←/→ step through the Selected person's Photos.
+// ←/→ step through the Photos it was opened among.
 const STEPS: Record<string, 1 | -1> = { ArrowLeft: -1, ArrowRight: 1 };
 
 function typing(e: KeyboardEvent) {
@@ -30,8 +30,9 @@ function typing(e: KeyboardEvent) {
   );
 }
 
-// The Photo viewer: a Photo of the Selected person's, over the chart, to
-// pan and zoom as the Scan viewer does. The Boxes of the people marked on
+// The Photo viewer: a Photo of the Selected person's, or any picked in
+// the Photos view, over the chart, to pan and zoom as the Scan viewer
+// does. The Boxes of the people marked on
 // it show as their rows beside it are hovered, the Selected person's
 // always; each Box and row leads to its person. A right-click tags someone
 // there, or moves or removes a Tag (ADR-0017). Esc backs out of a Tag
@@ -169,9 +170,9 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
       ?.openMenu(at, { pending, key: on?.dataset.key ?? null });
   };
 
-  // "Photo 2 of 3", of the Selected person's.
+  // "Photo 2 of 3", of those it steps through.
   private heading(photo: PhotoRow) {
-    const photos = this.state.selected.details.get()?.photos ?? [];
+    const photos = this.state.photoViewer.among();
     const at = photos.findIndex((p) => p.id === photo.id);
     return at === -1 || photos.length < 2
       ? 'Photo'
