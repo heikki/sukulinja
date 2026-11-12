@@ -8,6 +8,7 @@ import { ADDABLE_FACTS, factKindLabel, factWords } from '@/common/facts';
 import type { FactFields, NewChange, NewFact } from '@/common/types';
 
 import { deleteHeld, deletePlaceHeld, touchRecord } from '../datasets/records';
+import { BIRTH_TAGS, createChildOrder } from '../persons/child-order';
 import { readFields } from './fields';
 import type { Said } from './fields';
 
@@ -104,6 +105,16 @@ export function createFacts(
      GROUP BY place ORDER BY COUNT(*) DESC, place`
   );
 
+  const childOrder = createChildOrder(db);
+
+  // A birth or baptism date added, changed or deleted moves the person
+  // among their siblings.
+  function reorder(f: { scope_type: string; tag: string }, personId: number) {
+    if (f.scope_type === 'person' && BIRTH_TAGS.includes(f.tag)) {
+      childOrder.placeEverywhere(personId);
+    }
+  }
+
   function change(
     personId: number,
     what: Omit<Extract<NewChange['what'], { kind: 'fact' }>, 'kind'>
@@ -155,6 +166,9 @@ export function createFacts(
           order
         )!;
         touchRecord(db, recordOf({ scope_type: scope, scope_id: scopeId }));
+        if (s.date !== null) {
+          reorder({ scope_type: scope, tag: fact.tag }, personId);
+        }
         change(personId, {
           did: 'add',
           tag: fact.tag,
@@ -190,6 +204,7 @@ export function createFacts(
           forgetCoordinates.run(factId);
           deletePlaceHeld(db, { fact: factId });
         }
+        if (s.date !== stored.date) reorder(f, personId);
         touchRecord(db, recordOf(f));
         change(personId, {
           did: 'edit',
@@ -211,6 +226,7 @@ export function createFacts(
         moveCitations.run(f.scope_type, f.scope_id, factId);
         deleteHeld(db, { fact: factId });
         deleteRow.run(factId);
+        if (f.date_text !== null) reorder(f, personId);
         touchRecord(db, recordOf(f));
         change(personId, {
           did: 'delete',

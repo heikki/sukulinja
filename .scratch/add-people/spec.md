@@ -69,7 +69,7 @@ Heikki decided on 2026-11-11 to cut the MyHeritage connection: Sukulinja becomes
 | 01  | ~~Add a parent, spouse, child or sibling from a card's menu~~ done | none                |
 | 02  | ~~Link someone already in the tree, and the duplicate check~~ done | 01                  |
 | 03  | ~~Edit a person's name and sex~~ done                              | 01                  |
-| 04  | Order children by birth date                                       | 01, fact-editing 04 |
+| 04  | ~~Order children by birth date~~ done                              | 01, fact-editing 04 |
 | 05  | Unlink a person from a family                                      | 01                  |
 | 06  | Delete a person                                                    | 05, fact-editing 06 |
 | 07  | New relatives from the Scan viewer's and Photo viewer's picker     | 01                  |

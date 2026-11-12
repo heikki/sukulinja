@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { gedcomDate, isoDate, typedDate } from './dates';
+import { dateOrder, gedcomDate, isoDate, typedDate } from './dates';
 
 describe('gedcomDate', () => {
   test('writes a day, month or year the Finnish way', () => {
@@ -91,4 +91,13 @@ describe('typedDate', () => {
       expect(typedDate(gedcomDate(date))).toBe(date);
     }
   });
+});
+
+test('dateOrder sorts dates by the first day they name', () => {
+  expect(dateOrder('3 MAR 1761')).toBe(17610303);
+  expect(dateOrder('MAR 1761')).toBe(17610300);
+  expect(dateOrder('1761')).toBe(17610000);
+  expect(dateOrder('BET 1867 AND 1879')).toBe(18670000);
+  expect(dateOrder('ABT 12 JAN 1850')).toBe(18500112);
+  expect(dateOrder('@#DJULIAN@ x')).toBeNull();
 });

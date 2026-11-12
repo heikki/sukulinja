@@ -104,3 +104,17 @@ export function typedDate(text: string) {
 // The forms typedDate reads, for saying so when it can't.
 export const TYPED_DATE_FORMS =
   '3.3.1761, 3/1761, 1761, n. 1761, ennen 1761, 1761 jälkeen, 1870–1879';
+
+// A GEDCOM date as a number that sorts by when it was: the first day it
+// names, "BET 1867 AND 1879" as 1867, a missing month or day as before
+// any. Null when it names no year.
+export function dateOrder(text: string) {
+  const m =
+    /(?:^|\s)(?:(?<day>\d{1,2}) )?(?:(?<name>[A-Z]{3}) )?(?<year>\d{3,4})(?:\s|$)/.exec(
+      text.trim().toUpperCase()
+    );
+  if (m?.groups === undefined) return null;
+  const { day = '0', name, year = '' } = m.groups;
+  const month = name === undefined ? 0 : MONTHS.indexOf(name) + 1;
+  return Number(year) * 10000 + month * 100 + Number(day);
+}
