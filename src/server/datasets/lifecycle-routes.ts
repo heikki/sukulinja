@@ -1,5 +1,6 @@
 // The routes for datasets as a whole, each a registry verb: GET /datasets
-// lists them; DELETE /datasets/<slug> deletes one; POST …/export saves its
+// lists them; POST /datasets starts a new one with its first person, from
+// `{ name, given, surname, sex }`; DELETE /datasets/<slug> deletes one; POST …/export saves its
 // GEDZIP.
 //
 // POST /import streams the import as newline-delimited ImportEvents: log
@@ -12,8 +13,9 @@
 // else thrown is a bug, and is thrown on.
 
 import { slugFromFilename, withoutExtension } from '@/common/slug';
-import type { ImportEvent, NewChange } from '@/common/types';
+import type { ImportEvent, NewChange, Sex } from '@/common/types';
 
+import { refusedName } from '../persons/names';
 import { OutdatedDatasetError } from './db';
 import { DatasetExists, DatasetNotFound } from './registry';
 import type { DatasetRegistry } from './registry';
@@ -64,6 +66,27 @@ async function readUpload(req: Request) {
     slug,
     sourceFilename: file.name
   };
+}
+
+// `{ name, given, surname, sex }`, each a string, as a new dataset and its
+// first person; the reason in words when it isn't one.
+async function readNew(req: Request) {
+  const body = (await req.json().catch(() => null)) as unknown;
+  if (typeof body !== 'object' || body === null) return 'expected JSON';
+  const { name, given, surname, sex } = body as Record<string, unknown>;
+  const strings = [name, given, surname, sex];
+  if (!strings.every((v) => typeof v === 'string')) {
+    return 'expected { name, given, surname, sex }';
+  }
+  const first = {
+    given: given as string,
+    surname: surname as string,
+    sex: sex as Sex
+  };
+  const displayName = (name as string).trim();
+  const slug = slugFromFilename(displayName);
+  if (slug === '') return 'The name needs a letter or a digit.';
+  return refusedName(first)?.rejected ?? { slug, displayName, first };
 }
 
 type Upload = Exclude<Awaited<ReturnType<typeof readUpload>>, string>;
@@ -131,6 +154,24 @@ export function lifecycleRoutes(
     return handleImport(upload);
   }
 
+  // A new dataset with its first person, the Change on them saying so.
+  async function handleCreate(req: Request) {
+    const read = await readNew(req);
+    if (typeof read === 'string') return new Response(read, { status: 400 });
+    if (registry.has(read.slug)) {
+      const taken = registry.info(read.slug)?.displayName ?? read.displayName;
+      return new Response(`There's a dataset named ${taken} already.`, {
+        status: 409
+      });
+    }
+    const { personId, info } = await registry.create(read);
+    changed(read.slug, {
+      on: { personId },
+      what: { kind: 'new-dataset' }
+    });
+    return Response.json(info, { status: 201 });
+  }
+
   // One dataset's verb: deleting it or exporting it.
   async function onDataset(slug: string, verb: string | undefined) {
     if (verb === undefined) {
@@ -143,6 +184,7 @@ export function lifecycleRoutes(
 
   return async function routeLifecycle(req: Request, pathname: string) {
     if (pathname === '/datasets') {
+      if (req.method === 'POST') return await handleCreate(req);
       if (req.method !== 'GET') return notAllowed();
       return Response.json(await registry.list());
     }

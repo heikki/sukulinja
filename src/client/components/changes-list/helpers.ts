@@ -82,6 +82,8 @@ export function doneLabel(what: ChangeWhat) {
         : `Imported ${what.file}`;
     case 'undo-import':
       return 'Undid the last import';
+    case 'new-dataset':
+      return 'Started the dataset';
     case 'switch-filming':
       return 'Switched to the new filming';
   }
@@ -120,6 +122,7 @@ export function detailOf(what: ChangeWhat) {
     case 'import':
       return what.lost === 0 ? null : `${what.lost} not kept`;
     case 'undo-import':
+    case 'new-dataset':
       return null;
     case 'switch-filming': {
       const images = `${volumeTitle(what.volume)}, ${what.from} → ${what.to} Images`;

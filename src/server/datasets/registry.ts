@@ -8,11 +8,12 @@ import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readdir, rename, rm } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 
-import type { DatasetInfo } from '@/common/types';
+import type { DatasetInfo, PersonName } from '@/common/types';
 
 import { saveExport } from '../export/dataset';
 import { buildImport } from '../import/dataset';
 import type { ImportRequest } from '../import/dataset';
+import { createRecords } from '../persons/records';
 import { openAnyDb, openDb, OutdatedDatasetError } from './db';
 
 const SLUG_RE = /^[a-z0-9][a-z0-9_-]*$/u;
@@ -119,6 +120,30 @@ export class DatasetRegistry {
         readInfo(db!, req.slug, false)
       );
       return { ...built, info };
+    } catch (err) {
+      await staging.discard();
+      throw err;
+    }
+  }
+
+  // Starts a new dataset under its slug with its first person, the only
+  // one made in no place in the tree, as there's no tree yet; the chart
+  // starts from them. Their id, and the dataset as listed.
+  async create(req: { slug: string; displayName: string; first: PersonName }) {
+    if (this.has(req.slug)) throw new DatasetExists(req.displayName);
+    const staging = await this.createStaging(req.slug);
+    try {
+      const { given, surname, sex } = req.first;
+      const personId = createRecords(staging.db).person(
+        { given: given.trim(), surname: surname.trim() },
+        sex
+      );
+      writeMeta(staging.db, { display_name: req.displayName });
+      await staging.commit();
+      const info = this.readAny(req.slug, (db) =>
+        readInfo(db!, req.slug, false)
+      );
+      return { personId, info };
     } catch (err) {
       await staging.discard();
       throw err;

@@ -5,6 +5,7 @@ import { customElement, state } from 'lit/decorators.js';
 
 import '../settings';
 import '../tree-view';
+import './new-dataset';
 
 import { ApiError, openDatasetApi } from '@/client/dataset-api';
 import { openLifecycleApi } from '@/client/dataset-api/lifecycle';
@@ -102,6 +103,8 @@ class AppElement extends LitElement {
   @state() private importing = false;
   @state() private importStatus: string | null = null;
   @state() private importError: string | null = null;
+  // Whether the New dataset dialog is open.
+  @state() private creating = false;
   // A dataset action waiting to be confirmed, or running.
   @state() private confirming: Confirming | null = null;
 
@@ -321,6 +324,15 @@ class AppElement extends LitElement {
         <button
           class="import"
           ?disabled=${this.importing}
+          @click=${() => {
+            this.creating = true;
+          }}
+        >
+          New dataset…
+        </button>
+        <button
+          class="import"
+          ?disabled=${this.importing}
           @click=${this.onImportFileClick}
         >
           ${this.importing ? 'Importing…' : 'Import GEDCOM'}
@@ -343,6 +355,17 @@ class AppElement extends LitElement {
         this.setMenu(null);
       })}
       ${this.renderImportDialog()}
+      ${
+        this.creating
+          ? html`<sl-new-dataset
+              .lifecycle=${this.lifecycle}
+              .datasets=${this.datasets ?? []}
+              @closed=${() => {
+                this.creating = false;
+              }}
+            ></sl-new-dataset>`
+          : nothing
+      }
       ${
         this.confirming === null
           ? nothing
@@ -379,7 +402,8 @@ class AppElement extends LitElement {
       <div class="center">
         <h2>No datasets yet</h2>
         <p>
-          Import a GEDCOM file, or a GEDZIP with its photos, to get started.
+          Start a new tree from its first person, or import a GEDCOM file, or a
+          GEDZIP with its photos.
         </p>
         ${this.renderImportButton()}
       </div>

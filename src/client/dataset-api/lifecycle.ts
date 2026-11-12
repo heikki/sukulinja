@@ -1,9 +1,14 @@
 // What the chooser asks the app about its datasets as a whole: listing
-// them, importing, exporting and deleting. The Dataset
+// them, starting one, importing, exporting and deleting. The Dataset
 // API's twin for the registry's verbs, and where their route strings live.
 
 import { readNdjson } from '@/client/ndjson';
-import type { DatasetInfo, ExportSaved, ImportEvent } from '@/common/types';
+import type {
+  DatasetInfo,
+  ExportSaved,
+  ImportEvent,
+  PersonName
+} from '@/common/types';
 
 import { ApiError, asker, NOT_RESPONDING } from './';
 import type { FetchOptions } from './';
@@ -22,6 +27,8 @@ export interface LifecycleApi {
     upload: { file: File; name: string },
     hooks: ImportHooks
   ) => Promise<DatasetInfo>;
+  // Starts a new dataset named `name` with its first person.
+  create: (fields: PersonName & { name: string }) => Promise<DatasetInfo>;
   // Saves the dataset's GEDZIP into Downloads.
   exportAs: (slug: string) => Promise<ExportSaved>;
   remove: (slug: string) => Promise<void>;
@@ -67,6 +74,15 @@ export function openLifecycleApi({
       });
       if (res.body === null) throw new ApiError('Importing failed (no answer)');
       return await outcome(res.body, hooks);
+    },
+
+    async create(fields) {
+      const res = await ask('Creating the dataset', datasets, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(fields)
+      });
+      return (await res.json()) as DatasetInfo;
     },
 
     async exportAs(slug) {

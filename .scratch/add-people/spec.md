@@ -73,5 +73,5 @@ Heikki decided on 2026-11-11 to cut the MyHeritage connection: Sukulinja becomes
 | 05  | ~~Unlink a person from a family~~ done                                  | 01                  |
 | 06  | ~~Delete a person~~ done                                                | 05, fact-editing 06 |
 | 07  | ~~New relatives from the Scan viewer's and Photo viewer's picker~~ done | 01                  |
-| 08  | Start a new dataset with its first person                               | 01                  |
+| 08  | ~~Start a new dataset with its first person~~ done                      | 01                  |
 | 09  | Glossary: Person, Family and the new Change kinds                       | 01                  |

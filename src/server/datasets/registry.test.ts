@@ -5,8 +5,10 @@ import { mkdir, mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
 
+import { gedcom7Errors } from '../../../test/gedcom7/validate';
+import { exportGedcom } from '../export/gedcom';
 import { OutdatedDatasetError } from './db';
-import { DatasetNotFound, DatasetRegistry } from './registry';
+import { DatasetExists, DatasetNotFound, DatasetRegistry } from './registry';
 
 let root = '';
 let registry = new DatasetRegistry('/');
@@ -242,5 +244,38 @@ describe('a dataset an older version built', () => {
         outdated: true
       }
     ]);
+  });
+});
+
+describe('create', () => {
+  test('starts a dataset with its one person, whose export is valid', async () => {
+    const { personId, info } = await registry.create({
+      slug: 'uusi',
+      displayName: 'Uusi suku',
+      first: { given: ' Matti ', surname: 'Esimerkki', sex: 'M' }
+    });
+    expect(info).toMatchObject({
+      slug: 'uusi',
+      displayName: 'Uusi suku',
+      personCount: 1,
+      familyCount: 0
+    });
+    const db = registry.open('uusi');
+    expect(
+      db
+        .query(
+          'SELECT p.id, p.sex, n.full_text FROM persons p JOIN names n ON n.person_id = p.id'
+        )
+        .all()
+    ).toEqual([{ id: personId, sex: 'M', full_text: 'Matti /Esimerkki/' }]);
+    const { text } = exportGedcom(db);
+    expect(gedcom7Errors(text)).toEqual([]);
+    expect(
+      registry.create({
+        slug: 'uusi',
+        displayName: 'Uusi',
+        first: { given: 'X', surname: '', sex: 'U' }
+      })
+    ).rejects.toThrow(DatasetExists);
   });
 });

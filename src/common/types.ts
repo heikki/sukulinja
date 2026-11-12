@@ -525,6 +525,8 @@ export type ChangeWhat =
   // a new dataset (ADR-0021), kept so older Changes still read.
   | { kind: 'import'; file: string; merged: boolean; lost: number }
   | { kind: 'undo-import' }
+  // A dataset started with its first person, whom it's on.
+  | { kind: 'new-dataset' }
   | {
       kind: 'switch-filming';
       volume: string;

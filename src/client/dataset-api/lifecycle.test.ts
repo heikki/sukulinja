@@ -127,6 +127,28 @@ test('an import is a Change', async () => {
   ]);
 });
 
+test('a new dataset starts with its first person, a Change on them', async () => {
+  const first = { given: 'Matti', surname: 'Esimerkki', sex: 'M' } as const;
+  const info = await api.create({ name: 'Uusi suku', ...first });
+  expect(info).toMatchObject({
+    slug: 'uusi-suku',
+    displayName: 'Uusi suku',
+    personCount: 1
+  });
+  expect(await changesDone('uusi-suku')).toEqual([{ kind: 'new-dataset' }]);
+  expect(await failure(api.create({ name: 'Uusi suku', ...first }))).toBe(
+    "There's a dataset named Uusi suku already."
+  );
+  expect(
+    await failure(
+      api.create({ name: 'Toinen', ...first, given: '', surname: '' })
+    )
+  ).toBe('Write a name.');
+  expect(await failure(api.create({ name: '!!!', ...first }))).toBe(
+    'The name needs a letter or a digit.'
+  );
+});
+
 test("an upload it can't read is refused", async () => {
   expect(await failure(upload('Tree', 'tree.txt'))).toBe(
     'expected a .ged, .gedcom or .gdz file'
