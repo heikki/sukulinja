@@ -235,6 +235,32 @@ test("mark saves, sets the reference's Links, and reloads the person's details a
   expect(rows).toEqual([[12, 11]]);
 });
 
+test("uncite deletes the Citation and reloads the person's details", async () => {
+  const data = {
+    details: { 1: MATTI },
+    links: { 1: [MATTI_11, MATTI_12] }
+  };
+  const api = memoryDatasetApi(data);
+  const selected = openSelected(api);
+  await selected.select(1);
+  // What the server answers once it's deleted.
+  data.details[1] = person(1, [churchBook(11, 40)]);
+  data.links[1] = [MATTI_11];
+  await selected.uncite(12);
+  await settle();
+  expect(api.asked).toEqual([
+    'person 1',
+    'links 1',
+    'uncite 12',
+    'person 1',
+    'links 1'
+  ]);
+  const rows = selected.sources
+    .get()
+    .flatMap((g) => g.sources.map((s) => s.citation.id));
+  expect(rows).toEqual([11]);
+});
+
 test("a refused Mark throws in the server's words", async () => {
   const selected = openSelected(dataset());
   await selected.select(1);

@@ -40,6 +40,9 @@ export interface Selected {
   mark: (citationId: number, at: MarkTarget) => Promise<CitationLinks>;
   // Takes back a reference's Box, as `mark` saves one.
   discard: (citationId: number, at: BoxAt) => Promise<CitationLinks>;
+  // Deletes one of their Citations, throwing ApiError if it's refused;
+  // their details are read again.
+  uncite: (citationId: number) => Promise<void>;
   // The Links resolved again, as after switching a re-scanned Volume to
   // its new filming; resolves once they're in.
   relink: () => Promise<void>;
@@ -165,6 +168,11 @@ export function openSelected(
     return await settled(api.discard(citationId, at));
   }
 
+  async function uncite(citationId: number) {
+    await api.uncite(citationId);
+    void refresh();
+  }
+
   async function refresh() {
     const person = id.get();
     if (person === null) return;
@@ -195,6 +203,7 @@ export function openSelected(
     select,
     mark,
     discard,
+    uncite,
     relink,
     refresh
   };

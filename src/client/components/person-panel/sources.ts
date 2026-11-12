@@ -4,7 +4,9 @@ import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
+import { ApiError } from '@/client/dataset-api';
 import { focusRingStyles } from '@/client/focus-ring';
+import { formStyles } from '@/client/form-styles';
 import { appState } from '@/client/state';
 import type {
   AppState,
@@ -87,12 +89,12 @@ function renderSite(href: string, label: string) {
 }
 
 // What the source records, then links to the record on its own site and to
-// its scan in Astia, and what can be done of its archive.
+// its scan in Astia, and what can be done: of its archive, and deleting it.
 function renderDetails(
   body: unknown,
   url: string | null,
   link: Link | null,
-  archive: unknown
+  actions: unknown
 ) {
   const astia = link === null || link.url === '' ? null : link.url;
   // A Citation of an Astia Image is at its Link's own address.
@@ -105,15 +107,9 @@ function renderDetails(
     <div class="record">
       ${body}
       ${links.length === 0 ? nothing : html`<div class="sites">${links}</div>`}
-      ${archive}
+      ${actions}
     </div>
   `;
-}
-
-// Whether folding the source out shows anything: what it records, or a
-// link to it.
-function hasDetails(body: unknown, url: string | null, link: Link | null) {
-  return body !== nothing || url !== null || link !== null;
 }
 
 // Filed under its archive: it links a Volume there, or the archive's
@@ -158,6 +154,7 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
   static override styles = [
     focusRingStyles,
     definitionListStyles,
+    formStyles,
     personSourcesStyles
   ];
 
@@ -175,6 +172,12 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
   @state() private finding: number | null = null;
   @state() private linking = false;
   @state() private linkError: string | null = null;
+
+  // The source asked about deleting, while it's deleted, and why that
+  // failed.
+  @state() private asking: number | null = null;
+  @state() private deleting = false;
+  @state() private deleteError: string | null = null;
 
   // Whose sources are shown, and the source the viewer last showed and
   // for whom.
@@ -198,6 +201,7 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
     if (id === this.shownId) return;
     this.shownId = id;
     this.unfolded = null;
+    this.ask(null);
   }
 
   override updated() {
@@ -238,11 +242,7 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
   // that has one, or the viewer to look through its parish's Volumes if it
   // can; else show or hide its record. Clicked again while the viewer
   // shows its Link, it closes the viewer; away from the Link, it goes back.
-  private actionOf(
-    c: CitationRow,
-    status: LinkStatus | null,
-    foldable: boolean
-  ) {
+  private actionOf(c: CitationRow, status: LinkStatus | null) {
     const link = status?.link ?? null;
     if (link !== null) {
       return () => {
@@ -257,7 +257,6 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
         else this.state.viewer.open({ citation: c, link: null, unlinked });
       };
     }
-    if (!foldable) return null;
     return () => {
       this.fold(c.id);
     };
@@ -286,6 +285,79 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
     } finally {
       this.linking = false;
     }
+  }
+
+  private ask(id: number | null) {
+    this.asking = id;
+    this.deleteError = null;
+  }
+
+  // The Citation deleted (ADR-0021), and the Scan viewer closed if it
+  // shows it.
+  private async deleteCitation(c: CitationRow) {
+    if (this.deleting) return;
+    this.deleting = true;
+    this.deleteError = null;
+    try {
+      await this.state.selected.uncite(c.id);
+      const { viewer } = this.state;
+      if (viewer.source.get()?.citation.id === c.id) viewer.close();
+      this.asking = null;
+    } catch (err) {
+      if (!(err instanceof ApiError)) throw err;
+      this.deleteError = err.message;
+    } finally {
+      this.deleting = false;
+    }
+  }
+
+  // Deleting the source's Citation, asked first.
+  private renderDelete(c: CitationRow) {
+    // Kept from the source's own click, which would find the button gone
+    // once the question replaces it, and fold the source.
+    if (this.asking !== c.id) {
+      return html`<button
+        class="delete"
+        @click=${(e: Event) => {
+          e.stopPropagation();
+          this.ask(c.id);
+        }}
+      >
+        Delete citation
+      </button>`;
+    }
+    return html`<div
+      class="form asking"
+      @click=${(e: Event) => {
+        e.stopPropagation();
+      }}
+    >
+      <p>Delete this citation?</p>
+      ${
+        this.deleteError === null
+          ? nothing
+          : html`<p class="error">${this.deleteError}</p>`
+      }
+      <div class="buttons end">
+        <button
+          ?disabled=${this.deleting}
+          @click=${() => {
+            this.ask(null);
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          class="danger"
+          ?disabled=${this.deleting}
+          @click=${() => {
+            void this.deleteCitation(c);
+          }}
+        >
+          ${this.deleting ? 'Deleting…' : 'Delete'}
+        </button>
+      </div>
+    </div>`;
   }
 
   // Finding the reference's parish's archive in Astia where none is known,
@@ -348,8 +420,9 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
   }
 
   // Clicking a church-book source opens its scan; clicking another shows or
-  // hides what it records, as its chevron does for both. Its record shows
-  // only when selected, and opening it in the Scan viewer leaves it as it is.
+  // hides its details, as its chevron does for both: what it records, its
+  // links and what can be done of it. Its details show only when selected,
+  // and opening it in the Scan viewer leaves them as they are.
 
   private renderCitation({ citation: c, status }: Source) {
     const { viewing, elsewhere } = this.markOf(c);
@@ -357,13 +430,12 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
     const body = renderBody(c, heading);
     const link = status?.link ?? null;
     const filed = isFiled(status);
-    const foldable = hasDetails(body, c.url, link);
-    const open = this.unfolded === c.id && foldable;
-    const act = this.actionOf(c, status, foldable);
+    const open = this.unfolded === c.id;
+    const act = this.actionOf(c, status);
     return html`
       <article
         class=${sourceClass({
-          active: act !== null,
+          active: true,
           viewing,
           elsewhere,
           linked: filed
@@ -371,35 +443,28 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
         data-citation=${c.id}
         @click=${(e: Event) => {
           const on = e.target as Element;
-          if (on.closest('a, .fold, .record') === null) act?.();
+          if (on.closest('a, .fold, .record') === null) act();
         }}
       >
         <div class="top">
           <div class="lines">
-            <button
-              class="title"
-              ?disabled=${act === null}
-              aria-current=${viewing ? 'true' : nothing}
-            >
+            <button class="title" aria-current=${viewing ? 'true' : nothing}>
               ${titleText(c, status)}
             </button>
             ${renderStatus(status, filedEntry(c, filed))}
           </div>
-          ${
-            foldable
-              ? renderFold(open, () => {
-                  this.fold(c.id);
-                })
-              : nothing
-          }
+          ${renderFold(open, () => {
+            this.fold(c.id);
+          })}
         </div>
-        ${
-          foldable
-            ? html`<sl-fold .open=${open}>
-                ${renderDetails(body, c.url, link, this.renderArchive(c, status))}
-              </sl-fold>`
-            : nothing
-        }
+        <sl-fold .open=${open}>
+          ${renderDetails(
+            body,
+            c.url,
+            link,
+            html`${this.renderArchive(c, status)} ${this.renderDelete(c)}`
+          )}
+        </sl-fold>
       </article>
     `;
   }

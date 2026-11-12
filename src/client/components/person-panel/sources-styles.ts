@@ -232,7 +232,27 @@ export const personSourcesStyles = css`
     margin-top: 0.5rem;
   }
 
-  /* Finding the parish's archive in Astia, or changing it. */
+  /* Finding the parish's archive in Astia, or changing it, and deleting
+     the Citation: quiet text buttons, one to a line. */
+  button.delete {
+    display: block;
+    margin-top: 0.4rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--danger);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  button.delete:hover {
+    text-decoration: underline;
+  }
+
+  .asking {
+    margin-top: 0.5rem;
+  }
+
   button.archive {
     margin-top: 0.4rem;
     padding: 0;

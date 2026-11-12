@@ -453,8 +453,7 @@ export function openViewer(
     const at = volume.get();
     if (shown === null || at === null || !discarding.get()) return;
     if (shown.citation.madeInApp) {
-      await api.uncite(shown.citation.id);
-      void selected.refresh();
+      await selected.uncite(shown.citation.id);
       if (source.get() === shown) closeNow();
       return;
     }
