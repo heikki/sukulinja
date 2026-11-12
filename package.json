@@ -20,18 +20,18 @@
     "check": "bun run format:check && bun run lint && bun run typecheck && bun run test"
   },
   "devDependencies": {
-    "@anthropic-ai/sdk": "^1.1.0",
-    "@domorium/validator": "2.0.1",
+    "@anthropic-ai/sdk": "^1.8.0",
+    "@domorium/validator": "2.2.1",
     "@total-typescript/tsconfig": "^1.0.4",
-    "@types/bun": "1.4.3",
-    "eslint": "10.13.0",
+    "@types/bun": "1.4.4",
+    "eslint": "10.14.0",
     "eslint-config-love": "158.0.0",
     "typescript": "^6.0.3"
   },
   "dependencies": {
     "@lit-labs/signals": "0.3.0",
     "@lit/context": "^1.1.6",
-    "electrobun": "2.0.4",
+    "electrobun": "2.0.6",
     "fflate": "^0.8.3",
     "lit": "^3.3.3"
   }
