@@ -27,7 +27,7 @@ Something to come back to, on a person, or on an **Image**, maybe about a person
 _Avoid_: note (a GEDCOM NOTE), annotation (a Citation's app-made additions), to-do.
 
 **Change**:
-One thing done in the app that changed the dataset: a **Mark** (or a **Match** confirmed), a **Discard**, a Citation made in the Scan viewer, or any Citation deleted, a Tag made, moved or taken back, a **Fact** added, changed or deleted, an import (or, from before ADR-0021, an import undone), or a Volume switched to a **Re-scan**'s new filming. Each says what it did and what it was on (a person, a Citation, an Image, a Tag's Photo with its person, or nothing), and is listed under _Changes_, newest first, where picking one goes back there. Only the app keeps them. _Clear…_ forgets them all.
+One thing done in the app that changed the dataset: a **Mark** (or a **Match** confirmed), a **Discard**, a Citation made in the Scan viewer, or any Citation deleted, a Tag made, moved or taken back, a **Fact** added, changed or deleted, a person added, linked, unlinked, renamed or deleted (Tree), a dataset started with its first person, an import (or, from before ADR-0021, an import undone), or a Volume switched to a **Re-scan**'s new filming. Each says what it did and what it was on (a person, a Citation, an Image, a Tag's Photo with its person, or nothing; a person deleted leaves theirs on nothing, naming them), and is listed under _Changes_, newest first, where picking one goes back there. Only the app keeps them. _Clear…_ forgets them all.
 _Avoid_: log, history (alone; the browser's Back is history), edit.
 
 **Church-book reference**:
