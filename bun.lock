@@ -18,7 +18,6 @@
         "@types/bun": "1.4.3",
         "eslint": "10.13.0",
         "eslint-config-love": "158.0.0",
-        "js-gedcom": "github:gedcom7code/js-gedcom#9296068",
         "typescript": "^6.0.3",
       },
     },
@@ -217,8 +216,6 @@
     "is-glob": ["is-glob@4.0.3", "", { "dependencies": { "is-extglob": "^2.1.1" } }, "sha512-xelSayHH36ZgE7ZWhli7pW34hNbNl8Ojv5KVmkJD4hBdD3th8Tfk9vYasLM+mXWOZhFkgZfxhLSnrwRr4elSSg=="],
 
     "isexe": ["isexe@2.0.0", "", {}, "sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw=="],
-
-    "js-gedcom": ["js-gedcom@github:gedcom7code/js-gedcom#9296068", {}, "gedcom7code-js-gedcom-9296068", "sha512-dulEFy5oNrrDCoazhYLhoYo5LL9D/vxkPAhkjebMIbpvM0r4oqOZXtrfR2YIS6np2UvY6q09EERZxDvnR4RpNw=="],
 
     "json-schema-to-ts": ["json-schema-to-ts@3.1.1", "", { "dependencies": { "@babel/runtime": "^7.18.3", "ts-algebra": "^2.0.0" } }, "sha512-+DWg8jCJG2TEnpy7kOm/7/AxaYoaRbjVB4LFZLySZlWn8exGs3A4OLJR966cVvU26N7X9TWxl+Jsw7dzAqKT6g=="],
 

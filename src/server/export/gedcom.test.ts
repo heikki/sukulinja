@@ -409,7 +409,7 @@ describe('exporting a GEDZIP', () => {
     // The demo has an EVEN with an empty TYPE; GEDCOM 7 requires one, and
     // the export doesn't make one up.
     expect(gedcom7Errors(gedcomOf(zip))).toEqual([
-      expect.stringContaining('INDI-EVEN requires a') as string
+      'VAL002 Missing required tag TYPE in EVEN'
     ]);
   });
 });
