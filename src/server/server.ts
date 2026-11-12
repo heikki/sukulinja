@@ -21,6 +21,7 @@ import { createRelatives } from './persons/relatives';
 import type { RelativeAnswer } from './persons/relatives';
 import { routePersons } from './persons/routes';
 import type { PersonHandlers } from './persons/routes';
+import { createUnlink } from './persons/unlink';
 import { createPhotos, openPhotoFiles, openTags, routePhotos } from './photos';
 import type { PhotoFiles, Photos, Tags } from './photos';
 import { createReminders } from './reminders/reminders';
@@ -75,6 +76,9 @@ function createDatasetHandlers(
     changes.add(change);
   });
   const persons = createPersons(db, (change) => {
+    changes.add(change);
+  });
+  const unlinking = createUnlink(db, (change) => {
     changes.add(change);
   });
 
@@ -172,6 +176,10 @@ function createDatasetHandlers(
 
     handleEditPerson(personId, name) {
       return answerPerson(persons.edit(personId, name));
+    },
+
+    handleUnlink(personId, familyId) {
+      return answerPerson(unlinking.unlink(personId, familyId));
     },
 
     handlePlaces() {

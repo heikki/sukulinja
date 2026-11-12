@@ -3,6 +3,7 @@ import { consume } from '@lit/context';
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
+import { ApiError } from '@/client/dataset-api';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { Relation } from '@/common/types';
@@ -14,6 +15,7 @@ import {
   RELATION_LABELS,
   startingSex
 } from '../person-form/relations';
+import { unlinkings } from '../person-form/unlinkings';
 
 import '../context-menu';
 import '../person-form/relative';
@@ -45,9 +47,9 @@ export function cardMenuAt(
 
 // What a card's menu offers, under its person's name: making them Root,
 // unless they are, which it asks the chart for with `make-root`; writing a
-// Reminder about them; and adding a relative of theirs, as
-// `addableRelations` allows, whose form opens in the menu's place. Asks to
-// `close` once done with.
+// Reminder about them; adding a relative of theirs, as `addableRelations`
+// allows, whose form opens in the menu's place; and taking them out of a
+// family, as `unlinkings` allows. Asks to `close` once done with.
 @customElement('sl-card-menu')
 class CardMenuElement extends SignalWatcher(LitElement) {
   static override styles = css`
@@ -63,9 +65,26 @@ class CardMenuElement extends SignalWatcher(LitElement) {
 
   // The relation a new person is being added as, once picked.
   @state() private adding: Relation | null = null;
+  // Taking them out of a family, once picked; why it was refused, if it
+  // was, shown in the menu's place.
+  @state() private unlinking: { refused: string | null } | null = null;
 
   override willUpdate(changed: Map<string, unknown>) {
-    if (changed.has('menu')) this.adding = null;
+    if (changed.has('menu')) {
+      this.adding = null;
+      this.unlinking = null;
+    }
+  }
+
+  private async unlink(personId: number, familyId: number) {
+    this.unlinking = { refused: null };
+    try {
+      await this.state.personEdits.unlink(personId, familyId);
+      this.close();
+    } catch (err) {
+      if (!(err instanceof ApiError)) throw err;
+      this.unlinking = { refused: err.message };
+    }
   }
 
   private close() {
@@ -104,6 +123,12 @@ class CardMenuElement extends SignalWatcher(LitElement) {
         run: () => {
           this.adding = relation;
         }
+      })),
+      ...unlinkings(menu.personId, people).map(({ familyId, label }) => ({
+        label,
+        run: () => {
+          void this.unlink(menu.personId, familyId);
+        }
       }))
     ];
   }
@@ -115,6 +140,18 @@ class CardMenuElement extends SignalWatcher(LitElement) {
       menu === null ? undefined : people.persons.get(menu.personId);
     if (menu === null || person === undefined) return nothing;
     const name = formatName(person);
+    if (this.unlinking !== null) {
+      const { refused } = this.unlinking;
+      if (refused === null) return nothing;
+      return html`<sl-context-menu
+        .items=${[{ label: 'OK', run: () => undefined }]}
+        .heading=${refused}
+        .at=${menu.at}
+        @close=${() => {
+          this.close();
+        }}
+      ></sl-context-menu>`;
+    }
     if (adding === null) {
       return html`<sl-context-menu
         .items=${this.items(menu, name)}
@@ -124,7 +161,9 @@ class CardMenuElement extends SignalWatcher(LitElement) {
           // The menu closes before its choice runs: a relation picked
           // opens its form instead.
           queueMicrotask(() => {
-            if (this.adding === null) this.close();
+            if (this.adding === null && this.unlinking === null) {
+              this.close();
+            }
           });
         }}
       ></sl-context-menu>`;

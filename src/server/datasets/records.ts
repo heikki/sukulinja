@@ -59,3 +59,67 @@ export function deleteHeld(db: Database, owner: { fact: number }) {
     id
   ]);
 }
+
+type Holder = 'person' | 'family' | 'fact' | 'name' | 'citation';
+
+// Removes the media links on the holder, and their notes.
+function deleteMediaLinks(db: Database, scope: Holder, id: number) {
+  db.run(
+    `DELETE FROM notes WHERE owner_type = 'media_link' AND owner_id IN
+       (SELECT id FROM media_links WHERE scope_type = ? AND scope_id = ?)`,
+    [scope, id]
+  );
+  db.run('DELETE FROM media_links WHERE scope_type = ? AND scope_id = ?', [
+    scope,
+    id
+  ]);
+}
+
+// Removes the Citations on the holder, with their notes and media links.
+export function deleteCitations(db: Database, scope: Holder, id: number) {
+  const ids = db
+    .query<{ id: number }, [string, number]>(
+      'SELECT id FROM citations WHERE scope_type = ? AND scope_id = ?'
+    )
+    .all(scope, id);
+  for (const c of ids) {
+    db.run("DELETE FROM notes WHERE owner_type = 'citation' AND owner_id = ?", [
+      c.id
+    ]);
+    deleteMediaLinks(db, 'citation', c.id);
+  }
+  db.run('DELETE FROM citations WHERE scope_type = ? AND scope_id = ?', [
+    scope,
+    id
+  ]);
+}
+
+// Removes the Facts on the person or family, with all each holds.
+function deleteFacts(db: Database, scope: 'person' | 'family', id: number) {
+  const ids = db
+    .query<{ id: number }, [string, number]>(
+      'SELECT id FROM facts WHERE scope_type = ? AND scope_id = ?'
+    )
+    .all(scope, id);
+  for (const f of ids) {
+    deleteHeld(db, { fact: f.id });
+    deleteCitations(db, 'fact', f.id);
+  }
+  db.run('DELETE FROM facts WHERE scope_type = ? AND scope_id = ?', [
+    scope,
+    id
+  ]);
+}
+
+// Removes a family and all it holds: its Facts, Citations, notes and
+// media links, and its places for its members, who stay.
+export function deleteFamily(db: Database, id: number) {
+  deleteFacts(db, 'family', id);
+  deleteCitations(db, 'family', id);
+  deleteMediaLinks(db, 'family', id);
+  db.run("DELETE FROM notes WHERE owner_type = 'family' AND owner_id = ?", [
+    id
+  ]);
+  db.run('DELETE FROM family_children WHERE family_id = ?', [id]);
+  db.run('DELETE FROM families WHERE id = ?', [id]);
+}

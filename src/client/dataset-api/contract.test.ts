@@ -311,6 +311,29 @@ describe('the answers', () => {
     ]);
   });
 
+  test('a person taken out of a family, unless it cuts someone off', async () => {
+    expect(await failure(api.unlink(3, 1))).toBe(
+      'That would cut someone off from the tree.'
+    );
+    await api.addRelative(3, {
+      relation: 'spouse',
+      who: { personId: 2 },
+      familyId: null
+    });
+    await api.unlink(3, 1);
+    expect(await api.families()).toEqual([
+      { id: 1, husband_id: 1, wife_id: 2, child_ids: [] },
+      { id: 2, husband_id: 3, wife_id: 2, child_ids: [] }
+    ]);
+    expect(await failure(api.unlink(3, 1))).toBe('person not found');
+    expect((await api.changes())[0]!.what).toEqual({
+      kind: 'person',
+      did: 'unlink',
+      relation: 'child',
+      of: 'Matti Esimerkki and Maria Esimerkki'
+    });
+  });
+
   test("a person's name and sex changed, and why not", async () => {
     await api.editPerson(3, { given: 'Juho', surname: 'Malli', sex: 'M' });
     expect((await api.persons()).find((p) => p.id === 3)).toMatchObject({

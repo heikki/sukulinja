@@ -507,8 +507,15 @@ export type ChangeWhat =
       now: string | null;
     }
   // A person added to the tree, or someone already in it linked, as the
-  // relation of the person named, as they were named then.
-  | { kind: 'person'; did: 'add' | 'link'; relation: Relation; of: string }
+  // relation of the person named, as they were named then; or taken out
+  // of a family as a child, or as a parent ('spouse'), of those named, if
+  // anyone.
+  | {
+      kind: 'person';
+      did: 'add' | 'link' | 'unlink';
+      relation: Relation;
+      of: string;
+    }
   // A person's name and sex changed, as they read before and after:
   // "Matti Virtanen, male".
   | { kind: 'person'; did: 'edit'; was: string; now: string }

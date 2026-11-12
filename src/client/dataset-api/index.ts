@@ -154,6 +154,8 @@ export interface DatasetApi {
   addRelative: (personId: number, relative: NewRelative) => Promise<number>;
   // Changes the person's name and sex.
   editPerson: (personId: number, name: PersonName) => Promise<void>;
+  // Takes the person out of the family, as a child or a parent.
+  unlink: (personId: number, familyId: number) => Promise<void>;
   // Changes what one of the person's Facts, or their families', says.
   editFact: (
     personId: number,
@@ -455,6 +457,14 @@ export function openDatasetApi(
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(name)
       });
+    },
+
+    async unlink(personId, familyId) {
+      await ask(
+        'Removing from the family',
+        `${dataset}/api/persons/${personId}/families/${familyId}`,
+        { method: 'DELETE' }
+      );
     },
 
     async addRelative(personId, relative) {

@@ -23,6 +23,8 @@ import type { Viewer } from './viewer';
 // The dataset's people, and each one's parent Family and spouse Families.
 export interface People {
   persons: Map<number, PersonRow>;
+  // Every family, as the server lists them.
+  families: readonly FamilyRow[];
   parentFamByPerson: Map<number, FamilyRow>;
   spouseFamsByPerson: Map<number, FamilyRow[]>;
 }
@@ -86,6 +88,9 @@ export interface Chart {
   // and once the chart is drawn with them, they're selected, as a card
   // clicked, or built around if the chart doesn't draw them.
   added: (id: number) => Promise<void>;
+  // Someone's families changed: the people and their families read again,
+  // the selection kept.
+  relinked: () => Promise<void>;
   // The one way to select someone (ADR-0012), for the dock's details. Once
   // a change pending in the Scan viewer is saved or discarded, their card
   // is shown, or, if the chart doesn't draw them, it's built around them.
@@ -128,7 +133,7 @@ function familiesByPerson(families: FamilyRow[]) {
     addSpouse(fam.husband_id, fam);
     addSpouse(fam.wife_id, fam);
   }
-  return { parentFamByPerson, spouseFamsByPerson };
+  return { families, parentFamByPerson, spouseFamsByPerson };
 }
 
 export function openChart(
@@ -252,6 +257,9 @@ export function openChart(
       await readPeople();
       await view.redrawn();
       select(id);
+    },
+    async relinked() {
+      await readPeople();
     },
     select,
     step(id) {

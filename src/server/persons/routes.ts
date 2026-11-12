@@ -12,6 +12,7 @@ import type {
 export interface PersonHandlers {
   handleAddRelative: (personId: number, relative: NewRelative) => Response;
   handleEditPerson: (personId: number, name: PersonName) => Response;
+  handleUnlink: (personId: number, familyId: number) => Response;
 }
 
 const RELATIONS = new Set<string>([
@@ -56,7 +57,8 @@ function readRelative(body: unknown): NewRelative | null {
   };
 }
 
-const PERSON_RE = /^\/api\/persons\/(?<person>\d+)(?<relatives>\/relatives)?$/;
+const PERSON_RE =
+  /^\/api\/persons\/(?<person>\d+)(?:(?<relatives>\/relatives)|\/families\/(?<family>\d+))?$/;
 
 function notAllowed() {
   return new Response('method not allowed', { status: 405 });
@@ -64,8 +66,9 @@ function notAllowed() {
 
 // PATCH /api/persons/:id changes their name and sex; POST
 // /api/persons/:id/relatives puts a relative of theirs in place: a new
-// person, or someone already in the tree. Null for any other path, and
-// for reading a person, which is the tree's.
+// person, or someone already in the tree; DELETE
+// /api/persons/:id/families/:familyId takes them out of the family. Null
+// for any other path, and for reading a person, which is the tree's.
 export async function routePersons(
   req: Request,
   handlers: PersonHandlers,
@@ -74,6 +77,12 @@ export async function routePersons(
   const m = PERSON_RE.exec(rest);
   if (m === null) return null;
   const personId = Number(m.groups!.person);
+  const { family } = m.groups!;
+  if (family !== undefined) {
+    return req.method === 'DELETE'
+      ? handlers.handleUnlink(personId, Number(family))
+      : notAllowed();
+  }
   const body = (await req.json().catch(() => null)) as unknown;
   if (m.groups!.relatives === undefined) {
     if (req.method !== 'PATCH') return notAllowed();
