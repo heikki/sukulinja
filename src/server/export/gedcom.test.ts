@@ -16,7 +16,6 @@ import { line, pointer, writeGedcom } from '../gedcom/writer';
 import { createPhotos, openTags } from '../photos';
 import { createTree } from '../tree';
 import { packDataset } from './dataset';
-import { exportGedcom551 } from './gedcom551';
 
 const DEMO = resolve(import.meta.dir, '../../../resources/demo/bourbon.gdz');
 const MAXIMAL = resolve(import.meta.dir, '../../../test/gedcom7/maximal70.gdz');
@@ -112,7 +111,7 @@ describe('exporting a GEDZIP', () => {
     ]);
   });
 
-  test('leaves out Reminders and Changes, as does the MyHeritage export', async () => {
+  test('leaves out Reminders and Changes', async () => {
     await importFixture();
     const db = registry.open('a');
     const person = db
@@ -129,10 +128,8 @@ describe('exporting a GEDZIP', () => {
       [JSON.stringify({ kind: 'uncite', cited: 'The 1803 book' }), person.id]
     );
     const gedcom = gedcomOf(await roundTrip());
-    const myheritage = exportGedcom551(db).text;
     for (const text of ['second wife', '1803 book']) {
       expect(gedcom).not.toContain(text);
-      expect(myheritage).not.toContain(text);
     }
     expect(
       registry.open('b').query('SELECT COUNT(*) AS n FROM reminders').get()
@@ -169,9 +166,6 @@ describe('exporting a GEDZIP', () => {
       '2 CROP\r\n3 TOP 6\r\n3 LEFT 5\r\n3 HEIGHT 8\r\n3 WIDTH 7'
     );
     expect(gedcom7Errors(text)).toEqual([]);
-    const myheritage = exportGedcom551(db).text;
-    expect(myheritage).not.toContain('Added in Sukulinja');
-    expect(myheritage).not.toContain('Unknown family');
   });
 
   test('writes the chosen portrait first, and an import gives it back', async () => {

@@ -1,5 +1,5 @@
 // A dataset as a GEDZIP: its GEDCOM 7 and every media file it links,
-// the mirror of importing one (ADR-0013). Or as GEDCOM 5.5.1 for MyHeritage.
+// the mirror of importing one (ADR-0013).
 
 import type { Database } from 'bun:sqlite';
 import { existsSync } from 'node:fs';
@@ -7,11 +7,8 @@ import { mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-import type { ExportKind } from '@/common/types';
-
 import { packGedzip } from '../gedcom/gedzip';
 import { exportGedcom } from './gedcom';
-import { exportGedcom551 } from './gedcom551';
 
 // A dataset's database and its media folder, under its slug.
 interface Exported {
@@ -42,27 +39,14 @@ function freePath(dir: string, name: string, ext: string) {
   }
 }
 
-async function exportOf({ slug, db, mediaDir }: Exported, kind: ExportKind) {
-  if (kind === 'gdz') {
-    return {
-      bytes: await packDataset(db, mediaDir),
-      left: [],
-      name: slug,
-      ext: '.gdz'
-    };
-  }
-  const { text, left } = exportGedcom551(db);
-  return { bytes: text, left, name: `${slug}-myheritage`, ext: '.ged' };
-}
-
-// Exports the dataset into `dir`, and says where, and what was left out.
+// Exports the dataset's GEDZIP into `dir`, and says where.
 export async function saveExport(
-  dataset: Exported,
-  { dir = DOWNLOADS, kind }: { dir?: string; kind: ExportKind }
+  { slug, db, mediaDir }: Exported,
+  { dir = DOWNLOADS }: { dir?: string } = {}
 ) {
-  const { bytes, left, name, ext } = await exportOf(dataset, kind);
+  const bytes = await packDataset(db, mediaDir);
   await mkdir(dir, { recursive: true });
-  const path = freePath(dir, name, ext);
+  const path = freePath(dir, slug, '.gdz');
   await Bun.write(path, bytes);
-  return { path, left };
+  return { path };
 }

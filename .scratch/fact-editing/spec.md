@@ -48,7 +48,7 @@ No behaviour change, each a commit, tests passing unchanged:
 
 ## Tickets
 
-Done 2026-11-11: 01–06 and 10. Open: 07, 08, 09 (`issues/`).
+Done 2026-11-11: 01–06 and 10. Done 2026-11-12: 09. Open: 07, 08 (`issues/`).
 
 | #   | Ticket                                                                | Blocked by |
 | --- | --------------------------------------------------------------------- | ---------- |

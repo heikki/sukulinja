@@ -89,14 +89,9 @@ export type ImportEvent =
   | { type: 'cancelled' }
   | { type: 'done'; info: DatasetInfo };
 
-// The two exports: the dataset's GEDZIP, and a GEDCOM 5.5.1 file for
-// MyHeritage with what it leaves out.
-export type ExportKind = 'gdz' | 'myheritage';
-
-// Where an export was saved, and what it left out.
+// Where a dataset's GEDZIP was saved.
 export interface ExportSaved {
   path: string;
-  left: string[];
 }
 
 // Returned by /api/persons/:id — what the person panel shows.

@@ -5,7 +5,6 @@
 import { readNdjson } from '@/client/ndjson';
 import type {
   DatasetInfo,
-  ExportKind,
   ExportSaved,
   ImportEvent,
   ImportReview
@@ -32,8 +31,8 @@ export interface LifecycleApi {
     upload: { file: File; name: string },
     hooks: ImportHooks
   ) => Promise<DatasetInfo | null>;
-  // Saves an export into Downloads.
-  exportAs: (slug: string, kind: ExportKind) => Promise<ExportSaved>;
+  // Saves the dataset's GEDZIP into Downloads.
+  exportAs: (slug: string) => Promise<ExportSaved>;
   // Puts back the dataset's database from before its last import.
   undoImport: (slug: string) => Promise<void>;
   remove: (slug: string) => Promise<void>;
@@ -92,9 +91,8 @@ export function openLifecycleApi({
       return await outcome(res.body, hooks);
     },
 
-    async exportAs(slug, kind) {
-      const verb = kind === 'gdz' ? 'export' : 'export-myheritage';
-      const res = await ask('Exporting', `${datasets}/${slug}/${verb}`, {
+    async exportAs(slug) {
+      const res = await ask('Exporting', `${datasets}/${slug}/export`, {
         method: 'POST'
       });
       return (await res.json()) as ExportSaved;

@@ -32,7 +32,7 @@ The database is now the dataset's master copy, and a GEDZIP is how all of it lea
   - `original_page` becomes `NOTE Original page: <url>`.
   - An unchecked Match gets a `NOTE` saying so, and a citation made in the app `NOTE Added in Sukulinja`.
   - Importing that GEDZIP gives back the same dataset, reading those notes back into their columns.
-  - A second export writes a GEDCOM 5.5.1 `.ged` for MyHeritage, with no photos and links without Boxes, since 5.5.1 has no standard crop.
+  - A second export writes a GEDCOM 5.5.1 `.ged` for MyHeritage, with no photos and links without Boxes, since 5.5.1 has no standard crop. Removed by ADR-0021: nothing goes back to MyHeritage.
 - **Verified by a round trip.** A test imports, exports and imports again and must get the same tree, on fixtures and, run locally, on the real exports. It also fails if the import listed any line it couldn't store, or if a GEDCOM 7 validator (`@domorium/validator`) finds an error in the exported `gedcom.ged`. The MyHeritage `.ged` is checked once by uploading it as a new tree.
 
 ## Considered options

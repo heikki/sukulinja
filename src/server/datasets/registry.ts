@@ -8,7 +8,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readdir, rename, rm } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 
-import type { DatasetInfo, ExportKind } from '@/common/types';
+import type { DatasetInfo } from '@/common/types';
 
 import { saveExport } from '../export/dataset';
 import { buildImport } from '../import/dataset';
@@ -111,9 +111,9 @@ export class DatasetRegistry {
     }
   }
 
-  // Saves the dataset as a GEDZIP, or GEDCOM 5.5.1 for MyHeritage, into
-  // `dir` (Downloads by default), and says where and what was left out.
-  async export(slug: string, options: { kind: ExportKind; dir?: string }) {
+  // Saves the dataset as a GEDZIP into `dir` (Downloads by default), and
+  // says where.
+  async export(slug: string, options: { dir?: string } = {}) {
     return await saveExport(
       { slug, db: this.open(slug), mediaDir: this.mediaDir(slug) },
       options

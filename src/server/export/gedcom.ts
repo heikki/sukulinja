@@ -65,7 +65,7 @@ function xrefsById(rows: Array<{ id: number; xref: string }>) {
 // The dataset's GEDCOM 7 as lines: its header, records, the OBJE records
 // of its photos and of the Astia Images it links, and the media files to
 // pack beside it.
-export function gedcomTree(db: Database) {
+function gedcomTree(db: Database) {
   const rows = readExportRows(db);
   const personXref = xrefsById(rows.persons);
   const familyXref = xrefsById(rows.families);

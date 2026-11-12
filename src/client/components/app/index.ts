@@ -13,11 +13,11 @@ import { focusRingStyles } from '@/client/focus-ring';
 import { reportView } from '@/client/last-view';
 import { appState, openAppState } from '@/client/state';
 import { slugFromFilename, withoutExtension } from '@/common/slug';
-import type { DatasetInfo, ExportKind, ImportReview } from '@/common/types';
+import type { DatasetInfo, ImportReview } from '@/common/types';
 
 import { confirmDialog, errorNote, runAction } from './dialogs';
 import type { Confirming, DatasetAction } from './dialogs';
-import { EXPORT_FORMATS, exportDataset } from './exports';
+import { EXPORT_FORMAT, exportDataset } from './exports';
 import type { ExportNote } from './exports';
 import { renderReview } from './import-review';
 import { menuButton, renderRowMenu } from './row-menu';
@@ -225,16 +225,13 @@ class AppElement extends LitElement {
     waiting.answer(merge);
   };
 
-  private readonly exportAs = async (
-    dataset: DatasetInfo,
-    kind: ExportKind
-  ) => {
+  private readonly exportAs = async (dataset: DatasetInfo) => {
     if (this.exporting !== null) return;
-    const { name } = EXPORT_FORMATS[kind];
+    const { name } = EXPORT_FORMAT;
     this.exporting = `Exporting ${dataset.displayName} as ${name}…`;
     this.exportNote = null;
     try {
-      this.exportNote = await exportDataset(this.lifecycle, dataset, kind);
+      this.exportNote = await exportDataset(this.lifecycle, dataset);
     } finally {
       this.exporting = null;
     }
@@ -252,8 +249,8 @@ class AppElement extends LitElement {
   }
 
   private readonly menuActions: RowMenuActions = {
-    export: (d, kind) => {
-      void this.exportAs(d, kind);
+    export: (d) => {
+      void this.exportAs(d);
     },
     undo: (d) => {
       this.request('undo', d);

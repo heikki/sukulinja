@@ -1,18 +1,15 @@
-// Exporting a dataset: its GEDZIP, or a GEDCOM 5.5.1 file for MyHeritage.
-// Saved by the server, since the app's web view can't hand a download to
-// the user: into Downloads, which the note names, with what was left out.
+// Exporting a dataset as its GEDZIP. Saved by the server, since the app's
+// web view can't hand a download to the user: into Downloads, which the
+// note names.
 
 import { ApiError } from '@/client/dataset-api';
 import type { LifecycleApi } from '@/client/dataset-api/lifecycle';
-import type { DatasetInfo, ExportKind } from '@/common/types';
+import type { DatasetInfo } from '@/common/types';
 
-// Each export named by its format, as the menu and the note word it.
-export const EXPORT_FORMATS: Record<
-  ExportKind,
-  { name: string; detail: string }
-> = {
-  gdz: { name: 'GEDZIP', detail: 'GEDCOM 7 with photos' },
-  myheritage: { name: 'GEDCOM 5.5.1', detail: 'no photos' }
+// The export as the menu and the note word it.
+export const EXPORT_FORMAT = {
+  name: 'GEDZIP',
+  detail: 'GEDCOM 7 with photos'
 };
 
 export interface ExportNote {
@@ -20,18 +17,12 @@ export interface ExportNote {
   text: string;
 }
 
-export async function exportDataset(
-  api: LifecycleApi,
-  dataset: DatasetInfo,
-  kind: ExportKind
-) {
+export async function exportDataset(api: LifecycleApi, dataset: DatasetInfo) {
   try {
-    const saved = await api.exportAs(dataset.slug, kind);
-    const left =
-      saved.left.length === 0 ? '' : ` Left out: ${saved.left.join('; ')}.`;
+    const saved = await api.exportAs(dataset.slug);
     return {
       ok: true,
-      text: `Exported ${dataset.displayName} as ${EXPORT_FORMATS[kind].name} to ${saved.path}.${left}`
+      text: `Exported ${dataset.displayName} as ${EXPORT_FORMAT.name} to ${saved.path}.`
     };
   } catch (err) {
     if (!(err instanceof ApiError)) throw err;

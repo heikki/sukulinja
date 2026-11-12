@@ -4,12 +4,12 @@
 import { html, nothing, svg } from 'lit';
 
 import type { Point } from '@/client/pan-zoom';
-import type { DatasetInfo, ExportKind } from '@/common/types';
+import type { DatasetInfo } from '@/common/types';
 
 import '../context-menu';
 
 import type { MenuItem } from '../context-menu';
-import { EXPORT_FORMATS } from './exports';
+import { EXPORT_FORMAT } from './exports';
 import { importDate } from './import-review';
 
 const MENU_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
@@ -31,7 +31,7 @@ export interface RowMenu {
 }
 
 export interface RowMenuActions {
-  export: (dataset: DatasetInfo, kind: ExportKind) => void;
+  export: (dataset: DatasetInfo) => void;
   undo: (dataset: DatasetInfo) => void;
 }
 
@@ -40,15 +40,13 @@ export interface RowMenuActions {
 function menuItems(d: DatasetInfo, on: RowMenuActions) {
   const items: MenuItem[] = [];
   if (!d.outdated) {
-    for (const kind of ['gdz', 'myheritage'] as const) {
-      const { name, detail } = EXPORT_FORMATS[kind];
-      items.push({
-        label: `Export ${name} (${detail})`,
-        run: () => {
-          on.export(d, kind);
-        }
-      });
-    }
+    const { name, detail } = EXPORT_FORMAT;
+    items.push({
+      label: `Export ${name} (${detail})`,
+      run: () => {
+        on.export(d);
+      }
+    });
   }
   if (d.undoable) {
     items.push({

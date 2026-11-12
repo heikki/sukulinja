@@ -1,6 +1,6 @@
 // The routes for datasets as a whole, each a registry verb: GET /datasets
 // lists them; DELETE /datasets/<slug> deletes one; POST …/export saves its
-// GEDZIP, …/export-myheritage a GEDCOM 5.5.1 file, and …/undo-import puts
+// GEDZIP, and …/undo-import puts
 // back its database from before its last import.
 //
 // POST /import streams the import as newline-delimited ImportEvents: log
@@ -23,7 +23,7 @@ import { DatasetNotFound } from './registry';
 import type { DatasetRegistry } from './registry';
 
 const DATASET_RE =
-  /^\/datasets\/(?<slug>[a-z0-9][a-z0-9_-]*)(?<verb>\/export|\/export-myheritage|\/undo-import)?$/u;
+  /^\/datasets\/(?<slug>[a-z0-9][a-z0-9_-]*)(?<verb>\/export|\/undo-import)?$/u;
 const ANSWER_RE = /^\/import\/(?<id>[0-9a-f-]+)$/u;
 
 function refused(err: unknown) {
@@ -192,8 +192,7 @@ export function lifecycleRoutes(
       changed(slug, { on: null, what: { kind: 'undo-import' } });
       return new Response(null, { status: 204 });
     }
-    const kind = verb === '/export' ? 'gdz' : 'myheritage';
-    return Response.json(await registry.export(slug, { kind, dir: exportDir }));
+    return Response.json(await registry.export(slug, { dir: exportDir }));
   }
 
   return async function routeLifecycle(req: Request, pathname: string) {

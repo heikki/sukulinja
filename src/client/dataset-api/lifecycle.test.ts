@@ -3,7 +3,7 @@
 
 import { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, expect, test } from 'bun:test';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -184,26 +184,19 @@ test("an upload it can't read is refused", async () => {
 test('an export is saved into Downloads, under a free name', async () => {
   await upload();
   const downloads = join(root, 'Downloads');
-  expect(await api.exportAs('tree', 'gdz')).toEqual({
-    path: join(downloads, 'tree.gdz'),
-    left: []
+  expect(await api.exportAs('tree')).toEqual({
+    path: join(downloads, 'tree.gdz')
   });
-  expect(await api.exportAs('tree', 'gdz')).toEqual({
-    path: join(downloads, 'tree-2.gdz'),
-    left: []
+  expect(await api.exportAs('tree')).toEqual({
+    path: join(downloads, 'tree-2.gdz')
   });
-  const saved = await api.exportAs('tree', 'myheritage');
-  expect(saved.path).toBe(join(downloads, 'tree-myheritage.ged'));
-  expect(await readFile(saved.path, 'utf8')).toContain('2 VERS 5.5.1');
 });
 
 test("an export of a dataset that isn't there, or won't open, says why", async () => {
-  expect(await failure(api.exportAs('nope', 'gdz'))).toBe(
-    'dataset not found: nope'
-  );
+  expect(await failure(api.exportAs('nope'))).toBe('dataset not found: nope');
   await upload();
   outdate('tree');
-  expect(await failure(api.exportAs('tree', 'gdz'))).toBe(
+  expect(await failure(api.exportAs('tree'))).toBe(
     'This dataset was made by an older version of the app, from before schema 1.'
   );
 });
