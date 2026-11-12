@@ -1,11 +1,11 @@
 #!/bin/sh
 # Runs CI's checks before a push, since CI only says so after master broke.
-# Cloud sessions can't download Electrobun's SDK (.hutch/devkit), which lint
-# and typecheck need, so there those two are left to CI.
+# Lint and typecheck need Electrobun's SDK (.hutch/devkit, from the
+# postinstall), so without it they're left to CI.
 set -e
 cd "$(git rev-parse --show-toplevel)"
 if [ -d .hutch/devkit ]; then
-  exec bun run check
+  exec bun run verify
 fi
 echo 'pre-push: no .hutch/devkit, so lint and typecheck are left to CI' >&2
 bun run format:check
