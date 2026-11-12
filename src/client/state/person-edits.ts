@@ -1,4 +1,5 @@
 import type { DatasetApi } from '@/client/dataset-api';
+import type { MoveTarget } from '@/common/tree-cut';
 import type { NewRelative, PersonName } from '@/common/types';
 
 import type { Chart, People } from './chart';
@@ -16,6 +17,9 @@ export interface PersonEdits {
   // Once taken out of the family, the chart and the panel read the tree
   // again.
   unlink: (personId: number, familyId: number) => Promise<void>;
+  // Once moved to another family, the chart and the panel read the tree
+  // again.
+  move: (personId: number, from: number, to: MoveTarget) => Promise<void>;
   // Once deleted, the chart moves to their nearest relative if it was on
   // them.
   remove: (personId: number) => Promise<void>;
@@ -59,6 +63,10 @@ export function openPersonEdits(
     },
     async unlink(personId, familyId) {
       await api.unlink(personId, familyId);
+      await Promise.all([chart.relinked(), selected.refresh()]);
+    },
+    async move(personId, from, to) {
+      await api.move(personId, from, to);
       await Promise.all([chart.relinked(), selected.refresh()]);
     },
     async remove(personId) {

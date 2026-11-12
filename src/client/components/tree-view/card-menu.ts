@@ -10,6 +10,8 @@ import { deleteCuts } from '@/common/tree-cut';
 import type { FamilyRow, Relation } from '@/common/types';
 
 import type { MenuItem } from '../context-menu';
+import { movings } from '../person-form/moves';
+import type { Moving } from '../person-form/moves';
 import {
   addableRelations,
   RELATION_LABELS,
@@ -19,6 +21,7 @@ import { unlinkings } from '../person-form/unlinkings';
 
 import '../context-menu';
 import '../person-form/delete';
+import '../person-form/move';
 import '../person-form/relative';
 
 import type { Point } from './emit';
@@ -59,7 +62,8 @@ export function cardMenuAt(
 // unless they are, which it asks the chart for with `make-root`; writing a
 // Reminder about them; adding a relative of theirs, as `addableRelations`
 // allows, whose form opens in the menu's place; and taking them out of a
-// family, as `unlinkings` allows; and deleting them, asked first. Asks to
+// family, as `unlinkings` allows; moving them to another, as `movings`
+// offers; and deleting them, asked first. Asks to
 // `close` once done with.
 @customElement('sl-card-menu')
 class CardMenuElement extends SignalWatcher(LitElement) {
@@ -76,6 +80,8 @@ class CardMenuElement extends SignalWatcher(LitElement) {
 
   // The relation a new person is being added as, once picked.
   @state() private adding: Relation | null = null;
+  // Moving them out of a family, once picked: the form for where to.
+  @state() private moving: Moving | null = null;
   // Deleting them, once picked: the dialog asking first.
   @state() private deleting = false;
   // Taking them out of a family, once picked; why it was refused, if it
@@ -86,6 +92,7 @@ class CardMenuElement extends SignalWatcher(LitElement) {
     if (changed.has('menu')) {
       this.adding = null;
       this.deleting = false;
+      this.moving = null;
       this.unlinking = null;
     }
   }
@@ -144,6 +151,12 @@ class CardMenuElement extends SignalWatcher(LitElement) {
           void this.unlink(menu.personId, familyId);
         }
       })),
+      ...movings(menu.personId, people).map((moving) => ({
+        label: moving.label,
+        run: () => {
+          this.moving = moving;
+        }
+      })),
       ...(deletable(menu.personId, people)
         ? [
             {
@@ -164,6 +177,17 @@ class CardMenuElement extends SignalWatcher(LitElement) {
       menu === null ? undefined : people.persons.get(menu.personId);
     if (menu === null || person === undefined) return nothing;
     const name = formatName(person);
+    if (this.moving !== null) {
+      return html`<sl-move-form
+        .personId=${menu.personId}
+        .moving=${this.moving}
+        .heading=${`${this.moving.label.replace('…', '')}: ${name}`}
+        .at=${menu.at}
+        @closed=${() => {
+          this.close();
+        }}
+      ></sl-move-form>`;
+    }
     if (this.deleting) {
       return html`<sl-delete-person
         .person=${person}
@@ -196,6 +220,7 @@ class CardMenuElement extends SignalWatcher(LitElement) {
             if (
               this.adding === null &&
               this.unlinking === null &&
+              this.moving === null &&
               !this.deleting
             ) {
               this.close();

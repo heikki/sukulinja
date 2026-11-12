@@ -3,6 +3,7 @@
 // lives; `memoryDatasetApi` (memory.ts) answers from values a test gives.
 
 import { readNdjson } from '@/client/ndjson';
+import type { MoveTarget } from '@/common/tree-cut';
 import type {
   AddedPhoto,
   Box,
@@ -156,6 +157,8 @@ export interface DatasetApi {
   editPerson: (personId: number, name: PersonName) => Promise<void>;
   // Takes the person out of the family, as a child or a parent.
   unlink: (personId: number, familyId: number) => Promise<void>;
+  // Moves the person from the family to another, as a child or a parent.
+  move: (personId: number, from: number, to: MoveTarget) => Promise<void>;
   // Deletes the person, with all they held.
   deletePerson: (personId: number) => Promise<void>;
   // Changes what one of the person's Facts, or their families', says.
@@ -466,6 +469,18 @@ export function openDatasetApi(
         'Removing from the family',
         `${dataset}/api/persons/${personId}/families/${familyId}`,
         { method: 'DELETE' }
+      );
+    },
+
+    async move(personId, from, to) {
+      await ask(
+        'Moving the person',
+        `${dataset}/api/persons/${personId}/families/${from}/move`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ to })
+        }
       );
     },
 

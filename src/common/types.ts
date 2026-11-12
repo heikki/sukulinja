@@ -509,10 +509,11 @@ export type ChangeWhat =
   // A person added to the tree, or someone already in it linked, as the
   // relation of the person named, as they were named then; or taken out
   // of a family as a child, or as a parent ('spouse'), of those named, if
-  // anyone.
+  // anyone; or moved to another family, as a child or a parent, of those
+  // named there.
   | {
       kind: 'person';
-      did: 'add' | 'link' | 'unlink';
+      did: 'add' | 'link' | 'unlink' | 'move';
       relation: Relation;
       of: string;
     }

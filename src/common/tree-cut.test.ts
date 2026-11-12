@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import { deleteCuts, unlinkCuts } from './tree-cut';
+import { deleteCuts, descendantsOf, moveCuts, unlinkCuts } from './tree-cut';
 import type { FamilyRow } from './types';
 
 function fam(
@@ -41,4 +41,21 @@ test('a part already unconnected doesn’t stop it', () => {
   const apart = [...TREE, fam(9, 10, 11)];
   expect(deleteCuts(apart, 6)).toBe(false);
   expect(unlinkCuts(apart, 2, 3)).toBe(false);
+});
+
+test('a move judged on its result: to parents in the tree it keeps it whole', () => {
+  // Kalle (6) moved from Juho and Maria's family to Matti and Liisa's.
+  expect(moveCuts(TREE, 6, 2, { familyId: 1 })).toBe(false);
+  // Juho moved to Liisa's own family: Matti stays joined through Anna.
+  expect(moveCuts(TREE, 3, 1, { familyId: 3 })).toBe(false);
+  // Maria away from Juho, into a new family with someone unconnected.
+  const apart = [...TREE, fam(9, 10, 11)];
+  expect(moveCuts(apart, 5, 2, { personId: 10 })).toBe(true);
+  // Anna (no one else hangs on her) to the unconnected part.
+  expect(moveCuts(apart, 4, 1, { familyId: 9 })).toBe(true);
+});
+
+test('descendants through every family', () => {
+  expect([...descendantsOf(TREE, 1)].sort((a, b) => a - b)).toEqual([3, 4, 6]);
+  expect([...descendantsOf(TREE, 6)]).toEqual([]);
 });

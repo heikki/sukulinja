@@ -33,7 +33,12 @@ function factDetail({ was, now }: FactChange) {
 
 type PersonChange = Extract<ChangeWhat, { kind: 'person' }>;
 
-const PERSON_DID = { add: 'Added', link: 'Linked', unlink: 'Removed' };
+const PERSON_DID = {
+  add: 'Added',
+  link: 'Linked',
+  unlink: 'Removed',
+  move: 'Moved'
+};
 
 // A person added, linked or taken out of a family, by their relation,
 // "Added as father", their name changed, or they deleted.

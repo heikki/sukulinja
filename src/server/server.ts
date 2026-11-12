@@ -16,6 +16,7 @@ import { routeFacts } from './facts/routes';
 import type { FactHandlers } from './facts/routes';
 import { createPersonDetails } from './person-details';
 import { createDeletion } from './persons/delete';
+import { createMove } from './persons/move';
 import { createPersons } from './persons/persons';
 import type { PersonAnswer } from './persons/persons';
 import { createRelatives } from './persons/relatives';
@@ -83,6 +84,9 @@ function createDatasetHandlers(
     changes.add(change);
   });
   const deletion = createDeletion(db, (change) => {
+    changes.add(change);
+  });
+  const moving = createMove(db, (change) => {
     changes.add(change);
   });
 
@@ -188,6 +192,10 @@ function createDatasetHandlers(
 
     handleDeletePerson(personId) {
       return answerPerson(deletion.remove(personId));
+    },
+
+    handleMove(personId, from, to) {
+      return answerPerson(moving.move(personId, from, to));
     },
 
     handlePlaces() {

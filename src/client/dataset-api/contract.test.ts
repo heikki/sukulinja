@@ -334,6 +334,26 @@ describe('the answers', () => {
     });
   });
 
+  test('a person moved to another family, and why not', async () => {
+    await api.move(3, 1, { personId: 1 });
+    expect(await api.families()).toEqual([
+      { id: 1, husband_id: 1, wife_id: 2, child_ids: [] },
+      { id: 2, husband_id: 1, wife_id: null, child_ids: [3] }
+    ]);
+    expect(await failure(api.move(3, 2, { personId: 3 }))).toBe(
+      "They can't be their own relative."
+    );
+    expect(await failure(api.move(3, 1, { familyId: 2 }))).toBe(
+      'person not found'
+    );
+    expect((await api.changes())[0]!.what).toEqual({
+      kind: 'person',
+      did: 'move',
+      relation: 'child',
+      of: 'Matti Esimerkki'
+    });
+  });
+
   test('a person deleted, unless it cuts someone off', async () => {
     expect(await failure(api.deletePerson(99))).toBe('person not found');
     await api.deletePerson(3);

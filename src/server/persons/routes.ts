@@ -1,6 +1,7 @@
 // The routes changing a person and putting their relatives in place. It reads the request; the handler
 // answers it.
 
+import type { MoveTarget } from '@/common/tree-cut';
 import type {
   NewRelative,
   PersonName,
@@ -14,6 +15,7 @@ export interface PersonHandlers {
   handleEditPerson: (personId: number, name: PersonName) => Response;
   handleUnlink: (personId: number, familyId: number) => Response;
   handleDeletePerson: (personId: number) => Response;
+  handleMove: (personId: number, from: number, to: MoveTarget) => Response;
 }
 
 const RELATIONS = new Set<string>([
@@ -58,8 +60,41 @@ function readRelative(body: unknown): NewRelative | null {
   };
 }
 
+// `{ to: { familyId } | { personId } }`; null when it isn't that.
+function readMove(body: unknown): MoveTarget | null {
+  if (typeof body !== 'object' || body === null) return null;
+  const { to } = body as Record<string, unknown>;
+  if (typeof to !== 'object' || to === null) return null;
+  const { familyId, personId } = to as Record<string, unknown>;
+  if (Number.isInteger(familyId)) return { familyId: familyId as number };
+  if (Number.isInteger(personId)) return { personId: personId as number };
+  return null;
+}
+
+// A family of theirs: DELETE takes them out of it; POST …/move moves them
+// from it to `to`.
+async function routeFamily(
+  req: Request,
+  handlers: PersonHandlers,
+  personId: number,
+  m: { family: number; move: boolean }
+) {
+  if (!m.move) {
+    return req.method === 'DELETE'
+      ? handlers.handleUnlink(personId, m.family)
+      : notAllowed();
+  }
+  if (req.method !== 'POST') return notAllowed();
+  const to = readMove(await req.json().catch(() => null));
+  return to === null
+    ? new Response('expected { to: { familyId } | { personId } }', {
+        status: 400
+      })
+    : handlers.handleMove(personId, m.family, to);
+}
+
 const PERSON_RE =
-  /^\/api\/persons\/(?<person>\d+)(?:(?<relatives>\/relatives)|\/families\/(?<family>\d+))?$/;
+  /^\/api\/persons\/(?<person>\d+)(?:(?<relatives>\/relatives)|\/families\/(?<family>\d+)(?<move>\/move)?)?$/;
 
 function notAllowed() {
   return new Response('method not allowed', { status: 405 });
@@ -69,7 +104,8 @@ function notAllowed() {
 // POST
 // /api/persons/:id/relatives puts a relative of theirs in place: a new
 // person, or someone already in the tree; DELETE
-// /api/persons/:id/families/:familyId takes them out of the family. Null
+// /api/persons/:id/families/:familyId takes them out of the family, and
+// POST …/move moves them from it to another. Null
 // for any other path, and for reading a person, which is the tree's.
 // The person themself: DELETE deletes them, PATCH changes their name.
 async function routePerson(
@@ -93,11 +129,12 @@ export async function routePersons(
   const m = PERSON_RE.exec(rest);
   if (m === null) return null;
   const personId = Number(m.groups!.person);
-  const { family, relatives } = m.groups!;
+  const { family, move, relatives } = m.groups!;
   if (family !== undefined) {
-    return req.method === 'DELETE'
-      ? handlers.handleUnlink(personId, Number(family))
-      : notAllowed();
+    return await routeFamily(req, handlers, personId, {
+      family: Number(family),
+      move: move !== undefined
+    });
   }
   if (relatives === undefined) {
     return await routePerson(req, handlers, personId);

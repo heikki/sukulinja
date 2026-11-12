@@ -24,6 +24,10 @@ _Avoid_: merge (two people found to be one are merged, a later feature).
 A person taken out of a family, as a child or as a parent, they themself staying in the tree: _Remove as child of …_, _Remove as spouse of …_ in a card's menu.
 _Avoid_: detach, remove (alone; a person removed is **deleted**).
 
+**Move**:
+A person taken out of a family and put in another in one go, as a child to other parents or as a parent to another spouse: _Move to other parents…_, _Move to another spouse…_ in a card's menu, for a child linked to the wrong parents. Judged as a whole, so a move to people in the tree doesn't **Cut** it on the way.
+_Avoid_: relink, reparent.
+
 **Cut**:
 What a deletion or an **Unlink** would do if it left someone no longer connected, through families, to those they were connected to: the tree in two. One that would cut isn't in the menu, with no word why, and the server refuses it; the way out is from the outside in. A part already unconnected before doesn't count.
 _Avoid_: orphan, disconnect.

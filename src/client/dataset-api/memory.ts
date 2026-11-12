@@ -86,7 +86,8 @@ type MemoryDatasetApi = DatasetApi & {
   // "link <relation> of <person>: <relative>", "edit person <person>:
   // <given> <surname> <sex>", which changes the row in `persons`: a new person `addRelative`
   // adds joins `persons`, numbered on from 4000, in no family; a link,
-  // and "unlink <person> from <family>", change nothing; "delete person
+  // "unlink <person> from <family>" and "move <person> from <family>",
+  // change nothing; "delete person
   // <person>" takes the row out of `persons`.
   // A Citation made by `cite` joins its Volume's citations, numbered on
   // from 1000, and `uncite` takes one out.
@@ -493,6 +494,15 @@ export function memoryDatasetApi(
 
     async unlink(personId, familyId) {
       await answer(`unlink ${personId} from ${familyId}`, undefined, () => {
+        found(
+          persons.find((p) => p.id === personId),
+          'person not found'
+        );
+      });
+    },
+
+    async move(personId, from) {
+      await answer(`move ${personId} from ${from}`, undefined, () => {
         found(
           persons.find((p) => p.id === personId),
           'person not found'

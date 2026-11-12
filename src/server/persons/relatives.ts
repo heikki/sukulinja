@@ -14,7 +14,7 @@ import type {
 } from '@/common/types';
 
 import { touchRecord } from '../datasets/records';
-import { createChildOrder } from './child-order';
+import { joinAsChild } from './membership';
 import { plainName, refusedName } from './names';
 import { createRecords } from './records';
 
@@ -54,7 +54,6 @@ export function createRelatives(
   changed: (change: NewChange) => void
 ) {
   const records = createRecords(db);
-  const childOrder = createChildOrder(db);
   const personOf = db.prepare<Person, [number]>(
     'SELECT id, sex FROM persons WHERE id = ?'
   );
@@ -83,18 +82,8 @@ export function createRelatives(
       'UPDATE families SET wife_id = ? WHERE id = ?'
     )
   };
-  const lastChild = db.prepare<{ last: number | null }, [number]>(
-    'SELECT MAX(sort_order) AS last FROM family_children WHERE family_id = ?'
-  );
-  const insertChild = db.prepare<null, [number, number, number]>(
-    `INSERT INTO family_children (family_id, person_id, sort_order)
-     VALUES (?, ?, ?)`
-  );
-
   function addChild(familyId: number, personId: number) {
-    const order = (lastChild.get(familyId)?.last ?? -1) + 1;
-    insertChild.run(familyId, personId, order);
-    childOrder.place(familyId, personId);
+    joinAsChild(db, familyId, personId);
   }
 
   // A family's first parent is its husband, the second its wife, whatever
