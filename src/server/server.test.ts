@@ -335,14 +335,14 @@ describe("A dataset's Citations", () => {
     );
     expect((await get('/d/juva/api/citations/1/volumes')).status).toBe(404);
 
-    // Each Mark saved is a Change on its Citation, newest first; one refused
-    // is none.
+    // The Marks saved are one Change on their Citation, the last one
+    // (combine.ts); one refused is none.
     const changes = (await (await get('/d/juva/api/changes')).json()) as Array<{
       what: { kind: string; at: string };
       on: { kind: string; citationId: number } | null;
       who: string | null;
     }>;
-    expect(changes.map((c) => c.what.at)).toEqual(['entry', 'volume', 'image']);
+    expect(changes.map((c) => c.what.at)).toEqual(['entry']);
     expect(changes[0]).toMatchObject({
       on: { kind: 'citation', citationId: 1 },
       who: 'Matti /Testinen/'
