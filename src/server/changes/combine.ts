@@ -1,39 +1,33 @@
-// When a Change follows one like it on the same thing, the list keeps one
-// row for both: moving a Tag's Box five times, or editing a Fact's date
-// over and over, is one thing done. Only the newest Change takes the next
-// one in, and only when both are on the same thing (changes.ts checks
-// that); this says whether their kinds go together, and what the one row
-// then says.
+// When a Change follows one like it on the same thing, the list keeps only
+// the newer: moving a Tag's Box five times, or editing a Fact's date over
+// and over, shows as the last move or edit. Only the newest Change can be
+// replaced, and only when both are on the same thing (changes.ts checks
+// that); this says whether their kinds go together.
 
 import type { ChangeWhat } from '@/common/types';
 
-type Fact = Extract<ChangeWhat, { kind: 'fact' }>;
-
-// The one Change `last` and `next` make; null when they stay two.
-export function combined(
-  last: ChangeWhat,
-  next: ChangeWhat
-): ChangeWhat | null {
-  // A Tag made, then moved, was made; moved, then moved again, was moved.
-  if (last.kind === 'tag' && next.kind === 'tag') {
-    return { ...next, moved: last.moved };
+// Whether `next` takes the place of `last`.
+export function replaces(last: ChangeWhat, next: ChangeWhat): boolean {
+  if (last.kind !== next.kind) return false;
+  switch (next.kind) {
+    // A Tag made or moved, a Mark moved again, a portrait chosen again.
+    case 'tag':
+    case 'mark':
+    case 'portrait':
+      return true;
+    // The same Fact edited again: an edit that starts from what the last
+    // Change left, of the same tag (Changes don't keep a Fact's id).
+    // Adding or deleting one stays a Change of its own, so the edits
+    // after adding one leave the add in the list.
+    case 'fact':
+      return (
+        last.kind === 'fact' &&
+        last.did === 'edit' &&
+        next.did === 'edit' &&
+        last.tag === next.tag &&
+        last.now === next.was
+      );
+    default:
+      return false;
   }
-  // A Mark moved again: it's where it went last.
-  if (last.kind === 'mark' && next.kind === 'mark') return next;
-  // The same portrait chosen again.
-  if (last.kind === 'portrait' && next.kind === 'portrait') return next;
-  if (last.kind === 'fact' && next.kind === 'fact') {
-    return combinedFact(last, next);
-  }
-  return null;
-}
-
-// A Fact added or edited, then edited again: one Change from how it read
-// first to how it reads now. It's the same Fact when the edit starts from
-// what the last Change left, of the same tag (Changes don't keep a Fact's
-// id). Adding or deleting one stays a Change of its own.
-function combinedFact(last: Fact, next: Fact): Fact | null {
-  if (last.did === 'delete' || next.did !== 'edit') return null;
-  if (last.tag !== next.tag || last.now !== next.was) return null;
-  return { ...next, did: last.did, was: last.was };
 }

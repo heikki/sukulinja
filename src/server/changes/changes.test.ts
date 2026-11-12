@@ -116,7 +116,7 @@ test("one on a Citation that's gone is its person's; one whose person is gone is
   ]);
 });
 
-test('one like the newest, on the same thing, is written into it', async () => {
+test('one like the newest, on the same thing, takes its place', async () => {
   const db = await dataset();
   db.run("INSERT INTO media (id, file_path) VALUES (10, 'kesa.jpg')");
   const changes = changesOf(db);
@@ -130,10 +130,10 @@ test('one like the newest, on the same thing, is written into it', async () => {
 
   const list = await changes.list();
   expect(list).toHaveLength(1);
-  expect(list[0]!.what).toEqual(tag(false));
+  expect(list[0]!.what).toEqual(tag(true));
 });
 
-test('a Fact edited again and again is one Change, from how it read first', async () => {
+test('a Fact edited again and again shows as its last edit', async () => {
   const db = await dataset();
   const changes = changesOf(db);
   function fact(did: 'add' | 'edit', was: string | null, now: string) {
@@ -144,7 +144,8 @@ test('a Fact edited again and again is one Change, from how it read first', asyn
   changes.add({ on: { personId: 1 }, what: fact('edit', '1772', '1773') });
 
   expect((await changes.list()).map((c) => c.what)).toEqual([
-    fact('add', null, '1773')
+    fact('edit', '1772', '1773'),
+    fact('add', null, '1771')
   ]);
 });
 

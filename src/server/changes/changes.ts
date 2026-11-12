@@ -3,7 +3,7 @@
 // the app keeps them; no export writes them, a re-import's merge carries
 // them (import/merge.ts), and undoing an import puts back the ones its
 // database had. They can be cleared, all at once. One like the newest,
-// on the same thing, is written into it (combine.ts).
+// on the same thing, takes its place (combine.ts).
 
 import type { Database } from 'bun:sqlite';
 
@@ -17,7 +17,7 @@ import type {
 
 import { ON_COLUMNS, openOn } from '../on';
 import type { OnRow, OnSources } from '../on';
-import { combined } from './combine';
+import { replaces } from './combine';
 
 interface ChangeRow extends OnRow {
   id: number;
@@ -94,8 +94,7 @@ export function openChanges(db: Database, sources: OnSources) {
 
     // Writes a Change. One whose person or Citation isn't in the dataset is
     // written on nothing; one whose Photo isn't, on its person. One that
-    // goes with the newest Change, on the same thing, is written into it,
-    // as done now.
+    // goes with the newest Change, on the same thing, takes its place.
     add(change: NewChange) {
       const { on, mediaId } = columnsOf(change.on);
       const personId = on?.person_id ?? null;
@@ -104,12 +103,13 @@ export function openChanges(db: Database, sources: OnSources) {
       const at = new Date().toISOString();
       const onValues = ON_COLUMNS.map((c) => on?.[c] ?? null);
       const last = newest.get();
-      const into =
-        last === null || on === null || !sameOn(last, onValues, mediaId)
-          ? null
-          : combined(JSON.parse(last.what) as ChangeWhat, change.what);
-      if (into !== null) {
-        rewrite.run(at, JSON.stringify(into), who, last!.id);
+      if (
+        last !== null &&
+        on !== null &&
+        sameOn(last, onValues, mediaId) &&
+        replaces(JSON.parse(last.what) as ChangeWhat, change.what)
+      ) {
+        rewrite.run(at, JSON.stringify(change.what), who, last.id);
         return;
       }
       const values: Binding[] = [
