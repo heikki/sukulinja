@@ -186,4 +186,12 @@ test('says whose relative a person was added as', () => {
   expect(doneLabel(added)).toBe('Added as father');
   expect(detailOf(added)).toBe('of Juho Esimerkki');
   expect(doneLabel({ ...added, did: 'link' })).toBe('Linked as father');
+  const edited = {
+    kind: 'person',
+    did: 'edit',
+    was: 'Matti Esimerkki, male',
+    now: 'Matti Malli, male'
+  } as const;
+  expect(doneLabel(edited)).toBe('Changed the name');
+  expect(detailOf(edited)).toBe('Matti Esimerkki, male → Matti Malli, male');
 });

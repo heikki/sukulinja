@@ -15,6 +15,8 @@ import type { FactAnswer } from './facts/facts';
 import { routeFacts } from './facts/routes';
 import type { FactHandlers } from './facts/routes';
 import { createPersonDetails } from './person-details';
+import { createPersons } from './persons/persons';
+import type { PersonAnswer } from './persons/persons';
 import { createRelatives } from './persons/relatives';
 import type { RelativeAnswer } from './persons/relatives';
 import { routePersons } from './persons/routes';
@@ -72,6 +74,9 @@ function createDatasetHandlers(
   const relatives = createRelatives(db, (change) => {
     changes.add(change);
   });
+  const persons = createPersons(db, (change) => {
+    changes.add(change);
+  });
 
   // A Reminder as written or changed, or why not.
   function answerReminder(
@@ -93,14 +98,14 @@ function createDatasetHandlers(
       : Response.json(result, { status });
   }
 
-  // A person as added, or why not.
-  function answerPerson(result: RelativeAnswer) {
+  // A person as added or changed, or why not.
+  function answerPerson(result: RelativeAnswer | PersonAnswer, status = 200) {
     if (result === null) {
       return new Response('person not found', { status: 404 });
     }
     return 'rejected' in result
       ? new Response(result.rejected, { status: 400 })
-      : Response.json(result, { status: 201 });
+      : Response.json(result, { status });
   }
 
   return {
@@ -162,7 +167,11 @@ function createDatasetHandlers(
     },
 
     handleAddRelative(personId, relative) {
-      return answerPerson(relatives.add(personId, relative));
+      return answerPerson(relatives.add(personId, relative), 201);
+    },
+
+    handleEditPerson(personId, name) {
+      return answerPerson(persons.edit(personId, name));
     },
 
     handlePlaces() {
@@ -209,7 +218,9 @@ async function routeReads(
   if (rest === '/api/families') return handlers.handleFamilies();
   if (rest === '/api/changes') return await handlers.handleChanges(req);
   const person = /^\/api\/persons\/(?<id>\d+)$/.exec(rest);
-  if (person !== null) return handlers.handlePerson(Number(person.groups!.id));
+  if (person !== null && req.method === 'GET') {
+    return handlers.handlePerson(Number(person.groups!.id));
+  }
   return null;
 }
 

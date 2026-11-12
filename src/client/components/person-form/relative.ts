@@ -13,41 +13,14 @@ import type { PersonRow, Relation, RelativeWho, Sex } from '@/common/types';
 import { placedInside } from '../context-menu';
 import { alikePersons } from '../person-search/match';
 import { formatDates, formatName } from '../tree-view/renderer';
+import { nameField, sexField } from './fields';
 import type { ChildFamily } from './relations';
-
-const SEXES: Array<[Sex, string]> = [
-  ['M', 'Male'],
-  ['F', 'Female'],
-  ['X', 'Other'],
-  ['U', 'Unknown']
-];
 
 // How many people alike are offered.
 const ALIKE_MAX = 5;
 
 function stop(e: Event) {
   e.stopPropagation();
-}
-
-// A name's field, labelled, telling `set` what's typed.
-function nameField(
-  label: string,
-  hint: string,
-  value: string,
-  set: (value: string) => void
-) {
-  return html`<label>
-    <span>${label}</span>
-    <input
-      type="text"
-      autocomplete="off"
-      placeholder=${hint}
-      .value=${value}
-      @input=${(e: Event) => {
-        set((e.target as HTMLInputElement).value);
-      }}
-    />
-  </label>`;
 }
 
 // A new person being added as the relation of `personId`, at `at` in the
@@ -189,7 +162,7 @@ class RelativeFormElement extends LitElement {
         ? null
         : (this.familyId ?? this.families[0]!.familyId);
     try {
-      await this.state.relatives.add(this.personId, {
+      await this.state.personEdits.addRelative(this.personId, {
         relation: this.relation,
         who,
         familyId
@@ -223,25 +196,6 @@ class RelativeFormElement extends LitElement {
       this.saveNew();
     }
   };
-
-  private renderSex() {
-    const sex = this.chosenSex ?? this.sex;
-    return html`<label>
-      <span>Sex</span>
-      <select
-        @change=${(e: Event) => {
-          this.chosenSex = (e.target as HTMLSelectElement).value as Sex;
-        }}
-      >
-        ${SEXES.map(
-          ([value, label]) =>
-            html`<option value=${value} ?selected=${value === sex}>
-              ${label}
-            </option>`
-        )}
-      </select>
-    </label>`;
-  }
 
   private renderFamily() {
     if (this.families.length === 0) return nothing;
@@ -293,7 +247,11 @@ class RelativeFormElement extends LitElement {
       ${nameField('Surname', 'e.g. Esimerkki', this.surname, (v) => {
         this.surname = v;
       })}
-      ${this.renderAlike(alike)} ${this.renderSex()} ${this.renderFamily()}
+      ${this.renderAlike(alike)}
+      ${sexField(this.chosenSex ?? this.sex, (sex) => {
+        this.chosenSex = sex;
+      })}
+      ${this.renderFamily()}
       ${
         this.refused === null
           ? nothing

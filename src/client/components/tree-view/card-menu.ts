@@ -13,10 +13,10 @@ import {
   childFamilies,
   RELATION_LABELS,
   startingSex
-} from '../relative-form/relations';
+} from '../person-form/relations';
 
 import '../context-menu';
-import '../relative-form';
+import '../person-form/relative';
 
 import type { Point } from './emit';
 import { formatName } from './renderer';

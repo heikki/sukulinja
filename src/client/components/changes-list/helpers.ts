@@ -31,12 +31,20 @@ function factDetail({ was, now }: FactChange) {
   return `${was} → ${now}`;
 }
 
-// A person added or linked, by their relation: "Added as father".
-function personDone({
-  did,
-  relation
-}: Extract<ChangeWhat, { kind: 'person' }>) {
-  return `${did === 'add' ? 'Added' : 'Linked'} as ${relation}`;
+type PersonChange = Extract<ChangeWhat, { kind: 'person' }>;
+
+// A person added or linked, by their relation, "Added as father", or
+// their name changed.
+function personDone(what: PersonChange) {
+  if (what.did === 'edit') return 'Changed the name';
+  return `${what.did === 'add' ? 'Added' : 'Linked'} as ${what.relation}`;
+}
+
+// Whose relative they were made, "of Juho Virtanen", or the name before
+// and after.
+function personDetail(what: PersonChange) {
+  if (what.did === 'edit') return `${what.was} → ${what.now}`;
+  return `of ${what.of}`;
 }
 
 // What a Change did, in a few words.
@@ -104,7 +112,7 @@ export function detailOf(what: ChangeWhat) {
     case 'fact':
       return factDetail(what);
     case 'person':
-      return `of ${what.of}`;
+      return personDetail(what);
     case 'import':
       return what.lost === 0 ? null : `${what.lost} not kept`;
     case 'undo-import':

@@ -83,7 +83,8 @@ type MemoryDatasetApi = DatasetApi & {
   // "add photo <file name>", "delete photo <photo>".
   // `addFact` answers ids numbered on from 3000; Facts don't change the
   // details given. "add <relation> of <person>: <given> <surname>" or
-  // "link <relation> of <person>: <relative>": a new person `addRelative`
+  // "link <relation> of <person>: <relative>", "edit person <person>:
+  // <given> <surname> <sex>", which changes the row in `persons`: a new person `addRelative`
   // adds joins `persons`, numbered on from 4000, in no family; a link
   // changes nothing.
   // A Citation made by `cite` joins its Volume's citations, numbered on
@@ -477,6 +478,18 @@ export function memoryDatasetApi(
           return personsAdded;
         }
       ),
+
+    async editPerson(personId, name) {
+      await answer(
+        `edit person ${personId}: ${name.given} ${name.surname} ${name.sex}`,
+        undefined,
+        () => {
+          const at = persons.findIndex((p) => p.id === personId);
+          const row = found(persons[at], 'person not found');
+          persons[at] = { ...row, ...name };
+        }
+      );
+    },
 
     async editFact(personId, factId, fields) {
       await answer(

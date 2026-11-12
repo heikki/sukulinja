@@ -10,11 +10,11 @@ import type {
   NewChange,
   NewRelative,
   Relation,
-  RelativeWho,
-  Sex
+  RelativeWho
 } from '@/common/types';
 
 import { touchRecord } from '../datasets/records';
+import { plainName, refusedName } from './names';
 import { createRecords } from './records';
 
 export type RelativeAnswer = { id: number } | { rejected: string } | null;
@@ -24,8 +24,6 @@ interface FamilyRecord {
   husband_id: number | null;
   wife_id: number | null;
 }
-
-const SEXES = new Set<Sex>(['M', 'F', 'X', 'U']);
 
 // Where the relative goes as the relation of the person, worked out
 // before anything is written: into a family the person has, in a parent's
@@ -48,11 +46,6 @@ interface Person {
 
 function rejected(words: string) {
   return { rejected: words };
-}
-
-// A name as it reads, without GEDCOM's slashes.
-function plainName(fullText: string) {
-  return fullText.replaceAll('/', ' ').replaceAll(/\s+/g, ' ').trim();
 }
 
 export function createRelatives(
@@ -193,17 +186,6 @@ export function createRelatives(
     );
     for (const child of p.children) addChild(familyId, idOf(child));
     return familyId;
-  }
-
-  // Why the new person can't be made as written; null when they can.
-  function refusedName(who: { given: string; surname: string; sex: Sex }) {
-    if (who.given.trim() === '' && who.surname.trim() === '') {
-      return rejected('Write a name.');
-    }
-    if (who.given.includes('/') || who.surname.includes('/')) {
-      return rejected("A name can't have a slash in it.");
-    }
-    return SEXES.has(who.sex) ? null : rejected('Say their sex.');
   }
 
   // Why someone already in the tree can't be put in the place the plan

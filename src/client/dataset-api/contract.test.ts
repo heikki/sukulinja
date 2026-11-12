@@ -311,6 +311,22 @@ describe('the answers', () => {
     ]);
   });
 
+  test("a person's name and sex changed, and why not", async () => {
+    await api.editPerson(3, { given: 'Juho', surname: 'Malli', sex: 'M' });
+    expect((await api.persons()).find((p) => p.id === 3)).toMatchObject({
+      given: 'Juho',
+      surname: 'Malli',
+      sex: 'M'
+    });
+    expect(
+      await failure(api.editPerson(3, { given: '', surname: '', sex: 'M' }))
+    ).toBe('Write a name.');
+    expect(
+      await failure(api.editPerson(99, { given: 'X', surname: '', sex: 'M' }))
+    ).toBe('person not found');
+    expect((await api.person(3)).id).toBe(3);
+  });
+
   test('a Photo added from disk, served, and deleted', async () => {
     const file = new File([new Uint8Array([0xff, 0xd8, 0xff])], 'Talo.jpg', {
       type: 'image/jpeg'

@@ -6,6 +6,7 @@ import type { Database } from 'bun:sqlite';
 import type { Sex } from '@/common/types';
 
 import { touchRecord } from '../datasets/records';
+import { gedcomName } from './names';
 
 type Table = 'persons' | 'families';
 
@@ -22,12 +23,6 @@ function nextXref(db: Database, table: Table) {
     )
     .get(`@${letter}[0-9]*@`);
   return `@${letter}${(row?.last ?? 0) + 1}@`;
-}
-
-// A name as GEDCOM writes it, the surname between slashes: "Matti
-// /Virtanen/", "Matti //", "/Virtanen/".
-export function gedcomName(given: string, surname: string) {
-  return `${given} /${surname}/`.trim();
 }
 
 export function createRecords(db: Database) {

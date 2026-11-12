@@ -1,12 +1,14 @@
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import { gedcomDate } from '@/common/dates';
 import type { FactRow, PersonDetails, PersonRow } from '@/common/types';
+
+import '../person-form/name';
 
 import { formatName } from '../tree-view/renderer';
 import { silhouette } from '../tree-view/silhouette';
@@ -72,9 +74,16 @@ function renderPortrait(p: PersonRow, photo: string | null) {
     : html`<img class="portrait" src=${photo} alt="" />`;
 }
 
+// Clicks on the name and its form stay here: the dock's header around them
+// collapses the dock on a click.
+function stop(e: Event) {
+  e.stopPropagation();
+}
+
 // The person the dock is about, in its header: their portrait as the chart
 // draws it, their name, and when they were born and died, once the
-// Selected person's details arrive.
+// Selected person's details arrive. Clicking the name changes it, and their
+// sex, in a form in its place.
 @customElement('sl-person-header')
 class PersonHeaderElement extends SignalWatcher(LitElement) {
   static override styles = personHeaderStyles;
@@ -85,15 +94,40 @@ class PersonHeaderElement extends SignalWatcher(LitElement) {
   // Their portrait as the chart's avatar cache gives it.
   @property({ attribute: false }) photo: string | null = null;
 
+  // The person whose name is being changed.
+  @state() private editing: number | null = null;
+
   override render() {
     const p = this.person;
     if (p === null) return nothing;
     const details = this.state.selected.details.get();
     const lines = linesOf(p, details).filter((l) => l !== null);
+    if (this.editing === p.id) {
+      return html`
+        ${renderPortrait(p, this.photo)}
+        <sl-name-form
+          class="who"
+          .person=${p}
+          @click=${stop}
+          @closed=${() => {
+            this.editing = null;
+          }}
+        ></sl-name-form>
+      `;
+    }
     return html`
       ${renderPortrait(p, this.photo)}
       <div class="who">
-        <div class="name">${formatName(p)}</div>
+        <button
+          class="name"
+          title="Change the name"
+          @click=${(e: Event) => {
+            stop(e);
+            this.editing = p.id;
+          }}
+        >
+          ${formatName(p)}
+        </button>
         <dl>
           ${lines.map(
             (l) =>

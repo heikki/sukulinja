@@ -489,10 +489,27 @@ export const personHeaderStyles = [
     }
 
     .name {
+      display: block;
+      padding: 0;
+      border: 0;
+      background: none;
+      color: inherit;
+      font: inherit;
       font-size: var(--name-size);
       font-weight: 600;
       line-height: var(--name-leading);
+      text-align: left;
       overflow-wrap: anywhere;
+      cursor: pointer;
+    }
+
+    .name:hover {
+      text-decoration: underline;
+    }
+
+    sl-name-form {
+      flex: 1;
+      font-size: 0.875rem;
     }
 
     dl {
