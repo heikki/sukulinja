@@ -262,7 +262,7 @@ describe('convertMyHeritage', () => {
     // The cutout OBJE is stripped, so its URL is never downloaded.
     expect(tried.sort()).toEqual(['https://x/dead.jpg', 'https://x/photo.jpg']);
     expect(result.stripped).toBe(1);
-    expect(result).toMatchObject({ downloaded: 1, reused: 0 });
+    expect(result).toMatchObject({ downloaded: 1 });
     expect(result.failed).toEqual(['https://x/dead.jpg']);
 
     const files = root.children.map((o) => findChild(o, 'FILE')!.value);
@@ -273,33 +273,15 @@ describe('convertMyHeritage', () => {
     expect(await dead.exists()).toBe(false);
   });
 
-  test('fetches a photo once, and copies one stored before instead', async () => {
+  test('fetches a photo once however many URLs name it', async () => {
     function url(token: string) {
       return `https://sites-cf.mhcache.com/e/1/${token}/1/2/3/p.jpg`;
     }
     const first = fakeDownload();
-    // Two URLs naming the same photo share one fetch.
     await convertMyHeritage([indi(obje(url('a')), obje(url('b')))], {
       stagingDir,
       download: first.download
     });
     expect(first.tried).toHaveLength(1);
-
-    const later = await mkdtemp(join(tmpdir(), 'myheritage-test-'));
-    try {
-      const again = fakeDownload();
-      const root = indi(obje(url('c')));
-      const result = await convertMyHeritage([root], {
-        stagingDir: later,
-        stored: (name) => join(stagingDir, name),
-        download: again.download
-      });
-      expect(again.tried).toEqual([]);
-      expect(result).toMatchObject({ downloaded: 0, reused: 1 });
-      expect(findChild(root.children[0]!, 'FILE')!.value).toBe('1/2/3/p.jpg');
-      expect(await Bun.file(join(later, '1/2/3/p.jpg')).text()).toBe(url('a'));
-    } finally {
-      await rm(later, { recursive: true, force: true });
-    }
   });
 });

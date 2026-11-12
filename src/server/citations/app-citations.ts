@@ -125,7 +125,7 @@ export function openAppCitations(db: Database) {
   const deleteSource = db.prepare('DELETE FROM sources WHERE id = ?');
 
   // The xref the app gives the Volume's source first: one no MyHeritage
-  // export gives, so a re-import never takes another source for it.
+  // export gives, so it never clashes with an imported source's.
   function baseXref(volumeId: string) {
     return `@ASTIA_${volumeId.toUpperCase().replaceAll(/[^A-Z0-9]/g, '_')}@`;
   }
@@ -224,11 +224,6 @@ export function openAppCitations(db: Database) {
         archives.set(at.volumeId, (await archiveOf?.(at.volumeId)) ?? null);
       }
       convertNow(rows, (volumeId) => archives.get(volumeId) ?? null);
-    },
-
-    // The same, at once, knowing no archive: for the import's merge.
-    convertNow(rows: Converting[]) {
-      convertNow(rows, () => null);
     },
 
     // Titles each Volume source the app made with its archive, where

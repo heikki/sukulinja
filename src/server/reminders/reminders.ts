@@ -1,6 +1,5 @@
 // A dataset's Reminders: on a person, or an Image of a Volume, maybe
-// about a person too. Only the app keeps them; no export writes them, and a
-// re-import's merge carries them (import/merge.ts).
+// about a person too. Only the app keeps them, and no export writes them.
 
 import type { Database } from 'bun:sqlite';
 

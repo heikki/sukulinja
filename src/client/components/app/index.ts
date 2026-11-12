@@ -13,13 +13,12 @@ import { focusRingStyles } from '@/client/focus-ring';
 import { reportView } from '@/client/last-view';
 import { appState, openAppState } from '@/client/state';
 import { slugFromFilename, withoutExtension } from '@/common/slug';
-import type { DatasetInfo, ImportReview } from '@/common/types';
+import type { DatasetInfo } from '@/common/types';
 
 import { confirmDialog, errorNote, runAction } from './dialogs';
 import type { Confirming, DatasetAction } from './dialogs';
 import { EXPORT_FORMAT, exportDataset } from './exports';
 import type { ExportNote } from './exports';
-import { renderReview } from './import-review';
 import { menuButton, renderRowMenu } from './row-menu';
 import type { RowMenu, RowMenuActions } from './row-menu';
 import { appStyles } from './styles';
@@ -36,12 +35,6 @@ const TRASH_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
     />
   `}
 </svg>`;
-
-// An import's review, waiting for Merge or Cancel.
-interface Reviewing {
-  review: ImportReview;
-  answer: (merge: boolean) => void;
-}
 
 const DATASET_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?=\/|$)/u;
 
@@ -72,9 +65,8 @@ function renderLink(d: DatasetInfo) {
   `;
 }
 
-// An older version's database doesn't open; the file it came from isn't
-// kept, so it's imported again, merging (ADR-0013), from the Import… beside
-// it, whose dialog says what the app added is kept.
+// An older version's database that doesn't open (ADR-0018 migrates every
+// one the app still reads); it can only be deleted.
 function renderOutdated(d: DatasetInfo) {
   return html`
     <div class="outdated">
@@ -88,7 +80,7 @@ function renderOutdated(d: DatasetInfo) {
 class AppElement extends LitElement {
   static override styles = [focusRingStyles, dialogStyles, appStyles];
 
-  // The datasets as a whole: listing, importing, exporting, undoing, deleting.
+  // The datasets as a whole: listing, importing, exporting, deleting.
   private readonly lifecycle = openLifecycleApi();
 
   @state() private datasets: DatasetInfo[] | null = null;
@@ -106,16 +98,10 @@ class AppElement extends LitElement {
   @state() private exporting: string | null = null;
   // Where the last export was saved, or why it failed.
   @state() private exportNote: ExportNote | null = null;
-  // The name of an outdated dataset being imported again, so the import
-  // replaces it.
-  private reimportName: string | null = null;
   @state() private importNameInput = '';
   @state() private importing = false;
   @state() private importStatus: string | null = null;
   @state() private importError: string | null = null;
-  // What importing into an existing dataset would change, waiting for
-  // Merge or Cancel.
-  @state() private review: Reviewing | null = null;
   // A dataset action waiting to be confirmed, or running.
   @state() private confirming: Confirming | null = null;
 
@@ -138,18 +124,8 @@ class AppElement extends LitElement {
   // Import a GEDCOM, whose local media can't come along (MyHeritage photos
   // still download server-side), or a GEDZIP carrying its media.
   private readonly onImportFileClick = () => {
-    this.reimportName = null;
-    this.pickFile();
-  };
-
-  private readonly reimport = (dataset: DatasetInfo) => {
-    this.reimportName = dataset.displayName;
-    this.pickFile();
-  };
-
-  private pickFile() {
     this.renderRoot.querySelector<HTMLInputElement>('#file-input')?.click();
-  }
+  };
 
   private readonly onFileChange = (e: Event) => {
     const input = e.target as HTMLInputElement;
@@ -157,8 +133,7 @@ class AppElement extends LitElement {
     input.value = '';
     if (file === undefined) return;
     this.pendingImport = file;
-    this.importNameInput = this.reimportName ?? withoutExtension(file.name);
-    this.reimportName = null;
+    this.importNameInput = withoutExtension(file.name);
     this.importStatus = null;
     this.importError = null;
   };
@@ -196,34 +171,18 @@ class AppElement extends LitElement {
         {
           progress: (message) => {
             this.importStatus = message;
-          },
-          review: async (review) => {
-            const answered = Promise.withResolvers<boolean>();
-            this.review = { review, answer: answered.resolve };
-            return await answered.promise;
           }
         }
       );
-      if (info === null) this.pendingImport = null;
-      else window.location.assign(`/d/${info.slug}/`);
+      window.location.assign(`/d/${info.slug}/`);
     } catch (err) {
       if (!(err instanceof ApiError)) throw err;
       this.importError = err.message;
     } finally {
-      this.review = null;
       this.importing = false;
       this.importStatus = null;
     }
   }
-
-  // Merge or Cancel the import waiting on its review.
-  private readonly answerReview = (merge: boolean) => {
-    const waiting = this.review;
-    if (waiting === null) return;
-    this.review = null;
-    this.importStatus = merge ? 'Saving…' : 'Cancelling…';
-    waiting.answer(merge);
-  };
 
   private readonly exportAs = async (dataset: DatasetInfo) => {
     if (this.exporting !== null) return;
@@ -251,9 +210,6 @@ class AppElement extends LitElement {
   private readonly menuActions: RowMenuActions = {
     export: (d) => {
       void this.exportAs(d);
-    },
-    undo: (d) => {
-      this.request('undo', d);
     }
   };
 
@@ -280,7 +236,7 @@ class AppElement extends LitElement {
       return;
     }
     this.confirming = null;
-    if (c.action === 'delete' && c.dataset.slug === this.slug) {
+    if (c.dataset.slug === this.slug) {
       window.location.assign('/');
       return;
     }
@@ -291,9 +247,9 @@ class AppElement extends LitElement {
     const file = this.pendingImport;
     if (file === null) return nothing;
     const slug = slugFromFilename(this.importNameInput);
-    // Names that slugify alike share a folder, so importing one replaces the
-    // other — the only time the slug is worth surfacing.
-    const replaces = this.datasets?.find((d) => d.slug === slug);
+    // Names that slugify alike share a folder, and an import only makes a
+    // new dataset (ADR-0021), so a name taken is refused here already.
+    const taken = this.datasets?.find((d) => d.slug === slug);
     return html`
       <div class="overlay" @click=${this.cancelImport}>
         <div
@@ -305,24 +261,20 @@ class AppElement extends LitElement {
           }}
         >
           <h2 id="import-title">Import ${file.name}</h2>
+          ${this.renderImportForm(taken)}
           ${
-            this.review === null
-              ? this.renderImportForm(replaces)
-              : renderReview(this.review.review)
-          }
-          ${
-            this.importing && this.review === null && this.importStatus !== null
+            this.importing && this.importStatus !== null
               ? html`<p class="status">${this.importStatus}</p>`
               : nothing
           }
           ${errorNote('Import failed', this.importError)}
-          ${this.renderImportActions(slug, replaces !== undefined)}
+          ${this.renderImportActions(slug === '' || taken !== undefined)}
         </div>
       </div>
     `;
   }
 
-  private renderImportForm(replaces: DatasetInfo | undefined) {
+  private renderImportForm(taken: DatasetInfo | undefined) {
     return html`
       <label class="field">
         Name
@@ -334,41 +286,19 @@ class AppElement extends LitElement {
           @keydown=${this.onImportKeydown}
         />
         ${
-          replaces === undefined
+          taken === undefined
             ? nothing
             : html`<span class="hint">
-                Merges into the existing dataset
-                <strong>${replaces.displayName}</strong>, keeping what the app
-                added. You'll see what changes before it's saved.
+                There's a dataset named
+                <strong>${taken.displayName}</strong> already. Import this under
+                another name.
               </span>`
         }
       </label>
     `;
   }
 
-  private renderImportActions(slug: string, merging: boolean) {
-    const waiting = this.review;
-    if (waiting !== null) {
-      return html`
-        <div class="actions">
-          <button
-            @click=${() => {
-              this.answerReview(false);
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            class="primary"
-            @click=${() => {
-              this.answerReview(true);
-            }}
-          >
-            ${waiting.review.unreadable === null ? 'Merge' : 'Replace'}
-          </button>
-        </div>
-      `;
-    }
+  private renderImportActions(refused: boolean) {
     return html`
       <div class="actions">
         <button @click=${this.cancelImport} ?disabled=${this.importing}>
@@ -377,9 +307,9 @@ class AppElement extends LitElement {
         <button
           class="primary"
           @click=${this.confirmImport}
-          ?disabled=${this.importing || slug === ''}
+          ?disabled=${this.importing || refused}
         >
-          ${this.importing ? 'Importing…' : merging ? 'Continue' : 'Import'}
+          ${this.importing ? 'Importing…' : 'Import'}
         </button>
       </div>
     `;
@@ -467,18 +397,6 @@ class AppElement extends LitElement {
     `;
   }
 
-  private renderReimport(d: DatasetInfo) {
-    return html`<button
-      class="import"
-      ?disabled=${this.importing}
-      @click=${() => {
-        this.reimport(d);
-      }}
-    >
-      Import…
-    </button>`;
-  }
-
   private renderChooser() {
     return html`
       <div class="page">
@@ -493,7 +411,6 @@ class AppElement extends LitElement {
               <li>
                 ${d.outdated ? renderOutdated(d) : renderLink(d)}
                 <div class="row-actions">
-                  ${d.outdated ? this.renderReimport(d) : nothing}
                   ${menuButton(d, this.menu, this, this.setMenu)}
                   <button
                     class="icon delete"

@@ -7,8 +7,6 @@ import { join } from 'node:path';
 
 import type { NewChange } from '@/common/types';
 
-import { openAnnotations } from './annotations';
-import { openAppCitations } from './app-citations';
 import { routeShared } from './astia-routes';
 import { openAstia } from './astia/astia';
 import type { Astia, ImageRef } from './astia/astia';
@@ -19,19 +17,15 @@ import { imageSize, openScanCache } from './astia/scan-cache';
 import { citationRoutes } from './citation-routes';
 import { createCitations } from './citations';
 import { openImages } from './images';
-import { kinOfConverted, openScanFolder, switchFilming } from './myheritage';
+import { openScanFolder, switchFilming } from './myheritage';
 import { routeParishes } from './parish-routes';
 
 export type { Astia } from './astia/astia';
-export { annotated, annotationOf, openAnnotations } from './annotations';
+export { annotated, openAnnotations } from './annotations';
 export type { Annotation, Annotations, CitationLink } from './annotations';
 export { PUBLISHER as ASTIA_PUBLISHER } from './app-citations';
 export { viewerUrl } from './astia/astia';
-export {
-  BAPTISM_COLLECTION,
-  carryRejections,
-  collectionOf
-} from './myheritage';
+export { BAPTISM_COLLECTION, collectionOf } from './myheritage';
 
 interface Options {
   // Astia's answers; by default over HTTP, kept in the data folder.
@@ -76,7 +70,7 @@ export function openCitations(root: string, options: Options) {
       (await routeShared({ astia, cache, downloads, kept }, req, pathname)),
 
     // One dataset's Citations, resolved against the scans. Opened once for
-    // each Database, which a re-import replaces rather than changes.
+    // each Database.
     forDataset(db: Database) {
       const references = folder.references(db, { sizeOf });
       function changed(change: NewChange) {
@@ -131,24 +125,3 @@ export function openCitations(root: string, options: Options) {
 export type DatasetCitations = ReturnType<
   ReturnType<typeof openCitations>['forDataset']
 >;
-
-// Converts the dataset's references of a record a converted Citation
-// already cites, such as a new person's citation a re-import brings: each
-// gets that Citation's Link, and becomes a Citation of its Image as it
-// would by a Mark (ADR-0016). How many.
-export function convertKin(db: Database) {
-  const annotations = openAnnotations(db);
-  const made = openAppCitations(db);
-  return db.transaction(() => {
-    let count = 0;
-    for (const { link, rows } of kinOfConverted(db)) {
-      annotations.swap(
-        rows.map((r) => r.id),
-        link
-      );
-      made.convertNow(rows);
-      count += rows.length;
-    }
-    return count;
-  })();
-}

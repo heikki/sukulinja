@@ -1,14 +1,9 @@
 // What the chooser asks the app about its datasets as a whole: listing
-// them, importing, exporting, undoing an import and deleting. The Dataset
+// them, importing, exporting and deleting. The Dataset
 // API's twin for the registry's verbs, and where their route strings live.
 
 import { readNdjson } from '@/client/ndjson';
-import type {
-  DatasetInfo,
-  ExportSaved,
-  ImportEvent,
-  ImportReview
-} from '@/common/types';
+import type { DatasetInfo, ExportSaved, ImportEvent } from '@/common/types';
 
 import { ApiError, asker, NOT_RESPONDING } from './';
 import type { FetchOptions } from './';
@@ -17,24 +12,18 @@ import type { FetchOptions } from './';
 export interface ImportHooks {
   // Each step, as the import takes it.
   progress: (message: string) => void;
-  // Whether to save an import into an existing dataset, once it's shown
-  // what would change.
-  review: (review: ImportReview) => Promise<boolean>;
 }
 
 // Each call rejects with ApiError when it fails.
 export interface LifecycleApi {
   list: () => Promise<DatasetInfo[]>;
-  // Imports a GEDCOM or GEDZIP as `name`: the dataset, or null when its
-  // review said not to save it.
+  // Imports a GEDCOM or GEDZIP as a new dataset named `name`.
   importFile: (
     upload: { file: File; name: string },
     hooks: ImportHooks
-  ) => Promise<DatasetInfo | null>;
+  ) => Promise<DatasetInfo>;
   // Saves the dataset's GEDZIP into Downloads.
   exportAs: (slug: string) => Promise<ExportSaved>;
-  // Puts back the dataset's database from before its last import.
-  undoImport: (slug: string) => Promise<void>;
   remove: (slug: string) => Promise<void>;
 }
 
@@ -45,24 +34,13 @@ export function openLifecycleApi({
   const ask = asker(send);
   const datasets = `${origin}/datasets`;
 
-  async function answerReview(id: string, merge: boolean) {
-    await ask('Answering the review', `${origin}/import/${id}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ merge })
-    });
-  }
-
-  // The import's outcome, from its events; ending early cancels it.
+  // The import's outcome, from its events.
   async function outcome(body: ReadableStream<Uint8Array>, on: ImportHooks) {
     try {
       for await (const raw of readNdjson(body)) {
         const event = raw as ImportEvent;
         if (event.type === 'log') on.progress(event.message);
-        else if (event.type === 'review') {
-          await answerReview(event.id, await on.review(event.review));
-        } else if (event.type === 'error') throw new ApiError(event.message);
-        else if (event.type === 'cancelled') return null;
+        else if (event.type === 'error') throw new ApiError(event.message);
         else return event.info;
       }
     } catch (err) {
@@ -96,12 +74,6 @@ export function openLifecycleApi({
         method: 'POST'
       });
       return (await res.json()) as ExportSaved;
-    },
-
-    async undoImport(slug) {
-      await ask('Undoing', `${datasets}/${slug}/undo-import`, {
-        method: 'POST'
-      });
     },
 
     async remove(slug) {

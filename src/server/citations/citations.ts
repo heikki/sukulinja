@@ -239,7 +239,7 @@ export function createCitations<R extends BookRef>(
     'SELECT id FROM persons WHERE id = ?'
   );
 
-  // The dataset doesn't change under a module: a re-import makes a new one.
+  // The Volume a citation is in doesn't change under a module.
   const books = new Map<number, R | null>();
   function bookOf(row: CitationDbRow) {
     let book = books.get(row.id);

@@ -7,7 +7,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { Change, ImportReview } from '@/common/types';
+import type { Change } from '@/common/types';
 import { juvaAstia } from '@/server/citations/testing';
 import { DatasetRegistry } from '@/server/datasets/registry';
 import { createApi, createStaticFetch } from '@/server/server';
@@ -52,31 +52,22 @@ async function failure(call: Promise<unknown>) {
     .catch((err: unknown) => (err instanceof ApiError ? err.message : err));
 }
 
-// Hooks that answer every review with `merge`, keeping what was asked.
-function answering(merge: boolean) {
-  const reviews: ImportReview[] = [];
+// Hooks that keep each step the import takes.
+function recording() {
   const steps: string[] = [];
   const hooks: ImportHooks = {
     progress: (message) => {
       steps.push(message);
-    },
-    review: async (review) => {
-      reviews.push(review);
-      return await Promise.resolve(merge);
     }
   };
-  return { hooks, reviews, steps };
+  return { hooks, steps };
 }
 
-async function upload(merge = true, name = 'Tree', file = 'tree.ged') {
+async function upload(name = 'Tree', file = 'tree.ged') {
   return await api.importFile(
     { file: new File([GEDCOM], file), name },
-    answering(merge).hooks
+    recording().hooks
   );
-}
-
-async function undoable() {
-  return (await api.list()).map((d) => d.undoable);
 }
 
 // Makes the dataset look as one an older version built, as the app finds
@@ -91,7 +82,7 @@ function outdate(slug: string) {
 test('a dataset from upload to delete', async () => {
   expect(await api.list()).toEqual([]);
 
-  const first = answering(true);
+  const first = recording();
   const made = await api.importFile(
     { file: new File([GEDCOM], 'tree.ged'), name: 'Tree' },
     first.hooks
@@ -100,11 +91,8 @@ test('a dataset from upload to delete', async () => {
     slug: 'tree',
     displayName: 'Tree',
     personCount: 1,
-    sourceFilename: 'tree.ged',
-    undoable: false
+    sourceFilename: 'tree.ged'
   });
-  // A new dataset isn't reviewed.
-  expect(first.reviews).toEqual([]);
   expect(first.steps).toContain('Parsing GEDCOM…');
 
   await api.remove('tree');
@@ -114,40 +102,13 @@ test('a dataset from upload to delete', async () => {
 
 test("an import doesn't replace a dataset, as its tree is edited in the app", async () => {
   await upload();
-  const again = answering(true);
-  expect(
-    await failure(
-      api.importFile(
-        { file: new File([GEDCOM], 'again.ged'), name: 'Tree' },
-        again.hooks
-      )
-    )
-  ).toBe(
-    "There's a dataset named Tree already. Import this under another name."
-  );
-  expect(again.reviews).toEqual([]);
-  expect(await undoable()).toEqual([false]);
-});
-
-test('an import into a dataset an older version built is reviewed, and can be undone', async () => {
-  await upload();
+  const refused =
+    "There's a dataset named Tree already. Import this under another name.";
+  expect(await failure(upload('Tree', 'again.ged'))).toBe(refused);
+  // Nor one an older version built: it's deleted first.
   outdate('tree');
-  const cancelling = answering(false);
-  expect(
-    await api.importFile(
-      { file: new File([GEDCOM], 'tree.ged'), name: 'Tree' },
-      cancelling.hooks
-    )
-  ).toBeNull();
-  expect(cancelling.reviews).toMatchObject([{ people: { added: 0, gone: 0 } }]);
-  expect(await undoable()).toEqual([false]);
-
-  expect(await upload()).toMatchObject({ slug: 'tree', undoable: true });
-  expect(await undoable()).toEqual([true]);
-
-  await api.undoImport('tree');
-  expect(await undoable()).toEqual([false]);
-  expect(await failure(api.undoImport('tree'))).toBe('no import to undo');
+  expect(await failure(upload('Tree', 'again.ged'))).toBe(refused);
+  expect((await api.list()).map((d) => d.outdated)).toEqual([true]);
 });
 
 // What each of the dataset's Changes did, newest first.
@@ -159,24 +120,18 @@ async function changesDone(slug: string) {
   return all.map((c) => c.what);
 }
 
-test('an import is a Change, one into an older dataset keeping those from before', async () => {
+test('an import is a Change', async () => {
   await upload();
   expect(await changesDone('tree')).toEqual([
-    { kind: 'import', file: 'tree.ged', merged: false, lost: 0 }
-  ]);
-  outdate('tree');
-  await upload(true, 'Tree', 'again.ged');
-  expect(await changesDone('tree')).toEqual([
-    { kind: 'import', file: 'again.ged', merged: true, lost: 0 },
     { kind: 'import', file: 'tree.ged', merged: false, lost: 0 }
   ]);
 });
 
 test("an upload it can't read is refused", async () => {
-  expect(await failure(upload(true, 'Tree', 'tree.txt'))).toBe(
+  expect(await failure(upload('Tree', 'tree.txt'))).toBe(
     'expected a .ged, .gedcom or .gdz file'
   );
-  expect(await failure(upload(true, '!!!'))).toBe(
+  expect(await failure(upload('!!!'))).toBe(
     'The name needs a letter or a digit.'
   );
 });

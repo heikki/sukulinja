@@ -6,7 +6,6 @@
 
 export { routeRescan, switchFilming } from './pins/rescans';
 export type { KeptPins } from './pins/rescans';
-export { carryRejections } from './pins/marks';
 export type { BoxAt, DiscardDone, MarkDone, MarkTarget } from './pins/pins';
 export {
   BAPTISM_COLLECTION,
@@ -16,6 +15,6 @@ export {
   readRecord
 } from './record';
 export type { ChurchBookRef } from './record';
-export { kinOfConverted, referencesOf } from './references';
+export { referencesOf } from './references';
 export { openScanFolder } from './scans';
 export type { Scans } from './scans';

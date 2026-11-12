@@ -2,7 +2,7 @@
 // Match, the page a Mark on an Image moved aside (its original
 // page), and whether the app made the Citation. Only this module knows the
 // columns an Annotation is stored in; it works on single Citation rows, and
-// the import, the merge, the export and the Marks go through it.
+// the import, the export and the Marks go through it.
 
 import type { Database, SQLQueryBindings } from 'bun:sqlite';
 

@@ -1,8 +1,7 @@
 // A dataset's Changes: what was done in the app that changed it, each with
 // what it was on (on.ts), or the Photo a Tag was in, with its person. Only
-// the app keeps them; no export writes them, a re-import's merge carries
-// them (import/merge.ts), and undoing an import puts back the ones its
-// database had. They can be cleared, all at once. One like the newest,
+// the app keeps them, and no export writes them. They can be cleared, all
+// at once. One like the newest,
 // on the same thing, takes its place (combine.ts).
 
 import type { Database } from 'bun:sqlite';

@@ -12,7 +12,7 @@ The panel's _Events_ lists a person's Facts and their marriages' (`person-detail
 
 "Suositukset vaikuttaa hyviltä."
 
-1. **An import only makes a new dataset.** Importing over a dataset would replace the edited tree. The merge (`import/merge*.ts`), _Undo last import_ and the import review go, and a GEDZIP backup is restored by importing it as a new dataset. Until ticket 08 removes them, ticket 01 refuses an import over an existing dataset, but for one an older version built, which still merges so what the app made is kept.
+1. **An import only makes a new dataset.** Importing over a dataset would replace the edited tree. The merge (`import/merge*.ts`), _Undo last import_ and the import review go, and a GEDZIP backup is restored by importing it as a new dataset. An import over an existing dataset is refused, also over one an older version built.
 2. **The GEDCOM 5.5.1 export goes** (`export/gedcom551.ts`, _Export for MyHeritage_). Nothing is uploaded back to MyHeritage.
 3. **A place is free text that suggests the dataset's places.** A Fact's place is text (`facts.place`); the field suggests the places already in the dataset, so a known place is picked rather than typed again. A place list of its own (with parish, coordinates) would be a feature of its own.
 
@@ -48,7 +48,7 @@ No behaviour change, each a commit, tests passing unchanged:
 
 ## Tickets
 
-Done 2026-11-11: 01–06 and 10. Done 2026-11-12: 09. Open: 07, 08 (`issues/`).
+Done 2026-11-11: 01–06 and 10. Done 2026-11-12: 08, 09. Open: 07 (`issues/`).
 
 | #   | Ticket                                                                | Blocked by |
 | --- | --------------------------------------------------------------------- | ---------- |

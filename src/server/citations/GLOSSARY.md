@@ -19,15 +19,15 @@ _Avoid_: fact (that's the tree's conclusion).
 Who a person is in an **Entry**, as GEDCOM's citation `ROLE` names it: the child (`CHIL`), father (`FATH`), mother (`MOTH`), a godparent (`GODP`), a spouse (`HUSB`, `WIFE`), or another (`OTHER`). On an **Index reference**, its suffix tells it: none for the child, "-F" the father, "-M" the mother. MyHeritage's record id under `ROLE` isn't one.
 
 **Annotation**:
-What the app adds to a Citation: its Mark or Match, the page a Mark on an Image moved aside, and whether the app made the Citation. A re-import keeps it, while the source program's part comes from the new export.
+What the app adds to a Citation: its Mark or Match, the page a Mark on an Image moved aside, and whether the app made the Citation. The GEDZIP export carries it.
 _Avoid_: note (a GEDCOM NOTE is the source's own text), extras, link columns.
 
 **Reminder**:
-Something to come back to, on a person, or on an **Image**, maybe about a person too; open until it's marked done. Reminders live only in their list, which writes, edits and completes them and links to what each is on; a new one is started from a card's menu, on its person, or from the Scan viewer's, on its Image and about the Selected person. Only the app keeps it: no export writes it, and a re-import's merge moves it to the same person; one an older app put on a Citation goes onto its person. One on an Image holds for one filming: after a **Re-scan** it's stale, listed but leading nowhere.
+Something to come back to, on a person, or on an **Image**, maybe about a person too; open until it's marked done. Reminders live only in their list, which writes, edits and completes them and links to what each is on; a new one is started from a card's menu, on its person, or from the Scan viewer's, on its Image and about the Selected person. Only the app keeps it: no export writes it. One on an Image holds for one filming: after a **Re-scan** it's stale, listed but leading nowhere.
 _Avoid_: note (a GEDCOM NOTE), annotation (a Citation's app-made additions), to-do.
 
 **Change**:
-One thing done in the app that changed the dataset: a **Mark** (or a **Match** confirmed), a **Discard**, a Citation made in the Scan viewer or deleted, a Tag made, moved or taken back, a **Fact** added, changed or deleted, an import, _Undo last import_, or a Volume switched to a **Re-scan**'s new filming. Each says what it did and what it was on (a person, a Citation, an Image, a Tag's Photo with its person, or nothing), and is listed under _Changes_, newest first, where picking one goes back there. Only the app keeps them; a re-import keeps them all, one whose person is gone on nothing and one on a Photo on the same Photo, or on its person once that's gone, and undoing an import puts back those from before it. _Clear…_ forgets them all.
+One thing done in the app that changed the dataset: a **Mark** (or a **Match** confirmed), a **Discard**, a Citation made in the Scan viewer or deleted, a Tag made, moved or taken back, a **Fact** added, changed or deleted, an import (or, from before ADR-0021, an import undone), or a Volume switched to a **Re-scan**'s new filming. Each says what it did and what it was on (a person, a Citation, an Image, a Tag's Photo with its person, or nothing), and is listed under _Changes_, newest first, where picking one goes back there. Only the app keeps them. _Clear…_ forgets them all.
 _Avoid_: log, history (alone; the browser's Back is history), edit.
 
 **Church-book reference**:
@@ -144,8 +144,8 @@ Saying by hand, in the Scan viewer, which Image a Church-book reference's record
 _Avoid_: correction (the link it replaces is often not wrong, only less exact).
 
 **Conversion**:
-Turning a Church-book reference Marked at the entry, with its Box, into a Citation of its Image, as if made in the app: it cites the Volume's source, its text is the record's transcription as plain lines, and its original page keeps the reference's URL, by which a re-import knows it. A Citation made in the app is never a Church-book reference. Every citation of the record converts together. A converted Citation can't be deleted, for now, and still counts as a **Record pin** (ADR-0016).
-_Avoid_: migration (that's the one-off script), import (the merge).
+Turning a Church-book reference Marked at the entry, with its Box, into a Citation of its Image, as if made in the app: it cites the Volume's source, its text is the record's transcription as plain lines, and its original page keeps the reference's URL. A Citation made in the app is never a Church-book reference. Every citation of the record converts together. A converted Citation can't be deleted, for now, and still counts as a **Record pin** (ADR-0016).
+_Avoid_: migration (that's the one-off script).
 
 **Discard**:
 Taking a reference's **Box** back by hand in the Scan viewer, a Mark's or a **Match**'s, so its Link goes back to the estimate. The link goes from every citation of the record, which cite their original page again; Page pins and Record ranges stay. A Match discarded becomes a **Rejection**.

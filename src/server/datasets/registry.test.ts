@@ -170,8 +170,7 @@ describe('list', () => {
         familyCount: 1,
         importedAt: '2026-01-01T00:00:00Z',
         sourceFilename: 'alpha.ged',
-        outdated: false,
-        undoable: false
+        outdated: false
       },
       {
         slug: 'bravo',
@@ -180,8 +179,7 @@ describe('list', () => {
         familyCount: 0,
         importedAt: null,
         sourceFilename: null,
-        outdated: false,
-        undoable: false
+        outdated: false
       }
     ]);
   });
@@ -241,8 +239,7 @@ describe('a dataset an older version built', () => {
         familyCount: 0,
         importedAt: null,
         sourceFilename: null,
-        outdated: true,
-        undoable: false
+        outdated: true
       }
     ]);
   });

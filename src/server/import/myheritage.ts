@@ -20,7 +20,7 @@
 //   - cite a baptism index entry by its bare number, whoever's citation it is
 
 import { createHash } from 'node:crypto';
-import { copyFile, mkdir, rename, rm } from 'node:fs/promises';
+import { mkdir, rename, rm } from 'node:fs/promises';
 import { dirname, extname, join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
@@ -234,7 +234,7 @@ export function collectFileUrls(roots: GedNode[]) {
 }
 
 // A photo's name: what its FILE is rewritten to, which the media row keeps
-// as its original path, so a re-import finds the photo already stored. An
+// as its original path. An
 // mhcache.com URL is `/e/1/<token>/<tail>`: the token changes with every
 // export, the tail stays and names the photo. Any other URL, or a tail that
 // isn't plain path segments, is named by a hash of the whole URL.
@@ -342,9 +342,6 @@ interface MyHeritageOptions {
   // Where the photos are gathered, each at its name (see photoNameOf). Pass
   // it as the ingest sourceDir so the rewritten FILE values resolve.
   stagingDir: string;
-  // Where a photo of that name is stored from the dataset's earlier import,
-  // if it is: copied instead of downloaded.
-  stored?: (name: string) => string | null;
   concurrency?: number;
   download?: Downloader;
   log?: (msg: string) => void;
@@ -355,9 +352,8 @@ interface MyHeritageResult {
   dropped: number;
   pruned: number;
   urls: number;
-  // Photos downloaded, and copied from the dataset's earlier import.
+  // Photos downloaded.
   downloaded: number;
-  reused: number;
   failed: string[];
 }
 
@@ -385,35 +381,8 @@ async function fetchInto(download: Downloader, url: string, dest: string) {
   }
 }
 
-async function copyStored(from: string | null, dest: string) {
-  if (from === null || !(await Bun.file(from).exists())) return false;
-  await mkdir(dirname(dest), { recursive: true });
-  await copyFile(from, dest);
-  return true;
-}
-
-// The photos stored from the dataset's earlier import, copied into the
-// staging dir; the rest are missing.
-async function copyAllStored(
-  byName: Map<string, string[]>,
-  { stagingDir, stored }: MyHeritageOptions
-) {
-  const succeeded = new Set<string>();
-  const missing: Array<[string, string[]]> = [];
-  for (const [name, same] of byName) {
-    const dest = join(stagingDir, name);
-    // eslint-disable-next-line no-await-in-loop -- a local copy per photo
-    if (await copyStored(stored?.(name) ?? null, dest)) {
-      for (const u of same) succeeded.add(u);
-    } else {
-      missing.push([name, same]);
-    }
-  }
-  return { succeeded, missing };
-}
-
-// Each photo into the staging dir, by one copy or fetch however many URLs
-// name it. Says which URLs it has, and which failed.
+// Each photo into the staging dir, by one fetch however many URLs name
+// it. Says which URLs it has, and which failed.
 async function gatherPhotos(
   names: Map<string, string>,
   options: MyHeritageOptions
@@ -425,12 +394,10 @@ async function gatherPhotos(
   for (const [url, name] of names) {
     byName.set(name, [...(byName.get(name) ?? []), url]);
   }
-  const { succeeded, missing } = await copyAllStored(byName, options);
+  const succeeded = new Set<string>();
+  const missing = [...byName];
   const failed: string[] = [];
-  const reused = byName.size - missing.length;
-  if (byName.size > 0) {
-    log(`Downloading ${missing.length} photos, ${reused} kept from before…`);
-  }
+  if (byName.size > 0) log(`Downloading ${missing.length} photos…`);
   let done = 0;
   let downloaded = 0;
   await runPool(
@@ -450,7 +417,7 @@ async function gatherPhotos(
       log(`Downloaded ${done}/${missing.length} photos`);
     }
   );
-  return { succeeded, failed, downloaded, reused };
+  return { succeeded, failed, downloaded };
 }
 
 // MyHeritage's id for a person or family is GEDCOM 7's UID, kept as written.
@@ -475,10 +442,7 @@ export async function convertMyHeritage(
 
   const urls = collectFileUrls(roots);
   const names = new Map(urls.map((u) => [u, photoNameOf(u)]));
-  const { succeeded, failed, downloaded, reused } = await gatherPhotos(
-    names,
-    options
-  );
+  const { succeeded, failed, downloaded } = await gatherPhotos(names, options);
 
   rewriteLocalPaths(roots, succeeded, names);
   transformObjes(roots);
@@ -489,7 +453,6 @@ export async function convertMyHeritage(
     pruned,
     urls: urls.length,
     downloaded,
-    reused,
     failed
   };
 }

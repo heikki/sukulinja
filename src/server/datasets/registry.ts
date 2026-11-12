@@ -17,8 +17,6 @@ import { openAnyDb, openDb, OutdatedDatasetError } from './db';
 
 const SLUG_RE = /^[a-z0-9][a-z0-9_-]*$/u;
 // The database from before the last import, kept for Undo last import.
-const BEFORE_IMPORT = 'db.before-import.sqlite';
-
 function validateSlug(slug: string): void {
   if (!SLUG_RE.test(slug)) {
     throw new Error(`invalid dataset slug: ${JSON.stringify(slug)}`);
@@ -29,6 +27,15 @@ function validateSlug(slug: string): void {
 export class DatasetNotFound extends Error {
   constructor(slug: string) {
     super(`dataset not found: ${slug}`);
+  }
+}
+
+// An import under a name a dataset already has.
+export class DatasetExists extends Error {
+  constructor(name: string) {
+    super(
+      `There's a dataset named ${name} already. Import this under another name.`
+    );
   }
 }
 
@@ -49,6 +56,12 @@ export class DatasetRegistry {
 
   constructor(root: string) {
     this.root = resolve(root);
+  }
+
+  // Whether there's a dataset under the slug, outdated or not.
+  has(slug: string) {
+    validateSlug(slug);
+    return existsSync(this.datasetDir(slug));
   }
 
   mediaDir(slug: string): string {
@@ -83,16 +96,17 @@ export class DatasetRegistry {
     );
   }
 
-  // Imports a GEDCOM or GEDZIP under its slug, merging into the dataset
-  // there, if its review says to save it. Built off to the side, so readers
-  // see either the dataset before or the whole import, never half of one.
+  // Imports a GEDCOM or GEDZIP as a new dataset under its slug; one there
+  // already is never replaced, as its tree is edited in the app
+  // (ADR-0021). Built off to the side, so readers see the whole import or
+  // nothing.
   async import(req: ImportRequest) {
+    if (this.has(req.slug)) {
+      throw new DatasetExists(req.displayName ?? req.slug);
+    }
     const staging = await this.createStaging(req.slug);
     try {
-      const built = await buildImport(
-        { ...staging, previous: this.previous(req.slug) },
-        req
-      );
+      const built = await buildImport(staging, req);
       writeMeta(staging.db, {
         display_name: req.displayName ?? req.slug,
         source_filename: req.sourceFilename,
@@ -102,7 +116,7 @@ export class DatasetRegistry {
       req.log?.('Finishing…');
       await staging.commit();
       const info = this.readAny(req.slug, (db) =>
-        readInfo(db!, req.slug, this.status(req.slug, false))
+        readInfo(db!, req.slug, false)
       );
       return { ...built, info };
     } catch (err) {
@@ -144,7 +158,6 @@ export class DatasetRegistry {
       commit: async () => {
         closeOnce();
         this.forget(slug);
-        await keepBefore(finalDir, stagingDir);
         await rm(finalDir, { recursive: true, force: true });
         await rename(stagingDir, finalDir);
       },
@@ -173,30 +186,18 @@ export class DatasetRegistry {
   info(slug: string) {
     validateSlug(slug);
     try {
-      return readInfo(this.open(slug), slug, this.status(slug, false));
+      return readInfo(this.open(slug), slug, false);
     } catch (err) {
       if (!(err instanceof OutdatedDatasetError)) return null;
     }
     return this.readAny(slug, (db) => {
       if (db === null) return null;
       try {
-        return readInfo(db, slug, this.status(slug, true));
+        return readInfo(db, slug, true);
       } catch {
         return null;
       }
     });
-  }
-
-  // Puts back the database from before the last import; false when none
-  // is kept.
-  async undoImport(slug: string) {
-    validateSlug(slug);
-    const dir = this.datasetDir(slug);
-    const before = join(dir, BEFORE_IMPORT);
-    if (!existsSync(before)) return false;
-    this.forget(slug);
-    await rename(before, join(dir, 'db.sqlite'));
-    return true;
   }
 
   // The dataset's database. Throws DatasetNotFound, or OutdatedDatasetError
@@ -218,15 +219,6 @@ export class DatasetRegistry {
     this.cache.delete(slug);
   }
 
-  // What an import merges with: the dataset under the slug now, if any.
-  private previous(slug: string) {
-    if (!existsSync(join(this.datasetDir(slug), 'db.sqlite'))) return null;
-    return {
-      mediaDir: this.mediaDir(slug),
-      read: <T>(read: (db: Database | null) => T) => this.readAny(slug, read)
-    };
-  }
-
   // Reads the dataset's database, read-only and whatever version built it;
   // null when there's none or it can't be opened.
   private readAny<T>(slug: string, read: (db: Database | null) => T) {
@@ -244,11 +236,6 @@ export class DatasetRegistry {
     }
   }
 
-  private status(slug: string, outdated: boolean) {
-    const undoable = existsSync(join(this.datasetDir(slug), BEFORE_IMPORT));
-    return { outdated, undoable };
-  }
-
   private datasetDir(slug: string): string {
     return join(this.root, slug);
   }
@@ -260,25 +247,6 @@ export function mediaDirOf(db: Database): string {
   return join(dirname(db.filename), 'media');
 }
 
-// What a new import of a dataset keeps of the one it replaces: its
-// database, and the photos the new one no longer has, which that database
-// still names. Photos are named by their content, so none clash.
-async function keepBefore(finalDir: string, stagingDir: string) {
-  const db = join(finalDir, 'db.sqlite');
-  if (!existsSync(db)) return;
-  await rename(db, join(stagingDir, BEFORE_IMPORT));
-  const media = join(finalDir, 'media');
-  if (!existsSync(media)) return;
-  const names = await readdir(media);
-  await Promise.all(
-    names
-      .filter((name) => !existsSync(join(stagingDir, 'media', name)))
-      .map(async (name) => {
-        await rename(join(media, name), join(stagingDir, 'media', name));
-      })
-  );
-}
-
 // The dataset's meta, by key; a null value isn't written.
 function writeMeta(db: Database, meta: Record<string, string | null>) {
   const write = db.prepare('INSERT INTO meta (key, value) VALUES (?, ?)');
@@ -287,11 +255,7 @@ function writeMeta(db: Database, meta: Record<string, string | null>) {
   }
 }
 
-function readInfo(
-  db: Database,
-  slug: string,
-  status: { outdated: boolean; undoable: boolean }
-) {
+function readInfo(db: Database, slug: string, outdated: boolean) {
   const meta = new Map<string, string>(
     db
       .query<{ key: string; value: string }, []>('SELECT key, value FROM meta')
@@ -312,6 +276,6 @@ function readInfo(
     familyCount: count('families'),
     importedAt: meta.get('imported_at') ?? null,
     sourceFilename: meta.get('source_filename') ?? null,
-    ...status
+    outdated
   };
 }

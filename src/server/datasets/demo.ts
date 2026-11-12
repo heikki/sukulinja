@@ -3,7 +3,8 @@
 // it. Offered once per data folder, which a marker records, and only to one
 // with no datasets: deleting the demo never brings it back, and a reset that
 // keeps the pins and caches (scripts/reset-install.sh) offers it again by
-// removing the marker. A demo an older version built is imported again.
+// removing the marker. A demo an older version built is deleted and
+// imported again.
 
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
@@ -37,6 +38,7 @@ function isOutdatedDemo(registry: DatasetRegistry) {
 
 export async function seedDemo(registry: DatasetRegistry, gedzipPath: string) {
   if (isOutdatedDemo(registry)) {
+    await registry.delete(SLUG);
     await importDemo(registry, gedzipPath);
     return;
   }

@@ -1,30 +1,25 @@
 // The routes for datasets as a whole, each a registry verb: GET /datasets
 // lists them; DELETE /datasets/<slug> deletes one; POST …/export saves its
-// GEDZIP, and …/undo-import puts
-// back its database from before its last import.
+// GEDZIP.
 //
 // POST /import streams the import as newline-delimited ImportEvents: log
-// lines, then done, cancelled or error. Headers are already sent by the time
-// the import runs, so failures surface as an error event rather than an
-// HTTP status. An import only makes a new dataset, as the tree is edited in
-// the app (ADR-0021); the one exception is a dataset an older version
-// built, which an import first sends a review for and waits for POST
-// /import/<id> with `{ merge }` to say whether to save it into.
+// lines, then done or error. Headers are already sent by the time the
+// import runs, so failures surface as an error event rather than an HTTP
+// status. An import only makes a new dataset, as the tree is edited in the
+// app (ADR-0021): one under a name taken is refused with 409.
 //
 // A verb refused in words the app can show answers 404 or 409; anything
 // else thrown is a bug, and is thrown on.
 
 import { slugFromFilename, withoutExtension } from '@/common/slug';
-import type { ImportEvent, ImportReview, NewChange } from '@/common/types';
+import type { ImportEvent, NewChange } from '@/common/types';
 
-import { ImportCancelled } from '../import/dataset';
 import { OutdatedDatasetError } from './db';
-import { DatasetNotFound } from './registry';
+import { DatasetExists, DatasetNotFound } from './registry';
 import type { DatasetRegistry } from './registry';
 
 const DATASET_RE =
-  /^\/datasets\/(?<slug>[a-z0-9][a-z0-9_-]*)(?<verb>\/export|\/undo-import)?$/u;
-const ANSWER_RE = /^\/import\/(?<id>[0-9a-f-]+)$/u;
+  /^\/datasets\/(?<slug>[a-z0-9][a-z0-9_-]*)(?<verb>\/export)?$/u;
 
 function refused(err: unknown) {
   if (err instanceof DatasetNotFound) {
@@ -76,7 +71,7 @@ type Upload = Exclude<Awaited<ReturnType<typeof readUpload>>, string>;
 interface LifecycleOptions {
   // Where exports are saved; by default the user's Downloads.
   exportDir?: string;
-  // Told of an import saved into a dataset, and of one undone.
+  // Told of an import saved, into the new dataset.
   changed?: (slug: string, change: NewChange) => void;
 }
 
@@ -84,59 +79,36 @@ export function lifecycleRoutes(
   registry: DatasetRegistry,
   { exportDir, changed = () => undefined }: LifecycleOptions = {}
 ) {
-  // The imports waiting on their review, by id.
-  const waiting = new Map<string, (merge: boolean) => void>();
-
   function handleImport(upload: Upload) {
-    let asked: string | null = null;
     const stream = new ReadableStream<Uint8Array>({
       async start(controller) {
         const enc = new TextEncoder();
         function send(event: ImportEvent) {
           controller.enqueue(enc.encode(`${JSON.stringify(event)}\n`));
         }
-        async function review(r: ImportReview) {
-          const id = crypto.randomUUID();
-          asked = id;
-          send({ type: 'review', id, review: r });
-          const answered = Promise.withResolvers<boolean>();
-          waiting.set(id, answered.resolve);
-          return await answered.promise;
-        }
         try {
           const outcome = await registry.import({
             ...upload,
-            review,
             log: (message) => {
               send({ type: 'log', message });
             }
           });
-          const { merged } = outcome;
           changed(upload.slug, {
             on: null,
             what: {
               kind: 'import',
               file: upload.sourceFilename,
-              merged: merged !== null,
-              lost: merged?.lost.length ?? 0
+              merged: false,
+              lost: 0
             }
           });
           send({ type: 'done', info: outcome.info });
         } catch (err) {
-          if (err instanceof ImportCancelled) send({ type: 'cancelled' });
-          else {
-            const message =
-              err instanceof Error ? err.message : 'import failed';
-            send({ type: 'error', message });
-          }
+          const message = err instanceof Error ? err.message : 'import failed';
+          send({ type: 'error', message });
         } finally {
-          if (asked !== null) waiting.delete(asked);
           controller.close();
         }
-      },
-      // The page went away while the import waited on it: nothing is saved.
-      cancel() {
-        if (asked !== null) waiting.get(asked)?.(false);
       }
     });
     return new Response(stream, {
@@ -144,53 +116,27 @@ export function lifecycleRoutes(
     });
   }
 
-  async function answer(req: Request, id: string) {
-    const resolve = waiting.get(id);
-    if (resolve === undefined) {
-      return new Response('no import is waiting', { status: 404 });
-    }
-    const body = (await req.json().catch(() => null)) as {
-      merge?: unknown;
-    } | null;
-    if (typeof body?.merge !== 'boolean') {
-      return new Response('expected { merge: boolean }', { status: 400 });
-    }
-    waiting.delete(id);
-    resolve(body.merge);
-    return new Response(null, { status: 204 });
-  }
-
   async function routeImport(req: Request, pathname: string) {
-    const answering = ANSWER_RE.exec(pathname);
-    if (pathname !== '/import' && answering === null) return null;
+    if (pathname !== '/import') return null;
     if (req.method !== 'POST') return notAllowed();
-    if (answering !== null) return await answer(req, answering.groups!.id!);
     const upload = await readUpload(req);
     if (typeof upload === 'string') {
       return new Response(upload, { status: 400 });
     }
-    if (registry.info(upload.slug)?.outdated === false) {
-      return new Response(
-        `There's a dataset named ${upload.displayName} already. Import this under another name.`,
-        { status: 409 }
-      );
+    if (registry.has(upload.slug)) {
+      return new Response(new DatasetExists(upload.displayName).message, {
+        status: 409
+      });
     }
     return handleImport(upload);
   }
 
-  // One dataset's verb: deleting it, exporting it or undoing its import.
+  // One dataset's verb: deleting it or exporting it.
   async function onDataset(slug: string, verb: string | undefined) {
     if (verb === undefined) {
       return (await registry.delete(slug))
         ? new Response(null, { status: 204 })
         : new Response('dataset not found', { status: 404 });
-    }
-    if (verb === '/undo-import') {
-      if (!(await registry.undoImport(slug))) {
-        return new Response('no import to undo', { status: 404 });
-      }
-      changed(slug, { on: null, what: { kind: 'undo-import' } });
-      return new Response(null, { status: 204 });
     }
     return Response.json(await registry.export(slug, { dir: exportDir }));
   }

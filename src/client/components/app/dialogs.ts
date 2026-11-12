@@ -1,5 +1,5 @@
 // The chooser's dialogs: a failure note, and the dataset actions asked to
-// confirm first, deleting a dataset and undoing its last import.
+// confirm first: deleting a dataset.
 
 import { html, nothing } from 'lit';
 import type { TemplateResult } from 'lit';
@@ -7,8 +7,6 @@ import type { TemplateResult } from 'lit';
 import { ApiError } from '@/client/dataset-api';
 import type { LifecycleApi } from '@/client/dataset-api/lifecycle';
 import type { DatasetInfo } from '@/common/types';
-
-import { importDate } from './import-review';
 
 // A dialog's failure: what failed, then the server's message, which can be a
 // long raw path or stack line — hence wrapped anywhere and scrollable.
@@ -22,7 +20,7 @@ export function errorNote(title: string, message: string | null) {
   `;
 }
 
-export type DatasetAction = 'delete' | 'undo';
+export type DatasetAction = 'delete';
 
 interface ActionCopy {
   title: string;
@@ -45,19 +43,6 @@ const ACTIONS: Record<DatasetAction, ActionCopy> = {
     failed: 'Delete failed',
     run: async (api, d) => {
       await api.remove(d.slug);
-    }
-  },
-  undo: {
-    title: 'Undo last import?',
-    body: (d) => html`
-      <strong>${d.displayName}</strong> goes back to how it was before it was
-      imported on ${importDate(d.importedAt)}. Anything changed since is lost.
-    `,
-    label: 'Undo import',
-    busy: 'Undoing…',
-    failed: 'Undo failed',
-    run: async (api, d) => {
-      await api.undoImport(d.slug);
     }
   }
 };

@@ -42,51 +42,16 @@ export interface DatasetInfo {
   importedAt: string | null;
   // The file it was last imported from.
   sourceFilename: string | null;
-  // Built by an older version of the app, so it won't open until it's
-  // imported again (ADR-0013).
+  // Built by an older version of the app than migrations reach, so it
+  // won't open (ADR-0018); it can only be deleted.
   outdated: boolean;
-  // The database from before the last import is kept, to go back to.
-  undoable: boolean;
-}
-
-// What importing into an existing dataset would change, shown before it's
-// saved (ADR-0013): what the export added and no longer has, what's kept
-// from the app, and what can't be kept, its person or record gone.
-export interface ImportReview {
-  people: { added: number; gone: number };
-  citations: { added: number; gone: number };
-  kept: {
-    marks: number;
-    // Citations made in the app, attached again to their person.
-    citations: number;
-    // Citations made in the app that the export now has too: the export's
-    // is kept, with the link.
-    duplicates: number;
-    // Citations converted from a reference (ADR-0016), which the export
-    // still has as the reference: the export's is left out.
-    converted: number;
-    rejections: number;
-    // Reminders, put back where they were, or a Citation's onto its person.
-    reminders: number;
-    // Tags, put back on their person in the same Photo (ADR-0017).
-    tags: number;
-  };
-  // Each Mark, citation made in the app, Reminder or Tag that can't be
-  // kept, described.
-  lost: string[];
-  // Why the dataset's database couldn't be read, so nothing is kept from
-  // it; null when it was.
-  unreadable: string | null;
 }
 
 // What an import says as it goes, one event per line: its steps, then
-// whether it was saved. One into an existing dataset first asks for its
-// review, which is answered by its id.
+// whether it was saved.
 export type ImportEvent =
   | { type: 'log'; message: string }
-  | { type: 'review'; id: string; review: ImportReview }
   | { type: 'error'; message: string }
-  | { type: 'cancelled' }
   | { type: 'done'; info: DatasetInfo };
 
 // Where a dataset's GEDZIP was saved.
@@ -540,6 +505,8 @@ export type ChangeWhat =
   // A person added to the tree, or someone already in it linked, as the
   // relation of the person named, as they were named then.
   | { kind: 'person'; did: 'add' | 'link'; relation: Relation; of: string }
+  // `merged`, `lost` and undo-import are from before an import only made
+  // a new dataset (ADR-0021), kept so older Changes still read.
   | { kind: 'import'; file: string; merged: boolean; lost: number }
   | { kind: 'undo-import' }
   | {

@@ -207,54 +207,9 @@ export function openMarks(db: Database) {
       return `${version()}.${writes}`;
     },
 
-    // The references of a record or URL a converted Citation cites, by the
-    // Link that Citation holds: what a re-import converts too.
-    kinOfConverted() {
-      const { byKey, converted } = indexed();
-      return [...converted].flatMap(([key, ids]) => {
-        const refs = byKey.get(key) ?? [];
-        const link = annotations.firstLink(ids);
-        return refs.length === 0 || link === null ? [] : [{ link, ids: refs }];
-      });
-    },
-
     // The citations a Mark of the key is written into.
     idsOf
   };
 }
 
 export type Marks = ReturnType<typeof openMarks>;
-
-interface RejectionRow {
-  reference_url: string;
-  volume_id: string;
-  image: number;
-  file_id: string | null;
-}
-
-// The dataset's Rejections; none from a database too old to have them.
-function storedRejections(stored: Database) {
-  try {
-    return stored
-      .query<RejectionRow, []>(
-        'SELECT reference_url, volume_id, image, file_id FROM rejections ORDER BY id'
-      )
-      .all();
-  } catch {
-    return [];
-  }
-}
-
-// A re-import's Rejections: the dataset's, carried into its new database as
-// they are, as each is of a reference's URL, which the export gives again.
-// How many.
-export function carryRejections(stored: Database, fresh: Database) {
-  const rows = storedRejections(stored);
-  const insert = fresh.prepare(
-    'INSERT INTO rejections (reference_url, volume_id, image, file_id) VALUES (?, ?, ?, ?)'
-  );
-  for (const r of rows) {
-    insert.run(r.reference_url, r.volume_id, r.image, r.file_id);
-  }
-  return rows.length;
-}

@@ -1,5 +1,5 @@
-// A dataset row's menu on the chooser: its exports and undo, behind a
-// button so the row shows only its name and what it most needs.
+// A dataset row's menu on the chooser: its export, behind a button so the
+// row shows only its name and what it most needs.
 
 import { html, nothing, svg } from 'lit';
 
@@ -10,7 +10,6 @@ import '../context-menu';
 
 import type { MenuItem } from '../context-menu';
 import { EXPORT_FORMAT } from './exports';
-import { importDate } from './import-review';
 
 const MENU_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
   ${svg`
@@ -32,31 +31,18 @@ export interface RowMenu {
 
 export interface RowMenuActions {
   export: (dataset: DatasetInfo) => void;
-  undo: (dataset: DatasetInfo) => void;
 }
 
-// An outdated dataset can't be exported until it's imported again, but its
-// last import can still be undone.
-function menuItems(d: DatasetInfo, on: RowMenuActions) {
-  const items: MenuItem[] = [];
-  if (!d.outdated) {
-    const { name, detail } = EXPORT_FORMAT;
-    items.push({
+function menuItems(d: DatasetInfo, on: RowMenuActions): MenuItem[] {
+  const { name, detail } = EXPORT_FORMAT;
+  return [
+    {
       label: `Export ${name} (${detail})`,
       run: () => {
         on.export(d);
       }
-    });
-  }
-  if (d.undoable) {
-    items.push({
-      label: `Undo last import (${importDate(d.importedAt)})`,
-      run: () => {
-        on.undo(d);
-      }
-    });
-  }
-  return items;
+    }
+  ];
 }
 
 function stop(e: Event) {
@@ -72,7 +58,8 @@ export function menuButton(
   host: HTMLElement,
   set: (menu: RowMenu | null) => void
 ) {
-  if (d.outdated && !d.undoable) return nothing;
+  // An outdated dataset won't open, so it can't be exported.
+  if (d.outdated) return nothing;
   const open = menu?.dataset.slug === d.slug;
   return html`<button
     class="icon"
