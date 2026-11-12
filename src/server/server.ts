@@ -40,7 +40,7 @@ interface DatasetHandlers
   handlePersons: () => Response;
   handleFamilies: () => Response;
   handlePerson: (id: number) => Response;
-  handleMedia: (rest: string, mediaRoot: string) => Promise<Response>;
+  handleMedia: (rest: string) => Promise<Response>;
   // The Citation routes; null for any other path.
   routeCitations: DatasetCitations['route'];
   // The dataset's Photos, and tagging people in them.
@@ -50,7 +50,8 @@ interface DatasetHandlers
 
 function createDatasetHandlers(
   db: Database,
-  scans: DatasetCitations
+  scans: DatasetCitations,
+  mediaDir: string
 ): DatasetHandlers {
   const tree = createTree(db);
   const personDetails = createPersonDetails(db, scans);
@@ -176,10 +177,10 @@ function createDatasetHandlers(
         : new Response('fact not found', { status: 404 });
     },
 
-    async handleMedia(rest, mediaRoot) {
+    async handleMedia(rest) {
       const rel = decodeURIComponent(rest.slice('/media/'.length));
-      const fullPath = resolve(mediaRoot, rel);
-      if (relative(mediaRoot, fullPath).startsWith('..')) {
+      const fullPath = resolve(mediaDir, rel);
+      if (relative(mediaDir, fullPath).startsWith('..')) {
         return new Response('forbidden', { status: 403 });
       }
       const file = Bun.file(fullPath);
@@ -209,8 +210,7 @@ async function routeReads(
 async function routeDataset(
   req: Request,
   handlers: DatasetHandlers,
-  rest: string,
-  mediaRoot: string
+  rest: string
 ): Promise<Response | null> {
   const read = await routeReads(req, handlers, rest);
   if (read !== null) return read;
@@ -225,7 +225,7 @@ async function routeDataset(
   const photo = await routePhotos(req, handlers, rest);
   if (photo !== null) return photo;
   if (rest.startsWith('/media/')) {
-    return await handlers.handleMedia(rest, mediaRoot);
+    return await handlers.handleMedia(rest);
   }
   return null;
 }
@@ -290,7 +290,11 @@ export function createApi(
   function handlersOf(db: Database) {
     let handlers = handlersByDb.get(db);
     if (handlers === undefined) {
-      handlers = createDatasetHandlers(db, scans.forDataset(db));
+      handlers = createDatasetHandlers(
+        db,
+        scans.forDataset(db),
+        registry.mediaDirOf(db)
+      );
       handlersByDb.set(db, handlers);
     }
     return handlers;
@@ -315,7 +319,7 @@ export function createApi(
       if (handlers === null) {
         return new Response('dataset not found', { status: 404 });
       }
-      return await routeDataset(req, handlers, rest, registry.mediaDir(slug));
+      return await routeDataset(req, handlers, rest);
     }
   };
 }

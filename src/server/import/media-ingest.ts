@@ -1,7 +1,7 @@
-import { createHash } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
-import { extname, isAbsolute, join, relative, resolve } from 'node:path';
+import { extname, isAbsolute, relative, resolve } from 'node:path';
 
+import { storeMediaFile } from '../datasets/media-files';
 import { localPaths, storedPaths } from '../gedcom/media-refs';
 import type { GedNode } from '../gedcom/parser';
 import { runPool } from './pool';
@@ -35,14 +35,7 @@ async function storeFile(
   targetDir: string
 ): Promise<string> {
   const bytes = new Uint8Array(await Bun.file(sourceAbsPath).arrayBuffer());
-  const hash = createHash('sha256').update(bytes).digest('hex').slice(0, 12);
-  const ext = extname(sourceAbsPath).toLowerCase();
-  const name = `${hash}${ext}`;
-  const target = join(targetDir, name);
-  if (!(await Bun.file(target).exists())) {
-    await Bun.write(target, bytes);
-  }
-  return name;
+  return await storeMediaFile(bytes, extname(sourceAbsPath), targetDir);
 }
 
 const WIN_ABS_RE = /^[A-Za-z]:[\\/]/u;

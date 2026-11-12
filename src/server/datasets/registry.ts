@@ -6,7 +6,7 @@
 import type { Database } from 'bun:sqlite';
 import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readdir, rename, rm } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 import type { DatasetInfo, ExportKind } from '@/common/types';
 
@@ -54,6 +54,11 @@ export class DatasetRegistry {
   mediaDir(slug: string): string {
     validateSlug(slug);
     return join(this.datasetDir(slug), 'media');
+  }
+
+  // The media folder beside a dataset's open database.
+  mediaDirOf(db: Database): string {
+    return join(dirname(db.filename), 'media');
   }
 
   // Close any open handle and remove the dataset from disk. Returns false if no
