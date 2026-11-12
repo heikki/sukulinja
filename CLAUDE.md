@@ -20,4 +20,4 @@ Short, plain, imperative subject, like "Ask before clearing the scan cache". Bod
 
 ## Before pushing
 
-`bun install` turns on `.githooks/pre-push`, which runs `bun run check` (CI's format, lint, typecheck and tests) and stops a push that would break master. In a cloud session Electrobun's postinstall fails (it can't download its SDK), but the install is otherwise done and the hook then runs formatting and tests only. Never push with `--no-verify`.
+`bun install` (run by `scripts/session-start.sh` when a cloud session starts) turns on `.githooks/pre-push`, which runs `bun run check` (CI's format, lint, typecheck and tests) and stops a push that would break master. In a cloud session Electrobun's postinstall fails (it can't download its SDK), but the install is otherwise done and the hook then runs formatting and tests only. Never push with `--no-verify`.
