@@ -8,6 +8,7 @@ import type { Changes } from './changes/changes';
 import { openCitations } from './citations';
 import type { Astia, DatasetCitations } from './citations';
 import { lifecycleRoutes } from './datasets/lifecycle-routes';
+import { mediaDirOf } from './datasets/registry';
 import type { DatasetRegistry } from './datasets/registry';
 import { createFacts } from './facts/facts';
 import type { FactAnswer } from './facts/facts';
@@ -18,8 +19,8 @@ import { createRelatives } from './persons/relatives';
 import type { RelativeAnswer } from './persons/relatives';
 import { routePersons } from './persons/routes';
 import type { PersonHandlers } from './persons/routes';
-import { createPhotos, openTags, routePhotos } from './photos';
-import type { Photos, Tags } from './photos';
+import { createPhotos, openPhotoFiles, openTags, routePhotos } from './photos';
+import type { PhotoFiles, Photos, Tags } from './photos';
 import { createReminders } from './reminders/reminders';
 import { routeReminders } from './reminders/routes';
 import type { ReminderHandlers } from './reminders/routes';
@@ -43,8 +44,9 @@ interface DatasetHandlers
   handleMedia: (rest: string) => Promise<Response>;
   // The Citation routes; null for any other path.
   routeCitations: DatasetCitations['route'];
-  // The dataset's Photos, and tagging people in them.
+  // The dataset's Photos, added and deleted, and tagging people in them.
   photos: Photos;
+  photoFiles: PhotoFiles;
   tags: Tags;
 }
 
@@ -62,6 +64,9 @@ function createDatasetHandlers(
     changes.add(change);
   });
   const tags = openTags(db, photos, (change) => {
+    changes.add(change);
+  });
+  const photoFiles = openPhotoFiles(db, mediaDir, photos, (change) => {
     changes.add(change);
   });
   const relatives = createRelatives(db, (change) => {
@@ -128,6 +133,7 @@ function createDatasetHandlers(
     routeCitations: scans.route,
 
     photos,
+    photoFiles,
     tags,
 
     async handleReminders() {
@@ -293,7 +299,7 @@ export function createApi(
       handlers = createDatasetHandlers(
         db,
         scans.forDataset(db),
-        registry.mediaDirOf(db)
+        mediaDirOf(db)
       );
       handlersByDb.set(db, handlers);
     }

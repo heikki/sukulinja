@@ -6,8 +6,8 @@ import type { MenuItem } from '../context-menu';
 // only to discard it. Elsewhere, with nothing pending: on someone's Box,
 // their Tag's (`onBox`, their id), to edit or delete it, as a Citation's
 // Box offers, and to use it as their portrait unless it is (`portrait`).
-// Anywhere else once the Photo is shown (`canTag`),
-// a new Tag for someone.
+// Anywhere else, a new Tag for someone once the Photo is shown
+// (`canTag`), and deleting the Photo, even one that couldn't be shown.
 export function photoItems(
   viewer: PhotoViewer,
   where: {
@@ -51,5 +51,8 @@ export function photoItems(
       }
     ];
   }
-  return where.canTag ? [{ label: 'Tag someone here…', run: open.tag }] : [];
+  const tag: MenuItem[] = where.canTag
+    ? [{ label: 'Tag someone here…', run: open.tag }]
+    : [];
+  return [...tag, { label: 'Delete photo…', run: viewer.askDelete }];
 }

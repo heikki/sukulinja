@@ -300,6 +300,29 @@ describe('the answers', () => {
     ]);
   });
 
+  test('a Photo added from disk, served, and deleted', async () => {
+    const file = new File([new Uint8Array([0xff, 0xd8, 0xff])], 'Talo.jpg', {
+      type: 'image/jpeg'
+    });
+    const added = await api.addPhoto(file);
+    expect(added).toMatchObject({ already: false, photo: { people: [] } });
+    expect(await api.addPhoto(file)).toEqual({ ...added, already: true });
+    expect(await status(api.mediaUrl(added.photo.path))).toBe(200);
+    expect(await failure(api.addPhoto(new File(['x'], 'kirje.txt')))).toBe(
+      "kirje.txt isn't a picture"
+    );
+    await api.deletePhoto(added.photo.id);
+    expect(await api.photos()).toEqual([]);
+    expect(await status(api.mediaUrl(added.photo.path))).toBe(404);
+    expect(await failure(api.deletePhoto(added.photo.id))).toBe(
+      'photo not found'
+    );
+    expect((await api.changes()).map((c) => c.what)).toEqual([
+      { kind: 'photo', did: 'delete', photo: 'Talo.jpg', people: 0 },
+      { kind: 'photo', did: 'add', photo: 'Talo.jpg' }
+    ]);
+  });
+
   test("a Volume's Images and archive, and its citations", async () => {
     const volume = await api.volume(VOLUME);
     expect(volume.images).toHaveLength(IMAGES);

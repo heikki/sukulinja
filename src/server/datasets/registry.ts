@@ -56,11 +56,6 @@ export class DatasetRegistry {
     return join(this.datasetDir(slug), 'media');
   }
 
-  // The media folder beside a dataset's open database.
-  mediaDirOf(db: Database): string {
-    return join(dirname(db.filename), 'media');
-  }
-
   // Close any open handle and remove the dataset from disk. Returns false if no
   // dataset by that slug existed.
   async delete(slug: string): Promise<boolean> {
@@ -257,6 +252,12 @@ export class DatasetRegistry {
   private datasetDir(slug: string): string {
     return join(this.root, slug);
   }
+}
+
+// The media folder beside a dataset's open database, as mediaDir() names
+// it by the dataset's slug.
+export function mediaDirOf(db: Database): string {
+  return join(dirname(db.filename), 'media');
 }
 
 // What a new import of a dataset keeps of the one it replaces: its

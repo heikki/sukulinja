@@ -132,6 +132,13 @@ export interface PhotoPerson {
   box: Box | null;
 }
 
+// A picture added from disk: the Photo, and whether the dataset had it
+// already, the same file added before.
+export interface AddedPhoto {
+  photo: PhotoRow;
+  already: boolean;
+}
+
 // A person's own fact, or a fact of a marriage they're in (with the spouse).
 export interface FactRow {
   id: number;
@@ -519,6 +526,10 @@ export type ChangeWhat =
   | { kind: 'untag'; photo: string }
   // The Photo named chosen as the person's portrait.
   | { kind: 'portrait'; photo: string }
+  // A Photo added from disk, or deleted with how many people were on it,
+  // by its file name.
+  | { kind: 'photo'; did: 'add'; photo: string }
+  | { kind: 'photo'; did: 'delete'; photo: string; people: number }
   // A Fact added, changed or deleted, by its tag, as it read before and
   // after (factWords), null for none.
   | {

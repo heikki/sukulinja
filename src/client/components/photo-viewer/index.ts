@@ -36,7 +36,7 @@ function typing(e: KeyboardEvent) {
 // it show only while they or their rows beside it are hovered, so the
 // Photo can be looked at and zoomed bare, the Selected person's also
 // while a Tag is edited; each Box and row leads to its person. A right-click tags someone
-// there, or moves or removes a Tag (ADR-0017). Esc backs out of a Tag
+// there, or moves or removes a Tag (ADR-0017), or deletes the Photo. Esc backs out of a Tag
 // pending, else closes it, as the Photo clicked again in the panel does.
 @customElement('sl-photo-viewer')
 class PhotoViewerElement extends SignalWatcher(LitElement) {
@@ -139,12 +139,14 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
     this.state.photoViewer.step(by);
   };
 
-  // A Tag pending, waiting to be taken back, or refused.
+  // A Tag pending, waiting to be taken back, or refused, or the Photo
+  // waiting to be deleted.
   private get editing() {
     const viewer = this.state.photoViewer;
     return (
       viewer.pending.get() !== null ||
       viewer.removing.get() !== null ||
+      viewer.deleting.get() ||
       viewer.refused.get() !== null
     );
   }

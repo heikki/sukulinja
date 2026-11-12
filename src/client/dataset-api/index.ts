@@ -4,6 +4,7 @@
 
 import { readNdjson } from '@/client/ndjson';
 import type {
+  AddedPhoto,
   Box,
   Change,
   ChurchBookArchive,
@@ -117,8 +118,13 @@ export interface DatasetApi {
   // Every Photo of the dataset, those no one is linked to or tagged in
   // first, then as the import listed them.
   photos: (signal?: AbortSignal) => Promise<PhotoRow[]>;
-  // A photo imported with the dataset.
+  // A Photo's file, as the dataset stores it.
   mediaUrl: (storedPath: string) => string;
+  // Adds a picture from disk as a Photo linked to no one: it, or the one
+  // the dataset has of the same file. Refused for what isn't a picture.
+  addPhoto: (file: File) => Promise<AddedPhoto>;
+  // Deletes a Photo, its links and its file.
+  deletePhoto: (photoId: number) => Promise<void>;
   // Tags the person in the Photo at `box`, or moves their Tag there; the
   // Photo as it is now.
   tag: (photoId: number, personId: number, box: Box) => Promise<PhotoRow>;
@@ -358,6 +364,22 @@ export function openDatasetApi(
       await json<PhotoRow[]>('Photos', `${dataset}/api/photos`, signal),
 
     mediaUrl: (storedPath) => `${dataset}/media/${storedPath}`,
+
+    async addPhoto(file) {
+      const body = new FormData();
+      body.append('file', file);
+      const res = await ask(`Adding ${file.name}`, `${dataset}/api/photos`, {
+        method: 'POST',
+        body
+      });
+      return (await res.json()) as AddedPhoto;
+    },
+
+    async deletePhoto(photoId) {
+      await ask('Deleting the photo', `${dataset}/api/photos/${photoId}`, {
+        method: 'DELETE'
+      });
+    },
 
     async tag(photoId, personId, box) {
       const url = `${dataset}/api/photos/${photoId}/tags/${personId}`;

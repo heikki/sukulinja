@@ -27,6 +27,10 @@ A photo an import links to a person without a `CROP` is the export's link, not a
 - **A re-import keeps the app's Tags**, as a Citation's Annotation is kept: the export's own part of a photo (its file, links and crops) comes from the new export. Only what a Tag needs is saved: the Photo, the person and the Box ("ei tallenneta mitään turhaa tauhkaa").
 - **An import keeps every Photo** (Heikki, 2026-11-11), also one linked to no one, which it drops today: ticket 04.
 - **Choosing the portrait** (Heikki, 2026-11-11): _Use as portrait_ on a person's Box in the Photo viewer puts their Tag first among their links. Done.
+- **Adding and deleting Photos** (Heikki, 2026-11-12: "Kuvia pitäisi pystyä poistamaan ja lisäämään."). Done:
+  - _Add photos…_ under the **Photos** view picks pictures from disk (JPEG, PNG, GIF, WebP, HEIC), several at once. Each is stored as an import stores one, named by its content in the dataset's media folder, with its file name kept as `original_path` so the GEDZIP packs it under that name. It's a Photo linked to no one, listed among them, and the first added opens in the Photo viewer, where people are tagged in it. The same file added again is the Photo the dataset has. What isn't a picture is refused, by its name.
+  - _Delete photo…_ on the Photo in the Photo viewer (off any Box), asked first with how many people are in it. It takes every link to the Photo with it, the import's and Tags alike, and their notes, and removes its file; nothing brings it back (ADR-0021). A person's portrait falls to their next Photo. The viewer shows the next Photo it steps through.
+  - Each is a **Change** on nothing, by the file name: _Added a photo_, _Deleted a photo_ (with the people it was on). A Tag's older Changes stay on their person.
 - **The export writes a Tag as the person's `OBJE` link with a `CROP`**, the form a Citation's Astia link and Box already take in the GEDZIP, and the form MyHeritage's face crops come in. The 5.5.1 file leaves them out, as today.
 
 ## Architecture notes
@@ -37,4 +41,4 @@ A photo an import links to a person without a `CROP` is the export's link, not a
 
 ## Later
 
-- After tagging: a title or date, adding a photo from disk, removing a photo.
+- After tagging: a title or date. Adding a photo from a person's panel, linked to them.

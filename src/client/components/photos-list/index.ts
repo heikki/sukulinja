@@ -1,6 +1,6 @@
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
-import { css, html, LitElement } from 'lit';
+import { css, html, LitElement, nothing } from 'lit';
 import { customElement } from 'lit/decorators.js';
 
 import { appState } from '@/client/state';
@@ -13,7 +13,9 @@ import { peopleLine } from './helpers';
 // Every Photo of the dataset as thumbnails, those no one is linked to or
 // tagged in first, each with how many people are on it. Picking one opens
 // it in the Photo viewer with no person, to step through them all there;
-// the one it shows is marked. A tab of the corner panel, as the Church
+// the one it shows is marked. _Add photos…_ under them picks pictures
+// from disk, added as Photos linked to no one, and opens the first in the
+// Photo viewer to tag people in. A tab of the corner panel, as the Church
 // books are.
 @customElement('sl-photos-list')
 class PhotosListElement extends SignalWatcher(LitElement) {
@@ -67,6 +69,16 @@ class PhotosListElement extends SignalWatcher(LitElement) {
         height: 100%;
         object-fit: cover;
       }
+
+      input[type='file'] {
+        display: none;
+      }
+
+      p.refused {
+        margin: 0 0 0.5rem;
+        color: var(--danger);
+        font-size: 0.85rem;
+      }
     `
   ];
 
@@ -75,6 +87,54 @@ class PhotosListElement extends SignalWatcher(LitElement) {
   override connectedCallback() {
     super.connectedCallback();
     this.state.photos.load();
+  }
+
+  private pick() {
+    this.renderRoot
+      .querySelector<HTMLInputElement>('input[type=file]')
+      ?.click();
+  }
+
+  private async onPicked(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const files = [...(input.files ?? [])];
+    input.value = '';
+    const first = await this.state.photos.add(files);
+    if (first !== null) this.state.chart.openPhoto(first, 'all');
+  }
+
+  // Add photos…, or how adding goes, and why any wasn't added.
+  private renderAdd() {
+    const photos = this.state.photos;
+    const adding = photos.adding.get();
+    const refused = photos.refused.get();
+    return html`
+      ${refused.map((why) => html`<p class="refused">${why}</p>`)}
+      <div class="actions">
+        <button
+          class="toggle"
+          ?disabled=${adding !== null}
+          @click=${() => {
+            photos.dismiss();
+            this.pick();
+          }}
+        >
+          ${
+            adding === null
+              ? 'Add photos…'
+              : `Adding ${Math.min(adding.done + 1, adding.of)} of ${adding.of}…`
+          }
+        </button>
+      </div>
+      <input
+        type="file"
+        multiple
+        accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.gif,.webp,.heic,.heif"
+        @change=${(e: Event) => {
+          void this.onPicked(e);
+        }}
+      />
+    `;
   }
 
   private renderPhoto(p: PhotoRow, shown: number | null) {
@@ -101,7 +161,7 @@ class PhotosListElement extends SignalWatcher(LitElement) {
     </button>`;
   }
 
-  override render() {
+  private renderList() {
     const all = this.state.photos.all.get();
     if (all === null) return html`<p class="muted">Loading…</p>`;
     if (all === 'failed') {
@@ -114,6 +174,11 @@ class PhotosListElement extends SignalWatcher(LitElement) {
     return html`<div class="grid">
       ${all.map((p) => this.renderPhoto(p, shown))}
     </div>`;
+  }
+
+  override render() {
+    const failed = this.state.photos.all.get() === 'failed';
+    return html`${this.renderList()} ${failed ? nothing : this.renderAdd()}`;
   }
 }
 

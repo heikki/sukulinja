@@ -190,3 +190,57 @@ test('chooses the Photo as a tagged person’s portrait, and says why not when r
   photos.cancel();
   expect(photos.refused.get()).toBeNull();
 });
+
+async function deleting() {
+  const api = memoryDatasetApi({
+    details: { 1: person(1, [PORTRAIT, GROUP]) },
+    photos: { 10: structuredClone(PORTRAIT), 11: structuredClone(GROUP) }
+  });
+  const selected = openSelected(api, { grace: 0 });
+  await selected.select(1);
+  const tagged: number[] = [];
+  const photos = openPhotoViewer(api, selected, openPhotos(api), {
+    tagged: (id) => {
+      tagged.push(id);
+    }
+  });
+  return { api, photos, tagged };
+}
+
+test('deletes the Photo once asked, and shows the next one', async () => {
+  const { api, photos, tagged } = await deleting();
+  photos.open(PORTRAIT);
+  photos.askDelete();
+  expect(photos.deleting.get()).toBe(true);
+  photos.step(1);
+  expect(photos.opened.get()).toBe(PORTRAIT);
+  await photos.save();
+  expect(api.asked).toContain('delete photo 10');
+  expect(photos.opened.get()).toBe(GROUP);
+  expect(photos.deleting.get()).toBe(false);
+  expect(tagged).toEqual([1]);
+});
+
+test('the last Photo deleted shows the one before, the only one closes', async () => {
+  const { photos } = await deleting();
+  photos.open(GROUP);
+  photos.askDelete();
+  await photos.save();
+  expect(photos.opened.get()).toBe(PORTRAIT);
+  photos.open(PORTRAIT, 'all');
+  photos.askDelete();
+  await photos.save();
+  expect(photos.opened.get()).toBeNull();
+});
+
+test('a deletion asked is dropped by Cancel, and not asked while tagging', async () => {
+  const { api, photos } = await deleting();
+  photos.open(GROUP);
+  photos.askDelete();
+  photos.cancel();
+  await photos.save();
+  expect(api.asked).not.toContain('delete photo 11');
+  photos.tagFor(2, BOX);
+  photos.askDelete();
+  expect(photos.deleting.get()).toBe(false);
+});

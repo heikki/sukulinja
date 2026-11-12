@@ -3,6 +3,7 @@
 // Volumes and Marks throw ApiError with the server's words.
 
 import type {
+  AddedPhoto,
   Change,
   ChurchBookArchive,
   CitationLinks,
@@ -56,8 +57,9 @@ export interface MemoryDataset {
   places?: string[];
   // The archives the church books are in, as given.
   archives?: ChurchBookArchive[];
-  // By Photo id: what `tag` and `untag` change, and `photos` lists by
-  // id.
+  // By Photo id: what `tag` and `untag` change, `addPhoto` adds to,
+  // numbered on from 5000 with its file name as its path, `deletePhoto`
+  // takes out, and `photos` lists by id.
   photos?: Record<number, PhotoRow>;
 }
 
@@ -77,7 +79,8 @@ type MemoryDatasetApi = DatasetApi & {
   // <file>"), "change reminder <id>", "delete reminder <id>", "tag
   // <photo> <person>", "untag <photo> <person>", "portrait <photo>
   // <person>", "photos", "places", "add fact <person> <tag>[ in <family>]: <date>",
-  // "edit fact <person> <fact>: <date>", "delete fact <person> <fact>".
+  // "edit fact <person> <fact>: <date>", "delete fact <person> <fact>",
+  // "add photo <file name>", "delete photo <photo>".
   // `addFact` answers ids numbered on from 3000; Facts don't change the
   // details given. "add <relation> of <person>: <given> <surname>": a
   // person `addRelative` adds joins `persons`, numbered on from 4000, in
@@ -104,6 +107,9 @@ export function memoryDatasetApi(
   const persons = [...(data.persons ?? [])];
   let reminders = [...(data.reminders ?? [])];
   let changes = [...(data.changes ?? [])];
+  const photos = new Map(
+    Object.entries(data.photos ?? {}).map(([id, p]) => [Number(id), p])
+  );
 
   async function answer<T>(
     what: string,
@@ -159,7 +165,7 @@ export function memoryDatasetApi(
   }
 
   function photo(id: number) {
-    return found(data.photos?.[id], 'photo not found');
+    return found(photos.get(id), 'photo not found');
   }
 
   function volume(volumeId: string) {
@@ -323,10 +329,31 @@ export function memoryDatasetApi(
 
     photos: async (signal) =>
       await answer('photos', signal, () =>
-        structuredClone(Object.values(data.photos ?? {}))
+        structuredClone([...photos.values()])
       ),
 
     mediaUrl: (storedPath) => `memory:media/${storedPath}`,
+
+    addPhoto: async (file) =>
+      await answer(`add photo ${file.name}`, undefined, (): AddedPhoto => {
+        if (!file.type.startsWith('image/')) {
+          throw new ApiError(`${file.name} isn't a picture`);
+        }
+        const had = [...photos.values()].find((p) => p.path === file.name);
+        if (had !== undefined) {
+          return { photo: structuredClone(had), already: true };
+        }
+        const added = { id: 5000 + photos.size, path: file.name, people: [] };
+        photos.set(added.id, added);
+        return { photo: structuredClone(added), already: false };
+      }),
+
+    async deletePhoto(photoId) {
+      await answer(`delete photo ${photoId}`, undefined, () => {
+        photo(photoId);
+        photos.delete(photoId);
+      });
+    },
 
     tag: async (photoId, personId, box) =>
       await answer(`tag ${photoId} ${personId}`, undefined, () => {

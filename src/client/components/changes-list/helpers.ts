@@ -50,6 +50,8 @@ export function doneLabel(what: ChangeWhat) {
       return 'Took back the Tag';
     case 'portrait':
       return 'Chose the portrait';
+    case 'photo':
+      return what.did === 'add' ? 'Added a photo' : 'Deleted a photo';
     case 'fact':
       return factDone(what);
     case 'person':
@@ -66,7 +68,7 @@ export function doneLabel(what: ChangeWhat) {
 }
 
 // Where it was done, and what more it said: the Volume and Image, a
-// deleted Citation's text, a Tag's Photo, what an import couldn't keep, or a filming's
+// deleted Citation's text, a Tag's or a Photo's file name, what an import couldn't keep, or a filming's
 // Image counts. Null when there's nothing more.
 export function detailOf(what: ChangeWhat) {
   switch (what.kind) {
@@ -87,6 +89,10 @@ export function detailOf(what: ChangeWhat) {
     case 'untag':
     case 'portrait':
       return what.photo;
+    case 'photo':
+      return what.did === 'add' || what.people === 0
+        ? what.photo
+        : `${what.photo}, on ${count(what.people, 'person', 'people')}`;
     case 'fact':
       return factDetail(what);
     case 'person':

@@ -38,8 +38,8 @@ function labels(
 
 test('offers a new Tag on the Photo once it shows, and a Box its own', () => {
   const photos = viewer();
-  expect(labels(photos, {})).toEqual(['Tag someone here…']);
-  expect(labels(photos, { canTag: false })).toEqual([]);
+  expect(labels(photos, {})).toEqual(['Tag someone here…', 'Delete photo…']);
+  expect(labels(photos, { canTag: false })).toEqual(['Delete photo…']);
   expect(labels(photos, { onBox: 3 })).toEqual([
     'Use as portrait',
     'Edit',

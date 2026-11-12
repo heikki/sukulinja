@@ -26,7 +26,9 @@ export type PhotosFrom = 'person' | 'all';
 // the Photo keeps it open, as it's theirs too; selecting anyone else
 // closes it. People are tagged in it (ADR-0017, ADR-0020): a Tag is placed, then
 // saved or dropped, and one taken back is asked about first. A Tag's
-// Photo is chosen as the person's portrait at once.
+// Photo is chosen as the person's portrait at once. Deleting the Photo
+// itself is asked about first too, and then shows the next one it steps
+// through, else the one before, else closes.
 export interface PhotoViewer {
   // The Photo shown; null while it's closed.
   opened: Readable<PhotoRow | null>;
@@ -44,6 +46,9 @@ export interface PhotoViewer {
   pending: Readable<PendingTag | null>;
   // Whose Tag waits to be taken back, until confirmed or cancelled.
   removing: Readable<number | null>;
+  // Whether the Photo shown waits to be deleted, until confirmed or
+  // cancelled.
+  deleting: Readable<boolean>;
   // A new Tag for the person at `box`, pending.
   tagFor: (personId: number, box: Box) => void;
   // The person's Tag, pending to be moved.
@@ -52,10 +57,12 @@ export interface PhotoViewer {
   setBox: (box: Box) => void;
   // Asks to take back the person's Tag.
   untag: (personId: number) => void;
-  // Drops the pending Tag or the removal asked.
+  // Asks to delete the Photo shown; not while a Tag is pending.
+  askDelete: () => void;
+  // Drops the pending Tag, or the removal or deletion asked.
   cancel: () => void;
-  // Saves the pending Tag, or takes back the one asked, throwing ApiError
-  // if it's refused.
+  // Saves the pending Tag, takes back the one asked, or deletes the Photo,
+  // throwing ApiError if it's refused.
   save: () => Promise<void>;
   // Makes the Photo shown the person's portrait, cropped to their Tag's
   // Box.
@@ -69,13 +76,14 @@ export function openPhotoViewer(
   selected: Selected,
   // Read again once a Tag is saved or taken back.
   photos: Photos,
-  // Told once a Tag is saved or taken back, or a portrait chosen, as it
-  // may change the person's portrait.
+  // Told once a Tag is saved or taken back, a portrait chosen, or a Photo
+  // they were on deleted, as it may change the person's portrait.
   { tagged = () => undefined }: { tagged?: (personId: number) => void } = {}
 ): PhotoViewer {
   const opened = signal<PhotoRow | null>(null);
   const pending = signal<PendingTag | null>(null);
   const removing = signal<number | null>(null);
+  const deleting = signal(false);
   const from = signal<PhotosFrom>('person');
   const refused = signal<string | null>(null);
 
@@ -88,6 +96,7 @@ export function openPhotoViewer(
   function show(photo: PhotoRow | null) {
     pending.set(null);
     removing.set(null);
+    deleting.set(false);
     refused.set(null);
     opened.set(photo);
   }
@@ -102,13 +111,28 @@ export function openPhotoViewer(
       ?.people.find((p) => p.personId === personId && p.box !== null);
   }
 
-  // The Photo as the save left it, if it's still the one shown; the
-  // Selected person's Photos and every Photo read again.
-  function saved(photo: PhotoRow, personId: number) {
-    if (opened.get()?.id === photo.id) show(photo);
-    tagged(personId);
+  // The Selected person's Photos and every Photo read again, as the
+  // person's portrait may have changed.
+  function reread(personIds: number[]) {
+    for (const id of personIds) tagged(id);
     void selected.refresh();
     photos.refresh();
+  }
+
+  // The Photo as the save left it, if it's still the one shown.
+  function saved(photo: PhotoRow, personId: number) {
+    if (opened.get()?.id === photo.id) show(photo);
+    reread([personId]);
+  }
+
+  // Deletes the Photo, and shows the next one in its place.
+  async function remove(photo: PhotoRow) {
+    const list = among();
+    const at = list.findIndex((p) => p.id === photo.id);
+    const next = at === -1 ? null : (list[at + 1] ?? list[at - 1] ?? null);
+    await api.deletePhoto(photo.id);
+    if (opened.get()?.id === photo.id) show(next);
+    reread(photo.people.map((p) => p.personId));
   }
 
   return {
@@ -120,6 +144,7 @@ export function openPhotoViewer(
     among,
     step(by) {
       if (pending.get() !== null || removing.get() !== null) return;
+      if (deleting.get()) return;
       const shown = opened.get();
       const list = among();
       const at = list.findIndex((p) => p.id === shown?.id);
@@ -134,8 +159,10 @@ export function openPhotoViewer(
 
     pending,
     removing,
+    deleting,
     tagFor(personId, box) {
       removing.set(null);
+      deleting.set(false);
       refused.set(null);
       pending.set({ personId, box, moving: false });
     },
@@ -145,6 +172,7 @@ export function openPhotoViewer(
         ?.people.find((p) => p.personId === personId)?.box;
       if (box === undefined || box === null) return;
       removing.set(null);
+      deleting.set(false);
       refused.set(null);
       pending.set({ personId, box, moving: true });
     },
@@ -155,12 +183,20 @@ export function openPhotoViewer(
     untag(personId) {
       if (tagOf(personId) === undefined) return;
       pending.set(null);
+      deleting.set(false);
       refused.set(null);
       removing.set(personId);
+    },
+    askDelete() {
+      if (opened.get() === null || pending.get() !== null) return;
+      removing.set(null);
+      refused.set(null);
+      deleting.set(true);
     },
     cancel() {
       pending.set(null);
       removing.set(null);
+      deleting.set(false);
       refused.set(null);
     },
     async save() {
@@ -172,6 +208,8 @@ export function openPhotoViewer(
         saved(await api.tag(photo.id, tag.personId, tag.box), tag.personId);
       } else if (gone !== null) {
         saved(await api.untag(photo.id, gone), gone);
+      } else if (deleting.get()) {
+        await remove(photo);
       }
     },
     async choosePortrait(personId) {
