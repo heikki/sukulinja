@@ -8,8 +8,9 @@ import type { Selected } from './selected';
 // relative, a new person or one already in the tree, changing a person's
 // name and sex, taking them out of a family, and deleting them. Each throws ApiError if it's refused.
 export interface PersonEdits {
-  // Once in place, the chart has the relative, selected.
-  addRelative: (personId: number, relative: NewRelative) => Promise<void>;
+  // Once in place, the chart has the relative: their id, for whoever
+  // asked to select them, or cite or tag them.
+  addRelative: (personId: number, relative: NewRelative) => Promise<number>;
   // Once changed, the chart and the panel read the person again.
   edit: (personId: number, name: PersonName) => Promise<void>;
   // Once taken out of the family, the chart and the panel read the tree
@@ -49,7 +50,8 @@ export function openPersonEdits(
   return {
     async addRelative(personId, relative) {
       const id = await api.addRelative(personId, relative);
-      await chart.added(id);
+      await chart.relinked();
+      return id;
     },
     async edit(personId, name) {
       await api.editPerson(personId, name);

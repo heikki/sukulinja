@@ -12,9 +12,8 @@ import type { FamilyRow, Relation } from '@/common/types';
 import type { MenuItem } from '../context-menu';
 import {
   addableRelations,
-  childFamilies,
   RELATION_LABELS,
-  startingSex
+  relativeFormProps
 } from '../person-form/relations';
 import { unlinkings } from '../person-form/unlinkings';
 
@@ -205,14 +204,18 @@ class CardMenuElement extends SignalWatcher(LitElement) {
         }}
       ></sl-context-menu>`;
     }
+    const form = relativeFormProps(menu.personId, adding, people);
     return html`<sl-relative-form
       .personId=${menu.personId}
       .relation=${adding}
-      .heading=${`${RELATION_LABELS[adding]} of ${name}`}
+      .heading=${form.heading}
       .at=${menu.at}
-      .sex=${startingSex(adding, person.sex)}
-      .families=${adding === 'child' ? childFamilies(menu.personId, people) : []}
+      .sex=${form.sex}
+      .families=${form.families}
       .persons=${people.persons}
+      @added=${(e: CustomEvent<{ id: number }>) => {
+        void this.state.chart.added(e.detail.id);
+      }}
       @closed=${() => {
         this.close();
       }}

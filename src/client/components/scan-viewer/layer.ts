@@ -124,6 +124,7 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     return html`<sl-person-pick
       .heading=${'New citation for'}
       .at=${at}
+      .relativesOf=${selected}
       .choices=${family}
       .persons=${searchable(this.persons, left)}
       @pick=${(e: CustomEvent<{ id: number }>) => {

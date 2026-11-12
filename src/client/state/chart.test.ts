@@ -174,19 +174,23 @@ test('someone added is selected once the chart is drawn with them', async () => 
   }
   // The chart draws the new person as it redraws.
   drawn.push(4001);
-  await state.personEdits.addRelative(3, {
-    relation: 'child',
-    who: who('Pekka'),
-    familyId: null
-  });
+  await state.chart.added(
+    await state.personEdits.addRelative(3, {
+      relation: 'child',
+      who: who('Pekka'),
+      familyId: null
+    })
+  );
   expect(state.chart.people.get().persons.get(4001)?.given).toBe('Pekka');
   expect([root(), selectedId()]).toEqual([1, 4001]);
   // One it doesn't draw is built around.
-  await state.personEdits.addRelative(1, {
-    relation: 'father',
-    who: who('Olli'),
-    familyId: null
-  });
+  await state.chart.added(
+    await state.personEdits.addRelative(1, {
+      relation: 'father',
+      who: who('Olli'),
+      familyId: null
+    })
+  );
   expect([root(), selectedId()]).toEqual([4002, 4002]);
   expect(told).toEqual([
     'redrawn',

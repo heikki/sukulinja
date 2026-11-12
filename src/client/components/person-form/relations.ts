@@ -78,3 +78,20 @@ export function childFamilies(
     };
   });
 }
+
+// What the relative form is given for a new relative of the person, at
+// `at`: its heading, starting sex, the families a child can go into, and
+// everyone, some of whom may be the one meant.
+export function relativeFormProps(
+  personId: number,
+  relation: Relation,
+  ix: FamilyIndices
+) {
+  const person = ix.persons.get(personId);
+  const name = person === undefined ? '' : formatName(person);
+  return {
+    heading: `${RELATION_LABELS[relation]} of ${name}`,
+    sex: startingSex(relation, person?.sex ?? null),
+    families: relation === 'child' ? childFamilies(personId, ix) : []
+  };
+}

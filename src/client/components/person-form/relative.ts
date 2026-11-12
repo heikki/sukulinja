@@ -28,7 +28,8 @@ function stop(e: Event) {
 // surname and sex, and, for a child of someone with several families,
 // which. People already in the tree with a name like the one typed are
 // offered first, and picking one links them instead. Add or Enter adds a
-// new person; it, Cancel, Esc or a press elsewhere say `closed`. Presses
+// new person, then says who was put in place with `added`; it, Cancel,
+// Esc or a press elsewhere say `closed`. Presses
 // on it stay on it, so they don't pan the chart.
 @customElement('sl-relative-form')
 class RelativeFormElement extends LitElement {
@@ -162,11 +163,12 @@ class RelativeFormElement extends LitElement {
         ? null
         : (this.familyId ?? this.families[0]!.familyId);
     try {
-      await this.state.personEdits.addRelative(this.personId, {
+      const id = await this.state.personEdits.addRelative(this.personId, {
         relation: this.relation,
         who,
         familyId
       });
+      this.dispatchEvent(new CustomEvent('added', { detail: { id } }));
       this.close();
     } catch (err) {
       if (!(err instanceof ApiError)) throw err;

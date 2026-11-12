@@ -130,6 +130,7 @@ class PhotoLayerElement extends SignalWatcher(LitElement) {
     return html`<sl-person-pick
       .heading=${'Who is here?'}
       .at=${at}
+      .relativesOf=${selected}
       .choices=${selected === null ? [] : familyChoices(selected, people, left)}
       .persons=${searchable(people.persons, left)}
       @pick=${(e: CustomEvent<{ id: number }>) => {

@@ -84,13 +84,12 @@ export interface Chart {
   // The people read again, their families kept, as after a Tag changes
   // someone's portrait. Kept as they were if they can't be.
   reloadPeople: () => Promise<void>;
-  // Someone added to the tree: the people and their families read again,
-  // and once the chart is drawn with them, they're selected, as a card
-  // clicked, or built around if the chart doesn't draw them.
-  added: (id: number) => Promise<void>;
-  // Someone's families changed: the people and their families read again,
-  // the selection kept.
+  // Someone's families changed, or someone was added: the people and
+  // their families read again, the selection kept.
   relinked: () => Promise<void>;
+  // Someone just added, once the chart is drawn with them, selected, as a
+  // card clicked, or built around if the chart doesn't draw them.
+  added: (id: number) => Promise<void>;
   // Someone deleted: Root, if it was them, becomes `next`, as does the
   // Selected person; then the people and their families are read again.
   removed: (id: number, next: number) => Promise<void>;
@@ -257,7 +256,6 @@ export function openChart(
       }
     },
     async added(id) {
-      await readPeople();
       await view.redrawn();
       select(id);
     },
