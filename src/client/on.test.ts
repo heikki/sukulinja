@@ -62,7 +62,6 @@ const C11: CitationRow = {
   text: null,
   churchBook: true,
   madeInApp: false,
-  deletable: false,
   markKey: 'citation 11',
   citedPage: null,
   cited: null

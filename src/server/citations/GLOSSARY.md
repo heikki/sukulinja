@@ -27,7 +27,7 @@ Something to come back to, on a person, or on an **Image**, maybe about a person
 _Avoid_: note (a GEDCOM NOTE), annotation (a Citation's app-made additions), to-do.
 
 **Change**:
-One thing done in the app that changed the dataset: a **Mark** (or a **Match** confirmed), a **Discard**, a Citation made in the Scan viewer or deleted, a Tag made, moved or taken back, a **Fact** added, changed or deleted, an import (or, from before ADR-0021, an import undone), or a Volume switched to a **Re-scan**'s new filming. Each says what it did and what it was on (a person, a Citation, an Image, a Tag's Photo with its person, or nothing), and is listed under _Changes_, newest first, where picking one goes back there. Only the app keeps them. _Clear…_ forgets them all.
+One thing done in the app that changed the dataset: a **Mark** (or a **Match** confirmed), a **Discard**, a Citation made in the Scan viewer, or any Citation deleted, a Tag made, moved or taken back, a **Fact** added, changed or deleted, an import (or, from before ADR-0021, an import undone), or a Volume switched to a **Re-scan**'s new filming. Each says what it did and what it was on (a person, a Citation, an Image, a Tag's Photo with its person, or nothing), and is listed under _Changes_, newest first, where picking one goes back there. Only the app keeps them. _Clear…_ forgets them all.
 _Avoid_: log, history (alone; the browser's Back is history), edit.
 
 **Church-book reference**:
@@ -144,7 +144,7 @@ Saying by hand, in the Scan viewer, which Image a Church-book reference's record
 _Avoid_: correction (the link it replaces is often not wrong, only less exact).
 
 **Conversion**:
-Turning a Church-book reference Marked at the entry, with its Box, into a Citation of its Image, as if made in the app: it cites the Volume's source, its text is the record's transcription as plain lines, and its original page keeps the reference's URL. A Citation made in the app is never a Church-book reference. Every citation of the record converts together. A converted Citation can't be deleted, for now, and still counts as a **Record pin** (ADR-0016).
+Turning a Church-book reference Marked at the entry, with its Box, into a Citation of its Image, as if made in the app: it cites the Volume's source, its text is the record's transcription as plain lines, and its original page keeps the reference's URL. A Citation made in the app is never a Church-book reference. Every citation of the record converts together. A converted Citation still counts as a **Record pin** (ADR-0016), and can be deleted like any Citation (ADR-0021).
 _Avoid_: migration (that's the one-off script).
 
 **Discard**:

@@ -118,7 +118,7 @@ class ScanEditElement extends SignalWatcher(LitElement) {
 
   // Asked as the menu item chosen was named.
   private renderDiscard(source: LinkOpen) {
-    if (source.citation.deletable) return this.renderDelete();
+    if (source.citation.madeInApp) return this.renderDelete();
     const what = source.link?.certainty === 'match' ? 'match' : 'mark';
     return html`
       <p>Discard this ${what}?</p>

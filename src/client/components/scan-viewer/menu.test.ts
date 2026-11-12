@@ -38,7 +38,6 @@ function citation(id: number, madeInApp: boolean): CitationRow {
     text: null,
     churchBook: true,
     madeInApp,
-    deletable: madeInApp,
     markKey: `citation ${id}`,
     citedPage: null,
     cited: null
@@ -79,12 +78,6 @@ test('a Citation made in the app offers Delete on its Box; a Mark or Match, Disc
   expect(labels(made, { onBox: true, canBox: true })).toEqual([
     'Edit',
     'Delete',
-    'Add reminder…'
-  ]);
-  // Converted from a reference: made in the app, but kept (ADR-0016).
-  const converted = await viewing({ ...citation(4, true), deletable: false });
-  expect(labels(converted, { onBox: true, canBox: true })).toEqual([
-    'Edit',
     'Add reminder…'
   ]);
   const marked = await viewing(citation(2, false));

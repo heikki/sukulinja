@@ -183,9 +183,6 @@ export interface CitationRow {
   // Made in the app, on an Astia Image: it has no Church-book reference,
   // and its Link is the Mark it was made with.
   madeInApp: boolean;
-  // Whether it can be deleted: made in the app, not converted from a
-  // reference (ADR-0016).
-  deletable: boolean;
   // Citations with the same markKey share one Mark and its Box: those of
   // one record. A Citation with no Church-book reference has its own.
   markKey: string;

@@ -48,17 +48,18 @@ No behaviour change, each a commit, tests passing unchanged:
 
 ## Tickets
 
-Done 2026-11-11: 01–06 and 10. Done 2026-11-12: 08, 09. Open: 07 (`issues/`).
+Done 2026-11-11: 01–06 and 10. Done 2026-11-12: 07 (server and Scan viewer), 08, 09. Open: 11 (`issues/`).
 
-| #   | Ticket                                                                | Blocked by |
-| --- | --------------------------------------------------------------------- | ---------- |
-| 01  | Refuse an import over an existing dataset (ADR-0021)                  | none       |
-| 02  | The refactors above                                                   | none       |
-| 03  | Typed Finnish dates to GEDCOM, round trip with `gedcomDate`           | none       |
-| 04  | Edit a Fact's date, place, value and type, with its Change and `CHAN` | 02, 03     |
-| 05  | Add a Fact, a marriage to a chosen family                             | 04         |
-| 06  | Delete a Fact, its Citations moved to its owner                       | 04         |
-| 07  | Allow deleting imported and converted Citations (ADR-0021)            | none       |
-| 08  | Remove the re-import: merge, Undo last import, import review          | 01         |
-| 09  | Remove the 5.5.1 export                                               | none       |
-| 10  | Glossary: **Fact** made in the app too; the new Change kinds          | 04         |
+| #   | Ticket                                                                 | Blocked by |
+| --- | ---------------------------------------------------------------------- | ---------- |
+| 01  | Refuse an import over an existing dataset (ADR-0021)                   | none       |
+| 02  | The refactors above                                                    | none       |
+| 03  | Typed Finnish dates to GEDCOM, round trip with `gedcomDate`            | none       |
+| 04  | Edit a Fact's date, place, value and type, with its Change and `CHAN`  | 02, 03     |
+| 05  | Add a Fact, a marriage to a chosen family                              | 04         |
+| 06  | Delete a Fact, its Citations moved to its owner                        | 04         |
+| 07  | Allow deleting imported and converted Citations (ADR-0021)             | none       |
+| 08  | Remove the re-import: merge, Undo last import, import review           | 01         |
+| 09  | Remove the 5.5.1 export                                                | none       |
+| 10  | Glossary: **Fact** made in the app too; the new Change kinds           | 04         |
+| 11  | Delete any Citation from the panel's Sources, after moving Sources out | 07         |

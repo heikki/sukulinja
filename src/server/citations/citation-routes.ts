@@ -348,13 +348,8 @@ function citationHandlers(
 
     handleUncite(id) {
       const removed = citations.uncite(id);
-      if (removed === null) {
-        return new Response('citation not found', { status: 404 });
-      }
-      return removed === false
-        ? new Response('Only a Citation made in the app can be deleted.', {
-            status: 400
-          })
+      return removed === null
+        ? new Response('citation not found', { status: 404 })
         : new Response(null, { status: 204 });
     },
 

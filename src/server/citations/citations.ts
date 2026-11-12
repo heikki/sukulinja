@@ -132,8 +132,6 @@ function citationOf<R extends BookRef>(references: References<R>) {
           : citationText(row.text).trim(),
       churchBook: book !== null || stored !== null,
       madeInApp: row.annotation.madeInApp,
-      deletable:
-        row.annotation.madeInApp && row.annotation.originalPage === null,
       markKey: book === null ? `citation ${row.id}` : references.markKey(book),
       citedPage: book?.page ?? null,
       cited:
@@ -593,13 +591,11 @@ export function createCitations<R extends BookRef>(
     // Titles the Volume sources made before with their archive (ADR-0019).
     retitleVolumeSources: () => made.retitleVolumeSources(volumeArchive),
 
-    // Deletes a Citation made in the app, and gives it as it was, with
-    // whose it was; null when there's no such Citation, false for an
-    // imported one.
+    // Deletes a Citation, and gives it as it was, with whose it was; null
+    // when there's no such Citation.
     uncite(citationId: number) {
       const was = ofId(citationId);
-      const removed = made.remove(citationId);
-      if (removed !== true) return removed;
+      if (!made.remove(citationId)) return null;
       if (was !== null) {
         changed({
           on: { personId: was.personId },

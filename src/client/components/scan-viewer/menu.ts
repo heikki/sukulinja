@@ -73,11 +73,11 @@ function boxItems(viewer: Viewer): MenuItem[] {
   const source = viewer.source.get();
   if (source === null) return [];
   if (source.citation.madeInApp) {
-    // One converted from a reference can't be deleted (ADR-0016).
-    const remove = source.citation.deletable
-      ? [{ label: 'Delete', run: viewer.discard }]
-      : [];
-    return [{ label: 'Edit', run: viewer.editBox }, ...remove];
+    // Its Box is its own, so taking it back deletes the Citation.
+    return [
+      { label: 'Edit', run: viewer.editBox },
+      { label: 'Delete', run: viewer.discard }
+    ];
   }
   const confirm =
     source.link?.certainty === 'match' && !viewer.oldFilming.get()

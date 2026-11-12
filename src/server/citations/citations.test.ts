@@ -123,7 +123,6 @@ test("serves a person's Citations, church books first", () => {
       text: null,
       churchBook: true,
       madeInApp: false,
-      deletable: false,
       markKey: 'record 1',
       citedPage: 139,
       cited: { parish: null, kind: 'rippi', years: { from: 1794, to: 1808 } }
@@ -139,7 +138,6 @@ test("serves a person's Citations, church books first", () => {
       text: 'Family bible',
       churchBook: false,
       madeInApp: false,
-      deletable: false,
       markKey: 'citation 1',
       citedPage: null,
       cited: null
@@ -329,7 +327,6 @@ test("lists the Volume's Matches and its Estimates, of an Image or only the Volu
   expect(first![0]!.citation).toMatchObject({
     churchBook: true,
     madeInApp: false,
-    deletable: false,
     citedPage: 12
   });
   expect(placesOf(await citations.inVolume('juva-2'))).toEqual([
@@ -450,4 +447,28 @@ test('a Volume in none of the parishes cited is not found', async () => {
     cite(1, rippiCitation(5001, '1790 - 1796', 12))
   ]);
   expect(await citations.inVolume('elsewhere-1')).toBeNull();
+});
+
+test("a Church-book reference can be deleted; the record's Mark stays with the others citing it", async () => {
+  const citations = datasetOf([
+    cite(1, rippiCitation(5001, '1790 - 1796', 12)),
+    cite(2, rippiCitation(5001, '1790 - 1796', 12)),
+    cite(3, rippiCitation(5002, '1790 - 1796', 4))
+  ]);
+  await citations.mark(1, { volumeId: 'juva-1', image: 18 });
+  const marked = placesOf(await citations.inVolume('juva-1'));
+  expect(marked).toContainEqual({
+    personId: 2,
+    image: 18,
+    at: 'marked image'
+  });
+
+  expect(citations.uncite(1)).toMatchObject({
+    personId: 1,
+    citation: { id: 1, madeInApp: false }
+  });
+  expect(citations.ofPerson(1)).toEqual([]);
+  expect(placesOf(await citations.inVolume('juva-1'))).toEqual(
+    marked.filter((p) => p.personId !== 1)
+  );
 });

@@ -421,7 +421,6 @@ describe("A dataset's Citations", () => {
     const volume = await get('/d/juva/api/volumes/juva-1/citations');
     expect(((await volume.json()) as unknown[]).length).toBe(2);
 
-    expect((await send('DELETE', '/api/citations/1')).status).toBe(400);
     expect((await send('DELETE', '/api/citations/3')).status).toBe(204);
     expect((await send('DELETE', '/api/citations/3')).status).toBe(404);
 

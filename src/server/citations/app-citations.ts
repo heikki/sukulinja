@@ -92,11 +92,10 @@ export function openAppCitations(db: Database) {
      WHERE scope_type = 'person' AND scope_id = ?`
   );
   const rowOf = db.prepare<
-    { madeInApp: number; sourceId: number | null; originalPage: string | null },
+    { madeInApp: number; sourceId: number | null },
     [number]
   >(
-    `SELECT added_in_app AS madeInApp, source_id AS sourceId,
-       original_page AS originalPage FROM citations WHERE id = ?`
+    'SELECT added_in_app AS madeInApp, source_id AS sourceId FROM citations WHERE id = ?'
   );
   const linkedVolume = db.prepare<
     { volumeId: string; volume: string },
@@ -243,20 +242,24 @@ export function openAppCitations(db: Database) {
       return done;
     },
 
-    // Deletes a Citation made in the app, with its notes, and its source
-    // once nothing cites it. Null when there's no such Citation; false for
-    // an imported one, which isn't deleted, nor one converted from a
-    // reference (ADR-0016), which the next import would bring back.
+    // Deletes a Citation, imported or made in the app (ADR-0021), with its
+    // notes and media links; a reference's Record pin goes with it. The
+    // source of one made in the app goes too once nothing cites it; an
+    // imported source is the tree's own, so it stays. False when there's no
+    // such Citation.
     remove(id: number) {
       const row = rowOf.get(id);
-      if (row === null) return null;
-      if (row.madeInApp !== 1 || row.originalPage !== null) return false;
+      if (row === null) return false;
       db.transaction(() => {
         deleteNotes.run(id);
         deleteMedia.run(id);
         deleteRow.run(id);
         const { sourceId } = row;
-        if (sourceId !== null && citedBy.get(sourceId) === null) {
+        if (
+          row.madeInApp === 1 &&
+          sourceId !== null &&
+          citedBy.get(sourceId) === null
+        ) {
           deleteSourceNotes.run(sourceId);
           deleteSource.run(sourceId);
         }

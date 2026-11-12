@@ -118,16 +118,16 @@ test('a hand Mark at the entry converts every citation of the record', async () 
       reference: null,
       entry: 'Image 13',
       record: null,
-      madeInApp: true,
-      deletable: false
+      madeInApp: true
     }
   ]);
   expect(await citations.volumeChoices(1)).toBeNull();
-  expect(citations.uncite(1)).toBe(false);
   expect(
     await citations.mark(1, { volumeId: 'juva-1', image: 14, box: MOVED })
   ).toHaveProperty('resolution.links');
   expect(rows(db).map((r) => r.link_image)).toEqual([14, 13, null]);
+  // Nothing brings it back now (ADR-0021), so it can be deleted.
+  expect(citations.uncite(1)).toMatchObject({ citation: { id: 1 } });
 });
 
 test('a Mark at the Image only leaves the reference as it is', async () => {

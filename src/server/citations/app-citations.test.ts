@@ -241,7 +241,7 @@ test('a Citation is refused off its Image, or where the person already links it'
   expect(await citations.cite(1, entry(13))).toEqual(already);
 });
 
-test('a Citation made in the app is deleted with its notes, and its source with the last', async () => {
+test('a Citation is deleted with its notes, and the source the app made with the last', async () => {
   const { db, citations } = withPeople([
     cite(1, rippiCitation(5001, '1790 - 1796', 12))
   ]);
@@ -251,7 +251,6 @@ test('a Citation made in the app is deleted with its notes, and its source with 
     "INSERT INTO notes (owner_type, owner_id, text) VALUES ('citation', 2, 'Seen')"
   );
 
-  expect(citations.uncite(1)).toBe(false);
   expect(citations.uncite(99)).toBeNull();
   expect(citations.uncite(2)).toMatchObject({
     personId: 2,
@@ -265,6 +264,14 @@ test('a Citation made in the app is deleted with its notes, and its source with 
   expect(sources(db)).toHaveLength(1);
   expect(citations.uncite(3)).toHaveProperty('personId', 3);
   expect(sources(db)).toEqual([]);
+  // An imported one too (ADR-0021); its source is the tree's, so it stays.
+  db.run(
+    "INSERT INTO sources (id, xref, title) VALUES (9, '@S9@', 'Rippikirja')"
+  );
+  db.run('UPDATE citations SET source_id = 9 WHERE id = 1');
+  expect(citations.uncite(1)).toMatchObject({ citation: { madeInApp: false } });
+  expect(db.query('SELECT id FROM citations').all()).toEqual([]);
+  expect(sources(db)).toMatchObject([{ id: 9 }]);
 });
 
 const ARCHIVE = 'Juvan seurakunnan arkisto';
