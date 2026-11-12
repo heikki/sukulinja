@@ -11,12 +11,13 @@
     "install:app": "bun run build:app && bash scripts/finalize-stable.sh && rm -rf /Applications/Sukulinja.app && cp -r build/stable-macos-arm64/Sukulinja.app /Applications/ && /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/Sukulinja.app",
     "reset:install": "bash scripts/reset-install.sh",
     "cert": "bash scripts/cert.sh",
-    "postinstall": "electrobun sync",
+    "postinstall": "git config core.hooksPath .githooks; electrobun sync",
     "test": "bun test",
     "typecheck": "bun check",
     "format": "bun fmt",
     "format:check": "bun fmt --check",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "check": "bun run format:check && bun run lint && bun run typecheck && bun run test"
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^1.1.0",
