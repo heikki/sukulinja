@@ -7,8 +7,8 @@ import type { PersonRow } from '@/common/types';
 
 import type { Point } from '../tree-view/emit';
 import { formatDates, formatName } from '../tree-view/renderer';
+import { matchPersons } from './match';
 
-const MIN_LEN = 2;
 const MAX_RESULTS = 50;
 const PAGE_STEP = 10;
 
@@ -112,17 +112,7 @@ class PersonSearchElement extends LitElement {
   @state() private active = 0;
 
   private results() {
-    const q = this.query.trim().toLowerCase();
-    if (q.length < MIN_LEN) return [];
-    const out: PersonRow[] = [];
-    for (const p of this.persons.values()) {
-      const key = `${p.given ?? ''} ${p.surname ?? ''}`.toLowerCase();
-      if (key.includes(q)) {
-        out.push(p);
-        if (out.length >= MAX_RESULTS) break;
-      }
-    }
-    return out;
+    return matchPersons(this.persons.values(), this.query, MAX_RESULTS);
   }
 
   // WebKit fires a mousemove when the list scrolls under a resting pointer, so

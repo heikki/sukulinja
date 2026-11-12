@@ -1,12 +1,18 @@
-// Adding a person to the tree as someone's relative, now that the tree is
-// worked on in the app (ADR-0021). The new person goes into the family
-// the relation says, made when there's none, so no one is added with no
-// place in the tree. Each is a Change on the new person, and brings the
-// records it touched up to now in their CHAN.
+// Putting someone in place as a person's relative, now that the tree is
+// worked on in the app (ADR-0021): a new person, or someone already in the
+// tree linked. They go into the family the relation says, made when there's
+// none, so no one is added with no place in the tree. Each is a Change on
+// the relative, and brings the records it touched up to now in their CHAN.
 
 import type { Database } from 'bun:sqlite';
 
-import type { NewChange, NewRelative, Sex } from '@/common/types';
+import type {
+  NewChange,
+  NewRelative,
+  Relation,
+  RelativeWho,
+  Sex
+} from '@/common/types';
 
 import { touchRecord } from '../datasets/records';
 import { createRecords } from './records';
@@ -21,16 +27,16 @@ interface FamilyRecord {
 
 const SEXES = new Set<Sex>(['M', 'F', 'X', 'U']);
 
-// Where the new person goes as the relation of the person, worked out
+// Where the relative goes as the relation of the person, worked out
 // before anything is written: into a family the person has, in a parent's
 // place or as a child, or into a new family, with the person in it as
 // what.
 type Plan =
   | { into: number; as: 'husband' | 'wife' | 'child' }
   | {
-      husband: 'new' | 'person' | null;
-      wife: 'new' | 'person' | null;
-      children: Array<'new' | 'person'>;
+      husband: 'relative' | 'person' | null;
+      wife: 'relative' | 'person' | null;
+      children: Array<'relative' | 'person'>;
     };
 
 type Placed = Plan | { rejected: string };
@@ -71,6 +77,9 @@ export function createRelatives(
     `SELECT id, husband_id, wife_id FROM families
      WHERE husband_id = ?1 OR wife_id = ?1 ORDER BY id`
   );
+  const familyOf = db.prepare<FamilyRecord, [number]>(
+    'SELECT id, husband_id, wife_id FROM families WHERE id = ?'
+  );
   const setParent = {
     husband: db.prepare<null, [number, number]>(
       'UPDATE families SET husband_id = ? WHERE id = ?'
@@ -110,8 +119,8 @@ export function createRelatives(
     const parents = parentFamilyOf.get(person.id);
     if (parents === null) {
       return relation === 'mother'
-        ? { husband: null, wife: 'new', children: ['person'] }
-        : { husband: 'new', wife: null, children: ['person'] };
+        ? { husband: null, wife: 'relative', children: ['person'] }
+        : { husband: 'relative', wife: null, children: ['person'] };
     }
     const slot = parentSlot(parents, relation);
     if (slot === null) return rejected('They have two parents already.');
@@ -122,8 +131,8 @@ export function createRelatives(
   // place.
   function asSpouse(person: Person): Placed {
     return person.sex === 'F'
-      ? { husband: 'new', wife: 'person', children: [] }
-      : { husband: 'person', wife: 'new', children: [] };
+      ? { husband: 'relative', wife: 'person', children: [] }
+      : { husband: 'person', wife: 'relative', children: [] };
   }
 
   // A sibling goes into the person's parents' family, or a new one with
@@ -131,7 +140,7 @@ export function createRelatives(
   function asSibling(person: Person): Placed {
     const parents = parentFamilyOf.get(person.id);
     return parents === null
-      ? { husband: null, wife: null, children: ['person', 'new'] }
+      ? { husband: null, wife: null, children: ['person', 'relative'] }
       : { into: parents.id, as: 'child' };
   }
 
@@ -149,11 +158,11 @@ export function createRelatives(
     }
     if (families.length === 1) return { into: families[0]!.id, as: 'child' };
     return person.sex === 'F'
-      ? { husband: null, wife: 'person', children: ['new'] }
-      : { husband: 'person', wife: null, children: ['new'] };
+      ? { husband: null, wife: 'person', children: ['relative'] }
+      : { husband: 'person', wife: null, children: ['relative'] };
   }
 
-  // The Plan for the new person, or why they can't go anywhere.
+  // The Plan for the relative, or why they can't go anywhere.
   function plan(person: Person, relative: NewRelative): Placed {
     switch (relative.relation) {
       case 'father':
@@ -168,15 +177,15 @@ export function createRelatives(
     }
   }
 
-  // Carries out the plan for the new person: the family it put them in.
-  function apply(p: Plan, personId: number, newId: number) {
+  // Carries out the plan for the relative: the family it put them in.
+  function apply(p: Plan, personId: number, relativeId: number) {
     if ('into' in p) {
-      if (p.as === 'child') addChild(p.into, newId);
-      else setParent[p.as].run(newId, p.into);
+      if (p.as === 'child') addChild(p.into, relativeId);
+      else setParent[p.as].run(relativeId, p.into);
       return p.into;
     }
-    function idOf(who: 'new' | 'person') {
-      return who === 'new' ? newId : personId;
+    function idOf(who: 'relative' | 'person') {
+      return who === 'relative' ? relativeId : personId;
     }
     const familyId = records.family(
       p.husband === null ? null : idOf(p.husband),
@@ -186,32 +195,101 @@ export function createRelatives(
     return familyId;
   }
 
+  // Why the new person can't be made as written; null when they can.
+  function refusedName(who: { given: string; surname: string; sex: Sex }) {
+    if (who.given.trim() === '' && who.surname.trim() === '') {
+      return rejected('Write a name.');
+    }
+    if (who.given.includes('/') || who.surname.includes('/')) {
+      return rejected("A name can't have a slash in it.");
+    }
+    return SEXES.has(who.sex) ? null : rejected('Say their sex.');
+  }
+
+  // Why someone already in the tree can't be put in the place the plan
+  // says; null when they can. A child or sibling can have no other
+  // parents, and no one is put where they already are.
+  function refusedLink(
+    person: Person,
+    relativeId: number,
+    relation: Relation,
+    p: Plan
+  ) {
+    if ('into' in p && p.as !== 'child') {
+      const parents = familyOf.get(p.into)!;
+      if (parents.husband_id === relativeId || parents.wife_id === relativeId) {
+        return rejected('They are a parent there already.');
+      }
+    }
+    const goesAsChild =
+      'into' in p ? p.as === 'child' : p.children.includes('relative');
+    if (goesAsChild && parentFamilyOf.get(relativeId) !== null) {
+      return rejected('They are a child in another family already.');
+    }
+    const spouses = spouseFamiliesOf.all(person.id);
+    const married = spouses.some(
+      (f) => f.husband_id === relativeId || f.wife_id === relativeId
+    );
+    return relation === 'spouse' && married
+      ? rejected('They are spouses already.')
+      : null;
+  }
+
+  // The Plan for the relative, a new person or `linked`, or why it can't
+  // be carried out.
+  function placing(
+    person: Person,
+    relative: NewRelative,
+    linked: Person | undefined
+  ): Placed {
+    const { who } = relative;
+    if (linked?.id === person.id) {
+      return rejected("They can't be their own relative.");
+    }
+    const refusedNew = 'personId' in who ? null : refusedName(who);
+    if (refusedNew !== null) return refusedNew;
+    const placed = plan(person, relative);
+    if ('rejected' in placed || linked === undefined) return placed;
+    return refusedLink(person, linked.id, relative.relation, placed) ?? placed;
+  }
+
+  // The relative's id: one already in the tree, or a new person's.
+  function idOfWho(who: RelativeWho) {
+    if ('personId' in who) return who.personId;
+    return records.person(
+      { given: who.given.trim(), surname: who.surname.trim() },
+      who.sex
+    );
+  }
+
   return {
-    // Adds the new person as the relation of the person: their id. Null
-    // when there's no such person.
+    // Puts the relative in place as the relation of the person: the
+    // relative's id, a new person's made here. Null when there's no such
+    // person, or no such relative to link.
     add(personId: number, relative: NewRelative): RelativeAnswer {
       const person = personOf.get(personId);
-      if (person === null) return null;
-      const given = relative.given.trim();
-      const surname = relative.surname.trim();
-      if (given === '' && surname === '') return rejected('Write a name.');
-      if (given.includes('/') || surname.includes('/')) {
-        return rejected("A name can't have a slash in it.");
-      }
-      if (!SEXES.has(relative.sex)) return rejected('Say their sex.');
-      const placed = plan(person, relative);
+      const { who } = relative;
+      const linked = 'personId' in who ? personOf.get(who.personId) : undefined;
+      if (person === null || linked === null) return null;
+      const placed = placing(person, relative, linked);
       if ('rejected' in placed) return placed;
       const of = plainName(nameOf.get(personId)?.full_text ?? '');
       return db.transaction(() => {
-        const newId = records.person({ given, surname }, relative.sex);
-        const familyId = apply(placed, personId, newId);
+        const relativeId = idOfWho(who);
+        const familyId = apply(placed, personId, relativeId);
         touchRecord(db, { table: 'families', id: familyId });
         touchRecord(db, { table: 'persons', id: personId });
+        touchRecord(db, { table: 'persons', id: relativeId });
         changed({
-          on: { personId: newId },
-          what: { kind: 'person', did: 'add', relation: relative.relation, of }
+          on: { personId: relativeId },
+          what: {
+            kind: 'person',
+            did: 'personId' in who ? 'link' : 'add',
+            relation: relative.relation,
+            of
+          }
         });
-        return { id: newId };
+        return { id: relativeId };
       })();
     }
   };

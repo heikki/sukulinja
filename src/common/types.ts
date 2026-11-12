@@ -174,14 +174,17 @@ export type Relation = 'father' | 'mother' | 'spouse' | 'child' | 'sibling';
 // A person's sex as GEDCOM 7 has it: male, female, other, unknown.
 export type Sex = 'M' | 'F' | 'X' | 'U';
 
-// A person added to the tree as someone's relative: their name, empty for
-// none, and sex. A child goes into `familyId`, one of the person's families
-// as a spouse, when they have more than one; null otherwise.
+// Who's put in place as someone's relative: a new person, by their name,
+// empty for none, and sex; or someone already in the tree.
+export type RelativeWho =
+  { given: string; surname: string; sex: Sex } | { personId: number };
+
+// A relative put in place for someone. A child goes into `familyId`, one
+// of the person's families as a spouse, when they have more than one; null
+// otherwise.
 export interface NewRelative {
   relation: Relation;
-  given: string;
-  surname: string;
-  sex: Sex;
+  who: RelativeWho;
   familyId: number | null;
 }
 
@@ -534,9 +537,9 @@ export type ChangeWhat =
       was: string | null;
       now: string | null;
     }
-  // A person added as the relation of the person named, as they were
-  // named then.
-  | { kind: 'person'; did: 'add'; relation: Relation; of: string }
+  // A person added to the tree, or someone already in it linked, as the
+  // relation of the person named, as they were named then.
+  | { kind: 'person'; did: 'add' | 'link'; relation: Relation; of: string }
   | { kind: 'import'; file: string; merged: boolean; lost: number }
   | { kind: 'undo-import' }
   | {

@@ -1,6 +1,6 @@
 import { beforeEach, expect, test } from 'bun:test';
 
-import type { NewChange, NewRelative } from '@/common/types';
+import type { NewChange, Relation, Sex } from '@/common/types';
 
 import { treeSnapshot } from '../../../test/tree-snapshot';
 import { openDb } from '../datasets/db';
@@ -50,14 +50,42 @@ beforeEach(() => {
   });
 });
 
-function add(personId: number, relative: Partial<NewRelative>) {
-  return relatives.add(personId, {
+interface Adding {
+  relation: Relation;
+  given: string;
+  surname: string;
+  sex: Sex;
+  familyId: number | null;
+}
+
+// A new person put in place, a child named Uusi Esimerkki unless said.
+function add(personId: number, adding: Partial<Adding>) {
+  const { relation, given, surname, sex, familyId } = {
     relation: 'child',
     given: 'Uusi',
     surname: 'Esimerkki',
     sex: 'U',
     familyId: null,
-    ...relative
+    ...adding
+  } satisfies Adding;
+  return relatives.add(personId, {
+    relation,
+    who: { given, surname, sex },
+    familyId
+  });
+}
+
+// Someone already in the tree put in place.
+function link(
+  personId: number,
+  relation: Relation,
+  relativeId: number,
+  familyId: number | null = null
+) {
+  return relatives.add(personId, {
+    relation,
+    who: { personId: relativeId },
+    familyId
   });
 }
 
@@ -195,6 +223,40 @@ test('refuses what it can’t add, writing nothing', () => {
   });
   expect(treeSnapshot(db)).toEqual(before);
   expect(changes).toEqual([]);
+});
+
+test('links someone already in the tree in that place, making no one', () => {
+  function persons() {
+    return db.query('SELECT id FROM persons').all().length;
+  }
+  const before = persons();
+  expect(link(ANNA, 'spouse', JUHO)).toEqual({ id: JUHO });
+  expect(families().at(-1)).toEqual({ id: 2, husband_id: JUHO, wife_id: ANNA });
+  expect(link(MATTI, 'sibling', ANNA)).toEqual({ id: ANNA });
+  expect(persons()).toBe(before);
+  expect(changes.map((c) => c.what)).toEqual([
+    { kind: 'person', did: 'link', relation: 'spouse', of: 'Anna Muu' },
+    { kind: 'person', did: 'link', relation: 'sibling', of: 'Matti Esimerkki' }
+  ]);
+  expect(changes[0]!.on).toEqual({ personId: JUHO });
+});
+
+test('refuses a link that would put someone where they are, or give them two families as a child', () => {
+  expect(link(JUHO, 'father', JUHO)).toEqual({
+    rejected: "They can't be their own relative."
+  });
+  db.run('UPDATE families SET wife_id = NULL WHERE id = 1');
+  expect(link(JUHO, 'mother', MATTI)).toEqual({
+    rejected: 'They are a parent there already.'
+  });
+  expect(link(ANNA, 'sibling', JUHO)).toEqual({
+    rejected: 'They are a child in another family already.'
+  });
+  expect(link(MATTI, 'spouse', LIISA)).toEqual({ id: LIISA });
+  expect(link(MATTI, 'spouse', LIISA)).toEqual({
+    rejected: 'They are spouses already.'
+  });
+  expect(link(JUHO, 'father', 99)).toBeNull();
 });
 
 test('the GEDZIP carries the new people and families, and brings them back', () => {

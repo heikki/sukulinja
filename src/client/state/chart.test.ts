@@ -169,14 +169,24 @@ test('without a chart drawn, selecting makes Root', async () => {
 test('someone added is selected once the chart is drawn with them', async () => {
   const drawn = [1, 2, 3];
   const { state, told, selectedId, root } = await loaded(drawn);
-  const add = { surname: 'Esimerkki', sex: 'M', familyId: null } as const;
+  function who(given: string) {
+    return { given, surname: 'Esimerkki', sex: 'M' } as const;
+  }
   // The chart draws the new person as it redraws.
   drawn.push(4001);
-  await state.relatives.add(3, { ...add, relation: 'child', given: 'Pekka' });
+  await state.relatives.add(3, {
+    relation: 'child',
+    who: who('Pekka'),
+    familyId: null
+  });
   expect(state.chart.people.get().persons.get(4001)?.given).toBe('Pekka');
   expect([root(), selectedId()]).toEqual([1, 4001]);
   // One it doesn't draw is built around.
-  await state.relatives.add(1, { ...add, relation: 'father', given: 'Olli' });
+  await state.relatives.add(1, {
+    relation: 'father',
+    who: who('Olli'),
+    familyId: null
+  });
   expect([root(), selectedId()]).toEqual([4002, 4002]);
   expect(told).toEqual([
     'redrawn',

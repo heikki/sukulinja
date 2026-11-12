@@ -185,4 +185,5 @@ test('says whose relative a person was added as', () => {
   } as const;
   expect(doneLabel(added)).toBe('Added as father');
   expect(detailOf(added)).toBe('of Juho Esimerkki');
+  expect(doneLabel({ ...added, did: 'link' })).toBe('Linked as father');
 });

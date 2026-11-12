@@ -259,13 +259,14 @@ describe('the answers', () => {
     expect(await api.changes()).toEqual([]);
   });
 
-  test('a relative added to someone, in their family, and why not', async () => {
-    const blank = { surname: 'Esimerkki', familyId: null };
+  test('a relative added to someone, or linked, in their family, and why not', async () => {
+    function who(given: string, surname = 'Esimerkki') {
+      return { given, surname, sex: 'M' } as const;
+    }
     const brother = await api.addRelative(3, {
-      ...blank,
       relation: 'sibling',
-      given: 'Pekka',
-      sex: 'M'
+      who: who('Pekka'),
+      familyId: null
     });
     expect((await api.persons()).find((p) => p.id === brother)).toMatchObject({
       given: 'Pekka',
@@ -275,27 +276,37 @@ describe('the answers', () => {
       { id: 1, husband_id: 1, wife_id: 2, child_ids: [3, brother] }
     ]);
     expect(
+      await api.addRelative(brother, {
+        relation: 'spouse',
+        who: { personId: 2 },
+        familyId: null
+      })
+    ).toBe(2);
+    expect(
       await failure(
         api.addRelative(3, {
-          ...blank,
           relation: 'father',
-          given: '',
-          surname: '',
-          sex: 'M'
+          who: who('', ''),
+          familyId: null
         })
       )
     ).toBe('Write a name.');
     expect(
       await failure(
         api.addRelative(99, {
-          ...blank,
           relation: 'child',
-          given: 'X',
-          sex: 'U'
+          who: who('X'),
+          familyId: null
         })
       )
     ).toBe('person not found');
     expect((await api.changes()).map((c) => c.what)).toMatchObject([
+      {
+        kind: 'person',
+        did: 'link',
+        relation: 'spouse',
+        of: 'Pekka Esimerkki'
+      },
       { kind: 'person', did: 'add', relation: 'sibling', of: 'Juho Esimerkki' }
     ]);
   });

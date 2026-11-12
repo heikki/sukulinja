@@ -8,9 +8,11 @@ import { formStyles } from '@/client/form-styles';
 import type { Point } from '@/client/pan-zoom';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
-import type { Relation, Sex } from '@/common/types';
+import type { PersonRow, Relation, RelativeWho, Sex } from '@/common/types';
 
 import { placedInside } from '../context-menu';
+import { alikePersons } from '../person-search/match';
+import { formatDates, formatName } from '../tree-view/renderer';
 import type { ChildFamily } from './relations';
 
 const SEXES: Array<[Sex, string]> = [
@@ -19,6 +21,9 @@ const SEXES: Array<[Sex, string]> = [
   ['X', 'Other'],
   ['U', 'Unknown']
 ];
+
+// How many people alike are offered.
+const ALIKE_MAX = 5;
 
 function stop(e: Event) {
   e.stopPropagation();
@@ -48,8 +53,10 @@ function nameField(
 // A new person being added as the relation of `personId`, at `at` in the
 // element it's positioned in, where the card's menu was: their given names,
 // surname and sex, and, for a child of someone with several families,
-// which. Save or Enter adds them; it, Cancel, Esc or a press elsewhere say
-// `closed`. Presses on it stay on it, so they don't pan the chart.
+// which. People already in the tree with a name like the one typed are
+// offered first, and picking one links them instead. Add or Enter adds a
+// new person; it, Cancel, Esc or a press elsewhere say `closed`. Presses
+// on it stay on it, so they don't pan the chart.
 @customElement('sl-relative-form')
 class RelativeFormElement extends LitElement {
   static override styles = [
@@ -69,6 +76,35 @@ class RelativeFormElement extends LitElement {
 
       .form {
         background: var(--card);
+      }
+
+      .alike {
+        display: grid;
+        margin: 0.1rem -0.4rem;
+      }
+
+      .alike p {
+        margin: 0 0.4rem 0.1rem;
+        color: var(--muted);
+      }
+
+      .alike button {
+        padding: 0.2rem 0.4rem;
+        border: 0;
+        border-radius: 6px;
+        background: none;
+        color: var(--fg);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .alike button:hover:not(:disabled) {
+        background: color-mix(in srgb, var(--accent) 18%, transparent);
+      }
+
+      .muted {
+        color: var(--muted);
       }
 
       h3 {
@@ -93,6 +129,8 @@ class RelativeFormElement extends LitElement {
   @property({ attribute: false }) sex: Sex = 'U';
   // The families a child can go into; empty when there's no choice.
   @property({ attribute: false }) families: ChildFamily[] = [];
+  // Everyone in the tree, some of whom may be the one meant.
+  @property({ attribute: false }) persons = new Map<number, PersonRow>();
 
   @state() private given = '';
   @state() private surname = '';
@@ -132,7 +170,17 @@ class RelativeFormElement extends LitElement {
     this.dispatchEvent(new Event('closed'));
   }
 
-  private async save() {
+  // People already in the tree whose name is like the one typed, to link
+  // in place of a new person: none until the name says enough.
+  private alike() {
+    const others = [...this.persons.values()].filter(
+      (p) => p.id !== this.personId
+    );
+    return alikePersons(others, `${this.given} ${this.surname}`, ALIKE_MAX);
+  }
+
+  // Puts the new person, or someone already in the tree, in place.
+  private async save(who: RelativeWho) {
     if (this.saving) return;
     this.saving = true;
     this.refused = null;
@@ -143,9 +191,7 @@ class RelativeFormElement extends LitElement {
     try {
       await this.state.relatives.add(this.personId, {
         relation: this.relation,
-        given: this.given,
-        surname: this.surname,
-        sex: this.chosenSex ?? this.sex,
+        who,
         familyId
       });
       this.close();
@@ -159,6 +205,14 @@ class RelativeFormElement extends LitElement {
 
   // Enter saves and Esc closes, from any field; the rest of the keys are
   // the field's.
+  private saveNew() {
+    void this.save({
+      given: this.given,
+      surname: this.surname,
+      sex: this.chosenSex ?? this.sex
+    });
+  }
+
   private readonly onKeyDown = (e: KeyboardEvent) => {
     e.stopPropagation();
     if (e.key === 'Escape') {
@@ -166,7 +220,7 @@ class RelativeFormElement extends LitElement {
       this.close();
     } else if (e.key === 'Enter' && !e.isComposing) {
       e.preventDefault();
-      void this.save();
+      this.saveNew();
     }
   };
 
@@ -209,7 +263,28 @@ class RelativeFormElement extends LitElement {
     </label>`;
   }
 
+  // Each one alike, picked to link them instead.
+  private renderAlike(alike: PersonRow[]) {
+    if (alike.length === 0) return nothing;
+    return html`<div class="alike">
+      <p>Is it one of these?</p>
+      ${alike.map((p) => {
+        const dates = formatDates(p);
+        return html`<button
+          ?disabled=${this.saving}
+          @click=${() => {
+            void this.save({ personId: p.id });
+          }}
+        >
+          ${formatName(p)}
+          ${dates === '' ? nothing : html`<span class="muted">(${dates})</span>`}
+        </button>`;
+      })}
+    </div>`;
+  }
+
   override render() {
+    const alike = this.alike();
     return html`<div class="form" role="dialog" @keydown=${this.onKeyDown}>
       <h3>${this.heading}</h3>
       ${nameField('Given names', 'e.g. Matti', this.given, (v) => {
@@ -218,7 +293,7 @@ class RelativeFormElement extends LitElement {
       ${nameField('Surname', 'e.g. Esimerkki', this.surname, (v) => {
         this.surname = v;
       })}
-      ${this.renderSex()} ${this.renderFamily()}
+      ${this.renderAlike(alike)} ${this.renderSex()} ${this.renderFamily()}
       ${
         this.refused === null
           ? nothing
@@ -238,10 +313,10 @@ class RelativeFormElement extends LitElement {
           class="primary"
           ?disabled=${this.saving}
           @click=${() => {
-            void this.save();
+            this.saveNew();
           }}
         >
-          ${this.saving ? 'Adding…' : 'Add'}
+          ${this.saving ? 'Adding…' : alike.length > 0 ? 'Add as new' : 'Add'}
         </button>
       </div>
     </div>`;

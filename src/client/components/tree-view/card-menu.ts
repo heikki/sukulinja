@@ -136,6 +136,7 @@ class CardMenuElement extends SignalWatcher(LitElement) {
       .at=${menu.at}
       .sex=${startingSex(adding, person.sex)}
       .families=${adding === 'child' ? childFamilies(menu.personId, people) : []}
+      .persons=${people.persons}
       @closed=${() => {
         this.close();
       }}

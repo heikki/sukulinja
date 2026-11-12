@@ -31,6 +31,14 @@ function factDetail({ was, now }: FactChange) {
   return `${was} → ${now}`;
 }
 
+// A person added or linked, by their relation: "Added as father".
+function personDone({
+  did,
+  relation
+}: Extract<ChangeWhat, { kind: 'person' }>) {
+  return `${did === 'add' ? 'Added' : 'Linked'} as ${relation}`;
+}
+
 // What a Change did, in a few words.
 export function doneLabel(what: ChangeWhat) {
   switch (what.kind) {
@@ -55,7 +63,7 @@ export function doneLabel(what: ChangeWhat) {
     case 'fact':
       return factDone(what);
     case 'person':
-      return `Added as ${what.relation}`;
+      return personDone(what);
     case 'import':
       return what.merged
         ? `Imported ${what.file} again`

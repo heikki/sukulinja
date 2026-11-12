@@ -82,9 +82,10 @@ type MemoryDatasetApi = DatasetApi & {
   // "edit fact <person> <fact>: <date>", "delete fact <person> <fact>",
   // "add photo <file name>", "delete photo <photo>".
   // `addFact` answers ids numbered on from 3000; Facts don't change the
-  // details given. "add <relation> of <person>: <given> <surname>": a
-  // person `addRelative` adds joins `persons`, numbered on from 4000, in
-  // no family.
+  // details given. "add <relation> of <person>: <given> <surname>" or
+  // "link <relation> of <person>: <relative>": a new person `addRelative`
+  // adds joins `persons`, numbered on from 4000, in no family; a link
+  // changes nothing.
   // A Citation made by `cite` joins its Volume's citations, numbered on
   // from 1000, and `uncite` takes one out.
   asked: string[];
@@ -447,21 +448,24 @@ export function memoryDatasetApi(
         }
       ),
 
-    addRelative: async (personId, relative) =>
+    addRelative: async (personId, { relation, who }) =>
       await answer(
-        `add ${relative.relation} of ${personId}: ${relative.given} ${relative.surname}`,
+        'personId' in who
+          ? `link ${relation} of ${personId}: ${who.personId}`
+          : `add ${relation} of ${personId}: ${who.given} ${who.surname}`,
         undefined,
         () => {
           found(
             persons.find((p) => p.id === personId),
             'person not found'
           );
+          if ('personId' in who) return who.personId;
           personsAdded += 1;
           persons.push({
             id: personsAdded,
-            given: relative.given,
-            surname: relative.surname,
-            sex: relative.sex,
+            given: who.given,
+            surname: who.surname,
+            sex: who.sex,
             birth_year: null,
             death_year: null,
             birth_date: null,
