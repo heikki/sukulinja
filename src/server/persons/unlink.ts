@@ -1,6 +1,6 @@
 // Taking a person out of a family, as a child or as a parent, they
-// themself staying in the tree. A family left with no one in it goes, one
-// left with one person stays. Nothing that would cut the tree in two is
+// themself staying in the tree (membership.ts says what becomes of the
+// family). Nothing that would cut the tree in two is
 // done (tree-cut.ts). A Change on the person, and the family's CHAN
 // brought up to now.
 
@@ -9,8 +9,9 @@ import type { Database } from 'bun:sqlite';
 import { unlinkCuts } from '@/common/tree-cut';
 import type { NewChange } from '@/common/types';
 
-import { deleteFamily, touchRecord } from '../datasets/records';
+import { touchRecord } from '../datasets/records';
 import { createTree } from '../tree';
+import { leaveFamily } from './membership';
 import { plainName } from './names';
 
 export type UnlinkAnswer = { id: number } | { rejected: string } | null;
@@ -23,16 +24,6 @@ export function createUnlink(
   const nameOf = db.prepare<{ full_text: string }, [number]>(
     'SELECT full_text FROM names WHERE person_id = ? ORDER BY sort_order LIMIT 1'
   );
-  const clearParent = db.prepare<null, [number, number]>(
-    `UPDATE families SET
-       husband_id = CASE WHEN husband_id = ?1 THEN NULL ELSE husband_id END,
-       wife_id = CASE WHEN wife_id = ?1 THEN NULL ELSE wife_id END
-     WHERE id = ?2`
-  );
-  const dropChild = db.prepare<null, [number, number]>(
-    'DELETE FROM family_children WHERE person_id = ? AND family_id = ?'
-  );
-
   function nameIn(id: number | null) {
     if (id === null) return [];
     const row = nameOf.get(id);
@@ -56,15 +47,8 @@ export function createUnlink(
         ? [family.husband_id, family.wife_id].filter((id) => id !== personId)
         : [family.husband_id, family.wife_id];
       const of = others.flatMap(nameIn).join(' and ');
-      const parents = [family.husband_id, family.wife_id].filter(
-        (id) => id !== null
-      );
-      const left = parents.length + family.child_ids.length - 1;
       db.transaction(() => {
-        if (asParent) clearParent.run(personId, familyId);
-        else dropChild.run(personId, familyId);
-        if (left === 0) deleteFamily(db, familyId);
-        else touchRecord(db, { table: 'families', id: familyId });
+        leaveFamily(db, personId, family);
         touchRecord(db, { table: 'persons', id: personId });
         changed({
           on: { personId },

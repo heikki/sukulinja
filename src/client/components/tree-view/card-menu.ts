@@ -6,7 +6,8 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { ApiError } from '@/client/dataset-api';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
-import type { Relation } from '@/common/types';
+import { deleteCuts } from '@/common/tree-cut';
+import type { FamilyRow, Relation } from '@/common/types';
 
 import type { MenuItem } from '../context-menu';
 import {
@@ -18,10 +19,20 @@ import {
 import { unlinkings } from '../person-form/unlinkings';
 
 import '../context-menu';
+import '../person-form/delete';
 import '../person-form/relative';
 
 import type { Point } from './emit';
 import { formatName } from './renderer';
+
+// Whether the person can be deleted: not the last one, and not cutting
+// the tree in two (tree-cut.ts), which isn't offered at all.
+function deletable(
+  personId: number,
+  people: { persons: Map<number, unknown>; families: readonly FamilyRow[] }
+) {
+  return people.persons.size > 1 && !deleteCuts(people.families, personId);
+}
 
 // A card's menu, opened by a right-click: where in the canvas, and for
 // whom, drawn at `pos` in the chart.
@@ -49,7 +60,8 @@ export function cardMenuAt(
 // unless they are, which it asks the chart for with `make-root`; writing a
 // Reminder about them; adding a relative of theirs, as `addableRelations`
 // allows, whose form opens in the menu's place; and taking them out of a
-// family, as `unlinkings` allows. Asks to `close` once done with.
+// family, as `unlinkings` allows; and deleting them, asked first. Asks to
+// `close` once done with.
 @customElement('sl-card-menu')
 class CardMenuElement extends SignalWatcher(LitElement) {
   static override styles = css`
@@ -65,6 +77,8 @@ class CardMenuElement extends SignalWatcher(LitElement) {
 
   // The relation a new person is being added as, once picked.
   @state() private adding: Relation | null = null;
+  // Deleting them, once picked: the dialog asking first.
+  @state() private deleting = false;
   // Taking them out of a family, once picked; why it was refused, if it
   // was, shown in the menu's place.
   @state() private unlinking: { refused: string | null } | null = null;
@@ -72,6 +86,7 @@ class CardMenuElement extends SignalWatcher(LitElement) {
   override willUpdate(changed: Map<string, unknown>) {
     if (changed.has('menu')) {
       this.adding = null;
+      this.deleting = false;
       this.unlinking = null;
     }
   }
@@ -129,7 +144,17 @@ class CardMenuElement extends SignalWatcher(LitElement) {
         run: () => {
           void this.unlink(menu.personId, familyId);
         }
-      }))
+      })),
+      ...(deletable(menu.personId, people)
+        ? [
+            {
+              label: 'Delete person…',
+              run: () => {
+                this.deleting = true;
+              }
+            }
+          ]
+        : [])
     ];
   }
 
@@ -140,6 +165,14 @@ class CardMenuElement extends SignalWatcher(LitElement) {
       menu === null ? undefined : people.persons.get(menu.personId);
     if (menu === null || person === undefined) return nothing;
     const name = formatName(person);
+    if (this.deleting) {
+      return html`<sl-delete-person
+        .person=${person}
+        @closed=${() => {
+          this.close();
+        }}
+      ></sl-delete-person>`;
+    }
     if (this.unlinking !== null) {
       const { refused } = this.unlinking;
       if (refused === null) return nothing;
@@ -161,7 +194,11 @@ class CardMenuElement extends SignalWatcher(LitElement) {
           // The menu closes before its choice runs: a relation picked
           // opens its form instead.
           queueMicrotask(() => {
-            if (this.adding === null && this.unlinking === null) {
+            if (
+              this.adding === null &&
+              this.unlinking === null &&
+              !this.deleting
+            ) {
               this.close();
             }
           });

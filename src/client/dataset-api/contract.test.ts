@@ -334,6 +334,26 @@ describe('the answers', () => {
     });
   });
 
+  test('a person deleted, unless it cuts someone off', async () => {
+    expect(await failure(api.deletePerson(99))).toBe('person not found');
+    await api.deletePerson(3);
+    expect(
+      (await api.persons()).map((p) => p.id).sort((a, b) => a - b)
+    ).toEqual([1, 2]);
+    expect(await api.families()).toEqual([
+      { id: 1, husband_id: 1, wife_id: 2, child_ids: [] }
+    ]);
+    await api.deletePerson(2);
+    expect(await failure(api.deletePerson(1))).toBe(
+      "The last person can't be deleted."
+    );
+    expect((await api.changes())[0]).toMatchObject({
+      on: null,
+      who: 'Maria /Esimerkki/',
+      what: { kind: 'person', did: 'delete' }
+    });
+  });
+
   test("a person's name and sex changed, and why not", async () => {
     await api.editPerson(3, { given: 'Juho', surname: 'Malli', sex: 'M' });
     expect((await api.persons()).find((p) => p.id === 3)).toMatchObject({

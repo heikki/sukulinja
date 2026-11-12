@@ -91,6 +91,9 @@ export interface Chart {
   // Someone's families changed: the people and their families read again,
   // the selection kept.
   relinked: () => Promise<void>;
+  // Someone deleted: Root, if it was them, becomes `next`, as does the
+  // Selected person; then the people and their families are read again.
+  removed: (id: number, next: number) => Promise<void>;
   // The one way to select someone (ADR-0012), for the dock's details. Once
   // a change pending in the Scan viewer is saved or discarded, their card
   // is shown, or, if the chart doesn't draw them, it's built around them.
@@ -260,6 +263,14 @@ export function openChart(
     },
     async relinked() {
       await readPeople();
+    },
+    async removed(id, next) {
+      if (root.get() === id) rerootNow(next, null);
+      await readPeople();
+      if (selected.id.get() === id) {
+        await view.redrawn();
+        select(next);
+      }
     },
     select,
     step(id) {

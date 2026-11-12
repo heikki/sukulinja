@@ -13,6 +13,7 @@ export interface PersonHandlers {
   handleAddRelative: (personId: number, relative: NewRelative) => Response;
   handleEditPerson: (personId: number, name: PersonName) => Response;
   handleUnlink: (personId: number, familyId: number) => Response;
+  handleDeletePerson: (personId: number) => Response;
 }
 
 const RELATIONS = new Set<string>([
@@ -64,11 +65,26 @@ function notAllowed() {
   return new Response('method not allowed', { status: 405 });
 }
 
-// PATCH /api/persons/:id changes their name and sex; POST
+// PATCH /api/persons/:id changes their name and sex, DELETE deletes them;
+// POST
 // /api/persons/:id/relatives puts a relative of theirs in place: a new
 // person, or someone already in the tree; DELETE
 // /api/persons/:id/families/:familyId takes them out of the family. Null
 // for any other path, and for reading a person, which is the tree's.
+// The person themself: DELETE deletes them, PATCH changes their name.
+async function routePerson(
+  req: Request,
+  handlers: PersonHandlers,
+  personId: number
+) {
+  if (req.method === 'DELETE') return handlers.handleDeletePerson(personId);
+  if (req.method !== 'PATCH') return notAllowed();
+  const name = readName(await req.json().catch(() => null));
+  return name === null
+    ? new Response('expected { given, surname, sex }', { status: 400 })
+    : handlers.handleEditPerson(personId, name);
+}
+
 export async function routePersons(
   req: Request,
   handlers: PersonHandlers,
@@ -77,22 +93,17 @@ export async function routePersons(
   const m = PERSON_RE.exec(rest);
   if (m === null) return null;
   const personId = Number(m.groups!.person);
-  const { family } = m.groups!;
+  const { family, relatives } = m.groups!;
   if (family !== undefined) {
     return req.method === 'DELETE'
       ? handlers.handleUnlink(personId, Number(family))
       : notAllowed();
   }
-  const body = (await req.json().catch(() => null)) as unknown;
-  if (m.groups!.relatives === undefined) {
-    if (req.method !== 'PATCH') return notAllowed();
-    const name = readName(body);
-    return name === null
-      ? new Response('expected { given, surname, sex }', { status: 400 })
-      : handlers.handleEditPerson(personId, name);
+  if (relatives === undefined) {
+    return await routePerson(req, handlers, personId);
   }
   if (req.method !== 'POST') return notAllowed();
-  const relative = readRelative(body);
+  const relative = readRelative(await req.json().catch(() => null));
   return relative === null
     ? new Response('expected { relation, who, familyId }', { status: 400 })
     : handlers.handleAddRelative(personId, relative);

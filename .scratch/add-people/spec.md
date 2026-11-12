@@ -40,7 +40,7 @@ Heikki decided on 2026-11-11 to cut the MyHeritage connection: Sukulinja becomes
 ## Decisions (Heikki, 2026-11-11)
 
 - **Name and sex are edited in this feature**, in the same tickets as adding, so a typo in a new person's name is fixed at once. One name per person for now.
-- **A person added by mistake is deleted**, from the card's menu, and the deletion is a Change. No Undo of its own. The same deletion works for imported people, since nothing brings them back now (ADR-0021). Deleting takes their names, Facts, Citations, Tags and places in families with them, through the facts spec's helper for what a person or Fact holds; their Changes and Reminders stay, on nothing, as a person gone does now. A family left with no one in it goes too.
+- **A person added by mistake is deleted**, from the card's menu, and the deletion is a Change. No Undo of its own. The same deletion works for imported people, since nothing brings them back now (ADR-0021). Deleting takes their names, Facts, Citations, Tags and places in families with them, through the facts spec's helper for what a person or Fact holds; their Reminders go too (Heikki, 2026-11-12), and their Changes stay, on nothing, naming them. A family left with no one in it goes too.
 - **A person is unlinked from a family** without deleting them: _Remove as child_, _Remove as spouse_. A family left with no one goes, one left with one person stays.
 - **Nothing cuts the tree in two** (Heikki, 2026-11-11). A deletion or an unlinking that would leave someone no longer connected to the Root through families isn't offered: the card's menu simply lacks _Delete person…_ or that _Remove as …_, with no explanation (Heikki). The server refuses it all the same. The way out is to delete or relink the ones at the far end first, from the outside in. A part that was already unconnected after an import doesn't stop it; only what the change itself would cut off counts.
 - **Children are ordered by birth date** when it's known, else in the order they were added: the order is written to `family_children` when a child is added and when a child's birth (or baptism) date changes.
@@ -71,7 +71,7 @@ Heikki decided on 2026-11-11 to cut the MyHeritage connection: Sukulinja becomes
 | 03  | ~~Edit a person's name and sex~~ done                              | 01                  |
 | 04  | ~~Order children by birth date~~ done                              | 01, fact-editing 04 |
 | 05  | ~~Unlink a person from a family~~ done                             | 01                  |
-| 06  | Delete a person                                                    | 05, fact-editing 06 |
+| 06  | ~~Delete a person~~ done                                           | 05, fact-editing 06 |
 | 07  | New relatives from the Scan viewer's and Photo viewer's picker     | 01                  |
 | 08  | Start a new dataset with its first person                          | 01                  |
 | 09  | Glossary: Person, Family and the new Change kinds                  | 01                  |

@@ -194,6 +194,9 @@ test('says whose relative a person was added as', () => {
   } as const;
   expect(doneLabel(unlinked)).toBe('Removed as spouse');
   expect(detailOf(unlinked)).toBeNull();
+  const deleted = { kind: 'person', did: 'delete' } as const;
+  expect(doneLabel(deleted)).toBe('Deleted the person');
+  expect(detailOf(deleted)).toBeNull();
   const edited = {
     kind: 'person',
     did: 'edit',

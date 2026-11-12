@@ -36,9 +36,10 @@ type PersonChange = Extract<ChangeWhat, { kind: 'person' }>;
 const PERSON_DID = { add: 'Added', link: 'Linked', unlink: 'Removed' };
 
 // A person added, linked or taken out of a family, by their relation,
-// "Added as father", or their name changed.
+// "Added as father", their name changed, or they deleted.
 function personDone(what: PersonChange) {
   if (what.did === 'edit') return 'Changed the name';
+  if (what.did === 'delete') return 'Deleted the person';
   return `${PERSON_DID[what.did]} as ${what.relation}`;
 }
 
@@ -46,6 +47,7 @@ function personDone(what: PersonChange) {
 // before and after. Null for a family with no one else named.
 function personDetail(what: PersonChange) {
   if (what.did === 'edit') return `${what.was} → ${what.now}`;
+  if (what.did === 'delete') return null;
   return what.of === '' ? null : `of ${what.of}`;
 }
 

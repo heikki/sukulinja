@@ -15,6 +15,7 @@ import type { FactAnswer } from './facts/facts';
 import { routeFacts } from './facts/routes';
 import type { FactHandlers } from './facts/routes';
 import { createPersonDetails } from './person-details';
+import { createDeletion } from './persons/delete';
 import { createPersons } from './persons/persons';
 import type { PersonAnswer } from './persons/persons';
 import { createRelatives } from './persons/relatives';
@@ -79,6 +80,9 @@ function createDatasetHandlers(
     changes.add(change);
   });
   const unlinking = createUnlink(db, (change) => {
+    changes.add(change);
+  });
+  const deletion = createDeletion(db, (change) => {
     changes.add(change);
   });
 
@@ -180,6 +184,10 @@ function createDatasetHandlers(
 
     handleUnlink(personId, familyId) {
       return answerPerson(unlinking.unlink(personId, familyId));
+    },
+
+    handleDeletePerson(personId) {
+      return answerPerson(deletion.remove(personId));
     },
 
     handlePlaces() {

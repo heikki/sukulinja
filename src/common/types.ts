@@ -519,6 +519,8 @@ export type ChangeWhat =
   // A person's name and sex changed, as they read before and after:
   // "Matti Virtanen, male".
   | { kind: 'person'; did: 'edit'; was: string; now: string }
+  // A person deleted; the Change's `who` names them as they were.
+  | { kind: 'person'; did: 'delete' }
   // `merged`, `lost` and undo-import are from before an import only made
   // a new dataset (ADR-0021), kept so older Changes still read.
   | { kind: 'import'; file: string; merged: boolean; lost: number }

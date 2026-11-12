@@ -156,6 +156,8 @@ export interface DatasetApi {
   editPerson: (personId: number, name: PersonName) => Promise<void>;
   // Takes the person out of the family, as a child or a parent.
   unlink: (personId: number, familyId: number) => Promise<void>;
+  // Deletes the person, with all they held.
+  deletePerson: (personId: number) => Promise<void>;
   // Changes what one of the person's Facts, or their families', says.
   editFact: (
     personId: number,
@@ -465,6 +467,12 @@ export function openDatasetApi(
         `${dataset}/api/persons/${personId}/families/${familyId}`,
         { method: 'DELETE' }
       );
+    },
+
+    async deletePerson(personId) {
+      await ask('Deleting the person', `${dataset}/api/persons/${personId}`, {
+        method: 'DELETE'
+      });
     },
 
     async addRelative(personId, relative) {

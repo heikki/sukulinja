@@ -62,6 +62,19 @@ export function deleteHeld(db: Database, owner: { fact: number }) {
 
 type Holder = 'person' | 'family' | 'fact' | 'name' | 'citation';
 
+// Removes the notes on the owner, with their Citations.
+function deleteNotes(db: Database, owner: string, id: number) {
+  db.run(
+    `DELETE FROM citations WHERE scope_type = 'note' AND scope_id IN
+       (SELECT id FROM notes WHERE owner_type = ? AND owner_id = ?)`,
+    [owner, id]
+  );
+  db.run('DELETE FROM notes WHERE owner_type = ? AND owner_id = ?', [
+    owner,
+    id
+  ]);
+}
+
 // Removes the media links on the holder, and their notes.
 function deleteMediaLinks(db: Database, scope: Holder, id: number) {
   db.run(
@@ -83,9 +96,7 @@ export function deleteCitations(db: Database, scope: Holder, id: number) {
     )
     .all(scope, id);
   for (const c of ids) {
-    db.run("DELETE FROM notes WHERE owner_type = 'citation' AND owner_id = ?", [
-      c.id
-    ]);
+    deleteNotes(db, 'citation', c.id);
     deleteMediaLinks(db, 'citation', c.id);
   }
   db.run('DELETE FROM citations WHERE scope_type = ? AND scope_id = ?', [
@@ -111,15 +122,40 @@ function deleteFacts(db: Database, scope: 'person' | 'family', id: number) {
   ]);
 }
 
+// Removes a person's own: their names (with what each holds), Facts,
+// Citations, notes and media links, Tags among them. Their places in
+// families are the caller's, who says what becomes of the families.
+export function deletePersonHeld(db: Database, id: number) {
+  const names = db
+    .query<{ id: number }, [number]>('SELECT id FROM names WHERE person_id = ?')
+    .all(id);
+  for (const n of names) {
+    deleteCitations(db, 'name', n.id);
+    deleteNotes(db, 'name', n.id);
+  }
+  db.run('DELETE FROM names WHERE person_id = ?', [id]);
+  deleteFacts(db, 'person', id);
+  deleteCitations(db, 'person', id);
+  deleteMediaLinks(db, 'person', id);
+  deleteNotes(db, 'person', id);
+  const associations = db
+    .query<{ id: number }, [number]>(
+      'SELECT id FROM associations WHERE person_id = ?1 OR associate_id = ?1'
+    )
+    .all(id);
+  for (const a of associations) deleteNotes(db, 'association', a.id);
+  db.run('DELETE FROM associations WHERE person_id = ?1 OR associate_id = ?1', [
+    id
+  ]);
+}
+
 // Removes a family and all it holds: its Facts, Citations, notes and
 // media links, and its places for its members, who stay.
 export function deleteFamily(db: Database, id: number) {
   deleteFacts(db, 'family', id);
   deleteCitations(db, 'family', id);
   deleteMediaLinks(db, 'family', id);
-  db.run("DELETE FROM notes WHERE owner_type = 'family' AND owner_id = ?", [
-    id
-  ]);
+  deleteNotes(db, 'family', id);
   db.run('DELETE FROM family_children WHERE family_id = ?', [id]);
   db.run('DELETE FROM families WHERE id = ?', [id]);
 }

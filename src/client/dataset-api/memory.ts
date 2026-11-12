@@ -86,7 +86,8 @@ type MemoryDatasetApi = DatasetApi & {
   // "link <relation> of <person>: <relative>", "edit person <person>:
   // <given> <surname> <sex>", which changes the row in `persons`: a new person `addRelative`
   // adds joins `persons`, numbered on from 4000, in no family; a link,
-  // and "unlink <person> from <family>", change nothing.
+  // and "unlink <person> from <family>", change nothing; "delete person
+  // <person>" takes the row out of `persons`.
   // A Citation made by `cite` joins its Volume's citations, numbered on
   // from 1000, and `uncite` takes one out.
   asked: string[];
@@ -496,6 +497,14 @@ export function memoryDatasetApi(
           persons.find((p) => p.id === personId),
           'person not found'
         );
+      });
+    },
+
+    async deletePerson(personId) {
+      await answer(`delete person ${personId}`, undefined, () => {
+        const at = persons.findIndex((p) => p.id === personId);
+        found(persons[at], 'person not found');
+        persons.splice(at, 1);
       });
     },
 
