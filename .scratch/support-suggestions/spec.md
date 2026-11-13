@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: done
 
 # Suggested support for old Citations
 
@@ -26,7 +26,7 @@ Residence is left out: the 2 313 placeless RESI Facts are copies of the rippikir
 
 - **_Supports_ toggles:** a suggested Fact's toggle is marked as suggested, with what the Transcription says ("Transcription: 15.5.1867", or "Transcription: 9.8.1856, differs"). Pressing it adds support as any toggle does: a Change on the Citation.
 - **_Sources_ list:** a Citation with Suggestions shows a small marker in its row, so they're seen without unfolding each one.
-- **Confirm all:** _Sources_ offers "Confirm N agreeing suggestions" when the person has any, which adds each one's support, a Change each. Differing ones are confirmed one at a time.
+- **Confirm all:** _Sources_ offers "Confirm N agreeing suggestions" at its top when the person has any, which adds each one's support, a Change each. Differing ones are confirmed one at a time.
 - A suggestion that's wrong is left unpressed. It stays marked; there's no "not this", as the toggle is there anyway.
 
 ## Structure
@@ -39,6 +39,8 @@ Residence is left out: the 2 313 placeless RESI Facts are copies of the rippikir
 
 ## Tickets
 
+All done 2026-11-13.
+
 | #   | Ticket                                                | Blocked by |
 | --- | ----------------------------------------------------- | ---------- |
 | 01  | A Transcription's events, outside `myheritage/`       | none       |
@@ -48,4 +50,4 @@ Residence is left out: the 2 313 placeless RESI Facts are copies of the rippikir
 
 ## Open questions for Heikki
 
-1. Confirm per person in _Sources_ (built), or also once for the whole dataset?
+1. ~~Confirm per person in _Sources_, or also once for the whole dataset?~~ Per person (Heikki, 2026-11-13).
