@@ -560,7 +560,7 @@ export type ChangeWhat =
   // A dataset started with its first person, whom it's on.
   | { kind: 'new-dataset' }
   // The Facts whose address stood alone, as MyHeritage wrote residences,
-  // given it as their place (schema 6, ADR-0023).
+  // given it as their place (scripts/tidy-places, ADR-0023).
   | { kind: 'addresses-to-places'; facts: number }
   // The Facts whose place was written another way, as in Finland without
   // Suomi or with its province (scripts/tidy-places, ADR-0024).

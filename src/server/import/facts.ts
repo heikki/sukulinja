@@ -3,7 +3,6 @@
 
 import type { Scope } from '@/common/types';
 
-import { placeOf } from '../facts/address-place';
 import type { GedNode } from '../gedcom/parser';
 import { EVENTS } from '../gedcom/tags';
 import { gedcom7Age, gedcom7Date } from '../gedcom/values';
@@ -78,6 +77,7 @@ export function factImporter({
   }
 
   // An event's ADDR, its parts kept and its lines joined for showing.
+  // MyHeritage records residences this way rather than with PLAC.
   function readAddress(node: GedNode) {
     const addr = take(node, 'ADDR');
     if (addr === undefined) return null;
@@ -124,23 +124,16 @@ export function factImporter({
     lines.use(node);
     const place = readPlace(node);
     const address = readAddress(node);
-    // MyHeritage records a residence's place as its ADDR: it's kept as the
-    // place, and the ADDR's parts aren't.
-    const said = placeOf({
-      place: place.name,
-      address: address?.shown ?? null
-    });
-    const kept = said.address === null ? null : address;
     const res = sql.insertFact.run({
       $scope_type: owner.scope,
       $scope_id: owner.id,
       $tag: node.tag,
       $type: takeValue(node, 'TYPE'),
       $date_text: gedcom7Date(takeValue(node, 'DATE')),
-      $place: said.place,
+      $place: place.name,
       $latitude: place.latitude,
       $longitude: place.longitude,
-      $address: said.address,
+      $address: address?.shown ?? null,
       $age: gedcom7Age(takeValue(node, 'AGE')),
       $cause: takeValue(node, 'CAUS'),
       $agency: takeValue(node, 'AGNC'),
@@ -148,12 +141,12 @@ export function factImporter({
       $sort_order: order
     });
     const factId = Number(res.lastInsertRowid);
-    if (kept !== null) {
+    if (address !== null) {
       sql.insertAddress.run({
         $owner_type: 'fact',
         $owner_id: factId,
-        $text: kept.text,
-        ...kept.parts
+        $text: address.text,
+        ...address.parts
       });
     }
     if (place.plac !== undefined) importNotes(place.plac, 'place', factId);

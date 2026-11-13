@@ -1,9 +1,9 @@
 // Where a Fact was, as GEDCOM 7 has it (ADR-0023): PLAC is the place, its
 // jurisdictions from the lowest up, down to a village, farm or building;
 // ADDR is an address as written on a mailing label. MyHeritage writes a
-// residence's place in its ADDR ("Laukola, Haukivuori, Haukivuori, Mikkeli
-// (St. Michel), Finland"), so an address with no place beside it is taken
-// for the place, unless it reads as a mailing address.
+// residence's place in its ADDR ("Talo, Kylä, Pitäjä, Lääni (Län),
+// Finland"), so an address with no place beside it is taken for the place,
+// unless it reads as a mailing address.
 
 // A postal code: Finland's "00100", or a ZIP code, "97008" or "97008-7922".
 const POSTAL_CODE = /\b\d{5}(?:-\d{4})?\b/u;

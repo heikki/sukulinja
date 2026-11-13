@@ -91,8 +91,8 @@ test('serves facts in date order, and the Citations', () => {
         type: null,
         tag: 'RESI',
         date: 'BET 1794 AND 1808',
-        place: 'No. 3, Kylämaa, Pitäjä',
-        address: null,
+        place: null,
+        address: 'No. 3, Kylämaa, Pitäjä',
         value: null,
         spouse: null
       },
