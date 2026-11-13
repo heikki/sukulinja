@@ -112,9 +112,29 @@ export function createFacts(
   const insertAddress = db.prepare<null, [number, string]>(
     "INSERT INTO addresses (owner_type, owner_id, text) VALUES ('fact', ?, ?)"
   );
-  const allPlaces = db.prepare<{ place: string }, []>(
-    `SELECT place FROM facts WHERE place IS NOT NULL
+  const allPlaces = db.prepare<{ place: string; facts: number }, []>(
+    `SELECT place, COUNT(*) AS facts FROM facts WHERE place IS NOT NULL
      GROUP BY place ORDER BY COUNT(*) DESC, place`
+  );
+  // The Facts naming the place, with whose they are: a person's, or a
+  // family's spouses'.
+  const atPlace = db.prepare<
+    {
+      tag: string;
+      type: string | null;
+      date_text: string | null;
+      person_id: number | null;
+      husband_id: number | null;
+      wife_id: number | null;
+    },
+    [string]
+  >(
+    `SELECT f.tag, f.type, f.date_text,
+       CASE WHEN f.scope_type = 'person' THEN f.scope_id END AS person_id,
+       fam.husband_id, fam.wife_id
+     FROM facts f
+     LEFT JOIN families fam ON f.scope_type = 'family' AND fam.id = f.scope_id
+     WHERE f.place = ? ORDER BY f.date_text, f.id`
   );
 
   const childOrder = createChildOrder(db);
@@ -146,6 +166,25 @@ export function createFacts(
     // form to suggest.
     places() {
       return allPlaces.all().map((r) => r.place);
+    },
+
+    // Every place Facts name, with how many name it, most named first.
+    placeCounts() {
+      return allPlaces.all();
+    },
+
+    // The Facts naming the place, by whose they are: the person's, or for
+    // a family's, both spouses' (null where there's none).
+    atPlace(place: string) {
+      return atPlace.all(place).map((r) => ({
+        tag: r.tag,
+        type: r.type,
+        date: r.date_text,
+        personIds:
+          r.person_id === null
+            ? [r.husband_id, r.wife_id].filter((id) => id !== null)
+            : [r.person_id]
+      }));
     },
 
     // Adds the Fact to the person, or to one of their families: its id.
