@@ -8,9 +8,8 @@ import type { PersonRow } from '@/common/types';
 
 import { formatName } from '../tree-view/renderer';
 import type { ParentRow } from './cite';
-
-// How far down the card its arrow points, in pixels.
-export const ARROW_AT = 18;
+import { ARROW_AT, placeCard } from './entry-place';
+import type { Rect } from './entry-place';
 
 // What an entry of the Volume's Book is called: a baptism or a marriage,
 // else an entry.
@@ -35,15 +34,16 @@ export interface ChooseDetail {
 // baptism or a marriage a row for each Role, its person or none, each
 // chosen (`choose`) or taken out (`drop`); in another Book the people
 // named, and _Add person…_. Then what the entry says (`text`). Cancel and
-// Save stay in the foot bar. Presses stay here, so they don't pan the
-// scan.
+// Save stay in the foot bar. It places itself beside its Box (`anchor`,
+// on the stage) and inside the stage (entry-place.ts). Presses stay here,
+// so they don't pan the scan.
 @customElement('sl-scan-entry')
 class ScanEntryElement extends LitElement {
   static override styles = css`
     :host::before {
       content: '';
       position: absolute;
-      top: ${ARROW_AT - 6}px;
+      top: calc(var(--arrow, ${ARROW_AT}px) - 6px);
       left: -7px;
       width: 12px;
       height: 12px;
@@ -51,6 +51,14 @@ class ScanEntryElement extends LitElement {
       border-left: 1px solid var(--border);
       background: var(--card);
       transform: rotate(45deg);
+    }
+
+    :host([side='left'])::before {
+      right: -7px;
+      left: auto;
+      border: none;
+      border-top: 1px solid var(--border);
+      border-right: 1px solid var(--border);
     }
 
     label.parent {
@@ -141,6 +149,13 @@ class ScanEntryElement extends LitElement {
   // The Volume's label, whose Book tells the Roles.
   @property() volume = '';
   @property({ attribute: false }) persons = new Map<number, PersonRow>();
+  // The pending Box on the stage.
+  @property({ attribute: false }) anchor: Rect = {
+    left: 0,
+    top: 0,
+    width: 0,
+    height: 0
+  };
   // A baptism's parents, as the tree gives them for its child.
   @property({ attribute: false }) parents: ParentRow[] = [];
 
@@ -149,6 +164,21 @@ class ScanEntryElement extends LitElement {
     for (const type of ['mousedown', 'wheel', 'dblclick', 'contextmenu']) {
       this.addEventListener(type, stop);
     }
+  }
+
+  // Placed once drawn, when its size is known.
+  override updated() {
+    const stage = this.offsetParent;
+    if (stage === null) return;
+    const at = placeCard(
+      this.anchor,
+      { width: this.offsetWidth, height: this.offsetHeight },
+      { width: stage.clientWidth, height: stage.clientHeight }
+    );
+    this.style.left = `${at.left}px`;
+    this.style.top = `${at.top}px`;
+    this.style.setProperty('--arrow', `${at.arrow}px`);
+    this.setAttribute('side', at.side);
   }
 
   private nameOf(personId: number) {

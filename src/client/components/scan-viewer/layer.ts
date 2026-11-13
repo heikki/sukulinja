@@ -23,7 +23,6 @@ import {
   withChild
 } from './cite';
 import { scanLayerStyles } from './edit-styles';
-import { ARROW_AT } from './entry-form';
 import type { ChooseDetail } from './entry-form';
 import { newEntryBox } from './frame';
 import type { Frame } from './frame';
@@ -181,20 +180,14 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     } else this.viewer.entryForm.setInEntry({ personId, role });
   }
 
-  // The pending Entry's people and words, beside its Box, pointing at its
-  // middle.
+  // The pending Entry's people and words, beside its Box.
   private renderEntry() {
     const { view } = this;
     const pending = this.viewer.pending.get();
     if (view === null || pending?.cite === undefined) return nothing;
-    const rect = boxOnStage(pending.box, view);
-    const at = {
-      left: rect.left + rect.width + 14,
-      top: rect.top + rect.height / 2 - ARROW_AT
-    };
     const ix = this.state.chart.people.get();
     return html`<sl-scan-entry
-      style="left: ${at.left}px; top: ${at.top}px"
+      .anchor=${boxOnStage(pending.box, view)}
       .cite=${pending.cite}
       .volume=${pending.volume}
       .persons=${this.persons}
