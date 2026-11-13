@@ -26,7 +26,6 @@ import { linkSpelling } from '../archive-search/api';
 
 import '../archive-search';
 import './fold';
-import './supports';
 
 import { archiveAction, headingOf, titleText, viewerOpening } from './helpers';
 import { personSourcesStyles } from './sources-styles';
@@ -339,15 +338,6 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
     </div>`;
   }
 
-  // The person's Facts the Citation supports, to choose from.
-  private renderSupports(c: CitationRow) {
-    const facts = this.state.selected.details.get()?.facts ?? [];
-    return html`<sl-citation-supports
-      .citation=${c}
-      .facts=${facts}
-    ></sl-citation-supports>`;
-  }
-
   // Finding the reference's parish's archive in Astia where none is known,
   // or changing the one it links into: for every source giving the same
   // spelling.
@@ -447,8 +437,7 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
         <sl-fold .open=${open}>
           ${renderDetails(
             body,
-            html`${this.renderSupports(c)} ${this.renderArchive(c, status)}
-            ${this.renderDelete(c)}`
+            html`${this.renderArchive(c, status)} ${this.renderDelete(c)}`
           )}
         </sl-fold>
       </article>
