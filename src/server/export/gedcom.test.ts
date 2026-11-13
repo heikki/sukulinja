@@ -11,8 +11,11 @@ import { gedcom7Errors } from '../../../test/gedcom7/validate';
 import { treeSnapshot } from '../../../test/tree-snapshot';
 import { openAnnotations, openSupport } from '../citations';
 import { openAppCitations, openMarks } from '../citations/testing';
+import { openDb } from '../datasets/db';
 import { DatasetRegistry } from '../datasets/registry';
+import { parseGedcom } from '../gedcom/parser';
 import { line, pointer, writeGedcom } from '../gedcom/writer';
+import { importGedcom } from '../import/gedcom';
 import { createPhotos, openTags } from '../photos';
 import { createTree } from '../tree';
 import { packDataset } from './dataset';
@@ -415,6 +418,15 @@ describe('exporting a GEDZIP', () => {
     const text = gedcomOf(await roundTrip());
     expect(text.match(/SOUR @ASTIA_1234@/g)).toHaveLength(3);
     expect(text.match(/\d TEXT Born 1\.2\.1801, died 1870/g)).toHaveLength(3);
+    // Each copy shows the entry on its Image too, one OBJE record for all.
+    expect(text.match(/\d OBJE @A\d+@\r\n\d CROP/g)).toHaveLength(3);
+    // The import reads every line of the copies.
+    const stats = importGedcom(
+      openDb(':memory:'),
+      parseGedcom(text),
+      () => null
+    );
+    expect(stats.unstored.filter((u) => u.path.includes('SOUR'))).toEqual([]);
     expect(gedcom7Errors(text)).toEqual([]);
     const b = registry.open('b');
     expect(treeSnapshot(b)).toEqual(treeSnapshot(db));

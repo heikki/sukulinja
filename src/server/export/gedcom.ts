@@ -148,12 +148,17 @@ function gedcomTree(db: Database) {
   }
 
   // A copy of each Citation supporting the Fact, as GEDCOM repeats one
-  // under each Fact it supports; the Citation itself is under its owner
-  // (ADR-0022).
+  // under each Fact it supports, with its image and Box; the Citation
+  // itself, with its notes and media, is under its owner (ADR-0022).
   function support(factId: number): OutLine[] {
     return rows
       .supportOf(String(factId))
-      .map((c) => pointer('SOUR', sourceOf(c), cites(c)));
+      .map((c) =>
+        pointer('SOUR', sourceOf(c), [
+          ...cites(c),
+          ...links.linesOf(c.annotation).objects
+        ])
+      );
   }
 
   function address(ownerType: string, ownerId: number) {

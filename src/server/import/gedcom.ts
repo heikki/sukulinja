@@ -132,7 +132,7 @@ export function importGedcom(
   });
 
   const citationRows = openAnnotations(db);
-  const factSours = factCitations(db);
+  const factSours = factCitations(db, lines.use);
   const readAnnotation = annotationReader(roots, lines);
 
   // A record's UID, or a new one: only a UID says reliably who is who from

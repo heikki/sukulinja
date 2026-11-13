@@ -11,8 +11,9 @@ import type { Database } from 'bun:sqlite';
 import { openSupport } from '../citations';
 import type { GedNode } from '../gedcom/parser';
 
-// What a copy under a Fact repeats: everything but what only the Citation
-// itself holds, its notes, media and Annotation.
+// What tells a copy under a Fact from another citation: what it says of
+// where it's from. Its image and Box (OBJE) are repeated too, but other
+// programs may leave them out; its notes and media aren't.
 const REPEATED = new Set(['PAGE', 'DATA', 'EVEN', 'QUAY']);
 
 function linesOf(node: GedNode): unknown {
@@ -35,7 +36,14 @@ interface Owner {
 // Stores one citation of the owner, its sort order given: its id.
 type StoreCitation = (sour: GedNode, owner: Owner, sortOrder: number) => number;
 
-export function factCitations(db: Database) {
+// Marks a line and everything under it as read: a copy folded into
+// support says nothing more than its twin.
+function useAll(use: (node: GedNode) => void, node: GedNode) {
+  use(node);
+  for (const child of node.children) useAll(use, child);
+}
+
+export function factCitations(db: Database, use: (node: GedNode) => void) {
   const support = openSupport(db);
   const ownerOf = db.prepare<
     {
@@ -102,6 +110,7 @@ export function factCitations(db: Database) {
           );
           if (twin !== undefined) {
             support.add(twin.id, factId);
+            useAll(use, sour);
             continue;
           }
           const at = { scope: owner.scope, id: owner.id };
