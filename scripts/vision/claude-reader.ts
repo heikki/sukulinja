@@ -1,8 +1,6 @@
 // The real Reader: Claude reads one Astia Image per request and answers in a
-// fixed JSON shape (structured outputs). Credentials come from the
-// environment or an `ant auth login` profile, never from the repo; with only
-// OPENROUTER_API_KEY set, requests go through OpenRouter's Anthropic-shaped
-// endpoint instead.
+// fixed JSON shape (structured outputs). The client and its credentials
+// are the app's (`@/server/claude/client`).
 //
 // A refusal reads as unreadable, so one declined Image doesn't stop a run;
 // so does an answer that doesn't fit its shape. Haiku has no server-side
@@ -10,10 +8,18 @@
 // back on a decline to the model the API picks for it. OpenRouter takes no
 // such fallback, so there a decline stays unreadable.
 
-import Anthropic from '@anthropic-ai/sdk';
+import type Anthropic from '@anthropic-ai/sdk';
 
 import type { ImageRef } from '@/server/citations/astia/astia';
 import type { Fractions } from '@/server/citations/myheritage/scans';
+import {
+  addSpend,
+  claudeModel,
+  connect,
+  NO_SPEND,
+  openRouterModel
+} from '@/server/claude/client';
+import type { Spend } from '@/server/claude/client';
 
 import type { Scan } from './images';
 import type {
@@ -46,23 +52,7 @@ const DEFAULT_EFFORT: Record<Question, Effort> = {
   entry: 'high'
 };
 
-// Dollars per million input and output tokens, first-party API rates as of
-// October 2026.
-const PRICES: Record<string, { input: number; output: number }> = {
-  'claude-haiku-5-5': { input: 0.1, output: 0.5 },
-  'claude-sonnet-5-5': { input: 2, output: 10 },
-  'claude-opus-5-5': { input: 4, output: 20 },
-  'claude-fable-5-1': { input: 10, output: 50 }
-};
-
-// What a model was asked and spent, by the model that answered.
-export interface Spend {
-  calls: number;
-  inputTokens: number;
-  outputTokens: number;
-  // Null when the model's price isn't known here.
-  dollars: number | null;
-}
+export type { Spend } from '@/server/claude/client';
 
 const SYSTEM = `You read scans of Finnish parish church books from the 1700s and 1800s: communion books (rippikirjat), children's books (lastenkirjat), and baptism and marriage registers. They are handwritten, in Swedish or Finnish, sometimes with Latin.
 
@@ -317,35 +307,6 @@ interface ClaudeReader extends Reader {
   spend: () => Record<string, Spend>;
 }
 
-const OPENROUTER = 'https://openrouter.ai/api';
-
-// Where requests go: the Claude API with its own credentials, or OpenRouter
-// when its key is the only one there is.
-function connect() {
-  const env = process.env;
-  const anthropic =
-    env.ANTHROPIC_API_KEY !== undefined ||
-    env.ANTHROPIC_AUTH_TOKEN !== undefined;
-  const openRouterKey = env.OPENROUTER_API_KEY;
-  if (anthropic || openRouterKey === undefined) {
-    return { client: new Anthropic(), openRouter: false };
-  }
-  const client = new Anthropic({
-    authToken: openRouterKey,
-    baseURL: OPENROUTER
-  });
-  return { client, openRouter: true };
-}
-
-// OpenRouter names models "anthropic/claude-sonnet-5.5".
-function openRouterModel(model: string) {
-  return `anthropic/${model.replace(/-(?<major>\d+)-(?<minor>\d+)$/, '-$<major>.$<minor>')}`;
-}
-
-function claudeModel(served: string) {
-  return served.replace(/^anthropic\//, '').replace(/\./g, '-');
-}
-
 export function claudeReader(options: ClaudeReaderOptions): ClaudeReader {
   const models = { ...DEFAULT_MODELS, ...options.models };
   const effort = { ...DEFAULT_EFFORT, ...options.effort };
@@ -357,26 +318,7 @@ export function claudeReader(options: ClaudeReaderOptions): ClaudeReader {
   const spent = new Map<string, Spend>();
 
   function record(model: string, usage: Anthropic.Beta.BetaUsage) {
-    const s = spent.get(model) ?? {
-      calls: 0,
-      inputTokens: 0,
-      outputTokens: 0,
-      dollars: 0
-    };
-    const input =
-      usage.input_tokens +
-      (usage.cache_creation_input_tokens ?? 0) +
-      (usage.cache_read_input_tokens ?? 0);
-    const price = PRICES[model];
-    s.calls += 1;
-    s.inputTokens += input;
-    s.outputTokens += usage.output_tokens;
-    s.dollars =
-      price === undefined || s.dollars === null
-        ? null
-        : s.dollars +
-          (input * price.input + usage.output_tokens * price.output) / 1e6;
-    spent.set(model, s);
+    spent.set(model, addSpend(spent.get(model) ?? NO_SPEND, model, usage));
   }
 
   // The parsed answer, or null for a refusal or an answer out of shape, and

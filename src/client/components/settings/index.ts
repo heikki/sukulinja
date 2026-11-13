@@ -14,6 +14,8 @@ import type { ScanCacheStatus } from '@/common/types';
 
 import { CornerPopover, popoverStyles } from '../corner-panel/popover';
 import { capDrop, clearDrop, formatBytes } from './helpers';
+
+import './assistant-key';
 import type { ScanCacheDrop } from './helpers';
 
 export type GenerationsChangeEvent = CustomEvent<number>;
@@ -354,6 +356,8 @@ class SettingsElement extends LitElement {
       <div class="popover" role="group" aria-label="Settings">
         ${this.renderDataset()} ${this.renderAppearance()}
         ${this.renderGenerations()} ${this.renderScanCache()}
+        <span class="label">Assistant</span>
+        <sl-assistant-key></sl-assistant-key>
       </div>
     `;
   }

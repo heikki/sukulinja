@@ -603,3 +603,9 @@ export interface ReminderChange {
   text?: string;
   done?: boolean;
 }
+
+// Where the assistant's Anthropic credentials come from: a key kept in the
+// system's credential store, the environment, or nowhere yet.
+export interface AssistantKeyStatus {
+  source: 'saved' | 'environment' | null;
+}

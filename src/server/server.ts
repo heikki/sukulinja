@@ -6,6 +6,9 @@ import type { NewChange, Reminder } from '@/common/types';
 import type { Changes } from './changes/changes';
 import { openCitations } from './citations';
 import type { Astia, DatasetCitations } from './citations';
+import { systemKeyStore } from './claude/key';
+import type { KeyStore } from './claude/key';
+import { routeAssistantKey } from './claude/key-routes';
 import { lifecycleRoutes } from './datasets/lifecycle-routes';
 import { mediaDirOf } from './datasets/registry';
 import type { DatasetRegistry } from './datasets/registry';
@@ -257,6 +260,9 @@ interface ApiOptions {
   // Whether each dataset, once opened, asks Astia in the background for
   // what its references resolve against.
   warmUp?: boolean;
+  // Where the assistant's API key is kept; by default the system's
+  // credential store.
+  keyStore?: KeyStore;
 }
 
 export function createApi(
@@ -273,6 +279,7 @@ export function createApi(
   // a dataset's Database is closed and replaced (by an import or a delete),
   // and the next request then opens the new one and gets new handlers.
   const handlersByDb = new WeakMap<Database, DatasetHandlers>();
+  const keyStore = options.keyStore ?? systemKeyStore();
   const routeLifecycle = lifecycleRoutes(registry, {
     exportDir: options.exportDir,
     // Not into one an older version built, as undoing its first import
@@ -330,6 +337,8 @@ export function createApi(
       if (lifecycle !== null) return lifecycle;
       const shared = await scans.route(req, pathname);
       if (shared !== null) return shared;
+      const key = await routeAssistantKey(keyStore, req, pathname);
+      if (key !== null) return key;
       const m = DATASET_RE.exec(pathname);
       if (m === null) return null;
       const slug = m.groups!.slug!;
