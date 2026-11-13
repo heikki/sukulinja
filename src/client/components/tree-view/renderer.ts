@@ -100,6 +100,7 @@ export const dims = {
   boxW: 110,
   boxH: 140,
   gapX: 22,
+  coupleGap: 11,
   gapY: 60,
   tieOffset: 6
 };

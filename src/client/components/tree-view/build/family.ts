@@ -33,6 +33,8 @@ interface CenteredFamilyArgs {
   kids: readonly PersonSlot[];
   // Family-local Tie X. Defaults to 0.
   tieXLocal?: number;
+  // Distance between the two adults, in slot units (see couplePitch).
+  couplePitch: number;
   // Family-local X for a lone parent's box and Drop. Defaults to 0 (the
   // bloodline kid's column). The chart-root parent row passes the Root
   // sibship midpoint so a single parent centres on the Bar like a Couple does.
@@ -46,8 +48,8 @@ export function buildCenteredFamily(args: CenteredFamilyArgs) {
   let wife: AdultSlot;
   let childAnchor: ChildAnchor;
   if (bothPresent) {
-    husband = ownedSlot(args.husband!, tieXLocal - 0.5);
-    wife = ownedSlot(args.wife!, tieXLocal + 0.5);
+    husband = ownedSlot(args.husband!, tieXLocal - args.couplePitch / 2);
+    wife = ownedSlot(args.wife!, tieXLocal + args.couplePitch / 2);
     childAnchor = { x: tieXLocal, kind: 'tie-midpoint' };
   } else {
     // Lone parent: drop from the present adult's box bottom so the sibship

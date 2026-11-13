@@ -13,6 +13,13 @@ export interface LayoutIndices {
   // Set by buildChart from actual ancestor depth; sizes the pyramid shift
   // so it doesn't reserve space for ancestors that don't exist.
   ancestorLevels?: number;
+  // Set by buildChart from Dims: centre-to-centre distance of a Couple's two
+  // cards, in slot units. Below 1 because a Couple's gap is narrower.
+  couplePitch?: number;
+}
+
+export function couplePitch(ix: LayoutIndices) {
+  return ix.couplePitch ?? 1;
 }
 
 export function otherSpouseOf(fam: FamilyRow, personId: number) {

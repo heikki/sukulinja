@@ -16,6 +16,9 @@ export interface Dims {
   boxW: number;
   boxH: number;
   gapX: number;
+  // Gap between the two cards of a Couple; narrower than gapX so a Couple
+  // reads as one unit.
+  coupleGap: number;
   gapY: number;
   tieOffset: number;
 }

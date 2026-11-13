@@ -11,7 +11,8 @@ export function buildChart(rootId: number, ix: LayoutIndices, dims: Dims) {
   if (!ix.persons.has(rootId)) return null;
   const effectiveIx: LayoutIndices = {
     ...ix,
-    ancestorLevels: actualMaxAncestorDepth(rootId, ix.levels, ix)
+    ancestorLevels: actualMaxAncestorDepth(rootId, ix.levels, ix),
+    couplePitch: (dims.boxW + dims.coupleGap) / (dims.boxW + dims.gapX)
   };
   const root = buildRootPerson(rootId, effectiveIx);
   return emitLayout(root, { x: 0, y: 0 }, dims);

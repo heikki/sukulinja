@@ -5,6 +5,7 @@ import type { FamilyRow } from '@/common/types';
 import { buildAnchoredFamily } from './family';
 import type { SpousePlacement } from './family';
 import {
+  couplePitch,
   hasKnownAncestry,
   isMeaningfulSpouseFam,
   presentChildren
@@ -50,7 +51,7 @@ function buildSibling(personId: number, ix: LayoutIndices): PersonNode {
     anchorId: personId,
     fam: fams[0]!,
     kidNodes: [],
-    placement: primaryPlacement(fanDir),
+    placement: primaryPlacement(fanDir, ix),
     ix
   });
   return new PersonNode(personId, null, [familyNode], 0);
@@ -99,7 +100,7 @@ function buildOwnedMarriages(
     const packed = buildSibship(kidNodes.map((k) => k.extents));
     const placement =
       off === 0
-        ? primaryPlacement(fanDir)
+        ? primaryPlacement(fanDir, ix)
         : nonPrimaryPlacement(fanDir, outerEdge, packed);
     const familyNode = buildAnchoredFamily({
       anchorId: personId,
@@ -133,9 +134,9 @@ function fanDirOfPerson(
   return ix.persons.get(personId)?.sex === 'M' ? 1 : -1;
 }
 
-function primaryPlacement(fanDir: 1 | -1): SpousePlacement {
-  // Primary spouse sits one slot (= one couple-pitch) from anchor.
-  const xSpouse = fanDir;
+function primaryPlacement(fanDir: 1 | -1, ix: LayoutIndices): SpousePlacement {
+  // Primary spouse sits one couple-pitch from anchor.
+  const xSpouse = fanDir * couplePitch(ix);
   return {
     xSpouse,
     childAnchor: { x: xSpouse / 2, kind: 'tie-midpoint' },

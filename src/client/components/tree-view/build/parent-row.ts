@@ -7,6 +7,7 @@ import { buildAncestorStack } from './ancestor-stack';
 import { buildAnchoredFamily, buildCenteredFamily } from './family';
 import type { SpousePlacement } from './family';
 import {
+  couplePitch,
   hasKnownAncestry,
   isMeaningfulSpouseFam,
   isPersonKnown,
@@ -69,7 +70,8 @@ export function buildParentRow(
     wife: motherNode,
     kids: rootRow.slots,
     tieXLocal: sibCenter,
-    loneDropXLocal: sibCenter
+    loneDropXLocal: sibCenter,
+    couplePitch: couplePitch(ix)
   });
 }
 
@@ -130,9 +132,9 @@ function computeBloodlineFootprint(
 ): BloodlineFootprint {
   const fatherPresent = isPersonKnown(parentFam.husband_id, ix);
   const motherPresent = isPersonKnown(parentFam.wife_id, ix);
-  // Parents are one slot (= one couple-pitch) apart when both present, sitting
-  // either side of the sibship midpoint; a lone parent lands on it.
-  const sep = fatherPresent && motherPresent ? 1 : 0;
+  // Parents are one couple-pitch apart when both present, sitting either side
+  // of the sibship midpoint; a lone parent lands on it.
+  const sep = fatherPresent && motherPresent ? couplePitch(ix) : 0;
   const fatherChartX = sibCenter - sep / 2;
   const motherChartX = sibCenter + sep / 2;
 

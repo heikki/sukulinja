@@ -4,7 +4,7 @@
 // depth 1 from parent-row). Tie position follows ADR-0001.
 
 import { buildCenteredFamily } from './family';
-import { hasKnownAncestry, isPersonKnown } from './indices';
+import { couplePitch, hasKnownAncestry, isPersonKnown } from './indices';
 import type { LayoutIndices } from './indices';
 import type { FamilyNode, PersonSlot } from './nodes/family-node';
 import { PersonNode } from './nodes/person-node';
@@ -34,8 +34,9 @@ export function buildAncestorStack(
     effectiveLevels,
     siblingEmpty
   );
-  const husbandChartX = kidChartX + tieXLocal - 0.5;
-  const wifeChartX = kidChartX + tieXLocal + 0.5;
+  const pitch = couplePitch(ix);
+  const husbandChartX = kidChartX + tieXLocal - pitch / 2;
+  const wifeChartX = kidChartX + tieXLocal + pitch / 2;
 
   // Each parent's own pyramid (built one level up) collapses when its spouse
   // here has no ancestry — so hand each the OTHER's emptiness.
@@ -63,7 +64,8 @@ export function buildAncestorStack(
     husband: husbandNode,
     wife: wifeNode,
     kids,
-    tieXLocal
+    tieXLocal,
+    couplePitch: pitch
   });
 }
 

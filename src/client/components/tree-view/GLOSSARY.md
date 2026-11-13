@@ -77,7 +77,7 @@ The shift magnitude grows with how many more levels are rendered above: half-slo
 
 That magnitude assumes the Couple's sibling subtree fans the opposite way to counterweight it. When one parent's bloodline ancestry is empty, there is no counterweight, so the shift collapses to a half-slot and the lone pyramid tucks back over its bloodline child rather than drifting off (ADR-0005). A shallow-but-nonempty sibling still gets the full shift.
 
-Spouse separation inside every Couple — including the chart-root parent FB — stays fixed at one slot; subtree extents grow outward (away from chart center).
+Spouse separation inside every Couple — including the chart-root parent FB — stays fixed at one **Couple pitch**; subtree extents grow outward (away from chart center).
 
 **Aunts/Uncles placement**:
 At **Parent row**, **Aunts/Uncles** share the childhood FB sibship with their bloodline sibling (Father or Mother). The bloodline sibling sits at the _inward_ end of the sibship (Father at the rightmost slot of his sibship, Mother at the leftmost slot of hers); Aunts/Uncles fan outward in birth order, pushed past the **Step-fam fan** reservation so step-spouses and **Half-siblings** of Root fit between the bloodline parent and the Aunts/Uncles. The GP couple's Tie position (see **Bloodline pyramid**) is independent of the sibship width — the bar reaches out to whichever Aunt/Uncle sits farthest from the Tie.
@@ -86,7 +86,7 @@ At **Parent row**, **Aunts/Uncles** share the childhood FB sibship with their bl
 The chart frame anchoring the chart-root parent FB at **Parent row**: where Fa and Mo sit (their chart-X positions, centred on the sibship midpoint — see **Bloodline pyramid**) and how far the bloodline's own rows reach left and right — the union of Root's sibship at Root row and Fa/Mo's own boxes at Parent row (_not_ Aunts/Uncles, which get pushed out past the footprint). **Aunts/Uncles** and the **Step-fam fan** sit past the outer edge on each side, so the footprint is what they must clear.
 
 **Step-fam fan**:
-Non-Primary marriages of a bloodline **Ancestor** render at **Parent row** only (Fa's and Mo's). Ancestors above Parent row show their bloodline Couple only — earlier or later marriages are hidden. At Parent row, each parent's non-Primary marriages fan outward on that parent's own side of the chart-root parent FB — Fa's pile up past the bloodline footprint's left edge, Mo's pile up past the right edge — regardless of whether each marriage is chronologically pre- or post-bloodline. Within each side, chronologically-adjacent marriages (one step before or after the bloodline marriage) land closest to the parent, and progressively-distant marriages fan further outward. The chart-root parent FB sep stays at one slot.
+Non-Primary marriages of a bloodline **Ancestor** render at **Parent row** only (Fa's and Mo's). Ancestors above Parent row show their bloodline Couple only — earlier or later marriages are hidden. At Parent row, each parent's non-Primary marriages fan outward on that parent's own side of the chart-root parent FB — Fa's pile up past the bloodline footprint's left edge, Mo's pile up past the right edge — regardless of whether each marriage is chronologically pre- or post-bloodline. Within each side, chronologically-adjacent marriages (one step before or after the bloodline marriage) land closest to the parent, and progressively-distant marriages fan further outward. The chart-root parent FB sep stays at one **Couple pitch**.
 
 ### Structures
 
@@ -126,7 +126,10 @@ A sibship's **Drop**, **Bar** and **Legs**, drawn as one path. The Drop is drawn
 ### Layout units
 
 **Slot**:
-The horizontal unit. Each person occupies one slot; adjacent slots share their gap padding, so the gap between two boxes is one full gap. Couples sit one slot apart.
+The horizontal unit. Each person occupies one slot; adjacent slots share their gap padding, so the gap between two boxes is one full gap. Couples sit one **Couple pitch** apart.
+
+**Couple pitch**:
+The distance between the two cards of a **Couple**: a box plus a couple gap half the normal gap, so a Couple reads as one unit. A little under one **Slot**. Non-Primary spouses (other marriages, the **Step-fam fan**) keep the normal gap.
 
 **Generation**:
 The unit of vertical position — a horizontal row. Root row is generation 0; above are 1↑, 2↑, …; below are 1↓, 2↓, ….
