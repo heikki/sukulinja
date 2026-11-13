@@ -125,8 +125,7 @@ test("serves a person's Citations, church books first", () => {
       markKey: 'record 1',
       citedPage: 139,
       cited: { parish: null, kind: 'rippi', years: { from: 1794, to: 1808 } },
-      supports: [],
-      transcribed: []
+      supports: []
     },
     {
       id: 1,
@@ -141,8 +140,7 @@ test("serves a person's Citations, church books first", () => {
       markKey: 'citation 1',
       citedPage: null,
       cited: null,
-      supports: [],
-      transcribed: []
+      supports: []
     }
   ]);
 });
@@ -473,52 +471,4 @@ test("a Church-book reference can be deleted; the record's Mark stays with the o
   expect(placesOf(await citations.inVolume('juva-1'))).toEqual(
     marked.filter((p) => p.personId !== 1)
   );
-});
-
-test('gives the events a Transcription records for its person', () => {
-  const db = openDb(':memory:');
-  const baptism =
-    'https://www.myheritage.fi/research/collection-30233/x?itemId=548464';
-  const gedcom = [
-    '0 @S1@ SOUR',
-    '1 TITL Suomi, kastetut',
-    '0 @I1@ INDI',
-    '1 NAME Maria /Juhontytär/',
-    '1 SOUR @S1@',
-    `2 PAGE ${baptism}`,
-    '2 EVEN Record',
-    '3 ROLE 30233:548464-:',
-    '2 DATA',
-    '3 TEXT Maria Juhontytär\nSyntymä: 20. Marras 1829 - Juva\nRistiäiset: 29. Marras 1829 - Juva, Mikkeli, Finland',
-    '1 SOUR Household line',
-    '2 EVEN RESI',
-    '2 DATA',
-    '3 TEXT Maria\nSyntymäpäivä: 20. Marras 1829\nKuolinpäivä: 3. Maalis 1901',
-    '0 @I2@ INDI',
-    '1 NAME Juho /Esimerkki/',
-    '1 SOUR @S1@',
-    `2 PAGE ${baptism}`,
-    '2 EVEN Record',
-    '3 ROLE 30233:548464-F:',
-    '2 DATA',
-    '3 TEXT Juho Esimerkki\nRistiäiset: 29. Marras 1829 - Juva, Mikkeli, Finland',
-    ''
-  ].join('\n');
-  importGedcom(db, parseGedcom(gedcom), () => null);
-  const citations = createCitations(db, {
-    images: openImages({ astia, parishes: memoryParishes() }),
-    references: referencesFor(dir, openDb(':memory:'), { astia })
-  });
-  expect(citations.ofPerson(1).map((c) => c.transcribed)).toEqual([
-    [
-      { tag: 'BIRT', date: '1829-11-20' },
-      { tag: 'CHR', date: '1829-11-29' }
-    ],
-    [
-      { tag: 'BIRT', date: '1829-11-20' },
-      { tag: 'DEAT', date: '1901-03-03' }
-    ]
-  ]);
-  // The father's Citation of the baptism gives him nothing.
-  expect(citations.ofPerson(2).map((c) => c.transcribed)).toEqual([[]]);
 });

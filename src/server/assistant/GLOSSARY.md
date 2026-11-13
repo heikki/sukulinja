@@ -22,4 +22,4 @@ _Avoid_: hidden, private, redacted.
 
 **Proposal**:
 Changes the assistant would make, listed for the person to confirm one by one; applied through the same operations, each writing its Change. Not built yet (ticket 06).
-_Avoid_: suggestion (a **Suggestion** is a Fact a Transcription gives, Citations glossary), plan.
+_Avoid_: suggestion, plan.

@@ -53,8 +53,7 @@ export const factSourcesStyles = [
       content: '↳ ';
     }
 
-    /* Edit event and the sources' list side by side; the latter's count
-       wraps under it when Events is narrow. */
+    /* Edit event and the sources' list side by side. */
     .actions {
       display: flex;
       align-items: start;
@@ -70,8 +69,7 @@ export const factSourcesStyles = [
       color: var(--muted);
     }
 
-    button.edit,
-    .count {
+    button.edit {
       flex: none;
       white-space: nowrap;
     }
@@ -111,15 +109,6 @@ export const factSourcesStyles = [
 
     button.name:hover {
       color: var(--accent);
-    }
-
-    .says {
-      display: block;
-      color: var(--muted);
-    }
-
-    .says.differs {
-      color: var(--caution);
     }
 
     .error {

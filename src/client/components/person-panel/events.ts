@@ -98,7 +98,6 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
           ? html`<sl-fact-sources
               class="picked"
               .fact=${f}
-              .facts=${this.facts}
               .sources=${sources}
               @edit-fact=${() => {
                 this.edit(f);

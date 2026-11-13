@@ -5,15 +5,10 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { ApiError } from '@/client/dataset-api';
 import { appState, isMarked } from '@/client/state';
 import type { AppState, Source } from '@/client/state';
-import type { FactRow, SupportSuggestion } from '@/common/types';
+import type { FactRow } from '@/common/types';
 
 import { factSourcesStyles } from './fact-sources-styles';
-import {
-  openSuggestions,
-  sourcesOf,
-  titleText,
-  viewFromEvents
-} from './helpers';
+import { sourcesOf, titleText, viewFromEvents } from './helpers';
 
 // A source by the name Sources gives it, and where in its Volume it is
 // unless its name says (a reference to a page).
@@ -56,12 +51,10 @@ function compareKeys(
 // person's Marked sources (`isMarked`: not a Match or an Estimate) and any
 // still supporting the Fact, so it can be taken back, each with a checkbox
 // that adds or takes back its support, a Change each, in Astia's order
-// (`sortKey`); one whose Transcription suggests it supports the Fact says
-// so, with what it says and whether that differs. A source opens in the
-// Scan viewer; one with nothing to open there is asked for in Sources, as
-// `show-source` with its Citation's id; one opened there is told as
-// `viewing-source` first, so Sources isn't opened to it. Esc closes the
-// list.
+// (`sortKey`). A source opens in the Scan viewer; one with nothing to open
+// there is asked for in Sources, as `show-source` with its Citation's id;
+// one opened there is told as `viewing-source` first, so Sources isn't
+// opened to it. Esc closes the list.
 @customElement('sl-fact-sources')
 class FactSourcesElement extends LitElement {
   static override styles = factSourcesStyles;
@@ -69,7 +62,6 @@ class FactSourcesElement extends LitElement {
   @consume({ context: appState }) private readonly state!: AppState;
 
   @property({ attribute: false }) fact!: FactRow;
-  @property({ attribute: false }) facts: FactRow[] = [];
   // The person's sources, as Sources lists them.
   @property({ attribute: false }) sources: Source[] = [];
 
@@ -119,14 +111,6 @@ class FactSourcesElement extends LitElement {
     );
   }
 
-  private suggestionOf(source: Source): SupportSuggestion | null {
-    return (
-      openSuggestions(source.citation, this.facts).find(
-        (s) => s.factId === this.fact.id
-      ) ?? null
-    );
-  }
-
   private supports(source: Source) {
     return source.citation.supports.includes(this.fact.id);
   }
@@ -170,8 +154,6 @@ class FactSourcesElement extends LitElement {
 
   private renderEditable(source: Source) {
     const on = this.supports(source);
-    const s = on ? null : this.suggestionOf(source);
-    const differs = s?.agrees === false;
     return html`<li>
       <input
         type="checkbox"
@@ -183,16 +165,7 @@ class FactSourcesElement extends LitElement {
           void this.support(source.citation.id, box.checked);
         }}
       />
-      <div>
-        ${this.renderOpen(source, 'name')}
-        ${
-          s === null
-            ? nothing
-            : html`<span class="says ${differs ? 'differs' : ''}"
-                >suggested · says ${s.says}${differs ? ', differs' : ''}</span
-              >`
-        }
-      </div>
+      ${this.renderOpen(source, 'name')}
     </li>`;
   }
 
@@ -211,9 +184,6 @@ class FactSourcesElement extends LitElement {
 
   private renderToggle(supporting: Source[]) {
     if (this.sources.length === 0) return nothing;
-    const suggested = this.listed().filter(
-      (s) => !this.supports(s) && this.suggestionOf(s) !== null
-    ).length;
     const label = supporting.length === 0 ? 'Add source' : 'Edit sources';
     return html`<button
       class="toggle"
@@ -223,11 +193,6 @@ class FactSourcesElement extends LitElement {
       }}
     >
       ${label}
-      ${
-        suggested === 0
-          ? nothing
-          : html`<span class="count">(${suggested} suggested)</span>`
-      }
     </button>`;
   }
 

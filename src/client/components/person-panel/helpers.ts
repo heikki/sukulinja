@@ -3,7 +3,6 @@ import type { AppState, LinkOpen, LinkStatus, Source } from '@/client/state';
 import { BOOK_NAMES } from '@/common/books';
 import { gedcomDate } from '@/common/dates';
 import { factKindLabel, factWords } from '@/common/facts';
-import { suggestedSupport } from '@/common/suggestions';
 import type { CitationRow, FactRow } from '@/common/types';
 
 export function factLabel(fact: FactRow) {
@@ -65,14 +64,6 @@ export function viewerOpening({ citation, status }: Source): LinkOpen | null {
   if (link !== null) return { citation, link };
   const unlinked = status?.browse ?? null;
   return unlinked === null ? null : { citation, link: null, unlinked };
-}
-
-// The support the Citation's Transcription suggests among the Facts, of
-// those it doesn't give yet: to confirm by hand.
-export function openSuggestions(citation: CitationRow, facts: FactRow[]) {
-  return suggestedSupport(citation.transcribed, facts).filter(
-    (s) => !citation.supports.includes(s.factId)
-  );
 }
 
 // Kept in a cookie for the reason appearance.ts gives: the app's origin

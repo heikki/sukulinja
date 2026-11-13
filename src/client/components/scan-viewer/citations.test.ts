@@ -44,8 +44,7 @@ function row(
       markKey,
       citedPage: 12,
       cited: null,
-      supports: [],
-      transcribed: []
+      supports: []
     },
     link: {
       volumeId: 'v1',

@@ -11,10 +11,6 @@ A reference in the tree to where something comes from, from any source: a person
 A Citation's backing of one of its person's Facts, or their marriages': _this source says so_. One Citation may support several Facts (a rippikirja line gives the birth, the residence and the marriage), and a Fact may rest on several. Checked or unchecked under the picked Fact in _Events_ (_Add source_ / _Edit sources_), which lists only **Marked** sources (and sources with no Link, which aren't church books), never a **Match** or an **Estimate**; a Citation made of a baptism for its child supports their Christening (else Birth), one of a marriage for a spouse their marriage. Each added or taken back is a **Change**. GEDCOM writes it as the citation repeated under the Fact.
 _Avoid_: evidence (the Entry is that), link (a church-book Citation's place in Astia).
 
-**Suggestion**:
-A Fact a Citation's **Transcription** gives its person, listed after the supporting sources in the picked Fact's _Edit sources_ in _Events_ until it's checked into **Support**: a household line's dates, a baptism's for its child, a marriage's for its spouses, matched to the person's one Fact of that kind, agreeing with its date or not. Derived each time, never stored; one not added just stays suggested. Residence isn't suggested.
-_Avoid_: match (a reference's Link the vision pass found), guess.
-
 **Fact**:
 What the tree says about a person or family: an event (birth, baptism, marriage, residence) or an attribute (occupation), with its date and place. A conclusion, which Citations **Support**, shown under it in _Events_. An import brought most; one is added, changed or deleted in the panel's _Events_ (ADR-0021), and deleting one takes its support, its Citations staying with its person or family.
 _Avoid_: event (alone; that's what an Entry records), claim.

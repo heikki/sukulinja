@@ -5,7 +5,7 @@
 
 import type { Database } from 'bun:sqlite';
 
-import type { BookKind, Box } from '@/common/types';
+import type { Box } from '@/common/types';
 
 import { openAnnotations } from './annotations';
 import { viewerUrl } from './astia/astia';
@@ -31,11 +31,6 @@ const EVENTS = {
 
 export function entryEvent(volume: string) {
   const kind = bookKind(volume);
-  return kind === null ? null : EVENTS[kind];
-}
-
-// The Event an entry in a Book of the kind records.
-export function bookEvent(kind: BookKind | null) {
   return kind === null ? null : EVENTS[kind];
 }
 

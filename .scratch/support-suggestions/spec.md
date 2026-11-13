@@ -1,4 +1,4 @@
-Status: done
+Status: removed (Heikki, 2026-11-13): with _Edit sources_ listing only Marked sources, the suggestions were mostly noise (a household line's birth year read as "differs"), so they and everything deriving them were taken out. Kept as a record of what was tried.
 
 # Suggested support for old Citations
 
