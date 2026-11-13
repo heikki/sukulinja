@@ -1,4 +1,4 @@
-Status: needs-triage
+Status: done
 
 # One Box per Entry
 
@@ -45,5 +45,6 @@ Done 2026-11-13 (schema 6): the table, the migration and the read through `CITAT
 
 Done 2026-11-13: `citeEntry` and `addToEntry` (POST `/api/entries`, `/api/entries/:id/people`); a person is removed with DELETE `/api/citations/:id`, the last taking the Entry. `CitationRow.entryId`, and `markKey` `entry <id>` for one Box.
 
-1. `04-entry-form` — Scan viewer: one Box, the form beside it, the slim foot bar.
-2. `05-entry-box-menu` — add, remove, edit, delete.
+Done 2026-11-13: the Scan viewer names a new entry's people in a card beside its Box ("New baptism"), the foot bar only Cancel and Save.
+
+Done 2026-11-13: the Box's menu is _Edit_ and _Delete entry_. _Edit_ opens the same card on the Entry as it is: people, words and Box changed with one Save (PUT and DELETE `/api/entries/:id`). In a baptism, once its child or a parent is named, the other Roles offer only whom the tree says, or one made anew there; no search.

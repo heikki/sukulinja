@@ -88,6 +88,13 @@ export interface DatasetApi {
   // Makes an Entry with a Citation of it for each person named (ADR-0026):
   // them as the Volume's citations list them, in the order named.
   citeEntry: (at: EntryTarget, people: InEntry[]) => Promise<VolumeCitation[]>;
+  // Names someone in an Entry: their new Citation as the Volume's
+  // citations list it.
+  addToEntry: (entryId: number, person: InEntry) => Promise<VolumeCitation>;
+  // Puts what an Entry says, for everyone citing it.
+  transcribe: (entryId: number, text: string | null) => Promise<void>;
+  // Deletes an Entry with all its Citations.
+  deleteEntry: (entryId: number) => Promise<void>;
   // Deletes a Citation made in the app.
   uncite: (citationId: number) => Promise<void>;
   // Makes a Citation support one of its person's Facts, or no longer
@@ -320,6 +327,33 @@ export function openDatasetApi(
         body: JSON.stringify({ ...at, people })
       });
       return (await res.json()) as VolumeCitation[];
+    },
+
+    async addToEntry(entryId, person) {
+      const res = await ask(
+        'Citing',
+        `${dataset}/api/entries/${entryId}/people`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(person)
+        }
+      );
+      return (await res.json()) as VolumeCitation;
+    },
+
+    async transcribe(entryId, text) {
+      await ask('Saving', `${dataset}/api/entries/${entryId}`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+    },
+
+    async deleteEntry(entryId) {
+      await ask('Deleting', `${dataset}/api/entries/${entryId}`, {
+        method: 'DELETE'
+      });
     },
 
     async uncite(citationId) {

@@ -145,9 +145,13 @@ class ScanEditElement extends SignalWatcher(LitElement) {
     `;
   }
 
+  // With others in its Entry, the Entry goes, with everyone's Citation.
   private renderDelete() {
+    const n = this.state.viewer.entry.people.get().length;
     return html`
-      <p>Delete this citation?</p>
+      <p>
+        ${n > 1 ? `Delete this entry and its ${n} citations?` : 'Delete this citation?'}
+      </p>
       <div class="actions">
         <button
           ?disabled=${this.saving}

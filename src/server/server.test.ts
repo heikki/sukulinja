@@ -424,6 +424,21 @@ describe("A dataset's Citations", () => {
       (await send('POST', '/api/entries', { ...entry, people: [{}] })).status
     ).toBe(400);
     expect((await send('GET', '/api/entries')).status).toBe(405);
+
+    const said = await send('PUT', `/api/entries/${entryId}`, {
+      text: ' Rippikirja,\n sivu 12 '
+    });
+    expect(await said.json()).toEqual({ text: 'Rippikirja, sivu 12' });
+    expect((await send('PUT', `/api/entries/${entryId}`, {})).status).toBe(200);
+    expect(
+      (await send('PUT', `/api/entries/${entryId}`, { text: 1 })).status
+    ).toBe(400);
+    expect((await send('PUT', '/api/entries/99', { text: 'x' })).status).toBe(
+      404
+    );
+    const deleted = await send('DELETE', `/api/entries/${entryId}`);
+    expect(await deleted.json()).toEqual({ removed: 2 });
+    expect((await send('DELETE', `/api/entries/${entryId}`)).status).toBe(404);
   });
 
   test('makes a Citation on an Image, and deletes it', async () => {

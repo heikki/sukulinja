@@ -53,6 +53,7 @@ interface CitationDbRow {
   supports: string | null;
   // The Entry it cites (ADR-0026), or null.
   entryId: number | null;
+  entryRole: string | null;
   annotation: Annotation;
 }
 
@@ -151,7 +152,8 @@ function citationOf<R extends BookRef>(references: References<R>) {
           ? null
           : { parish: book.parish, kind: book.kind, years: book.years },
       supports: idsOf(row.supports),
-      entryId: row.entryId
+      entryId: row.entryId,
+      role: row.entryRole
     };
     return citation;
   };
@@ -217,6 +219,7 @@ export function createCitations<R extends BookRef>(
   // original page, which the reference is read from (ADR-0013).
   const SELECT = `SELECT c.id, c.scope_id AS personId, s.title AS source,
     ${originalPageSql('c')} AS page, c.text, c.entry_id AS entryId,
+    CASE WHEN c.entry_id IS NULL THEN NULL ELSE c.role END AS entryRole,
     (SELECT group_concat(fact_id) FROM fact_citations
       WHERE citation_id = c.id) AS supports,
     ${annotationColumnsSql('c')}
@@ -424,6 +427,18 @@ export function createCitations<R extends BookRef>(
     };
   }
 
+  function uncite(citationId: number) {
+    const was = ofId(citationId);
+    if (!made.remove(citationId)) return null;
+    if (was !== null) {
+      changed({
+        on: { personId: was.personId },
+        what: { kind: 'uncite', cited: citedText(was.citation) }
+      });
+    }
+    return was;
+  }
+
   const entries = createEntryCitations(db, {
     made,
     images,
@@ -588,17 +603,19 @@ export function createCitations<R extends BookRef>(
 
     // Deletes a Citation, and gives it as it was, with whose it was; null
     // when there's no such Citation.
-    uncite(citationId: number) {
-      const was = ofId(citationId);
-      if (!made.remove(citationId)) return null;
-      if (was !== null) {
-        changed({
-          on: { personId: was.personId },
-          what: { kind: 'uncite', cited: citedText(was.citation) }
-        });
-      }
-      return was;
-    }
+    uncite,
+
+    // Deletes an Entry with all its Citations, each as `uncite` does
+    // (ADR-0026): how many went, null when there's no such Entry.
+    deleteEntry(entryId: number) {
+      const ids = made.entryCitations(entryId);
+      if (ids.length === 0) return null;
+      for (const id of ids) uncite(id);
+      return ids.length;
+    },
+
+    // Puts what an Entry says (ADR-0026); null when there's no such Entry.
+    transcribe: entries.transcribe
   };
 }
 

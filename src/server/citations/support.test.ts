@@ -181,16 +181,35 @@ test('an entry names its people at once, one Box for all, and its child has its 
     await citations.addToEntry(99, { personId: 4, role: null })
   ).toBeNull();
 
+  // What it says changes for everyone in it, with a Change.
+  expect(citations.transcribe(entryId, ' Kaste\n 3.2.1790 ')).toEqual({
+    text: 'Kaste 3.2.1790'
+  });
+  expect(changes.at(-1)).toEqual({
+    on: { citationId: made[0]!.citation.id },
+    what: {
+      kind: 'transcribe',
+      volume: 'I C:1 Syntyneiden ja kastettujen luettelot (1790-1810)',
+      image: 3,
+      text: 'Kaste 3.2.1790'
+    }
+  });
+  expect(citations.ofPerson(2).map((c) => c.text)).toContain('Kaste 3.2.1790');
+  expect(citations.transcribe(99, 'x')).toBeNull();
+
   // The last Citation of it takes the Entry.
-  for (const m of made) citations.uncite(m.citation.id);
+  citations.uncite(made[0]!.citation.id);
   expect(db.query('SELECT COUNT(*) AS n FROM entries').get()).toEqual({ n: 1 });
-  const left = db
-    .query<{ id: number }, []>(
-      'SELECT id FROM citations WHERE entry_id IS NOT NULL'
-    )
-    .all();
-  for (const { id } of left) citations.uncite(id);
+  // Deleting it takes the rest, each with a Change.
+  const before = changes.length;
+  expect(citations.deleteEntry(entryId)).toBe(3);
+  expect(changes.slice(before).map((c) => c.what.kind)).toEqual([
+    'uncite',
+    'uncite',
+    'uncite'
+  ]);
   expect(db.query('SELECT COUNT(*) AS n FROM entries').get()).toEqual({ n: 0 });
+  expect(citations.deleteEntry(entryId)).toBeNull();
 });
 
 test('support goes with its Fact, its Citation, and a spouse leaving the family', () => {

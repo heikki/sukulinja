@@ -25,6 +25,8 @@ interface CitationHandlers {
     people: InEntry[]
   ) => Promise<Response>;
   handleAddToEntry: (entryId: number, person: InEntry) => Promise<Response>;
+  handleTranscribe: (entryId: number, text: string | null) => Response;
+  handleDeleteEntry: (entryId: number) => Response;
   handleUncite: (id: number) => Response;
   handleSupport: (id: number, factId: number, on: boolean) => Response;
   handleSwitchFilming: (volumeId: string, volume: string) => Promise<Response>;
@@ -183,7 +185,24 @@ async function routeCite(
     : await handlers.handleCite(personId, target);
 }
 
-// POST /api/entries makes an Entry with its people; POST
+// PUT `{ text }` to an Entry, or DELETE it with its Citations.
+async function routeEntry(
+  req: Request,
+  handlers: CitationHandlers,
+  id: number
+) {
+  if (req.method === 'DELETE') return handlers.handleDeleteEntry(id);
+  if (req.method !== 'PUT') {
+    return new Response('method not allowed', { status: 405 });
+  }
+  const text = optionalString((await readBody(req))?.text);
+  return text === undefined
+    ? new Response('expected { text }', { status: 400 })
+    : handlers.handleTranscribe(id, text);
+}
+
+// POST /api/entries makes an Entry with its people; PUT or DELETE
+// /api/entries/:id changes what one says or deletes it; POST
 // /api/entries/:id/people adds someone to one (ADR-0026). Null for any
 // other path.
 async function routeEntries(
@@ -191,12 +210,15 @@ async function routeEntries(
   handlers: CitationHandlers,
   rest: string
 ) {
-  const at = /^\/api\/entries(?:\/(?<id>\d+)\/people)?$/.exec(rest);
+  const at = /^\/api\/entries(?:\/(?<id>\d+)(?<people>\/people)?)?$/.exec(rest);
   if (at === null) return null;
+  const id = at.groups?.id;
+  if (id !== undefined && at.groups?.people === undefined) {
+    return await routeEntry(req, handlers, Number(id));
+  }
   if (req.method !== 'POST') {
     return new Response('method not allowed', { status: 405 });
   }
-  const id = at.groups?.id;
   if (id === undefined) {
     const made = await readEntry(req);
     return made === null
@@ -274,8 +296,8 @@ function routeSupport(req: Request, handlers: CitationHandlers, rest: string) {
 }
 
 // GET /api/persons/:id/scans streams the person's Links; POST
-// /api/persons/:id/citations makes a Citation; POST /api/entries and
-// /api/entries/:id/people make an Entry or add to one; DELETE /api/citations/:id
+// /api/persons/:id/citations makes a Citation; /api/entries and its
+// Entries (routeEntries); DELETE /api/citations/:id
 // deletes one; PUT or DELETE /api/citations/:id/supports/:factId makes it
 // support a Fact or no longer; a Citation's `/scans` and `/volumes`; GET
 // /api/volumes/:id and its `/citations`, and POST its `/filming`; GET
@@ -452,6 +474,20 @@ function citationHandlers(
         .addToEntry(entryId, person)
         .catch(astiaFailed);
       return answerMade(made, 'entry or person not found');
+    },
+
+    handleTranscribe(entryId, text) {
+      const now = citations.transcribe(entryId, text);
+      return now === null
+        ? new Response('entry not found', { status: 404 })
+        : Response.json(now);
+    },
+
+    handleDeleteEntry(entryId) {
+      const removed = citations.deleteEntry(entryId);
+      return removed === null
+        ? new Response('entry not found', { status: 404 })
+        : Response.json({ removed });
     },
 
     handleUncite(id) {

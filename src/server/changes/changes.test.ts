@@ -23,7 +23,8 @@ const CITATION: CitationRow = {
   citedPage: null,
   cited: null,
   supports: [],
-  entryId: null
+  entryId: null,
+  role: null
 };
 
 // A dataset with Matti, named twice, and his citation 11.

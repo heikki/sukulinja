@@ -2,10 +2,17 @@ import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 import type { PendingCite } from '@/client/state';
-import { entryRoles } from '@/common/books';
+import { bookKind, entryRoles } from '@/common/books';
 import type { PersonRow } from '@/common/types';
 
 import { formatName } from '../tree-view/renderer';
+
+// What an entry of the Volume's Book is called: a baptism or a marriage,
+// else an entry.
+const ENTRY_NAMES: Partial<Record<string, string>> = {
+  kastetut: 'baptism',
+  vihityt: 'marriage'
+};
 
 function stop(e: Event) {
   e.stopPropagation();
@@ -18,7 +25,8 @@ export interface ChooseDetail {
   at: { x: number; y: number };
 }
 
-// A new Entry's people and words, beside its pending Box (ADR-0026). In a
+// A new Entry's people and words, or the source's being edited, beside
+// its pending Box (ADR-0026). In a
 // baptism or a marriage a row for each Role, its person or none, each
 // chosen (`choose`) or taken out (`drop`); in another Book the people
 // named, and _Add person…_. Then what the entry says (`text`). Cancel and
@@ -185,7 +193,10 @@ class ScanEntryElement extends LitElement {
   override render() {
     const roles = entryRoles(this.volume);
     return html`
-      <h3>New entry</h3>
+      <h3>
+        ${this.cite.editing === undefined ? 'New' : 'Edit'}
+        ${ENTRY_NAMES[bookKind(this.volume) ?? ''] ?? 'entry'}
+      </h3>
       ${roles.length === 0 ? this.renderPeople() : this.renderRoles(roles)}
       <input
         type="text"

@@ -199,6 +199,9 @@ export interface CitationRow {
   // The Entry it cites, which everyone in the entry cites (ADR-0026);
   // null for one that cites none.
   entryId: number | null;
+  // Who its person is in that Entry, one of its Book's entryRoles; null
+  // for none, and with no Entry.
+  role: string | null;
 }
 
 // The parish, kind of Book and years a Church-book reference cites.
@@ -496,6 +499,8 @@ export type ChangeWhat =
   | { kind: 'discard'; volume: string; image: number; rejection: boolean }
   | { kind: 'cite'; volume: string; image: number }
   | { kind: 'uncite'; cited: string | null }
+  // What an Entry says changed, by where it's written, as it reads now.
+  | { kind: 'transcribe'; volume: string; image: number; text: string | null }
   // A Tag made, its Box moved, or taken back, in the Photo named.
   | { kind: 'tag'; photo: string; moved: boolean }
   | { kind: 'untag'; photo: string }

@@ -44,7 +44,8 @@ function churchBook(id: number): CitationRow {
     citedPage: 463,
     cited: null,
     supports: [],
-    entryId: null
+    entryId: null,
+    role: null
   };
 }
 

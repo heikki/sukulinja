@@ -228,6 +228,13 @@ export function openAppCitations(db: Database) {
 
     // Where an Entry is written; null when there's no such Entry.
     entryPlace: (entryId: number) => entries.placeOf(entryId),
+    // An Entry's Citations' ids, oldest first; none when there's no such
+    // Entry.
+    entryCitations: (entryId: number) => entries.citationsOf(entryId),
+    // Puts what an Entry says.
+    transcribe: (entryId: number, text: string | null) => {
+      entries.setText(entryId, text);
+    },
 
     // Stores the Citation, of a new Entry at the Box; its id.
     create(c: NewCitation) {

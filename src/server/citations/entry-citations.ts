@@ -1,5 +1,5 @@
 // Making an Entry in the Scan viewer with everyone it names, and naming
-// someone in one later (ADR-0026): one Box for all, a Citation of it for
+// someone in one later, or changing what it says (ADR-0026): one Box for all, a Citation of it for
 // each, in their Role, with its Change and the support of the Fact the
 // entry records for them.
 
@@ -136,5 +136,25 @@ export function createEntryCitations(db: Database, deps: EntryDeps) {
     return await listed(recordCitation(entryId, person, place.volume));
   }
 
-  return { citeEntry, addToEntry };
+  // Puts what the Entry says, as one line, with a Change on its first
+  // Citation; what it says now. Null when there's no such Entry.
+  function transcribe(entryId: number, text: string | null) {
+    const place = made.entryPlace(entryId);
+    const [first] = made.entryCitations(entryId);
+    if (place === null || first === undefined) return null;
+    const now = oneLine(text);
+    made.transcribe(entryId, now);
+    changed({
+      on: { citationId: first },
+      what: {
+        kind: 'transcribe',
+        volume: place.volume,
+        image: place.image,
+        text: now
+      }
+    });
+    return { text: now };
+  }
+
+  return { citeEntry, addToEntry, transcribe };
 }

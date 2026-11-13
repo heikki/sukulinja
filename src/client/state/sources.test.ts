@@ -126,7 +126,8 @@ function source(id: number, citedPage: number | null, churchBook = true) {
     citedPage,
     cited: null,
     supports: [],
-    entryId: null
+    entryId: null,
+    role: null
   };
   return row;
 }

@@ -9,10 +9,10 @@ import type { AppState } from '@/client/state';
 import type { Box } from '@/common/types';
 
 import { boxFromStage, boxOnStage } from '../box-stage/geometry';
-import { familyChoices, searchable } from '../person-search/choices';
+import { searchable } from '../person-search/choices';
 import { placesHere } from '../reminders-list/places';
 import { entriesOn } from './citations';
-import { citingImage, roleLabel, startingPeople } from './cite';
+import { citingImage, pickFor, roleLabel, startingPeople } from './cite';
 import { scanLayerStyles } from './edit-styles';
 import type { ChooseDetail } from './entry-form';
 import { newEntryBox } from './frame';
@@ -125,25 +125,32 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     );
   }
 
-  // The Selected person's family and the search, for the Role (`label`),
-  // but those citing the Image already or in the entry.
+  // Who can't be named in the pending Entry: those citing the Image
+  // already, but for those of the Entry being edited, and those named.
+  private notNamable() {
+    const cite = this.viewer.pending.get()?.cite;
+    const own = new Set(cite?.editing?.was.map((w) => w.personId) ?? []);
+    const citing = [...this.citingHere()].filter((id) => !own.has(id));
+    return new Set([...citing, ...(cite?.people ?? []).map((p) => p.personId)]);
+  }
+
+  // Whom to name in the Role (`label`): in a baptism, once its child or a
+  // parent is named, whom the tree says; else the Selected person's family
+  // and the search. Never those `notNamable`.
   private renderPick(at: Point, role: string | null) {
     const selected = this.state.selected.id.get();
     const named = this.viewer.pending.get()?.cite?.people ?? [];
-    const left = new Set([
-      ...this.citingHere(),
-      ...named.map((p) => p.personId)
-    ]);
-    const family =
-      selected === null
-        ? []
-        : familyChoices(selected, this.state.chart.people.get(), left);
-    const label = roleLabel(this.viewer.volume.get()?.label ?? '', role);
+    const left = this.notNamable();
+    const volume = this.viewer.volume.get()?.label ?? '';
+    const ix = this.state.chart.people.get();
+    const pick = pickFor({ volume, role, named }, ix, selected, left);
     return html`<sl-person-pick
-      .heading=${label}
+      .heading=${roleLabel(volume, role)}
       .at=${at}
-      .relativesOf=${selected}
-      .choices=${family}
+      .relativesOf=${pick.relativesOf}
+      .newAs=${pick.newAs}
+      .search=${pick.search}
+      .choices=${pick.choices}
       .persons=${searchable(this.persons, left)}
       @pick=${(e: CustomEvent<{ id: number }>) => {
         this.popup = null;

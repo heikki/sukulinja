@@ -126,7 +126,8 @@ test("serves a person's Citations, church books first", () => {
       citedPage: 139,
       cited: { parish: null, kind: 'rippi', years: { from: 1794, to: 1808 } },
       supports: [],
-      entryId: null
+      entryId: null,
+      role: null
     },
     {
       id: 1,
@@ -142,7 +143,8 @@ test("serves a person's Citations, church books first", () => {
       citedPage: null,
       cited: null,
       supports: [],
-      entryId: null
+      entryId: null,
+      role: null
     }
   ]);
 });

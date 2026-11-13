@@ -7,7 +7,7 @@ import type {
   VolumeCitation
 } from '@/common/types';
 
-import { citingImage, roleLabel, startingPeople } from './cite';
+import { citingImage, pickFor, roleLabel, startingPeople } from './cite';
 
 function row(personId: number, link: Link): VolumeCitation {
   return {
@@ -26,7 +26,8 @@ function row(personId: number, link: Link): VolumeCitation {
       citedPage: null,
       cited: null,
       supports: [],
-      entryId: null
+      entryId: null,
+      role: null
     },
     link
   };
@@ -111,4 +112,58 @@ test('a new marriage names them groom or bride, another Book with no Role', () =
   ]);
   expect(roleLabel(BAPTISMS, 'FATH')).toBe('Father');
   expect(roleLabel(RIPPI, null)).toBe('Add person');
+});
+
+test("a baptism's parents are the child's in the tree, its child theirs; no search", () => {
+  const child = { personId: 1, role: 'CHIL' };
+  function ids(p: ReturnType<typeof pickFor>) {
+    return p.choices.map((c) => c.personId);
+  }
+  const father = pickFor(
+    { volume: BAPTISMS, role: 'FATH', named: [child] },
+    IX,
+    1,
+    new Set()
+  );
+  expect(ids(father)).toEqual([2]);
+  expect(father).toMatchObject({
+    relativesOf: 1,
+    newAs: 'father',
+    search: false
+  });
+  // With no parent in the tree, only a new one.
+  expect(
+    pickFor(
+      {
+        volume: BAPTISMS,
+        role: 'MOTH',
+        named: [{ personId: 4, role: 'CHIL' }]
+      },
+      IX,
+      4,
+      new Set()
+    )
+  ).toMatchObject({ choices: [], relativesOf: 4, newAs: 'mother' });
+  const ofParents = pickFor(
+    {
+      volume: BAPTISMS,
+      role: 'CHIL',
+      named: [
+        { personId: 2, role: 'FATH' },
+        { personId: 3, role: 'MOTH' }
+      ]
+    },
+    IX,
+    2,
+    new Set()
+  );
+  expect(ids(ofParents)).toEqual([1]);
+  expect(ofParents).toMatchObject({ relativesOf: 2, newAs: 'child' });
+  // With no one named yet, or in another Book, anyone.
+  expect(
+    pickFor({ volume: BAPTISMS, role: 'FATH', named: [] }, IX, 1, new Set())
+  ).toMatchObject({ search: true, newAs: null });
+  expect(
+    pickFor({ volume: RIPPI, role: null, named: [child] }, IX, 1, new Set())
+  ).toMatchObject({ search: true });
 });

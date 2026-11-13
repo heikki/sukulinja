@@ -9,7 +9,6 @@ import type {
   ChurchBookArchive,
   CitationLinks,
   FamilyRow,
-  Link,
   PersonDetails,
   PersonRow,
   PhotoRow,
@@ -24,6 +23,7 @@ import type {
 
 import { ApiError, NOT_RESPONDING } from './';
 import type { DatasetApi } from './';
+import { memoryEntries } from './memory-entries';
 
 export interface MemoryVolume {
   images: number;
@@ -96,7 +96,9 @@ type MemoryDatasetApi = DatasetApi & {
   // <person>" takes the row out of `persons`.
   // The Citations an entry made by `citeEntry` join its Volume's
   // citations, numbered on from 1000, the Entry from 2000, and `uncite`
-  // takes one out. "ask[ in <conversation>]:
+  // takes one out; "add to entry <entry>: <person>[ as <role>]" adds one
+  // like the Entry's first, "transcribe <entry>: <text>" changes its
+  // rows' text, and "delete entry <entry>" takes its rows out. "ask[ in <conversation>]:
   // <text>" tells the next turn in `assistant`; "forget <conversation>".
   asked: string[];
 };
@@ -112,7 +114,6 @@ export function memoryDatasetApi(
 ): MemoryDatasetApi {
   const asked: string[] = [];
   let made = 1000;
-  let entries = 2000;
   let reminded = 2000;
   let factsAdded = 3000;
   let personsAdded = 4000;
@@ -188,6 +189,11 @@ export function memoryDatasetApi(
     );
   }
 
+  const entryCalls = memoryEntries(data, answer, () => {
+    made += 1;
+    return made;
+  });
+
   return {
     asked,
 
@@ -229,53 +235,7 @@ export function memoryDatasetApi(
         () => found(data.discards?.[citationId], 'citation not found')
       ),
 
-    citeEntry: async (at, people) =>
-      await answer(
-        `entry ${at.volumeId}/${at.image} ${at.fileId}: ${people
-          .map((p) => `${p.personId}${p.role === null ? '' : ` as ${p.role}`}`)
-          .join(', ')}${at.text === null ? '' : `: ${at.text}`}`,
-        undefined,
-        (): VolumeCitation[] => {
-          const { volumeId, image, fileId, box } = at;
-          entries += 1;
-          const entryId = entries;
-          const url = viewerUrl(volumeId, fileId);
-          const link: Link = {
-            volumeId,
-            volume: volumeId,
-            url,
-            precision: 'entry',
-            image,
-            box,
-            certainty: 'marked'
-          };
-          return people.map(({ personId }) => {
-            made += 1;
-            const row: VolumeCitation = {
-              personId,
-              citation: {
-                id: made,
-                source: volumeId,
-                reference: null,
-                entry: `Image\u00a0${image}`,
-                page: url,
-                record: null,
-                text: at.text,
-                churchBook: true,
-                madeInApp: true,
-                markKey: `entry ${entryId}`,
-                citedPage: null,
-                cited: null,
-                supports: [],
-                entryId
-              },
-              link
-            };
-            volume(volumeId).citations.push(row);
-            return row;
-          });
-        }
-      ),
+    ...entryCalls,
 
     async uncite(citationId) {
       await answer(`uncite ${citationId}`, undefined, () => {

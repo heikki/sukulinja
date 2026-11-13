@@ -41,7 +41,8 @@ function citation(id: number, madeInApp: boolean): CitationRow {
     citedPage: null,
     cited: null,
     supports: [],
-    entryId: null
+    entryId: null,
+    role: null
   };
 }
 
@@ -194,4 +195,26 @@ test('pointing at Place citation here says so, for the panel to mark it', async 
   expect(viewer.placing.get()).toBe(true);
   place?.hover?.(false);
   expect(viewer.placing.get()).toBe(false);
+});
+
+test("an Entry's Box offers Edit, and with others in it, Delete entry", async () => {
+  const volume = 'I C:1 Syntyneiden ja kastettujen luettelot';
+  const link = { ...AT_ENTRY, volume };
+  function row(id: number, personId: number) {
+    const c = { ...citation(id, true), markKey: 'entry 7', entryId: 7 };
+    return { personId, citation: c, link };
+  }
+  const api = memoryDatasetApi({
+    volumes: { '201': { images: 40, citations: [row(1, 1), row(2, 3)] } }
+  });
+  const { viewer } = openAppState(api);
+  viewer.open({ citation: row(1, 1).citation, link });
+  await Bun.sleep(0);
+  expect(labels(viewer, { onBox: true, canBox: true })).toEqual([
+    'Edit',
+    'Delete entry',
+    'Add reminder…'
+  ]);
+  linkItems(viewer, { onBox: true, canBox: true }, NONE)[0]?.run();
+  expect(viewer.pending.get()?.cite?.editing?.entryId).toBe(7);
 });

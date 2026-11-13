@@ -14,6 +14,19 @@ export interface PersonChoice {
   muted: MenuItem['muted'];
 }
 
+// Someone named with how they're related, if it's said, and their years.
+export function choiceOf(p: PersonRow, relation: string | null): PersonChoice {
+  const dates = formatDates(p);
+  return {
+    personId: p.id,
+    label: formatName(p),
+    muted: {
+      before: relation === null ? undefined : `${relation} ·`,
+      after: dates === '' ? undefined : `(${dates})`
+    }
+  };
+}
+
 // The Selected person, then their family as the person panel lists it:
 // parents and siblings, then each spouse with their children, each named
 // with how they're related and their years, as names repeat in a family.
@@ -30,15 +43,7 @@ export function familyChoices(
   function add(p: PersonRow, relation: string | null) {
     if (seen.has(p.id)) return;
     seen.add(p.id);
-    const dates = formatDates(p);
-    choices.push({
-      personId: p.id,
-      label: formatName(p),
-      muted: {
-        before: relation === null ? undefined : `${relation} ·`,
-        after: dates === '' ? undefined : `(${dates})`
-      }
-    });
+    choices.push(choiceOf(p, relation));
   }
   if (self !== undefined) add(self, null);
   for (const r of family) add(r.person, r.relation);

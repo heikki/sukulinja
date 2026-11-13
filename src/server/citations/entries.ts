@@ -136,6 +136,10 @@ export function openEntries(db: Database) {
   const ofCitation = db.prepare<{ id: number }, [number]>(
     'SELECT entry_id AS id FROM citations WHERE id = ? AND entry_id IS NOT NULL'
   );
+  const transcribe = db.prepare('UPDATE entries SET text = ? WHERE id = ?');
+  const citing = db.prepare<{ id: number }, [number]>(
+    'SELECT id FROM citations WHERE entry_id = ? ORDER BY id'
+  );
 
   function boxParams(box: Box) {
     return {
@@ -175,6 +179,16 @@ export function openEntries(db: Database) {
     // The Entry the Citation cites, or null for one that cites none.
     ofCitation(citationId: number) {
       return ofCitation.get(citationId)?.id ?? null;
+    },
+
+    // Its Citations' ids, in the order they were made.
+    citationsOf(id: number) {
+      return citing.all(id).map((c) => c.id);
+    },
+
+    // Puts what the Entry says, for every Citation of it.
+    setText(id: number, text: string | null) {
+      transcribe.run(text, id);
     },
 
     // Moves the Entry to another place in its Volume, for every Citation of

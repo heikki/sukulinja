@@ -45,7 +45,8 @@ function row(
       citedPage: 12,
       cited: null,
       supports: [],
-      entryId: null
+      entryId: null,
+      role: null
     },
     link: {
       volumeId: 'v1',

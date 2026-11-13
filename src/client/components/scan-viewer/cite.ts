@@ -1,8 +1,10 @@
 import type { InEntry } from '@/client/dataset-api';
 import { bookKind, entryRoles } from '@/common/books';
-import type { VolumeCitation } from '@/common/types';
+import type { Relation, VolumeCitation } from '@/common/types';
 
 import type { FamilyIndices } from '../person-panel/family';
+import { choiceOf, familyChoices } from '../person-search/choices';
+import type { PersonChoice } from '../person-search/choices';
 import { imageOf } from './citations';
 
 // The people listed beside the scan: their Citations link the Image shown,
@@ -63,4 +65,86 @@ export function startingPeople(
 export function roleLabel(volume: string, role: string | null) {
   const found = entryRoles(volume).find((r) => r.role === role);
   return found === undefined ? 'Add person' : found.label;
+}
+
+// Whom a baptism's Role may name once its child or a parent is named
+// (ADR-0026): the tree says who they are. The child's father or mother in
+// the tree, or the named parents' children; whom to make one anew
+// (`newAs`, of `relativesOf`); and no one else, by search. Null when it
+// isn't a baptism's or no one it hangs on is named yet: then anyone.
+export interface RoleChoices {
+  choices: PersonChoice[];
+  relativesOf: number;
+  newAs: Relation;
+}
+
+const PARENT_ROLES: Partial<Record<string, Relation>> = {
+  FATH: 'father',
+  MOTH: 'mother'
+};
+
+export function roleChoices(
+  volume: string,
+  role: string | null,
+  named: InEntry[],
+  ix: FamilyIndices
+): RoleChoices | null {
+  if (bookKind(volume) !== 'kastetut' || role === null) return null;
+  const parent = PARENT_ROLES[role];
+  if (parent !== undefined) {
+    const child = named.find((p) => p.role === 'CHIL');
+    if (child === undefined) return null;
+    const theirs = parentsOf(child.personId, ix).filter((p) => p.role === role);
+    return {
+      choices: theirs.flatMap(({ personId }) => {
+        const p = ix.persons.get(personId);
+        return p === undefined ? [] : [choiceOf(p, null)];
+      }),
+      relativesOf: child.personId,
+      newAs: parent
+    };
+  }
+  if (role !== 'CHIL') return null;
+  const parents = named.filter((p) => p.role === 'FATH' || p.role === 'MOTH');
+  const [first] = parents;
+  if (first === undefined) return null;
+  const ids = parents.map((p) => p.personId);
+  // The families with each named parent in it.
+  const families = (ix.spouseFamsByPerson.get(first.personId) ?? []).filter(
+    (f) => ids.every((id) => f.husband_id === id || f.wife_id === id)
+  );
+  const children = families.flatMap((f) => f.child_ids);
+  return {
+    choices: children.flatMap((id) => {
+      const p = ix.persons.get(id);
+      return p === undefined ? [] : [choiceOf(p, null)];
+    }),
+    relativesOf: first.personId,
+    newAs: 'child'
+  };
+}
+
+// What the picker offers for the Role of the pending entry: whom the tree
+// says (roleChoices), or the Selected person's family and the search.
+// Those in `left` are left out.
+export function pickFor(
+  entry: { volume: string; role: string | null; named: InEntry[] },
+  ix: FamilyIndices,
+  selected: number | null,
+  left: Set<number>
+) {
+  const tree = roleChoices(entry.volume, entry.role, entry.named, ix);
+  if (tree !== null) {
+    return {
+      ...tree,
+      choices: tree.choices.filter((c) => !left.has(c.personId)),
+      search: false
+    };
+  }
+  return {
+    choices: selected === null ? [] : familyChoices(selected, ix, left),
+    relativesOf: selected,
+    newAs: null,
+    search: true
+  };
 }

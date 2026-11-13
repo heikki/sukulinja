@@ -53,7 +53,8 @@ function churchBook(id: number, citedPage: number | null): CitationRow {
     citedPage,
     cited: null,
     supports: [],
-    entryId: null
+    entryId: null,
+    role: null
   };
 }
 
