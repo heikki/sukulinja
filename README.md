@@ -26,6 +26,7 @@ bun install:app        # build, sign, and copy to /Applications
 ```
 
 Signing asks Apple's server for a timestamp. If it can't be reached, each file
-is signed again without one, which a self-signed local build doesn't need. When
+the rest of the build is signed without one, which a self-signed local build
+doesn't need. When
 you already know you're offline, skip the wait with
 `SIGN_TIMESTAMP=none bun install:app`.

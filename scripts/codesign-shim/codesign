@@ -12,11 +12,15 @@
 # safe here (notarization would need it, but install:app never notarizes):
 #   - by default the call runs as asked, and is retried once without the
 #     timestamp if codesign failed over it;
-#   - SIGN_TIMESTAMP=none drops it up front, for when offline is known and
-#     waiting on the server every time is pointless.
+#   - after one such failure the rest of the build skips the timestamp up
+#     front (for 15 minutes, via a marker file), so the server's timeout
+#     is waited out once, not once per file;
+#   - SIGN_TIMESTAMP=none drops it from the start, for when offline is known.
 set -uo pipefail
 
 REAL=/usr/bin/codesign
+# In TMPDIR, not build/: the build may clear its own folder mid-way.
+MARKER="${TMPDIR:-/tmp}/sukulinja-no-sign-timestamp"
 
 # macOS ships bash 3.2, so no mapfile: the arguments are rebuilt in a loop.
 offline=()
@@ -35,7 +39,8 @@ if ! $wants_timestamp; then
   exec "$REAL" "$@"
 fi
 
-if [[ "${SIGN_TIMESTAMP:-}" == none ]]; then
+if [[ "${SIGN_TIMESTAMP:-}" == none ]] ||
+  [[ -n "$(find "$MARKER" -mmin -15 2>/dev/null)" ]]; then
   exec "$REAL" "${offline[@]}"
 fi
 
@@ -50,7 +55,8 @@ if ((status == 0)); then
 fi
 
 if grep -qi timestamp "$err"; then
-  echo "codesign: no timestamp from Apple, signing without one" >&2
+  echo "codesign: no timestamp from Apple, signing this build without one" >&2
+  touch "$MARKER"
   "$REAL" "${offline[@]}"
   exit $?
 fi
