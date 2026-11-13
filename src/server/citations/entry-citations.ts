@@ -45,10 +45,14 @@ interface EntryDeps {
   listed: (citationId: number) => Promise<VolumeCitation>;
 }
 
-// The text as one line, null for none.
-function oneLine(text: string | null) {
-  const line = text?.replaceAll(/\s+/g, ' ').trim() ?? '';
-  return line === '' ? null : line;
+// The text with its lines tidied: spaces collapsed, blank lines dropped;
+// null for none.
+export function plainText(text: string | null) {
+  const lines = (text ?? '')
+    .split('\n')
+    .map((l) => l.replaceAll(/\s+/g, ' ').trim())
+    .filter((l) => l !== '');
+  return lines.length === 0 ? null : lines.join('\n');
 }
 
 export function createEntryCitations(db: Database, deps: EntryDeps) {
@@ -115,7 +119,7 @@ export function createEntryCitations(db: Database, deps: EntryDeps) {
         image: target.image,
         fileId: target.fileId,
         box: target.box,
-        text: oneLine(target.text)
+        text: plainText(target.text)
       });
       return people.map((p) => recordCitation(entryId, p, checked.volume));
     })();
@@ -136,13 +140,13 @@ export function createEntryCitations(db: Database, deps: EntryDeps) {
     return await listed(recordCitation(entryId, person, place.volume));
   }
 
-  // Puts what the Entry says, as one line, with a Change on its first
+  // Puts what the Entry says, tidied, with a Change on its first
   // Citation; what it says now. Null when there's no such Entry.
   function transcribe(entryId: number, text: string | null) {
     const place = made.entryPlace(entryId);
     const [first] = made.entryCitations(entryId);
     if (place === null || first === undefined) return null;
-    const now = oneLine(text);
+    const now = plainText(text);
     made.transcribe(entryId, now);
     changed({
       on: { citationId: first },

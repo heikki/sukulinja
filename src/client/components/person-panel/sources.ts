@@ -26,6 +26,7 @@ import { linkSpelling } from '../archive-search/api';
 
 import '../archive-search';
 import './fold';
+import './source-text';
 
 import { archiveAction, headingOf, titleText, viewerOpening } from './helpers';
 import { personSourcesStyles } from './sources-styles';
@@ -115,12 +116,14 @@ function sourceClass(flags: Record<string, boolean>) {
   return ['source', ...on.map(([k]) => k)].join(' ');
 }
 
+// What the source records: a record as read, else its text, which can be
+// changed.
 function renderBody(c: CitationRow, heading: string) {
   if (c.record !== null) return renderRecord(c.record);
-  const text = c.text ?? c.page;
-  return text === null || text === heading
-    ? nothing
-    : html`<p class="text">${text}</p>`;
+  return html`<sl-source-text
+    .citation=${c}
+    .heading=${heading}
+  ></sl-source-text>`;
 }
 
 // The Selected person's sources, in their groups. A church-book source

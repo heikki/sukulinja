@@ -426,9 +426,9 @@ describe("A dataset's Citations", () => {
     expect((await send('GET', '/api/entries')).status).toBe(405);
 
     const said = await send('PUT', `/api/entries/${entryId}`, {
-      text: ' Rippikirja,\n sivu 12 '
+      text: ' Rippikirja,\n\n sivu  12 '
     });
-    expect(await said.json()).toEqual({ text: 'Rippikirja, sivu 12' });
+    expect(await said.json()).toEqual({ text: 'Rippikirja,\nsivu 12' });
     expect((await send('PUT', `/api/entries/${entryId}`, {})).status).toBe(200);
     expect(
       (await send('PUT', `/api/entries/${entryId}`, { text: 1 })).status

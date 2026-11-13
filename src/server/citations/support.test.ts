@@ -122,6 +122,25 @@ test("a spouse's Citation supports their marriage, no one's another's Facts", ()
   expect(citations.support(1, 9, true)).toBeNull();
 });
 
+test("a Citation of no Entry says what it's given, with a Change", () => {
+  const { citations, changes } = dataset();
+  expect(citations.retext(3, ' Syntyi  3.3.1795\n\n Kotona ')).toEqual({
+    text: 'Syntyi 3.3.1795\nKotona'
+  });
+  expect(citations.ofPerson(3).map((c) => c.text)).toEqual([
+    'Syntyi 3.3.1795\nKotona'
+  ]);
+  expect(citations.ofPerson(1).map((c) => c.text)).toEqual(['Matti']);
+  expect(changes).toEqual([
+    {
+      on: { personId: 3 },
+      what: { kind: 'retext', cited: null, text: 'Syntyi 3.3.1795\nKotona' }
+    }
+  ]);
+  expect(citations.retext(3, '  ')).toEqual({ text: null });
+  expect(citations.retext(99, 'x')).toBeNull();
+});
+
 test('an entry names its people at once, one Box for all, and its child has its support', async () => {
   const { db, citations, changes } = dataset();
   db.run("INSERT INTO persons (id, xref) VALUES (4, '@I4@')");
@@ -182,7 +201,7 @@ test('an entry names its people at once, one Box for all, and its child has its 
   ).toBeNull();
 
   // What it says changes for everyone in it, with a Change.
-  expect(citations.transcribe(entryId, ' Kaste\n 3.2.1790 ')).toEqual({
+  expect(citations.transcribe(entryId, ' Kaste  3.2.1790 \n\n')).toEqual({
     text: 'Kaste 3.2.1790'
   });
   expect(changes.at(-1)).toEqual({
@@ -196,6 +215,12 @@ test('an entry names its people at once, one Box for all, and its child has its 
   });
   expect(citations.ofPerson(2).map((c) => c.text)).toContain('Kaste 3.2.1790');
   expect(citations.transcribe(99, 'x')).toBeNull();
+  // Through any of its Citations, too.
+  expect(citations.retext(made[1]!.citation.id, 'Kaste\n 3.2.1790')).toEqual({
+    text: 'Kaste\n3.2.1790'
+  });
+  expect(changes.at(-1)?.what.kind).toBe('transcribe');
+  expect(citations.ofPerson(2).map((c) => c.text)).toContain('Kaste\n3.2.1790');
 
   // The last Citation of it takes the Entry.
   citations.uncite(made[0]!.citation.id);

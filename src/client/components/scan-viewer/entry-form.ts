@@ -33,8 +33,8 @@ export interface ChooseDetail {
 // its pending Box (ADR-0026). In a
 // baptism or a marriage a row for each Role, its person or none, each
 // chosen (`choose`) or taken out (`drop`); in another Book the people
-// named, and _Add person…_. Then what the entry says (`text`). Cancel and
-// Save stay in the foot bar. It places itself beside its Box (`anchor`,
+// named, and _Add person…_. What it says is written in the person's
+// sources (source-text.ts). Cancel and Save stay in the foot bar. It places itself beside its Box (`anchor`,
 // on the stage) and inside the stage (entry-place.ts). Presses stay here,
 // so they don't pan the scan.
 @customElement('sl-scan-entry')
@@ -136,12 +136,6 @@ class ScanEntryElement extends LitElement {
       border-color: transparent;
       background: none;
       color: var(--muted);
-    }
-
-    input[type='text'] {
-      width: 100%;
-      box-sizing: border-box;
-      text-align: left;
     }
   `;
 
@@ -344,16 +338,6 @@ class ScanEntryElement extends LitElement {
             ? this.renderPeople()
             : this.renderRoles(roles)
       }
-      <input
-        type="text"
-        placeholder="What the entry says, e.g. Baptism 12.3.1795"
-        aria-label="What the entry says"
-        .value=${this.cite.text}
-        @input=${(e: InputEvent) => {
-          const { value } = e.target as HTMLInputElement;
-          this.dispatchEvent(new CustomEvent('text', { detail: value }));
-        }}
-      />
       ${
         this.cite.people.length === 0
           ? html`<p class="none">Name someone in it.</p>`
