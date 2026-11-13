@@ -49,49 +49,15 @@ export const personEventsStyles = css`
     color: var(--muted);
   }
 
-  /* Under the picked Fact, tinted with it: its sources. */
+  /* Under the picked Fact, tinted with it, on the Facts' columns: what it
+     shows goes under the text. */
   .picked {
-    grid-column: 1 / -1;
     display: grid;
+    grid-column: 1 / -1;
     grid-template-columns: subgrid;
     margin: 0 -1.1rem 0.25rem;
     padding: 0.15rem 1.1rem 0.4rem;
     background: color-mix(in srgb, var(--accent) 14%, var(--card));
-  }
-
-  .picked > * {
-    grid-column: 2;
-  }
-
-  .none {
-    margin: 0;
-    color: var(--muted);
-    font-size: 0.85rem;
-  }
-
-  ul.sources {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  button.source {
-    padding: 0;
-    border: 0;
-    background: none;
-    color: var(--accent);
-    font: inherit;
-    font-size: 0.85rem;
-    text-align: left;
-    cursor: pointer;
-  }
-
-  button.source:hover {
-    text-decoration: underline;
-  }
-
-  button.source::before {
-    content: '↳ ';
   }
 
   sl-fact-form {

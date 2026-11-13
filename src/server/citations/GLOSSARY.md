@@ -12,7 +12,7 @@ A Citation's backing of one of its person's Facts, or their marriages': _this so
 _Avoid_: evidence (the Entry is that), link (a church-book Citation's place in Astia).
 
 **Suggestion**:
-A Fact a Citation's **Transcription** gives its person, which _Supports_ marks until it's confirmed into **Support**: a household line's dates, a baptism's for its child, a marriage's for its spouses, matched to the person's one Fact of that kind, agreeing with its date or not. Derived each time, never stored; one left unconfirmed just stays marked. Residence isn't suggested.
+A Fact a Citation's **Transcription** gives its person, shown under the picked Fact in _Events_ and marked in _Supports_ until it's confirmed into **Support**: a household line's dates, a baptism's for its child, a marriage's for its spouses, matched to the person's one Fact of that kind, agreeing with its date or not. Derived each time, never stored; one left unconfirmed just stays marked. Residence isn't suggested.
 _Avoid_: match (a reference's Link the vision pass found), guess.
 
 **Fact**:

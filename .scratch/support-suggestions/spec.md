@@ -24,10 +24,9 @@ Residence is left out: the 2 313 placeless RESI Facts are copies of the rippikir
 
 ## In the panel
 
-- **_Supports_ toggles:** a suggested Fact's toggle is marked as suggested, with what the Transcription says ("Transcription: 15.5.1867", or "Transcription: 9.8.1856, differs"). Pressing it adds support as any toggle does: a Change on the Citation.
-- **_Sources_ list:** a Citation with Suggestions shows a small marker in its row, so they're seen without unfolding each one.
-- **Confirm all:** _Sources_ offers "Confirm N agreeing suggestions" at its top when the person has any, which adds each one's support, a Change each. Differing ones are confirmed one at a time.
-- A suggestion that's wrong is left unpressed. It stays marked; there's no "not this", as the toggle is there anyway.
+- **_Events_:** picking a Fact shows under it the sources supporting it, then _Suggested_: each source whose Transcription gives it, with what it says ("says 21.11.1829, differs" when it differs) and _Confirm_, which adds the support: a Change on the Citation. (Heikki, 2026-11-13: confirming where the Fact is looked at; first built as a "Confirm N agreeing suggestions" button and a row marker in _Sources_, both removed.)
+- **_Supports_ toggles** in a source's details: a suggested Fact's toggle is dashed, with what the Transcription says when it differs. Pressing it adds support as any toggle does.
+- A suggestion that's wrong is left unconfirmed. It stays suggested; there's no "not this".
 
 ## Structure
 
@@ -35,7 +34,7 @@ Residence is left out: the 2 313 placeless RESI Facts are copies of the rippikir
 - **`src/server/citations/support.ts`:** `personsEvents(events, event, role)`, the whose rule, beside `entryFact`.
 - **`citations.ts`:** `CitationRow.transcribed`, the events its Transcription gives its person. It depends on the Citation alone, so every CitationRow carries it, and it stays right after a support is toggled. The Entry's Event comes from a reference's Book or the Citation's `EVEN`; the Role from the Citation's `ROLE`, which the References port reads for a reference (`roleOf`, MyHeritage's `indexRoleOf`).
 - **`src/common/suggestions.ts`:** `suggestedSupport(transcribed, facts)`, the pure match against the person's Facts (`dateAgrees` in `common/dates.ts`), used by the panel; a dataset-wide pass could use it on the server as it is.
-- **Client:** `person-panel/supports.ts` marks the suggested toggles; `sources.ts` the row marker and _Confirm all_, through the existing support route.
+- **Client:** `person-panel/fact-sources.ts` shows a picked Fact's sources and suggestions in _Events_; `supports.ts` marks the suggested toggles; both through the existing support route.
 
 ## Tickets
 

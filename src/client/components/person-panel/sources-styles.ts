@@ -198,13 +198,6 @@ export const personSourcesStyles = css`
     font-size: 0.8rem;
   }
 
-  /* Support the Transcription suggests, to see in supports.ts. */
-  .suggested {
-    margin-top: 0.2rem;
-    color: var(--accent);
-    font-size: 0.8rem;
-  }
-
   .status .chip {
     margin-left: auto;
   }

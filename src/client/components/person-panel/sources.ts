@@ -26,16 +26,9 @@ import { linkSpelling } from '../archive-search/api';
 
 import '../archive-search';
 import './fold';
-import './suggestions';
 import './supports';
 
-import {
-  archiveAction,
-  headingOf,
-  openSuggestions,
-  titleText,
-  viewerOpening
-} from './helpers';
+import { archiveAction, headingOf, titleText, viewerOpening } from './helpers';
 import { personSourcesStyles } from './sources-styles';
 import { definitionListStyles } from './styles';
 
@@ -346,17 +339,6 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
     </div>`;
   }
 
-  // How many of the person's Facts the Citation's Transcription suggests it
-  // supports, seen without unfolding it.
-  private renderSuggested(c: CitationRow) {
-    const facts = this.state.selected.details.get()?.facts ?? [];
-    const n = openSuggestions(c, facts).length;
-    if (n === 0) return nothing;
-    return html`<div class="suggested">
-      ${n === 1 ? 'Suggests a Fact' : `Suggests ${n} Facts`}
-    </div>`;
-  }
-
   // The person's Facts the Citation supports, to choose from.
   private renderSupports(c: CitationRow) {
     const facts = this.state.selected.details.get()?.facts ?? [];
@@ -457,7 +439,6 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
               ${titleText(c, status)}
             </button>
             ${renderStatus(status, filedEntry(c, filed))}
-            ${this.renderSuggested(c)}
           </div>
           ${renderFold(open, () => {
             this.fold(c.id);
@@ -489,8 +470,7 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
 
   override render() {
     const groups = this.state.selected.sources.get();
-    return html`<sl-confirm-suggestions></sl-confirm-suggestions>
-      ${groups.map((g) => this.renderGroup(g))}`;
+    return groups.map((g) => this.renderGroup(g));
   }
 }
 

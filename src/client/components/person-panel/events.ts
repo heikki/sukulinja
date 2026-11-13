@@ -9,26 +9,20 @@ import type { AppState, Source } from '@/client/state';
 import type { FactRow, Marriage } from '@/common/types';
 
 import './fact-form';
+import './fact-sources';
 
 import { personEventsStyles } from './events-styles';
-import {
-  factLabel,
-  factText,
-  sourcesOf,
-  titleText,
-  viewerOpening
-} from './helpers';
+import { factLabel, factText, sourcesOf } from './helpers';
 
 // A Fact's form open in its place, by its id, or a new one's.
 type Editing = number | 'new' | null;
 
 // The person's Facts, and their marriages', from birth to death: each
 // kind, then its date, place and what else it says, dimmed while no source
-// supports it. Clicking one picks it, showing its sources under it; a
+// supports it. Clicking one picks it, showing under it its sources and
+// those suggested (fact-sources.ts); a
 // second click opens it for editing in its place, and _Add event_
-// opens a new one below; one at a time. A source supporting it (ADR-0022)
-// opens in the Scan viewer; one with nothing to open there is asked for in
-// Sources, as `show-source` with its Citation's id.
+// opens a new one below; one at a time.
 @customElement('sl-person-events')
 class PersonEventsElement extends SignalWatcher(LitElement) {
   static override styles = [focusRingStyles, personEventsStyles];
@@ -52,21 +46,6 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
     this.editing = fact.id;
   }
 
-  private openSource(source: Source) {
-    const opening = viewerOpening(source);
-    if (opening !== null) {
-      this.state.viewer.open(opening);
-      return;
-    }
-    this.dispatchEvent(
-      new CustomEvent('show-source', {
-        detail: source.citation.id,
-        bubbles: true,
-        composed: true
-      })
-    );
-  }
-
   // The person's sources, as Sources lists them.
   private sources() {
     return this.state.selected.sources.get().flatMap((g) => g.sources);
@@ -78,35 +57,6 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
       .marriages=${this.marriages}
       @closed=${this.close}
     ></sl-fact-form>`;
-  }
-
-  // Under the picked Fact: the sources supporting it, or that there's none.
-  private renderPicked(sources: Source[]) {
-    return html`<div class="picked">
-      ${
-        sources.length === 0
-          ? html`<p class="none">No source supports it yet.</p>`
-          : html`<ul class="sources">
-              ${sources.map((source) => {
-                const { citation: c, status } = source;
-                const entry =
-                  c.entry === null || c.citedPage !== null
-                    ? ''
-                    : `, ${c.entry}`;
-                return html`<li>
-                  <button
-                    class="source"
-                    @click=${() => {
-                      this.openSource(source);
-                    }}
-                  >
-                    ${titleText(c, status)}${entry}
-                  </button>
-                </li>`;
-              })}
-            </ul>`
-      }
-    </div>`;
   }
 
   // A Fact no source supports is dimmed, so the eye finds those that
@@ -135,7 +85,16 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
         <span class="kind">${factLabel(f)}</span>
         <span class="text">${factText(f)}</span>
       </button>
-      ${picked ? this.renderPicked(supporting) : nothing}`;
+      ${
+        picked
+          ? html`<sl-fact-sources
+              class="picked"
+              .fact=${f}
+              .facts=${this.facts}
+              .sources=${sources}
+            ></sl-fact-sources>`
+          : nothing
+      }`;
   }
 
   override render() {
