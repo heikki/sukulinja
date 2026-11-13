@@ -17,3 +17,7 @@ app.db-shm
 
 # Throwaway probes run from the repo root (bun test ./scratch-*.test.ts).
 /scratch-*
+
+# UI test screenshots belong in the project files, not the repo root.
+/*.png
+!/screenshot.png
