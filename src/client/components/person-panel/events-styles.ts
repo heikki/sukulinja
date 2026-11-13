@@ -2,12 +2,18 @@ import { css } from 'lit';
 
 // Events: each Fact a row across the panel's width, tinted as clicking
 // opens it for editing, its kind in a column of its own, its sources under
-// its text; and below them a button to add one.
+// its text while it's pointed at; and below them a button to add one.
 export const personEventsStyles = css`
   .facts {
     display: grid;
     grid-template-columns: max-content 1fr;
     column-gap: 0.75rem;
+  }
+
+  .row {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
   }
 
   button.fact {
@@ -40,12 +46,18 @@ export const personEventsStyles = css`
     overflow-wrap: anywhere;
   }
 
-  /* A Fact's sources, under its text, quiet until pointed at. */
+  /* A Fact's sources, under its text, only while it's pointed at or
+     focused. */
   ul.sources {
+    display: none;
     grid-column: 2;
     margin: 0 0 0.15rem;
     padding: 0;
     list-style: none;
+  }
+
+  .row:is(:hover, :focus-within) ul.sources {
+    display: block;
   }
 
   button.source {

@@ -21,7 +21,8 @@ import {
 
 // The person's Facts, and their marriages', from birth to death: each
 // kind, then its date, place and what else it says, and under it the
-// sources supporting it (ADR-0022). Clicking one opens it for editing in
+// sources supporting it (ADR-0022), shown only for the Fact pointed at or
+// focused, so the list stays quiet. Clicking one opens it for editing in
 // its place, and _Add event_ opens a new one below; one at a time.
 // Picking a source opens it in the Scan viewer; one with nothing to open
 // there is asked for in Sources, as `show-source` with its Citation's id.
@@ -87,7 +88,8 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
 
   private renderFact(f: FactRow, sources: Source[]) {
     if (this.editing === f.id) return this.renderForm(f);
-    return html`<button
+    return html`<div class="row">
+      <button
         class="fact"
         title="Edit"
         @click=${() => {
@@ -97,7 +99,8 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
         <span class="kind">${factLabel(f)}</span>
         <span class="text">${factText(f)}</span>
       </button>
-      ${this.renderSources(sourcesOf(f, sources))}`;
+      ${this.renderSources(sourcesOf(f, sources))}
+    </div>`;
   }
 
   override render() {
