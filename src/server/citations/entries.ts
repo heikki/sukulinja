@@ -9,6 +9,8 @@ import type { Database, SQLQueryBindings } from 'bun:sqlite';
 
 import type { Box } from '@/common/types';
 
+import { placeEntryRoles } from './entry-roles';
+
 // A Citation's columns an Entry holds instead, by the Entry's name for
 // each. A Citation of an Entry leaves them empty, but for its text when
 // it says other than the Entry: a converted reference's names its person.
@@ -64,7 +66,8 @@ const ALIKE = HELD.map(([own, held]) => `e.${held} IS c.${own}`).join(' AND ');
 // Makes the app's Citations of an Image each cite an Entry: one alike in
 // all an Entry holds cites that one, the rest one Entry for each alike
 // group, and the Entry's columns are emptied on them; then Entries of one
-// entry are one (`mergeEntries`). Run by schema 6, the import and the
+// entry are one (`mergeEntries`), and a baptism's people are placed in
+// its Roles (`placeEntryRoles`). Run by schema 6, the import and the
 // Conversion.
 export function gatherEntries(db: Database) {
   db.run(
@@ -84,6 +87,7 @@ export function gatherEntries(db: Database) {
      WHERE entry_id IS NOT NULL`
   );
   mergeEntries(db);
+  placeEntryRoles(db);
 }
 
 interface EntryRow {

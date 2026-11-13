@@ -177,12 +177,14 @@ export function withChild(
   childId: number,
   ix: FamilyIndices
 ): InEntry[] {
+  const parents = parentsOf(childId, ix);
+  const placed = new Set([childId, ...parents.map((p) => p.personId)]);
   const others = named.filter(
-    (p) => p.role !== 'CHIL' && p.role !== 'FATH' && p.role !== 'MOTH'
+    (p) =>
+      !placed.has(p.personId) &&
+      p.role !== 'CHIL' &&
+      p.role !== 'FATH' &&
+      p.role !== 'MOTH'
   );
-  return [
-    { personId: childId, role: 'CHIL' },
-    ...others,
-    ...parentsOf(childId, ix)
-  ];
+  return [{ personId: childId, role: 'CHIL' }, ...others, ...parents];
 }

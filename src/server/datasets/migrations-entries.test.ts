@@ -145,3 +145,49 @@ describe('schema 7', () => {
     migrated.close();
   });
 });
+
+describe('schema 8', () => {
+  test("places a baptism's people in their Roles as the tree tells", () => {
+    const db = oldest();
+    runAll(
+      db,
+      `
+      INSERT INTO persons (id, xref) VALUES (1, '@I1@'), (2, '@I2@'), (3, '@I3@'),
+        (4, '@I4@');
+      INSERT INTO families (id, xref, husband_id, wife_id) VALUES (1, '@F1@', 2, 3);
+      INSERT INTO family_children (family_id, person_id) VALUES (1, 1);
+      INSERT INTO sources (id, xref, title) VALUES (1, '@S1@', 'Juva');
+      INSERT INTO citations (id, scope_type, scope_id, source_id, page, text,
+        link_volume_id, link_volume, link_image, link_file_id, link_box_left,
+        link_box_top, link_box_width, link_box_height, link_by, added_in_app)
+        VALUES
+          (1, 'person', 1, 1, 'u', 'Kaste', 'v1',
+            'I C:1 Syntyneiden ja kastettujen luettelot', 12, 'f1',
+            10, 20, 300, 40, 'hand', 1),
+          (2, 'person', 2, 1, 'u', 'Kaste', 'v1',
+            'I C:1 Syntyneiden ja kastettujen luettelot', 12, 'f1',
+            10, 20, 300, 40, 'hand', 1),
+          (3, 'person', 3, 1, 'u', 'Kaste', 'v1',
+            'I C:1 Syntyneiden ja kastettujen luettelot', 12, 'f1',
+            10, 20, 300, 40, 'hand', 1),
+          (4, 'person', 4, 1, 'u', 'Kaste', 'v1',
+            'I C:1 Syntyneiden ja kastettujen luettelot', 12, 'f1',
+            10, 20, 300, 40, 'hand', 1);
+    `
+    );
+    db.close();
+    const migrated = openDb(path);
+    expect(
+      migrated
+        .query('SELECT id, entry_id, role FROM citations ORDER BY id')
+        .all()
+    ).toEqual([
+      { id: 1, entry_id: 1, role: 'CHIL' },
+      { id: 2, entry_id: 1, role: 'FATH' },
+      { id: 3, entry_id: 1, role: 'MOTH' },
+      // The tree doesn't place them.
+      { id: 4, entry_id: 1, role: null }
+    ]);
+    migrated.close();
+  });
+});

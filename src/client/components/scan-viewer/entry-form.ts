@@ -266,7 +266,21 @@ class ScanEntryElement extends LitElement {
               : this.parents.map((p) => this.renderParent(p))
           }
         </div>
-      </div>`;
+      </div>
+      ${this.renderUnplaced()}`;
+  }
+
+  // Those named in it in no Role of a baptism, as the tree couldn't place.
+  private renderUnplaced() {
+    const roles = new Set(['CHIL', 'FATH', 'MOTH']);
+    return this.cite.people
+      .filter((p) => p.role === null || !roles.has(p.role))
+      .map(
+        (p) =>
+          html`<div class="row">
+            <span class="role">Also</span>${this.renderPerson(p.personId)}
+          </div>`
+      );
   }
 
   private renderParent({ role, personId, named }: ParentRow) {

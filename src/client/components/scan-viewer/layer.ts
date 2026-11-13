@@ -7,7 +7,7 @@ import type { InEntry } from '@/client/dataset-api';
 import type { Point, Transform } from '@/client/pan-zoom';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
-import { bookKind } from '@/common/books';
+import { bookKind, entryRoles } from '@/common/books';
 import type { Box } from '@/common/types';
 
 import { boxFromStage, boxOnStage } from '../box-stage/geometry';
@@ -140,7 +140,12 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     const cite = this.viewer.pending.get()?.cite;
     const own = new Set(cite?.editing?.was.map((w) => w.personId) ?? []);
     const citing = [...this.citingHere()].filter((id) => !own.has(id));
-    return new Set([...citing, ...(cite?.people ?? []).map((p) => p.personId)]);
+    // Someone named in no Role of a Book with Roles can still be given one.
+    const roles = entryRoles(this.viewer.volume.get()?.label ?? '').length;
+    const named = (cite?.people ?? []).filter(
+      (p) => p.role !== null || roles === 0
+    );
+    return new Set([...citing, ...named.map((p) => p.personId)]);
   }
 
   // Whom to name in the Role (`label`): in a baptism, once its child or a

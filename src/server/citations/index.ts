@@ -30,6 +30,7 @@ export {
   gatherEntries,
   mergeEntries
 } from './entries';
+export { placeEntryRoles } from './entry-roles';
 export { viewerUrl } from './astia/astia';
 export { leaveFamilySupport, openSupport } from './support';
 export { BAPTISM_COLLECTION, collectionOf } from './myheritage';
