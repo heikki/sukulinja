@@ -48,9 +48,9 @@ function sourceItem(source: Source, run: () => void): MenuItem {
 
 // The person's Facts, and their marriages', from birth to death: each
 // kind, then its date, place and what else it says, dimmed while no source
-// supports it. Clicking one opens it
-// for editing in its place, and _Add event_ opens a new one below; one at a
-// time. A right-click opens its menu: editing, deleting, and the sources
+// supports it. Clicking one picks it, showing under it its sources and
+// what can be done of it; editing opens it in its place, and _Add event_
+// opens a new one below; one at a time. A right-click opens its menu: editing, deleting, and the sources
 // supporting it (ADR-0022), each opened in the Scan viewer; one with
 // nothing to open there is asked for in Sources, as `show-source` with its
 // Citation's id.
@@ -65,10 +65,18 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
 
   @state() private editing: Editing = null;
   @state() private menu: FactMenu | null = null;
+  // The Fact picked, by id: its sources and what can be done of it show
+  // under it.
+  @state() private picked: number | null = null;
 
   private readonly close = () => {
     this.editing = null;
   };
+
+  private edit(fact: FactRow, deleting = false) {
+    this.picked = null;
+    this.editing = { fact: fact.id, deleting };
+  }
 
   private openSource(source: Source) {
     const opening = viewerOpening(source);
@@ -96,13 +104,13 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
       {
         label: 'Edit',
         run: () => {
-          this.editing = { fact: fact.id, deleting: false };
+          this.edit(fact);
         }
       },
       {
         label: 'Delete event…',
         run: () => {
-          this.editing = { fact: fact.id, deleting: true };
+          this.edit(fact, true);
         }
       },
       ...sources.map((source) =>
@@ -144,28 +152,88 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
     ></sl-fact-form>`;
   }
 
+  // Under the picked Fact: the sources supporting it, each opened as from
+  // the menu, then editing and deleting it.
+  private renderPicked(f: FactRow, sources: Source[]) {
+    return html`<div class="picked">
+      ${
+        sources.length === 0
+          ? html`<p class="none">No source supports it yet.</p>`
+          : html`<ul class="sources">
+              ${sources.map((source) => {
+                const { citation: c, status } = source;
+                const entry =
+                  c.entry === null || c.citedPage !== null
+                    ? ''
+                    : `, ${c.entry}`;
+                return html`<li>
+                  <button
+                    class="source"
+                    @click=${() => {
+                      this.openSource(source);
+                    }}
+                  >
+                    ${titleText(c, status)}${entry}
+                  </button>
+                </li>`;
+              })}
+            </ul>`
+      }
+      <div class="actions">
+        <button
+          @click=${() => {
+            this.edit(f);
+          }}
+        >
+          Edit
+        </button>
+        <button
+          class="danger"
+          @click=${() => {
+            this.edit(f, true);
+          }}
+        >
+          Delete
+        </button>
+      </div>
+    </div>`;
+  }
+
   // A Fact no source supports is dimmed, so the eye finds those that
-  // still need one.
+  // still need one. Clicking picks it, or lets it go; a double-click or
+  // Enter on the picked one edits it, and Esc lets it go.
   private renderFact(f: FactRow, sources: Source[]) {
     const { editing } = this;
     if (editing !== null && editing !== 'new' && editing.fact === f.id) {
       return this.renderForm(f, editing.deleting);
     }
-    const unsourced = sourcesOf(f, sources).length === 0;
+    const supporting = sourcesOf(f, sources);
+    const picked = this.picked === f.id;
     return html`<button
-      class="fact ${unsourced ? 'unsourced' : ''}"
-      title="Edit"
-      aria-haspopup="menu"
-      @click=${() => {
-        this.editing = { fact: f.id, deleting: false };
-      }}
-      @contextmenu=${(e: MouseEvent) => {
-        this.openMenu(f, e);
-      }}
-    >
-      <span class="kind">${factLabel(f)}</span>
-      <span class="text">${factText(f)}</span>
-    </button>`;
+        class="fact ${supporting.length === 0 ? 'unsourced' : ''}"
+        aria-expanded=${picked ? 'true' : 'false'}
+        aria-haspopup="menu"
+        @click=${() => {
+          this.picked = picked ? null : f.id;
+        }}
+        @dblclick=${() => {
+          this.edit(f);
+        }}
+        @keydown=${(e: KeyboardEvent) => {
+          if (e.key === 'Escape' && picked) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.picked = null;
+          }
+        }}
+        @contextmenu=${(e: MouseEvent) => {
+          this.openMenu(f, e);
+        }}
+      >
+        <span class="kind">${factLabel(f)}</span>
+        <span class="text">${factText(f)}</span>
+      </button>
+      ${picked ? this.renderPicked(f, supporting) : nothing}`;
   }
 
   override render() {
@@ -180,6 +248,7 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
           : html`<button
               class="add"
               @click=${() => {
+                this.picked = null;
                 this.editing = 'new';
               }}
             >
