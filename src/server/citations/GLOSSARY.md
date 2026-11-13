@@ -8,11 +8,11 @@ A person's **Citations**, as the panel lists them, and linking each **Church-boo
 A reference in the tree to where something comes from, from any source: a person's (or family's) one says they are in that source, a church-book one which **Event** its **Entry** records and their **Role** in it. It may **Support** their Facts. None is on a Fact itself: an import makes a Fact's citation its owner's, supporting the Fact (ADR-0022).
 
 **Support**:
-A Citation's backing of one of its person's Facts, or their marriages': _this source says so_. One Citation may support several Facts (a rippikirja line gives the birth, the residence and the marriage), and a Fact may rest on several. Added under the picked Fact in _Events_ (_Add source…_), taken back from a supporting source's right-click menu; a Citation made of a baptism for its child supports their Christening (else Birth), one of a marriage for a spouse their marriage. Each added or taken back is a **Change**. GEDCOM writes it as the citation repeated under the Fact.
+A Citation's backing of one of its person's Facts, or their marriages': _this source says so_. One Citation may support several Facts (a rippikirja line gives the birth, the residence and the marriage), and a Fact may rest on several. Checked or unchecked under the picked Fact in _Events_ (_Add source…_ / _Edit sources…_); a Citation made of a baptism for its child supports their Christening (else Birth), one of a marriage for a spouse their marriage. Each added or taken back is a **Change**. GEDCOM writes it as the citation repeated under the Fact.
 _Avoid_: evidence (the Entry is that), link (a church-book Citation's place in Astia).
 
 **Suggestion**:
-A Fact a Citation's **Transcription** gives its person, listed first in the picked Fact's _Add source…_ in _Events_ until it's added as **Support**: a household line's dates, a baptism's for its child, a marriage's for its spouses, matched to the person's one Fact of that kind, agreeing with its date or not. Derived each time, never stored; one not added just stays suggested. Residence isn't suggested.
+A Fact a Citation's **Transcription** gives its person, listed after the supporting sources in the picked Fact's _Edit sources…_ in _Events_ until it's checked into **Support**: a household line's dates, a baptism's for its child, a marriage's for its spouses, matched to the person's one Fact of that kind, agreeing with its date or not. Derived each time, never stored; one not added just stays suggested. Residence isn't suggested.
 _Avoid_: match (a reference's Link the vision pass found), guess.
 
 **Fact**:

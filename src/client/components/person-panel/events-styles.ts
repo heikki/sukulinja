@@ -4,12 +4,6 @@ import { css } from 'lit';
 // and more when picked, its kind in a column of its own, the picked one's
 // sources under it; and below them a button to add one.
 export const personEventsStyles = css`
-  /* Where a picked Fact's source menu opens. */
-  :host {
-    position: relative;
-    display: block;
-  }
-
   .facts {
     display: grid;
     grid-template-columns: max-content 1fr;

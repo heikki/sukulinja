@@ -3,14 +3,10 @@ import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { ApiError } from '@/client/dataset-api';
-import type { Point } from '@/client/pan-zoom';
 import { appState } from '@/client/state';
 import type { AppState, Source } from '@/client/state';
 import type { FactRow, SupportSuggestion } from '@/common/types';
 
-import '../context-menu';
-
-import type { MenuItem } from '../context-menu';
 import { factSourcesStyles } from './fact-sources-styles';
 import {
   openSuggestions,
@@ -26,21 +22,15 @@ function sourceName({ citation: c, status }: Source) {
   return `${titleText(c, status)}${entry}`;
 }
 
-// A source that doesn't support the Fact yet, and what its Transcription
-// says of the Fact if it suggests it does.
-interface Addable {
-  source: Source;
-  suggestion: SupportSuggestion | null;
-}
-
 // Under a picked Fact in Events: the sources supporting it (ADR-0022), or
-// that there's none, each opened by a click and taken back from its
-// right-click menu; then _Add source…_, which
-// lists the person's other sources to add, those whose Transcription
-// suggests they support it first, with what it says and whether that
-// differs. A source opens in the Scan viewer; one with nothing to open
-// there is asked for in Sources, as `show-source` with its Citation's id.
-// Each support added or taken back is a Change.
+// that there's none, each opened by a click; then _Add source…_ or _Edit
+// sources…_, which lists all the person's sources, each with a checkbox
+// that adds or takes back its support, a Change each: those supporting it
+// first, then those whose Transcription suggests they do, with what it says
+// and whether that differs, then the rest. The order is kept while the list
+// is open, so a row doesn't move from under the pointer. A source opens in
+// the Scan viewer; one with nothing to open there is asked for in Sources,
+// as `show-source` with its Citation's id.
 @customElement('sl-fact-sources')
 class FactSourcesElement extends LitElement {
   static override styles = factSourcesStyles;
@@ -52,11 +42,10 @@ class FactSourcesElement extends LitElement {
   // The person's sources, as Sources lists them.
   @property({ attribute: false }) sources: Source[] = [];
 
-  // Listing the sources to add; the Citation whose support is being
-  // saved, and why the last was refused.
-  @state() private adding = false;
-  // The supporting source a right-click opened the menu for, and where.
-  @state() private menu: { source: Source; at: Point } | null = null;
+  // The sources listed for editing, by Citation id in the order they were
+  // listed in when opened, or null when closed; the Citation whose support
+  // is being saved, and why the last was refused.
+  @state() private editing: number[] | null = null;
   @state() private saving: number | null = null;
   @state() private refused: string | null = null;
 
@@ -75,20 +64,28 @@ class FactSourcesElement extends LitElement {
     );
   }
 
-  // The sources not supporting the Fact, the suggested first.
-  private addable(): Addable[] {
-    const all = this.sources.flatMap((source): Addable[] => {
-      if (source.citation.supports.includes(this.fact.id)) return [];
-      const suggestion =
-        openSuggestions(source.citation, this.facts).find(
-          (s) => s.factId === this.fact.id
-        ) ?? null;
-      return [{ source, suggestion }];
-    });
-    return [
-      ...all.filter((a) => a.suggestion !== null),
-      ...all.filter((a) => a.suggestion === null)
-    ];
+  private suggestionOf(source: Source): SupportSuggestion | null {
+    return (
+      openSuggestions(source.citation, this.facts).find(
+        (s) => s.factId === this.fact.id
+      ) ?? null
+    );
+  }
+
+  private supports(source: Source) {
+    return source.citation.supports.includes(this.fact.id);
+  }
+
+  // Supporting, suggested, the rest.
+  private ordered() {
+    const rank = (s: Source) => {
+      if (this.supports(s)) return 0;
+      return this.suggestionOf(s) === null ? 2 : 1;
+    };
+    return this.sources
+      .map((s, i) => ({ s, i, r: rank(s) }))
+      .sort((a, b) => (a.r === b.r ? a.i - b.i : a.r - b.r))
+      .map(({ s }) => s.citation.id);
   }
 
   private async support(citationId: number, on: boolean) {
@@ -97,7 +94,6 @@ class FactSourcesElement extends LitElement {
     this.refused = null;
     try {
       await this.state.selected.support(citationId, this.fact.id, on);
-      if (on) this.adding = false;
     } catch (err) {
       if (!(err instanceof ApiError)) throw err;
       this.refused = err.message;
@@ -106,110 +102,85 @@ class FactSourcesElement extends LitElement {
     }
   }
 
-  // The menu opens in Events, the element it's positioned in, kept inside
-  // it rather than this short list.
-  private openMenu(source: Source, e: MouseEvent) {
-    e.preventDefault();
-    const root = this.getRootNode();
-    const host = root instanceof ShadowRoot ? root.host : this;
-    const box = host.getBoundingClientRect();
-    this.menu = {
-      source,
-      at: { x: e.clientX - box.left, y: e.clientY - box.top }
-    };
-  }
-
-  private renderMenu() {
-    const { menu } = this;
-    if (menu === null) return nothing;
-    const items: MenuItem[] = [
-      {
-        label: 'Remove as source',
-        run: () => {
-          void this.support(menu.source.citation.id, false);
-        }
-      }
-    ];
-    return html`<sl-context-menu
-      .items=${items}
-      .at=${menu.at}
-      @close=${() => {
-        this.menu = null;
+  private renderOpen(source: Source, cls: string) {
+    return html`<button
+      class=${cls}
+      @click=${() => {
+        this.open(source);
       }}
-    ></sl-context-menu>`;
+    >
+      ${sourceName(source)}
+    </button>`;
   }
 
-  private renderSupporting(source: Source) {
-    return html`<li>
-      <button
-        class="source"
-        aria-haspopup="menu"
-        @click=${() => {
-          this.open(source);
-        }}
-        @contextmenu=${(e: MouseEvent) => {
-          this.openMenu(source, e);
-        }}
-      >
-        ${sourceName(source)}
-      </button>
-    </li>`;
+  private renderSupporting(supporting: Source[]) {
+    if (supporting.length === 0) {
+      return html`<p class="none">No source supports it yet.</p>`;
+    }
+    return html`<ul>
+      ${supporting.map((s) => html`<li>${this.renderOpen(s, 'source')}</li>`)}
+    </ul>`;
   }
 
-  private renderAddable({ source, suggestion: s }: Addable) {
+  private renderEditable(source: Source) {
+    const on = this.supports(source);
+    const s = on ? null : this.suggestionOf(source);
     const differs = s?.agrees === false;
     return html`<li>
-      <button
-        class="add-one"
+      <input
+        type="checkbox"
+        aria-label=${`${sourceName(source)} supports it`}
+        .checked=${on}
         ?disabled=${this.saving !== null}
-        @click=${() => {
-          void this.support(source.citation.id, true);
+        @change=${(e: Event) => {
+          const box = e.target as HTMLInputElement;
+          void this.support(source.citation.id, box.checked);
         }}
-      >
-        ${sourceName(source)}
-      </button>
-      ${
-        s === null
-          ? nothing
-          : html`<span class="says ${differs ? 'differs' : ''}"
-              >suggested · says ${s.says}${differs ? ', differs' : ''}</span
-            >`
-      }
+      />
+      <div>
+        ${this.renderOpen(source, 'name')}
+        ${
+          s === null
+            ? nothing
+            : html`<span class="says ${differs ? 'differs' : ''}"
+                >suggested · says ${s.says}${differs ? ', differs' : ''}</span
+              >`
+        }
+      </div>
     </li>`;
   }
 
-  private renderAdd(addable: Addable[]) {
-    if (addable.length === 0) return nothing;
-    const suggested = addable.filter((a) => a.suggestion !== null).length;
+  private renderToggle(supporting: Source[]) {
+    if (this.sources.length === 0) return nothing;
+    const suggested = this.sources.filter(
+      (s) => !this.supports(s) && this.suggestionOf(s) !== null
+    ).length;
+    const label = supporting.length === 0 ? 'Add source…' : 'Edit sources…';
     return html`<button
-        class="add"
-        aria-expanded=${this.adding ? 'true' : 'false'}
-        @click=${() => {
-          this.adding = !this.adding;
-        }}
-      >
-        Add source…${suggested === 0 ? '' : ` (${suggested} suggested)`}
-      </button>
-      ${
-        this.adding
-          ? html`<ul class="addable">
-              ${addable.map((a) => this.renderAddable(a))}
-            </ul>`
-          : nothing
-      }`;
+      class="toggle"
+      aria-expanded=${this.editing === null ? 'false' : 'true'}
+      @click=${() => {
+        this.editing = this.editing === null ? this.ordered() : null;
+      }}
+    >
+      ${label}${suggested === 0 ? '' : ` (${suggested} suggested)`}
+    </button>`;
+  }
+
+  private renderEditing(ids: number[]) {
+    const byId = new Map(this.sources.map((s) => [s.citation.id, s]));
+    const listed = ids.flatMap((id) => byId.get(id) ?? []);
+    return html`<ul class="editing">
+      ${listed.map((s) => this.renderEditable(s))}
+    </ul>`;
   }
 
   override render() {
     const supporting = sourcesOf(this.fact, this.sources);
     return html`
-      ${
-        supporting.length === 0
-          ? html`<p class="none">No source supports it yet.</p>`
-          : html`<ul>
-              ${supporting.map((s) => this.renderSupporting(s))}
-            </ul>`
-      }
-      ${this.renderAdd(this.addable())} ${this.renderMenu()}
+      ${this.editing === null ? this.renderSupporting(supporting) : nothing}
+      ${this.renderToggle(supporting)}
+      ${this.editing === null ? nothing : this.renderEditing(this.editing)}
       ${
         this.refused === null
           ? nothing
