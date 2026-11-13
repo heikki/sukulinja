@@ -59,7 +59,9 @@ function compareKeys(
 // the Fact says so, with what it says and whether that differs. A source
 // opens in
 // the Scan viewer; one with nothing to open there is asked for in Sources,
-// as `show-source` with its Citation's id. Esc closes the list.
+// as `show-source` with its Citation's id; one opened there is told as
+// `viewing-source` first, so Sources isn't opened to it. Esc closes the
+// list.
 @customElement('sl-fact-sources')
 class FactSourcesElement extends LitElement {
   static override styles = factSourcesStyles;
@@ -109,6 +111,13 @@ class FactSourcesElement extends LitElement {
   private open(source: Source) {
     const opening = viewerOpening(source);
     if (opening !== null) {
+      this.dispatchEvent(
+        new CustomEvent('viewing-source', {
+          detail: source.citation.id,
+          bubbles: true,
+          composed: true
+        })
+      );
       this.state.viewer.open(opening);
       return;
     }
