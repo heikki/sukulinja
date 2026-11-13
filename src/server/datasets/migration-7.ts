@@ -1,5 +1,4 @@
-// Schema 7 (ADR-0024): every Fact's place written one way, as the import
-// now writes it: a place in Finland says Suomi, without its province. Its
+// Schema 7 (ADR-0024): every Fact's place written one way: a place in Finland says Suomi, without its province. Its
 // coordinates and notes stay, as it's the same place. One Change on
 // nothing says how many Facts it was, when there were any.
 

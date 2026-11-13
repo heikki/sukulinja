@@ -4,7 +4,6 @@
 import type { Scope } from '@/common/types';
 
 import { placeOf } from '../facts/address-place';
-import { tidyPlace } from '../facts/place-names';
 import type { GedNode } from '../gedcom/parser';
 import { EVENTS } from '../gedcom/tags';
 import { gedcom7Age, gedcom7Date } from '../gedcom/values';
@@ -138,7 +137,7 @@ export function factImporter({
       $tag: node.tag,
       $type: takeValue(node, 'TYPE'),
       $date_text: gedcom7Date(takeValue(node, 'DATE')),
-      $place: said.place === null ? null : tidyPlace(said.place),
+      $place: said.place,
       $latitude: place.latitude,
       $longitude: place.longitude,
       $address: said.address,
