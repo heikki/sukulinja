@@ -13,6 +13,7 @@ import {
   yearRange
 } from '../text';
 import type { BookKind, Years } from '../text';
+import { transcribedDate } from '../transcription';
 
 // MyHeritage collections that cite Finnish church books.
 export const RIPPI_COLLECTION = '10509';
@@ -212,7 +213,7 @@ function parseIndexRef(
     // Numbered in another collection; the films are known by rippi records.
     recordId: null,
     name: recordName(text),
-    date: event === undefined ? null : isoDate(event.date!),
+    date: event === undefined ? null : transcribedDate(event.date!),
     household: null,
     named: entryNames(text)
   };
@@ -242,37 +243,6 @@ function entryNames(text: string) {
     if (relation !== undefined && !seen) named.push({ relation, name: value });
   }
   return named;
-}
-
-const MONTHS = [
-  'tammi',
-  'helmi',
-  'maalis',
-  'huhti',
-  'touko',
-  'kesä',
-  'heinä',
-  'elo',
-  'syys',
-  'loka',
-  'marras',
-  'joulu'
-];
-
-// "29. Marras 1829" → "1829-11-29", "Marras 1829" → "1829-11", "1829" →
-// "1829": Finnish month names, as MyHeritage writes them, sometimes with
-// the "-kuu" ending.
-export function isoDate(text: string) {
-  const m =
-    /(?:(?<day>\d{1,2})\.\s*)?(?:(?<month>\p{L}+)\s+)?(?<year>1[5-9]\d\d)/u.exec(
-      text
-    )?.groups;
-  if (m === undefined) return null;
-  const word = m.month?.toLowerCase();
-  const month = MONTHS.findIndex((name) => word?.startsWith(name) === true);
-  if (month < 0) return m.year!;
-  const ym = `${m.year}-${String(month + 1).padStart(2, '0')}`;
-  return m.day === undefined ? ym : `${ym}-${m.day.padStart(2, '0')}`;
 }
 
 function recordName(text: string) {

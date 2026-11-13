@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { indexRoleOf, isoDate, parseChurchBookRef, readRecord } from './record';
+import { indexRoleOf, parseChurchBookRef, readRecord } from './record';
 
 const URL =
   'https://www.myheritage.fi/research/collection-10509/x?itemId=1&action=showRecord';
@@ -180,16 +180,6 @@ describe('parseChurchBookRef', () => {
       name: 'Matti Esimerkki ja Liisa Malli',
       date: '1845-07-03'
     });
-  });
-});
-
-describe('isoDate', () => {
-  test('reads a date to the precision written', () => {
-    expect(isoDate('29. Marras 1829')).toBe('1829-11-29');
-    expect(isoDate('1. Tammi 1801')).toBe('1801-01-01');
-    expect(isoDate('Joulu 1799')).toBe('1799-12');
-    expect(isoDate('noin 1799')).toBe('1799');
-    expect(isoDate('tuntematon')).toBeNull();
   });
 });
 
