@@ -6,14 +6,21 @@ import { ApiError } from '@/client/dataset-api';
 import { focusRingStyles } from '@/client/focus-ring';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
-import type { CitationRow, FactRow } from '@/common/types';
+import type { CitationRow, FactRow, SupportSuggestion } from '@/common/types';
 
-import { factBrief } from './helpers';
+import { factBrief, openSuggestions } from './helpers';
 import { citationSupportsStyles } from './supports-styles';
 
 // Which of the person's Facts a source's Citation supports (ADR-0022): a
-// toggle for each, pressed for those it does. Each press is saved as it's
-// made, and says why when the app refuses it.
+// toggle for each, pressed for those it does, and marked for those its
+// Transcription suggests, with what it says when that differs. Each press
+// is saved as it's made, and says why when the app refuses it.
+function suggestionTitle(s: SupportSuggestion) {
+  const agrees =
+    s.agrees === true ? '' : s.agrees === false ? ', which differs' : '';
+  return `Suggested: the transcription gives ${s.says}${agrees}`;
+}
+
 @customElement('sl-citation-supports')
 class CitationSupportsElement extends LitElement {
   static override styles = [focusRingStyles, citationSupportsStyles];
@@ -44,19 +51,27 @@ class CitationSupportsElement extends LitElement {
   override render() {
     if (this.facts.length === 0) return nothing;
     const { supports } = this.citation;
+    const suggested = openSuggestions(this.citation, this.facts);
     return html`
       <div class="label" id="label">Supports</div>
       <div class="facts" role="group" aria-labelledby="label">
         ${this.facts.map((f) => {
           const on = supports.includes(f.id);
+          const s = suggested.find((x) => x.factId === f.id);
           return html`<button
+            class=${s === undefined ? nothing : 'suggested'}
+            title=${s === undefined ? nothing : suggestionTitle(s)}
             aria-pressed=${on ? 'true' : 'false'}
             ?disabled=${this.saving !== null}
             @click=${() => {
               void this.toggle(f, !on);
             }}
           >
-            ${factBrief(f)}
+            ${factBrief(f)}${
+              s?.agrees === false
+                ? html`<span class="says"> · says ${s.says}</span>`
+                : nothing
+            }
           </button>`;
         })}
       </div>

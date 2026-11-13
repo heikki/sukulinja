@@ -8,6 +8,7 @@ import {
   factBrief,
   factText,
   headingOf,
+  openSuggestions,
   siteName,
   sourcesOf,
   titleText
@@ -130,4 +131,19 @@ test("finds a Fact's sources among the person's, by the Facts each supports", ()
   const one = { citation: { ...OF_IMAGE, supports: [3, 7] } };
   const other = { citation: { ...OF_IMAGE, id: 5, supports: [3] } };
   expect(sourcesOf(birth, [one, other])).toEqual([one]);
+});
+
+test("suggests the Facts a Citation's Transcription gives, until it supports them", () => {
+  const birth = { ...DEATH, id: 7, tag: 'BIRT', date: '8 SEP 1856' };
+  const citation = {
+    ...OF_IMAGE,
+    transcribed: [
+      { tag: 'BIRT', date: '1856-08-09' },
+      { tag: 'DEAT', date: '1901' }
+    ]
+  };
+  expect(openSuggestions(citation, [birth])).toEqual([
+    { factId: 7, says: '9.8.1856', agrees: false }
+  ]);
+  expect(openSuggestions({ ...citation, supports: [7] }, [birth])).toEqual([]);
 });

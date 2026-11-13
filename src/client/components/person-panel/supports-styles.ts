@@ -1,7 +1,8 @@
 import { css } from 'lit';
 
 // A source's Supports: a label, then a pill for each of the person's Facts,
-// tinted and ticked for those its Citation supports.
+// tinted and ticked for those its Citation supports, dashed for those its
+// Transcription suggests.
 export const citationSupportsStyles = css`
   :host {
     display: block;
@@ -45,6 +46,20 @@ export const citationSupportsStyles = css`
 
   button[aria-pressed='true']::before {
     content: '✓ ';
+  }
+
+  button.suggested {
+    border-style: dashed;
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  button.suggested::before {
+    content: '? ';
+  }
+
+  .says {
+    color: var(--caution);
   }
 
   .error {
