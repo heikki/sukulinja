@@ -1,5 +1,4 @@
 Status: needs-triage
-Blocked by: 01
 
 # Making an Entry with its people
 

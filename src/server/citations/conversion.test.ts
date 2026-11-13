@@ -94,6 +94,10 @@ test('a hand Mark at the entry converts every citation of the record', async () 
     link_image: 13,
     added_in_app: 1
   };
+  // Both cite one Entry, which holds the Box (ADR-0026).
+  expect(
+    db.query('SELECT DISTINCT entry_id FROM citations WHERE id IN (1, 2)').all()
+  ).toEqual([{ entry_id: 1 }]);
   const [first, second, other] = rows(db);
   expect(first).toEqual({ id: 1, ...converted });
   expect(second).toEqual({ id: 2, ...converted });

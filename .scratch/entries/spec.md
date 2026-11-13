@@ -41,9 +41,8 @@ Written as now, each Citation whole under its person. The import makes one Entry
 
 ## Tickets
 
-1. `01-entry-schema` — the table, the migration, the join.
-2. `02-new-entry-api` — making an Entry with its people; adding and removing a person.
-3. `03-conversion-makes-an-entry`
-4. `04-entry-form` — Scan viewer: one Box, the form beside it, the slim foot bar.
-5. `05-entry-box-menu` — add, remove, edit, delete.
-6. `06-gedcom-round-trip`
+Done 2026-11-13 (schema 6): the table, the migration and the read through `CITATIONS_READ`; a Conversion and an import make one Entry of the alike (`gatherEntries`); the GEDZIP round trip gives them back.
+
+1. `02-new-entry-api` — making an Entry with its people; adding and removing a person.
+2. `04-entry-form` — Scan viewer: one Box, the form beside it, the slim foot bar.
+3. `05-entry-box-menu` — add, remove, edit, delete.
