@@ -16,14 +16,9 @@ const PRICES: Record<string, { input: number; output: number }> = {
   'claude-fable-5-1': { input: 10, output: 50 }
 };
 
-// What a model was asked and spent.
-export interface Spend {
-  calls: number;
-  inputTokens: number;
-  outputTokens: number;
-  // Null when the model's price isn't known here.
-  dollars: number | null;
-}
+import type { Spend } from '@/common/types';
+
+export type { Spend } from '@/common/types';
 
 export const NO_SPEND: Spend = {
   calls: 0,

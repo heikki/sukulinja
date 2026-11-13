@@ -609,3 +609,27 @@ export interface ReminderChange {
 export interface AssistantKeyStatus {
   source: 'saved' | 'environment' | null;
 }
+
+// What requests to Claude spent: how many, their tokens, and dollars (null
+// when the model's price isn't known).
+export interface Spend {
+  calls: number;
+  inputTokens: number;
+  outputTokens: number;
+  dollars: number | null;
+}
+
+// Why an assistant's turn ended: answered, declined, cut short by length,
+// or by asking more than a turn may.
+export type AssistantTurnEnd =
+  'answered' | 'declined' | 'too-long' | 'too-many-steps';
+
+// What the assistant tells of a turn as it runs: the conversation it's in,
+// each piece of its answer as written, what it's reading, and how it
+// ended, with what the conversation has spent so far; or why it failed.
+export type AssistantEvent =
+  | { type: 'conversation'; id: string }
+  | { type: 'text'; text: string }
+  | { type: 'reading'; label: string }
+  | { type: 'done'; spend: Spend; ended: AssistantTurnEnd }
+  | { type: 'error'; message: string };

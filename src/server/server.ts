@@ -3,6 +3,9 @@ import { relative, resolve } from 'node:path';
 
 import type { NewChange, Reminder } from '@/common/types';
 
+import { claude } from './assistant/model';
+import { assistantRoutes } from './assistant/routes';
+import type { AssistantDeps } from './assistant/routes';
 import type { Changes } from './changes/changes';
 import { openCitations } from './citations';
 import type { Astia, DatasetCitations } from './citations';
@@ -44,6 +47,8 @@ interface DatasetHandlers
   handleMedia: (rest: string) => Promise<Response>;
   // The Citation routes; null for any other path.
   routeCitations: DatasetCitations['route'];
+  // The assistant's routes; null for any other path.
+  routeAssistant: (req: Request, rest: string) => Promise<Response | null>;
   // The dataset's Photos, added and deleted, and tagging people in them.
   photos: Photos;
   photoFiles: PhotoFiles;
@@ -52,7 +57,8 @@ interface DatasetHandlers
 
 function createDatasetHandlers(
   services: DatasetServices,
-  mediaDir: string
+  mediaDir: string,
+  assistant: AssistantDeps
 ): DatasetHandlers {
   const {
     tree,
@@ -103,6 +109,7 @@ function createDatasetHandlers(
 
   return {
     changes,
+    routeAssistant: assistantRoutes(services, assistant),
 
     async handleChanges(req) {
       if (req.method === 'GET') return Response.json(await changes.list());
@@ -240,6 +247,8 @@ async function routeDataset(
   if (cited !== null) return cited;
   const facts = await routeFacts(req, handlers, rest);
   if (facts !== null) return facts;
+  const assistant = await handlers.routeAssistant(req, rest);
+  if (assistant !== null) return assistant;
   const persons = await routePersons(req, handlers, rest);
   if (persons !== null) return persons;
   const reminded = await routeReminders(req, handlers, rest);
@@ -263,6 +272,8 @@ interface ApiOptions {
   // Where the assistant's API key is kept; by default the system's
   // credential store.
   keyStore?: KeyStore;
+  // The assistant's model for a key; by default Claude.
+  assistantModel?: AssistantDeps['model'];
 }
 
 export function createApi(
@@ -319,7 +330,8 @@ export function createApi(
       const mediaDir = mediaDirOf(db);
       handlers = createDatasetHandlers(
         openServices(db, scans.forDataset(db), mediaDir),
-        mediaDir
+        mediaDir,
+        { keyStore, model: options.assistantModel ?? claude }
       );
       handlersByDb.set(db, handlers);
     }
