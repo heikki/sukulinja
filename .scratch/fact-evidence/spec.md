@@ -1,10 +1,14 @@
-Status: needs-triage
+Status: ready-for-agent
 
 # Citations as evidence for Facts
 
-Glossary: **Citation**, **Fact**, **Entry**, **Event**, **Role** (`src/server/citations/GLOSSARY.md`). Decisions: ADR-0021 (Sukulinja is the tree's master copy), ADR-0016 (conversion). Earlier studies: `.scratch/citation-practices/fact-citations.md` (options A–D), `.scratch/citation-practices/entries.md` (an Entry table).
+Glossary: **Citation**, **Fact**, **Entry**, **Event**, **Role** (`src/server/citations/GLOSSARY.md`). Decisions: ADR-0022 (a Citation supports Facts), ADR-0021 (Sukulinja is the tree's master copy), ADR-0016 (conversion). Earlier studies: `.scratch/citation-practices/fact-citations.md` (options A–D), `.scratch/citation-practices/entries.md` (an Entry table).
 
 Heikki, 2026-11-13: "Miten faktat liittyvät sitaatteihin? Onko siellä jokin kytkös nyt?" and then "Okei, jatka tätä eteenpäin. Tämähän on melko tärkeä asia."
+
+## Decided by Heikki, 2026-11-13
+
+"Selvä homma. Jatka niin kuin ehdotit." A Citation supports Facts (below), not option A, and not the Entry table first. It's the end model's support, so the Entry table later leaves it as it is (ADR-0022).
 
 ## Where it is now
 
@@ -47,7 +51,7 @@ fact_citations
 
 ### When a Citation is made in the Scan viewer
 
-"New citation for…" already knows the Entry's Event and asks the Role. It then suggests the Fact to support, by Event and Role: a baptism's child → their Christening (else Birth); a marriage's spouse → that marriage; rippikirja and lastenkirja lines → none suggested (their residences are the placeless RESI Facts, see below). The suggestion is a ticked box the user can untick, and if the Fact doesn't exist yet, nothing is suggested (adding the Fact stays in _Events_).
+"New citation for…" already knows the Entry's Event and asks the Role. The server then supports the Fact the Entry plainly records: a baptism's child → their one Christening, else their one Birth; a marriage's spouse → their one marriage. Anything else (a parent, a godparent, rippikirja and lastenkirja lines, two such Facts, none) supports nothing. The form doesn't change: the support shows in _Sources_ and _Events_, where it can be taken back, and is a Change like any other.
 
 ### GEDCOM
 
@@ -70,12 +74,12 @@ GEDCOM has no "support" record; it repeats the `SOUR` under each Fact it support
 
 ## Structure
 
-- **Server:** `src/server/citations/support.ts` reads and writes `fact_citations` and checks ownership; the routes go in `citation-routes.ts` (`PUT`/`DELETE …/citations/:id/supports/:factId`). `CitationRow` gains `supports: number[]` (Fact ids); `FactRow` gains `citations: number[]`, filled in `person-details.ts` from one query.
-- **Changes:** new `ChangeWhat` kinds `support-add` and `support-remove`, carrying the Fact and the Citation's heading as they read, like `fact-delete`.
-- **Client:** `sources.ts`'s details get a `supports.ts` sub-component; `events.ts` shows the count and list. The Scan viewer's new-citation form gets the suggested Fact.
+- **Server:** `src/server/citations/support.ts` reads and writes `fact_citations` and checks ownership; the routes go in `citation-routes.ts` (`PUT`/`DELETE …/citations/:id/supports/:factId`). `CitationRow` gains `supports: number[]` (Fact ids), read with the row; the panel finds a Fact's sources from it, so it's said once.
+- **Changes:** a new `ChangeWhat` kind `support` (`did: add | remove`), on the Citation, carrying the Fact's tag and words as they read, like `fact`.
+- **Client:** `sources.ts`'s details get a `supports.ts` sub-component; `events.ts` shows the count and list. `citations.cite` supports the Fact its Entry records, by a pure rule in `support.ts`.
 - **Export/import:** `export/gedcom.ts` `citations()` adds the copies under Facts; `import/facts.ts` folds them back, in one helper beside `importCitations`.
 
-## Tickets (once decided)
+## Tickets
 
 | #   | Ticket                                                                       | Blocked by |
 | --- | ---------------------------------------------------------------------------- | ---------- |
@@ -84,10 +88,10 @@ GEDCOM has no "support" record; it repeats the `SOUR` under each Fact it support
 | 03  | Export the copies under Facts, import folds them back, round trip            | 01         |
 | 04  | _Sources_: _Supports_ toggles in a Citation's details                        | 02         |
 | 05  | _Events_: a Fact's sources, picking one shows it                             | 02         |
-| 06  | Scan viewer: suggest the Fact a new Citation supports                        | 02         |
+| 06  | Scan viewer: a new Citation supports the Fact its Entry records              | 02         |
 | 07  | Glossary: **Support**; **Citation** and **Fact** reworded; `entries.md` note | 01         |
 
 ## Open questions for Heikki
 
-1. **The model:** a Citation supports Facts (this proposal), or a Citation moves onto one Fact (option A), or the Entry table first?
-2. Is "N sources" on a Fact enough in _Events_, or should the sources be listed under each Fact openly?
+1. ~~The model~~: support (Heikki, 2026-11-13).
+2. Is "N sources" on a Fact enough in _Events_, or should the sources be listed under each Fact openly? Started with the count and a list that opens under the Fact.
