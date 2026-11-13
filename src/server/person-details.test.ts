@@ -112,13 +112,14 @@ test('serves facts in date order, and the Citations', () => {
   expect(createPersonDetails(db, SCANS.forDataset(db))(99)).toBeNull();
 });
 
-test('serves birth first and death last, whatever their dates', () => {
+test('serves birth and christening first and death last, whatever their dates', () => {
   const gedcom = [
     '0 @I1@ INDI',
     '1 NAME Matti /Esimerkki/',
     '1 BURI',
     '2 DATE 1820',
     '1 DEAT',
+    '1 CHR',
     '1 RESI',
     '2 DATE 1750',
     '1 BIRT',
@@ -131,5 +132,5 @@ test('serves birth first and death last, whatever their dates', () => {
     db,
     SCANS.forDataset(db)
   )(1)?.facts.map((f) => f.tag);
-  expect(tags).toEqual(['BIRT', 'RESI', 'OCCU', 'DEAT', 'BURI']);
+  expect(tags).toEqual(['BIRT', 'CHR', 'RESI', 'OCCU', 'DEAT', 'BURI']);
 });

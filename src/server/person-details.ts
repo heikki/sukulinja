@@ -17,17 +17,20 @@ function yearOf(date: string | null) {
   return m === null ? Infinity : Number(m[0]);
 }
 
-// Birth opens a life and death closes it, burial after; the rest run
-// between them by date.
+// Birth opens a life, christening or baptism after it, and death closes
+// it, burial after; the rest run between them by date, whatever their
+// dates say (a household's residence may begin before the birth).
 const LIFE_ORDER: Record<string, number> = {
   BIRT: 0,
-  DEAT: 2,
-  BURI: 3,
-  CREM: 3
+  CHR: 1,
+  BAPM: 1,
+  DEAT: 3,
+  BURI: 4,
+  CREM: 4
 };
 
 function byLife(a: FactRow, b: FactRow) {
-  const order = (LIFE_ORDER[a.tag] ?? 1) - (LIFE_ORDER[b.tag] ?? 1);
+  const order = (LIFE_ORDER[a.tag] ?? 2) - (LIFE_ORDER[b.tag] ?? 2);
   return order === 0 ? yearOf(a.date) - yearOf(b.date) : order;
 }
 
