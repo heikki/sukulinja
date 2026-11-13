@@ -42,8 +42,9 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
     this.editing = null;
   };
 
+  // It stays picked, so saving or cancelling comes back to it picked.
   private edit(fact: FactRow) {
-    this.picked = null;
+    this.picked = fact.id;
     this.editing = fact.id;
   }
 
