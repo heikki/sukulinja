@@ -110,6 +110,11 @@ export const personSourcesStyles = css`
     outline-offset: -2px;
   }
 
+  /* Supports none of the person's Facts yet. */
+  .unsupporting button.title {
+    color: var(--muted);
+  }
+
   button.title[aria-current] {
     color: var(--fg);
     font-weight: 600;

@@ -400,7 +400,9 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
   // Clicking a church-book source opens its scan; clicking another shows or
   // hides its details, as its chevron does for both: what it records, its
   // links and what can be done of it. Its details show only when selected,
-  // and opening it in the Scan viewer leaves them as they are.
+  // and opening it in the Scan viewer leaves them as they are. One that
+  // supports none of the Facts is dimmed, as Events dims a Fact no source
+  // supports.
 
   private renderCitation({ citation: c, status }: Source) {
     const { viewing, elsewhere } = this.markOf(c);
@@ -415,7 +417,8 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
           active: true,
           viewing,
           elsewhere,
-          linked: filed
+          linked: filed,
+          unsupporting: c.supports.length === 0
         })}
         data-citation=${c.id}
         @click=${(e: Event) => {
