@@ -3,7 +3,7 @@
 
 import type { Database } from 'bun:sqlite';
 
-import { annotated } from '../citations';
+import { annotated, CITATIONS_READ } from '../citations';
 import type { Annotation } from '../citations';
 
 interface Changed {
@@ -201,7 +201,7 @@ export function readExportRows(db: Database) {
     ),
     citationsOf: grouped(
       all<Omit<CitationRow, 'annotation'>>(
-        `SELECT * FROM citations ${ordered}`
+        `SELECT * FROM ${CITATIONS_READ} ${ordered}`
       ).map(annotated),
       (r) => ownerKey(r.scope_type, r.scope_id)
     ),
@@ -210,7 +210,7 @@ export function readExportRows(db: Database) {
     supportOf: grouped(
       all<Omit<CitationRow, 'annotation'> & { fact_id: number }>(
         `SELECT c.*, fc.fact_id FROM fact_citations fc
-         JOIN citations c ON c.id = fc.citation_id
+         JOIN ${CITATIONS_READ} c ON c.id = fc.citation_id
          ORDER BY c.scope_type, c.scope_id, c.sort_order, c.id`
       ).map(annotated),
       (r) => String(r.fact_id)

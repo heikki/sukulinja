@@ -125,7 +125,9 @@ test("serves a person's Citations, church books first", () => {
       markKey: 'record 1',
       citedPage: 139,
       cited: { parish: null, kind: 'rippi', years: { from: 1794, to: 1808 } },
-      supports: []
+      supports: [],
+      entryId: null,
+      role: null
     },
     {
       id: 1,
@@ -140,7 +142,9 @@ test("serves a person's Citations, church books first", () => {
       markKey: 'citation 1',
       citedPage: null,
       cited: null,
-      supports: []
+      supports: [],
+      entryId: null,
+      role: null
     }
   ]);
 });

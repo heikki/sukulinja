@@ -1,7 +1,6 @@
 import { computed, signal } from '@lit-labs/signals';
 
-import { ApiError } from '@/client/dataset-api';
-import type { DatasetApi } from '@/client/dataset-api';
+import type { DatasetApi, InEntry } from '@/client/dataset-api';
 import type {
   Box,
   CitationRow,
@@ -14,9 +13,13 @@ import type {
 
 import { confirmingSource } from './confirming';
 import type { Confirming } from './confirming';
+import { entryBox } from './entry-box';
+import type { EntryBox } from './entry-box';
 import { filmingOf } from './filming';
 import { Latest } from './latest';
 import { viewerOnward } from './onward';
+import { pendingEntry } from './pending-entry';
+import type { EntryEdit, EntryForm, PendingCite } from './pending-entry';
 import { boxOn, clampImage, fileIdOf, imageOf, markedIn } from './places';
 import type { Readable, Selected } from './selected';
 
@@ -35,24 +38,18 @@ export interface ImageOpen {
   image: number;
 }
 
+export type { EntryEdit, PendingCite } from './pending-entry';
+
 // The Volume shown.
 export interface VolumeShown {
   id: string;
   label: string;
 }
 
-// A new Citation not saved yet: for whom, what the entry is, as typed, and
-// their Role in it, if picked.
-export interface PendingCite {
-  personId: number;
-  text: string;
-  role: string | null;
-}
-
 // A change not saved yet: where on an Image of a Volume the entry is.
 // Without `cite`, it moves the current source's Link there. With `cite`,
-// it's a new Citation of the entry for the person instead, saying what the
-// entry is: it belongs to the Image shown, with a source or none.
+// it's a new Entry with a Citation for each person in it instead: it
+// belongs to the Image shown, with a source or none.
 export interface PendingLink {
   volumeId: string;
   volume: string;
@@ -143,13 +140,19 @@ export interface Viewer {
   setBox: (box: Box) => void;
   // Starts a pending change from the Link's own Box, to adjust it.
   editBox: () => void;
-  // Puts a new Citation of the entry at the Box for the person, on the
-  // Image shown, pending.
-  citeFor: (personId: number, box: Box) => void;
-  // What the pending Citation's entry is, as typed.
-  setCiteText: (text: string) => void;
-  // The person's Role in the pending Citation's entry, or none.
-  setCiteRole: (role: string | null) => void;
+  // Puts a new Entry at the Box, on the Image shown, pending, with the
+  // people in it so far.
+  newEntry: (box: Box, people: InEntry[]) => void;
+  // Changing the pending Entry: what it says (`setText`), who is named
+  // in each Role, in place of whoever had it, or for a Role-less Book
+  // added (`setInEntry`), all named at once (`setPeople`), and someone
+  // taken out (`drop`).
+  entryForm: EntryForm;
+  // Starts editing the source's Entry, made in the app: its people, what
+  // it says and its Box, pending, as a new one is.
+  editEntry: () => void;
+  // The source's Entry, as its Box's menu changes it.
+  entry: EntryBox;
   // A Discard of the Link's Box on the Image shown, waiting to be saved.
   // Moving off the Image drops it.
   discarding: Readable<boolean>;
@@ -159,7 +162,8 @@ export interface Viewer {
   cancel: () => void;
   // Takes the Box back, throwing ApiError if it's refused, and goes on
   // with the Link it leaves, on the Image shown. For a Citation made in
-  // the app, deletes it instead, and the viewer closes.
+  // the app, deletes it instead, with its whole Entry, and the viewer
+  // closes.
   confirmDiscard: () => Promise<void>;
   // Saves the pending change as a Mark and follows the new Link, or makes
   // the pending Citation and opens on it, throwing ApiError if it's
@@ -403,23 +407,23 @@ export function openViewer(
     placeBox(box, pending.get()?.cite);
   }
 
-  function citeFor(personId: number, box: Box) {
-    placeBox(box, { personId, text: '', role: null });
+  function newEntry(box: Box, people: InEntry[]) {
+    placeBox(box, { people, text: '' });
   }
 
-  function changeCite(to: Partial<PendingCite>) {
-    const change = pending.get();
-    if (change?.cite !== undefined) {
-      pending.set({ ...change, cite: { ...change.cite, ...to } });
-    }
-  }
+  const entry = pendingEntry(pending, {
+    api,
+    selected,
+    fileOf: (n) => fileIdOf(files[n - 1]),
+    reload: loadCitations
+  });
+  const cited = entryBox(api, selected, source, citations);
 
-  function setCiteText(text: string) {
-    changeCite({ text });
-  }
-
-  function setCiteRole(role: string | null) {
-    changeCite({ role });
+  function editEntry() {
+    const box = boxHere.get();
+    const entryId = source.get()?.citation.entryId ?? null;
+    if (box === null || entryId === null || pending.get() !== null) return;
+    placeBox(box, entry.editing(entryId, box, cited.people.get()));
   }
 
   function editBox() {
@@ -453,7 +457,7 @@ export function openViewer(
     const at = volume.get();
     if (shown === null || at === null || !discarding.get()) return;
     if (shown.citation.madeInApp) {
-      await selected.uncite(shown.citation.id);
+      await cited.deleteMade(shown.citation);
       if (source.get() === shown) closeNow();
       return;
     }
@@ -481,8 +485,12 @@ export function openViewer(
   // The pending change saved: a Mark, or a new Citation, given back.
   async function saveChange() {
     const change = pending.get();
+    if (change?.cite?.editing !== undefined) {
+      await saveEdit(change, change.cite.editing);
+      return null;
+    }
     if (change?.cite !== undefined) {
-      return await saveCitation(change, change.cite);
+      return await entry.save(change, change.cite);
     }
     await saveMark();
     return null;
@@ -509,29 +517,18 @@ export function openViewer(
     else openNow({ citation: shown.citation, link });
   }
 
-  // The new Citation shows beside the scan once the Volume's citations
-  // reload, and in the person's sources if they're the Selected person.
-  // Null when the viewer moved on meanwhile.
-  async function saveCitation(change: PendingLink, cite: PendingCite) {
-    const { volumeId, image: at, box } = change;
-    const fileId = fileIdOf(files[at - 1]);
-    if (fileId === null) {
-      throw new ApiError("The Image isn't listed yet; try again.");
+  // The source's Entry changed: the viewer stays on its Citation, at the
+  // Box saved, or with the source's own person taken out, on the Image.
+  async function saveEdit(change: PendingLink, editing: EntryEdit) {
+    const shown = source.get();
+    const kept = await entry.saveEdit(change, editing);
+    if (shown === null || source.get() !== shown) return;
+    const [{ link }, { volumeId, volume, image: at, box }] = [shown, change];
+    if (kept.includes(shown.citation.id) && link?.precision === 'entry') {
+      openNow({ citation: shown.citation, link: { ...link, box } });
+      return;
     }
-    const text = cite.text.trim();
-    const made = await api.cite(cite.personId, {
-      volumeId,
-      image: at,
-      fileId,
-      box,
-      text: text === '' ? null : text,
-      role: cite.role
-    });
-    if (selected.id.get() === cite.personId) void selected.refresh();
-    await loadCitations(volumeId);
-    if (pending.get() !== change) return null;
-    pending.set(null);
-    return made;
+    openImageNow({ volumeId, volume, image: at });
   }
 
   // A way out goes where it was going: a new Citation saved on the way
@@ -651,9 +648,15 @@ export function openViewer(
     boxPending,
     setBox,
     editBox,
-    citeFor,
-    setCiteText,
-    setCiteRole,
+    newEntry,
+    entryForm: {
+      setText: entry.setText,
+      setInEntry: entry.setInEntry,
+      setPeople: entry.setPeople,
+      drop: entry.drop
+    },
+    editEntry,
+    entry: cited,
     discarding,
     discard,
     cancel,

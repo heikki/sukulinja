@@ -53,14 +53,19 @@ export interface BoxAt {
   image: number;
 }
 
-// An entry cited in the app: its Box on an Image of a Volume, by the
-// Image's file id, with what it is and the person's Role in it, if said.
-export interface CiteTarget {
+// An entry made in the app: its Box on an Image of a Volume, by the
+// Image's file id, with what it says, if said.
+export interface EntryTarget {
   volumeId: string;
   image: number;
   fileId: string;
   box: Box;
   text: string | null;
+}
+
+// Someone named in an entry, in their Role if it has one.
+export interface InEntry {
+  personId: number;
   role: string | null;
 }
 
@@ -80,9 +85,16 @@ export interface DatasetApi {
   // Takes back the reference's Box at `at`, a Mark's or a Match's:
   // its Links, resolved again.
   discard: (citationId: number, at: BoxAt) => Promise<CitationLinks>;
-  // Makes a Citation of the entry for the person: it as the Volume's
+  // Makes an Entry with a Citation of it for each person named (ADR-0026):
+  // them as the Volume's citations list them, in the order named.
+  citeEntry: (at: EntryTarget, people: InEntry[]) => Promise<VolumeCitation[]>;
+  // Names someone in an Entry: their new Citation as the Volume's
   // citations list it.
-  cite: (personId: number, at: CiteTarget) => Promise<VolumeCitation>;
+  addToEntry: (entryId: number, person: InEntry) => Promise<VolumeCitation>;
+  // Puts what an Entry says, for everyone citing it.
+  transcribe: (entryId: number, text: string | null) => Promise<void>;
+  // Deletes an Entry with all its Citations.
+  deleteEntry: (entryId: number) => Promise<void>;
   // Deletes a Citation made in the app.
   uncite: (citationId: number) => Promise<void>;
   // Makes a Citation support one of its person's Facts, or no longer
@@ -308,17 +320,40 @@ export function openDatasetApi(
       return (await res.json()) as CitationLinks;
     },
 
-    async cite(personId, at) {
+    async citeEntry(at, people) {
+      const res = await ask('Citing', `${dataset}/api/entries`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...at, people })
+      });
+      return (await res.json()) as VolumeCitation[];
+    },
+
+    async addToEntry(entryId, person) {
       const res = await ask(
         'Citing',
-        `${dataset}/api/persons/${personId}/citations`,
+        `${dataset}/api/entries/${entryId}/people`,
         {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(at)
+          body: JSON.stringify(person)
         }
       );
       return (await res.json()) as VolumeCitation;
+    },
+
+    async transcribe(entryId, text) {
+      await ask('Saving', `${dataset}/api/entries/${entryId}`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+    },
+
+    async deleteEntry(entryId) {
+      await ask('Deleting', `${dataset}/api/entries/${entryId}`, {
+        method: 'DELETE'
+      });
     },
 
     async uncite(citationId) {

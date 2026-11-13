@@ -125,7 +125,9 @@ function source(id: number, citedPage: number | null, churchBook = true) {
     markKey: `citation ${id}`,
     citedPage,
     cited: null,
-    supports: []
+    supports: [],
+    entryId: null,
+    role: null
   };
   return row;
 }

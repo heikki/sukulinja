@@ -122,6 +122,96 @@ test("a spouse's Citation supports their marriage, no one's another's Facts", ()
   expect(citations.support(1, 9, true)).toBeNull();
 });
 
+test('an entry names its people at once, one Box for all, and its child has its support', async () => {
+  const { db, citations, changes } = dataset();
+  db.run("INSERT INTO persons (id, xref) VALUES (4, '@I4@')");
+  const target = {
+    volumeId: 'juva-3',
+    image: 3,
+    fileId: fileId('juva-3', 3, 'full'),
+    box: { left: 100, top: 200, width: 500, height: 50 },
+    text: 'Kaste 12.3.1795'
+  };
+  // Named twice, or in a Role not of a baptism, it's refused.
+  expect(
+    await citations.citeEntry(target, [
+      { personId: 1, role: 'CHIL' },
+      { personId: 1, role: 'FATH' }
+    ])
+  ).toEqual({ rejected: 'Someone is named twice.' });
+  expect(
+    await citations.citeEntry(target, [{ personId: 1, role: 'HUSB' }])
+  ).toEqual({ rejected: "That isn't a Role in this kind of entry." });
+  expect(
+    await citations.citeEntry(target, [{ personId: 9, role: 'CHIL' }])
+  ).toBeNull();
+
+  const made = await citations.citeEntry(target, [
+    { personId: 1, role: 'CHIL' },
+    { personId: 3, role: 'FATH' },
+    { personId: 2, role: 'MOTH' }
+  ]);
+  if (made === null || 'rejected' in made) throw new Error('not made');
+  expect(made.map((m) => m.personId)).toEqual([1, 3, 2]);
+  expect(new Set(made.map((m) => m.citation.markKey)).size).toBe(1);
+  expect(made.map((m) => m.citation.supports)).toEqual([[2], [], []]);
+  expect(changes.map((c) => c.what.kind)).toEqual([
+    'cite',
+    'support',
+    'cite',
+    'cite'
+  ]);
+  expect(db.query('SELECT COUNT(*) AS n FROM entries').get()).toEqual({ n: 1 });
+
+  // Someone added later shares the Box; one already in it is refused.
+  const { citation } = made[0]!;
+  const entryId = citation.entryId!;
+  expect(made.map((m) => m.citation.entryId)).toEqual([
+    entryId,
+    entryId,
+    entryId
+  ]);
+  expect(
+    await citations.addToEntry(entryId, { personId: 3, role: null })
+  ).toEqual({ rejected: 'Their Citations already link this Image.' });
+  expect(
+    await citations.addToEntry(entryId, { personId: 4, role: null })
+  ).toMatchObject({ personId: 4, citation: { markKey: citation.markKey } });
+  expect(
+    await citations.addToEntry(99, { personId: 4, role: null })
+  ).toBeNull();
+
+  // What it says changes for everyone in it, with a Change.
+  expect(citations.transcribe(entryId, ' Kaste\n 3.2.1790 ')).toEqual({
+    text: 'Kaste 3.2.1790'
+  });
+  expect(changes.at(-1)).toEqual({
+    on: { citationId: made[0]!.citation.id },
+    what: {
+      kind: 'transcribe',
+      volume: 'I C:1 Syntyneiden ja kastettujen luettelot (1790-1810)',
+      image: 3,
+      text: 'Kaste 3.2.1790'
+    }
+  });
+  expect(citations.ofPerson(2).map((c) => c.text)).toContain('Kaste 3.2.1790');
+  expect(citations.transcribe(99, 'x')).toBeNull();
+
+  // The last Citation of it takes the Entry.
+  citations.uncite(made[0]!.citation.id);
+  expect(db.query('SELECT COUNT(*) AS n FROM entries').get()).toEqual({ n: 1 });
+  // Deleting it takes the rest, each with a Change.
+  const before = changes.length;
+  expect(citations.deleteEntry(entryId)).toBe(3);
+  expect(changes.slice(before).map((c) => c.what.kind)).toEqual([
+    'uncite',
+    'uncite',
+    'uncite'
+  ]);
+  expect(db.query('SELECT COUNT(*) AS n FROM entries').get()).toEqual({ n: 0 });
+  expect(citations.deleteEntry(entryId)).toBeNull();
+});
+
 test('support goes with its Fact, its Citation, and a spouse leaving the family', () => {
   const { db, citations } = dataset();
   citations.support(1, 1, true);

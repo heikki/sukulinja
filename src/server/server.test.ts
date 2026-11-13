@@ -384,6 +384,63 @@ describe("A dataset's Citations", () => {
     );
   }
 
+  test('makes an Entry with its people, and adds someone to it', async () => {
+    await seedDataset();
+    const db = new DatasetRegistry(join(root, 'data')).open('juva');
+    db.run("INSERT INTO persons (id, xref) VALUES (2, '@I2@'), (3, '@I3@')");
+    db.close();
+    const entry = {
+      volumeId: 'juva-1',
+      image: 13,
+      fileId: 'juva-1-f13',
+      box: { left: 100, top: 500, width: 500, height: 50 },
+      text: 'Rippikirja'
+    };
+    const made = await send('POST', '/api/entries', {
+      ...entry,
+      people: [{ personId: 2 }]
+    });
+    expect(made.status).toBe(201);
+    const [first] = (await made.json()) as Array<{
+      citation: { entryId: number };
+    }>;
+    const entryId = first!.citation.entryId;
+    const added = await send('POST', `/api/entries/${entryId}/people`, {
+      personId: 3
+    });
+    expect(added.status).toBe(201);
+    expect(await added.json()).toMatchObject({
+      personId: 3,
+      citation: { entryId }
+    });
+    expect(
+      (await send('POST', `/api/entries/${entryId}/people`, { personId: 3 }))
+        .status
+    ).toBe(400);
+    expect(
+      (await send('POST', '/api/entries/99/people', { personId: 3 })).status
+    ).toBe(404);
+    expect(
+      (await send('POST', '/api/entries', { ...entry, people: [{}] })).status
+    ).toBe(400);
+    expect((await send('GET', '/api/entries')).status).toBe(405);
+
+    const said = await send('PUT', `/api/entries/${entryId}`, {
+      text: ' Rippikirja,\n sivu 12 '
+    });
+    expect(await said.json()).toEqual({ text: 'Rippikirja, sivu 12' });
+    expect((await send('PUT', `/api/entries/${entryId}`, {})).status).toBe(200);
+    expect(
+      (await send('PUT', `/api/entries/${entryId}`, { text: 1 })).status
+    ).toBe(400);
+    expect((await send('PUT', '/api/entries/99', { text: 'x' })).status).toBe(
+      404
+    );
+    const deleted = await send('DELETE', `/api/entries/${entryId}`);
+    expect(await deleted.json()).toEqual({ removed: 2 });
+    expect((await send('DELETE', `/api/entries/${entryId}`)).status).toBe(404);
+  });
+
   test('makes a Citation on an Image, and deletes it', async () => {
     await seedDataset();
     const db = new DatasetRegistry(join(root, 'data')).open('juva');

@@ -17,6 +17,7 @@ import type { MemoryAstia } from './astia/memory-astia';
 import { memoryParishes } from './astia/parishes';
 import { juvaAstia, rippiCitation } from './astia/test-parish';
 import { createCitations } from './citations';
+import { CITATIONS_READ } from './entries';
 import { openImages } from './images';
 import { referencesFor } from './myheritage/test-pins';
 
@@ -126,8 +127,9 @@ test('a Citation made in the app is stored with its Mark, page and source', asyn
       text: 'Baptism 12.3.1795',
       churchBook: true,
       madeInApp: true,
-      // Its own Mark, shared with no other Citation.
-      markKey: 'citation 2'
+      // Its Entry's Box, shared with whoever else cites it (ADR-0026).
+      markKey: 'entry 1',
+      entryId: 1
     }
   });
   expect(
@@ -135,7 +137,7 @@ test('a Citation made in the app is stored with its Mark, page and source', asyn
       .query(
         `SELECT scope_id, page, original_page, text, event, role, link_image,
            link_file_id, link_box_left, link_by, added_in_app
-         FROM citations WHERE id = 2`
+         FROM ${CITATIONS_READ} WHERE id = 2`
       )
       .get()
   ).toEqual({
@@ -170,7 +172,7 @@ test('a Citation made in the app is stored with its Mark, page and source', asyn
   });
   const sourceIds = db
     .query<{ source_id: number }, []>(
-      'SELECT source_id FROM citations WHERE added_in_app = 1 ORDER BY id'
+      `SELECT source_id FROM ${CITATIONS_READ} WHERE added_in_app = 1 ORDER BY id`
     )
     .all()
     .map((r) => r.source_id);
@@ -271,6 +273,8 @@ test('a Citation is deleted with its notes, and the source the app made with the
   db.run('UPDATE citations SET source_id = 9 WHERE id = 1');
   expect(citations.uncite(1)).toMatchObject({ citation: { madeInApp: false } });
   expect(db.query('SELECT id FROM citations').all()).toEqual([]);
+  // Its Entry goes with the last Citation of it (ADR-0026).
+  expect(db.query('SELECT id FROM entries').all()).toEqual([]);
   expect(sources(db)).toMatchObject([{ id: 9 }]);
 });
 
@@ -383,7 +387,7 @@ test('a Mark moves a Citation made in the app to another entry in its Volume', a
   expect(
     db
       .query(
-        `SELECT page, original_page, link_image, added_in_app FROM citations
+        `SELECT page, original_page, link_image, added_in_app FROM ${CITATIONS_READ}
          WHERE id = 2`
       )
       .get()
@@ -443,7 +447,7 @@ test("a Volume's source is found by its record, whatever cites it", async () => 
   expect(sources(db)).toHaveLength(1);
   const cited = db
     .query(
-      'SELECT DISTINCT source_id AS id FROM citations WHERE added_in_app = 1'
+      `SELECT DISTINCT source_id AS id FROM ${CITATIONS_READ} WHERE added_in_app = 1`
     )
     .all();
   expect(cited).toEqual([{ id: 1 }]);
@@ -543,7 +547,7 @@ test("a Citation made in a baptism Volume keeps the person's Role in the entry, 
     personId: 2
   });
   expect(
-    db.query('SELECT event, role FROM citations WHERE id = 2').get()
+    db.query(`SELECT event, role FROM ${CITATIONS_READ} WHERE id = 2`).get()
   ).toEqual({ event: 'CHR', role: 'FATH' });
   // A marriage's Role in a baptism, or any Role in a rippikirja's entry.
   const refused = { rejected: "That isn't a Role in this kind of entry." };

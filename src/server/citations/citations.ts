@@ -9,10 +9,9 @@
 
 import type { Database, SQLQueryBindings } from 'bun:sqlite';
 
-import { bookLabel, entryRoles } from '@/common/books';
+import { bookLabel } from '@/common/books';
 import { isoDate } from '@/common/dates';
 import type {
-  Box,
   CitationRow,
   Link,
   LinkResolution,
@@ -27,9 +26,12 @@ import {
   originalPageSql
 } from './annotations';
 import type { Annotation } from './annotations';
-import { entryEvent, openAppCitations } from './app-citations';
+import { openAppCitations } from './app-citations';
 import { viewerUrl, volumeYears } from './astia/astia';
 import { citedArchives } from './cited-archives';
+import { CITATIONS_READ } from './entries';
+import { createEntryCitations } from './entry-citations';
+import type { EntryTarget } from './entry-citations';
 import type { Images } from './images';
 import type {
   BookRef,
@@ -49,6 +51,9 @@ interface CitationDbRow {
   text: string | null;
   // The Fact ids it supports, comma separated; null for none.
   supports: string | null;
+  // The Entry it cites (ADR-0026), or null.
+  entryId: number | null;
+  entryRole: string | null;
   annotation: Annotation;
 }
 
@@ -70,14 +75,10 @@ interface Cited<R extends BookRef = BookRef> {
 
 type EntryLink = Link & { precision: 'entry' };
 
-// Where an entry is cited in the app, what it says, and who the person is
-// in it: one of its Volume's entryRoles, or none.
-export interface CiteTarget {
-  volumeId: string;
-  image: number;
-  fileId: string;
-  box: Box;
-  text: string | null;
+export type { EntryTarget, InEntry } from './entry-citations';
+
+// An entry cited for one person, in their Role.
+export interface CiteTarget extends EntryTarget {
   role: string | null;
 }
 
@@ -138,13 +139,21 @@ function citationOf<R extends BookRef>(references: References<R>) {
           : citationText(row.text).trim(),
       churchBook: book !== null || stored !== null,
       madeInApp: row.annotation.madeInApp,
-      markKey: book === null ? `citation ${row.id}` : references.markKey(book),
+      // Those citing one Entry share its Box.
+      markKey:
+        row.entryId === null
+          ? book === null
+            ? `citation ${row.id}`
+            : references.markKey(book)
+          : `entry ${row.entryId}`,
       citedPage: book?.page ?? null,
       cited:
         book === null
           ? null
           : { parish: book.parish, kind: book.kind, years: book.years },
-      supports: idsOf(row.supports)
+      supports: idsOf(row.supports),
+      entryId: row.entryId,
+      role: row.entryRole
     };
     return citation;
   };
@@ -168,11 +177,6 @@ function churchBooksFirst(a: Cited, b: Cited) {
 }
 
 // A one-line text, or null for none.
-function oneLine(text: string | null) {
-  const line = text?.replaceAll(/\s+/g, ' ').trim() ?? '';
-  return line === '' ? null : line;
-}
-
 // One row per person and record: a person citing the same record twice is
 // listed once.
 function onePerRecord<T extends { row: CitationDbRow }>(cited: T[]) {
@@ -214,11 +218,12 @@ export function createCitations<R extends BookRef>(
   // A Mark makes its citation cite the Astia Image; the panel shows the
   // original page, which the reference is read from (ADR-0013).
   const SELECT = `SELECT c.id, c.scope_id AS personId, s.title AS source,
-    ${originalPageSql('c')} AS page, c.text,
+    ${originalPageSql('c')} AS page, c.text, c.entry_id AS entryId,
+    CASE WHEN c.entry_id IS NULL THEN NULL ELSE c.role END AS entryRole,
     (SELECT group_concat(fact_id) FROM fact_citations
       WHERE citation_id = c.id) AS supports,
     ${annotationColumnsSql('c')}
-    FROM citations c LEFT JOIN sources s ON s.id = c.source_id`;
+    FROM ${CITATIONS_READ} c LEFT JOIN sources s ON s.id = c.source_id`;
   function query(where: string) {
     const statement = db.prepare<DbRow, SQLQueryBindings[]>(
       `${SELECT} ${where}`
@@ -411,6 +416,41 @@ export function createCitations<R extends BookRef>(
     return { personId: row.personId, citation: toCitation(c!) };
   }
 
+  // The Citation as the Scan viewer lists it.
+  async function listed(id: number): Promise<VolumeCitation> {
+    const row = byId.get(id)!;
+    const [c] = cited([row]);
+    return {
+      personId: row.personId,
+      citation: toCitation(c!),
+      link: await withArchive(c!.stored!)
+    };
+  }
+
+  function uncite(citationId: number) {
+    const was = ofId(citationId);
+    if (!made.remove(citationId)) return null;
+    if (was !== null) {
+      changed({
+        on: { personId: was.personId },
+        what: { kind: 'uncite', cited: citedText(was.citation) }
+      });
+    }
+    return was;
+  }
+
+  const entries = createEntryCitations(db, {
+    made,
+    images,
+    citable,
+    inVolume,
+    volumeArchive,
+    personExists: (id) => personExists.get(id) !== null,
+    support,
+    changed,
+    listed
+  });
+
   return {
     // Every one of the person's Citations: church books first, by year,
     // then the others in recorded order.
@@ -542,52 +582,20 @@ export function createCitations<R extends BookRef>(
       return { images: urls, archive };
     },
 
-    // Makes a Citation of the entry for the person, and gives it as the
-    // Scan viewer lists it. Null when there's no such person; rejected
-    // where the entry can't be cited, or the person's Citations already
-    // link the Image.
+    // Makes an Entry with its people, or adds someone to one (ADR-0026).
+    citeEntry: entries.citeEntry,
+    addToEntry: entries.addToEntry,
+
+    // Makes a Citation of a new entry for the person (`citeEntry` with one),
+    // and gives it as the Scan viewer lists it.
     async cite(
       personId: number,
       target: CiteTarget
     ): Promise<VolumeCitation | { rejected: string } | null> {
-      if (personExists.get(personId) === null) return null;
-      const checked = await images.imageToCite(target, await citable());
-      if ('rejected' in checked) return checked;
-      const { volumeId, image, role } = target;
-      const roles = entryRoles(checked.volume).map((r) => r.role);
-      if (role !== null && !roles.includes(role)) {
-        return { rejected: "That isn't a Role in this kind of entry." };
-      }
-      const there = await inVolume(volumeId);
-      const linked = there?.some(
-        (r) =>
-          r.personId === personId && 'image' in r.link && r.link.image === image
-      );
-      if (linked === true) {
-        return { rejected: 'Their Citations already link this Image.' };
-      }
-      const id = made.create({
-        personId,
-        volumeId,
-        volume: checked.volume,
-        archive: await volumeArchive(volumeId),
-        image,
-        fileId: target.fileId,
-        box: target.box,
-        text: oneLine(target.text),
-        role
-      });
-      changed({
-        on: { citationId: id },
-        what: { kind: 'cite', volume: checked.volume, image }
-      });
-      support.recorded(id, personId, entryEvent(checked.volume), role);
-      const [c] = cited([byId.get(id)!]);
-      return {
-        personId,
-        citation: toCitation(c!),
-        link: await withArchive(c!.stored!)
-      };
+      const made = await entries.citeEntry(target, [
+        { personId, role: target.role }
+      ]);
+      return made === null || 'rejected' in made ? made : made[0]!;
     },
 
     // Titles the Volume sources made before with their archive (ADR-0019).
@@ -595,17 +603,19 @@ export function createCitations<R extends BookRef>(
 
     // Deletes a Citation, and gives it as it was, with whose it was; null
     // when there's no such Citation.
-    uncite(citationId: number) {
-      const was = ofId(citationId);
-      if (!made.remove(citationId)) return null;
-      if (was !== null) {
-        changed({
-          on: { personId: was.personId },
-          what: { kind: 'uncite', cited: citedText(was.citation) }
-        });
-      }
-      return was;
-    }
+    uncite,
+
+    // Deletes an Entry with all its Citations, each as `uncite` does
+    // (ADR-0026): how many went, null when there's no such Entry.
+    deleteEntry(entryId: number) {
+      const ids = made.entryCitations(entryId);
+      if (ids.length === 0) return null;
+      for (const id of ids) uncite(id);
+      return ids.length;
+    },
+
+    // Puts what an Entry says (ADR-0026); null when there's no such Entry.
+    transcribe: entries.transcribe
   };
 }
 

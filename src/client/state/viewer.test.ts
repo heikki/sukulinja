@@ -52,7 +52,9 @@ function churchBook(id: number, citedPage: number | null): CitationRow {
     markKey: `citation ${id}`,
     citedPage,
     cited: null,
-    supports: []
+    supports: [],
+    entryId: null,
+    role: null
   };
 }
 

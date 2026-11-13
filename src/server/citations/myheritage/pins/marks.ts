@@ -11,6 +11,7 @@ import type { Database } from 'bun:sqlite';
 
 import { openAnnotations, originalPageSql } from '../../annotations';
 import type { CitationLink } from '../../annotations';
+import { CITATIONS_READ } from '../../entries';
 import { markedRefOf, markKey } from '../record';
 
 // A Match taken back by hand: the reference isn't on that Image, of
@@ -62,7 +63,8 @@ export function openMarks(db: Database) {
     const rows = db
       .query<{ id: number; page: string; madeInApp: number }, []>(
         `SELECT id, ${originalPageSql()} AS page, added_in_app AS madeInApp
-         FROM citations WHERE ${originalPageSql()} LIKE 'http%' ORDER BY id`
+         FROM ${CITATIONS_READ} WHERE ${originalPageSql()} LIKE 'http%'
+         ORDER BY id`
       )
       .all();
     const byKey = new Map<string, number[]>();

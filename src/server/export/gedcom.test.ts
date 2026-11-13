@@ -9,7 +9,7 @@ import { unzipSync } from 'fflate';
 import { importGedcomFixture } from '../../../test/gedcom-fixture';
 import { gedcom7Errors } from '../../../test/gedcom7/validate';
 import { treeSnapshot } from '../../../test/tree-snapshot';
-import { openAnnotations, openSupport } from '../citations';
+import { CITATIONS_READ, openAnnotations, openSupport } from '../citations';
 import { openAppCitations, openMarks } from '../citations/testing';
 import { openDb } from '../datasets/db';
 import { DatasetRegistry } from '../datasets/registry';
@@ -384,7 +384,7 @@ describe('exporting a GEDZIP', () => {
     expect(
       b
         .query(
-          'SELECT link_image, link_box_top, added_in_app FROM citations WHERE added_in_app = 1'
+          `SELECT link_image, link_box_top, added_in_app FROM ${CITATIONS_READ} WHERE added_in_app = 1`
         )
         .all()
     ).toEqual([

@@ -56,6 +56,10 @@ class PersonPickElement extends SignalWatcher(LitElement) {
   @property({ attribute: false }) persons = new Map<number, PersonRow>();
   // Whose new relative can be made and picked: the Selected person.
   @property({ attribute: false }) relativesOf: number | null = null;
+  // The one relation a new relative can be made as; null for any.
+  @property({ attribute: false }) newAs: Relation | null = null;
+  // Whether anyone else can be searched for.
+  @property({ attribute: false }) search = true;
 
   @consume({ context: appState }) private readonly state!: AppState;
 
@@ -148,7 +152,10 @@ class PersonPickElement extends SignalWatcher(LitElement) {
     const of = this.relativesOf;
     if (of === null) return [];
     const people = this.state.chart.people.get();
-    return addableRelations(of, people).map((relation) => ({
+    const relations = addableRelations(of, people).filter(
+      (r) => this.newAs === null || r === this.newAs
+    );
+    return relations.map((relation) => ({
       label: `New ${RELATION_LABELS[relation].toLowerCase()}…`,
       run: () => {
         this.adding = relation;
@@ -170,12 +177,16 @@ class PersonPickElement extends SignalWatcher(LitElement) {
         }
       })),
       ...this.newItems(),
-      {
-        label: 'Someone else…',
-        run: () => {
-          this.searching = true;
-        }
-      }
+      ...(this.search
+        ? [
+            {
+              label: 'Someone else…',
+              run: () => {
+                this.searching = true;
+              }
+            }
+          ]
+        : [])
     ];
     return html`<sl-context-menu
       .items=${items}

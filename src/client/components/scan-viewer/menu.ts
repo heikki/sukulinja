@@ -14,7 +14,9 @@ import type { MenuItem } from '../context-menu';
 // the Image already, and with nothing pending, one for a new Citation of
 // an entry for someone; then, with nothing pending, a Reminder, once Astia
 // lists the Image; then Change Volume…, which only shows another Volume.
-// A Box's menu offers a Reminder too. Opened on an Image with no source,
+// A Box's menu offers a Reminder too. An Entry made in the app is edited
+// in the card it was made in, people, words and Box at once (ADR-0026),
+// and deleting it deletes everyone's Citation of it. Opened on an Image with no source,
 // the same but for what's the source's: a new Citation and a Reminder, and
 // a pending new Citation's Box to discard.
 export function linkItems(
@@ -44,7 +46,7 @@ export function linkItems(
       });
     }
     if (viewer.pending.get() === null) {
-      items.push({ label: 'New citation for…', run: open.cite });
+      items.push({ label: 'New entry here', run: open.cite });
     }
   }
   items.push(...remind);
@@ -74,9 +76,16 @@ function boxItems(viewer: Viewer): MenuItem[] {
   if (source === null) return [];
   if (source.citation.madeInApp) {
     // Its Box is its own, so taking it back deletes the Citation.
+    if (source.citation.entryId === null) {
+      return [
+        { label: 'Edit', run: viewer.editBox },
+        { label: 'Delete', run: viewer.discard }
+      ];
+    }
+    const others = viewer.entry.people.get().length > 1;
     return [
-      { label: 'Edit', run: viewer.editBox },
-      { label: 'Delete', run: viewer.discard }
+      { label: 'Edit', run: viewer.editEntry },
+      { label: others ? 'Delete entry' : 'Delete', run: viewer.discard }
     ];
   }
   const confirm =

@@ -11,6 +11,7 @@ import { openDb } from '../datasets/db';
 import { memoryParishes } from './astia/parishes';
 import { juvaAstia, rippiCitation, VOLUMES } from './astia/test-parish';
 import { createCitations } from './citations';
+import { CITATIONS_READ } from './entries';
 import { openImages } from './images';
 import { referencesFor } from './myheritage/test-pins';
 
@@ -72,7 +73,7 @@ function rows(db: ReturnType<typeof openDb>) {
     .query<Row, []>(
       `SELECT c.id, s.title AS source, c.text, c.original_page, c.link_image,
          c.added_in_app
-       FROM citations c JOIN sources s ON s.id = c.source_id ORDER BY c.id`
+       FROM ${CITATIONS_READ} c JOIN sources s ON s.id = c.source_id ORDER BY c.id`
     )
     .all();
 }
@@ -93,6 +94,10 @@ test('a hand Mark at the entry converts every citation of the record', async () 
     link_image: 13,
     added_in_app: 1
   };
+  // Both cite one Entry, which holds the Box (ADR-0026).
+  expect(
+    db.query('SELECT DISTINCT entry_id FROM citations WHERE id IN (1, 2)').all()
+  ).toEqual([{ entry_id: 1 }]);
   const [first, second, other] = rows(db);
   expect(first).toEqual({ id: 1, ...converted });
   expect(second).toEqual({ id: 2, ...converted });
@@ -105,7 +110,7 @@ test('a hand Mark at the entry converts every citation of the record', async () 
   });
   // A rippikirja's entry records a household: RESI, with no Role.
   expect(
-    db.query('SELECT event, role FROM citations ORDER BY id').all()
+    db.query(`SELECT event, role FROM ${CITATIONS_READ} ORDER BY id`).all()
   ).toEqual([
     { event: 'RESI', role: null },
     { event: 'RESI', role: null },
@@ -124,7 +129,8 @@ test('a hand Mark at the entry converts every citation of the record', async () 
   expect(
     await citations.mark(1, { volumeId: 'juva-1', image: 14, box: MOVED })
   ).toHaveProperty('resolution.links');
-  expect(rows(db).map((r) => r.link_image)).toEqual([14, 13, null]);
+  // Its Entry moves, for everyone citing it (ADR-0026).
+  expect(rows(db).map((r) => r.link_image)).toEqual([14, 14, null]);
   // Nothing brings it back now (ADR-0021), so it can be deleted.
   expect(citations.uncite(1)).toMatchObject({ citation: { id: 1 } });
 });

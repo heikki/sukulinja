@@ -9,10 +9,8 @@ import type {
   AppState,
   Confirming,
   LeaveAnswer,
-  LinkOpen,
-  PendingCite
+  LinkOpen
 } from '@/client/state';
-import { entryRoles } from '@/common/books';
 
 import { controlStyles, editActionsStyles } from '../box-stage/styles';
 import { formatName } from '../tree-view/renderer';
@@ -28,8 +26,8 @@ function renderConfirming(confirming: Confirming) {
     : html`<p class="refused">${confirming.refused}</p>`;
 }
 
-// At the end of the nav while a Box is pending: Cancel and Save, and for a
-// new Citation, whom it's for and a line for what the entry is. A way out
+// At the end of the nav while a Box is pending: Cancel and Save; a new
+// Entry's people are beside its Box. A way out
 // of the source waiting on the Box asks there instead: Keep editing,
 // Discard or Save. A Box waiting to be discarded, or a Citation made in
 // the app to be deleted, asks to confirm. A Match being confirmed from its
@@ -147,9 +145,13 @@ class ScanEditElement extends SignalWatcher(LitElement) {
     `;
   }
 
+  // With others in its Entry, the Entry goes, with everyone's Citation.
   private renderDelete() {
+    const n = this.state.viewer.entry.people.get().length;
     return html`
-      <p>Delete this citation?</p>
+      <p>
+        ${n > 1 ? `Delete this entry and its ${n} citations?` : 'Delete this citation?'}
+      </p>
       <div class="actions">
         <button
           ?disabled=${this.saving}
@@ -171,55 +173,6 @@ class ScanEditElement extends SignalWatcher(LitElement) {
         >
           ${this.saving ? 'Deleting…' : 'Delete'}
         </button>
-      </div>
-    `;
-  }
-
-  // Whom the pending Citation is for, their Role in the entry where its
-  // kind of book has Roles, and what the entry is, as typed.
-  private renderCite(cite: PendingCite, volume: string) {
-    const person = this.persons.get(cite.personId);
-    const name = person === undefined ? 'someone' : formatName(person);
-    return html`
-      <p class="cite">New citation for ${name}</p>
-      ${this.renderRoles(cite, volume)}
-      <input
-        class="cite-text"
-        type="text"
-        placeholder="What the entry is, e.g. Baptism 12.3.1795"
-        aria-label="What the entry is"
-        .value=${cite.text}
-        @input=${(e: InputEvent) => {
-          this.state.viewer.setCiteText((e.target as HTMLInputElement).value);
-        }}
-        @keydown=${(e: KeyboardEvent) => {
-          if (e.key !== 'Enter' || e.isComposing) return;
-          e.preventDefault();
-          void this.save();
-        }}
-      />
-    `;
-  }
-
-  // The Roles to pick from, one or none: picking the one picked takes it
-  // back.
-  private renderRoles(cite: PendingCite, volume: string) {
-    const roles = entryRoles(volume);
-    if (roles.length === 0) return nothing;
-    return html`
-      <div class="segmented" role="group" aria-label="Their role in the entry">
-        ${roles.map(
-          ({ role, label }) => html`
-            <button
-              aria-pressed=${cite.role === role}
-              @click=${() => {
-                this.state.viewer.setCiteRole(cite.role === role ? null : role);
-              }}
-            >
-              ${label}
-            </button>
-          `
-        )}
       </div>
     `;
   }
@@ -265,11 +218,9 @@ class ScanEditElement extends SignalWatcher(LitElement) {
   override render() {
     const { viewer } = this.state;
     const pending = viewer.pending.get();
+    // A new Entry's people and words are beside its Box (entry-form.ts).
     if (pending?.cite !== undefined) {
-      return this.renderAsking(
-        this.renderCite(pending.cite, pending.volume),
-        this.renderSaving()
-      );
+      return this.renderAsking(nothing, this.renderSaving());
     }
     const source = viewer.source.get();
     if (source === null) return nothing;
