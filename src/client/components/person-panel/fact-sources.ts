@@ -34,8 +34,8 @@ interface Addable {
 }
 
 // Under a picked Fact in Events: the sources supporting it (ADR-0022), or
-// that there's none, each opened by a click, or from its right-click menu,
-// which takes it back too; then _Add source…_, which
+// that there's none, each opened by a click and taken back from its
+// right-click menu; then _Add source…_, which
 // lists the person's other sources to add, those whose Transcription
 // suggests they support it first, with what it says and whether that
 // differs. A source opens in the Scan viewer; one with nothing to open
@@ -124,12 +124,6 @@ class FactSourcesElement extends LitElement {
     if (menu === null) return nothing;
     const items: MenuItem[] = [
       {
-        label: 'Open',
-        run: () => {
-          this.open(menu.source);
-        }
-      },
-      {
         label: 'Remove as source',
         run: () => {
           void this.support(menu.source.citation.id, false);
@@ -137,7 +131,6 @@ class FactSourcesElement extends LitElement {
       }
     ];
     return html`<sl-context-menu
-      .heading=${sourceName(menu.source)}
       .items=${items}
       .at=${menu.at}
       @close=${() => {

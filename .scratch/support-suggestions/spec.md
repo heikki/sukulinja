@@ -24,7 +24,7 @@ Residence is left out: the 2 313 placeless RESI Facts are copies of the rippikir
 
 ## In the panel
 
-- **_Events_:** picking a Fact shows under it the sources supporting it (a click opens one in the Scan viewer; right-click gives _Open_ and _Remove as source_), then _Add source…_ ("(N suggested)" when any is), listing the person's other sources, the suggested first with what their Transcription says ("suggested · says 21.11.1829, differs" when it differs). Clicking one adds the support: a Change on the Citation. (Heikki, 2026-11-13: confirming where the Fact is looked at; first built as a "Confirm N agreeing suggestions" button, a row marker in _Sources_, a _Suggested_ list with _Confirm_, and _Supports_ toggles in a source's details, all removed: support is now added and taken back only in _Events_.)
+- **_Events_:** picking a Fact shows under it the sources supporting it (a click opens one in the Scan viewer; right-click gives only _Remove as source_), then _Add source…_ ("(N suggested)" when any is), listing the person's other sources, the suggested first with what their Transcription says ("suggested · says 21.11.1829, differs" when it differs). Clicking one adds the support: a Change on the Citation. (Heikki, 2026-11-13: confirming where the Fact is looked at; first built as a "Confirm N agreeing suggestions" button, a row marker in _Sources_, a _Suggested_ list with _Confirm_, and _Supports_ toggles in a source's details, all removed: support is now added and taken back only in _Events_.)
 - A suggestion that's wrong is left unconfirmed. It stays suggested; there's no "not this".
 
 ## Structure
