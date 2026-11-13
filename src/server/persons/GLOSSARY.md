@@ -1,6 +1,6 @@
 # Tree
 
-The people of a dataset and the families that join them, now that the tree is worked on in the app (ADR-0021): added, linked, changed, taken out of a family and deleted from a card's menu, or as a new relative in the Scan viewer's and Photo viewer's picker. Spec: `.scratch/add-people/spec.md`.
+The people of a dataset and the families that join them, now that the tree is worked on in the app (ADR-0021): added, linked, changed, taken out of a family and deleted from a card's menu, or as a new relative in the Scan viewer's and Photo viewer's picker.
 
 ## Language
 

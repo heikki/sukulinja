@@ -1,6 +1,6 @@
 # Photos
 
-The pictures of a dataset and the people in them, handled much as Citations are: listed on a person, and looked at in a viewer of their own beside the **Scan viewer**, sharing its parts (`box-stage/`). Spec: `.scratch/photos/spec.md`.
+The pictures of a dataset and the people in them, handled much as Citations are: listed on a person, and looked at in a viewer of their own beside the **Scan viewer**, sharing its parts (`box-stage/`).
 
 ## Language
 
