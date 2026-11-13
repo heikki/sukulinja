@@ -106,12 +106,25 @@ export function createFacts(
     'UPDATE facts SET latitude = NULL, longitude = NULL WHERE id = ?'
   );
   const deleteRow = db.prepare('DELETE FROM facts WHERE id = ?');
+  const dropAddress = db.prepare(
+    "DELETE FROM addresses WHERE owner_type = 'fact' AND owner_id = ?"
+  );
+  const insertAddress = db.prepare<null, [number, string]>(
+    "INSERT INTO addresses (owner_type, owner_id, text) VALUES ('fact', ?, ?)"
+  );
   const allPlaces = db.prepare<{ place: string }, []>(
     `SELECT place FROM facts WHERE place IS NOT NULL
      GROUP BY place ORDER BY COUNT(*) DESC, place`
   );
 
   const childOrder = createChildOrder(db);
+
+  // The Fact's ADDR as the export writes it: the address typed, whole, as
+  // GEDCOM 7 has its payload, its parts from an import gone with the old.
+  function writeAddress(factId: number, address: string | null) {
+    dropAddress.run(factId);
+    if (address !== null) insertAddress.run(factId, address);
+  }
 
   // A birth or baptism date added, changed or deleted moves the person
   // among their siblings.
@@ -172,6 +185,7 @@ export function createFacts(
           s.value,
           order
         )!;
+        writeAddress(id, s.address);
         touchRecord(db, recordOf({ scope_type: scope, scope_id: scopeId }));
         if (s.date !== null) {
           reorder({ scope_type: scope, tag: fact.tag }, personId);
@@ -213,6 +227,7 @@ export function createFacts(
           forgetCoordinates.run(factId);
           deletePlaceHeld(db, { fact: factId });
         }
+        if (s.address !== stored.address) writeAddress(factId, s.address);
         if (s.date !== stored.date) reorder(f, personId);
         touchRecord(db, recordOf(f));
         change(personId, {

@@ -174,14 +174,14 @@ test('an edit keeps a date typed as the panel shows it, and the rest of the Fact
   });
 });
 
-test('edits a residence’s address', () => {
+test('edits a residence’s address, and its ADDR with it', () => {
   const { id } = facts.add(1, {
     ...BLANK,
     tag: 'RESI',
     familyId: null,
-    date: '1790',
-    place: 'Pitäjä',
-    address: 'Kylä'
+    date: '1990',
+    place: 'Helsinki',
+    address: 'Kauppakatu 1'
   }) as { id: number };
   function address() {
     return db
@@ -190,20 +190,30 @@ test('edits a residence’s address', () => {
       )
       .get(id)?.address;
   }
-  expect(address()).toBe('Kylä');
+  function addr() {
+    return db
+      .query<{ text: string | null }, [number]>(
+        "SELECT text FROM addresses WHERE owner_type = 'fact' AND owner_id = ?"
+      )
+      .all(id);
+  }
+  expect(address()).toBe('Kauppakatu 1');
+  expect(addr()).toEqual([{ text: 'Kauppakatu 1' }]);
   facts.edit(1, id, {
     ...BLANK,
-    date: '1790',
-    place: 'Pitäjä',
-    address: 'Talo'
+    date: '1990',
+    place: 'Helsinki',
+    address: 'Kauppakatu 2'
   });
-  expect(address()).toBe('Talo');
+  expect(address()).toBe('Kauppakatu 2');
+  expect(addr()).toEqual([{ text: 'Kauppakatu 2' }]);
   expect(changes.at(-1)!.what).toMatchObject({
-    was: '1790 · Pitäjä · Kylä',
-    now: '1790 · Pitäjä · Talo'
+    was: '1990 · Helsinki · Kauppakatu 1',
+    now: '1990 · Helsinki · Kauppakatu 2'
   });
-  facts.edit(1, id, { ...BLANK, date: '1790', place: 'Pitäjä' });
+  facts.edit(1, id, { ...BLANK, date: '1990', place: 'Helsinki' });
   expect(address()).toBeNull();
+  expect(addr()).toEqual([]);
 });
 
 test('a new place drops the old one’s coordinates and notes', () => {
