@@ -6,7 +6,7 @@ test('leaves out the province before the country, which is Suomi', () => {
   expect(
     tidyPlace('Laukola, Haukivuori, Haukivuori, Mikkeli (St. Michel), Finland')
   ).toBe('Laukola, Haukivuori, Suomi');
-  expect(tidyPlace('Pieksamaki, Mikkeli, Finland')).toBe('Pieksamaki, Suomi');
+  expect(tidyPlace('Juva, Mikkeli, Finland')).toBe('Juva, Suomi');
   expect(tidyPlace('Mikkeli,Mikkeli,Finland')).toBe('Mikkeli, Suomi');
   expect(tidyPlace('Kirvu, Viipuri, Suomi')).toBe('Kirvu, Suomi');
 });
@@ -42,4 +42,16 @@ test('keeps a town of the same name, and places outside Finland', () => {
     'Portland, Multnomah, Oregon, USA'
   );
   expect(tidyPlace('Haukivuori 5')).toBe('Haukivuori 5');
+});
+
+test('spells a parish one way', () => {
+  expect(tidyPlace('Pieksamaki, Mikkeli, Finland')).toBe('Pieksämäki, Suomi');
+  expect(
+    tidyPlace(
+      'No. 4, Wanhamäki, Mikkeli Maaseurakunta, Mikkeli (St. Michel), Finland'
+    )
+  ).toBe('No. 4, Wanhamäki, Mikkelin maaseurakunta, Suomi');
+  expect(tidyPlace('Pyhäjärvi Pieksämäki, Mikkeli, Finland')).toBe(
+    'Pyhäjärvi, Pieksämäki, Suomi'
+  );
 });

@@ -44,9 +44,26 @@ const PROVINCES = new Set([
 
 const FINLAND = new Set(['finland', 'suomi']);
 
+// Parishes the trees write another way, in lower case, as they're named;
+// a rural parish as Astia names its archive's ("Mikkelin maaseurakunnan
+// arkisto"), Heikki's choice (2026-11-13).
+const PARISHES = new Map([
+  ['pieksamaki', 'Pieksämäki'],
+  ['pyhäjärvi pieksämäki', 'Pyhäjärvi, Pieksämäki'],
+  ['mikkeli maaseurakunta', 'Mikkelin maaseurakunta'],
+  ['sortavala maaseurakunta', 'Sortavalan maaseurakunta'],
+  ['viipurin maaseurakunta', 'Viipurin maaseurakunta']
+]);
+
 // The name without its Swedish one after it: "Juva (Jockas)" is Juva.
 function finnishOf(part: string) {
   return part.replace(/\s*\(.*\)$/u, '').trim();
+}
+
+// The parish as it's named, its parts: Finnish, and spelled one way.
+function parishOf(part: string) {
+  const name = finnishOf(part);
+  return (PARISHES.get(name.toLocaleLowerCase()) ?? name).split(', ');
 }
 
 function isProvince(part: string) {
@@ -63,8 +80,8 @@ function withoutRepeats(parts: string[]) {
 
 // The place as it's written: a place in Finland says Suomi, leaves out
 // the province it names before it when there's a parish or town before
-// that, names its parish in Finnish only, and a village named as its
-// parish only once. Any other is as it is.
+// that, names its parish in Finnish and spelled one way, and a village
+// named as its parish only once. Any other is as it is.
 export function tidyPlace(place: string) {
   const parts = place.split(/\s*,\s*/u);
   const country = parts.at(-1)!;
@@ -75,7 +92,7 @@ export function tidyPlace(place: string) {
   return [
     ...withoutRepeats([
       ...above,
-      ...(parish === undefined ? [] : [finnishOf(parish)])
+      ...(parish === undefined ? [] : parishOf(parish))
     ]),
     'Suomi'
   ].join(', ');
