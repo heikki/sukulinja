@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import { tidyPlace } from './place-names';
+import { tidyPlace } from './tidy';
 
 test('leaves out the province before the country, which is Suomi', () => {
   expect(

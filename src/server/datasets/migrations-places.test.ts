@@ -1,5 +1,5 @@
-// Migrating a dataset's places (ADR-0023, ADR-0024): schemas 6 to 8 move
-// an address standing alone to the place, and write places one way.
+// Migrating a dataset's places (ADR-0023): schema 6 moves an address
+// standing alone to the place.
 
 import { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
@@ -72,56 +72,6 @@ describe('schema 6', () => {
     expect(migrated.query('SELECT what, person_id FROM changes').all()).toEqual(
       [{ what: '{"kind":"addresses-to-places","facts":1}', person_id: null }]
     );
-    migrated.close();
-  });
-});
-
-describe('schema 7', () => {
-  test("writes a place in Finland one way, keeping where it's on the map", () => {
-    const db = oldest();
-    runAll(
-      db,
-      `
-      INSERT INTO persons (id, xref) VALUES (1, '@I1@');
-      INSERT INTO facts (id, scope_type, scope_id, tag, place, latitude)
-        VALUES (1, 'person', 1, 'CHR', 'Juva, Mikkeli, Finland', 'N61.9'),
-          (2, 'person', 1, 'RESI', 'Juva, Suomi', NULL),
-          (3, 'person', 1, 'DEAT', 'Portland, Oregon, USA', NULL);
-    `
-    );
-    db.close();
-    const migrated = openDb(path);
-    expect(
-      migrated.query('SELECT id, place, latitude FROM facts ORDER BY id').all()
-    ).toEqual([
-      { id: 1, place: 'Juva, Suomi', latitude: 'N61.9' },
-      { id: 2, place: 'Juva, Suomi', latitude: null },
-      { id: 3, place: 'Portland, Oregon, USA', latitude: null }
-    ]);
-    expect(migrated.query('SELECT what FROM changes').all()).toEqual([
-      { what: '{"kind":"places-tidied","facts":1}' }
-    ]);
-    migrated.close();
-  });
-});
-
-describe('schema 8', () => {
-  test('names a village named as its parish once, after schema 7', () => {
-    const db = oldest();
-    runAll(
-      db,
-      `
-      INSERT INTO persons (id, xref) VALUES (1, '@I1@');
-      INSERT INTO facts (id, scope_type, scope_id, tag, place)
-        VALUES (1, 'person', 1, 'RESI', 'Laukola, Haukivuori, Haukivuori, Suomi');
-    `
-    );
-    db.run('PRAGMA user_version = 7;');
-    db.close();
-    const migrated = openDb(path);
-    expect(migrated.query('SELECT place FROM facts').all()).toEqual([
-      { place: 'Laukola, Haukivuori, Suomi' }
-    ]);
     migrated.close();
   });
 });

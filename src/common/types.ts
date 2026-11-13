@@ -563,7 +563,7 @@ export type ChangeWhat =
   // given it as their place (schema 6, ADR-0023).
   | { kind: 'addresses-to-places'; facts: number }
   // The Facts whose place was written another way, as in Finland without
-  // Suomi or with its province (schema 7, ADR-0024).
+  // Suomi or with its province (scripts/tidy-places, ADR-0024).
   | { kind: 'places-tidied'; facts: number }
   | {
       kind: 'switch-filming';

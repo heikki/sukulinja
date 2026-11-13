@@ -1,4 +1,4 @@
-// How a place is written (ADR-0024): "(farm,) village, parish, Suomi",
+// How the tree's places are written (ADR-0024): "(farm,) village, parish, Suomi",
 // lowest first; Finland as Suomi, and its parishes by their Finnish names.
 // MyHeritage and FamilySearch put a Finnish place's province (lääni)
 // between its parish and the country, and a cemetery's region (maakunta):
