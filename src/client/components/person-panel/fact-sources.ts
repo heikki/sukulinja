@@ -22,8 +22,8 @@ function sourceName({ citation: c, status }: Source) {
   return `${titleText(c, status)}${entry}`;
 }
 
-// Under a picked Fact in Events: the sources supporting it (ADR-0022), or
-// that there's none, each opened by a click; then _Add source…_ or _Edit
+// Under a picked Fact in Events: the sources supporting it (ADR-0022),
+// each opened by a click (or that the person has none); then _Add source…_ or _Edit
 // sources…_, which lists all the person's sources, each with a checkbox
 // that adds or takes back its support, a Change each: those supporting it
 // first, then those whose Transcription suggests they do, with what it says
@@ -115,7 +115,9 @@ class FactSourcesElement extends LitElement {
 
   private renderSupporting(supporting: Source[]) {
     if (supporting.length === 0) {
-      return html`<p class="none">No source supports it yet.</p>`;
+      return this.sources.length === 0
+        ? html`<p class="none">No sources yet.</p>`
+        : nothing;
     }
     return html`<ul>
       ${supporting.map((s) => html`<li>${this.renderOpen(s, 'source')}</li>`)}

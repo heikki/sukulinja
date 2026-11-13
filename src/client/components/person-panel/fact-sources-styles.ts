@@ -54,6 +54,10 @@ export const factSourcesStyles = [
       color: var(--muted);
     }
 
+    button.toggle:first-child {
+      margin-top: 0;
+    }
+
     button.toggle:hover,
     button.toggle[aria-expanded='true'] {
       color: var(--accent);
