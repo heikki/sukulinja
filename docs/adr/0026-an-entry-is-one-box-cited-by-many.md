@@ -12,7 +12,7 @@ A baptism names the child, the parents and the godparents, but the app keeps no 
 - **Making an Entry names everyone in it at once:** the Box is drawn once, and beside it the people are picked by Role, the child's parents offered from the tree. A person is added to an Entry later from its Box's menu.
 - **Each Citation made, removed or moved is a Change** on it, as now; a Box moved or a Transcription retyped is one on each of its Citations.
 - **GEDCOM stays as it is** (lumping): the Volume is the source, and each Citation of an Entry is written whole under its person, with `PAGE`, `DATA`/`TEXT`, `EVEN`, `ROLE`, `OBJE` + `CROP`. The import makes one Entry of the app's Citations with the same source, Image file, `CROP`, `EVEN` and text. Other programs read ordinary GEDCOM, and the round trip (ADR-0013) gives the same Entries back.
-- **The migration** makes one Entry of the app's Citations of an Image with the same source, Image file, Box, Event and text. Boxes drawn by hand for each person differ by a few pixels, so they stay separate Entries, and no action merges them: one is deleted and its person added to the other.
+- **The migration** makes one Entry of the app's Citations of an Image with the same source, Image file, Box, Event and text: Marked by hand or converted, never a Match nobody confirmed, whose Box is the vision pass's. Boxes drawn by hand for each person differ by a few pixels, so they stay separate Entries, and no action merges them: one is deleted and its person added to the other.
 
 ## Considered options
 
