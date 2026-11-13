@@ -1,6 +1,6 @@
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
-import { html, LitElement, nothing } from 'lit';
+import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { ApiError } from '@/client/dataset-api';
@@ -16,6 +16,8 @@ import {
   hasValue
 } from '@/common/facts';
 import type { FactFields, FactRow, Marriage } from '@/common/types';
+
+import '../line-field';
 
 // What a Fact says, as the form shows it.
 function fieldsOf(fact: FactRow): FactFields {
@@ -49,7 +51,20 @@ function spouseLabel(m: Marriage) {
 // changed can be deleted, asked first.
 @customElement('sl-fact-form')
 class FactFormElement extends SignalWatcher(LitElement) {
-  static override styles = [focusRingStyles, formStyles];
+  static override styles = [
+    focusRingStyles,
+    formStyles,
+    css`
+      /* A place may run to a few lines: its label stays by the first. */
+      label.lines {
+        align-items: start;
+      }
+
+      label.lines span {
+        padding-top: 0.3rem;
+      }
+    `
+  ];
 
   @consume({ context: appState }) private readonly state!: AppState;
 
@@ -72,7 +87,9 @@ class FactFormElement extends SignalWatcher(LitElement) {
   }
 
   override firstUpdated() {
-    this.renderRoot.querySelector<HTMLElement>('select, input')?.focus();
+    this.renderRoot
+      .querySelector<HTMLElement>('select, input, sl-line-field')
+      ?.focus();
   }
 
   private get kind() {
@@ -139,7 +156,7 @@ class FactFormElement extends SignalWatcher(LitElement) {
 
   private set(key: keyof FactFields) {
     return (e: Event) => {
-      const { value } = e.target as HTMLInputElement;
+      const { value } = e.target as HTMLInputElement | HTMLTextAreaElement;
       this.fields = { ...this.fields, [key]: value };
     };
   }
@@ -193,19 +210,35 @@ class FactFormElement extends SignalWatcher(LitElement) {
   private renderField(
     key: keyof FactFields,
     label: string,
-    placeholder: string,
-    list?: string
+    placeholder: string
   ) {
     return html`<label>
       <span>${label}</span>
       <input
         type="text"
-        list=${list ?? nothing}
         autocomplete="off"
         placeholder=${placeholder}
         .value=${this.fields[key]}
         @input=${this.set(key)}
       />
+    </label>`;
+  }
+
+  // A field that wraps and grows, as a place does, offering `suggestions`.
+  private renderLines(
+    key: keyof FactFields,
+    label: string,
+    placeholder: string,
+    suggestions: readonly string[] = []
+  ) {
+    return html`<label class="lines">
+      <span>${label}</span>
+      <sl-line-field
+        placeholder=${placeholder}
+        .value=${this.fields[key]}
+        .suggestions=${suggestions}
+        @input=${this.set(key)}
+      ></sl-line-field>
     </label>`;
   }
 
@@ -282,15 +315,12 @@ class FactFormElement extends SignalWatcher(LitElement) {
           : nothing
       }
       ${this.renderField('date', 'Date', 'e.g. 3.3.1761 or n. 1761')}
-      ${this.renderField('place', 'Place', 'e.g. Tuppurala, Juva', 'places')}
+      ${this.renderLines('place', 'Place', 'e.g. Tuppurala, Juva', places)}
       ${
         tag === 'RESI' || (this.fact?.address ?? null) !== null
-          ? this.renderField('address', 'Address', 'e.g. Kauppakatu 1')
+          ? this.renderLines('address', 'Address', 'e.g. Kauppakatu 1')
           : nothing
       }
-      <datalist id="places">
-        ${places.map((p) => html`<option value=${p}></option>`)}
-      </datalist>
       ${
         this.refused === null
           ? nothing
