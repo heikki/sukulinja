@@ -134,7 +134,15 @@ class SourceTextElement extends LitElement {
           : nothing
       }
       ${this.error === null ? nothing : html`<p class="error">${this.error}</p>`}
-      <div class="buttons">
+      <div class="buttons end">
+        <button
+          ?disabled=${this.saving}
+          @click=${() => {
+            this.edit(null);
+          }}
+        >
+          Cancel
+        </button>
         <button
           class="primary"
           ?disabled=${this.saving}
@@ -143,14 +151,6 @@ class SourceTextElement extends LitElement {
           }}
         >
           ${this.saving ? 'Saving…' : 'Save'}
-        </button>
-        <button
-          ?disabled=${this.saving}
-          @click=${() => {
-            this.edit(null);
-          }}
-        >
-          Cancel
         </button>
       </div>
     </div>`;
