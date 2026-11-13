@@ -20,7 +20,7 @@ As ADR-0026: `entries(id, source_id, volume_id, volume, image, file_id, box_left
 
 - **One Box per Entry.** The Image's People list each Entry once, its people under it with their Roles.
 - **New entry.** Right-click on the Image → _New entry here_ → draw the Box. Beside the Box (not in the foot bar) a small form:
-  - in a baptism Volume: _Child_ (the Selected person if they have no Citation here), _Father_ and _Mother_ (offered from the child's parents in the tree, each one click to take out), _Godparent_ (picked, any number, optional);
+  - in a baptism Volume: _Child_ (the Selected person if they have no Citation here), _Father_ and _Mother_ (offered from the child's parents in the tree, each one click to take out);
   - in a marriage Volume: _Groom_, _Bride_;
   - in a rippikirja or lastenkirja: _People on this line_, no Roles;
   - the Transcription line ("What the entry says").
@@ -37,7 +37,7 @@ Written as now, each Citation whole under its person. The import makes one Entry
 
 - References (Marks at the Image or Volume, Matches, Estimates) on Entries: when `citations/myheritage/` goes.
 - Each Entry its own GEDCOM `SOUR` (splitting).
-- Godparents not in the tree: their names stay in the Transcription.
+- Godparents (Heikki, 2026-11-13: not needed): the form offers no _Godparent_; their names stay in the Transcription. Citations already made as `GODP` read as before.
 
 ## Tickets
 

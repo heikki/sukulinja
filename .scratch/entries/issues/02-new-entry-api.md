@@ -8,4 +8,4 @@ Blocked by: 01
 - Support: each new Citation supports its `entryFact`, as `support.recorded` does now.
 - The old one-person create becomes an Entry with one person.
 
-Done when: server tests cover a baptism with child, father and mother (only the child's Christening supported), adding a godparent later, and removing the last person.
+Done when: server tests cover a baptism with child, father and mother (only the child's Christening supported), adding a person later, and removing the last person.
