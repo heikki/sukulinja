@@ -10,7 +10,9 @@ import type { AppState } from '@/client/state';
 import type { CitationRow } from '@/common/types';
 
 // What a source says, its text, and changing it: an Entry's text for
-// everyone citing it (ADR-0026), another Citation's its own.
+// everyone citing it (ADR-0026), another Citation's its own. What else can
+// be done of the source (slot `actions`) sits beside Edit text, and
+// is put away while editing.
 @customElement('sl-source-text')
 class SourceTextElement extends LitElement {
   static override styles = [
@@ -27,8 +29,15 @@ class SourceTextElement extends LitElement {
         overflow-wrap: anywhere;
       }
 
+      /* Edit text, and beside it what else can be done. */
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        column-gap: 1rem;
+      }
+
       button.edit {
-        display: block;
         margin-top: 0.4rem;
         padding: 0;
         border: 0;
@@ -125,15 +134,7 @@ class SourceTextElement extends LitElement {
           : nothing
       }
       ${this.error === null ? nothing : html`<p class="error">${this.error}</p>`}
-      <div class="buttons end">
-        <button
-          ?disabled=${this.saving}
-          @click=${() => {
-            this.edit(null);
-          }}
-        >
-          Cancel
-        </button>
+      <div class="buttons">
         <button
           class="primary"
           ?disabled=${this.saving}
@@ -142,6 +143,14 @@ class SourceTextElement extends LitElement {
           }}
         >
           ${this.saving ? 'Saving…' : 'Save'}
+        </button>
+        <button
+          ?disabled=${this.saving}
+          @click=${() => {
+            this.edit(null);
+          }}
+        >
+          Cancel
         </button>
       </div>
     </div>`;
@@ -157,14 +166,17 @@ class SourceTextElement extends LitElement {
           ? nothing
           : html`<p class="text">${shown}</p>`
       }
-      <button
-        class="edit"
-        @click=${() => {
-          this.edit(text ?? '');
-        }}
-      >
-        ${text === null ? 'Add text' : 'Edit text'}
-      </button>
+      <div class="row">
+        <button
+          class="edit"
+          @click=${() => {
+            this.edit(text ?? '');
+          }}
+        >
+          ${text === null ? 'Add text' : 'Edit text'}
+        </button>
+        <slot name="actions"></slot>
+      </div>
     `;
   }
 }

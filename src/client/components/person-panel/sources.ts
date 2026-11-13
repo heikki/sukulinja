@@ -87,8 +87,8 @@ function renderStatus(status: LinkStatus | null, entry: string | null) {
 
 // What the source records, and what can be done: of its archive, and
 // deleting it.
-function renderDetails(body: unknown, actions: unknown) {
-  return html` <div class="record">${body} ${actions}</div> `;
+function renderDetails(body: unknown) {
+  return html` <div class="record">${body}</div> `;
 }
 
 // Filed under its archive: it links a Volume there, or the archive's
@@ -116,14 +116,13 @@ function sourceClass(flags: Record<string, boolean>) {
   return ['source', ...on.map(([k]) => k)].join(' ');
 }
 
-// What the source records: a record as read, else its text, which can be
-// changed.
-function renderBody(c: CitationRow, heading: string) {
-  if (c.record !== null) return renderRecord(c.record);
-  return html`<sl-source-text
-    .citation=${c}
-    .heading=${heading}
-  ></sl-source-text>`;
+// What the source records, and what can be done of it: a record as read,
+// else its text, which can be changed, with the actions beside Edit text.
+function renderBody(c: CitationRow, heading: string, actions: unknown) {
+  if (c.record !== null) return html`${renderRecord(c.record)} ${actions}`;
+  return html`<sl-source-text .citation=${c} .heading=${heading}>
+    <div slot="actions" class="actions">${actions}</div>
+  </sl-source-text>`;
 }
 
 // The Selected person's sources, in their groups. A church-book source
@@ -410,7 +409,6 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
   private renderCitation({ citation: c, status }: Source) {
     const { viewing, elsewhere } = this.markOf(c);
     const heading = headingOf(c);
-    const body = renderBody(c, heading);
     const filed = isFiled(status);
     const open = this.unfolded === c.id;
     const act = this.actionOf(c, status);
@@ -442,8 +440,11 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
         </div>
         <sl-fold .open=${open}>
           ${renderDetails(
-            body,
-            html`${this.renderArchive(c, status)} ${this.renderDelete(c)}`
+            renderBody(
+              c,
+              heading,
+              html`${this.renderArchive(c, status)} ${this.renderDelete(c)}`
+            )
           )}
         </sl-fold>
       </article>
