@@ -1,5 +1,5 @@
 import { volumeTitle } from '@/client/link-labels';
-import type { LinkOpen, LinkStatus, Source } from '@/client/state';
+import type { AppState, LinkOpen, LinkStatus, Source } from '@/client/state';
 import { BOOK_NAMES } from '@/common/books';
 import { gedcomDate } from '@/common/dates';
 import { factKindLabel, factWords } from '@/common/facts';
@@ -39,6 +39,27 @@ export function sourcesOf<S extends { citation: CitationRow }>(
 
 // What opening the source in the Scan viewer opens: its Link, or failing
 // one its parish's Volumes to look through; null when it has neither.
+// Opens the source in the Scan viewer from Events, telling the panel first
+// as `viewing-source` so Sources isn't opened to it; false when it has
+// nothing to open there.
+export function viewFromEvents(
+  from: EventTarget,
+  state: AppState,
+  source: Source
+) {
+  const opening = viewerOpening(source);
+  if (opening === null) return false;
+  from.dispatchEvent(
+    new CustomEvent('viewing-source', {
+      detail: source.citation.id,
+      bubbles: true,
+      composed: true
+    })
+  );
+  state.viewer.open(opening);
+  return true;
+}
+
 export function viewerOpening({ citation, status }: Source): LinkOpen | null {
   const link = status?.link ?? null;
   if (link !== null) return { citation, link };

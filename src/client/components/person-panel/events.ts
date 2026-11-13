@@ -12,14 +12,15 @@ import './fact-form';
 import './fact-sources';
 
 import { personEventsStyles } from './events-styles';
-import { factLabel, factText, sourcesOf } from './helpers';
+import { factLabel, factText, sourcesOf, viewFromEvents } from './helpers';
 
 // A Fact's form open in its place, by its id, or a new one's.
 type Editing = number | 'new' | null;
 
 // The person's Facts, and their marriages', from birth to death: each
 // kind, then its date, place and what else it says, dimmed while no source
-// supports it. Clicking one picks it, showing under it its sources and
+// supports it. Clicking one picks it, opening its first source in the Scan
+// viewer if that's open, and showing under it its sources and
 // _Edit event_, which opens it for editing in its place (fact-sources.ts);
 // clicked again it's let go. _Add event_ opens a new one below; one at a
 // time.
@@ -46,6 +47,14 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
     this.editing = fact.id;
   }
 
+  // Picked while the Scan viewer is open, its first source is opened there.
+  private pick(fact: FactRow, supporting: Source[]) {
+    this.picked = fact.id;
+    if (this.state.viewer.opened.get() === null) return;
+    const [first] = supporting;
+    if (first !== undefined) viewFromEvents(this, this.state, first);
+  }
+
   // The person's sources, as Sources lists them.
   private sources() {
     return this.state.selected.sources.get().flatMap((g) => g.sources);
@@ -69,7 +78,8 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
         class="fact ${supporting.length === 0 ? 'unsourced' : ''}"
         aria-expanded=${picked ? 'true' : 'false'}
         @click=${() => {
-          this.picked = picked ? null : f.id;
+          if (picked) this.picked = null;
+          else this.pick(f, supporting);
         }}
         @keydown=${(e: KeyboardEvent) => {
           if (e.key === 'Escape' && picked) {

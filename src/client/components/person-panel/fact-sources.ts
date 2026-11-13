@@ -12,7 +12,7 @@ import {
   openSuggestions,
   sourcesOf,
   titleText,
-  viewerOpening
+  viewFromEvents
 } from './helpers';
 
 // A source by the name Sources gives it, and where in its Volume it is
@@ -109,18 +109,7 @@ class FactSourcesElement extends LitElement {
   }
 
   private open(source: Source) {
-    const opening = viewerOpening(source);
-    if (opening !== null) {
-      this.dispatchEvent(
-        new CustomEvent('viewing-source', {
-          detail: source.citation.id,
-          bubbles: true,
-          composed: true
-        })
-      );
-      this.state.viewer.open(opening);
-      return;
-    }
+    if (viewFromEvents(this, this.state, source)) return;
     this.dispatchEvent(
       new CustomEvent('show-source', {
         detail: source.citation.id,
