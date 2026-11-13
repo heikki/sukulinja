@@ -4,18 +4,14 @@ import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { focusRingStyles } from '@/client/focus-ring';
-import type { Point } from '@/client/pan-zoom';
 import { appState } from '@/client/state';
 import type { AppState, Source } from '@/client/state';
 import type { FactRow, Marriage } from '@/common/types';
 
-import '../context-menu';
 import './fact-form';
 
-import type { MenuItem } from '../context-menu';
 import { personEventsStyles } from './events-styles';
 import {
-  factBrief,
   factLabel,
   factText,
   sourcesOf,
@@ -27,33 +23,13 @@ import {
 // to delete it when that's what was chosen.
 type Editing = { fact: number; deleting: boolean } | 'new' | null;
 
-// The Fact a right-click opened the menu for, and where in Events.
-interface FactMenu {
-  fact: FactRow;
-  at: Point;
-}
-
-// A source in the menu: by the name Sources gives it, and below it where
-// in its Volume it is, unless its name says (a reference to a page).
-function sourceItem(source: Source, run: () => void): MenuItem {
-  const { citation: c, status } = source;
-  const entry = c.entry === null || c.citedPage !== null ? null : c.entry;
-  return {
-    label: titleText(c, status),
-    muted: { before: '↳' },
-    ...(entry === null ? {} : { detail: entry }),
-    run
-  };
-}
-
 // The person's Facts, and their marriages', from birth to death: each
 // kind, then its date, place and what else it says, dimmed while no source
 // supports it. Clicking one picks it, showing under it its sources and
 // what can be done of it; editing opens it in its place, and _Add event_
-// opens a new one below; one at a time. A right-click opens its menu: editing, deleting, and the sources
-// supporting it (ADR-0022), each opened in the Scan viewer; one with
-// nothing to open there is asked for in Sources, as `show-source` with its
-// Citation's id.
+// opens a new one below; one at a time. A source supporting it (ADR-0022)
+// opens in the Scan viewer; one with nothing to open there is asked for in
+// Sources, as `show-source` with its Citation's id.
 @customElement('sl-person-events')
 class PersonEventsElement extends SignalWatcher(LitElement) {
   static override styles = [focusRingStyles, personEventsStyles];
@@ -64,7 +40,6 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
   @property({ attribute: false }) marriages: Marriage[] = [];
 
   @state() private editing: Editing = null;
-  @state() private menu: FactMenu | null = null;
   // The Fact picked, by id: its sources and what can be done of it show
   // under it.
   @state() private picked: number | null = null;
@@ -98,51 +73,6 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
     return this.state.selected.sources.get().flatMap((g) => g.sources);
   }
 
-  private menuItems(fact: FactRow): MenuItem[] {
-    const sources = sourcesOf(fact, this.sources());
-    return [
-      {
-        label: 'Edit',
-        run: () => {
-          this.edit(fact);
-        }
-      },
-      {
-        label: 'Delete event…',
-        run: () => {
-          this.edit(fact, true);
-        }
-      },
-      ...sources.map((source) =>
-        sourceItem(source, () => {
-          this.openSource(source);
-        })
-      )
-    ];
-  }
-
-  private openMenu(fact: FactRow, e: MouseEvent) {
-    e.preventDefault();
-    const box = this.getBoundingClientRect();
-    this.menu = {
-      fact,
-      at: { x: e.clientX - box.left, y: e.clientY - box.top }
-    };
-  }
-
-  private renderMenu() {
-    const { menu } = this;
-    if (menu === null) return nothing;
-    return html`<sl-context-menu
-      .heading=${factBrief(menu.fact)}
-      .items=${this.menuItems(menu.fact)}
-      .at=${menu.at}
-      @close=${() => {
-        this.menu = null;
-      }}
-    ></sl-context-menu>`;
-  }
-
   private renderForm(fact: FactRow | null, deleting = false) {
     return html`<sl-fact-form
       .fact=${fact}
@@ -152,8 +82,8 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
     ></sl-fact-form>`;
   }
 
-  // Under the picked Fact: the sources supporting it, each opened as from
-  // the menu, then editing and deleting it.
+  // Under the picked Fact: the sources supporting it, then editing and
+  // deleting it.
   private renderPicked(f: FactRow, sources: Source[]) {
     return html`<div class="picked">
       ${
@@ -212,7 +142,6 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
     return html`<button
         class="fact ${supporting.length === 0 ? 'unsourced' : ''}"
         aria-expanded=${picked ? 'true' : 'false'}
-        aria-haspopup="menu"
         @click=${() => {
           this.picked = picked ? null : f.id;
         }}
@@ -225,9 +154,6 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
             e.stopPropagation();
             this.picked = null;
           }
-        }}
-        @contextmenu=${(e: MouseEvent) => {
-          this.openMenu(f, e);
         }}
       >
         <span class="kind">${factLabel(f)}</span>
@@ -254,8 +180,7 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
             >
               Add event
             </button>`
-      }
-      ${this.renderMenu()}`;
+      }`;
   }
 }
 

@@ -4,18 +4,6 @@ import { css } from 'lit';
 // and more when picked, its kind in a column of its own, the picked one's
 // sources and actions under it; and below them a button to add one.
 export const personEventsStyles = css`
-  /* The place a Fact's menu opens in. */
-  :host {
-    position: relative;
-    display: block;
-  }
-
-  /* A long source's name is cut rather than spilling out of the panel. */
-  sl-context-menu {
-    max-width: 100%;
-    box-sizing: border-box;
-  }
-
   .facts {
     display: grid;
     grid-template-columns: max-content 1fr;
