@@ -122,6 +122,8 @@ export interface FactRow {
 export interface FactFields {
   date: string;
   place: string;
+  // Where in the place: a village, a farm or a house (GEDCOM's ADDR).
+  address: string;
   value: string;
   type: string;
 }

@@ -38,7 +38,7 @@ const JUHO = 3;
 const ANNA = 4;
 const KALLE = 5;
 
-const BLANK = { date: '', place: '', value: '', type: '' };
+const BLANK = { date: '', place: '', address: '', value: '', type: '' };
 
 let db = openDb(':memory:');
 

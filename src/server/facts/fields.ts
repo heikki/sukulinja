@@ -9,6 +9,7 @@ import type { FactFields } from '@/common/types';
 export interface Said {
   date: string | null;
   place: string | null;
+  address: string | null;
   value: string | null;
   type: string | null;
 }
@@ -84,5 +85,6 @@ export function readFields(
   const at = { date: date.ok, place };
   const value = valueOf(tag, fields.value, at, stored?.value ?? null);
   if ('rejected' in value) return value;
-  return { ok: { ...at, value: value.ok, type: type.ok } };
+  const address = textOf(fields.address);
+  return { ok: { ...at, address, value: value.ok, type: type.ok } };
 }

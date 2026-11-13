@@ -22,12 +22,14 @@ async function bodyOf(req: Request) {
     : {};
 }
 
-// `{ date, place, value, type }`, each a string; null for anything else.
+// `{ date, place, address, value, type }`, each a string, `address` empty
+// when left out; null for anything else.
 function readFields(body: Record<string, unknown>): FactFields | null {
-  const { date, place, value, type } = body;
+  const { date, place, value, type, address = '' } = body;
   if (typeof date !== 'string' || typeof place !== 'string') return null;
   if (typeof value !== 'string' || typeof type !== 'string') return null;
-  return { date, place, value, type };
+  if (typeof address !== 'string') return null;
+  return { date, place, address, value, type };
 }
 
 // The fields, a `tag`, and `familyId` a number or null.

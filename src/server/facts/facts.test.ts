@@ -34,7 +34,7 @@ const GEDCOM = [
   ''
 ].join('\n');
 
-const BLANK = { date: '', place: '', value: '', type: '' };
+const BLANK = { date: '', place: '', address: '', value: '', type: '' };
 
 let db = openDb(':memory:');
 let changes: NewChange[] = [];
@@ -172,6 +172,37 @@ test('an edit keeps a date typed as the panel shows it, and the rest of the Fact
     was: '1757–1758 · Pitäjä',
     now: '3.3.1757 · Pitäjä'
   });
+});
+
+test('edits a residence’s address', () => {
+  const { id } = facts.add(1, {
+    ...BLANK,
+    tag: 'RESI',
+    familyId: null,
+    date: '1790',
+    place: 'Pitäjä',
+    address: 'Kylä'
+  }) as { id: number };
+  const address = () =>
+    db
+      .query<{ address: string | null }, [number]>(
+        'SELECT address FROM facts WHERE id = ?'
+      )
+      .get(id)?.address;
+  expect(address()).toBe('Kylä');
+  facts.edit(1, id, {
+    ...BLANK,
+    date: '1790',
+    place: 'Pitäjä',
+    address: 'Talo'
+  });
+  expect(address()).toBe('Talo');
+  expect(changes.at(-1)!.what).toMatchObject({
+    was: '1790 · Pitäjä · Kylä',
+    now: '1790 · Pitäjä · Talo'
+  });
+  facts.edit(1, id, { ...BLANK, date: '1790', place: 'Pitäjä' });
+  expect(address()).toBeNull();
 });
 
 test('a new place drops the old one’s coordinates and notes', () => {

@@ -22,12 +22,19 @@ function fieldsOf(fact: FactRow): FactFields {
   return {
     date: fact.date === null ? '' : gedcomDate(fact.date),
     place: fact.place ?? '',
+    address: fact.address ?? '',
     value: fact.value === 'Y' ? '' : (fact.value ?? ''),
     type: fact.type ?? ''
   };
 }
 
-const BLANK: FactFields = { date: '', place: '', value: '', type: '' };
+const BLANK: FactFields = {
+  date: '',
+  place: '',
+  address: '',
+  value: '',
+  type: ''
+};
 
 // A spouse as a marriage's form names them.
 function spouseLabel(m: Marriage) {
@@ -36,7 +43,8 @@ function spouseLabel(m: Marriage) {
 
 // A Fact being added or changed, in place of its row in Events: its kind
 // (picked for a new one, a marriage's spouse too when there's more than
-// one), date, place, an attribute's value and an Event's type. Save or
+// one), date, place (and a residence's, or one recorded with it, address),
+// an attribute's value and an Event's type. Save or
 // Enter saves it, and it and Cancel or Esc say `closed`. A Fact being
 // changed can be deleted, asked first.
 @customElement('sl-fact-form')
@@ -275,6 +283,11 @@ class FactFormElement extends SignalWatcher(LitElement) {
       }
       ${this.renderField('date', 'Date', 'e.g. 3.3.1761 or n. 1761')}
       ${this.renderField('place', 'Place', 'e.g. Haukivuori', 'places')}
+      ${
+        tag === 'RESI' || (this.fact?.address ?? null) !== null
+          ? this.renderField('address', 'Address', 'e.g. Tuppurala')
+          : nothing
+      }
       <datalist id="places">
         ${places.map((p) => html`<option value=${p}></option>`)}
       </datalist>

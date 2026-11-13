@@ -17,7 +17,7 @@ const MATTI: PersonDetails = {
   photos: []
 };
 
-const BLANK = { date: '', place: '', value: '', type: '' };
+const BLANK = { date: '', place: '', address: '', value: '', type: '' };
 
 function opened(down = false) {
   const api = memoryDatasetApi(

@@ -210,7 +210,7 @@ describe('the answers', () => {
   });
 
   test("a person's Facts, added, changed and deleted, and a marriage", async () => {
-    const blank = { date: '', place: '', value: '', type: '' };
+    const blank = { date: '', place: '', address: '', value: '', type: '' };
     const birth = await api.addFact(3, {
       ...blank,
       tag: 'BIRT',
@@ -252,7 +252,7 @@ describe('the answers', () => {
   });
 
   test('the Changes, cleared', async () => {
-    const blank = { date: '', place: '', value: '', type: '' };
+    const blank = { date: '', place: '', address: '', value: '', type: '' };
     await api.addFact(3, { ...blank, tag: 'BIRT', familyId: null });
     expect(await api.changes()).toHaveLength(1);
     await api.clearChanges();

@@ -30,7 +30,7 @@ function rejected(words: string) {
   return { rejected: words };
 }
 
-function wordsOf(f: Said & { address: string | null }) {
+function wordsOf(f: Said) {
   return factWords(f);
 }
 
@@ -79,18 +79,28 @@ export function createFacts(
       string | null,
       string | null,
       string | null,
+      string | null,
       number
     ]
   >(
     `INSERT INTO facts
-       (scope_type, scope_id, tag, type, date_text, place, value, sort_order)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
+       (scope_type, scope_id, tag, type, date_text, place, address, value,
+        sort_order)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`
   );
   const update = db.prepare<
     null,
-    [string | null, string | null, string | null, string | null, number]
+    [
+      string | null,
+      string | null,
+      string | null,
+      string | null,
+      string | null,
+      number
+    ]
   >(
-    'UPDATE facts SET type = ?, date_text = ?, place = ?, value = ? WHERE id = ?'
+    `UPDATE facts SET type = ?, date_text = ?, place = ?, address = ?,
+       value = ? WHERE id = ?`
   );
   const forgetCoordinates = db.prepare(
     'UPDATE facts SET latitude = NULL, longitude = NULL WHERE id = ?'
@@ -158,6 +168,7 @@ export function createFacts(
           s.type,
           s.date,
           s.place,
+          s.address,
           s.value,
           order
         )!;
@@ -169,13 +180,14 @@ export function createFacts(
           did: 'add',
           tag: fact.tag,
           was: null,
-          now: wordsOf({ ...s, address: null })
+          now: wordsOf(s)
         });
         return { id };
       })();
     },
 
-    // Changes what the Fact says: its date, place, value and type. Null
+    // Changes what the Fact says: its date, place, address, value and
+    // type. Null
     // when it isn't the person's or their family's.
     edit(personId: number, factId: number, fields: FactFields): FactAnswer {
       const f = factOf.get(factId, personId);
@@ -183,6 +195,7 @@ export function createFacts(
       const stored = {
         date: f.date_text,
         place: f.place,
+        address: f.address,
         value: f.value,
         type: f.type
       };
@@ -194,7 +207,7 @@ export function createFacts(
       );
       if (same) return { id: factId };
       db.transaction(() => {
-        update.run(s.type, s.date, s.place, s.value, factId);
+        update.run(s.type, s.date, s.place, s.address, s.value, factId);
         // Coordinates and notes are of the place they were recorded for.
         if (s.place !== stored.place) {
           forgetCoordinates.run(factId);
@@ -205,8 +218,8 @@ export function createFacts(
         change(personId, {
           did: 'edit',
           tag: f.tag,
-          was: wordsOf({ ...stored, address: f.address }),
-          now: wordsOf({ ...s, address: f.address })
+          was: wordsOf(stored),
+          now: wordsOf(s)
         });
       })();
       return { id: factId };
