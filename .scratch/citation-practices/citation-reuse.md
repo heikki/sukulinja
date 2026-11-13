@@ -2,7 +2,7 @@ Status: needs-triage
 
 # Sitaatin toisto ja uudelleenkäyttö muualla
 
-Heikki, 2026-11-13: "Tutki sen jälkeen löytyykö mitään käytäntöjä muualta tähän sitaatti- ja toistosysteemiin liittyen." Tausta: ADR-0022:n vienti toistaa sitaatin jokaisen tuetun faktan alla, koska GEDCOM 7:ssä sitaatilla ei ole omaa tietuetta.
+Heikki, 2026-11-13: selvitys muiden käytännöistä sitaattien toistoon. Tausta: ADR-0022:n vienti toistaa sitaatin jokaisen tuetun faktan alla, koska GEDCOM 7:ssä sitaatilla ei ole omaa tietuetta.
 
 Selvitys, ei päätös.
 

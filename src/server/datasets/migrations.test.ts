@@ -53,7 +53,7 @@ function fill(db: Database) {
     INSERT INTO meta (key, value) VALUES ('display_name', 'Ylöset');
     INSERT INTO persons (id, xref, uid) VALUES (1, '@I1@', 'u1'), (2, '@I2@', 'u2');
     INSERT INTO names (person_id, full_text, given, surname)
-      VALUES (1, 'Liisa /Ylönen/', 'Liisa', 'Ylönen');
+      VALUES (1, 'Liisa /Esimerkki/', 'Liisa', 'Esimerkki');
     INSERT INTO sources (id, xref, title) VALUES (1, '@S1@', 'Juva rippikirja');
     INSERT INTO citations (id, scope_type, scope_id, source_id, page,
       original_page, link_volume_id, link_volume, link_image, link_file_id,
@@ -69,7 +69,7 @@ function fill(db: Database) {
     INSERT INTO reminders (text, person_id, created_at)
       VALUES ('Etsi kuolinpäivä', 1, '2026-11-11');
     INSERT INTO changes (at, what, who, person_id, citation_id)
-      VALUES ('2026-11-11', '{"kind":"cited"}', 'Liisa Ylönen', 1, 1);
+      VALUES ('2026-11-11', '{"kind":"cited"}', 'Liisa Esimerkki', 1, 1);
   `
   );
 }

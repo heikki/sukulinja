@@ -4,7 +4,7 @@ Status: needs-triage
 
 Glossary: **Change** (`src/server/persons/GLOSSARY.md`), **Fact**, **Citation**, **Transcription** (`src/server/citations/GLOSSARY.md`), **Reminder**. Decisions this builds on: ADR-0013 (each edit writes a Change), ADR-0021 (the tree is edited only in the app).
 
-Heikki, 2026-11-13: "Tekoälyapuri ohjelmaan." Kept general: "Pidetään tämä idea yleisellä tasolla. Se tuommoinen paikkojen nimeäminen oli vain yksi esimerkki, mitä käyttäjä voisi kysyä."
+Heikki, 2026-11-13: an AI assistant in the app, kept general; renaming places was only one example of what could be asked.
 
 ## What it is
 

@@ -2,7 +2,7 @@
 
 Status: needs-triage
 
-Heikki, 2026-11-11: "tutki best practices tämmöiseen sukututkimusjuttuun, eli vaikka, että mitä sitaatteihin pitäisi kirjata ja niin edelleen."
+Heikki, 2026-11-11: selvitys sukututkimuksen hyvistä käytännöistä, esimerkiksi mitä sitaatteihin kirjataan.
 
 Idea, ei vielä spec. Vertaa vakiintuneita käytäntöjä (Evidence Explained, Genealogical Proof Standard, GEDCOM 7, Kansallisarkiston ja suomalaisten sukututkijoiden tavat) siihen, mitä Sukulinja tallentaa nyt, ja ehdottaa mitä kannattaisi ottaa käyttöön.
 

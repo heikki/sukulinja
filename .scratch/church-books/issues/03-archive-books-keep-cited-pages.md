@@ -4,7 +4,7 @@ Status: needs-triage
 
 Glossary: **Scan cache**, **Volume**, **Image**, **Citation**.
 
-Heikki, 2026-11-09: "it might be handy to archive cached book for example to external ssd, maybe keep only citated pages downloaded".
+Heikki, 2026-11-09: archive a cached book, e.g. to an external SSD, maybe keeping only the cited pages downloaded.
 
 Two ideas:
 

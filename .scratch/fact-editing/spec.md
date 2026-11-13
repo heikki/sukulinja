@@ -4,13 +4,13 @@ Status: done
 
 Glossary: **Fact**, **Event**, **Citation**, **Change** (`src/server/citations/GLOSSARY.md`). Decision: ADR-0021 (Sukulinja is the tree's master copy), amending ADR-0013. Related: `.scratch/add-people/spec.md` (adding people), `.scratch/citation-practices/fact-citations.md` (Citations on Facts).
 
-Heikki, 2026-11-11: "Onko meillä tikettiä tai paikkaa jo faktojen lisäämiselle, muuttamiselle ja poistamiselle?" and then "Voidaan päättää, että yhteys MyHeritageen katkaistaan."
+Heikki, 2026-11-11: asked for adding, changing and deleting Facts, and decided to cut the MyHeritage connection.
 
 The panel's _Events_ lists a person's Facts and their marriages' (`person-details.ts`), read only. Corrections had to be made in MyHeritage and imported again. Now the tree is worked on in the app, and a Fact is added, corrected or deleted where it's shown.
 
 ## Decided by Heikki, 2026-11-11
 
-"Suositukset vaikuttaa hyviltä."
+The recommendations were accepted.
 
 1. **An import only makes a new dataset.** Importing over a dataset would replace the edited tree. The merge (`import/merge*.ts`), _Undo last import_ and the import review go, and a GEDZIP backup is restored by importing it as a new dataset. An import over an existing dataset is refused, also over one an older version built.
 2. **The GEDCOM 5.5.1 export goes** (`export/gedcom551.ts`, _Export for MyHeritage_). Nothing is uploaded back to MyHeritage.

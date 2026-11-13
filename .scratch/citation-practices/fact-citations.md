@@ -2,7 +2,7 @@
 
 Status: needs-triage
 
-Heikki, 2026-11-11: "tutki kohtaa 4 lisää" (idea.md, kohta 4: sitaatti faktalle, ei vain henkilölle).
+Heikki, 2026-11-11: kohdan 4 jatkoselvitys (idea.md, kohta 4: sitaatti faktalle, ei vain henkilölle).
 
 Selvitys, ei vielä spec. Kertoo, mitä koodi ja Heikin data nyt tekevät, mitä GEDCOM tarkoittaa, mitkä ovat vaihtoehdot ja mikä on suositus. Avoimet kysymykset ovat lopussa.
 
@@ -65,7 +65,7 @@ Yksi kirkonkirjamerkintä tukee usein monta faktaa. Rippikirjan rivi antaa synty
 
 ## Avoimet kysymykset Heikille
 
-1. ~~**Meneekö mitään takaisin MyHeritageen?**~~ Ratkaistu (Heikki, 2026-11-11): "en lataa takaisin". 5.5.1-tiedostoa ei ladata MyHeritageen, joten faktalle pantu sitaatti ei palaa henkilön alle eikä sitä tarvitse testata. Re-importissa MyHeritagen vienti tuo vain sen omat henkilötason sitaatit, ja ADR-0016:n korvaussääntö parittaa ne sovelluksen faktalla oleviin, koska paritus nousee faktasta henkilöön. Este A:lle poistui.
+1. ~~**Meneekö mitään takaisin MyHeritageen?**~~ Ratkaistu (Heikki, 2026-11-11): ei ladata takaisin. 5.5.1-tiedostoa ei ladata MyHeritageen, joten faktalle pantu sitaatti ei palaa henkilön alle eikä sitä tarvitse testata. Re-importissa MyHeritagen vienti tuo vain sen omat henkilötason sitaatit, ja ADR-0016:n korvaussääntö parittaa ne sovelluksen faktalla oleviin, koska paritus nousee faktasta henkilöön. Este A:lle poistui.
 2. ~~**Rippikirjan rivi: RESI vai ei mitään?**~~ Selvitetty (2026-11-11, Heikki kysyi, pitäisikö RESI-faktat hylätä ja muodostaa sitaateista). Datassa (ylonen) RESI-faktoja on 2 347 ja rippi- ja lastenkirjasitaatteja 2 337. Ne kuuluvat samoille ihmisille (keskimäärin 2,6 kumpaakin henkilöä kohden), ja vain 54 RESI-henkilöllä ei ole rippikirjasitaattia. 2 313 RESI-faktalla on pelkkä vuosiväli (`BET 1870 AND 1879`, kirjan vuodet), eikä yhdelläkään ole paikkaa. MyHeritage siis teki ne tietuevastaavuuksista, ja ne ovat sitaattien kopioita ilman omaa tietoa. Kylä ja talo ovat vain sitaatissa (Church-book reference).
    - **Suositus:** ei sitaatteja RESI-faktoille, eikä niitä hylätä tai muodosteta uudelleen tallennettuina nyt, koska MyHeritagen import tuo ne joka kerta takaisin ja puu on lähdeohjelman (ADR-0013). Sen sijaan rippi- ja lastenkirjasitaatit jäävät henkilölle, ja paneelin Events näyttää niistä **johdetun asuinpaikkojen aikajanan**: kirjan vuodet, kylä ja talo sitaatista, eli lähteestä suoraan. Paikaton RESI-fakta, jonka vuodet ovat jonkin sitaatin kirjan vuodet, näytetään sen sitaatin rivinä eikä erikseen. Mitään ei tallenneta.
    - Kun MyHeritage-import on lopetettu ja sovellus on puun ainoa lähde, paikattomien RESI-faktojen poisto voi olla kertaskripti, kuten MyHeritage-viitteiden konversio. Se on silloin oma päätöksensä.

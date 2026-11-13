@@ -1,6 +1,6 @@
 # Sukulinja is the tree's master copy, and the MyHeritage import ends
 
-ADR-0013 made the database the dataset's master copy, but only of what the app adds: the tree itself, its people, families and Facts, came from the source program, and a re-import took that part from the new export. That's why the app can't edit a Fact, can't delete an imported Citation, and can't delete a converted one (ADR-0016): the next MyHeritage import would bring it back. Heikki (2026-11-11): "Voidaan päättää, että yhteys MyHeritageen katkaistaan." Facts are to be added, edited and deleted in the app (`.scratch/fact-editing/spec.md`), and people added to the tree (`.scratch/add-people/spec.md`).
+ADR-0013 made the database the dataset's master copy, but only of what the app adds: the tree itself, its people, families and Facts, came from the source program, and a re-import took that part from the new export. That's why the app can't edit a Fact, can't delete an imported Citation, and can't delete a converted one (ADR-0016): the next MyHeritage import would bring it back. Heikki decided (2026-11-11) to cut the MyHeritage connection. Facts are to be added, edited and deleted in the app (`.scratch/fact-editing/spec.md`), and people added to the tree (`.scratch/add-people/spec.md`).
 
 So the tree is now worked on only in Sukulinja:
 

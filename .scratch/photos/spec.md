@@ -1,6 +1,6 @@
 # Photos, handled like Citations
 
-Heikki, 2026-11-11: "Valokuvien käsittely samalla tavalla tai samalla tyylillä kuin sitaattien." Then: "Scanweaverin lisäksi meillä olisi Photoweaver ja ne toimisivat melko lailla samalla tavalla."
+Heikki, 2026-11-11: handle photos in the same way as citations, with a Photo viewer beside the Scan viewer that works much the same.
 
 ## Today
 
@@ -24,10 +24,10 @@ A photo an import links to a person without a `CROP` is the export's link, not a
 - **A Photo viewer beside the Scan viewer**, working much like it, not one viewer for both. What the two do alike is one set of parts both use, where sharing makes sense, not a copy of the Scan viewer's.
 - **Opened from a _Photos_ section in the person panel**, beside _Sources_: the person's own photos and those they're tagged in. A family's or an event's photos are left out for now.
 - **First: tagging people.** Draw a Box around a face and pick the person, as a Citation is made for someone from an Image. A person's Tag is also the crop their portrait can use.
-- **A re-import keeps the app's Tags**, as a Citation's Annotation is kept: the export's own part of a photo (its file, links and crops) comes from the new export. Only what a Tag needs is saved: the Photo, the person and the Box ("ei tallenneta mitään turhaa tauhkaa").
+- **A re-import keeps the app's Tags**, as a Citation's Annotation is kept: the export's own part of a photo (its file, links and crops) comes from the new export. Only what a Tag needs is saved: the Photo, the person and the Box.
 - **An import keeps every Photo** (Heikki, 2026-11-11), also one linked to no one, which it drops today: ticket 04.
 - **Choosing the portrait** (Heikki, 2026-11-11): _Use as portrait_ on a person's Box in the Photo viewer puts their Tag first among their links. Done.
-- **Adding and deleting Photos** (Heikki, 2026-11-12: "Kuvia pitäisi pystyä poistamaan ja lisäämään."). Done:
+- **Adding and deleting Photos** (Heikki, 2026-11-12). Done:
   - _Add photos…_ under the **Photos** view picks pictures from disk (JPEG, PNG, GIF, WebP, HEIC), several at once. Each is stored as an import stores one, named by its content in the dataset's media folder, with its file name kept as `original_path` so the GEDZIP packs it under that name. It's a Photo linked to no one, listed among them, and the first added opens in the Photo viewer, where people are tagged in it. The same file added again is the Photo the dataset has. What isn't a picture is refused, by its name.
   - _Delete photo…_ on the Photo in the Photo viewer (off any Box), asked first with how many people are in it. It takes every link to the Photo with it, the import's and Tags alike, and their notes, and removes its file; nothing brings it back (ADR-0021). A person's portrait falls to their next Photo. The viewer shows the next Photo it steps through.
   - Each is a **Change** on nothing, by the file name: _Added a photo_, _Deleted a photo_ (with the people it was on). A Tag's older Changes stay on their person.

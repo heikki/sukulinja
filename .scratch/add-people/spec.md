@@ -2,7 +2,7 @@
 
 Status: done
 
-Heikki, 2026-11-11: "Henkilöiden lisäys on yksi isompi feature, mikä pitäisi kirjata ylös." Open questions settled with Heikki the same evening; tickets in `issues/`.
+Heikki, 2026-11-11: adding people is a bigger feature to write down. Open questions settled with Heikki the same evening; tickets in `issues/`.
 
 ## Why now
 

@@ -2,7 +2,7 @@
 
 Status: needs-triage
 
-Heikki, 2026-11-11: "Mieti, mitä muutoksia sitä varten pitäisi tehdä tietomalliin. Ja että täytyykö meidän yhtenäistää terminologiaa." Jatkoa tiedostoille [fact-citations.md](fact-citations.md) ja [idea.md](idea.md): oikeaoppisesti kirkonkirjan merkintä on yksi todiste, ja monta faktaa monelta ihmiseltä viittaa siihen.
+Heikki, 2026-11-11: mitä muutoksia tietomalliin tarvitaan, ja pitääkö terminologiaa yhtenäistää. Jatkoa tiedostoille [fact-citations.md](fact-citations.md) ja [idea.md](idea.md): oikeaoppisesti kirkonkirjan merkintä on yksi todiste, ja monta faktaa monelta ihmiseltä viittaa siihen.
 
 Luonnos, ei ADR. Tästä tulee ADR, kun suunta on sovittu.
 

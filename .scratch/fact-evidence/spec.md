@@ -4,11 +4,11 @@ Status: done
 
 Glossary: **Citation**, **Fact**, **Entry**, **Event**, **Role** (`src/server/citations/GLOSSARY.md`). Decisions: ADR-0022 (a Citation supports Facts), ADR-0021 (Sukulinja is the tree's master copy), ADR-0016 (conversion). Earlier studies: `.scratch/citation-practices/fact-citations.md` (options A–D), `.scratch/citation-practices/entries.md` (an Entry table).
 
-Heikki, 2026-11-13: "Miten faktat liittyvät sitaatteihin? Onko siellä jokin kytkös nyt?" and then "Okei, jatka tätä eteenpäin. Tämähän on melko tärkeä asia."
+Heikki, 2026-11-13: asked how Facts relate to Citations, and to take it further as an important matter.
 
 ## Decided by Heikki, 2026-11-13
 
-"Selvä homma. Jatka niin kuin ehdotit." A Citation supports Facts (below), not option A, and not the Entry table first. It's the end model's support, so the Entry table later leaves it as it is (ADR-0022).
+As recommended: a Citation supports Facts (below), not option A, and not the Entry table first. It's the end model's support, so the Entry table later leaves it as it is (ADR-0022).
 
 ## Where it is now
 
