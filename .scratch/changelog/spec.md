@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: done
 
 # The Changes: what was done in the app, each a way back to it
 
