@@ -33,7 +33,8 @@ import {
   archiveAction,
   headingOf,
   openSuggestions,
-  titleText
+  titleText,
+  viewerOpening
 } from './helpers';
 import { personSourcesStyles } from './sources-styles';
 import { definitionListStyles } from './styles';
@@ -235,22 +236,15 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
   // can; else show or hide its record. Clicked again while the viewer
   // shows its Link, it closes the viewer; away from the Link, it goes back.
   private actionOf(c: CitationRow, status: LinkStatus | null) {
-    const link = status?.link ?? null;
-    if (link !== null) {
+    const opening = viewerOpening({ citation: c, status });
+    if (opening === null) {
       return () => {
-        if (this.showing(c)) this.state.viewer.close();
-        else this.state.viewer.open({ citation: c, link });
-      };
-    }
-    const unlinked = status?.browse ?? null;
-    if (unlinked !== null) {
-      return () => {
-        if (this.showing(c)) this.state.viewer.close();
-        else this.state.viewer.open({ citation: c, link: null, unlinked });
+        this.fold(c.id);
       };
     }
     return () => {
-      this.fold(c.id);
+      if (this.showing(c)) this.state.viewer.close();
+      else this.state.viewer.open(opening);
     };
   }
 

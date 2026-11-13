@@ -1,5 +1,5 @@
 import { volumeTitle } from '@/client/link-labels';
-import type { LinkStatus } from '@/client/state';
+import type { LinkOpen, LinkStatus, Source } from '@/client/state';
 import { BOOK_NAMES } from '@/common/books';
 import { gedcomDate } from '@/common/dates';
 import { factKindLabel, factWords } from '@/common/facts';
@@ -35,6 +35,15 @@ export function sourcesOf<S extends { citation: CitationRow }>(
   sources: S[]
 ) {
   return sources.filter((s) => s.citation.supports.includes(fact.id));
+}
+
+// What opening the source in the Scan viewer opens: its Link, or failing
+// one its parish's Volumes to look through; null when it has neither.
+export function viewerOpening({ citation, status }: Source): LinkOpen | null {
+  const link = status?.link ?? null;
+  if (link !== null) return { citation, link };
+  const unlinked = status?.browse ?? null;
+  return unlinked === null ? null : { citation, link: null, unlinked };
 }
 
 // The support the Citation's Transcription suggests among the Facts, of
