@@ -49,4 +49,4 @@ Done 2026-11-13: the Scan viewer names a new entry's people in a card beside its
 
 Done 2026-11-13: the Box's menu is _Edit_ and _Delete entry_. _Edit_ opens the same card on the Entry as it is: people, words and Box changed with one Save (PUT and DELETE `/api/entries/:id`). In a baptism, once its child or a parent is named, the other Roles offer only whom the tree says, or one made anew there; no search.
 
-Open: `07-parent-left-out-on-source`, `08-baptisms-missing-a-parent` (small, needs-triage).
+Open: `07-parent-left-out-on-source`, `08-baptisms-missing-a-parent` (small), `09-dates-in-baptism-card`; all needs-triage, after Heikki has tried the card.
