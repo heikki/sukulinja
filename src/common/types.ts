@@ -194,6 +194,25 @@ export interface CitationRow {
   // The Facts it supports, by id: its person's and their marriages'
   // (ADR-0022).
   supports: number[];
+  // The events its Transcription gives that are its person's, by the
+  // Entry and their Role in it: what support is suggested from.
+  transcribed: TranscribedEvent[];
+}
+
+// An event a Transcription gives, by the Fact tag it would be, with the
+// date as precise as it's written: YYYY-MM-DD, YYYY-MM or YYYY.
+export interface TranscribedEvent {
+  tag: string;
+  date: string;
+}
+
+// A Fact a Citation's Transcription gives, and what it says of it: the
+// date the Finnish way, and whether it agrees with the Fact's (null when
+// the Fact's date can't be read). Confirmed, it's support.
+export interface SupportSuggestion {
+  factId: number;
+  says: string;
+  agrees: boolean | null;
 }
 
 // The parish, kind of Book and years a Church-book reference cites.

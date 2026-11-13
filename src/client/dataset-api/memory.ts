@@ -254,7 +254,8 @@ export function memoryDatasetApi(
               markKey: `citation ${made}`,
               citedPage: null,
               cited: null,
-              supports: []
+              supports: [],
+              transcribed: []
             },
             link
           };

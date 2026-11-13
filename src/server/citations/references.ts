@@ -83,6 +83,9 @@ export interface References<R extends BookRef = BookRef> {
   // The source's record the row's text transcribes, read into its fields
   // for display; null to show the text as it is.
   recordOf: (row: ReferenceRow) => RecordView | null;
+  // The person's Role in the entry, as GEDCOM names it, from the ROLE the
+  // reference's citation records; null where it doesn't say.
+  roleOf: (role: string | null) => string | null;
   // Where the reference links, with what's saved so far.
   resolve: (ref: R) => Promise<LinkResolution>;
   // Each reference's Link in the Volume, or null for one resolving
@@ -130,6 +133,7 @@ export const noReferences: References<never> = {
   refOf: () => null,
   markKey: () => '',
   recordOf: () => null,
+  roleOf: () => null,
   resolve: async () => await Promise.resolve({ unlinked: 'unparsed' }),
   volumeLinks: async () => await NONE,
   archiveLinks: async () => await Promise.resolve([]),

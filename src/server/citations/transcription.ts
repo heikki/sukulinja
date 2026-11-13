@@ -3,14 +3,9 @@
 // `Label: value` lines (ADR-0016). Nothing here reads MyHeritage's own
 // markup, so it stays when `myheritage/` goes.
 
-import type { RecordField } from '@/common/types';
+import type { RecordField, RecordView, TranscribedEvent } from '@/common/types';
 
-// An event a Transcription gives, by the Fact tag it would be, with the
-// date as precise as it's written: YYYY-MM-DD, YYYY-MM or YYYY.
-export interface TranscribedEvent {
-  tag: string;
-  date: string;
-}
+import { citationText } from './text';
 
 // The labels that name an event, and the Fact each would be. Residence
 // ("Asuinpaikka") isn't one: its years are the book's.
@@ -81,4 +76,48 @@ export function transcriptionEvents(fields: RecordField[]) {
     if (date !== null) events.push({ tag, date });
   }
   return events;
+}
+
+// The events a Transcription gives that are the person's, by the Event
+// their Entry records and their Role in it: a household line's are all
+// theirs; a baptism's Birth and Christening its child's; a marriage's
+// Marriage its spouses', or anyone's where the Role isn't known, as a
+// MyHeritage marriage index cites only the couple. None for anyone else.
+export function personsEvents(
+  events: TranscribedEvent[],
+  event: string | null,
+  role: string | null
+) {
+  if (event === 'RESI') return events;
+  if (event === 'CHR' && role === 'CHIL') {
+    return events.filter((e) => e.tag === 'BIRT' || e.tag === 'CHR');
+  }
+  if (
+    event === 'MARR' &&
+    (role === null || role === 'HUSB' || role === 'WIFE')
+  ) {
+    return events.filter((e) => e.tag === 'MARR');
+  }
+  return [];
+}
+
+// A Citation's Transcription as fields: the record a port read, or the
+// plain lines of its text.
+export function fieldsOf(
+  row: { text: string | null },
+  record: RecordView | null
+) {
+  return (
+    record?.fields ??
+    plainFields(row.text === null ? null : citationText(row.text))
+  );
+}
+
+// The events the fields give the person, in the Entry recording `event`,
+// in `role`.
+export function transcribedFor(
+  fields: RecordField[],
+  entry: { event: string | null; role: string | null }
+) {
+  return personsEvents(transcriptionEvents(fields), entry.event, entry.role);
 }

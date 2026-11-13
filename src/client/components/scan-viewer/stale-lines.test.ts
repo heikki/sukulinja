@@ -34,7 +34,8 @@ function row(personId: number, markKey: string, entry: string): VolumeCitation {
     markKey,
     citedPage: null,
     cited: null,
-    supports: []
+    supports: [],
+    transcribed: []
   };
   return { personId, citation, link: LINK };
 }

@@ -27,7 +27,7 @@ import {
   originalPageSql
 } from './annotations';
 import type { Annotation } from './annotations';
-import { entryEvent, openAppCitations } from './app-citations';
+import { bookEvent, entryEvent, openAppCitations } from './app-citations';
 import { viewerUrl, volumeYears } from './astia/astia';
 import { citedArchives } from './cited-archives';
 import type { Images } from './images';
@@ -40,6 +40,7 @@ import type {
 } from './references';
 import { createSupport } from './support';
 import { citationText } from './text';
+import { fieldsOf, transcribedFor } from './transcription';
 
 interface CitationDbRow {
   id: number;
@@ -47,6 +48,9 @@ interface CitationDbRow {
   source: string | null;
   page: string | null;
   text: string | null;
+  // GEDCOM's EVEN and ROLE as recorded.
+  event: string | null;
+  role: string | null;
   // The Fact ids it supports, comma separated; null for none.
   supports: string | null;
   annotation: Annotation;
@@ -127,6 +131,15 @@ function entryText(book: BookRef | null, stored: EntryLink | null) {
 // A Citation as the panel and the Scan viewer show it: a record the port
 // reads into its fields, or its text.
 function citationOf<R extends BookRef>(references: References<R>) {
+  // The Event the Citation's entry records and the person's Role in it: a
+  // reference's by its Book and the Role the port reads, another's as its
+  // EVEN and ROLE say.
+  function recorded(row: CitationDbRow, book: R | null) {
+    return book === null
+      ? { event: row.event, role: row.role }
+      : { event: bookEvent(book.kind), role: references.roleOf(row.role) };
+  }
+
   return function toCitation({ row, book, stored }: Cited<R>) {
     const record = references.recordOf(row);
     const citation: CitationRow = {
@@ -149,7 +162,8 @@ function citationOf<R extends BookRef>(references: References<R>) {
         book === null
           ? null
           : { parish: book.parish, kind: book.kind, years: book.years },
-      supports: idsOf(row.supports)
+      supports: idsOf(row.supports),
+      transcribed: transcribedFor(fieldsOf(row, record), recorded(row, book))
     };
     return citation;
   };
@@ -219,7 +233,7 @@ export function createCitations<R extends BookRef>(
   // A Mark makes its citation cite the Astia Image; the panel shows the
   // original page, which the reference is read from (ADR-0013).
   const SELECT = `SELECT c.id, c.scope_id AS personId, s.title AS source,
-    ${originalPageSql('c')} AS page, c.text,
+    ${originalPageSql('c')} AS page, c.text, c.event, c.role,
     (SELECT group_concat(fact_id) FROM fact_citations
       WHERE citation_id = c.id) AS supports,
     ${annotationColumnsSql('c')}

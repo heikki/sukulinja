@@ -13,7 +13,7 @@ Heikki, 2026-11-13: agreed to suggest support for the existing Citations from th
 
 ## The rule
 
-A **Suggestion** is a Fact of the Citation's person that the Citation's Transcription gives, and that the Citation doesn't support yet. It's derived each time the person's Citations are read, and nothing of it is stored.
+A **Suggestion** is a Fact of the Citation's person that the Citation's Transcription gives; the panel shows it as one while the Citation doesn't support it yet. It's derived each time the person's Citations are read, and nothing of it is stored.
 
 1. **The Transcription's events.** Its fields read as events by label: _Syntymäpäivä_, _Syntymäaika_, _Syntymä_ → Birth; _Ristiäiset_, _Kaste_ → Christening; _Kuolinpäivä_, _Kuolema_ → Death; _Hautaus_ → Burial; _Avioliitto_ → Marriage. The value's date is read as MyHeritage writes it ("15. Touko 1867", "Touko 1867", "1867"); a value with no year gives no event.
 2. **Whose events they are.** A household line (rippi- or lastenkirja) is about the person it's cited for, so all its events are theirs. A baptism Entry gives the Birth and Christening only to its child (Role `CHIL`), a marriage Entry the Marriage only to its spouses. A parent's or godparent's Citation, or one whose Role isn't known, gives nothing.
@@ -31,9 +31,10 @@ Residence is left out: the 2 313 placeless RESI Facts are copies of the rippikir
 
 ## Structure
 
-- **`src/server/citations/transcription.ts`** (new): a Transcription's events, from fields (`RecordField[]`), and the plain-line fields of a converted Citation. The Finnish month dates (`isoDate`, now in `myheritage/record.ts`) move here, as they're the Transcription's, not MyHeritage's; `record.ts` imports them. Nothing here reads MyHeritage's HTML, so it stays when `myheritage/` goes.
-- **`src/server/citations/support.ts`:** `suggestedSupport(events, entry, facts)`, a pure rule beside `entryFact`.
-- **`citations.ts`:** `CitationRow.suggests: SupportSuggestion[]` (`{ factId, says, agrees }`), read with the person's Facts (one query per person). The Entry's kind and Role come from the reference (the port gives a reference's Role, `indexRoleOf`) or the Citation's `EVEN`/`ROLE`.
+- **`src/server/citations/transcription.ts`** (new): a Transcription's events, from fields (`RecordField[]`), and the plain-line fields of a converted Citation. The Finnish month dates (now `transcribedDate`, formerly `isoDate` in `myheritage/record.ts`) moved here, as they're the Transcription's, not MyHeritage's. Nothing here reads MyHeritage's HTML, so it stays when `myheritage/` goes.
+- **`src/server/citations/support.ts`:** `personsEvents(events, event, role)`, the whose rule, beside `entryFact`.
+- **`citations.ts`:** `CitationRow.transcribed`, the events its Transcription gives its person. It depends on the Citation alone, so every CitationRow carries it, and it stays right after a support is toggled. The Entry's Event comes from a reference's Book or the Citation's `EVEN`; the Role from the Citation's `ROLE`, which the References port reads for a reference (`roleOf`, MyHeritage's `indexRoleOf`).
+- **`src/common/suggestions.ts`:** `suggestedSupport(transcribed, facts)`, the pure match against the person's Facts (`dateAgrees` in `common/dates.ts`), used by the panel; a dataset-wide pass could use it on the server as it is.
 - **Client:** `person-panel/supports.ts` marks the suggested toggles; `sources.ts` the row marker and _Confirm all_, through the existing support route.
 
 ## Tickets

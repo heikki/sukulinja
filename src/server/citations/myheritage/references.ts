@@ -52,6 +52,7 @@ export function referencesOf(
       !annotation.madeInApp && isRecordPage(page)
         ? readRecord(text ?? '')
         : null,
+    roleOf: indexRoleOf,
     resolve: scans.resolveRef,
     stamp: scans.stamp,
     volumeLinks: async (volumeId, refs) =>

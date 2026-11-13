@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { dateOrder, gedcomDate, isoDate, typedDate } from './dates';
+import { dateAgrees, dateOrder, gedcomDate, isoDate, typedDate } from './dates';
 
 describe('gedcomDate', () => {
   test('writes a day, month or year the Finnish way', () => {
@@ -100,4 +100,29 @@ test('dateOrder sorts dates by the first day they name', () => {
   expect(dateOrder('BET 1867 AND 1879')).toBe(18670000);
   expect(dateOrder('ABT 12 JAN 1850')).toBe(18500112);
   expect(dateOrder('@#DJULIAN@ x')).toBeNull();
+});
+
+describe('dateAgrees', () => {
+  test('agrees as far as both say', () => {
+    expect(dateAgrees('1867-05-15', '15 MAY 1867')).toBe(true);
+    expect(dateAgrees('1867', '15 MAY 1867')).toBe(true);
+    expect(dateAgrees('1867-05-15', 'MAY 1867')).toBe(true);
+    expect(dateAgrees('1856-08-09', '8 SEP 1856')).toBe(false);
+    expect(dateAgrees('1868', '1867')).toBe(false);
+  });
+
+  test('reads ranges, bounds and approximate dates', () => {
+    expect(dateAgrees('1870-03-01', 'BET 1867 AND 1879')).toBe(true);
+    expect(dateAgrees('1879-12-31', 'BET 1867 AND 1879')).toBe(true);
+    expect(dateAgrees('1880', 'FROM 1867 TO 1879')).toBe(false);
+    expect(dateAgrees('1850-05-01', 'BEF MAY 1850')).toBe(true);
+    expect(dateAgrees('1850-06', 'BEF MAY 1850')).toBe(false);
+    expect(dateAgrees('1851', 'AFT 25 OCT 1850')).toBe(true);
+    expect(dateAgrees('1850-03-02', 'ABT 1850')).toBe(true);
+    expect(dateAgrees('1851', 'EST 1850')).toBe(false);
+  });
+
+  test("null when the Fact's date can't be read", () => {
+    expect(dateAgrees('1850', '@#DJULIAN@ 1850')).toBeNull();
+  });
 });

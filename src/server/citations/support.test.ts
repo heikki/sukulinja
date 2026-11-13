@@ -19,6 +19,37 @@ import { createCitations } from './citations';
 import { openImages } from './images';
 import { referencesFor } from './myheritage/test-pins';
 import { entryFact } from './support';
+import { personsEvents } from './transcription';
+
+describe('personsEvents', () => {
+  const birth = { tag: 'BIRT', date: '1829-11-20' };
+  const chr = { tag: 'CHR', date: '1829-11-29' };
+  const death = { tag: 'DEAT', date: '1901' };
+  const marriage = { tag: 'MARR', date: '1850' };
+  const all = [birth, chr, death, marriage];
+
+  test("a household line's events are all its person's", () => {
+    expect(personsEvents(all, 'RESI', null)).toEqual(all);
+  });
+
+  test("a baptism's Birth and Christening are its child's only", () => {
+    expect(personsEvents(all, 'CHR', 'CHIL')).toEqual([birth, chr]);
+    expect(personsEvents(all, 'CHR', 'FATH')).toEqual([]);
+    expect(personsEvents(all, 'CHR', 'GODP')).toEqual([]);
+    expect(personsEvents(all, 'CHR', null)).toEqual([]);
+  });
+
+  test("a marriage's Marriage is its spouses'", () => {
+    expect(personsEvents(all, 'MARR', 'WIFE')).toEqual([marriage]);
+    expect(personsEvents(all, 'MARR', null)).toEqual([marriage]);
+    expect(personsEvents(all, 'MARR', 'FATH')).toEqual([]);
+  });
+
+  test('another source gives nothing', () => {
+    expect(personsEvents(all, 'Record', null)).toEqual([]);
+    expect(personsEvents(all, null, null)).toEqual([]);
+  });
+});
 
 describe('entryFact', () => {
   const chr = { id: 1, tag: 'CHR', familyId: null };
