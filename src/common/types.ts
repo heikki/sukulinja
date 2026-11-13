@@ -501,6 +501,9 @@ export type ChangeWhat =
   | { kind: 'uncite'; cited: string | null }
   // What an Entry says changed, by where it's written, as it reads now.
   | { kind: 'transcribe'; volume: string; image: number; text: string | null }
+  // What a Citation of no Entry says changed, by what it cites, as it
+  // reads now.
+  | { kind: 'retext'; cited: string | null; text: string | null }
   // A Tag made, its Box moved, or taken back, in the Photo named.
   | { kind: 'tag'; photo: string; moved: boolean }
   | { kind: 'untag'; photo: string }

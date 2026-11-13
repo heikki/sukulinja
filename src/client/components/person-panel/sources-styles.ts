@@ -251,6 +251,16 @@ export const personSourcesStyles = css`
     margin-top: 0.5rem;
   }
 
+  /* Beside Edit text, in its row. */
+  .actions {
+    display: contents;
+  }
+
+  .actions .asking,
+  .actions .finding {
+    flex-basis: 100%;
+  }
+
   button.archive {
     margin-top: 0.4rem;
     padding: 0;

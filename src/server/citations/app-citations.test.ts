@@ -115,7 +115,7 @@ test('a Citation made in the app is stored with its Mark, page and source', asyn
     cite(1, rippiCitation(5001, '1790 - 1796', 12))
   ]);
 
-  const made = await citations.cite(2, entry(13, '  Baptism\n12.3.1795 '));
+  const made = await citations.cite(2, entry(13, '  Baptism  12.3.1795 \n'));
   expect(made).toMatchObject({
     personId: 2,
     link: ENTRY_LINK,

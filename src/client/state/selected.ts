@@ -43,6 +43,9 @@ export interface Selected {
   // Deletes one of their Citations, throwing ApiError if it's refused;
   // their details are read again.
   uncite: (citationId: number) => Promise<void>;
+  // Puts what one of their Citations says, throwing ApiError if it's
+  // refused; their details are read again.
+  retext: (citationId: number, text: string | null) => Promise<void>;
   // Makes one of their Citations support one of their Facts, or no longer,
   // throwing ApiError if it's refused; the Citation changes in their
   // details as the app answers.
@@ -177,6 +180,11 @@ export function openSelected(
     void refresh();
   }
 
+  async function retext(citationId: number, text: string | null) {
+    await api.retext(citationId, text);
+    await refresh();
+  }
+
   async function support(citationId: number, factId: number, on: boolean) {
     const person = id.get();
     const updated = await api.support(citationId, factId, on);
@@ -221,6 +229,7 @@ export function openSelected(
     mark,
     discard,
     uncite,
+    retext,
     support,
     relink,
     refresh

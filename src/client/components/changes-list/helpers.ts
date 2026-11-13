@@ -81,6 +81,8 @@ export function doneLabel(what: ChangeWhat) {
       return 'Deleted a Citation';
     case 'transcribe':
       return 'Changed what the entry says';
+    case 'retext':
+      return 'Changed what the source says';
     case 'tag':
       return what.moved ? 'Moved the Tag' : 'Tagged in a photo';
     case 'untag':
@@ -134,6 +136,8 @@ export function detailOf(what: ChangeWhat) {
       return what.text === null
         ? imageLabel(what.volume, what.image)
         : `${imageLabel(what.volume, what.image)}: ${what.text}`;
+    case 'retext':
+      return [what.cited, what.text].filter((t) => t !== null).join(': ');
     case 'tag':
     case 'untag':
     case 'portrait':

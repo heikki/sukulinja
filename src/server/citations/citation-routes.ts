@@ -26,6 +26,7 @@ interface CitationHandlers {
   ) => Promise<Response>;
   handleAddToEntry: (entryId: number, person: InEntry) => Promise<Response>;
   handleTranscribe: (entryId: number, text: string | null) => Response;
+  handleRetext: (citationId: number, text: string | null) => Response;
   handleDeleteEntry: (entryId: number) => Response;
   handleUncite: (id: number) => Response;
   handleSupport: (id: number, factId: number, on: boolean) => Response;
@@ -283,11 +284,16 @@ async function routeArchives(
     : await handlers.handleArchiveCitations(id);
 }
 
-// PUT or DELETE /api/citations/:id/supports/:factId; null for another path.
-function routeSupport(req: Request, handlers: CitationHandlers, rest: string) {
+// PUT or DELETE /api/citations/:id/supports/:factId, or PUT its `/text`;
+// null for another path.
+async function routeSupport(
+  req: Request,
+  handlers: CitationHandlers,
+  rest: string
+) {
   const supports =
     /^\/api\/citations\/(?<id>\d+)\/supports\/(?<fact>\d+)$/.exec(rest);
-  if (supports === null) return null;
+  if (supports === null) return await routeText(req, handlers, rest);
   const { id, fact } = supports.groups!;
   if (req.method !== 'PUT' && req.method !== 'DELETE') {
     return new Response('method not allowed', { status: 405 });
@@ -295,11 +301,29 @@ function routeSupport(req: Request, handlers: CitationHandlers, rest: string) {
   return handlers.handleSupport(Number(id), Number(fact), req.method === 'PUT');
 }
 
+// PUT `{ text }` to /api/citations/:id/text; null for another path.
+async function routeText(
+  req: Request,
+  handlers: CitationHandlers,
+  rest: string
+) {
+  const at = /^\/api\/citations\/(?<id>\d+)\/text$/.exec(rest);
+  if (at === null) return null;
+  if (req.method !== 'PUT') {
+    return new Response('method not allowed', { status: 405 });
+  }
+  const text = optionalString((await readBody(req))?.text);
+  return text === undefined
+    ? new Response('expected { text }', { status: 400 })
+    : handlers.handleRetext(Number(at.groups!.id), text);
+}
+
 // GET /api/persons/:id/scans streams the person's Links; POST
 // /api/persons/:id/citations makes a Citation; /api/entries and its
 // Entries (routeEntries); DELETE /api/citations/:id
 // deletes one; PUT or DELETE /api/citations/:id/supports/:factId makes it
-// support a Fact or no longer; a Citation's `/scans` and `/volumes`; GET
+// support a Fact or no longer; PUT /api/citations/:id/text changes what
+// it says; a Citation's `/scans` and `/volumes`; GET
 // /api/volumes/:id and its `/citations`, and POST its `/filming`; GET
 // /api/archives and /api/archives/:id/citations. Null for any other path.
 async function routeCitations(
@@ -328,7 +352,7 @@ async function routeCitations(
       ? handlers.handleUncite(Number(made.groups!.id))
       : new Response('method not allowed', { status: 405 });
   }
-  const supports = routeSupport(req, handlers, rest);
+  const supports = await routeSupport(req, handlers, rest);
   if (supports !== null) return supports;
   const citation =
     /^\/api\/citations\/(?<id>\d+)\/(?<part>scans|volumes)$/.exec(rest);
@@ -480,6 +504,13 @@ function citationHandlers(
       const now = citations.transcribe(entryId, text);
       return now === null
         ? new Response('entry not found', { status: 404 })
+        : Response.json(now);
+    },
+
+    handleRetext(citationId, text) {
+      const now = citations.retext(citationId, text);
+      return now === null
+        ? new Response('citation not found', { status: 404 })
         : Response.json(now);
     },
 

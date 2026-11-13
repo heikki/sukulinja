@@ -40,6 +40,7 @@ import type {
   MarkTarget,
   References
 } from './references';
+import { createRetext } from './retext';
 import { createSupport } from './support';
 import { citationText } from './text';
 
@@ -615,7 +616,15 @@ export function createCitations<R extends BookRef>(
     },
 
     // Puts what an Entry says (ADR-0026); null when there's no such Entry.
-    transcribe: entries.transcribe
+    transcribe: entries.transcribe,
+
+    // Puts what a person's Citation says: its Entry's, else its own.
+    retext: createRetext(db, {
+      transcribe: entries.transcribe,
+      ofId,
+      citedText,
+      changed
+    })
   };
 }
 

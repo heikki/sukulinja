@@ -93,6 +93,9 @@ export interface DatasetApi {
   addToEntry: (entryId: number, person: InEntry) => Promise<VolumeCitation>;
   // Puts what an Entry says, for everyone citing it.
   transcribe: (entryId: number, text: string | null) => Promise<void>;
+  // Puts what a Citation says: its Entry's, for everyone citing it, else
+  // its own.
+  retext: (citationId: number, text: string | null) => Promise<void>;
   // Deletes an Entry with all its Citations.
   deleteEntry: (entryId: number) => Promise<void>;
   // Deletes a Citation made in the app.
@@ -344,6 +347,14 @@ export function openDatasetApi(
 
     async transcribe(entryId, text) {
       await ask('Saving', `${dataset}/api/entries/${entryId}`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+    },
+
+    async retext(citationId, text) {
+      await ask('Saving', `${dataset}/api/citations/${citationId}/text`, {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ text })

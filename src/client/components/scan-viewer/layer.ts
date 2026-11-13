@@ -206,9 +206,6 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
       @drop=${(e: CustomEvent<{ personId: number }>) => {
         this.viewer.entryForm.drop(e.detail.personId);
       }}
-      @text=${(e: CustomEvent<string>) => {
-        this.viewer.entryForm.setText(e.detail);
-      }}
     ></sl-scan-entry>`;
   }
 

@@ -77,7 +77,8 @@ type MemoryDatasetApi = DatasetApi & {
   // only the Volume; " box" or " no box" when it says), "discard <citation>
   // <volume>/<image>", "entry <volume>/<image> <file>: <person>[ as
   // <role>], …[: <text>]",
-  // "uncite <citation>", "support <citation> <fact>" (or "unsupport"),
+  // "uncite <citation>", "retext <citation>: <text>", which changes the
+  // Citation's text in `details`, "support <citation> <fact>" (or "unsupport"),
   // which changes the Citation in `details`, "choices <citation>", "citations <volume>",
   // "volume <volume>", "rescan <volume>", "switch <volume>", "changes",
   // "reminders", "remind person <id>: <text>" (or "<volume>/<image>
@@ -236,6 +237,15 @@ export function memoryDatasetApi(
       ),
 
     ...entryCalls,
+
+    async retext(citationId, text) {
+      await answer(`retext ${citationId}: ${text ?? ''}`, undefined, () => {
+        for (const d of Object.values(data.details ?? {})) {
+          const c = d.citations.find((x) => x.id === citationId);
+          if (c !== undefined) c.text = text;
+        }
+      });
+    },
 
     async uncite(citationId) {
       await answer(`uncite ${citationId}`, undefined, () => {
