@@ -26,7 +26,6 @@ As ADR-0026: `entries(id, source_id, volume_id, volume, image, file_id, box_left
   - the Transcription line ("What the entry says").
   - Save makes the Entry and one Citation for each person named; the child's Christening (else Birth) and the spouses' marriage get its support as now.
 - **An Entry's Box menu:** _Add person…_ (picked with a Role), _Remove <name>_, _Edit_ (move the Box, retype the Transcription), _Delete entry_ (asks; names how many Citations go).
-- **Merge.** Two Entries on one Image whose Boxes overlap most of each other (from before, drawn for each person): the Box menu offers _Merge with the entry here_; the one clicked keeps its Box and Transcription.
 - **The foot bar** holds only the paging and, while a Box is pending, Cancel and Save.
 
 ## GEDCOM
@@ -37,6 +36,7 @@ Written as now, each Citation whole under its person. The import makes one Entry
 
 - References (Marks at the Image or Volume, Matches, Estimates) on Entries: when `citations/myheritage/` goes.
 - Each Entry its own GEDCOM `SOUR` (splitting).
+- Merging Entries drawn apart before (Heikki, 2026-11-13: not needed): one is deleted and the person added to the other.
 - Godparents (Heikki, 2026-11-13: not needed): the form offers no _Godparent_; their names stay in the Transcription. Citations already made as `GODP` read as before.
 
 ## Tickets
@@ -45,5 +45,5 @@ Written as now, each Citation whole under its person. The import makes one Entry
 2. `02-new-entry-api` — making an Entry with its people; adding and removing a person.
 3. `03-conversion-makes-an-entry`
 4. `04-entry-form` — Scan viewer: one Box, the form beside it, the slim foot bar.
-5. `05-entry-box-menu` — add, remove, edit, delete, merge.
+5. `05-entry-box-menu` — add, remove, edit, delete.
 6. `06-gedcom-round-trip`
