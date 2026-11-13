@@ -44,7 +44,7 @@ export function linkItems(
       });
     }
     if (viewer.pending.get() === null) {
-      items.push({ label: 'New citation for…', run: open.cite });
+      items.push({ label: 'New entry here', run: open.cite });
     }
   }
   items.push(...remind);

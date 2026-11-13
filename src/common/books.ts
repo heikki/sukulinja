@@ -19,7 +19,7 @@ export function bookKind(name: string): BookKind | null {
 }
 
 // The Roles a person may have in an entry of the kind of book, GEDCOM's
-// citation ROLE, as "New citation for…" offers them: for a baptism or a
+// citation ROLE, as a new entry offers them: for a baptism or a
 // marriage. A household's line has none: isäntä or piika is who they are
 // in the household, which its transcription says.
 export const ENTRY_ROLES: Partial<
@@ -28,8 +28,7 @@ export const ENTRY_ROLES: Partial<
   kastetut: [
     { role: 'CHIL', label: 'Child' },
     { role: 'FATH', label: 'Father' },
-    { role: 'MOTH', label: 'Mother' },
-    { role: 'GODP', label: 'Godparent' }
+    { role: 'MOTH', label: 'Mother' }
   ],
   vihityt: [
     { role: 'HUSB', label: 'Groom' },

@@ -99,11 +99,11 @@ test('a Citation made in the app offers Delete on its Box; a Mark or Match, Disc
   ]);
 });
 
-test('New citation for… shows over the full Image, with nothing pending', async () => {
+test('New entry here shows over the full Image, with nothing pending', async () => {
   const viewer = await viewing(citation(1, false), ON_IMAGE);
   expect(labels(viewer, { onBox: false, canBox: true })).toEqual([
     'Place citation here',
-    'New citation for…',
+    'New entry here',
     'Add reminder…',
     'Change Volume…'
   ]);
@@ -120,7 +120,7 @@ test('New citation for… shows over the full Image, with nothing pending', asyn
 test("Place citation here isn't offered with the source's Box on the Image", async () => {
   const viewer = await viewing(citation(1, false));
   expect(labels(viewer, { onBox: false, canBox: true })).toEqual([
-    'New citation for…',
+    'New entry here',
     'Add reminder…',
     'Change Volume…'
   ]);
@@ -175,13 +175,13 @@ test('opened on an Image with no source, a new Citation and a Reminder are offer
   viewer.openImage({ volumeId: '201', volume: 'I Aa:201', image: 18 });
   await Bun.sleep(0);
   expect(labels(viewer, { onBox: false, canBox: true })).toEqual([
-    'New citation for…',
+    'New entry here',
     'Add reminder…'
   ]);
   expect(labels(viewer, { onBox: false, canBox: false })).toEqual([
     'Add reminder…'
   ]);
-  viewer.citeFor(1, BOX);
+  viewer.newEntry(BOX, [{ personId: 1, role: null }]);
   expect(labels(viewer, { onBox: true, canBox: true })).toEqual([
     'Discard changes'
   ]);

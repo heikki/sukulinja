@@ -101,23 +101,22 @@ async function viewing() {
 
 test('a pending Citation is saved for its person, with its text, and opens', async () => {
   const { api, state, viewer } = await viewing();
-  viewer.citeFor(2, BOX);
+  viewer.newEntry(BOX, [{ personId: 2, role: null }]);
   expect(viewer.boxHere.get()).toEqual(BOX);
   expect(viewer.boxPending.get()).toBe(true);
   const moved = { ...BOX, top: 260 };
   viewer.setBox(moved);
   viewer.setCiteText('  Baptism 12.3.1795 ');
-  viewer.setCiteRole('FATH');
+  viewer.setInEntry({ personId: 2, role: 'FATH' });
   expect(viewer.pending.get()?.cite).toEqual({
-    personId: 2,
-    text: '  Baptism 12.3.1795 ',
-    role: 'FATH'
+    people: [{ personId: 2, role: 'FATH' }],
+    text: '  Baptism 12.3.1795 '
   });
 
   await state.chart.save();
   await settle();
   expect(api.asked).toContain(
-    'cite 2 201/18 201-f18 as FATH: Baptism 12.3.1795'
+    'entry 201/18 201-f18: 2 as FATH: Baptism 12.3.1795'
   );
   expect(viewer.pending.get()).toBeNull();
   // Made for Person 2, who's selected, the viewer on it.
@@ -129,17 +128,34 @@ test('a pending Citation is saved for its person, with its text, and opens', asy
   expect(made?.link).toMatchObject({ image: 18, box: moved });
 });
 
+test("a pending entry's Role goes to whoever is named in it, and someone taken out leaves it", async () => {
+  const { api, viewer } = await viewing();
+  viewer.newEntry(BOX, [
+    { personId: 1, role: 'CHIL' },
+    { personId: 2, role: 'FATH' }
+  ]);
+  viewer.setInEntry({ personId: 3, role: 'FATH' });
+  viewer.dropFromEntry(1);
+  expect(viewer.pending.get()?.cite?.people).toEqual([
+    { personId: 3, role: 'FATH' }
+  ]);
+  viewer.dropFromEntry(3);
+  const refused = await viewer.save().catch((err: unknown) => err);
+  expect(refused).toMatchObject({ message: 'Name someone in the entry.' });
+  expect(api.asked.filter((a) => a.startsWith('entry'))).toEqual([]);
+});
+
 test('a pending Citation without text is saved with none, and Cancel leaves nothing', async () => {
   const { api, viewer } = await viewing();
-  viewer.citeFor(2, BOX);
+  viewer.newEntry(BOX, [{ personId: 2, role: null }]);
   viewer.cancel();
   expect(viewer.pending.get()).toBeNull();
   expect(viewer.source.get()?.citation.id).toBe(11);
 
-  viewer.citeFor(1, BOX);
+  viewer.newEntry(BOX, [{ personId: 1, role: null }]);
   expect(await viewer.save()).toBeNull();
-  expect(api.asked.filter((a) => a.startsWith('cite'))).toEqual([
-    'cite 1 201/18 201-f18'
+  expect(api.asked.filter((a) => a.startsWith('entry'))).toEqual([
+    'entry 201/18 201-f18: 1'
   ]);
   // Matti's own: the viewer opens on it, him still selected.
   expect(viewer.source.get()?.citation.text).toBeNull();
@@ -150,12 +166,12 @@ test('a pending Citation without text is saved with none, and Cancel leaves noth
 
 test('a way out of a pending Citation waits to save it', async () => {
   const { api, viewer } = await viewing();
-  viewer.citeFor(2, BOX);
+  viewer.newEntry(BOX, [{ personId: 2, role: null }]);
   viewer.show(19);
   expect(viewer.leaving.get()).toBe(true);
   expect(viewer.image.get()).toBe(18);
   await viewer.answer('save');
-  expect(api.asked).toContain('cite 2 201/18 201-f18');
+  expect(api.asked).toContain('entry 201/18 201-f18: 2');
   expect(viewer.image.get()).toBe(19);
   expect(viewer.source.get()?.citation.id).toBe(11);
 });
@@ -168,16 +184,16 @@ test('opened on an Image with no source, a new Citation is made and opens', asyn
   const { viewer } = state;
   viewer.openImage({ volumeId: '201', volume: 'I Aa:201', image: 22 });
   await settle();
-  viewer.citeFor(1, BOX);
+  viewer.newEntry(BOX, [{ personId: 1, role: null }]);
   viewer.setBox({ ...BOX, top: 300 });
   expect(viewer.pending.get()).toMatchObject({
     image: 22,
     box: { top: 300 },
-    cite: { personId: 1 }
+    cite: { people: [{ personId: 1 }] }
   });
   viewer.setCiteText('Baptism 1.2.1800');
   await state.chart.save();
-  expect(api.asked).toContain('cite 1 201/22 201-f22: Baptism 1.2.1800');
+  expect(api.asked).toContain('entry 201/22 201-f22: 1: Baptism 1.2.1800');
   expect(viewer.source.get()?.citation.text).toBe('Baptism 1.2.1800');
   expect(viewer.source.get()?.link).toMatchObject({ image: 22 });
   expect(viewer.pending.get()).toBeNull();
@@ -187,7 +203,7 @@ test('opened on an Image with no source, Cancel drops the pending Citation', asy
   const { viewer } = await viewing();
   viewer.openImage({ volumeId: '201', volume: 'I Aa:201', image: 22 });
   await settle();
-  viewer.citeFor(2, BOX);
+  viewer.newEntry(BOX, [{ personId: 2, role: null }]);
   viewer.cancel();
   expect(viewer.pending.get()).toBeNull();
   expect(viewer.image.get()).toBe(22);

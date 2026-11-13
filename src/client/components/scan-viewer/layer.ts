@@ -8,12 +8,13 @@ import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { Box } from '@/common/types';
 
-import { boxFromStage } from '../box-stage/geometry';
+import { boxFromStage, boxOnStage } from '../box-stage/geometry';
 import { familyChoices, searchable } from '../person-search/choices';
 import { placesHere } from '../reminders-list/places';
 import { entriesOn } from './citations';
-import { citingImage } from './cite';
+import { citingImage, roleLabel, startingPeople } from './cite';
 import { scanLayerStyles } from './edit-styles';
+import type { ChooseDetail } from './entry-form';
 import { newEntryBox } from './frame';
 import type { Frame } from './frame';
 import { linkItems } from './menu';
@@ -21,11 +22,15 @@ import { linkItems } from './menu';
 import '../box-stage/handles';
 import '../context-menu';
 import '../person-search/pick';
+import './entry-form';
 import './volumes';
 
-// What a right-click opened: the menu, the Volumes chosen from it, or the
-// people an entry can be cited for, listed or searched.
-type Popup = 'menu' | 'volumes' | 'cite';
+// What a right-click opened: the menu, or the Volumes chosen from it; or
+// the people to name in a new entry's Role (or with none), listed or
+// searched.
+type Popup =
+  | { at: Point; onBox: boolean; show: 'menu' | 'volumes' }
+  | { at: Point; show: 'pick'; role: string | null };
 
 // Editing the current source's Link over the scan: the menu a right-click
 // opens (`openMenu`), the Volumes opened from it, a new entry Box put where
@@ -49,8 +54,7 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     return this.state.chart.people.get().persons;
   }
 
-  @state() private popup: { at: Point; onBox: boolean; show: Popup } | null =
-    null;
+  @state() private popup: Popup | null = null;
 
   // The menu at `at` on the stage; `onBox` when it's on the source's own
   // entry Box, which then has a menu of its own.
@@ -96,11 +100,20 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     if (box !== null) this.viewer.setBox(box);
   }
 
-  // A pending Box at `at` for a new Citation of the entry for the person.
-  private cite(at: Point, personId: number) {
+  // A pending Box at `at` for a new Entry, naming to start with whom the
+  // Volume's Book and the Selected person suggest.
+  private newEntry(at: Point) {
     this.popup = null;
     const box = this.newBoxAt(at);
-    if (box !== null) this.viewer.citeFor(personId, box);
+    const shown = this.viewer.volume.get();
+    if (box === null || shown === null) return;
+    const people = startingPeople(
+      shown.label,
+      this.state.selected.id.get(),
+      this.state.chart.people.get(),
+      this.citingHere()
+    );
+    this.viewer.newEntry(box, people);
   }
 
   // Whose Citations already link the Image shown: not cited for again.
@@ -112,26 +125,56 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     );
   }
 
-  // The Selected person's family and the search, but those citing the
-  // Image already.
-  private renderCite(at: Point) {
+  // The Selected person's family and the search, for the Role (`label`),
+  // but those citing the Image already or in the entry.
+  private renderPick(at: Point, role: string | null) {
     const selected = this.state.selected.id.get();
-    const left = this.citingHere();
+    const named = this.viewer.pending.get()?.cite?.people ?? [];
+    const left = new Set([
+      ...this.citingHere(),
+      ...named.map((p) => p.personId)
+    ]);
     const family =
       selected === null
         ? []
         : familyChoices(selected, this.state.chart.people.get(), left);
+    const label = roleLabel(this.viewer.volume.get()?.label ?? '', role);
     return html`<sl-person-pick
-      .heading=${'New citation for'}
+      .heading=${label}
       .at=${at}
       .relativesOf=${selected}
       .choices=${family}
       .persons=${searchable(this.persons, left)}
       @pick=${(e: CustomEvent<{ id: number }>) => {
-        this.cite(at, e.detail.id);
+        this.popup = null;
+        this.viewer.setInEntry({ personId: e.detail.id, role });
       }}
       @close=${this.onPopupClose}
     ></sl-person-pick>`;
+  }
+
+  // The pending Entry's people and words, beside its Box.
+  private renderEntry() {
+    const { view } = this;
+    const pending = this.viewer.pending.get();
+    if (view === null || pending?.cite === undefined) return nothing;
+    const rect = boxOnStage(pending.box, view);
+    const at = { left: rect.left + rect.width + 12, top: rect.top };
+    return html`<sl-scan-entry
+      style="left: ${at.left}px; top: ${at.top}px"
+      .cite=${pending.cite}
+      .volume=${pending.volume}
+      .persons=${this.persons}
+      @choose=${(e: CustomEvent<ChooseDetail>) => {
+        this.popup = { at: e.detail.at, show: 'pick', role: e.detail.role };
+      }}
+      @drop=${(e: CustomEvent<{ personId: number }>) => {
+        this.viewer.dropFromEntry(e.detail.personId);
+      }}
+      @text=${(e: CustomEvent<string>) => {
+        this.viewer.setCiteText(e.detail);
+      }}
+    ></sl-scan-entry>`;
   }
 
   // A Reminder on the Image shown and the Selected person, written in the
@@ -144,15 +187,16 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   }
 
   private renderPopup() {
-    if (this.popup === null) return nothing;
-    const { at, onBox, show } = this.popup;
+    const { popup } = this;
+    if (popup === null) return nothing;
+    if (popup.show === 'pick') return this.renderPick(popup.at, popup.role);
+    const { at, onBox, show } = popup;
     if (show === 'volumes') {
       return html`<sl-scan-volumes
         .at=${at}
         @close=${this.onPopupClose}
       ></sl-scan-volumes>`;
     }
-    if (show === 'cite') return this.renderCite(at);
     const items = linkItems(
       this.viewer,
       { onBox, canBox: this.editable },
@@ -164,7 +208,7 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
           this.placeBox(at);
         },
         cite: () => {
-          this.popup = { at, onBox, show: 'cite' };
+          this.newEntry(at);
         },
         remind: () => {
           this.remind();
@@ -196,7 +240,7 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   }
 
   override render() {
-    return html`${this.renderBox()} ${this.renderPopup()}`;
+    return html`${this.renderBox()} ${this.renderEntry()} ${this.renderPopup()}`;
   }
 }
 

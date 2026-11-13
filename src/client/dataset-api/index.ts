@@ -53,14 +53,19 @@ export interface BoxAt {
   image: number;
 }
 
-// An entry cited in the app: its Box on an Image of a Volume, by the
-// Image's file id, with what it is and the person's Role in it, if said.
-export interface CiteTarget {
+// An entry made in the app: its Box on an Image of a Volume, by the
+// Image's file id, with what it says, if said.
+export interface EntryTarget {
   volumeId: string;
   image: number;
   fileId: string;
   box: Box;
   text: string | null;
+}
+
+// Someone named in an entry, in their Role if it has one.
+export interface InEntry {
+  personId: number;
   role: string | null;
 }
 
@@ -80,9 +85,9 @@ export interface DatasetApi {
   // Takes back the reference's Box at `at`, a Mark's or a Match's:
   // its Links, resolved again.
   discard: (citationId: number, at: BoxAt) => Promise<CitationLinks>;
-  // Makes a Citation of the entry for the person: it as the Volume's
-  // citations list it.
-  cite: (personId: number, at: CiteTarget) => Promise<VolumeCitation>;
+  // Makes an Entry with a Citation of it for each person named (ADR-0026):
+  // them as the Volume's citations list them, in the order named.
+  citeEntry: (at: EntryTarget, people: InEntry[]) => Promise<VolumeCitation[]>;
   // Deletes a Citation made in the app.
   uncite: (citationId: number) => Promise<void>;
   // Makes a Citation support one of its person's Facts, or no longer
@@ -308,17 +313,13 @@ export function openDatasetApi(
       return (await res.json()) as CitationLinks;
     },
 
-    async cite(personId, at) {
-      const res = await ask(
-        'Citing',
-        `${dataset}/api/persons/${personId}/citations`,
-        {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(at)
-        }
-      );
-      return (await res.json()) as VolumeCitation;
+    async citeEntry(at, people) {
+      const res = await ask('Citing', `${dataset}/api/entries`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ...at, people })
+      });
+      return (await res.json()) as VolumeCitation[];
     },
 
     async uncite(citationId) {
