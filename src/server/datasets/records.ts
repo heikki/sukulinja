@@ -5,6 +5,8 @@
 
 import type { Database } from 'bun:sqlite';
 
+import { dropUncitedEntries } from '../citations';
+
 const MONTHS = 'JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC'.split(' ');
 
 function two(n: number) {
@@ -88,7 +90,8 @@ function deleteMediaLinks(db: Database, scope: Holder, id: number) {
   ]);
 }
 
-// Removes the Citations on the holder, with their notes and media links.
+// Removes the Citations on the holder, with their notes and media links,
+// and the Entries they were the last to cite.
 export function deleteCitations(db: Database, scope: Holder, id: number) {
   const ids = db
     .query<{ id: number }, [string, number]>(
@@ -103,6 +106,7 @@ export function deleteCitations(db: Database, scope: Holder, id: number) {
     scope,
     id
   ]);
+  dropUncitedEntries(db);
 }
 
 // Removes the Facts on the person or family, with all each holds.

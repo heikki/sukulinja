@@ -1,14 +1,17 @@
 // A Citation's Annotation: what the app adds to it (ADR-0013). Its Mark or
 // Match, the page a Mark on an Image moved aside (its original
 // page), and whether the app made the Citation. Only this module knows the
-// columns an Annotation is stored in; it works on single Citation rows, and
-// the import, the export and the Marks go through it.
+// columns an Annotation is stored in, and `entries.ts` which of them an
+// Entry holds for its Citations (ADR-0026), read as their own through
+// CITATIONS_READ; it works on single Citation rows, and the import, the
+// export and the Marks go through it.
 
 import type { Database, SQLQueryBindings } from 'bun:sqlite';
 
 import type { Box, Provenance } from '@/common/types';
 
 import { viewerUrl } from './astia/astia';
+import { CITATIONS_READ } from './entries';
 
 // Where a Mark or Match says a record is: on an Image of a Volume,
 // with the entry's Box in pixels of the full-size Image, or only in the
@@ -48,6 +51,9 @@ export interface CitationValues {
   quality: number | null;
   dataDate: string | null;
   text: string | null;
+  // The Entry it cites, which holds its source, page, Event, text and
+  // link; those are then given as null.
+  entryId?: number | null;
 }
 
 const COLUMNS = [
@@ -187,10 +193,11 @@ export function openAnnotations(db: Database) {
   const insertRow = db.prepare(
     `INSERT INTO citations (scope_type, scope_id, source_id, sort_order,
        page, event, role, quality, data_date, text, original_page,
-       ${LINK_COLUMNS}, added_in_app)
+       ${LINK_COLUMNS}, added_in_app, entry_id)
      VALUES ($scopeType, $scopeId, $sourceId, $sortOrder, $page, $event,
        $role, $quality, $dataDate, $text, $originalPage, $volumeId, $volume,
-       $image, $fileId, $left, $top, $width, $height, $by, $madeInApp)`
+       $image, $fileId, $left, $top, $width, $height, $by, $madeInApp,
+       $entryId)`
   );
   // The right-hand sides read the row as it was, so the original page is
   // taken from wherever it is now.
@@ -208,13 +215,13 @@ export function openAnnotations(db: Database) {
      WHERE id = $id`
   );
   const firstLinkQuery = db.prepare<LinkRow, [string]>(
-    `SELECT id, ${LINK_COLUMNS} FROM citations
+    `SELECT id, ${LINK_COLUMNS} FROM ${CITATIONS_READ}
      WHERE id IN (SELECT value FROM json_each(?))
        AND link_volume_id IS NOT NULL
      ORDER BY id LIMIT 1`
   );
   const linkedQuery = db.prepare<LinkRow, []>(
-    `SELECT id, ${LINK_COLUMNS} FROM citations
+    `SELECT id, ${LINK_COLUMNS} FROM ${CITATIONS_READ}
      WHERE link_volume_id IS NOT NULL ORDER BY id`
   );
 
@@ -234,7 +241,8 @@ export function openAnnotations(db: Database) {
         $text: values.text,
         $originalPage: annotation.originalPage,
         ...linkParams(annotation.link),
-        $madeInApp: annotation.madeInApp ? 1 : 0
+        $madeInApp: annotation.madeInApp ? 1 : 0,
+        $entryId: values.entryId ?? null
       });
       return Number(res.lastInsertRowid);
     },

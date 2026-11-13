@@ -30,6 +30,7 @@ import type { Annotation } from './annotations';
 import { entryEvent, openAppCitations } from './app-citations';
 import { viewerUrl, volumeYears } from './astia/astia';
 import { citedArchives } from './cited-archives';
+import { CITATIONS_READ } from './entries';
 import type { Images } from './images';
 import type {
   BookRef,
@@ -218,7 +219,7 @@ export function createCitations<R extends BookRef>(
     (SELECT group_concat(fact_id) FROM fact_citations
       WHERE citation_id = c.id) AS supports,
     ${annotationColumnsSql('c')}
-    FROM citations c LEFT JOIN sources s ON s.id = c.source_id`;
+    FROM ${CITATIONS_READ} c LEFT JOIN sources s ON s.id = c.source_id`;
   function query(where: string) {
     const statement = db.prepare<DbRow, SQLQueryBindings[]>(
       `${SELECT} ${where}`

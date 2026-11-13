@@ -2,7 +2,7 @@ import type { Database } from 'bun:sqlite';
 
 import type { Scope } from '@/common/types';
 
-import { openAnnotations } from '../citations';
+import { gatherEntries, openAnnotations } from '../citations';
 import { pageOf } from '../gedcom/astia-links';
 import { objectRecords, unlinkedPhotos } from '../gedcom/media-refs';
 import { parseName } from '../gedcom/names';
@@ -485,6 +485,8 @@ export function importGedcom(
     factSours.fold((sour, owner, sortOrder) =>
       importCitation(sour, owner.scope, owner.id, sortOrder)
     );
+    // The app's Citations of one entry, alike, cite one Entry (ADR-0026).
+    gatherEntries(db);
   });
 
   tx();

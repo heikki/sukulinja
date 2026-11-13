@@ -15,6 +15,7 @@ import { BOXES_BECOME_TAGS } from './migration-2';
 import { CHANGES_NAME_THEIR_PHOTO } from './migration-3';
 import { CHANGES_FIND_THEIR_PHOTO } from './migration-4';
 import { CITATIONS_SUPPORT_FACTS } from './migration-5';
+import { ENTRIES_HOLD_THE_BOX } from './migration-6';
 
 export interface Migration {
   to: number;
@@ -28,7 +29,8 @@ export const MIGRATIONS: Migration[] = [
   BOXES_BECOME_TAGS,
   CHANGES_NAME_THEIR_PHOTO,
   CHANGES_FIND_THEIR_PHOTO,
-  CITATIONS_SUPPORT_FACTS
+  CITATIONS_SUPPORT_FACTS,
+  ENTRIES_HOLD_THE_BOX
 ];
 
 // The version the steps take a database to.

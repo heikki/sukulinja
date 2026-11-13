@@ -9,6 +9,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { CITATIONS_READ } from '../citations';
 import { openDb, OutdatedDatasetError, SCHEMA_VERSION } from './db';
 import { migrate, OLDEST_MIGRATED, versionOf } from './migrations';
 import type { Migration } from './migrations';
@@ -167,8 +168,13 @@ describe('a database of the oldest schema migrated', () => {
     for (const { table, rows } of had) {
       const names = Object.keys(rows[0] ?? {});
       const columns = names.length === 0 ? '*' : names.join(', ');
+      // A Citation reads as it did once its Entry holds its link.
+      const read = table === 'citations';
       const now = migrated
-        .query(`SELECT ${columns} FROM ${table} ORDER BY rowid`)
+        .query(
+          `SELECT ${columns} FROM ${read ? CITATIONS_READ : table}
+           ORDER BY ${read ? 'id' : 'rowid'}`
+        )
         .all();
       expect({ table, rows: now }).toEqual({ table, rows });
     }
@@ -454,6 +460,62 @@ describe('schema 4', () => {
       { media_id: null },
       { media_id: null }
     ]);
+    migrated.close();
+  });
+});
+
+describe('schema 6', () => {
+  test("makes one Entry of the app's Citations alike, and leaves the rest", () => {
+    const db = oldest();
+    runAll(
+      db,
+      `
+      INSERT INTO persons (id, xref) VALUES (1, '@I1@'), (2, '@I2@'), (3, '@I3@');
+      INSERT INTO sources (id, xref, title) VALUES (1, '@S1@', 'Juva');
+      INSERT INTO citations (id, scope_type, scope_id, source_id, page, text,
+        link_volume_id, link_volume, link_image, link_file_id, link_box_left,
+        link_box_top, link_box_width, link_box_height, link_by, added_in_app)
+        VALUES (1, 'person', 1, 1, 'u', 'Kaste', 'v1', 'Kastetut', 12, 'f1',
+            10, 20, 30, 40, 'hand', 1),
+          (2, 'person', 2, 1, 'u', 'Kaste', 'v1', 'Kastetut', 12, 'f1',
+            10, 20, 30, 40, 'hand', 1),
+          (3, 'person', 3, 1, 'u', 'Kaste', 'v1', 'Kastetut', 12, 'f1',
+            12, 20, 30, 40, 'hand', 1),
+          (4, 'person', 3, 1, 'r', NULL, 'v1', 'Kastetut', 12, 'f1',
+            10, 20, 30, 40, 'hand', 0);
+    `
+    );
+    db.close();
+    const migrated = openDb(path);
+    expect(
+      migrated
+        .query(
+          'SELECT id, entry_id, source_id, link_image FROM citations ORDER BY id'
+        )
+        .all()
+    ).toEqual([
+      { id: 1, entry_id: 1, source_id: null, link_image: null },
+      { id: 2, entry_id: 1, source_id: null, link_image: null },
+      { id: 3, entry_id: 2, source_id: null, link_image: null },
+      // A reference keeps its link on its citation.
+      { id: 4, entry_id: null, source_id: 1, link_image: 12 }
+    ]);
+    expect(
+      migrated
+        .query('SELECT id, text, image, box_left FROM entries ORDER BY id')
+        .all()
+    ).toEqual([
+      { id: 1, text: 'Kaste', image: 12, box_left: 10 },
+      { id: 2, text: 'Kaste', image: 12, box_left: 12 }
+    ]);
+    expect(
+      migrated
+        .query(
+          `SELECT id, source_id, link_by, link_box_left FROM ${CITATIONS_READ}
+           WHERE id = 2`
+        )
+        .get()
+    ).toEqual({ id: 2, source_id: 1, link_by: 'hand', link_box_left: 10 });
     migrated.close();
   });
 });

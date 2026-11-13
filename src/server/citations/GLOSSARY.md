@@ -63,7 +63,7 @@ One scan in a Volume, numbered from 1 in Astia's order. What a **Link** opens.
 _Avoid_: page (written on the scan), frame (MyHeritage's numbering).
 
 **Entry**:
-One record written in a church book: a baptism, a marriage, or a person's line in a household, on one **Image**, where its **Box** is. What a church-book Citation is evidence from. Several people's Citations may cite one Entry, each in their own **Role**: a baptism names the child, the parents and the godparents. The app keeps no Entry of its own yet; its Citations of an Entry each hold the Box.
+One record written in a church book: a baptism, a marriage, or a person's line in a household, on one **Image**, where its **Box** is. What a church-book Citation is evidence from. Several people's Citations may cite one Entry, each in their own **Role**: a baptism names the child, the parents and the godparents. The app holds one for its own Citations of an Image (made in the Scan viewer or converted), with the Box, Event and Transcription once for all who cite it (ADR-0026); a Church-book reference still holds its own Box until the MyHeritage import goes.
 _Avoid_: record (MyHeritage's record of an Entry, with its **Record number**), citation (one person's reference to it).
 
 **Transcription**:

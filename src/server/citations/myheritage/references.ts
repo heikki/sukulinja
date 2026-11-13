@@ -8,6 +8,7 @@ import type { Database } from 'bun:sqlite';
 import type { RecordView } from '@/common/types';
 
 import { annotated, annotationColumnsSql } from '../annotations';
+import { CITATIONS_READ } from '../entries';
 import type { References } from '../references';
 import type { Marks } from './pins/marks';
 import { churchBookRefOf, indexRoleOf, markKey, readRecord } from './record';
@@ -41,7 +42,7 @@ export function referencesOf(
   { db, marks }: { db: Database; marks: Marks }
 ): References<ChurchBookRef> {
   const rowOf = db.prepare<TextRow, [number]>(
-    `SELECT id, text, role, ${annotationColumnsSql()} FROM citations WHERE id = ?`
+    `SELECT id, text, role, ${annotationColumnsSql()} FROM ${CITATIONS_READ} WHERE id = ?`
   );
 
   return {

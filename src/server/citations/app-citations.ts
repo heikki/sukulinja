@@ -9,6 +9,12 @@ import type { Box } from '@/common/types';
 
 import { openAnnotations } from './annotations';
 import { viewerUrl } from './astia/astia';
+import {
+  CITATIONS_READ,
+  dropUncitedEntries,
+  gatherEntries,
+  openEntries
+} from './entries';
 import type { Converting } from './references';
 import { bookKind } from './text';
 
@@ -54,6 +60,7 @@ type ArchiveOf = (volumeId: string) => Promise<string | null>;
 
 export function openAppCitations(db: Database) {
   const annotations = openAnnotations(db);
+  const entries = openEntries(db);
   // The Volume's source is known by its own record: the xref the app gave
   // it, else its title and publisher, as one brought back under another
   // xref has them, once the title names its archive (ADR-0019): a label
@@ -75,7 +82,7 @@ export function openAppCitations(db: Database) {
   >(
     `SELECT s.id, s.title, c.link_volume_id AS volumeId,
        c.link_volume AS volume
-     FROM sources s JOIN citations c ON c.source_id = s.id
+     FROM sources s JOIN ${CITATIONS_READ} c ON c.source_id = s.id
      WHERE s.publisher = ? AND c.added_in_app = 1
        AND c.link_volume_id IS NOT NULL
      GROUP BY s.id ORDER BY s.id`
@@ -95,14 +102,15 @@ export function openAppCitations(db: Database) {
     { madeInApp: number; sourceId: number | null },
     [number]
   >(
-    'SELECT added_in_app AS madeInApp, source_id AS sourceId FROM citations WHERE id = ?'
+    `SELECT added_in_app AS madeInApp, source_id AS sourceId
+     FROM ${CITATIONS_READ} WHERE id = ?`
   );
   const linkedVolume = db.prepare<
     { volumeId: string; volume: string },
     [number]
   >(
-    `SELECT link_volume_id AS volumeId, link_volume AS volume FROM citations
-     WHERE id = ? AND link_volume_id IS NOT NULL`
+    `SELECT link_volume_id AS volumeId, link_volume AS volume
+     FROM ${CITATIONS_READ} WHERE id = ? AND link_volume_id IS NOT NULL`
   );
   const adopt = db.prepare(
     `UPDATE citations SET source_id = ?, text = ?, event = ?, role = ?,
@@ -116,7 +124,7 @@ export function openAppCitations(db: Database) {
   );
   const deleteRow = db.prepare('DELETE FROM citations WHERE id = ?');
   const citedBy = db.prepare<{ id: number }, [number]>(
-    'SELECT id FROM citations WHERE source_id = ? LIMIT 1'
+    `SELECT id FROM ${CITATIONS_READ} WHERE source_id = ? LIMIT 1`
   );
   const deleteSourceNotes = db.prepare(
     "DELETE FROM notes WHERE owner_type = 'source' AND owner_id = ?"
@@ -149,6 +157,8 @@ export function openAppCitations(db: Database) {
         // MyHeritage's EVEN and ROLE, not GEDCOM's, give way (ADR-0016).
         adopt.run(source, text, entryEvent(at.volume), role, id);
       }
+      // Every citation of the record, alike, then cites one Entry.
+      gatherEntries(db);
     })();
   }
 
@@ -162,42 +172,50 @@ export function openAppCitations(db: Database) {
   }
 
   return {
-    // Stores the Citation; its id.
+    // Stores the Citation, of a new Entry at the Box (ADR-0026); its id.
     create(c: NewCitation) {
-      return db.transaction(() =>
-        annotations.insert(
+      return db.transaction(() => {
+        const entryId = entries.create({
+          sourceId: sourceOf(c.volumeId, c.volume, c.archive ?? null),
+          page: viewerUrl(c.volumeId, c.fileId),
+          event: entryEvent(c.volume),
+          text: c.text,
+          volumeId: c.volumeId,
+          volume: c.volume,
+          image: c.image,
+          fileId: c.fileId,
+          box: c.box
+        });
+        return annotations.insert(
           {
             scopeType: 'person',
             scopeId: c.personId,
-            sourceId: sourceOf(c.volumeId, c.volume, c.archive ?? null),
+            sourceId: null,
             sortOrder: nextOrder.get(c.personId)!.n,
-            page: viewerUrl(c.volumeId, c.fileId),
-            event: entryEvent(c.volume),
+            page: null,
+            event: null,
             role: c.role ?? null,
             quality: null,
             dataDate: null,
-            text: c.text
+            text: null,
+            entryId
           },
-          {
-            link: {
-              volumeId: c.volumeId,
-              volume: c.volume,
-              image: c.image,
-              fileId: c.fileId,
-              box: c.box,
-              by: 'hand'
-            },
-            originalPage: null,
-            madeInApp: true
-          }
-        )
-      )();
+          { link: null, originalPage: null, madeInApp: true }
+        );
+      })();
     },
 
     // Moves a Citation of an Image to another entry in its Volume: its
-    // link, and the Image's address it cites.
+    // link, and the Image's address it cites. A Citation of an Entry moves
+    // the Entry, for everyone citing it.
     move(id: number, to: Omit<NewCitation, 'personId' | 'text' | 'archive'>) {
       const { volumeId, volume, image, fileId, box } = to;
+      const entryId = entries.ofCitation(id);
+      if (entryId !== null) {
+        const page = viewerUrl(volumeId, fileId);
+        entries.move(entryId, { page, volumeId, volume, image, fileId, box });
+        return;
+      }
       annotations.carry(id, {
         page: viewerUrl(volumeId, fileId),
         annotation: {
@@ -254,6 +272,7 @@ export function openAppCitations(db: Database) {
         deleteNotes.run(id);
         deleteMedia.run(id);
         deleteRow.run(id);
+        dropUncitedEntries(db);
         const { sourceId } = row;
         if (
           row.madeInApp === 1 &&

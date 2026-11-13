@@ -156,6 +156,24 @@ const SCHEMA_SQL = `
     sort_order INTEGER NOT NULL DEFAULT 0
   );
 
+  -- An Entry in a church book, on an Image with its Box, held once for
+  -- the app's Citations that cite it (ADR-0026).
+  CREATE TABLE IF NOT EXISTS entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_id INTEGER REFERENCES sources(id) ON DELETE SET NULL,
+    page TEXT,
+    event TEXT,
+    text TEXT,
+    volume_id TEXT NOT NULL,
+    volume TEXT NOT NULL,
+    image INTEGER NOT NULL,
+    file_id TEXT NOT NULL,
+    box_left INTEGER NOT NULL,
+    box_top INTEGER NOT NULL,
+    box_width INTEGER NOT NULL,
+    box_height INTEGER NOT NULL
+  );
+
   CREATE TABLE IF NOT EXISTS citations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     scope_type TEXT NOT NULL CHECK (
@@ -186,9 +204,13 @@ const SCHEMA_SQL = `
     -- Made in the app, not by an import: a re-import keeps it.
     added_in_app INTEGER NOT NULL DEFAULT 0,
     sort_order INTEGER NOT NULL DEFAULT 0,
+    -- The Entry a Citation of an Entry cites, which holds its source,
+    -- page, Event, text and link (ADR-0026), left empty here.
+    entry_id INTEGER REFERENCES entries(id),
     CHECK ((link_volume_id IS NULL) = (link_by IS NULL))
   );
   CREATE INDEX IF NOT EXISTS citations_scope_idx ON citations(scope_type, scope_id);
+  CREATE INDEX IF NOT EXISTS citations_entry_idx ON citations(entry_id);
   -- The Facts a Citation supports: its person's, their marriages', or a
   -- family Citation's family's (ADR-0022). Nothing is written on a Fact.
   CREATE TABLE IF NOT EXISTS fact_citations (
