@@ -68,6 +68,9 @@ test('says what each was', () => {
   expect(doneLabel({ ...imported, merged: true })).toBe(
     'Imported tree.ged again'
   );
+  expect(doneLabel({ kind: 'addresses-to-places', facts: 2 })).toBe(
+    'Moved addresses to places'
+  );
 });
 
 test('says where, and what more it did', () => {
@@ -80,6 +83,9 @@ test('says where, and what more it did', () => {
     detailOf({ kind: 'import', file: 'a.ged', merged: true, lost: 2 })
   ).toBe('2 not kept');
   expect(detailOf({ kind: 'undo-import' })).toBeNull();
+  expect(detailOf({ kind: 'addresses-to-places', facts: 2311 })).toBe(
+    '2311 Facts'
+  );
   const switched = {
     kind: 'switch-filming',
     volume: 'I Ab:9',

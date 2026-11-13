@@ -101,6 +101,8 @@ export function doneLabel(what: ChangeWhat) {
       return 'Undid the last import';
     case 'new-dataset':
       return 'Started the dataset';
+    case 'addresses-to-places':
+      return 'Moved addresses to places';
     case 'switch-filming':
       return 'Switched to the new filming';
   }
@@ -143,6 +145,8 @@ export function detailOf(what: ChangeWhat) {
     case 'undo-import':
     case 'new-dataset':
       return null;
+    case 'addresses-to-places':
+      return count(what.facts, 'Fact', 'Facts');
     case 'switch-filming': {
       const images = `${volumeTitle(what.volume)}, ${what.from} → ${what.to} Images`;
       return what.stale === 0

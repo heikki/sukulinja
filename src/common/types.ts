@@ -110,7 +110,7 @@ export interface FactRow {
   // As stored, a GEDCOM date.
   date: string | null;
   place: string | null;
-  // ADDR, for events recorded with an address rather than a place.
+  // GEDCOM's ADDR: a mailing address (ADR-0023).
   address: string | null;
   value: string | null;
   spouse: string | null;
@@ -122,7 +122,7 @@ export interface FactRow {
 export interface FactFields {
   date: string;
   place: string;
-  // Where in the place: a village, a farm or a house (GEDCOM's ADDR).
+  // A mailing address (GEDCOM's ADDR, ADR-0023).
   address: string;
   value: string;
   type: string;
@@ -559,6 +559,9 @@ export type ChangeWhat =
   | { kind: 'undo-import' }
   // A dataset started with its first person, whom it's on.
   | { kind: 'new-dataset' }
+  // The Facts whose address stood alone, as MyHeritage wrote residences,
+  // given it as their place (schema 6, ADR-0023).
+  | { kind: 'addresses-to-places'; facts: number }
   | {
       kind: 'switch-filming';
       volume: string;

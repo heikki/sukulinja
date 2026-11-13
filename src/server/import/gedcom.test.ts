@@ -101,6 +101,10 @@ test('stores notes, causes, ages, types, citation dates and source authors, in o
     '2 ADDR Pajula',
     '3 ADR1 Pajula',
     '3 CITY Haukivuori',
+    '1 RESI',
+    '2 ADDR Mannerheimintie 1',
+    '3 POST 00100',
+    '3 CITY Helsinki',
     '1 SOUR @S1@',
     '2 PAGE p. 4',
     '2 EVEN Record',
@@ -119,7 +123,7 @@ test('stores notes, causes, ages, types, citation dates and source authors, in o
   expect(
     db
       .query(
-        'SELECT tag, type, date_text AS date, address, age, cause FROM facts ORDER BY sort_order'
+        'SELECT tag, type, date_text AS date, place, address, age, cause FROM facts ORDER BY sort_order'
       )
       .all()
   ).toEqual([
@@ -127,6 +131,7 @@ test('stores notes, causes, ages, types, citation dates and source authors, in o
       tag: 'CENS',
       type: null,
       date: '1900',
+      place: null,
       address: null,
       age: null,
       cause: null
@@ -135,6 +140,7 @@ test('stores notes, causes, ages, types, citation dates and source authors, in o
       tag: 'EVEN',
       type: 'Moved away',
       date: null,
+      place: null,
       address: null,
       age: null,
       cause: null
@@ -143,6 +149,7 @@ test('stores notes, causes, ages, types, citation dates and source authors, in o
       tag: 'DEAT',
       type: null,
       date: null,
+      place: null,
       address: null,
       age: '80y',
       cause: 'fever'
@@ -151,7 +158,17 @@ test('stores notes, causes, ages, types, citation dates and source authors, in o
       tag: 'RESI',
       type: null,
       date: null,
-      address: 'Pajula, Pajula, Haukivuori',
+      place: 'Pajula, Pajula, Haukivuori',
+      address: null,
+      age: null,
+      cause: null
+    },
+    {
+      tag: 'RESI',
+      type: null,
+      date: null,
+      place: null,
+      address: 'Mannerheimintie 1, Helsinki, 00100',
       age: null,
       cause: null
     }
@@ -160,9 +177,14 @@ test('stores notes, causes, ages, types, citation dates and source authors, in o
     db.query('SELECT text FROM notes WHERE owner_type = ?').all('fact')
   ).toEqual([{ text: 'On the farm' }]);
   expect(
-    db.query('SELECT owner_type, text, line1, city FROM addresses').all()
+    db.query('SELECT owner_type, text, postal_code, city FROM addresses').all()
   ).toEqual([
-    { owner_type: 'fact', text: 'Pajula', line1: 'Pajula', city: 'Haukivuori' }
+    {
+      owner_type: 'fact',
+      text: 'Mannerheimintie 1',
+      postal_code: '00100',
+      city: 'Helsinki'
+    }
   ]);
   expect(
     db.query('SELECT tag, value FROM name_pieces ORDER BY sort_order').all()

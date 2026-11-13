@@ -282,10 +282,10 @@ class FactFormElement extends SignalWatcher(LitElement) {
           : nothing
       }
       ${this.renderField('date', 'Date', 'e.g. 3.3.1761 or n. 1761')}
-      ${this.renderField('place', 'Place', 'e.g. Haukivuori', 'places')}
+      ${this.renderField('place', 'Place', 'e.g. Tuppurala, Juva', 'places')}
       ${
         tag === 'RESI' || (this.fact?.address ?? null) !== null
-          ? this.renderField('address', 'Address', 'e.g. Tuppurala')
+          ? this.renderField('address', 'Address', 'e.g. Kauppakatu 1')
           : nothing
       }
       <datalist id="places">
