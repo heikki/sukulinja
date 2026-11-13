@@ -53,12 +53,12 @@ export const factSourcesStyles = [
       content: '↳ ';
     }
 
-    /* Edit event, then the sources' list. */
+    /* Edit event and the sources' list side by side; the latter's count
+       wraps under it when Events is narrow. */
     .actions {
       display: flex;
-      flex-direction: column;
       align-items: start;
-      gap: 0.2rem;
+      gap: 0.75rem;
       margin-top: 0.3rem;
     }
 
@@ -68,6 +68,12 @@ export const factSourcesStyles = [
 
     .actions button {
       color: var(--muted);
+    }
+
+    button.edit,
+    .count {
+      flex: none;
+      white-space: nowrap;
     }
 
     .actions button:hover,

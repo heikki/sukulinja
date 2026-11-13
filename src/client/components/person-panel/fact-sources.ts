@@ -52,8 +52,8 @@ function compareKeys(
 
 // Under a picked Fact in Events: the sources supporting it (ADR-0022),
 // each opened by a click; then _Edit event_, asking Events for its form as
-// `edit-fact`, and _Add source…_ or _Edit
-// sources…_, which lists all the person's sources, each with a checkbox
+// `edit-fact`, and _Add source_ or _Edit
+// sources_, which lists all the person's sources, each with a checkbox
 // that adds or takes back its support, a Change each, in Astia's order
 // (`sortKey`); one whose Transcription suggests it supports
 // the Fact says so, with what it says and whether that differs. A source
@@ -195,7 +195,7 @@ class FactSourcesElement extends LitElement {
     const suggested = this.sources.filter(
       (s) => !this.supports(s) && this.suggestionOf(s) !== null
     ).length;
-    const label = supporting.length === 0 ? 'Add source…' : 'Edit sources…';
+    const label = supporting.length === 0 ? 'Add source' : 'Edit sources';
     return html`<button
       class="toggle"
       aria-expanded=${this.editing ? 'true' : 'false'}
@@ -203,7 +203,12 @@ class FactSourcesElement extends LitElement {
         this.editing = !this.editing;
       }}
     >
-      ${label}${suggested === 0 ? '' : ` (${suggested} suggested)`}
+      ${label}
+      ${
+        suggested === 0
+          ? nothing
+          : html`<span class="count">(${suggested} suggested)</span>`
+      }
     </button>`;
   }
 
