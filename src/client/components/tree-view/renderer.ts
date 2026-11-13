@@ -1,9 +1,10 @@
 import { css, svg } from 'lit';
 
+import { chartSpacing } from '@/client/chart-spacing';
 import type { PersonRow } from '@/common/types';
 
 import { edgePath } from './connectors';
-import type { Box, DrawnLine } from './emit';
+import type { Box, Dims, DrawnLine } from './emit';
 import { silhouette, silhouetteStyles } from './silhouette';
 
 const NAME_MAX_CHARS = 14;
@@ -96,17 +97,16 @@ export function renderEdge(line: DrawnLine, isNew: boolean, ghost = false) {
 
 // Lives with paint because dim choices are paint choices; emit receives
 // them as a parameter rather than reaching back here.
-export const dims = {
-  boxW: 110,
-  boxH: 140,
-  gapX: 22,
-  coupleGap: 14,
-  gapY: 60,
-  tieOffset: 6
-};
+export const card = { boxW: 110, boxH: 140 };
+
+// The card's size and the spacing as tuned in Settings. Read inside a
+// render, so the chart lays out again when the spacing changes.
+export function dims(): Dims {
+  return { ...card, ...chartSpacing.get() };
+}
 
 // Half a card's size, either way from its centre.
-export const cardHalf = { x: dims.boxW / 2, y: dims.boxH / 2 };
+export const cardHalf = { x: card.boxW / 2, y: card.boxH / 2 };
 
 const avatarR = 28;
 const AVATAR_TOP_INSET = 14;
@@ -132,7 +132,7 @@ export function renderBox(
   }
 ) {
   const { photo, selected = false, entering, ghost = false } = state;
-  const { boxW, boxH } = dims;
+  const { boxW, boxH } = card;
   const tx = box.pos.x - boxW / 2;
   const ty = box.pos.y - boxH / 2;
   const cx = boxW / 2;

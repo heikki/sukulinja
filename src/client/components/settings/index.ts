@@ -17,6 +17,7 @@ import { CornerPopover, popoverStyles } from '../corner-panel/popover';
 import { capDrop, clearDrop, formatBytes } from './helpers';
 
 import './assistant-key';
+import './chart-spacing';
 import type { ScanCacheDrop } from './helpers';
 
 export type GenerationsChangeEvent = CustomEvent<number>;
@@ -358,6 +359,8 @@ class SettingsElement extends LitElement {
         ${this.renderDataset()} ${this.renderAppearance()}
         ${this.renderGenerations()} ${this.renderScanCache()}
         ${this.renderAssistant()}
+        <span class="label">Chart spacing</span>
+        <sl-chart-spacing></sl-chart-spacing>
       </div>
     `;
   }

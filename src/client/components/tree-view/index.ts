@@ -593,7 +593,7 @@ class TreeViewElement extends SignalWatcher(LitElement) {
     if (this.rootId === null) {
       return html`<div class="empty">No people in database.</div>`;
     }
-    const chart = buildChart(this.rootId, this.indices, dims);
+    const chart = buildChart(this.rootId, this.indices, dims());
     if (chart === null) {
       return html`<div class="empty">No data for this person.</div>`;
     }

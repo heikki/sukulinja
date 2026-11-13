@@ -20,6 +20,8 @@ export interface Dims {
   // reads as one unit.
   coupleGap: number;
   gapY: number;
+  // How far above the cards' bottom edge a Tie runs.
+  tieLift: number;
   tieOffset: number;
 }
 
@@ -114,8 +116,7 @@ export function emitLayout(
   const boxHalfSlot = dims.boxW / slotPitch / 2;
   const halfW = dims.boxW / 2;
   const halfH = dims.boxH / 2;
-  // A Tie sits as far above the card's bottom edge as the Bar sits below it.
-  const tieY = halfH - dims.gapY / 2;
+  const tieY = halfH - dims.tieLift;
   const boxes: Box[] = [];
   const lines: DrawnLine[] = [];
   let minX = Infinity;

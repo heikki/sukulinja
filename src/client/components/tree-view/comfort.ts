@@ -4,7 +4,7 @@ import type { FamilyRow } from '@/common/types';
 
 import { otherSpouseOf } from './build/indices';
 import type { Box, Extents } from './emit';
-import { dims } from './renderer';
+import { card, dims } from './renderer';
 import type { Comfort } from './viewport';
 
 function boundsOf(boxes: Box[]): Extents {
@@ -12,12 +12,12 @@ function boundsOf(boxes: Box[]): Extents {
   const ys = boxes.map((b) => b.pos.y);
   return {
     min: {
-      x: Math.min(...xs) - dims.boxW / 2,
-      y: Math.min(...ys) - dims.boxH / 2
+      x: Math.min(...xs) - card.boxW / 2,
+      y: Math.min(...ys) - card.boxH / 2
     },
     max: {
-      x: Math.max(...xs) + dims.boxW / 2,
-      y: Math.max(...ys) + dims.boxH / 2
+      x: Math.max(...xs) + card.boxW / 2,
+      y: Math.max(...ys) + card.boxH / 2
     }
   };
 }
@@ -30,7 +30,7 @@ export function comfortOf(
   boxes: Box[],
   coreIds: ReadonlySet<number>
 ): Comfort | null {
-  const rowPitch = dims.boxH + dims.gapY;
+  const rowPitch = card.boxH + dims().gapY;
   const rows = boxes.filter((b) => b.pos.y <= 0 && b.pos.y >= -rowPitch);
   if (rows.length === 0) return null;
   const region = boundsOf(rows);

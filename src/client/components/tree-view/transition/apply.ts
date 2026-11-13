@@ -5,7 +5,7 @@
 
 import { edgePath } from '../connectors';
 import type { LineKind, Point } from '../emit';
-import { dims } from '../renderer';
+import { card } from '../renderer';
 import type { MovePlan } from './planner';
 import type { PhaseTiming } from './schedule';
 
@@ -26,8 +26,8 @@ function moved(ox: number, oy: number) {
 // the translate already lands — fixed. Edges are points, so their endpoint slide
 // already tracks the zoom; only boxes carry an extent that must scale.
 function scaleAboutCentre(k: number) {
-  const cx = dims.boxW / 2;
-  const cy = dims.boxH / 2;
+  const cx = card.boxW / 2;
+  const cy = card.boxH / 2;
   return `translate(${cx}px, ${cy}px) scale(${k}) translate(${-cx}px, ${-cy}px)`;
 }
 

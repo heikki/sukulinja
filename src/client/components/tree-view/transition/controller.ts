@@ -10,7 +10,7 @@
 import type { ReactiveController, ReactiveControllerHost } from 'lit';
 
 import type { Box, DrawnLine, EmitOutput, Point } from '../emit';
-import { dims } from '../renderer';
+import { card } from '../renderer';
 import { applyMove } from './apply';
 import type { ApplyResult } from './apply';
 import { captureFirst, enterAll, planTransition } from './planner';
@@ -201,7 +201,7 @@ export class TransitionController implements ReactiveController {
     const plan = planTransition(pending.first, this.chart, {
       kind: pending.kind,
       toScreen: this.port.toScreen,
-      card: { width: dims.boxW * cardScale, height: dims.boxH * cardScale },
+      card: { width: card.boxW * cardScale, height: card.boxH * cardScale },
       camera: this.port.camera()
     });
     this._schedule = transitionSchedule(farthestTravel(plan.move));
