@@ -1,6 +1,6 @@
 Status: ready-for-agent
 
-Built on its own branch (`claude/project-thread-drq6ud`) and tested there; nothing goes to master until Heikki says so (2026-11-13).
+On master behind a switch (Settings → Assistant, off by default) since 2026-11-13; the read-only version (tickets 01–05, 07) is done, Proposals (06) wait.
 
 # An assistant in the app
 

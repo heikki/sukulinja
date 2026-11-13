@@ -3,6 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 
 import { currentAppearance, setAppearance } from '@/client/appearance';
 import type { Appearance } from '@/client/appearance';
+import { assistantOn, setAssistantOn } from '@/client/assistant-flag';
 import { dialogStyles } from '@/client/dialog-styles';
 import { focusRingStyles } from '@/client/focus-ring';
 import {
@@ -356,9 +357,33 @@ class SettingsElement extends LitElement {
       <div class="popover" role="group" aria-label="Settings">
         ${this.renderDataset()} ${this.renderAppearance()}
         ${this.renderGenerations()} ${this.renderScanCache()}
-        <span class="label">Assistant</span>
-        <sl-assistant-key></sl-assistant-key>
+        ${this.renderAssistant()}
       </div>
+    `;
+  }
+
+  // Off or on while the Assistant is tried out (assistant-flag.ts); on, its
+  // key below.
+  private renderAssistant() {
+    const on = assistantOn.get();
+    return html`
+      <span class="label">Assistant</span>
+      <div class="segmented">
+        ${[false, true].map(
+          (value) => html`
+            <button
+              aria-pressed=${value === on}
+              @click=${() => {
+                setAssistantOn(value);
+                this.requestUpdate();
+              }}
+            >
+              ${value ? 'On' : 'Off'}
+            </button>
+          `
+        )}
+      </div>
+      ${on ? html`<span></span><sl-assistant-key></sl-assistant-key>` : nothing}
     `;
   }
 
