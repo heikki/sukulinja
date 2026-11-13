@@ -309,7 +309,7 @@ export function createApi(
   // Every dataset that opens, outdated ones left out.
   async function openDatasets() {
     return (await registry.list())
-      .filter((d) => !d.outdated)
+      .filter((d) => d.outdated === null)
       .flatMap((d) => {
         const db = tryOpen(d.slug);
         return db === null ? [] : [db];

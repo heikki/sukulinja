@@ -59,7 +59,7 @@ export function menuButton(
   set: (menu: RowMenu | null) => void
 ) {
   // An outdated dataset won't open, so it can't be exported.
-  if (d.outdated) return nothing;
+  if (d.outdated !== null) return nothing;
   const open = menu?.dataset.slug === d.slug;
   return html`<button
     class="icon"

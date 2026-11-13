@@ -33,7 +33,7 @@ async function importDemo(registry: DatasetRegistry, gedzipPath: string) {
 // version: nobody else has its GEDZIP to import it again with.
 function isOutdatedDemo(registry: DatasetRegistry) {
   const info = registry.info(SLUG);
-  return info?.outdated === true && info.sourceFilename === SOURCE_FILENAME;
+  return info?.outdated === 'older' && info.sourceFilename === SOURCE_FILENAME;
 }
 
 export async function seedDemo(registry: DatasetRegistry, gedzipPath: string) {

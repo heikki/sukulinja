@@ -47,7 +47,7 @@ try {
     parishes: openParishes(root)
   });
   const marked = (await registry.list())
-    .filter((d) => !d.outdated)
+    .filter((d) => d.outdated === null)
     .map((d) => folder.scans(registry.open(d.slug)).marked());
   const result = await checkRescans(
     {

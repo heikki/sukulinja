@@ -7,7 +7,7 @@ import { isAbsolute, join } from 'node:path';
 
 import { gedcom7Errors } from '../../../test/gedcom7/validate';
 import { exportGedcom } from '../export/gedcom';
-import { OutdatedDatasetError } from './db';
+import { OutdatedDatasetError, SCHEMA_VERSION } from './db';
 import { DatasetExists, DatasetNotFound, DatasetRegistry } from './registry';
 
 let root = '';
@@ -172,7 +172,7 @@ describe('list', () => {
         familyCount: 1,
         importedAt: '2026-01-01T00:00:00Z',
         sourceFilename: 'alpha.ged',
-        outdated: false
+        outdated: null
       },
       {
         slug: 'bravo',
@@ -181,7 +181,7 @@ describe('list', () => {
         familyCount: 0,
         importedAt: null,
         sourceFilename: null,
-        outdated: false
+        outdated: null
       }
     ]);
   });
@@ -215,7 +215,7 @@ describe('mediaDir', () => {
 });
 
 describe('a dataset an older version built', () => {
-  async function writeOldDataset(slug: string) {
+  async function writeOldDataset(slug: string, version = 0) {
     await mkdir(join(root, slug), { recursive: true });
     const db = new Database(join(root, slug, 'db.sqlite'), { create: true });
     db.run('CREATE TABLE persons (id INTEGER PRIMARY KEY, xref TEXT)');
@@ -223,6 +223,7 @@ describe('a dataset an older version built', () => {
     db.run('CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
     db.run("INSERT INTO meta VALUES ('display_name', 'Old Tree')");
     db.run("INSERT INTO persons (xref) VALUES ('@I1@')");
+    db.run(`PRAGMA user_version = ${version}`);
     db.close();
   }
 
@@ -241,8 +242,15 @@ describe('a dataset an older version built', () => {
         familyCount: 0,
         importedAt: null,
         sourceFilename: null,
-        outdated: true
+        outdated: 'older'
       }
+    ]);
+  });
+
+  test("one a newer version built is listed as the newer one's", async () => {
+    await writeOldDataset('new', SCHEMA_VERSION + 1);
+    expect(await registry.list()).toMatchObject([
+      { slug: 'new', outdated: 'newer' }
     ]);
   });
 });

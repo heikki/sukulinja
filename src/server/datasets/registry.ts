@@ -117,7 +117,7 @@ export class DatasetRegistry {
       req.log?.('Finishing…');
       await staging.commit();
       const info = this.readAny(req.slug, (db) =>
-        readInfo(db!, req.slug, false)
+        readInfo(db!, req.slug, null)
       );
       return { ...built, info };
     } catch (err) {
@@ -141,7 +141,7 @@ export class DatasetRegistry {
       writeMeta(staging.db, { display_name: req.displayName });
       await staging.commit();
       const info = this.readAny(req.slug, (db) =>
-        readInfo(db!, req.slug, false)
+        readInfo(db!, req.slug, null)
       );
       return { personId, info };
     } catch (err) {
@@ -210,19 +210,33 @@ export class DatasetRegistry {
   // The dataset under the slug, outdated or not; null when none can be read.
   info(slug: string) {
     validateSlug(slug);
-    try {
-      return readInfo(this.open(slug), slug, false);
-    } catch (err) {
-      if (!(err instanceof OutdatedDatasetError)) return null;
+    const by = this.outdatedBy(slug);
+    if (by === null) {
+      try {
+        return readInfo(this.open(slug), slug, null);
+      } catch {
+        return null;
+      }
     }
     return this.readAny(slug, (db) => {
       if (db === null) return null;
       try {
-        return readInfo(db, slug, true);
+        return readInfo(db, slug, by);
       } catch {
         return null;
       }
     });
+  }
+
+  // Which version built the dataset, when it won't open for that; null
+  // when it opens, or fails for another reason.
+  private outdatedBy(slug: string) {
+    try {
+      this.open(slug);
+      return null;
+    } catch (err) {
+      return err instanceof OutdatedDatasetError ? err.by : null;
+    }
   }
 
   // The dataset's database. Throws DatasetNotFound, or OutdatedDatasetError
@@ -280,7 +294,11 @@ function writeMeta(db: Database, meta: Record<string, string | null>) {
   }
 }
 
-function readInfo(db: Database, slug: string, outdated: boolean) {
+function readInfo(
+  db: Database,
+  slug: string,
+  outdated: DatasetInfo['outdated']
+) {
   const meta = new Map<string, string>(
     db
       .query<{ key: string; value: string }, []>('SELECT key, value FROM meta')

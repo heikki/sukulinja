@@ -287,7 +287,14 @@ const SCHEMA_SQL = `
 export const SCHEMA_VERSION = latestOf(MIGRATIONS);
 
 // A dataset whose database is too old to migrate, or a newer app built.
-export class OutdatedDatasetError extends Error {}
+export class OutdatedDatasetError extends Error {
+  constructor(
+    message: string,
+    readonly by: 'older' | 'newer'
+  ) {
+    super(message);
+  }
+}
 
 function hasTables(db: Database) {
   return (
@@ -319,13 +326,15 @@ export function openDb(path: string): Database {
     if (version < OLDEST_MIGRATED) {
       db.close();
       throw new OutdatedDatasetError(
-        `made by an older version of the app, from before schema ${OLDEST_MIGRATED}`
+        `made by an older version of the app, from before schema ${OLDEST_MIGRATED}`,
+        'older'
       );
     }
     if (version > SCHEMA_VERSION) {
       db.close();
       throw new OutdatedDatasetError(
-        `made by a newer version of the app (schema ${version}, now ${SCHEMA_VERSION})`
+        `made by a newer version of the app (schema ${version}, now ${SCHEMA_VERSION})`,
+        'newer'
       );
     }
     if (version < SCHEMA_VERSION) {

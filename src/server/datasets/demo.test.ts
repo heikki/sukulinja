@@ -83,10 +83,10 @@ function age(sourceFilename?: string) {
 test('a demo an older version built is imported again', async () => {
   await seedDemo(registry, DEMO);
   age();
-  expect(await registry.list()).toMatchObject([{ outdated: true }]);
+  expect(await registry.list()).toMatchObject([{ outdated: 'older' }]);
   await seedDemo(registry, DEMO);
   expect(await registry.list()).toMatchObject([
-    { slug: 'bourbon', outdated: false, personCount: 303 }
+    { slug: 'bourbon', outdated: null, personCount: 303 }
   ]);
 });
 
@@ -94,5 +94,5 @@ test("an outdated dataset of your own under the demo's name is left alone", asyn
   await seedDemo(registry, DEMO);
   age('my-own.ged');
   await seedDemo(registry, DEMO);
-  expect(await registry.list()).toMatchObject([{ outdated: true }]);
+  expect(await registry.list()).toMatchObject([{ outdated: 'older' }]);
 });

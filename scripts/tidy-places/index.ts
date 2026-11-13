@@ -34,7 +34,7 @@ const { values } = parseArgs({
 const root = resolve(values.data ?? 'data');
 const registry = new DatasetRegistry(root);
 const slugs = (await registry.list())
-  .filter((d) => !d.outdated)
+  .filter((d) => d.outdated === null)
   .map((d) => d.slug)
   .filter((slug) => values.dataset === undefined || slug === values.dataset);
 if (slugs.length === 0) {

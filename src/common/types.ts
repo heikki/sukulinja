@@ -42,9 +42,10 @@ export interface DatasetInfo {
   importedAt: string | null;
   // The file it was last imported from.
   sourceFilename: string | null;
-  // Built by an older version of the app than migrations reach, so it
-  // won't open (ADR-0018); it can only be deleted.
-  outdated: boolean;
+  // Built by an older version of the app than migrations reach, or by a
+  // newer one, so it won't open (ADR-0018); null when it opens. An older
+  // one can only be deleted; a newer one opens again in that version.
+  outdated: 'older' | 'newer' | null;
 }
 
 // What an import says as it goes, one event per line: its steps, then

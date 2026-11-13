@@ -136,7 +136,7 @@ ApplicationMenu.on('application-menu-clicked', (event: unknown) => {
 // The window reopens on the page it was left on; see reopenAt.
 const reopen = reopenAt(
   loadLastView(stateDir),
-  (slug) => registry.info(slug)?.outdated === false
+  (slug) => registry.info(slug)?.outdated === null
 );
 if (reopen === null) saveLastView(stateDir, null);
 

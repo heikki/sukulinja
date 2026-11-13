@@ -108,7 +108,7 @@ test("an import doesn't replace a dataset, as its tree is edited in the app", as
   // Nor one an older version built: it's deleted first.
   outdate('tree');
   expect(await failure(upload('Tree', 'again.ged'))).toBe(refused);
-  expect((await api.list()).map((d) => d.outdated)).toEqual([true]);
+  expect((await api.list()).map((d) => d.outdated)).toEqual(['older']);
 });
 
 // What each of the dataset's Changes did, newest first.

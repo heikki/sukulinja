@@ -66,13 +66,15 @@ function renderLink(d: DatasetInfo) {
   `;
 }
 
-// An older version's database that doesn't open (ADR-0018 migrates every
-// one the app still reads); it can only be deleted.
+// A database that doesn't open: an older version's that migrations don't
+// reach (ADR-0018), or a newer version's.
 function renderOutdated(d: DatasetInfo) {
   return html`
     <div class="outdated">
       <span class="name">${d.displayName}</span>
-      <span class="muted">Made by an older version.</span>
+      <span class="muted">
+        ${d.outdated === 'newer' ? 'Made by a newer version.' : 'Made by an older version.'}
+      </span>
     </div>
   `;
 }
@@ -433,7 +435,7 @@ class AppElement extends LitElement {
           ${this.datasets!.map(
             (d) => html`
               <li>
-                ${d.outdated ? renderOutdated(d) : renderLink(d)}
+                ${d.outdated === null ? renderLink(d) : renderOutdated(d)}
                 <div class="row-actions">
                   ${menuButton(d, this.menu, this, this.setMenu)}
                   <button
