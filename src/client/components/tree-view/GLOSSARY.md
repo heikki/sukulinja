@@ -129,7 +129,7 @@ A sibship's **Drop**, **Bar** and **Legs**, drawn as one path. The Drop is drawn
 The horizontal unit. Each person occupies one slot; adjacent slots share their gap padding, so the gap between two boxes is one full gap. Couples sit one **Couple pitch** apart.
 
 **Couple pitch**:
-The distance between the two cards of a **Couple**: a box plus a couple gap half the normal gap, so a Couple reads as one unit. A little under one **Slot**. Non-Primary spouses (other marriages, the **Step-fam fan**) keep the normal gap.
+The distance between the two cards of a **Couple**: a box plus a couple gap narrower than the normal gap, so a Couple reads as one unit. A little under one **Slot**. Non-Primary spouses (other marriages, the **Step-fam fan**) keep the normal gap.
 
 **Generation**:
 The unit of vertical position — a horizontal row. Root row is generation 0; above are 1↑, 2↑, …; below are 1↓, 2↓, ….
