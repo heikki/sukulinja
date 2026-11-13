@@ -21,7 +21,7 @@ export const SPACING_DEFAULTS: Readonly<ChartSpacing> = {
   gapX: 26,
   coupleGap: 16,
   gapY: 70,
-  tieLift: 24,
+  tieLift: 28,
   tieOffset: 6
 };
 
