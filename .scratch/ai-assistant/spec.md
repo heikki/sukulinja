@@ -1,4 +1,6 @@
-Status: needs-triage
+Status: ready-for-agent
+
+Built on its own branch (`claude/project-thread-drq6ud`) and tested there; nothing goes to master until Heikki says so (2026-11-13).
 
 # An assistant in the app
 
@@ -8,7 +10,7 @@ Heikki, 2026-11-13: an AI assistant in the app, kept general; renaming places wa
 
 ## What it is
 
-An **Assistant** tab in the side dock where Heikki writes, in his own words, what he wants to know or have done with the dataset. Claude answers from the dataset, and when the answer is a change, it proposes it for Heikki to confirm.
+An **Assistant** tab in the corner lists (beside Reminders, Changes, Church books and Photos) where Heikki writes, in his own words, what he wants to know or have done with the dataset. Claude answers from the dataset, and when the answer is a change, it proposes it for Heikki to confirm.
 
 - **It reads freely and writes nothing itself.** Reading tools answer directly. Anything that would change the dataset ends up in a **Proposal**: a list of operations, each with its reason, that Heikki ticks, edits and applies. Nothing is written before that.
 - **It can only do what the app can do.** Its tools are the app's own operations (add a Fact, edit a person's name, add a Reminder, support a Fact with a Citation…), so an applied operation is checked by the same rules and writes the same **Change** as the form that does it by hand. It has no write path of its own and never touches SQL. A task the app has no operation for gets the answer "the app can't do that yet"; the operation is then a feature of its own, built for the forms first.
@@ -49,7 +51,7 @@ Then:
 
 ## Key, cost, privacy
 
-- **The key** is Heikki's Anthropic API key, kept in the macOS Keychain and set in Settings; in dev it can also come from the environment or an `ant auth login` profile, as `claude-reader.ts` reads it. Without a key the tab says how to add one.
+- **The key** is Heikki's Anthropic API key, kept in the system's credential store (`Bun.secrets`: the Keychain on macOS) and set in Settings; in dev it can also come from the environment or an `ant auth login` profile, as `claude-reader.ts` reads it. Without a key the tab says how to add one.
 - **Cost:** Opus 5.5 is $4 / $20 per million tokens. A question about one person costs about a cent; a sweep over the whole tree costs tens of cents. The tab shows each answer's tokens and dollars, as the Reader's `Spend` does.
 - **Privacy:** whatever a tool returns goes to Anthropic, including living people's names and dates when a question reads them. API data isn't used for training. The tools return only what a question needs, not whole records.
 
@@ -59,7 +61,7 @@ Then:
 | --- | --------------------------------------------------------------------------------------------------- | ---------- |
 | 01  | Dataset services out of the HTTP layer                                                              | none       |
 | 02  | Operation catalogue: read operations                                                                | 01         |
-| 03  | Claude client shared with the Reader; key in Keychain and Settings                                  | none       |
+| 03  | Claude client shared with the Reader; key in the credential store and Settings                      | none       |
 | 04  | Assistant loop and route, read-only answers                                                         | 02, 03     |
 | 05  | Assistant tab: conversation, what's on screen, cost                                                 | 04         |
 | 06  | Write operations in the catalogue, Proposal and _Apply_                                             | 04         |
@@ -67,10 +69,12 @@ Then:
 
 A place rename (Heikki's example) is not in these tickets. It's an operation the app doesn't have yet, so it's a feature of its own (a Places list with rename), and the assistant gets it as one more catalogue entry.
 
-## Open questions for Heikki
+## Decided by Heikki, 2026-11-13
 
-1. Is it all right to send what a question reads, living people included, to Anthropic with your own API key?
-2. Read-only first (tickets 01–05), and proposals after you've used it for a while? Recommended: the read side shows whether its answers are good before it gets to propose changes.
-3. Should a conversation be kept (a history in the tab) or forgotten when the tab closes?
-4. Should a Change made through the assistant say so ("via assistant"), or read like any other?
-5. No Change can be undone today. Should applying a large Proposal first take a GEDZIP backup?
+All as recommended:
+
+1. **What a question reads goes to Anthropic** with his own API key (API data isn't used for training), but **living people are left out** unless the question is about them: the read tools leave out anyone who may be living (no death recorded, and born within 110 years or with no birth year), saying only how many were left out, except the person on screen.
+2. **Read-only first** (tickets 01–05); Proposals (06) after he has used it for a while.
+3. **A conversation is forgotten**: it's kept in the app's memory only, until _New conversation_ or the app closes, and never written to disk.
+4. **A Change made through the assistant says so** ("via assistant"). For ticket 06.
+5. **Applying a large Proposal takes a GEDZIP backup first.** For ticket 06.

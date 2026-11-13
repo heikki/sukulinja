@@ -3,33 +3,25 @@ import { relative, resolve } from 'node:path';
 
 import type { NewChange, Reminder } from '@/common/types';
 
-import { openChanges } from './changes/changes';
 import type { Changes } from './changes/changes';
 import { openCitations } from './citations';
 import type { Astia, DatasetCitations } from './citations';
 import { lifecycleRoutes } from './datasets/lifecycle-routes';
 import { mediaDirOf } from './datasets/registry';
 import type { DatasetRegistry } from './datasets/registry';
-import { createFacts } from './facts/facts';
+import { openServices } from './datasets/services';
+import type { DatasetServices } from './datasets/services';
 import type { FactAnswer } from './facts/facts';
 import { routeFacts } from './facts/routes';
 import type { FactHandlers } from './facts/routes';
-import { createPersonDetails } from './person-details';
-import { createDeletion } from './persons/delete';
-import { createMove } from './persons/move';
-import { createPersons } from './persons/persons';
 import type { PersonAnswer } from './persons/persons';
-import { createRelatives } from './persons/relatives';
 import type { RelativeAnswer } from './persons/relatives';
 import { routePersons } from './persons/routes';
 import type { PersonHandlers } from './persons/routes';
-import { createUnlink } from './persons/unlink';
-import { createPhotos, openPhotoFiles, openTags, routePhotos } from './photos';
+import { routePhotos } from './photos';
 import type { PhotoFiles, Photos, Tags } from './photos';
-import { createReminders } from './reminders/reminders';
 import { routeReminders } from './reminders/routes';
 import type { ReminderHandlers } from './reminders/routes';
-import { createTree } from './tree';
 
 const DATASET_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?<rest>\/.*)?$/u;
 
@@ -56,39 +48,25 @@ interface DatasetHandlers
 }
 
 function createDatasetHandlers(
-  db: Database,
-  scans: DatasetCitations,
+  services: DatasetServices,
   mediaDir: string
 ): DatasetHandlers {
-  const tree = createTree(db);
-  const personDetails = createPersonDetails(db, scans);
-  const reminders = createReminders(db, scans);
-  const changes = openChanges(db, scans);
-  const photos = createPhotos(db);
-  const facts = createFacts(db, (change) => {
-    changes.add(change);
-  });
-  const tags = openTags(db, photos, (change) => {
-    changes.add(change);
-  });
-  const photoFiles = openPhotoFiles(db, mediaDir, photos, (change) => {
-    changes.add(change);
-  });
-  const relatives = createRelatives(db, (change) => {
-    changes.add(change);
-  });
-  const persons = createPersons(db, (change) => {
-    changes.add(change);
-  });
-  const unlinking = createUnlink(db, (change) => {
-    changes.add(change);
-  });
-  const deletion = createDeletion(db, (change) => {
-    changes.add(change);
-  });
-  const moving = createMove(db, (change) => {
-    changes.add(change);
-  });
+  const {
+    tree,
+    personDetails,
+    reminders,
+    changes,
+    photos,
+    facts,
+    tags,
+    photoFiles,
+    relatives,
+    persons,
+    unlinking,
+    deletion,
+    moving,
+    scans
+  } = services;
 
   // A Reminder as written or changed, or why not.
   function answerReminder(
@@ -331,10 +309,10 @@ export function createApi(
   function handlersOf(db: Database) {
     let handlers = handlersByDb.get(db);
     if (handlers === undefined) {
+      const mediaDir = mediaDirOf(db);
       handlers = createDatasetHandlers(
-        db,
-        scans.forDataset(db),
-        mediaDirOf(db)
+        openServices(db, scans.forDataset(db), mediaDir),
+        mediaDir
       );
       handlersByDb.set(db, handlers);
     }
