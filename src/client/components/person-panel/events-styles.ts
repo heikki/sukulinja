@@ -2,7 +2,7 @@ import { css } from 'lit';
 
 // Events: each Fact a row across the panel's width, tinted when pointed at
 // and more when picked, its kind in a column of its own, the picked one's
-// sources and actions under it; and below them a button to add one.
+// sources under it; and below them a button to add one.
 export const personEventsStyles = css`
   .facts {
     display: grid;
@@ -49,8 +49,7 @@ export const personEventsStyles = css`
     color: var(--muted);
   }
 
-  /* Under the picked Fact, tinted with it: its sources, then its actions,
-     quiet text buttons. */
+  /* Under the picked Fact, tinted with it: its sources. */
   .picked {
     grid-column: 1 / -1;
     display: grid;
@@ -76,7 +75,7 @@ export const personEventsStyles = css`
     list-style: none;
   }
 
-  .picked button {
+  button.source {
     padding: 0;
     border: 0;
     background: none;
@@ -87,22 +86,12 @@ export const personEventsStyles = css`
     cursor: pointer;
   }
 
-  .picked button:hover {
+  button.source:hover {
     text-decoration: underline;
   }
 
   button.source::before {
     content: '↳ ';
-  }
-
-  .actions {
-    display: flex;
-    gap: 1rem;
-    margin-top: 0.3rem;
-  }
-
-  .picked button.danger {
-    color: var(--danger);
   }
 
   sl-fact-form {

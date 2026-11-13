@@ -19,14 +19,13 @@ import {
   viewerOpening
 } from './helpers';
 
-// A Fact's form open in its place: a new one's, or a Fact's, asking first
-// to delete it when that's what was chosen.
-type Editing = { fact: number; deleting: boolean } | 'new' | null;
+// A Fact's form open in its place, by its id, or a new one's.
+type Editing = number | 'new' | null;
 
 // The person's Facts, and their marriages', from birth to death: each
 // kind, then its date, place and what else it says, dimmed while no source
-// supports it. Clicking one picks it, showing under it its sources and
-// what can be done of it; editing opens it in its place, and _Add event_
+// supports it. Clicking one picks it, showing its sources under it; a
+// second click opens it for editing in its place, and _Add event_
 // opens a new one below; one at a time. A source supporting it (ADR-0022)
 // opens in the Scan viewer; one with nothing to open there is asked for in
 // Sources, as `show-source` with its Citation's id.
@@ -48,9 +47,9 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
     this.editing = null;
   };
 
-  private edit(fact: FactRow, deleting = false) {
+  private edit(fact: FactRow) {
     this.picked = null;
-    this.editing = { fact: fact.id, deleting };
+    this.editing = fact.id;
   }
 
   private openSource(source: Source) {
@@ -73,18 +72,16 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
     return this.state.selected.sources.get().flatMap((g) => g.sources);
   }
 
-  private renderForm(fact: FactRow | null, deleting = false) {
+  private renderForm(fact: FactRow | null) {
     return html`<sl-fact-form
       .fact=${fact}
       .marriages=${this.marriages}
-      .deleting=${deleting}
       @closed=${this.close}
     ></sl-fact-form>`;
   }
 
-  // Under the picked Fact: the sources supporting it, then editing and
-  // deleting it.
-  private renderPicked(f: FactRow, sources: Source[]) {
+  // Under the picked Fact: the sources supporting it, or that there's none.
+  private renderPicked(sources: Source[]) {
     return html`<div class="picked">
       ${
         sources.length === 0
@@ -109,44 +106,23 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
               })}
             </ul>`
       }
-      <div class="actions">
-        <button
-          @click=${() => {
-            this.edit(f);
-          }}
-        >
-          Edit
-        </button>
-        <button
-          class="danger"
-          @click=${() => {
-            this.edit(f, true);
-          }}
-        >
-          Delete
-        </button>
-      </div>
     </div>`;
   }
 
   // A Fact no source supports is dimmed, so the eye finds those that
-  // still need one. Clicking picks it, or lets it go; a double-click or
-  // Enter on the picked one edits it, and Esc lets it go.
+  // still need one. Clicking picks it; clicked again, it opens for
+  // editing, where it can be deleted. Esc lets it go.
   private renderFact(f: FactRow, sources: Source[]) {
-    const { editing } = this;
-    if (editing !== null && editing !== 'new' && editing.fact === f.id) {
-      return this.renderForm(f, editing.deleting);
-    }
+    if (this.editing === f.id) return this.renderForm(f);
     const supporting = sourcesOf(f, sources);
     const picked = this.picked === f.id;
     return html`<button
         class="fact ${supporting.length === 0 ? 'unsourced' : ''}"
         aria-expanded=${picked ? 'true' : 'false'}
+        title=${picked ? 'Edit' : nothing}
         @click=${() => {
-          this.picked = picked ? null : f.id;
-        }}
-        @dblclick=${() => {
-          this.edit(f);
+          if (picked) this.edit(f);
+          else this.picked = f.id;
         }}
         @keydown=${(e: KeyboardEvent) => {
           if (e.key === 'Escape' && picked) {
@@ -159,7 +135,7 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
         <span class="kind">${factLabel(f)}</span>
         <span class="text">${factText(f)}</span>
       </button>
-      ${picked ? this.renderPicked(f, supporting) : nothing}`;
+      ${picked ? this.renderPicked(supporting) : nothing}`;
   }
 
   override render() {

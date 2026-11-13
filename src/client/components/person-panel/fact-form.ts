@@ -38,7 +38,7 @@ function spouseLabel(m: Marriage) {
 // (picked for a new one, a marriage's spouse too when there's more than
 // one), date, place, an attribute's value and an Event's type. Save or
 // Enter saves it, and it and Cancel or Esc say `closed`. A Fact being
-// changed can be deleted, asked first, or opened `deleting` to ask at once.
+// changed can be deleted, asked first.
 @customElement('sl-fact-form')
 class FactFormElement extends SignalWatcher(LitElement) {
   static override styles = [focusRingStyles, formStyles];
@@ -53,9 +53,8 @@ class FactFormElement extends SignalWatcher(LitElement) {
   @state() private tag = ADDABLE_FACTS[0]!.tag;
   @state() private familyId: number | null = null;
   @state() private fields: FactFields = BLANK;
-  // Asking whether to delete the Fact; set to open it asking.
-  @property({ attribute: false }) deleting = false;
   @state() private saving = false;
+  @state() private deleting = false;
   @state() private refused: string | null = null;
 
   override connectedCallback() {
