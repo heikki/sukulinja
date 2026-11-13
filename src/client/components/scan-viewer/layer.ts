@@ -3,17 +3,27 @@ import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
+import type { InEntry } from '@/client/dataset-api';
 import type { Point, Transform } from '@/client/pan-zoom';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
+import { bookKind } from '@/common/books';
 import type { Box } from '@/common/types';
 
 import { boxFromStage, boxOnStage } from '../box-stage/geometry';
 import { searchable } from '../person-search/choices';
 import { placesHere } from '../reminders-list/places';
 import { entriesOn } from './citations';
-import { citingImage, pickFor, roleLabel, startingPeople } from './cite';
+import {
+  citingImage,
+  parentRows,
+  pickFor,
+  roleLabel,
+  startingPeople,
+  withChild
+} from './cite';
 import { scanLayerStyles } from './edit-styles';
+import { ARROW_AT } from './entry-form';
 import type { ChooseDetail } from './entry-form';
 import { newEntryBox } from './frame';
 import type { Frame } from './frame';
@@ -154,32 +164,52 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
       .persons=${searchable(this.persons, left)}
       @pick=${(e: CustomEvent<{ id: number }>) => {
         this.popup = null;
-        this.viewer.setInEntry({ personId: e.detail.id, role });
+        this.named(e.detail.id, role);
       }}
       @close=${this.onPopupClose}
     ></sl-person-pick>`;
   }
 
-  // The pending Entry's people and words, beside its Box.
+  // Someone picked for the Role. A baptism's child brings their parents
+  // in the tree, in place of those named before.
+  private named(personId: number, role: string | null) {
+    const people = this.viewer.pending.get()?.cite?.people ?? [];
+    const volume = this.viewer.volume.get()?.label ?? '';
+    if (role === 'CHIL' && bookKind(volume) === 'kastetut') {
+      const ix = this.state.chart.people.get();
+      this.viewer.entryForm.setPeople(withChild(people, personId, ix));
+    } else this.viewer.entryForm.setInEntry({ personId, role });
+  }
+
+  // The pending Entry's people and words, beside its Box, pointing at its
+  // middle.
   private renderEntry() {
     const { view } = this;
     const pending = this.viewer.pending.get();
     if (view === null || pending?.cite === undefined) return nothing;
     const rect = boxOnStage(pending.box, view);
-    const at = { left: rect.left + rect.width + 12, top: rect.top };
+    const at = {
+      left: rect.left + rect.width + 14,
+      top: rect.top + rect.height / 2 - ARROW_AT
+    };
+    const ix = this.state.chart.people.get();
     return html`<sl-scan-entry
       style="left: ${at.left}px; top: ${at.top}px"
       .cite=${pending.cite}
       .volume=${pending.volume}
       .persons=${this.persons}
+      .parents=${parentRows(pending.cite.people, ix)}
+      @name=${(e: CustomEvent<InEntry>) => {
+        this.viewer.entryForm.setInEntry(e.detail);
+      }}
       @choose=${(e: CustomEvent<ChooseDetail>) => {
         this.popup = { at: e.detail.at, show: 'pick', role: e.detail.role };
       }}
       @drop=${(e: CustomEvent<{ personId: number }>) => {
-        this.viewer.dropFromEntry(e.detail.personId);
+        this.viewer.entryForm.drop(e.detail.personId);
       }}
       @text=${(e: CustomEvent<string>) => {
-        this.viewer.setCiteText(e.detail);
+        this.viewer.entryForm.setText(e.detail);
       }}
     ></sl-scan-entry>`;
   }

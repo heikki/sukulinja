@@ -7,7 +7,14 @@ import type {
   VolumeCitation
 } from '@/common/types';
 
-import { citingImage, pickFor, roleLabel, startingPeople } from './cite';
+import {
+  citingImage,
+  parentRows,
+  pickFor,
+  roleLabel,
+  startingPeople,
+  withChild
+} from './cite';
 
 function row(personId: number, link: Link): VolumeCitation {
   return {
@@ -166,4 +173,25 @@ test("a baptism's parents are the child's in the tree, its child theirs; no sear
   expect(
     pickFor({ volume: RIPPI, role: null, named: [child] }, IX, 1, new Set())
   ).toMatchObject({ search: true });
+});
+
+test("a baptism's parents rows are the child's in the tree, and a new child brings theirs", () => {
+  const named = [
+    { personId: 1, role: 'CHIL' },
+    { personId: 3, role: 'MOTH' }
+  ];
+  expect(parentRows(named, IX)).toEqual([
+    { role: 'FATH', personId: 2, named: false },
+    { role: 'MOTH', personId: 3, named: true }
+  ]);
+  expect(parentRows([{ personId: 4, role: 'CHIL' }], IX)).toEqual([
+    { role: 'FATH', personId: null, named: false },
+    { role: 'MOTH', personId: null, named: false }
+  ]);
+  expect(withChild(named, 4, IX)).toEqual([{ personId: 4, role: 'CHIL' }]);
+  expect(withChild([], 1, IX)).toEqual([
+    { personId: 1, role: 'CHIL' },
+    { personId: 2, role: 'FATH' },
+    { personId: 3, role: 'MOTH' }
+  ]);
 });

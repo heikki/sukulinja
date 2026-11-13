@@ -148,3 +148,41 @@ export function pickFor(
     search: true
   };
 }
+
+// A parent's row in a baptism's card (ADR-0026): the child's father or
+// mother in the tree, and whether the entry names them. A parent the
+// entry names who isn't the tree's shows too, named. `personId` null when
+// the tree has none, to make one.
+export interface ParentRow {
+  role: 'FATH' | 'MOTH';
+  personId: number | null;
+  named: boolean;
+}
+
+export function parentRows(named: InEntry[], ix: FamilyIndices): ParentRow[] {
+  const child = named.find((p) => p.role === 'CHIL');
+  const tree = child === undefined ? [] : parentsOf(child.personId, ix);
+  return (['FATH', 'MOTH'] as const).map((role) => {
+    const inEntry = named.find((p) => p.role === role);
+    const theirs = tree.find((p) => p.role === role);
+    const personId = inEntry?.personId ?? theirs?.personId ?? null;
+    return { role, personId, named: inEntry !== undefined };
+  });
+}
+
+// The entry's people once the child is the one named: the parents named
+// before give way to the child's in the tree.
+export function withChild(
+  named: InEntry[],
+  childId: number,
+  ix: FamilyIndices
+): InEntry[] {
+  const others = named.filter(
+    (p) => p.role !== 'CHIL' && p.role !== 'FATH' && p.role !== 'MOTH'
+  );
+  return [
+    { personId: childId, role: 'CHIL' },
+    ...others,
+    ...parentsOf(childId, ix)
+  ];
+}

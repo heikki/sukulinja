@@ -102,9 +102,9 @@ test('editing starts from the Entry as it is, and Cancel leaves it so', async ()
 test('one Save adds, takes out, says and moves, and stays on the source', async () => {
   const { api, viewer } = await viewing();
   viewer.editEntry();
-  viewer.setInEntry({ personId: 3, role: 'MOTH' });
-  viewer.setInEntry({ personId: 4, role: 'FATH' });
-  viewer.setCiteText('Kaste 2.2.1790');
+  viewer.entryForm.setInEntry({ personId: 3, role: 'MOTH' });
+  viewer.entryForm.setInEntry({ personId: 4, role: 'FATH' });
+  viewer.entryForm.setText('Kaste 2.2.1790');
   const moved = { ...BOX, top: 260 };
   viewer.setBox(moved);
   expect(await viewer.save()).toBeNull();
@@ -129,7 +129,7 @@ test('one Save adds, takes out, says and moves, and stays on the source', async 
 test("taking the source's own person out leaves the viewer on the Image", async () => {
   const { api, viewer } = await viewing();
   viewer.editEntry();
-  viewer.dropFromEntry(1);
+  viewer.entryForm.drop(1);
   await viewer.save();
   expect(api.asked).toContain('uncite 11');
   expect(api.asked).not.toContain('mark 11 201/20 box');
@@ -144,8 +144,8 @@ test("taking the source's own person out leaves the viewer on the Image", async 
 test('an edit naming no one is refused', async () => {
   const { viewer } = await viewing();
   viewer.editEntry();
-  viewer.dropFromEntry(1);
-  viewer.dropFromEntry(2);
+  viewer.entryForm.drop(1);
+  viewer.entryForm.drop(2);
   const refused = await viewer.save().catch((err: unknown) => err);
   expect(refused).toMatchObject({ message: 'Name someone in the entry.' });
 });

@@ -19,7 +19,7 @@ import { filmingOf } from './filming';
 import { Latest } from './latest';
 import { viewerOnward } from './onward';
 import { pendingEntry } from './pending-entry';
-import type { EntryEdit, PendingCite } from './pending-entry';
+import type { EntryEdit, EntryForm, PendingCite } from './pending-entry';
 import { boxOn, clampImage, fileIdOf, imageOf, markedIn } from './places';
 import type { Readable, Selected } from './selected';
 
@@ -143,13 +143,11 @@ export interface Viewer {
   // Puts a new Entry at the Box, on the Image shown, pending, with the
   // people in it so far.
   newEntry: (box: Box, people: InEntry[]) => void;
-  // What the pending Entry says, as typed.
-  setCiteText: (text: string) => void;
-  // Names the person in the pending Entry in the Role, in place of whoever
-  // had it; or for a Role-less Book, adds them.
-  setInEntry: (person: InEntry) => void;
-  // Takes the person out of the pending Entry.
-  dropFromEntry: (personId: number) => void;
+  // Changing the pending Entry: what it says (`setText`), who is named
+  // in each Role, in place of whoever had it, or for a Role-less Book
+  // added (`setInEntry`), all named at once (`setPeople`), and someone
+  // taken out (`drop`).
+  entryForm: EntryForm;
   // Starts editing the source's Entry, made in the app: its people, what
   // it says and its Box, pending, as a new one is.
   editEntry: () => void;
@@ -525,8 +523,7 @@ export function openViewer(
     const shown = source.get();
     const kept = await entry.saveEdit(change, editing);
     if (shown === null || source.get() !== shown) return;
-    const { link } = shown;
-    const { volumeId, volume, image: at, box } = change;
+    const [{ link }, { volumeId, volume, image: at, box }] = [shown, change];
     if (kept.includes(shown.citation.id) && link?.precision === 'entry') {
       openNow({ citation: shown.citation, link: { ...link, box } });
       return;
@@ -652,9 +649,12 @@ export function openViewer(
     setBox,
     editBox,
     newEntry,
-    setCiteText: entry.setText,
-    setInEntry: entry.setInEntry,
-    dropFromEntry: entry.drop,
+    entryForm: {
+      setText: entry.setText,
+      setInEntry: entry.setInEntry,
+      setPeople: entry.setPeople,
+      drop: entry.drop
+    },
     editEntry,
     entry: cited,
     discarding,

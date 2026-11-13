@@ -38,6 +38,14 @@ function changedPeople<W extends InEntry>(was: W[], people: InEntry[]) {
   };
 }
 
+// Changing the pending Entry, as the Scan viewer's card does.
+export interface EntryForm {
+  setText: (text: string) => void;
+  setInEntry: (person: InEntry) => void;
+  setPeople: (people: InEntry[]) => void;
+  drop: (personId: number) => void;
+}
+
 // What saving the pending Entry needs of the viewer.
 interface SaveDeps {
   api: DatasetApi;
@@ -167,5 +175,10 @@ export function pendingEntry(
       .map((w) => w.citationId);
   }
 
-  return { setText, setInEntry, drop, save, editing, saveEdit };
+  // Names these people in it, in place of those it named.
+  function setPeople(people: InEntry[]) {
+    change(() => ({ people }));
+  }
+
+  return { setText, setInEntry, setPeople, drop, save, editing, saveEdit };
 }

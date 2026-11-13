@@ -1,11 +1,16 @@
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
+import type { InEntry } from '@/client/dataset-api';
 import type { PendingCite } from '@/client/state';
 import { bookKind, entryRoles } from '@/common/books';
 import type { PersonRow } from '@/common/types';
 
 import { formatName } from '../tree-view/renderer';
+import type { ParentRow } from './cite';
+
+// How far down the card its arrow points, in pixels.
+export const ARROW_AT = 18;
 
 // What an entry of the Volume's Book is called: a baptism or a marriage,
 // else an entry.
@@ -35,6 +40,36 @@ export interface ChooseDetail {
 @customElement('sl-scan-entry')
 class ScanEntryElement extends LitElement {
   static override styles = css`
+    :host::before {
+      content: '';
+      position: absolute;
+      top: ${ARROW_AT - 6}px;
+      left: -7px;
+      width: 12px;
+      height: 12px;
+      border-bottom: 1px solid var(--border);
+      border-left: 1px solid var(--border);
+      background: var(--card);
+      transform: rotate(45deg);
+    }
+
+    label.parent {
+      display: flex;
+      gap: 0.4rem;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .row.top {
+      align-items: start;
+    }
+
+    .parents {
+      display: grid;
+      grid-column: 2 / span 2;
+      gap: 0.2rem;
+    }
+
     :host {
       position: absolute;
       z-index: 2;
@@ -74,7 +109,7 @@ class ScanEntryElement extends LitElement {
       white-space: nowrap;
     }
 
-    p.none {
+    .none {
       margin: 0;
       color: var(--muted);
       font-size: 0.85em;
@@ -95,7 +130,7 @@ class ScanEntryElement extends LitElement {
       color: var(--muted);
     }
 
-    input {
+    input[type='text'] {
       width: 100%;
       box-sizing: border-box;
       text-align: left;
@@ -106,6 +141,8 @@ class ScanEntryElement extends LitElement {
   // The Volume's label, whose Book tells the Roles.
   @property() volume = '';
   @property({ attribute: false }) persons = new Map<number, PersonRow>();
+  // A baptism's parents, as the tree gives them for its child.
+  @property({ attribute: false }) parents: ParentRow[] = [];
 
   override connectedCallback() {
     super.connectedCallback();
@@ -169,6 +206,65 @@ class ScanEntryElement extends LitElement {
     });
   }
 
+  // A baptism: its child, chosen or taken out, then the child's parents in
+  // the tree, each named in it or not (`name`, `drop`), or with none, one
+  // to make (`choose`).
+  private renderBaptism() {
+    const child = this.cite.people.find((p) => p.role === 'CHIL');
+    return html`<div class="row">
+        <span class="role">Child</span>
+        ${
+          child === undefined
+            ? html`<button
+                  class="choose"
+                  @click=${(e: MouseEvent) => {
+                    this.choose(e, 'CHIL');
+                  }}
+                >
+                  Choose…
+                </button>
+                <span></span>`
+            : this.renderPerson(child.personId)
+        }
+      </div>
+      <div class="row top">
+        <span class="role">Parents</span>
+        <div class="parents">
+          ${
+            child === undefined
+              ? html`<span class="none">Choose the child first.</span>`
+              : this.parents.map((p) => this.renderParent(p))
+          }
+        </div>
+      </div>`;
+  }
+
+  private renderParent({ role, personId, named }: ParentRow) {
+    if (personId === null) {
+      return html`<button
+        class="choose"
+        @click=${(e: MouseEvent) => {
+          this.choose(e, role);
+        }}
+      >
+        Add ${role === 'FATH' ? 'father' : 'mother'}…
+      </button>`;
+    }
+    return html`<label class="parent">
+      <input
+        type="checkbox"
+        .checked=${named}
+        @change=${(e: Event) => {
+          if ((e.target as HTMLInputElement).checked) {
+            const detail: InEntry = { personId, role };
+            this.dispatchEvent(new CustomEvent('name', { detail }));
+          } else this.drop(personId);
+        }}
+      />
+      <span class="name">${this.nameOf(personId)}</span>
+    </label>`;
+  }
+
   // The people named, then one more to add.
   private renderPeople() {
     return html`${this.cite.people.map(
@@ -197,7 +293,13 @@ class ScanEntryElement extends LitElement {
         ${this.cite.editing === undefined ? 'New' : 'Edit'}
         ${ENTRY_NAMES[bookKind(this.volume) ?? ''] ?? 'entry'}
       </h3>
-      ${roles.length === 0 ? this.renderPeople() : this.renderRoles(roles)}
+      ${
+        bookKind(this.volume) === 'kastetut'
+          ? this.renderBaptism()
+          : roles.length === 0
+            ? this.renderPeople()
+            : this.renderRoles(roles)
+      }
       <input
         type="text"
         placeholder="What the entry says, e.g. Baptism 12.3.1795"

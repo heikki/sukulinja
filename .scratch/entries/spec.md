@@ -1,4 +1,4 @@
-Status: done
+Status: ready-for-agent
 
 # One Box per Entry
 
@@ -48,3 +48,5 @@ Done 2026-11-13: `citeEntry` and `addToEntry` (POST `/api/entries`, `/api/entrie
 Done 2026-11-13: the Scan viewer names a new entry's people in a card beside its Box ("New baptism"), the foot bar only Cancel and Save.
 
 Done 2026-11-13: the Box's menu is _Edit_ and _Delete entry_. _Edit_ opens the same card on the Entry as it is: people, words and Box changed with one Save (PUT and DELETE `/api/entries/:id`). In a baptism, once its child or a parent is named, the other Roles offer only whom the tree says, or one made anew there; no search.
+
+Open: `07-parent-left-out-on-source`, `08-baptisms-missing-a-parent` (small, needs-triage).

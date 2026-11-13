@@ -107,8 +107,8 @@ test('a pending Citation is saved for its person, with its text, and opens', asy
   expect(viewer.boxPending.get()).toBe(true);
   const moved = { ...BOX, top: 260 };
   viewer.setBox(moved);
-  viewer.setCiteText('  Baptism 12.3.1795 ');
-  viewer.setInEntry({ personId: 2, role: 'FATH' });
+  viewer.entryForm.setText('  Baptism 12.3.1795 ');
+  viewer.entryForm.setInEntry({ personId: 2, role: 'FATH' });
   expect(viewer.pending.get()?.cite).toEqual({
     people: [{ personId: 2, role: 'FATH' }],
     text: '  Baptism 12.3.1795 '
@@ -135,12 +135,12 @@ test("a pending entry's Role goes to whoever is named in it, and someone taken o
     { personId: 1, role: 'CHIL' },
     { personId: 2, role: 'FATH' }
   ]);
-  viewer.setInEntry({ personId: 3, role: 'FATH' });
-  viewer.dropFromEntry(1);
+  viewer.entryForm.setInEntry({ personId: 3, role: 'FATH' });
+  viewer.entryForm.drop(1);
   expect(viewer.pending.get()?.cite?.people).toEqual([
     { personId: 3, role: 'FATH' }
   ]);
-  viewer.dropFromEntry(3);
+  viewer.entryForm.drop(3);
   const refused = await viewer.save().catch((err: unknown) => err);
   expect(refused).toMatchObject({ message: 'Name someone in the entry.' });
   expect(api.asked.filter((a) => a.startsWith('entry'))).toEqual([]);
@@ -192,7 +192,7 @@ test('opened on an Image with no source, a new Citation is made and opens', asyn
     box: { top: 300 },
     cite: { people: [{ personId: 1 }] }
   });
-  viewer.setCiteText('Baptism 1.2.1800');
+  viewer.entryForm.setText('Baptism 1.2.1800');
   await state.chart.save();
   expect(api.asked).toContain('entry 201/22 201-f22: 1: Baptism 1.2.1800');
   expect(viewer.source.get()?.citation.text).toBe('Baptism 1.2.1800');
