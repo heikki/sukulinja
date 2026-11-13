@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+#
+# The `codesign` that build:app puts first on PATH, so a local install does not
+# get stuck when Apple's timestamp server can't be reached.
+#
+# Hutch signs every binary with a hard-coded `codesign --timestamp`, which asks
+# Apple's server for a secure timestamp and fails the whole build when there is
+# no answer ("A timestamp was expected but was not found"). Hutch has no setting
+# for this, but it runs codesign by name, so this wrapper on PATH sees each call.
+#
+# A self-signed local build gets nothing from the timestamp, so dropping it is
+# safe here (notarization would need it, but install:app never notarizes):
+#   - by default the call runs as asked, and is retried once without the
+#     timestamp if codesign failed over it;
+#   - SIGN_TIMESTAMP=none drops it up front, for when offline is known and
+#     waiting on the server every time is pointless.
+set -uo pipefail
+
+REAL=/usr/bin/codesign
+
+# macOS ships bash 3.2, so no mapfile: the arguments are rebuilt in a loop.
+offline=()
+wants_timestamp=false
+for arg in "$@"; do
+  case "$arg" in
+    --timestamp)
+      wants_timestamp=true
+      offline+=(--timestamp=none)
+      ;;
+    *) offline+=("$arg") ;;
+  esac
+done
+
+if ! $wants_timestamp; then
+  exec "$REAL" "$@"
+fi
+
+if [[ "${SIGN_TIMESTAMP:-}" == none ]]; then
+  exec "$REAL" "${offline[@]}"
+fi
+
+err="$(mktemp)"
+trap 'rm -f "$err"' EXIT
+
+"$REAL" "$@" 2>"$err"
+status=$?
+if ((status == 0)); then
+  cat "$err" >&2
+  exit 0
+fi
+
+if grep -qi timestamp "$err"; then
+  echo "codesign: no timestamp from Apple, signing without one" >&2
+  "$REAL" "${offline[@]}"
+  exit $?
+fi
+
+cat "$err" >&2
+exit "$status"
