@@ -2,84 +2,75 @@ Status: needs-triage
 
 # An assistant in the app
 
-Glossary: **Fact**, **Change** (`src/server/persons/GLOSSARY.md`), **Citation**, **Transcription** (`src/server/citations/GLOSSARY.md`). Decisions this builds on: ADR-0013 (each edit writes a Change), ADR-0021 (the tree is edited only in the app), ADR-0024 (places are written one way, and what it leaves open).
+Glossary: **Change** (`src/server/persons/GLOSSARY.md`), **Fact**, **Citation**, **Transcription** (`src/server/citations/GLOSSARY.md`), **Reminder**. Decisions this builds on: ADR-0013 (each edit writes a Change), ADR-0021 (the tree is edited only in the app).
 
-Heikki, 2026-11-13: "Tekoälyapuri ohjelmaan. Tämä uudelleen nimeys on esimerkki sellaisesta tehtävästä, minkä se voisi hoitaa." The renaming meant is ADR-0024's open end: the villages' and farms' old spellings ("Wehmais", "Kyrckoby"), a parish spelled another way ("Pieksamaki"), the rural parishes' names. A rule can't do these safely; a person can, one by one, and an assistant can do the reading and leave the deciding to him.
+Heikki, 2026-11-13: "Tekoälyapuri ohjelmaan." Kept general: "Pidetään tämä idea yleisellä tasolla. Se tuommoinen paikkojen nimeäminen oli vain yksi esimerkki, mitä käyttäjä voisi kysyä."
 
-And (Heikki, 2026-11-13): "Pitääkö ottaa huomioon jotenkin, että paikan nimet ovat merkinneet eri juttuja eri aikakausina? Esimerkiksi Haukivuori numero 4 on voinut myöhemmin muuttua Haukivuori numero 6." Yes: see _What it may not do_.
+## What it is
 
-## What the assistant is
+An **Assistant** tab in the side dock where Heikki writes, in his own words, what he wants to know or have done with the dataset. Claude answers from the dataset, and when the answer is a change, it proposes it for Heikki to confirm.
 
-- **A proposer, never a writer.** It reads the dataset through read-only tools and ends with a **Proposal**: a list of operations from a closed set, each with its reason. Nothing is written until Heikki confirms it, operation by operation.
-- **Another caller of the same operations.** A confirmed operation runs the domain operation the app's own forms run (`facts.edit`, a new `places.rename`, …), so it is checked the same way and writes the same **Change**. The assistant has no write path of its own and never touches SQL.
-- **Runs in the app's Bun process**, beside the server (`src/server/assistant/`). The webview only shows the conversation and the Proposal; the API key and the calls to Claude never reach it.
-- **Claude, through the Claude API** with tools we define (`@anthropic-ai/sdk`, already used by `scripts/vision/claude-reader.ts`). Not the Agent SDK or Managed Agents: there is nothing to run in a sandbox, and the data is local.
+- **It reads freely and writes nothing itself.** Reading tools answer directly. Anything that would change the dataset ends up in a **Proposal**: a list of operations, each with its reason, that Heikki ticks, edits and applies. Nothing is written before that.
+- **It can only do what the app can do.** Its tools are the app's own operations (add a Fact, edit a person's name, add a Reminder, support a Fact with a Citation…), so an applied operation is checked by the same rules and writes the same **Change** as the form that does it by hand. It has no write path of its own and never touches SQL. A task the app has no operation for gets the answer "the app can't do that yet"; the operation is then a feature of its own, built for the forms first.
+- **It knows what Heikki is looking at:** the dataset, the selected person, an open scan. "Lisää tälle syntymäpäivä kastekirjasta" means the person on screen.
+- **It runs in the app's Bun process**, beside the server (`src/server/assistant/`). The webview shows the conversation and the Proposal; the API key and the calls to Claude never reach it.
 
-## The first task: unify a place's spellings
+## Examples of what Heikki could ask
 
-1. Heikki opens **Assistant** in the side dock and asks, e.g. "yhtenäistä Haukivuoren kylien kirjoitusasut".
-2. Claude reads the places with tools: `listPlaces(parish?)` gives each distinct place with how many Facts name it and the years they span; `placeFacts(place)` gives a few of its Facts with dates (no names, see _Privacy_).
-3. It answers with a Proposal of `renamePlace { from, to, reason }`: "Wehmais, Haukivuori, Suomi" → "Vehmaa, Haukivuori, Suomi", 12 Facts, "Wehmais is the Swedish spelling of Vehmaa".
-4. The panel lists them, each with a checkbox (unticked by default when Claude says it's unsure), the count, the reason, and an editable _to_. Heikki ticks, fixes, confirms.
-5. Each confirmed rename runs `places.rename(from, to)`: every Fact naming `from` now names `to`, and one Change says so ("place renamed, Wehmais → Vehmaa, 12 facts"), on nothing, as ADR-0024's migration did.
-
-The rename is also the manual tool: the **Places** list (ADR-0024's "a way to rename a place everywhere") calls the same `places.rename`. It comes first, and the assistant is built on it.
+- "Yhtenäistä Haukivuoren kylien kirjoitusasut." Reads the places, proposes renames.
+- "Ketkä asuivat Laukolassa 1840-luvulla?" Answers from the Facts, proposes nothing.
+- "Onko tässä puussa tuplahenkilöitä?" Lists likely ones, with why; merging waits for its own operation.
+- "Mitkä tämän henkilön lähteet tukevat syntymää, ja onko niissä ristiriitoja?" Reads Citations and Transcriptions, proposes support.
+- "Lisää muistutus tarkistaa Matin kuolinpäivä rippikirjasta." Proposes a Reminder.
+- "Missä järjestyksessä Liisan lapset ovat, ja onko joku väärässä paikassa?" Reads, proposes a move.
 
 ## What it may not do
 
-- **Only the spelling of one name.** A rename may change how a part is written (Wehmais → Vehmaa, Kyrckoby → Kirkonkylä, Pieksamaki → Pieksämäki); it may not make two places one. "Haukivuori 4" and "Haukivuori 6" stay two places even if one later became the other: which house a number meant in which era is a research conclusion, not a spelling.
-- **Checked in code, not only asked of Claude.** `places.rename` (and so the Proposal) rejects a rename whose parts don't line up one to one: a different number of comma parts, a different parish, or any number (house, farm, a year) that differs. Claude is told the same in its prompt, but the guard is what holds.
-- **A place in another era** is written down, not renamed: a Proposal may carry a `note { place, text }` ("Haukivuori 4 is likely the later Haukivuori 6, see rippikirja 1840–1849 p. 112"), which becomes a Reminder on nothing, or later a note on the place, for Heikki to work on. (Open question 3.)
-- **No deleting, linking or merging people,** and no Fact edits outside the operation set, until a task is specified for them.
-- **The import's places are as the file writes them** (ADR-0024). The assistant tidies the tree, not a source's words: a Citation's Transcription is never rewritten.
+- **Rewrite what a source says.** A Citation's Transcription and an imported record are evidence; the assistant tidies the tree, not the sources.
+- **Turn a conclusion into a fact.** What follows only from research is written down as a Reminder for Heikki, not as an edit. For example, a place name meant different things in different eras: house Haukivuori 4 may later be Haukivuori 6 (Heikki, 2026-11-13). The assistant may fix a spelling, but saying that two houses are one is a conclusion.
+- **Lean on its prompt for safety.** Each operation's own rules (`facts.edit`, `persons.edit`, the tree-cut rule…) decide what's allowed when a Proposal is applied, just as they do for a form. A new operation that needs a stricter rule for bulk use (a place rename refusing to change a house number) has it in the operation, not in the prompt.
 
 ## Structure
 
-- **Refactor first: the dataset's operations out of the HTTP handlers.** `createDatasetHandlers` (`server.ts`) builds `facts`, `persons`, `relatives`, `changes`… and wraps them as routes in one closure. Moved to `datasets/services.ts` (`openServices(db)`), both the routes and the assistant use the same objects for the same database. Mechanical; no behaviour changes.
-- **`src/server/places/`** (new): `places.ts` (`list`, `rename`, the one-to-one guard), `routes.ts` (`GET /api/places` moves here from `facts/routes.ts`, `POST /api/places/rename`). `facts.places()` goes.
-- **`ChangeWhat`**: `{ kind: 'place'; did: 'rename'; was: string; now: string; facts: number }`.
-- **`src/server/claude/client.ts`** (new): the client and its credentials, moved from `claude-reader.ts`, which then uses it. `@anthropic-ai/sdk` moves from devDependencies to dependencies.
-- **`src/server/assistant/`** (new):
-  - `tools.ts`: the read tools, each a thin call into the services, returning only what the task needs.
-  - `proposal.ts`: the operation set (`renamePlace`, `note`) as a strict JSON schema; validating a Proposal against the dataset (the guard, and that `from` still has the count it was proposed with); applying the ticked operations through the services.
-  - `run.ts`: the tool loop. `claude-opus-5-5`, adaptive thinking, effort `medium` (`high` if it proves too loose), streaming, `fallbacks: "default"` for a declined request, `strict: true` tools. A Proposal is the `propose` tool's input; the loop ends there.
-  - `routes.ts`: `POST /api/assistant` (a task in, its progress and Proposal streamed back as NDJSON, as the import's progress is), `POST /api/assistant/apply`.
-  - A Proposal is kept in memory with the conversation until applied or closed; nothing of it is stored.
-- **Client:** `components/assistant/` in the side dock: the task field, Claude's progress, the Proposal checklist and _Apply_. **Settings** gets the API key.
+This needs two refactors first, so the assistant is another caller of the app's operations rather than a copy of them.
+
+1. **The dataset's operations out of the HTTP layer.** `createDatasetHandlers` (`server.ts`) builds `facts`, `persons`, `relatives`, `changes`… inside the route closure, and some operations live in the routes themselves (a Citation's support is in `citation-routes.ts`'s `handleSupport`). Moved to `datasets/services.ts` (`openServices(db)`): the routes become thin readers of requests over the services, and the assistant uses the same objects for the same database. No behaviour changes.
+2. **An operation catalogue.** Each operation the assistant may use is described once: its name, a description written for Claude, its input schema, whether it reads or writes, and the service call it makes (`src/server/assistant/operations/`, one file per area: persons, facts, citations, reminders, places…). The tools are generated from it, so adding an operation to the app and to the assistant is one entry. Validation stays in the services.
+
+Then:
+
+- **`src/server/claude/client.ts`:** the Anthropic client and its credentials, moved from `scripts/vision/claude-reader.ts`, which then uses it. `@anthropic-ai/sdk` moves from devDependencies to dependencies.
+- **`src/server/assistant/`:**
+  - `run.ts`: the tool loop over the Claude API. `claude-opus-5-5`, adaptive thinking, effort `medium`, streaming, `fallbacks: "default"` for a declined request, `strict: true` tools. Read tools run at once; write tools only add to the Proposal.
+  - `proposal.ts`: a Proposal is the write operations in order, each with its input and reason. Applying runs the ticked ones through the catalogue, one by one; one that's refused (the dataset changed, a rule says no) is reported and the rest go on.
+  - `routes.ts`: `POST /api/assistant` (a message in, Claude's progress and answer streamed back as NDJSON, as the import's progress is) and `POST /api/assistant/apply`.
+  - The conversation and its Proposal are kept in memory while the tab is open; nothing of them is stored (open question 3).
+- **Client:** `components/assistant/`: the conversation, the Proposal checklist with _Apply_, and each run's cost. **Settings** gets the API key.
 
 ## Key, cost, privacy
 
-- **The key** is Heikki's Anthropic API key, kept in the macOS Keychain (`security add-generic-password`), set in Settings; in dev also from the environment or an `ant auth login` profile, as `claude-reader.ts` reads it. Without a key the Assistant tab says how to add one.
-- **Cost:** a places run sends distinct place strings and counts, a few thousand lines: a few cents per run with Opus 5.5 ($4 / $20 per million tokens). The panel shows each run's tokens and dollars, as the Reader's `Spend` does.
-- **Privacy:** what a tool returns goes to Anthropic. The places tools return no names; a task that reads people (see below) sends the people it reads, living ones too, and says so before it starts. API data isn't used for training.
-
-## Later tasks, by fit
-
-| Task                                                                                                        | Fit                                             | Needs                                         |
-| ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | --------------------------------------------- |
-| Unify place spellings (this spec)                                                                           | good: reading, judgment, a confirmable list     | `places.rename`                               |
-| Parish names: "Mikkeli Maaseurakunta", Astia's names (ADR-0019's naming rule)                               | good                                            | the same, plus Astia's archive list as a tool |
-| Fact support from Transcriptions the rules can't read (`citations/transcription.ts` labels it doesn't know) | good                                            | `support.add` as an operation                 |
-| Likely duplicate people                                                                                     | good to find, but merging isn't built           | person merge (add-people "Later")             |
-| Questions about the tree ("ketkä asuivat Laukolassa?")                                                      | fine, read-only                                 | person read tools; sends people               |
-| Odd dates (born after the mother died, married at 12)                                                       | rules do it better; the assistant could explain | a rule check first                            |
-| Reading scans                                                                                               | already done by `scripts/vision`                | shares `claude/client.ts`                     |
+- **The key** is Heikki's Anthropic API key, kept in the macOS Keychain and set in Settings; in dev it can also come from the environment or an `ant auth login` profile, as `claude-reader.ts` reads it. Without a key the tab says how to add one.
+- **Cost:** Opus 5.5 is $4 / $20 per million tokens. A question about one person costs about a cent; a sweep over the whole tree costs tens of cents. The tab shows each answer's tokens and dollars, as the Reader's `Spend` does.
+- **Privacy:** whatever a tool returns goes to Anthropic, including living people's names and dates when a question reads them. API data isn't used for training. The tools return only what a question needs, not whole records.
 
 ## Tickets
 
-| #   | Ticket                                                                                  | Blocked by |
-| --- | --------------------------------------------------------------------------------------- | ---------- |
-| 01  | Dataset services out of `createDatasetHandlers`                                         | none       |
-| 02  | `places.rename` with the one-to-one guard, and its Change                               | 01         |
-| 03  | Places list with rename (manual)                                                        | 02         |
-| 04  | Claude client shared with the Reader; key in Keychain and Settings                      | none       |
-| 05  | Assistant loop, read tools and Proposal (server)                                        | 02, 04     |
-| 06  | Assistant tab: task, progress, Proposal, Apply                                          | 05         |
-| 07  | Glossary: **Assistant**, **Proposal**; ADR for "the assistant proposes, the app writes" | 05         |
+| #   | Ticket                                                                                              | Blocked by |
+| --- | --------------------------------------------------------------------------------------------------- | ---------- |
+| 01  | Dataset services out of the HTTP layer                                                              | none       |
+| 02  | Operation catalogue: read operations                                                                | 01         |
+| 03  | Claude client shared with the Reader; key in Keychain and Settings                                  | none       |
+| 04  | Assistant loop and route, read-only answers                                                         | 02, 03     |
+| 05  | Assistant tab: conversation, what's on screen, cost                                                 | 04         |
+| 06  | Write operations in the catalogue, Proposal and _Apply_                                             | 04         |
+| 07  | Glossary: **Assistant**, **Proposal**; ADR for "the assistant proposes, the app's operations write" | 06         |
+
+A place rename (Heikki's example) is not in these tickets. It's an operation the app doesn't have yet, so it's a feature of its own (a Places list with rename), and the assistant gets it as one more catalogue entry.
 
 ## Open questions for Heikki
 
-1. Is it all right to send the places (and later people) to Anthropic with your own API key? A run costs cents.
-2. Places list (03) first, by hand, and the assistant after it? Recommended: the assistant is then only a faster way to fill it in.
-3. A place in another era (Haukivuori 4 → 6): a Reminder for you, or a note on the place that the export writes?
-4. Which spelling wins: today's Finnish (Vehmaa, Kirkonkylä) always, or as Astia or the book writes it?
+1. Is it all right to send what a question reads, living people included, to Anthropic with your own API key?
+2. Read-only first (tickets 01–05), and proposals after you've used it for a while? Recommended: the read side shows whether its answers are good before it gets to propose changes.
+3. Should a conversation be kept (a history in the tab) or forgotten when the tab closes?
+4. Should a Change made through the assistant say so ("via assistant"), or read like any other?
+5. No Change can be undone today. Should applying a large Proposal first take a GEDZIP backup?
