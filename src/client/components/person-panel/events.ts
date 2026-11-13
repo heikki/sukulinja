@@ -20,9 +20,9 @@ type Editing = number | 'new' | null;
 // The person's Facts, and their marriages', from birth to death: each
 // kind, then its date, place and what else it says, dimmed while no source
 // supports it. Clicking one picks it, showing under it its sources and
-// those suggested (fact-sources.ts); a
-// second click opens it for editing in its place, and _Add event_
-// opens a new one below; one at a time.
+// _Edit event_, which opens it for editing in its place (fact-sources.ts);
+// clicked again it's let go. _Add event_ opens a new one below; one at a
+// time.
 @customElement('sl-person-events')
 class PersonEventsElement extends SignalWatcher(LitElement) {
   static override styles = [focusRingStyles, personEventsStyles];
@@ -60,8 +60,7 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
   }
 
   // A Fact no source supports is dimmed, so the eye finds those that
-  // still need one. Clicking picks it; clicked again, it opens for
-  // editing, where it can be deleted. Esc lets it go.
+  // still need one. Clicking picks it, and again lets it go, as Esc does.
   private renderFact(f: FactRow, sources: Source[]) {
     if (this.editing === f.id) return this.renderForm(f);
     const supporting = sourcesOf(f, sources);
@@ -69,10 +68,8 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
     return html`<button
         class="fact ${supporting.length === 0 ? 'unsourced' : ''}"
         aria-expanded=${picked ? 'true' : 'false'}
-        title=${picked ? 'Edit' : nothing}
         @click=${() => {
-          if (picked) this.edit(f);
-          else this.picked = f.id;
+          this.picked = picked ? null : f.id;
         }}
         @keydown=${(e: KeyboardEvent) => {
           if (e.key === 'Escape' && picked) {
@@ -92,6 +89,14 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
               .fact=${f}
               .facts=${this.facts}
               .sources=${sources}
+              @edit-fact=${() => {
+                this.edit(f);
+              }}
+              @keydown=${(e: KeyboardEvent) => {
+                if (e.key === 'Escape' && !e.defaultPrevented) {
+                  this.picked = null;
+                }
+              }}
             ></sl-fact-sources>`
           : nothing
       }`;

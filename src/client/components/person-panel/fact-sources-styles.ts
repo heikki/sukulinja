@@ -15,8 +15,12 @@ export const factSourcesStyles = [
 
     p,
     ul,
-    button.toggle {
+    .actions {
       grid-column: 2;
+    }
+
+    p,
+    ul {
       justify-self: start;
     }
 
@@ -49,16 +53,24 @@ export const factSourcesStyles = [
       content: '↳ ';
     }
 
-    button.toggle {
+    /* Edit event, then the sources' list. */
+    .actions {
+      display: flex;
+      flex-direction: column;
+      align-items: start;
+      gap: 0.2rem;
       margin-top: 0.3rem;
-      color: var(--muted);
     }
 
-    button.toggle:first-child {
+    .actions:first-child {
       margin-top: 0;
     }
 
-    button.toggle:hover,
+    .actions button {
+      color: var(--muted);
+    }
+
+    .actions button:hover,
     button.toggle[aria-expanded='true'] {
       color: var(--accent);
     }

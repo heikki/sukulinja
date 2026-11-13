@@ -22,15 +22,44 @@ function sourceName({ citation: c, status }: Source) {
   return `${titleText(c, status)}${entry}`;
 }
 
+// Where a source goes among the others: by its Volume's archive, then as
+// Astia lists the archive's Volumes, by reference code ("I Aa:12 Pää- ja
+// rippikirjat …"), as Church books does; one with no Link after them, by
+// the name before its first year (a Book's kind), then that year, as a
+// village or a page may follow the years.
+function sortKey(source: Source): [string, number, string, number] {
+  const link = source.status?.link ?? null;
+  if (link !== null) return [link.archive ?? '', 0, link.volume, 0];
+  const name = sourceName(source);
+  const m = /^(?<kind>.*?)(?<year>1[5-9]\d\d)/u.exec(name)?.groups;
+  const year = m === undefined ? 0 : Number(m.year);
+  return ['\u{10FFFF}', 1, (m?.kind ?? name).trim(), year];
+}
+
+function text(a: string, b: string) {
+  return a.localeCompare(b, 'fi', { numeric: true });
+}
+
+function compareKeys(
+  [archiveA, rankA, nameA, yearA]: ReturnType<typeof sortKey>,
+  [archiveB, rankB, nameB, yearB]: ReturnType<typeof sortKey>
+) {
+  if (archiveA !== archiveB) return text(archiveA, archiveB);
+  if (rankA !== rankB) return rankA - rankB;
+  if (nameA !== nameB) return text(nameA, nameB);
+  return yearA - yearB;
+}
+
 // Under a picked Fact in Events: the sources supporting it (ADR-0022),
-// each opened by a click (or that the person has none); then _Add source…_ or _Edit
+// each opened by a click; then _Edit event_, asking Events for its form as
+// `edit-fact`, and _Add source…_ or _Edit
 // sources…_, which lists all the person's sources, each with a checkbox
-// that adds or takes back its support, a Change each: those supporting it
-// first, then those whose Transcription suggests they do, with what it says
-// and whether that differs, then the rest. The order is kept while the list
-// is open, so a row doesn't move from under the pointer. A source opens in
+// that adds or takes back its support, a Change each, in Astia's order
+// (`sortKey`); one whose Transcription suggests it supports
+// the Fact says so, with what it says and whether that differs. A source
+// opens in
 // the Scan viewer; one with nothing to open there is asked for in Sources,
-// as `show-source` with its Citation's id.
+// as `show-source` with its Citation's id. Esc closes the list.
 @customElement('sl-fact-sources')
 class FactSourcesElement extends LitElement {
   static override styles = factSourcesStyles;
@@ -42,12 +71,24 @@ class FactSourcesElement extends LitElement {
   // The person's sources, as Sources lists them.
   @property({ attribute: false }) sources: Source[] = [];
 
-  // The sources listed for editing, by Citation id in the order they were
-  // listed in when opened, or null when closed; the Citation whose support
-  // is being saved, and why the last was refused.
-  @state() private editing: number[] | null = null;
+  // Listing the sources to check; the Citation whose support is being
+  // saved, and why the last was refused.
+  @state() private editing = false;
   @state() private saving: number | null = null;
   @state() private refused: string | null = null;
+
+  constructor() {
+    super();
+    this.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape' || !this.editing) return;
+      e.preventDefault();
+      e.stopPropagation();
+      this.editing = false;
+      void this.updateComplete.then(() => {
+        this.renderRoot.querySelector<HTMLElement>('button.toggle')?.focus();
+      });
+    });
+  }
 
   private open(source: Source) {
     const opening = viewerOpening(source);
@@ -76,18 +117,6 @@ class FactSourcesElement extends LitElement {
     return source.citation.supports.includes(this.fact.id);
   }
 
-  // Supporting, suggested, the rest.
-  private ordered() {
-    const rank = (s: Source) => {
-      if (this.supports(s)) return 0;
-      return this.suggestionOf(s) === null ? 2 : 1;
-    };
-    return this.sources
-      .map((s, i) => ({ s, i, r: rank(s) }))
-      .sort((a, b) => (a.r === b.r ? a.i - b.i : a.r - b.r))
-      .map(({ s }) => s.citation.id);
-  }
-
   private async support(citationId: number, on: boolean) {
     if (this.saving !== null) return;
     this.saving = citationId;
@@ -114,11 +143,7 @@ class FactSourcesElement extends LitElement {
   }
 
   private renderSupporting(supporting: Source[]) {
-    if (supporting.length === 0) {
-      return this.sources.length === 0
-        ? html`<p class="none">No sources yet.</p>`
-        : nothing;
-    }
+    if (supporting.length === 0) return nothing;
     return html`<ul>
       ${supporting.map((s) => html`<li>${this.renderOpen(s, 'source')}</li>`)}
     </ul>`;
@@ -152,6 +177,19 @@ class FactSourcesElement extends LitElement {
     </li>`;
   }
 
+  private renderEdit() {
+    return html`<button
+      class="edit"
+      @click=${() => {
+        this.dispatchEvent(
+          new CustomEvent('edit-fact', { bubbles: true, composed: true })
+        );
+      }}
+    >
+      Edit event
+    </button>`;
+  }
+
   private renderToggle(supporting: Source[]) {
     if (this.sources.length === 0) return nothing;
     const suggested = this.sources.filter(
@@ -160,29 +198,32 @@ class FactSourcesElement extends LitElement {
     const label = supporting.length === 0 ? 'Add source…' : 'Edit sources…';
     return html`<button
       class="toggle"
-      aria-expanded=${this.editing === null ? 'false' : 'true'}
+      aria-expanded=${this.editing ? 'true' : 'false'}
       @click=${() => {
-        this.editing = this.editing === null ? this.ordered() : null;
+        this.editing = !this.editing;
       }}
     >
       ${label}${suggested === 0 ? '' : ` (${suggested} suggested)`}
     </button>`;
   }
 
-  private renderEditing(ids: number[]) {
-    const byId = new Map(this.sources.map((s) => [s.citation.id, s]));
-    const listed = ids.flatMap((id) => byId.get(id) ?? []);
+  private renderEditing() {
+    const sorted = this.sources.toSorted((a, b) =>
+      compareKeys(sortKey(a), sortKey(b))
+    );
     return html`<ul class="editing">
-      ${listed.map((s) => this.renderEditable(s))}
+      ${sorted.map((s) => this.renderEditable(s))}
     </ul>`;
   }
 
   override render() {
     const supporting = sourcesOf(this.fact, this.sources);
     return html`
-      ${this.editing === null ? this.renderSupporting(supporting) : nothing}
-      ${this.renderToggle(supporting)}
-      ${this.editing === null ? nothing : this.renderEditing(this.editing)}
+      ${this.editing ? nothing : this.renderSupporting(supporting)}
+      <div class="actions">
+        ${this.renderEdit()} ${this.renderToggle(supporting)}
+      </div>
+      ${this.editing ? this.renderEditing() : nothing}
       ${
         this.refused === null
           ? nothing
