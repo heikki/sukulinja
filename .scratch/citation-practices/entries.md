@@ -1,6 +1,6 @@
 # Merkintä tietomallin keskiöön
 
-Status: needs-triage
+Status: needs-triage — taken up in `.scratch/entries/spec.md` and ADR-0026 (draft, 2026-11-13)
 
 Heikki, 2026-11-11: mitä muutoksia tietomalliin tarvitaan, ja pitääkö terminologiaa yhtenäistää. Jatkoa tiedostoille [fact-citations.md](fact-citations.md) ja [idea.md](idea.md): oikeaoppisesti kirkonkirjan merkintä on yksi todiste, ja monta faktaa monelta ihmiseltä viittaa siihen.
 
@@ -49,7 +49,7 @@ GEDCOM 7:ssä ei ole merkintä-tietuetta, joten vienti litistää mallin:
 
 ### Mitä tämä ei vielä tee
 
-- **Faktojen muokkaus** (luonti, korjaus, ristiriidan perustelu) on oma päätöksensä: Sukulinjasta tulee puun pääkopio (fact-citations.md). Päätetty 2026-11-11: ADR-0021 ja [fact-editing/spec.md](../fact-editing/spec.md). Merkintämalli ei vaadi sitä. Ilman sitä sitaatin voi liittää vain olemassa olevaan faktaan.
+- **Faktojen muokkaus** (luonti, korjaus, ristiriidan perustelu) on oma päätöksensä: Sukulinjasta tulee puun pääkopio (fact-citations.md). Päätetty 2026-11-11: ADR-0021. Merkintämalli ei vaadi sitä. Ilman sitä sitaatin voi liittää vain olemassa olevaan faktaan.
 - **Vision-pass Match ja Volume- tai Image-tason Markit** ovat MyHeritage-viitteiden asioita. Ne pysyvät sitaatin `link_*`-sarakkeissa siihen asti, kunnes MyHeritage-kansio poistetaan.
 
 ## Ajoitus
