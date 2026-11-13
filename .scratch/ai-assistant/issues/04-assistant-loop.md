@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: done
 Blocked by: 02, 03
 
 # Assistant loop and route, read-only answers

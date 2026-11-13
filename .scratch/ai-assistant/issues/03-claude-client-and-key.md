@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: done
 
 # Claude client shared with the Reader; key in the credential store and Settings
 

@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: done
 Blocked by: 04
 
 # Glossary and ADR
