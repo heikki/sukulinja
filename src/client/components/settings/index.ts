@@ -4,6 +4,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { currentAppearance, setAppearance } from '@/client/appearance';
 import type { Appearance } from '@/client/appearance';
 import { assistantOn, setAssistantOn } from '@/client/assistant-flag';
+import { setSpacingTunerOn, spacingTunerOn } from '@/client/chart-spacing';
 import { dialogStyles } from '@/client/dialog-styles';
 import { focusRingStyles } from '@/client/focus-ring';
 import {
@@ -358,9 +359,7 @@ class SettingsElement extends LitElement {
       <div class="popover" role="group" aria-label="Settings">
         ${this.renderDataset()} ${this.renderAppearance()}
         ${this.renderGenerations()} ${this.renderScanCache()}
-        ${this.renderAssistant()}
-        <span class="label">Chart spacing</span>
-        <sl-chart-spacing></sl-chart-spacing>
+        ${this.renderAssistant()} ${this.renderSpacingTuner()}
       </div>
     `;
   }
@@ -387,6 +386,31 @@ class SettingsElement extends LitElement {
         )}
       </div>
       ${on ? html`<span></span><sl-assistant-key></sl-assistant-key>` : nothing}
+    `;
+  }
+
+  // Off or on for tuning the chart's spacing by eye (chart-spacing.ts); on,
+  // its sliders below.
+  private renderSpacingTuner() {
+    const on = spacingTunerOn.get();
+    return html`
+      <span class="label">Chart spacing</span>
+      <div class="segmented">
+        ${[false, true].map(
+          (value) => html`
+            <button
+              aria-pressed=${value === on}
+              @click=${() => {
+                setSpacingTunerOn(value);
+                this.requestUpdate();
+              }}
+            >
+              ${value ? 'On' : 'Off'}
+            </button>
+          `
+        )}
+      </div>
+      ${on ? html`<span></span><sl-chart-spacing></sl-chart-spacing>` : nothing}
     `;
   }
 

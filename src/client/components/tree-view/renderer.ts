@@ -1,6 +1,6 @@
 import { css, svg } from 'lit';
 
-import { chartSpacing } from '@/client/chart-spacing';
+import { currentSpacing } from '@/client/chart-spacing';
 import type { PersonRow } from '@/common/types';
 
 import { edgePath } from './connectors';
@@ -99,10 +99,10 @@ export function renderEdge(line: DrawnLine, isNew: boolean, ghost = false) {
 // them as a parameter rather than reaching back here.
 export const card = { boxW: 110, boxH: 140 };
 
-// The card's size and the spacing as tuned in Settings. Read inside a
+// The card's size and the spacing (chart-spacing.ts). Read inside a
 // render, so the chart lays out again when the spacing changes.
 export function dims(): Dims {
-  return { ...card, ...chartSpacing.get() };
+  return { ...card, ...currentSpacing() };
 }
 
 // Half a card's size, either way from its centre.

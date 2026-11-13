@@ -1,7 +1,7 @@
-// The chart's gaps and line offsets, in px, tunable in Settings for now while
-// the right values are found; once they are, they become plain constants in
-// tree-view/renderer.ts and this goes. Kept in a cookie for the reason
-// appearance.ts gives.
+// The chart's gaps and line offsets, in px. The defaults are the chart's; with
+// the spacing tuner turned on in Settings, sliders there override them, for
+// trying out new values by eye. Both the tuner switch and the tuned values are
+// kept in cookies for the reason appearance.ts gives.
 
 import { signal } from '@lit-labs/signals';
 
@@ -18,15 +18,30 @@ export interface ChartSpacing {
 }
 
 export const SPACING_DEFAULTS: Readonly<ChartSpacing> = {
-  gapX: 22,
-  coupleGap: 14,
-  gapY: 60,
-  tieLift: 30,
+  gapX: 26,
+  coupleGap: 16,
+  gapY: 70,
+  tieLift: 24,
   tieOffset: 6
 };
 
 const COOKIE = 'sl-chart-spacing';
+const TUNER_COOKIE = 'sl-spacing-tuner';
 const YEAR_S = 365 * 24 * 60 * 60;
+
+function tunerFromCookie() {
+  if (typeof document === 'undefined') return false;
+  return document.cookie.split('; ').includes(`${TUNER_COOKIE}=on`);
+}
+
+export const spacingTunerOn = signal(tunerFromCookie());
+
+export function setSpacingTunerOn(on: boolean) {
+  document.cookie = on
+    ? `${TUNER_COOKIE}=on; path=/; max-age=${YEAR_S}; samesite=lax`
+    : `${TUNER_COOKIE}=; path=/; max-age=0; samesite=lax`;
+  spacingTunerOn.set(on);
+}
 
 function fromCookie(): ChartSpacing {
   // Tests load the chart's paint code with no document.
@@ -60,4 +75,9 @@ export function setChartSpacing(spacing: ChartSpacing) {
 export function resetChartSpacing() {
   document.cookie = `${COOKIE}=; path=/; max-age=0; samesite=lax`;
   chartSpacing.set({ ...SPACING_DEFAULTS });
+}
+
+// What the chart draws with: the tuned values while the tuner is on.
+export function currentSpacing(): ChartSpacing {
+  return spacingTunerOn.get() ? chartSpacing.get() : { ...SPACING_DEFAULTS };
 }
