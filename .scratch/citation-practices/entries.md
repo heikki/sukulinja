@@ -1,6 +1,6 @@
 # Merkintä tietomallin keskiöön
 
-Status: needs-triage
+Status: needs-triage — taken up in `.scratch/entries/spec.md` and ADR-0026 (draft, 2026-11-13)
 
 Heikki, 2026-11-11: mitä muutoksia tietomalliin tarvitaan, ja pitääkö terminologiaa yhtenäistää. Jatkoa tiedostoille [fact-citations.md](fact-citations.md) ja [idea.md](idea.md): oikeaoppisesti kirkonkirjan merkintä on yksi todiste, ja monta faktaa monelta ihmiseltä viittaa siihen.
 

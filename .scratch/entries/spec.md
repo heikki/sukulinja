@@ -1,0 +1,49 @@
+Status: needs-triage
+
+# One Box per Entry
+
+Glossary: **Entry**, **Citation**, **Role**, **Transcription**, **Box**, **Support** (`src/server/citations/GLOSSARY.md`). Decision: ADR-0026 (draft). Builds on ADR-0016 (conversion), ADR-0022 (support). Earlier: `.scratch/citation-practices/entries.md`, `.scratch/citation-practices/citation-reuse.md`.
+
+Heikki, 2026-11-13: one baptism entry should be one Box, not one per person, and the Scan viewer's foot bar holds too much.
+
+## Where it is now
+
+- Each person's Citation holds its own Image, Box and text (`citations.link_*`, `text`). A Mark at the entry writes the same Box into every citation of the record; the Conversion keeps the copies.
+- _New citation for…_ makes one Citation for one person: a Box drawn for each, and in the foot bar the person's name, a row of Role buttons with no heading, a text line, Cancel and Save, beside the paging.
+- A Citation of a baptism for its child supports their one Christening, else Birth (`entryFact`); a parent's supports nothing.
+
+## The model
+
+As ADR-0026: `entries(id, source_id, volume_id, volume, image, file_id, box_left, box_top, box_width, box_height, event, text)`, and `citations.entry_id`. Only the app's Citations of an Image cite an Entry; a reference keeps `link_*`. `annotations.ts` reads a Citation of an Entry joined to it, so every `CitationRow` reader is unchanged.
+
+## In the Scan viewer
+
+- **One Box per Entry.** The Image's People list each Entry once, its people under it with their Roles.
+- **New entry.** Right-click on the Image → _New entry here_ → draw the Box. Beside the Box (not in the foot bar) a small form:
+  - in a baptism Volume: _Child_ (the Selected person if they have no Citation here), _Father_ and _Mother_ (offered from the child's parents in the tree, each one click to take out), _Godparent_ (picked, any number, optional);
+  - in a marriage Volume: _Groom_, _Bride_;
+  - in a rippikirja or lastenkirja: _People on this line_, no Roles;
+  - the Transcription line ("What the entry says").
+  - Save makes the Entry and one Citation for each person named; the child's Christening (else Birth) and the spouses' marriage get its support as now.
+- **An Entry's Box menu:** _Add person…_ (picked with a Role), _Remove <name>_, _Edit_ (move the Box, retype the Transcription), _Delete entry_ (asks; names how many Citations go).
+- **Merge.** Two Entries on one Image whose Boxes overlap most of each other (from before, drawn for each person): the Box menu offers _Merge with the entry here_; the one clicked keeps its Box and Transcription.
+- **The foot bar** holds only the paging and, while a Box is pending, Cancel and Save.
+
+## GEDCOM
+
+Written as now, each Citation whole under its person. The import makes one Entry of the app's Citations with the same source, Image file, `CROP`, `EVEN` and text. Round-trip test.
+
+## Not in this feature
+
+- References (Marks at the Image or Volume, Matches, Estimates) on Entries: when `citations/myheritage/` goes.
+- Each Entry its own GEDCOM `SOUR` (splitting).
+- Godparents not in the tree: their names stay in the Transcription.
+
+## Tickets
+
+1. `01-entry-schema` — the table, the migration, the join.
+2. `02-new-entry-api` — making an Entry with its people; adding and removing a person.
+3. `03-conversion-makes-an-entry`
+4. `04-entry-form` — Scan viewer: one Box, the form beside it, the slim foot bar.
+5. `05-entry-box-menu` — add, remove, edit, delete, merge.
+6. `06-gedcom-round-trip`
