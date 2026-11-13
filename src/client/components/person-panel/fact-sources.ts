@@ -77,17 +77,33 @@ class FactSourcesElement extends LitElement {
   @state() private saving: number | null = null;
   @state() private refused: string | null = null;
 
+  // Esc closes the list, wherever the focus is (WKWebView doesn't focus a
+  // clicked button or checkbox): heard here first, so Events doesn't also
+  // let the Fact go, and on the document, before the Scan viewer's on the
+  // window. Marked handled, or WKWebView hands it on to macOS, which beeps.
+  private readonly onKeyDown = (e: KeyboardEvent) => {
+    if (e.key !== 'Escape' || !this.editing) return;
+    e.preventDefault();
+    e.stopPropagation();
+    this.editing = false;
+    void this.updateComplete.then(() => {
+      this.renderRoot.querySelector<HTMLElement>('button.toggle')?.focus();
+    });
+  };
+
   constructor() {
     super();
-    this.addEventListener('keydown', (e) => {
-      if (e.key !== 'Escape' || !this.editing) return;
-      e.preventDefault();
-      e.stopPropagation();
-      this.editing = false;
-      void this.updateComplete.then(() => {
-        this.renderRoot.querySelector<HTMLElement>('button.toggle')?.focus();
-      });
-    });
+    this.addEventListener('keydown', this.onKeyDown);
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
+    document.addEventListener('keydown', this.onKeyDown);
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    document.removeEventListener('keydown', this.onKeyDown);
   }
 
   private open(source: Source) {
