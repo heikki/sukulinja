@@ -183,12 +183,13 @@ test('edits a residence’s address', () => {
     place: 'Pitäjä',
     address: 'Kylä'
   }) as { id: number };
-  const address = () =>
-    db
+  function address() {
+    return db
       .query<{ address: string | null }, [number]>(
         'SELECT address FROM facts WHERE id = ?'
       )
       .get(id)?.address;
+  }
   expect(address()).toBe('Kylä');
   facts.edit(1, id, {
     ...BLANK,
