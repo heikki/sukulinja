@@ -20,7 +20,8 @@ function row(personId: number, link: Link): VolumeCitation {
       markKey: `citation ${personId}`,
       citedPage: null,
       cited: null,
-      supports: []
+      supports: [],
+      entryId: null
     },
     link
   };

@@ -126,6 +126,13 @@ export function openEntries(db: Database) {
        box_height = $height
      WHERE id = $id`
   );
+  const placeOf = db.prepare<
+    { volumeId: string; volume: string; image: number; fileId: string },
+    [number]
+  >(
+    `SELECT volume_id AS volumeId, volume, image, file_id AS fileId
+     FROM entries WHERE id = ?`
+  );
   const ofCitation = db.prepare<{ id: number }, [number]>(
     'SELECT entry_id AS id FROM citations WHERE id = ? AND entry_id IS NOT NULL'
   );
@@ -157,6 +164,12 @@ export function openEntries(db: Database) {
       const known = alike.get(params);
       if (known !== null) return known.id;
       return Number(insert.run(params).lastInsertRowid);
+    },
+
+    // Where the Entry is written: its Volume, by id and label, and its
+    // Image; null when there's no such Entry.
+    placeOf(id: number) {
+      return placeOf.get(id);
     },
 
     // The Entry the Citation cites, or null for one that cites none.

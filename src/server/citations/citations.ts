@@ -50,6 +50,8 @@ interface CitationDbRow {
   text: string | null;
   // The Fact ids it supports, comma separated; null for none.
   supports: string | null;
+  // The Entry it cites (ADR-0026), or null.
+  entryId: number | null;
   annotation: Annotation;
 }
 
@@ -71,14 +73,24 @@ interface Cited<R extends BookRef = BookRef> {
 
 type EntryLink = Link & { precision: 'entry' };
 
-// Where an entry is cited in the app, what it says, and who the person is
-// in it: one of its Volume's entryRoles, or none.
-export interface CiteTarget {
+// Where an entry is cited in the app, and what it says.
+export interface EntryTarget {
   volumeId: string;
   image: number;
   fileId: string;
   box: Box;
   text: string | null;
+}
+
+// Someone named in an entry, and who they are in it: one of its Volume's
+// entryRoles, or none.
+export interface InEntry {
+  personId: number;
+  role: string | null;
+}
+
+// An entry cited for one person, in their Role.
+export interface CiteTarget extends EntryTarget {
   role: string | null;
 }
 
@@ -139,13 +151,20 @@ function citationOf<R extends BookRef>(references: References<R>) {
           : citationText(row.text).trim(),
       churchBook: book !== null || stored !== null,
       madeInApp: row.annotation.madeInApp,
-      markKey: book === null ? `citation ${row.id}` : references.markKey(book),
+      // Those citing one Entry share its Box.
+      markKey:
+        row.entryId !== null
+          ? `entry ${row.entryId}`
+          : book === null
+            ? `citation ${row.id}`
+            : references.markKey(book),
       citedPage: book?.page ?? null,
       cited:
         book === null
           ? null
           : { parish: book.parish, kind: book.kind, years: book.years },
-      supports: idsOf(row.supports)
+      supports: idsOf(row.supports),
+      entryId: row.entryId
     };
     return citation;
   };
@@ -215,7 +234,7 @@ export function createCitations<R extends BookRef>(
   // A Mark makes its citation cite the Astia Image; the panel shows the
   // original page, which the reference is read from (ADR-0013).
   const SELECT = `SELECT c.id, c.scope_id AS personId, s.title AS source,
-    ${originalPageSql('c')} AS page, c.text,
+    ${originalPageSql('c')} AS page, c.text, c.entry_id AS entryId,
     (SELECT group_concat(fact_id) FROM fact_citations
       WHERE citation_id = c.id) AS supports,
     ${annotationColumnsSql('c')}
@@ -412,6 +431,84 @@ export function createCitations<R extends BookRef>(
     return { personId: row.personId, citation: toCitation(c!) };
   }
 
+  // Why the people can't be named in an entry of the Volume on the Image:
+  // a Role not one of its Book's, someone named twice, or someone whose
+  // Citations already link the Image. Null when they can.
+  async function refusal(
+    at: { volumeId: string; image: number },
+    volume: string,
+    people: InEntry[]
+  ) {
+    const roles = entryRoles(volume).map((r) => r.role);
+    if (people.some((p) => p.role !== null && !roles.includes(p.role))) {
+      return "That isn't a Role in this kind of entry.";
+    }
+    const named = new Set(people.map((p) => p.personId));
+    if (named.size < people.length) return 'Someone is named twice.';
+    const there = await inVolume(at.volumeId);
+    const linked = there?.some(
+      (r) =>
+        named.has(r.personId) && 'image' in r.link && r.link.image === at.image
+    );
+    return linked === true ? 'Their Citations already link this Image.' : null;
+  }
+
+  // Stores the person's Citation of the Entry, with its Change and the
+  // support of the Fact the entry records for them; its id.
+  function recordCitation(entryId: number, p: InEntry, volume: string) {
+    const place = made.entryPlace(entryId)!;
+    const id = made.cite(entryId, p.personId, p.role);
+    changed({
+      on: { citationId: id },
+      what: { kind: 'cite', volume, image: place.image }
+    });
+    support.recorded(id, p.personId, entryEvent(volume), p.role);
+    return id;
+  }
+
+  // The Citation as the Scan viewer lists it.
+  async function listed(id: number): Promise<VolumeCitation> {
+    const row = byId.get(id)!;
+    const [c] = cited([row]);
+    return {
+      personId: row.personId,
+      citation: toCitation(c!),
+      link: await withArchive(c!.stored!)
+    };
+  }
+
+  // Makes an Entry at the Box and a Citation of it for each person named,
+  // in their Role (ADR-0026), and gives them as the Scan viewer lists
+  // them. Null when one of them isn't a person; rejected where the entry
+  // can't be cited, or as `refusal` says.
+  async function citeEntry(
+    target: EntryTarget,
+    people: InEntry[]
+  ): Promise<VolumeCitation[] | { rejected: string } | null> {
+    if (people.some((p) => personExists.get(p.personId) === null)) {
+      return null;
+    }
+    if (people.length === 0) return { rejected: 'Name someone in it.' };
+    const checked = await images.imageToCite(target, await citable());
+    if ('rejected' in checked) return checked;
+    const refused = await refusal(target, checked.volume, people);
+    if (refused !== null) return { rejected: refused };
+    const archive = await volumeArchive(target.volumeId);
+    const ids = db.transaction(() => {
+      const entryId = made.entry({
+        volumeId: target.volumeId,
+        volume: checked.volume,
+        archive,
+        image: target.image,
+        fileId: target.fileId,
+        box: target.box,
+        text: oneLine(target.text)
+      });
+      return people.map((p) => recordCitation(entryId, p, checked.volume));
+    })();
+    return await Promise.all(ids.map(listed));
+  }
+
   return {
     // Every one of the person's Citations: church books first, by year,
     // then the others in recorded order.
@@ -543,52 +640,32 @@ export function createCitations<R extends BookRef>(
       return { images: urls, archive };
     },
 
-    // Makes a Citation of the entry for the person, and gives it as the
-    // Scan viewer lists it. Null when there's no such person; rejected
-    // where the entry can't be cited, or the person's Citations already
-    // link the Image.
+    citeEntry,
+
+    // Adds the person to the Entry, in their Role, and gives their new
+    // Citation as the Scan viewer lists it. Null when there's no such
+    // Entry or person; rejected as for `citeEntry`.
+    async addToEntry(
+      entryId: number,
+      person: InEntry
+    ): Promise<VolumeCitation | { rejected: string } | null> {
+      const place = made.entryPlace(entryId);
+      if (place === null || personExists.get(person.personId) === null) {
+        return null;
+      }
+      const refused = await refusal(place, place.volume, [person]);
+      if (refused !== null) return { rejected: refused };
+      return await listed(recordCitation(entryId, person, place.volume));
+    },
+
+    // Makes a Citation of a new entry for the person (`citeEntry` with one),
+    // and gives it as the Scan viewer lists it.
     async cite(
       personId: number,
       target: CiteTarget
     ): Promise<VolumeCitation | { rejected: string } | null> {
-      if (personExists.get(personId) === null) return null;
-      const checked = await images.imageToCite(target, await citable());
-      if ('rejected' in checked) return checked;
-      const { volumeId, image, role } = target;
-      const roles = entryRoles(checked.volume).map((r) => r.role);
-      if (role !== null && !roles.includes(role)) {
-        return { rejected: "That isn't a Role in this kind of entry." };
-      }
-      const there = await inVolume(volumeId);
-      const linked = there?.some(
-        (r) =>
-          r.personId === personId && 'image' in r.link && r.link.image === image
-      );
-      if (linked === true) {
-        return { rejected: 'Their Citations already link this Image.' };
-      }
-      const id = made.create({
-        personId,
-        volumeId,
-        volume: checked.volume,
-        archive: await volumeArchive(volumeId),
-        image,
-        fileId: target.fileId,
-        box: target.box,
-        text: oneLine(target.text),
-        role
-      });
-      changed({
-        on: { citationId: id },
-        what: { kind: 'cite', volume: checked.volume, image }
-      });
-      support.recorded(id, personId, entryEvent(checked.volume), role);
-      const [c] = cited([byId.get(id)!]);
-      return {
-        personId,
-        citation: toCitation(c!),
-        link: await withArchive(c!.stored!)
-      };
+      const made = await citeEntry(target, [{ personId, role: target.role }]);
+      return made === null || 'rejected' in made ? made : made[0]!;
     },
 
     // Titles the Volume sources made before with their archive (ADR-0019).

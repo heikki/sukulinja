@@ -196,6 +196,9 @@ export interface CitationRow {
   // The Facts it supports, by id: its person's and their marriages'
   // (ADR-0022).
   supports: number[];
+  // The Entry it cites, which everyone in the entry cites (ADR-0026);
+  // null for one that cites none.
+  entryId: number | null;
 }
 
 // The parish, kind of Book and years a Church-book reference cites.

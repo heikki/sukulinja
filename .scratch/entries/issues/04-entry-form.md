@@ -1,5 +1,4 @@
 Status: needs-triage
-Blocked by: 02
 
 # One Box per Entry in the Scan viewer, its form beside it
 

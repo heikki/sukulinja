@@ -40,6 +40,18 @@ export function entryEvent(volume: string) {
   return kind === null ? null : EVENTS[kind];
 }
 
+// An Entry at the Box on an Image.
+export interface NewEntryAt {
+  volumeId: string;
+  // The Volume's label and its archive's title, which title its source.
+  volume: string;
+  archive?: string | null;
+  image: number;
+  fileId: string;
+  box: Box;
+  text: string | null;
+}
+
 // A Citation of the entry at the Box on an Image, for the person.
 interface NewCitation {
   personId: number;
@@ -171,38 +183,55 @@ export function openAppCitations(db: Database) {
     return Number(res.lastInsertRowid);
   }
 
+  // Stores an Entry at the Box on an Image (ADR-0026), with its Volume's
+  // source; its id.
+  function entry(e: NewEntryAt) {
+    return entries.create({
+      sourceId: sourceOf(e.volumeId, e.volume, e.archive ?? null),
+      page: viewerUrl(e.volumeId, e.fileId),
+      event: entryEvent(e.volume),
+      text: e.text,
+      volumeId: e.volumeId,
+      volume: e.volume,
+      image: e.image,
+      fileId: e.fileId,
+      box: e.box
+    });
+  }
+
+  // Stores the person's Citation of the Entry, in their Role, after
+  // their others; its id.
+  function cite(entryId: number, personId: number, role: string | null) {
+    return annotations.insert(
+      {
+        scopeType: 'person',
+        scopeId: personId,
+        sourceId: null,
+        sortOrder: nextOrder.get(personId)!.n,
+        page: null,
+        event: null,
+        role,
+        quality: null,
+        dataDate: null,
+        text: null,
+        entryId
+      },
+      { link: null, originalPage: null, madeInApp: true }
+    );
+  }
+
   return {
-    // Stores the Citation, of a new Entry at the Box (ADR-0026); its id.
+    // Stores an Entry at the Box on an Image; its id.
+    entry,
+    // Stores the person's Citation of the Entry; its id.
+    cite,
+
+    // Where an Entry is written; null when there's no such Entry.
+    entryPlace: (entryId: number) => entries.placeOf(entryId),
+
+    // Stores the Citation, of a new Entry at the Box; its id.
     create(c: NewCitation) {
-      return db.transaction(() => {
-        const entryId = entries.create({
-          sourceId: sourceOf(c.volumeId, c.volume, c.archive ?? null),
-          page: viewerUrl(c.volumeId, c.fileId),
-          event: entryEvent(c.volume),
-          text: c.text,
-          volumeId: c.volumeId,
-          volume: c.volume,
-          image: c.image,
-          fileId: c.fileId,
-          box: c.box
-        });
-        return annotations.insert(
-          {
-            scopeType: 'person',
-            scopeId: c.personId,
-            sourceId: null,
-            sortOrder: nextOrder.get(c.personId)!.n,
-            page: null,
-            event: null,
-            role: c.role ?? null,
-            quality: null,
-            dataDate: null,
-            text: null,
-            entryId
-          },
-          { link: null, originalPage: null, madeInApp: true }
-        );
-      })();
+      return db.transaction(() => cite(entry(c), c.personId, c.role ?? null))();
     },
 
     // Moves a Citation of an Image to another entry in its Volume: its
