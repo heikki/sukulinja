@@ -10,7 +10,8 @@ import type { Database, SQLQueryBindings } from 'bun:sqlite';
 import type { Box } from '@/common/types';
 
 // A Citation's columns an Entry holds instead, by the Entry's name for
-// each. A Citation of an Entry leaves them empty.
+// each. A Citation of an Entry leaves them empty, but for its text when
+// it says other than the Entry: a converted reference's names its person.
 const HELD = [
   ['source_id', 'source_id'],
   ['page', 'page'],
@@ -40,12 +41,14 @@ const OWN = [
 ] as const;
 
 // The citations table as it reads: each Citation of an Entry with the
-// Entry's columns in its own, and its Box drawn by hand. For a query's
+// Entry's columns in its own, but for a text of its own, and its Box drawn
+// by hand. For a query's
 // FROM in place of `citations`; only writes name the table itself.
 export const CITATIONS_READ = `(SELECT ${OWN.map((c) => `c.${c}`).join(', ')},
-  ${HELD.map(
-    ([own, held]) =>
-      `CASE WHEN e.id IS NULL THEN c.${own} ELSE e.${held} END AS ${own}`
+  ${HELD.map(([own, held]) =>
+    own === 'text'
+      ? `CASE WHEN e.id IS NULL THEN c.text ELSE COALESCE(c.text, e.text) END AS text`
+      : `CASE WHEN e.id IS NULL THEN c.${own} ELSE e.${held} END AS ${own}`
   ).join(',\n  ')},
   CASE WHEN e.id IS NULL THEN c.link_by ELSE 'hand' END AS link_by
   FROM citations c LEFT JOIN entries e ON e.id = c.entry_id)`;
@@ -60,8 +63,9 @@ const ALIKE = HELD.map(([own, held]) => `e.${held} IS c.${own}`).join(' AND ');
 
 // Makes the app's Citations of an Image each cite an Entry: one alike in
 // all an Entry holds cites that one, the rest one Entry for each alike
-// group, and the Entry's columns are emptied on them. Run by schema 6, the
-// import and the Conversion; it leaves an Entry already made as it is.
+// group, and the Entry's columns are emptied on them; then Entries of one
+// entry are one (`mergeEntries`). Run by schema 6, the import and the
+// Conversion.
 export function gatherEntries(db: Database) {
   db.run(
     `INSERT INTO entries (${HELD.map(([, held]) => held).join(', ')})
@@ -79,6 +83,64 @@ export function gatherEntries(db: Database) {
        link_by = NULL
      WHERE entry_id IS NOT NULL`
   );
+  mergeEntries(db);
+}
+
+interface EntryRow {
+  id: number;
+  key: string;
+  text: string | null;
+  box: Box;
+}
+
+// How much two Boxes are one: their overlap over all they cover, 0 to 1.
+export function overlapOf(a: Box, b: Box) {
+  const w =
+    Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
+  const h =
+    Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top);
+  if (w <= 0 || h <= 0) return 0;
+  const both = w * h;
+  return both / (a.width * a.height + b.width * b.height - both);
+}
+
+// Boxes this much one are drawn round the same entry.
+const SAME_ENTRY = 0.6;
+
+// Makes Entries of one entry one (ADR-0026): those of a source, page and
+// Event on one Image whose Boxes mostly overlap, drawn apart for each
+// person before, or alike but in what they say. The first made keeps its
+// Box and words; a Citation of another keeps that one's words as its own
+// when they differ.
+export function mergeEntries(db: Database) {
+  const rows = db
+    .query<EntryRow & Box, []>(
+      `SELECT id, json_array(source_id, page, event, volume_id, image,
+         file_id) AS key, text, box_left AS left, box_top AS top,
+         box_width AS width, box_height AS height
+       FROM entries ORDER BY id`
+    )
+    .all();
+  const keepers = new Map<string, EntryRow[]>();
+  const ownText = db.prepare(
+    'UPDATE citations SET text = ? WHERE entry_id = ? AND text IS NULL'
+  );
+  const move = db.prepare(
+    'UPDATE citations SET entry_id = ? WHERE entry_id = ?'
+  );
+  const drop = db.prepare('DELETE FROM entries WHERE id = ?');
+  for (const { id, key, text, left, top, width, height } of rows) {
+    const box = { left, top, width, height };
+    const kept = keepers.get(key) ?? [];
+    const keeper = kept.find((k) => overlapOf(k.box, box) >= SAME_ENTRY);
+    if (keeper === undefined) {
+      keepers.set(key, [...kept, { id, key, text, box }]);
+      continue;
+    }
+    if (text !== keeper.text) ownText.run(text, id);
+    move.run(keeper.id, id);
+    drop.run(id);
+  }
 }
 
 // Removes the Entries no Citation cites any more: removing the last of an
@@ -137,6 +199,9 @@ export function openEntries(db: Database) {
     'SELECT entry_id AS id FROM citations WHERE id = ? AND entry_id IS NOT NULL'
   );
   const transcribe = db.prepare('UPDATE entries SET text = ? WHERE id = ?');
+  const ownWords = db.prepare(
+    'UPDATE citations SET text = NULL WHERE entry_id = ?'
+  );
   const citing = db.prepare<{ id: number }, [number]>(
     'SELECT id FROM citations WHERE entry_id = ? ORDER BY id'
   );
@@ -186,9 +251,11 @@ export function openEntries(db: Database) {
       return citing.all(id).map((c) => c.id);
     },
 
-    // Puts what the Entry says, for every Citation of it.
+    // Puts what the Entry says, for every Citation of it: none keeps
+    // words of its own.
     setText(id: number, text: string | null) {
       transcribe.run(text, id);
+      ownWords.run(id);
     },
 
     // Moves the Entry to another place in its Volume, for every Citation of

@@ -12,14 +12,14 @@ A baptism names the child, the parents and the godparents, but the app keeps no 
 - **Making an Entry names everyone in it at once:** the Box is drawn once, and beside it the people are picked by Role, the child's parents offered from the tree. A person is added to an Entry later from its Box's menu.
 - **Each Citation made, removed or moved is a Change** on it, as now; a Box moved or a Transcription retyped is one on each of its Citations.
 - **GEDCOM stays as it is** (lumping): the Volume is the source, and each Citation of an Entry is written whole under its person, with `PAGE`, `DATA`/`TEXT`, `EVEN`, `ROLE`, `OBJE` + `CROP`. The import makes one Entry of the app's Citations with the same source, Image file, `CROP`, `EVEN` and text. Other programs read ordinary GEDCOM, and the round trip (ADR-0013) gives the same Entries back.
-- **The migration** makes one Entry of the app's Citations of an Image with the same source, Image file, Box, Event and text: Marked by hand or converted, never a Match nobody confirmed, whose Box is the vision pass's. Boxes drawn by hand for each person differ by a few pixels, so they stay separate Entries, and no action merges them: one is deleted and its person added to the other.
+- **The migration** makes one Entry of the app's Citations of an Image with the same source, Image file and Event whose Boxes mostly overlap (60 %): Marked by hand or converted, never a Match nobody confirmed, whose Box is the vision pass's. The first keeps its Box and words; a Citation whose words differ keeps its own, as a converted reference's name its person (schema 7). No action merges Entries later: one is deleted and its person added to the other.
 
 ## Considered options
 
 - **Wait until `citations/myheritage/` goes**, as `entries.md` recommended. Rejected: Citations made now, while the references are being Marked, would each be drawn again. Leaving the references out of Entries keeps the folder as it is.
 - **Every reference in an Entry, now.** Rejected: Mark, Match, Discard and the vision pass would be rewritten onto Entries in code that is going.
 - **Each Entry its own GEDCOM `SOUR` record** (splitting), its Transcription the source's `TEXT`, Citations mere pointers. Not now: thousands of sources in other programs' lists, and GEDCOM 7.1 may bring a citation record (FamilySearch/GEDCOM #348). The export can switch later without changing the model.
-- **Merge near-identical Boxes in the migration.** Rejected: a guess about the data; two entries side by side can overlap.
+- **Merge only identical Boxes and words** (schema 6). Dropped: converted references name their person in their words, so a baptism's Citations stayed apart. Two entries side by side overlap far less than 60 %.
 - **Clearer Role buttons only.** Rejected: the Box would still be drawn once per person.
 
 ## Consequences
