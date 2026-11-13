@@ -381,6 +381,27 @@ describe('schema 7', () => {
   });
 });
 
+describe('schema 8', () => {
+  test('names a village named as its parish once, after schema 7', () => {
+    const db = oldest();
+    runAll(
+      db,
+      `
+      INSERT INTO persons (id, xref) VALUES (1, '@I1@');
+      INSERT INTO facts (id, scope_type, scope_id, tag, place)
+        VALUES (1, 'person', 1, 'RESI', 'Laukola, Haukivuori, Haukivuori, Suomi');
+    `
+    );
+    db.run('PRAGMA user_version = 7;');
+    db.close();
+    const migrated = openDb(path);
+    expect(migrated.query('SELECT place FROM facts').all()).toEqual([
+      { place: 'Laukola, Haukivuori, Suomi' }
+    ]);
+    migrated.close();
+  });
+});
+
 describe('opening a database', () => {
   test('older than the oldest schema migrated, it has to be imported again', () => {
     oldest(OLDEST_MIGRATED - 1).close();

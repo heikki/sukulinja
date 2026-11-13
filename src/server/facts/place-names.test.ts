@@ -5,10 +5,19 @@ import { tidyPlace } from './place-names';
 test('leaves out the province before the country, which is Suomi', () => {
   expect(
     tidyPlace('Laukola, Haukivuori, Haukivuori, Mikkeli (St. Michel), Finland')
-  ).toBe('Laukola, Haukivuori, Haukivuori, Suomi');
+  ).toBe('Laukola, Haukivuori, Suomi');
   expect(tidyPlace('Pieksamaki, Mikkeli, Finland')).toBe('Pieksamaki, Suomi');
   expect(tidyPlace('Mikkeli,Mikkeli,Finland')).toBe('Mikkeli, Suomi');
   expect(tidyPlace('Kirvu, Viipuri, Suomi')).toBe('Kirvu, Suomi');
+});
+
+test('names a village named as its parish once', () => {
+  expect(
+    tidyPlace('Haukivuori, Haukivuori, Mikkeli (St. Michel), Finland')
+  ).toBe('Haukivuori, Suomi');
+  expect(tidyPlace('Hankinoni, Haukivuori, Suomi')).toBe(
+    'Hankinoni, Haukivuori, Suomi'
+  );
 });
 
 test('names the parish in Finnish only', () => {
@@ -22,7 +31,7 @@ test("leaves out a cemetery's region", () => {
     tidyPlace(
       'Lepolan Hautausmaa, Hankasalmi, Hankasalmi, Keski-Suomi, Finland'
     )
-  ).toBe('Lepolan Hautausmaa, Hankasalmi, Hankasalmi, Suomi');
+  ).toBe('Lepolan Hautausmaa, Hankasalmi, Suomi');
 });
 
 test('keeps a town of the same name, and places outside Finland', () => {

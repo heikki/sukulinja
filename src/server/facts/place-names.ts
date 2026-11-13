@@ -1,4 +1,4 @@
-// How a place is written (ADR-0024): "(farm,) village, parish, country",
+// How a place is written (ADR-0024): "(farm,) village, parish, Suomi",
 // lowest first; Finland as Suomi, and its parishes by their Finnish names.
 // MyHeritage and FamilySearch put a Finnish place's province (lääni)
 // between its parish and the country, and a cemetery's region (maakunta):
@@ -53,9 +53,18 @@ function isProvince(part: string) {
   return PROVINCES.has(finnishOf(part).toLocaleLowerCase());
 }
 
+// The parts without one named as the next above it: a parish's church
+// village goes by the parish's name, "Haukivuori, Haukivuori".
+function withoutRepeats(parts: string[]) {
+  return parts.filter(
+    (p, i) => p.toLocaleLowerCase() !== parts[i + 1]?.toLocaleLowerCase()
+  );
+}
+
 // The place as it's written: a place in Finland says Suomi, leaves out
 // the province it names before it when there's a parish or town before
-// that, and names its parish in Finnish only. Any other is as it is.
+// that, names its parish in Finnish only, and a village named as its
+// parish only once. Any other is as it is.
 export function tidyPlace(place: string) {
   const parts = place.split(/\s*,\s*/u);
   const country = parts.at(-1)!;
@@ -64,8 +73,10 @@ export function tidyPlace(place: string) {
   if (above.length >= 2 && isProvince(above.at(-1)!)) above.pop();
   const parish = above.pop();
   return [
-    ...above,
-    ...(parish === undefined ? [] : [finnishOf(parish)]),
+    ...withoutRepeats([
+      ...above,
+      ...(parish === undefined ? [] : [finnishOf(parish)])
+    ]),
     'Suomi'
   ].join(', ');
 }

@@ -10,7 +10,8 @@ import type { ChangeWhat } from '@/common/types';
 import { tidyPlace } from '../facts/place-names';
 import type { Migration } from './migrations';
 
-function up(db: Database) {
+// Each Fact's place as tidyPlace writes it.
+export function tidyPlaces(db: Database) {
   const placed = db
     .query<{ id: number; place: string }, []>(
       'SELECT id, place FROM facts WHERE place IS NOT NULL ORDER BY id'
@@ -34,4 +35,4 @@ function up(db: Database) {
   ]);
 }
 
-export const PLACES_WRITTEN_ONE_WAY: Migration = { to: 7, up };
+export const PLACES_WRITTEN_ONE_WAY: Migration = { to: 7, up: tidyPlaces };
