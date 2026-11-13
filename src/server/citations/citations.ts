@@ -117,10 +117,6 @@ export function entryOf(ref: BookRef) {
   return ref.date === null ? null : isoDate(ref.date);
 }
 
-function linkOf(page: string | null) {
-  return page !== null && /^https?:/.test(page) ? page : null;
-}
-
 // Where in its Volume the reference points, or the Image a Citation of
 // one cites.
 function entryText(book: BookRef | null, stored: EntryLink | null) {
@@ -148,7 +144,6 @@ function citationOf<R extends BookRef>(references: References<R>) {
       reference: book === null ? null : describeRef(book),
       entry: entryText(book, stored),
       page: row.page,
-      url: linkOf(row.page),
       record,
       text:
         record !== null || row.text === null

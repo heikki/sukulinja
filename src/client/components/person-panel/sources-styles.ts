@@ -232,13 +232,6 @@ export const personSourcesStyles = css`
     color: var(--tone);
   }
 
-  .sites {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem 1rem;
-    margin-top: 0.5rem;
-  }
-
   /* Finding the parish's archive in Astia, or changing it, and deleting
      the Citation: quiet text buttons, one to a line. */
   button.delete {

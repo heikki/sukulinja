@@ -65,21 +65,6 @@ export function setDetailsWidth(px: number) {
   document.cookie = `${WIDTH_COOKIE}=${Math.round(px)}; path=/; max-age=${YEAR_S}; samesite=lax`;
 }
 
-const SITE_NAMES: Array<[RegExp, string]> = [
-  [/(?:^|\.)myheritage\./, 'MyHeritage'],
-  [/(?:^|\.)familysearch\./, 'FamilySearch'],
-  [/(?:^|\.)geni\./, 'Geni'],
-  [/(?:^|\.)ancestry\./, 'Ancestry']
-];
-
-// A record link says which site it opens: its name if known, else its host.
-export function siteName(url: string) {
-  const host = URL.canParse(url) ? new URL(url).hostname : null;
-  if (host === null) return 'Record';
-  const known = SITE_NAMES.find(([re]) => re.test(host));
-  return known?.[1] ?? host.replace(/^www\./, '');
-}
-
 // A source citing an Astia Image itself, such as one made in the app: a
 // church book with no Church-book reference to read.
 function citesImage(c: CitationRow) {

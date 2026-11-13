@@ -246,7 +246,6 @@ export function memoryDatasetApi(
               reference: null,
               entry: `Image\u00a0${image}`,
               page: url,
-              url,
               record: null,
               text: at.text,
               churchBook: true,

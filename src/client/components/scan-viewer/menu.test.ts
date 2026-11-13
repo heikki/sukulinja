@@ -33,7 +33,6 @@ function citation(id: number, madeInApp: boolean): CitationRow {
     reference: null,
     entry: null,
     page: null,
-    url: null,
     record: null,
     text: null,
     churchBook: true,

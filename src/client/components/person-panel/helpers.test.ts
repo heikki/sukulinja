@@ -9,21 +9,9 @@ import {
   factText,
   headingOf,
   openSuggestions,
-  siteName,
   sourcesOf,
   titleText
 } from './helpers';
-
-test('names a record link by its site', () => {
-  expect(
-    siteName('https://www.myheritage.fi/research/collection-10509/x?itemId=1')
-  ).toBe('MyHeritage');
-  expect(siteName('https://www.familysearch.org/ark:/61903/1:1:X')).toBe(
-    'FamilySearch'
-  );
-  expect(siteName('https://www.example.org/records/1')).toBe('example.org');
-  expect(siteName('not a link')).toBe('Record');
-});
 
 const DEATH: FactRow = {
   id: 1,
@@ -78,7 +66,6 @@ const OF_IMAGE: CitationRow = {
   reference: null,
   entry: 'Image\u00a013',
   page: LINK.url,
-  url: LINK.url,
   record: null,
   text: 'Baptism 12.3.1795',
   churchBook: true,

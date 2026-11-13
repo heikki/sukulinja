@@ -26,7 +26,6 @@ function row(personId: number, markKey: string, entry: string): VolumeCitation {
     reference: null,
     entry,
     page: null,
-    url: null,
     record: null,
     text: null,
     churchBook: true,

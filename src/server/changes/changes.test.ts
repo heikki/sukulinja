@@ -15,7 +15,6 @@ const CITATION: CitationRow = {
   reference: 'I Aa:1, s. 12',
   entry: null,
   page: null,
-  url: null,
   record: null,
   text: null,
   churchBook: true,

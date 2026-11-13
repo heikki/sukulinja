@@ -111,7 +111,6 @@ test("serves a person's Citations, church books first", () => {
       reference: 'Pää- ja rippikirjat 1794–1808\u00a0· p.\u00a0139',
       entry: 'p.\u00a0139',
       page: RIPPI,
-      url: RIPPI,
       record: {
         name: 'Matti Esimerkki',
         fields: [
@@ -135,7 +134,6 @@ test("serves a person's Citations, church books first", () => {
       reference: null,
       entry: null,
       page: null,
-      url: null,
       record: null,
       text: 'Family bible',
       churchBook: false,

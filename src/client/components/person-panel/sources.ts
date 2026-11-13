@@ -33,7 +33,6 @@ import {
   archiveAction,
   headingOf,
   openSuggestions,
-  siteName,
   titleText
 } from './helpers';
 import { personSourcesStyles } from './sources-styles';
@@ -92,32 +91,10 @@ function renderStatus(status: LinkStatus | null, entry: string | null) {
   </div>`;
 }
 
-function renderSite(href: string, label: string) {
-  return html`<a href=${href} target="_blank" rel="noopener">${label} ↗</a>`;
-}
-
-// What the source records, then links to the record on its own site and to
-// its scan in Astia, and what can be done: of its archive, and deleting it.
-function renderDetails(
-  body: unknown,
-  url: string | null,
-  link: Link | null,
-  actions: unknown
-) {
-  const astia = link === null || link.url === '' ? null : link.url;
-  // A Citation of an Astia Image is at its Link's own address.
-  const own = url === null || url === astia ? null : url;
-  const links = [
-    own === null ? null : renderSite(own, `Open on ${siteName(own)}`),
-    astia === null ? null : renderSite(astia, 'Open in Astia')
-  ].filter((l) => l !== null);
-  return html`
-    <div class="record">
-      ${body}
-      ${links.length === 0 ? nothing : html`<div class="sites">${links}</div>`}
-      ${actions}
-    </div>
-  `;
+// What the source records, and what can be done: of its archive, and
+// deleting it.
+function renderDetails(body: unknown, actions: unknown) {
+  return html` <div class="record">${body} ${actions}</div> `;
 }
 
 // Filed under its archive: it links a Volume there, or the archive's
@@ -463,7 +440,6 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
     const { viewing, elsewhere } = this.markOf(c);
     const heading = headingOf(c);
     const body = renderBody(c, heading);
-    const link = status?.link ?? null;
     const filed = isFiled(status);
     const open = this.unfolded === c.id;
     const act = this.actionOf(c, status);
@@ -496,8 +472,6 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
         <sl-fold .open=${open}>
           ${renderDetails(
             body,
-            c.url,
-            link,
             html`${this.renderSupports(c)} ${this.renderArchive(c, status)}
             ${this.renderDelete(c)}`
           )}

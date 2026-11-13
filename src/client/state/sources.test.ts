@@ -99,7 +99,6 @@ function source(id: number, citedPage: number | null, churchBook = true) {
     reference: null,
     entry: null,
     page: null,
-    url: null,
     record: null,
     text: null,
     churchBook,

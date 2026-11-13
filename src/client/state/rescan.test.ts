@@ -36,7 +36,6 @@ function churchBook(id: number): CitationRow {
     reference: null,
     entry: 'p. 463',
     page: null,
-    url: null,
     record: null,
     text: null,
     churchBook: true,
