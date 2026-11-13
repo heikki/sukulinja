@@ -111,6 +111,8 @@ export function emitLayout(
   const boxHalfSlot = dims.boxW / slotPitch / 2;
   const halfW = dims.boxW / 2;
   const halfH = dims.boxH / 2;
+  // A Tie sits as far above the card's bottom edge as the Bar sits below it.
+  const tieY = halfH - dims.gapY / 2;
   const boxes: Box[] = [];
   const lines: DrawnLine[] = [];
   let minX = Infinity;
@@ -183,10 +185,10 @@ export function emitLayout(
       const rightX = Math.max(husband.localX, wife.localX);
       const ty =
         node.tieKind === 'centered'
-          ? 0
+          ? tieY
           : node.tieKind === 'nonprimary-left'
-            ? dims.tieOffset
-            : -dims.tieOffset;
+            ? tieY + dims.tieOffset
+            : tieY - dims.tieOffset;
       out.push({
         key: `tie-${node.famId}`,
         kind: 'tie',
@@ -225,8 +227,8 @@ export function emitLayout(
     if (kids.length < (hasDrop ? 1 : 2)) return null;
     const anchorY = hasDrop
       ? childAnchor.kind === 'tie-midpoint'
-        ? 0
-        : dims.boxH / 2
+        ? tieY
+        : halfH
       : busY;
     return {
       key: `sib-${famId}`,

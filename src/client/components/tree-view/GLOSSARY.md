@@ -109,7 +109,7 @@ A person + each of their spouses (Couples) + each child's Descendant tree. Bound
 ### Connectors
 
 **Tie**:
-Horizontal segment between husband and wife inside a **Couple**, at row-center Y.
+Horizontal segment between husband and wife inside a **Couple**, as far above the cards' bottom edge as the **Bar** sits below it.
 
 **Drop**:
 Vertical line from the **Child anchor** down to the **Bar**. Top of the drop/bar/leg trio.
