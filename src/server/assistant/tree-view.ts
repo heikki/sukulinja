@@ -1,5 +1,5 @@
 // The dataset as the assistant's read operations see it: everyone, by id,
-// with who may be living left out (ADR to come; spec decision 1), except
+// with who may be living left out (ADR-0025), except
 // the person on screen, whom the question is about.
 
 import type { PersonRow } from '@/common/types';

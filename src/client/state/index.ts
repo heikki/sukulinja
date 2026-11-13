@@ -5,6 +5,8 @@ import { createContext } from '@lit/context';
 
 import type { DatasetApi } from '@/client/dataset-api';
 
+import { openAssistant } from './assistant';
+import type { Assistant } from './assistant';
 import { openChanges } from './changes';
 import type { Changes } from './changes';
 import { openChart } from './chart';
@@ -24,6 +26,7 @@ import type { Selected } from './selected';
 import { openViewer } from './viewer';
 import type { Viewer } from './viewer';
 
+export type { Assistant, Exchange } from './assistant';
 export type { Changes } from './changes';
 export type { Chart, ChartView, UrlView } from './chart';
 export type { Facts } from './facts';
@@ -64,6 +67,8 @@ export interface AppState {
   facts: Facts;
   // Adding people to the tree as someone's relatives, and changing them.
   personEdits: PersonEdits;
+  // The conversation with the assistant.
+  assistant: Assistant;
 }
 
 export function openAppState(api: DatasetApi): AppState {
@@ -93,7 +98,8 @@ export function openAppState(api: DatasetApi): AppState {
     reminders: openReminders(api),
     changes: openChanges(api),
     facts,
-    personEdits: openPersonEdits(api, chart, selected)
+    personEdits: openPersonEdits(api, chart, selected),
+    assistant: openAssistant(api)
   };
 }
 

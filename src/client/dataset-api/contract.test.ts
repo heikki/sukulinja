@@ -6,6 +6,10 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import type Anthropic from '@anthropic-ai/sdk';
+
+import type { AssistantEvent } from '@/common/types';
+import type { Model } from '@/server/assistant/model';
 import {
   IMAGES,
   JUVA,
@@ -14,6 +18,7 @@ import {
   VOLUMES
 } from '@/server/citations/testing';
 import type { MemoryAstia } from '@/server/citations/testing';
+import { memoryKeyStore } from '@/server/claude/key';
 import { DatasetRegistry } from '@/server/datasets/registry';
 import { parseGedcom } from '@/server/gedcom/parser';
 import { importGedcom } from '@/server/import/gedcom';
@@ -23,6 +28,21 @@ import { ApiError, NOT_RESPONDING, openDatasetApi } from './';
 import type { DatasetApi } from './';
 
 const ORIGIN = 'http://localhost';
+
+// Answers every question the same, as Claude would without asking a tool.
+async function cannedAssistant(
+  ...[, onText]: Parameters<Model>
+): ReturnType<Model> {
+  onText('Hei.');
+  return await Promise.resolve({
+    content: [{ type: 'text', text: 'Hei.', citations: null }],
+    stopReason: 'end_turn',
+    usage: JSON.parse(
+      '{"input_tokens":10,"output_tokens":2}'
+    ) as Anthropic.Beta.BetaUsage,
+    model: 'claude-opus-5-5'
+  });
+}
 
 // Juva's first rippikirja, under an id like Astia's own: the app's routes
 // take only those.
@@ -61,7 +81,11 @@ let api: DatasetApi = openDatasetApi('juva');
 function serveWith(astia: MemoryAstia) {
   const registry = new DatasetRegistry(join(root, 'data'));
   serve = createStaticFetch({
-    api: createApi(registry, { astia }),
+    api: createApi(registry, {
+      astia,
+      keyStore: memoryKeyStore('sk-test'),
+      assistantModel: () => cannedAssistant
+    }),
     staticRoots: []
   });
   api = openDatasetApi('juva', { fetch: serve, origin: ORIGIN });
@@ -427,6 +451,25 @@ describe('the answers', () => {
     expect(await status(api.imageUrl(VOLUME, 2, 3))).toBe(200);
     expect(await status(api.thumbUrl(VOLUME, 2))).toBe(200);
     expect(await status(api.mediaUrl('photo.jpg'))).toBe(200);
+  });
+});
+
+describe('the assistant', () => {
+  test('answers a question in a conversation, and forgets it', async () => {
+    const events: AssistantEvent[] = [];
+    for await (const e of api.ask({
+      conversation: null,
+      text: 'Hei',
+      personId: 1
+    })) {
+      events.push(e);
+    }
+    expect(events[0]!.type).toBe('conversation');
+    expect(events[1]).toEqual({ type: 'text', text: 'Hei.' });
+    expect(events[2]).toMatchObject({ type: 'done', ended: 'answered' });
+    const id = (events[0] as { id: string }).id;
+    await api.forgetConversation(id);
+    expect(await status(`${ORIGIN}/d/juva/api/assistant/x`)).toBe(405);
   });
 });
 

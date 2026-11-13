@@ -17,6 +17,7 @@ import { listsLabel, TABS } from './helpers';
 import type { CornerList } from './helpers';
 import { LISTS_ICON } from './icons';
 
+import '../assistant-panel';
 import '../changes-list';
 import '../church-books';
 import '../corner-panel/button';
@@ -25,7 +26,7 @@ import '../photos-list';
 import '../reminders-list';
 
 // Beside Settings: one button opening a popover of the Reminders, the
-// Changes, the Church books and the Photos, a tab each, as Settings opens
+// Changes, the Church books, the Photos and the Assistant, a tab each, as Settings opens
 // its own; only one popover is open at a time. It opens on the tab last
 // shown, and a Reminder being drafted, as from the Scan viewer's menu,
 // opens it on the Reminders. Only the open tab's list is drawn. A line of
@@ -105,6 +106,8 @@ class CornerListsElement extends SignalWatcher(LitElement) {
         ></sl-church-books-list>`;
       case 'photos':
         return html`<sl-photos-list></sl-photos-list>`;
+      case 'assistant':
+        return html`<sl-assistant-panel></sl-assistant-panel>`;
     }
   }
 

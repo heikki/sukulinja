@@ -6,6 +6,8 @@ import { readNdjson } from '@/client/ndjson';
 import type { MoveTarget } from '@/common/tree-cut';
 import type {
   AddedPhoto,
+  AssistantEvent,
+  AssistantQuestion,
   Box,
   Change,
   ChurchBookArchive,
@@ -177,6 +179,14 @@ export interface DatasetApi {
   ) => Promise<void>;
   // Deletes one, its Citations moving to its person or family.
   deleteFact: (personId: number, factId: number) => Promise<void>;
+  // Asks the assistant: what it tells of the turn as it runs, the
+  // conversation's id first.
+  ask: (
+    question: AssistantQuestion,
+    signal?: AbortSignal
+  ) => AsyncGenerator<AssistantEvent, void, undefined>;
+  // Forgets a conversation with the assistant.
+  forgetConversation: (id: string) => Promise<void>;
 }
 
 export interface FetchOptions {
@@ -549,6 +559,39 @@ export function openDatasetApi(
       await ask(
         'Deleting the event',
         `${dataset}/api/persons/${personId}/facts/${factId}`,
+        { method: 'DELETE' }
+      );
+    },
+
+    async *ask(question, signal) {
+      const res = await settled(
+        signal,
+        async () =>
+          await ask('Asking the assistant', `${dataset}/api/assistant`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(question),
+            signal
+          })
+      );
+      if (res.body === null) throw new ApiError(NOT_RESPONDING);
+      try {
+        for await (const line of readNdjson(res.body)) {
+          signal?.throwIfAborted();
+          yield line as AssistantEvent;
+        }
+      } catch (err) {
+        // eslint-disable-next-line @typescript-eslint/only-throw-error -- the abort's own reason
+        if (signal?.aborted === true) throw signal.reason;
+        if (err instanceof SyntaxError) throw err;
+        throw new ApiError(NOT_RESPONDING, { cause: err });
+      }
+    },
+
+    async forgetConversation(id) {
+      await ask(
+        'Starting a new conversation',
+        `${dataset}/api/assistant/${encodeURIComponent(id)}`,
         { method: 'DELETE' }
       );
     }

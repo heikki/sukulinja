@@ -4,6 +4,7 @@
 
 import type {
   AddedPhoto,
+  AssistantEvent,
   Change,
   ChurchBookArchive,
   CitationLinks,
@@ -61,6 +62,8 @@ export interface MemoryDataset {
   // numbered on from 5000 with its file name as its path, `deletePhoto`
   // takes out, and `photos` lists by id.
   photos?: Record<number, PhotoRow>;
+  // What the assistant tells of each turn asked, in turn.
+  assistant?: AssistantEvent[][];
 }
 
 export interface MemoryOptions {
@@ -91,7 +94,8 @@ type MemoryDatasetApi = DatasetApi & {
   // change nothing; "delete person
   // <person>" takes the row out of `persons`.
   // A Citation made by `cite` joins its Volume's citations, numbered on
-  // from 1000, and `uncite` takes one out.
+  // from 1000, and `uncite` takes one out. "ask[ in <conversation>]:
+  // <text>" tells the next turn in `assistant`; "forget <conversation>".
   asked: string[];
 };
 
@@ -112,6 +116,7 @@ export function memoryDatasetApi(
   const persons = [...(data.persons ?? [])];
   let reminders = [...(data.reminders ?? [])];
   let changes = [...(data.changes ?? [])];
+  const turns = [...(data.assistant ?? [])];
   const photos = new Map(
     Object.entries(data.photos ?? {}).map(([id, p]) => [Number(id), p])
   );
@@ -550,6 +555,25 @@ export function memoryDatasetApi(
         undefined,
         () => undefined
       );
+    },
+
+    async *ask(question, signal) {
+      const where =
+        question.conversation === null ? '' : ` in ${question.conversation}`;
+      const events = await answer(
+        `ask${where}: ${question.text}`,
+        signal,
+        () => turns.shift() ?? []
+      );
+      for (const event of events) {
+        signal?.throwIfAborted();
+        // eslint-disable-next-line no-await-in-loop -- one line at a time, as streamed
+        yield await Promise.resolve(event);
+      }
+    },
+
+    async forgetConversation(id) {
+      await answer(`forget ${id}`, undefined, () => undefined);
     }
   };
 }

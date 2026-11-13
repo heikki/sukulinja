@@ -29,7 +29,7 @@ You can't change the tree yet. When the answer would be a change, say what you w
 
 People who may be living are left out of what the tools give, unless they're the person on screen; don't try to work around it.
 
-Answer in the language the user writes in, briefly, naming people with their years.`;
+Answer in the language the user writes in, briefly, naming people with their years. Write plain text: the app shows no Markdown.`;
 
 // The question as Claude gets it: what's on screen first, then the words.
 function question(

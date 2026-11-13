@@ -633,3 +633,11 @@ export type AssistantEvent =
   | { type: 'reading'; label: string }
   | { type: 'done'; spend: Spend; ended: AssistantTurnEnd }
   | { type: 'error'; message: string };
+
+// A question to the assistant: in the conversation by id, or a new one
+// for null; with the person on screen, or null.
+export interface AssistantQuestion {
+  conversation: string | null;
+  text: string;
+  personId: number | null;
+}
