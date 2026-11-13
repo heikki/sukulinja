@@ -43,7 +43,8 @@ function churchBook(id: number): CitationRow {
     madeInApp: false,
     markKey: `citation ${id}`,
     citedPage: 463,
-    cited: null
+    cited: null,
+    supports: []
   };
 }
 

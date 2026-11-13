@@ -104,7 +104,9 @@ export function treeSnapshot(db: Database) {
     repository_id: 'repository',
     media_id: 'media',
     shared_note_id: 'shared_note',
-    name_id: 'name'
+    name_id: 'name',
+    fact_id: 'fact',
+    citation_id: 'citation'
   };
 
   function described(table: string, r: Row) {

@@ -31,6 +31,16 @@ function factDetail({ was, now }: FactChange) {
   return `${was} → ${now}`;
 }
 
+type SupportChange = Extract<ChangeWhat, { kind: 'support' }>;
+
+// A Citation made to support a Fact, or no longer: "Cited for the birth".
+function supportDone({ did, tag }: SupportChange) {
+  const kind = factKindLabel(tag).toLowerCase();
+  return did === 'add'
+    ? `Cited for the ${kind}`
+    : `Took back the citation for the ${kind}`;
+}
+
 type PersonChange = Extract<ChangeWhat, { kind: 'person' }>;
 
 const PERSON_DID = {
@@ -79,6 +89,8 @@ export function doneLabel(what: ChangeWhat) {
       return what.did === 'add' ? 'Added a photo' : 'Deleted a photo';
     case 'fact':
       return factDone(what);
+    case 'support':
+      return supportDone(what);
     case 'person':
       return personDone(what);
     case 'import':
@@ -122,6 +134,8 @@ export function detailOf(what: ChangeWhat) {
         : `${what.photo}, on ${count(what.people, 'person', 'people')}`;
     case 'fact':
       return factDetail(what);
+    case 'support':
+      return what.fact;
     case 'person':
       return personDetail(what);
     case 'import':

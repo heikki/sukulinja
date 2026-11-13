@@ -40,7 +40,8 @@ function citation(id: number, madeInApp: boolean): CitationRow {
     madeInApp,
     markKey: `citation ${id}`,
     citedPage: null,
-    cited: null
+    cited: null,
+    supports: []
   };
 }
 

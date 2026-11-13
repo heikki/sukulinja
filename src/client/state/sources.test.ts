@@ -106,7 +106,8 @@ function source(id: number, citedPage: number | null, churchBook = true) {
     madeInApp: false,
     markKey: `citation ${id}`,
     citedPage,
-    cited: null
+    cited: null,
+    supports: []
   };
   return row;
 }

@@ -205,6 +205,16 @@ export function readExportRows(db: Database) {
       ).map(annotated),
       (r) => ownerKey(r.scope_type, r.scope_id)
     ),
+    // The Citations supporting each Fact (ADR-0022), in their owner's
+    // order.
+    supportOf: grouped(
+      all<Omit<CitationRow, 'annotation'> & { fact_id: number }>(
+        `SELECT c.*, fc.fact_id FROM fact_citations fc
+         JOIN citations c ON c.id = fc.citation_id
+         ORDER BY c.scope_type, c.scope_id, c.sort_order, c.id`
+      ).map(annotated),
+      (r) => String(r.fact_id)
+    ),
     notesOf: grouped(all<NoteRow>(`SELECT * FROM notes ${ordered}`), (r) =>
       ownerKey(r.owner_type, r.owner_id)
     ),

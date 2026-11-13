@@ -74,7 +74,8 @@ const OF_IMAGE: CitationRow = {
   madeInApp: true,
   markKey: 'citation 4',
   citedPage: null,
-  cited: null
+  cited: null,
+  supports: []
 };
 
 test('names a Citation of an Image by its Volume, whatever its text', () => {

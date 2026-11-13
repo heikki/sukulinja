@@ -27,7 +27,7 @@ import {
   originalPageSql
 } from './annotations';
 import type { Annotation } from './annotations';
-import { openAppCitations } from './app-citations';
+import { entryEvent, openAppCitations } from './app-citations';
 import { viewerUrl, volumeYears } from './astia/astia';
 import { citedArchives } from './cited-archives';
 import type { Images } from './images';
@@ -38,6 +38,7 @@ import type {
   MarkTarget,
   References
 } from './references';
+import { createSupport } from './support';
 import { citationText } from './text';
 
 interface CitationDbRow {
@@ -46,7 +47,17 @@ interface CitationDbRow {
   source: string | null;
   page: string | null;
   text: string | null;
+  // The Fact ids it supports, comma separated; null for none.
+  supports: string | null;
   annotation: Annotation;
+}
+
+function idsOf(list: string | null) {
+  if (list === null) return [];
+  return list
+    .split(',')
+    .map(Number)
+    .sort((a, b) => a - b);
 }
 
 // A Citation as the panel and the Scan viewer read it: its Church-book
@@ -137,7 +148,8 @@ function citationOf<R extends BookRef>(references: References<R>) {
       cited:
         book === null
           ? null
-          : { parish: book.parish, kind: book.kind, years: book.years }
+          : { parish: book.parish, kind: book.kind, years: book.years },
+      supports: idsOf(row.supports)
     };
     return citation;
   };
@@ -207,7 +219,10 @@ export function createCitations<R extends BookRef>(
   // A Mark makes its citation cite the Astia Image; the panel shows the
   // original page, which the reference is read from (ADR-0013).
   const SELECT = `SELECT c.id, c.scope_id AS personId, s.title AS source,
-    ${originalPageSql('c')} AS page, c.text, ${annotationColumnsSql('c')}
+    ${originalPageSql('c')} AS page, c.text,
+    (SELECT group_concat(fact_id) FROM fact_citations
+      WHERE citation_id = c.id) AS supports,
+    ${annotationColumnsSql('c')}
     FROM citations c LEFT JOIN sources s ON s.id = c.source_id`;
   function query(where: string) {
     const statement = db.prepare<DbRow, SQLQueryBindings[]>(
@@ -236,6 +251,7 @@ export function createCitations<R extends BookRef>(
   const personExists = db.prepare<{ id: number }, [number]>(
     'SELECT id FROM persons WHERE id = ?'
   );
+  const support = createSupport(db, changed);
 
   // The Volume a citation is in doesn't change under a module.
   const books = new Map<number, R | null>();
@@ -413,6 +429,14 @@ export function createCitations<R extends BookRef>(
     // is; null when there's no such Citation of a person.
     ofId,
 
+    // Makes the person's Citation support one of their Facts or their
+    // marriages', or no longer, as a Change on it: the Citation as it then
+    // is. Null when it isn't a person's Citation, or the Fact theirs.
+    support(citationId: number, factId: number, on: boolean) {
+      if (!support.set(citationId, factId, on)) return null;
+      return ofId(citationId)?.citation ?? null;
+    },
+
     // A line for each of the person's Church-book references, as each
     // resolves: Astia is slow, so the first needn't wait for the last.
     async *linksOf(personId: number) {
@@ -562,6 +586,7 @@ export function createCitations<R extends BookRef>(
         on: { citationId: id },
         what: { kind: 'cite', volume: checked.volume, image }
       });
+      support.recorded(id, personId, entryEvent(checked.volume), role);
       const [c] = cited([byId.get(id)!]);
       return {
         personId,

@@ -112,31 +112,48 @@ function gedcomTree(db: Database) {
     ];
   }
 
+  // What a citation says of where it's from: its PAGE, DATA, EVEN and
+  // QUAY, all a copy under a Fact repeats.
+  function cites(c: CitationRow) {
+    return [
+      ...optional(
+        'PAGE',
+        citationPage(
+          c.page,
+          c.annotation.link,
+          c.source_id === null ? undefined : sourceById.get(c.source_id)
+        )
+      ),
+      ...citationData(c),
+      ...citationEvent(c),
+      ...optional('QUAY', c.quality === null ? null : String(c.quality))
+    ];
+  }
+
+  function sourceOf(c: CitationRow) {
+    return c.source_id === null ? VOID : sourceXref.get(c.source_id)!;
+  }
+
   function citations(scopeType: string, scopeId: number): OutLine[] {
     return rows.citationsOf(ownerKey(scopeType, scopeId)).map((c) => {
       const link = links.linesOf(c.annotation);
-      return pointer(
-        'SOUR',
-        c.source_id === null ? VOID : sourceXref.get(c.source_id)!,
-        [
-          ...optional(
-            'PAGE',
-            citationPage(
-              c.page,
-              c.annotation.link,
-              c.source_id === null ? undefined : sourceById.get(c.source_id)
-            )
-          ),
-          ...citationData(c),
-          ...citationEvent(c),
-          ...optional('QUAY', c.quality === null ? null : String(c.quality)),
-          ...media.linksOf('citation', c.id),
-          ...link.objects,
-          ...notes('citation', c.id),
-          ...link.notes
-        ]
-      );
+      return pointer('SOUR', sourceOf(c), [
+        ...cites(c),
+        ...media.linksOf('citation', c.id),
+        ...link.objects,
+        ...notes('citation', c.id),
+        ...link.notes
+      ]);
     });
+  }
+
+  // A copy of each Citation supporting the Fact, as GEDCOM repeats one
+  // under each Fact it supports; the Citation itself is under its owner
+  // (ADR-0022).
+  function support(factId: number): OutLine[] {
+    return rows
+      .supportOf(String(factId))
+      .map((c) => pointer('SOUR', sourceOf(c), cites(c)));
   }
 
   function address(ownerType: string, ownerId: number) {
@@ -184,6 +201,7 @@ function gedcomTree(db: Database) {
       ...optional('AGE', f.age),
       ...notes('fact', f.id),
       ...citations('fact', f.id),
+      ...support(f.id),
       ...media.linksOf('fact', f.id)
     ];
     const bare = f.value === null && details.length === 0;

@@ -95,10 +95,6 @@ export function createFacts(
   const forgetCoordinates = db.prepare(
     'UPDATE facts SET latitude = NULL, longitude = NULL WHERE id = ?'
   );
-  const moveCitations = db.prepare<null, [string, number, number]>(
-    `UPDATE citations SET scope_type = ?, scope_id = ?
-     WHERE scope_type = 'fact' AND scope_id = ?`
-  );
   const deleteRow = db.prepare('DELETE FROM facts WHERE id = ?');
   const allPlaces = db.prepare<{ place: string }, []>(
     `SELECT place FROM facts WHERE place IS NOT NULL
@@ -223,7 +219,6 @@ export function createFacts(
       const f = factOf.get(factId, personId);
       if (f === null) return false;
       db.transaction(() => {
-        moveCitations.run(f.scope_type, f.scope_id, factId);
         deleteHeld(db, { fact: factId });
         deleteRow.run(factId);
         if (f.date_text !== null) reorder(f, personId);

@@ -22,7 +22,8 @@ const CITATION: CitationRow = {
   madeInApp: false,
   markKey: 'citation 11',
   citedPage: null,
-  cited: null
+  cited: null,
+  supports: []
 };
 
 // A dataset with Matti, named twice, and his citation 11.

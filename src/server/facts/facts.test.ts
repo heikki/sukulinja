@@ -194,14 +194,18 @@ test('edits an occupation’s title, and only the person’s or their families�
   });
 });
 
-test('deleting moves its Citations to the person, and takes its notes', () => {
+test('deleting takes its support and notes, its Citations staying with the person', () => {
   const birth = idOf('BIRT');
+  expect(db.query('SELECT fact_id FROM fact_citations').all()).toEqual([
+    { fact_id: birth }
+  ]);
   expect(facts.remove(3, birth)).toBe(false);
   expect(facts.remove(1, birth)).toBe(true);
   expect(factRow(birth)).toBeNull();
   expect(db.query('SELECT scope_type, scope_id FROM citations').all()).toEqual([
     { scope_type: 'person', scope_id: 1 }
   ]);
+  expect(db.query('SELECT * FROM fact_citations').all()).toEqual([]);
   expect(db.query('SELECT * FROM notes').all()).toEqual([]);
   expect(changes).toEqual([
     {

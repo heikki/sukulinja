@@ -1,11 +1,13 @@
 // A person joining a family as a child, in birth order, or leaving one, as
 // a parent or a child: a family left with no one in it goes, with what it
-// held; one left with someone stays, its CHAN brought up to now.
+// held; one left with someone stays, its CHAN brought up to now. A spouse
+// leaving takes their Citations' support of its Facts (ADR-0022).
 
 import type { Database } from 'bun:sqlite';
 
 import type { FamilyRow } from '@/common/types';
 
+import { leaveFamilySupport } from '../citations';
 import { deleteFamily, touchRecord } from '../datasets/records';
 import { createChildOrder } from './child-order';
 
@@ -32,6 +34,7 @@ export function leaveFamily(db: Database, personId: number, f: FamilyRow) {
        WHERE id = ?2`,
       [personId, f.id]
     );
+    leaveFamilySupport(db, personId, f.id);
   } else {
     db.run(
       'DELETE FROM family_children WHERE person_id = ? AND family_id = ?',

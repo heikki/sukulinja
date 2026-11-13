@@ -64,7 +64,8 @@ const C11: CitationRow = {
   madeInApp: false,
   markKey: 'citation 11',
   citedPage: null,
-  cited: null
+  cited: null,
+  supports: []
 };
 const L11: Link = {
   volumeId: '201',

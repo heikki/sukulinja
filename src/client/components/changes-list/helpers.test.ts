@@ -176,6 +176,20 @@ test('says what was done to a Fact, and what it said before and after', () => {
   expect(detailOf(fact('add', null, null))).toBeNull();
 });
 
+test('says which Fact a Citation was made to support, or no longer', () => {
+  const add = {
+    kind: 'support',
+    did: 'add',
+    tag: 'CHR',
+    fact: '12.3.1795 · Juva'
+  } as const;
+  expect(doneLabel(add)).toBe('Cited for the christening');
+  expect(doneLabel({ ...add, did: 'remove' })).toBe(
+    'Took back the citation for the christening'
+  );
+  expect(detailOf(add)).toBe('12.3.1795 · Juva');
+});
+
 test('says whose relative a person was added as', () => {
   const added = {
     kind: 'person',

@@ -189,6 +189,14 @@ const SCHEMA_SQL = `
     CHECK ((link_volume_id IS NULL) = (link_by IS NULL))
   );
   CREATE INDEX IF NOT EXISTS citations_scope_idx ON citations(scope_type, scope_id);
+  -- The Facts a Citation supports: its person's, their marriages', or a
+  -- family Citation's family's (ADR-0022). Nothing is written on a Fact.
+  CREATE TABLE IF NOT EXISTS fact_citations (
+    fact_id INTEGER NOT NULL REFERENCES facts(id) ON DELETE CASCADE,
+    citation_id INTEGER NOT NULL REFERENCES citations(id) ON DELETE CASCADE,
+    PRIMARY KEY (fact_id, citation_id)
+  );
+  CREATE INDEX IF NOT EXISTS fact_citations_citation_idx ON fact_citations(citation_id);
   -- Matches taken back by hand: the reference isn't on that Image.
   CREATE TABLE IF NOT EXISTS rejections (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

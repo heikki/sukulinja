@@ -10,6 +10,7 @@ import type {
   Change,
   ChurchBookArchive,
   CitationLinks,
+  CitationRow,
   FactFields,
   FamilyRow,
   NewFact,
@@ -82,6 +83,13 @@ export interface DatasetApi {
   cite: (personId: number, at: CiteTarget) => Promise<VolumeCitation>;
   // Deletes a Citation made in the app.
   uncite: (citationId: number) => Promise<void>;
+  // Makes a Citation support one of its person's Facts, or no longer
+  // (`on` false): the Citation as it then is.
+  support: (
+    citationId: number,
+    factId: number,
+    on: boolean
+  ) => Promise<CitationRow>;
   // The Volumes a reference can be put in.
   volumeChoices: (
     citationId: number,
@@ -307,6 +315,15 @@ export function openDatasetApi(
       await ask('Deleting', `${dataset}/api/citations/${citationId}`, {
         method: 'DELETE'
       });
+    },
+
+    async support(citationId, factId, on) {
+      const res = await ask(
+        'Saving',
+        `${dataset}/api/citations/${citationId}/supports/${factId}`,
+        { method: on ? 'PUT' : 'DELETE' }
+      );
+      return (await res.json()) as CitationRow;
     },
 
     volumeChoices: async (citationId, signal) =>

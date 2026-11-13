@@ -9,7 +9,7 @@ import { unzipSync } from 'fflate';
 import { importGedcomFixture } from '../../../test/gedcom-fixture';
 import { gedcom7Errors } from '../../../test/gedcom7/validate';
 import { treeSnapshot } from '../../../test/tree-snapshot';
-import { openAnnotations } from '../citations';
+import { openAnnotations, openSupport } from '../citations';
 import { openAppCitations, openMarks } from '../citations/testing';
 import { DatasetRegistry } from '../datasets/registry';
 import { line, pointer, writeGedcom } from '../gedcom/writer';
@@ -388,6 +388,41 @@ describe('exporting a GEDZIP', () => {
       { link_image: 25, link_box_top: 20, added_in_app: 1 },
       { link_image: 25, link_box_top: 20, added_in_app: 1 }
     ]);
+  });
+
+  test('repeats a Citation under each Fact it supports, and reads it back as support', async () => {
+    await importFixture();
+    const db = registry.open('a');
+    const id = openAppCitations(db).create({
+      personId: 1,
+      volumeId: '1234',
+      volume: 'I Aa:5 Pää- ja rippikirjat (1859-1868)',
+      archive: 'Juvan seurakunnan arkisto',
+      image: 25,
+      fileId: '5678',
+      box: { left: 10, top: 20, width: 300, height: 40 },
+      text: 'Born 1.2.1801, died 1870'
+    });
+    const support = openSupport(db);
+    const facts = db
+      .query<{ id: number }, []>(
+        "SELECT id FROM facts WHERE scope_type = 'person' AND scope_id = 1 AND tag IN ('BIRT', 'DEAT')"
+      )
+      .all();
+    expect(facts).toHaveLength(2);
+    for (const f of facts) support.add(id, f.id);
+
+    const text = gedcomOf(await roundTrip());
+    expect(text.match(/SOUR @ASTIA_1234@/g)).toHaveLength(3);
+    expect(text.match(/\d TEXT Born 1\.2\.1801, died 1870/g)).toHaveLength(3);
+    expect(gedcom7Errors(text)).toEqual([]);
+    const b = registry.open('b');
+    expect(treeSnapshot(b)).toEqual(treeSnapshot(db));
+    expect(
+      b
+        .query('SELECT COUNT(*) AS n FROM citations WHERE added_in_app = 1')
+        .get()
+    ).toEqual({ n: 1 });
   });
 
   test('gives back the demo, which is valid GEDCOM 7 but for one untyped event', async () => {

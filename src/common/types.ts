@@ -191,6 +191,9 @@ export interface CitationRow {
   // What a Church-book reference cites, as far as it can be read; null for
   // other sources.
   cited: CitedBook | null;
+  // The Facts it supports, by id: its person's and their marriages'
+  // (ADR-0022).
+  supports: number[];
 }
 
 // The parish, kind of Book and years a Church-book reference cites.
@@ -505,6 +508,14 @@ export type ChangeWhat =
       tag: string;
       was: string | null;
       now: string | null;
+    }
+  // A Citation made, or no longer, to support a Fact of its person's, by
+  // the Fact's tag and words as they read then (factWords).
+  | {
+      kind: 'support';
+      did: 'add' | 'remove';
+      tag: string;
+      fact: string | null;
     }
   // A person added to the tree, or someone already in it linked, as the
   // relation of the person named, as they were named then; or taken out

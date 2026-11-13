@@ -73,7 +73,8 @@ type MemoryDatasetApi = DatasetApi & {
   // "links <id>", "mark <citation> <volume>/<image>" (or "<volume>" for
   // only the Volume; " box" or " no box" when it says), "discard <citation>
   // <volume>/<image>", "cite <person> <volume>/<image> <file>[ as <role>][: <text>]",
-  // "uncite <citation>", "choices <citation>", "citations <volume>",
+  // "uncite <citation>", "support <citation> <fact>" (or "unsupport"),
+  // which changes the Citation in `details`, "choices <citation>", "citations <volume>",
   // "volume <volume>", "rescan <volume>", "switch <volume>", "changes",
   // "reminders", "remind person <id>: <text>" (or "<volume>/<image>
   // <file>"), "change reminder <id>", "delete reminder <id>", "tag
@@ -252,7 +253,8 @@ export function memoryDatasetApi(
               madeInApp: true,
               markKey: `citation ${made}`,
               citedPage: null,
-              cited: null
+              cited: null,
+              supports: []
             },
             link
           };
@@ -270,6 +272,22 @@ export function memoryDatasetApi(
         }
       });
     },
+
+    support: async (citationId, factId, on) =>
+      await answer(
+        `${on ? 'support' : 'unsupport'} ${citationId} ${factId}`,
+        undefined,
+        () => {
+          for (const d of Object.values(data.details ?? {})) {
+            const c = d.citations.find((x) => x.id === citationId);
+            if (c === undefined) continue;
+            const rest = c.supports.filter((id) => id !== factId);
+            c.supports = on ? [...rest, factId].sort((a, b) => a - b) : rest;
+            return { ...c };
+          }
+          throw new ApiError('citation or fact not found');
+        }
+      ),
 
     volumeChoices: async (citationId, signal) =>
       await answer(`choices ${citationId}`, signal, () =>

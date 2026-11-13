@@ -15,6 +15,7 @@ import {
   PERSON_FACT_TAGS
 } from '../gedcom/tags';
 import { gedcom7Date, gedcom7Quality, languageTag } from '../gedcom/values';
+import { factCitations } from './fact-citations';
 import { factImporter } from './facts';
 import { annotationReader } from './links';
 import { mediaLinker } from './media';
@@ -131,6 +132,7 @@ export function importGedcom(
   });
 
   const citationRows = openAnnotations(db);
+  const factSours = factCitations(db);
   const readAnnotation = annotationReader(roots, lines);
 
   // A record's UID, or a new one: only a UID says reliably who is who from
@@ -435,23 +437,44 @@ export function importGedcom(
     };
   }
 
+  // One citation stored on its holder: its id.
+  function importCitation(
+    sour: GedNode,
+    scope: CitationScope,
+    scopeId: number,
+    sortOrder: number
+  ) {
+    const annotation = readAnnotation(sour);
+    const c = readCitation(sour);
+    // A Citation of an Image's PAGE text gives back its page (ADR-0019).
+    const page = pageOf(c.page, annotation.link);
+    const citationId = citationRows.insert(
+      { scopeType: scope, scopeId, sortOrder, ...c, page },
+      annotation
+    );
+    importNotes(sour, 'citation', citationId);
+    importMediaLinks(sour, 'citation', citationId);
+    stats.citations += 1;
+    return citationId;
+  }
+
+  // A Fact's citations wait for every record, to become support of its
+  // owner's (ADR-0022).
   function importCitations(
     holder: GedNode,
     scope: CitationScope,
     scopeId: number
   ) {
-    takeAll(holder, 'SOUR').forEach((sour, i) => {
-      const annotation = readAnnotation(sour);
-      const c = readCitation(sour);
-      // A Citation of an Image's PAGE text gives back its page (ADR-0019).
-      const page = pageOf(c.page, annotation.link);
-      const citationId = citationRows.insert(
-        { scopeType: scope, scopeId, sortOrder: i, ...c, page },
-        annotation
-      );
-      importNotes(sour, 'citation', citationId);
-      importMediaLinks(sour, 'citation', citationId);
-      stats.citations += 1;
+    const sours = takeAll(holder, 'SOUR');
+    if (scope === 'fact') {
+      factSours.defer(scopeId, sours);
+      return;
+    }
+    sours.forEach((sour, i) => {
+      const id = importCitation(sour, scope, scopeId, i);
+      if (scope === 'person' || scope === 'family') {
+        factSours.owns({ scope, id: scopeId }, sour, id);
+      }
     });
   }
 
@@ -459,6 +482,9 @@ export function importGedcom(
     for (const root of roots) createRecord(root);
     for (const root of roots) populateRecord(root);
     importUnlinkedPhotos(unlinkedPhotos(roots));
+    factSours.fold((sour, owner, sortOrder) =>
+      importCitation(sour, owner.scope, owner.id, sortOrder)
+    );
   });
 
   tx();

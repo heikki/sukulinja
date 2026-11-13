@@ -43,6 +43,10 @@ export interface Selected {
   // Deletes one of their Citations, throwing ApiError if it's refused;
   // their details are read again.
   uncite: (citationId: number) => Promise<void>;
+  // Makes one of their Citations support one of their Facts, or no longer,
+  // throwing ApiError if it's refused; the Citation changes in their
+  // details as the app answers.
+  support: (citationId: number, factId: number, on: boolean) => Promise<void>;
   // The Links resolved again, as after switching a re-scanned Volume to
   // its new filming; resolves once they're in.
   relink: () => Promise<void>;
@@ -173,6 +177,19 @@ export function openSelected(
     void refresh();
   }
 
+  async function support(citationId: number, factId: number, on: boolean) {
+    const person = id.get();
+    const updated = await api.support(citationId, factId, on);
+    const d = details.get();
+    // Someone else selected meanwhile reads their own.
+    if (d === null) return;
+    if (d.id !== person) return;
+    details.set({
+      ...d,
+      citations: d.citations.map((c) => (c.id === updated.id ? updated : c))
+    });
+  }
+
   async function refresh() {
     const person = id.get();
     if (person === null) return;
@@ -204,6 +221,7 @@ export function openSelected(
     mark,
     discard,
     uncite,
+    support,
     relink,
     refresh
   };

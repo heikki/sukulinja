@@ -1,7 +1,7 @@
 // The routes of a dataset's Citations: a person's Links, a Mark or Discard
 // on one, the Volumes it can be put in, a Volume's Citations, how many link
-// into each of a parish's Volumes, making or deleting one in the app, and
-// switching a Volume to Astia's new filming.
+// into each of a parish's Volumes, making or deleting one in the app, the
+// Facts one supports, and switching a Volume to Astia's new filming.
 // The routes read the request; the handlers answer it.
 
 import type { Box, LinkResolution } from '@/common/types';
@@ -21,6 +21,7 @@ interface CitationHandlers {
   handleVolume: (volumeId: string) => Promise<Response>;
   handleCite: (personId: number, target: CiteTarget) => Promise<Response>;
   handleUncite: (id: number) => Response;
+  handleSupport: (id: number, factId: number, on: boolean) => Response;
   handleSwitchFilming: (volumeId: string, volume: string) => Promise<Response>;
 }
 
@@ -195,9 +196,22 @@ async function routeArchives(
     : await handlers.handleArchiveCitations(id);
 }
 
+// PUT or DELETE /api/citations/:id/supports/:factId; null for another path.
+function routeSupport(req: Request, handlers: CitationHandlers, rest: string) {
+  const supports =
+    /^\/api\/citations\/(?<id>\d+)\/supports\/(?<fact>\d+)$/.exec(rest);
+  if (supports === null) return null;
+  const { id, fact } = supports.groups!;
+  if (req.method !== 'PUT' && req.method !== 'DELETE') {
+    return new Response('method not allowed', { status: 405 });
+  }
+  return handlers.handleSupport(Number(id), Number(fact), req.method === 'PUT');
+}
+
 // GET /api/persons/:id/scans streams the person's Links; POST
 // /api/persons/:id/citations makes a Citation; DELETE /api/citations/:id
-// deletes one made in the app; a Citation's `/scans` and `/volumes`; GET
+// deletes one; PUT or DELETE /api/citations/:id/supports/:factId makes it
+// support a Fact or no longer; a Citation's `/scans` and `/volumes`; GET
 // /api/volumes/:id and its `/citations`, and POST its `/filming`; GET
 // /api/archives and /api/archives/:id/citations. Null for any other path.
 async function routeCitations(
@@ -224,6 +238,8 @@ async function routeCitations(
       ? handlers.handleUncite(Number(made.groups!.id))
       : new Response('method not allowed', { status: 405 });
   }
+  const supports = routeSupport(req, handlers, rest);
+  if (supports !== null) return supports;
   const citation =
     /^\/api\/citations\/(?<id>\d+)\/(?<part>scans|volumes)$/.exec(rest);
   if (citation === null) return null;
@@ -351,6 +367,13 @@ function citationHandlers(
       return removed === null
         ? new Response('citation not found', { status: 404 })
         : new Response(null, { status: 204 });
+    },
+
+    handleSupport(id, factId, on) {
+      const citation = citations.support(id, factId, on);
+      return citation === null
+        ? new Response('citation or fact not found', { status: 404 })
+        : Response.json(citation);
     },
 
     async handleSwitchFilming(volumeId, volume) {

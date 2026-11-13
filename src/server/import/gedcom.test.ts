@@ -428,9 +428,18 @@ test('stores what other programs write: change dates, map, citations and media o
   ).toEqual([
     { scope_type: 'shared_note', text: null },
     { scope_type: 'name', text: null },
-    { scope_type: 'fact', text: 'Baptised' },
-    { scope_type: 'note', text: null }
+    { scope_type: 'note', text: null },
+    // A Fact's citation is its person's, and supports it (ADR-0022).
+    { scope_type: 'person', text: 'Baptised' }
   ]);
+  expect(
+    db
+      .query(
+        `SELECT f.tag, c.text FROM fact_citations fc
+         JOIN facts f ON f.id = fc.fact_id JOIN citations c ON c.id = fc.citation_id`
+      )
+      .all()
+  ).toEqual([{ tag: 'BIRT', text: 'Baptised' }]);
   expect(
     db
       .query(
@@ -439,12 +448,12 @@ test('stores what other programs write: change dates, map, citations and media o
       )
       .all()
   ).toEqual([
+    { scope_type: 'fact', file: 'photos/church.jpg', title: null },
     {
       scope_type: 'citation',
       file: 'actes/baptism.jpg',
       title: 'Baptism record'
-    },
-    { scope_type: 'fact', file: 'photos/church.jpg', title: null }
+    }
   ]);
   expect(db.query('SELECT relation FROM associations').all()).toEqual([
     { relation: 'Godparent' }

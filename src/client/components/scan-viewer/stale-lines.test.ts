@@ -33,7 +33,8 @@ function row(personId: number, markKey: string, entry: string): VolumeCitation {
     madeInApp: false,
     markKey,
     citedPage: null,
-    cited: null
+    cited: null,
+    supports: []
   };
   return { personId, citation, link: LINK };
 }

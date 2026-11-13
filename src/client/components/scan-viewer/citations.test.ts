@@ -44,7 +44,8 @@ function row(
       madeInApp: false,
       markKey,
       citedPage: 12,
-      cited: null
+      cited: null,
+      supports: []
     },
     link: {
       volumeId: 'v1',

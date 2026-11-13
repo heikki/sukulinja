@@ -41,8 +41,8 @@ export function deletePlaceHeld(db: Database, owner: { fact: number }) {
 }
 
 // Removes the notes, media links (and their notes), place notes and address
-// a Fact holds. Its Citations aren't: whoever removes the Fact says where
-// they go.
+// a Fact holds. Its Citations are its owner's, and their support of it
+// goes with the Fact's row (ADR-0022).
 export function deleteHeld(db: Database, owner: { fact: number }) {
   const id = owner.fact;
   deletePlaceHeld(db, owner);
