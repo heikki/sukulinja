@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: done
 
 # Citations as evidence for Facts
 
@@ -45,7 +45,7 @@ fact_citations
 
 ### In the panel
 
-- **_Events_:** a Fact supported by Citations shows how many (a small "2 sources"), and opening it lists them by heading; picking one scrolls to it in _Sources_ (and opens its scan, as clicking a source does now). An unsupported Fact shows nothing, so the eye finds the Facts that still need a source.
+- **_Events_:** a Fact supported by Citations lists them under its text, by the name _Sources_ gives them and where in their Volume; picking one unfolds it in _Sources_ and scrolls to it. An unsupported Fact shows nothing, so the eye finds the Facts that still need a source.
 - **_Sources_:** each Citation's details show _Supports_: the Facts it supports, and the person's other Facts to add, as toggles. Each toggle is a **Change** on the person (_Birth 3.3.1761 cited from Haukivuori kastetut 1750–1770_), so it can be found and undone by hand.
 - **Fact form:** unchanged. Support is set from the source, where the evidence is read.
 
@@ -81,6 +81,8 @@ GEDCOM has no "support" record; it repeats the `SOUR` under each Fact it support
 
 ## Tickets
 
+All done 2026-11-13, in one go.
+
 | #   | Ticket                                                                       | Blocked by |
 | --- | ---------------------------------------------------------------------------- | ---------- |
 | 01  | Schema 5: `fact_citations`, Fact Citations moved to their owner (ADR-0022)   | none       |
@@ -94,4 +96,4 @@ GEDCOM has no "support" record; it repeats the `SOUR` under each Fact it support
 ## Open questions for Heikki
 
 1. ~~The model~~: support (Heikki, 2026-11-13).
-2. Is "N sources" on a Fact enough in _Events_, or should the sources be listed under each Fact openly? Started with the count and a list that opens under the Fact.
+2. ~~"N sources" or the sources listed?~~ Built listed: each Fact's sources show under it by name, as few Facts have more than one or two; picking one unfolds it in _Sources_.

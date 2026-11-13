@@ -26,6 +26,7 @@ import { linkSpelling } from '../archive-search/api';
 
 import '../archive-search';
 import './fold';
+import './supports';
 
 import { archiveAction, headingOf, siteName, titleText } from './helpers';
 import { personSourcesStyles } from './sources-styles';
@@ -216,6 +217,13 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
       ?.scrollIntoView({ block: 'nearest' });
   }
 
+  // Unfolds the source and scrolls it into view, as picking it from a Fact
+  // does.
+  async show(citationId: number) {
+    this.unfolded = citationId;
+    await this.reveal(citationId);
+  }
+
   // The Scan viewer closing hands focus back to the source it showed, where
   // that can be seen. Not when it closed for someone else being selected:
   // focus stays where that was done.
@@ -360,6 +368,15 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
     </div>`;
   }
 
+  // The person's Facts the Citation supports, to choose from.
+  private renderSupports(c: CitationRow) {
+    const facts = this.state.selected.details.get()?.facts ?? [];
+    return html`<sl-citation-supports
+      .citation=${c}
+      .facts=${facts}
+    ></sl-citation-supports>`;
+  }
+
   // Finding the reference's parish's archive in Astia where none is known,
   // or changing the one it links into: for every source giving the same
   // spelling.
@@ -462,7 +479,8 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
             body,
             c.url,
             link,
-            html`${this.renderArchive(c, status)} ${this.renderDelete(c)}`
+            html`${this.renderSupports(c)} ${this.renderArchive(c, status)}
+            ${this.renderDelete(c)}`
           )}
         </sl-fold>
       </article>

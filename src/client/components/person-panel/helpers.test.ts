@@ -5,9 +5,11 @@ import type { CitationRow, FactRow, Link } from '@/common/types';
 
 import {
   archiveAction,
+  factBrief,
   factText,
   headingOf,
   siteName,
+  sourcesOf,
   titleText
 } from './helpers';
 
@@ -40,6 +42,14 @@ test('reads an event\'s text, leaving out GEDCOM\'s "it happened" flag', () => {
   expect(factText({ ...DEATH, tag: 'OCCU', value: 'torppari' })).toBe(
     'torppari'
   );
+});
+
+test('names a Fact briefly by its kind and date, a marriage by the spouse too', () => {
+  expect(factBrief({ ...DEATH, date: '7 APR 2025' })).toBe('Death 7.4.2025');
+  expect(factBrief(DEATH)).toBe('Death');
+  expect(
+    factBrief({ ...DEATH, tag: 'MARR', date: '1820', spouse: 'Liisa Malli' })
+  ).toBe('Marriage 1820 with Liisa Malli');
 });
 
 const VOLUME = 'I Aa:1 Pää- ja rippikirjat (1790-1796)';
@@ -112,4 +122,11 @@ test("a reference's archive is found where none is known, else changed", () => {
   expect(archiveAction(imported, failed)).toBeNull();
   // A Citation of an Image has no parish's spelling to link.
   expect(archiveAction(OF_IMAGE, MARKED)).toBeNull();
+});
+
+test("finds a Fact's sources among the person's, by the Facts each supports", () => {
+  const birth = { ...DEATH, id: 7, tag: 'BIRT' };
+  const one = { citation: { ...OF_IMAGE, supports: [3, 7] } };
+  const other = { citation: { ...OF_IMAGE, id: 5, supports: [3] } };
+  expect(sourcesOf(birth, [one, other])).toEqual([one]);
 });

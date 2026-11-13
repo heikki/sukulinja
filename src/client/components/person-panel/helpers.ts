@@ -1,6 +1,7 @@
 import { volumeTitle } from '@/client/link-labels';
 import type { LinkStatus } from '@/client/state';
 import { BOOK_NAMES } from '@/common/books';
+import { gedcomDate } from '@/common/dates';
 import { factKindLabel, factWords } from '@/common/facts';
 import type { CitationRow, FactRow } from '@/common/types';
 
@@ -15,6 +16,24 @@ export function factText(fact: FactRow) {
   if (fact.spouse !== null) parts.push(`with ${fact.spouse}`);
   const said = parts.filter((x) => x !== null);
   return said.length === 0 ? '—' : said.join(' · ');
+}
+
+// The Fact by its kind and date, "Birth 3.3.1795", and for a marriage the
+// spouse: short enough for a toggle.
+export function factBrief(fact: FactRow) {
+  const parts = [factLabel(fact)];
+  if (fact.date !== null) parts.push(gedcomDate(fact.date));
+  if (fact.spouse !== null) parts.push(`with ${fact.spouse}`);
+  return parts.join(' ');
+}
+
+// The person's Citations supporting the Fact, as their sources list them
+// (ADR-0022).
+export function sourcesOf<S extends { citation: CitationRow }>(
+  fact: FactRow,
+  sources: S[]
+) {
+  return sources.filter((s) => s.citation.supports.includes(fact.id));
 }
 
 // Kept in a cookie for the reason appearance.ts gives: the app's origin

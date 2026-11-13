@@ -1,8 +1,8 @@
 import { css } from 'lit';
 
 // Events: each Fact a row across the panel's width, tinted as clicking
-// opens it for editing, its kind in a column of its own; and below them a
-// button to add one.
+// opens it for editing, its kind in a column of its own, its sources under
+// its text; and below them a button to add one.
 export const personEventsStyles = css`
   .facts {
     display: grid;
@@ -38,6 +38,34 @@ export const personEventsStyles = css`
 
   .text {
     overflow-wrap: anywhere;
+  }
+
+  /* A Fact's sources, under its text, quiet until pointed at. */
+  ul.sources {
+    grid-column: 2;
+    margin: 0 0 0.15rem;
+    padding: 0;
+    list-style: none;
+  }
+
+  button.source {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.85rem;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  button.source::before {
+    content: '↳ ';
+  }
+
+  button.source:hover {
+    color: var(--accent);
+    text-decoration: underline;
   }
 
   sl-fact-form {

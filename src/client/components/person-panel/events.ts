@@ -1,21 +1,29 @@
-import { html, LitElement } from 'lit';
+import { SignalWatcher } from '@lit-labs/signals';
+import { consume } from '@lit/context';
+import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { focusRingStyles } from '@/client/focus-ring';
+import { appState } from '@/client/state';
+import type { AppState, Source } from '@/client/state';
 import type { FactRow, Marriage } from '@/common/types';
 
 import './fact-form';
 
 import { personEventsStyles } from './events-styles';
-import { factLabel, factText } from './helpers';
+import { factLabel, factText, sourcesOf, titleText } from './helpers';
 
 // The person's Facts, and their marriages', from birth to death: each
-// kind, then its date, place and what else it says. Clicking one opens it
-// for editing in its place, and _Add event_ opens a new one below; one at
-// a time.
+// kind, then its date, place and what else it says, and under it the
+// sources supporting it (ADR-0022). Clicking one opens it for editing in
+// its place, and _Add event_ opens a new one below; one at a time.
+// Picking a source asks for it in Sources, as `show-source` with its
+// Citation's id.
 @customElement('sl-person-events')
-class PersonEventsElement extends LitElement {
+class PersonEventsElement extends SignalWatcher(LitElement) {
   static override styles = [focusRingStyles, personEventsStyles];
+
+  @consume({ context: appState }) private readonly state!: AppState;
 
   @property({ attribute: false }) facts: FactRow[] = [];
   @property({ attribute: false }) marriages: Marriage[] = [];
@@ -35,24 +43,54 @@ class PersonEventsElement extends LitElement {
     ></sl-fact-form>`;
   }
 
-  private renderFact(f: FactRow) {
+  // The Fact's sources, by the name Sources gives them and where in their
+  // Volume they are.
+  private renderSources(sources: Source[]) {
+    if (sources.length === 0) return nothing;
+    return html`<ul class="sources">
+      ${sources.map(({ citation: c, status }) => {
+        const entry = c.entry === null ? '' : `, ${c.entry}`;
+        return html`<li>
+          <button
+            class="source"
+            title="Show in Sources"
+            @click=${() => {
+              this.dispatchEvent(
+                new CustomEvent('show-source', {
+                  detail: c.id,
+                  bubbles: true,
+                  composed: true
+                })
+              );
+            }}
+          >
+            ${titleText(c, status)}${entry}
+          </button>
+        </li>`;
+      })}
+    </ul>`;
+  }
+
+  private renderFact(f: FactRow, sources: Source[]) {
     if (this.editing === f.id) return this.renderForm(f);
     return html`<button
-      class="fact"
-      title="Edit"
-      @click=${() => {
-        this.editing = f.id;
-      }}
-    >
-      <span class="kind">${factLabel(f)}</span>
-      <span class="text">${factText(f)}</span>
-    </button>`;
+        class="fact"
+        title="Edit"
+        @click=${() => {
+          this.editing = f.id;
+        }}
+      >
+        <span class="kind">${factLabel(f)}</span>
+        <span class="text">${factText(f)}</span>
+      </button>
+      ${this.renderSources(sourcesOf(f, sources))}`;
   }
 
   override render() {
     const adding = this.editing === 'new';
+    const sources = this.state.selected.sources.get().flatMap((g) => g.sources);
     return html`<div class="facts">
-        ${this.facts.map((f) => this.renderFact(f))}
+        ${this.facts.map((f) => this.renderFact(f, sources))}
       </div>
       ${
         adding

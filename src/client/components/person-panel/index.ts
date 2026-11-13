@@ -103,11 +103,8 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
     this.scrollTop = 0;
   }
 
-  // The source in the Scan viewer, scrolled to, opening Sources if need be
-  // and once they've slid open.
-  private async revealViewing() {
-    const id = this.viewing?.citation.id;
-    if (id === undefined) return;
+  // Sources, opened if need be and once they've slid open.
+  private async openSources() {
     const section = () =>
       this.renderRoot.querySelector('[data-section="sources"]');
     if (!opened.sources) {
@@ -116,7 +113,19 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
       await this.updateComplete;
       await section()?.querySelector('sl-fold')?.settled();
     }
-    await section()?.querySelector('sl-person-sources')?.reveal(id);
+    return section()?.querySelector('sl-person-sources') ?? null;
+  }
+
+  // The source in the Scan viewer, scrolled to.
+  private async revealViewing() {
+    const id = this.viewing?.citation.id;
+    if (id === undefined) return;
+    await (await this.openSources())?.reveal(id);
+  }
+
+  // A source picked under a Fact, unfolded and scrolled to.
+  private async showSource(citationId: number) {
+    await (await this.openSources())?.show(citationId);
   }
 
   private renderFamily(households: Household[]) {
@@ -196,6 +205,9 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
             html`<sl-person-events
               .facts=${d.facts}
               .marriages=${d.marriages}
+              @show-source=${(e: CustomEvent<number>) => {
+                void this.showSource(e.detail);
+              }}
             ></sl-person-events>`
         )}
         ${

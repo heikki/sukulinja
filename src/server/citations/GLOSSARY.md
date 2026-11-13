@@ -5,10 +5,14 @@ A person's **Citations**, as the panel lists them, and linking each **Church-boo
 ## Language
 
 **Citation**:
-A reference in the tree to where a fact comes from, from any source. An import may put one on a **Fact**, but the panel lists a person's own, and the app makes only those. A church-book one may say which **Event** its **Entry** records and the person's **Role** in it; none does yet.
+A reference in the tree to where something comes from, from any source: a person's (or family's) one says they are in that source, a church-book one which **Event** its **Entry** records and their **Role** in it. It may **Support** their Facts. None is on a Fact itself: an import makes a Fact's citation its owner's, supporting the Fact (ADR-0022).
+
+**Support**:
+A Citation's backing of one of its person's Facts, or their marriages': _this source says so_. One Citation may support several Facts (a rippikirja line gives the birth, the residence and the marriage), and a Fact may rest on several. Chosen in a source's _Supports_; a Citation made of a baptism for its child supports their Christening (else Birth), one of a marriage for a spouse their marriage. Each added or taken back is a **Change**. GEDCOM writes it as the citation repeated under the Fact.
+_Avoid_: evidence (the Entry is that), link (a church-book Citation's place in Astia).
 
 **Fact**:
-What the tree says about a person or family: an event (birth, baptism, marriage, residence) or an attribute (occupation), with its date and place. A conclusion, which Citations support. An import brought most; one is added, changed or deleted in the panel's _Events_ (ADR-0021), and deleting one moves its Citations to its person or family.
+What the tree says about a person or family: an event (birth, baptism, marriage, residence) or an attribute (occupation), with its date and place. A conclusion, which Citations **Support**, shown under it in _Events_. An import brought most; one is added, changed or deleted in the panel's _Events_ (ADR-0021), and deleting one takes its support, its Citations staying with its person or family.
 _Avoid_: event (alone; that's what an Entry records), claim.
 
 **Event**:
@@ -27,7 +31,7 @@ Something to come back to, on a person, or on an **Image**, maybe about a person
 _Avoid_: note (a GEDCOM NOTE), annotation (a Citation's app-made additions), to-do.
 
 **Change**:
-One thing done in the app that changed the dataset: a **Mark** (or a **Match** confirmed), a **Discard**, a Citation made in the Scan viewer, or any Citation deleted, a Tag made, moved or taken back, a **Fact** added, changed or deleted, a person added, linked, unlinked, moved, renamed or deleted (Tree), a dataset started with its first person, an import (or, from before ADR-0021, an import undone), or a Volume switched to a **Re-scan**'s new filming. Each says what it did and what it was on (a person, a Citation, an Image, a Tag's Photo with its person, or nothing; a person deleted leaves theirs on nothing, naming them), and is listed under _Changes_, newest first, where picking one goes back there. Only the app keeps them. _Clear…_ forgets them all.
+One thing done in the app that changed the dataset: a **Mark** (or a **Match** confirmed), a **Discard**, a Citation made in the Scan viewer, or any Citation deleted, a Tag made, moved or taken back, a **Fact** added, changed or deleted, a Citation's **Support** of a Fact added or taken back, a person added, linked, unlinked, moved, renamed or deleted (Tree), a dataset started with its first person, an import (or, from before ADR-0021, an import undone), or a Volume switched to a **Re-scan**'s new filming. Each says what it did and what it was on (a person, a Citation, an Image, a Tag's Photo with its person, or nothing; a person deleted leaves theirs on nothing, naming them), and is listed under _Changes_, newest first, where picking one goes back there. Only the app keeps them. _Clear…_ forgets them all.
 _Avoid_: log, history (alone; the browser's Back is history), edit.
 
 **Church-book reference**:
