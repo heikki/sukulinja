@@ -31,6 +31,7 @@ export type { Changes } from './changes';
 export type { Chart, ChartView, UrlView } from './chart';
 export type { Facts } from './facts';
 export type { Selected } from './selected';
+export { isMarked } from './sources';
 export type { LinkStatus, Source, SourceGroup } from './sources';
 export type { Confirming } from './confirming';
 export type { PendingTag, PhotosFrom, PhotoViewer } from './photo-viewer';

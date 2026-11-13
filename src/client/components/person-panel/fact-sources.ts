@@ -3,7 +3,7 @@ import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { ApiError } from '@/client/dataset-api';
-import { appState } from '@/client/state';
+import { appState, isMarked } from '@/client/state';
 import type { AppState, Source } from '@/client/state';
 import type { FactRow, SupportSuggestion } from '@/common/types';
 
@@ -52,14 +52,14 @@ function compareKeys(
 
 // Under a picked Fact in Events: the sources supporting it (ADR-0022),
 // each opened by a click; then _Edit event_, asking Events for its form as
-// `edit-fact`, and _Add source_ or _Edit
-// sources_, which lists all the person's sources, each with a checkbox
+// `edit-fact`, and _Add source_ or _Edit sources_, which lists the
+// person's Marked sources (`isMarked`: not a Match or an Estimate) and any
+// still supporting the Fact, so it can be taken back, each with a checkbox
 // that adds or takes back its support, a Change each, in Astia's order
-// (`sortKey`); one whose Transcription suggests it supports
-// the Fact says so, with what it says and whether that differs. A source
-// opens in
-// the Scan viewer; one with nothing to open there is asked for in Sources,
-// as `show-source` with its Citation's id; one opened there is told as
+// (`sortKey`); one whose Transcription suggests it supports the Fact says
+// so, with what it says and whether that differs. A source opens in the
+// Scan viewer; one with nothing to open there is asked for in Sources, as
+// `show-source` with its Citation's id; one opened there is told as
 // `viewing-source` first, so Sources isn't opened to it. Esc closes the
 // list.
 @customElement('sl-fact-sources')
@@ -129,6 +129,11 @@ class FactSourcesElement extends LitElement {
 
   private supports(source: Source) {
     return source.citation.supports.includes(this.fact.id);
+  }
+
+  // The sources _Edit sources_ lists.
+  private listed() {
+    return this.sources.filter((s) => this.supports(s) || isMarked(s));
   }
 
   private async support(citationId: number, on: boolean) {
@@ -206,7 +211,7 @@ class FactSourcesElement extends LitElement {
 
   private renderToggle(supporting: Source[]) {
     if (this.sources.length === 0) return nothing;
-    const suggested = this.sources.filter(
+    const suggested = this.listed().filter(
       (s) => !this.supports(s) && this.suggestionOf(s) !== null
     ).length;
     const label = supporting.length === 0 ? 'Add source' : 'Edit sources';
@@ -227,9 +232,12 @@ class FactSourcesElement extends LitElement {
   }
 
   private renderEditing() {
-    const sorted = this.sources.toSorted((a, b) =>
+    const sorted = this.listed().toSorted((a, b) =>
       compareKeys(sortKey(a), sortKey(b))
     );
+    if (sorted.length === 0) {
+      return html`<p class="none">No marked sources yet</p>`;
+    }
     return html`<ul class="editing">
       ${sorted.map((s) => this.renderEditable(s))}
     </ul>`;

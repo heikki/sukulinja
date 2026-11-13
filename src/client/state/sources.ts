@@ -63,6 +63,13 @@ export interface Source {
   status: LinkStatus | null;
 }
 
+// Whether a person has said where the source is: a church book's Link is a
+// Mark, or it's another source, with no Link to doubt. A Match, an
+// Estimate, or a reference not (yet) linked isn't.
+export function isMarked({ status }: Pick<Source, 'status'>) {
+  return status === null || status.link?.certainty === 'marked';
+}
+
 // Sources under one heading: an archive's, the church books' with no
 // archive, or the others'. `linked` when some link a Volume. Named only
 // when there's a church book among them.

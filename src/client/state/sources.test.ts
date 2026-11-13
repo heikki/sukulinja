@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 
 import type { CitationRow, Link, LinkResolution } from '@/common/types';
 
-import { groupSources, linkStatus } from './sources';
+import { groupSources, isMarked, linkStatus } from './sources';
 
 const BASE = { volumeId: 'v1', volume: 'I Aa:5', url: '' };
 const BOX = { left: 0, top: 0.5, width: 1, height: 0.05 };
@@ -40,6 +40,25 @@ test('names a Link by who says so, however far down', () => {
   );
   const vision: Link = { ...link, certainty: 'match' };
   expect(label(vision)).toBe('Match');
+});
+
+test('counts a source as marked by its Link, or with none to doubt', () => {
+  function marked(target: Link) {
+    const status = linkStatus({ links: [target] }, false);
+    return isMarked({ status });
+  }
+  expect(marked(link)).toBe(true);
+  expect(marked({ ...BASE, precision: 'volume', certainty: 'marked' })).toBe(
+    true
+  );
+  expect(marked({ ...link, certainty: 'match' })).toBe(false);
+  expect(marked({ ...BASE, precision: 'volume', certainty: 'estimated' })).toBe(
+    false
+  );
+  const unlinked = linkStatus({ unlinked: 'no-volume' }, false);
+  expect(isMarked({ status: unlinked })).toBe(false);
+  expect(isMarked({ status: linkStatus(undefined, true) })).toBe(false);
+  expect(isMarked({ status: null })).toBe(true);
 });
 
 test('opens a Split reference on its first Volume', () => {
