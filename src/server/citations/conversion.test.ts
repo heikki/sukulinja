@@ -8,7 +8,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { openDb } from '../datasets/db';
-import { openAnnotations } from './annotations';
 import { memoryParishes } from './astia/parishes';
 import { juvaAstia, rippiCitation, VOLUMES } from './astia/test-parish';
 import { createCitations } from './citations';
@@ -157,47 +156,4 @@ test('confirming a Match converts it', async () => {
     link_image: 13,
     added_in_app: 1
   });
-});
-
-test('converting the Marked once takes only those at the entry by hand, and again changes nothing', async () => {
-  const { db, citations } = dataset();
-  db.run("INSERT INTO persons (id, xref) VALUES (4, '@I4@'), (5, '@I5@')");
-  const insert = db.prepare(
-    `INSERT INTO citations (scope_type, scope_id, source_id, page, text, sort_order)
-     VALUES ('person', ?, 1, ?, ?, 0)`
-  );
-  for (const [person, record] of [
-    [4, 5003],
-    [5, 5004]
-  ] as const) {
-    const c = rippiCitation(record, '1790 - 1796', 12);
-    insert.run(person, c.page, c.text);
-  }
-  // Marked as the app did before converting: at the entry (5001), at the
-  // Image (5002), only the Volume (5003); and an unchecked Match (5004).
-  function link(
-    id: number,
-    by: 'hand' | 'vision',
-    image: number | null,
-    box: boolean
-  ) {
-    openAnnotations(db).swap([id], {
-      volumeId: 'juva-1',
-      volume: VOLUMES['juva-1'],
-      ...(image === null ? {} : { image, fileId: `juva-1-f${image}` }),
-      ...(box ? { box: BOX } : {}),
-      by
-    });
-  }
-  link(1, 'hand', 13, true);
-  link(2, 'hand', 13, true);
-  link(3, 'hand', 14, false);
-  link(4, 'hand', null, false);
-  link(5, 'vision', 15, true);
-
-  expect([...(await citations.convertMarked())]).toEqual([
-    [VOLUMES['juva-1'], 2]
-  ]);
-  expect(rows(db).map((r) => r.added_in_app)).toEqual([1, 1, 0, 0, 0]);
-  expect((await citations.convertMarked()).size).toBe(0);
 });

@@ -570,24 +570,6 @@ export function createCitations<R extends BookRef>(
       };
     },
 
-    // Converts every reference already Marked at the entry (ADR-0016): how
-    // many citations, by the label of the Volume each is in.
-    async convertMarked() {
-      const done = new Set<string>();
-      const counts = new Map<string, number>();
-      for (const { book } of cited(everyPerson.all())) {
-        if (book === null) continue;
-        const key = references.markKey(book);
-        if (done.has(key)) continue;
-        done.add(key);
-        // eslint-disable-next-line no-await-in-loop -- one record at a time
-        for (const volume of await convert(book)) {
-          counts.set(volume, (counts.get(volume) ?? 0) + 1);
-        }
-      }
-      return counts;
-    },
-
     // Titles the Volume sources made before with their archive (ADR-0019).
     retitleVolumeSources: () => made.retitleVolumeSources(volumeArchive),
 

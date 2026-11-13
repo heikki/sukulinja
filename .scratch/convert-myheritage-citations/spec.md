@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: done
 
 # Convert MyHeritage references to Citations of their Image
 
@@ -42,13 +42,4 @@ The knowledge of what a reference is leaks out of `myheritage/`. These change no
 
 ## Tickets
 
-| #   | Ticket                                                 | Blocked by |
-| --- | ------------------------------------------------------ | ---------- |
-| 01  | References port                                        | none       |
-| 02  | Dataset parish archives                                | 01         |
-| 03  | A Volume's source by its record                        | none       |
-| 04  | Marks write only to references                         | 01         |
-| 05  | Re-import keeps a converted Citation                   | none       |
-| 06  | Convert on a Mark at the entry                         | 01–05      |
-| 07  | Convert every reference Marked at the entry, once      | 06         |
-| 08  | Convert new references of a converted record at import | 06         |
+Done. 01–04, 06 and 07 are on master; the one-off script (`scripts/convert-marked`) ran on ylonen (383 converted, no reference Marked at the entry left, 2026-11-13) and is deleted. 05 and 08 went with the re-import (ADR-0021). What's left waits for the last reference to be Marked: the folder, `link_by = 'vision'` and `rejections` go then, in one schema change.
