@@ -11,6 +11,7 @@ export const personEventsStyles = css`
   }
 
   .row {
+    position: relative;
     display: grid;
     grid-column: 1 / -1;
     grid-template-columns: subgrid;
@@ -46,18 +47,36 @@ export const personEventsStyles = css`
     overflow-wrap: anywhere;
   }
 
-  /* A Fact's sources, under its text, only while it's pointed at or
-     focused. */
+  /* A Fact's sources, floating under its text while it's pointed at or
+     focused from the keyboard: over the Facts below rather than pushing
+     them down, so nothing moves under the pointer. They show after a
+     moment, so passing over the list doesn't flash them, and stay while
+     the pointer moves onto them. */
   ul.sources {
-    display: none;
+    position: absolute;
+    top: 100%;
+    z-index: 1;
     grid-column: 2;
-    margin: 0 0 0.15rem;
-    padding: 0;
+    margin: 0;
+    padding: 0.3rem 0.5rem;
     list-style: none;
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    background: var(--card);
+    box-shadow: 0 4px 12px var(--shadow);
+    visibility: hidden;
+    opacity: 0;
+    transition:
+      opacity 0.1s,
+      visibility 0s 0.1s;
   }
 
-  .row:is(:hover, :focus-within) ul.sources {
-    display: block;
+  .row:is(:hover, :has(:focus-visible)) ul.sources {
+    visibility: visible;
+    opacity: 1;
+    transition:
+      opacity 0.1s 0.35s,
+      visibility 0s 0.35s;
   }
 
   button.source {
