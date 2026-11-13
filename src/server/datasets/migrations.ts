@@ -16,6 +16,7 @@ import { CHANGES_NAME_THEIR_PHOTO } from './migration-3';
 import { CHANGES_FIND_THEIR_PHOTO } from './migration-4';
 import { CITATIONS_SUPPORT_FACTS } from './migration-5';
 import { ADDRESSES_BECOME_PLACES } from './migration-6';
+import { PLACES_WRITTEN_ONE_WAY } from './migration-7';
 
 export interface Migration {
   to: number;
@@ -30,7 +31,8 @@ export const MIGRATIONS: Migration[] = [
   CHANGES_NAME_THEIR_PHOTO,
   CHANGES_FIND_THEIR_PHOTO,
   CITATIONS_SUPPORT_FACTS,
-  ADDRESSES_BECOME_PLACES
+  ADDRESSES_BECOME_PLACES,
+  PLACES_WRITTEN_ONE_WAY
 ];
 
 // The version the steps take a database to.

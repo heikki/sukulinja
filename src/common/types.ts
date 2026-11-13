@@ -562,6 +562,9 @@ export type ChangeWhat =
   // The Facts whose address stood alone, as MyHeritage wrote residences,
   // given it as their place (schema 6, ADR-0023).
   | { kind: 'addresses-to-places'; facts: number }
+  // The Facts whose place was written another way, as in Finland without
+  // Suomi or with its province (schema 7, ADR-0024).
+  | { kind: 'places-tidied'; facts: number }
   | {
       kind: 'switch-filming';
       volume: string;

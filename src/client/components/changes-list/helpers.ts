@@ -103,6 +103,8 @@ export function doneLabel(what: ChangeWhat) {
       return 'Started the dataset';
     case 'addresses-to-places':
       return 'Moved addresses to places';
+    case 'places-tidied':
+      return 'Wrote places one way';
     case 'switch-filming':
       return 'Switched to the new filming';
   }
@@ -146,6 +148,7 @@ export function detailOf(what: ChangeWhat) {
     case 'new-dataset':
       return null;
     case 'addresses-to-places':
+    case 'places-tidied':
       return count(what.facts, 'Fact', 'Facts');
     case 'switch-filming': {
       const images = `${volumeTitle(what.volume)}, ${what.from} → ${what.to} Images`;

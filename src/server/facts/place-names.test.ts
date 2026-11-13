@@ -1,0 +1,36 @@
+import { expect, test } from 'bun:test';
+
+import { tidyPlace } from './place-names';
+
+test('leaves out the province before the country, which is Suomi', () => {
+  expect(
+    tidyPlace('Laukola, Haukivuori, Haukivuori, Mikkeli (St. Michel), Finland')
+  ).toBe('Laukola, Haukivuori, Haukivuori, Suomi');
+  expect(tidyPlace('Pieksamaki, Mikkeli, Finland')).toBe('Pieksamaki, Suomi');
+  expect(tidyPlace('Mikkeli,Mikkeli,Finland')).toBe('Mikkeli, Suomi');
+  expect(tidyPlace('Kirvu, Viipuri, Suomi')).toBe('Kirvu, Suomi');
+});
+
+test('names the parish in Finnish only', () => {
+  expect(
+    tidyPlace('No. 3, Karkianmaa, Juva (Jockas), Mikkeli (St. Michel), Finland')
+  ).toBe('No. 3, Karkianmaa, Juva, Suomi');
+});
+
+test("leaves out a cemetery's region", () => {
+  expect(
+    tidyPlace(
+      'Lepolan Hautausmaa, Hankasalmi, Hankasalmi, Keski-Suomi, Finland'
+    )
+  ).toBe('Lepolan Hautausmaa, Hankasalmi, Hankasalmi, Suomi');
+});
+
+test('keeps a town of the same name, and places outside Finland', () => {
+  expect(tidyPlace('Mikkeli, Finland')).toBe('Mikkeli, Suomi');
+  expect(tidyPlace('Finland')).toBe('Suomi');
+  expect(tidyPlace('Juva')).toBe('Juva');
+  expect(tidyPlace('Portland, Multnomah, Oregon, USA')).toBe(
+    'Portland, Multnomah, Oregon, USA'
+  );
+  expect(tidyPlace('Haukivuori 5')).toBe('Haukivuori 5');
+});

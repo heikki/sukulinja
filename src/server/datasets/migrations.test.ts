@@ -325,11 +325,11 @@ describe('schema 6', () => {
       `
       INSERT INTO persons (id, xref) VALUES (1, '@I1@');
       INSERT INTO facts (id, scope_type, scope_id, tag, place, address)
-        VALUES (1, 'person', 1, 'RESI', NULL, 'Laukola, Haukivuori, Finland'),
+        VALUES (1, 'person', 1, 'RESI', NULL, 'Laukola, Haukivuori, Suomi'),
           (2, 'person', 1, 'RESI', NULL, 'Mannerheimintie 1, 00100 Helsinki'),
           (3, 'person', 1, 'RESI', 'Helsinki', 'Kaisaniemi');
       INSERT INTO addresses (owner_type, owner_id, line1)
-        VALUES ('fact', 1, 'Laukola, Haukivuori, Finland'),
+        VALUES ('fact', 1, 'Laukola, Haukivuori, Suomi'),
           ('fact', 2, 'Mannerheimintie 1, 00100 Helsinki');
     `
     );
@@ -338,7 +338,7 @@ describe('schema 6', () => {
     expect(
       migrated.query('SELECT id, place, address FROM facts ORDER BY id').all()
     ).toEqual([
-      { id: 1, place: 'Laukola, Haukivuori, Finland', address: null },
+      { id: 1, place: 'Laukola, Haukivuori, Suomi', address: null },
       { id: 2, place: null, address: 'Mannerheimintie 1, 00100 Helsinki' },
       { id: 3, place: 'Helsinki', address: 'Kaisaniemi' }
     ]);
@@ -348,6 +348,35 @@ describe('schema 6', () => {
     expect(migrated.query('SELECT what, person_id FROM changes').all()).toEqual(
       [{ what: '{"kind":"addresses-to-places","facts":1}', person_id: null }]
     );
+    migrated.close();
+  });
+});
+
+describe('schema 7', () => {
+  test("writes a place in Finland one way, keeping where it's on the map", () => {
+    const db = oldest();
+    runAll(
+      db,
+      `
+      INSERT INTO persons (id, xref) VALUES (1, '@I1@');
+      INSERT INTO facts (id, scope_type, scope_id, tag, place, latitude)
+        VALUES (1, 'person', 1, 'CHR', 'Juva, Mikkeli, Finland', 'N61.9'),
+          (2, 'person', 1, 'RESI', 'Juva, Suomi', NULL),
+          (3, 'person', 1, 'DEAT', 'Portland, Oregon, USA', NULL);
+    `
+    );
+    db.close();
+    const migrated = openDb(path);
+    expect(
+      migrated.query('SELECT id, place, latitude FROM facts ORDER BY id').all()
+    ).toEqual([
+      { id: 1, place: 'Juva, Suomi', latitude: 'N61.9' },
+      { id: 2, place: 'Juva, Suomi', latitude: null },
+      { id: 3, place: 'Portland, Oregon, USA', latitude: null }
+    ]);
+    expect(migrated.query('SELECT what FROM changes').all()).toEqual([
+      { what: '{"kind":"places-tidied","facts":1}' }
+    ]);
     migrated.close();
   });
 });

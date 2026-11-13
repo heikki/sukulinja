@@ -71,6 +71,9 @@ test('says what each was', () => {
   expect(doneLabel({ kind: 'addresses-to-places', facts: 2 })).toBe(
     'Moved addresses to places'
   );
+  expect(doneLabel({ kind: 'places-tidied', facts: 2 })).toBe(
+    'Wrote places one way'
+  );
 });
 
 test('says where, and what more it did', () => {
