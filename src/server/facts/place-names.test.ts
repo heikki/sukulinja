@@ -8,7 +8,7 @@ test('leaves out the province before the country, which is Suomi', () => {
   ).toBe('Laukola, Haukivuori, Suomi');
   expect(tidyPlace('Juva, Mikkeli, Finland')).toBe('Juva, Suomi');
   expect(tidyPlace('Mikkeli,Mikkeli,Finland')).toBe('Mikkeli, Suomi');
-  expect(tidyPlace('Kirvu, Viipuri, Suomi')).toBe('Kirvu, Suomi');
+  expect(tidyPlace('Helsinki, Uusimaa, Suomi')).toBe('Helsinki, Suomi');
 });
 
 test('names a village named as its parish once', () => {
@@ -54,4 +54,20 @@ test('spells a parish one way', () => {
   expect(tidyPlace('Pyhäjärvi Pieksämäki, Mikkeli, Finland')).toBe(
     'Pyhäjärvi, Pieksämäki, Suomi'
   );
+});
+
+test('writes a place it wrote the same way again', () => {
+  for (const place of [
+    'Haukivuoren Hautausmaa, Mikkeli, Etelä-Savo, Finland',
+    'Laukola, Haukivuori, Haukivuori, Mikkeli (St. Michel), Finland',
+    'Mikkeli, Mikkeli, Finland',
+    'Pyhäjärvi Pieksämäki, Mikkeli, Finland'
+  ]) {
+    const once = tidyPlace(place);
+    expect(tidyPlace(once)).toBe(once);
+  }
+  expect(
+    tidyPlace('Haukivuoren Hautausmaa, Mikkeli, Etelä-Savo, Finland')
+  ).toBe('Haukivuoren Hautausmaa, Mikkeli, Suomi');
+  expect(tidyPlace('Kirvu, Viipuri, Suomi')).toBe('Kirvu, Viipuri, Suomi');
 });

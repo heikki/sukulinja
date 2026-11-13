@@ -66,8 +66,23 @@ function parishOf(part: string) {
   return (PARISHES.get(name.toLocaleLowerCase()) ?? name).split(', ');
 }
 
-function isProvince(part: string) {
-  return PROVINCES.has(finnishOf(part).toLocaleLowerCase());
+// Provinces named as their towns. One is taken for the province only as
+// MyHeritage and FamilySearch write it, with its Swedish name or before
+// "Finland"; "Haukivuoren hautausmaa, Mikkeli, Suomi" is in the town. So a
+// place written once is written the same way again.
+const TOWNS = new Set([
+  'hämeenlinna',
+  'kuopio',
+  'mikkeli',
+  'oulu',
+  'vaasa',
+  'viipuri'
+]);
+
+function isProvince(part: string, country: string) {
+  const name = finnishOf(part).toLocaleLowerCase();
+  if (!PROVINCES.has(name)) return false;
+  return !TOWNS.has(name) || part.endsWith(')') || country === 'Finland';
 }
 
 // The parts without one named as the next above it: a parish's church
@@ -87,7 +102,7 @@ export function tidyPlace(place: string) {
   const country = parts.at(-1)!;
   if (!FINLAND.has(country.toLocaleLowerCase())) return place;
   const above = parts.slice(0, -1);
-  if (above.length >= 2 && isProvince(above.at(-1)!)) above.pop();
+  if (above.length >= 2 && isProvince(above.at(-1)!, country)) above.pop();
   const parish = above.pop();
   return [
     ...withoutRepeats([
