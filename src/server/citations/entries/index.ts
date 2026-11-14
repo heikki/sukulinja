@@ -8,7 +8,11 @@
 
 import type { Database } from 'bun:sqlite';
 
-import { entryRoles } from '@/common/books';
+import {
+  ALREADY_LINKED,
+  citingImage,
+  namingRefusal
+} from '@/common/entry-naming';
 import type { EntryAt, EntryEdit, InEntry } from '@/common/operations';
 import type { NewChange, VolumeCitation } from '@/common/types';
 
@@ -65,32 +69,23 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
   const { support, changed, listed, uncite } = deps;
   const stored = openEntries(db);
 
-  // Why the people can't be named in an entry of the Volume on the Image:
-  // a Role not one of its Book's, someone named twice, or someone with
-  // another Citation linking the Image than the Entry's own. Null when
-  // they can.
+  // Why the people can't be named in an entry of the Volume on the Image
+  // (common/entry-naming), or with another Citation linking the Image
+  // than the Entry's own. Null when they can.
   async function refusal(
     at: { volumeId: string; image: number },
     volume: string,
     people: InEntry[],
     entryId: number | null
   ) {
-    if (people.length === 0) return 'Name someone in it.';
-    const roles = entryRoles(volume).map((r) => r.role);
-    if (people.some((p) => p.role !== null && !roles.includes(p.role))) {
-      return "That isn't a Role in this kind of entry.";
-    }
-    const named = new Set(people.map((p) => p.personId));
-    if (named.size < people.length) return 'Someone is named twice.';
-    const there = await inVolume(at.volumeId);
-    const linked = there?.some(
-      (r) =>
-        named.has(r.personId) &&
-        (entryId === null || r.citation.entryId !== entryId) &&
-        'image' in r.link &&
-        r.link.image === at.image
+    const refused = namingRefusal(volume, people);
+    if (refused !== null) return refused;
+    const linking = citingImage(
+      (await inVolume(at.volumeId)) ?? [],
+      at.image,
+      entryId
     );
-    return linked === true ? 'Their Citations already link this Image.' : null;
+    return people.some((p) => linking.has(p.personId)) ? ALREADY_LINKED : null;
   }
 
   // Stores the person's Citation of the Entry, with its Change and the
