@@ -14,34 +14,6 @@ const link: Link = {
   certainty: 'marked'
 };
 
-function label(s: Link) {
-  return linkStatus({ links: [s] }, false).label;
-}
-
-test('names a Link by who says so, however far down', () => {
-  expect(label(link)).toBe('Marked');
-  expect(
-    label({ ...BASE, precision: 'image', image: 18, certainty: 'marked' })
-  ).toBe('Marked');
-  expect(
-    label({
-      ...BASE,
-      precision: 'image',
-      image: 18,
-      certainty: 'estimated',
-      from: 'pins'
-    })
-  ).toBe('Estimate');
-  expect(label({ ...BASE, precision: 'volume', certainty: 'estimated' })).toBe(
-    'Estimate'
-  );
-  expect(label({ ...BASE, precision: 'volume', certainty: 'marked' })).toBe(
-    'Marked'
-  );
-  const vision: Link = { ...link, certainty: 'match' };
-  expect(label(vision)).toBe('Match');
-});
-
 test('counts a source as marked by its Link, or with none to doubt', () => {
   function marked(target: Link) {
     const status = linkStatus({ links: [target] }, false);

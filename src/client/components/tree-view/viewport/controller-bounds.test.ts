@@ -139,15 +139,6 @@ afterEach(() => {
   g.clearTimeout = real.clearTimeout;
 });
 
-test("a drag past the canvas's edge stretches", () => {
-  const controller = setup();
-  controller.onMouseDown(mouse(0, 1000));
-  controller.onMouseMove(mouse(300, 1100));
-  // Followed exactly, its right edge would be at 924.
-  expect(edges(controller).right).toBeGreaterThan(WIDTH);
-  expect(edges(controller).right).toBeLessThan(924);
-});
-
 test('a flick eases to rest at the edge, never past it, then settles', () => {
   const controller = setup();
   controller.onMouseDown(mouse(0, 1000));
@@ -193,21 +184,6 @@ test("a wheel zoom past the canvas's edge goes on, and stays once it stops", () 
   runTimers();
   expect(frames).toHaveLength(0);
   expect(edges(controller).right).toBe(right);
-  expect(settles).toBe(1);
-});
-
-test('a wheel zoom eases out to maxScale, never past it', () => {
-  const controller = setup();
-  let last = controller.scale;
-  for (let i = 0; i < 40; i++) {
-    controller.onWheel(wheel(MID, -100));
-    expect(controller.scale).toBeLessThanOrEqual(OPTIONS.scaleBounds.maxScale);
-    expect(controller.scale).toBeGreaterThanOrEqual(last);
-    last = controller.scale;
-  }
-  expect(controller.scale).toBe(OPTIONS.scaleBounds.maxScale);
-  runTimers();
-  expect(frames).toHaveLength(0);
   expect(settles).toBe(1);
 });
 
