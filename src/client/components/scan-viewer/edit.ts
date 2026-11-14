@@ -115,11 +115,12 @@ class ScanEditElement extends SignalWatcher(LitElement) {
   }
 
   // Asked as the menu item chosen was named.
-  private renderDiscard(source: LinkOpen) {
-    if (source.citation.madeInApp) return this.renderDelete();
-    const what = source.link?.certainty === 'match' ? 'match' : 'mark';
+  private renderDiscard() {
+    const { entry } = this.state.viewer;
+    if (entry.deletes.get()) return this.renderDelete();
+    const what = entry.kind.get();
     return html`
-      <p>Discard this ${what}?</p>
+      <p>Discard this ${what === 'match' ? 'match' : 'mark'}?</p>
       <div class="actions">
         <button
           ?disabled=${this.saving}
@@ -235,7 +236,7 @@ class ScanEditElement extends SignalWatcher(LitElement) {
     if (viewer.discarding.get()) {
       return this.renderAsking(
         this.also(source, 'Also for'),
-        this.renderDiscard(source)
+        this.renderDiscard()
       );
     }
     if (viewer.pending.get() === null) return nothing;

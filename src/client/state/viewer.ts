@@ -132,7 +132,7 @@ export interface Viewer {
   // Starts editing the source's Entry, made in the app: its people, what
   // it says and its Box, pending, as a new one is.
   editEntry: () => void;
-  // The source's Entry, as its Box's menu changes it.
+  // The source's Box: what it is, so what its menu offers, and its Entry.
   entry: EntryBox;
   // Deletes one of the Selected person's Citations, as _Sources_ does
   // (ADR-0021): the viewer closes if it shows it, else the Volume's
@@ -435,7 +435,7 @@ export function openViewer(
     const shown = source.get();
     const at = volume.get();
     if (shown === null || at === null || !discarding.get()) return;
-    if (shown.citation.madeInApp) {
+    if (cited.deletes.get()) {
       await cited.deleteMade(shown.citation);
       if (source.get() === shown) closeNow();
       return;

@@ -72,36 +72,40 @@ function boxItems(viewer: Viewer): MenuItem[] {
   if (viewer.boxPending.get()) {
     return [{ label: 'Discard changes', run: viewer.cancel }];
   }
-  const source = viewer.source.get();
-  if (source === null) return [];
-  if (source.citation.madeInApp) {
-    // Its Box is its own, so taking it back deletes the Citation.
-    if (source.citation.entryId === null) {
+  switch (viewer.entry.kind.get()) {
+    case null:
+      return [];
+    case 'citation':
       return [
         { label: 'Edit', run: viewer.editBox },
         { label: 'Delete', run: viewer.discard }
       ];
+    case 'entry': {
+      const others = viewer.entry.people.get().length > 1;
+      return [
+        { label: 'Edit', run: viewer.editEntry },
+        { label: others ? 'Delete entry' : 'Delete', run: viewer.discard }
+      ];
     }
-    const others = viewer.entry.people.get().length > 1;
-    return [
-      { label: 'Edit', run: viewer.editEntry },
-      { label: others ? 'Delete entry' : 'Delete', run: viewer.discard }
-    ];
+    case 'match':
+      return [
+        ...(viewer.oldFilming.get() ? [] : [confirmItem(viewer)]),
+        { label: 'Edit', run: viewer.editBox },
+        { label: 'Discard', run: viewer.discard }
+      ];
+    case 'mark':
+      return [
+        { label: 'Edit', run: viewer.editBox },
+        { label: 'Discard', run: viewer.discard }
+      ];
   }
-  const confirm =
-    source.link?.certainty === 'match' && !viewer.oldFilming.get()
-      ? [
-          {
-            label: 'Confirm',
-            run: () => {
-              void viewer.confirmSource();
-            }
-          }
-        ]
-      : [];
-  return [
-    ...confirm,
-    { label: 'Edit', run: viewer.editBox },
-    { label: 'Discard', run: viewer.discard }
-  ];
+}
+
+function confirmItem(viewer: Viewer): MenuItem {
+  return {
+    label: 'Confirm',
+    run: () => {
+      void viewer.confirmSource();
+    }
+  };
 }
