@@ -5,8 +5,7 @@
 import type { Database } from 'bun:sqlite';
 import { join } from 'node:path';
 
-import type { NewChange } from '@/common/types';
-
+import type { NewChange } from '../changes/changes';
 import { routeShared } from './astia-routes';
 import { openAstia } from './astia/astia';
 import type { Astia, ImageRef } from './astia/astia';

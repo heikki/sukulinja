@@ -4,9 +4,8 @@
 
 import type { Database } from 'bun:sqlite';
 
-import type { NewChange } from '@/common/types';
-
 import { openChanges } from '../changes/changes';
+import type { NewChange } from '../changes/changes';
 import type { DatasetCitations } from '../citations';
 import { createFacts } from '../facts/facts';
 import { createPersonDetails } from '../person-details';

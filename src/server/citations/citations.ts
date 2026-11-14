@@ -14,11 +14,11 @@ import { isoDate } from '@/common/dates';
 import type {
   CitationRow,
   Link,
-  NewChange,
   VolumeCitation,
   VolumeContents
 } from '@/common/types';
 
+import type { NewChange } from '../changes/changes';
 import {
   annotated,
   annotationColumnsSql,

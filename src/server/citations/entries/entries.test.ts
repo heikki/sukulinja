@@ -7,8 +7,9 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { NewChange, VolumeCitation } from '@/common/types';
+import type { VolumeCitation } from '@/common/types';
 
+import type { NewChange } from '../../changes/changes';
 import { openDb } from '../../datasets/db';
 import { fileId } from '../astia/memory-astia';
 import { memoryParishes } from '../astia/parishes';

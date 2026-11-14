@@ -7,8 +7,9 @@
 
 import type { Database } from 'bun:sqlite';
 
-import type { Box, NewChange, PhotoRow } from '@/common/types';
+import type { Box, PhotoRow } from '@/common/types';
 
+import type { NewChange } from '../changes/changes';
 import type { Photos } from './photos';
 
 // What a Tag couldn't be: a 404 for what isn't there, else a 400.

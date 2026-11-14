@@ -7,8 +7,8 @@
 import type { Database } from 'bun:sqlite';
 
 import { unlinkCuts } from '@/common/tree-cut';
-import type { NewChange } from '@/common/types';
 
+import type { NewChange } from '../changes/changes';
 import { touchRecord } from '../datasets/records';
 import { createTree } from '../tree';
 import { leaveFamily } from './membership';

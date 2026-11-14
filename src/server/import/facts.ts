@@ -1,12 +1,10 @@
 // A person's or family's events and attributes, each a fact row with its
 // place and address; and the addresses of repositories and submitters.
 
-import type { Scope } from '@/common/types';
-
 import type { GedNode } from '../gedcom/parser';
 import { EVENTS } from '../gedcom/tags';
 import { gedcom7Age, gedcom7Date } from '../gedcom/values';
-import type { ImportStatements } from './statements';
+import type { ImportStatements, Scope } from './statements';
 import { isEmptyLine } from './unstored';
 import type { LineReader } from './unstored';
 

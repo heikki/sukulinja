@@ -1,7 +1,6 @@
 import { beforeEach, expect, test } from 'bun:test';
 
-import type { NewChange } from '@/common/types';
-
+import type { NewChange } from '../changes/changes';
 import { openDb } from '../datasets/db';
 import { parseGedcom } from '../gedcom/parser';
 import { importGedcom } from '../import/gedcom';

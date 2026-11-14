@@ -8,8 +8,9 @@
 import type { Database } from 'bun:sqlite';
 import { extname } from 'node:path';
 
-import type { AddedPhoto, NewChange } from '@/common/types';
+import type { AddedPhoto } from '@/common/types';
 
+import type { NewChange } from '../changes/changes';
 import { removeMediaFile, storeMediaFile } from '../datasets/media-files';
 import { mimeOf } from '../gedcom/media-refs';
 import type { Photos } from './photos';

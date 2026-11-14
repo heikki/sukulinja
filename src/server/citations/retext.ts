@@ -1,7 +1,8 @@
 import type { Database } from 'bun:sqlite';
 
-import type { CitationRow, NewChange } from '@/common/types';
+import type { CitationRow } from '@/common/types';
 
+import type { NewChange } from '../changes/changes';
 import type { EntryEdit } from './entries';
 import { plainText } from './text';
 

@@ -6,13 +6,7 @@
 
 import type { Database } from 'bun:sqlite';
 
-import type {
-  Change,
-  ChangeOn,
-  ChangeTarget,
-  ChangeWhat,
-  NewChange
-} from '@/common/types';
+import type { Change, ChangeOn, ChangeWhat, OnTarget } from '@/common/types';
 
 import { ON_COLUMNS, openOn } from '../on';
 import type { OnRow, OnSources } from '../on';
@@ -24,6 +18,15 @@ interface ChangeRow extends OnRow {
   what: string;
   who: string | null;
   media_id: number | null;
+}
+
+// What a new Change is put on.
+export type ChangeTarget = OnTarget | { personId: number; photoId: number };
+
+// A Change as it's written: what it did, and what it was on, if anything.
+export interface NewChange {
+  on: ChangeTarget | null;
+  what: ChangeWhat;
 }
 
 type Binding = string | number | null;

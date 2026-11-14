@@ -6,7 +6,8 @@
 import type { Database } from 'bun:sqlite';
 
 import { factWords } from '@/common/facts';
-import type { NewChange } from '@/common/types';
+
+import type { NewChange } from '../changes/changes';
 
 // A Fact as a Change names it.
 export interface SupportedFact {

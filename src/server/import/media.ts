@@ -4,8 +4,6 @@
 // record noting it was added in the app holds a Tag (ADR-0017), and
 // another's CROP becomes one beside its link.
 
-import type { Scope } from '@/common/types';
-
 import { ADDED_IN_APP } from '../gedcom/astia-links';
 import { mediaRefsOf, objectsOf } from '../gedcom/media-refs';
 import type {
@@ -14,7 +12,7 @@ import type {
   UnlinkedPhoto
 } from '../gedcom/media-refs';
 import type { GedNode } from '../gedcom/parser';
-import type { ImportStatements } from './statements';
+import type { ImportStatements, Scope } from './statements';
 import type { LineReader } from './unstored';
 
 export type MediaResolver = (originalRelpath: string) => string | null;

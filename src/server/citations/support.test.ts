@@ -7,8 +7,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { NewChange } from '@/common/types';
-
+import type { NewChange } from '../changes/changes';
 import { openDb } from '../datasets/db';
 import { leaveFamily } from '../persons/membership';
 import { createTree } from '../tree';

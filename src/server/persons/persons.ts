@@ -4,8 +4,9 @@
 
 import type { Database } from 'bun:sqlite';
 
-import type { NewChange, PersonName } from '@/common/types';
+import type { PersonName } from '@/common/types';
 
+import type { NewChange } from '../changes/changes';
 import { touchRecord } from '../datasets/records';
 import { gedcomName, plainName, refusedName } from './names';
 

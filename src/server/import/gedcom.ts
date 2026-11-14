@@ -1,7 +1,5 @@
 import type { Database } from 'bun:sqlite';
 
-import type { Scope } from '@/common/types';
-
 import { gatherEntries, openAnnotations } from '../citations';
 import { pageOf } from '../gedcom/astia-links';
 import { objectRecords, unlinkedPhotos } from '../gedcom/media-refs';
@@ -21,6 +19,7 @@ import { annotationReader } from './links';
 import { mediaLinker } from './media';
 import type { MediaResolver } from './media';
 import { importStatements } from './statements';
+import type { Scope } from './statements';
 import { isEmptyLine, lineReader } from './unstored';
 import type { Unstored } from './unstored';
 

@@ -1,5 +1,3 @@
-export type Scope = 'person' | 'family';
-
 // A face rectangle marked in the source photo, in the original image's pixel
 // space. Used to crop the avatar to the marked area instead of the whole image.
 export interface PhotoCrop {
@@ -583,15 +581,6 @@ export type ChangeWhat =
 // with the person tagged or untagged in it.
 export type ChangeOn =
   On | { kind: 'photo'; personId: number; photoId: number };
-
-// What a new Change is put on.
-export type ChangeTarget = OnTarget | { personId: number; photoId: number };
-
-// A Change as it's written: what it did, and what it was on, if anything.
-export interface NewChange {
-  on: ChangeTarget | null;
-  what: ChangeWhat;
-}
 
 // Something done in the app that changed the dataset, when (ISO 8601).
 // `on` is null when it was on nothing, or what it was on is gone; `who`

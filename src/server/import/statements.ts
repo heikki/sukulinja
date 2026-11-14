@@ -2,6 +2,9 @@
 
 import type { Database } from 'bun:sqlite';
 
+// What a Fact, a Citation or a Media link of a GEDCOM record belongs to.
+export type Scope = 'person' | 'family';
+
 type Value = string | number | null;
 
 // A row's values as an insert binds them: one for each column, by its name.

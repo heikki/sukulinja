@@ -1,12 +1,10 @@
 import type { Database } from 'bun:sqlite';
 import { relative, resolve } from 'node:path';
 
-import type { NewChange } from '@/common/types';
-
 import { assistantOperations } from './assistant/asking';
 import type { AssistantDeps } from './assistant/asking';
 import { claude } from './assistant/model';
-import type { Changes } from './changes/changes';
+import type { Changes, NewChange } from './changes/changes';
 import { changeOperations } from './changes/operations';
 import { openCitations } from './citations';
 import type { Astia } from './citations';

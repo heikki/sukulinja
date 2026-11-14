@@ -14,8 +14,9 @@ import {
   namingRefusal
 } from '@/common/entry-naming';
 import type { EntryAt, EntryEdit, InEntry } from '@/common/operations';
-import type { NewChange, VolumeCitation } from '@/common/types';
+import type { VolumeCitation } from '@/common/types';
 
+import type { NewChange } from '../../changes/changes';
 import type { openAppCitations } from '../app-citations';
 import { viewerUrl } from '../astia/astia';
 import type { Images } from '../images';

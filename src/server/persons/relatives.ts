@@ -6,13 +6,9 @@
 
 import type { Database } from 'bun:sqlite';
 
-import type {
-  NewChange,
-  NewRelative,
-  Relation,
-  RelativeWho
-} from '@/common/types';
+import type { NewRelative, Relation, RelativeWho } from '@/common/types';
 
+import type { NewChange } from '../changes/changes';
 import { touchRecord } from '../datasets/records';
 import { joinAsChild } from './membership';
 import { plainName, refusedName } from './names';

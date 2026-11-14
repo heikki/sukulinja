@@ -13,8 +13,9 @@
 // else thrown is a bug, and is thrown on.
 
 import { slugFromFilename, withoutExtension } from '@/common/slug';
-import type { ImportEvent, NewChange, Sex } from '@/common/types';
+import type { ImportEvent, Sex } from '@/common/types';
 
+import type { NewChange } from '../changes/changes';
 import { refusedName } from '../persons/names';
 import { OutdatedDatasetError } from './db';
 import { DatasetExists, DatasetNotFound } from './registry';

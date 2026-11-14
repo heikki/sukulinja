@@ -5,8 +5,9 @@
 import type { Database } from 'bun:sqlite';
 
 import { ADDABLE_FACTS, factKindLabel, factWords } from '@/common/facts';
-import type { FactFields, NewChange, NewFact } from '@/common/types';
+import type { FactFields, NewFact } from '@/common/types';
 
+import type { NewChange } from '../changes/changes';
 import { deleteHeld, deletePlaceHeld, touchRecord } from '../datasets/records';
 import { BIRTH_TAGS, createChildOrder } from '../persons/child-order';
 import { readFields } from './fields';

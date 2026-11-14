@@ -8,8 +8,9 @@ import type { Database } from 'bun:sqlite';
 
 import { descendantsOf, membersOf, moveCuts } from '@/common/tree-cut';
 import type { MoveTarget } from '@/common/tree-cut';
-import type { FamilyRow, NewChange } from '@/common/types';
+import type { FamilyRow } from '@/common/types';
 
+import type { NewChange } from '../changes/changes';
 import { touchRecord } from '../datasets/records';
 import { createTree } from '../tree';
 import { joinAsChild, leaveFamily } from './membership';

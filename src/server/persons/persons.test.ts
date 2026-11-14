@@ -1,8 +1,7 @@
 import { beforeEach, expect, test } from 'bun:test';
 
-import type { NewChange } from '@/common/types';
-
 import { treeSnapshot } from '../../../test/tree-snapshot';
+import type { NewChange } from '../changes/changes';
 import { openDb } from '../datasets/db';
 import { exportGedcom } from '../export/gedcom';
 import { parseGedcom } from '../gedcom/parser';

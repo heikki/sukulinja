@@ -1,7 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import type { NewChange } from '@/common/types';
-
+import type { NewChange } from '../changes/changes';
 import { openDb } from '../datasets/db';
 import { createTree } from '../tree';
 import { createPhotos } from './photos';

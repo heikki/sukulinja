@@ -3,9 +3,8 @@ import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { NewChange } from '@/common/types';
-
 import { openChanges } from '../changes/changes';
+import type { NewChange } from '../changes/changes';
 import { openDb } from '../datasets/db';
 import { openPhotoFiles } from './files';
 import { createPhotos } from './photos';
