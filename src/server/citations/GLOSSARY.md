@@ -31,7 +31,7 @@ Something to come back to, on a person, or on an **Image**, maybe about a person
 _Avoid_: note (a GEDCOM NOTE), annotation (a Citation's app-made additions), to-do.
 
 **Change**:
-One thing done in the app that changed the dataset: a **Mark** (or a **Match** confirmed), a **Discard**, a Citation made in the Scan viewer, or any Citation deleted, a Tag made, moved or taken back, a **Fact** added, changed or deleted, a Citation's **Support** of a Fact added or taken back, a person added, linked, unlinked, moved, renamed or deleted (Tree), a dataset started with its first person, an import (or, from before ADR-0021, an import undone), or a Volume switched to a **Re-scan**'s new filming. Each says what it did and what it was on (a person, a Citation, an Image, a Tag's Photo with its person, or nothing; a person deleted leaves theirs on nothing, naming them), and is listed under _Changes_, newest first, where picking one goes back there. Only the app keeps them. _Clear…_ forgets them all.
+One thing done in the app that changed the dataset: a **Mark** (or a **Match** confirmed), a **Discard**, a Citation made in the Scan viewer, or any Citation deleted, an **Entry**'s Box moved or Transcription retyped (one on each of its Citations), a Role changed, a Tag made, moved or taken back, a **Fact** added, changed or deleted, a Citation's **Support** of a Fact added or taken back, a person added, linked, unlinked, moved, renamed or deleted (Tree), a dataset started with its first person, an import (or, from before ADR-0021, an import undone), or a Volume switched to a **Re-scan**'s new filming. Each says what it did and what it was on (a person, a Citation, an Image, a Tag's Photo with its person, or nothing; a person deleted leaves theirs on nothing, naming them), and is listed under _Changes_, newest first, where picking one goes back there. Only the app keeps them. _Clear…_ forgets them all.
 _Avoid_: log, history (alone; the browser's Back is history), edit.
 
 **Church-book reference**:
@@ -63,7 +63,7 @@ One scan in a Volume, numbered from 1 in Astia's order. What a **Link** opens.
 _Avoid_: page (written on the scan), frame (MyHeritage's numbering).
 
 **Entry**:
-One record written in a church book: a baptism, a marriage, or a person's line in a household, on one **Image**, where its **Box** is. What a church-book Citation is evidence from. Several people's Citations may cite one Entry, each in their own **Role**: a baptism names the child, the parents and the godparents. The app holds one for its own Citations of an Image (made in the Scan viewer or converted), with the Box, Event and Transcription once for all who cite it (ADR-0026); a Church-book reference still holds its own Box until the MyHeritage import goes.
+One record written in a church book: a baptism, a marriage, or a person's line in a household, on one **Image**, where its **Box** is. What a church-book Citation is evidence from. Several people's Citations may cite one Entry, each in their own **Role**: a baptism names the child, the parents and the godparents. The app holds one for its own Citations of an Image (made in the Scan viewer or converted), with the Box, Event and Transcription once for all who cite it (ADR-0026); a Church-book reference still holds its own Box until the MyHeritage import goes. One the app holds is edited as a whole: its Box, its Transcription and who it names in which Role, all of it or none.
 _Avoid_: record (MyHeritage's record of an Entry, with its **Record number**), citation (one person's reference to it).
 
 **Transcription**:
@@ -196,6 +196,7 @@ _Avoid_: "same page" alone — it doesn't say which.
 - A **Citation** is not a **Church-book reference**: many Citations aren't to church books, and the reference is only what's read from one.
 - An **Annotation** is not a GEDCOM NOTE, though a GEDZIP writes parts of one as NOTEs (the page a Mark moved aside, "Added in Sukulinja"). Nor is it a **Box** ("annotating an Image" elsewhere means drawing one; here a Box is only one part of an Annotation), or a note written in a church book's margins.
 - **"Volume"** is Astia's book; MyHeritage's equivalent is a **Film**, which may hold several Volumes. **"Image"** is Astia's numbering, **"Frame"** MyHeritage's, **"Page number"** what's written in the book.
+- A **Mark** places a Church-book reference; moving the Box of an **Entry** the app holds isn't one, as none cites a reference.
 - **Marked** and **Match** Links both come from a **Record pin** or **Reference pin**; only who saved it differs. A **Page pin** only improves its Volume's **Estimates**.
 - **Precision** and **Certainty** answer different questions: how far down, and who says so. A Box exists exactly when a Link points at the entry.
 - Shipped data and the data folder's pins.local.json hold only facts about Volumes (Page pins, Record ranges, villages); Marks and Matches are in each dataset's citations.
