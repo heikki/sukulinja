@@ -2,7 +2,7 @@ import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
-import { ApiError } from '@/client/dataset-api';
+import { Asking } from '@/client/asking';
 import { focusRingStyles } from '@/client/focus-ring';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
@@ -22,11 +22,11 @@ class ReminderAddElement extends LitElement {
 
   @consume({ context: appState }) private readonly state!: AppState;
 
+  private readonly asking = new Asking(this);
+
   @property({ attribute: false }) places!: ReminderPlaces;
 
   @state() private text = '';
-  @state() private saving = false;
-  @state() private error: string | null = null;
 
   override firstUpdated() {
     this.renderRoot.querySelector('textarea')?.focus();
@@ -37,18 +37,12 @@ class ReminderAddElement extends LitElement {
   };
 
   private async save() {
-    if (this.saving || this.text.trim() === '') return;
-    this.saving = true;
-    this.error = null;
-    try {
-      await this.state.reminders.remind(this.text, targetOf(this.places));
-      this.stop();
-    } catch (err) {
-      if (!(err instanceof ApiError)) throw err;
-      this.error = err.message;
-    } finally {
-      this.saving = false;
-    }
+    if (this.text.trim() === '') return;
+    const on = targetOf(this.places);
+    const saved = await this.asking.run(() =>
+      this.state.reminders.remind(this.text, on)
+    );
+    if (saved) this.stop();
   }
 
   private readonly onKeyDown = (e: KeyboardEvent) => {
@@ -82,18 +76,20 @@ class ReminderAddElement extends LitElement {
         }}
       ></textarea>
       <div class="buttons end">
-        <button ?disabled=${this.saving} @click=${this.stop}>Cancel</button>
+        <button ?disabled=${this.asking.busy} @click=${this.stop}>
+          Cancel
+        </button>
         <button
           class="primary"
-          ?disabled=${this.saving || this.text.trim() === ''}
+          ?disabled=${this.asking.busy || this.text.trim() === ''}
           @click=${() => {
             void this.save();
           }}
         >
-          ${this.saving ? 'Saving…' : 'Save'}
+          ${this.asking.busy ? 'Saving…' : 'Save'}
         </button>
       </div>
-      ${this.error === null ? nothing : html`<p class="error">${this.error}</p>`}
+      ${this.asking.refused === null ? nothing : html`<p class="error">${this.asking.refused}</p>`}
     `;
   }
 }

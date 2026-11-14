@@ -2,7 +2,7 @@ import { consume } from '@lit/context';
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
-import { ApiError } from '@/client/dataset-api';
+import { Asking } from '@/client/asking';
 import { focusRingStyles } from '@/client/focus-ring';
 import { formStyles } from '@/client/form-styles';
 import type { Point } from '@/client/pan-zoom';
@@ -64,6 +64,8 @@ class MoveFormElement extends LitElement {
 
   @consume({ context: appState }) private readonly state!: AppState;
 
+  private readonly asking = new Asking(this);
+
   @property({ attribute: false }) personId = 0;
   @property({ attribute: false }) moving: Moving | null = null;
   @property({ attribute: false }) heading = '';
@@ -73,8 +75,6 @@ class MoveFormElement extends LitElement {
   // them.
   @state() private otherId: number | null = null;
   @state() private choice = 0;
-  @state() private saving = false;
-  @state() private refused: string | null = null;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -118,22 +118,12 @@ class MoveFormElement extends LitElement {
 
   private async save() {
     const chosen = this.choices()[this.choice];
-    if (this.saving || chosen === undefined || this.moving === null) return;
-    this.saving = true;
-    this.refused = null;
-    try {
-      await this.state.personEdits.move(
-        this.personId,
-        this.moving.from,
-        chosen.to
-      );
-      this.close();
-    } catch (err) {
-      if (!(err instanceof ApiError)) throw err;
-      this.refused = err.message;
-    } finally {
-      this.saving = false;
-    }
+    const { moving } = this;
+    if (chosen === undefined || moving === null) return;
+    const moved = await this.asking.run(() =>
+      this.state.personEdits.move(this.personId, moving.from, chosen.to)
+    );
+    if (moved) this.close();
   }
 
   // Esc closes; Enter moves, once someone is picked, but not the Enter
@@ -202,14 +192,14 @@ class MoveFormElement extends LitElement {
       <h3>${this.heading}</h3>
       ${otherId === null ? this.renderSearch() : this.renderPicked(otherId)}
       ${
-        this.refused === null
+        this.asking.refused === null
           ? nothing
-          : html`<p class="error">${this.refused}</p>`
+          : html`<p class="error">${this.asking.refused}</p>`
       }
       <div class="buttons">
         <span class="gap"></span>
         <button
-          ?disabled=${this.saving}
+          ?disabled=${this.asking.busy}
           @click=${() => {
             this.close();
           }}
@@ -218,12 +208,12 @@ class MoveFormElement extends LitElement {
         </button>
         <button
           class="primary"
-          ?disabled=${this.saving || otherId === null}
+          ?disabled=${this.asking.busy || otherId === null}
           @click=${() => {
             void this.save();
           }}
         >
-          ${this.saving ? 'Moving…' : 'Move'}
+          ${this.asking.busy ? 'Moving…' : 'Move'}
         </button>
       </div>
     </div>`;

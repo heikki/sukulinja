@@ -1,9 +1,9 @@
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
 import { css, html, LitElement, nothing } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { customElement } from 'lit/decorators.js';
 
-import { ApiError } from '@/client/dataset-api';
+import { Asking } from '@/client/asking';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 
@@ -38,9 +38,7 @@ class PhotoEditElement extends SignalWatcher(LitElement) {
 
   @consume({ context: appState }) private readonly state!: AppState;
 
-  @state() private saving = false;
-  // The server's words when a save was refused.
-  @state() private refused: string | null = null;
+  private readonly asking = new Asking(this);
 
   override connectedCallback() {
     super.connectedCallback();
@@ -59,27 +57,18 @@ class PhotoEditElement extends SignalWatcher(LitElement) {
   }
 
   private async save() {
-    this.saving = true;
-    this.refused = null;
-    try {
-      await this.viewer.save();
-    } catch (err) {
-      if (!(err instanceof ApiError)) throw err;
-      this.refused = err.message;
-    } finally {
-      this.saving = false;
-    }
+    await this.asking.run(() => this.viewer.save());
   }
 
   private cancel() {
-    this.refused = null;
+    this.asking.forget();
     this.viewer.cancel();
   }
 
   private renderActions(go: string, going: string, kind: 'save' | 'discard') {
     return html`<div class="actions">
       <button
-        ?disabled=${this.saving}
+        ?disabled=${this.asking.busy}
         @click=${() => {
           this.cancel();
         }}
@@ -88,12 +77,12 @@ class PhotoEditElement extends SignalWatcher(LitElement) {
       </button>
       <button
         class=${kind}
-        ?disabled=${this.saving}
+        ?disabled=${this.asking.busy}
         @click=${() => {
           void this.save();
         }}
       >
-        ${this.saving ? going : go}
+        ${this.asking.busy ? going : go}
       </button>
     </div>`;
   }
@@ -115,9 +104,9 @@ class PhotoEditElement extends SignalWatcher(LitElement) {
     const pending = this.viewer.pending.get();
     const removing = this.viewer.removing.get();
     const refused =
-      this.refused === null
+      this.asking.refused === null
         ? nothing
-        : html`<p class="refused">${this.refused}</p>`;
+        : html`<p class="refused">${this.asking.refused}</p>`;
     if (pending !== null) {
       const name = this.nameOf(pending.personId);
       return html`

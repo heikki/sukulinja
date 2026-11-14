@@ -2,6 +2,7 @@ import { consume } from '@lit/context';
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
+import { Asking } from '@/client/asking';
 import { volumeTitle } from '@/client/link-labels';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
@@ -85,8 +86,7 @@ class ChurchBooksListElement extends LitElement {
   // Whether a parish is being looked for in Astia, while the one chosen
   // is added, and why that failed.
   @state() private finding = false;
-  @state() private adding = false;
-  @state() private addError: string | null = null;
+  private readonly adding = new Asking(this);
 
   @state() private parish: ChurchBookArchive | null = null;
 
@@ -118,18 +118,12 @@ class ChurchBooksListElement extends LitElement {
 
   // The archive found joins the install's parishes, and its books open.
   private async addFound(archive: ChurchBookArchive) {
-    this.adding = true;
-    this.addError = null;
-    try {
+    await this.adding.run(async () => {
       await this.state.app.addParish(archive.archiveId);
       this.finding = false;
       await this.loadParishes();
       this.pickParish(archive);
-    } catch (err) {
-      this.addError = err instanceof Error ? err.message : String(err);
-    } finally {
-      this.adding = false;
-    }
+    });
   }
 
   override disconnectedCallback() {
@@ -206,7 +200,7 @@ class ChurchBooksListElement extends LitElement {
           class="toggle"
           @click=${() => {
             this.finding = true;
-            this.addError = null;
+            this.adding.forget();
           }}
         >
           Find a parish in Astia
@@ -215,8 +209,8 @@ class ChurchBooksListElement extends LitElement {
     }
     return html`<sl-archive-search
       label="Parish in Astia"
-      ?busy=${this.adding}
-      .error=${this.addError}
+      ?busy=${this.adding.busy}
+      .error=${this.adding.refused}
       @archive-chosen=${(e: CustomEvent<ChurchBookArchive>) => {
         void this.addFound(e.detail);
       }}

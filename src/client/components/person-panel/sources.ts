@@ -4,7 +4,7 @@ import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
-import { ApiError } from '@/client/dataset-api';
+import { Asking } from '@/client/asking';
 import { focusRingStyles } from '@/client/focus-ring';
 import { formStyles } from '@/client/form-styles';
 import { appState } from '@/client/state';
@@ -148,14 +148,12 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
   // The source whose parish's archive is being looked for in Astia, while
   // its choice is saved, and why that failed.
   @state() private finding: number | null = null;
-  @state() private linking = false;
-  @state() private linkError: string | null = null;
+  private readonly linking = new Asking(this);
 
   // The source asked about deleting, while it's deleted, and why that
   // failed.
   @state() private asking: number | null = null;
-  @state() private deleting = false;
-  @state() private deleteError: string | null = null;
+  private readonly deletion = new Asking(this);
 
   // Whose sources are shown, and the source the viewer last showed and
   // for whom.
@@ -243,44 +241,30 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
 
   private find(id: number | null) {
     this.finding = id;
-    this.linkError = null;
+    this.linking.forget();
   }
 
   // Every source giving the parish's spelling links into the archive from
   // now on; the person's Links are resolved again.
   private async link(spelling: string, archive: ChurchBookArchive) {
-    this.linking = true;
-    this.linkError = null;
-    try {
+    await this.linking.run(async () => {
       await this.state.app.linkSpelling(spelling, archive.archiveId);
       this.finding = null;
       await this.state.selected.refresh();
-    } catch (err) {
-      this.linkError = err instanceof Error ? err.message : String(err);
-    } finally {
-      this.linking = false;
-    }
+    });
   }
 
   private ask(id: number | null) {
     this.asking = id;
-    this.deleteError = null;
+    this.deletion.forget();
   }
 
   // The Citation deleted (ADR-0021), as the Scan viewer sees it too.
   private async deleteCitation(c: CitationRow) {
-    if (this.deleting) return;
-    this.deleting = true;
-    this.deleteError = null;
-    try {
+    const deleted = await this.deletion.run(async () => {
       await this.state.viewer.uncite(c.id);
-      this.asking = null;
-    } catch (err) {
-      if (!(err instanceof ApiError)) throw err;
-      this.deleteError = err.message;
-    } finally {
-      this.deleting = false;
-    }
+    });
+    if (deleted) this.asking = null;
   }
 
   // Deleting the source's Citation, asked first.
@@ -306,13 +290,13 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
     >
       <p>Delete this citation?</p>
       ${
-        this.deleteError === null
+        this.deletion.refused === null
           ? nothing
-          : html`<p class="error">${this.deleteError}</p>`
+          : html`<p class="error">${this.deletion.refused}</p>`
       }
       <div class="buttons end">
         <button
-          ?disabled=${this.deleting}
+          ?disabled=${this.deletion.busy}
           @click=${() => {
             this.ask(null);
           }}
@@ -321,12 +305,12 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
         </button>
         <button
           class="danger"
-          ?disabled=${this.deleting}
+          ?disabled=${this.deletion.busy}
           @click=${() => {
             void this.deleteCitation(c);
           }}
         >
-          ${this.deleting ? 'Deleting…' : 'Delete'}
+          ${this.deletion.busy ? 'Deleting…' : 'Delete'}
         </button>
       </div>
     </div>`;
@@ -366,8 +350,8 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
       <sl-archive-search
         .name=${spelling}
         label="Parish's archive in Astia"
-        ?busy=${this.linking}
-        .error=${this.linkError}
+        ?busy=${this.linking.busy}
+        .error=${this.linking.refused}
         @archive-chosen=${(e: CustomEvent<ChurchBookArchive>) => {
           void this.link(spelling, e.detail);
         }}

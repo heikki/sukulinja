@@ -1,8 +1,8 @@
 import { consume } from '@lit/context';
 import { css, html, LitElement, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { customElement, property } from 'lit/decorators.js';
 
-import { ApiError } from '@/client/dataset-api';
+import { Asking } from '@/client/asking';
 import { dialogStyles } from '@/client/dialog-styles';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
@@ -25,28 +25,20 @@ class DeletePersonElement extends LitElement {
 
   @consume({ context: appState }) private readonly state!: AppState;
 
+  private readonly asking = new Asking(this);
+
   @property({ attribute: false }) person: PersonRow | null = null;
 
-  @state() private deleting = false;
-  @state() private refused: string | null = null;
-
   private close() {
-    if (this.deleting) return;
+    if (this.asking.busy) return;
     this.dispatchEvent(new Event('closed'));
   }
 
   private async confirm(person: PersonRow) {
-    this.deleting = true;
-    this.refused = null;
-    try {
-      await this.state.personEdits.remove(person.id);
-      this.deleting = false;
-      this.close();
-    } catch (err) {
-      this.deleting = false;
-      if (!(err instanceof ApiError)) throw err;
-      this.refused = err.message;
-    }
+    const removed = await this.asking.run(() =>
+      this.state.personEdits.remove(person.id)
+    );
+    if (removed) this.close();
   }
 
   override render() {
@@ -70,20 +62,20 @@ class DeletePersonElement extends LitElement {
           stay, naming them.
         </p>
         ${
-          this.refused === null
+          this.asking.refused === null
             ? nothing
-            : html`<p class="refused">${this.refused}</p>`
+            : html`<p class="refused">${this.asking.refused}</p>`
         }
         <div class="actions">
-          <button @click=${close} ?disabled=${this.deleting}>Cancel</button>
+          <button @click=${close} ?disabled=${this.asking.busy}>Cancel</button>
           <button
             class="danger"
-            ?disabled=${this.deleting}
+            ?disabled=${this.asking.busy}
             @click=${() => {
               void this.confirm(person);
             }}
           >
-            ${this.deleting ? 'Deleting…' : 'Delete'}
+            ${this.asking.busy ? 'Deleting…' : 'Delete'}
           </button>
         </div>
       </div>

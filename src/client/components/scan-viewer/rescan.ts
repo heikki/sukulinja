@@ -3,7 +3,7 @@ import { consume } from '@lit/context';
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
-import { ApiError } from '@/client/dataset-api';
+import { Asking } from '@/client/asking';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 
@@ -80,14 +80,14 @@ class ScanRescanElement extends SignalWatcher(LitElement) {
 
   @consume({ context: appState }) private readonly state!: AppState;
 
+  private readonly asking = new Asking(this);
+
   // The dataset's people, who name the citations.
   private get persons() {
     return this.state.chart.people.get().persons;
   }
   @property({ attribute: false }) retry: (() => void) | null = null;
 
-  @state() private switching = false;
-  @state() private refused: string | null = null;
   @state() private unfolded = false;
 
   override connectedCallback() {
@@ -98,17 +98,10 @@ class ScanRescanElement extends SignalWatcher(LitElement) {
   }
 
   private readonly onSwitch = async () => {
-    this.switching = true;
-    this.refused = null;
-    try {
-      await this.state.viewer.switchFilming();
-      this.retry?.();
-    } catch (err) {
-      if (!(err instanceof ApiError)) throw err;
-      this.refused = err.message;
-    } finally {
-      this.switching = false;
-    }
+    const switched = await this.asking.run(() =>
+      this.state.viewer.switchFilming()
+    );
+    if (switched) this.retry?.();
   };
 
   private renderLeftOut(lines: string[]) {
@@ -157,13 +150,13 @@ class ScanRescanElement extends SignalWatcher(LitElement) {
         </p>
         ${this.renderLeftOut(lines)}
         ${
-          this.refused === null
+          this.asking.refused === null
             ? nothing
-            : html`<p class="refused">${this.refused}</p>`
+            : html`<p class="refused">${this.asking.refused}</p>`
         }
         <div class="actions">
           <button
-            ?disabled=${this.switching}
+            ?disabled=${this.asking.busy}
             @click=${() => {
               viewer.keepFilming();
             }}
@@ -172,10 +165,10 @@ class ScanRescanElement extends SignalWatcher(LitElement) {
           </button>
           <button
             class="save"
-            ?disabled=${this.switching}
+            ?disabled=${this.asking.busy}
             @click=${this.onSwitch}
           >
-            ${this.switching ? 'Switching…' : 'Use the new filming'}
+            ${this.asking.busy ? 'Switching…' : 'Use the new filming'}
           </button>
         </div>
       </div>

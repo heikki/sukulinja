@@ -2,7 +2,7 @@ import { consume } from '@lit/context';
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
-import { ApiError } from '@/client/dataset-api';
+import { Asking } from '@/client/asking';
 import { focusRingStyles } from '@/client/focus-ring';
 import { formStyles } from '@/client/form-styles';
 import type { Point } from '@/client/pan-zoom';
@@ -95,6 +95,8 @@ class RelativeFormElement extends LitElement {
 
   @consume({ context: appState }) private readonly state!: AppState;
 
+  private readonly asking = new Asking(this);
+
   @property({ attribute: false }) personId = 0;
   @property({ attribute: false }) relation: Relation = 'child';
   // Names whose relative they'll be: "Father of Juho Esimerkki".
@@ -110,8 +112,6 @@ class RelativeFormElement extends LitElement {
   @state() private surname = '';
   @state() private chosenSex: Sex | null = null;
   @state() private familyId: number | null = null;
-  @state() private saving = false;
-  @state() private refused: string | null = null;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -155,27 +155,18 @@ class RelativeFormElement extends LitElement {
 
   // Puts the new person, or someone already in the tree, in place.
   private async save(who: RelativeWho) {
-    if (this.saving) return;
-    this.saving = true;
-    this.refused = null;
     const familyId =
       this.families.length === 0
         ? null
         : (this.familyId ?? this.families[0]!.familyId);
-    try {
-      const id = await this.state.personEdits.addRelative(this.personId, {
-        relation: this.relation,
-        who,
-        familyId
-      });
-      this.dispatchEvent(new CustomEvent('added', { detail: { id } }));
-      this.close();
-    } catch (err) {
-      if (!(err instanceof ApiError)) throw err;
-      this.refused = err.message;
-    } finally {
-      this.saving = false;
-    }
+    let id = 0;
+    const added = await this.asking.run(async () => {
+      const relative = { relation: this.relation, who, familyId };
+      id = await this.state.personEdits.addRelative(this.personId, relative);
+    });
+    if (!added) return;
+    this.dispatchEvent(new CustomEvent('added', { detail: { id } }));
+    this.close();
   }
 
   // Enter saves and Esc closes, from any field; the rest of the keys are
@@ -227,7 +218,7 @@ class RelativeFormElement extends LitElement {
       ${alike.map((p) => {
         const dates = formatDates(p);
         return html`<button
-          ?disabled=${this.saving}
+          ?disabled=${this.asking.busy}
           @click=${() => {
             void this.save({ personId: p.id });
           }}
@@ -255,14 +246,14 @@ class RelativeFormElement extends LitElement {
       })}
       ${this.renderFamily()}
       ${
-        this.refused === null
+        this.asking.refused === null
           ? nothing
-          : html`<p class="error">${this.refused}</p>`
+          : html`<p class="error">${this.asking.refused}</p>`
       }
       <div class="buttons">
         <span class="gap"></span>
         <button
-          ?disabled=${this.saving}
+          ?disabled=${this.asking.busy}
           @click=${() => {
             this.close();
           }}
@@ -271,12 +262,12 @@ class RelativeFormElement extends LitElement {
         </button>
         <button
           class="primary"
-          ?disabled=${this.saving}
+          ?disabled=${this.asking.busy}
           @click=${() => {
             this.saveNew();
           }}
         >
-          ${this.saving ? 'Adding…' : alike.length > 0 ? 'Add as new' : 'Add'}
+          ${this.asking.busy ? 'Adding…' : alike.length > 0 ? 'Add as new' : 'Add'}
         </button>
       </div>
     </div>`;

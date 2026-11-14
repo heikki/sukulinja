@@ -3,7 +3,7 @@ import { consume } from '@lit/context';
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
-import { ApiError } from '@/client/dataset-api';
+import { Asking } from '@/client/asking';
 import { focusRingStyles } from '@/client/focus-ring';
 import { formStyles } from '@/client/form-styles';
 import { appState } from '@/client/state';
@@ -68,6 +68,8 @@ class FactFormElement extends SignalWatcher(LitElement) {
 
   @consume({ context: appState }) private readonly state!: AppState;
 
+  private readonly asking = new Asking(this);
+
   // The Fact changed; null for a new one.
   @property({ attribute: false }) fact: FactRow | null = null;
   // Where a new marriage's Facts can go.
@@ -76,9 +78,7 @@ class FactFormElement extends SignalWatcher(LitElement) {
   @state() private tag = ADDABLE_FACTS[0]!.tag;
   @state() private familyId: number | null = null;
   @state() private fields: FactFields = BLANK;
-  @state() private saving = false;
   @state() private deleting = false;
-  @state() private refused: string | null = null;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -101,18 +101,7 @@ class FactFormElement extends SignalWatcher(LitElement) {
   }
 
   private async run(save: () => Promise<void>) {
-    if (this.saving) return;
-    this.saving = true;
-    this.refused = null;
-    try {
-      await save();
-      this.close();
-    } catch (err) {
-      if (!(err instanceof ApiError)) throw err;
-      this.refused = err.message;
-    } finally {
-      this.saving = false;
-    }
+    if (await this.asking.run(save)) this.close();
   }
 
   private save() {
@@ -248,7 +237,7 @@ class FactFormElement extends SignalWatcher(LitElement) {
       return html`<p class="ask">Delete the ${kind}?</p>
         <div class="buttons end">
           <button
-            ?disabled=${this.saving}
+            ?disabled=${this.asking.busy}
             @click=${() => {
               this.deleting = false;
             }}
@@ -257,12 +246,12 @@ class FactFormElement extends SignalWatcher(LitElement) {
           </button>
           <button
             class="danger"
-            ?disabled=${this.saving}
+            ?disabled=${this.asking.busy}
             @click=${() => {
               this.deleteFact();
             }}
           >
-            ${this.saving ? 'Deleting…' : 'Delete'}
+            ${this.asking.busy ? 'Deleting…' : 'Delete'}
           </button>
         </div>`;
     }
@@ -272,7 +261,7 @@ class FactFormElement extends SignalWatcher(LitElement) {
           ? nothing
           : html`<button
               class="danger"
-              ?disabled=${this.saving}
+              ?disabled=${this.asking.busy}
               @click=${() => {
                 this.deleting = true;
               }}
@@ -282,7 +271,7 @@ class FactFormElement extends SignalWatcher(LitElement) {
       }
       <span class="gap"></span>
       <button
-        ?disabled=${this.saving}
+        ?disabled=${this.asking.busy}
         @click=${() => {
           this.close();
         }}
@@ -291,12 +280,12 @@ class FactFormElement extends SignalWatcher(LitElement) {
       </button>
       <button
         class="primary"
-        ?disabled=${this.saving}
+        ?disabled=${this.asking.busy}
         @click=${() => {
           this.save();
         }}
       >
-        ${this.saving ? 'Saving…' : 'Save'}
+        ${this.asking.busy ? 'Saving…' : 'Save'}
       </button>
     </div>`;
   }
@@ -322,9 +311,9 @@ class FactFormElement extends SignalWatcher(LitElement) {
           : nothing
       }
       ${
-        this.refused === null
+        this.asking.refused === null
           ? nothing
-          : html`<p class="error">${this.refused}</p>`
+          : html`<p class="error">${this.asking.refused}</p>`
       }
       ${this.renderButtons()}
     </div>`;

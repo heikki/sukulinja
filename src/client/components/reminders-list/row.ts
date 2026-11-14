@@ -3,7 +3,7 @@ import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
-import { ApiError } from '@/client/dataset-api';
+import { Asking } from '@/client/asking';
 import { focusRingStyles } from '@/client/focus-ring';
 import { isStale } from '@/client/on';
 import { appState } from '@/client/state';
@@ -23,11 +23,11 @@ class ReminderRowElement extends SignalWatcher(LitElement) {
 
   @consume({ context: appState }) private readonly state!: AppState;
 
+  private readonly asking = new Asking(this);
+
   @property({ attribute: false }) reminder!: Reminder;
 
   @state() private typed: string | null = null;
-  @state() private busy = false;
-  @state() private error: string | null = null;
 
   private get reminders() {
     return this.state.reminders;
@@ -35,17 +35,7 @@ class ReminderRowElement extends SignalWatcher(LitElement) {
 
   // Runs `run`, one at a time, saying why if it's refused.
   private async running(run: () => Promise<void>) {
-    if (this.busy) return;
-    this.busy = true;
-    this.error = null;
-    try {
-      await run();
-    } catch (err) {
-      if (!(err instanceof ApiError)) throw err;
-      this.error = err.message;
-    } finally {
-      this.busy = false;
-    }
+    await this.asking.run(run);
   }
 
   private async save() {
@@ -87,22 +77,22 @@ class ReminderRowElement extends SignalWatcher(LitElement) {
       ></textarea>
       <div class="buttons end">
         <button
-          ?disabled=${this.busy}
+          ?disabled=${this.asking.busy}
           @click=${() => {
             this.typed = null;
-            this.error = null;
+            this.asking.forget();
           }}
         >
           Cancel
         </button>
         <button
           class="primary"
-          ?disabled=${this.busy || text.trim() === ''}
+          ?disabled=${this.asking.busy || text.trim() === ''}
           @click=${() => {
             void this.save();
           }}
         >
-          ${this.busy ? 'Saving…' : 'Save'}
+          ${this.asking.busy ? 'Saving…' : 'Save'}
         </button>
       </div>`;
   }
@@ -111,7 +101,7 @@ class ReminderRowElement extends SignalWatcher(LitElement) {
     const { id, done } = this.reminder;
     return html`<div class="buttons">
       <button
-        ?disabled=${this.busy}
+        ?disabled=${this.asking.busy}
         @click=${() => {
           this.focusField = true;
           this.typed = this.reminder.text;
@@ -120,7 +110,7 @@ class ReminderRowElement extends SignalWatcher(LitElement) {
         Edit
       </button>
       <button
-        ?disabled=${this.busy}
+        ?disabled=${this.asking.busy}
         @click=${() => {
           void this.running(async () => {
             await this.reminders.change(id, { done: done === null });
@@ -130,7 +120,7 @@ class ReminderRowElement extends SignalWatcher(LitElement) {
         ${done === null ? 'Done' : 'Reopen'}
       </button>
       <button
-        ?disabled=${this.busy}
+        ?disabled=${this.asking.busy}
         @click=${() => {
           void this.running(async () => {
             await this.reminders.remove(id);
@@ -156,7 +146,7 @@ class ReminderRowElement extends SignalWatcher(LitElement) {
       }
       ${lines}
       ${this.typed === null ? this.renderButtons() : this.renderEditing(this.typed)}
-      ${this.error === null ? nothing : html`<p class="error">${this.error}</p>`}
+      ${this.asking.refused === null ? nothing : html`<p class="error">${this.asking.refused}</p>`}
     `;
   }
 }

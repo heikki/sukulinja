@@ -2,7 +2,7 @@ import { consume } from '@lit/context';
 import { css, html, LitElement } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
-import { ApiError } from '@/client/dataset-api';
+import { Asking } from '@/client/asking';
 import { focusRingStyles } from '@/client/focus-ring';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
@@ -65,11 +65,11 @@ class AssistantKeyElement extends LitElement {
 
   @consume({ context: appState }) private readonly state!: AppState;
 
+  private readonly asking = new Asking(this);
+
   // Null until the app answers.
   @state() private status: AssistantKeyStatus | null = null;
   @state() private typed = '';
-  @state() private error: string | null = null;
-  @state() private busy = false;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -78,17 +78,10 @@ class AssistantKeyElement extends LitElement {
 
   // Every ask answers with the status as it then stands.
   private async ask(asked: () => Promise<AssistantKeyStatus>) {
-    this.busy = true;
-    try {
+    await this.asking.run(async () => {
       this.status = await asked();
-      this.error = null;
       this.typed = '';
-    } catch (err) {
-      if (!(err instanceof ApiError)) throw err;
-      this.error = err.message;
-    } finally {
-      this.busy = false;
-    }
+    });
   }
 
   private readonly save = (e: Event) => {
@@ -102,7 +95,7 @@ class AssistantKeyElement extends LitElement {
     const status = this.status;
     if (status === null) {
       return html`<span class="muted"
-        >${this.error ?? 'Asking the app…'}</span
+        >${this.asking.refused ?? 'Asking the app…'}</span
       >`;
     }
     if (status.source === 'saved') {
@@ -110,7 +103,7 @@ class AssistantKeyElement extends LitElement {
         <div class="row">
           <span>API key saved</span>
           <button
-            ?disabled=${this.busy}
+            ?disabled=${this.asking.busy}
             @click=${() => {
               void this.ask(this.state.app.removeAssistantKey);
             }}
@@ -135,7 +128,7 @@ class AssistantKeyElement extends LitElement {
         />
         <button
           type="submit"
-          ?disabled=${this.busy || this.typed.trim() === ''}
+          ?disabled=${this.asking.busy || this.typed.trim() === ''}
         >
           Save
         </button>
@@ -152,9 +145,9 @@ class AssistantKeyElement extends LitElement {
   }
 
   private renderError() {
-    return this.error === null
+    return this.asking.refused === null
       ? null
-      : html`<span class="error">${this.error}</span>`;
+      : html`<span class="error">${this.asking.refused}</span>`;
   }
 }
 

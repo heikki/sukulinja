@@ -2,7 +2,7 @@ import { consume } from '@lit/context';
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
-import { ApiError } from '@/client/dataset-api';
+import { Asking } from '@/client/asking';
 import { focusRingStyles } from '@/client/focus-ring';
 import { formStyles } from '@/client/form-styles';
 import { appState } from '@/client/state';
@@ -79,17 +79,17 @@ class SourceTextElement extends LitElement {
 
   @consume({ context: appState }) private readonly state!: AppState;
 
+  private readonly asking = new Asking(this);
+
   @property({ attribute: false }) citation!: CitationRow;
   // The source's heading: a text saying only that isn't shown again.
   @property() heading = '';
 
   @state() private draft: string | null = null;
-  @state() private saving = false;
-  @state() private error: string | null = null;
 
   private edit(text: string | null) {
     this.draft = text;
-    this.error = null;
+    this.asking.forget();
     if (text === null) return;
     void this.updateComplete.then(() => {
       this.renderRoot.querySelector('textarea')?.focus();
@@ -97,18 +97,12 @@ class SourceTextElement extends LitElement {
   }
 
   private async save() {
-    if (this.saving || this.draft === null) return;
-    this.saving = true;
-    this.error = null;
-    try {
-      await this.state.viewer.retext(this.citation.id, this.draft);
-      this.draft = null;
-    } catch (err) {
-      if (!(err instanceof ApiError)) throw err;
-      this.error = err.message;
-    } finally {
-      this.saving = false;
-    }
+    const { draft } = this;
+    if (draft === null) return;
+    const saved = await this.asking.run(() =>
+      this.state.viewer.retext(this.citation.id, draft)
+    );
+    if (saved) this.draft = null;
   }
 
   private renderEditing(draft: string) {
@@ -133,10 +127,10 @@ class SourceTextElement extends LitElement {
           ? html`<p class="hint">Everyone in the entry shares this text.</p>`
           : nothing
       }
-      ${this.error === null ? nothing : html`<p class="error">${this.error}</p>`}
+      ${this.asking.refused === null ? nothing : html`<p class="error">${this.asking.refused}</p>`}
       <div class="buttons end">
         <button
-          ?disabled=${this.saving}
+          ?disabled=${this.asking.busy}
           @click=${() => {
             this.edit(null);
           }}
@@ -145,12 +139,12 @@ class SourceTextElement extends LitElement {
         </button>
         <button
           class="primary"
-          ?disabled=${this.saving}
+          ?disabled=${this.asking.busy}
           @click=${() => {
             void this.save();
           }}
         >
-          ${this.saving ? 'Saving…' : 'Save'}
+          ${this.asking.busy ? 'Saving…' : 'Save'}
         </button>
       </div>
     </div>`;
