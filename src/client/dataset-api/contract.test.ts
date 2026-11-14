@@ -470,7 +470,8 @@ describe('the assistant', () => {
     expect(events[2]).toMatchObject({ type: 'done', ended: 'answered' });
     const id = (events[0] as { id: string }).id;
     await api.forgetConversation(id);
-    expect(await status(`${ORIGIN}/d/juva/api/assistant/x`)).toBe(405);
+    // Asked only by POST, as every operation is.
+    expect(await status(`${ORIGIN}/d/juva/api/forgetConversation`)).toBe(405);
   });
 });
 

@@ -114,7 +114,10 @@ test("an import doesn't replace a dataset, as its tree is edited in the app", as
 // What each of the dataset's Changes did, newest first.
 async function changesDone(slug: string) {
   const res = await serve!(
-    new Request(`http://localhost/d/${slug}/api/changes`)
+    new Request(`http://localhost/d/${slug}/api/changes`, {
+      method: 'POST',
+      body: '{}'
+    })
   );
   const all = (await res.json()) as Change[];
   return all.map((c) => c.what);

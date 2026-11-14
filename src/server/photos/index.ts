@@ -7,4 +7,4 @@ export { createPhotos } from './photos';
 export type { Photos } from './photos';
 export { openTags, photoName } from './tags';
 export type { Tags } from './tags';
-export { routePhotos } from './routes';
+export { photoOperations, routeAddPhoto } from './operations';

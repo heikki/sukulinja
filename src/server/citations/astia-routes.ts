@@ -1,7 +1,7 @@
 // The routes outside any dataset, shared by them all: an Astia Volume's
 // Images, the Scan cache they're kept in, whether Astia has re-scanned a
 // Volume, the church books by parish, and their downloads.
-// Switching to a re-scan's new filming is a dataset's (citation-routes).
+// Switching to a re-scan's new filming is a dataset's operation (operations.ts).
 
 import { basename } from 'node:path';
 

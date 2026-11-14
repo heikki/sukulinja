@@ -1,8 +1,19 @@
 // What a dataset's screens ask the app: one method per question, answered
-// typed. `openDatasetApi` asks over HTTP, and is where every route string
-// lives; `memoryDatasetApi` (memory.ts) answers from values a test gives.
+// typed. `openDatasetApi` asks over HTTP, by the dataset's operations
+// (common/operations); `memoryDatasetApi` (memory.ts) answers from values
+// a test gives.
 
 import { readNdjson } from '@/client/ndjson';
+import type {
+  BoxAt,
+  EntryEdit,
+  EntryTarget,
+  InEntry,
+  InputOf,
+  MarkTarget,
+  Operations,
+  OutputOf
+} from '@/common/operations';
 import type { MoveTarget } from '@/common/tree-cut';
 import type {
   AddedPhoto,
@@ -38,48 +49,14 @@ export class ApiError extends Error {
 
 export const NOT_RESPONDING = 'The app is not responding.';
 
-// Where a Mark puts a reference: an Image of a Volume, or only the Volume.
-// On an Image, `box` is the entry drawn, null for none; left out, a Vision
-// match's Box there is kept.
-export interface MarkTarget {
-  volumeId: string;
-  image?: number;
-  box?: Box | null;
-}
-
-// Where a Box is: on an Image of a Volume.
-export interface BoxAt {
-  volumeId: string;
-  image: number;
-}
-
-// Where an entry is: its Box on an Image of a Volume, by the Image's file
-// id.
-export interface EntryAt {
-  volumeId: string;
-  image: number;
-  fileId: string;
-  box: Box;
-}
-
-// An entry made in the app, with what it says, if said.
-export interface EntryTarget extends EntryAt {
-  text: string | null;
-}
-
-// Someone named in an entry, in their Role if it has one.
-export interface InEntry {
-  personId: number;
-  role: string | null;
-}
-
-// An Entry as it should be: where its Box is, what it says and who it
-// names in which Role; a part left out stays.
-export interface EntryEdit {
-  at?: EntryAt;
-  text?: string | null;
-  people?: InEntry[];
-}
+export type {
+  BoxAt,
+  EntryAt,
+  EntryEdit,
+  EntryTarget,
+  InEntry,
+  MarkTarget
+} from '@/common/operations';
 
 // Each call rejects with ApiError when it fails, and with the signal's
 // reason once `signal` aborts.
@@ -252,6 +229,12 @@ export function asker(send: (req: Request) => Promise<Response>) {
   };
 }
 
+type Answered = {
+  [N in keyof Operations]: Operations[N]['answer'] extends 'json' ? N : never;
+}[keyof Operations];
+type Streamed = Exclude<keyof Operations, Answered>;
+type InputOfName<N extends keyof Operations> = InputOf<Operations[N]>;
+
 // The dataset `slug`, over HTTP.
 export function openDatasetApi(
   slug: string,
@@ -265,174 +248,120 @@ export function openDatasetApi(
 
   const ask = asker(send);
 
-  async function json<T>(what: string, url: string, signal?: AbortSignal) {
-    return await settled(signal, async () => {
-      const res = await ask(what, url, { signal });
-      return (await res.json()) as T;
+  // Sends the operation its input; `what` names it when the app gives no
+  // words of its own.
+  async function post<N extends keyof Operations>(
+    name: N,
+    input: InputOfName<N>,
+    what: string,
+    signal?: AbortSignal
+  ) {
+    return await ask(what, `${dataset}/api/${name}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+      signal
     });
   }
 
-  return {
-    persons: async (signal) =>
-      await json<PersonRow[]>('persons', `${dataset}/api/persons`, signal),
+  // The operation's answer, or none.
+  async function call<N extends Answered>(
+    name: N,
+    input: InputOfName<N>,
+    what: string,
+    signal?: AbortSignal
+  ): Promise<OutputOf<Operations[N]>> {
+    return await settled(signal, async () => {
+      const res = await post(name, input, what, signal);
+      if (res.status === 204) return undefined as OutputOf<Operations[N]>;
+      return (await res.json()) as OutputOf<Operations[N]>;
+    });
+  }
 
-    families: async (signal) =>
-      await json<FamilyRow[]>('families', `${dataset}/api/families`, signal),
-
-    person: async (id, signal) =>
-      await json<PersonDetails>(
-        'person',
-        `${dataset}/api/persons/${id}`,
-        signal
-      ),
-
-    async *personLinks(id, signal) {
-      const url = `${dataset}/api/persons/${id}/scans`;
-      const res = await settled(
-        signal,
-        async () => await ask('Links', url, { signal })
-      );
-      if (res.body === null) throw new ApiError('Links failed (no answer)');
-      try {
-        for await (const line of readNdjson(res.body)) {
-          signal?.throwIfAborted();
-          yield line as CitationLinks;
-        }
-      } catch (err) {
-        // eslint-disable-next-line @typescript-eslint/only-throw-error -- the abort's own reason
-        if (signal?.aborted === true) throw signal.reason;
-        // A line that isn't JSON is a bug; a stream cut off isn't.
-        if (err instanceof SyntaxError) throw err;
-        throw new ApiError(NOT_RESPONDING, { cause: err });
+  // The operation's lines, as each comes.
+  async function* lines<N extends Streamed>(
+    name: N,
+    input: InputOfName<N>,
+    what: string,
+    signal?: AbortSignal
+  ): AsyncGenerator<OutputOf<Operations[N]>, void, undefined> {
+    const res = await settled(
+      signal,
+      async () => await post(name, input, what, signal)
+    );
+    if (res.body === null) throw new ApiError(NOT_RESPONDING);
+    try {
+      for await (const line of readNdjson(res.body)) {
+        signal?.throwIfAborted();
+        yield line as OutputOf<Operations[N]>;
       }
-    },
+    } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- the abort's own reason
+      if (signal?.aborted === true) throw signal.reason;
+      // A line that isn't JSON is a bug; a stream cut off isn't.
+      if (err instanceof SyntaxError) throw err;
+      throw new ApiError(NOT_RESPONDING, { cause: err });
+    }
+  }
 
-    async mark(citationId, at) {
-      const res = await ask(
-        'Mark',
-        `${dataset}/api/citations/${citationId}/scans`,
-        {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(at)
-        }
-      );
-      return (await res.json()) as CitationLinks;
-    },
-
-    async discard(citationId, at) {
-      const res = await ask(
-        'Discard',
-        `${dataset}/api/citations/${citationId}/scans`,
-        {
-          method: 'DELETE',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(at)
-        }
-      );
-      return (await res.json()) as CitationLinks;
-    },
-
-    async citeEntry(at, people) {
-      const res = await ask('Citing', `${dataset}/api/entries`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ...at, people })
-      });
-      return (await res.json()) as VolumeCitation[];
-    },
-
-    async editEntry(entryId, edit) {
-      const res = await ask('Saving', `${dataset}/api/entries/${entryId}`, {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(edit)
-      });
-      return (await res.json()) as VolumeCitation[];
-    },
-
+  return {
+    persons: async (signal) => await call('persons', {}, 'persons', signal),
+    families: async (signal) => await call('families', {}, 'families', signal),
+    person: async (personId, signal) =>
+      await call('person', { personId }, 'person', signal),
+    personLinks: (personId, signal) =>
+      lines('personLinks', { personId }, 'Links', signal),
+    mark: async (citationId, at) =>
+      await call('mark', { citationId, at }, 'Mark'),
+    discard: async (citationId, at) =>
+      await call('discard', { citationId, at }, 'Discard'),
+    citeEntry: async (at, people) =>
+      await call('citeEntry', { at, people }, 'Citing'),
+    editEntry: async (entryId, edit) =>
+      await call('editEntry', { entryId, edit }, 'Saving'),
     async retext(citationId, text) {
-      await ask('Saving', `${dataset}/api/citations/${citationId}/text`, {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ text })
-      });
+      await call('retext', { citationId, text }, 'Saving');
     },
-
     async deleteEntry(entryId) {
-      await ask('Deleting', `${dataset}/api/entries/${entryId}`, {
-        method: 'DELETE'
-      });
+      await call('deleteEntry', { entryId }, 'Deleting');
     },
-
     async uncite(citationId) {
-      await ask('Deleting', `${dataset}/api/citations/${citationId}`, {
-        method: 'DELETE'
-      });
+      await call('uncite', { citationId }, 'Deleting');
     },
-
-    async support(citationId, factId, on) {
-      const res = await ask(
-        'Saving',
-        `${dataset}/api/citations/${citationId}/supports/${factId}`,
-        { method: on ? 'PUT' : 'DELETE' }
-      );
-      return (await res.json()) as CitationRow;
-    },
-
+    support: async (citationId, factId, on) =>
+      await call('support', { citationId, factId, on }, 'Saving'),
     volumeChoices: async (citationId, signal) =>
-      await json<VolumeChoices>(
-        'the Volumes',
-        `${dataset}/api/citations/${citationId}/volumes`,
-        signal
-      ),
-
+      await call('volumeChoices', { citationId }, 'the Volumes', signal),
     volumeCitations: async (volumeId, signal) =>
-      await json<VolumeCitation[]>(
+      await call(
+        'volumeCitations',
+        { volumeId },
         "the Volume's citations",
-        `${dataset}/api/volumes/${volumeId}/citations`,
         signal
       ),
-
     archives: async (signal) =>
-      await json<ChurchBookArchive[]>(
-        'the church books',
-        `${dataset}/api/archives`,
-        signal
-      ),
-
+      await call('archives', {}, 'the church books', signal),
     archiveCitations: async (archiveId, signal) =>
-      await json<Record<string, number>>(
+      await call(
+        'archiveCitations',
+        { archiveId },
         "the parish's citations",
-        `${dataset}/api/archives/${archiveId}/citations`,
         signal
       ),
-
     volume: async (volumeId, signal) =>
-      await json<VolumeContents>(
-        'the Volume',
-        `${dataset}/api/volumes/${volumeId}`,
-        signal
-      ),
+      await call('volume', { volumeId }, 'the Volume', signal),
 
-    volumeRescan: async (volumeId, signal) =>
-      (
-        await json<{ rescan: Rescan | null }>(
-          "the Volume's re-scan",
-          `${astia}/${volumeId}/rescan`,
-          signal
-        )
-      ).rescan,
-
-    async switchFilming(volumeId, volume) {
-      const url = `${dataset}/api/volumes/${volumeId}/filming`;
-      const res = await ask('Switching', url, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ volume })
+    // Astia's, not the dataset's: shared by every dataset.
+    async volumeRescan(volumeId, signal) {
+      return await settled(signal, async () => {
+        const url = `${astia}/${volumeId}/rescan`;
+        const res = await ask("the Volume's re-scan", url, { signal });
+        return ((await res.json()) as { rescan: Rescan | null }).rescan;
       });
-      return (await res.json()) as string[];
     },
+
+    switchFilming: async (volumeId, volume) =>
+      await call('switchFilming', { volumeId, volume }, 'Switching'),
 
     imageUrl(volumeId, n, retry) {
       const url = `${astia}/${volumeId}/images/${n}`;
@@ -441,15 +370,15 @@ export function openDatasetApi(
 
     thumbUrl: (volumeId, n) => `${astia}/${volumeId}/images/${n}?size=thumb`,
 
-    photos: async (signal) =>
-      await json<PhotoRow[]>('Photos', `${dataset}/api/photos`, signal),
+    photos: async (signal) => await call('photos', {}, 'Photos', signal),
 
     mediaUrl: (storedPath) => `${dataset}/media/${storedPath}`,
 
+    // The file goes as a form, not as an operation's JSON.
     async addPhoto(file) {
       const body = new FormData();
       body.append('file', file);
-      const res = await ask(`Adding ${file.name}`, `${dataset}/api/photos`, {
+      const res = await ask(`Adding ${file.name}`, `${dataset}/api/addPhoto`, {
         method: 'POST',
         body
       });
@@ -457,187 +386,58 @@ export function openDatasetApi(
     },
 
     async deletePhoto(photoId) {
-      await ask('Deleting the photo', `${dataset}/api/photos/${photoId}`, {
-        method: 'DELETE'
-      });
+      await call('deletePhoto', { photoId }, 'Deleting the photo');
     },
-
-    async tag(photoId, personId, box) {
-      const url = `${dataset}/api/photos/${photoId}/tags/${personId}`;
-      const res = await ask('Saving the Tag', url, {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ box })
-      });
-      return (await res.json()) as PhotoRow;
-    },
-
-    async untag(photoId, personId) {
-      const url = `${dataset}/api/photos/${photoId}/tags/${personId}`;
-      const res = await ask('Taking back the Tag', url, { method: 'DELETE' });
-      return (await res.json()) as PhotoRow;
-    },
-
-    async choosePortrait(photoId, personId) {
-      const url = `${dataset}/api/photos/${photoId}/tags/${personId}/portrait`;
-      const res = await ask('Choosing the portrait', url, { method: 'PUT' });
-      return (await res.json()) as PhotoRow;
-    },
-
-    changes: async (signal) =>
-      await json<Change[]>('Changes', `${dataset}/api/changes`, signal),
-
+    tag: async (photoId, personId, box) =>
+      await call('tag', { photoId, personId, box }, 'Saving the Tag'),
+    untag: async (photoId, personId) =>
+      await call('untag', { photoId, personId }, 'Taking back the Tag'),
+    choosePortrait: async (photoId, personId) =>
+      await call(
+        'choosePortrait',
+        { photoId, personId },
+        'Choosing the portrait'
+      ),
+    changes: async (signal) => await call('changes', {}, 'Changes', signal),
     async clearChanges() {
-      await ask('Clearing the Changes', `${dataset}/api/changes`, {
-        method: 'DELETE'
-      });
+      await call('clearChanges', {}, 'Clearing the Changes');
     },
-
     reminders: async (signal) =>
-      await json<Reminder[]>('Reminders', `${dataset}/api/reminders`, signal),
-
-    async remind(text, on) {
-      const res = await ask('Saving the Reminder', `${dataset}/api/reminders`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ text, on })
-      });
-      return (await res.json()) as Reminder;
-    },
-
-    async changeReminder(id, change) {
-      const res = await ask(
-        'Saving the Reminder',
-        `${dataset}/api/reminders/${id}`,
-        {
-          method: 'PATCH',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(change)
-        }
-      );
-      return (await res.json()) as Reminder;
-    },
-
+      await call('reminders', {}, 'Reminders', signal),
+    remind: async (text, on) =>
+      await call('remind', { text, on }, 'Saving the Reminder'),
+    changeReminder: async (id, change) =>
+      await call('changeReminder', { id, change }, 'Saving the Reminder'),
     async deleteReminder(id) {
-      await ask('Deleting the Reminder', `${dataset}/api/reminders/${id}`, {
-        method: 'DELETE'
-      });
+      await call('deleteReminder', { id }, 'Deleting the Reminder');
     },
-
-    places: async (signal) =>
-      await json<string[]>('Places', `${dataset}/api/places`, signal),
-
+    places: async (signal) => await call('places', {}, 'Places', signal),
     async editPerson(personId, name) {
-      await ask('Changing the name', `${dataset}/api/persons/${personId}`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(name)
-      });
+      await call('editPerson', { personId, name }, 'Changing the name');
     },
-
     async unlink(personId, familyId) {
-      await ask(
-        'Removing from the family',
-        `${dataset}/api/persons/${personId}/families/${familyId}`,
-        { method: 'DELETE' }
-      );
+      await call('unlink', { personId, familyId }, 'Removing from the family');
     },
-
     async move(personId, from, to) {
-      await ask(
-        'Moving the person',
-        `${dataset}/api/persons/${personId}/families/${from}/move`,
-        {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ to })
-        }
-      );
+      await call('move', { personId, from, to }, 'Moving the person');
     },
-
     async deletePerson(personId) {
-      await ask('Deleting the person', `${dataset}/api/persons/${personId}`, {
-        method: 'DELETE'
-      });
+      await call('deletePerson', { personId }, 'Deleting the person');
     },
-
-    async addRelative(personId, relative) {
-      const res = await ask(
-        'Adding the person',
-        `${dataset}/api/persons/${personId}/relatives`,
-        {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(relative)
-        }
-      );
-      return ((await res.json()) as { id: number }).id;
-    },
-
-    async addFact(personId, fact) {
-      const res = await ask(
-        'Adding the event',
-        `${dataset}/api/persons/${personId}/facts`,
-        {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(fact)
-        }
-      );
-      return ((await res.json()) as { id: number }).id;
-    },
-
+    addRelative: async (personId, relative) =>
+      await call('addRelative', { personId, relative }, 'Adding the person'),
+    addFact: async (personId, fact) =>
+      await call('addFact', { personId, fact }, 'Adding the event'),
     async editFact(personId, factId, fields) {
-      await ask(
-        'Saving the event',
-        `${dataset}/api/persons/${personId}/facts/${factId}`,
-        {
-          method: 'PATCH',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(fields)
-        }
-      );
+      await call('editFact', { personId, factId, fields }, 'Saving the event');
     },
-
     async deleteFact(personId, factId) {
-      await ask(
-        'Deleting the event',
-        `${dataset}/api/persons/${personId}/facts/${factId}`,
-        { method: 'DELETE' }
-      );
+      await call('deleteFact', { personId, factId }, 'Deleting the event');
     },
-
-    async *ask(question, signal) {
-      const res = await settled(
-        signal,
-        async () =>
-          await ask('Asking the assistant', `${dataset}/api/assistant`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify(question),
-            signal
-          })
-      );
-      if (res.body === null) throw new ApiError(NOT_RESPONDING);
-      try {
-        for await (const line of readNdjson(res.body)) {
-          signal?.throwIfAborted();
-          yield line as AssistantEvent;
-        }
-      } catch (err) {
-        // eslint-disable-next-line @typescript-eslint/only-throw-error -- the abort's own reason
-        if (signal?.aborted === true) throw signal.reason;
-        if (err instanceof SyntaxError) throw err;
-        throw new ApiError(NOT_RESPONDING, { cause: err });
-      }
-    },
-
+    ask: (question, signal) =>
+      lines('ask', question, 'Asking the assistant', signal),
     async forgetConversation(id) {
-      await ask(
-        'Starting a new conversation',
-        `${dataset}/api/assistant/${encodeURIComponent(id)}`,
-        { method: 'DELETE' }
-      );
+      await call('forgetConversation', { id }, 'Starting a new conversation');
     }
   };
 }

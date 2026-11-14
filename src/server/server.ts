@@ -1,14 +1,15 @@
 import type { Database } from 'bun:sqlite';
 import { relative, resolve } from 'node:path';
 
-import type { NewChange, Reminder } from '@/common/types';
+import type { NewChange } from '@/common/types';
 
+import { assistantOperations } from './assistant/asking';
+import type { AssistantDeps } from './assistant/asking';
 import { claude } from './assistant/model';
-import { assistantRoutes } from './assistant/routes';
-import type { AssistantDeps } from './assistant/routes';
 import type { Changes } from './changes/changes';
+import { changeOperations } from './changes/operations';
 import { openCitations } from './citations';
-import type { Astia, DatasetCitations } from './citations';
+import type { Astia } from './citations';
 import { systemKeyStore } from './claude/key';
 import type { KeyStore } from './claude/key';
 import { routeAssistantKey } from './claude/key-routes';
@@ -17,17 +18,11 @@ import { mediaDirOf } from './datasets/registry';
 import type { DatasetRegistry } from './datasets/registry';
 import { openServices } from './datasets/services';
 import type { DatasetServices } from './datasets/services';
-import type { FactAnswer } from './facts/facts';
-import { routeFacts } from './facts/routes';
-import type { FactHandlers } from './facts/routes';
-import type { PersonAnswer } from './persons/persons';
-import type { RelativeAnswer } from './persons/relatives';
-import { routePersons } from './persons/routes';
-import type { PersonHandlers } from './persons/routes';
-import { routePhotos } from './photos';
-import type { PhotoFiles, Photos, Tags } from './photos';
-import { routeReminders } from './reminders/routes';
-import type { ReminderHandlers } from './reminders/routes';
+import { factOperations } from './facts/operations';
+import { serveOperations } from './operations';
+import { treeOperations } from './persons/operations';
+import { photoOperations, routeAddPhoto } from './photos';
+import { reminderOperations } from './reminders/operations';
 
 const DATASET_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?<rest>\/.*)?$/u;
 
@@ -35,24 +30,25 @@ interface ApiHandlers {
   routeApi: (req: Request, pathname: string) => Promise<Response | null>;
 }
 
-interface DatasetHandlers
-  extends ReminderHandlers, FactHandlers, PersonHandlers {
+interface DatasetHandlers {
   // The dataset's Changes, which the rest of the app writes into.
   changes: Changes;
-  // GET lists the Changes, DELETE clears them.
-  handleChanges: (req: Request) => Promise<Response>;
-  handlePersons: () => Response;
-  handleFamilies: () => Response;
-  handlePerson: (id: number) => Response;
-  handleMedia: (rest: string) => Promise<Response>;
-  // The Citation routes; null for any other path.
-  routeCitations: DatasetCitations['route'];
-  // The assistant's routes; null for any other path.
-  routeAssistant: (req: Request, rest: string) => Promise<Response | null>;
-  // The dataset's Photos, added and deleted, and tagging people in them.
-  photos: Photos;
-  photoFiles: PhotoFiles;
-  tags: Tags;
+  // The dataset's routes under /d/<slug>; null for any other path.
+  route: (req: Request, rest: string) => Promise<Response | null>;
+}
+
+// A file of the dataset's media folder.
+async function serveMedia(mediaDir: string, rest: string) {
+  const rel = decodeURIComponent(rest.slice('/media/'.length));
+  const fullPath = resolve(mediaDir, rel);
+  if (relative(mediaDir, fullPath).startsWith('..')) {
+    return new Response('forbidden', { status: 403 });
+  }
+  const file = Bun.file(fullPath);
+  if (!(await file.exists())) {
+    return new Response('not found', { status: 404 });
+  }
+  return new Response(file);
 }
 
 function createDatasetHandlers(
@@ -60,205 +56,26 @@ function createDatasetHandlers(
   mediaDir: string,
   assistant: AssistantDeps
 ): DatasetHandlers {
-  const {
-    tree,
-    personDetails,
-    reminders,
-    changes,
-    photos,
-    facts,
-    tags,
-    photoFiles,
-    relatives,
-    persons,
-    unlinking,
-    deletion,
-    moving,
-    scans
-  } = services;
-
-  // A Reminder as written or changed, or why not.
-  function answerReminder(
-    result: Reminder | { rejected: string } | null,
-    missing: string,
-    status = 200
-  ) {
-    if (result === null) return new Response(missing, { status: 404 });
-    return 'rejected' in result
-      ? new Response(result.rejected, { status: 400 })
-      : Response.json(result, { status });
-  }
-
-  // A Fact as added or changed, or why not.
-  function answerFact(result: FactAnswer, missing: string, status = 200) {
-    if (result === null) return new Response(missing, { status: 404 });
-    return 'rejected' in result
-      ? new Response(result.rejected, { status: 400 })
-      : Response.json(result, { status });
-  }
-
-  // A person as added or changed, or why not.
-  function answerPerson(result: RelativeAnswer | PersonAnswer, status = 200) {
-    if (result === null) {
-      return new Response('person not found', { status: 404 });
-    }
-    return 'rejected' in result
-      ? new Response(result.rejected, { status: 400 })
-      : Response.json(result, { status });
-  }
-
+  const { reminders, changes, facts, photoFiles, scans } = services;
+  const operations = serveOperations({
+    ...treeOperations(services),
+    ...factOperations(facts),
+    ...scans.operations,
+    ...photoOperations(services),
+    ...reminderOperations(reminders),
+    ...changeOperations(changes),
+    ...assistantOperations(services, assistant)
+  });
   return {
     changes,
-    routeAssistant: assistantRoutes(services, assistant),
-
-    async handleChanges(req) {
-      if (req.method === 'GET') return Response.json(await changes.list());
-      if (req.method !== 'DELETE') {
-        return new Response('method not allowed', { status: 405 });
-      }
-      changes.clear();
-      return new Response(null, { status: 204 });
-    },
-
-    handlePersons() {
-      return Response.json(tree.persons());
-    },
-
-    handleFamilies() {
-      return Response.json(tree.families());
-    },
-
-    handlePerson(id) {
-      const details = personDetails(id);
-      return details === null
-        ? new Response('person not found', { status: 404 })
-        : Response.json(details);
-    },
-
-    routeCitations: scans.route,
-
-    photos,
-    photoFiles,
-    tags,
-
-    async handleReminders() {
-      return Response.json(await reminders.list());
-    },
-
-    async handleRemind(text, target) {
-      return answerReminder(
-        await reminders.add(text, target),
-        'person not found',
-        201
+    async route(req, rest) {
+      if (rest.startsWith('/media/')) return await serveMedia(mediaDir, rest);
+      return (
+        (await routeAddPhoto(req, photoFiles, rest)) ??
+        (await operations(req, rest))
       );
-    },
-
-    async handleChangeReminder(id, change) {
-      return answerReminder(
-        await reminders.change(id, change),
-        'reminder not found'
-      );
-    },
-
-    handleDeleteReminder(id) {
-      return reminders.remove(id)
-        ? new Response(null, { status: 204 })
-        : new Response('reminder not found', { status: 404 });
-    },
-
-    handleAddRelative(personId, relative) {
-      return answerPerson(relatives.add(personId, relative), 201);
-    },
-
-    handleEditPerson(personId, name) {
-      return answerPerson(persons.edit(personId, name));
-    },
-
-    handleUnlink(personId, familyId) {
-      return answerPerson(unlinking.unlink(personId, familyId));
-    },
-
-    handleDeletePerson(personId) {
-      return answerPerson(deletion.remove(personId));
-    },
-
-    handleMove(personId, from, to) {
-      return answerPerson(moving.move(personId, from, to));
-    },
-
-    handlePlaces() {
-      return Response.json(facts.places());
-    },
-
-    handleAddFact(personId, fact) {
-      return answerFact(facts.add(personId, fact), 'person not found', 201);
-    },
-
-    handleEditFact(personId, factId, fields) {
-      return answerFact(facts.edit(personId, factId, fields), 'fact not found');
-    },
-
-    handleDeleteFact(personId, factId) {
-      return facts.remove(personId, factId)
-        ? new Response(null, { status: 204 })
-        : new Response('fact not found', { status: 404 });
-    },
-
-    async handleMedia(rest) {
-      const rel = decodeURIComponent(rest.slice('/media/'.length));
-      const fullPath = resolve(mediaDir, rel);
-      if (relative(mediaDir, fullPath).startsWith('..')) {
-        return new Response('forbidden', { status: 403 });
-      }
-      const file = Bun.file(fullPath);
-      if (!(await file.exists())) {
-        return new Response('not found', { status: 404 });
-      }
-      return new Response(file);
     }
   };
-}
-
-// The tree as the chart and the panel read it, and the Changes, listed or
-// cleared; null for any other path.
-async function routeReads(
-  req: Request,
-  handlers: DatasetHandlers,
-  rest: string
-) {
-  if (rest === '/api/persons') return handlers.handlePersons();
-  if (rest === '/api/families') return handlers.handleFamilies();
-  if (rest === '/api/changes') return await handlers.handleChanges(req);
-  const person = /^\/api\/persons\/(?<id>\d+)$/.exec(rest);
-  if (person !== null && req.method === 'GET') {
-    return handlers.handlePerson(Number(person.groups!.id));
-  }
-  return null;
-}
-
-async function routeDataset(
-  req: Request,
-  handlers: DatasetHandlers,
-  rest: string
-): Promise<Response | null> {
-  const read = await routeReads(req, handlers, rest);
-  if (read !== null) return read;
-  const cited = await handlers.routeCitations(req, rest);
-  if (cited !== null) return cited;
-  const facts = await routeFacts(req, handlers, rest);
-  if (facts !== null) return facts;
-  const assistant = await handlers.routeAssistant(req, rest);
-  if (assistant !== null) return assistant;
-  const persons = await routePersons(req, handlers, rest);
-  if (persons !== null) return persons;
-  const reminded = await routeReminders(req, handlers, rest);
-  if (reminded !== null) return reminded;
-  const photo = await routePhotos(req, handlers, rest);
-  if (photo !== null) return photo;
-  if (rest.startsWith('/media/')) {
-    return await handlers.handleMedia(rest);
-  }
-  return null;
 }
 
 interface ApiOptions {
@@ -359,7 +176,7 @@ export function createApi(
       if (handlers === null) {
         return new Response('dataset not found', { status: 404 });
       }
-      return await routeDataset(req, handlers, rest);
+      return await handlers.route(req, rest);
     }
   };
 }

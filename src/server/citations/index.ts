@@ -14,10 +14,10 @@ import { openDownloads } from './astia/downloads';
 import { openParishes } from './astia/parishes';
 import type { Parishes } from './astia/parishes';
 import { imageSize, openScanCache } from './astia/scan-cache';
-import { citationRoutes } from './citation-routes';
 import { createCitations } from './citations';
 import { openImages } from './images';
 import { openScanFolder, switchFilming } from './myheritage';
+import { citationOperations } from './operations';
 import { routeParishes } from './parish-routes';
 
 export type { Astia } from './astia/astia';
@@ -100,8 +100,8 @@ export function openCitations(root: string, options: Options) {
         return urls;
       }
       return {
-        // The Citation routes under /d/<slug>; null for any other path.
-        route: citationRoutes(citations, switchTo),
+        // The operations on the dataset's Citations.
+        operations: citationOperations(citations, switchTo),
         // The person's Citations, as the panel lists them.
         ofPerson: (personId: number) => citations.ofPerson(personId),
         // A person's Citation by its id, with whose it is.

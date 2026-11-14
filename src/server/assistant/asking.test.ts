@@ -4,6 +4,7 @@ import { join } from 'node:path';
 
 import type Anthropic from '@anthropic-ai/sdk';
 
+import { OPERATIONS } from '@/common/operations';
 import type { AssistantEvent } from '@/common/types';
 
 import { openCitations } from '../citations';
@@ -14,10 +15,10 @@ import { openDb } from '../datasets/db';
 import { openServices } from '../datasets/services';
 import { parseGedcom } from '../gedcom/parser';
 import { importGedcom } from '../import/gedcom';
+import { assistantOperations, NO_KEY } from './asking';
 import type { Model, ModelAnswer, ModelRequest } from './model';
-import { assistantRoutes, NO_KEY } from './routes';
 
-const SCANS = openCitations(join(tmpdir(), 'assistant-routes-unread'), {
+const SCANS = openCitations(join(tmpdir(), 'assistant-asking-unread'), {
   astia: memoryAstia({}),
   datasets: async () => await Promise.resolve([])
 });
@@ -64,11 +65,11 @@ function scripted(answers: ModelAnswer[]) {
 
 withoutEnvironmentKeys();
 
-function routesWith(model: Model, key: string | null = 'sk-test') {
+function operationsWith(model: Model, key: string | null = 'sk-test') {
   const db = openDb(':memory:');
   importGedcom(db, parseGedcom(GEDCOM), () => null);
   const keys: Array<string | null> = [];
-  const route = assistantRoutes(
+  const ops = assistantOperations(
     openServices(db, SCANS.forDataset(db), tmpdir()),
     {
       keyStore: memoryKeyStore(key),
@@ -78,25 +79,23 @@ function routesWith(model: Model, key: string | null = 'sk-test') {
       }
     }
   );
-  return { route, keys };
+  return { ops, keys };
 }
 
+// Asks the body, as the route reads it: every event told.
 async function ask(
-  route: ReturnType<typeof assistantRoutes>,
+  ops: ReturnType<typeof assistantOperations>,
   body: Record<string, unknown>
 ) {
-  const res = await route(
-    new Request('http://app/api/assistant', {
-      method: 'POST',
-      body: JSON.stringify(body)
-    }),
-    '/api/assistant'
-  );
-  const text = await res!.text();
-  return text
-    .split('\n')
-    .filter((l) => l !== '')
-    .map((l) => JSON.parse(l) as AssistantEvent);
+  const events: AssistantEvent[] = [];
+  const asked = OPERATIONS.ask.read(body)!;
+  for await (const event of await ops.ask(
+    asked,
+    new AbortController().signal
+  )) {
+    events.push(event);
+  }
+  return events;
 }
 
 test('a question reads through the tools and is answered', async () => {
@@ -114,8 +113,8 @@ test('a question reads through the tools and is answered', async () => {
     ),
     answer([{ type: 'text', text: 'Matti Esimerkki (1801–1860).' }], 'end_turn')
   ]);
-  const { route, keys } = routesWith(model);
-  const events = await ask(route, {
+  const { ops, keys } = operationsWith(model);
+  const events = await ask(ops, {
     conversation: null,
     text: 'Kuka on Matti?',
     personId: 1
@@ -160,10 +159,10 @@ test('a conversation goes on with what was said before', async () => {
     answer([{ type: 'text', text: 'Hei.' }], 'end_turn'),
     answer([{ type: 'text', text: 'Taas.' }], 'end_turn')
   ]);
-  const { route } = routesWith(model);
-  const first = await ask(route, { text: 'Hei', personId: null });
+  const { ops } = operationsWith(model);
+  const first = await ask(ops, { text: 'Hei', personId: null });
   const id = (first[0] as { id: string }).id;
-  const second = await ask(route, { conversation: id, text: 'Taas' });
+  const second = await ask(ops, { conversation: id, text: 'Taas' });
   expect(second[0]).toEqual({ type: 'conversation', id });
   expect(asked[1]!.messages).toHaveLength(3);
   expect(second.at(-1)).toMatchObject({ spend: { calls: 2 } });
@@ -171,29 +170,20 @@ test('a conversation goes on with what was said before', async () => {
 
 test('says where to add a key when there is none', async () => {
   const { model } = scripted([]);
-  const { route } = routesWith(model, null);
-  const events = await ask(route, { text: 'Hei' });
+  const { ops } = operationsWith(model, null);
+  const events = await ask(ops, { text: 'Hei' });
   expect(events.at(-1)).toEqual({ type: 'error', message: NO_KEY });
 });
 
 test('a declined question ends the turn', async () => {
   const { model } = scripted([answer([], 'refusal')]);
-  const { route } = routesWith(model);
-  const events = await ask(route, { text: 'Hei' });
+  const { ops } = operationsWith(model);
+  const events = await ask(ops, { text: 'Hei' });
   expect(events.at(-1)).toMatchObject({ type: 'done', ended: 'declined' });
 });
 
-test('refuses a question with no words', async () => {
-  const { model } = scripted([]);
-  const { route } = routesWith(model);
-  const res = await route(
-    new Request('http://app/api/assistant', {
-      method: 'POST',
-      body: JSON.stringify({ text: ' ' })
-    }),
-    '/api/assistant'
-  );
-  expect(res!.status).toBe(400);
+test('refuses a question with no words', () => {
+  expect(OPERATIONS.ask.read({ text: ' ' })).toBeNull();
 });
 
 test('forgets a conversation', async () => {
@@ -201,15 +191,11 @@ test('forgets a conversation', async () => {
     answer([{ type: 'text', text: 'Hei.' }], 'end_turn'),
     answer([{ type: 'text', text: 'Uusi.' }], 'end_turn')
   ]);
-  const { route } = routesWith(model);
-  const first = await ask(route, { text: 'Hei' });
+  const { ops } = operationsWith(model);
+  const first = await ask(ops, { text: 'Hei' });
   const id = (first[0] as { id: string }).id;
-  const res = await route(
-    new Request(`http://app/api/assistant/${id}`, { method: 'DELETE' }),
-    `/api/assistant/${id}`
-  );
-  expect(res!.status).toBe(204);
-  const again = await ask(route, { conversation: id, text: 'Uusi' });
+  await ops.forgetConversation({ id }, new AbortController().signal);
+  const again = await ask(ops, { conversation: id, text: 'Uusi' });
   expect((again[0] as { id: string }).id).not.toBe(id);
   expect(asked[1]!.messages).toHaveLength(1);
 });

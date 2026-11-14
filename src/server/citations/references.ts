@@ -5,8 +5,8 @@
 // is MyHeritage's (myheritage/); once no reference is left, noReferences
 // stands in for it.
 
+import type { BoxAt, MarkTarget } from '@/common/operations';
 import type {
-  Box,
   Link,
   LinkResolution,
   RecordView,
@@ -27,21 +27,7 @@ export interface BookRef {
   date: string | null;
 }
 
-// Where a Box is: on an Image of a Volume.
-export interface BoxAt {
-  volumeId: string;
-  image: number;
-}
-
-// Where a Mark says the record is, in any Volume of the parish: on an
-// Image, or only somewhere in the Volume. On an Image, `box` is where the
-// entry is drawn, in pixels of the full-size Image, null for none; left
-// out, a Match's Box on that Image is kept, as confirming one does.
-export interface MarkTarget {
-  volumeId: string;
-  image?: number;
-  box?: Box | null;
-}
+export type { BoxAt, MarkTarget };
 
 // What a Mark did: how far down it put the record in which Volume,
 // whether it confirmed a Match on that Image, how many citations of the

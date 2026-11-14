@@ -9,7 +9,8 @@
 import type { Database } from 'bun:sqlite';
 
 import { entryRoles } from '@/common/books';
-import type { Box, NewChange, VolumeCitation } from '@/common/types';
+import type { EntryAt, EntryEdit, InEntry } from '@/common/operations';
+import type { NewChange, VolumeCitation } from '@/common/types';
 
 import type { openAppCitations } from '../app-citations';
 import { viewerUrl } from '../astia/astia';
@@ -22,28 +23,7 @@ import type { EntryCitation, StoredEntry } from './storage';
 export { CITATIONS_READ, dropUncitedEntries } from './storage';
 export { gatherEntries } from './gathering';
 
-// Where an entry is, as the Scan viewer gives it: its Box on an Image of a
-// Volume, by the Image's file id.
-export interface EntryAt {
-  volumeId: string;
-  image: number;
-  fileId: string;
-  box: Box;
-}
-
-// Someone named in an entry, and who they are in it: one of its Book's
-// Roles, or none.
-export interface InEntry {
-  personId: number;
-  role: string | null;
-}
-
-// An Entry as it should be after an edit; a part left out stays.
-export interface EntryEdit {
-  at?: EntryAt;
-  text?: string | null;
-  people?: InEntry[];
-}
+export type { EntryAt, EntryEdit, InEntry } from '@/common/operations';
 
 interface Refused {
   rejected: string;

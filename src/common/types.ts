@@ -9,7 +9,7 @@ export interface PhotoCrop {
   height: number;
 }
 
-// API row shapes returned by /api/persons and /api/families.
+// The rows the `persons` and `families` operations answer.
 export interface PersonRow {
   id: number;
   given: string | null;
@@ -60,7 +60,7 @@ export interface ExportSaved {
   path: string;
 }
 
-// Returned by /api/persons/:id — what the person panel shows.
+// What the `person` operation answers: what the person panel shows.
 export interface PersonDetails {
   id: number;
   name: string | null;
@@ -304,7 +304,8 @@ export interface UnlinkedResolution {
 
 export type LinkResolution = { links: Link[] } | UnlinkedResolution;
 
-// A line of /api/persons/:id/scans, streamed as each citation resolves.
+// A line of the `personLinks` operation, streamed as each citation
+// resolves.
 export type CitationLinks = { citationId: number } & LinkResolution;
 
 // The kind of church book: rippikirja (communion book), lastenkirja
@@ -323,7 +324,7 @@ export interface VolumeChoice {
   years: Years | null;
 }
 
-// GET /api/citations/:id/volumes: the parish's Volumes of the Book a
+// The `volumeChoices` operation: the parish's Volumes of the Book a
 // reference cites, those its years or Record range give first, then the
 // others by years.
 export interface VolumeChoices {
@@ -331,17 +332,17 @@ export interface VolumeChoices {
   others: VolumeChoice[];
 }
 
-// GET /d/<slug>/api/volumes/:id: what Astia says of a Volume, which
+// The `volume` operation: what Astia says of a Volume, which
 // doesn't change as the app is used, in one answer: its viewer URL for
 // each Image, in order, and the title of the dataset's archive holding it,
 // null when none does or Astia can't say. The people citing it, which
-// can, are asked for apart (/citations).
+// can, are asked for apart (`volumeCitations`).
 export interface VolumeContents {
   images: string[];
   archive: string | null;
 }
 
-// A row of /api/volumes/:id/citations: one person's church-book citation
+// A row of the `volumeCitations` operation: one person's church-book citation
 // that resolves into the Volume.
 export interface VolumeCitation {
   personId: number;
@@ -381,7 +382,7 @@ export interface DownloadStatus {
   error: DownloadError | null;
 }
 
-// GET /d/<slug>/api/archives: an archive the dataset's church books are
+// The `archives` operation: an archive the dataset's church books are
 // in, by its title in Astia ("Juvan seurakunnan arkisto"), as a Link's
 // `archive` names it; its id when Astia can't say.
 export interface ChurchBookArchive {
