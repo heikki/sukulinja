@@ -4,7 +4,7 @@
 
 import { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -461,5 +461,25 @@ describe('schema 4', () => {
       { media_id: null }
     ]);
     migrated.close();
+  });
+});
+
+describe('a step', () => {
+  const ALLOWED = new Set(['bun:sqlite', './migrations']);
+
+  // A step that used the app's code would change with it, or fail on a
+  // database older than that code expects.
+  test("is frozen: it imports none of the app's code", () => {
+    const steps = readdirSync(import.meta.dir).filter((f) =>
+      /^migration-\d+\.ts$/u.test(f)
+    );
+    expect(steps.length).toBeGreaterThan(0);
+    for (const step of steps) {
+      const source = readFileSync(join(import.meta.dir, step), 'utf8');
+      const outside = [...source.matchAll(/from '(?<from>[^']+)'/gu)]
+        .map((m) => m.groups!.from!)
+        .filter((from) => !ALLOWED.has(from));
+      expect({ step, outside }).toEqual({ step, outside: [] });
+    }
   });
 });

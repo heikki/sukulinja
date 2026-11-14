@@ -1,6 +1,6 @@
 // Gathering the app's Citations of an Image into Entries (ADR-0026), and
-// making Entries of one entry one: run by schema 6, the import and the
-// Conversion.
+// making Entries of one entry one: run by the import and the Conversion.
+// The schema steps that did this once keep their own copies (ADR-0018).
 
 import type { Database } from 'bun:sqlite';
 
@@ -21,8 +21,7 @@ const ALIKE = HELD.map(([own, held]) => `e.${held} IS c.${own}`).join(' AND ');
 // all an Entry holds cites that one, the rest one Entry for each alike
 // group, and the Entry's columns are emptied on them; then Entries of one
 // entry are one (`mergeEntries`), and a baptism's people are placed in
-// its Roles (`placeEntryRoles`). Run by schema 6, the import and the
-// Conversion.
+// its Roles (`placeEntryRoles`). Run by the import and the Conversion.
 export function gatherEntries(db: Database) {
   db.run(
     `INSERT INTO entries (${HELD.map(([, held]) => held).join(', ')})
@@ -52,7 +51,7 @@ interface EntryRow {
 }
 
 // How much two Boxes are one: their overlap over all they cover, 0 to 1.
-export function overlapOf(a: Box, b: Box) {
+function overlapOf(a: Box, b: Box) {
   const w =
     Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left);
   const h =
@@ -70,7 +69,7 @@ const SAME_ENTRY = 0.6;
 // person before, or alike but in what they say. The first made keeps its
 // Box and words; a Citation of another keeps that one's words as its own
 // when they differ.
-export function mergeEntries(db: Database) {
+function mergeEntries(db: Database) {
   const rows = db
     .query<EntryRow & Box, []>(
       `SELECT id, json_array(source_id, page, event, volume_id, image,

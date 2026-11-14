@@ -6,10 +6,24 @@
 
 import type { Database } from 'bun:sqlite';
 
-import { photoName } from '../photos';
 import type { Migration } from './migrations';
 
 const ON_PHOTO = new Set(['tag', 'untag', 'portrait']);
+
+// A Photo's file name, as the Changes named it at schema 4.
+function photoName(m: { original_path: string | null; file_path: string }) {
+  const path = (m.original_path ?? m.file_path).split(/[?#]/u)[0]!;
+  const name =
+    path
+      .split('/')
+      .filter((p) => p !== '')
+      .at(-1) ?? path;
+  try {
+    return decodeURIComponent(name);
+  } catch {
+    return name;
+  }
+}
 
 function up(db: Database) {
   const changes = db

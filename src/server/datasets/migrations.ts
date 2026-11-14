@@ -7,6 +7,11 @@
 // SQLite's ALTER TABLE page describes: create `new_<table>` as the schema
 // now has it, copy the rows across, drop the old one and rename the new one
 // into its place. The keys are checked before it's committed.
+//
+// A step is frozen: it does what it did when it was written, whatever the
+// app does now. It holds its own SQL and helpers, and imports no code of
+// the app's but this file (migrations.test.ts checks), so a change to the
+// app's tables or rules can't change it.
 
 import type { Database } from 'bun:sqlite';
 import { copyFileSync } from 'node:fs';

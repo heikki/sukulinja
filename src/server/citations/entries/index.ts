@@ -20,8 +20,7 @@ import { openEntries } from './storage';
 import type { EntryCitation, StoredEntry } from './storage';
 
 export { CITATIONS_READ, dropUncitedEntries } from './storage';
-export { gatherEntries, mergeEntries } from './gathering';
-export { placeEntryRoles } from './roles';
+export { gatherEntries } from './gathering';
 
 // Where an entry is, as the Scan viewer gives it: its Box on an Image of a
 // Volume, by the Image's file id.
