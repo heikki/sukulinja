@@ -140,6 +140,8 @@ class ScanEntryElement extends LitElement {
   `;
 
   @property({ attribute: false }) cite!: PendingCite;
+  // The source's Entry changed, not a new one.
+  @property({ type: Boolean }) editing = false;
   // The Volume's label, whose Book tells the Roles.
   @property() volume = '';
   @property({ attribute: false }) persons = new Map<number, PersonRow>();
@@ -328,7 +330,7 @@ class ScanEntryElement extends LitElement {
     const roles = entryRoles(this.volume);
     return html`
       <h3>
-        ${this.cite.editing === undefined ? 'New' : 'Edit'}
+        ${this.editing ? 'Edit' : 'New'}
         ${ENTRY_NAMES[bookKind(this.volume) ?? ''] ?? 'entry'}
       </h3>
       ${

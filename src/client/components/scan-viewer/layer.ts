@@ -138,7 +138,7 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   // and the search. Never those `notNamable`.
   private renderPick(at: Point, role: string | null) {
     const selected = this.state.selected.id.get();
-    const named = this.viewer.pending.get()?.cite?.people ?? [];
+    const named = this.namedNow();
     const left = this.viewer.entryForm.notNamable.get();
     const volume = this.viewer.volume.get()?.label ?? '';
     const ix = this.state.chart.people.get();
@@ -162,7 +162,7 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   // Someone picked for the Role. A baptism's child brings their parents
   // in the tree, in place of those named before.
   private named(personId: number, role: string | null) {
-    const people = this.viewer.pending.get()?.cite?.people ?? [];
+    const people = this.namedNow();
     const volume = this.viewer.volume.get()?.label ?? '';
     if (role === 'CHIL' && bookKind(volume) === 'kastetut') {
       const ix = this.state.chart.people.get();
@@ -170,15 +170,26 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     } else this.viewer.entryForm.setInEntry({ personId, role });
   }
 
+  // Who the pending Entry names so far.
+  private namedNow() {
+    const pending = this.viewer.pending.get();
+    return pending === null || pending.kind === 'mark'
+      ? []
+      : pending.cite.people;
+  }
+
   // The pending Entry's people and words, beside its Box.
   private renderEntry() {
     const { view } = this;
     const pending = this.viewer.pending.get();
-    if (view === null || pending?.cite === undefined) return nothing;
+    if (view === null || pending === null || pending.kind === 'mark') {
+      return nothing;
+    }
     const ix = this.state.chart.people.get();
     return html`<sl-scan-entry
       .anchor=${boxOnStage(pending.box, view)}
       .cite=${pending.cite}
+      .editing=${pending.kind === 'edit'}
       .volume=${pending.volume}
       .persons=${this.persons}
       .parents=${parentRows(pending.cite.people, ix)}

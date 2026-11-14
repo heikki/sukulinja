@@ -109,12 +109,15 @@ async function viewing() {
 test('editing starts from the Entry as it is, and Cancel leaves it so', async () => {
   const { viewer, child, entryId } = await viewing();
   viewer.editEntry();
-  expect(viewer.pending.get()?.cite).toMatchObject({
-    people: [
-      { personId: 1, role: 'CHIL' },
-      { personId: 2, role: 'MOTH' }
-    ],
-    text: 'Kaste 1.2.1790',
+  expect(viewer.pending.get()).toMatchObject({
+    kind: 'edit',
+    cite: {
+      people: [
+        { personId: 1, role: 'CHIL' },
+        { personId: 2, role: 'MOTH' }
+      ],
+      text: 'Kaste 1.2.1790'
+    },
     editing: { entryId }
   });
   expect(viewer.boxPending.get()).toBe(true);
@@ -270,7 +273,9 @@ test('a source retyped in Sources is edited from what it says now', async () => 
   await viewer.retext(child.citation.id, 'Kaste 2.2.1790');
   expect(viewer.source.get()?.citation.text).toBe('Kaste 2.2.1790');
   viewer.editEntry();
-  expect(viewer.pending.get()?.cite?.text).toBe('Kaste 2.2.1790');
+  expect(viewer.pending.get()).toMatchObject({
+    cite: { text: 'Kaste 2.2.1790' }
+  });
 });
 
 test('a Citation of the Entry deleted in Sources goes from beside the scan', async () => {

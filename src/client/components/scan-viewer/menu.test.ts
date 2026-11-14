@@ -216,5 +216,8 @@ test("an Entry's Box offers Edit, and with others in it, Delete entry", async ()
     'Add reminder…'
   ]);
   linkItems(viewer, { onBox: true, canBox: true }, NONE)[0]?.run();
-  expect(viewer.pending.get()?.cite?.editing?.entryId).toBe(7);
+  expect(viewer.pending.get()).toMatchObject({
+    kind: 'edit',
+    editing: { entryId: 7 }
+  });
 });

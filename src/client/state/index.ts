@@ -43,8 +43,8 @@ export type {
   ImageOpen,
   LeaveAnswer,
   LinkOpen,
+  PendingChange,
   PendingCite,
-  PendingLink,
   Viewer
 } from './viewer';
 

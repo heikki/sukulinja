@@ -219,7 +219,7 @@ class ScanEditElement extends SignalWatcher(LitElement) {
     const { viewer } = this.state;
     const pending = viewer.pending.get();
     // A new Entry's people and words are beside its Box (entry-form.ts).
-    if (pending?.cite !== undefined) {
+    if (pending !== null && pending.kind !== 'mark') {
       return this.renderAsking(nothing, this.renderSaving());
     }
     const source = viewer.source.get();

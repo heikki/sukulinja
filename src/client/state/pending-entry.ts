@@ -7,16 +7,15 @@ import { entryRoles } from '@/common/books';
 import { citingImage } from '@/common/entry-naming';
 import type { Box, VolumeCitation } from '@/common/types';
 
+import type { PendingChange } from './pending-change';
 import type { Readable, Selected } from './selected';
-import type { PendingLink } from './viewer';
 
-// A new Entry not saved yet (ADR-0026): who is in it, each in their Role
-// if its Book has Roles, and what it says, as typed. With `editing`, the
-// source's Entry changed instead.
+// An Entry not saved yet (ADR-0026), new or the source's changed: who is
+// in it, each in their Role if its Book has Roles, and what it says, as
+// typed.
 export interface PendingCite {
   people: InEntry[];
   text: string;
-  editing?: EntryEdit;
 }
 
 // The source's Entry as it was when its editing began: who was in it, by
@@ -54,18 +53,21 @@ interface SaveDeps {
   citations: Readable<VolumeCitation[] | null | 'failed'>;
 }
 
-// Changing the pending new Entry (ADR-0026), if there's one: what it says,
-// and who is in it; and saving it.
+type NewEntry = PendingChange & { kind: 'new' };
+type EditedEntry = PendingChange & { kind: 'edit' };
+
+// Changing the pending Entry (ADR-0026), new or edited, if there's one:
+// what it says, and who is in it; and saving it.
 export function pendingEntry(
-  pending: Signal.State<PendingLink | null>,
+  pending: Signal.State<PendingChange | null>,
   { api, selected, fileOf, reload, citations }: SaveDeps
 ) {
   const notNamable = computed(() => {
     const change = pending.get();
-    const cite = change?.cite;
-    if (change === null || cite === undefined) return new Set<number>();
+    if (change === null || change.kind === 'mark') return new Set<number>();
+    const { cite } = change;
     const rows = citations.get();
-    const editing = cite.editing?.entryId ?? null;
+    const editing = change.kind === 'edit' ? change.editing.entryId : null;
     const roles = entryRoles(change.volume).length;
     const named = cite.people.filter((p) => p.role !== null || roles === 0);
     return new Set([
@@ -75,9 +77,9 @@ export function pendingEntry(
   });
 
   function change(to: (cite: PendingCite) => Partial<PendingCite>) {
-    const link = pending.get();
-    if (link?.cite !== undefined) {
-      pending.set({ ...link, cite: { ...link.cite, ...to(link.cite) } });
+    const now = pending.get();
+    if (now !== null && now.kind !== 'mark') {
+      pending.set({ ...now, cite: { ...now.cite, ...to(now.cite) } });
     }
   }
 
@@ -112,8 +114,8 @@ export function pendingEntry(
   // citations reload, and in the person's sources if they're the Selected
   // person; theirs, else the first named, is given back. Null when the
   // viewer moved on meanwhile. Throws ApiError if it's refused.
-  async function save(change: PendingLink, cite: PendingCite) {
-    const { volumeId, image: at, box } = change;
+  async function save(change: NewEntry) {
+    const { volumeId, image: at, box, cite } = change;
     const fileId = fileOf(at);
     if (fileId === null) {
       throw new ApiError("The Image isn't listed yet; try again.");
@@ -143,12 +145,12 @@ export function pendingEntry(
     }));
     const text = rows[0]?.citation.text ?? '';
     const people = was.map(({ personId, role }) => ({ personId, role }));
-    return { people, text, editing: { entryId, was, text, box } };
+    return { cite: { people, text }, editing: { entryId, was, text, box } };
   }
 
   // Where the Box is now, if it moved.
-  function movedTo(change: PendingLink, editing: EntryEdit) {
-    const { volumeId, image, box } = change;
+  function movedTo(change: EditedEntry) {
+    const { volumeId, image, box, editing } = change;
     if (JSON.stringify(box) === JSON.stringify(editing.box)) return {};
     const fileId = fileOf(image);
     if (fileId === null) {
@@ -160,12 +162,13 @@ export function pendingEntry(
   // The source's Entry changed as the pending one says, everyone's, in one
   // request: all of it or, refused, none. Who of those it had are still in
   // it, by their Citation. Throws ApiError if it's refused.
-  async function saveEdit(change: PendingLink, editing: EntryEdit) {
-    const { people = [], text = '' } = change.cite ?? {};
+  async function saveEdit(change: EditedEntry) {
+    const { editing } = change;
+    const { people, text } = change.cite;
     if (people.length === 0) throw new ApiError('Name someone in the entry.');
     const said = text.trim();
     const rows = await api.editEntry(editing.entryId, {
-      ...movedTo(change, editing),
+      ...movedTo(change),
       text: said === '' ? null : said,
       people
     });

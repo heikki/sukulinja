@@ -10,14 +10,16 @@ import type { EntryBox } from './entry-box';
 import { filmingOf } from './filming';
 import { Latest } from './latest';
 import { viewerOnward } from './onward';
-import { pendingEntry } from './pending-entry';
-import type { EntryEdit, EntryForm, PendingCite } from './pending-entry';
+import { pendingChange } from './pending-change';
+import type { PendingChange } from './pending-change';
+import type { EntryForm } from './pending-entry';
 import { boxOn, clampImage, fileIdOf, imageOf, markedIn } from './places';
 import type { Readable, Selected } from './selected';
 import { linkedBeside, revealingOf, viewerOpening } from './source-open';
 import type { ImageOpen, LinkOpen } from './source-open';
 import type { Source } from './sources';
 
+export type { PendingAt, PendingChange } from './pending-change';
 export type { EntryEdit, PendingCite } from './pending-entry';
 export type { ImageOpen, LinkOpen } from './source-open';
 
@@ -25,18 +27,6 @@ export type { ImageOpen, LinkOpen } from './source-open';
 export interface VolumeShown {
   id: string;
   label: string;
-}
-
-// A change not saved yet: where on an Image of a Volume the entry is.
-// Without `cite`, it moves the current source's Link there. With `cite`,
-// it's a new Entry with a Citation for each person in it instead: it
-// belongs to the Image shown, with a source or none.
-export interface PendingLink {
-  volumeId: string;
-  volume: string;
-  image: number;
-  box: Box;
-  cite?: PendingCite;
 }
 
 // What leaving the source with a change pending waits on.
@@ -114,8 +104,8 @@ export interface Viewer {
   // Box changes.
   confirming: Readable<Confirming | null>;
   close: () => void;
-  // The current source's change not saved yet.
-  pending: Readable<PendingLink | null>;
+  // The change not saved yet: a Mark, a new Entry or the source's edited.
+  pending: Readable<PendingChange | null>;
   // A way out of the source is waiting on `answer`.
   leaving: Readable<boolean>;
   // Shows the Volume, without changing the source's Link; back in the
@@ -213,7 +203,6 @@ export function openViewer(
   const archive = signal<string | null>(null);
   const sourcesInView = signal(false);
   const placing = signal(false);
-  const pending = signal<PendingLink | null>(null);
   const discarding = signal(false);
   const confirmation = confirmingSource(source, confirm);
   const leaving = signal(false);
@@ -248,6 +237,26 @@ export function openViewer(
   const volumeReq = new Latest();
   const citationsReq = new Latest();
   const onward = viewerOnward(selected, { openNow, open, close, closeNow });
+  const changing = pendingChange({
+    api,
+    selected,
+    source,
+    placeable() {
+      const shown = volume.get();
+      if (shown === null || oldFilming.get()) return null;
+      return { volumeId: shown.id, volume: shown.label, image: image.get() };
+    },
+    fileOf: (n) => fileIdOf(files[n - 1]),
+    reload: loadCitations,
+    citations,
+    placing() {
+      discarding.set(false);
+      confirmation.forget();
+    },
+    openLink: openNow,
+    openImage: openImageNow
+  });
+  const { change: pending } = changing;
 
   // What Astia says of the Volume, its Images and its archive, asked for
   // at once, so the viewer names it as it shows it. Until they come, the
@@ -311,7 +320,7 @@ export function openViewer(
   // Off whatever was shown: nothing pending or asked of it is kept.
   function moveOff() {
     onward.moved();
-    pending.set(null);
+    changing.drop();
     discarding.set(false);
     confirmation.forget();
   }
@@ -395,52 +404,18 @@ export function openViewer(
     });
   }
 
-  // A Box on the Image shown, pending: for the source's entry, or with
-  // `cite`, for a new Citation, which needs no source. A Volume on a
-  // filming Astia replaced is read-only until switched.
-  function placeBox(box: Box, cite: PendingLink['cite']) {
-    const shown = volume.get();
-    if (shown === null || oldFilming.get()) return;
-    if (cite === undefined && source.get() === null) return;
-    discarding.set(false);
-    confirmation.forget();
-    pending.set({
-      volumeId: shown.id,
-      volume: shown.label,
-      image: image.get(),
-      box,
-      ...(cite === undefined ? {} : { cite })
-    });
-  }
-
-  // A pending Citation stays one as its Box moves.
-  function setBox(box: Box) {
-    placeBox(box, pending.get()?.cite);
-  }
-
-  function newEntry(box: Box, people: InEntry[]) {
-    placeBox(box, { people, text: '' });
-  }
-
-  const entry = pendingEntry(pending, {
-    api,
-    selected,
-    fileOf: (n) => fileIdOf(files[n - 1]),
-    reload: loadCitations,
-    citations
-  });
   const cited = entryBox(api, selected, source, citations);
 
   function editEntry() {
     const box = boxHere.get();
     const entryId = source.get()?.citation.entryId ?? null;
     if (box === null || entryId === null || pending.get() !== null) return;
-    placeBox(box, entry.editing(entryId, box, cited.people.get()));
+    changing.editEntry(entryId, box, cited.people.get());
   }
 
   function editBox() {
     const box = boxHere.get();
-    if (box !== null && pending.get() === null) setBox(box);
+    if (box !== null && pending.get() === null) changing.mark(box);
   }
 
   function discard() {
@@ -449,17 +424,9 @@ export function openViewer(
     if (pending.get() === null && boxHere.get() !== null) discarding.set(true);
   }
 
-  // Back to the Link; with none, or from a pending Citation, it stays on
-  // the Image.
   function cancel() {
-    const change = pending.get();
-    if (change === null) {
-      discarding.set(false);
-      return;
-    }
-    const shown = source.get();
-    if (shown?.link === null || change.cite !== undefined) pending.set(null);
-    else if (shown !== null) openNow(shown);
+    if (pending.get() === null) discarding.set(false);
+    else changing.cancel();
   }
 
   // The citations reload, as after a Mark: a Record pin taken back moves
@@ -490,64 +457,15 @@ export function openViewer(
   // A new Citation opens as picking it beside the scan would, so a wrong
   // Image is put right with Place citation here.
   async function save() {
-    const made = await saveChange();
+    const made = await changing.save();
     return made === null ? null : pick(made);
-  }
-
-  // The pending change saved: a Mark, or a new Citation, given back.
-  async function saveChange() {
-    const change = pending.get();
-    if (change?.cite?.editing !== undefined) {
-      await saveEdit(change, change.cite.editing);
-      return null;
-    }
-    if (change?.cite !== undefined) {
-      return await entry.save(change, change.cite);
-    }
-    await saveMark();
-    return null;
-  }
-
-  // The Mark reloads the Volume's citations, as a confirmation does, and
-  // the viewer follows the new Link. The pending Box stays until they're
-  // in, or the Link's old Box shows again in between.
-  async function saveMark() {
-    const shown = source.get();
-    const change = pending.get();
-    if (shown === null || change === null) return;
-    const { volumeId, image: at, box } = change;
-    const resolved = await selected.mark(shown.citation.id, {
-      volumeId,
-      image: at,
-      box
-    });
-    const link = markedIn(resolved, volumeId);
-    if (source.get() !== shown) return;
-    await loadCitations(volume.get()?.id ?? volumeId);
-    if (source.get() !== shown) return;
-    if (link === null) pending.set(null);
-    else openNow({ citation: shown.citation, link });
-  }
-
-  // The source's Entry changed: the viewer stays on its Citation, at the
-  // Box saved, or with the source's own person taken out, on the Image.
-  async function saveEdit(change: PendingLink, editing: EntryEdit) {
-    const shown = source.get();
-    const kept = await entry.saveEdit(change, editing);
-    if (shown === null || source.get() !== shown) return;
-    const [{ link }, { volumeId, volume, image: at, box }] = [shown, change];
-    if (kept.includes(shown.citation.id) && link?.precision === 'entry') {
-      openNow({ citation: shown.citation, link: { ...link, box } });
-      return;
-    }
-    openImageNow({ volumeId, volume, image: at });
   }
 
   // A way out goes where it was going: a new Citation saved on the way
   // isn't opened.
   async function answer(given: LeaveAnswer) {
-    if (given === 'save') await saveChange();
-    else if (given === 'discard') pending.set(null);
+    if (given === 'save') await changing.save();
+    else if (given === 'discard') changing.drop();
     const waiting = held;
     held = null;
     leaving.set(false);
@@ -676,10 +594,10 @@ export function openViewer(
     changeVolume,
     boxHere,
     boxPending,
-    setBox,
+    setBox: changing.moveBox,
     editBox,
-    newEntry,
-    entryForm: entry.form,
+    newEntry: changing.newEntry,
+    entryForm: changing.form,
     editEntry,
     uncite,
     retext,

@@ -94,9 +94,12 @@ test('a pending Citation is saved for its person, with its text, and opens', asy
   const moved = { ...BOX, top: 260 };
   viewer.setBox(moved);
   viewer.entryForm.setText('  Baptism 12.3.1795 ');
-  expect(viewer.pending.get()?.cite).toEqual({
-    people: [{ personId: 2, role: null }],
-    text: '  Baptism 12.3.1795 '
+  expect(viewer.pending.get()).toMatchObject({
+    kind: 'new',
+    cite: {
+      people: [{ personId: 2, role: null }],
+      text: '  Baptism 12.3.1795 '
+    }
   });
 
   await state.chart.save();
@@ -118,9 +121,9 @@ test("a pending entry's Role goes to whoever is named in it, and someone taken o
   ]);
   viewer.entryForm.setInEntry({ personId: 3, role: 'FATH' });
   viewer.entryForm.drop(1);
-  expect(viewer.pending.get()?.cite?.people).toEqual([
-    { personId: 3, role: 'FATH' }
-  ]);
+  expect(viewer.pending.get()).toMatchObject({
+    cite: { people: [{ personId: 3, role: 'FATH' }] }
+  });
   viewer.entryForm.drop(3);
   const refused = await viewer.save().catch((err: unknown) => err);
   expect(refused).toMatchObject({ message: 'Name someone in the entry.' });

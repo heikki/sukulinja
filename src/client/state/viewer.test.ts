@@ -73,6 +73,16 @@ const C14 = churchBook(14, null);
 const L11 = onImage('201', 18);
 const L12 = inVolume('201');
 const L13 = onImage('202', 5);
+// The source's entry put at BOX on Image `image` of Volume 201, pending.
+function marking(image: number) {
+  return {
+    kind: 'mark' as const,
+    volumeId: '201',
+    volume: 'I Aa:201',
+    image,
+    box: BOX
+  };
+}
 // Maria's 21, a Match beside Matti's 11.
 const C21 = churchBook(21, null);
 const VISION_21: Link = {
@@ -365,12 +375,7 @@ test('placing a Box puts the source there, pending, and Cancel goes back to the 
   viewer.open(S11);
   await settle();
   viewer.setBox(BOX);
-  expect(viewer.pending.get()).toEqual({
-    volumeId: '201',
-    volume: 'I Aa:201',
-    image: 18,
-    box: BOX
-  });
+  expect(viewer.pending.get()).toEqual(marking(18));
   expect(viewer.boxPending.get()).toBe(true);
   viewer.cancel();
   expect(viewer.pending.get()).toBe(null);
@@ -485,12 +490,7 @@ test("editing a Match's Box starts from it, and Save sends the Box", async () =>
   expect(viewer.boxHere.get()).toEqual(BOX);
   expect(viewer.boxPending.get()).toBe(false);
   viewer.editBox();
-  expect(viewer.pending.get()).toEqual({
-    volumeId: '201',
-    volume: 'I Aa:201',
-    image: 18,
-    box: BOX
-  });
+  expect(viewer.pending.get()).toEqual(marking(18));
   expect(viewer.boxPending.get()).toBe(true);
   const moved = { ...BOX, top: 0.6 };
   viewer.setBox(moved);
@@ -551,10 +551,5 @@ test('a Box drawn on another Image moves the source there', async () => {
   await settle();
   viewer.show(22);
   viewer.setBox(BOX);
-  expect(viewer.pending.get()).toEqual({
-    volumeId: '201',
-    volume: 'I Aa:201',
-    image: 22,
-    box: BOX
-  });
+  expect(viewer.pending.get()).toEqual(marking(22));
 });
