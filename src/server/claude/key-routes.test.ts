@@ -1,32 +1,12 @@
-import { afterEach, beforeEach, expect, test } from 'bun:test';
+import { expect, test } from 'bun:test';
 
 import { memoryKeyStore } from './key';
 import { routeAssistantKey } from './key-routes';
+import { withoutEnvironmentKeys } from './testing';
 
 const URL = 'http://app/settings/assistant-key';
-const NAMES = [
-  'ANTHROPIC_API_KEY',
-  'ANTHROPIC_AUTH_TOKEN',
-  'OPENROUTER_API_KEY'
-];
-const saved = new Map<string, string | undefined>();
 
-beforeEach(() => {
-  for (const n of NAMES) {
-    saved.set(n, process.env[n]);
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- an unset variable is what's tested
-    delete process.env[n];
-  }
-});
-
-afterEach(() => {
-  for (const n of NAMES) {
-    const v = saved.get(n);
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- put back as it was
-    if (v === undefined) delete process.env[n];
-    else process.env[n] = v;
-  }
-});
+withoutEnvironmentKeys();
 
 async function ask(
   store: ReturnType<typeof memoryKeyStore>,

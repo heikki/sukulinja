@@ -6,14 +6,17 @@ import type { AssistantKeyStatus } from '@/common/types';
 
 import type { KeyStore } from './key';
 
+// The environment's variables that give credentials when none is kept.
+export const ENVIRONMENT_KEYS = [
+  'ANTHROPIC_API_KEY',
+  'ANTHROPIC_AUTH_TOKEN',
+  'OPENROUTER_API_KEY'
+] as const;
+
 // Whether a key is kept, or else whether the environment gives credentials.
 export async function keyStatus(store: KeyStore): Promise<AssistantKeyStatus> {
   if ((await store.get()) !== null) return { source: 'saved' };
-  const env = process.env;
-  const fromEnv =
-    env.ANTHROPIC_API_KEY !== undefined ||
-    env.ANTHROPIC_AUTH_TOKEN !== undefined ||
-    env.OPENROUTER_API_KEY !== undefined;
+  const fromEnv = ENVIRONMENT_KEYS.some((n) => process.env[n] !== undefined);
   return { source: fromEnv ? 'environment' : null };
 }
 

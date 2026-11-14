@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, test } from 'bun:test';
+import { expect, test } from 'bun:test';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -9,6 +9,7 @@ import type { AssistantEvent } from '@/common/types';
 import { openCitations } from '../citations';
 import { memoryAstia } from '../citations/testing';
 import { memoryKeyStore } from '../claude/key';
+import { withoutEnvironmentKeys } from '../claude/testing';
 import { openDb } from '../datasets/db';
 import { openServices } from '../datasets/services';
 import { parseGedcom } from '../gedcom/parser';
@@ -61,13 +62,7 @@ function scripted(answers: ModelAnswer[]) {
   return { model, asked };
 }
 
-const saved = process.env.ANTHROPIC_API_KEY;
-beforeEach(() => {
-  delete process.env.ANTHROPIC_API_KEY;
-});
-afterEach(() => {
-  if (saved !== undefined) process.env.ANTHROPIC_API_KEY = saved;
-});
+withoutEnvironmentKeys();
 
 function routesWith(model: Model, key: string | null = 'sk-test') {
   const db = openDb(':memory:');
