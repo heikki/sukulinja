@@ -5,7 +5,6 @@ import type { CitationRow, FactRow, Link } from '@/common/types';
 
 import {
   archiveAction,
-  factBrief,
   factText,
   headingOf,
   sourcesOf,
@@ -30,14 +29,6 @@ test('reads an event\'s text, leaving out GEDCOM\'s "it happened" flag', () => {
   expect(factText({ ...DEATH, tag: 'OCCU', value: 'torppari' })).toBe(
     'torppari'
   );
-});
-
-test('names a Fact briefly by its kind and date, a marriage by the spouse too', () => {
-  expect(factBrief({ ...DEATH, date: '7 APR 2025' })).toBe('Death 7.4.2025');
-  expect(factBrief(DEATH)).toBe('Death');
-  expect(
-    factBrief({ ...DEATH, tag: 'MARR', date: '1820', spouse: 'Liisa Malli' })
-  ).toBe('Marriage 1820 with Liisa Malli');
 });
 
 const VOLUME = 'I Aa:1 Pää- ja rippikirjat (1790-1796)';

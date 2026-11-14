@@ -93,17 +93,6 @@ export function languageTag(language: string) {
   return LANGUAGE_TAGS[language] ?? language;
 }
 
-// A BCP 47 tag's GEDCOM 5.5.1 name: `fi` is `Finnish`.
-export function languageName(tag: string) {
-  const known = Object.entries(LANGUAGE_TAGS).find(([, t]) => t === tag);
-  if (known !== undefined) return known[0];
-  try {
-    return new Intl.DisplayNames(['en'], { type: 'language' }).of(tag) ?? tag;
-  } catch {
-    return tag;
-  }
-}
-
 // GEDCOM rates a citation 0–3. MyHeritage writes 4 for its best, which is
 // taken as GEDCOM's best (ADR-0013).
 export function gedcom7Quality(quality: number | null) {

@@ -118,8 +118,8 @@ const SCHEMA_SQL = `
     crop_width INTEGER,
     crop_height INTEGER,
     sort_order INTEGER NOT NULL DEFAULT 0,
-    -- A Tag: a person in a Photo with their Box, made in the app, which a
-    -- re-import keeps (ADR-0017).
+    -- A Tag: a person in a Photo with their Box, made in the app, not by
+    -- the import (ADR-0017).
     added_in_app INTEGER NOT NULL DEFAULT 0,
     CHECK (added_in_app = 0 OR (
       scope_type = 'person' AND crop_top IS NOT NULL AND crop_left IS NOT NULL
@@ -201,7 +201,7 @@ const SCHEMA_SQL = `
     link_box_width INTEGER,
     link_box_height INTEGER,
     link_by TEXT CHECK (link_by IN ('hand','vision')),
-    -- Made in the app, not by an import: a re-import keeps it.
+    -- Made in the app, not by the import.
     added_in_app INTEGER NOT NULL DEFAULT 0,
     sort_order INTEGER NOT NULL DEFAULT 0,
     -- The Entry a Citation of an Entry cites, which holds its source,

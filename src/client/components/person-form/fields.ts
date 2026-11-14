@@ -10,12 +10,6 @@ const SEXES: Array<[Sex, string]> = [
   ['U', 'Unknown']
 ];
 
-// The word for a sex, lower-case: "male".
-export function sexWord(sex: string | null) {
-  const label = SEXES.find(([value]) => value === sex)?.[1] ?? 'Unknown';
-  return label.toLowerCase();
-}
-
 // A name's field, labelled, telling `set` what's typed.
 export function nameField(
   label: string,

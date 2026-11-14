@@ -1,6 +1,5 @@
 // The datasets in the data folder, and everything done to one as a whole:
-// listing, importing (merging into the one under its slug), undoing that
-// import, exporting and deleting. A dataset's meta is read and written only
+// listing, importing, starting one, exporting and deleting. A dataset's meta is read and written only
 // here.
 
 import type { Database } from 'bun:sqlite';
@@ -17,7 +16,7 @@ import { createRecords } from '../persons/records';
 import { openAnyDb, openDb, OutdatedDatasetError } from './db';
 
 const SLUG_RE = /^[a-z0-9][a-z0-9_-]*$/u;
-// The database from before the last import, kept for Undo last import.
+
 function validateSlug(slug: string): void {
   if (!SLUG_RE.test(slug)) {
     throw new Error(`invalid dataset slug: ${JSON.stringify(slug)}`);
@@ -43,9 +42,8 @@ export class DatasetExists extends Error {
 interface StagingDataset {
   db: Database;
   mediaDir: string;
-  // Atomically swap the staged dataset into place under its slug, replacing any
-  // existing one, whose database is kept to undo the import with. Closes the
-  // staged handle; the next open() reopens fresh.
+  // Atomically swap the staged dataset into place under its slug. Closes
+  // the staged handle; the next open() reopens fresh.
   commit: () => Promise<void>;
   // Throw the staged dataset away without publishing it.
   discard: () => Promise<void>;
