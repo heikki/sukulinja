@@ -25,19 +25,6 @@ export interface EntryEdit {
   box: Box;
 }
 
-function same(a: InEntry, b: InEntry) {
-  return a.personId === b.personId && a.role === b.role;
-}
-
-// Who of those an Entry had are no longer named, in their Role, and who
-// is named anew.
-function changedPeople<W extends InEntry>(was: W[], people: InEntry[]) {
-  return {
-    gone: was.filter((w) => !people.some((p) => same(p, w))),
-    added: people.filter((p) => !was.some((w) => same(p, w)))
-  };
-}
-
 // Changing the pending Entry, as the Scan viewer's card does.
 export interface EntryForm {
   setText: (text: string) => void;
@@ -135,44 +122,34 @@ export function pendingEntry(
     return { people, text, editing: { entryId, was, text, box } };
   }
 
-  // The Box moved, through one of the Citations it had: a Mark moves the
-  // Entry for all.
-  async function moveBox(change: PendingLink, editing: EntryEdit) {
-    const [via] = editing.was;
+  // Where the Box is now, if it moved.
+  function movedTo(change: PendingLink, editing: EntryEdit) {
     const { volumeId, image, box } = change;
-    const same = JSON.stringify(box) === JSON.stringify(editing.box);
-    if (!same && via !== undefined) {
-      await api.mark(via.citationId, { volumeId, image, box });
+    if (JSON.stringify(box) === JSON.stringify(editing.box)) return {};
+    const fileId = fileOf(image);
+    if (fileId === null) {
+      throw new ApiError("The Image isn't listed yet; try again.");
     }
+    return { at: { volumeId, image, fileId, box } };
   }
 
-  // The source's Entry changed as the pending one says, everyone's: its
-  // Box moved, what it says, those named added, then those no longer
-  // named taken out, so it's never left empty. Who of those it had are
-  // still in it, by their Citation. Throws ApiError if it's refused.
+  // The source's Entry changed as the pending one says, everyone's, in one
+  // request: all of it or, refused, none. Who of those it had are still in
+  // it, by their Citation. Throws ApiError if it's refused.
   async function saveEdit(change: PendingLink, editing: EntryEdit) {
     const { people = [], text = '' } = change.cite ?? {};
     if (people.length === 0) throw new ApiError('Name someone in the entry.');
-    const { gone, added } = changedPeople(editing.was, people);
-    await moveBox(change, editing);
     const said = text.trim();
-    if (said !== editing.text.trim()) {
-      await api.transcribe(editing.entryId, said === '' ? null : said);
-    }
-    for (const p of added) {
-      // eslint-disable-next-line no-await-in-loop -- one at a time, in order
-      await api.addToEntry(editing.entryId, p);
-    }
-    for (const w of gone) {
-      // eslint-disable-next-line no-await-in-loop -- one at a time
-      await api.uncite(w.citationId);
-    }
+    const rows = await api.editEntry(editing.entryId, {
+      ...movedTo(change, editing),
+      text: said === '' ? null : said,
+      people
+    });
     void selected.refresh();
     await reload(change.volumeId);
     if (pending.get() === change) pending.set(null);
-    return editing.was
-      .filter((w) => !gone.includes(w))
-      .map((w) => w.citationId);
+    const now = new Set(rows.map((r) => r.citation.id));
+    return editing.was.map((w) => w.citationId).filter((id) => now.has(id));
   }
 
   // Names these people in it, in place of those it named.

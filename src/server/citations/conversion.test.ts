@@ -126,10 +126,15 @@ test('a hand Mark at the entry converts every citation of the record', async () 
     }
   ]);
   expect(await citations.volumeChoices(1)).toBeNull();
+  // Its Entry moves, for everyone citing it (ADR-0026), as it's edited:
+  // not by a Mark.
   expect(
     await citations.mark(1, { volumeId: 'juva-1', image: 14, box: MOVED })
-  ).toHaveProperty('resolution.links');
-  // Its Entry moves, for everyone citing it (ADR-0026).
+  ).toEqual({ rejected: 'An entry is moved by editing it.' });
+  const at = { volumeId: 'juva-1', image: 14, fileId: 'juva-1-f14' };
+  expect(
+    await citations.entries.edit(1, { at: { ...at, box: MOVED } })
+  ).toHaveLength(2);
   expect(rows(db).map((r) => r.link_image)).toEqual([14, 14, null]);
   // Nothing brings it back now (ADR-0021), so it can be deleted.
   expect(citations.uncite(1)).toMatchObject({ citation: { id: 1 } });

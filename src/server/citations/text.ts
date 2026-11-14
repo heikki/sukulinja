@@ -51,3 +51,13 @@ export function stripTags(html: string) {
 export function citationText(raw: string) {
   return stripTags(decodeFully(raw));
 }
+
+// The text with its lines tidied: spaces collapsed, blank lines dropped;
+// null for none.
+export function plainText(text: string | null) {
+  const lines = (text ?? '')
+    .split('\n')
+    .map((l) => l.replaceAll(/\s+/g, ' ').trim())
+    .filter((l) => l !== '');
+  return lines.length === 0 ? null : lines.join('\n');
+}

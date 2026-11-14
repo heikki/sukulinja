@@ -14,7 +14,6 @@ import { isoDate } from '@/common/dates';
 import type {
   CitationRow,
   Link,
-  LinkResolution,
   NewChange,
   VolumeCitation,
   VolumeContents
@@ -29,17 +28,9 @@ import type { Annotation } from './annotations';
 import { openAppCitations } from './app-citations';
 import { viewerUrl, volumeYears } from './astia/astia';
 import { citedArchives } from './cited-archives';
-import { CITATIONS_READ } from './entries';
-import { createEntryCitations } from './entry-citations';
-import type { EntryTarget } from './entry-citations';
+import { CITATIONS_READ, createEntries } from './entries';
 import type { Images } from './images';
-import type {
-  BookRef,
-  BoxAt,
-  MarkDone,
-  MarkTarget,
-  References
-} from './references';
+import type { BookRef, BoxAt, MarkTarget, References } from './references';
 import { createRetext } from './retext';
 import { createSupport } from './support';
 import { citationText } from './text';
@@ -76,12 +67,7 @@ interface Cited<R extends BookRef = BookRef> {
 
 type EntryLink = Link & { precision: 'entry' };
 
-export type { EntryTarget, InEntry } from './entry-citations';
-
-// An entry cited for one person, in their Role.
-export interface CiteTarget extends EntryTarget {
-  role: string | null;
-}
+export type { EntryAt, EntryEdit, InEntry } from './entries';
 
 // The Link of a Citation with no Church-book reference: the Mark at the
 // entry stored on it. Null for any other.
@@ -319,42 +305,6 @@ export function createCitations<R extends BookRef>(
   const { archives, churchBookArchives, citable, volumeArchive, withArchive } =
     citedArchives(images, () => cited(everyPerson.all()));
 
-  // A Citation of an Image moved to the entry `target` gives, in the
-  // Volume it's in; its Link there, and what that did.
-  async function moveEntry(
-    citationId: number,
-    target: MarkTarget
-  ): Promise<
-    { resolution: LinkResolution; done: MarkDone } | { rejected: string }
-  > {
-    const { volumeId, image, box } = target;
-    const stored = linkedInVolume
-      .all(volumeId)
-      .some((r) => r.id === citationId);
-    if (!stored) {
-      return { rejected: 'A Citation of an Image stays in its Volume.' };
-    }
-    if (image === undefined || box === undefined || box === null) {
-      return { rejected: 'A Citation of an Image needs its entry box.' };
-    }
-    const checked = await images.imageToCite(
-      { volumeId, image, box },
-      await archives()
-    );
-    if ('rejected' in checked) return checked;
-    made.move(citationId, { volumeId, image, box, ...checked });
-    const [c] = cited([byId.get(citationId)!]);
-    const links = [await withArchive(c!.stored!)];
-    const done: MarkDone = {
-      at: 'entry',
-      volume: checked.volume,
-      confirmed: false,
-      citations: 1,
-      pagePin: null
-    };
-    return { resolution: { links }, done };
-  }
-
   // The Citations of Images in the Volume, with no Church-book reference.
   async function storedIn(volumeId: string) {
     const rows = cited(linkedInVolume.all(volumeId)).flatMap((c) =>
@@ -428,7 +378,8 @@ export function createCitations<R extends BookRef>(
     };
   }
 
-  function uncite(citationId: number) {
+  // Deletes a Citation, with its Change on its person.
+  function removeCitation(citationId: number) {
     const was = ofId(citationId);
     if (!made.remove(citationId)) return null;
     if (was !== null) {
@@ -440,7 +391,7 @@ export function createCitations<R extends BookRef>(
     return was;
   }
 
-  const entries = createEntryCitations(db, {
+  const entries = createEntries(db, {
     made,
     images,
     citable,
@@ -449,7 +400,8 @@ export function createCitations<R extends BookRef>(
     personExists: (id) => personExists.get(id) !== null,
     support,
     changed,
-    listed
+    listed,
+    uncite: removeCitation
   });
 
   return {
@@ -506,26 +458,26 @@ export function createCitations<R extends BookRef>(
 
     // Saves a Mark: the reference's Links as they now resolve, and what it
     // did. Null when there's no such Citation, or it isn't a Church-book
-    // reference.
-    // A Citation of an Image takes a Mark at another entry in its Volume.
+    // reference; rejected for a Citation of an Entry, whose Box moves for
+    // everyone in it as the Entry is edited (ADR-0026).
     async mark(citationId: number, target: MarkTarget) {
       const row = byId.get(citationId);
       if (row === null) return null;
-      const [c] = cited([row]);
-      const moved = c!.book === null;
-      if (moved && c!.stored === null) return null;
-      const result = moved
-        ? await moveEntry(citationId, target)
-        : await references.mark(c!.book!, target);
+      if (row.entryId !== null) {
+        return { rejected: 'An entry is moved by editing it.' };
+      }
+      const book = bookOf(row);
+      if (book === null) return null;
+      const result = await references.mark(book, target);
       if ('rejected' in result) return result;
-      if (!moved) await convert(c!.book!);
+      await convert(book);
       const { at, volume, confirmed, citations, pagePin } = result.done;
       const image = target.image ?? null;
       changed({
         on: { citationId },
         what: {
           kind: 'mark',
-          ...{ at, volume, image, confirmed, moved, citations, pagePin }
+          ...{ at, volume, image, confirmed, moved: false, citations, pagePin }
         }
       });
       return result;
@@ -583,44 +535,21 @@ export function createCitations<R extends BookRef>(
       return { images: urls, archive };
     },
 
-    // Makes an Entry with its people, or adds someone to one (ADR-0026).
-    citeEntry: entries.citeEntry,
-    addToEntry: entries.addToEntry,
-
-    // Makes a Citation of a new entry for the person (`citeEntry` with one),
-    // and gives it as the Scan viewer lists it.
-    async cite(
-      personId: number,
-      target: CiteTarget
-    ): Promise<VolumeCitation | { rejected: string } | null> {
-      const made = await entries.citeEntry(target, [
-        { personId, role: target.role }
-      ]);
-      return made === null || 'rejected' in made ? made : made[0]!;
-    },
+    // Makes, edits, unnames someone in and removes an Entry (ADR-0026).
+    entries,
 
     // Titles the Volume sources made before with their archive (ADR-0019).
     retitleVolumeSources: () => made.retitleVolumeSources(volumeArchive),
 
     // Deletes a Citation, and gives it as it was, with whose it was; null
-    // when there's no such Citation.
-    uncite,
-
-    // Deletes an Entry with all its Citations, each as `uncite` does
-    // (ADR-0026): how many went, null when there's no such Entry.
-    deleteEntry(entryId: number) {
-      const ids = made.entryCitations(entryId);
-      if (ids.length === 0) return null;
-      for (const id of ids) uncite(id);
-      return ids.length;
+    // when there's no such Citation. One of an Entry is unnamed from it.
+    uncite(citationId: number) {
+      return entries.unname(citationId) ?? removeCitation(citationId);
     },
-
-    // Puts what an Entry says (ADR-0026); null when there's no such Entry.
-    transcribe: entries.transcribe,
 
     // Puts what a person's Citation says: its Entry's, else its own.
     retext: createRetext(db, {
-      transcribe: entries.transcribe,
+      editEntry: async (entryId, edit) => await entries.edit(entryId, edit),
       ofId,
       citedText,
       changed

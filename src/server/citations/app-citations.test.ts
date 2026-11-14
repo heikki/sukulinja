@@ -93,6 +93,20 @@ function entry(image: number, text: string | null = null) {
   };
 }
 
+type Citations = ReturnType<typeof createCitations>;
+
+// The person's Citation of a new Entry at `e`, as the Scan viewer lists
+// it, or why not.
+async function citeFor(
+  citations: Citations,
+  personId: number,
+  e: Omit<ReturnType<typeof entry>, 'role'> & { role: string | null }
+) {
+  const { text, role, ...at } = e;
+  const made = await citations.entries.make(at, text, [{ personId, role }]);
+  return made === null || 'rejected' in made ? made : made[0];
+}
+
 const JUVA_1 = 'I Aa:1 Pää- ja rippikirjat (1790-1796)';
 const ENTRY_LINK: Link = {
   volumeId: 'juva-1',
@@ -115,7 +129,11 @@ test('a Citation made in the app is stored with its Mark, page and source', asyn
     cite(1, rippiCitation(5001, '1790 - 1796', 12))
   ]);
 
-  const made = await citations.cite(2, entry(13, '  Baptism  12.3.1795 \n'));
+  const made = await citeFor(
+    citations,
+    2,
+    entry(13, '  Baptism  12.3.1795 \n')
+  );
   expect(made).toMatchObject({
     personId: 2,
     link: ENTRY_LINK,
@@ -164,8 +182,8 @@ test('a Citation made in the app is stored with its Mark, page and source', asyn
   ]);
 
   // A second in the Volume cites its source; another Volume gets its own.
-  await citations.cite(3, entry(14));
-  await citations.cite(3, {
+  await citeFor(citations, 3, entry(14));
+  await citeFor(citations, 3, {
     ...entry(2),
     volumeId: 'juva-2',
     fileId: 'juva-2-f2'
@@ -198,7 +216,7 @@ test("a Citation made in the app of another source's reference doesn't lend its 
     ]
   );
 
-  await citations.cite(2, entry(14));
+  await citeFor(citations, 2, entry(14));
   expect(sources(db)).toEqual([
     {
       id: 1,
@@ -220,35 +238,35 @@ test('a Citation is refused off its Image, or where the person already links it'
     cite(1, rippiCitation(5001, '1790 - 1796', 12))
   ]);
 
-  expect(await citations.cite(9, entry(13))).toBeNull();
+  expect(await citeFor(citations, 9, entry(13))).toBeNull();
   expect(
-    await citations.cite(2, { ...entry(13), box: { ...BOX, width: 950 } })
+    await citeFor(citations, 2, { ...entry(13), box: { ...BOX, width: 950 } })
   ).toEqual({
     rejected: 'The entry box must lie on the Image, in whole pixels.'
   });
   expect(
-    await citations.cite(2, { ...entry(13), fileId: 'juva-1-f12' })
+    await citeFor(citations, 2, { ...entry(13), fileId: 'juva-1-f12' })
   ).toEqual({ rejected: "That isn't the Image's file in Astia." });
-  expect(await citations.cite(2, { ...entry(13), image: 21 })).toEqual({
+  expect(await citeFor(citations, 2, { ...entry(13), image: 21 })).toEqual({
     rejected: 'The volume has images 1–20.'
   });
   expect(
-    await citations.cite(2, { ...entry(1), volumeId: 'elsewhere-1' })
+    await citeFor(citations, 2, { ...entry(1), volumeId: 'elsewhere-1' })
   ).toEqual({ rejected: "That Volume isn't in this tree's church books." });
 
   // Person 1's reference is Estimated on Image 12.
   const already = { rejected: 'Their Citations already link this Image.' };
-  expect(await citations.cite(1, entry(12))).toEqual(already);
-  expect(await citations.cite(1, entry(13))).toMatchObject({ personId: 1 });
-  expect(await citations.cite(1, entry(13))).toEqual(already);
+  expect(await citeFor(citations, 1, entry(12))).toEqual(already);
+  expect(await citeFor(citations, 1, entry(13))).toMatchObject({ personId: 1 });
+  expect(await citeFor(citations, 1, entry(13))).toEqual(already);
 });
 
 test('a Citation is deleted with its notes, and the source the app made with the last', async () => {
   const { db, citations } = withPeople([
     cite(1, rippiCitation(5001, '1790 - 1796', 12))
   ]);
-  await citations.cite(2, entry(13));
-  await citations.cite(3, entry(14));
+  await citeFor(citations, 2, entry(13));
+  await citeFor(citations, 3, entry(14));
   db.run(
     "INSERT INTO notes (owner_type, owner_id, text) VALUES ('citation', 2, 'Seen')"
   );
@@ -292,7 +310,7 @@ test('a Citation made in the app is read back with its Link Marked at the entry'
     cite(1, rippiCitation(5002, '1797 - 1803', 4)),
     cite(2, rippiCitation(5001, '1790 - 1796', 12))
   ]);
-  await citations.cite(1, entry(13, 'Baptism'));
+  await citeFor(citations, 1, entry(13, 'Baptism'));
   const asked = astia.asked.length;
 
   // Among the church books by its Volume's years.
@@ -356,34 +374,28 @@ test('an imported Citation of an Astia Image, with no reference, is read by its 
   ]);
 });
 
-test('a Mark moves a Citation made in the app to another entry in its Volume', async () => {
+test('an Entry is moved in its Volume by editing it, and refuses a Mark', async () => {
   const { db, citations } = withPeople([
     cite(2, rippiCitation(5001, '1790 - 1796', 12))
   ]);
-  await citations.cite(1, entry(13));
+  const made = (await citeFor(citations, 1, entry(13))) as VolumeCitation;
+  const entryId = made.citation.entryId!;
   const moved = { left: 50, top: 60, width: 400, height: 40 };
 
   expect(
     await citations.mark(2, { volumeId: 'juva-1', image: 14, box: moved })
-  ).toEqual({
-    resolution: {
-      links: [
-        {
-          ...ENTRY_LINK,
-          url: ENTRY_LINK.url.replace('f13', 'f14'),
-          image: 14,
-          box: moved
-        }
-      ]
-    },
-    done: {
-      at: 'entry',
-      volume: 'I Aa:1 Pää- ja rippikirjat (1790-1796)',
-      confirmed: false,
-      citations: 1,
-      pagePin: null
+  ).toEqual({ rejected: 'An entry is moved by editing it.' });
+  const to = { ...entry(14), box: moved };
+  expect(await citations.entries.edit(entryId, { at: to })).toMatchObject([
+    {
+      link: {
+        ...ENTRY_LINK,
+        url: ENTRY_LINK.url.replace('f13', 'f14'),
+        image: 14,
+        box: moved
+      }
     }
-  });
+  ]);
   expect(
     db
       .query(
@@ -398,22 +410,11 @@ test('a Mark moves a Citation made in the app to another entry in its Volume', a
     added_in_app: 1
   });
 
-  const stays = { rejected: 'A Citation of an Image stays in its Volume.' };
   expect(
-    await citations.mark(2, { volumeId: 'juva-2', image: 2, box: moved })
-  ).toEqual(stays);
-  expect(await citations.mark(2, { volumeId: 'juva-1', image: 14 })).toEqual({
-    rejected: 'A Citation of an Image needs its entry box.'
-  });
-  expect(
-    await citations.mark(2, {
-      volumeId: 'juva-1',
-      image: 14,
-      box: { ...moved, width: 990 }
+    await citations.entries.edit(entryId, {
+      at: { ...to, volumeId: 'juva-2', image: 2, fileId: 'juva-2-f2' }
     })
-  ).toEqual({
-    rejected: 'The entry box must lie on the Image, in whole pixels.'
-  });
+  ).toEqual({ rejected: 'An entry stays in its Volume.' });
   // A Discard is for a reference's Box; this one is deleted instead.
   expect(
     await citations.discard(2, { volumeId: 'juva-1', image: 14 })
@@ -442,8 +443,8 @@ test("a Volume's source is found by its record, whatever cites it", async () => 
     ]
   );
 
-  await citations.cite(2, entry(14));
-  await citations.cite(3, entry(15));
+  await citeFor(citations, 2, entry(14));
+  await citeFor(citations, 3, entry(15));
   expect(sources(db)).toHaveLength(1);
   const cited = db
     .query(
@@ -458,19 +459,20 @@ test("with no references, the Volumes cited give the dataset's parishes", async 
   const { db, citations } = withPeople([
     cite(3, rippiCitation(5001, '1790 - 1796', 12))
   ]);
-  await citations.cite(1, entry(13));
+  await citeFor(citations, 1, entry(13));
   // As if every reference were converted: nothing but Citations of Images.
   db.run('DELETE FROM citations WHERE added_in_app = 0');
   expect(await linesOf(citations.linksOf(1))).toEqual([
     { citationId: 2, links: [{ ...ENTRY_LINK, archive: ARCHIVE }] }
   ]);
-  expect(await citations.cite(2, entry(14))).toMatchObject({
+  const made = (await citeFor(citations, 2, entry(14))) as VolumeCitation;
+  expect(made).toMatchObject({
     personId: 2,
     link: { image: 14, archive: ARCHIVE }
   });
   expect(
-    await citations.mark(2, { volumeId: 'juva-1', image: 15, box: BOX })
-  ).toHaveProperty('resolution.links');
+    await citations.entries.edit(made.citation.entryId!, { at: entry(15) })
+  ).toMatchObject([{ link: { image: 15, archive: ARCHIVE } }]);
 });
 
 test("a Volume's source is titled by its archive, so another parish's Volume of the same label gets its own", () => {
@@ -543,7 +545,9 @@ test("a Citation made in a baptism Volume keeps the person's Role in the entry, 
     fileId: 'juva-3-f3'
   };
 
-  expect(await citations.cite(2, { ...baptisms, role: 'FATH' })).toMatchObject({
+  expect(
+    await citeFor(citations, 2, { ...baptisms, role: 'FATH' })
+  ).toMatchObject({
     personId: 2
   });
   expect(
@@ -551,10 +555,10 @@ test("a Citation made in a baptism Volume keeps the person's Role in the entry, 
   ).toEqual({ event: 'CHR', role: 'FATH' });
   // A marriage's Role in a baptism, or any Role in a rippikirja's entry.
   const refused = { rejected: "That isn't a Role in this kind of entry." };
-  expect(await citations.cite(3, { ...baptisms, role: 'HUSB' })).toEqual(
+  expect(await citeFor(citations, 3, { ...baptisms, role: 'HUSB' })).toEqual(
     refused
   );
-  expect(await citations.cite(3, { ...entry(13), role: 'CHIL' })).toEqual(
+  expect(await citeFor(citations, 3, { ...entry(13), role: 'CHIL' })).toEqual(
     refused
   );
 });

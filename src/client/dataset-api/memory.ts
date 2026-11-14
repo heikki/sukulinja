@@ -23,7 +23,6 @@ import type {
 
 import { ApiError, NOT_RESPONDING } from './';
 import type { DatasetApi } from './';
-import { memoryEntries } from './memory-entries';
 
 export interface MemoryVolume {
   images: number;
@@ -75,8 +74,7 @@ type MemoryDatasetApi = DatasetApi & {
   // What was asked, in order: "persons", "families", "person <id>",
   // "links <id>", "mark <citation> <volume>/<image>" (or "<volume>" for
   // only the Volume; " box" or " no box" when it says), "discard <citation>
-  // <volume>/<image>", "entry <volume>/<image> <file>: <person>[ as
-  // <role>], …[: <text>]",
+  // <volume>/<image>",
   // "uncite <citation>", "retext <citation>: <text>", which changes the
   // Citation's text in `details`, "support <citation> <fact>" (or "unsupport"),
   // which changes the Citation in `details`, "choices <citation>", "citations <volume>",
@@ -95,11 +93,9 @@ type MemoryDatasetApi = DatasetApi & {
   // "unlink <person> from <family>" and "move <person> from <family>",
   // change nothing; "delete person
   // <person>" takes the row out of `persons`.
-  // The Citations an entry made by `citeEntry` join its Volume's
-  // citations, numbered on from 1000, the Entry from 2000, and `uncite`
-  // takes one out; "add to entry <entry>: <person>[ as <role>]" adds one
-  // like the Entry's first, "transcribe <entry>: <text>" changes its
-  // rows' text, and "delete entry <entry>" takes its rows out. "ask[ in <conversation>]:
+  // `uncite` takes a Citation out of its Volume's citations; an Entry
+  // made, edited or deleted ("entry", "edit entry", "delete entry") is
+  // refused, as served.ts serves those. "ask[ in <conversation>]:
   // <text>" tells the next turn in `assistant`; "forget <conversation>".
   asked: string[];
 };
@@ -114,7 +110,6 @@ export function memoryDatasetApi(
   { down = false }: MemoryOptions = {}
 ): MemoryDatasetApi {
   const asked: string[] = [];
-  let made = 1000;
   let reminded = 2000;
   let factsAdded = 3000;
   let personsAdded = 4000;
@@ -190,10 +185,14 @@ export function memoryDatasetApi(
     );
   }
 
-  const entryCalls = memoryEntries(data, answer, () => {
-    made += 1;
-    return made;
-  });
+  // Entries follow the server's rules, so tests of them ask it
+  // (served.ts).
+  function noEntries(what: string) {
+    return async () =>
+      await answer(what, undefined, () => {
+        throw new ApiError('Entries are asked of the served dataset.');
+      });
+  }
 
   return {
     asked,
@@ -236,7 +235,9 @@ export function memoryDatasetApi(
         () => found(data.discards?.[citationId], 'citation not found')
       ),
 
-    ...entryCalls,
+    citeEntry: noEntries('entry'),
+    editEntry: noEntries('edit entry'),
+    deleteEntry: noEntries('delete entry'),
 
     async retext(citationId, text) {
       await answer(`retext ${citationId}: ${text ?? ''}`, undefined, () => {

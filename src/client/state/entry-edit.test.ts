@@ -1,88 +1,98 @@
 // Editing an Entry from its Box in the Scan viewer (ADR-0026): its people,
 // what it says and its Box changed at once in the card it was made in, and
-// the whole Entry deleted.
+// the whole Entry deleted. Over the app's own server, so what's checked is
+// the Entry as it is after.
 
-import { expect, test } from 'bun:test';
+import { afterEach, beforeEach, expect, test } from 'bun:test';
 
-import { memoryDatasetApi } from '@/client/dataset-api/memory';
-import type {
-  CitationRow,
-  Link,
-  PersonDetails,
-  VolumeCitation
-} from '@/common/types';
+import type { DatasetApi } from '@/client/dataset-api';
+import { servedDataset } from '@/client/dataset-api/served';
+import type { VolumeCitation } from '@/common/types';
+import { juvaAstia, VOLUMES } from '@/server/citations/testing';
 
 import { openAppState } from './';
 
+// Juva's baptisms, under an id like Astia's own.
+const VOLUME = '203';
 const BOX = { left: 100, top: 200, width: 500, height: 50 };
-const LINK: Link = {
-  volumeId: '201',
-  volume: 'I C:1 Syntyneiden ja kastettujen luettelot',
-  url: '',
-  precision: 'entry',
-  image: 20,
-  box: BOX,
-  certainty: 'marked'
-};
 
-function inEntry(id: number, role: string): CitationRow {
-  return {
-    id,
-    source: null,
-    reference: null,
-    entry: null,
-    page: null,
-    record: null,
-    text: 'Kaste 1.2.1790',
-    churchBook: true,
-    madeInApp: true,
-    markKey: 'entry 7',
-    citedPage: null,
-    cited: null,
-    supports: [],
-    entryId: 7,
-    role
-  };
+// Made-up people: a child (1), their mother (2), another woman (3) and a
+// man (4).
+const GEDCOM = [
+  '0 @I1@ INDI',
+  '1 NAME Juho /Esimerkki/',
+  '0 @I2@ INDI',
+  '1 NAME Maria /Esimerkki/',
+  '0 @I3@ INDI',
+  '1 NAME Liisa /Malli/',
+  '0 @I4@ INDI',
+  '1 NAME Matti /Malli/',
+  ''
+].join('\n');
+
+let served: Awaited<ReturnType<typeof servedDataset>> | null = null;
+let api: DatasetApi | null = null;
+
+beforeEach(async () => {
+  served = await servedDataset(
+    GEDCOM,
+    juvaAstia(undefined, { [VOLUME]: VOLUMES['juva-3'] })
+  );
+  ({ api } = served);
+});
+
+afterEach(async () => {
+  await served?.close();
+});
+
+async function until(done: () => boolean) {
+  for (let i = 0; i < 200 && !done(); i += 1) {
+    // eslint-disable-next-line no-await-in-loop -- until the state settles
+    await Bun.sleep(5);
+  }
 }
 
-function person(id: number, citations: CitationRow[]): PersonDetails {
-  return {
-    id,
-    name: `Person ${id}`,
-    sex: 'U',
-    facts: [],
-    marriages: [],
-    citations,
-    photos: []
-  };
+// The Entry's Citations, as the Volume's citations list them now.
+async function entryNow(entryId: number) {
+  const rows = await api!.volumeCitations(VOLUME);
+  return rows
+    .filter((r) => r.citation.entryId === entryId)
+    .map((r) => ({
+      personId: r.personId,
+      role: r.citation.role,
+      text: r.citation.text,
+      image: 'image' in r.link ? r.link.image : null,
+      box: 'box' in r.link ? r.link.box : null
+    }));
 }
 
-const CHILD = inEntry(11, 'CHIL');
-const MOTHER = inEntry(12, 'MOTH');
-
-// The child selected, open on their Citation of the Entry, which names
-// their mother too.
+// The child selected, open on their Citation of an Entry on Image 12,
+// which names their mother too.
 async function viewing() {
-  const rows: VolumeCitation[] = [
-    { personId: 1, citation: CHILD, link: LINK },
-    { personId: 2, citation: MOTHER, link: LINK }
-  ];
-  const api = memoryDatasetApi({
-    details: { 1: person(1, [CHILD]), 2: person(2, [MOTHER]) },
-    links: { 1: [{ citationId: 11, links: [LINK] }] },
-    marks: { 11: { citationId: 11, links: [LINK] } },
-    volumes: { '201': { images: 40, citations: rows } }
-  });
-  const state = openAppState(api);
+  const made = await api!.citeEntry(
+    {
+      volumeId: VOLUME,
+      image: 12,
+      fileId: `${VOLUME}-f12`,
+      box: BOX,
+      text: 'Kaste 1.2.1790'
+    },
+    [
+      { personId: 1, role: 'CHIL' },
+      { personId: 2, role: 'MOTH' }
+    ]
+  );
+  const child = made[0]!;
+  const state = openAppState(api!);
   state.chart.select(1);
-  await Bun.sleep(0);
-  state.viewer.open({ citation: CHILD, link: LINK });
-  await Bun.sleep(0);
-  return { api, viewer: state.viewer };
+  await until(() => state.selected.details.get() !== null);
+  state.viewer.open({ citation: child.citation, link: child.link });
+  await until(() => Array.isArray(state.viewer.citations.get()));
+  return { viewer: state.viewer, child, entryId: child.citation.entryId! };
 }
 
 test('editing starts from the Entry as it is, and Cancel leaves it so', async () => {
-  const { api, viewer } = await viewing();
+  const { viewer, child, entryId } = await viewing();
   viewer.editEntry();
   expect(viewer.pending.get()?.cite).toMatchObject({
     people: [
@@ -90,17 +100,20 @@ test('editing starts from the Entry as it is, and Cancel leaves it so', async ()
       { personId: 2, role: 'MOTH' }
     ],
     text: 'Kaste 1.2.1790',
-    editing: { entryId: 7 }
+    editing: { entryId }
   });
   expect(viewer.boxPending.get()).toBe(true);
   viewer.cancel();
   expect(viewer.pending.get()).toBeNull();
-  expect(viewer.source.get()?.citation.id).toBe(11);
-  expect(api.asked.some((a) => a.startsWith('transcribe'))).toBe(false);
+  expect(viewer.source.get()?.citation.id).toBe(child.citation.id);
+  expect(await entryNow(entryId)).toMatchObject([
+    { personId: 1, text: 'Kaste 1.2.1790', box: BOX },
+    { personId: 2, text: 'Kaste 1.2.1790', box: BOX }
+  ]);
 });
 
 test('one Save adds, takes out, says and moves, and stays on the source', async () => {
-  const { api, viewer } = await viewing();
+  const { viewer, child, entryId } = await viewing();
   viewer.editEntry();
   viewer.entryForm.setInEntry({ personId: 3, role: 'MOTH' });
   viewer.entryForm.setInEntry({ personId: 4, role: 'FATH' });
@@ -108,53 +121,98 @@ test('one Save adds, takes out, says and moves, and stays on the source', async 
   const moved = { ...BOX, top: 260 };
   viewer.setBox(moved);
   expect(await viewer.save()).toBeNull();
-  const done = api.asked.filter((a) =>
-    /^(?:mark|transcribe|add to entry|uncite)/.test(a)
-  );
-  expect(done).toEqual([
-    'mark 11 201/20 box',
-    'transcribe 7: Kaste 2.2.1790',
-    'add to entry 7: 3 as MOTH',
-    'add to entry 7: 4 as FATH',
-    'uncite 12'
+
+  const after = { text: 'Kaste 2.2.1790', image: 12, box: moved };
+  expect(await entryNow(entryId)).toEqual([
+    { personId: 1, role: 'CHIL', ...after },
+    { personId: 3, role: 'MOTH', ...after },
+    { personId: 4, role: 'FATH', ...after }
   ]);
   expect(viewer.pending.get()).toBeNull();
   expect(viewer.source.get()).toMatchObject({
-    citation: { id: 11 },
+    citation: { id: child.citation.id },
     link: { box: moved }
   });
+  await until(() => viewer.entry.people.get().length === 3);
   expect(viewer.entry.people.get().map((r) => r.personId)).toEqual([1, 3, 4]);
 });
 
+test("a Role changed keeps the person's Citation, and the viewer on it", async () => {
+  const { viewer, child, entryId } = await viewing();
+  viewer.editEntry();
+  viewer.entryForm.setPeople([
+    { personId: 1, role: 'FATH' },
+    { personId: 2, role: 'MOTH' }
+  ]);
+  await viewer.save();
+  const rows: VolumeCitation[] = await api!.volumeCitations(VOLUME);
+  expect(
+    rows
+      .filter((r) => r.citation.entryId === entryId)
+      .map((r) => [r.citation.id, r.citation.role])
+  ).toEqual([
+    [child.citation.id, 'FATH'],
+    [child.citation.id + 1, 'MOTH']
+  ]);
+  expect(viewer.source.get()?.citation.id).toBe(child.citation.id);
+});
+
 test("taking the source's own person out leaves the viewer on the Image", async () => {
-  const { api, viewer } = await viewing();
+  const { viewer, entryId } = await viewing();
   viewer.editEntry();
   viewer.entryForm.drop(1);
   await viewer.save();
-  expect(api.asked).toContain('uncite 11');
-  expect(api.asked).not.toContain('mark 11 201/20 box');
+  expect(await entryNow(entryId)).toMatchObject([{ personId: 2, box: BOX }]);
   expect(viewer.source.get()).toBeNull();
   expect(viewer.opened.get()).toEqual({
-    volumeId: '201',
-    volume: LINK.volume,
-    image: 20
+    volumeId: VOLUME,
+    volume: VOLUMES['juva-3'],
+    image: 12
   });
 });
 
-test('an edit naming no one is refused', async () => {
-  const { viewer } = await viewing();
+test('an edit refused changes nothing', async () => {
+  const { viewer, entryId } = await viewing();
   viewer.editEntry();
   viewer.entryForm.drop(1);
   viewer.entryForm.drop(2);
-  const refused = await viewer.save().catch((err: unknown) => err);
-  expect(refused).toMatchObject({ message: 'Name someone in the entry.' });
+  expect(await viewer.save().catch((err: unknown) => err)).toMatchObject({
+    message: 'Name someone in the entry.'
+  });
+  // Someone with a Citation of another entry on the Image.
+  await api!.citeEntry(
+    {
+      volumeId: VOLUME,
+      image: 12,
+      fileId: `${VOLUME}-f12`,
+      box: { ...BOX, top: 400 },
+      text: null
+    },
+    [{ personId: 4, role: 'CHIL' }]
+  );
+  viewer.cancel();
+  viewer.editEntry();
+  viewer.entryForm.setText('Kaste 2.2.1790');
+  viewer.entryForm.setInEntry({ personId: 4, role: 'FATH' });
+  expect(await viewer.save().catch((err: unknown) => err)).toMatchObject({
+    message: 'Their Citations already link this Image.'
+  });
+  expect(await entryNow(entryId)).toMatchObject([
+    { personId: 1, text: 'Kaste 1.2.1790' },
+    { personId: 2, text: 'Kaste 1.2.1790' }
+  ]);
 });
 
 test('deleting the Box of an Entry with others in it deletes the Entry', async () => {
-  const { api, viewer } = await viewing();
+  const { viewer, entryId } = await viewing();
   viewer.discard();
   await viewer.confirmDiscard();
-  expect(api.asked).toContain('delete entry 7');
-  expect(api.asked).not.toContain('uncite 11');
+  // No one cites the Volume now.
+  expect(
+    served!
+      .db()
+      .query('SELECT id FROM citations WHERE entry_id = ?')
+      .all(entryId)
+  ).toEqual([]);
   expect(viewer.source.get()).toBeNull();
 });

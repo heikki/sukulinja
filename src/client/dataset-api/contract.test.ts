@@ -2,8 +2,7 @@
 // and answers the client expects are the ones the server gives.
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import type Anthropic from '@anthropic-ai/sdk';
@@ -12,22 +11,15 @@ import type { AssistantEvent } from '@/common/types';
 import type { Model } from '@/server/assistant/model';
 import {
   IMAGES,
-  JUVA,
+  juvaAstia,
   memoryAstia,
   rippiCitation,
   VOLUMES
 } from '@/server/citations/testing';
-import type { MemoryAstia } from '@/server/citations/testing';
-import { memoryKeyStore } from '@/server/claude/key';
-import { DatasetRegistry } from '@/server/datasets/registry';
-import { parseGedcom } from '@/server/gedcom/parser';
-import { importGedcom } from '@/server/import/gedcom';
-import { createApi, createStaticFetch } from '@/server/server';
 
 import { ApiError, NOT_RESPONDING, openDatasetApi } from './';
 import type { DatasetApi } from './';
-
-const ORIGIN = 'http://localhost';
+import { ORIGIN, servedDataset } from './served';
 
 // Answers every question the same, as Claude would without asking a tool.
 async function cannedAssistant(
@@ -48,14 +40,6 @@ async function cannedAssistant(
 // take only those.
 const VOLUME = '201';
 
-function juvaAstia() {
-  return memoryAstia({
-    [JUVA]: {
-      volumes: [{ id: VOLUME, label: VOLUMES['juva-1'], images: IMAGES }]
-    }
-  });
-}
-
 // Made-up people: a couple and their child.
 const GEDCOM = [
   '0 @I1@ INDI',
@@ -73,46 +57,32 @@ const GEDCOM = [
   ''
 ].join('\n');
 
-let root = '';
+let served: Awaited<ReturnType<typeof servedDataset>> | null = null;
 let serve: ((req: Request) => Promise<Response>) | null = null;
 let api: DatasetApi = openDatasetApi('juva');
 
-// The server over `astia`, and the client asking it.
-function serveWith(astia: MemoryAstia) {
-  const registry = new DatasetRegistry(join(root, 'data'));
-  serve = createStaticFetch({
-    api: createApi(registry, {
-      astia,
-      keyStore: memoryKeyStore('sk-test'),
-      assistantModel: () => cannedAssistant
-    }),
-    staticRoots: []
-  });
-  api = openDatasetApi('juva', { fetch: serve, origin: ORIGIN });
-}
-
 beforeEach(async () => {
-  root = await mkdtemp(join(tmpdir(), 'dataset-api-'));
-  const staging = await new DatasetRegistry(join(root, 'data')).createStaging(
-    'juva'
-  );
-  importGedcom(staging.db, parseGedcom(GEDCOM), () => null);
-  const insert = staging.db.prepare(
-    `INSERT INTO citations (scope_type, scope_id, page, text, sort_order)
-     VALUES ('person', 1, ?, ?, ?)`
-  );
-  // One in the Volume Astia has, one in a later Volume it doesn't.
-  const kept = rippiCitation(5001, '1790 - 1796', 12);
-  const later = rippiCitation(5002, '1797 - 1803', 3);
-  insert.run(kept.page, kept.text, 0);
-  insert.run(later.page, later.text, 1);
-  await writeFile(join(staging.mediaDir, 'photo.jpg'), 'jpeg');
-  await staging.commit();
-  serveWith(juvaAstia());
+  const astia = juvaAstia(undefined, { [VOLUME]: VOLUMES['juva-1'] });
+  served = await servedDataset(GEDCOM, astia, {
+    assistant: cannedAssistant,
+    async seed({ db, mediaDir }) {
+      const insert = db.prepare(
+        `INSERT INTO citations (scope_type, scope_id, page, text, sort_order)
+         VALUES ('person', 1, ?, ?, ?)`
+      );
+      // One in the Volume Astia has, one in a later Volume it doesn't.
+      const kept = rippiCitation(5001, '1790 - 1796', 12);
+      const later = rippiCitation(5002, '1797 - 1803', 3);
+      insert.run(kept.page, kept.text, 0);
+      insert.run(later.page, later.text, 1);
+      await writeFile(join(mediaDir, 'photo.jpg'), 'jpeg');
+    }
+  });
+  ({ api, serve } = served);
 });
 
 afterEach(async () => {
-  await rm(root, { recursive: true, force: true });
+  await served?.close();
 });
 
 // What the call failed with; it must fail. An ApiError gives its words.
@@ -156,10 +126,41 @@ describe('the answers', () => {
     });
   });
 
+  test('an Entry made, edited as a whole, and deleted', async () => {
+    const box = { left: 100, top: 400, width: 300, height: 30 };
+    const at = { volumeId: VOLUME, image: 9, fileId: `${VOLUME}-f9`, box };
+    const [made] = await api.citeEntry({ ...at, text: 'Talo' }, [
+      { personId: 2, role: null }
+    ]);
+    const entryId = made!.citation.entryId!;
+    const moved = { ...box, top: 450 };
+    const edited = await api.editEntry(entryId, {
+      at: { ...at, box: moved },
+      text: ' Talo  3 ',
+      people: [
+        { personId: 2, role: null },
+        { personId: 3, role: null }
+      ]
+    });
+    const now = { citation: { entryId, text: 'Talo 3' }, link: { box: moved } };
+    expect(edited).toMatchObject([
+      { personId: 2, ...now },
+      { personId: 3, ...now }
+    ]);
+    expect(await failure(api.editEntry(entryId, { people: [] }))).toBe(
+      'Name someone in it.'
+    );
+    expect(await failure(api.editEntry(99, { text: 'x' }))).toBe(
+      'entry or person not found'
+    );
+    await api.deleteEntry(entryId);
+    expect(await failure(api.deleteEntry(entryId))).toBe('entry not found');
+  });
+
   test("a Discard takes a Match's Box back to the estimate, once", async () => {
     // As the vision pass saves one: a Mark at the entry would convert the
     // reference to a Citation of its Image instead (ADR-0016).
-    new DatasetRegistry(join(root, 'data')).open('juva').run(
+    served!.db().run(
       `UPDATE citations SET link_volume_id = ?, link_volume = ?,
          link_image = 7, link_file_id = ?, link_box_left = 100,
          link_box_top = 400, link_box_width = 300, link_box_height = 30,
@@ -485,7 +486,7 @@ describe('failing', () => {
   });
 
   test('says when Astia fails', async () => {
-    serveWith(memoryAstia({}, { down: true }));
+    ({ api, serve } = served!.servedOver(memoryAstia({}, { down: true })));
     expect(await failure(api.volume(VOLUME))).toBe(
       "Astia couldn't be reached or gave no answer."
     );

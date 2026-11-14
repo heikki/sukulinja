@@ -60,6 +60,12 @@ test('says what each was', () => {
   expect(doneLabel({ ...MARK, at: 'entry', moved: true })).toBe(
     'Moved the entry'
   );
+  expect(doneLabel({ kind: 'move', volume: 'v', image: 1 })).toBe(
+    'Moved the entry'
+  );
+  expect(
+    doneLabel({ kind: 'role', volume: 'v', image: 1, from: null, to: 'CHIL' })
+  ).toBe('Changed the Role');
   const discard = { kind: 'discard', volume: 'v', image: 1 } as const;
   expect(doneLabel({ ...discard, rejection: false })).toBe('Discarded the Box');
   expect(doneLabel({ ...discard, rejection: true })).toBe('Rejected the Match');
@@ -86,6 +92,30 @@ test('says where, and what more it did', () => {
     detailOf({ kind: 'import', file: 'a.ged', merged: true, lost: 2 })
   ).toBe('2 not kept');
   expect(detailOf({ kind: 'undo-import' })).toBeNull();
+  expect(detailOf({ kind: 'move', volume: 'I C:1', image: 3 })).toBe(
+    'I C:1, Image 3'
+  );
+  const baptisms = 'I C:1 Syntyneiden ja kastettujen luettelot (1790-1810)';
+  expect(
+    detailOf({
+      kind: 'role',
+      volume: baptisms,
+      image: 3,
+      from: 'FATH',
+      to: 'CHIL'
+    })
+  ).toBe(
+    `${detailOf({ kind: 'move', volume: baptisms, image: 3 })}: Father → Child`
+  );
+  expect(
+    detailOf({
+      kind: 'role',
+      volume: baptisms,
+      image: 3,
+      from: null,
+      to: 'MOTH'
+    })
+  ).toEndWith(': no Role → Mother');
   expect(detailOf({ kind: 'addresses-to-places', facts: 2311 })).toBe(
     '2311 Facts'
   );

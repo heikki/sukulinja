@@ -2,14 +2,15 @@ import type { Database } from 'bun:sqlite';
 
 import type { CitationRow, NewChange } from '@/common/types';
 
-import { plainText } from './entry-citations';
+import type { EntryEdit } from './entries';
+import { plainText } from './text';
 
 interface RetextDeps {
-  // Puts what an Entry says, for everyone citing it.
-  transcribe: (
+  // Edits an Entry, for everyone citing it.
+  editEntry: (
     entryId: number,
-    text: string | null
-  ) => { text: string | null } | null;
+    edit: EntryEdit
+  ) => Promise<object | { rejected: string } | null>;
   // One of a person's Citations, with whose it is.
   ofId: (
     citationId: number
@@ -20,8 +21,8 @@ interface RetextDeps {
 }
 
 // Puts what a person's Citation says, its text: the Entry's when it cites
-// one, for everyone citing it (ADR-0026), else its own, with a Change. What
-// it says now; null when there's no such Citation of a person.
+// one, as an edit of it (ADR-0026), else its own, with a Change. What it
+// says now; null when there's no such Citation of a person.
 export function createRetext(db: Database, deps: RetextDeps) {
   const entryOf = db.prepare<{ entryId: number | null }, [number]>(
     `SELECT entry_id AS entryId FROM citations
@@ -29,13 +30,17 @@ export function createRetext(db: Database, deps: RetextDeps) {
   );
   const put = db.prepare('UPDATE citations SET text = ? WHERE id = ?');
 
-  return function retext(citationId: number, text: string | null) {
+  return async function retext(citationId: number, text: string | null) {
     const row = entryOf.get(citationId);
     if (row === null) return null;
-    if (row.entryId !== null) return deps.transcribe(row.entryId, text);
+    const now = plainText(text);
+    if (row.entryId !== null) {
+      const edited = await deps.editEntry(row.entryId, { text });
+      if (edited === null || 'rejected' in edited) return edited;
+      return { text: now };
+    }
     const was = deps.ofId(citationId);
     if (was === null) return null;
-    const now = plainText(text);
     put.run(now, citationId);
     deps.changed({
       on: { personId: was.personId },

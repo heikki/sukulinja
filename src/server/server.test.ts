@@ -384,20 +384,25 @@ describe("A dataset's Citations", () => {
     );
   }
 
-  test('makes an Entry with its people, and adds someone to it', async () => {
+  // An entry on Image 13, and people 2 and 3 beside the seeded dataset's.
+  const at = {
+    volumeId: 'juva-1',
+    image: 13,
+    fileId: 'juva-1-f13',
+    box: { left: 100, top: 500, width: 500, height: 50 }
+  };
+  async function seedPeople() {
     await seedDataset();
     const db = new DatasetRegistry(join(root, 'data')).open('juva');
     db.run("INSERT INTO persons (id, xref) VALUES (2, '@I2@'), (3, '@I3@')");
     db.close();
-    const entry = {
-      volumeId: 'juva-1',
-      image: 13,
-      fileId: 'juva-1-f13',
-      box: { left: 100, top: 500, width: 500, height: 50 },
-      text: 'Rippikirja'
-    };
+  }
+
+  test('makes an Entry with its people, edits it as a whole, and deletes it', async () => {
+    await seedPeople();
     const made = await send('POST', '/api/entries', {
-      ...entry,
+      ...at,
+      text: 'Rippikirja',
       people: [{ personId: 2 }]
     });
     expect(made.status).toBe(201);
@@ -405,75 +410,74 @@ describe("A dataset's Citations", () => {
       citation: { entryId: number };
     }>;
     const entryId = first!.citation.entryId;
-    const added = await send('POST', `/api/entries/${entryId}/people`, {
-      personId: 3
-    });
-    expect(added.status).toBe(201);
-    expect(await added.json()).toMatchObject({
-      personId: 3,
-      citation: { entryId }
-    });
     expect(
-      (await send('POST', `/api/entries/${entryId}/people`, { personId: 3 }))
-        .status
-    ).toBe(400);
-    expect(
-      (await send('POST', '/api/entries/99/people', { personId: 3 })).status
-    ).toBe(404);
-    expect(
-      (await send('POST', '/api/entries', { ...entry, people: [{}] })).status
+      (await send('POST', '/api/entries', { ...at, people: [{}] })).status
     ).toBe(400);
     expect((await send('GET', '/api/entries')).status).toBe(405);
 
-    const said = await send('PUT', `/api/entries/${entryId}`, {
-      text: ' Rippikirja,\n\n sivu  12 '
+    const moved = { ...at, image: 14, fileId: 'juva-1-f14' };
+    const edited = await send('PUT', `/api/entries/${entryId}`, {
+      at: moved,
+      text: ' Rippikirja,\n\n sivu  12 ',
+      people: [{ personId: 2 }, { personId: 3 }]
     });
-    expect(await said.json()).toEqual({ text: 'Rippikirja,\nsivu 12' });
-    expect((await send('PUT', `/api/entries/${entryId}`, {})).status).toBe(200);
+    expect(edited.status).toBe(200);
+    const now = {
+      citation: { text: 'Rippikirja,\nsivu 12' },
+      link: { image: 14 }
+    };
+    expect(await edited.json()).toMatchObject([
+      { personId: 2, ...now },
+      { personId: 3, ...now }
+    ]);
+    // Refused whole: someone named twice.
     expect(
-      (await send('PUT', `/api/entries/${entryId}`, { text: 1 })).status
+      (
+        await send('PUT', `/api/entries/${entryId}`, {
+          text: 'x',
+          people: [{ personId: 3 }, { personId: 3 }]
+        })
+      ).status
     ).toBe(400);
-    expect((await send('PUT', '/api/entries/99', { text: 'x' })).status).toBe(
-      404
+    const unread = [{ text: 1 }, { at: { image: 2 } }].map(
+      async (body) =>
+        (await send('PUT', `/api/entries/${entryId}`, body)).status
     );
+    expect(await Promise.all(unread)).toEqual([400, 400]);
+    const missing = await send('PUT', '/api/entries/99', { text: 'x' });
+    expect(missing.status).toBe(404);
     const deleted = await send('DELETE', `/api/entries/${entryId}`);
     expect(await deleted.json()).toEqual({ removed: 2 });
     expect((await send('DELETE', `/api/entries/${entryId}`)).status).toBe(404);
   });
 
   test('makes a Citation on an Image, and deletes it', async () => {
-    await seedDataset();
-    const db = new DatasetRegistry(join(root, 'data')).open('juva');
-    db.run("INSERT INTO persons (id, xref) VALUES (2, '@I2@')");
-    db.close();
-    const entry = {
-      volumeId: 'juva-1',
-      image: 13,
-      fileId: 'juva-1-f13',
-      box: { left: 100, top: 500, width: 500, height: 50 },
-      text: 'Baptism'
-    };
+    await seedPeople();
+    const entry = { ...at, text: 'Baptism' };
+    function naming(personId: number, at = entry) {
+      return { ...at, people: [{ personId }] };
+    }
 
-    const made = await send('POST', '/api/persons/2/citations', entry);
+    const made = await send('POST', '/api/entries', naming(2));
     expect(made.status).toBe(201);
-    expect(await made.json()).toMatchObject({
-      personId: 2,
-      citation: { id: 3, text: 'Baptism', madeInApp: true },
-      link: { image: 13, precision: 'entry', certainty: 'marked' }
-    });
+    expect(await made.json()).toMatchObject([
+      {
+        personId: 2,
+        citation: { id: 3, text: 'Baptism', madeInApp: true },
+        link: { image: 13, precision: 'entry', certainty: 'marked' }
+      }
+    ]);
     // Person 1's reference is Estimated on Image 12.
     const linked = { ...entry, image: 12, fileId: 'juva-1-f12' };
-    expect(
-      (await send('POST', '/api/persons/1/citations', linked)).status
-    ).toBe(400);
-    expect((await send('POST', '/api/persons/9/citations', entry)).status).toBe(
+    expect((await send('POST', '/api/entries', naming(1, linked))).status).toBe(
+      400
+    );
+    expect((await send('POST', '/api/entries', naming(9))).status).toBe(404);
+    const { box: _, ...unboxed } = naming(1);
+    expect((await send('POST', '/api/entries', unboxed)).status).toBe(400);
+    expect((await send('POST', '/api/persons/1/citations', entry)).status).toBe(
       404
     );
-    const { box: _, ...unboxed } = entry;
-    expect(
-      (await send('POST', '/api/persons/1/citations', unboxed)).status
-    ).toBe(400);
-    expect((await send('GET', '/api/persons/1/citations')).status).toBe(405);
 
     const volume = await get('/d/juva/api/volumes/juva-1/citations');
     expect(((await volume.json()) as unknown[]).length).toBe(2);

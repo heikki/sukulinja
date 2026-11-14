@@ -1,13 +1,14 @@
 // The routes of a dataset's Citations: a person's Links, a Mark or Discard
 // on one, the Volumes it can be put in, a Volume's Citations, how many link
-// into each of a parish's Volumes, making or deleting one in the app, the
-// Facts one supports, and switching a Volume to Astia's new filming.
+// into each of a parish's Volumes, an Entry made, edited or deleted,
+// deleting a Citation, the Facts one supports, and switching a Volume to
+// Astia's new filming.
 // The routes read the request; the handlers answer it.
 
 import type { Box, LinkResolution } from '@/common/types';
 
 import { astiaFailed } from './astia-routes';
-import type { Citations, CiteTarget, EntryTarget, InEntry } from './citations';
+import type { Citations, EntryAt, EntryEdit, InEntry } from './citations';
 import type { BoxAt, MarkTarget } from './references';
 
 interface CitationHandlers {
@@ -19,14 +20,13 @@ interface CitationHandlers {
   handleArchiveCitations: (archiveId: string) => Promise<Response>;
   handleArchives: () => Promise<Response>;
   handleVolume: (volumeId: string) => Promise<Response>;
-  handleCite: (personId: number, target: CiteTarget) => Promise<Response>;
-  handleCiteEntry: (
-    target: EntryTarget,
+  handleMakeEntry: (
+    at: EntryAt,
+    text: string | null,
     people: InEntry[]
   ) => Promise<Response>;
-  handleAddToEntry: (entryId: number, person: InEntry) => Promise<Response>;
-  handleTranscribe: (entryId: number, text: string | null) => Response;
-  handleRetext: (citationId: number, text: string | null) => Response;
+  handleEditEntry: (entryId: number, edit: EntryEdit) => Promise<Response>;
+  handleRetext: (citationId: number, text: string | null) => Promise<Response>;
   handleDeleteEntry: (entryId: number) => Response;
   handleUncite: (id: number) => Response;
   handleSupport: (id: number, factId: number, on: boolean) => Response;
@@ -87,17 +87,15 @@ async function readBody(req: Request) {
   return (await req.json().catch(() => null)) as Body;
 }
 
-// `{ volumeId, image, fileId, box, text? }` of a body: an entry to cite.
-// Null for anything else.
-function entryOf(body: Body): EntryTarget | null {
-  const { volumeId, image, fileId, box } = body ?? {};
+// `{ volumeId, image, fileId, box }`: where an entry is. Null for anything
+// else.
+function entryAtOf(value: unknown): EntryAt | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const { volumeId, image, fileId, box } = value as Record<string, unknown>;
   if (typeof volumeId !== 'string' || typeof image !== 'number') return null;
   if (typeof fileId !== 'string') return null;
-  const text = optionalString(body?.text);
-  if (text === undefined) return null;
   const drawn = readBox(box);
-  if (drawn === null) return null;
-  return { volumeId, image, fileId, box: drawn, text };
+  return drawn === null ? null : { volumeId, image, fileId, box: drawn };
 }
 
 // `{ personId, role? }`: someone named in an entry. Null for anything else.
@@ -109,25 +107,47 @@ function inEntryOf(value: unknown): InEntry | null {
   return named === undefined ? null : { personId, role: named };
 }
 
-// `{ volumeId, image, fileId, box, text?, role? }`: an entry to cite for
-// one person. Anything else is rejected.
-async function readCite(req: Request): Promise<CiteTarget | null> {
-  const body = await readBody(req);
-  const entry = entryOf(body);
-  const role = optionalString(body?.role);
-  if (entry === null || role === undefined) return null;
-  return { ...entry, role };
+// `[{ personId, role? }]`: who is named in an entry. Null for anything
+// else.
+function peopleOf(value: unknown) {
+  if (!Array.isArray(value)) return null;
+  const people = value.map(inEntryOf);
+  return people.some((p) => p === null) ? null : (people as InEntry[]);
 }
 
-// The entry and `people: [{ personId, role? }]` of an entry to make.
-// Anything else is rejected.
+// Where the entry is, what it says, if said, and `people`: an Entry to
+// make. Anything else is rejected.
 async function readEntry(req: Request) {
   const body = await readBody(req);
-  const entry = entryOf(body);
-  if (entry === null || !Array.isArray(body?.people)) return null;
-  const people = body.people.map(inEntryOf);
-  if (people.some((p) => p === null)) return null;
-  return { entry, people: people as InEntry[] };
+  const at = entryAtOf(body);
+  const text = optionalString(body?.text);
+  const people = peopleOf(body?.people);
+  if (at === null || text === undefined || people === null) return null;
+  return { at, text, people };
+}
+
+// `{ at?, text?, people? }`: an Entry as it should be, a part left out
+// staying. Anything else is rejected.
+async function readEdit(req: Request): Promise<EntryEdit | null> {
+  const body = await readBody(req);
+  if (body === null) return null;
+  const edit: EntryEdit = {};
+  if (body.at !== undefined) {
+    const at = entryAtOf(body.at);
+    if (at === null) return null;
+    edit.at = at;
+  }
+  if (body.text !== undefined) {
+    const text = optionalString(body.text);
+    if (text === undefined) return null;
+    edit.text = text;
+  }
+  if (body.people !== undefined) {
+    const people = peopleOf(body.people);
+    if (people === null) return null;
+    edit.people = people;
+  }
+  return edit;
 }
 
 // A Volume, its /citations, and POST its /filming; null for any other
@@ -169,24 +189,7 @@ async function routeFilming(
     : new Response('expected { volume }', { status: 400 });
 }
 
-// POST a Citation of an entry for the person.
-async function routeCite(
-  req: Request,
-  handlers: CitationHandlers,
-  personId: number
-) {
-  if (req.method !== 'POST') {
-    return new Response('method not allowed', { status: 405 });
-  }
-  const target = await readCite(req);
-  return target === null
-    ? new Response('expected { volumeId, image, fileId, box, text? }', {
-        status: 400
-      })
-    : await handlers.handleCite(personId, target);
-}
-
-// PUT `{ text }` to an Entry, or DELETE it with its Citations.
+// PUT an Entry as it should be, or DELETE it with its Citations.
 async function routeEntry(
   req: Request,
   handlers: CitationHandlers,
@@ -196,43 +199,34 @@ async function routeEntry(
   if (req.method !== 'PUT') {
     return new Response('method not allowed', { status: 405 });
   }
-  const text = optionalString((await readBody(req))?.text);
-  return text === undefined
-    ? new Response('expected { text }', { status: 400 })
-    : handlers.handleTranscribe(id, text);
+  const edit = await readEdit(req);
+  return edit === null
+    ? new Response('expected { at?, text?, people? }', { status: 400 })
+    : await handlers.handleEditEntry(id, edit);
 }
 
 // POST /api/entries makes an Entry with its people; PUT or DELETE
-// /api/entries/:id changes what one says or deletes it; POST
-// /api/entries/:id/people adds someone to one (ADR-0026). Null for any
-// other path.
+// /api/entries/:id edits one or deletes it (ADR-0026). Null for any other
+// path.
 async function routeEntries(
   req: Request,
   handlers: CitationHandlers,
   rest: string
 ) {
-  const at = /^\/api\/entries(?:\/(?<id>\d+)(?<people>\/people)?)?$/.exec(rest);
+  const at = /^\/api\/entries(?:\/(?<id>\d+))?$/.exec(rest);
   if (at === null) return null;
   const id = at.groups?.id;
-  if (id !== undefined && at.groups?.people === undefined) {
-    return await routeEntry(req, handlers, Number(id));
-  }
+  if (id !== undefined) return await routeEntry(req, handlers, Number(id));
   if (req.method !== 'POST') {
     return new Response('method not allowed', { status: 405 });
   }
-  if (id === undefined) {
-    const made = await readEntry(req);
-    return made === null
-      ? new Response(
-          'expected { volumeId, image, fileId, box, text?, people: [{ personId, role? }] }',
-          { status: 400 }
-        )
-      : await handlers.handleCiteEntry(made.entry, made.people);
-  }
-  const person = inEntryOf(await readBody(req));
-  return person === null
-    ? new Response('expected { personId, role? }', { status: 400 })
-    : await handlers.handleAddToEntry(Number(id), person);
+  const made = await readEntry(req);
+  return made === null
+    ? new Response(
+        'expected { volumeId, image, fileId, box, text?, people: [{ personId, role? }] }',
+        { status: 400 }
+      )
+    : await handlers.handleMakeEntry(made.at, made.text, made.people);
 }
 
 // POST a Mark, DELETE a Box.
@@ -315,12 +309,11 @@ async function routeText(
   const text = optionalString((await readBody(req))?.text);
   return text === undefined
     ? new Response('expected { text }', { status: 400 })
-    : handlers.handleRetext(Number(at.groups!.id), text);
+    : await handlers.handleRetext(Number(at.groups!.id), text);
 }
 
-// GET /api/persons/:id/scans streams the person's Links; POST
-// /api/persons/:id/citations makes a Citation; /api/entries and its
-// Entries (routeEntries); DELETE /api/citations/:id
+// GET /api/persons/:id/scans streams the person's Links; /api/entries and
+// its Entries (routeEntries); DELETE /api/citations/:id
 // deletes one; PUT or DELETE /api/citations/:id/supports/:factId makes it
 // support a Fact or no longer; PUT /api/citations/:id/text changes what
 // it says; a Citation's `/scans` and `/volumes`; GET
@@ -331,14 +324,9 @@ async function routeCitations(
   handlers: CitationHandlers,
   rest: string
 ) {
-  const person = /^\/api\/persons\/(?<id>\d+)\/(?<part>scans|citations)$/.exec(
-    rest
-  );
+  const person = /^\/api\/persons\/(?<id>\d+)\/scans$/.exec(rest);
   if (person !== null) {
-    const personId = Number(person.groups!.id);
-    return person.groups!.part === 'scans'
-      ? handlers.handlePersonLinks(personId)
-      : await routeCite(req, handlers, personId);
+    return handlers.handlePersonLinks(Number(person.groups!.id));
   }
   const entries = await routeEntries(req, handlers, rest);
   if (entries !== null) return entries;
@@ -371,6 +359,18 @@ function answerMade(
   return 'rejected' in made
     ? new Response(made.rejected, { status: 400 })
     : Response.json(made, { status: 201 });
+}
+
+// What was done, as it now is, or why not.
+function answerDone(
+  done: Response | object | { rejected: string } | null,
+  missing: string
+) {
+  if (done instanceof Response) return done;
+  if (done === null) return new Response(missing, { status: 404 });
+  return 'rejected' in done
+    ? new Response(done.rejected, { status: 400 })
+    : Response.json(done);
 }
 
 // A reference's links as a Mark or Discard left them, or why not.
@@ -477,45 +477,27 @@ function citationHandlers(
       }
     },
 
-    async handleCite(personId, target) {
-      const made = await citations.cite(personId, target).catch(astiaFailed);
-      if (made instanceof Response) return made;
-      if (made === null) {
-        return new Response('person not found', { status: 404 });
-      }
-      return 'rejected' in made
-        ? new Response(made.rejected, { status: 400 })
-        : Response.json(made, { status: 201 });
-    },
-
-    async handleCiteEntry(target, people) {
-      const made = await citations.citeEntry(target, people).catch(astiaFailed);
+    async handleMakeEntry(at, text, people) {
+      const made = await citations.entries
+        .make(at, text, people)
+        .catch(astiaFailed);
       return answerMade(made, 'person not found');
     },
 
-    async handleAddToEntry(entryId, person) {
-      const made = await citations
-        .addToEntry(entryId, person)
+    async handleEditEntry(entryId, edit) {
+      const edited = await citations.entries
+        .edit(entryId, edit)
         .catch(astiaFailed);
-      return answerMade(made, 'entry or person not found');
+      return answerDone(edited, 'entry or person not found');
     },
 
-    handleTranscribe(entryId, text) {
-      const now = citations.transcribe(entryId, text);
-      return now === null
-        ? new Response('entry not found', { status: 404 })
-        : Response.json(now);
-    },
-
-    handleRetext(citationId, text) {
-      const now = citations.retext(citationId, text);
-      return now === null
-        ? new Response('citation not found', { status: 404 })
-        : Response.json(now);
+    async handleRetext(citationId, text) {
+      const now = await citations.retext(citationId, text).catch(astiaFailed);
+      return answerDone(now, 'citation not found');
     },
 
     handleDeleteEntry(entryId) {
-      const removed = citations.deleteEntry(entryId);
+      const removed = citations.entries.remove(entryId);
       return removed === null
         ? new Response('entry not found', { status: 404 })
         : Response.json({ removed });

@@ -1,7 +1,7 @@
 // A Citation's Annotation: what the app adds to it (ADR-0013). Its Mark or
 // Match, the page a Mark on an Image moved aside (its original
 // page), and whether the app made the Citation. Only this module knows the
-// columns an Annotation is stored in, and `entries.ts` which of them an
+// columns an Annotation is stored in, and `entries/` which of them an
 // Entry holds for its Citations (ADR-0026), read as their own through
 // CITATIONS_READ; it works on single Citation rows, and the import, the
 // export and the Marks go through it.

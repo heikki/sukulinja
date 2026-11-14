@@ -1,5 +1,6 @@
 import { volumeTitle } from '@/client/link-labels';
 import { imageLabel, isStale, onLabel, personLabel } from '@/client/on';
+import { entryRoles } from '@/common/books';
 import { factKindLabel } from '@/common/facts';
 import type { Change, ChangeOn, ChangeWhat, PersonRow } from '@/common/types';
 
@@ -10,6 +11,21 @@ function count(n: number, one: string, many: string) {
 // Where in a Volume: its Image, or only the Volume.
 function inVolume(volume: string, image: number | null) {
   return image === null ? volumeTitle(volume) : imageLabel(volume, image);
+}
+
+type RoleChange = Extract<ChangeWhat, { kind: 'role' }>;
+
+// A Role in an entry of the Volume by its label, "Father"; "no Role" for
+// none.
+function roleName(volume: string, role: string | null) {
+  if (role === null) return 'no Role';
+  return entryRoles(volume).find((r) => r.role === role)?.label ?? role;
+}
+
+// The Role changed, on the Image: "I C:1, Image 3: Father → Child".
+function roleDetail({ volume, image, from, to }: RoleChange) {
+  const roles = `${roleName(volume, from)} → ${roleName(volume, to)}`;
+  return `${imageLabel(volume, image)}: ${roles}`;
 }
 
 type FactChange = Extract<ChangeWhat, { kind: 'fact' }>;
@@ -81,6 +97,10 @@ export function doneLabel(what: ChangeWhat) {
       return 'Deleted a Citation';
     case 'transcribe':
       return 'Changed what the entry says';
+    case 'move':
+      return 'Moved the entry';
+    case 'role':
+      return 'Changed the Role';
     case 'retext':
       return 'Changed what the source says';
     case 'tag':
@@ -129,7 +149,10 @@ export function detailOf(what: ChangeWhat) {
     }
     case 'discard':
     case 'cite':
+    case 'move':
       return imageLabel(what.volume, what.image);
+    case 'role':
+      return roleDetail(what);
     case 'uncite':
       return what.cited;
     case 'transcribe':

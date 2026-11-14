@@ -15,7 +15,10 @@ export const IMAGES = 20;
 
 // Juva's archive holds the Volumes, titled `title` if given; every other
 // starting parish's archive is there too, holding none of them.
-export function juvaAstia(title?: string) {
+export function juvaAstia(
+  title?: string,
+  volumes: Record<string, string> = VOLUMES
+) {
   const others = STARTING_PARISHES.map(
     (p) => [p.archiveId, { volumes: [] }] as const
   );
@@ -23,7 +26,7 @@ export function juvaAstia(title?: string) {
     ...Object.fromEntries(others),
     [JUVA]: {
       ...(title === undefined ? {} : { title }),
-      volumes: Object.entries(VOLUMES).map(([id, label]) => ({
+      volumes: Object.entries(volumes).map(([id, label]) => ({
         id,
         label,
         images: IMAGES

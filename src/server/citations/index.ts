@@ -28,9 +28,9 @@ export {
   CITATIONS_READ,
   dropUncitedEntries,
   gatherEntries,
-  mergeEntries
+  mergeEntries,
+  placeEntryRoles
 } from './entries';
-export { placeEntryRoles } from './entry-roles';
 export { viewerUrl } from './astia/astia';
 export { leaveFamilySupport, openSupport } from './support';
 export { BAPTISM_COLLECTION, collectionOf } from './myheritage';

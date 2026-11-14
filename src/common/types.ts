@@ -479,7 +479,8 @@ export type OnTarget =
 
 // What a Change did, as it was said when it was done: a Mark, at the
 // entry, the Image or only the Volume (`confirmed` when it confirmed a
-// Match there; `moved` for a Citation of an Image moved to another entry;
+// Match there; `moved` for a Citation of an Image moved to another entry,
+// as written before an Entry's Box moved as a `move`;
 // `pagePin` the cited page it pinned); a Discard (`rejection` when it took
 // back a Match); a Citation made in the Scan viewer, or deleted (with what
 // it cited); an import (`merged` into the dataset there, with how much it
@@ -501,6 +502,17 @@ export type ChangeWhat =
   | { kind: 'uncite'; cited: string | null }
   // What an Entry says changed, by where it's written, as it reads now.
   | { kind: 'transcribe'; volume: string; image: number; text: string | null }
+  // An Entry's Box moved, by where it's written now.
+  | { kind: 'move'; volume: string; image: number }
+  // A person's Role in an Entry changed, from and to: GEDCOM's citation
+  // ROLE, null for none.
+  | {
+      kind: 'role';
+      volume: string;
+      image: number;
+      from: string | null;
+      to: string | null;
+    }
   // What a Citation of no Entry says changed, by what it cites, as it
   // reads now.
   | { kind: 'retext'; cited: string | null; text: string | null }

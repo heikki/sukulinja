@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 
 # An Entry edited as a whole, in one module
 

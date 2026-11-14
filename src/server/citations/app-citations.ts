@@ -9,12 +9,8 @@ import type { Box } from '@/common/types';
 
 import { openAnnotations } from './annotations';
 import { viewerUrl } from './astia/astia';
-import {
-  CITATIONS_READ,
-  dropUncitedEntries,
-  gatherEntries,
-  openEntries
-} from './entries';
+import { CITATIONS_READ, dropUncitedEntries, gatherEntries } from './entries';
+import { openEntries } from './entries/storage';
 import type { Converting } from './references';
 import { bookKind } from './text';
 
@@ -226,40 +222,9 @@ export function openAppCitations(db: Database) {
     // Stores the person's Citation of the Entry; its id.
     cite,
 
-    // Where an Entry is written; null when there's no such Entry.
-    entryPlace: (entryId: number) => entries.placeOf(entryId),
-    // An Entry's Citations' ids, oldest first; none when there's no such
-    // Entry.
-    entryCitations: (entryId: number) => entries.citationsOf(entryId),
-    // Puts what an Entry says.
-    transcribe: (entryId: number, text: string | null) => {
-      entries.setText(entryId, text);
-    },
-
     // Stores the Citation, of a new Entry at the Box; its id.
     create(c: NewCitation) {
       return db.transaction(() => cite(entry(c), c.personId, c.role ?? null))();
-    },
-
-    // Moves a Citation of an Image to another entry in its Volume: its
-    // link, and the Image's address it cites. A Citation of an Entry moves
-    // the Entry, for everyone citing it.
-    move(id: number, to: Omit<NewCitation, 'personId' | 'text' | 'archive'>) {
-      const { volumeId, volume, image, fileId, box } = to;
-      const entryId = entries.ofCitation(id);
-      if (entryId !== null) {
-        const page = viewerUrl(volumeId, fileId);
-        entries.move(entryId, { page, volumeId, volume, image, fileId, box });
-        return;
-      }
-      annotations.carry(id, {
-        page: viewerUrl(volumeId, fileId),
-        annotation: {
-          link: { volumeId, volume, image, fileId, box, by: 'hand' },
-          originalPage: null,
-          madeInApp: true
-        }
-      });
     },
 
     // Makes each of the citations, a reference Marked at the entry, a
