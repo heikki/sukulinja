@@ -1,39 +1,30 @@
-// The routes outside any dataset, shared by them all: an Astia Volume's
-// Images, the Scan cache they're kept in, whether Astia has re-scanned a
-// Volume, the church books by parish, and their downloads.
-// Switching to a re-scan's new filming is a dataset's operation (operations.ts).
+// The routes outside any dataset, shared by them all, that aren't
+// operations (shared-operations.ts): an Astia Volume's Images, and whether
+// Astia has re-scanned a Volume. Switching to a re-scan's new filming is a
+// dataset's operation (operations.ts).
 
 import { basename } from 'node:path';
 
 import { AstiaError, NoImageError, viewerUrls } from './astia/astia';
 import type { Astia, ImageRef } from './astia/astia';
-import { parishBooks } from './astia/church-books';
-import { routeDownloads } from './astia/downloads';
-import type { Downloads } from './astia/downloads';
-import { routeScanCache } from './astia/scan-cache';
 import type { ScanCache } from './astia/scan-cache';
 import { routeRescan } from './myheritage';
 import type { KeptPins } from './myheritage';
 
 const ASTIA_RE =
   /^\/astia\/volumes\/(?<volumeId>\d+)\/(?:images(?:\/(?<n>\d+))?|(?<rescan>rescan))$/u;
-const DOWNLOAD_RE =
-  /^\/astia\/volumes\/(?<volumeId>\d+)\/download(?<stop>\/stop)?$/u;
-const ARCHIVE_RE = /^\/astia\/archives\/(?<archiveId>\d+)\/volumes$/u;
 
 // What the shared routes read: Astia, the Scan cache its Images are kept
-// in, the Volumes downloaded into it, and the pins every dataset made on
-// them.
+// in, and the pins every dataset made on them.
 interface Shared {
   astia: Astia;
   cache: ScanCache;
-  downloads: Downloads;
   kept: () => Promise<KeptPins>;
 }
 
 // A request to Astia failing answers 502, in words the Scan viewer can
 // show; anything else thrown is a bug, and is thrown on.
-export function astiaFailed(err: unknown) {
+function astiaFailed(err: unknown) {
   // eslint-disable-next-line @typescript-eslint/only-throw-error -- rethrown as caught
   if (!(err instanceof AstiaError)) throw err;
   return new Response("Astia couldn't be reached or gave no answer.", {
@@ -93,46 +84,11 @@ async function routeAstia(shared: Shared, req: Request, pathname: string) {
       });
 }
 
-// A parish archive's Volumes, and their downloads; null for any other
-// path.
-async function routeChurchBooks(
-  shared: Shared,
-  req: Request,
-  pathname: string
-) {
-  if (pathname === '/astia/downloads') {
-    return routeDownloads(shared.downloads, req, null);
-  }
-  const download = DOWNLOAD_RE.exec(pathname);
-  if (download !== null) {
-    const { volumeId, stop } = download.groups!;
-    return routeDownloads(shared.downloads, req, {
-      volumeId: volumeId!,
-      stop: stop !== undefined
-    });
-  }
-  const archive = ARCHIVE_RE.exec(pathname);
-  if (archive === null) return null;
-  if (req.method !== 'GET') {
-    return new Response('method not allowed', { status: 405 });
-  }
-  const books = await parishBooks(shared, archive.groups!.archiveId!).catch(
-    astiaFailed
-  );
-  return books instanceof Response ? books : Response.json(books);
-}
-
 // Null for any path that isn't one of the shared routes.
 export async function routeShared(
   shared: Shared,
   req: Request,
   pathname: string
 ) {
-  if (pathname === '/settings/scan-cache') {
-    return await routeScanCache(shared.cache, req);
-  }
-  return (
-    (await routeChurchBooks(shared, req, pathname)) ??
-    (await routeAstia(shared, req, pathname))
-  );
+  return await routeAstia(shared, req, pathname);
 }

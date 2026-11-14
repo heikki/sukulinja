@@ -219,19 +219,3 @@ export function openDownloads(
 }
 
 export type Downloads = ReturnType<typeof openDownloads>;
-
-// GET the downloads this run; on one Volume, PUT to download or carry on,
-// POST `stop` to stop. Each answers with the downloads.
-export function routeDownloads(
-  downloads: Downloads,
-  req: Request,
-  at: { volumeId: string; stop: boolean } | null
-) {
-  const method = at === null ? 'GET' : at.stop ? 'POST' : 'PUT';
-  if (req.method !== method) {
-    return new Response('method not allowed', { status: 405 });
-  }
-  if (at?.stop === true) downloads.stop(at.volumeId);
-  else if (at !== null) downloads.start(at.volumeId);
-  return Response.json(downloads.list());
-}

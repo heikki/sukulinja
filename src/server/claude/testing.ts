@@ -3,7 +3,7 @@
 
 import { afterEach, beforeEach } from 'bun:test';
 
-import { ENVIRONMENT_KEYS } from './key-routes';
+import { ENVIRONMENT_KEYS } from './key-operations';
 
 export function withoutEnvironmentKeys() {
   const saved = new Map<string, string | undefined>();

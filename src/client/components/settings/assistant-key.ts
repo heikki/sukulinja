@@ -1,10 +1,12 @@
+import { consume } from '@lit/context';
 import { css, html, LitElement } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
+import { ApiError } from '@/client/dataset-api';
 import { focusRingStyles } from '@/client/focus-ring';
+import { appState } from '@/client/state';
+import type { AppState } from '@/client/state';
 import type { AssistantKeyStatus } from '@/common/types';
-
-const ROUTE = '/settings/assistant-key';
 
 // Settings' Assistant row: whether the assistant has an Anthropic API key,
 // a field to give one, and Remove for the one kept. The key goes to the
@@ -61,6 +63,8 @@ class AssistantKeyElement extends LitElement {
     `
   ];
 
+  @consume({ context: appState }) private readonly state!: AppState;
+
   // Null until the app answers.
   @state() private status: AssistantKeyStatus | null = null;
   @state() private typed = '';
@@ -69,26 +73,19 @@ class AssistantKeyElement extends LitElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    void this.ask('GET');
+    void this.ask(this.state.app.assistantKey);
   }
 
-  private async ask(method: string, body?: unknown) {
+  // Every ask answers with the status as it then stands.
+  private async ask(asked: () => Promise<AssistantKeyStatus>) {
     this.busy = true;
     try {
-      const res = await fetch(ROUTE, {
-        method,
-        headers: { 'content-type': 'application/json' },
-        body: body === undefined ? undefined : JSON.stringify(body)
-      });
-      if (!res.ok) throw new Error(await res.text());
-      this.status = (await res.json()) as AssistantKeyStatus;
+      this.status = await asked();
       this.error = null;
       this.typed = '';
-    } catch (e) {
-      this.error =
-        e instanceof Error && e.message !== ''
-          ? e.message
-          : "Couldn't reach the app";
+    } catch (err) {
+      if (!(err instanceof ApiError)) throw err;
+      this.error = err.message;
     } finally {
       this.busy = false;
     }
@@ -96,7 +93,9 @@ class AssistantKeyElement extends LitElement {
 
   private readonly save = (e: Event) => {
     e.preventDefault();
-    if (this.typed.trim() !== '') void this.ask('PUT', { key: this.typed });
+    const key = this.typed;
+    if (key.trim() === '') return;
+    void this.ask(async () => await this.state.app.setAssistantKey(key));
   };
 
   override render() {
@@ -113,7 +112,7 @@ class AssistantKeyElement extends LitElement {
           <button
             ?disabled=${this.busy}
             @click=${() => {
-              void this.ask('DELETE');
+              void this.ask(this.state.app.removeAssistantKey);
             }}
           >
             Remove

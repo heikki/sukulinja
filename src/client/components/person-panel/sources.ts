@@ -22,8 +22,6 @@ import type {
   RecordView
 } from '@/common/types';
 
-import { linkSpelling } from '../archive-search/api';
-
 import '../archive-search';
 import './fold';
 import './source-text';
@@ -254,7 +252,7 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
     this.linking = true;
     this.linkError = null;
     try {
-      await linkSpelling(spelling, archive.archiveId);
+      await this.state.app.linkSpelling(spelling, archive.archiveId);
       this.finding = null;
       await this.state.selected.refresh();
     } catch (err) {

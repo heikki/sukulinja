@@ -7,9 +7,7 @@ import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { ChurchBookArchive, ChurchBookVolume } from '@/common/types';
 
-import { addParish, fetchParishes } from '../archive-search/api';
 import { cornerListStyles } from '../corner-panel/list-styles';
-import { fetchVolumes, sendDownload } from './api';
 import { busy, downloadActions, othersOf, volumeLine } from './helpers';
 import type { DownloadAction } from './helpers';
 
@@ -112,7 +110,7 @@ class ChurchBooksListElement extends LitElement {
   private async loadParishes() {
     const [own, all] = await Promise.all([
       this.state.api.archives().catch(() => 'failed' as const),
-      fetchParishes().catch(() => [])
+      this.state.app.parishes().catch(() => [])
     ]);
     this.parishes = own;
     this.others = own === 'failed' ? [] : othersOf(own, all);
@@ -123,7 +121,7 @@ class ChurchBooksListElement extends LitElement {
     this.adding = true;
     this.addError = null;
     try {
-      await addParish(archive.archiveId);
+      await this.state.app.addParish(archive.archiveId);
       this.finding = false;
       await this.loadParishes();
       this.pickParish(archive);
@@ -149,7 +147,7 @@ class ChurchBooksListElement extends LitElement {
   private async load(parish: ChurchBookArchive) {
     this.stopPolling();
     try {
-      const volumes = await fetchVolumes(parish.archiveId);
+      const volumes = await this.state.app.churchBooks(parish.archiveId);
       if (this.parish !== parish) return;
       this.volumes = volumes;
     } catch {
@@ -182,7 +180,9 @@ class ChurchBooksListElement extends LitElement {
 
   private async act(volume: ChurchBookVolume, action: DownloadAction) {
     const parish = this.parish;
-    await sendDownload(volume.id, action).catch(() => undefined);
+    const { app } = this.state;
+    const send = action === 'start' ? app.startDownload : app.stopDownload;
+    await send(volume.id).catch(() => undefined);
     if (parish !== null && parish === this.parish) await this.load(parish);
   }
 

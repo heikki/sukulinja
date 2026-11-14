@@ -14,7 +14,7 @@ type SwitchFilming = (volumeId: string, volume: string) => Promise<string[]>;
 
 // A request to Astia failing is refused (502), in words the Scan viewer
 // can show; anything else thrown is a bug, and is thrown on.
-async function askingAstia<T>(asked: Promise<T>) {
+export async function askingAstia<T>(asked: Promise<T>) {
   try {
     return await asked;
   } catch (err) {

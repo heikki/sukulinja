@@ -6,7 +6,7 @@ import type { ASSISTANT_OPERATIONS } from '@/common/operations/assistant';
 import type { AssistantEvent, AssistantQuestion } from '@/common/types';
 
 import type { KeyStore } from '../claude/key';
-import { keyStatus } from '../claude/key-routes';
+import { keyStatus } from '../claude/key-operations';
 import type { DatasetServices } from '../datasets/services';
 import { Refusal } from '../operations';
 import type { Handlers } from '../operations';

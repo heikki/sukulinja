@@ -1,25 +1,19 @@
-// Answering a dataset's operations (common/operations): POST
-// /d/<slug>/api/<name> with the operation's JSON body. The body is read
+// Answering a table of operations (common/operations): POST
+// <base>/api/<name> with the operation's JSON body, a dataset's under
+// /d/<slug>, those shared by every dataset at the root. The body is read
 // here, by the operation's own `read`, so a handler is given its input
 // only as the operation defines it, and answers with its output or throws
 // a Refusal.
 
-import { OPERATIONS } from '@/common/operations';
-import type {
-  AnyOperation,
-  InputOf,
-  OperationName,
-  Operations,
-  OutputOf
-} from '@/common/operations';
+import type { AnyOperation, InputOf, OutputOf } from '@/common/operations';
 
 // Why a request wasn't done, in words for the person using the app: 400
 // for one its rules refuse, 404 for what isn't there, 409 for a
-// conflict, 502 for Astia failing.
+// conflict, 500 for the system failing the app, 502 for Astia failing.
 export class Refusal extends Error {
   override name = 'Refusal';
   constructor(
-    readonly status: 400 | 404 | 409 | 502,
+    readonly status: 400 | 404 | 409 | 500 | 502,
     words: string
   ) {
     super(words);
@@ -56,9 +50,7 @@ export type Handlers<Table> = { [K in keyof Table]: Handler<Table[K]> };
 
 const ROUTE_RE = /^\/api\/(?<name>[A-Za-z]+)$/u;
 
-function isOperation(name: string): name is OperationName {
-  return Object.hasOwn(OPERATIONS, name);
-}
+type Table = Record<string, AnyOperation>;
 
 async function bodyOf(req: Request) {
   const body = (await req.json().catch(() => null)) as unknown;
@@ -111,16 +103,20 @@ async function answerOf(op: AnyOperation, out: unknown) {
     : Response.json(value);
 }
 
-// Answers the operation a request names, by the handler for it; null for
-// a path that names none. Every operation has one, as the type says.
-export function serveOperations(handlers: Handlers<Operations>) {
-  return async (req: Request, rest: string): Promise<Response | null> => {
-    const name = ROUTE_RE.exec(rest)?.groups?.name;
-    if (name === undefined || !isOperation(name)) return null;
+// Answers the operation of the table a request names, by the handler for
+// it; null for a path that names none. Every operation has one, as the
+// type says. `path` is the request's past the base.
+export function serveOperations<T extends Table>(
+  table: T,
+  handlers: Handlers<T>
+) {
+  return async (req: Request, path: string): Promise<Response | null> => {
+    const name = ROUTE_RE.exec(path)?.groups?.name;
+    if (name === undefined || !Object.hasOwn(table, name)) return null;
     if (req.method !== 'POST') {
       return new Response('method not allowed', { status: 405 });
     }
-    const op: AnyOperation = OPERATIONS[name];
+    const op = table[name]!;
     const input = await inputOf(op, req);
     if (input === null) {
       return new Response(`expected ${op.expects}`, { status: 400 });

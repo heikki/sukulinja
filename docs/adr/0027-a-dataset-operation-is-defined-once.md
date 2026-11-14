@@ -8,7 +8,8 @@ So an operation is now defined once, in `src/common/operations/`:
 - **The route is the name.** Every operation is `POST /d/<slug>/api/<name>` with its input as a JSON object, ids in the body. The server reads the body by the operation's own `read` before any handler sees it, so no route parses paths or bodies of its own. Nothing but the app's webview calls these routes, so their shape was free to change.
 - **The server answers by handler.** `serveOperations` (`src/server/operations.ts`) takes one handler per operation, and the type requires all of them. A handler answers its output, or throws a `Refusal` with its status (400 refused, 404 not found, 409, 502 Astia failing). An answer of nothing is 204. A streamed operation (a person's Links, the assistant's turn) answers one JSON value a line.
 - **The client asks by name.** `openDatasetApi` sends each `DatasetApi` method's input to its operation. `DatasetApi` itself is unchanged, so no screen or state changed with it.
-- **Not everything is an operation.** Files go as they are: an Image or a Photo's file is a GET by URL, and adding a Photo sends a form (`POST /d/<slug>/api/addPhoto`). Astia's routes are shared by every dataset (a Volume's re-scan), and the dataset lifecycle (import, export, delete) is the registry's.
+- **What every dataset shares works the same way.** The install's parishes, a parish's church books and their downloads, the Scan cache and the assistant's key are operations too, in their own table (`APP_OPERATIONS`, `app.ts`), at `POST /api/<name>`. The client asks them by `openAppApi` (`client/dataset-api/app.ts`), which the app state carries as `app`, so a refusal reaches the page as the server's words, as a dataset's does.
+- **Not everything is an operation.** Files go as they are: an Image or a Photo's file is a GET by URL, and adding a Photo sends a form (`POST /d/<slug>/api/addPhoto`). A Volume's re-scan stays an Astia route beside its Images, and the dataset lifecycle (import, export, delete) is the registry's, with its own adapter.
 
 ## Considered options
 
@@ -17,5 +18,5 @@ So an operation is now defined once, in `src/common/operations/`:
 
 ## Consequences
 
-- A new operation is an entry in its context's table, a handler, and a `DatasetApi` method: three places, and the type checks the handler exists.
+- A new operation is an entry in its context's table, a handler, and a `DatasetApi` (or `AppApi`) method: three places, and the type checks the handler exists.
 - `src/client/dataset-api/contract.test.ts` holds the HTTP adapter to the real server; a server's route tests ask operations by name.

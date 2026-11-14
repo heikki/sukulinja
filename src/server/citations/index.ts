@@ -17,7 +17,7 @@ import { createCitations } from './citations';
 import { openImages } from './images';
 import { openScanFolder, switchFilming } from './myheritage';
 import { citationOperations } from './operations';
-import { routeParishes } from './parish-routes';
+import { sharedOperations } from './shared-operations';
 
 export type { Astia } from './astia/astia';
 export { annotated, openAnnotations } from './annotations';
@@ -63,12 +63,14 @@ export function openCitations(root: string, options: Options) {
   }
 
   return {
-    // The parishes, Astia's Images, the Scan cache's settings, a Volume's
-    // re-scan, the church books and their downloads, shared by every
-    // dataset. Null for any other path.
+    // The parishes, the church books and their downloads, and the Scan
+    // cache, shared by every dataset.
+    operations: sharedOperations({ astia, parishes, cache, downloads }),
+
+    // Astia's Images and a Volume's re-scan, shared by every dataset. Null
+    // for any other path.
     route: async (req: Request, pathname: string) =>
-      (await routeParishes({ astia, parishes }, req, pathname)) ??
-      (await routeShared({ astia, cache, downloads, kept }, req, pathname)),
+      await routeShared({ astia, cache, kept }, req, pathname),
 
     // One dataset's Citations, resolved against the scans. Opened once for
     // each Database.

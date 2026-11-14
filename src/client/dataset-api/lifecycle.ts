@@ -10,8 +10,8 @@ import type {
   PersonName
 } from '@/common/types';
 
-import { ApiError, asker, NOT_RESPONDING } from './';
-import type { FetchOptions } from './';
+import { ApiError, asker, NOT_RESPONDING } from './ask';
+import type { FetchOptions } from './ask';
 
 // What an import asks of the page while it runs.
 export interface ImportHooks {

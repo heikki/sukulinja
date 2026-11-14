@@ -4,6 +4,8 @@
 import { createContext } from '@lit/context';
 
 import type { DatasetApi } from '@/client/dataset-api';
+import { openAppApi } from '@/client/dataset-api/app';
+import type { AppApi } from '@/client/dataset-api/app';
 
 import { openAssistant } from './assistant';
 import type { Assistant } from './assistant';
@@ -50,6 +52,9 @@ export type {
 
 export interface AppState {
   api: DatasetApi;
+  // What's asked outside any dataset, shared by them all: the parishes,
+  // the church books, the Scan cache and the assistant's key.
+  app: AppApi;
   selected: Selected;
   // What the Scan viewer shows; it depends on `selected`, not the other
   // way round.
@@ -73,7 +78,10 @@ export interface AppState {
   assistant: Assistant;
 }
 
-export function openAppState(api: DatasetApi): AppState {
+export function openAppState(
+  api: DatasetApi,
+  app: AppApi = openAppApi()
+): AppState {
   const selected = openSelected(api);
   const photos = openPhotos(api);
   const photoViewer = openPhotoViewer(api, selected, photos, {
@@ -92,6 +100,7 @@ export function openAppState(api: DatasetApi): AppState {
   });
   return {
     api,
+    app,
     selected,
     viewer,
     photoViewer,

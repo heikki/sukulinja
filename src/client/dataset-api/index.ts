@@ -3,16 +3,13 @@
 // (common/operations); `memoryDatasetApi` (memory.ts) answers from values
 // a test gives.
 
-import { readNdjson } from '@/client/ndjson';
 import type {
   BoxAt,
   EntryEdit,
   EntryTarget,
   InEntry,
-  InputOf,
   MarkTarget,
-  Operations,
-  OutputOf
+  Operations
 } from '@/common/operations';
 import type { MoveTarget } from '@/common/tree-cut';
 import type {
@@ -41,13 +38,11 @@ import type {
   VolumeContents
 } from '@/common/types';
 
-// A request the app answered with an error, or couldn't be reached for. Its
-// words are for the person using the app. Anything else thrown is a bug.
-export class ApiError extends Error {
-  override name = 'ApiError';
-}
+import { asker, operationsAt, settled } from './ask';
+import type { FetchOptions } from './ask';
 
-export const NOT_RESPONDING = 'The app is not responding.';
+export { ApiError, NOT_RESPONDING } from './ask';
+export type { FetchOptions } from './ask';
 
 export type {
   BoxAt,
@@ -191,50 +186,6 @@ export interface DatasetApi {
   forgetConversation: (id: string) => Promise<void>;
 }
 
-export interface FetchOptions {
-  // How a request is sent; the global fetch by default.
-  fetch?: (req: Request) => Promise<Response>;
-  // Prefixed to every URL; none in the app, whose pages share its origin.
-  origin?: string;
-}
-
-// After `signal` aborts, a call rejects with the signal's reason, whatever
-// it failed with and even if its answer came, so a caller can tell
-// superseded from failed. Checked here as well as by `fetch`, since a
-// `fetch` given in tests may not watch the signal.
-async function settled<T>(signal: AbortSignal | undefined, run: () => T) {
-  try {
-    const value = await run();
-    signal?.throwIfAborted();
-    return value;
-  } catch (err) {
-    // eslint-disable-next-line @typescript-eslint/only-throw-error -- the abort's own reason
-    if (signal?.aborted === true) throw signal.reason;
-    throw err;
-  }
-}
-
-// Sends a request: the answer, if it's not an error. `what` names the
-// request when the app gives no words of its own. Shared with the
-// lifecycle adapter (lifecycle.ts).
-export function asker(send: (req: Request) => Promise<Response>) {
-  return async function ask(what: string, url: string, init: RequestInit = {}) {
-    const req = new Request(url, init);
-    const res = await send(req).catch((err: unknown) => {
-      throw new ApiError(NOT_RESPONDING, { cause: err });
-    });
-    if (res.ok) return res;
-    const words = await res.text().catch(() => '');
-    throw new ApiError(words === '' ? `${what} failed (${res.status})` : words);
-  };
-}
-
-type Answered = {
-  [N in keyof Operations]: Operations[N]['answer'] extends 'json' ? N : never;
-}[keyof Operations];
-type Streamed = Exclude<keyof Operations, Answered>;
-type InputOfName<N extends keyof Operations> = InputOf<Operations[N]>;
-
 // The dataset `slug`, over HTTP.
 export function openDatasetApi(
   slug: string,
@@ -247,62 +198,7 @@ export function openDatasetApi(
   const astia = `${origin}/astia/volumes`;
 
   const ask = asker(send);
-
-  // Sends the operation its input; `what` names it when the app gives no
-  // words of its own.
-  async function post<N extends keyof Operations>(
-    name: N,
-    input: InputOfName<N>,
-    what: string,
-    signal?: AbortSignal
-  ) {
-    return await ask(what, `${dataset}/api/${name}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(input),
-      signal
-    });
-  }
-
-  // The operation's answer, or none.
-  async function call<N extends Answered>(
-    name: N,
-    input: InputOfName<N>,
-    what: string,
-    signal?: AbortSignal
-  ): Promise<OutputOf<Operations[N]>> {
-    return await settled(signal, async () => {
-      const res = await post(name, input, what, signal);
-      if (res.status === 204) return undefined as OutputOf<Operations[N]>;
-      return (await res.json()) as OutputOf<Operations[N]>;
-    });
-  }
-
-  // The operation's lines, as each comes.
-  async function* lines<N extends Streamed>(
-    name: N,
-    input: InputOfName<N>,
-    what: string,
-    signal?: AbortSignal
-  ): AsyncGenerator<OutputOf<Operations[N]>, void, undefined> {
-    const res = await settled(
-      signal,
-      async () => await post(name, input, what, signal)
-    );
-    if (res.body === null) throw new ApiError(NOT_RESPONDING);
-    try {
-      for await (const line of readNdjson(res.body)) {
-        signal?.throwIfAborted();
-        yield line as OutputOf<Operations[N]>;
-      }
-    } catch (err) {
-      // eslint-disable-next-line @typescript-eslint/only-throw-error -- the abort's own reason
-      if (signal?.aborted === true) throw signal.reason;
-      // A line that isn't JSON is a bug; a stream cut off isn't.
-      if (err instanceof SyntaxError) throw err;
-      throw new ApiError(NOT_RESPONDING, { cause: err });
-    }
-  }
+  const { call, lines } = operationsAt<Operations>(send, `${dataset}/api`);
 
   return {
     persons: async (signal) => await call('persons', {}, 'persons', signal),

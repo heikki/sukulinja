@@ -1,11 +1,12 @@
+import { consume } from '@lit/context';
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { focusRingStyles } from '@/client/focus-ring';
+import { appState } from '@/client/state';
+import type { AppState } from '@/client/state';
 import { typing } from '@/client/typing';
 import type { ChurchBookArchive } from '@/common/types';
-
-import { findArchives } from './api';
 
 // How long typing pauses before Astia's list is looked through.
 const PAUSE_MS = 300;
@@ -100,6 +101,8 @@ class ArchiveSearchElement extends LitElement {
     `
   ];
 
+  @consume({ context: appState }) private readonly state!: AppState;
+
   @property() name = '';
 
   @property() label = 'Parish';
@@ -143,7 +146,10 @@ class ArchiveSearchElement extends LitElement {
     }
     this.found = null;
     try {
-      const found = await findArchives(this.typed, asking.signal);
+      const found = await this.state.app.findParishArchives(
+        this.typed,
+        asking.signal
+      );
       if (this.asking === asking) this.found = found;
     } catch {
       if (this.asking === asking) this.found = 'failed';

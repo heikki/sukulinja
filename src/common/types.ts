@@ -349,7 +349,7 @@ export interface VolumeCitation {
   link: Link;
 }
 
-// GET /settings/scan-cache: how much space Astia's Images may take (`cap`)
+// The `scanCache` operation: how much space Astia's Images may take (`cap`)
 // and take now (`used`), in bytes, and the caps to choose from.
 export interface ScanCacheStatus {
   cap: number;
@@ -373,7 +373,7 @@ export interface VolumeOnDisk {
 export type DownloadState = 'queued' | 'downloading' | 'stopped';
 export type DownloadError = 'unreachable' | 'no-image' | 'rescanned';
 
-// GET /astia/downloads: each download this run.
+// The `downloads` operation: each download this run.
 export interface DownloadStatus {
   volumeId: string;
   state: DownloadState;
@@ -388,7 +388,7 @@ export interface ChurchBookArchive {
   title: string;
 }
 
-// GET /astia/archives/<id>/volumes: one of a parish's Volumes in Astia's
+// The `churchBooks` operation: one of a parish's Volumes in Astia's
 // order, what of it is on disk, and its download if it has one.
 export interface ChurchBookVolume {
   id: string;

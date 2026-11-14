@@ -1,9 +1,10 @@
-// A dataset operation, defined once for both sides of the seam: its name
-// is its route (POST /d/<slug>/api/<name>), `read` takes its request
-// apart, and its answer's type rides along. The client's HTTP adapter
-// (client/dataset-api) asks by it; the server's operations
-// (server/operations.ts) answer by it. Every request is a JSON object;
-// one taking nothing sends `{}`.
+// An operation, defined once for both sides of the seam: its name is its
+// route (POST /d/<slug>/api/<name> for a dataset's, POST /api/<name> for
+// one shared by them all, app.ts), `read` takes its request apart, and
+// its answer's type rides along. The client's HTTP adapters
+// (client/dataset-api) ask by it; the server (server/operations.ts)
+// answers by it. Every request is a JSON object; one taking nothing sends
+// `{}`.
 
 // What a request's body must be: its input, or null for anything else,
 // which the server answers 400 with `expects`.

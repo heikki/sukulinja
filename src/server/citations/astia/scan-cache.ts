@@ -24,7 +24,7 @@ import type { Astia, ImageRef, ImageSize } from './astia';
 import { jpegSize } from './jpeg';
 
 const GB = 1024 ** 3;
-const CAPS = [5, 10, 20, 40].map((n) => n * GB);
+export const CAPS = [5, 10, 20, 40].map((n) => n * GB);
 const DEFAULT_CAP_BYTES = 5 * GB;
 
 // ---------------------------------------------------------------- the queue
@@ -367,26 +367,4 @@ export async function imageSize(cache: ScanCache, at: ImageRef) {
       .slice(0, 1 << 18)
       .bytes()
   );
-}
-
-// GET the status, PUT `{ cap }` of the choices, DELETE to clear the cache;
-// each answers with the status.
-export async function routeScanCache(cache: ScanCache, req: Request) {
-  if (req.method === 'PUT') {
-    const body = (await req.json().catch(() => null)) as {
-      cap?: unknown;
-    } | null;
-    const cap = body?.cap;
-    if (typeof cap !== 'number' || !CAPS.includes(cap)) {
-      return new Response(`expected { cap } of ${CAPS.join(', ')}`, {
-        status: 400
-      });
-    }
-    await cache.setCap(cap);
-  } else if (req.method === 'DELETE') {
-    await cache.clear();
-  } else if (req.method !== 'GET') {
-    return new Response('method not allowed', { status: 405 });
-  }
-  return Response.json(await cache.status());
 }

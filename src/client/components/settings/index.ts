@@ -1,3 +1,4 @@
+import { consume } from '@lit/context';
 import { css, html, LitElement, nothing, svg } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
@@ -5,6 +6,7 @@ import { currentAppearance, setAppearance } from '@/client/appearance';
 import type { Appearance } from '@/client/appearance';
 import { assistantOn, setAssistantOn } from '@/client/assistant-flag';
 import { setSpacingTunerOn, spacingTunerOn } from '@/client/chart-spacing';
+import { ApiError } from '@/client/dataset-api';
 import { dialogStyles } from '@/client/dialog-styles';
 import { focusRingStyles } from '@/client/focus-ring';
 import {
@@ -12,6 +14,8 @@ import {
   preferredGenerations,
   setPreferredGenerations
 } from '@/client/generations';
+import { appState } from '@/client/state';
+import type { AppState } from '@/client/state';
 import type { ScanCacheStatus } from '@/common/types';
 
 import { CornerPopover, popoverStyles } from '../corner-panel/popover';
@@ -201,6 +205,8 @@ class SettingsElement extends LitElement {
     `
   ];
 
+  @consume({ context: appState }) private readonly state!: AppState;
+
   @property({ attribute: false }) generations: number | null = null;
   @property({ attribute: false }) datasetName: string | null = null;
 
@@ -232,26 +238,26 @@ class SettingsElement extends LitElement {
     );
   }
 
-  // Every change answers with the cache as it now stands.
-  private async askScanCache(method: string, body?: unknown) {
+  // Every ask answers with the cache as it now stands; a refusal shows in
+  // its place.
+  private async askScanCache(asked: () => Promise<ScanCacheStatus>) {
     try {
-      const res = await fetch('/settings/scan-cache', {
-        method,
-        headers: { 'content-type': 'application/json' },
-        body: body === undefined ? undefined : JSON.stringify(body)
-      });
-      if (!res.ok) throw new Error(await res.text());
-      this.scanCache = (await res.json()) as ScanCacheStatus;
-    } catch {
-      this.scanCache = "Couldn't reach the app";
+      this.scanCache = await asked();
+    } catch (err) {
+      if (!(err instanceof ApiError)) throw err;
+      this.scanCache = err.message;
     }
+  }
+
+  private setCap(cap: number) {
+    return this.askScanCache(async () => await this.state.app.setScanCap(cap));
   }
 
   // A cap that keeps everything on disk is saved at once; one that would
   // drop scans asks first.
   private pickCap(cache: ScanCacheStatus, cap: number) {
     const drop = capDrop(cache.used, cap);
-    if (drop === null) void this.askScanCache('PUT', { cap });
+    if (drop === null) void this.setCap(cap);
     else this.confirming = drop;
   }
 
@@ -261,8 +267,9 @@ class SettingsElement extends LitElement {
 
   private async confirmDrop(drop: ScanCacheDrop) {
     this.dropping = true;
-    if (drop.kind === 'clear') await this.askScanCache('DELETE');
-    else await this.askScanCache('PUT', { cap: drop.cap });
+    if (drop.kind === 'clear') {
+      await this.askScanCache(this.state.app.clearScanCache);
+    } else await this.setCap(drop.cap);
     this.dropping = false;
     this.confirming = null;
   }
@@ -281,7 +288,7 @@ class SettingsElement extends LitElement {
         aria-expanded=${this.open}
         @click=${() => {
           this.corner.set(!this.open);
-          if (this.open) void this.askScanCache('GET');
+          if (this.open) void this.askScanCache(this.state.app.scanCache);
         }}
       >
         ${GEAR_ICON}

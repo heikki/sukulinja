@@ -1,6 +1,8 @@
 import type { Database } from 'bun:sqlite';
 import { relative, resolve } from 'node:path';
 
+import { APP_OPERATIONS, OPERATIONS } from '@/common/operations';
+
 import { assistantOperations } from './assistant/asking';
 import type { AssistantDeps } from './assistant/asking';
 import { claude } from './assistant/model';
@@ -10,7 +12,7 @@ import { openCitations } from './citations';
 import type { Astia } from './citations';
 import { systemKeyStore } from './claude/key';
 import type { KeyStore } from './claude/key';
-import { routeAssistantKey } from './claude/key-routes';
+import { keyOperations } from './claude/key-operations';
 import { lifecycleRoutes } from './datasets/lifecycle-routes';
 import { mediaDirOf } from './datasets/registry';
 import type { DatasetRegistry } from './datasets/registry';
@@ -55,7 +57,7 @@ function createDatasetHandlers(
   assistant: AssistantDeps
 ): DatasetHandlers {
   const { reminders, changes, facts, photoFiles, scans } = services;
-  const operations = serveOperations({
+  const operations = serveOperations(OPERATIONS, {
     ...treeOperations(services),
     ...factOperations(facts),
     ...scans.operations,
@@ -106,6 +108,11 @@ export function createApi(
   // and the next request then opens the new one and gets new handlers.
   const handlersByDb = new WeakMap<Database, DatasetHandlers>();
   const keyStore = options.keyStore ?? systemKeyStore();
+  // The operations shared by every dataset, at /api/<name>.
+  const appOperations = serveOperations(APP_OPERATIONS, {
+    ...scans.operations,
+    ...keyOperations(keyStore)
+  });
   const routeLifecycle = lifecycleRoutes(registry, {
     exportDir: options.exportDir,
     // Not into one an older version built, as undoing its first import
@@ -162,10 +169,10 @@ export function createApi(
     async routeApi(req, pathname) {
       const lifecycle = await routeLifecycle(req, pathname);
       if (lifecycle !== null) return lifecycle;
-      const shared = await scans.route(req, pathname);
+      const shared =
+        (await appOperations(req, pathname)) ??
+        (await scans.route(req, pathname));
       if (shared !== null) return shared;
-      const key = await routeAssistantKey(keyStore, req, pathname);
-      if (key !== null) return key;
       const m = DATASET_RE.exec(pathname);
       if (m === null) return null;
       const slug = m.groups!.slug!;

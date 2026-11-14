@@ -22,6 +22,20 @@ async function get(path: string) {
   return await fetch(new Request(`http://localhost${path}`));
 }
 
+// Asks the operation `name` shared by every dataset (common/operations/app.ts).
+async function appOp(name: string, body: unknown = {}) {
+  const res = await fetch(
+    new Request(`http://localhost/api/${name}`, {
+      method: 'POST',
+      body: JSON.stringify(body)
+    })
+  );
+  return {
+    status: res.status,
+    body: (await res.json().catch(() => null)) as unknown
+  };
+}
+
 // Asks the dataset's operation `name` (common/operations).
 async function op(slug: string, name: string, body: unknown = {}) {
   return await fetch(
@@ -173,24 +187,11 @@ describe('Astia Images', () => {
 describe('Scan cache setting', () => {
   const GB = 1024 ** 3;
 
-  async function send(method: string, body?: unknown) {
-    const res = await fetch(
-      new Request('http://localhost/settings/scan-cache', {
-        method,
-        body: body === undefined ? undefined : JSON.stringify(body)
-      })
-    );
-    return {
-      status: res.status,
-      body: (await res.json().catch(() => null)) as unknown
-    };
-  }
-
   test('changes the cap, keeps it for the install, and clears', async () => {
     const images = join(root, 'data', '.astia-images', '101');
     await mkdir(images, { recursive: true });
     await writeFile(join(images, 'a.jpg'), new Uint8Array(1000));
-    expect(await send('GET')).toEqual({
+    expect(await appOp('scanCache')).toEqual({
       status: 200,
       body: {
         cap: 5 * GB,
@@ -198,8 +199,8 @@ describe('Scan cache setting', () => {
         caps: [5 * GB, 10 * GB, 20 * GB, 40 * GB]
       }
     });
-    expect((await send('PUT', { cap: 3 * GB })).status).toBe(400);
-    expect((await send('PUT', { cap: 10 * GB })).body).toMatchObject({
+    expect((await appOp('setScanCap', { cap: 3 * GB })).status).toBe(400);
+    expect((await appOp('setScanCap', { cap: 10 * GB })).body).toMatchObject({
       cap: 10 * GB,
       used: 1000
     });
@@ -210,8 +211,8 @@ describe('Scan cache setting', () => {
       api: createApi(new DatasetRegistry(join(root, 'data')), { astia }),
       staticRoots: [root]
     });
-    expect((await send('GET')).body).toMatchObject({ cap: 10 * GB });
-    expect((await send('DELETE')).body).toMatchObject({ used: 0 });
+    expect((await appOp('scanCache')).body).toMatchObject({ cap: 10 * GB });
+    expect((await appOp('clearScanCache')).body).toMatchObject({ used: 0 });
   });
 });
 
@@ -234,17 +235,9 @@ describe('Church books', () => {
     }
   };
 
-  async function send(method: string, path: string) {
-    const res = await fetch(new Request(`http://localhost${path}`, { method }));
-    return {
-      status: res.status,
-      body: (await res.json().catch(() => null)) as unknown
-    };
-  }
-
   test("lists a parish's Volumes, and downloads one into the cache", async () => {
     serveWith(memoryAstia(JUVA_BOOKS));
-    const before = await send('GET', `/astia/archives/${JUVA_ARCHIVE}/volumes`);
+    const before = await appOp('churchBooks', { archiveId: JUVA_ARCHIVE });
     expect(before.body).toEqual([
       {
         id: '301',
@@ -255,26 +248,20 @@ describe('Church books', () => {
       },
       expect.objectContaining({ id: '302', download: null })
     ]);
-    const started = await send('PUT', '/astia/volumes/302/download');
+    const started = await appOp('startDownload', { volumeId: '302' });
     expect(started.body).toEqual([
       { volumeId: '302', state: 'downloading', error: null }
     ]);
     await until(async () => {
-      const { body } = await send('GET', '/astia/downloads');
+      const { body } = await appOp('downloads');
       return (body as unknown[]).length === 0;
     });
-    const after = await send('GET', `/astia/archives/${JUVA_ARCHIVE}/volumes`);
+    const after = await appOp('churchBooks', { archiveId: JUVA_ARCHIVE });
     expect((after.body as unknown[])[1]).toMatchObject({
       onDisk: { images: 3, cached: 3 },
       download: null
     });
-    expect((await send('DELETE', '/astia/volumes/302/download')).status).toBe(
-      405
-    );
-  });
-
-  test('downloads are started and stopped, not read one by one', async () => {
-    expect((await send('GET', '/astia/volumes/302/download')).status).toBe(405);
+    expect((await appOp('stopDownload', { volumeId: 'x' })).status).toBe(400);
   });
 });
 

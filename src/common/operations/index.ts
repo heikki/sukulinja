@@ -29,4 +29,6 @@ export type {
   InEntry,
   MarkTarget
 } from './citations';
+export { APP_OPERATIONS } from './app';
+export type { AppOperations } from './app';
 export type { AnyOperation, InputOf, OutputOf } from './operation';
