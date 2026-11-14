@@ -1,7 +1,9 @@
 import { expect, test } from 'bun:test';
 
 import { memoryDatasetApi } from '@/client/dataset-api/memory';
+import { servedDataset } from '@/client/dataset-api/served';
 import type { PhotoRow } from '@/common/types';
+import { memoryAstia } from '@/server/citations/testing';
 
 import { openPhotos } from './photos';
 
@@ -51,21 +53,37 @@ test('adds pictures one after another, and lists them again', async () => {
   expect(photos.all.get()).toHaveLength(3);
 });
 
+// Which files are pictures, and which the dataset has, are the server's.
+async function served<T>(
+  run: (photos: ReturnType<typeof openPhotos>) => Promise<T>
+) {
+  const dataset = await servedDataset(
+    '0 @I1@ INDI\n1 NAME Matti /Esimerkki/\n',
+    memoryAstia({})
+  );
+  try {
+    return await run(openPhotos(dataset.api));
+  } finally {
+    await dataset.close();
+  }
+}
+
 test("says why one wasn't added, and adds the rest", async () => {
-  const photos = openPhotos(memoryDatasetApi({}));
-  const first = await photos.add([
-    picture('kirje.pdf', 'application/pdf'),
-    picture('a.jpg')
-  ]);
-  expect(first?.path).toBe('a.jpg');
-  expect(photos.refused.get()).toEqual(["kirje.pdf isn't a picture"]);
-  photos.dismiss();
-  expect(photos.refused.get()).toEqual([]);
+  await served(async (photos) => {
+    const first = await photos.add([
+      picture('kirje.pdf', 'application/pdf'),
+      picture('a.jpg')
+    ]);
+    expect(first).not.toBeNull();
+    expect(photos.refused.get()).toEqual(["kirje.pdf isn't a picture"]);
+    photos.dismiss();
+    expect(photos.refused.get()).toEqual([]);
+  });
 });
 
 test('one the dataset has already is the one answered', async () => {
-  const photos = openPhotos(
-    memoryDatasetApi({ photos: { 12: { ...LONE, path: 'c.jpg' } } })
-  );
-  expect(await photos.add([picture('c.jpg')])).toEqual(LONE);
+  await served(async (photos) => {
+    const first = await photos.add([picture('c.jpg')]);
+    expect(await photos.add([picture('c.jpg')])).toEqual(first);
+  });
 });

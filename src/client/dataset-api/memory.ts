@@ -74,29 +74,26 @@ type MemoryDatasetApi = DatasetApi & {
   // What was asked, in order: "persons", "families", "person <id>",
   // "links <id>", "mark <citation> <volume>/<image>" (or "<volume>" for
   // only the Volume; " box" or " no box" when it says), "discard <citation>
-  // <volume>/<image>",
-  // "uncite <citation>", "retext <citation>: <text>", which changes the
-  // Citation's text in `details`, "support <citation> <fact>" (or "unsupport"),
-  // which changes the Citation in `details`, "choices <citation>", "citations <volume>",
-  // "volume <volume>", "rescan <volume>", "switch <volume>", "changes",
-  // "reminders", "remind person <id>: <text>" (or "<volume>/<image>
-  // <file>"), "change reminder <id>", "delete reminder <id>", "tag
-  // <photo> <person>", "untag <photo> <person>", "portrait <photo>
-  // <person>", "photos", "places", "add fact <person> <tag>[ in <family>]: <date>",
-  // "edit fact <person> <fact>: <date>", "delete fact <person> <fact>",
-  // "add photo <file name>", "delete photo <photo>".
-  // `addFact` answers ids numbered on from 3000; Facts don't change the
-  // details given. "add <relation> of <person>: <given> <surname>" or
-  // "link <relation> of <person>: <relative>", "edit person <person>:
-  // <given> <surname> <sex>", which changes the row in `persons`: a new person `addRelative`
-  // adds joins `persons`, numbered on from 4000, in no family; a link,
-  // "unlink <person> from <family>" and "move <person> from <family>",
-  // change nothing; "delete person
-  // <person>" takes the row out of `persons`.
-  // `uncite` takes a Citation out of its Volume's citations; an Entry
-  // made, edited or deleted ("entry", "edit entry", "delete entry") is
-  // refused, as served.ts serves those. "ask[ in <conversation>]:
-  // <text>" tells the next turn in `assistant`; "forget <conversation>".
+  // <volume>/<image>", "uncite <citation>", "choices <citation>",
+  // "citations <volume>", "volume <volume>", "rescan <volume>", "switch
+  // <volume>", "changes", "clear changes", "reminders", "remind person
+  // <id>: <text>" (or "<volume>/<image> <file>"), "change reminder <id>",
+  // "delete reminder <id>", "photos", "add photo <file name>", "delete
+  // photo <photo>", "tag <photo> <person>", "untag <photo> <person>",
+  // "portrait <photo> <person>", "places", "add fact <person> <tag>[ in
+  // <family>]: <date>", "edit fact <person> <fact>: <date>", "delete fact
+  // <person> <fact>", "add <relation> of <person>: <given> <surname>" or
+  // "link <relation> of <person>: <relative>", "ask[ in <conversation>]:
+  // <text>", "forget <conversation>".
+  //
+  // It keeps what's given and what a write here adds to it, and no rule
+  // of the app's: `addFact` answers ids numbered on from 3000, a new
+  // person `addRelative` adds joins `persons`, numbered on from 4000, a
+  // Photo added is numbered on from 5000, and `uncite` takes a Citation
+  // out of its Volume's. A write whose answer is the app's rules (an
+  // Entry, what a Citation says or supports, a person changed, moved or
+  // deleted) is refused: tests of it ask the
+  // app's own server (served.ts).
   asked: string[];
 };
 
@@ -185,12 +182,13 @@ export function memoryDatasetApi(
     );
   }
 
-  // Entries follow the server's rules, so tests of them ask it
-  // (served.ts).
-  function noEntries(what: string) {
+  // A write whose answer is the server's rules (an Entry, what a Citation
+  // says or supports, a person changed) is refused: tests of it ask the
+  // app's own server (served.ts), so no copy of its rules is kept here.
+  function servedOnly(what: string) {
     return async () =>
       await answer(what, undefined, () => {
-        throw new ApiError('Entries are asked of the served dataset.');
+        throw new ApiError(`${what} is asked of the served dataset.`);
       });
   }
 
@@ -235,18 +233,11 @@ export function memoryDatasetApi(
         () => found(data.discards?.[citationId], 'citation not found')
       ),
 
-    citeEntry: noEntries('entry'),
-    editEntry: noEntries('edit entry'),
-    deleteEntry: noEntries('delete entry'),
+    citeEntry: servedOnly('citeEntry'),
+    editEntry: servedOnly('editEntry'),
+    deleteEntry: servedOnly('deleteEntry'),
 
-    async retext(citationId, text) {
-      await answer(`retext ${citationId}: ${text ?? ''}`, undefined, () => {
-        for (const d of Object.values(data.details ?? {})) {
-          const c = d.citations.find((x) => x.id === citationId);
-          if (c !== undefined) c.text = text;
-        }
-      });
-    },
+    retext: servedOnly('retext'),
 
     async uncite(citationId) {
       await answer(`uncite ${citationId}`, undefined, () => {
@@ -258,21 +249,7 @@ export function memoryDatasetApi(
       });
     },
 
-    support: async (citationId, factId, on) =>
-      await answer(
-        `${on ? 'support' : 'unsupport'} ${citationId} ${factId}`,
-        undefined,
-        () => {
-          for (const d of Object.values(data.details ?? {})) {
-            const c = d.citations.find((x) => x.id === citationId);
-            if (c === undefined) continue;
-            const rest = c.supports.filter((id) => id !== factId);
-            c.supports = on ? [...rest, factId].sort((a, b) => a - b) : rest;
-            return { ...c };
-          }
-          throw new ApiError('citation or fact not found');
-        }
-      ),
+    support: servedOnly('support'),
 
     volumeChoices: async (citationId, signal) =>
       await answer(`choices ${citationId}`, signal, () =>
@@ -340,15 +317,10 @@ export function memoryDatasetApi(
 
     mediaUrl: (storedPath) => `memory:media/${storedPath}`,
 
+    // Added, whatever the file: which are pictures, and which the dataset
+    // has already, are the server's to say (served.ts).
     addPhoto: async (file) =>
       await answer(`add photo ${file.name}`, undefined, (): AddedPhoto => {
-        if (!file.type.startsWith('image/')) {
-          throw new ApiError(`${file.name} isn't a picture`);
-        }
-        const had = [...photos.values()].find((p) => p.path === file.name);
-        if (had !== undefined) {
-          return { photo: structuredClone(had), already: true };
-        }
         const added = { id: 5000 + photos.size, path: file.name, people: [] };
         photos.set(added.id, added);
         return { photo: structuredClone(added), already: false };
@@ -483,43 +455,13 @@ export function memoryDatasetApi(
         }
       ),
 
-    async editPerson(personId, name) {
-      await answer(
-        `edit person ${personId}: ${name.given} ${name.surname} ${name.sex}`,
-        undefined,
-        () => {
-          const at = persons.findIndex((p) => p.id === personId);
-          const row = found(persons[at], 'person not found');
-          persons[at] = { ...row, ...name };
-        }
-      );
-    },
+    editPerson: servedOnly('editPerson'),
 
-    async unlink(personId, familyId) {
-      await answer(`unlink ${personId} from ${familyId}`, undefined, () => {
-        found(
-          persons.find((p) => p.id === personId),
-          'person not found'
-        );
-      });
-    },
+    unlink: servedOnly('unlink'),
 
-    async move(personId, from) {
-      await answer(`move ${personId} from ${from}`, undefined, () => {
-        found(
-          persons.find((p) => p.id === personId),
-          'person not found'
-        );
-      });
-    },
+    move: servedOnly('move'),
 
-    async deletePerson(personId) {
-      await answer(`delete person ${personId}`, undefined, () => {
-        const at = persons.findIndex((p) => p.id === personId);
-        found(persons[at], 'person not found');
-        persons.splice(at, 1);
-      });
-    },
+    deletePerson: servedOnly('deletePerson'),
 
     async editFact(personId, factId, fields) {
       await answer(
