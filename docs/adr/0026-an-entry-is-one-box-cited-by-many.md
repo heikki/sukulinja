@@ -1,4 +1,4 @@
-Status: proposed (draft, 2026-11-13)
+Status: accepted (2026-11-14)
 
 # An Entry is one Box, cited by everyone it names
 

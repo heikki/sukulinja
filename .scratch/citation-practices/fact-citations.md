@@ -1,6 +1,6 @@
 # Sitaatit faktoille
 
-Status: needs-triage
+Status: resolved — decided in ADR-0022
 
 Heikki, 2026-11-11: kohdan 4 jatkoselvitys (idea.md, kohta 4: sitaatti faktalle, ei vain henkilölle).
 

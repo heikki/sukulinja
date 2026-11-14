@@ -2,7 +2,7 @@ Status: ready-for-agent
 
 # One Box per Entry
 
-Glossary: **Entry**, **Citation**, **Role**, **Transcription**, **Box**, **Support** (`src/server/citations/GLOSSARY.md`). Decision: ADR-0026 (draft). Builds on ADR-0016 (conversion), ADR-0022 (support). Earlier: `.scratch/citation-practices/entries.md`, `.scratch/citation-practices/citation-reuse.md`.
+Glossary: **Entry**, **Citation**, **Role**, **Transcription**, **Box**, **Support** (`src/server/citations/GLOSSARY.md`). Decision: ADR-0026. Builds on ADR-0016 (conversion), ADR-0022 (support). Earlier: `.scratch/citation-practices/entries.md`, `.scratch/citation-practices/citation-reuse.md`.
 
 Heikki, 2026-11-13: one baptism entry should be one Box, not one per person, and the Scan viewer's foot bar holds too much.
 

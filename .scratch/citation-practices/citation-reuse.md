@@ -1,4 +1,4 @@
-Status: needs-triage
+Status: resolved — taken into ADR-0026
 
 # Sitaatin toisto ja uudelleenkäyttö muualla
 
