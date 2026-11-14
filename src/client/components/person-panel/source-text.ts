@@ -101,7 +101,7 @@ class SourceTextElement extends LitElement {
     this.saving = true;
     this.error = null;
     try {
-      await this.state.selected.retext(this.citation.id, this.draft);
+      await this.state.viewer.retext(this.citation.id, this.draft);
       this.draft = null;
     } catch (err) {
       if (!(err instanceof ApiError)) throw err;

@@ -144,6 +144,14 @@ export interface Viewer {
   editEntry: () => void;
   // The source's Entry, as its Box's menu changes it.
   entry: EntryBox;
+  // Deletes one of the Selected person's Citations, as _Sources_ does
+  // (ADR-0021): the viewer closes if it shows it, else the Volume's
+  // citations read again, as one of an Entry beside the scan goes.
+  uncite: (citationId: number) => Promise<void>;
+  // Puts what one of the Selected person's Citations says, as _Sources_
+  // does: its Entry's, for everyone citing it. The source and the
+  // Volume's citations read again, so the Entry is edited from it.
+  retext: (citationId: number, text: string | null) => Promise<void>;
   // A Discard of the Link's Box on the Image shown, waiting to be saved.
   // Moving off the Image drops it.
   discarding: Readable<boolean>;
@@ -564,6 +572,29 @@ export function openViewer(
     return row.personId;
   }
 
+  async function reloadShown() {
+    const shown = volume.get();
+    if (shown !== null) await loadCitations(shown.id);
+  }
+
+  async function uncite(citationId: number) {
+    await selected.uncite(citationId);
+    if (source.get()?.citation.id === citationId) closeNow();
+    else await reloadShown();
+  }
+
+  async function retext(citationId: number, text: string | null) {
+    await selected.retext(citationId, text);
+    const shown = source.get();
+    const now = selected.details
+      .get()
+      ?.citations.find((c) => c.id === shown?.citation.id);
+    if (shown !== null && now !== undefined) {
+      opened.set({ ...shown, citation: now });
+    }
+    await reloadShown();
+  }
+
   // A confirmation moves its row, and a Page pin its neighbours', so the
   // citations reload. The viewer follows the Link in the marked Volume only
   // when the Mark was for its own reference.
@@ -650,6 +681,8 @@ export function openViewer(
     newEntry,
     entryForm: entry.form,
     editEntry,
+    uncite,
+    retext,
     entry: cited,
     discarding,
     discard,

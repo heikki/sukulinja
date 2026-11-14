@@ -269,16 +269,13 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
     this.deleteError = null;
   }
 
-  // The Citation deleted (ADR-0021), and the Scan viewer closed if it
-  // shows it.
+  // The Citation deleted (ADR-0021), as the Scan viewer sees it too.
   private async deleteCitation(c: CitationRow) {
     if (this.deleting) return;
     this.deleting = true;
     this.deleteError = null;
     try {
-      await this.state.selected.uncite(c.id);
-      const { viewer } = this.state;
-      if (viewer.source.get()?.citation.id === c.id) viewer.close();
+      await this.state.viewer.uncite(c.id);
       this.asking = null;
     } catch (err) {
       if (!(err instanceof ApiError)) throw err;

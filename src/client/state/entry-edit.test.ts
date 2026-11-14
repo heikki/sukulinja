@@ -264,3 +264,24 @@ test('someone named with no Role in a baptism can still be given one', async () 
   viewer.entryForm.setInEntry({ personId: 3, role: 'FATH' });
   expect(viewer.entryForm.notNamable.get().has(3)).toBe(true);
 });
+
+test('a source retyped in Sources is edited from what it says now', async () => {
+  const { viewer, child } = await viewing();
+  await viewer.retext(child.citation.id, 'Kaste 2.2.1790');
+  expect(viewer.source.get()?.citation.text).toBe('Kaste 2.2.1790');
+  viewer.editEntry();
+  expect(viewer.pending.get()?.cite?.text).toBe('Kaste 2.2.1790');
+});
+
+test('a Citation of the Entry deleted in Sources goes from beside the scan', async () => {
+  const { viewer, entryId } = await viewing();
+  const mother = await entryNow(entryId);
+  expect(mother.map((r) => r.personId)).toEqual([1, 2]);
+  const rows = viewer.citations.get() as VolumeCitation[];
+  const theirs = rows.find((r) => r.personId === 2)!;
+  await viewer.uncite(theirs.citation.id);
+  expect(
+    (viewer.citations.get() as VolumeCitation[]).map((r) => r.personId)
+  ).toEqual([1]);
+  expect(viewer.source.get()).not.toBeNull();
+});
