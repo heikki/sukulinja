@@ -1,15 +1,7 @@
 import { computed, signal } from '@lit-labs/signals';
 
 import type { DatasetApi, InEntry } from '@/client/dataset-api';
-import type {
-  Box,
-  CitationRow,
-  Link,
-  Rescan,
-  UnlinkedResolution,
-  VolumeChoice,
-  VolumeCitation
-} from '@/common/types';
+import type { Box, Rescan, VolumeChoice, VolumeCitation } from '@/common/types';
 
 import { confirmingSource } from './confirming';
 import type { Confirming } from './confirming';
@@ -22,23 +14,12 @@ import { pendingEntry } from './pending-entry';
 import type { EntryEdit, EntryForm, PendingCite } from './pending-entry';
 import { boxOn, clampImage, fileIdOf, imageOf, markedIn } from './places';
 import type { Readable, Selected } from './selected';
-
-// A church-book source opened in the Scan viewer, on one Link of its
-// reference, or with none, to look through its parish's Volumes for it:
-// `unlinked` says why it has none.
-export type LinkOpen =
-  | { citation: CitationRow; link: Link }
-  | { citation: CitationRow; link: null; unlinked: UnlinkedResolution };
-
-// An Image of a Volume opened in the Scan viewer with no source, as an
-// Image's Reminder opens it.
-export interface ImageOpen {
-  volumeId: string;
-  volume: string;
-  image: number;
-}
+import { linkedBeside, revealingOf, viewerOpening } from './source-open';
+import type { ImageOpen, LinkOpen } from './source-open';
+import type { Source } from './sources';
 
 export type { EntryEdit, PendingCite } from './pending-entry';
+export type { ImageOpen, LinkOpen } from './source-open';
 
 // The Volume shown.
 export interface VolumeShown {
@@ -96,8 +77,17 @@ export interface Viewer {
   placing: Readable<boolean>;
   setPlacing: (on: boolean) => void;
   // To the source's Link, even when it shows that source already; with
-  // none, to no Volume until one is chosen.
+  // none, to no Volume until one is chosen. Sources is brought to it.
   open: (source: LinkOpen) => void;
+  // A source of the panel's opened as `open` does: at its Link, or failing
+  // one looking through its parish's Volumes. Without `reveal`, as Events
+  // opens one, Sources isn't brought to it. False when it has nothing to
+  // open there, and nothing opens.
+  openSource: (source: Source, options: { reveal: boolean }) => boolean;
+  // The open Sources is to be brought to: a new one on each open, so the
+  // same source opened again is brought to again; null for an open with
+  // `reveal: false`, and while the viewer is off its Link.
+  revealing: Readable<LinkOpen | null>;
   // To an Image of a Volume, with no source: the people beside the scan
   // as usual, and nothing to edit but new Citations and Reminders.
   openImage: (at: ImageOpen) => void;
@@ -143,10 +133,11 @@ export interface Viewer {
   // Puts a new Entry at the Box, on the Image shown, pending, with the
   // people in it so far.
   newEntry: (box: Box, people: InEntry[]) => void;
-  // Changing the pending Entry: what it says (`setText`), who is named
-  // in each Role, in place of whoever had it, or for a Role-less Book
-  // added (`setInEntry`), all named at once (`setPeople`), and someone
-  // taken out (`drop`).
+  // Changing the pending Entry: who can't be named in it
+  // (`notNamable`), what it says (`setText`), who is named in each Role,
+  // in place of whoever had it, or for a Role-less Book added
+  // (`setInEntry`), all named at once (`setPeople`), and someone taken
+  // out (`drop`).
   entryForm: EntryForm;
   // Starts editing the source's Entry, made in the app: its people, what
   // it says and its Box, pending, as a new one is.
@@ -244,6 +235,8 @@ export function openViewer(
     );
   });
 
+  const reveals = revealingOf(source, away);
+
   const volumeReq = new Latest();
   const citationsReq = new Latest();
   const onward = viewerOnward(selected, { openNow, open, close, closeNow });
@@ -307,13 +300,20 @@ export function openViewer(
     citations.set(null);
   }
 
-  function openNow(next: LinkOpen) {
-    opening();
+  // Off whatever was shown: nothing pending or asked of it is kept.
+  function moveOff() {
     onward.moved();
     pending.set(null);
     discarding.set(false);
     confirmation.forget();
-    opened.set({ ...next });
+  }
+
+  function openNow(next: LinkOpen, reveal = true) {
+    opening();
+    moveOff();
+    const at = { ...next };
+    opened.set(at);
+    reveals.opened(at, reveal);
     const { link } = next;
     if (link === null) showNoVolume();
     else showVolume(link.volumeId, link.volume, imageOf(link));
@@ -321,20 +321,14 @@ export function openViewer(
 
   function openImageNow(at: ImageOpen) {
     opening();
-    onward.moved();
-    pending.set(null);
-    discarding.set(false);
-    confirmation.forget();
+    moveOff();
     opened.set({ ...at });
     showVolume(at.volumeId, at.volume, at.image);
   }
 
   // Nothing shown, so the next source opens afresh.
   function closeNow() {
-    onward.moved();
-    pending.set(null);
-    discarding.set(false);
-    confirmation.forget();
+    moveOff();
     held = null;
     leaving.set(false);
     opened.set(null);
@@ -354,6 +348,15 @@ export function openViewer(
     leave(() => {
       openNow(next);
     });
+  }
+
+  function openSource(from: Source, { reveal }: { reveal: boolean }) {
+    const next = viewerOpening(from);
+    if (next === null) return false;
+    leave(() => {
+      openNow(next, reveal);
+    });
+    return true;
   }
 
   function openImage(at: ImageOpen) {
@@ -415,7 +418,8 @@ export function openViewer(
     api,
     selected,
     fileOf: (n) => fileIdOf(files[n - 1]),
-    reload: loadCitations
+    reload: loadCitations,
+    citations
   });
   const cited = entryBox(api, selected, source, citations);
 
@@ -546,15 +550,8 @@ export function openViewer(
   function step(by: 1 | -1) {
     const shown = source.get();
     if (!sourcesInView.get() || shown === null) return;
-    const linked = selected.sources.get().flatMap((g) =>
-      g.sources.flatMap(({ citation, status }) => {
-        const link = status?.link ?? null;
-        return link === null ? [] : [{ citation, link }];
-      })
-    );
-    const at = linked.findIndex((l) => l.citation.id === shown.citation.id);
-    const next = at < 0 ? undefined : linked[at + by];
-    if (next !== undefined) open(next);
+    const next = linkedBeside(selected.sources.get(), shown.citation.id, by);
+    if (next !== null) open(next);
   }
 
   function pick(row: VolumeCitation) {
@@ -631,6 +628,8 @@ export function openViewer(
     },
     fileIdHere: () => fileIdOf(files[image.get() - 1]),
     open,
+    openSource,
+    revealing: reveals.revealing,
     openImage,
     show,
     step,
@@ -649,12 +648,7 @@ export function openViewer(
     setBox,
     editBox,
     newEntry,
-    entryForm: {
-      setText: entry.setText,
-      setInEntry: entry.setInEntry,
-      setPeople: entry.setPeople,
-      drop: entry.drop
-    },
+    entryForm: entry.form,
     editEntry,
     entry: cited,
     discarding,

@@ -12,7 +12,7 @@ import './fact-form';
 import './fact-sources';
 
 import { personEventsStyles } from './events-styles';
-import { factLabel, factText, sourcesOf, viewFromEvents } from './helpers';
+import { factLabel, factText, sourcesOf } from './helpers';
 
 // A Fact's form open in its place, by its id, or a new one's.
 type Editing = number | 'new' | null;
@@ -53,7 +53,9 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
     this.picked = fact.id;
     if (this.state.viewer.opened.get() === null) return;
     const [first] = supporting;
-    if (first !== undefined) viewFromEvents(this, this.state, first);
+    if (first !== undefined) {
+      this.state.viewer.openSource(first, { reveal: false });
+    }
   }
 
   // The person's sources, as Sources lists them.

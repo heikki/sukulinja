@@ -4,7 +4,7 @@ import { ApiError } from '@/client/dataset-api';
 import type { VolumeCitation } from '@/common/types';
 
 import type { Readable } from './selected';
-import type { LinkOpen } from './viewer';
+import type { LinkOpen } from './source-open';
 
 // Confirming the source's Match: saving, or refused in the server's words.
 export type Confirming = 'saving' | { refused: string };

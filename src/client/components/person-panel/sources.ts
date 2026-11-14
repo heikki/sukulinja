@@ -28,7 +28,7 @@ import '../archive-search';
 import './fold';
 import './source-text';
 
-import { archiveAction, headingOf, titleText, viewerOpening } from './helpers';
+import { archiveAction, headingOf, titleText } from './helpers';
 import { personSourcesStyles } from './sources-styles';
 import { definitionListStyles } from './styles';
 
@@ -230,15 +230,12 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
   // can; else show or hide its record. Clicked again while the viewer
   // shows its Link, it closes the viewer; away from the Link, it goes back.
   private actionOf(c: CitationRow, status: LinkStatus | null) {
-    const opening = viewerOpening({ citation: c, status });
-    if (opening === null) {
-      return () => {
-        this.fold(c.id);
-      };
-    }
+    const { viewer } = this.state;
     return () => {
-      if (this.showing(c)) this.state.viewer.close();
-      else this.state.viewer.open(opening);
+      if (this.showing(c)) viewer.close();
+      else if (!viewer.openSource({ citation: c, status }, { reveal: true })) {
+        this.fold(c.id);
+      }
     };
   }
 

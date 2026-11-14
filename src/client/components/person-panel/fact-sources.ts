@@ -8,7 +8,7 @@ import type { AppState, Source } from '@/client/state';
 import type { FactRow } from '@/common/types';
 
 import { factSourcesStyles } from './fact-sources-styles';
-import { sourcesOf, titleText, viewFromEvents } from './helpers';
+import { sourcesOf, titleText } from './helpers';
 
 // A source by the name Sources gives it, and where in its Volume it is
 // unless its name says (a reference to a page).
@@ -53,8 +53,7 @@ function compareKeys(
 // that adds or takes back its support, a Change each, in Astia's order
 // (`sortKey`). A source opens in the Scan viewer; one with nothing to open
 // there is asked for in Sources, as `show-source` with its Citation's id;
-// one opened there is told as `viewing-source` first, so Sources isn't
-// opened to it. Esc closes the list.
+// one opened there doesn't bring Sources to it. Esc closes the list.
 @customElement('sl-fact-sources')
 class FactSourcesElement extends LitElement {
   static override styles = factSourcesStyles;
@@ -101,7 +100,7 @@ class FactSourcesElement extends LitElement {
   }
 
   private open(source: Source) {
-    if (viewFromEvents(this, this.state, source)) return;
+    if (this.state.viewer.openSource(source, { reveal: false })) return;
     this.dispatchEvent(
       new CustomEvent('show-source', {
         detail: source.citation.id,

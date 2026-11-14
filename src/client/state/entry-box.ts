@@ -4,7 +4,7 @@ import type { DatasetApi } from '@/client/dataset-api';
 import type { CitationRow, VolumeCitation } from '@/common/types';
 
 import type { Readable, Selected } from './selected';
-import type { LinkOpen } from './viewer';
+import type { LinkOpen } from './source-open';
 
 // The source's Entry (ADR-0026), as its Box's menu sees it.
 export interface EntryBox {

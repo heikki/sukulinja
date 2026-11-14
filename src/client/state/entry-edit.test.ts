@@ -8,7 +8,11 @@ import { afterEach, beforeEach, expect, test } from 'bun:test';
 import type { DatasetApi } from '@/client/dataset-api';
 import { servedDataset } from '@/client/dataset-api/served';
 import type { VolumeCitation } from '@/common/types';
-import { juvaAstia, VOLUMES } from '@/server/citations/testing';
+import {
+  baptismCitation,
+  juvaAstia,
+  VOLUMES
+} from '@/server/citations/testing';
 
 import { openAppState } from './';
 
@@ -36,7 +40,18 @@ let api: DatasetApi | null = null;
 beforeEach(async () => {
   served = await servedDataset(
     GEDCOM,
-    juvaAstia(undefined, { [VOLUME]: VOLUMES['juva-3'] })
+    juvaAstia(undefined, { [VOLUME]: VOLUMES['juva-3'] }),
+    {
+      // The mother's own baptism, as MyHeritage gave it.
+      seed({ db }) {
+        const { page, text } = baptismCitation(9001, '3. Maalis 1765', 'Maria');
+        db.run(
+          `INSERT INTO citations (scope_type, scope_id, page, text, sort_order)
+           VALUES ('person', 2, ?, ?, 0)`,
+          [page, text]
+        );
+      }
+    }
   );
   ({ api } = served);
 });
@@ -215,4 +230,37 @@ test('deleting the Box of an Entry with others in it deletes the Entry', async (
       .all(entryId)
   ).toEqual([]);
   expect(viewer.source.get()).toBeNull();
+});
+
+test("whom the edited Entry can't name: those named, and those with another Citation linking its Image", async () => {
+  const { viewer, child } = await viewing();
+  // The mother's own baptism marked on the Image too, as a confirmation
+  // beside the scan does.
+  const [own] = (await api!.person(2)).citations;
+  await viewer.confirm({ citation: own!, link: child.link });
+  await until(() => {
+    const rows = viewer.citations.get();
+    return Array.isArray(rows) && rows.some((r) => r.citation.id === own!.id);
+  });
+  viewer.editEntry();
+  expect([...viewer.entryForm.notNamable.get()].sort((a, b) => a - b)).toEqual([
+    1, 2
+  ]);
+  // Taken out, she's still refused for her other Citation; someone else
+  // taken out isn't.
+  viewer.entryForm.setInEntry({ personId: 3, role: 'FATH' });
+  viewer.entryForm.drop(2);
+  viewer.entryForm.drop(3);
+  expect([...viewer.entryForm.notNamable.get()].sort((a, b) => a - b)).toEqual([
+    1, 2
+  ]);
+});
+
+test('someone named with no Role in a baptism can still be given one', async () => {
+  const { viewer } = await viewing();
+  viewer.editEntry();
+  viewer.entryForm.setInEntry({ personId: 3, role: null });
+  expect(viewer.entryForm.notNamable.get().has(3)).toBe(false);
+  viewer.entryForm.setInEntry({ personId: 3, role: 'FATH' });
+  expect(viewer.entryForm.notNamable.get().has(3)).toBe(true);
 });

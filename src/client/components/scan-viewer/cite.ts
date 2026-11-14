@@ -1,19 +1,10 @@
 import type { InEntry } from '@/client/dataset-api';
 import { bookKind, entryRoles } from '@/common/books';
-import type { Relation, VolumeCitation } from '@/common/types';
+import type { Relation } from '@/common/types';
 
 import type { FamilyIndices } from '../person-panel/family';
 import { choiceOf, familyChoices } from '../person-search/choices';
 import type { PersonChoice } from '../person-search/choices';
-import { imageOf } from './citations';
-
-// The people listed beside the scan: their Citations link the Image shown,
-// Marked, Match or Estimate. An entry isn't cited for them again.
-export function citingImage(rows: VolumeCitation[], image: number) {
-  return new Set(
-    rows.filter((r) => imageOf(r) === image).map((r) => r.personId)
-  );
-}
 
 // The person's father and mother in the tree, as a baptism names them.
 function parentsOf(personId: number, ix: FamilyIndices): InEntry[] {

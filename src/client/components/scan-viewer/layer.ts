@@ -5,9 +5,9 @@ import { customElement, property, state } from 'lit/decorators.js';
 
 import type { InEntry } from '@/client/dataset-api';
 import type { Point, Transform } from '@/client/pan-zoom';
-import { appState } from '@/client/state';
+import { appState, citingImage } from '@/client/state';
 import type { AppState } from '@/client/state';
-import { bookKind, entryRoles } from '@/common/books';
+import { bookKind } from '@/common/books';
 import type { Box } from '@/common/types';
 
 import { boxFromStage, boxOnStage } from '../box-stage/geometry';
@@ -15,7 +15,6 @@ import { searchable } from '../person-search/choices';
 import { placesHere } from '../reminders-list/places';
 import { entriesOn } from './citations';
 import {
-  citingImage,
   parentRows,
   pickFor,
   roleLabel,
@@ -134,27 +133,13 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     );
   }
 
-  // Who can't be named in the pending Entry: those citing the Image
-  // already, but for those of the Entry being edited, and those named.
-  private notNamable() {
-    const cite = this.viewer.pending.get()?.cite;
-    const own = new Set(cite?.editing?.was.map((w) => w.personId) ?? []);
-    const citing = [...this.citingHere()].filter((id) => !own.has(id));
-    // Someone named in no Role of a Book with Roles can still be given one.
-    const roles = entryRoles(this.viewer.volume.get()?.label ?? '').length;
-    const named = (cite?.people ?? []).filter(
-      (p) => p.role !== null || roles === 0
-    );
-    return new Set([...citing, ...named.map((p) => p.personId)]);
-  }
-
   // Whom to name in the Role (`label`): in a baptism, once its child or a
   // parent is named, whom the tree says; else the Selected person's family
   // and the search. Never those `notNamable`.
   private renderPick(at: Point, role: string | null) {
     const selected = this.state.selected.id.get();
     const named = this.viewer.pending.get()?.cite?.people ?? [];
-    const left = this.notNamable();
+    const left = this.viewer.entryForm.notNamable.get();
     const volume = this.viewer.volume.get()?.label ?? '';
     const ix = this.state.chart.people.get();
     const pick = pickFor({ volume, role, named }, ix, selected, left);

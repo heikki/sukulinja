@@ -1,10 +1,13 @@
+import { computed } from '@lit-labs/signals';
 import type { Signal } from '@lit-labs/signals';
 
 import { ApiError } from '@/client/dataset-api';
 import type { DatasetApi, InEntry } from '@/client/dataset-api';
+import { entryRoles } from '@/common/books';
 import type { Box, VolumeCitation } from '@/common/types';
 
-import type { Selected } from './selected';
+import { imageOf } from './places';
+import type { Readable, Selected } from './selected';
 import type { PendingLink } from './viewer';
 
 // A new Entry not saved yet (ADR-0026): who is in it, each in their Role
@@ -27,6 +30,11 @@ export interface EntryEdit {
 
 // Changing the pending Entry, as the Scan viewer's card does.
 export interface EntryForm {
+  // Who can't be named in it: those with a Citation linking its Image
+  // that isn't of the Entry being edited, as the server refuses them, and
+  // those named, but someone named in no Role of a Book with Roles can
+  // still be given one.
+  notNamable: Readable<Set<number>>;
   setText: (text: string) => void;
   setInEntry: (person: InEntry) => void;
   setPeople: (people: InEntry[]) => void;
@@ -42,14 +50,41 @@ interface SaveDeps {
   fileOf: (n: number) => string | null;
   // The Volume's citations read again.
   reload: (volumeId: string) => Promise<void>;
+  // The Volume's citations; null until they arrive.
+  citations: Readable<VolumeCitation[] | null | 'failed'>;
+}
+
+// The people listed beside the scan: their Citations link the Image,
+// Marked, Match or Estimate. An entry isn't cited for them again.
+export function citingImage(rows: VolumeCitation[], image: number) {
+  return new Set(
+    rows.filter((r) => imageOf(r.link) === image).map((r) => r.personId)
+  );
 }
 
 // Changing the pending new Entry (ADR-0026), if there's one: what it says,
 // and who is in it; and saving it.
 export function pendingEntry(
   pending: Signal.State<PendingLink | null>,
-  { api, selected, fileOf, reload }: SaveDeps
+  { api, selected, fileOf, reload, citations }: SaveDeps
 ) {
+  const notNamable = computed(() => {
+    const change = pending.get();
+    const cite = change?.cite;
+    if (change === null || cite === undefined) return new Set<number>();
+    const rows = citations.get();
+    const editing = cite.editing?.entryId ?? null;
+    const others = (Array.isArray(rows) ? rows : []).filter(
+      (r) => editing === null || r.citation.entryId !== editing
+    );
+    const roles = entryRoles(change.volume).length;
+    const named = cite.people.filter((p) => p.role !== null || roles === 0);
+    return new Set([
+      ...citingImage(others, change.image),
+      ...named.map((p) => p.personId)
+    ]);
+  });
+
   function change(to: (cite: PendingCite) => Partial<PendingCite>) {
     const link = pending.get();
     if (link?.cite !== undefined) {
@@ -157,5 +192,6 @@ export function pendingEntry(
     change(() => ({ people }));
   }
 
-  return { setText, setInEntry, setPeople, drop, save, editing, saveEdit };
+  const form: EntryForm = { notNamable, setText, setInEntry, setPeople, drop };
+  return { form, save, editing, saveEdit };
 }

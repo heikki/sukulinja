@@ -1,5 +1,6 @@
 import type { Selected } from './selected';
-import type { LinkOpen } from './viewer';
+import { viewerOpening } from './source-open';
+import type { LinkOpen } from './source-open';
 
 // How the Scan viewer moves, for what it goes on with.
 interface Moves {
@@ -29,12 +30,7 @@ export function viewerOnward(selected: Selected, viewer: Moves) {
       .get()
       .flatMap((g) => g.sources)
       .find((s) => s.citation.id === citationId);
-    const status = source?.status ?? null;
-    if (source === undefined || status === null) return null;
-    const { citation } = source;
-    if (status.link !== null) return { citation, link: status.link };
-    if (status.browse === null) return null;
-    return { citation, link: null, unlinked: status.browse };
+    return source === undefined ? null : viewerOpening(source);
   }
 
   // What's shown stays until the person's Links are in, so going from one

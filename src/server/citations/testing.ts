@@ -7,6 +7,7 @@ export { openMarks } from './myheritage/pins/marks';
 export { memoryAstia } from './astia/memory-astia';
 export type { MemoryAstia } from './astia/memory-astia';
 export {
+  baptismCitation,
   IMAGES,
   JUVA,
   juvaAstia,

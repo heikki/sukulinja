@@ -73,17 +73,9 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
 
   // Whose details are shown.
   private shownId: number | null = null;
-  // The source last brought into view.
+  // The open of the Scan viewer's last brought into view, as `revealing`
+  // gives it.
   private revealed: LinkOpen | null = null;
-  // A source opened in the Scan viewer from Events, by its Citation's id:
-  // Sources marks it, but isn't opened or scrolled to it.
-  private quietly: number | null = null;
-
-  // The source the Scan viewer shows, unless it has moved off its Link.
-  private get viewing() {
-    const { viewer } = this.state;
-    return viewer.away.get() ? null : viewer.source.get();
-  }
 
   // Whether the sources can be seen: their section is open, and so is the
   // dock holding the panel.
@@ -95,12 +87,10 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
   override updated() {
     const { viewer } = this.state;
     viewer.setSourcesInView(this.sourcesShown());
-    const { viewing } = this;
-    if (viewing !== this.revealed) {
-      this.revealed = viewing;
-      const quiet = viewing?.citation.id === this.quietly;
-      this.quietly = null;
-      if (!quiet) void this.revealViewing();
+    const revealing = viewer.revealing.get();
+    if (revealing !== this.revealed) {
+      this.revealed = revealing;
+      if (revealing !== null) void this.revealSource(revealing.citation.id);
     }
     const id = this.state.selected.details.get()?.id ?? null;
     if (id === this.shownId) return;
@@ -122,9 +112,7 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
   }
 
   // The source in the Scan viewer, scrolled to.
-  private async revealViewing() {
-    const id = this.viewing?.citation.id;
-    if (id === undefined) return;
+  private async revealSource(id: number) {
     await (await this.openSources())?.reveal(id);
   }
 
@@ -212,9 +200,6 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
               .marriages=${d.marriages}
               @show-source=${(e: CustomEvent<number>) => {
                 void this.showSource(e.detail);
-              }}
-              @viewing-source=${(e: CustomEvent<number>) => {
-                this.quietly = e.detail;
               }}
             ></sl-person-events>`
         )}
