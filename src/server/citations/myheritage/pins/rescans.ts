@@ -14,12 +14,9 @@ import { split } from './filming';
 import type { Filming } from './filming';
 import type { Pins } from './locate';
 
-// The pins as kept: shipped with the app, and the data folder's own, in
-// its file and in each dataset's Marks.
-export interface KeptPins {
-  shipped: Pins['volumes'];
-  local: LocalPins[];
-}
+// The pins as kept: the data folder's, in its file and in each dataset's
+// Marks.
+export type KeptPins = LocalPins[];
 
 // One pin on an Image of a Volume, and how it's reported when stale.
 interface Entry {
@@ -44,7 +41,7 @@ function onImage<T extends { image?: number }>(
   return pin.image !== undefined;
 }
 
-function volumeEntries(volumes: Pins['volumes'], from: StalePin['from']) {
+function volumeEntries(volumes: Pins['volumes']) {
   return Object.entries(volumes).flatMap(([volumeId, v]): Entry[] => {
     const title = v.title ?? null;
     const pages = v.pages.map((pin) => ({
@@ -53,7 +50,6 @@ function volumeEntries(volumes: Pins['volumes'], from: StalePin['from']) {
       ...on(pin),
       about: {
         kind: 'page' as const,
-        from,
         by: provenance(pin),
         pages: pin.pages
       }
@@ -64,7 +60,6 @@ function volumeEntries(volumes: Pins['volumes'], from: StalePin['from']) {
       ...on(pin),
       about: {
         kind: 'record' as const,
-        from,
         by: provenance(pin),
         record: pin.record,
         markKey: recordMarkKey(pin.record)
@@ -84,7 +79,6 @@ function localEntries(local: LocalPins): Entry[] {
             ...on(pin),
             about: {
               kind: 'reference' as const,
-              from: 'local' as const,
               by: provenance(pin),
               url,
               markKey: markKey({ url, recordId: null })
@@ -93,15 +87,12 @@ function localEntries(local: LocalPins): Entry[] {
         ]
       : []
   );
-  return [...volumeEntries(local.volumes, 'local'), ...references];
+  return [...volumeEntries(local.volumes), ...references];
 }
 
-// Every pin on an Image, shipped and local.
+// Every pin on an Image.
 function entriesOf(pins: KeptPins) {
-  return [
-    ...volumeEntries(pins.shipped, 'shipped'),
-    ...pins.local.flatMap(localEntries)
-  ];
+  return pins.flatMap(localEntries);
 }
 
 // The Volume's pins of `entries` that `filming` leaves out.

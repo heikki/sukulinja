@@ -1,7 +1,7 @@
 // How well each model reads, before trusting it with the data: asks the
 // Reader about Images whose Page numbers, dates and records are known by
-// hand (the shipped Page pins, and Record and Reference pins marked in the
-// app), and reports exact, wrong and unreadable rates and the cost
+// hand (the data folder's Page pins marked in the app, and Record and
+// Reference pins marked there), and reports exact, wrong and unreadable rates and the cost
 // per reading, per question and model; find-entry also for rippikirja and
 // index references apart.
 //

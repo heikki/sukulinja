@@ -1,26 +1,26 @@
 // What resolution reads (see locate.ts), and the saving of it.
 //
-// Facts about Volumes are shared by every dataset: a base of Page pins and
-// Record ranges (by default the ones shipped with the app in pins.json)
-// with the data folder's pins.local.json read over it, where a Mark or the
-// vision pass saves a Page pin. A newer Page pin replaces any on the same
-// image or claiming one of its pages, so re-marking a page moves it.
+// Facts about Volumes are shared by every dataset: the Page pins and
+// Record ranges in the data folder's pins.local.json, where a Mark or the
+// vision pass saves a Page pin. Nothing is shipped with the app: an
+// estimate starts from the reference alone, and what the person Marks or
+// the vision model reads is all it learns from. A newer Page pin replaces
+// any on the same image or claiming one of its pages, so re-marking a page
+// moves it.
 //
 // A dataset's Marks and Matches are in its citations (marks.ts,
 // ADR-0013). Resolution reads each as a Reference pin of every reference
 // citing its record, and, on an Image, as a Record pin, which extends its
 // Volume's Record range for that dataset only.
 //
-// A Mark always wins: a Match never replaces one (the base counts
-// as by hand), and a Mark replaces a Match. A Discard takes a Box
+// A Mark always wins: a Match never replaces one, and a Mark replaces a
+// Match. A Discard takes a Box
 // back; a Match taken back is only undone, and nothing of it is kept.
 //
 // A pin on an Image keeps the Image's Astia file id, from the Volume's
 // list when saved. One made on another filming of the Volume
 // (filming.ts) is left out of the clashes a save weighs, so it never keeps
-// a pin for the filming now from being saved. Merging the local pins over the base can't tell,
-// lacking the lists: a stale base Page pin still beats a vision one there
-// until the base is fixed.
+// a pin for the filming now from being saved.
 //
 // How the local file is kept on disk, and saved from two processes at
 // once, is files.ts.
@@ -60,9 +60,6 @@ import type {
   VolumePins
 } from './locate';
 import type { Marks } from './marks';
-import shipped from './pins.json';
-
-const SHIPPED: Pins['volumes'] = shipped.volumes;
 
 // ---------------------------------------------------------------- merging
 
@@ -90,9 +87,9 @@ function pageClash(pin: PagePin) {
 
 // The list with the Page pin in, unless a pin it clashes with wins. Saving
 // into the Volume of `filming`, its stale pins aren't weighed.
-function withPagePin(pins: PagePin[], pin: PagePin, filming?: Filming) {
+function withPagePin(pins: PagePin[], pin: PagePin, filming: Filming) {
   const clashes = pageClash(pin);
-  const weighed = filming === undefined ? pins : split(filming, pins).current;
+  const weighed = split(filming, pins).current;
   if (!overrides(pin, weighed.filter(clashes))) return pins;
   return [...pins.filter((p) => !clashes(p)), pin].sort(byImage);
 }
@@ -105,46 +102,15 @@ function contains(outer: RecordRange, inner: RecordRange) {
   return outer.from <= inner.from && inner.to <= outer.to;
 }
 
-// Ranges with any one inside another left out, so an extended local range
-// stands in for the base one it grew from.
-function withRanges(ranges: RecordRange[]) {
-  const all = ranges.filter(
-    (r, i, list) =>
-      list.findIndex((o) => o.from === r.from && o.to === r.to) === i
+// The Volumes as the local file keeps them, without the Record pins left
+// there, which no dataset cites.
+function readVolumes(local: LocalPins) {
+  return Object.fromEntries(
+    Object.entries(local.volumes).map(([id, volume]) => {
+      const { records: _left, ...rest } = volume;
+      return [id, rest];
+    })
   );
-  return all.filter((r) => !all.some((o) => o !== r && contains(o, r)));
-}
-
-function union<T>(a: T[] = [], b: T[] = []) {
-  return [...new Set([...a, ...b])];
-}
-
-// A Volume's facts as the base and the local file give them. Record pins
-// left in the file, which no dataset cites, aren't read.
-function mergeVolume(base: VolumePins | undefined, local: VolumePins) {
-  const from = base ?? { pages: [] };
-  const lists = {
-    villages: union(from.villages, local.villages),
-    ranges: withRanges(union(from.ranges, local.ranges))
-  };
-  const pages = local.pages.reduce(
-    (list, pin) => withPagePin(list, pin),
-    from.pages
-  );
-  const { records: _left, ...rest } = base ?? local;
-  const out: VolumePins = { ...rest, pages };
-  for (const [key, list] of Object.entries(lists)) {
-    if (list.length > 0) Object.assign(out, { [key]: list });
-  }
-  return out;
-}
-
-function merge(base: Pins['volumes'], local: Pins['volumes']) {
-  const out = { ...base };
-  for (const [volumeId, volume] of Object.entries(local)) {
-    out[volumeId] = mergeVolume(out[volumeId], volume);
-  }
-  return out;
 }
 
 // The Record range a Record pin extends its volume's to, or null: none
@@ -239,11 +205,9 @@ function withMarks(volumes: Pins['volumes'], marks: Marks): Pins {
 
 // ---------------------------------------------------------------- saving Page pins
 
-// One save's view of the local file, read under the lock, the base it's
-// read over, and the filming of the Volume it saves into, as Astia lists
+// One save's view of the local file, read under the lock, and the filming of the Volume it saves into, as Astia lists
 // it now.
 interface Draft {
-  base: Pins['volumes'];
   local: LocalPins;
   filming: Filming;
 }
@@ -254,7 +218,7 @@ function fileOf(filming: Filming, image: number) {
 }
 
 function mergedVolumes(draft: Draft) {
-  return merge(draft.base, draft.local.volumes);
+  return readVolumes(draft.local);
 }
 
 function addPagePin(draft: Draft, title: string, pin: PagePin) {
@@ -301,14 +265,9 @@ function pagePin(
 }
 
 // The Page pins and Record ranges of a data folder, shared by its datasets,
-// saved with file ids from `astia`'s lists. `base` is what the local file
-// is read over: the shipped pins unless given.
-export function openVolumeFacts(
-  folder: string,
-  options: { astia: Astia; base?: Pins['volumes'] }
-) {
+// saved with file ids from `astia`'s lists.
+export function openVolumeFacts(folder: string, options: { astia: Astia }) {
   const { astia } = options;
-  const base = options.base ?? SHIPPED;
   const localFile = join(folder, 'pins.local.json');
   const lockFile = join(folder, 'pins.lock');
   let migration: Promise<void> | null = null;
@@ -346,14 +305,13 @@ export function openVolumeFacts(
   return {
     astia,
 
-    // The base with the local file over it. Kept while the file is
-    // unchanged.
+    // The local file's Volumes. Kept while the file is unchanged.
     async volumes() {
       const now = await stamp();
       if (merged?.stamp !== now) {
         merged = {
           stamp: now,
-          volumes: readLocal().then((l) => merge(base, l.volumes))
+          volumes: readLocal().then(readVolumes)
         };
       }
       return await merged.volumes;
@@ -375,7 +333,7 @@ export function openVolumeFacts(
       await migrated();
       await mkdir(folder, { recursive: true });
       await withLock(lockFile, async () => {
-        const draft = { base, local: await readLocal(), filming };
+        const draft = { local: await readLocal(), filming };
         const pin = pagePin(draft, ref, at.image, at.by);
         addPagePin(draft, at.volume, pin);
         await writeLocalFile(localFile, draft.local);
@@ -383,9 +341,9 @@ export function openVolumeFacts(
       merged = null;
     },
 
-    // The pins as kept, before the local file is read over the base.
+    // The pins as the local file keeps them.
     async kept() {
-      return { shipped: base, local: await readLocal() };
+      return await readLocal();
     }
   };
 }

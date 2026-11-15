@@ -128,7 +128,7 @@ _Avoid_: method, scan method (they said how a link was found, not how far to tru
 ### Pins
 
 **Pin**:
-Something known to be in a Volume, and on which Image: a page, a record, or one reference (which may be pinned to the Volume alone). Page pins and Record ranges are facts about Volumes: they ship with the app or are saved in the data folder, shared by every dataset. Record pins and Reference pins are a dataset's Marks and Matches, kept in its citations (ADR-0013) and read as pins when a Link is resolved. A pin on an Image keeps the Image's file id, so it holds for one filming: after a **Re-scan** it's **stale**, left out as if never saved, with its Box, until the page or record is pinned again. Record ranges and villages aren't about Images, and stay.
+Something known to be in a Volume, and on which Image: a page, a record, or one reference (which may be pinned to the Volume alone). Page pins and Record ranges are facts about Volumes, saved in the data folder and shared by every dataset; none ship with the app, so an estimate starts from the reference alone. Record pins and Reference pins are a dataset's Marks and Matches, kept in its citations (ADR-0013) and read as pins when a Link is resolved. A pin on an Image keeps the Image's file id, so it holds for one filming: after a **Re-scan** it's **stale**, left out as if never saved, with its Box, until the page or record is pinned again. Record ranges and villages aren't about Images, and stay.
 _Avoid_: correction, anchor (alone), placement.
 
 **Page pin**:
@@ -156,7 +156,7 @@ Taking a reference's **Box** back by hand in the Scan viewer, a Mark's or a **Ma
 _Avoid_: clear, delete (only the Box's pins go).
 
 **Provenance**:
-Who saved a Pin: by hand (the shipped Page pins, and every Mark) or by the vision model. What's saved by hand always wins over the vision model's. Vision pins still count other links' estimates and extend Record ranges; the links they steer stay Estimates.
+Who saved a Pin: by hand (every Mark) or by the vision model. What's saved by hand always wins over the vision model's. Vision pins still count other links' estimates and extend Record ranges; the links they steer stay Estimates.
 
 ### Through MyHeritage
 

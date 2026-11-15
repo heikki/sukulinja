@@ -12,7 +12,6 @@ import { openMarks } from './pins/marks';
 import type { MarkTarget } from './pins/pins';
 import { markKey } from './record';
 import {
-  BASE,
   BOX,
   CITED,
   citing,
@@ -21,7 +20,8 @@ import {
   pinsParish,
   ref,
   scansOf,
-  SIZE
+  SIZE,
+  writeBase
 } from './test-pins';
 
 let dir = '';
@@ -33,16 +33,16 @@ beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'scans-'));
   cited = citing(CITED, join(dir, 'cited.sqlite'));
   parish = pinsParish();
+  await writeBase(dir);
 });
 afterEach(async () => {
   cited.close();
   await rm(dir, { recursive: true, force: true });
 });
 
-function open(base = BASE, on = cited) {
+function open(on = cited) {
   return scansOf(dir, on, {
     astia: parish,
-    base,
     sizeOf: async () => await Promise.resolve(SIZE)
   });
 }
@@ -129,7 +129,7 @@ test('a Match never replaces a hand pin', async () => {
   const scans = open();
   await scans.markRef(ref(150, 21), at('a', 11));
   await scans.saveMatch(ref(150, 21), match('a', 12, true));
-  // Nor a Page pin of the base, which counts as by hand.
+  // Nor a Page pin saved without a `by`, which counts as by hand.
   await scans.saveMatch(ref(160, 20), match('a', 10, true));
   const index = ref(null);
   await scans.markRef(index, at('b', 5));
@@ -137,7 +137,7 @@ test('a Match never replaces a hand pin', async () => {
 
   const { volumes, references } = await scans.snapshot();
   expect(volumes.a!.pages).toEqual([
-    { image: 10, pages: [20] },
+    { image: 10, pages: [20], fileId: 'a-f10' },
     {
       image: 11,
       pages: [21],
@@ -169,7 +169,7 @@ test('a hand pin replaces a Match', async () => {
 
   const { volumes, references } = await scans.snapshot();
   expect(volumes.a!.pages).toEqual([
-    { image: 10, pages: [20] },
+    { image: 10, pages: [20], fileId: 'a-f10' },
     {
       image: 12,
       pages: [21],
@@ -191,7 +191,8 @@ test('a hand pin replaces a Match', async () => {
 });
 
 test('a record pinned again moves to its new Image, in any Volume', async () => {
-  const scans = open({});
+  await writeBase(dir, {});
+  const scans = open();
   await scans.saveMatch(ref(12), match('x', 4));
   await scans.saveMatch(ref(12), match('y', 9));
   const { volumes } = await scans.snapshot();
@@ -204,7 +205,7 @@ test('a record pinned again moves to its new Image, in any Volume', async () => 
 // ---------------------------------------------------------------- ranges
 
 test('a Record pin extends the nearest Record range of its Volume', async () => {
-  const scans = open({
+  await writeBase(dir, {
     a: {
       pages: [],
       ranges: [
@@ -215,6 +216,7 @@ test('a Record pin extends the nearest Record range of its Volume', async () => 
     b: { pages: [], ranges: [{ from: 300, to: 400 }] },
     c: { pages: [], ranges: [{ from: 1000, to: 1100 }] }
   });
+  const scans = open();
   await scans.saveMatch(ref(250), match('a', 4));
   await scans.saveMatch(ref(150), match('a', 3));
   await scans.saveMatch(ref(650), match('a', 40));
@@ -225,7 +227,7 @@ test('a Record pin extends the nearest Record range of its Volume', async () => 
   await scans.saveMatch(ref(800), match('d', 2));
 
   const { volumes } = await scans.snapshot();
-  // The extended ranges stand in for the base ones they grew from.
+  // The extended ranges stand in for the ones they grew from.
   expect(volumes.a!.ranges).toEqual([
     { from: 100, to: 250 },
     { from: 450, to: 650 }
@@ -242,6 +244,7 @@ test('a hand pin made on another filming never keeps a Match out', async () => {
     volumes: {
       a: {
         pages: [
+          { image: 10, pages: [20] },
           { image: 12, pages: [30], by: 'hand', fileId: 'a-old12' },
           { image: 20, pages: [40], by: 'hand', fileId: 'a-f20' }
         ]
@@ -262,7 +265,7 @@ test('a hand pin made on another filming never keeps a Match out', async () => {
     { record: 160, image: 20, by: 'hand', fileId: 'a-f20' }
   ]);
   expect(a.pages).toEqual([
-    { image: 10, pages: [20] },
+    { image: 10, pages: [20], fileId: 'a-f10' },
     {
       image: 13,
       pages: [30],

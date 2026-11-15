@@ -420,13 +420,12 @@ export interface ChurchBookVolume {
 }
 
 // A pin made on a filming of its Volume that Astia has since replaced,
-// which switching to the new filming leaves out: shipped with the app or
-// saved in the data folder, on the Image it gives. A Page pin gives its
+// which switching to the new filming leaves out: saved in the data folder
+// or a dataset's Marks, on the Image it gives. A Page pin gives its
 // pages, a Record pin its record, a Reference pin the URL of its
 // reference.
 export interface StalePin {
   kind: 'page' | 'record' | 'reference';
-  from: 'shipped' | 'local';
   by: Provenance;
   image: number;
   pages?: number[];

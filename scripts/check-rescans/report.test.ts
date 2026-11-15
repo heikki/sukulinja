@@ -16,21 +16,18 @@ test('lists each re-scanned Volume with its stale pins, hand ones first', () => 
           stale: [
             {
               kind: 'record',
-              from: 'local',
               by: 'vision',
               image: 6,
               record: 7
             },
             {
               kind: 'page',
-              from: 'shipped',
               by: 'hand',
               image: 2,
               pages: [3, 4]
             },
             {
               kind: 'reference',
-              from: 'local',
               by: 'hand',
               image: 4,
               url: 'ref-a'
@@ -44,8 +41,8 @@ test('lists each re-scanned Volume with its stale pins, hand ones first', () => 
     '1 pins on an Image have no file id to check.',
     '',
     'I Ab:1 (v1): 10 → 8 Images',
-    '  shipped Page pin by hand, was Image 2: pages 3–4',
-    '  local Reference pin by hand, was Image 4: ref-a',
-    '  local Record pin by vision, was Image 6: record 7'
+    '  Page pin by hand, was Image 2: pages 3–4',
+    '  Reference pin by hand, was Image 4: ref-a',
+    '  Record pin by vision, was Image 6: record 7'
   ]);
 });

@@ -9,9 +9,7 @@ import { join } from 'node:path';
 
 import type { Pins } from './pins/locate';
 import type { BoxAt, MarkTarget } from './pins/pins';
-import shipped from './pins/pins.json';
 import {
-  BASE,
   BOX,
   CITED,
   citing,
@@ -20,7 +18,8 @@ import {
   pinsParish,
   ref,
   scansOf,
-  SIZE
+  SIZE,
+  writeBase
 } from './test-pins';
 
 let dir = '';
@@ -32,16 +31,16 @@ beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'scans-'));
   cited = citing(CITED, join(dir, 'cited.sqlite'));
   parish = pinsParish();
+  await writeBase(dir);
 });
 afterEach(async () => {
   cited.close();
   await rm(dir, { recursive: true, force: true });
 });
 
-function open(base = BASE, on = cited) {
+function open(on = cited) {
   return scansOf(dir, on, {
     astia: parish,
-    base,
     sizeOf: async () => await Promise.resolve(SIZE)
   });
 }
@@ -58,10 +57,11 @@ async function writePins(pins: Partial<Pins>) {
   await Bun.write(join(dir, 'pins.local.json'), JSON.stringify(pins));
 }
 
-test('reads the local pins over the base, but no Record pins left there', async () => {
+test('reads the local pins, but no Record pins left there', async () => {
   await writePins({
     volumes: {
       a: {
+        title: 'I Aa:1',
         pages: [{ image: 10, pages: [99] }],
         villages: ['Kylä'],
         ranges: [{ from: 300, to: 310 }],
@@ -76,29 +76,22 @@ test('reads the local pins over the base, but no Record pins left there', async 
     title: 'I Aa:1',
     pages: [{ image: 10, pages: [99], fileId: 'a-f10' }],
     villages: ['Kylä'],
-    ranges: [
-      { from: 100, to: 200 },
-      { from: 300, to: 310 }
-    ]
+    ranges: [{ from: 300, to: 310 }]
   });
   expect(volumes.b).toEqual({
     title: 'I Aa:2',
     pages: [{ image: 2, pages: [3], fileId: 'b-f2' }]
   });
   expect(references).toEqual({});
-  expect(BASE.a!.pages).toEqual([{ image: 10, pages: [20] }]);
 });
 
-test('reads over the shipped pins unless given a base', async () => {
-  const { volumes } = await scansOf(dir, cited, { astia: parish }).snapshot();
-  expect(Object.keys(volumes)).toEqual(Object.keys(shipped.volumes));
-});
-
-test('ships only facts about Volumes, never Record or Reference pins', () => {
-  expect(Object.keys(shipped)).toEqual(['volumes']);
-  const volumes: Pins['volumes'] = shipped.volumes;
-  for (const volume of Object.values(volumes)) {
-    expect(volume.records).toBeUndefined();
+test('starts with no pins in a new data folder', async () => {
+  const fresh = await mkdtemp(join(tmpdir(), 'scans-fresh-'));
+  try {
+    const scans = scansOf(fresh, cited, { astia: parish });
+    expect(await scans.snapshot()).toEqual({ volumes: {}, references: {} });
+  } finally {
+    await rm(fresh, { recursive: true, force: true });
   }
 });
 
@@ -107,7 +100,7 @@ test('the stamp changes when another process saves, and so does the snapshot', a
   const other = citing([], join(dir, 'cited.sqlite'));
   const before = await app.stamp();
   expect((await app.snapshot()).volumes.b).toBeUndefined();
-  await open(BASE, other).saveMatch(ref(5000), match('b', 4));
+  await open(other).saveMatch(ref(5000), match('b', 4));
   expect(await app.stamp()).not.toBe(before);
   expect((await app.snapshot()).volumes.b?.records).toEqual([
     { record: 5000, image: 4, by: 'vision', box: BOX, fileId: 'b-f4' }
@@ -122,7 +115,7 @@ test('a Mark is written into every citation of the record, which then cites the 
     [ref(150).url, `${ref(150).url}&lang=fi`, ref(150).url, ref(160).url],
     join(dir, 'three.sqlite')
   );
-  const scans = open(BASE, three);
+  const scans = open(three);
   expect(
     await scans.markRef(ref(150, 21), { ...at('a', 11), box: BOX })
   ).toMatchObject({
@@ -224,7 +217,7 @@ test('a Mark of a page in a linked Volume saves a hand Page pin and Record pin',
 
   const a = (await scans.snapshot()).volumes.a!;
   expect(a.pages).toEqual([
-    { image: 10, pages: [20] },
+    { image: 10, pages: [20], fileId: 'a-f10' },
     {
       image: 12,
       pages: [21],
@@ -239,7 +232,8 @@ test('a Mark of a page in a linked Volume saves a hand Page pin and Record pin',
 });
 
 test('a Volume numbered by page takes both pages of an Image', async () => {
-  const scans = open({});
+  await writeBase(dir, {});
+  const scans = open();
   const lasten = { ...ref(null, 40), kind: 'lasten' as const };
   await scans.markRef(lasten, at('c', 5));
   expect((await scans.snapshot()).volumes.c?.pages).toEqual([
@@ -386,11 +380,11 @@ test('a Discard finds no Box elsewhere, nor on a Mark without one', async () => 
 
 test('a Citation converted from a reference is a Record pin no Mark writes to', async () => {
   const two = citing([ref(150).url, ref(160).url], join(dir, 'two.sqlite'));
-  await open(BASE, two).markRef(ref(150, 21), { ...at('a', 11), box: BOX });
+  await open(two).markRef(ref(150, 21), { ...at('a', 11), box: BOX });
   // Converted (ADR-0016): made in the app, its original page kept.
   two.run('UPDATE citations SET added_in_app = 1 WHERE id = 1');
 
-  const scans = open(BASE, two);
+  const scans = open(two);
   const { volumes } = await scans.snapshot();
   const pins = (volumes.a?.records ?? []).map((r) => [r.record, r.image]);
   expect(pins).toContainEqual([150, 11]);

@@ -5,7 +5,6 @@ import { join } from 'node:path';
 
 import { BOX, listedAstia, ref } from '../test-pins';
 import { fillFileIds } from './files';
-import type { Pins } from './locate';
 import { openVolumeFacts } from './pins';
 
 let dir = '';
@@ -20,8 +19,8 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-function open(base: Pins['volumes'] = {}) {
-  return openVolumeFacts(dir, { astia: ASTIA, base });
+function open() {
+  return openVolumeFacts(dir, { astia: ASTIA });
 }
 
 function localFile() {
@@ -136,7 +135,7 @@ async function writeOldFiles() {
 
 test('moves the files saved before pins into pins.local.json', async () => {
   await writeOldFiles();
-  const { volumes, references } = (await open({}).kept()).local;
+  const { volumes, references } = await open().kept();
 
   expect(volumes.v).toEqual({
     title: 'I Aa:1',
@@ -158,8 +157,8 @@ test('moves the files saved before pins into pins.local.json', async () => {
 
 test('migrates once: a later opening reads pins.local.json as it is', async () => {
   await writeOldFiles();
-  await savePage(open({}), 7, 6);
-  const { volumes, references } = (await open({}).kept()).local;
+  await savePage(open(), 7, 6);
+  const { volumes, references } = await open().kept();
   expect(Object.keys(references)).toEqual([INDEX_URL]);
   expect(volumes.v?.pages.map((p) => p.image)).toEqual([2, 6]);
 });
@@ -248,8 +247,8 @@ test('a fill that fails is logged, and the pins read as they are', async () => {
     ...ASTIA,
     cachedImages: async () => await Promise.reject(new Error('unreadable'))
   };
-  const facts = openVolumeFacts(dir, { astia: broken, base: {} });
-  expect((await facts.kept()).local.references).toEqual(references);
+  const facts = openVolumeFacts(dir, { astia: broken });
+  expect((await facts.kept()).references).toEqual(references);
   expect(error).toHaveBeenCalled();
   error.mockRestore();
 });

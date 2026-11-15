@@ -1,6 +1,8 @@
 // Test support for the pins: references, Matches, and an Astia
 // listing whatever file ids a test gives.
 
+import { join } from 'node:path';
+
 import type { Box } from '@/common/types';
 
 import { openDb } from '../../datasets/db';
@@ -69,11 +71,10 @@ export function citing(
   return db;
 }
 
-// A data folder's Astia, shipped pins and parishes (the starting ones
-// unless given), and its Images' sizes.
+// A data folder's Astia and parishes (the starting ones unless given),
+// and its Images' sizes.
 interface FolderOptions {
   astia: Astia;
-  base?: Pins['volumes'];
   parishes?: Parishes;
   sizeOf?: ImageSizeOf;
 }
@@ -128,7 +129,8 @@ export function listedAstia(lists: () => Record<string, string[]>): Astia {
 
 // Volumes a–y of Juva's archive, of 50 Images each: a is the Book the
 // rippikirja references (ref) cite, and holds a Page pin and a Record
-// range in BASE; b is another Book.
+// range in BASE, the data folder's pins most tests start with; b is
+// another Book.
 export const LABELS = {
   a: 'I Aa:1 Pää- ja rippikirjat (1790-1796)',
   b: 'I Aa:2 Pää- ja rippikirjat (1797-1803)',
@@ -163,3 +165,9 @@ export const BASE: Pins['volumes'] = {
     ranges: [{ from: 100, to: 200 }]
   }
 };
+
+// The data folder's pins file holding `volumes`: BASE unless given.
+export async function writeBase(folder: string, volumes = BASE) {
+  const pins: Pins = { volumes, references: {} };
+  await Bun.write(join(folder, 'pins.local.json'), JSON.stringify(pins));
+}

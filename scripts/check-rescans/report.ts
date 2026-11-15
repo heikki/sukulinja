@@ -37,7 +37,7 @@ export function reportLines(result: CheckResult) {
       .toSorted(handFirst)
       .map(
         (s) =>
-          `  ${s.from} ${KINDS[s.kind]} by ${s.by}, was Image ${s.image}: ${pinned(s)}`
+          `  ${KINDS[s.kind]} by ${s.by}, was Image ${s.image}: ${pinned(s)}`
       )
   ]);
   return [head, ...unchecked, ...volumes];

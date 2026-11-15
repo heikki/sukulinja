@@ -52,7 +52,7 @@ function churchBook(id: number): CitationRow {
 const C1 = churchBook(1);
 const MARKED = onImage('301', 247, 'marked');
 const STALE: StalePin[] = [
-  { kind: 'record', from: 'local', by: 'hand', image: 247, record: 5 }
+  { kind: 'record', by: 'hand', image: 247, record: 5 }
 ];
 
 function person(): PersonDetails {

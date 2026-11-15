@@ -57,15 +57,13 @@ test('names stale marks first, then Matches, then each Page pin once', () => {
   const stale: StalePin[] = [
     {
       kind: 'page',
-      from: 'shipped',
       by: 'hand',
       image: 125,
       pages: [234, 235]
     },
-    { kind: 'page', from: 'local', by: 'hand', image: 125, pages: [234, 235] },
+    { kind: 'page', by: 'hand', image: 125, pages: [234, 235] },
     {
       kind: 'record',
-      from: 'local',
       by: 'vision',
       image: 247,
       record: 500,
@@ -73,7 +71,6 @@ test('names stale marks first, then Matches, then each Page pin once', () => {
     },
     {
       kind: 'reference',
-      from: 'local',
       by: 'hand',
       image: 40,
       url: 'https://mh/y?itemId=9',
@@ -81,7 +78,6 @@ test('names stale marks first, then Matches, then each Page pin once', () => {
     },
     {
       kind: 'record',
-      from: 'local',
       by: 'hand',
       image: 30,
       record: 777,

@@ -36,21 +36,18 @@ function on(volumeId: string, image: number) {
   return { image, fileId: fileId(volumeId, image, 'full') };
 }
 
-const SHIPPED = {
-  v1: { title: 'I Ab:1', pages: [{ ...on('v1', 2), pages: [3, 4] }] },
-  v2: { title: 'I Ab:2', pages: [{ ...on('v2', 5), pages: [9, 10] }] }
-};
-
 const LOCAL = {
   volumes: {
     v1: {
-      pages: [],
+      title: 'I Ab:1',
+      pages: [{ ...on('v1', 2), pages: [3, 4] }],
       records: [
         { record: 7, by: 'vision' as const, ...on('v1', 6) },
         // Saved before pins kept file ids.
         { record: 8, image: 7 }
       ]
-    }
+    },
+    v2: { title: 'I Ab:2', pages: [{ ...on('v2', 5), pages: [9, 10] }] }
   },
   references: {
     'ref-a': {
@@ -64,12 +61,11 @@ const LOCAL = {
   }
 };
 
-// What v1's re-scan leaves out of SHIPPED and LOCAL.
+// What v1's re-scan leaves out of LOCAL.
 const STALE: StalePin[] = [
-  { kind: 'page', from: 'shipped', by: 'hand', image: 2, pages: [3, 4] },
+  { kind: 'page', by: 'hand', image: 2, pages: [3, 4] },
   {
     kind: 'record',
-    from: 'local',
     by: 'vision',
     image: 6,
     record: 7,
@@ -77,7 +73,6 @@ const STALE: StalePin[] = [
   },
   {
     kind: 'reference',
-    from: 'local',
     by: 'hand',
     image: 4,
     url: 'ref-a',
@@ -89,7 +84,7 @@ test('names the re-scanned Volume and its stale pins, and nothing else', async (
   const listed = astia();
   listed.rescan('v1', 8);
   const result = await checkRescans(
-    { shipped: SHIPPED, local: [LOCAL] },
+    [LOCAL],
     async (id) => await listed.peekImages(id),
     async (id) => await listed.volumeImages(id)
   );
@@ -105,25 +100,22 @@ test('names the re-scanned Volume and its stale pins, and nothing else', async (
 test('finds nothing when no pinned Volume was re-scanned', async () => {
   const listed = astia();
   const result = await checkRescans(
-    { shipped: SHIPPED, local: [] },
+    [LOCAL],
     async (id) => await listed.peekImages(id),
     async (id) => await listed.volumeImages(id)
   );
-  expect(result).toEqual({ volumes: 2, unchecked: 0, rescanned: [] });
+  expect(result).toEqual({ volumes: 2, unchecked: 1, rescanned: [] });
 });
 
 // ---------------------------------------------------------------- the app
 
 async function app(listed: MemoryAstia) {
   await Bun.write(join(dir, 'pins.local.json'), JSON.stringify(LOCAL));
-  const facts = openVolumeFacts(dir, { astia: listed, base: SHIPPED });
+  const facts = openVolumeFacts(dir, { astia: listed });
   const shared = {
     astia: listed,
     cache: openScanCache({ astia: listed, root: dir, switches: false }),
-    kept: async () => {
-      const { shipped, local } = await facts.kept();
-      return { shipped, local: [local] };
-    }
+    kept: async () => [await facts.kept()]
   };
   async function ask(method: string, volumeId: string) {
     const req = new Request(`http://localhost/astia/volumes/${volumeId}`, {
@@ -160,7 +152,6 @@ test('tells of a re-scan, and what switching leaves out, without switching', asy
   // cached list, so it's known to be of the filming replaced.
   const filled: StalePin = {
     kind: 'record',
-    from: 'local',
     by: 'hand',
     image: 7,
     record: 8,

@@ -1,16 +1,19 @@
 // Church-book reference → Astia volume → image.
 //
 // Astia knows only image order, so a cited page is turned into an image via
-// Page pins (pins.json): what's written on one image. One number means the
-// book numbers spreads (`pages: [77]`); two mean it numbers pages
-// (`pages: [40, 41]`). Where MyHeritage's indexer misread the page number,
-// a Page pin gives the number as cited and a `note` says what's written.
-// Without one we guess from the spot checks so far: rippikirjat number
-// spreads, lastenkirjat pages.
+// Page pins: what's written on one image, as a Mark or the vision model
+// read it in the app (nothing is shipped: an estimate starts from the
+// reference alone). One number means the book numbers spreads
+// (`pages: [77]`); two mean it numbers pages (`pages: [40, 41]`). Where
+// MyHeritage's indexer misread the page number, a Page pin gives the number
+// as cited and a `note` says what's written. Without one, a book is
+// counted from its first Image: rippikirjat one number a spread,
+// lastenkirjat two, and a rippikirja whose cited page wouldn't fit that way
+// two as well.
 //
 // Which volume a reference is in comes from its book's years, then the
-// villages and page numbers. Where that's known exactly, a volume lists the
-// Record ranges on its film: MyHeritage numbers each film's records in one
+// villages in Astia's labels and page numbers. Where it's known, a volume
+// lists the Record ranges on its film, grown from the Marks and Matches: MyHeritage numbers each film's records in one
 // block, in image order, and blocks don't overlap, so a record pinned on a
 // film places every record numbered around it there too. A Record pin puts
 // its record on a known image; so does a Reference pin its reference.
@@ -30,8 +33,8 @@ import type { BookKind, Years } from '../../text';
 import type { ChurchBookRef } from '../record';
 import { filmingOf, leavesOut, splitVolume } from './filming';
 
-// Pins say who saved them; a missing `by` is by hand, which covers the
-// shipped ones and every local file written before the vision model.
+// Pins say who saved them; a missing `by` is by hand, which covers every
+// local file written before the vision model.
 // A pin on an Image keeps that Image's Astia file id, which tells the
 // filming it was made on: after a re-scan the Image number is another
 // page, and the pin is left out (see filming.ts).
@@ -200,10 +203,16 @@ interface Numbering {
   pagesPerImage: number;
 }
 
-function defaultNumbering(kind: BookKind): Numbering {
-  return kind === 'lasten'
-    ? { image: 1, first: 0, pagesPerImage: 2 }
-    : { image: 1, first: 1, pagesPerImage: 1 };
+const BY_SPREAD: Numbering = { image: 1, first: 1, pagesPerImage: 1 };
+const BY_PAGE: Numbering = { image: 1, first: 0, pagesPerImage: 2 };
+
+// Where the page is counted from the book's first Image: by spread, unless
+// it's a lastenkirja or the page wouldn't fit the Volume that way.
+function numberedImage(kind: BookKind, page: number, images: number) {
+  const spread = imageFor(BY_SPREAD, page);
+  return kind === 'lasten' || spread > images
+    ? imageFor(BY_PAGE, page)
+    : spread;
 }
 
 function imageFor(n: Numbering, page: number) {
@@ -264,7 +273,7 @@ async function locate(
   if (pinned !== null) return { volume: v, files, target: pinned };
   if (ref.page === null) return { volume: v, files, target: ESTIMATED_VOLUME };
   const counted = countedImage(own.pages, ref.page);
-  const image = counted ?? imageFor(defaultNumbering(ref.kind!), ref.page);
+  const image = counted ?? numberedImage(ref.kind!, ref.page, files.length);
   const from = counted === null ? 'numbering' : 'pins';
   if (image < 1 || image > files.length) {
     return {

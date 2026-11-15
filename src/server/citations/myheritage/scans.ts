@@ -336,11 +336,10 @@ function openScans({
 export type Scans = ReturnType<typeof openScans>;
 
 // A data folder's scans: its Page pins and Record ranges, read and kept
-// once for every dataset, over `base` (the shipped pins unless given), and
-// its parishes.
+// once for every dataset, and its parishes.
 export function openScanFolder(
   root: string,
-  options: { astia: Astia; parishes: Parishes; base?: Pins['volumes'] }
+  options: { astia: Astia; parishes: Parishes }
 ) {
   const { astia, parishes } = options;
   const facts = openVolumeFacts(root, options);
@@ -364,9 +363,8 @@ export function openScanFolder(
     // The pins on Astia's Images: the folder's, and each dataset's Marks
     // and Matches, which a switch to a new filming leaves out alike.
     async kept(dbs: Database[]) {
-      const { shipped, local } = await facts.kept();
       const marked = dbs.map((db) => pinsOf(db).marked());
-      return { shipped, local: [local, ...marked] };
+      return [await facts.kept(), ...marked];
     }
   };
 }

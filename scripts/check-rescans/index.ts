@@ -1,14 +1,11 @@
 // Catches Astia re-scanning a pinned Volume before anyone opens it: lists
 // the pins made on a filming Astia has since replaced, which the app now
-// leaves out. Shipped Page pins listed here want moving to the new
-// filming's Images in src/server/citations/myheritage/pins/pins.json; hand marks
-// want marking again in the app.
+// leaves out. Hand marks listed here want marking again in the app.
 //
 //   bun run scripts/check-rescans/index.ts [--data <folder>]
 //     [--update-cache]
 //
-// Checks the shipped pins and the data folder's own (default `data`), in
-// its pins.local.json and in each dataset's Marks, against each Volume's list fetched from Astia past any cache, one
+// Checks the data folder's pins (default `data`), in its pins.local.json and in each dataset's Marks, against each Volume's list fetched from Astia past any cache, one
 // request at a time. --update-cache also keeps the new lists in the data
 // folder and drops its cached Images of the filmings replaced, as the Scan
 // viewer does when told to switch. Exits 1 when a Volume was re-scanned.
@@ -22,7 +19,6 @@ import { openAstia } from '@/server/citations/astia/astia';
 import { openParishes } from '@/server/citations/astia/parishes';
 import { openScanCache } from '@/server/citations/astia/scan-cache';
 import { readLocalFile } from '@/server/citations/myheritage/pins/files';
-import shipped from '@/server/citations/myheritage/pins/pins.json';
 import { checkRescans } from '@/server/citations/myheritage/pins/rescans';
 import { openScanFolder } from '@/server/citations/myheritage/scans';
 import { DatasetRegistry } from '@/server/datasets/registry';
@@ -50,10 +46,7 @@ try {
     .filter((d) => d.outdated === null)
     .map((d) => folder.scans(registry.open(d.slug)).marked());
   const result = await checkRescans(
-    {
-      shipped: shipped.volumes,
-      local: [await readLocalFile(join(root, 'pins.local.json')), ...marked]
-    },
+    [await readLocalFile(join(root, 'pins.local.json')), ...marked],
     async (id) => await fresh.volumeImages(id),
     async (id) => await kept.volumeImages(id)
   );
