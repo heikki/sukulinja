@@ -90,5 +90,6 @@ export const remind = writeOperation<{ personId: number; text: string }>({
       body: { text, on: { personId } },
       label: `Remind on ${view.nameOf(personId)}: ${text}`
     };
-  }
+  },
+  many: (n) => `${n} Reminders`
 });

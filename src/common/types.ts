@@ -646,12 +646,15 @@ export type AssistantEvent =
 export type ShowOn = Extract<On, { kind: 'person' | 'citation' }>;
 
 // One change the assistant proposes, for the person to tick and apply:
-// what it would do, in words, and why. Its id is its place in the
-// conversation's Proposal, from 1.
+// what it would do, in words, and why; or a batch of changes, with a few
+// of them named. Its id is its place in the conversation's Proposal, from
+// 1.
 export interface ProposalItem {
   id: number;
   label: string;
   reason: string;
+  // A batch's first few changes, in words; none for one change.
+  examples: string[];
 }
 
 // What applying the ticked items did: each one done, or refused with why;

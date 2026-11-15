@@ -72,7 +72,7 @@ function createDatasetHandlers(
   async function run(...[name, input]: Parameters<RunOperation>) {
     if (!Object.hasOwn(own, name)) throw new Error(`no operation ${name}`);
     const handler = own[name as keyof typeof own] as Handler<unknown>;
-    await handler(input as never, new AbortController().signal);
+    return await handler(input as never, new AbortController().signal);
   }
   const operations = serveOperations(OPERATIONS, {
     ...own,

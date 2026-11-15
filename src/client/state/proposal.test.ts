@@ -168,6 +168,7 @@ test('an item the app refuses says why, and the rest are applied', async () => {
           address: '',
           value: '',
           type: '',
+          citationIds: [],
           reason: 'Kokeilu.'
         }),
         call('t2', 'add_fact', {
@@ -179,6 +180,7 @@ test('an item the app refuses says why, and the rest are applied', async () => {
           address: '',
           value: 'Torppari',
           type: '',
+          citationIds: [],
           reason: 'Rippikirja sanoo.'
         })
       ],
@@ -221,4 +223,49 @@ test('an item taken back is not applied', async () => {
   });
   await assistant.apply();
   expect(await api!.reminders()).toEqual([]);
+});
+
+test('a batch adds residences, each supported by its source', async () => {
+  const [source] = (await api!.person(1)).citations;
+  function residence(date: string) {
+    return {
+      personId: 1,
+      tag: 'RESI',
+      familyId: null,
+      date,
+      place: 'Kylä, Pitäjä, Suomi',
+      address: '',
+      value: '',
+      type: '',
+      citationIds: [source!.id]
+    };
+  }
+  script.push(
+    answer(
+      [
+        call('t1', 'add_fact_many', {
+          changes: [residence('1838'), residence('1844')],
+          reason: 'Rippikirja.'
+        })
+      ],
+      'tool_use'
+    ),
+    answer([{ type: 'text', text: 'Ehdotin.' }], 'end_turn')
+  );
+  const assistant = openAssistant(api!);
+  await assistant.ask('Lisää asuinpaikat.', { personId: 1, onChart: [] });
+  const [item] = assistant.proposal.get();
+  expect(item!.label).toBe('Add 2 facts');
+  expect(item!.examples[0]).toEndWith(
+    'Residence 1838 · Kylä, Pitäjä, Suomi, supported by Esimerkin rippikirja 1838–1844'
+  );
+  await assistant.apply();
+  expect(assistant.proposal.get()[0]!.state).toBe('applied');
+  const after = await api!.person(1);
+  const added = after.facts.filter(
+    (f) => f.date === '1838' || f.date === '1844'
+  );
+  expect(added).toHaveLength(2);
+  const supports = after.citations.find((c) => c.id === source!.id)!.supports;
+  for (const f of added) expect(supports).toContain(f.id);
 });

@@ -12,6 +12,8 @@ import type { AssistantEvent, Spend } from '@/common/types';
 import { addSpend } from '../claude/client';
 import type { Model } from './model';
 import {
+  batchOf,
+  MAX_BATCH,
   operationNamed,
   READ_OPERATIONS,
   SHOW_OPERATIONS,
@@ -23,7 +25,8 @@ import {
 } from './operations/catalogue';
 import type {
   AnyShowOperation,
-  AnyWriteOperation
+  AnyWriteOperation,
+  Asked
 } from './operations/operation';
 import type { Proposal } from './proposal';
 import type { TreeView } from './tree-view';
@@ -40,6 +43,8 @@ Each question starts with who is selected on screen and who the chart draws; whe
 You don't change the tree yourself. When the user asks for a change, or the answer is one, propose it with the write tools: each adds an item to the Proposal, which the user reads, ticks and applies in the app, and only then is it written, by the app's own rules. Propose only what the user asked for or agreed to, one item for each change, with the reason the tree or its sources give. Say in a sentence what you proposed; the user sees the items themselves. When the user wants an item changed or dropped, take it back and propose it again as they want it. A change the tools can't make is one the app can't make yet: say so.
 
 You can move what the user sees: select someone, or open one of their sources at its church-book page. That changes no data and happens at once; do it when asked, or when seeing it helps the answer, not for every person you read.
+
+For a change across many people, go through them in parts of about 20–30 people an answer, propose each part's changes as one batch with the _many tools, and say where you got to, so the user can say to go on.
 
 Tidy the tree, not its sources: never propose rewriting what a source says. A conclusion only research can settle (that two houses were one, that two people are the same) is a Reminder for the user, not an edit.
 
@@ -129,6 +134,42 @@ function propose(
   return result(call, `Proposed as item #${added.id}.`);
 }
 
+// A batch: the changes that can be proposed added as one item and told,
+// with those left out and why; or why none can be.
+function proposeBatch(
+  { view, proposal }: { view: TreeView; proposal: Proposal },
+  op: AnyWriteOperation,
+  call: Anthropic.Beta.BetaToolUseBlock,
+  tell: (event: AssistantEvent) => void
+) {
+  const { reason, changes } = call.input as {
+    reason: string;
+    changes: unknown[];
+  };
+  if (changes.length > MAX_BATCH) {
+    return result(call, `At most ${MAX_BATCH} changes in one batch.`, true);
+  }
+  const asks: Asked[] = [];
+  const leftOut: string[] = [];
+  changes.forEach((input, i) => {
+    const asked = op.asks(view, input as never);
+    if ('rejected' in asked) {
+      leftOut.push(`#${i + 1}: ${asked.rejected}`);
+    } else {
+      asks.push(asked);
+    }
+  });
+  if (asks.length === 0) {
+    return result(call, `None can be proposed. ${leftOut.join('; ')}`, true);
+  }
+  const label = asks.length === 1 ? asks[0]!.label : op.many!(asks.length);
+  const added = proposal.proposeAll(asks, label, reason);
+  if ('rejected' in added) return result(call, added.rejected, true);
+  tell({ type: 'proposed', item: added });
+  const left = leftOut.length === 0 ? '' : ` Left out: ${leftOut.join('; ')}`;
+  return result(call, `Proposed ${asks.length} as item #${added.id}.${left}`);
+}
+
 // A show: the view moved and told, or why it can't be.
 function show(
   view: TreeView,
@@ -165,6 +206,10 @@ async function answerTool(
   if (call.name === WITHDRAW) return withdraw(proposal, call, tell);
   const shows = showNamed(call.name);
   if (shows !== null) return show(view, shows, call, tell);
+  const batch = batchOf(call.name);
+  if (batch !== null) {
+    return proposeBatch({ view, proposal }, batch, call, tell);
+  }
   const write = writeNamed(call.name);
   const op = operationNamed(call.name);
   try {

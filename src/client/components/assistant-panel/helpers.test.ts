@@ -43,7 +43,8 @@ test('says what became of an item, and what Apply applies', () => {
 
 test('folds a settled box to what became of it', () => {
   function item(state: ProposedItem['state']): ProposedItem {
-    return { id: 1, label: 'A', reason: '', exchange: 0, ticked: true, state };
+    const proposed = { id: 1, label: 'A', reason: '', examples: [] };
+    return { ...proposed, exchange: 0, ticked: true, state };
   }
   expect(settledWords([item('applied'), item('applied')])).toBe(
     'Changes: 2 applied'

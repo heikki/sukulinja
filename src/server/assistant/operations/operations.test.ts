@@ -197,6 +197,10 @@ test('every operation is a strict tool with a closed input', () => {
     'rename_person',
     'move_person',
     'remind',
+    'add_fact_many',
+    'edit_fact_many',
+    'support_fact_many',
+    'remind_many',
     'withdraw_proposal_item'
   ]);
   for (const t of tools) {
@@ -292,6 +296,24 @@ test('selects someone, and opens their source, but no one left out', async () =>
   expect(opened.on).toMatchObject({ kind: 'citation', citationId: source!.id });
   expect(opened.label).toStartWith('Opened Matti Esimerkki (1801–1860)');
   expect(shows('open_source', { personId: 1, citationId: 999 })).toEqual({
+    rejected: 'They have no such source.'
+  });
+});
+
+test('adds a fact with its sources supporting it, once it has an id', async () => {
+  const matti = await read('person', { id: 1 });
+  const [source] = matti.sources as Array<{ id: number }>;
+  const fact = { tag: 'RESI', familyId: null, value: '', type: '' };
+  const said = { date: '1830–1839', place: 'Kylä, Pitäjä, Suomi', address: '' };
+  const input = { personId: 1, ...fact, ...said, citationIds: [source!.id] };
+  const asked = asks('add_fact', input, { personId: null });
+  if ('rejected' in asked) throw new Error(asked.rejected);
+  expect(asked.label).toContain('supported by');
+  expect(asked.then!.map((s) => s.bodyAfter(41))).toEqual([
+    { citationId: source!.id, factId: 41, on: true }
+  ]);
+  const elsewhere = { ...input, citationIds: [999] };
+  expect(asks('add_fact', elsewhere, { personId: null })).toEqual({
     rejected: 'They have no such source.'
   });
 });

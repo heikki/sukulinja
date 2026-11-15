@@ -54,3 +54,46 @@ test(`more than ${LARGE} items waiting are large`, () => {
   proposal.withdraw(1);
   expect(proposal.isLarge(all)).toBe(false);
 });
+
+test('proposes a batch as one item, applying what it can of it', async () => {
+  const proposal = openProposal();
+  const asks = [1, 2, 3, 4].map((n) => ({ ...REMIND, label: `Remind ${n}` }));
+  const item = proposal.proposeAll(asks, '4 Reminders', 'Miksi');
+  expect(item).toEqual({
+    id: 1,
+    label: '4 Reminders',
+    reason: 'Miksi',
+    examples: ['Remind 1', 'Remind 2', 'Remind 3']
+  });
+  let n = 0;
+  const outcomes = await proposal.apply([1], async () => {
+    n += 1;
+    if (n === 3) throw new Refusal(400, 'Not now.');
+    await Promise.resolve();
+  });
+  expect(outcomes).toEqual([
+    { id: 1, refused: '1 of 4 not applied: Not now.' }
+  ]);
+  // Some of it went, so it isn't applied again.
+  expect(proposal.withdraw(1)).toBe(false);
+});
+
+test('runs a step after its change, on what the change answered', async () => {
+  const proposal = openProposal();
+  const then = [
+    {
+      operation: 'support' as const,
+      bodyAfter: (factId: unknown) => ({ citationId: 5, factId, on: true })
+    }
+  ];
+  proposal.propose({ ...REMIND, then }, '');
+  const ran: unknown[] = [];
+  await proposal.apply([1], async (operation, input) => {
+    ran.push([operation, input]);
+    return await Promise.resolve(41);
+  });
+  expect(ran).toEqual([
+    ['remind', REMIND.body],
+    ['support', { citationId: 5, factId: 41, on: true }]
+  ]);
+});

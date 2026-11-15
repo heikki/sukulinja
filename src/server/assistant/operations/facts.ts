@@ -35,11 +35,27 @@ interface Add extends FactFields {
   personId: number;
   tag: string;
   familyId: number | null;
+  citationIds: number[];
+}
+
+// The sources by id among the person's, as the Proposal names them; null
+// when one isn't theirs.
+function sourcesOf(view: TreeView, personId: number, ids: number[]) {
+  const citations = view.services.personDetails(personId)?.citations ?? [];
+  const found = ids.map((id) => citations.find((c) => c.id === id));
+  if (found.some((c) => c === undefined)) return null;
+  return found.map((c) => c!.reference ?? c!.source ?? 'a source');
+}
+
+// What adding the fact, and its sources supporting it, says.
+function addWords(name: string, said: string, sources: string[]) {
+  const by = sources.length === 0 ? '' : `, supported by ${sources.join('; ')}`;
+  return `Add to ${name}: ${said}${by}`;
 }
 
 export const addFact = writeOperation<Add>({
   name: 'add_fact',
-  description: `Proposes adding a fact to a person: one of their own, or, with \`familyId\` (one of the families they're a spouse in), their marriage's (MARR, DIV). ${FIELDS} Leave a field empty for none.`,
+  description: `Proposes adding a fact to a person: one of their own, or, with \`familyId\` (one of the families they're a spouse in), their marriage's (MARR, DIV); with \`citationIds\`, those of their sources (by id in \`person\`) support it once it's added. ${FIELDS} Leave a field empty for none.`,
   input: {
     type: 'object',
     properties: {
@@ -50,7 +66,8 @@ export const addFact = writeOperation<Add>({
       place: { type: 'string' },
       address: { type: 'string' },
       value: { type: 'string' },
-      type: { type: 'string' }
+      type: { type: 'string' },
+      citationIds: { type: 'array', items: { type: 'integer' } }
     },
     required: [
       'personId',
@@ -60,19 +77,29 @@ export const addFact = writeOperation<Add>({
       'place',
       'address',
       'value',
-      'type'
+      'type',
+      'citationIds'
     ],
     additionalProperties: false
   },
-  asks(view, { personId, tag, familyId, ...fields }) {
+  asks(view, { personId, tag, familyId, citationIds, ...fields }) {
     const why = view.unwritable(personId);
     if (why !== null) return { rejected: why };
+    const sources = sourcesOf(view, personId, citationIds);
+    if (sources === null) return { rejected: 'They have no such source.' };
+    const said = words(tag, fields.type, fields);
     return {
       operation: 'addFact',
       body: { personId, fact: { tag, familyId, ...fields } },
-      label: `Add to ${view.nameOf(personId)}: ${words(tag, fields.type, fields)}`
+      label: addWords(view.nameOf(personId), said, sources),
+      // The Fact added answers its id.
+      then: citationIds.map((citationId) => ({
+        operation: 'support',
+        bodyAfter: (factId) => ({ citationId, factId, on: true })
+      }))
     };
-  }
+  },
+  many: (n) => `Add ${n} facts`
 });
 
 interface Edit {
@@ -129,5 +156,6 @@ export const editFact = writeOperation<Edit>({
       body: { personId, factId, fields },
       label: `Change ${name}'s ${words(fact.tag, was.type, was)} to ${words(fact.tag, fields.type, fields)}`
     };
-  }
+  },
+  many: (n) => `Change ${n} facts`
 });

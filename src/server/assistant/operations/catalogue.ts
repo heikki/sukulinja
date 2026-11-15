@@ -43,6 +43,20 @@ export const SHOW_OPERATIONS: readonly AnyShowOperation[] = [
 // own, not the app's.
 export const WITHDRAW = 'withdraw_proposal_item';
 
+// A write's batch tool: its name for proposing many as one item.
+const MANY = '_many';
+
+// The write whose batch tool this is, or null.
+export function batchOf(name: string) {
+  if (!name.endsWith(MANY)) return null;
+  const op = writeNamed(name.slice(0, -MANY.length));
+  return op?.many === undefined ? null : op;
+}
+
+// Most changes one batch may hold, so one answer's tool input stays a
+// size Claude writes reliably.
+export const MAX_BATCH = 200;
+
 export function operationNamed(name: string) {
   return READ_OPERATIONS.find((op) => op.name === name) ?? null;
 }
@@ -71,6 +85,24 @@ function withReason(input: InputSchema): InputSchema {
   };
 }
 
+// The batch tool of a write that has one: many of its inputs, and one
+// reason for them all.
+function batchTool(op: AnyWriteOperation): Anthropic.Beta.BetaTool {
+  return {
+    name: `${op.name}${MANY}`,
+    description: `Proposes many ${op.name} changes as one item of the Proposal, for changes across many people (at most ${MAX_BATCH}): the user sees how many and a few of them, and applies them at once. Each one is checked as ${op.name} checks it; those that can't be proposed are left out and told.`,
+    input_schema: withReason({
+      type: 'object',
+      properties: {
+        changes: { type: 'array', items: op.input }
+      },
+      required: ['changes'],
+      additionalProperties: false
+    }),
+    strict: true
+  };
+}
+
 const WITHDRAW_TOOL: Anthropic.Beta.BetaTool = {
   name: WITHDRAW,
   description:
@@ -85,7 +117,8 @@ const WITHDRAW_TOOL: Anthropic.Beta.BetaTool = {
 };
 
 // The tools, in a fixed order, so the request's prefix stays cacheable:
-// the reads, the shows, the writes, then taking one back.
+// the reads, the shows, the writes and their batch tools, then taking one
+// back.
 export function toolsOf(
   reads: readonly AnyReadOperation[],
   writes: readonly AnyWriteOperation[] = [],
@@ -104,6 +137,7 @@ export function toolsOf(
       input_schema: withReason(op.input),
       strict: true
     })),
+    ...writes.filter((op) => op.many !== undefined).map(batchTool),
     ...(writes.length === 0 ? [] : [WITHDRAW_TOOL])
   ];
 }

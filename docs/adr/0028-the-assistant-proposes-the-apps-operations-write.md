@@ -11,6 +11,8 @@ The assistant (ADR-0025) first only read. Heikki (2026-11-15) wanted it to make 
 
 Amended 2026-11-15: besides reads and writes, _show_ operations (`operations/show.ts`) move what the person sees, selecting someone or opening one of their sources in the Scan viewer. They change no data, so they don't wait for Apply: the turn tells the app where (`shown`, an `On`), the app goes there as its lists do, and the answer says so in a line. Someone left out can't be shown.
 
+Amended 2026-11-15: for changes across many people, a write with a batch label (`many`) also has a `_many` tool: up to 200 of its changes proposed as one item, labelled with the count and showing three as examples; those that can't be proposed are left out and told to Claude. Applying an item runs each of its changes, each refused one counted, and an item of which any went is applied. A write may chain steps after its operation on what it answered (`then`), so a Fact added is supported by its sources at once. Claude goes through many people in parts, one batch per answer. A fixed matching rule run by the app was considered and set aside by Heikki: Claude's own judgement already did this well, and only the scale was missing.
+
 ## Considered options
 
 - **Pass `via` explicitly** through every service and the Citations' Change path. Rejected: each service's signature would change for one caller.

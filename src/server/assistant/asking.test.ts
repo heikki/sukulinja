@@ -201,3 +201,38 @@ test('forgets a conversation', async () => {
   expect((again[0] as { id: string }).id).not.toBe(id);
   expect(asked[1]!.messages).toHaveLength(1);
 });
+
+test('a batch is proposed as one item, those that cannot be left out', async () => {
+  function remind(personId: number) {
+    return { personId, text: 'Katso.' };
+  }
+  const { model, asked } = scripted([
+    answer(
+      [
+        {
+          type: 'tool_use',
+          id: 't1',
+          name: 'remind_many',
+          input: { changes: [remind(1), remind(9)], reason: 'Tarkista.' }
+        }
+      ],
+      'tool_use'
+    ),
+    answer([{ type: 'text', text: 'Ehdotin.' }], 'end_turn')
+  ]);
+  const { ops } = operationsWith(model);
+  const events = await ask(ops, { conversation: null, text: 'Muistuta' });
+  expect(events).toContainEqual({
+    type: 'proposed',
+    item: {
+      id: 1,
+      label: 'Remind on Matti Esimerkki: Katso.',
+      reason: 'Tarkista.',
+      examples: []
+    }
+  });
+  const results = asked[1]!.messages[2]!.content as Array<{ content: string }>;
+  expect(results[0]!.content).toBe(
+    'Proposed 1 as item #1. Left out: #2: No such person.'
+  );
+});

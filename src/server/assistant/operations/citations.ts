@@ -62,5 +62,6 @@ export const supportFact = writeOperation<Support>({
         ? `${found.source} supports ${of}`
         : `${found.source} no longer supports ${of}`
     };
-  }
+  },
+  many: (n) => `Sources for ${n} facts`
 });

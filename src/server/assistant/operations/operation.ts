@@ -33,11 +33,19 @@ export interface ReadOperation<Input = Record<string, unknown>> {
 
 // What a write operation proposes: one of the app's dataset operations, by
 // name, with the request body it takes, as a form would send it; and what
-// it would do, in words for the person.
+// it would do, in words for the person. Steps in `then` run after it, each
+// on what the one before answered, as a source supporting the Fact just
+// added.
 export interface Asked {
   operation: OperationName;
   body: Record<string, unknown>;
   label: string;
+  then?: LaterStep[];
+}
+
+export interface LaterStep {
+  operation: OperationName;
+  bodyAfter: (answer: unknown) => Record<string, unknown>;
 }
 
 export interface WriteOperation<Input = Record<string, unknown>> {
@@ -49,6 +57,9 @@ export interface WriteOperation<Input = Record<string, unknown>> {
   // The app's operation it proposes, or why it can't be proposed: someone
   // left out, or what it names isn't there.
   asks: (view: TreeView, input: Input) => Asked | { rejected: string };
+  // Its batch's label, for `count` of them proposed as one item; an
+  // operation without one isn't proposed in batches.
+  many?: (count: number) => string;
 }
 
 // Operations over any input, as the catalogue keeps them; each one's own

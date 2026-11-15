@@ -146,6 +146,18 @@ class AssistantPanelElement extends SignalWatcher(LitElement) {
       .items .what {
         overflow-wrap: anywhere;
       }
+      /* A few of a batch's changes, as examples of the rest. */
+      .items .example {
+        display: block;
+        padding-left: 0.6rem;
+        color: var(--muted);
+        font-size: 0.92em;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+      }
+      .items .example::before {
+        content: '– ';
+      }
       .items .why {
         display: block;
         color: var(--muted);
@@ -284,6 +296,7 @@ class AssistantPanelElement extends SignalWatcher(LitElement) {
         />
         <span>
           <span class="what">${p.label}</span>
+          ${p.examples.map((x) => html`<span class="example">${x}</span>`)}
           ${p.reason === '' ? nothing : html`<span class="why">${p.reason}</span>`}
           ${state === null ? nothing : html`<span class="state">${state}</span>`}
         </span>
