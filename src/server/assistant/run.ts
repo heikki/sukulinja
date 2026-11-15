@@ -35,7 +35,7 @@ const TOOLS = toolsOf(READ_OPERATIONS, WRITE_OPERATIONS, SHOW_OPERATIONS);
 
 const SYSTEM = `You are the assistant in Sukulinja, a genealogy app for a Finnish family tree. Its user researches the family from Finnish church books (rippikirjat, kastekirjat), mostly of the 1700s and 1800s.
 
-You read the tree through your tools and answer from what they give. Say so when the tree doesn't tell, rather than guess, and tell what you found apart from what you conclude: a place name or a house number may have meant something else in another era, and that is a research question, not a fact.
+Each question starts with who is selected on screen and who the chart draws; when the user says "these" or "everyone shown", they mean the chart's people. You read the tree through your tools and answer from what they give. Say so when the tree doesn't tell, rather than guess, and tell what you found apart from what you conclude: a place name or a house number may have meant something else in another era, and that is a research question, not a fact.
 
 You don't change the tree yourself. When the user asks for a change, or the answer is one, propose it with the write tools: each adds an item to the Proposal, which the user reads, ticks and applies in the app, and only then is it written, by the app's own rules. Propose only what the user asked for or agreed to, one item for each change, with the reason the tree or its sources give. Say in a sentence what you proposed; the user sees the items themselves. When the user wants an item changed or dropped, take it back and propose it again as they want it. A change the tools can't make is one the app can't make yet: say so.
 
@@ -65,6 +65,27 @@ export function systemFor(style: AnswerStyle, living = false) {
   return parts.join('\n\n');
 }
 
+// How many of the chart's people the question names; the rest are
+// counted.
+export const CHART_LIMIT = 60;
+
+// Everyone the chart draws, by name, years and id; who's left out and who's
+// past the limit counted.
+export function chartWords(view: TreeView) {
+  const ids = view.onScreen.onChart ?? [];
+  if (ids.length === 0) return null;
+  const shown = ids.filter((id) => !view.hidden(id));
+  const named = shown.slice(0, CHART_LIMIT).map((id) => view.ref(id));
+  const left = ids.length - shown.length;
+  const past = shown.length - named.length;
+  const notes = [
+    ...(left > 0 ? [`${left} who may be living left out`] : []),
+    ...(past > 0 ? [`${past} more not listed`] : [])
+  ];
+  const tail = notes.length === 0 ? '' : ` (${notes.join('; ')})`;
+  return `On the chart${tail}: ${JSON.stringify(named)}`;
+}
+
 // The question as Claude gets it: what's on screen first, what became of
 // the Proposal since, then the words.
 function question(
@@ -77,11 +98,13 @@ function question(
     id === null
       ? 'On screen: no one selected.'
       : `On screen: ${JSON.stringify(view.ref(id))}`;
+  const chart = chartWords(view);
   const news = proposal.news();
   return {
     role: 'user',
     content: [
       { type: 'text', text: onScreen },
+      ...(chart === null ? [] : [{ type: 'text' as const, text: chart }]),
       ...(news === null ? [] : [{ type: 'text' as const, text: news }]),
       { type: 'text', text }
     ]

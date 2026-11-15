@@ -662,10 +662,11 @@ export interface Applied {
 }
 
 // A question to the assistant: in the conversation by id, or a new one
-// for null; with the person on screen, or null; answered as chosen in
-// Settings.
+// for null; with the person on screen, or null, and everyone the chart
+// draws; answered as chosen in Settings.
 export interface AssistantQuestion extends AssistantChoice {
   conversation: string | null;
   text: string;
   personId: number | null;
+  onChart: number[];
 }

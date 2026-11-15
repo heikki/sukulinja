@@ -457,7 +457,7 @@ describe('the answers', () => {
 
 describe('the assistant', () => {
   test('answers a question in a conversation, and forgets it', async () => {
-    const asked = { conversation: null, text: 'Hei', personId: 1 };
+    const asked = { conversation: null, text: 'Hei', personId: 1, onChart: [] };
     const events = await Array.fromAsync(
       api.ask({ ...asked, ...DEFAULT_CHOICE, style: 'normal' })
     );

@@ -50,11 +50,12 @@ export interface Assistant {
   // Why applying failed as a whole, or where the dataset was copied before
   // a large Proposal; null for neither.
   applyNote: Readable<{ failed: string } | { backup: string } | null>;
-  // Asks, with the person on screen, of the model chosen, for answers in
-  // the style chosen (by default Haiku, terse).
+  // Asks, with the person on screen and everyone the chart draws, of the
+  // model chosen, for answers in the style chosen (by default Haiku,
+  // terse).
   ask: (
     text: string,
-    personId: number | null,
+    seen: { personId: number | null; onChart: number[] },
     choice?: AssistantChoice
   ) => Promise<void>;
   // Ticks an item to be applied, or not.
@@ -131,7 +132,7 @@ export function openAssistant(
 
   async function ask(
     text: string,
-    personId: number | null,
+    seen: { personId: number | null; onChart: number[] },
     choice: AssistantChoice = DEFAULT_CHOICE
   ) {
     if (busy.get() || applying.get()) return;
@@ -150,7 +151,7 @@ export function openAssistant(
     ]);
     try {
       const events = api.ask(
-        { conversation, text, personId, ...choice },
+        { conversation, text, ...seen, ...choice },
         abort.signal
       );
       for await (const event of events) {

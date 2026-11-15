@@ -245,7 +245,11 @@ class AssistantPanelElement extends SignalWatcher(LitElement) {
     const text = this.text.trim();
     if (text === '' || this.state.assistant.busy.get()) return;
     this.text = '';
-    void this.state.assistant.ask(text, this.state.selected.id.get(), {
+    const seen = {
+      personId: this.state.selected.id.get(),
+      onChart: this.state.chart.drawn()
+    };
+    void this.state.assistant.ask(text, seen, {
       model: assistantModel.get(),
       style: answerStyle.get(),
       living: includeLiving.get()

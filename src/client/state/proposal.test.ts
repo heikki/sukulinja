@@ -113,7 +113,10 @@ test('proposes, then writes only what is ticked and applied', async () => {
     answer([{ type: 'text', text: 'Ehdotin kolmea.' }], 'end_turn')
   );
   const assistant = openAssistant(api!);
-  await assistant.ask('Yhdistä lähteet ja korjaa nimi.', 1);
+  await assistant.ask('Yhdistä lähteet ja korjaa nimi.', {
+    personId: 1,
+    onChart: []
+  });
 
   // The one naming no Fact of his isn't proposed; Claude is told why.
   expect(assistant.proposal.get().map((p) => [p.id, p.label])).toEqual([
@@ -148,7 +151,7 @@ test('proposes, then writes only what is ticked and applied', async () => {
 
   // Claude hears what was applied with the next question.
   script.push(answer([{ type: 'text', text: 'Hyvä.' }], 'end_turn'));
-  await assistant.ask('Kiitos', 1);
+  await assistant.ask('Kiitos', { personId: 1, onChart: [] });
   expect(given[2]).toContain('#1 applied; #2 applied');
 });
 
@@ -184,7 +187,7 @@ test('an item the app refuses says why, and the rest are applied', async () => {
     answer([{ type: 'text', text: 'Ehdotin.' }], 'end_turn')
   );
   const assistant = openAssistant(api!);
-  await assistant.ask('Lisää ammatti.', 1);
+  await assistant.ask('Lisää ammatti.', { personId: 1, onChart: [] });
   await assistant.apply();
   const [first, second] = assistant.proposal.get();
   expect((first!.state as { refused: string }).refused).toContain(
@@ -211,7 +214,7 @@ test('an item taken back is not applied', async () => {
     answer([{ type: 'text', text: 'Otin pois.' }], 'end_turn')
   );
   const assistant = openAssistant(api!);
-  await assistant.ask('Muistuta.', 1);
+  await assistant.ask('Muistuta.', { personId: 1, onChart: [] });
   expect(assistant.proposal.get()[0]).toMatchObject({
     state: 'withdrawn',
     ticked: false

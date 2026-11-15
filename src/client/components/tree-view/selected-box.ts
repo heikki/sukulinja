@@ -36,6 +36,11 @@ export class SelectedBox {
     return this.chart?.boxes.filter((b) => b.personId === id) ?? [];
   }
 
+  // Everyone drawn, each once, in the order they're drawn.
+  people() {
+    return [...new Set(this.chart?.boxes.map((b) => b.personId) ?? [])];
+  }
+
   // The chart as drawn. The box stays while it's drawn as the Selected
   // person or a step waits, as across a Generation Relayout; else it's
   // whichever of the Selected person's copies `inView` picks of their

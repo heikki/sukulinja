@@ -55,6 +55,7 @@ function fakeView(drawn: number[]) {
   const told: string[] = [];
   const view: ChartView = {
     draws: (id) => drawn.includes(id),
+    drawn: () => drawn,
     show: (id, at) => {
       told.push(at === null ? `show ${id}` : `show ${id} at clicked`);
     },

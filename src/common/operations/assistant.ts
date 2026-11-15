@@ -29,26 +29,36 @@ function choiceOf(body: Fields) {
     : null;
 }
 
+// `{ personId, onChart? }`: the person on screen, or null, and everyone
+// the chart draws, by default no one; null for anything else.
+function seenOf(body: Fields) {
+  const { personId = null, onChart = [] } = body;
+  if (!isIdOrNull(personId)) return null;
+  if (!Array.isArray(onChart) || !onChart.every(isId)) return null;
+  return { personId, onChart };
+}
+
 export const ASSISTANT_OPERATIONS = {
-  // Asks `{ conversation, text, personId, model?, style?, living? }`: the
-  // conversation's id, or null for a new one; the question; the person on
-  // screen, or null; the model and style chosen, by default Haiku, terse;
-  // whether people who may be living go too, by default not.
+  // Asks `{ conversation, text, personId, onChart?, model?, style?,
+  // living? }`: the conversation's id, or null for a new one; the
+  // question; the person on screen, or null; the ids of everyone the chart
+  // draws; the model and style chosen, by default Haiku, terse; whether
+  // people who may be living go too, by default not.
   // What it tells of the turn as it runs, the conversation's id first.
   ask: streams<AssistantQuestion, AssistantEvent>(
-    '{ conversation, text, personId, model?, style?, living? }',
+    '{ conversation, text, personId, onChart?, model?, style?, living? }',
     (body) => {
       const { text } = body;
       const conversation = body.conversation ?? null;
-      const personId = body.personId ?? null;
+      const seen = seenOf(body);
       const choice = choiceOf(body);
       if (typeof text !== 'string' || text.trim() === '') return null;
       if (conversation !== null && typeof conversation !== 'string') {
         return null;
       }
-      if (!isIdOrNull(personId)) return null;
+      if (seen === null) return null;
       if (choice === null) return null;
-      return { conversation, text: text.trim(), personId, ...choice };
+      return { conversation, text: text.trim(), ...seen, ...choice };
     }
   ),
 

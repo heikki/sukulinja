@@ -16,10 +16,11 @@ export interface PersonRef {
   died: number | null;
 }
 
-// What's on screen when the question is asked, and whether the living
-// are to be included.
+// What's on screen when the question is asked: the person selected and
+// everyone the chart draws; and whether the living are to be included.
 export interface OnScreen {
   personId: number | null;
+  onChart?: number[];
   living?: boolean;
 }
 

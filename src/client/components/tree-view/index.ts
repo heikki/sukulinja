@@ -133,6 +133,7 @@ class TreeViewElement extends SignalWatcher(LitElement) {
   // What the chart store moves: the viewport, the dock and the URL.
   private readonly chartView: ChartView = {
     draws: (id) => this.ring.copiesOf(id).length > 0,
+    drawn: () => this.ring.people(),
     show: (id, at) => {
       const copies = this.ring.copiesOf(id);
       const cards = at ?? copies.map((b) => b.pos);

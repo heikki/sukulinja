@@ -41,6 +41,8 @@ export interface UrlView {
 export interface ChartView {
   // Whether the chart draws the person now.
   draws: (id: number) => boolean;
+  // Everyone it draws now, each once.
+  drawn: () => number[];
   // Shows their card whole and clear of the dock, which opens: `at`, the
   // card clicked, else whichever needs the least travel.
   show: (id: number, at: Point[] | null) => void;
@@ -58,6 +60,7 @@ export interface ChartView {
 // With no chart drawn, no one is, and nothing moves.
 const UNDRAWN: ChartView = {
   draws: () => false,
+  drawn: () => [],
   show: () => undefined,
   rerooting: () => undefined,
   writeUrl: () => undefined,
@@ -78,6 +81,8 @@ export interface Chart {
   root: Readable<number | null>;
   // The element drawing the chart; the detach it returns forgets it.
   attach: (view: ChartView) => () => void;
+  // Everyone the chart draws now, each once; no one while it's undrawn.
+  drawn: () => number[];
   // Loads the people, then starts from Root and the Selected person in
   // the URL, which `read` gives once they're in.
   load: (read: () => UrlView) => Promise<void>;
@@ -243,6 +248,7 @@ export function openChart(
         if (view === next) view = UNDRAWN;
       };
     },
+    drawn: () => view.drawn(),
     load,
     async reloadPeople() {
       try {

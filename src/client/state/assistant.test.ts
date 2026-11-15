@@ -29,7 +29,7 @@ test('asks, showing what it reads and the answer as it comes', async () => {
     ]
   });
   const assistant = openAssistant(api);
-  await assistant.ask('Kuka on Matti?', 1);
+  await assistant.ask('Kuka on Matti?', { personId: 1, onChart: [] });
   expect(assistant.exchanges.get()).toEqual([
     {
       question: 'Kuka on Matti?',
@@ -41,7 +41,7 @@ test('asks, showing what it reads and the answer as it comes', async () => {
     }
   ]);
   expect(assistant.spend.get()).toEqual(SPEND);
-  await assistant.ask('Taas', null);
+  await assistant.ask('Taas', { personId: null, onChart: [] });
   expect(api.asked).toEqual(['ask: Kuka on Matti?', 'ask in c1: Taas']);
   expect(assistant.busy.get()).toBe(false);
 });
@@ -63,7 +63,7 @@ test('moves the view where the assistant shows, and says so', async () => {
       moved.push(to);
     }
   });
-  await assistant.ask('Näytä Liisa', 1);
+  await assistant.ask('Näytä Liisa', { personId: 1, onChart: [] });
   expect(moved).toEqual([on]);
   expect(assistant.exchanges.get()[0]!.shown).toEqual([
     'Selected Liisa Malli (1805–1870)'
@@ -80,13 +80,13 @@ test('shows why a question failed', async () => {
     ]
   });
   const assistant = openAssistant(api);
-  await assistant.ask('Hei', null);
+  await assistant.ask('Hei', { personId: null, onChart: [] });
   expect(assistant.exchanges.get()[0]!.failed).toBe('No key.');
 });
 
 test('says the app could not be reached', async () => {
   const assistant = openAssistant(memoryDatasetApi({}, { down: true }));
-  await assistant.ask('Hei', null);
+  await assistant.ask('Hei', { personId: null, onChart: [] });
   expect(assistant.exchanges.get()[0]!.failed).toBe(
     'The app is not responding.'
   );
@@ -97,7 +97,7 @@ test('a new conversation forgets the old one', async () => {
     assistant: [[{ type: 'conversation', id: 'c1' }]]
   });
   const assistant = openAssistant(api);
-  await assistant.ask('Hei', null);
+  await assistant.ask('Hei', { personId: null, onChart: [] });
   await assistant.restart();
   expect(assistant.exchanges.get()).toEqual([]);
   expect(api.asked).toEqual(['ask: Hei', 'forget c1']);

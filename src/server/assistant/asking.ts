@@ -67,6 +67,7 @@ export function assistantOperations(
       choice: { model: asked.model, style: asked.style, living: asked.living },
       view: openTreeView(services, {
         personId: asked.personId,
+        onChart: asked.onChart,
         living: asked.living
       }),
       messages: conversation.messages,
