@@ -14,7 +14,10 @@ Example (invented): "In every Fact, the place `Kylä, Pitäjä` becomes `Kylä, 
 - Applying runs the app's own operation for each row (ADR-0028), inside one backup (the >10 rule already takes one) and one Change per row, marked via assistant.
 - Rows on someone who may be living follow the Living people setting (ADR-0025).
 
+## Decided
+
+- A rule's item shows the count and a few examples, not every row (Heikki, 2026-11-15).
+
 ## Open questions
 
 - Which rules first? Place renames look like the commonest; the Places rename tool for old spellings (`.scratch/small`) may be the same feature.
-- Should a rule's item list every row it would change for checking, or only the count and examples?
