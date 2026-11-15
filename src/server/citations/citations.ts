@@ -515,6 +515,24 @@ export function createCitations<R extends BookRef>(
       return book === null ? null : await references.findByVision(book, reader);
     },
 
+    // Looks for the citations' references on the Image `at` at once, with
+    // the vision model, saving the Matches it confirms (ADR-0029): each
+    // reference's citation id with what `findByVision` gives. A citation
+    // that's no reference, or of an Entry, is left out.
+    async findAllOnImage(citationIds: number[], at: BoxAt, reader: Reader) {
+      const asked = citationIds.flatMap((citationId) => {
+        const row = byId.get(citationId);
+        const book = row !== null && row.entryId === null ? bookOf(row) : null;
+        return book === null ? [] : [{ citationId, book }];
+      });
+      const found = await references.findAllOnImage(
+        asked.map((a) => a.book),
+        at,
+        reader
+      );
+      return asked.map(({ citationId }, i) => ({ citationId, ...found[i]! }));
+    },
+
     // The Volumes the reference can be put in; null as for `mark`.
     async volumeChoices(citationId: number) {
       const book = churchBookOf(citationId);

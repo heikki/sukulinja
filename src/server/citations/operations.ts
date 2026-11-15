@@ -1,8 +1,9 @@
 // The operations on a dataset's Citations (common/operations/citations),
 // answered by its Citations.
 
+import type { BoxAt } from '@/common/operations';
 import type { CITATION_OPERATIONS } from '@/common/operations/citations';
-import type { VisionTry } from '@/common/types';
+import type { VisionPageTry, VisionTry } from '@/common/types';
 
 import { answered, notFound, Refusal } from '../operations';
 import type { Handlers } from '../operations';
@@ -19,6 +20,12 @@ interface Doers {
     citationId: number,
     model: string
   ) => Promise<VisionTry | { rejected: string } | null>;
+  // Looks for the citations' references on the Image `at` at once.
+  findAllOnImage: (
+    citationIds: number[],
+    at: BoxAt,
+    model: string
+  ) => Promise<VisionPageTry | { rejected: string }>;
 }
 
 // A request to Astia failing is refused (502), in words the Scan viewer
@@ -36,7 +43,7 @@ export async function askingAstia<T>(asked: Promise<T>) {
 
 export function citationOperations(
   citations: Citations,
-  { switchFilming, findByVision }: Doers
+  { switchFilming, findByVision, findAllOnImage }: Doers
 ): Handlers<typeof CITATION_OPERATIONS> {
   return {
     // Astia is slow and throttled, so a person's citations share one
@@ -94,6 +101,12 @@ export function citationOperations(
 
     findByVision: async ({ citationId, model }) =>
       answered(await askingAstia(findByVision(citationId, model)), 'citation'),
+
+    findAllOnImage: async ({ citationIds, at, model }) =>
+      answered(
+        await askingAstia(findAllOnImage(citationIds, at, model)),
+        'citation'
+      ),
 
     volumeChoices: async ({ citationId }) =>
       answered(

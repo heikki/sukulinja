@@ -3,7 +3,6 @@ import { consume } from '@lit/context';
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement } from 'lit/decorators.js';
 
-import { visionModel } from '@/client/assistant-choices';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { VisionBatch } from '@/client/state/vision-batch';
@@ -11,7 +10,6 @@ import type { VisionBatch } from '@/client/state/vision-batch';
 import { controlStyles } from '../box-stage/styles';
 import {
   batchFoundWords,
-  batchTook,
   costWords,
   foundWords,
   modelLabel
@@ -66,6 +64,12 @@ class ScanVisionElement extends SignalWatcher(LitElement) {
       .refused {
         color: var(--danger);
       }
+
+      .actions {
+        display: flex;
+        gap: 0.4rem;
+        flex-shrink: 0;
+      }
     `
   ];
 
@@ -116,13 +120,17 @@ class ScanVisionElement extends SignalWatcher(LitElement) {
       const seconds = Math.round((Date.now() - batch.since) / 1000);
       return html`<div class="card">
         <p>
-          Vision Match is searching ${batch.done + 1} of ${batch.of} with
+          ${
+            batch.atOnce
+              ? `Vision Match is reading the Image for all ${batch.of} at once with`
+              : `Vision Match is searching ${batch.done + 1} of ${batch.of} with`
+          }
           ${modelLabel(batch.searching)}… ${seconds} s
         </p>
       </div>`;
     }
     const tries = batch.tries.map((t) => t.tried);
-    const model = tries[0]?.model ?? visionModel.get();
+    const found = tries.some((t) => t.missed === null);
     return html`<div class="card">
       <div>
         <p>
@@ -133,9 +141,25 @@ class ScanVisionElement extends SignalWatcher(LitElement) {
             ? nothing
             : html`<p class="refused">${batch.refused}</p>`
         }
-        <p class="cost">${costWords(batchTook(tries, model, batch.seconds))}</p>
+        <p class="cost">
+          ${costWords(batch.took)}${batch.atOnce ? ' · in one question' : ''}
+        </p>
       </div>
-      ${this.renderClose()}
+      <div class="actions">
+        ${
+          found
+            ? html`<button
+                title="Takes back every Match it found"
+                @click=${async () => {
+                  await this.state.viewer.undoVisionBatch();
+                }}
+              >
+                Undo all
+              </button>`
+            : nothing
+        }
+        ${this.renderClose()}
+      </div>
     </div>`;
   }
 

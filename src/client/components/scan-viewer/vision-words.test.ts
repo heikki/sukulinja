@@ -1,13 +1,9 @@
 import { expect, test } from 'bun:test';
 
+import { batchTook } from '@/client/state/vision-batch';
 import type { VisionTry } from '@/common/types';
 
-import {
-  batchFoundWords,
-  batchTook,
-  costWords,
-  foundWords
-} from './vision-words';
+import { batchFoundWords, costWords, foundWords } from './vision-words';
 
 const TRIED: VisionTry = {
   links: {

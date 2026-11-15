@@ -1,4 +1,6 @@
 import { imageLabel } from '@/client/on';
+import { matchAt } from '@/client/state/vision-batch';
+import type { Took, Tried } from '@/client/state/vision-batch';
 import { CLAUDE_MODELS } from '@/common/assistant-choices';
 import type { VisionTry } from '@/common/types';
 
@@ -36,46 +38,13 @@ export function foundWords(tried: VisionTry) {
   return `Found${at}. Right-click its box to confirm or discard it.`;
 }
 
-// What a search took, one's or a batch's.
-type Took = Pick<
-  VisionTry,
-  'model' | 'readings' | 'cached' | 'dollars' | 'seconds'
->;
-
-// Each try a batch made, summed as one.
-export function batchTook(
-  tries: VisionTry[],
-  model: string,
-  seconds: number
-): Took {
-  return {
-    model,
-    readings: tries.reduce((n, t) => n + t.readings, 0),
-    cached: tries.reduce((n, t) => n + t.cached, 0),
-    dollars: tries.reduce<number | null>(
-      (sum, t) => (sum === null || t.dollars === null ? null : sum + t.dollars),
-      0
-    ),
-    seconds
-  };
-}
-
-// The Image a try's Match is on, or null for none.
-function matchImage(tried: VisionTry) {
-  if (tried.missed !== null || !('links' in tried.links)) return null;
-  const match = tried.links.links.find((l) => l.certainty === 'match');
-  return match === undefined || match.precision === 'volume'
-    ? null
-    : match.image;
-}
-
 // How many of a batch's tries on `image` found their entry, and which
 // Images the ones found elsewhere are on: "Found 5 of 7, their boxes on
 // the scan; 1 on Image 13."
-export function batchFoundWords(tries: VisionTry[], of: number, image: number) {
+export function batchFoundWords(tries: Tried[], of: number, image: number) {
   const images = tries.flatMap((t) => {
-    const at = matchImage(t);
-    return at === null ? [] : [at];
+    const at = matchAt(t);
+    return at === null ? [] : [at.image];
   });
   if (images.length === 0) return `Found none of ${of}.`;
   const elsewhere = images

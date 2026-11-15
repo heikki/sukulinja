@@ -33,7 +33,7 @@ export function linkItems(
     remind: () => void;
     // The model Vision Match asks, by its label, and asking it for the
     // source, or for every estimate on the Image.
-    findByVision?: { model: string; run: () => void; runAll: () => void };
+    findByVision?: VisionFinds;
   }
 ) {
   const remind: MenuItem[] =
@@ -63,9 +63,17 @@ export function linkItems(
   return items;
 }
 
+// The Vision Match searches the menu offers, with the model's label.
+export interface VisionFinds {
+  model: string;
+  run: () => void;
+  runAll: () => void;
+  runAtOnce: () => void;
+}
+
 function visionItems(
   viewer: Viewer,
-  find: { model: string; run: () => void; runAll: () => void } | undefined
+  find: VisionFinds | undefined
 ): MenuItem[] {
   if (find === undefined || viewer.pending.get() !== null) return [];
   const one = viewer.visionMatch.get();
@@ -82,11 +90,18 @@ function visionItems(
   }
   const estimates = viewer.estimatesHere.get().length;
   if (estimates > 1) {
-    items.push({
-      label: 'Find all estimates here',
-      detail: `${estimates} on this Image · ${find.model}`,
-      run: find.runAll
-    });
+    items.push(
+      {
+        label: 'Find all estimates here',
+        detail: `${estimates} one by one · ${find.model}`,
+        run: find.runAll
+      },
+      {
+        label: 'Find all estimates here at once',
+        detail: `${estimates} in one question, this Image only · ${find.model}`,
+        run: find.runAtOnce
+      }
+    );
   }
   return items;
 }

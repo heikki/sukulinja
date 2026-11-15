@@ -223,7 +223,12 @@ test("an Entry's Box offers Edit, and with others in it, Delete entry", async ()
 });
 
 test('Find with Vision Match is offered on an estimate, where it can be asked', async () => {
-  const find = { model: 'Haiku 5.5', run: unasked, runAll: unasked };
+  const find = {
+    model: 'Haiku 5.5',
+    run: unasked,
+    runAll: unasked,
+    runAtOnce: unasked
+  };
   const where = { onBox: false, canBox: true };
   const estimate = await viewing(citation(1, false), ON_IMAGE);
   expect(
@@ -256,7 +261,12 @@ test('Find all estimates here is offered with more than one estimate on the Imag
   const { viewer } = openAppState(api);
   viewer.open({ citation: citation(1, false), link: ON_IMAGE });
   await Bun.sleep(0);
-  const find = { model: 'Haiku 5.5', run: unasked, runAll: unasked };
+  const find = {
+    model: 'Haiku 5.5',
+    run: unasked,
+    runAll: unasked,
+    runAtOnce: unasked
+  };
   const items = linkItems(
     viewer,
     { onBox: false, canBox: true },
@@ -266,6 +276,6 @@ test('Find all estimates here is offered with more than one estimate on the Imag
     }
   );
   expect(items.find((i) => i.label === 'Find all estimates here')?.detail).toBe(
-    '2 on this Image · Haiku 5.5'
+    '2 one by one · Haiku 5.5'
   );
 });

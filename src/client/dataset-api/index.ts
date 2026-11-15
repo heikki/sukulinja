@@ -35,6 +35,7 @@ import type {
   ReminderChange,
   ReminderTarget,
   Rescan,
+  VisionPageTry,
   VisionTry,
   VolumeChoices,
   VolumeCitation,
@@ -75,6 +76,13 @@ export interface DatasetApi {
   // Searches the scans for the reference with the vision model `model`,
   // saving the Match it confirms (ADR-0029): what it did and took.
   findByVision: (citationId: number, model: ClaudeModel) => Promise<VisionTry>;
+  // Looks for the citations' references on the Image `at` in one question
+  // to the vision model, saving the Matches it confirms (ADR-0029).
+  findAllOnImage: (
+    citationIds: number[],
+    at: BoxAt,
+    model: ClaudeModel
+  ) => Promise<VisionPageTry>;
   // Makes an Entry with a Citation of it for each person named (ADR-0026):
   // them as the Volume's citations list them, in the order named.
   citeEntry: (at: EntryTarget, people: InEntry[]) => Promise<VolumeCitation[]>;
@@ -222,6 +230,8 @@ export function openDatasetApi(
       await call('discard', { citationId, at }, 'Discard'),
     findByVision: async (citationId, model) =>
       await call('findByVision', { citationId, model }, 'Vision Match'),
+    findAllOnImage: async (citationIds, at, model) =>
+      await call('findAllOnImage', { citationIds, at, model }, 'Vision Match'),
     citeEntry: async (at, people) =>
       await call('citeEntry', { at, people }, 'Citing'),
     editEntry: async (entryId, edit) =>

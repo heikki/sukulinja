@@ -18,6 +18,7 @@ import type {
   ReminderTarget,
   Rescan,
   StalePin,
+  VisionPageTry,
   VisionTry,
   VolumeChoices,
   VolumeCitation
@@ -51,6 +52,8 @@ export interface MemoryDataset {
   discards?: Record<number, CitationLinks>;
   // What a Vision Match answers, by citation id.
   visionTries?: Record<number, VisionTry>;
+  // What looking for every estimate on an Image at once answers.
+  visionPage?: VisionPageTry;
   // The Volumes each reference can be put in, by citation id.
   choices?: Record<number, VolumeChoices>;
   // Newest first. `remind` puts a new one first, numbered on from 2000.
@@ -244,6 +247,13 @@ export function memoryDatasetApi(
     findByVision: async (citationId, model) =>
       await answer(`vision ${citationId} ${model}`, undefined, () =>
         found(data.visionTries?.[citationId], 'citation not found')
+      ),
+
+    findAllOnImage: async (citationIds, at, model) =>
+      await answer(
+        `vision all ${citationIds.join(',')} on ${at.image} ${model}`,
+        undefined,
+        () => found(data.visionPage, 'citation not found')
       ),
 
     citeEntry: servedOnly('citeEntry'),

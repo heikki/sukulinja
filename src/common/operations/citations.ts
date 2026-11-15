@@ -10,6 +10,7 @@ import type {
   ChurchBookArchive,
   CitationLinks,
   CitationRow,
+  VisionPageTry,
   VisionTry,
   VolumeChoices,
   VolumeCitation,
@@ -230,6 +231,24 @@ export const CITATION_OPERATIONS = {
     ({ citationId, model }) =>
       isId(citationId) && isClaudeModel(model) ? { citationId, model } : null
   ),
+
+  // Looks for the citations' references on one Image at once, in one
+  // question to the vision model `model`, and saves the Matches it
+  // confirms (ADR-0029).
+  findAllOnImage: answers<
+    { citationIds: number[]; at: BoxAt; model: ClaudeModel },
+    VisionPageTry
+  >('{ citationIds, at: { volumeId, image }, model }', (asked) => {
+    const { citationIds, model } = asked;
+    const at = boxAtOf(asked.at);
+    return Array.isArray(citationIds) &&
+      citationIds.length > 0 &&
+      citationIds.every(isId) &&
+      at !== null &&
+      isClaudeModel(model)
+      ? { citationIds, at, model }
+      : null;
+  }),
 
   // The Volumes a reference can be put in.
   volumeChoices: answers<{ citationId: number }, VolumeChoices>(

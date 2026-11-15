@@ -155,6 +155,36 @@ If you find the person, also give:
 If the writing is too faint or damaged to tell, answer readable: false.`;
 }
 
+// One of several people asked about at once: what's known of them, as
+// find-entry gives it, under their number.
+function personBlock(person: Person, n: number) {
+  const known = [
+    `Name: ${person.name}`,
+    (person.date ?? null) === null ? null : `Date of the event: ${person.date}`,
+    (person.village ?? null) === null ? null : `Village: ${person.village}`,
+    ...householdLines(person)
+  ].filter((line) => line !== null);
+  return `## Person ${n}
+${known.join('\n')}
+${householdTable(person)}${entryNames(person)}`;
+}
+
+// Every person at once: the find-entry question, asked of each.
+export function entriesPrompt(people: Person[]) {
+  const asked = entryPrompt({ name: '…' })
+    .split('\n')
+    .filter((line) => !line.startsWith('Name: '))
+    .join('\n')
+    .replace('Is this person written on this image?', '');
+  return `Which of these people are written on this image? Answer for each of them, by their number, as you would for one.
+
+${people.map((p, i) => personBlock(p, i + 1)).join('\n')}
+For each person:
+${asked.trim()}
+
+Give each person's answer under their number. The readable at the top is for the whole image: false only if none of it can be read.`;
+}
+
 // Each answer as structured output; `readable` false means unreadable.
 const SCHEMAS: Record<Question, Record<string, unknown>> = {
   pages: {
@@ -207,6 +237,28 @@ const SCHEMAS: Record<Question, Record<string, unknown>> = {
     ],
     additionalProperties: false
   }
+};
+
+// Every person's find-entry answer, by number.
+const ENTRIES_SCHEMA = {
+  type: 'object',
+  properties: {
+    readable: { type: 'boolean' },
+    people: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          person: { type: 'integer' },
+          ...(SCHEMAS.entry.properties as Record<string, unknown>)
+        },
+        required: ['person', ...(SCHEMAS.entry.required as string[])],
+        additionalProperties: false
+      }
+    }
+  },
+  required: ['readable', 'people'],
+  additionalProperties: false
 };
 
 const UNREADABLE = { unreadable: true } as const;
@@ -289,6 +341,28 @@ function toEntry(json: EntryJson, scan: Scan): EntryReading {
   };
 }
 
+interface EntriesJson {
+  readable: boolean;
+  people: Array<EntryJson & { person: number }>;
+}
+
+// Each person's answer in their order; one left out wasn't found, and the
+// whole Image unreadable leaves each unreadable.
+export function toEntries(
+  json: EntriesJson | null,
+  of: number,
+  scan: Scan
+): EntryReading[] {
+  const people = Array.from({ length: of }, (): EntryReading => UNREADABLE);
+  if (json?.readable !== true) return people;
+  people.fill({ found: false, confidence: 0, box: null });
+  for (const answer of json.people) {
+    const i = answer.person - 1;
+    if (i >= 0 && i < of) people[i] = toEntry(answer, scan);
+  }
+  return people;
+}
+
 function mediaType(bytes: Uint8Array) {
   return bytes[0] === 0x89 && bytes[1] === 0x50 ? 'image/png' : 'image/jpeg';
 }
@@ -324,7 +398,12 @@ export function claudeReader(options: ClaudeReaderOptions): ClaudeReader {
 
   // The parsed answer, or null for a refusal or an answer out of shape, and
   // the size of the Image the model saw.
-  async function ask(question: Question, at: ImageRef, prompt: string) {
+  async function ask(
+    question: Question,
+    at: ImageRef,
+    prompt: string,
+    schema = SCHEMAS[question]
+  ) {
     const scan = await image(at);
     const { bytes } = scan;
     const model = models[question];
@@ -335,7 +414,7 @@ export function claudeReader(options: ClaudeReaderOptions): ClaudeReader {
       system: SYSTEM,
       output_config: {
         effort: effort[question],
-        format: { type: 'json_schema', schema: SCHEMAS[question] }
+        format: { type: 'json_schema', schema }
       },
       ...(fallback
         ? {
@@ -383,6 +462,19 @@ export function claudeReader(options: ClaudeReaderOptions): ClaudeReader {
     findEntry: async (at, person) => {
       const { json, scan } = await ask('entry', at, entryPrompt(person));
       return json === null ? UNREADABLE : toEntry(json as EntryJson, scan);
+    },
+    findEntries: async (at, people) => {
+      const asked = await ask(
+        'entry',
+        at,
+        entriesPrompt(people),
+        ENTRIES_SCHEMA
+      );
+      return toEntries(
+        asked.json as EntriesJson | null,
+        people.length,
+        asked.scan
+      );
     }
   };
 }

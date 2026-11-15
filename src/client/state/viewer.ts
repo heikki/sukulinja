@@ -126,6 +126,10 @@ export interface Viewer {
   estimatesHere: Readable<VolumeCitation[]>;
   // Searches for each of them in turn with the vision model (ADR-0029).
   findAllByVision: (model: ClaudeModel) => Promise<void>;
+  // The same in one question, on the Image alone; and every Match found
+  // taken back.
+  findAllAtOnce: (model: ClaudeModel) => Promise<void>;
+  undoVisionBatch: () => Promise<void>;
   // How far that has got, then what it found and took, for the Image it
   // was about while it's shown, until forgotten.
   visionBatch: Readable<VisionBatch | null>;
@@ -233,11 +237,7 @@ export function openViewer(
   const discarding = signal(false);
   const confirmation = confirmingSource(source, confirm);
   const vision = visionMatching(source, selected.findByVision, followMatch);
-  const batch = visionBatching(
-    { volume, image, citations },
-    api.findByVision,
-    batchSettled
-  );
+  const batch = visionBatching({ volume, image, citations }, api, batchSettled);
   const leaving = signal(false);
   const filming = filmingOf(api, () => volume.get()?.id);
   const { oldFilming } = filming;
@@ -645,6 +645,8 @@ export function openViewer(
     forgetVisionMatch: vision.forget,
     estimatesHere: batch.estimates,
     findAllByVision: batch.run,
+    findAllAtOnce: batch.runAtOnce,
+    undoVisionBatch: batch.undo,
     visionBatch: batch.status,
     forgetVisionBatch: batch.forget,
     close,

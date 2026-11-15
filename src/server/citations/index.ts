@@ -5,7 +5,8 @@
 import type { Database } from 'bun:sqlite';
 import { join } from 'node:path';
 
-import type { Spend, VisionTry } from '@/common/types';
+import type { BoxAt } from '@/common/operations';
+import type { Spend, VisionPageTry, VisionTry } from '@/common/types';
 
 import type { NewChange } from '../changes/changes';
 import { Refusal } from '../operations';
@@ -66,7 +67,13 @@ export type VisionReaders = (
 
 export type SpendingReader = Pick<
   ClaudeReader,
-  'models' | 'versions' | 'pageNumbers' | 'dates' | 'findEntry' | 'spend'
+  | 'models'
+  | 'versions'
+  | 'pageNumbers'
+  | 'dates'
+  | 'findEntry'
+  | 'findEntries'
+  | 'spend'
 >;
 
 const NO_VISION = 'Vision Match is not set up.';
@@ -150,6 +157,35 @@ export function openCitations(root: string, options: Options) {
     };
   }
 
+  // Looks for the citations' references on the Image `at` in one
+  // question (ADR-0029), with what it took.
+  async function findAllOnImage(
+    citations: ReturnType<typeof createCitations>,
+    asked: { citationIds: number[]; at: BoxAt },
+    model: string
+  ): Promise<VisionPageTry | { rejected: string }> {
+    if (options.vision === undefined) return { rejected: NO_VISION };
+    const started = performance.now();
+    const reader = await options.vision(model, visionImage);
+    const counted = counting(cachedReader(reader, readings));
+    const found = await citations
+      .findAllOnImage(asked.citationIds, asked.at, counted.reader)
+      .catch(failedWith);
+    const spend = reader.spend();
+    const readingsAsked = counted.asked();
+    return {
+      tries: found.map(({ citationId, resolution, missed }) => ({
+        links: { citationId, ...resolution },
+        missed
+      })),
+      model,
+      readings: readingsAsked,
+      cached: readingsAsked - callsOf(spend),
+      dollars: dollarsOf(spend),
+      seconds: Math.round((performance.now() - started) / 1000)
+    };
+  }
+
   // The pins on Astia's Images: the data folder's, and every dataset's
   // Marks, which a switch to a new filming leaves out alike.
   async function kept() {
@@ -199,7 +235,9 @@ export function openCitations(root: string, options: Options) {
         operations: citationOperations(citations, {
           switchFilming: switchTo,
           findByVision: async (citationId, model) =>
-            await findByVision(citations, citationId, model)
+            await findByVision(citations, citationId, model),
+          findAllOnImage: async (citationIds, at, model) =>
+            await findAllOnImage(citations, { citationIds, at }, model)
         }),
         // The person's Citations, as the panel lists them.
         ofPerson: (personId: number) => citations.ofPerson(personId),

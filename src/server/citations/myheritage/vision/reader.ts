@@ -68,6 +68,9 @@ export interface Reader {
   pageNumbers: (at: ImageRef) => Promise<PagesReading>;
   dates: (at: ImageRef) => Promise<DatesReading>;
   findEntry: (at: ImageRef, person: Person) => Promise<EntryReading>;
+  // Each of `people` on the Image, asked in one question, in their order:
+  // every estimate on it at once, with the find-entry model (ADR-0029).
+  findEntries?: (at: ImageRef, people: Person[]) => Promise<EntryReading[]>;
 }
 
 function isUnreadable(reading: object): reading is Unreadable {
@@ -140,18 +143,24 @@ export function confirms(person: Person, reading: EntryReading) {
 
 // ---------------------------------------------------------------- cache
 
+// The version of the question asking for several people at once.
+const ENTRIES_VERSION = '1';
+
 // Every reading on disk, one file per Volume, Image, question (with the
 // person asked about) and model: a re-run asks nothing twice, and a changed
 // model reads again.
 export function cachedReader(reader: Reader, dir: string): Reader {
+  const findEntries = reader.findEntries;
   async function cached<T>(
     at: ImageRef,
-    question: Question,
-    person: Person | null,
+    question: Question | 'entries',
+    person: Person | Person[] | null,
     read: () => Promise<T>
   ) {
-    const model = reader.models[question];
-    const version = reader.versions?.[question];
+    const asked = question === 'entries' ? 'entry' : question;
+    const model = reader.models[asked];
+    const version =
+      question === 'entries' ? ENTRIES_VERSION : reader.versions?.[question];
     const key = JSON.stringify(
       version === undefined
         ? [question, model, person]
@@ -183,6 +192,17 @@ export function cachedReader(reader: Reader, dir: string): Reader {
         'entry',
         person,
         async () => await reader.findEntry(at, person)
-      )
+      ),
+    ...(findEntries === undefined
+      ? {}
+      : {
+          findEntries: async (at: ImageRef, people: Person[]) =>
+            await cached(
+              at,
+              'entries',
+              people,
+              async () => await findEntries(at, people)
+            )
+        })
   };
 }

@@ -101,6 +101,14 @@ export interface References<R extends BookRef = BookRef> {
     ref: R,
     reader: Reader
   ) => Promise<{ resolution: LinkResolution; missed: string | null } | Refused>;
+  // Looks for every reference of `refs` on the Image `at` at once, saving
+  // the Matches it confirms (ADR-0029): each one's Links as they then
+  // resolve, and why it saved none, in their order.
+  findAllOnImage: (
+    refs: R[],
+    at: BoxAt,
+    reader: Reader
+  ) => Promise<Array<{ resolution: LinkResolution; missed: string | null }>>;
   // The citations the reference's Mark is written into that it puts at
   // the entry by hand, each with its text as plain lines: what a
   // Conversion makes Citations of their Image. None for a Mark that
@@ -132,5 +140,6 @@ export const noReferences: References<never> = {
   discard: async () => await Promise.resolve({ rejected: NO_REFERENCE }),
   volumeChoices: async () => await Promise.resolve({ fits: [], others: [] }),
   findByVision: async () => await Promise.resolve({ rejected: NO_REFERENCE }),
+  findAllOnImage: async () => await Promise.resolve([]),
   converts: () => []
 };

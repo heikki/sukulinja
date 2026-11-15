@@ -131,7 +131,11 @@ test('every estimate on the Image is searched once per record, and summed', asyn
     'vision 7 claude-haiku-5-5',
     'vision 9 claude-haiku-5-5'
   ]);
-  expect(viewer.visionBatch.get()).toMatchObject({ of: 2, refused: null });
+  expect(viewer.visionBatch.get()).toMatchObject({
+    of: 2,
+    refused: null,
+    atOnce: false
+  });
   // The viewer stays on the Image.
   expect(viewer.image.get()).toBe(18);
 });
@@ -149,4 +153,38 @@ test('a refusal stops the batch', async () => {
     tries: [],
     refused: 'citation not found'
   });
+});
+
+test('every estimate at once is one question, and its Matches undo together', async () => {
+  const api = memoryDatasetApi({
+    volumes: { '201': { images: 40, citations: ROWS } },
+    visionPage: {
+      tries: [
+        { links: { citationId: 7, links: [MATCH] }, missed: null },
+        { links: { citationId: 9, links: [ESTIMATE] }, missed: 'no box' }
+      ],
+      model: 'claude-haiku-5-5',
+      readings: 1,
+      cached: 0,
+      dollars: 0.003,
+      seconds: 9
+    },
+    discards: { 7: { citationId: 7, links: [ESTIMATE] } }
+  });
+  const { viewer } = openAppState(api);
+  viewer.open({ citation: CITATION, link: ESTIMATE });
+  await Bun.sleep(0);
+  const searching = viewer.findAllAtOnce('claude-haiku-5-5');
+  expect(viewer.visionBatch.get()).toMatchObject({ of: 2, atOnce: true });
+  await searching;
+  expect(api.asked).toContain('vision all 7,9 on 18 claude-haiku-5-5');
+  expect(viewer.visionBatch.get()).toMatchObject({
+    tries: [{ tried: { missed: null } }, { tried: { missed: 'no box' } }],
+    took: { readings: 1, seconds: 9 },
+    atOnce: true
+  });
+  await viewer.undoVisionBatch();
+  expect(api.asked).toContain('discard 7 201/21');
+  expect(api.asked.filter((a) => a.startsWith('discard'))).toHaveLength(1);
+  expect(viewer.visionBatch.get()).toBeNull();
 });

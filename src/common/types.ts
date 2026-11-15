@@ -322,6 +322,12 @@ export interface VisionTry {
   seconds: number;
 }
 
+// Every estimate on an Image looked for in one question (ADR-0029): each
+// one's Links and why it found none, and what that took.
+export interface VisionPageTry extends Omit<VisionTry, 'links' | 'missed'> {
+  tries: Array<Pick<VisionTry, 'links' | 'missed'>>;
+}
+
 // The kind of church book: rippikirja (communion book), lastenkirja
 // (children's book), baptisms or marriages.
 export type BookKind = 'rippi' | 'lasten' | 'kastetut' | 'vihityt';
