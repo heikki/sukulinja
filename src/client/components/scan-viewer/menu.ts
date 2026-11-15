@@ -14,8 +14,9 @@ import type { MenuItem } from '../context-menu';
 // Citation here, named under it as the lists name it, unless its Box is on
 // the Image already, and with nothing pending, one for a new Citation of
 // an entry for someone; then, with nothing pending, a Reminder, once Astia
-// lists the Image; then, where the source's Link is an estimate and Vision
-// Match can be asked (`findByVision`), a search for it (ADR-0029); then
+// lists the Image; then, where Vision Match can be asked (`findByVision`),
+// a search for the source where its Link is an estimate, and for every
+// estimate on the Image where there's more than one (ADR-0029); then
 // Change Volume…, which only shows another Volume.
 // A Box's menu offers a Reminder too. An Entry made in the app is edited
 // in the card it was made in, people, words and Box at once (ADR-0026),
@@ -30,8 +31,9 @@ export function linkItems(
     placeBox: () => void;
     cite: () => void;
     remind: () => void;
-    // The model Vision Match asks, by its label, and asking it.
-    findByVision?: { model: string; run: () => void };
+    // The model Vision Match asks, by its label, and asking it for the
+    // source, or for every estimate on the Image.
+    findByVision?: { model: string; run: () => void; runAll: () => void };
   }
 ) {
   const remind: MenuItem[] =
@@ -63,15 +65,30 @@ export function linkItems(
 
 function visionItems(
   viewer: Viewer,
-  find: { model: string; run: () => void } | undefined
+  find: { model: string; run: () => void; runAll: () => void } | undefined
 ): MenuItem[] {
   if (find === undefined || viewer.pending.get() !== null) return [];
-  if (!canFindByVision(viewer.source.get())) return [];
-  const status = viewer.visionMatch.get();
-  if (status !== null && 'searching' in status) return [];
-  return [
-    { label: 'Find with Vision Match', detail: find.model, run: find.run }
-  ];
+  const one = viewer.visionMatch.get();
+  const all = viewer.visionBatch.get();
+  if (one !== null && 'searching' in one) return [];
+  if (all !== null && 'searching' in all) return [];
+  const items: MenuItem[] = [];
+  if (canFindByVision(viewer.source.get())) {
+    items.push({
+      label: 'Find with Vision Match',
+      detail: find.model,
+      run: find.run
+    });
+  }
+  const estimates = viewer.estimatesHere.get().length;
+  if (estimates > 1) {
+    items.push({
+      label: 'Find all estimates here',
+      detail: `${estimates} on this Image · ${find.model}`,
+      run: find.runAll
+    });
+  }
+  return items;
 }
 
 // The source's Citation by its reference, or one made in the app by the

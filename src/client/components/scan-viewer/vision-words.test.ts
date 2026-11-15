@@ -2,7 +2,12 @@ import { expect, test } from 'bun:test';
 
 import type { VisionTry } from '@/common/types';
 
-import { costWords, foundWords } from './vision-words';
+import {
+  batchFoundWords,
+  batchTook,
+  costWords,
+  foundWords
+} from './vision-words';
 
 const TRIED: VisionTry = {
   links: {
@@ -47,4 +52,16 @@ test('says why it found none', () => {
     "The name wasn't found on the Images searched."
   );
   expect(costWords(missed)).toBe('14 readings · $0.12 · 41 s · Haiku 5.5');
+});
+
+test('sums a batch, and says where its Matches are', () => {
+  const missed = { ...TRIED, missed: 'name not found', cached: 0 };
+  expect(batchFoundWords([TRIED, missed], 3, 34)).toBe(
+    'Found 1 of 3, their boxes on the scan.'
+  );
+  expect(batchFoundWords([TRIED], 2, 33)).toBe('Found 1 of 2; 1 on Image 34.');
+  expect(batchFoundWords([missed], 1, 34)).toBe('Found none of 1.');
+  expect(costWords(batchTook([TRIED, missed], 'claude-haiku-5-5', 80))).toBe(
+    '28 readings, 3 of them kept from before · $0.008 · 80 s · Haiku 5.5'
+  );
 });

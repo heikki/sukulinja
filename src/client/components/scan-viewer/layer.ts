@@ -229,6 +229,10 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
         run: () => {
           this.popup = null;
           void this.viewer.findByVision(model);
+        },
+        runAll: () => {
+          this.popup = null;
+          void this.viewer.findAllByVision(model);
         }
       }
     };

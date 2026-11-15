@@ -5,6 +5,7 @@ import { customElement, state } from 'lit/decorators.js';
 
 import { appState } from '@/client/state';
 import type { AppState, ImageOpen, LinkOpen } from '@/client/state';
+import { foundKeys } from '@/client/state/vision-batch';
 
 import { PictureStage } from '../box-stage/stage';
 import { controlStyles, viewerStyles } from '../box-stage/styles';
@@ -253,7 +254,8 @@ class ScanViewerElement extends SignalWatcher(LitElement) {
     const shown = rowsShown(citations.get(), source, pending.get());
     const boxes = entryBoxes(shown, this.image, {
       current: source?.citation.id ?? null,
-      discarding: this.viewer.discarding.get()
+      discarding: this.viewer.discarding.get(),
+      shown: foundKeys(this.viewer.visionBatch.get())
     });
     return html`
       <sl-stage-boxes

@@ -25,6 +25,8 @@ import type { Readable, Selected } from './selected';
 import { linkedBeside, revealingOf, viewerOpening } from './source-open';
 import type { ImageOpen, LinkOpen } from './source-open';
 import type { Source } from './sources';
+import { visionBatching } from './vision-batch';
+import type { VisionBatch } from './vision-batch';
 import { visionMatching } from './vision-match';
 import type { VisionMatch } from './vision-match';
 
@@ -119,6 +121,15 @@ export interface Viewer {
   // about, until forgotten.
   visionMatch: Readable<VisionMatch | null>;
   forgetVisionMatch: () => void;
+  // The estimates on the Image shown that a batch would search, one per
+  // record.
+  estimatesHere: Readable<VolumeCitation[]>;
+  // Searches for each of them in turn with the vision model (ADR-0029).
+  findAllByVision: (model: ClaudeModel) => Promise<void>;
+  // How far that has got, then what it found and took, for the Image it
+  // was about while it's shown, until forgotten.
+  visionBatch: Readable<VisionBatch | null>;
+  forgetVisionBatch: () => void;
   close: () => void;
   // The change not saved yet: a Mark, a new Entry or the source's edited.
   pending: Readable<PendingChange | null>;
@@ -222,6 +233,11 @@ export function openViewer(
   const discarding = signal(false);
   const confirmation = confirmingSource(source, confirm);
   const vision = visionMatching(source, selected.findByVision, followMatch);
+  const batch = visionBatching(
+    { volume, image, citations },
+    api.findByVision,
+    batchSettled
+  );
   const leaving = signal(false);
   const filming = filmingOf(api, () => volume.get()?.id);
   const { oldFilming } = filming;
@@ -558,6 +574,17 @@ export function openViewer(
     openNow({ citation: shown.citation, link });
   }
 
+  // After a batch the Volume's citations reload, drawing the Matches it
+  // found, and the Selected person's Links, which it may have moved. The
+  // viewer stays on the Image.
+  async function batchSettled() {
+    const shown = volume.get();
+    await Promise.all([
+      shown === null ? undefined : loadCitations(shown.id),
+      selected.relink()
+    ]);
+  }
+
   async function imageFailed() {
     const shown = volume.get();
     if (shown !== null) await filming.ask(shown.id);
@@ -616,6 +643,10 @@ export function openViewer(
     findByVision: vision.run,
     visionMatch: vision.status,
     forgetVisionMatch: vision.forget,
+    estimatesHere: batch.estimates,
+    findAllByVision: batch.run,
+    visionBatch: batch.status,
+    forgetVisionBatch: batch.forget,
     close,
     pending,
     leaving,

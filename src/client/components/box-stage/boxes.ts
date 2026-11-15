@@ -9,12 +9,14 @@ import { stageBoxesStyles } from './styles';
 
 // One Box drawn over the picture, keyed as the list beside it keys its
 // rows. A `marked` one always shows, as the one the viewer is on; `faint`,
-// it waits to be taken back.
+// it waits to be taken back; `shown`, it shows too, lighter, as one just
+// found.
 export interface StageBox {
   key: string;
   box: Box;
   marked: boolean;
   faint?: boolean;
+  shown?: boolean;
 }
 
 // A press moving further than this is a pan, not a click.
@@ -57,6 +59,7 @@ class StageBoxesElement extends LitElement {
       'box',
       b.marked ? 'marked' : '',
       b.faint === true ? 'faint' : '',
+      b.shown === true ? 'shown' : '',
       b.key === this.hovered ? 'hovered' : ''
     ].join(' ');
     return html`

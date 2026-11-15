@@ -96,3 +96,57 @@ test('a refusal is told in the app’s words', async () => {
   await viewer.findByVision('claude-haiku-5-5');
   expect(viewer.visionMatch.get()).toEqual({ refused: 'citation not found' });
 });
+
+// Three references estimated on Image 18, two of one record.
+function row(id: number, markKey: string, link: Link = ESTIMATE) {
+  return {
+    personId: id,
+    citation: { ...CITATION, id, markKey },
+    link
+  };
+}
+const ROWS = [
+  row(7, 'record 1'),
+  row(8, 'record 1'),
+  row(9, 'record 2'),
+  row(10, 'record 3', MATCH)
+];
+
+test('every estimate on the Image is searched once per record, and summed', async () => {
+  const api = memoryDatasetApi({
+    volumes: { '201': { images: 40, citations: ROWS } },
+    visionTries: {
+      7: tried([MATCH], null),
+      9: tried([ESTIMATE], 'name not found')
+    }
+  });
+  const { viewer } = openAppState(api);
+  viewer.open({ citation: CITATION, link: ESTIMATE });
+  await Bun.sleep(0);
+  expect(viewer.estimatesHere.get().map((r) => r.citation.id)).toEqual([7, 9]);
+  const searching = viewer.findAllByVision('claude-haiku-5-5');
+  expect(viewer.visionBatch.get()).toMatchObject({ done: 0, of: 2 });
+  await searching;
+  expect(api.asked.filter((a) => a.startsWith('vision'))).toEqual([
+    'vision 7 claude-haiku-5-5',
+    'vision 9 claude-haiku-5-5'
+  ]);
+  expect(viewer.visionBatch.get()).toMatchObject({ of: 2, refused: null });
+  // The viewer stays on the Image.
+  expect(viewer.image.get()).toBe(18);
+});
+
+test('a refusal stops the batch', async () => {
+  const api = memoryDatasetApi({
+    volumes: { '201': { images: 40, citations: ROWS } },
+    visionTries: { 9: tried([ESTIMATE], 'name not found') }
+  });
+  const { viewer } = openAppState(api);
+  viewer.open({ citation: CITATION, link: ESTIMATE });
+  await Bun.sleep(0);
+  await viewer.findAllByVision('claude-haiku-5-5');
+  expect(viewer.visionBatch.get()).toMatchObject({
+    tries: [],
+    refused: 'citation not found'
+  });
+});

@@ -3,19 +3,28 @@ import { consume } from '@lit/context';
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement } from 'lit/decorators.js';
 
+import { visionModel } from '@/client/assistant-choices';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
+import type { VisionBatch } from '@/client/state/vision-batch';
 
 import { controlStyles } from '../box-stage/styles';
-import { costWords, foundWords, modelLabel } from './vision-words';
+import {
+  batchFoundWords,
+  batchTook,
+  costWords,
+  foundWords,
+  modelLabel
+} from './vision-words';
 
 function stop(e: Event) {
   e.stopPropagation();
 }
 
-// Along the top of the stage, while Vision Match searches for the source
-// and after (ADR-0029): how long it has been at it, then what it found and
-// what that took, or why it couldn't, until closed.
+// Along the top of the stage, while Vision Match searches for the source,
+// or for every estimate on the Image, and after (ADR-0029): how long it has
+// been at it, then what it found and what that took, or why it couldn't,
+// until closed.
 @customElement('sl-scan-vision')
 class ScanVisionElement extends SignalWatcher(LitElement) {
   static override styles = [
@@ -92,15 +101,52 @@ class ScanVisionElement extends SignalWatcher(LitElement) {
     return html`<button
       @click=${() => {
         this.state.viewer.forgetVisionMatch();
+        this.state.viewer.forgetVisionBatch();
       }}
     >
       Close
     </button>`;
   }
 
+  // Every estimate on the Image: how far it has got, then how many it
+  // found and what it took. The ones not found stay under Estimate
+  // beside the scan.
+  private renderBatch(batch: VisionBatch) {
+    if ('searching' in batch) {
+      const seconds = Math.round((Date.now() - batch.since) / 1000);
+      return html`<div class="card">
+        <p>
+          Vision Match is searching ${batch.done + 1} of ${batch.of} with
+          ${modelLabel(batch.searching)}… ${seconds} s
+        </p>
+      </div>`;
+    }
+    const tries = batch.tries.map((t) => t.tried);
+    const model = tries[0]?.model ?? visionModel.get();
+    return html`<div class="card">
+      <div>
+        <p>
+          ${batchFoundWords(tries, batch.of, this.state.viewer.image.get())}
+        </p>
+        ${
+          batch.refused === null
+            ? nothing
+            : html`<p class="refused">${batch.refused}</p>`
+        }
+        <p class="cost">${costWords(batchTook(tries, model, batch.seconds))}</p>
+      </div>
+      ${this.renderClose()}
+    </div>`;
+  }
+
   override render() {
+    const batch = this.state.viewer.visionBatch.get();
     const status = this.state.viewer.visionMatch.get();
-    this.tick(status !== null && 'searching' in status);
+    this.tick(
+      (batch !== null && 'searching' in batch) ||
+        (status !== null && 'searching' in status)
+    );
+    if (batch !== null) return this.renderBatch(batch);
     if (status === null) return nothing;
     if ('searching' in status) {
       const seconds = Math.round((Date.now() - status.since) / 1000);

@@ -26,7 +26,7 @@ function dollarWords(dollars: number | null) {
 
 // What it found: the Match's Image, or why there's none.
 export function foundWords(tried: VisionTry) {
-  if (tried.missed !== null) return MISSED[tried.missed] ?? tried.missed;
+  if (tried.missed !== null) return missedWords(tried.missed);
   const links = 'links' in tried.links ? tried.links.links : [];
   const match = links.find((l) => l.certainty === 'match');
   const at =
@@ -36,9 +36,69 @@ export function foundWords(tried: VisionTry) {
   return `Found${at}. Right-click its box to confirm or discard it.`;
 }
 
+// What a search took, one's or a batch's.
+type Took = Pick<
+  VisionTry,
+  'model' | 'readings' | 'cached' | 'dollars' | 'seconds'
+>;
+
+// Each try a batch made, summed as one.
+export function batchTook(
+  tries: VisionTry[],
+  model: string,
+  seconds: number
+): Took {
+  return {
+    model,
+    readings: tries.reduce((n, t) => n + t.readings, 0),
+    cached: tries.reduce((n, t) => n + t.cached, 0),
+    dollars: tries.reduce<number | null>(
+      (sum, t) => (sum === null || t.dollars === null ? null : sum + t.dollars),
+      0
+    ),
+    seconds
+  };
+}
+
+// The Image a try's Match is on, or null for none.
+function matchImage(tried: VisionTry) {
+  if (tried.missed !== null || !('links' in tried.links)) return null;
+  const match = tried.links.links.find((l) => l.certainty === 'match');
+  return match === undefined || match.precision === 'volume'
+    ? null
+    : match.image;
+}
+
+// How many of a batch's tries on `image` found their entry, and which
+// Images the ones found elsewhere are on: "Found 5 of 7, their boxes on
+// the scan; 1 on Image 13."
+export function batchFoundWords(tries: VisionTry[], of: number, image: number) {
+  const images = tries.flatMap((t) => {
+    const at = matchImage(t);
+    return at === null ? [] : [at];
+  });
+  if (images.length === 0) return `Found none of ${of}.`;
+  const elsewhere = images
+    .filter((at) => at !== image)
+    .toSorted((x, y) => x - y);
+  const found = `Found ${images.length} of ${of}`;
+  const here =
+    images.length > elsewhere.length ? ', their boxes on the scan' : '';
+  const away =
+    elsewhere.length === 0
+      ? ''
+      : `; ${elsewhere.length} on Image ${[...new Set(elsewhere)].join(', ')}`;
+  return `${found}${here}${away}.`;
+}
+
+// Why a try found none, in a sentence.
+export function missedWords(missed: string) {
+  return MISSED[missed] ?? missed;
+}
+
 // What it took: "14 readings, 3 of them kept from before · $0.004 · 41 s ·
 // Haiku 5.5".
-export function costWords(tried: VisionTry) {
+export function costWords(tried: Took) {
   const kept =
     tried.cached === 0 ? '' : `, ${tried.cached} of them kept from before`;
   const plural = tried.readings === 1 ? '' : 's';

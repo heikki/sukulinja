@@ -384,7 +384,8 @@ export const paneRowsStyles = css`
 
 // Over the stage, letting presses through but on the marked Boxes, or with
 // `live`, on all. Red stands out on the grey scans; a viewer can tint them
-// otherwise with --box-color. Unmarked, a Box shows only when hovered.
+// otherwise with --box-color. Unmarked, a Box shows only when hovered or
+// `shown`.
 export const stageBoxesStyles = css`
   :host {
     --box: var(--box-color, var(--danger));
@@ -409,6 +410,10 @@ export const stageBoxesStyles = css`
   .box.marked {
     border-color: var(--box);
     background: color-mix(in srgb, var(--box) 12%, transparent);
+  }
+
+  .box.shown {
+    border-color: color-mix(in srgb, var(--box) 70%, transparent);
   }
 
   .box.marked.faint {
