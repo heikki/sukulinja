@@ -2,6 +2,8 @@
 
 Status: needs-triage
 
+Goes with 08 (steering the view): once the assistant can select someone, the chart it sees follows.
+
 ## What
 
 Today a question carries only the Selected person. The assistant should also know who is on the chart at that moment, so a question like "which of these have no birth place?" or "check the residences of everyone shown" works without naming each person.
