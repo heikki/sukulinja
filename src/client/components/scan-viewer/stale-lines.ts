@@ -31,8 +31,7 @@ function citing(
 }
 
 // A line for each pin switching leaves out, hand marks first, then the
-// vision model's matches, then Page pins (one per Image and pages);
-// Rejections aren't worth a line.
+// vision model's matches, then Page pins (one per Image and pages).
 export function staleLines(
   stale: StalePin[],
   rows: VolumeCitation[],

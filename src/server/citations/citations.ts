@@ -496,7 +496,7 @@ export function createCitations<R extends BookRef>(
       if (!match) {
         changed({
           on: { citationId },
-          what: { kind: 'discard', volume, image: at.image, rejection: false }
+          what: { kind: 'discard', volume, image: at.image }
         });
       }
       return result;

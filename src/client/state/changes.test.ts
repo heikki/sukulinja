@@ -8,7 +8,7 @@ import { openChanges } from './changes';
 const UNDONE: Change = {
   id: 1,
   at: '2026-11-09T10:00:00.000Z',
-  what: { kind: 'undo-import' },
+  what: { kind: 'new-dataset' },
   on: null,
   who: null,
   via: null

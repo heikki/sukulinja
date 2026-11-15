@@ -422,10 +422,10 @@ export interface ChurchBookVolume {
 // A pin made on a filming of its Volume that Astia has since replaced,
 // which switching to the new filming leaves out: shipped with the app or
 // saved in the data folder, on the Image it gives. A Page pin gives its
-// pages, a Record pin its record, a Reference pin or Rejection the URL of
-// its reference.
+// pages, a Record pin its record, a Reference pin the URL of its
+// reference.
 export interface StalePin {
-  kind: 'page' | 'record' | 'reference' | 'rejection';
+  kind: 'page' | 'record' | 'reference';
   from: 'shipped' | 'local';
   by: Provenance;
   image: number;
@@ -501,11 +501,9 @@ export type OnTarget =
 // entry, the Image or only the Volume (`confirmed` when it confirmed a
 // Match there; `moved` for a Citation of an Image moved to another entry,
 // as written before an Entry's Box moved as a `move`;
-// `pagePin` the cited page it pinned); a Discard (`rejection` when it took
-// back a Match); a Citation made in the Scan viewer, or deleted (with what
-// it cited); an import (`merged` into the dataset there, with how much it
-// couldn't keep), or its undoing; or a Volume switched to Astia's new
-// filming, with the Image counts and how many pins it left out.
+// `pagePin` the cited page it pinned); a Discard; a Citation made in the
+// Scan viewer, or deleted (with what it cited); an import, which made the
+// dataset; or a Volume switched to Astia's new filming, with the Image counts and how many pins it left out.
 export type ChangeWhat =
   | {
       kind: 'mark';
@@ -517,7 +515,7 @@ export type ChangeWhat =
       citations: number;
       pagePin: number | null;
     }
-  | { kind: 'discard'; volume: string; image: number; rejection: boolean }
+  | { kind: 'discard'; volume: string; image: number }
   | { kind: 'cite'; volume: string; image: number }
   | { kind: 'uncite'; cited: string | null }
   // What an Entry says changed, by where it's written, as it reads now.
@@ -578,10 +576,7 @@ export type ChangeWhat =
   | { kind: 'person'; did: 'edit'; was: string; now: string }
   // A person deleted; the Change's `who` names them as they were.
   | { kind: 'person'; did: 'delete' }
-  // `merged`, `lost` and undo-import are from before an import only made
-  // a new dataset (ADR-0021), kept so older Changes still read.
-  | { kind: 'import'; file: string; merged: boolean; lost: number }
-  | { kind: 'undo-import' }
+  | { kind: 'import'; file: string }
   // A dataset started with its first person, whom it's on.
   | { kind: 'new-dataset' }
   // The Facts whose address stood alone, as MyHeritage wrote residences,

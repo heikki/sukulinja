@@ -86,13 +86,6 @@ test('names stale marks first, then Matches, then each Page pin once', () => {
       image: 30,
       record: 777,
       markKey: 'record 777'
-    },
-    {
-      kind: 'rejection',
-      from: 'local',
-      by: 'hand',
-      image: 12,
-      url: 'https://mh/y?itemId=9'
     }
   ];
   expect(staleLines(stale, ROWS, PERSONS)).toEqual([

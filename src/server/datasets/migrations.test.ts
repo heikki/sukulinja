@@ -164,8 +164,9 @@ describe('a database of the oldest schema migrated', () => {
     }));
     before.close();
     const migrated = openDb(path);
-    // Only the columns it had: a step may add some.
-    for (const { table, rows } of had) {
+    // Only the columns it had: a step may add some. The Rejections went
+    // with schema 10.
+    for (const { table, rows } of had.filter((h) => h.table !== 'rejections')) {
       const names = Object.keys(rows[0] ?? {});
       const columns = names.length === 0 ? '*' : names.join(', ');
       // A Citation reads as it did once its Entry holds its link.
@@ -460,6 +461,38 @@ describe('schema 4', () => {
       { media_id: null },
       { media_id: null }
     ]);
+    migrated.close();
+  });
+});
+
+describe('schema 10', () => {
+  test('drops what only a re-import or a Rejection needed', () => {
+    const db = oldest(9);
+    db.run(
+      "ALTER TABLE changes ADD COLUMN via TEXT CHECK (via IN ('assistant'))"
+    );
+    runAll(
+      db,
+      `
+      INSERT INTO rejections (reference_url, volume_id, image)
+        VALUES ('https://mh/x', '1234', 3);
+      INSERT INTO changes (at, what) VALUES
+        ('t', '{"kind":"import","file":"a.ged","merged":true,"lost":2}'),
+        ('t', '{"kind":"undo-import"}'),
+        ('t', '{"kind":"discard","volume":"I Aa:1","image":3,"rejection":true}'),
+        ('t', '{"kind":"new-dataset"}');
+    `
+    );
+    db.close();
+    const migrated = openDb(path);
+    expect(
+      migrated.query('SELECT what FROM changes ORDER BY id').all()
+    ).toEqual([
+      { what: '{"kind":"import","file":"a.ged"}' },
+      { what: '{"kind":"discard","volume":"I Aa:1","image":3}' },
+      { what: '{"kind":"new-dataset"}' }
+    ]);
+    expect(tablesOf(migrated)).not.toContain('rejections');
     migrated.close();
   });
 });

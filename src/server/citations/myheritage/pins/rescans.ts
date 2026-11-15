@@ -93,20 +93,7 @@ function localEntries(local: LocalPins): Entry[] {
         ]
       : []
   );
-  const rejected = Object.entries(local.rejected).flatMap(([url, list]) =>
-    list.map((pin) => ({
-      volumeId: pin.volumeId,
-      title: null,
-      ...on(pin),
-      about: {
-        kind: 'rejection' as const,
-        from: 'local' as const,
-        by: 'hand' as const,
-        url
-      }
-    }))
-  );
-  return [...volumeEntries(local.volumes, 'local'), ...references, ...rejected];
+  return [...volumeEntries(local.volumes, 'local'), ...references];
 }
 
 // Every pin on an Image, shipped and local.

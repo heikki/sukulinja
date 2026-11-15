@@ -68,12 +68,9 @@ test('says what each was', () => {
     doneLabel({ kind: 'role', volume: 'v', image: 1, from: null, to: 'CHIL' })
   ).toBe('Changed the Role');
   const discard = { kind: 'discard', volume: 'v', image: 1 } as const;
-  expect(doneLabel({ ...discard, rejection: false })).toBe('Discarded the Box');
-  expect(doneLabel({ ...discard, rejection: true })).toBe('Rejected the Match');
-  const imported = { kind: 'import', file: 'tree.ged', lost: 0 } as const;
-  expect(doneLabel({ ...imported, merged: false })).toBe('Imported tree.ged');
-  expect(doneLabel({ ...imported, merged: true })).toBe(
-    'Imported tree.ged again'
+  expect(doneLabel(discard)).toBe('Discarded the Box');
+  expect(doneLabel({ kind: 'import', file: 'tree.ged' })).toBe(
+    'Imported tree.ged'
   );
   expect(doneLabel({ kind: 'addresses-to-places', facts: 2 })).toBe(
     'Moved addresses to places'
@@ -89,10 +86,7 @@ test('says where, and what more it did', () => {
     'I Aa:5, Image 232, in 3 Citations, pinned page 463'
   );
   expect(detailOf({ ...MARK, at: 'volume', image: null })).toBe('I Aa:5');
-  expect(
-    detailOf({ kind: 'import', file: 'a.ged', merged: true, lost: 2 })
-  ).toBe('2 not kept');
-  expect(detailOf({ kind: 'undo-import' })).toBeNull();
+  expect(detailOf({ kind: 'import', file: 'a.ged' })).toBeNull();
   expect(detailOf({ kind: 'move', volume: 'I C:1', image: 3 })).toBe(
     'I C:1, Image 3'
   );
@@ -140,11 +134,11 @@ test("names whom it was on, live, or as they were named once they're gone", () =
   expect(whoseLabel(change(MARK, { who: 'Maija  /Esimerkki/' }), PERSONS)).toBe(
     'Maija Esimerkki'
   );
-  expect(whoseLabel(change({ kind: 'undo-import' }), PERSONS)).toBeNull();
+  expect(whoseLabel(change({ kind: 'new-dataset' }), PERSONS)).toBeNull();
   expect(whereLabel(change(MARK, { on }), PERSONS)).toEndWith(
     ') · I Aa:5, Image 232'
   );
-  expect(whereLabel(change({ kind: 'undo-import' }), PERSONS)).toBe('');
+  expect(whereLabel(change({ kind: 'new-dataset' }), PERSONS)).toBe('');
 });
 
 test('leads to what it was on, but nowhere from nothing or a stale Image', () => {
@@ -173,7 +167,7 @@ test('leads to what it was on, but nowhere from nothing or a stale Image', () =>
 test('runs them by day: today, yesterday, then the date', () => {
   const now = new Date('2026-11-09T18:00:00');
   function at(iso: string, id: number) {
-    return change({ kind: 'undo-import' }, { id, at: iso });
+    return change({ kind: 'new-dataset' }, { id, at: iso });
   }
   const days = byDay(
     [

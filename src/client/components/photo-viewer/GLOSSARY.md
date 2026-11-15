@@ -12,7 +12,7 @@ _Avoid_: image (an **Image** is Astia's scan of a church-book page), media (also
 The same term as on an Image: where, a rectangle in whole pixels of the full-size picture, as GEDCOM's `CROP` holds it. On a Photo, where a person is in it: always their **Tag**'s.
 
 **Tag**:
-A person in a Photo, with their **Box**: who and where, as a Citation is to an Image. Made, moved and taken back in the Photo viewer, and kept by a re-import (ADR-0017). Every Box is a Tag: an import makes one of each person's `CROP` on a link new to the dataset (ADR-0020). A person an import links to a Photo without a Box is listed on it all the same, and stays so when their Tag is taken back.
+A person in a Photo, with their **Box**: who and where, as a Citation is to an Image. Made, moved and taken back in the Photo viewer (ADR-0017). Every Box is a Tag: an import makes one of each person's `CROP` (ADR-0020). A person an import links to a Photo without a Box is listed on it all the same, and stays so when their Tag is taken back.
 
 **Portrait**:
 The Photo the chart and the person panel show of a person, cropped to their Box on it: their first Photo by link order. _Use as portrait_ on their Box in the Photo viewer makes it that one, by putting their Tag first.

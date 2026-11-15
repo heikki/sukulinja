@@ -61,8 +61,7 @@ const LOCAL = {
     },
     'ref-b': { volumeId: 'v2', volume: 'I Ab:2', ...on('v2', 1) },
     'ref-c': { volumeId: 'v1', volume: 'I Ab:1' }
-  },
-  rejected: { 'ref-d': [{ volumeId: 'v1', ...on('v1', 9) }] }
+  }
 };
 
 // What v1's re-scan leaves out of SHIPPED and LOCAL.
@@ -83,8 +82,7 @@ const STALE: StalePin[] = [
     image: 4,
     url: 'ref-a',
     markKey: 'url ref-a'
-  },
-  { kind: 'rejection', from: 'local', by: 'hand', image: 9, url: 'ref-d' }
+  }
 ];
 
 test('names the re-scanned Volume and its stale pins, and nothing else', async () => {

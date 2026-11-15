@@ -126,7 +126,7 @@ async function changesDone(slug: string) {
 test('an import is a Change', async () => {
   await upload();
   expect(await changesDone('tree')).toEqual([
-    { kind: 'import', file: 'tree.ged', merged: false, lost: 0 }
+    { kind: 'import', file: 'tree.ged' }
   ]);
 });
 

@@ -61,18 +61,17 @@ function changesOf(db: Database) {
 const DISCARD = {
   kind: 'discard',
   volume: 'I Aa:1',
-  image: 12,
-  rejection: false
+  image: 12
 } as const;
 
 test('lists each Change newest first, with what it was on and who that was', async () => {
   const db = await dataset();
   const changes = changesOf(db);
   changes.add({ on: { citationId: 11 }, what: DISCARD });
-  changes.add({ on: null, what: { kind: 'undo-import' } });
+  changes.add({ on: null, what: { kind: 'new-dataset' } });
 
   expect(await changes.list()).toMatchObject([
-    { what: { kind: 'undo-import' }, on: null, who: null },
+    { what: { kind: 'new-dataset' }, on: null, who: null },
     {
       what: DISCARD,
       on: { kind: 'citation', personId: 1, citationId: 11 },
@@ -176,7 +175,7 @@ test('one made via the assistant says so; one made by hand at the same time does
     await held.promise;
     changes.add({ on: { personId: 1 }, what: DISCARD });
   });
-  changes.add({ on: null, what: { kind: 'undo-import' } });
+  changes.add({ on: null, what: { kind: 'new-dataset' } });
   held.resolve(undefined);
   await applying;
 

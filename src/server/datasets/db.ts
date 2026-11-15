@@ -219,15 +219,6 @@ const SCHEMA_SQL = `
     PRIMARY KEY (fact_id, citation_id)
   );
   CREATE INDEX IF NOT EXISTS fact_citations_citation_idx ON fact_citations(citation_id);
-  -- Matches taken back by hand: the reference isn't on that Image.
-  CREATE TABLE IF NOT EXISTS rejections (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    reference_url TEXT NOT NULL,
-    volume_id TEXT NOT NULL,
-    image INTEGER NOT NULL,
-    file_id TEXT
-  );
-  CREATE INDEX IF NOT EXISTS rejections_url_idx ON rejections(reference_url);
   -- Reminders, on a person or an Image, one on an Image maybe about a
   -- person too. No export writes them.
   CREATE TABLE IF NOT EXISTS reminders (

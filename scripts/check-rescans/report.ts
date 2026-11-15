@@ -7,8 +7,7 @@ import type { CheckResult } from '@/server/citations/myheritage/pins/rescans';
 const KINDS: Record<StalePin['kind'], string> = {
   page: 'Page pin',
   record: 'Record pin',
-  reference: 'Reference pin',
-  rejection: 'Rejection'
+  reference: 'Reference pin'
 };
 
 function pinned(s: StalePin) {

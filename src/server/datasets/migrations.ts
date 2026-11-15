@@ -24,6 +24,7 @@ import { ENTRIES_HOLD_THE_BOX } from './migration-6';
 import { ENTRIES_OF_ONE_ENTRY_MERGE } from './migration-7';
 import { BAPTISM_ROLES_FROM_THE_TREE } from './migration-8';
 import { CHANGES_SAY_VIA_THE_ASSISTANT } from './migration-9';
+import { REIMPORT_LEFTOVERS_GO } from './migration-10';
 
 export interface Migration {
   to: number;
@@ -41,7 +42,8 @@ export const MIGRATIONS: Migration[] = [
   ENTRIES_HOLD_THE_BOX,
   ENTRIES_OF_ONE_ENTRY_MERGE,
   BAPTISM_ROLES_FROM_THE_TREE,
-  CHANGES_SAY_VIA_THE_ASSISTANT
+  CHANGES_SAY_VIA_THE_ASSISTANT,
+  REIMPORT_LEFTOVERS_GO
 ];
 
 // The version the steps take a database to.

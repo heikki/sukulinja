@@ -121,9 +121,7 @@ export function lifecycleRoutes(
             on: null,
             what: {
               kind: 'import',
-              file: upload.sourceFilename,
-              merged: false,
-              lost: 0
+              file: upload.sourceFilename
             }
           });
           send({ type: 'done', info: outcome.info });

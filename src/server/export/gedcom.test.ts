@@ -291,10 +291,6 @@ describe('exporting a GEDZIP', () => {
       volume: 'I Ab:1',
       by: 'hand'
     });
-    db.run(
-      "INSERT INTO rejections (reference_url, volume_id, image) VALUES (?, '1234', 3)",
-      [index]
-    );
 
     const text = gedcomOf(await roundTrip());
     expect(treeSnapshot(registry.open('b'))).toEqual(treeSnapshot(db));
@@ -338,10 +334,6 @@ describe('exporting a GEDZIP', () => {
     expect(
       registry.open('b').query('SELECT COUNT(*) AS n FROM media').get()
     ).toEqual({ n: 3 });
-    // Rejections stay out of the GEDZIP.
-    expect(
-      registry.open('b').query('SELECT COUNT(*) AS n FROM rejections').get()
-    ).toEqual({ n: 0 });
   });
 
   test("carries a Citation made in the app on an Image, and its Volume's source", async () => {

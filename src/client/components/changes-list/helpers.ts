@@ -90,7 +90,7 @@ export function doneLabel(what: ChangeWhat) {
       if (what.moved) return 'Moved the entry';
       return `Marked the ${what.at === 'entry' ? 'entry' : what.at === 'image' ? 'Image' : 'Volume'}`;
     case 'discard':
-      return what.rejection ? 'Rejected the Match' : 'Discarded the Box';
+      return 'Discarded the Box';
     case 'cite':
       return 'Cited the entry';
     case 'uncite':
@@ -118,11 +118,7 @@ export function doneLabel(what: ChangeWhat) {
     case 'person':
       return personDone(what);
     case 'import':
-      return what.merged
-        ? `Imported ${what.file} again`
-        : `Imported ${what.file}`;
-    case 'undo-import':
-      return 'Undid the last import';
+      return `Imported ${what.file}`;
     case 'new-dataset':
       return 'Started the dataset';
     case 'addresses-to-places':
@@ -176,8 +172,6 @@ export function detailOf(what: ChangeWhat) {
     case 'person':
       return personDetail(what);
     case 'import':
-      return what.lost === 0 ? null : `${what.lost} not kept`;
-    case 'undo-import':
     case 'new-dataset':
       return null;
     case 'addresses-to-places':

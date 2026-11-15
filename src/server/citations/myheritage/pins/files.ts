@@ -23,20 +23,11 @@ const LOCK_WAIT_MS = 5000;
 // Older than any save takes: its process died holding it.
 const LOCK_STALE_MS = 30_000;
 
-// A Match taken back by hand, as an older local file kept it: the
-// reference isn't on that Image, of the filming its file id is of.
-export interface Rejection {
-  volumeId: string;
-  image: number;
-  fileId?: string;
-}
-
-// The local file: the pins, and the Rejections by the reference's URL.
-// Record pins, Reference pins and Rejections are now kept in the datasets
-// (marks.ts); the ones left here are those no dataset cites.
-export interface LocalPins extends Pins {
-  rejected: Record<string, Rejection[]>;
-}
+// The local file's pins. Record pins and Reference pins are now kept in
+// the datasets (marks.ts); the ones left here are those no dataset cites.
+// An older file's Rejections (`rejected`) aren't read, and go when it's
+// written.
+export type LocalPins = Pins;
 
 // Written whole under another name, then renamed over the file, so a
 // reader never sees half of it.
@@ -56,16 +47,12 @@ export async function readLocalFile(path: string): Promise<LocalPins> {
   const local = await readIfThere<Partial<LocalPins>>(path);
   return {
     volumes: local?.volumes ?? {},
-    references: local?.references ?? {},
-    rejected: local?.rejected ?? {}
+    references: local?.references ?? {}
   };
 }
 
-// Writes the local pins, leaving the Rejections out while there are none.
 export async function writeLocalFile(path: string, local: LocalPins) {
-  const { rejected, ...pins } = local;
-  const none = Object.keys(rejected).length === 0;
-  await writeJson(path, none ? pins : local);
+  await writeJson(path, local);
 }
 
 export async function fileStamp(path: string) {
@@ -200,9 +187,6 @@ function volumesOnImages(local: LocalPins) {
   for (const p of Object.values(local.references)) {
     if (p.image !== undefined) ids.add(p.volumeId);
   }
-  for (const list of Object.values(local.rejected)) {
-    for (const r of list) ids.add(r.volumeId);
-  }
   return [...ids];
 }
 
@@ -225,9 +209,6 @@ function localWithFileIds(
     ),
     references: mapValues(local.references, (p) =>
       p.image === undefined ? p : filled(p, listOf(p.volumeId))
-    ),
-    rejected: mapValues(local.rejected, (list) =>
-      list.map((r) => filled(r, listOf(r.volumeId)))
     )
   };
 }

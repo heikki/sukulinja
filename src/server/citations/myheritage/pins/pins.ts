@@ -451,7 +451,7 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
           .filter((m) => m.recordId === null)
           .map((m) => [m.url, referencePinOf(m.link)])
       );
-      return { volumes, references, rejected: {} };
+      return { volumes, references };
     },
 
     // A Mark: the reference's record is on the Image, or in the Volume when
