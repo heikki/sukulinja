@@ -7,15 +7,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 
-// Dollars per million input and output tokens, first-party API rates as of
-// October 2026.
-const PRICES: Record<string, { input: number; output: number }> = {
-  'claude-haiku-5-5': { input: 0.1, output: 0.5 },
-  'claude-sonnet-5-5': { input: 2, output: 10 },
-  'claude-opus-5-5': { input: 4, output: 20 },
-  'claude-fable-5-1': { input: 10, output: 50 }
-};
-
+import { PRICES } from '@/common/claude-prices';
 import type { Spend } from '@/common/types';
 
 export type { Spend } from '@/common/types';

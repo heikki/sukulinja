@@ -7,7 +7,6 @@ import { join } from 'node:path';
 
 import type Anthropic from '@anthropic-ai/sdk';
 
-import type { AssistantEvent } from '@/common/types';
 import type { Model } from '@/server/assistant/model';
 import {
   IMAGES,
@@ -457,14 +456,15 @@ describe('the answers', () => {
 
 describe('the assistant', () => {
   test('answers a question in a conversation, and forgets it', async () => {
-    const events: AssistantEvent[] = [];
-    for await (const e of api.ask({
-      conversation: null,
-      text: 'Hei',
-      personId: 1
-    })) {
-      events.push(e);
-    }
+    const events = await Array.fromAsync(
+      api.ask({
+        conversation: null,
+        text: 'Hei',
+        personId: 1,
+        model: 'claude-sonnet-5-5',
+        style: 'normal'
+      })
+    );
     expect(events[0]!.type).toBe('conversation');
     expect(events[1]).toEqual({ type: 'text', text: 'Hei.' });
     expect(events[2]).toMatchObject({ type: 'done', ended: 'answered' });

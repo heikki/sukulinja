@@ -20,7 +20,9 @@ import type { ScanCacheStatus } from '@/common/types';
 
 import { CornerPopover, popoverStyles } from '../corner-panel/popover';
 import { capDrop, clearDrop, formatBytes } from './helpers';
+import { OFF_ON, rowStyles, segmented } from './segmented';
 
+import './assistant-choices';
 import './assistant-key';
 import './chart-spacing';
 import type { ScanCacheDrop } from './helpers';
@@ -65,6 +67,7 @@ class SettingsElement extends LitElement {
     focusRingStyles,
     dialogStyles,
     popoverStyles,
+    rowStyles,
     css`
       :host {
         position: relative;
@@ -102,9 +105,14 @@ class SettingsElement extends LitElement {
         gap: 0.75rem 1.25rem;
         white-space: nowrap;
       }
-      .label {
-        font-size: 0.85rem;
-        color: var(--muted);
+      /* Lines across both columns, setting the Assistant's rows apart. */
+      .rule {
+        grid-column: 1 / -1;
+        align-self: stretch;
+        height: 0;
+        margin: 0.25rem 0;
+        border: 0;
+        border-top: 1px solid var(--border);
       }
       .dataset {
         display: flex;
@@ -122,39 +130,6 @@ class SettingsElement extends LitElement {
       }
       .dataset a:hover {
         text-decoration: underline;
-      }
-      /* Equal segments, each as wide as the row's longest label; rows stretch
-       to the widest so they line up as one column. */
-      .segmented {
-        display: grid;
-        grid-auto-flow: column;
-        grid-auto-columns: 1fr;
-        gap: 2px;
-        padding: 2px;
-        background: var(--bg);
-        border: 1px solid var(--border);
-        border-radius: 7px;
-      }
-      .segmented button {
-        min-width: 2rem;
-        padding: 0.3rem 0.65rem;
-        background: none;
-        color: var(--muted);
-        border: 0;
-        border-radius: 5px;
-        font: inherit;
-        font-size: 0.85rem;
-        cursor: pointer;
-      }
-      .segmented button:hover {
-        color: var(--accent);
-      }
-      /* Marked by colour and the raised fill, not weight: a bolder label would
-       widen its column, and with it every segment and the popover. */
-      .segmented button[aria-pressed='true'] {
-        background: var(--card);
-        color: var(--fg);
-        box-shadow: 0 0 0 1px var(--border);
       }
       /* Under the Scan cache sizes and as wide: a meter of the space used,
        then what it says and Clear at either end. */
@@ -372,27 +347,23 @@ class SettingsElement extends LitElement {
   }
 
   // Off or on while the Assistant is tried out (assistant-flag.ts); on, its
-  // key below.
+  // key, model and answer style below. Lines above and below set it apart.
   private renderAssistant() {
     const on = assistantOn.get();
     return html`
+      <hr class="rule" />
       <span class="label">Assistant</span>
-      <div class="segmented">
-        ${[false, true].map(
-          (value) => html`
-            <button
-              aria-pressed=${value === on}
-              @click=${() => {
-                setAssistantOn(value);
-                this.requestUpdate();
-              }}
-            >
-              ${value ? 'On' : 'Off'}
-            </button>
-          `
-        )}
-      </div>
-      ${on ? html`<span></span><sl-assistant-key></sl-assistant-key>` : nothing}
+      ${segmented(OFF_ON, on, (value) => {
+        setAssistantOn(value);
+        this.requestUpdate();
+      })}
+      ${
+        on
+          ? html`<span></span><sl-assistant-key></sl-assistant-key>
+              <sl-assistant-choices></sl-assistant-choices>`
+          : nothing
+      }
+      <hr class="rule" />
     `;
   }
 
@@ -402,21 +373,10 @@ class SettingsElement extends LitElement {
     const on = spacingTunerOn.get();
     return html`
       <span class="label">Chart spacing</span>
-      <div class="segmented">
-        ${[false, true].map(
-          (value) => html`
-            <button
-              aria-pressed=${value === on}
-              @click=${() => {
-                setSpacingTunerOn(value);
-                this.requestUpdate();
-              }}
-            >
-              ${value ? 'On' : 'Off'}
-            </button>
-          `
-        )}
-      </div>
+      ${segmented(OFF_ON, on, (value) => {
+        setSpacingTunerOn(value);
+        this.requestUpdate();
+      })}
       ${on ? html`<span></span><sl-chart-spacing></sl-chart-spacing>` : nothing}
     `;
   }
@@ -435,20 +395,9 @@ class SettingsElement extends LitElement {
   private renderAppearance() {
     return html`
       <span class="label">Appearance</span>
-      <div class="segmented">
-        ${APPEARANCES.map(
-          ({ value, label }) => html`
-            <button
-              aria-pressed=${value === this.appearance}
-              @click=${() => {
-                this.pickAppearance(value);
-              }}
-            >
-              ${label}
-            </button>
-          `
-        )}
-      </div>
+      ${segmented(APPEARANCES, this.appearance, (value) => {
+        this.pickAppearance(value);
+      })}
     `;
   }
 

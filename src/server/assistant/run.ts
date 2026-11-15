@@ -5,6 +5,7 @@
 
 import type Anthropic from '@anthropic-ai/sdk';
 
+import type { AnswerStyle, AssistantModel } from '@/common/assistant-choices';
 import type { AssistantEvent, Spend } from '@/common/types';
 
 import { addSpend } from '../claude/client';
@@ -26,7 +27,7 @@ const MAX_STEPS = 25;
 
 const TOOLS = toolsOf(READ_OPERATIONS, WRITE_OPERATIONS);
 
-export const SYSTEM = `You are the assistant in Sukulinja, a genealogy app for a Finnish family tree. Its user researches the family from Finnish church books (rippikirjat, kastekirjat), mostly of the 1700s and 1800s.
+const SYSTEM = `You are the assistant in Sukulinja, a genealogy app for a Finnish family tree. Its user researches the family from Finnish church books (rippikirjat, kastekirjat), mostly of the 1700s and 1800s.
 
 You read the tree through your tools and answer from what they give. Say so when the tree doesn't tell, rather than guess, and tell what you found apart from what you conclude: a place name or a house number may have meant something else in another era, and that is a research question, not a fact.
 
@@ -36,7 +37,21 @@ Tidy the tree, not its sources: never propose rewriting what a source says. A co
 
 People who may be living are left out of what the tools give, unless they're the person on screen; don't try to work around it.
 
-Answer in the language the user writes in, naming people with their years. Be terse: answer first, in a few short sentences; no greeting, no restating the question, no recap of what you read, and no closing offers. Don't repeat what a proposed item already says. Write plain text: the app shows no Markdown.`;
+Answer in the language the user writes in, naming people with their years, without greeting, restating the question or closing offers. Don't repeat what a proposed item already says. Write plain text: the app shows no Markdown.`;
+
+// How much an answer says, as the user chose.
+const STYLES: Record<AnswerStyle, string> = {
+  terse:
+    'Be terse: answer first, in a few short sentences, with no recap of what you read.',
+  normal: 'Answer first, then what it rests on, in a short paragraph or two.',
+  thorough:
+    'Answer thoroughly: what you found, in which sources, what you conclude from it and how sure that is, and what is left open.'
+};
+
+// The system prompt for answers in the style chosen.
+export function systemFor(style: AnswerStyle) {
+  return `${SYSTEM}\n\n${STYLES[style]}`;
+}
 
 // The question as Claude gets it: what's on screen first, what became of
 // the Proposal since, then the words.
@@ -152,6 +167,8 @@ function closeCalls(
 // question, Claude's answers and the tools' answers as they come.
 export async function runTurn(options: {
   model: Model;
+  // Which Claude answers, and how much it says.
+  choice: { model: AssistantModel; style: AnswerStyle };
   view: TreeView;
   messages: Anthropic.Beta.BetaMessageParam[];
   // What the conversation has proposed, which its writes add to.
@@ -161,13 +178,14 @@ export async function runTurn(options: {
   signal: AbortSignal;
   tell: (event: AssistantEvent) => void;
 }): Promise<Spend> {
-  const { model, view, messages, proposal, tell, signal } = options;
+  const { model, choice, view, messages, proposal, tell, signal } = options;
+  const system = systemFor(choice.style);
   let spend = options.spend;
   messages.push(question(view, proposal, options.text));
   for (let step = 0; step < MAX_STEPS; step++) {
     // eslint-disable-next-line no-await-in-loop -- each request needs the one before it answered
     const answer = await model(
-      { system: SYSTEM, tools: TOOLS, messages },
+      { model: choice.model, system, tools: TOOLS, messages },
       (text) => {
         tell({ type: 'text', text });
       },

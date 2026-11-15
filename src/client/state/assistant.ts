@@ -2,6 +2,8 @@ import { signal } from '@lit-labs/signals';
 
 import { ApiError } from '@/client/dataset-api';
 import type { DatasetApi } from '@/client/dataset-api';
+import { DEFAULT_MODEL, DEFAULT_STYLE } from '@/common/assistant-choices';
+import type { AnswerStyle, AssistantModel } from '@/common/assistant-choices';
 import type { AssistantTurnEnd, ProposalItem, Spend } from '@/common/types';
 
 import type { Readable } from './selected';
@@ -16,6 +18,17 @@ export interface Exchange {
   // Why it failed, if it did.
   failed: string | null;
 }
+
+// Which Claude answers, and how much it says.
+export interface AssistantChoice {
+  model: AssistantModel;
+  style: AnswerStyle;
+}
+
+const DEFAULT_CHOICE: AssistantChoice = {
+  model: DEFAULT_MODEL,
+  style: DEFAULT_STYLE
+};
 
 // An item of the Proposal as the tab shows it: ticked to be applied, and
 // what became of it: waiting, applied, refused with why, or taken back by
@@ -41,8 +54,13 @@ export interface Assistant {
   // Why applying failed as a whole, or where the dataset was copied before
   // a large Proposal; null for neither.
   applyNote: Readable<{ failed: string } | { backup: string } | null>;
-  // Asks, with the person on screen.
-  ask: (text: string, personId: number | null) => Promise<void>;
+  // Asks, with the person on screen, of the model chosen, for answers in
+  // the style chosen (by default Sonnet, terse).
+  ask: (
+    text: string,
+    personId: number | null,
+    choice?: AssistantChoice
+  ) => Promise<void>;
   // Ticks an item to be applied, or not.
   tick: (id: number, ticked: boolean) => void;
   // Applies the ticked items still waiting. Each that's refused says why.
@@ -108,7 +126,11 @@ export function openAssistant(
     }
   }
 
-  async function ask(text: string, personId: number | null) {
+  async function ask(
+    text: string,
+    personId: number | null,
+    choice: AssistantChoice = DEFAULT_CHOICE
+  ) {
     if (busy.get() || applying.get()) return;
     busy.set(true);
     abort = new AbortController();
@@ -117,7 +139,10 @@ export function openAssistant(
       { question: text, answer: '', reading: [], ended: null, failed: null }
     ]);
     try {
-      const events = api.ask({ conversation, text, personId }, abort.signal);
+      const events = api.ask(
+        { conversation, text, personId, ...choice },
+        abort.signal
+      );
       for await (const event of events) {
         switch (event.type) {
           case 'conversation':

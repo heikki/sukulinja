@@ -5,6 +5,7 @@ import type { TemplateResult } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
+import { answerStyle, assistantModel } from '@/client/assistant-choices';
 import { appState } from '@/client/state';
 import type { AppState, Exchange, ProposedItem } from '@/client/state';
 import { typing } from '@/client/typing';
@@ -199,7 +200,10 @@ class AssistantPanelElement extends SignalWatcher(LitElement) {
     const text = this.text.trim();
     if (text === '' || this.state.assistant.busy.get()) return;
     this.text = '';
-    void this.state.assistant.ask(text, this.state.selected.id.get());
+    void this.state.assistant.ask(text, this.state.selected.id.get(), {
+      model: assistantModel.get(),
+      style: answerStyle.get()
+    });
   }
 
   private readonly onKeyDown = (e: KeyboardEvent) => {

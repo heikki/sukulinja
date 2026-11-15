@@ -1,3 +1,5 @@
+import type { AnswerStyle, AssistantModel } from './assistant-choices';
+
 // A face rectangle marked in the source photo, in the original image's pixel
 // space. Used to crop the avatar to the marked area instead of the whole image.
 export interface PhotoCrop {
@@ -654,9 +656,12 @@ export interface Applied {
 }
 
 // A question to the assistant: in the conversation by id, or a new one
-// for null; with the person on screen, or null.
+// for null; with the person on screen, or null; answered by the model
+// chosen, in the style chosen.
 export interface AssistantQuestion {
   conversation: string | null;
   text: string;
   personId: number | null;
+  model: AssistantModel;
+  style: AnswerStyle;
 }

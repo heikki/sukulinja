@@ -3,11 +3,19 @@
 
 import type Anthropic from '@anthropic-ai/sdk';
 
+import type { AssistantModel } from '@/common/assistant-choices';
+
 import { connect, openRouterModel } from '../claude/client';
 
-export const MODEL = 'claude-opus-5-5';
+// The models a declined request falls back from, on the Claude API: Haiku
+// has no server-side fallback.
+const FALLS_BACK = new Set<AssistantModel>([
+  'claude-opus-5-5',
+  'claude-sonnet-5-5'
+]);
 
 export interface ModelRequest {
+  model: AssistantModel;
   system: string;
   tools: Anthropic.Beta.BetaTool[];
   messages: Anthropic.Beta.BetaMessageParam[];
@@ -29,16 +37,17 @@ export type Model = (
   signal: AbortSignal
 ) => Promise<ModelAnswer>;
 
-// Claude, with the key given or the environment's credentials: Opus 5.5,
-// adaptive thinking at medium effort, streamed. On the Claude API a
-// declined request falls back to the model the API picks for it;
-// OpenRouter takes no such fallback.
+// Claude, with the key given or the environment's credentials: the model
+// asked for, adaptive thinking at medium effort, streamed. On the Claude
+// API a declined request to Opus or Sonnet falls back to the model the API
+// picks for it; OpenRouter takes no such fallback.
 export function claude(apiKey: string | null): Model {
   const { client, openRouter } = connect(apiKey);
   return async (request, onText, signal) => {
+    const fallback = !openRouter && FALLS_BACK.has(request.model);
     const stream = client.beta.messages.stream(
       {
-        model: openRouter ? openRouterModel(MODEL) : MODEL,
+        model: openRouter ? openRouterModel(request.model) : request.model,
         max_tokens: 32000,
         thinking: { type: 'adaptive' },
         output_config: { effort: 'medium' },
@@ -46,12 +55,12 @@ export function claude(apiKey: string | null): Model {
         system: request.system,
         tools: request.tools,
         messages: request.messages,
-        ...(openRouter
-          ? {}
-          : {
+        ...(fallback
+          ? {
               betas: ['server-side-fallback-2026-07-01'],
               fallbacks: 'default' as const
-            })
+            }
+          : {})
       },
       { signal }
     );
