@@ -1,7 +1,8 @@
 // One turn of a conversation with the assistant: the question goes to
 // Claude with the operations as tools; each read Claude calls runs against
 // the dataset, and its answer goes back, until Claude answers. A write only
-// adds to the conversation's Proposal: nothing here changes the dataset.
+// adds to the conversation's Proposal, and a show only tells the app where
+// to move the view: nothing here changes the dataset.
 
 import type Anthropic from '@anthropic-ai/sdk';
 
@@ -13,25 +14,32 @@ import type { Model } from './model';
 import {
   operationNamed,
   READ_OPERATIONS,
+  SHOW_OPERATIONS,
+  showNamed,
   toolsOf,
   WITHDRAW,
   WRITE_OPERATIONS,
   writeNamed
 } from './operations/catalogue';
-import type { AnyWriteOperation } from './operations/operation';
+import type {
+  AnyShowOperation,
+  AnyWriteOperation
+} from './operations/operation';
 import type { Proposal } from './proposal';
 import type { TreeView } from './tree-view';
 
 // How many requests one turn may make.
 const MAX_STEPS = 25;
 
-const TOOLS = toolsOf(READ_OPERATIONS, WRITE_OPERATIONS);
+const TOOLS = toolsOf(READ_OPERATIONS, WRITE_OPERATIONS, SHOW_OPERATIONS);
 
 const SYSTEM = `You are the assistant in Sukulinja, a genealogy app for a Finnish family tree. Its user researches the family from Finnish church books (rippikirjat, kastekirjat), mostly of the 1700s and 1800s.
 
 You read the tree through your tools and answer from what they give. Say so when the tree doesn't tell, rather than guess, and tell what you found apart from what you conclude: a place name or a house number may have meant something else in another era, and that is a research question, not a fact.
 
 You don't change the tree yourself. When the user asks for a change, or the answer is one, propose it with the write tools: each adds an item to the Proposal, which the user reads, ticks and applies in the app, and only then is it written, by the app's own rules. Propose only what the user asked for or agreed to, one item for each change, with the reason the tree or its sources give. Say in a sentence what you proposed; the user sees the items themselves. When the user wants an item changed or dropped, take it back and propose it again as they want it. A change the tools can't make is one the app can't make yet: say so.
+
+You can move what the user sees: select someone, or open one of their sources at its church-book page. That changes no data and happens at once; do it when asked, or when seeing it helps the answer, not for every person you read.
 
 Tidy the tree, not its sources: never propose rewriting what a source says. A conclusion only research can settle (that two houses were one, that two people are the same) is a Reminder for the user, not an edit.
 
@@ -108,6 +116,19 @@ function propose(
   return result(call, `Proposed as item #${added.id}.`);
 }
 
+// A show: the view moved and told, or why it can't be.
+function show(
+  view: TreeView,
+  op: AnyShowOperation,
+  call: Anthropic.Beta.BetaToolUseBlock,
+  tell: (event: AssistantEvent) => void
+) {
+  const shown = op.shows(view, call.input as never);
+  if ('rejected' in shown) return result(call, shown.rejected, true);
+  tell({ type: 'shown', ...shown });
+  return result(call, `${shown.label}.`);
+}
+
 // Taking an item back, told.
 function withdraw(
   proposal: Proposal,
@@ -129,6 +150,8 @@ async function answerTool(
   tell: (event: AssistantEvent) => void
 ): Promise<Anthropic.Beta.BetaToolResultBlockParam> {
   if (call.name === WITHDRAW) return withdraw(proposal, call, tell);
+  const shows = showNamed(call.name);
+  if (shows !== null) return show(view, shows, call, tell);
   const write = writeNamed(call.name);
   const op = operationNamed(call.name);
   try {

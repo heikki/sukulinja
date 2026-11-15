@@ -4,16 +4,23 @@ import { ApiError } from '@/client/dataset-api';
 import type { DatasetApi } from '@/client/dataset-api';
 import { DEFAULT_CHOICE } from '@/common/assistant-choices';
 import type { AssistantChoice } from '@/common/assistant-choices';
-import type { AssistantTurnEnd, ProposalItem, Spend } from '@/common/types';
+import type {
+  AssistantTurnEnd,
+  ProposalItem,
+  ShowOn,
+  Spend
+} from '@/common/types';
 
 import type { Readable } from './selected';
 
 // One exchange: what was asked, what the assistant answered so far, what
-// it read for it, and how it ended (null while it runs).
+// it read for it, where it moved the view, and how it ended (null while it
+// runs).
 export interface Exchange {
   question: string;
   answer: string;
   reading: string[];
+  shown: string[];
   ended: AssistantTurnEnd | null;
   // Why it failed, if it did.
   failed: string | null;
@@ -62,8 +69,15 @@ export interface Assistant {
 
 export function openAssistant(
   api: DatasetApi,
-  // After a Proposal applied something, to show the tree as it now is.
-  { applied: shown = () => undefined }: { applied?: () => void } = {}
+  {
+    applied: shown = () => undefined,
+    show = () => undefined
+  }: {
+    // After a Proposal applied something, to show the tree as it now is.
+    applied?: () => void;
+    // Moves the view where the assistant shows.
+    show?: (on: ShowOn) => void;
+  } = {}
 ): Assistant {
   const exchanges = signal<Exchange[]>([]);
   const busy = signal(false);
@@ -125,7 +139,14 @@ export function openAssistant(
     abort = new AbortController();
     exchanges.set([
       ...exchanges.get(),
-      { question: text, answer: '', reading: [], ended: null, failed: null }
+      {
+        question: text,
+        answer: '',
+        reading: [],
+        shown: [],
+        ended: null,
+        failed: null
+      }
     ]);
     try {
       const events = api.ask(
@@ -153,6 +174,10 @@ export function openAssistant(
                 state: 'open'
               }
             ]);
+            break;
+          case 'shown':
+            update((e) => ({ ...e, shown: [...e.shown, event.label] }));
+            show(event.on);
             break;
           case 'withdrawn':
             changeItem(event.id, (p) => ({

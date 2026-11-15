@@ -2,10 +2,12 @@
 // Claude is told it does and takes, what the person using the app is shown,
 // and what it does. A read operation answers at once; a write operation
 // only proposes one of the app's own dataset operations, which runs when
-// the person applies it (ADR-0025). The tools Claude is given are made
+// the person applies it (ADR-0025); a show operation moves what the
+// person sees, changing no data. The tools Claude is given are made
 // from these (catalogue.ts).
 
 import type { OperationName } from '@/common/operations';
+import type { ShowOn } from '@/common/types';
 
 import type { TreeView } from '../tree-view';
 
@@ -60,4 +62,27 @@ export function readOperation<Input>(op: ReadOperation<Input>) {
 
 export function writeOperation<Input>(op: WriteOperation<Input>) {
   return op as unknown as AnyWriteOperation;
+}
+
+// Where a show operation moves the view, and what's said of it under the
+// answer.
+export interface Shown {
+  on: ShowOn;
+  label: string;
+}
+
+export interface ShowOperation<Input = Record<string, unknown>> {
+  name: string;
+  // For Claude: what it shows, and when to use it.
+  description: string;
+  input: InputSchema;
+  // Where it moves the view, or why it can't: what it names isn't there,
+  // or is someone left out.
+  shows: (view: TreeView, input: Input) => Shown | { rejected: string };
+}
+
+export type AnyShowOperation = ShowOperation<never>;
+
+export function showOperation<Input>(op: ShowOperation<Input>) {
+  return op as unknown as AnyShowOperation;
 }

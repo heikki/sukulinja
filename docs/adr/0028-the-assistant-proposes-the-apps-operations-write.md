@@ -9,6 +9,8 @@ The assistant (ADR-0025) first only read. Heikki (2026-11-15) wanted it to make 
 - **More than 10 items applied at once take a copy of the database first**: `VACUUM INTO` the dataset folder's `backups/<time>.sqlite`. It's the whole database, Changes included, and is quick. Media files aren't copied, since no write operation touches them. To restore, the app is closed and the copy replaces `db.sqlite`.
 - **A Proposal is kept with its conversation**, in memory only, and is forgotten with it.
 
+Amended 2026-11-15: besides reads and writes, _show_ operations (`operations/show.ts`) move what the person sees, selecting someone or opening one of their sources in the Scan viewer. They change no data, so they don't wait for Apply: the turn tells the app where (`shown`, an `On`), the app goes there as its lists do, and the answer says so in a line. Someone left out can't be shown.
+
 ## Considered options
 
 - **Pass `via` explicitly** through every service and the Citations' Change path. Rejected: each service's signature would change for one caller.

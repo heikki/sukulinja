@@ -13,6 +13,8 @@ import type { OnScreen } from '../tree-view';
 import {
   operationNamed,
   READ_OPERATIONS,
+  SHOW_OPERATIONS,
+  showNamed,
   toolsOf,
   WRITE_OPERATIONS,
   writeNamed
@@ -24,7 +26,8 @@ const SCANS = openCitations(join(tmpdir(), 'assistant-unread'), {
 });
 
 // Made-up people: Matti (1, 1801–1860) and Liisa (2, 1805–1870), married
-// in Kylä, with a child Juho (3, born 1990, no death: may be living).
+// in Kylä, with a child Juho (3, born 1990, no death: may be living);
+// Matti has a source.
 const GEDCOM = [
   '0 @I1@ INDI',
   '1 NAME Matti /Esimerkki/',
@@ -33,6 +36,8 @@ const GEDCOM = [
   '2 PLAC Kylä, Pitäjä, Suomi',
   '1 DEAT',
   '2 DATE 1860',
+  '1 SOUR @S1@',
+  '2 PAGE s. 14',
   '0 @I2@ INDI',
   '1 NAME Liisa /Malli/',
   '1 BIRT',
@@ -51,6 +56,8 @@ const GEDCOM = [
   '1 MARR',
   '2 DATE 1825',
   '2 PLAC Kylä, Pitäjä, Suomi',
+  '0 @S1@ SOUR',
+  '1 TITL Kylän rippikirja',
   ''
 ].join('\n');
 
@@ -174,7 +181,7 @@ test('reads Reminders and Changes', async () => {
 });
 
 test('every operation is a strict tool with a closed input', () => {
-  const tools = toolsOf(READ_OPERATIONS, WRITE_OPERATIONS);
+  const tools = toolsOf(READ_OPERATIONS, WRITE_OPERATIONS, SHOW_OPERATIONS);
   expect(tools.map((t) => t.name)).toEqual([
     'find_persons',
     'person',
@@ -182,6 +189,8 @@ test('every operation is a strict tool with a closed input', () => {
     'place_facts',
     'reminders',
     'changes',
+    'select_person',
+    'open_source',
     'add_fact',
     'edit_fact',
     'support_fact',
@@ -195,7 +204,7 @@ test('every operation is a strict tool with a closed input', () => {
     expect(t.input_schema.additionalProperties).toBe(false);
   }
   // Each write says why, for the person to read.
-  for (const t of tools.slice(6, -1)) {
+  for (const t of tools.slice(8, -1)) {
     expect(t.input_schema.required).toContain('reason');
   }
 });
@@ -255,5 +264,34 @@ test('a fact edited keeps what is left null as it was', async () => {
     },
     label:
       "Change Matti Esimerkki's Birth 1801 · Kylä, Pitäjä, Suomi to Birth 3.3.1801 · Kylä, Pitäjä, Suomi"
+  });
+});
+
+// Where the show moves the view, with no one on screen.
+function shows(name: string, input: unknown) {
+  const view = openTreeView(
+    openServices(db, SCANS.forDataset(db), tmpdir()),
+    { personId: null },
+    2026
+  );
+  return showNamed(name)!.shows(view, input as never);
+}
+
+test('selects someone, and opens their source, but no one left out', async () => {
+  expect(shows('select_person', { personId: 2 })).toEqual({
+    on: { kind: 'person', personId: 2 },
+    label: 'Selected Liisa Malli (1805–1870)'
+  });
+  expect(shows('select_person', { personId: 3 })).toEqual({
+    rejected: `This is ${LEFT_OUT}.`
+  });
+  const matti = await read('person', { id: 1 });
+  const [source] = matti.sources as Array<{ id: number }>;
+  const opened = shows('open_source', { personId: 1, citationId: source!.id });
+  if ('rejected' in opened) throw new Error(opened.rejected);
+  expect(opened.on).toMatchObject({ kind: 'citation', citationId: source!.id });
+  expect(opened.label).toStartWith('Opened Matti Esimerkki (1801–1860)');
+  expect(shows('open_source', { personId: 1, citationId: 999 })).toEqual({
+    rejected: 'They have no such source.'
   });
 });

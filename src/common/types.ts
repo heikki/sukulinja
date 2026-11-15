@@ -628,16 +628,22 @@ export type AssistantTurnEnd =
   'answered' | 'declined' | 'too-long' | 'too-many-steps';
 
 // What the assistant tells of a turn as it runs: the conversation it's in,
-// each piece of its answer as written, what it's reading, and how it
-// ended, with what the conversation has spent so far; or why it failed.
+// each piece of its answer as written, what it's reading, what it
+// proposes or takes back, where it moves the view, and how it ended, with
+// what the conversation has spent so far; or why it failed.
 export type AssistantEvent =
   | { type: 'conversation'; id: string }
   | { type: 'text'; text: string }
   | { type: 'reading'; label: string }
   | { type: 'proposed'; item: ProposalItem }
   | { type: 'withdrawn'; id: number }
+  | { type: 'shown'; on: ShowOn; label: string }
   | { type: 'done'; spend: Spend; ended: AssistantTurnEnd }
   | { type: 'error'; message: string };
+
+// Where the assistant moves the view: a person selected, or one of their
+// Citations opened in the Scan viewer.
+export type ShowOn = Extract<On, { kind: 'person' | 'citation' }>;
 
 // One change the assistant proposes, for the person to tick and apply:
 // what it would do, in words, and why. Its id is its place in the

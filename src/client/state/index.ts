@@ -117,6 +117,12 @@ export function openAppState(
       applied: () => {
         void Promise.all([chart.relinked(), selected.refresh()]);
         reminders.reload();
+      },
+      // As a list goes to what it names.
+      show: (on) => {
+        if (on.kind === 'citation') {
+          chart.toCitation(on.personId, on.citationId);
+        } else chart.select(on.personId);
       }
     })
   };

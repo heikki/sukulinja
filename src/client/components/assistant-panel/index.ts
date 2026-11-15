@@ -24,8 +24,8 @@ import {
   stateWords
 } from './helpers';
 
-// One question and its answer, as far as it has come, with what it
-// proposed.
+// One question and its answer, as far as it has come, with where it moved
+// the view and what it proposed.
 function renderExchange(
   e: Exchange,
   running: boolean,
@@ -46,7 +46,7 @@ function renderExchange(
         : nothing
     }
     ${e.answer === '' ? nothing : html`<div class="answer">${e.answer}</div>`}
-    ${proposed}
+    ${e.shown.map((s) => html`<div class="shown">${s}</div>`)} ${proposed}
     ${note === null ? nothing : html`<div class="note">${note}</div>`}
     ${e.failed === null ? nothing : html`<div class="error">${e.failed}</div>`}
   `;
@@ -113,6 +113,11 @@ class AssistantPanelElement extends SignalWatcher(LitElement) {
         color: var(--muted);
         font-size: 0.85em;
         font-style: italic;
+      }
+      /* Where the answer moved the view: a quiet line each. */
+      .shown {
+        color: var(--muted);
+        font-size: 0.85em;
       }
       .error {
         color: var(--danger);

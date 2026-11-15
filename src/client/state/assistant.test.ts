@@ -35,6 +35,7 @@ test('asks, showing what it reads and the answer as it comes', async () => {
       question: 'Kuka on Matti?',
       answer: 'Matti Esimerkki.',
       reading: ['Finding people named Matti'],
+      shown: [],
       ended: 'answered',
       failed: null
     }
@@ -43,6 +44,30 @@ test('asks, showing what it reads and the answer as it comes', async () => {
   await assistant.ask('Taas', null);
   expect(api.asked).toEqual(['ask: Kuka on Matti?', 'ask in c1: Taas']);
   expect(assistant.busy.get()).toBe(false);
+});
+
+test('moves the view where the assistant shows, and says so', async () => {
+  const on = { kind: 'person', personId: 2 } as const;
+  const api = memoryDatasetApi({
+    assistant: [
+      [
+        { type: 'conversation', id: 'c1' },
+        { type: 'shown', on, label: 'Selected Liisa Malli (1805–1870)' },
+        { type: 'done', spend: SPEND, ended: 'answered' }
+      ]
+    ]
+  });
+  const moved: unknown[] = [];
+  const assistant = openAssistant(api, {
+    show: (to) => {
+      moved.push(to);
+    }
+  });
+  await assistant.ask('Näytä Liisa', 1);
+  expect(moved).toEqual([on]);
+  expect(assistant.exchanges.get()[0]!.shown).toEqual([
+    'Selected Liisa Malli (1805–1870)'
+  ]);
 });
 
 test('shows why a question failed', async () => {

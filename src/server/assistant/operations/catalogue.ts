@@ -8,11 +8,13 @@ import { addFact, editFact } from './facts';
 import { changes, remind, reminders } from './notes';
 import type {
   AnyReadOperation,
+  AnyShowOperation,
   AnyWriteOperation,
   InputSchema
 } from './operation';
 import { findPersons, movePerson, person, renamePerson } from './persons';
 import { placeFacts, places } from './places';
+import { openSource, selectPerson } from './show';
 
 export const READ_OPERATIONS: readonly AnyReadOperation[] = [
   findPersons,
@@ -32,6 +34,11 @@ export const WRITE_OPERATIONS: readonly AnyWriteOperation[] = [
   remind
 ];
 
+export const SHOW_OPERATIONS: readonly AnyShowOperation[] = [
+  selectPerson,
+  openSource
+];
+
 // Taking back an item of the Proposal not yet applied: the conversation's
 // own, not the app's.
 export const WITHDRAW = 'withdraw_proposal_item';
@@ -42,6 +49,10 @@ export function operationNamed(name: string) {
 
 export function writeNamed(name: string) {
   return WRITE_OPERATIONS.find((op) => op.name === name) ?? null;
+}
+
+export function showNamed(name: string) {
+  return SHOW_OPERATIONS.find((op) => op.name === name) ?? null;
 }
 
 // A write's own fields, and the reason the user is shown with it.
@@ -74,13 +85,14 @@ const WITHDRAW_TOOL: Anthropic.Beta.BetaTool = {
 };
 
 // The tools, in a fixed order, so the request's prefix stays cacheable:
-// the reads, the writes, then taking one back.
+// the reads, the shows, the writes, then taking one back.
 export function toolsOf(
   reads: readonly AnyReadOperation[],
-  writes: readonly AnyWriteOperation[] = []
+  writes: readonly AnyWriteOperation[] = [],
+  shows: readonly AnyShowOperation[] = []
 ): Anthropic.Beta.BetaTool[] {
   return [
-    ...reads.map((op) => ({
+    ...[...reads, ...shows].map((op) => ({
       name: op.name,
       description: op.description,
       input_schema: op.input,
