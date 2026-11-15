@@ -44,14 +44,14 @@ export function linkItems(
   if (where.canBox) {
     if (hasSource && viewer.boxHere.get() === null) {
       items.push({
-        label: 'Place citation here',
+        label: 'Place entry',
         detail: sourceName(viewer) ?? undefined,
         hover: viewer.setPlacing,
         run: open.placeBox
       });
     }
     if (viewer.pending.get() === null) {
-      items.push({ label: 'New entry here', run: open.cite });
+      items.push({ label: 'New entry', run: open.cite });
     }
   }
   items.push(...remind, ...visionItems(viewer, open.locate));

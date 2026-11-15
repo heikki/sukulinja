@@ -100,11 +100,11 @@ test('a Citation made in the app offers Delete on its Box; a Mark or Match, Disc
   ]);
 });
 
-test('New entry here shows over the full Image, with nothing pending', async () => {
+test('New entry shows over the full Image, with nothing pending', async () => {
   const viewer = await viewing(citation(1, false), ON_IMAGE);
   expect(labels(viewer, { onBox: false, canBox: true })).toEqual([
-    'Place citation here',
-    'New entry here',
+    'Place entry',
+    'New entry',
     'Add reminder…',
     'Change Volume…'
   ]);
@@ -118,10 +118,10 @@ test('New entry here shows over the full Image, with nothing pending', async () 
   ]);
 });
 
-test("Place citation here isn't offered with the source's Box on the Image", async () => {
+test("Place entry isn't offered with the source's Box on the Image", async () => {
   const viewer = await viewing(citation(1, false));
   expect(labels(viewer, { onBox: false, canBox: true })).toEqual([
-    'New entry here',
+    'New entry',
     'Add reminder…',
     'Change Volume…'
   ]);
@@ -144,7 +144,7 @@ test('Add reminder… waits for the pending Box, and for Astia to list the Image
   );
 });
 
-test('Place citation here names the source by its reference, under the label', async () => {
+test('Place entry names the source by its reference, under the label', async () => {
   const cited = {
     ...citation(1, false),
     cited: {
@@ -157,12 +157,12 @@ test('Place citation here names the source by its reference, under the label', a
   const viewer = await viewing(cited, ON_IMAGE);
   const where = { onBox: false, canBox: true };
   expect(linkItems(viewer, where, NONE)[0]).toMatchObject({
-    label: 'Place citation here',
+    label: 'Place entry',
     detail: 'Pää- ja rippikirjat 1790–1796\u00a0· p.\u00a018'
   });
 });
 
-test('Place citation here names one made in the app by its Image', async () => {
+test('Place entry names one made in the app by its Image', async () => {
   const viewer = await viewing(citation(1, true), ON_IMAGE);
   const where = { onBox: false, canBox: true };
   expect(linkItems(viewer, where, NONE)[0]?.detail).toBe('I Aa:201, Image 18');
@@ -176,7 +176,7 @@ test('opened on an Image with no source, a new Citation and a Reminder are offer
   viewer.openImage({ volumeId: '201', volume: 'I Aa:201', image: 18 });
   await Bun.sleep(0);
   expect(labels(viewer, { onBox: false, canBox: true })).toEqual([
-    'New entry here',
+    'New entry',
     'Add reminder…'
   ]);
   expect(labels(viewer, { onBox: false, canBox: false })).toEqual([
@@ -188,7 +188,7 @@ test('opened on an Image with no source, a new Citation and a Reminder are offer
   ]);
 });
 
-test('pointing at Place citation here says so, for the panel to mark it', async () => {
+test('pointing at Place entry says so, for the panel to mark it', async () => {
   const viewer = await viewing(citation(1, false), ON_IMAGE);
   const [place] = linkItems(viewer, { onBox: false, canBox: true }, NONE);
   place?.hover?.(true);

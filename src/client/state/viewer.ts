@@ -470,7 +470,7 @@ export function openViewer(
   }
 
   // A new Citation opens as picking it beside the scan would, so a wrong
-  // Image is put right with Place citation here.
+  // Image is put right with Place entry.
   async function save() {
     const made = await changing.save();
     return made === null ? null : pick(made);
