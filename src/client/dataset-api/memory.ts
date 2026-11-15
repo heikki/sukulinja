@@ -19,6 +19,7 @@ import type {
   Rescan,
   StalePin,
   VisionPageTry,
+  VisionSurvey,
   VolumeChoices,
   VolumeCitation
 } from '@/common/types';
@@ -51,6 +52,8 @@ export interface MemoryDataset {
   discards?: Record<number, CitationLinks>;
   // What looking for every estimate on an Image at once answers.
   visionPage?: VisionPageTry;
+  // What a page survey answers.
+  survey?: VisionSurvey;
   // The Volumes each reference can be put in, by citation id.
   choices?: Record<number, VolumeChoices>;
   // Newest first. `remind` puts a new one first, numbered on from 2000.
@@ -246,6 +249,11 @@ export function memoryDatasetApi(
         `vision all ${citationIds.join(',')} on ${at.image} ${model}`,
         undefined,
         () => found(data.visionPage, 'citation not found')
+      ),
+
+    surveyPages: async (volumeId, _volume, model) =>
+      await answer(`survey ${volumeId} ${model}`, undefined, () =>
+        found(data.survey, 'volume not found')
       ),
 
     citeEntry: servedOnly('citeEntry'),

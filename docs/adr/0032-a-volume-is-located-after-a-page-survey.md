@@ -1,0 +1,14 @@
+# A Volume is located after a page survey
+
+With nothing shipped (ADR-0031), an unpinned Volume's estimates are counted from its first Image and often land several Images off, beyond the three either way Vision Match looks (ADR-0029). Heikki (2026-11-15) wanted page numbers read by the vision model, and the references worked through a book at a time: download the Volume, then locate its references, the page numbering read first.
+
+- **_Locate estimates in this Volume_** is in the Scan viewer's menu beside _Locate estimates on this Image_, while the Assistant is on. It first runs a **Page survey** of the Volume, reloads the Volume's citations so its estimates count from what the survey read, then locates each Image's estimates in turn as _on this Image_ does, one question for the Image and its neighbours while some aren't found. One summary tells how many it found in the Volume and on how many Images the survey read Page numbers; _Undo all_ takes back every Match, as before. A survey is not run at download or import: only when asked, so a model is read only for a Volume someone works through.
+- **A Page survey** reads the Page numbers on a few Images spread over the Volume (not its first Images, covers and front matter), then, between any two readings that disagree with the book's pace (one number an Image for a spread, two for pages), the Image halfway, until every two neighbouring readings agree or have no Image left between them, or it has made 30 readings. Where the numbering starts over (a Page run, ADR-0031) it closes in on the place. An unreadable Image is skipped for one beside it.
+- **What it reads is saved as Page pins** by the vision model, in the data folder's pins, for every dataset; a hand pin wins over one, as for any vision pin. Readings are cached with the others (`.vision-readings`), so a survey run again asks only what it hasn't read.
+- The survey lives with the Reader, in `myheritage/vision/survey.ts`, and the data folder's scans save it (`surveyPages`): a download stays Astia's alone.
+
+## Considered options
+
+- **Survey at import.** Rejected: an import doesn't reach Astia, works without a key, and would read Volumes no one opens.
+- **Survey on its own as each download finishes.** Rejected for now (Heikki chose asking): it reads a model without being asked.
+- **Read the page number on each Image Vision Match asks about instead.** Leaves a Volume's numbering unknown until each reference is searched, and costs a reading per search rather than a few per Volume.

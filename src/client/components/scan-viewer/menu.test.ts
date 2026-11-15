@@ -238,7 +238,7 @@ test('Locating the estimates is offered where there are any on the Image', async
   const { viewer } = openAppState(api);
   viewer.open({ citation: citation(1, false), link: ON_IMAGE });
   await Bun.sleep(0);
-  const find = { model: 'Haiku 5.5', run: unasked };
+  const find = { model: 'Haiku 5.5', run: unasked, runVolume: unasked };
   expect(labels(viewer, { onBox: false, canBox: true })).not.toContain(
     'Locate estimates on this Image'
   );
@@ -253,4 +253,7 @@ test('Locating the estimates is offered where there are any on the Image', async
   expect(
     items.find((i) => i.label === 'Locate estimates on this Image')?.detail
   ).toBe('2 people · Vision Match · Haiku 5.5');
+  expect(
+    items.find((i) => i.label === 'Locate estimates in this Volume')?.detail
+  ).toBe('2 people · page survey first · Haiku 5.5');
 });

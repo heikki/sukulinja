@@ -61,28 +61,44 @@ export function linkItems(
   return items;
 }
 
-// Vision Match as the menu offers it, with the model's label.
+// Vision Match as the menu offers it, with the model's label: on the
+// Image, or in the whole Volume.
 export interface VisionFind {
   model: string;
   run: () => void;
+  runVolume: () => void;
 }
 
-// Locating every estimate on the Image with Vision Match, while none is
-// being looked for.
+function peopleWords(n: number) {
+  return n === 1 ? '1 person' : `${n} people`;
+}
+
+// Locating every estimate on the Image with Vision Match, and every one in
+// the Volume (ADR-0032), while none is being looked for.
 function visionItems(viewer: Viewer, find: VisionFind | undefined): MenuItem[] {
   if (find === undefined || viewer.pending.get() !== null) return [];
   const batch = viewer.visionBatch.get();
   if (batch !== null && 'searching' in batch) return [];
-  const estimates = viewer.estimatesHere.get().length;
-  if (estimates === 0) return [];
-  const people = estimates === 1 ? '1 person' : `${estimates} people`;
-  return [
-    {
+  const items: MenuItem[] = [];
+  const here = viewer.estimatesHere.get().length;
+  if (here > 0) {
+    items.push({
       label: 'Locate estimates on this Image',
-      detail: `${people} · Vision Match · ${find.model}`,
+      detail: `${peopleWords(here)} · Vision Match · ${find.model}`,
       run: find.run
-    }
-  ];
+    });
+  }
+  const inVolume = viewer.estimatesInVolume
+    .get()
+    .reduce((sum, on) => sum + on.rows.length, 0);
+  if (inVolume > 0) {
+    items.push({
+      label: 'Locate estimates in this Volume',
+      detail: `${peopleWords(inVolume)} · page survey first · ${find.model}`,
+      run: find.runVolume
+    });
+  }
+  return items;
 }
 
 // The source's Citation by its reference, or one made in the app by the

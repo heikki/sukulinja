@@ -113,8 +113,12 @@ export interface Viewer {
   // back every Match that found.
   findAllByVision: (model: ClaudeModel) => Promise<void>;
   undoVisionBatch: () => Promise<void>;
-  // How far that has got, then what it found and took, for the Image it
-  // was about while it's shown, until forgotten.
+  // The estimates in the Volume shown, by Image, one per record; and
+  // looking for them all, its page survey first (ADR-0032).
+  estimatesInVolume: Readable<Array<{ image: number; rows: VolumeCitation[] }>>;
+  findAllInVolumeByVision: (model: ClaudeModel) => Promise<void>;
+  // How far either has got, then what it found and took, for the Image
+  // or Volume it was about while it's shown, until forgotten.
   visionBatch: Readable<VisionBatch | null>;
   forgetVisionBatch: () => void;
   close: () => void;
@@ -616,6 +620,8 @@ export function openViewer(
     confirming: confirmation.status,
     estimatesHere: batch.estimates,
     findAllByVision: batch.run,
+    estimatesInVolume: batch.inVolume,
+    findAllInVolumeByVision: batch.runVolume,
     undoVisionBatch: batch.undo,
     visionBatch: batch.status,
     forgetVisionBatch: batch.forget,

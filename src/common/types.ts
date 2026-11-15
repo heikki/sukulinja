@@ -318,6 +318,18 @@ export interface VisionTry {
 // Every estimate on an Image looked for in one question (ADR-0029): each
 // one's try; the questions it asked the model, how many of them earlier
 // readings answered for nothing, what the rest cost, and how long it took.
+// A page survey of a Volume (ADR-0032): how many Page pins it saved,
+// whether its readings all agree, and what it took.
+export interface VisionSurvey {
+  pinned: number;
+  settled: boolean;
+  model: string;
+  readings: number;
+  cached: number;
+  dollars: number | null;
+  seconds: number;
+}
+
 export interface VisionPageTry {
   tries: VisionTry[];
   model: string;

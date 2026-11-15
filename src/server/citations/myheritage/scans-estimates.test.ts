@@ -6,9 +6,11 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { memoryParishes } from '../astia/parishes';
 import { juvaAstia, rippiCitation } from '../astia/test-parish';
 import { openMarks } from './pins/marks';
 import { churchBookRefOf, markKey } from './record';
+import { openScanFolder } from './scans';
 import { citing, scansOf } from './test-pins';
 
 let dir = '';
@@ -81,4 +83,21 @@ test('the Record pins around a record say which run its page is in', async () =>
   await numberedTwice();
   expect(await imagesAt(5, { 4000: 10 })).toEqual([15]);
   expect(await imagesAt(5, { 6000: 10 })).toEqual([5]);
+});
+
+test('a page survey saves what it read as Page pins, which the estimates count from', async () => {
+  const folder = openScanFolder(dir, {
+    astia: juvaAstia(),
+    parishes: memoryParishes()
+  });
+  // Two covers, then one number a spread.
+  const reader = {
+    pageNumbers: async ({ image }: { image: number }) =>
+      await Promise.resolve(
+        image <= 2 ? { unreadable: true as const } : { pages: [image - 2] }
+      )
+  };
+  const survey = await folder.surveyPages('juva-1', 'I Aa:1', reader);
+  expect(survey).toMatchObject({ settled: true, pinned: 3 });
+  expect(await imagesAt(12)).toEqual([14]);
 });

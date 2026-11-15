@@ -11,6 +11,7 @@ import type {
   CitationLinks,
   CitationRow,
   VisionPageTry,
+  VisionSurvey,
   VolumeChoices,
   VolumeCitation,
   VolumeContents
@@ -240,6 +241,18 @@ export const CITATION_OPERATIONS = {
       ? { citationIds, at, model }
       : null;
   }),
+
+  // Reads how the Volume, `volume` by its label, numbers its pages, with
+  // the vision model `model`, and saves the Page numbers read as Page
+  // pins (ADR-0032).
+  surveyPages: answers<
+    { volumeId: string; volume: string; model: ClaudeModel },
+    VisionSurvey
+  >('{ volumeId, volume, model }', ({ volumeId, volume, model }) =>
+    isName(volumeId) && isName(volume) && isClaudeModel(model)
+      ? { volumeId, volume, model }
+      : null
+  ),
 
   // The Volumes a reference can be put in.
   volumeChoices: answers<{ citationId: number }, VolumeChoices>(

@@ -337,6 +337,31 @@ export function openVolumeFacts(folder: string, options: { astia: Astia }) {
       merged = null;
     },
 
+    // Page pins for the Page numbers the vision model read on the
+    // Volume's Images, each unless a hand one there wins. One write.
+    async savePageReadings(
+      filming: Filming,
+      volume: string,
+      readings: Array<{ image: number; pages: number[] }>
+    ) {
+      await migrated();
+      await mkdir(folder, { recursive: true });
+      await withLock(lockFile, async () => {
+        const draft = { local: await readLocal(), filming };
+        for (const { image, pages } of readings) {
+          addPagePin(draft, volume, {
+            image,
+            pages,
+            note: 'read by the vision model',
+            by: 'vision',
+            ...fileOf(filming, image)
+          });
+        }
+        await writeLocalFile(localFile, draft.local);
+      });
+      merged = null;
+    },
+
     // The pins as the local file keeps them.
     async kept() {
       return await readLocal();

@@ -84,6 +84,9 @@ _Avoid_: error (most are facts about the books).
 **Page number**:
 The number written in the book. Rippikirjat usually number spreads (one number per Image), lastenkirjat pages (two per Image). A Volume may start its numbering over partway through (parts of one book), so one number can be on Images far apart: each stretch is a **Page run**.
 
+**Page survey**:
+Reading how a Volume numbers its pages with the vision model: a few Images spread over it, then halfway between any two readings that don't agree, until all do (ADR-0032). What it reads is saved as Page pins. _Locate estimates in this Volume_ runs one first.
+
 **Page run**:
 A stretch of a Volume whose Page numbers go up with its Images; one starts where its Page pins' numbers go back. Most Volumes are one. A page is counted within each run its pins reach, and the Record pins around the record pick among them; two Page pins of one page clash only near each other, not across runs.
 

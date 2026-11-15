@@ -6,7 +6,7 @@ import type { Database } from 'bun:sqlite';
 import { join } from 'node:path';
 
 import type { BoxAt } from '@/common/operations';
-import type { Spend, VisionPageTry } from '@/common/types';
+import type { Spend, VisionPageTry, VisionSurvey } from '@/common/types';
 
 import type { NewChange } from '../changes/changes';
 import { Refusal } from '../operations';
@@ -158,6 +158,34 @@ export function openCitations(root: string, options: Options) {
     };
   }
 
+  // Surveys how the Volume numbers its pages (ADR-0032), with what it
+  // took. Its Page pins are the data folder's, for every dataset.
+  async function surveyPages(
+    volumeId: string,
+    volume: string,
+    model: string
+  ): Promise<VisionSurvey | { rejected: string }> {
+    if (options.vision === undefined) return { rejected: NO_VISION };
+    const started = performance.now();
+    const reader = await options.vision(model, visionImage);
+    const counted = counting(cachedReader(reader, readings));
+    const surveyed = await folder
+      .surveyPages(volumeId, volume, counted.reader)
+      .catch(failedWith);
+    if ('rejected' in surveyed) return surveyed;
+    const spend = reader.spend();
+    const readingsAsked = counted.asked();
+    return {
+      pinned: surveyed.pinned,
+      settled: surveyed.settled,
+      model,
+      readings: readingsAsked,
+      cached: readingsAsked - callsOf(spend),
+      dollars: dollarsOf(spend),
+      seconds: Math.round((performance.now() - started) / 1000)
+    };
+  }
+
   // The pins on Astia's Images: the data folder's, and every dataset's
   // Marks, which a switch to a new filming leaves out alike.
   async function kept() {
@@ -207,7 +235,8 @@ export function openCitations(root: string, options: Options) {
         operations: citationOperations(citations, {
           switchFilming: switchTo,
           findAllOnImage: async (citationIds, at, model) =>
-            await findAllOnImage(citations, { citationIds, at }, model)
+            await findAllOnImage(citations, { citationIds, at }, model),
+          surveyPages
         }),
         // The person's Citations, as the panel lists them.
         ofPerson: (personId: number) => citations.ofPerson(personId),

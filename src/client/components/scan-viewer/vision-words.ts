@@ -35,6 +35,23 @@ export function batchFoundWords(tries: VisionTry[], of: number, image: number) {
   return `${found}${here}${away}.`;
 }
 
+// How many of a Volume's estimates its batch found, and on how many
+// Images its survey read the Page numbers: "Found 12 of 30 in this Volume.
+// Page numbers read on 9 Images."
+export function volumeFoundWords(
+  tries: VisionTry[],
+  of: number,
+  pinned: number
+) {
+  const found = tries.filter((t) => matchAt(t) !== null).length;
+  const what = found === 0 ? `Found none of ${of}` : `Found ${found} of ${of}`;
+  const read =
+    pinned === 0
+      ? 'No page numbers could be read.'
+      : `Page numbers read on ${pinned === 1 ? '1 Image' : `${pinned} Images`}.`;
+  return `${what} in this Volume. ${read}`;
+}
+
 // What it took: "14 readings, 3 of them kept from before · $0.004 · 41 s ·
 // Haiku 5.5".
 export function costWords(tried: Took) {

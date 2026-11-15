@@ -5,17 +5,24 @@ import { customElement } from 'lit/decorators.js';
 
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
+import type { VisionTry } from '@/common/types';
 
 import { controlStyles } from '../box-stage/styles';
-import { batchFoundWords, costWords, modelLabel } from './vision-words';
+import {
+  batchFoundWords,
+  costWords,
+  modelLabel,
+  volumeFoundWords
+} from './vision-words';
 
 function stop(e: Event) {
   e.stopPropagation();
 }
 
 // Along the top of the stage, while Vision Match locates the estimates on
-// the Image, and after (ADR-0029): how long it has been at it, then what
-// it found and what that took, or why it couldn't, until closed.
+// the Image or in the Volume, and after (ADR-0029, ADR-0032): how long it
+// has been at it and at what, then what it found and what that took, or
+// why it couldn't, until closed.
 @customElement('sl-scan-vision')
 class ScanVisionElement extends SignalWatcher(LitElement) {
   static override styles = [
@@ -115,6 +122,15 @@ class ScanVisionElement extends SignalWatcher(LitElement) {
     </button>`;
   }
 
+  private foundWords(
+    tries: VisionTry[],
+    batch: { of: number; pinned: number | null }
+  ) {
+    return batch.pinned === null
+      ? batchFoundWords(tries, batch.of, this.state.viewer.image.get())
+      : volumeFoundWords(tries, batch.of, batch.pinned);
+  }
+
   // How long it has been at it, then how many it found and what it took.
   // The ones not found stay under Estimate beside the scan.
   override render() {
@@ -123,10 +139,11 @@ class ScanVisionElement extends SignalWatcher(LitElement) {
     if (batch === null) return nothing;
     if ('searching' in batch) {
       const seconds = Math.round((Date.now() - batch.since) / 1000);
+      const step = batch.step === null ? '' : `, ${batch.step}`;
       return html`<div class="card">
         <p>
           Vision Match is locating ${batch.of} with
-          ${modelLabel(batch.searching)}… ${seconds} s
+          ${modelLabel(batch.searching)}${step}… ${seconds} s
         </p>
       </div>`;
     }
@@ -136,9 +153,7 @@ class ScanVisionElement extends SignalWatcher(LitElement) {
       <div>
         ${
           batch.refused === null
-            ? html`<p>
-                ${batchFoundWords(tries, batch.of, this.state.viewer.image.get())}
-              </p>`
+            ? html`<p>${this.foundWords(tries, batch)}</p>`
             : html`<p class="refused">${batch.refused}</p>`
         }
         ${

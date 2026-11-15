@@ -3,7 +3,7 @@
 
 import type { BoxAt } from '@/common/operations';
 import type { CITATION_OPERATIONS } from '@/common/operations/citations';
-import type { VisionPageTry } from '@/common/types';
+import type { VisionPageTry, VisionSurvey } from '@/common/types';
 
 import { answered, notFound, Refusal } from '../operations';
 import type { Handlers } from '../operations';
@@ -20,6 +20,12 @@ interface Doers {
     at: BoxAt,
     model: string
   ) => Promise<VisionPageTry | { rejected: string }>;
+  // Surveys how the Volume numbers its pages (ADR-0032).
+  surveyPages: (
+    volumeId: string,
+    volume: string,
+    model: string
+  ) => Promise<VisionSurvey | { rejected: string }>;
 }
 
 // A request to Astia failing is refused (502), in words the Scan viewer
@@ -37,7 +43,7 @@ export async function askingAstia<T>(asked: Promise<T>) {
 
 export function citationOperations(
   citations: Citations,
-  { switchFilming, findAllOnImage }: Doers
+  { switchFilming, findAllOnImage, surveyPages }: Doers
 ): Handlers<typeof CITATION_OPERATIONS> {
   return {
     // Astia is slow and throttled, so a person's citations share one
@@ -97,6 +103,12 @@ export function citationOperations(
       answered(
         await askingAstia(findAllOnImage(citationIds, at, model)),
         'citation'
+      ),
+
+    surveyPages: async ({ volumeId, volume, model }) =>
+      answered(
+        await askingAstia(surveyPages(volumeId, volume, model)),
+        'volume'
       ),
 
     volumeChoices: async ({ citationId }) =>

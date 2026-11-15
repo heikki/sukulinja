@@ -1,7 +1,12 @@
 import { expect, test } from 'bun:test';
 
 import { memoryDatasetApi } from '@/client/dataset-api/memory';
-import type { CitationRow, Link, VisionPageTry } from '@/common/types';
+import type {
+  CitationRow,
+  Link,
+  VisionPageTry,
+  VisionSurvey
+} from '@/common/types';
 
 import { openAppState } from '.';
 
@@ -116,4 +121,52 @@ test('a refusal is told in the app’s words', async () => {
     refused: 'citation not found',
     took: null
   });
+});
+
+// ---------------------------------------------------------------- a Volume
+
+const SURVEY: VisionSurvey = {
+  pinned: 6,
+  settled: true,
+  model: 'claude-haiku-5-5',
+  readings: 7,
+  cached: 1,
+  dollars: 0.002,
+  seconds: 12
+};
+
+test("a Volume's estimates are looked for Image by Image, after its page survey", async () => {
+  const later = row(11, 'record 4', { ...ESTIMATE, image: 25 });
+  const api = memoryDatasetApi({
+    volumes: { '201': { images: 40, citations: [...ROWS, later] } },
+    visionPage: PAGE,
+    survey: SURVEY
+  });
+  const { viewer } = openAppState(api);
+  viewer.open({ citation: CITATION, link: ESTIMATE });
+  await Bun.sleep(0);
+  expect(viewer.estimatesInVolume.get().map((on) => on.image)).toEqual([
+    18, 25
+  ]);
+  const searching = viewer.findAllInVolumeByVision('claude-haiku-5-5');
+  expect(viewer.visionBatch.get()).toMatchObject({
+    step: 'reading page numbers',
+    of: 3
+  });
+  await searching;
+  expect(api.asked.filter((a) => /^(?:survey|vision)/.test(a))).toEqual([
+    'survey 201 claude-haiku-5-5',
+    'vision all 7,9 on 18 claude-haiku-5-5',
+    'vision all 11 on 25 claude-haiku-5-5'
+  ]);
+  expect(viewer.visionBatch.get()).toMatchObject({
+    tries: [{ tried: { missed: null } }, { tried: { missed: 'no box' } }],
+    of: 3,
+    pinned: 6,
+    took: { readings: 13, cached: 1, seconds: 30 },
+    refused: null
+  });
+  // It's told on any Image of the Volume.
+  viewer.show(25);
+  expect(viewer.visionBatch.get()).not.toBeNull();
 });

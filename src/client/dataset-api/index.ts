@@ -36,6 +36,7 @@ import type {
   ReminderTarget,
   Rescan,
   VisionPageTry,
+  VisionSurvey,
   VolumeChoices,
   VolumeCitation,
   VolumeContents
@@ -79,6 +80,13 @@ export interface DatasetApi {
     at: BoxAt,
     model: ClaudeModel
   ) => Promise<VisionPageTry>;
+  // Reads how the Volume numbers its pages and saves it as Page pins
+  // (ADR-0032).
+  surveyPages: (
+    volumeId: string,
+    volume: string,
+    model: ClaudeModel
+  ) => Promise<VisionSurvey>;
   // Makes an Entry with a Citation of it for each person named (ADR-0026):
   // them as the Volume's citations list them, in the order named.
   citeEntry: (at: EntryTarget, people: InEntry[]) => Promise<VolumeCitation[]>;
@@ -226,6 +234,8 @@ export function openDatasetApi(
       await call('discard', { citationId, at }, 'Discard'),
     findAllOnImage: async (citationIds, at, model) =>
       await call('findAllOnImage', { citationIds, at, model }, 'Vision Match'),
+    surveyPages: async (volumeId, volume, model) =>
+      await call('surveyPages', { volumeId, volume, model }, 'Page survey'),
     citeEntry: async (at, people) =>
       await call('citeEntry', { at, people }, 'Citing'),
     editEntry: async (entryId, edit) =>
