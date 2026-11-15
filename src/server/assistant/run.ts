@@ -13,6 +13,7 @@ import { addSpend } from '../claude/client';
 import type { Model } from './model';
 import {
   batchOf,
+  batchSchema,
   MAX_BATCH,
   operationNamed,
   READ_OPERATIONS,
@@ -23,6 +24,7 @@ import {
   WRITE_OPERATIONS,
   writeNamed
 } from './operations/catalogue';
+import { misfit } from './operations/fits';
 import type {
   AnyShowOperation,
   AnyWriteOperation,
@@ -142,6 +144,8 @@ function proposeBatch(
   call: Anthropic.Beta.BetaToolUseBlock,
   tell: (event: AssistantEvent) => void
 ) {
+  const wrong = misfit(batchSchema(op), call.input);
+  if (wrong !== null) return result(call, `Not proposed: ${wrong}.`, true);
   const { reason, changes } = call.input as {
     reason: string;
     changes: unknown[];

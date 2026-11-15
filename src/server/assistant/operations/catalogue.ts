@@ -86,21 +86,27 @@ function withReason(input: InputSchema): InputSchema {
 }
 
 // The batch tool of a write that has one: many of its inputs, and one
-// reason for them all.
+// reason for them all. Not strict: an array of a write's whole input makes
+// a grammar the API refuses as too large, so its input is checked when
+// it's run (fits.ts).
 function batchTool(op: AnyWriteOperation): Anthropic.Beta.BetaTool {
   return {
     name: `${op.name}${MANY}`,
-    description: `Proposes many ${op.name} changes as one item of the Proposal, for changes across many people (at most ${MAX_BATCH}): the user sees how many and a few of them, and applies them at once. Each one is checked as ${op.name} checks it; those that can't be proposed are left out and told.`,
-    input_schema: withReason({
-      type: 'object',
-      properties: {
-        changes: { type: 'array', items: op.input }
-      },
-      required: ['changes'],
-      additionalProperties: false
-    }),
-    strict: true
+    input_schema: batchSchema(op),
+    description: `Proposes many ${op.name} changes as one item of the Proposal, for changes across many people (at most ${MAX_BATCH}): the user sees how many and a few of them, and applies them at once. Each one is checked as ${op.name} checks it; those that can't be proposed are left out and told.`
   };
+}
+
+// A batch tool's input: many of the write's, and one reason.
+export function batchSchema(op: AnyWriteOperation) {
+  return withReason({
+    type: 'object',
+    properties: {
+      changes: { type: 'array', items: op.input }
+    },
+    required: ['changes'],
+    additionalProperties: false
+  });
 }
 
 const WITHDRAW_TOOL: Anthropic.Beta.BetaTool = {

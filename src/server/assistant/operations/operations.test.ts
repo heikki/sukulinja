@@ -180,7 +180,7 @@ test('reads Reminders and Changes', async () => {
   expect(await run('changes', { limit: 5 })).toEqual([]);
 });
 
-test('every operation is a strict tool with a closed input', () => {
+test('every operation is a tool with a closed input, strict but for batches', () => {
   const tools = toolsOf(READ_OPERATIONS, WRITE_OPERATIONS, SHOW_OPERATIONS);
   expect(tools.map((t) => t.name)).toEqual([
     'find_persons',
@@ -204,7 +204,7 @@ test('every operation is a strict tool with a closed input', () => {
     'withdraw_proposal_item'
   ]);
   for (const t of tools) {
-    expect(t.strict).toBe(true);
+    expect(t.strict).toBe(t.name.endsWith('_many') ? undefined : true);
     expect(t.input_schema.additionalProperties).toBe(false);
   }
   // Each write says why, for the person to read.
