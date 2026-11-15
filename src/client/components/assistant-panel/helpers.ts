@@ -42,3 +42,18 @@ export function applyWords(ticked: number, applying: boolean) {
   if (ticked === 0) return 'Apply';
   return ticked === 1 ? 'Apply 1 change' : `Apply ${ticked} changes`;
 }
+
+// What the bar applying the Proposal says: why applying failed, where the
+// dataset was copied first, or how many changes wait; null for nothing.
+export function barWords(
+  note: { failed: string } | { backup: string } | null,
+  waiting: number
+) {
+  if (note !== null) {
+    return 'failed' in note
+      ? note.failed
+      : `A copy of the dataset was saved first: ${note.backup}`;
+  }
+  if (waiting === 0) return null;
+  return waiting === 1 ? '1 change waits' : `${waiting} changes wait`;
+}

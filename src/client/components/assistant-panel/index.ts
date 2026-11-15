@@ -1,6 +1,7 @@
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
 import { css, html, LitElement, nothing } from 'lit';
+import type { TemplateResult } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
@@ -9,10 +10,21 @@ import type { AppState, Exchange, ProposedItem } from '@/client/state';
 import { typing } from '@/client/typing';
 
 import { cornerListStyles } from '../corner-panel/list-styles';
-import { applyWords, endNote, spendWords, stateWords } from './helpers';
+import {
+  applyWords,
+  barWords,
+  endNote,
+  spendWords,
+  stateWords
+} from './helpers';
 
-// One question and its answer, as far as it has come.
-function renderExchange(e: Exchange, running: boolean) {
+// One question and its answer, as far as it has come, with what it
+// proposed.
+function renderExchange(
+  e: Exchange,
+  running: boolean,
+  proposed: TemplateResult | typeof nothing
+) {
   const reading = running && e.answer === '' ? e.reading.at(-1) : undefined;
   const note = endNote(e.ended);
   return html`
@@ -28,18 +40,20 @@ function renderExchange(e: Exchange, running: boolean) {
         : nothing
     }
     ${e.answer === '' ? nothing : html`<div class="answer">${e.answer}</div>`}
+    ${proposed}
     ${note === null ? nothing : html`<div class="note">${note}</div>`}
     ${e.failed === null ? nothing : html`<div class="error">${e.failed}</div>`}
   `;
 }
 
 // The Assistant tab: the conversation with Claude about the tree, newest
-// at the bottom, what it has proposed under it, and a field to ask in. Each question goes with the
+// at the bottom, and a field to ask in. Each question goes with the
 // Selected person, the one on screen. While it's answered it shows what
 // it's reading, then the answer as it's written; Stop ends it. Enter asks,
-// Shift+Enter starts a new line. Each change it proposes is listed, ticked,
-// with its reason; Apply writes the ticked ones through the app's own
-// operations, and says of each one refused why. New conversation forgets
+// Shift+Enter starts a new line. Each change it proposes is listed under
+// the answer, ticked, with its reason; while any wait, a bar above the
+// field applies the ticked ones through the app's own operations, and
+// each one refused says why. New conversation forgets
 // this one, Proposal and all.
 @customElement('sl-assistant-panel')
 class AssistantPanelElement extends SignalWatcher(LitElement) {
@@ -84,80 +98,63 @@ class AssistantPanelElement extends SignalWatcher(LitElement) {
         color: var(--danger);
         font-size: 0.85em;
       }
-      .proposal {
-        flex: none;
-        max-height: 60%;
-        display: flex;
-        flex-direction: column;
-        margin: 0 0 0.75rem;
-        padding: 0.5rem 0.6rem;
+      .items {
+        margin: 0;
+        padding: 0.35rem 0.6rem;
         border: 1px solid var(--border);
         border-radius: 8px;
+        list-style: none;
         font-size: 0.85rem;
       }
-      .proposal h3 {
-        margin: 0 0 0.35rem;
-        color: var(--muted);
-        font-size: 0.8rem;
-        font-weight: 500;
-      }
-      .proposal ol {
-        flex: 1;
-        min-height: 0;
-        overflow-y: auto;
-        margin: 0;
-        padding: 0;
-        list-style: none;
-      }
-      .proposal li {
+      .items li {
         padding: 0.25rem 0;
       }
-      .proposal label {
+      .items label {
         display: flex;
         gap: 0.45rem;
         align-items: baseline;
       }
-      .proposal input {
+      .items input {
         flex: none;
         margin: 0;
       }
-      .proposal .what {
+      .items .what {
         overflow-wrap: anywhere;
       }
-      .proposal .why {
+      .items .why {
         display: block;
         color: var(--muted);
         font-size: 0.92em;
         line-height: 1.35;
       }
-      .proposal .state {
+      .items .state {
         display: block;
         font-size: 0.92em;
       }
-      .proposal li.applied .state {
+      .items li.applied .state {
         color: var(--muted);
       }
-      .proposal li.refused .state {
+      .items li.refused .state {
         color: var(--danger);
       }
-      .proposal li.withdrawn .what {
+      .items li.withdrawn .what {
         color: var(--muted);
         text-decoration: line-through;
       }
-      .proposal .apply-row {
+      .apply-bar {
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        margin-top: 0.4rem;
+        margin: 0 0 0.5rem;
+        font-size: 0.85rem;
       }
-      .proposal .apply-note {
+      .apply-bar .apply-note {
         flex: 1;
         min-width: 0;
         color: var(--muted);
-        font-size: 0.92em;
         overflow-wrap: anywhere;
       }
-      .proposal .apply-note.failed {
+      .apply-bar .apply-note.failed {
         color: var(--danger);
       }
       textarea {
@@ -240,49 +237,52 @@ class AssistantPanelElement extends SignalWatcher(LitElement) {
     </li>`;
   }
 
-  private renderProposal() {
+  // What the exchange's answer proposed.
+  private renderItems(exchange: number) {
     const { assistant } = this.state;
-    const items = assistant.proposal.get();
+    const items = assistant.proposal
+      .get()
+      .filter((p) => p.exchange === exchange);
     if (items.length === 0) return nothing;
     const applying = assistant.applying.get();
-    const ticked = items.filter((p) => p.ticked && p.state === 'open').length;
-    const waiting = items.some((p) => p.state === 'open');
+    return html`<ol class="items" aria-label="Proposed changes">
+      ${repeat(
+        items,
+        (p) => p.id,
+        (p) => this.renderItem(p, applying)
+      )}
+    </ol>`;
+  }
+
+  // Applying what's ticked, while anything waits; then what applying
+  // last said, if anything.
+  private renderApplyBar() {
+    const { assistant } = this.state;
+    const items = assistant.proposal.get();
+    const applying = assistant.applying.get();
+    const open = items.filter((p) => p.state === 'open');
+    const ticked = open.filter((p) => p.ticked).length;
     const note = assistant.applyNote.get();
-    return html`<section class="proposal" aria-label="Proposal">
-      <h3>Proposal</h3>
-      <ol>
-        ${repeat(
-          items,
-          (p) => p.id,
-          (p) => this.renderItem(p, applying)
-        )}
-      </ol>
-      <div class="apply-row">
-        <span
-          class="apply-note ${note !== null && 'failed' in note ? 'failed' : ''}"
-          >${
-            note === null
-              ? nothing
-              : 'failed' in note
-                ? note.failed
-                : `A copy of the dataset was saved first: ${note.backup}`
-          }</span
-        >
-        ${
-          waiting || applying
-            ? html`<button
-                class="ask"
-                ?disabled=${ticked === 0 || applying || assistant.busy.get()}
-                @click=${() => {
-                  void assistant.apply();
-                }}
-              >
-                ${applyWords(ticked, applying)}
-              </button>`
-            : nothing
-        }
-      </div>
-    </section>`;
+    if (open.length === 0 && !applying && note === null) return nothing;
+    return html`<div class="apply-bar">
+      <span
+        class="apply-note ${note !== null && 'failed' in note ? 'failed' : ''}"
+        >${barWords(note, open.length)}</span
+      >
+      ${
+        open.length > 0 || applying
+          ? html`<button
+              class="ask"
+              ?disabled=${ticked === 0 || applying || assistant.busy.get()}
+              @click=${() => {
+                void assistant.apply();
+              }}
+            >
+              ${applyWords(ticked, applying)}
+            </button>`
+          : nothing
+      }
+    </div>`;
   }
 
   override updated() {
@@ -310,11 +310,16 @@ class AssistantPanelElement extends SignalWatcher(LitElement) {
             : repeat(
                 exchanges,
                 (_, i) => i,
-                (e, i) => renderExchange(e, busy && i === exchanges.length - 1)
+                (e, i) =>
+                  renderExchange(
+                    e,
+                    busy && i === exchanges.length - 1,
+                    this.renderItems(i)
+                  )
               )
         }
       </div>
-      ${this.renderProposal()}
+      ${this.renderApplyBar()}
       <textarea
         aria-label="Ask the assistant"
         placeholder="Ask about the tree…"

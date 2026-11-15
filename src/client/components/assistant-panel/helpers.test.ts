@@ -1,6 +1,12 @@
 import { expect, test } from 'bun:test';
 
-import { applyWords, endNote, spendWords, stateWords } from './helpers';
+import {
+  applyWords,
+  barWords,
+  endNote,
+  spendWords,
+  stateWords
+} from './helpers';
 
 function spend(dollars: number | null) {
   return { calls: 3, inputTokens: 1, outputTokens: 1, dollars };
@@ -27,4 +33,7 @@ test('says what became of an item, and what Apply applies', () => {
   expect(applyWords(0, false)).toBe('Apply');
   expect(applyWords(1, false)).toBe('Apply 1 change');
   expect(applyWords(3, true)).toBe('Applying…');
+  expect(barWords(null, 0)).toBeNull();
+  expect(barWords(null, 2)).toBe('2 changes wait');
+  expect(barWords({ failed: 'No.' }, 2)).toBe('No.');
 });

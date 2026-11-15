@@ -19,8 +19,9 @@ export interface Exchange {
 
 // An item of the Proposal as the tab shows it: ticked to be applied, and
 // what became of it: waiting, applied, refused with why, or taken back by
-// the assistant.
+// the assistant; and the exchange whose answer proposed it, by its place.
 export interface ProposedItem extends ProposalItem {
+  exchange: number;
   ticked: boolean;
   state: 'open' | 'applied' | 'withdrawn' | { refused: string };
 }
@@ -131,7 +132,12 @@ export function openAssistant(
           case 'proposed':
             proposal.set([
               ...proposal.get(),
-              { ...event.item, ticked: true, state: 'open' }
+              {
+                ...event.item,
+                exchange: exchanges.get().length - 1,
+                ticked: true,
+                state: 'open'
+              }
             ]);
             break;
           case 'withdrawn':
