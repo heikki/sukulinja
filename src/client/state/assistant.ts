@@ -55,7 +55,7 @@ export interface Assistant {
   // a large Proposal; null for neither.
   applyNote: Readable<{ failed: string } | { backup: string } | null>;
   // Asks, with the person on screen, of the model chosen, for answers in
-  // the style chosen (by default Sonnet, terse).
+  // the style chosen (by default Haiku, terse).
   ask: (
     text: string,
     personId: number | null,

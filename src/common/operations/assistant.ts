@@ -18,7 +18,7 @@ import { answers, streams } from './operation';
 import { isId, isIdOrNull, isName } from './read';
 import type { Fields } from './read';
 
-// `{ model?, style? }`, by default Sonnet, terse; null for a model or
+// `{ model?, style? }`, by default Haiku, terse; null for a model or
 // style the assistant hasn't.
 function choiceOf(body: Fields) {
   const { model = DEFAULT_MODEL, style = DEFAULT_STYLE } = body;
@@ -30,7 +30,7 @@ function choiceOf(body: Fields) {
 export const ASSISTANT_OPERATIONS = {
   // Asks `{ conversation, text, personId, model?, style? }`: the
   // conversation's id, or null for a new one; the question; the person on
-  // screen, or null; the model and style chosen, by default Sonnet, terse.
+  // screen, or null; the model and style chosen, by default Haiku, terse.
   // What it tells of the turn as it runs, the conversation's id first.
   ask: streams<AssistantQuestion, AssistantEvent>(
     '{ conversation, text, personId, model?, style? }',

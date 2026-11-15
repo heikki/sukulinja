@@ -9,7 +9,7 @@ export const ASSISTANT_MODELS = [
 
 export type AssistantModel = (typeof ASSISTANT_MODELS)[number]['id'];
 
-export const DEFAULT_MODEL: AssistantModel = 'claude-sonnet-5-5';
+export const DEFAULT_MODEL: AssistantModel = 'claude-haiku-5-5';
 
 export const ANSWER_STYLES = [
   { id: 'terse', label: 'Terse' },
