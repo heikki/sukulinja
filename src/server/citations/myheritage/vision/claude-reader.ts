@@ -10,17 +10,16 @@
 
 import type Anthropic from '@anthropic-ai/sdk';
 
-import type { ImageRef } from '@/server/citations/astia/astia';
-import type { Fractions } from '@/server/citations/myheritage/scans';
 import {
   addSpend,
   claudeModel,
   connect,
   NO_SPEND,
   openRouterModel
-} from '@/server/claude/client';
-import type { Spend } from '@/server/claude/client';
-
+} from '../../../claude/client';
+import type { Spend } from '../../../claude/client';
+import type { ImageRef } from '../../astia/astia';
+import type { Fractions } from '../scans';
 import type { Scan } from './images';
 import type {
   DatesReading,
@@ -52,7 +51,7 @@ const DEFAULT_EFFORT: Record<Question, Effort> = {
   entry: 'high'
 };
 
-export type { Spend } from '@/server/claude/client';
+export type { Spend } from '../../../claude/client';
 
 const SYSTEM = `You read scans of Finnish parish church books from the 1700s and 1800s: communion books (rippikirjat), children's books (lastenkirjat), and baptism and marriage registers. They are handwritten, in Swedish or Finnish, sometimes with Latin.
 

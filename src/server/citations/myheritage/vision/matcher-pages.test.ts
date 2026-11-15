@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { parseChurchBookRef } from '@/server/citations/myheritage/record';
-
+import { parseChurchBookRef } from '../record';
 import { BOX, candidate, fakeReader } from './fake-reader';
 import type { Volume } from './fake-reader';
 import { matchRef } from './matcher';

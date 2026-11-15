@@ -17,9 +17,9 @@ import {
   parseChurchBookRef
 } from '@/server/citations/myheritage/record';
 import { citing, scansOf } from '@/server/citations/myheritage/test-pins';
+import type { Reader } from '@/server/citations/myheritage/vision/reader';
 
 import { recordEvaluation } from '../vision/gate';
-import type { Reader } from '../vision/reader';
 import { reviewMarkdown, runMatching } from './run';
 import type { Books } from './run';
 

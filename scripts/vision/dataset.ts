@@ -10,8 +10,7 @@ import {
   RIPPI_COLLECTION
 } from '@/server/citations/myheritage/record';
 import type { ChurchBookRef } from '@/server/citations/myheritage/record';
-
-import type { Person } from './reader';
+import type { Person } from '@/server/citations/myheritage/vision/reader';
 
 export function datasetRefs(dbPath: string) {
   const db = new Database(dbPath, { readonly: true });

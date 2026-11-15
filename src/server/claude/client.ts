@@ -1,5 +1,5 @@
 // Asking Claude: the client and its credentials, and what a request costs.
-// Shared by the scan Reader (scripts/vision) and the assistant.
+// Shared by the scan Reader (vision/) and the assistant.
 // Credentials come from the key given, else the environment or an
 // `ant auth login` profile, never from the repo; with only
 // OPENROUTER_API_KEY set, requests go through OpenRouter's

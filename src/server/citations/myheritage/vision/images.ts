@@ -1,18 +1,19 @@
-// Full-size Images for an unattended job, through the Scan cache: one at a time, with a gap between the ones fetched from Astia, so
-// a bulk run doesn't hammer the archive. Images already cached are read
+// Full-size Images for the vision model, through the Scan cache: one at a
+// time, with a gap between the ones fetched from Astia, so a bulk run
+// doesn't hammer the archive. Images already cached are read
 // straight away, and the ones fetched stay for the Scan viewer.
 //
 // A scan is some 6700 × 5200 px and up to 8 MB, past what the API accepts;
 // the models read at most 2576 px on the long edge and 3.75 MP. So each is
-// scaled to fit before it's sent, with macOS's sips, as the scripts run on
-// the Mac the app ships for.
+// scaled to fit before it's sent, with macOS's sips: the app and the
+// scripts run on the Mac the app ships for.
 
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { ImageRef } from '@/server/citations/astia/astia';
-import type { ScanCache } from '@/server/citations/astia/scan-cache';
+import type { ImageRef } from '../../astia/astia';
+import type { ScanCache } from '../../astia/scan-cache';
 
 const GAP_MS = 1000;
 const MAX_EDGE = 2576;

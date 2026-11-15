@@ -1,7 +1,7 @@
 // The Reader: a vision model behind three questions about one Image of a
 // Volume. The matcher depends only on this interface; the real Reader is
-// claude-reader.ts. Like the matcher, it's the scripts': the app never
-// calls a model.
+// claude-reader.ts. The scripts run it over a whole dataset; the Scan
+// viewer, on one reference when asked (ADR-0029).
 //
 // "Unreadable" and "not found" are answers, not errors: a smudged page
 // number is skipped rather than guessed, and a model's refusal reads as
@@ -11,12 +11,9 @@ import { createHash } from 'node:crypto';
 import { rename } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import type { ImageRef } from '@/server/citations/astia/astia';
-import type {
-  EntryName,
-  Household
-} from '@/server/citations/myheritage/record';
-import type { Fractions } from '@/server/citations/myheritage/scans';
+import type { ImageRef } from '../../astia/astia';
+import type { EntryName, Household } from '../record';
+import type { Fractions } from '../scans';
 
 // Who to look for: the name as the tree or the citation has it, with the
 // event date (YYYY-MM-DD, or a shorter prefix), village, household, and the

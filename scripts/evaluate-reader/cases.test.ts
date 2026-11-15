@@ -5,10 +5,13 @@ import { join } from 'node:path';
 
 import type { Pins } from '@/server/citations/myheritage/pins/locate';
 import { parseChurchBookRef } from '@/server/citations/myheritage/record';
+import type {
+  Person,
+  Reader
+} from '@/server/citations/myheritage/vision/reader';
 
 import { gateRefusal, MIN_DECOYS, recordEvaluation } from '../vision/gate';
 import type { EntryTally } from '../vision/gate';
-import type { Person, Reader } from '../vision/reader';
 import {
   dateCases,
   entryCases,

@@ -20,12 +20,12 @@ import { parseArgs } from 'node:util';
 
 import { openAstia } from '@/server/citations/astia/astia';
 import { imageSize, openScanCache } from '@/server/citations/astia/scan-cache';
+import { claudeReader } from '@/server/citations/myheritage/vision/claude-reader';
+import type { Spend } from '@/server/citations/myheritage/vision/claude-reader';
+import { pacedImages } from '@/server/citations/myheritage/vision/images';
 import { openDb } from '@/server/datasets/db';
 
-import { claudeReader } from '../vision/claude-reader';
-import type { Spend } from '../vision/claude-reader';
 import { datasetRefs } from '../vision/dataset';
-import { pacedImages } from '../vision/images';
 import { reviewMarkdown, runMatching } from './run';
 import type { Books } from './run';
 

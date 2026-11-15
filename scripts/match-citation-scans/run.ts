@@ -14,12 +14,15 @@ import { RIPPI_COLLECTION } from '@/server/citations/myheritage/record';
 import type { ChurchBookRef } from '@/server/citations/myheritage/record';
 import { openScanFolder } from '@/server/citations/myheritage/scans';
 import type { Match, Scans } from '@/server/citations/myheritage/scans';
+import { matchRef } from '@/server/citations/myheritage/vision/matcher';
+import type {
+  Miss,
+  MissReason
+} from '@/server/citations/myheritage/vision/matcher';
+import { cachedReader } from '@/server/citations/myheritage/vision/reader';
+import type { Reader } from '@/server/citations/myheritage/vision/reader';
 
 import { gateRefusal } from '../vision/gate';
-import { matchRef } from '../vision/matcher';
-import type { Miss, MissReason } from '../vision/matcher';
-import { cachedReader } from '../vision/reader';
-import type { Reader } from '../vision/reader';
 
 export type Books = 'rippikirjat' | 'index';
 

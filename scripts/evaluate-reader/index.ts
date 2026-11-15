@@ -25,17 +25,23 @@ import { openParishes } from '@/server/citations/astia/parishes';
 import { openScanCache } from '@/server/citations/astia/scan-cache';
 import { withoutStale } from '@/server/citations/myheritage/pins/filming';
 import { openScanFolder } from '@/server/citations/myheritage/scans';
+import {
+  claudeReader,
+  DEFAULT_MODELS
+} from '@/server/citations/myheritage/vision/claude-reader';
+import type { Spend } from '@/server/citations/myheritage/vision/claude-reader';
+import { pacedImages } from '@/server/citations/myheritage/vision/images';
+import type { Scan } from '@/server/citations/myheritage/vision/images';
+import { cachedReader } from '@/server/citations/myheritage/vision/reader';
+import type {
+  Question,
+  Reader
+} from '@/server/citations/myheritage/vision/reader';
 import { openDb } from '@/server/datasets/db';
 
-import { claudeReader, DEFAULT_MODELS } from '../vision/claude-reader';
-import type { Spend } from '../vision/claude-reader';
 import { datasetRefs, principals } from '../vision/dataset';
 import { gateRefusal, loadEvaluation, recordEvaluation } from '../vision/gate';
 import type { EntryTally, Evaluation, Tally } from '../vision/gate';
-import { pacedImages } from '../vision/images';
-import type { Scan } from '../vision/images';
-import { cachedReader } from '../vision/reader';
-import type { Question, Reader } from '../vision/reader';
 import type { Confirmation } from './cases';
 import {
   dateCases,

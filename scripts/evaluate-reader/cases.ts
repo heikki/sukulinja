@@ -8,11 +8,17 @@
 import type { ImageRef } from '@/server/citations/astia/astia';
 import type { Pins } from '@/server/citations/myheritage/pins/locate';
 import type { ChurchBookRef } from '@/server/citations/myheritage/record';
+import {
+  dayRange,
+  personOf
+} from '@/server/citations/myheritage/vision/matcher';
+import { confirms } from '@/server/citations/myheritage/vision/reader';
+import type {
+  Person,
+  Reader
+} from '@/server/citations/myheritage/vision/reader';
 
 import type { EntryTally, Tally } from '../vision/gate';
-import { dayRange, personOf } from '../vision/matcher';
-import { confirms } from '../vision/reader';
-import type { Person, Reader } from '../vision/reader';
 
 interface PageCase {
   at: ImageRef;

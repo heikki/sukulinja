@@ -28,13 +28,9 @@
 // start, near the Page pins, and Confirmation looks around it.
 
 import type { BookKind, Years } from '@/common/types';
-import type { ChurchBookRef } from '@/server/citations/myheritage/record';
-import type {
-  Candidate,
-  Fractions,
-  Match
-} from '@/server/citations/myheritage/scans';
 
+import type { ChurchBookRef } from '../record';
+import type { Candidate, Fractions, Match } from '../scans';
 import { confirms } from './reader';
 import type {
   DatesReading,

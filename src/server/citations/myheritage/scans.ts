@@ -40,7 +40,7 @@ async function byBook(pins: PinStore) {
   return { volumes: (await pins.snapshot()).volumes, references: {} };
 }
 
-// What the vision pass (scripts/vision) is given and gives back: the
+// What the vision pass (vision/) is given and gives back: the
 // Volumes to search, and the entry it confirmed.
 
 // A Volume the existing resolution offers for the reference, with its
