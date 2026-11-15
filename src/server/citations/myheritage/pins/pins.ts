@@ -60,6 +60,7 @@ import type {
   VolumePins
 } from './locate';
 import type { Marks } from './marks';
+import { pageClash } from './runs';
 
 // ---------------------------------------------------------------- merging
 
@@ -78,11 +79,6 @@ function overrides(entry: Saved, clashing: Saved[]) {
 
 function byImage(a: PagePin, b: PagePin) {
   return a.image - b.image;
-}
-
-function pageClash(pin: PagePin) {
-  return (p: PagePin) =>
-    p.image === pin.image || p.pages.some((n) => pin.pages.includes(n));
 }
 
 // The list with the Page pin in, unless a pin it clashes with wins. Saving

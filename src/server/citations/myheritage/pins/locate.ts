@@ -32,6 +32,8 @@ import type { Astia, Volume } from '../../astia/astia';
 import type { BookKind, Years } from '../../text';
 import type { ChurchBookRef } from '../record';
 import { filmingOf, leavesOut, splitVolume } from './filming';
+import { runsOf } from './runs';
+import type { PageRun } from './runs';
 
 // Pins say who saved them; a missing `by` is by hand, which covers every
 // local file written before the vision model.
@@ -246,6 +248,52 @@ function countedImage(pins: PagePin[], page: number) {
   return imageFor(page - lo.first <= hi.first - page ? lo : hi, page);
 }
 
+// Where the page is in the run, if the run reaches it: an aside giving the
+// page as cited places it, else it's counted from the run's pins.
+function runImage(run: PageRun, page: number) {
+  const aside = run.asides.find((a) => a.pages.includes(page));
+  const image = aside?.image ?? countedImage(run.pins, page);
+  return image !== null && image >= run.from && image <= run.to
+    ? { image, pins: run.pins.length }
+    : null;
+}
+
+// The Images the Volume's Record pins leave the record: after those of
+// lower Record numbers, before those of higher, as MyHeritage numbers a
+// film's records in Image order.
+function recordBounds(records: RecordPin[], recordId: number | null) {
+  if (recordId === null) return { from: 1, to: Infinity };
+  const below = records.filter((r) => r.record < recordId);
+  const above = records.filter((r) => r.record > recordId);
+  return {
+    from: Math.max(1, ...below.map((r) => r.image)),
+    to: Math.min(Infinity, ...above.map((r) => r.image))
+  };
+}
+
+// Where the cited page is by the Volume's Page pins: null with none, and
+// 'overran' when no run of them reaches it. Of a Volume numbering its
+// pages over again, the run the Record pins leave the record in, else the
+// one with the most pins.
+function pinnedImage(
+  pins: PagePin[],
+  images: number,
+  ref: ChurchBookRef,
+  records: RecordPin[]
+) {
+  const runs = runsOf(pins, images);
+  if (runs.length === 0) return null;
+  const reached = runs.flatMap((run) => {
+    const at = runImage(run, ref.page!);
+    return at === null ? [] : [at];
+  });
+  if (reached.length === 0) return 'overran' as const;
+  const { from, to } = recordBounds(records, ref.recordId);
+  const fits = reached.filter((r) => r.image >= from && r.image <= to);
+  const pool = fits.length > 0 ? fits : reached;
+  return pool.reduce((best, r) => (r.pins > best.pins ? r : best)).image;
+}
+
 interface Located {
   volume: Volume;
   files: string[];
@@ -272,16 +320,14 @@ async function locate(
   const pinned = pin === undefined ? null : pinnedTarget(pin);
   if (pinned !== null) return { volume: v, files, target: pinned };
   if (ref.page === null) return { volume: v, files, target: ESTIMATED_VOLUME };
-  const counted = countedImage(own.pages, ref.page);
+  const counted = pinnedImage(own.pages, files.length, ref, own.records);
+  if (counted === 'overran') {
+    return { volume: v, files, target: ESTIMATED_VOLUME, overran: true };
+  }
   const image = counted ?? numberedImage(ref.kind!, ref.page, files.length);
   const from = counted === null ? 'numbering' : 'pins';
   if (image < 1 || image > files.length) {
-    return {
-      volume: v,
-      files,
-      target: ESTIMATED_VOLUME,
-      overran: from === 'pins'
-    };
+    return { volume: v, files, target: ESTIMATED_VOLUME };
   }
   return {
     volume: v,

@@ -82,7 +82,10 @@ A Church-book reference with no Link, and why: it can't be read, its parish's ar
 _Avoid_: error (most are facts about the books).
 
 **Page number**:
-The number written in the book. Rippikirjat usually number spreads (one number per Image), lastenkirjat pages (two per Image). A Volume may start its numbering over partway through.
+The number written in the book. Rippikirjat usually number spreads (one number per Image), lastenkirjat pages (two per Image). A Volume may start its numbering over partway through (parts of one book), so one number can be on Images far apart: each stretch is a **Page run**.
+
+**Page run**:
+A stretch of a Volume whose Page numbers go up with its Images; one starts where its Page pins' numbers go back. Most Volumes are one. A page is counted within each run its pins reach, and the Record pins around the record pick among them; two Page pins of one page clash only near each other, not across runs.
 
 **Retake**:
 A second photograph of the same page within one Volume, on the next Image.
