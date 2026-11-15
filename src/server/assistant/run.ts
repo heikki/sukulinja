@@ -65,24 +65,14 @@ export function systemFor(style: AnswerStyle, living = false) {
   return parts.join('\n\n');
 }
 
-// How many of the chart's people the question names; the rest are
-// counted.
-export const CHART_LIMIT = 60;
-
-// Everyone the chart draws, by name, years and id; who's left out and who's
-// past the limit counted.
+// Everyone the chart draws, by name, years and id, all of them; who's left
+// out counted.
 export function chartWords(view: TreeView) {
   const ids = view.onScreen.onChart ?? [];
   if (ids.length === 0) return null;
-  const shown = ids.filter((id) => !view.hidden(id));
-  const named = shown.slice(0, CHART_LIMIT).map((id) => view.ref(id));
-  const left = ids.length - shown.length;
-  const past = shown.length - named.length;
-  const notes = [
-    ...(left > 0 ? [`${left} who may be living left out`] : []),
-    ...(past > 0 ? [`${past} more not listed`] : [])
-  ];
-  const tail = notes.length === 0 ? '' : ` (${notes.join('; ')})`;
+  const named = ids.filter((id) => !view.hidden(id)).map((id) => view.ref(id));
+  const left = ids.length - named.length;
+  const tail = left > 0 ? ` (${left} who may be living left out)` : '';
   return `On the chart${tail}: ${JSON.stringify(named)}`;
 }
 
