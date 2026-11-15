@@ -77,7 +77,9 @@ function operationsWith(model: Model, key: string | null = 'sk-test') {
         keys.push(k);
         return model;
       }
-    }
+    },
+    // Proposals are applied over the app's own server (state/proposal.test).
+    async () => await Promise.reject(new Error('not applied here'))
   );
   return { ops, keys };
 }

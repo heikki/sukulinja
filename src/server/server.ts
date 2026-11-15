@@ -6,6 +6,7 @@ import { APP_OPERATIONS, OPERATIONS } from '@/common/operations';
 import { assistantOperations } from './assistant/asking';
 import type { AssistantDeps } from './assistant/asking';
 import { claude } from './assistant/model';
+import type { RunOperation } from './assistant/proposal';
 import type { Changes, NewChange } from './changes/changes';
 import { changeOperations } from './changes/operations';
 import { openCitations } from './citations';
@@ -20,6 +21,7 @@ import { openServices } from './datasets/services';
 import type { DatasetServices } from './datasets/services';
 import { factOperations } from './facts/operations';
 import { serveOperations } from './operations';
+import type { Handler } from './operations';
 import { treeOperations } from './persons/operations';
 import { photoOperations, routeAddPhoto } from './photos';
 import { reminderOperations } from './reminders/operations';
@@ -57,14 +59,24 @@ function createDatasetHandlers(
   assistant: AssistantDeps
 ): DatasetHandlers {
   const { reminders, changes, facts, photoFiles, scans } = services;
-  const operations = serveOperations(OPERATIONS, {
+  // The dataset's own operations, which the assistant's Proposals are
+  // applied through too.
+  const own = {
     ...treeOperations(services),
     ...factOperations(facts),
     ...scans.operations,
     ...photoOperations(services),
     ...reminderOperations(reminders),
-    ...changeOperations(changes),
-    ...assistantOperations(services, assistant)
+    ...changeOperations(changes)
+  };
+  async function run(...[name, input]: Parameters<RunOperation>) {
+    if (!Object.hasOwn(own, name)) throw new Error(`no operation ${name}`);
+    const handler = own[name as keyof typeof own] as Handler<unknown>;
+    await handler(input as never, new AbortController().signal);
+  }
+  const operations = serveOperations(OPERATIONS, {
+    ...own,
+    ...assistantOperations(services, assistant, run)
   });
   return {
     changes,

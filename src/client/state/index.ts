@@ -28,7 +28,7 @@ import type { Selected } from './selected';
 import { openViewer } from './viewer';
 import type { Viewer } from './viewer';
 
-export type { Assistant, Exchange } from './assistant';
+export type { Assistant, Exchange, ProposedItem } from './assistant';
 export type { Changes } from './changes';
 export type { Chart, ChartView, UrlView } from './chart';
 export type { Facts } from './facts';
@@ -98,6 +98,7 @@ export function openAppState(
       void chart.reloadPeople();
     }
   });
+  const reminders = openReminders(api);
   return {
     api,
     app,
@@ -106,11 +107,18 @@ export function openAppState(
     photoViewer,
     photos,
     chart,
-    reminders: openReminders(api),
+    reminders,
     changes: openChanges(api),
     facts,
     personEdits: openPersonEdits(api, chart, selected),
-    assistant: openAssistant(api)
+    // A Proposal applied may have changed anyone, their families, and
+    // the Reminders.
+    assistant: openAssistant(api, {
+      applied: () => {
+        void Promise.all([chart.relinked(), selected.refresh()]);
+        reminders.reload();
+      }
+    })
   };
 }
 

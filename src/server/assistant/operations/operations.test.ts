@@ -10,7 +10,13 @@ import { parseGedcom } from '../../gedcom/parser';
 import { importGedcom } from '../../import/gedcom';
 import { LEFT_OUT, openTreeView } from '../tree-view';
 import type { OnScreen } from '../tree-view';
-import { operationNamed, READ_OPERATIONS, toolsOf } from './catalogue';
+import {
+  operationNamed,
+  READ_OPERATIONS,
+  toolsOf,
+  WRITE_OPERATIONS,
+  writeNamed
+} from './catalogue';
 
 const SCANS = openCitations(join(tmpdir(), 'assistant-unread'), {
   astia: memoryAstia({}),
@@ -162,17 +168,86 @@ test('reads Reminders and Changes', async () => {
 });
 
 test('every operation is a strict tool with a closed input', () => {
-  const tools = toolsOf(READ_OPERATIONS);
+  const tools = toolsOf(READ_OPERATIONS, WRITE_OPERATIONS);
   expect(tools.map((t) => t.name)).toEqual([
     'find_persons',
     'person',
     'places',
     'place_facts',
     'reminders',
-    'changes'
+    'changes',
+    'add_fact',
+    'edit_fact',
+    'support_fact',
+    'rename_person',
+    'move_person',
+    'remind',
+    'withdraw_proposal_item'
   ]);
   for (const t of tools) {
     expect(t.strict).toBe(true);
     expect(t.input_schema.additionalProperties).toBe(false);
   }
+  // Each write says why, for the person to read.
+  for (const t of tools.slice(6, -1)) {
+    expect(t.input_schema.required).toContain('reason');
+  }
+});
+
+// What the write proposes, with the person on screen as given.
+function asks(name: string, input: unknown, onScreen: OnScreen) {
+  const view = openTreeView(
+    openServices(db, SCANS.forDataset(db), tmpdir()),
+    onScreen,
+    2026
+  );
+  return writeNamed(name)!.asks(view, input as never);
+}
+
+test('proposes nothing on someone who may be living, unless on screen', () => {
+  const input = { personId: 3, text: 'Katso kastekirja.' };
+  expect(asks('remind', input, { personId: null })).toEqual({
+    rejected: `This is ${LEFT_OUT}.`
+  });
+  expect(asks('remind', input, { personId: 3 })).toMatchObject({
+    operation: 'remind',
+    body: { text: 'Katso kastekirja.', on: { personId: 3 } }
+  });
+});
+
+test('a fact edited keeps what is left null as it was', async () => {
+  const matti = await read('person', { id: 1 });
+  const birth = (matti.facts as Array<{ id: number; tag: string }>).find(
+    (f) => f.tag === 'BIRT'
+  )!;
+  expect(
+    asks(
+      'edit_fact',
+      {
+        personId: 1,
+        factId: birth.id,
+        date: '3.3.1801',
+        place: null,
+        address: null,
+        value: null,
+        type: null
+      },
+      { personId: null }
+    )
+  ).toEqual({
+    operation: 'editFact',
+    body: {
+      personId: 1,
+      factId: birth.id,
+      fields: {
+        date: '3.3.1801',
+        place: 'Kylä, Pitäjä, Suomi',
+        address: '',
+        value: '',
+        type: ''
+      }
+    },
+    label:
+      "Change Matti Esimerkki's Birth 1801 · Kylä, Pitäjä, Suomi to Birth 3.3.1801 · Kylä, Pitäjä, Suomi"
+  });
 });

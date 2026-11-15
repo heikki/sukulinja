@@ -6,11 +6,18 @@
 
 import type { Database } from 'bun:sqlite';
 
-import type { Change, ChangeOn, ChangeWhat, OnTarget } from '@/common/types';
+import type {
+  Change,
+  ChangeOn,
+  ChangeVia,
+  ChangeWhat,
+  OnTarget
+} from '@/common/types';
 
 import { ON_COLUMNS, openOn } from '../on';
 import type { OnRow, OnSources } from '../on';
 import { replaces } from './combine';
+import { viaNow } from './via';
 
 interface ChangeRow extends OnRow {
   id: number;
@@ -18,6 +25,7 @@ interface ChangeRow extends OnRow {
   what: string;
   who: string | null;
   media_id: number | null;
+  via: ChangeVia | null;
 }
 
 // What a new Change is put on.
@@ -31,7 +39,14 @@ export interface NewChange {
 
 type Binding = string | number | null;
 
-const COLUMNS = ['at', 'what', 'who', ...ON_COLUMNS, 'media_id'] as const;
+const COLUMNS = [
+  'at',
+  'what',
+  'who',
+  ...ON_COLUMNS,
+  'media_id',
+  'via'
+] as const;
 
 export function openChanges(db: Database, sources: OnSources) {
   const ons = openOn(db, sources);
@@ -45,8 +60,8 @@ export function openChanges(db: Database, sources: OnSources) {
   const newest = db.prepare<ChangeRow, []>(
     'SELECT * FROM changes ORDER BY id DESC LIMIT 1'
   );
-  const rewrite = db.prepare<null, [string, string, Binding, number]>(
-    'UPDATE changes SET at = ?, what = ?, who = ? WHERE id = ?'
+  const rewrite = db.prepare<null, [string, string, Binding, Binding, number]>(
+    'UPDATE changes SET at = ?, what = ?, who = ?, via = ? WHERE id = ?'
   );
   const removeAll = db.prepare('DELETE FROM changes');
   // A person's first name as it's sorted.
@@ -84,7 +99,8 @@ export function openChanges(db: Database, sources: OnSources) {
       at: row.at,
       what: JSON.parse(row.what) as ChangeWhat,
       on: await onOf(row),
-      who: row.who
+      who: row.who,
+      via: row.via
     };
   }
 
@@ -94,7 +110,7 @@ export function openChanges(db: Database, sources: OnSources) {
       return await Promise.all(all.all().map(changeOf));
     },
 
-    // Writes a Change. One whose person or Citation isn't in the dataset is
+    // Writes a Change, made as viaNow says. One whose person or Citation isn't in the dataset is
     // written on nothing; one whose Photo isn't, on its person. One that
     // goes with the newest Change, on the same thing, takes its place.
     add(change: NewChange) {
@@ -103,6 +119,7 @@ export function openChanges(db: Database, sources: OnSources) {
       const who =
         personId === null ? null : (nameOf.get(personId)?.full_text ?? null);
       const at = new Date().toISOString();
+      const via = viaNow();
       const onValues = ON_COLUMNS.map((c) => on?.[c] ?? null);
       const last = newest.get();
       if (
@@ -111,7 +128,7 @@ export function openChanges(db: Database, sources: OnSources) {
         sameOn(last, onValues, mediaId) &&
         replaces(JSON.parse(last.what) as ChangeWhat, change.what)
       ) {
-        rewrite.run(at, JSON.stringify(change.what), who, last.id);
+        rewrite.run(at, JSON.stringify(change.what), who, via, last.id);
         return;
       }
       const values: Binding[] = [
@@ -119,7 +136,8 @@ export function openChanges(db: Database, sources: OnSources) {
         JSON.stringify(change.what),
         who,
         ...onValues,
-        mediaId
+        mediaId,
+        via
       ];
       insert.run(...values);
     },

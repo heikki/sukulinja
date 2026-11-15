@@ -1,10 +1,11 @@
 // The assistant's operations (common/operations/assistant): a question
-// asked in a conversation, told as it's answered, and a conversation
-// forgotten.
+// asked in a conversation, told as it's answered, its Proposal applied
+// through the app's own operations, and a conversation forgotten.
 
 import type { ASSISTANT_OPERATIONS } from '@/common/operations/assistant';
 import type { AssistantEvent, AssistantQuestion } from '@/common/types';
 
+import { madeVia } from '../changes/via';
 import type { KeyStore } from '../claude/key';
 import { keyStatus } from '../claude/key-operations';
 import type { DatasetServices } from '../datasets/services';
@@ -13,6 +14,7 @@ import type { Handlers } from '../operations';
 import { openConversations } from './conversations';
 import type { Conversation } from './conversations';
 import type { Model } from './model';
+import type { RunOperation } from './proposal';
 import { runTurn } from './run';
 import { openTreeView } from './tree-view';
 
@@ -39,9 +41,12 @@ function told<T>(run: (tell: (value: T) => void) => Promise<void>) {
   });
 }
 
+// `run` runs one of the dataset's own operations, as its route would: a
+// Proposal is applied through it.
 export function assistantOperations(
   services: DatasetServices,
-  deps: AssistantDeps
+  deps: AssistantDeps,
+  run: RunOperation
 ): Handlers<typeof ASSISTANT_OPERATIONS> {
   const conversations = openConversations();
 
@@ -61,6 +66,7 @@ export function assistantOperations(
       model,
       view: openTreeView(services, { personId: asked.personId }),
       messages: conversation.messages,
+      proposal: conversation.proposal,
       text: asked.text,
       spend: conversation.spend,
       signal,
@@ -90,6 +96,29 @@ export function assistantOperations(
           conversations.release(conversation.id);
         }
       });
+    },
+
+    // The ticked items, each made via the assistant; a large Proposal's
+    // dataset copied first.
+    async applyProposal({ conversation: id, items }) {
+      const conversation = conversations.takeKept(id);
+      if (conversation === null) {
+        throw new Refusal(
+          409,
+          'This conversation is answering, or was forgotten.'
+        );
+      }
+      try {
+        const { proposal } = conversation;
+        const backup = proposal.isLarge(items) ? services.backUp() : null;
+        const outcomes = await madeVia(
+          'assistant',
+          async () => await proposal.apply(items, run)
+        );
+        return { outcomes, backup };
+      } finally {
+        conversations.release(id);
+      }
     },
 
     forgetConversation({ id }) {

@@ -15,7 +15,7 @@ import { byDay, doneLabel, leadsTo, timeLabel, whereLabel } from './helpers';
 export type ChangePickEvent = CustomEvent<ChangeOn>;
 
 // Every Change made to the dataset, newest first, by day: when, what was
-// done, and whom and where. Clicking one that leads somewhere picks where
+// done (and whether via the assistant), and whom and where. Clicking one that leads somewhere picks where
 // (`pick`); one on nothing is shown but can't be picked. Clear forgets them
 // all, once asked. A tab of the corner panel.
 @customElement('sl-changes-list')
@@ -60,6 +60,12 @@ class ChangesListElement extends SignalWatcher(LitElement) {
         font-variant-numeric: tabular-nums;
         margin-right: 0.5rem;
       }
+
+      .via {
+        color: var(--muted);
+        font-size: 0.85em;
+        margin-left: 0.4rem;
+      }
     `
   ];
 
@@ -89,7 +95,11 @@ class ChangesListElement extends SignalWatcher(LitElement) {
         <span class="text"
           ><span class="time">${timeLabel(change.at)}</span>${doneLabel(
             change.what
-          )}</span
+          )}${
+            change.via === 'assistant'
+              ? html`<span class="via">via assistant</span>`
+              : nothing
+          }</span
         >
         <span class="on">${whereLabel(change, persons)}</span>
       </button>

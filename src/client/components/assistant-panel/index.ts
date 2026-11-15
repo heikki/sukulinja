@@ -5,11 +5,11 @@ import { customElement, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
 import { appState } from '@/client/state';
-import type { AppState, Exchange } from '@/client/state';
+import type { AppState, Exchange, ProposedItem } from '@/client/state';
 import { typing } from '@/client/typing';
 
 import { cornerListStyles } from '../corner-panel/list-styles';
-import { endNote, spendWords } from './helpers';
+import { applyWords, endNote, spendWords, stateWords } from './helpers';
 
 // One question and its answer, as far as it has come.
 function renderExchange(e: Exchange, running: boolean) {
@@ -34,10 +34,13 @@ function renderExchange(e: Exchange, running: boolean) {
 }
 
 // The Assistant tab: the conversation with Claude about the tree, newest
-// at the bottom, and a field to ask in. Each question goes with the
+// at the bottom, what it has proposed under it, and a field to ask in. Each question goes with the
 // Selected person, the one on screen. While it's answered it shows what
 // it's reading, then the answer as it's written; Stop ends it. Enter asks,
-// Shift+Enter starts a new line. New conversation forgets this one.
+// Shift+Enter starts a new line. Each change it proposes is listed, ticked,
+// with its reason; Apply writes the ticked ones through the app's own
+// operations, and says of each one refused why. New conversation forgets
+// this one, Proposal and all.
 @customElement('sl-assistant-panel')
 class AssistantPanelElement extends SignalWatcher(LitElement) {
   static override styles = [
@@ -80,6 +83,82 @@ class AssistantPanelElement extends SignalWatcher(LitElement) {
       .error {
         color: var(--danger);
         font-size: 0.85em;
+      }
+      .proposal {
+        flex: none;
+        max-height: 60%;
+        display: flex;
+        flex-direction: column;
+        margin: 0 0 0.75rem;
+        padding: 0.5rem 0.6rem;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 0.85rem;
+      }
+      .proposal h3 {
+        margin: 0 0 0.35rem;
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 500;
+      }
+      .proposal ol {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .proposal li {
+        padding: 0.25rem 0;
+      }
+      .proposal label {
+        display: flex;
+        gap: 0.45rem;
+        align-items: baseline;
+      }
+      .proposal input {
+        flex: none;
+        margin: 0;
+      }
+      .proposal .what {
+        overflow-wrap: anywhere;
+      }
+      .proposal .why {
+        display: block;
+        color: var(--muted);
+        font-size: 0.92em;
+        line-height: 1.35;
+      }
+      .proposal .state {
+        display: block;
+        font-size: 0.92em;
+      }
+      .proposal li.applied .state {
+        color: var(--muted);
+      }
+      .proposal li.refused .state {
+        color: var(--danger);
+      }
+      .proposal li.withdrawn .what {
+        color: var(--muted);
+        text-decoration: line-through;
+      }
+      .proposal .apply-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.4rem;
+      }
+      .proposal .apply-note {
+        flex: 1;
+        min-width: 0;
+        color: var(--muted);
+        font-size: 0.92em;
+        overflow-wrap: anywhere;
+      }
+      .proposal .apply-note.failed {
+        color: var(--danger);
       }
       textarea {
         display: block;
@@ -136,6 +215,76 @@ class AssistantPanelElement extends SignalWatcher(LitElement) {
     }
   };
 
+  private renderItem(p: ProposedItem, applying: boolean) {
+    const state = stateWords(p.state);
+    const kind = typeof p.state === 'object' ? 'refused' : p.state;
+    return html`<li class=${kind}>
+      <label>
+        <input
+          type="checkbox"
+          .checked=${p.ticked || p.state === 'applied'}
+          ?disabled=${p.state !== 'open' || applying}
+          @change=${(e: Event) => {
+            this.state.assistant.tick(
+              p.id,
+              (e.target as HTMLInputElement).checked
+            );
+          }}
+        />
+        <span>
+          <span class="what">${p.label}</span>
+          ${p.reason === '' ? nothing : html`<span class="why">${p.reason}</span>`}
+          ${state === null ? nothing : html`<span class="state">${state}</span>`}
+        </span>
+      </label>
+    </li>`;
+  }
+
+  private renderProposal() {
+    const { assistant } = this.state;
+    const items = assistant.proposal.get();
+    if (items.length === 0) return nothing;
+    const applying = assistant.applying.get();
+    const ticked = items.filter((p) => p.ticked && p.state === 'open').length;
+    const waiting = items.some((p) => p.state === 'open');
+    const note = assistant.applyNote.get();
+    return html`<section class="proposal" aria-label="Proposal">
+      <h3>Proposal</h3>
+      <ol>
+        ${repeat(
+          items,
+          (p) => p.id,
+          (p) => this.renderItem(p, applying)
+        )}
+      </ol>
+      <div class="apply-row">
+        <span
+          class="apply-note ${note !== null && 'failed' in note ? 'failed' : ''}"
+          >${
+            note === null
+              ? nothing
+              : 'failed' in note
+                ? note.failed
+                : `A copy of the dataset was saved first: ${note.backup}`
+          }</span
+        >
+        ${
+          waiting || applying
+            ? html`<button
+                class="ask"
+                ?disabled=${ticked === 0 || applying || assistant.busy.get()}
+                @click=${() => {
+                  void assistant.apply();
+                }}
+              >
+                ${applyWords(ticked, applying)}
+              </button>`
+            : nothing
+        }
+      </div>
+    </section>`;
+  }
+
   override updated() {
     const log = this.renderRoot.querySelector('.log');
     if (log !== null) log.scrollTop = log.scrollHeight;
@@ -152,9 +301,11 @@ class AssistantPanelElement extends SignalWatcher(LitElement) {
           exchanges.length === 0
             ? html`<p class="muted">
                 Ask about the tree: who someone was, what the sources say, where
-                people lived. The Selected person goes with the question. What
-                Claude reads is sent to Anthropic; people who may be living are
-                left out unless they're on screen.
+                people lived. Ask for changes too: they're listed for you to
+                tick and apply, and nothing is written before that. The Selected
+                person goes with the question. What Claude reads is sent to
+                Anthropic; people who may be living are left out unless they're
+                on screen.
               </p>`
             : repeat(
                 exchanges,
@@ -163,6 +314,7 @@ class AssistantPanelElement extends SignalWatcher(LitElement) {
               )
         }
       </div>
+      ${this.renderProposal()}
       <textarea
         aria-label="Ask the assistant"
         placeholder="Ask about the tree…"

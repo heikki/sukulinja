@@ -17,6 +17,7 @@ import { createUnlink } from '../persons/unlink';
 import { createPhotos, openPhotoFiles, openTags } from '../photos';
 import { createReminders } from '../reminders/reminders';
 import { createTree } from '../tree';
+import { backUp } from './backup';
 
 export function openServices(
   db: Database,
@@ -43,7 +44,9 @@ export function openServices(
     persons: createPersons(db, changed),
     unlinking: createUnlink(db, changed),
     deletion: createDeletion(db, changed),
-    moving: createMove(db, changed)
+    moving: createMove(db, changed),
+    // A copy of the database as it is now: where it was put.
+    backUp: () => backUp(db)
   };
 }
 

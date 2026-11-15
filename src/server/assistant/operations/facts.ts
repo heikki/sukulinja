@@ -1,0 +1,133 @@
+// Proposing a Fact added to someone, or what one says changed.
+
+import { ADDABLE_FACTS, factKindLabel, factWords } from '@/common/facts';
+import type { FactFields } from '@/common/types';
+
+import type { TreeView } from '../tree-view';
+import { writeOperation } from './operation';
+import { formFields } from './persons';
+
+const FIELDS =
+  'The date is written as the app\'s form takes it: "3.3.1761", "3/1761", "1761", "n. 1761", "ennen 1761", "1761 jälkeen", "1870–1879". The place as the tree writes places ("farm, village, parish, Suomi"); `value` is what an attribute says (an occupation\'s title), and `type` an Event\'s kind ("Muutto").';
+
+// The person's Fact, or their marriage's, by id; null for none.
+function factOf(view: TreeView, personId: number, factId: number) {
+  const details = view.services.personDetails(personId);
+  return details?.facts.find((f) => f.id === factId) ?? null;
+}
+
+// The fact as the Proposal names it: its kind, and what it says.
+function words(tag: string, type: string, fields: FactFields | null) {
+  const kind = type === '' ? factKindLabel(tag) : type;
+  if (fields === null) return kind;
+  const said = factWords({
+    date: null,
+    type: null,
+    place: fields.place,
+    address: fields.address,
+    value: fields.value
+  });
+  const at = [fields.date, said].filter((s) => s !== null && s !== '');
+  return at.length === 0 ? kind : `${kind} ${at.join(' · ')}`;
+}
+
+interface Add extends FactFields {
+  personId: number;
+  tag: string;
+  familyId: number | null;
+}
+
+export const addFact = writeOperation<Add>({
+  name: 'add_fact',
+  description: `Proposes adding a fact to a person: one of their own, or, with \`familyId\` (one of the families they're a spouse in), their marriage's (MARR, DIV). ${FIELDS} Leave a field empty for none.`,
+  input: {
+    type: 'object',
+    properties: {
+      personId: { type: 'integer' },
+      tag: { type: 'string', enum: ADDABLE_FACTS.map((k) => k.tag) },
+      familyId: { type: ['integer', 'null'] },
+      date: { type: 'string' },
+      place: { type: 'string' },
+      address: { type: 'string' },
+      value: { type: 'string' },
+      type: { type: 'string' }
+    },
+    required: [
+      'personId',
+      'tag',
+      'familyId',
+      'date',
+      'place',
+      'address',
+      'value',
+      'type'
+    ],
+    additionalProperties: false
+  },
+  asks(view, { personId, tag, familyId, ...fields }) {
+    const why = view.unwritable(personId);
+    if (why !== null) return { rejected: why };
+    return {
+      operation: 'addFact',
+      body: { personId, fact: { tag, familyId, ...fields } },
+      label: `Add to ${view.nameOf(personId)}: ${words(tag, fields.type, fields)}`
+    };
+  }
+});
+
+interface Edit {
+  personId: number;
+  factId: number;
+  date: string | null;
+  place: string | null;
+  address: string | null;
+  value: string | null;
+  type: string | null;
+}
+
+export const editFact = writeOperation<Edit>({
+  name: 'edit_fact',
+  description: `Proposes changing what one of a person's facts, or their marriage's, says. Each field null stays as it is; an empty string clears it. ${FIELDS}`,
+  input: {
+    type: 'object',
+    properties: {
+      personId: { type: 'integer' },
+      factId: { type: 'integer' },
+      date: { type: ['string', 'null'] },
+      place: { type: ['string', 'null'] },
+      address: { type: ['string', 'null'] },
+      value: { type: ['string', 'null'] },
+      type: { type: ['string', 'null'] }
+    },
+    required: [
+      'personId',
+      'factId',
+      'date',
+      'place',
+      'address',
+      'value',
+      'type'
+    ],
+    additionalProperties: false
+  },
+  asks(view, { personId, factId, ...changed }) {
+    const why = view.unwritable(personId);
+    if (why !== null) return { rejected: why };
+    const fact = factOf(view, personId, factId);
+    if (fact === null) return { rejected: 'They have no such fact.' };
+    const was = formFields(fact);
+    const fields: FactFields = {
+      date: changed.date ?? was.date,
+      place: changed.place ?? was.place,
+      address: changed.address ?? was.address,
+      value: changed.value ?? was.value,
+      type: changed.type ?? was.type
+    };
+    const name = view.nameOf(personId);
+    return {
+      operation: 'editFact',
+      body: { personId, factId, fields },
+      label: `Change ${name}'s ${words(fact.tag, was.type, was)} to ${words(fact.tag, fields.type, fields)}`
+    };
+  }
+});

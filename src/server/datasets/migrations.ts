@@ -23,6 +23,7 @@ import { CITATIONS_SUPPORT_FACTS } from './migration-5';
 import { ENTRIES_HOLD_THE_BOX } from './migration-6';
 import { ENTRIES_OF_ONE_ENTRY_MERGE } from './migration-7';
 import { BAPTISM_ROLES_FROM_THE_TREE } from './migration-8';
+import { CHANGES_SAY_VIA_THE_ASSISTANT } from './migration-9';
 
 export interface Migration {
   to: number;
@@ -39,7 +40,8 @@ export const MIGRATIONS: Migration[] = [
   CITATIONS_SUPPORT_FACTS,
   ENTRIES_HOLD_THE_BOX,
   ENTRIES_OF_ONE_ENTRY_MERGE,
-  BAPTISM_ROLES_FROM_THE_TREE
+  BAPTISM_ROLES_FROM_THE_TREE,
+  CHANGES_SAY_VIA_THE_ASSISTANT
 ];
 
 // The version the steps take a database to.

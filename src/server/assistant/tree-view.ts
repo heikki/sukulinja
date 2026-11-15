@@ -55,13 +55,29 @@ export function openTreeView(
     };
   }
 
+  // Why a change on the person can't be proposed: they aren't in the
+  // tree, or they're left out, whom the assistant doesn't write about
+  // either; null when it can.
+  function unwritable(id: number) {
+    if (!persons.has(id)) return 'No such person.';
+    return hidden(id) ? `This is ${LEFT_OUT}.` : null;
+  }
+
+  // The person's name, for the person using the app.
+  function nameOfId(id: number) {
+    const p = persons.get(id);
+    return p === undefined ? `person ${id}` : nameOf(p);
+  }
+
   return {
     services,
     onScreen,
     persons,
     families,
     hidden,
-    ref
+    ref,
+    unwritable,
+    nameOf: nameOfId
   };
 }
 

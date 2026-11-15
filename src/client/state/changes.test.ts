@@ -10,7 +10,8 @@ const UNDONE: Change = {
   at: '2026-11-09T10:00:00.000Z',
   what: { kind: 'undo-import' },
   on: null,
-  who: null
+  who: null,
+  via: null
 };
 
 test('asks for the Changes anew each time they are shown', async () => {

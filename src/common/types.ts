@@ -584,14 +584,20 @@ export type ChangeOn =
 
 // Something done in the app that changed the dataset, when (ISO 8601).
 // `on` is null when it was on nothing, or what it was on is gone; `who`
-// names the person it was on as they were named then.
+// names the person it was on as they were named then; `via` says it was
+// made through the assistant, null by hand.
 export interface Change {
   id: number;
   at: string;
   what: ChangeWhat;
   on: ChangeOn | null;
   who: string | null;
+  via: ChangeVia | null;
 }
+
+// How a Change was made other than by hand: through the assistant, by a
+// Proposal applied.
+export type ChangeVia = 'assistant';
 
 // A change to a Reminder: its text, or whether it's done.
 export interface ReminderChange {
@@ -626,8 +632,26 @@ export type AssistantEvent =
   | { type: 'conversation'; id: string }
   | { type: 'text'; text: string }
   | { type: 'reading'; label: string }
+  | { type: 'proposed'; item: ProposalItem }
+  | { type: 'withdrawn'; id: number }
   | { type: 'done'; spend: Spend; ended: AssistantTurnEnd }
   | { type: 'error'; message: string };
+
+// One change the assistant proposes, for the person to tick and apply:
+// what it would do, in words, and why. Its id is its place in the
+// conversation's Proposal, from 1.
+export interface ProposalItem {
+  id: number;
+  label: string;
+  reason: string;
+}
+
+// What applying the ticked items did: each one done, or refused with why;
+// and the copy of the dataset taken first, for a large Proposal.
+export interface Applied {
+  outcomes: Array<{ id: number; refused: string | null }>;
+  backup: string | null;
+}
 
 // A question to the assistant: in the conversation by id, or a new one
 // for null; with the person on screen, or null.

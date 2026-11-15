@@ -1,7 +1,7 @@
 // One turn of a conversation with the assistant: the question goes to
-// Claude with the read operations as tools; each tool Claude calls runs
-// against the dataset, and its answer goes back, until Claude answers.
-// It only reads: nothing here changes the dataset.
+// Claude with the operations as tools; each read Claude calls runs against
+// the dataset, and its answer goes back, until Claude answers. A write only
+// adds to the conversation's Proposal: nothing here changes the dataset.
 
 import type Anthropic from '@anthropic-ai/sdk';
 
@@ -12,28 +12,37 @@ import type { Model } from './model';
 import {
   operationNamed,
   READ_OPERATIONS,
-  toolsOf
+  toolsOf,
+  WITHDRAW,
+  WRITE_OPERATIONS,
+  writeNamed
 } from './operations/catalogue';
+import type { AnyWriteOperation } from './operations/operation';
+import type { Proposal } from './proposal';
 import type { TreeView } from './tree-view';
 
 // How many requests one turn may make.
 const MAX_STEPS = 25;
 
-const TOOLS = toolsOf(READ_OPERATIONS);
+const TOOLS = toolsOf(READ_OPERATIONS, WRITE_OPERATIONS);
 
 export const SYSTEM = `You are the assistant in Sukulinja, a genealogy app for a Finnish family tree. Its user researches the family from Finnish church books (rippikirjat, kastekirjat), mostly of the 1700s and 1800s.
 
 You read the tree through your tools and answer from what they give. Say so when the tree doesn't tell, rather than guess, and tell what you found apart from what you conclude: a place name or a house number may have meant something else in another era, and that is a research question, not a fact.
 
-You can't change the tree yet. When the answer would be a change, say what you would change and why, and that it's for the user to make in the app.
+You don't change the tree yourself. When the user asks for a change, or the answer is one, propose it with the write tools: each adds an item to the Proposal, which the user reads, ticks and applies in the app, and only then is it written, by the app's own rules. Propose only what the user asked for or agreed to, one item for each change, with the reason the tree or its sources give. Say briefly what you proposed; the user sees the items themselves. When the user wants an item changed or dropped, take it back and propose it again as they want it. A change the tools can't make is one the app can't make yet: say so.
+
+Tidy the tree, not its sources: never propose rewriting what a source says. A conclusion only research can settle (that two houses were one, that two people are the same) is a Reminder for the user, not an edit.
 
 People who may be living are left out of what the tools give, unless they're the person on screen; don't try to work around it.
 
 Answer in the language the user writes in, briefly, naming people with their years. Write plain text: the app shows no Markdown.`;
 
-// The question as Claude gets it: what's on screen first, then the words.
+// The question as Claude gets it: what's on screen first, what became of
+// the Proposal since, then the words.
 function question(
   view: TreeView,
+  proposal: Proposal,
   text: string
 ): Anthropic.Beta.BetaMessageParam {
   const id = view.onScreen.personId;
@@ -41,45 +50,82 @@ function question(
     id === null
       ? 'On screen: no one selected.'
       : `On screen: ${JSON.stringify(view.ref(id))}`;
+  const news = proposal.news();
   return {
     role: 'user',
     content: [
       { type: 'text', text: onScreen },
+      ...(news === null ? [] : [{ type: 'text' as const, text: news }]),
       { type: 'text', text }
     ]
   };
 }
 
+function result(
+  call: Anthropic.Beta.BetaToolUseBlock,
+  content: string,
+  isError = false
+): Anthropic.Beta.BetaToolResultBlockParam {
+  return {
+    type: 'tool_result',
+    tool_use_id: call.id,
+    content,
+    ...(isError ? { is_error: true } : {})
+  };
+}
+
+// A write: its item added to the Proposal and told, or why it can't be.
+function propose(
+  { view, proposal }: { view: TreeView; proposal: Proposal },
+  op: AnyWriteOperation,
+  call: Anthropic.Beta.BetaToolUseBlock,
+  tell: (event: AssistantEvent) => void
+) {
+  const { reason, ...input } = call.input as { reason: string };
+  const asked = op.asks(view, input as never);
+  const added = 'rejected' in asked ? asked : proposal.propose(asked, reason);
+  if ('rejected' in added) return result(call, added.rejected, true);
+  tell({ type: 'proposed', item: added });
+  return result(call, `Proposed as item #${added.id}.`);
+}
+
+// Taking an item back, told.
+function withdraw(
+  proposal: Proposal,
+  call: Anthropic.Beta.BetaToolUseBlock,
+  tell: (event: AssistantEvent) => void
+) {
+  const { item } = call.input as { item: number };
+  if (!proposal.withdraw(item)) {
+    return result(call, `No item #${item} waiting in the Proposal.`, true);
+  }
+  tell({ type: 'withdrawn', id: item });
+  return result(call, `Item #${item} taken back.`);
+}
+
 async function answerTool(
   view: TreeView,
+  proposal: Proposal,
   call: Anthropic.Beta.BetaToolUseBlock,
   tell: (event: AssistantEvent) => void
 ): Promise<Anthropic.Beta.BetaToolResultBlockParam> {
+  if (call.name === WITHDRAW) return withdraw(proposal, call, tell);
+  const write = writeNamed(call.name);
   const op = operationNamed(call.name);
-  if (op === null) {
-    return {
-      type: 'tool_result',
-      tool_use_id: call.id,
-      content: `No tool named ${call.name}.`,
-      is_error: true
-    };
-  }
-  const input = call.input as never;
-  tell({ type: 'reading', label: op.label(input) });
   try {
-    const answer = await op.run(view, input);
-    return {
-      type: 'tool_result',
-      tool_use_id: call.id,
-      content: JSON.stringify(answer)
-    };
+    if (write !== null) {
+      return propose({ view, proposal }, write, call, tell);
+    }
+    if (op === null) return result(call, `No tool named ${call.name}.`, true);
+    const input = call.input as never;
+    tell({ type: 'reading', label: op.label(input) });
+    return result(call, JSON.stringify(await op.run(view, input)));
   } catch (e) {
-    return {
-      type: 'tool_result',
-      tool_use_id: call.id,
-      content: e instanceof Error ? e.message : 'The tool failed.',
-      is_error: true
-    };
+    return result(
+      call,
+      e instanceof Error ? e.message : 'The tool failed.',
+      true
+    );
   }
 }
 
@@ -108,14 +154,16 @@ export async function runTurn(options: {
   model: Model;
   view: TreeView;
   messages: Anthropic.Beta.BetaMessageParam[];
+  // What the conversation has proposed, which its writes add to.
+  proposal: Proposal;
   text: string;
   spend: Spend;
   signal: AbortSignal;
   tell: (event: AssistantEvent) => void;
 }): Promise<Spend> {
-  const { model, view, messages, tell, signal } = options;
+  const { model, view, messages, proposal, tell, signal } = options;
   let spend = options.spend;
-  messages.push(question(view, options.text));
+  messages.push(question(view, proposal, options.text));
   for (let step = 0; step < MAX_STEPS; step++) {
     // eslint-disable-next-line no-await-in-loop -- each request needs the one before it answered
     const answer = await model(
@@ -146,7 +194,7 @@ export async function runTurn(options: {
     }
     // eslint-disable-next-line no-await-in-loop -- the tools' answers go back with the next request
     const results = await Promise.all(
-      calls.map(async (c) => await answerTool(view, c, tell))
+      calls.map(async (c) => await answerTool(view, proposal, c, tell))
     );
     messages.push({ role: 'user', content: results });
   }

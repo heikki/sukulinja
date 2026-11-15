@@ -8,6 +8,7 @@ import type { CitationRow } from '@/common/types';
 
 import { openDb } from '../datasets/db';
 import { openChanges } from './changes';
+import { madeVia } from './via';
 
 const CITATION: CitationRow = {
   id: 11,
@@ -165,4 +166,19 @@ test('stays apart from one of another kind, on something else, or with one betwe
   changes.add({ on: { citationId: 11 }, what: DISCARD });
 
   expect(await changes.list()).toHaveLength(6);
+});
+
+test('one made via the assistant says so; one made by hand at the same time does not', async () => {
+  const db = await dataset();
+  const changes = changesOf(db);
+  const held = Promise.withResolvers<undefined>();
+  const applying = madeVia('assistant', async () => {
+    await held.promise;
+    changes.add({ on: { personId: 1 }, what: DISCARD });
+  });
+  changes.add({ on: null, what: { kind: 'undo-import' } });
+  held.resolve(undefined);
+  await applying;
+
+  expect((await changes.list()).map((c) => c.via)).toEqual(['assistant', null]);
 });

@@ -1,3 +1,4 @@
+import type { ProposedItem } from '@/client/state';
 import type { AssistantTurnEnd, Spend } from '@/common/types';
 
 // What's said under an answer that didn't end as answered.
@@ -24,4 +25,20 @@ export function spendWords(spend: Spend | null) {
     : dollars < 1
       ? `${Math.round(dollars * 100)} ¢ so far`
       : `$${dollars.toFixed(2)} so far`;
+}
+
+// What became of an item of the Proposal, said under it; null while it
+// waits.
+export function stateWords(state: ProposedItem['state']) {
+  if (state === 'open') return null;
+  if (state === 'applied') return 'Applied';
+  if (state === 'withdrawn') return 'Taken back';
+  return `Not applied: ${state.refused}`;
+}
+
+// The Apply button's words, for how many items are ticked.
+export function applyWords(ticked: number, applying: boolean) {
+  if (applying) return 'Applying…';
+  if (ticked === 0) return 'Apply';
+  return ticked === 1 ? 'Apply 1 change' : `Apply ${ticked} changes`;
 }

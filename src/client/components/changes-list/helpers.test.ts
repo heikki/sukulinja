@@ -44,6 +44,7 @@ function change(what: ChangeWhat, extra: Partial<Change> = {}): Change {
     what,
     on: null,
     who: null,
+    via: null,
     ...extra
   };
 }

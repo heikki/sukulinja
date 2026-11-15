@@ -262,7 +262,8 @@ const SCHEMA_SQL = `
     volume TEXT,
     image INTEGER,
     file_id TEXT,
-    media_id INTEGER REFERENCES media(id) ON DELETE SET NULL
+    media_id INTEGER REFERENCES media(id) ON DELETE SET NULL,
+    via TEXT CHECK (via IN ('assistant'))
   );
 
   CREATE TABLE IF NOT EXISTS shared_notes (

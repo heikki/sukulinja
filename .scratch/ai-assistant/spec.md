@@ -1,6 +1,6 @@
 Status: ready-for-agent
 
-On master behind a switch (Settings → Assistant, off by default) since 2026-11-13; the read-only version (tickets 01–05, 07) is done, Proposals (06) wait.
+On master behind a switch (Settings → Assistant, off by default) since 2026-11-13; the read-only version (tickets 01–05, 07) is done, and Proposals (06) since 2026-11-15 (ADR-0028).
 
 # An assistant in the app
 
@@ -77,4 +77,4 @@ All as recommended:
 2. **Read-only first** (tickets 01–05); Proposals (06) after he has used it for a while.
 3. **A conversation is forgotten**: it's kept in the app's memory only, until _New conversation_ or the app closes, and never written to disk.
 4. **A Change made through the assistant says so** ("via assistant"). For ticket 06.
-5. **Applying a large Proposal takes a GEDZIP backup first.** For ticket 06.
+5. **Applying a large Proposal takes a backup first.** For ticket 06. Heikki, 2026-11-15: a copy of the database, not a GEDZIP (ADR-0028).

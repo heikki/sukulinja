@@ -4,6 +4,7 @@
 
 import type {
   AddedPhoto,
+  Applied,
   AssistantEvent,
   Change,
   ChurchBookArchive,
@@ -63,6 +64,9 @@ export interface MemoryDataset {
   photos?: Record<number, PhotoRow>;
   // What the assistant tells of each turn asked, in turn.
   assistant?: AssistantEvent[][];
+  // What each Proposal applied did, in turn: the server's rules decide,
+  // so a test says.
+  applied?: Applied[];
 }
 
 export interface MemoryOptions {
@@ -114,6 +118,7 @@ export function memoryDatasetApi(
   let reminders = [...(data.reminders ?? [])];
   let changes = [...(data.changes ?? [])];
   const turns = [...(data.assistant ?? [])];
+  const applies = [...(data.applied ?? [])];
   const photos = new Map(
     Object.entries(data.photos ?? {}).map(([id, p]) => [Number(id), p])
   );
@@ -493,6 +498,17 @@ export function memoryDatasetApi(
         yield await Promise.resolve(event);
       }
     },
+
+    applyProposal: async (conversation, items) =>
+      await answer(
+        `apply ${items.join(' ')} in ${conversation}`,
+        undefined,
+        () => {
+          const applied = applies.shift();
+          if (applied === undefined) throw new ApiError('Nothing to apply.');
+          return applied;
+        }
+      ),
 
     async forgetConversation(id) {
       await answer(`forget ${id}`, undefined, () => undefined);

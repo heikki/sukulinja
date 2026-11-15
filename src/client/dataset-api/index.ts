@@ -14,6 +14,7 @@ import type {
 import type { MoveTarget } from '@/common/tree-cut';
 import type {
   AddedPhoto,
+  Applied,
   AssistantEvent,
   AssistantQuestion,
   Box,
@@ -182,6 +183,9 @@ export interface DatasetApi {
     question: AssistantQuestion,
     signal?: AbortSignal
   ) => AsyncGenerator<AssistantEvent, void, undefined>;
+  // Applies the ticked items of the conversation's Proposal, by id, through
+  // the app's own operations: what each did.
+  applyProposal: (conversation: string, items: number[]) => Promise<Applied>;
   // Forgets a conversation with the assistant.
   forgetConversation: (id: string) => Promise<void>;
 }
@@ -332,6 +336,12 @@ export function openDatasetApi(
     },
     ask: (question, signal) =>
       lines('ask', question, 'Asking the assistant', signal),
+    applyProposal: async (conversation, items) =>
+      await call(
+        'applyProposal',
+        { conversation, items },
+        'Applying the Proposal'
+      ),
     async forgetConversation(id) {
       await call('forgetConversation', { id }, 'Starting a new conversation');
     }

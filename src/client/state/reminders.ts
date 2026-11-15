@@ -33,6 +33,9 @@ export interface Reminders {
   all: Readable<Reminder[] | null | 'failed'>;
   // Asks for them, unless they've come or are coming.
   load: () => void;
+  // Asks for them anew once they've been asked for: written elsewhere, by
+  // a Proposal applied.
+  reload: () => void;
   remind: (text: string, on: ReminderTarget) => Promise<Reminder>;
   change: (id: number, change: ReminderChange) => Promise<void>;
   remove: (id: number) => Promise<void>;
@@ -69,6 +72,9 @@ export function openReminders(api: DatasetApi): Reminders {
     all,
     load() {
       if (!asked) void load();
+    },
+    reload() {
+      if (asked) void load();
     },
     async remind(text, on) {
       const made = await api.remind(text, on);

@@ -1,10 +1,15 @@
 // The operations of the assistant: a question asked in a conversation,
-// told as it's answered, and a conversation forgotten.
+// told as it's answered, its Proposal's ticked items applied, and a
+// conversation forgotten.
 
-import type { AssistantEvent, AssistantQuestion } from '@/common/types';
+import type {
+  Applied,
+  AssistantEvent,
+  AssistantQuestion
+} from '@/common/types';
 
 import { answers, streams } from './operation';
-import { isIdOrNull, isName } from './read';
+import { isId, isIdOrNull, isName } from './read';
 
 export const ASSISTANT_OPERATIONS = {
   // Asks `{ conversation, text, personId }`: the conversation's id, or
@@ -23,6 +28,19 @@ export const ASSISTANT_OPERATIONS = {
       if (!isIdOrNull(personId)) return null;
       return { conversation, text: text.trim(), personId };
     }
+  ),
+
+  // Applies the items of the conversation's Proposal by id, in the
+  // Proposal's order, through the app's own operations: what each did.
+  applyProposal: answers<{ conversation: string; items: number[] }, Applied>(
+    '{ conversation, items: [id] }',
+    ({ conversation, items }) =>
+      isName(conversation) &&
+      Array.isArray(items) &&
+      items.length > 0 &&
+      items.every(isId)
+        ? { conversation, items }
+        : null
   ),
 
   // Forgets a conversation.

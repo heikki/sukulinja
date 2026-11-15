@@ -1,9 +1,10 @@
-// What's been noted and done in the app: the Reminders and the Changes.
+// What's been noted and done in the app: the Reminders and the Changes;
+// proposing a Reminder.
 
 import type { ChangeOn } from '@/common/types';
 
 import type { TreeView } from '../tree-view';
-import { readOperation } from './operation';
+import { readOperation, writeOperation } from './operation';
 
 // Whom something is on, unless they're left out.
 function about(view: TreeView, on: ChangeOn | null) {
@@ -65,5 +66,29 @@ export const changes = readOperation<{ limit: number }>({
         who: leftOut ? null : c.who
       };
     });
+  }
+});
+
+export const remind = writeOperation<{ personId: number; text: string }>({
+  name: 'remind',
+  description:
+    'Proposes a Reminder on a person: something for the user to look into, such as a conclusion only research can settle, written in the language the user writes in.',
+  input: {
+    type: 'object',
+    properties: {
+      personId: { type: 'integer' },
+      text: { type: 'string' }
+    },
+    required: ['personId', 'text'],
+    additionalProperties: false
+  },
+  asks(view, { personId, text }) {
+    const why = view.unwritable(personId);
+    if (why !== null) return { rejected: why };
+    return {
+      operation: 'remind',
+      body: { text, on: { personId } },
+      label: `Remind on ${view.nameOf(personId)}: ${text}`
+    };
   }
 });
