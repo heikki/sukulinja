@@ -27,7 +27,7 @@ From the Genealogical Proof Standard and citation practice (`.scratch/citation-p
 
 ### Dates and people
 
-5. **Dates are possible.** Death before birth; a child born before a parent was 15 or after a mother was 50, or after a father's death plus nine months; a marriage before 15; a life over 105 years.
+5. **Dates are possible.** Death before birth; a child born when the mother was under 14 or over 50, or the father under 15 or over 75, or after the father's death plus nine months; a marriage before 15; a life over 100 years. These are warnings, kept strict on purpose: an exception is dismissed once and stays dismissed.
 6. **A person has a birth or baptism.** Someone with neither, so their place in time rests on others' Facts.
 7. **No one is in the tree twice.** Two people with the same name, close birth years and the same parents or spouse: a possible duplicate. The fix (merging people) is a feature still to come; until then, a Reminder.
 8. **Everyone is connected.** Someone in no family, as a child or a spouse.
@@ -42,6 +42,10 @@ From the Genealogical Proof Standard and citation practice (`.scratch/citation-p
 - **A reasonably exhaustive search** (GPS 1) and **a written conclusion** (GPS 5) are the researcher's, not the data's. Searches done and found nothing would be a feature of their own (`idea.md` #5).
 - **Living people** are left out of checks the assistant reads, as of everything else (ADR-0025), unless the Living people setting is on.
 
+## Fixes belong here, not in the import
+
+The MyHeritage import (`import/myheritage.ts`) converts the export's format: photos, private tags, face rectangles. A fix to what the tree _says_ (a place spelled one way, a Fact's source, a residence's place) doesn't belong there or in a one-off script (`scripts/tidy-places`), but here: a check finds it, and the fix is proposed and applied like any other, with its Changes. So it works on any tree, however it came in, and the person sees each fix before it's made. A content fix later wanted at import time is a check here instead.
+
 ## Where the tree came from
 
 The assistant is told where the dataset came from, with each question, and per row in what its tools read:
@@ -51,17 +55,19 @@ The assistant is told where the dataset came from, with each question, and per r
 
 E.g. "Imported from esimerkki.ged (MyHeritage, GEDCOM 5.5.1) on 3.11.2026; 412 Changes in the app since."
 
+## Decided
+
+Heikki, 2026-11-15:
+
+- The limits in check 5 as above.
+- The assistant may propose dismissing gaps, as a Proposal item with its reason (a batch for many); only applying it dismisses them.
+- Fixes to the tree's content belong here, not in the import (above).
+
 ## Order
 
 1. Where the tree came from (small, and every check reads better with it).
 2. Checks 1 and 2, and the assistant's read tools for checks.
-3. Checks 5, 6, 9, 10.
-4. Dismissed gaps.
+3. Checks 10 and 9: both come from the MyHeritage legacy and suit batches.
+4. Checks 5 and 6, with dismissed gaps.
 5. The list in the app.
-6. Checks 3, 4, 7, 8.
-
-## Open questions
-
-- Are the limits in check 5 right (15, 50, 105)?
-- Should dismissing a gap be the person's only, or may the assistant propose it?
-- Which checks matter most after 1 and 2?
+6. Checks 3, 4 and 8; then 7, once people can be merged.
