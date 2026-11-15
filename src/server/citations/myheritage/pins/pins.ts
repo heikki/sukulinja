@@ -13,8 +13,7 @@
 //
 // A Mark always wins: a Match never replaces one (the base counts
 // as by hand), and a Mark replaces a Match. A Discard takes a Box
-// back; a Match taken back is kept as a Rejection, so the model's
-// match there isn't saved again.
+// back; a Match taken back is only undone, and nothing of it is kept.
 //
 // A pin on an Image keeps the Image's Astia file id, from the Volume's
 // list when saved. One made on another filming of the Volume
@@ -60,7 +59,7 @@ import type {
   ReferencePin,
   VolumePins
 } from './locate';
-import type { Marks, Rejection } from './marks';
+import type { Marks } from './marks';
 import shipped from './pins.json';
 
 const SHIPPED: Pins['volumes'] = shipped.volumes;
@@ -419,24 +418,6 @@ function boxThere(
   return { box: link.box };
 }
 
-// Whether a Match at `at` was taken back there by hand, on `filming`, the
-// filming of its Volume now.
-function isRejected(
-  marks: Marks,
-  ref: ChurchBookRef,
-  filming: Filming,
-  at: BoxAt
-) {
-  return marks
-    .rejectionsOf(ref.url)
-    .some(
-      (r: Rejection) =>
-        r.volumeId === at.volumeId &&
-        r.image === at.image &&
-        !leavesOut(filming, r)
-    );
-}
-
 // A dataset's pins: the data folder's facts about Volumes, and the
 // dataset's Marks.
 export function openPins(facts: VolumeFacts, marks: Marks) {
@@ -453,7 +434,8 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
     },
 
     // The dataset's Marks as the pins they are kept as: Record pins,
-    // Reference pins for references with no Record number, and Rejections.
+    // Reference pins for references with no Record number. Rejections are
+    // no longer kept (ADR-0029).
     marked(): LocalPins {
       const linked = marks.linked();
       const volumes: Pins['volumes'] = {};
@@ -469,7 +451,7 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
           .filter((m) => m.recordId === null)
           .map((m) => [m.url, referencePinOf(m.link)])
       );
-      return { volumes, references, rejected: marks.rejections() };
+      return { volumes, references, rejected: {} };
     },
 
     // A Mark: the reference's record is on the Image, or in the Volume when
@@ -542,15 +524,13 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
       };
     },
 
-    // A match the vision model confirmed, unless it was taken back there by
-    // hand; whether it was saved. A Mark is never replaced. The cited page
+    // A match the vision model confirmed. A Mark is never replaced. The cited page
     // becomes a Page pin only where the model read it on that very Image.
     async recordMatch(ref: ChurchBookRef, match: PixelMatch) {
       const key = markKey(ref);
       const { volumeId, volume, image, box } = match;
       const filming = await facts.filmingOf(volumeId);
-      const saved = marks.change(() => {
-        if (isRejected(marks, ref, filming, match)) return false;
+      marks.change(() => {
         const known = marks.linkOf(key);
         const weighed = known !== null && !leavesOut(filming, known);
         if (!(weighed && isHand(known))) {
@@ -563,9 +543,8 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
             by: 'vision'
           });
         }
-        return true;
       });
-      if (saved && ref.recordId !== null && ref.page !== null) {
+      if (ref.recordId !== null && ref.page !== null) {
         if (match.onCitedPage) {
           await facts.savePagePin(filming, ref, {
             volume,
@@ -574,41 +553,31 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
           });
         }
       }
-      return saved;
     },
 
     // Takes back the Box the reference's Link shows at `at`, a Mark's or a
     // Match's. Page pins and Record ranges stay, as facts about the
-    // Volume. A Match taken back becomes a Rejection. What it did, or null
+    // Volume. A Match taken back is only undone. What it did, or null
     // when there was no Box there to take back.
     async recordDiscard(
       ref: ChurchBookRef,
       at: BoxAt
     ): Promise<DiscardDone | null> {
       const key = markKey(ref);
-      const filming = await facts.filmingOf(at.volumeId);
-      return marks.change(() => {
-        const link = marks.linkOf(key);
-        if (
-          link?.volumeId !== at.volumeId ||
-          link.image !== at.image ||
-          link.box === undefined
-        ) {
-          return null;
-        }
-        marks.write(key, null);
-        const rejection = !isHand(link);
-        if (rejection && !isRejected(marks, ref, filming, at)) {
-          marks.reject(ref.url, { ...at, ...fileOf(filming, at.image) });
-        }
-        return { volume: link.volume, rejection };
-      });
-    },
-
-    // Whether a Match at `at` was taken back by hand.
-    async rejects(ref: ChurchBookRef, at: BoxAt) {
-      const filming = await facts.filmingOf(at.volumeId);
-      return isRejected(marks, ref, filming, at);
+      return await Promise.resolve(
+        marks.change(() => {
+          const link = marks.linkOf(key);
+          if (
+            link?.volumeId !== at.volumeId ||
+            link.image !== at.image ||
+            link.box === undefined
+          ) {
+            return null;
+          }
+          marks.write(key, null);
+          return { volume: link.volume, match: !isHand(link) };
+        })
+      );
     }
   };
 }

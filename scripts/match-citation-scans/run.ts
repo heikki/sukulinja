@@ -182,23 +182,15 @@ async function settle(
 ): Promise<Done> {
   const key = `${kindOf(ref)} ${match.confirmed ? 'confirmed' : match.reason}`;
   if (match.confirmed) {
-    const done = await scans.saveMatch(ref, match, {
+    const refused = await scans.saveMatch(ref, match, {
       dryRun: options.dryRun === true
     });
-    if ('rejected' in done) {
-      return {
-        key: `${kindOf(ref)} refused: ${done.rejected}`,
-        tried: true,
-        saved: false,
-        entry: await reviewEntry(astia, ref, 'refused', match)
-      };
-    }
-    if (done.saved) return { key, tried: true, saved: true, entry: null };
+    if (refused === null) return { key, tried: true, saved: true, entry: null };
     return {
-      key: `${kindOf(ref)} rejected`,
+      key: `${kindOf(ref)} refused: ${refused.rejected}`,
       tried: true,
       saved: false,
-      entry: await reviewEntry(astia, ref, 'rejected', match)
+      entry: await reviewEntry(astia, ref, 'refused', match)
     };
   }
   const entry = NOT_REVIEWED.has(match.reason)

@@ -9,7 +9,7 @@ import { join } from 'node:path';
 
 import type { Pins } from './pins/locate';
 import { openMarks } from './pins/marks';
-import type { BoxAt, MarkTarget } from './pins/pins';
+import type { MarkTarget } from './pins/pins';
 import { markKey } from './record';
 import {
   BASE,
@@ -51,10 +51,6 @@ function at(volumeId: string, image: number): MarkTarget {
   return { volumeId, image };
 }
 
-function spot(volumeId: string, image: number): BoxAt {
-  return { volumeId, image };
-}
-
 async function writePins(pins: Partial<Pins>) {
   await Bun.write(join(dir, 'pins.local.json'), JSON.stringify(pins));
 }
@@ -66,7 +62,7 @@ test('a Match is saved in pixels of its Image', async () => {
   const read = { left: 0.1234, top: 0.4, width: 0.5, height: 0.0501 };
   expect(
     await scans.saveMatch(ref(150), { ...match('a', 11), box: read })
-  ).toEqual({ saved: true });
+  ).toBeNull();
   expect((await scans.snapshot()).volumes.a!.records).toEqual([
     {
       record: 150,
@@ -100,7 +96,7 @@ test("a Match's Box is cut at its Image's edges, and refused off it", async () =
   const past = { left: 0.9, top: 0.4, width: 0.5, height: 1.2 };
   expect(
     await scans.saveMatch(ref(150), { ...match('a', 11), box: past })
-  ).toEqual({ saved: true });
+  ).toBeNull();
   // Rounded within the Image's edges, a Box past them is cut short.
   expect((await scans.snapshot()).volumes.a!.records![0]!.box).toEqual({
     left: 900,
@@ -120,7 +116,7 @@ test('a dry run checks a Match and saves nothing', async () => {
   const scans = open();
   expect(
     await scans.saveMatch(ref(150), match('a', 11), { dryRun: true })
-  ).toEqual({ saved: true });
+  ).toBeNull();
   expect(
     await scans.saveMatch(ref(150), match('a', 51), { dryRun: true })
   ).toEqual({ rejected: 'The volume has images 1–50.' });
@@ -275,27 +271,5 @@ test('a hand pin made on another filming never keeps a Match out', async () => {
       fileId: 'a-f13'
     },
     { image: 20, pages: [40], by: 'hand', fileId: 'a-f20' }
-  ]);
-});
-
-test('a Rejection holds on the filming it was made on', async () => {
-  const scans = open();
-  await scans.saveMatch(ref(150), match('a', 12));
-  expect(await scans.discardRef(ref(150), spot('a', 12))).toMatchObject({
-    done: { rejection: true }
-  });
-  expect(await scans.isRejected(ref(150), spot('a', 12))).toBe(true);
-  expect(openMarks(cited).rejections()[ref(150).url]).toEqual([
-    { volumeId: 'a', image: 12, fileId: 'a-f12' }
-  ]);
-  // Switched to Astia's new filming.
-  parish.rescan('a', 50);
-  await parish.refreshImages('a');
-  expect(await scans.isRejected(ref(150), spot('a', 12))).toBe(false);
-  expect(await scans.saveMatch(ref(150), match('a', 12))).toEqual({
-    saved: true
-  });
-  expect((await scans.snapshot()).volumes.a!.records).toEqual([
-    { record: 150, image: 12, by: 'vision', box: BOX, fileId: 'a-2-f12' }
   ]);
 });

@@ -287,13 +287,13 @@ function openScans({
     },
 
     // Saves a Match the vision model confirmed, its Box in fractions of the
-    // Image, where a Mark could be saved. Not saved where it was taken back
-    // by hand. A dry run checks it and saves nothing.
+    // Image, where a Mark could be saved: null, or why it can't be. A dry
+    // run checks it and saves nothing.
     async saveMatch(
       ref: ChurchBookRef,
       match: Match,
       { dryRun = false } = {}
-    ): Promise<{ saved: boolean } | { rejected: string }> {
+    ): Promise<{ rejected: string } | null> {
       const { volumeId, image } = match;
       const size = await sizeOf({ volumeId, image });
       if (size === null) {
@@ -306,20 +306,16 @@ function openScans({
         async () => await Promise.resolve(size)
       );
       if ('rejected' in checked) return checked;
-      if (dryRun) return { saved: !(await pins.rejects(ref, match)) };
-      const saved = await pins.recordMatch(ref, {
+      if (dryRun) return null;
+      await pins.recordMatch(ref, {
         volumeId,
         volume: checked.volume,
         image,
         onCitedPage: match.onCitedPage,
         box
       });
-      return { saved };
+      return null;
     },
-
-    // Whether a Match at `at` was taken back by hand.
-    isRejected: async (ref: ChurchBookRef, at: BoxAt) =>
-      await pins.rejects(ref, at),
 
     // Takes back the reference's Box at `at`, and gives its links as they
     // now resolve, its estimate or a pin left without a Box, with what it

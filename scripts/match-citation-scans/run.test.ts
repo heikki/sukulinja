@@ -251,7 +251,7 @@ test('a re-run skips what was saved and asks the Reader nothing new', async () =
   ]);
 });
 
-test('a match taken back by hand there goes to the review list, not the pins', async () => {
+test('a match taken back by hand is only undone: a run saves it again', async () => {
   await passEvaluation();
   await run();
   const at = { volumeId: 'juva-1', image: 12 };
@@ -260,14 +260,10 @@ test('a match taken back by hand there goes to the review list, not the pins', a
   );
   const { result } = await run();
   if (!('outcomes' in result)) throw new Error(result.refused);
-  expect(result.outcomes).toContain('rippi rejected');
+  expect(result.outcomes).toContain('rippi confirmed');
   expect(
-    result.review.filter((r) => r.reason === 'rejected').map((r) => r.image)
-  ).toEqual([12]);
-  expect(await datasetScans().isRejected(REFS[0]!, at)).toBe(true);
-  expect(
-    (await datasetScans().snapshot()).volumes['juva-1']?.records ?? []
-  ).toEqual([]);
+    (await datasetScans().snapshot()).volumes['juva-1']?.records
+  ).toMatchObject([{ record: 5000, image: 12, by: 'vision' }]);
 });
 
 test('a Match Scans refuses is tallied and listed for review, not saved', async () => {

@@ -43,10 +43,10 @@ export interface MarkDone {
 }
 
 // What a Discard did: in which Volume, and whether it took back a Match,
-// and so made a Rejection.
+// which only undoes the Vision Match that saved it.
 export interface DiscardDone {
   volume: string;
-  rejection: boolean;
+  match: boolean;
 }
 
 // A citation row as a port reads it: the page its reference is read from

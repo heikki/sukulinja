@@ -17,12 +17,19 @@ import type {
   ReferencePin,
   VolumePins
 } from './locate';
-import type { Rejection } from './marks';
 
 const LOCK_RETRY_MS = 50;
 const LOCK_WAIT_MS = 5000;
 // Older than any save takes: its process died holding it.
 const LOCK_STALE_MS = 30_000;
+
+// A Match taken back by hand, as an older local file kept it: the
+// reference isn't on that Image, of the filming its file id is of.
+export interface Rejection {
+  volumeId: string;
+  image: number;
+  fileId?: string;
+}
 
 // The local file: the pins, and the Rejections by the reference's URL.
 // Record pins, Reference pins and Rejections are now kept in the datasets

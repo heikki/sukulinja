@@ -484,17 +484,21 @@ export function createCitations<R extends BookRef>(
       return result;
     },
 
-    // Takes back the reference's Box; null as for `mark`.
+    // Takes back the reference's Box; null as for `mark`. A Match taken
+    // back only undoes the Vision Match that saved it, which wrote no
+    // Change, so it writes none either (ADR-0029).
     async discard(citationId: number, at: BoxAt) {
       const book = churchBookOf(citationId);
       if (book === null) return null;
       const result = await references.discard(book, at);
       if ('rejected' in result) return result;
-      const { volume, rejection } = result.done;
-      changed({
-        on: { citationId },
-        what: { kind: 'discard', volume, image: at.image, rejection }
-      });
+      const { volume, match } = result.done;
+      if (!match) {
+        changed({
+          on: { citationId },
+          what: { kind: 'discard', volume, image: at.image, rejection: false }
+        });
+      }
       return result;
     },
 

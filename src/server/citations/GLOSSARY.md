@@ -31,7 +31,7 @@ Something to come back to, on a person, or on an **Image**, maybe about a person
 _Avoid_: note (a GEDCOM NOTE), annotation (a Citation's app-made additions), to-do.
 
 **Change**:
-One thing done in the app that changed the dataset: a **Mark** (or a **Match** confirmed), a **Discard**, a Citation made in the Scan viewer, or any Citation deleted, an **Entry**'s Box moved or Transcription retyped (one on each of its Citations), a Role changed, a Tag made, moved or taken back, a **Fact** added, changed or deleted, a Citation's **Support** of a Fact added or taken back, a person added, linked, unlinked, moved, renamed or deleted (Tree), a dataset started with its first person, an import (or, from before ADR-0021, an import undone), or a Volume switched to a **Re-scan**'s new filming. Each says what it did and what it was on (a person, a Citation, an Image, a Tag's Photo with its person, or nothing; a person deleted leaves theirs on nothing, naming them), says _via assistant_ when an assistant's **Proposal** applied it (ADR-0028), and is listed under _Changes_, newest first, where picking one goes back there. Only the app keeps them. _Clear…_ forgets them all.
+One thing done in the app that changed the dataset: a **Mark** (or a **Match** confirmed), a Mark's **Discard**, a Citation made in the Scan viewer, or any Citation deleted, an **Entry**'s Box moved or Transcription retyped (one on each of its Citations), a Role changed, a Tag made, moved or taken back, a **Fact** added, changed or deleted, a Citation's **Support** of a Fact added or taken back, a person added, linked, unlinked, moved, renamed or deleted (Tree), a dataset started with its first person, an import (or, from before ADR-0021, an import undone), or a Volume switched to a **Re-scan**'s new filming. Each says what it did and what it was on (a person, a Citation, an Image, a Tag's Photo with its person, or nothing; a person deleted leaves theirs on nothing, naming them), says _via assistant_ when an assistant's **Proposal** applied it (ADR-0028), and is listed under _Changes_, newest first, where picking one goes back there. Only the app keeps them. _Clear…_ forgets them all.
 _Avoid_: log, history (alone; the browser's Back is history), edit.
 
 **Church-book reference**:
@@ -152,11 +152,8 @@ Turning a Church-book reference Marked at the entry, with its Box, into a Citati
 _Avoid_: migration (that's the one-off script).
 
 **Discard**:
-Taking a reference's **Box** back by hand in the Scan viewer, a Mark's or a **Match**'s, so its Link goes back to the estimate. The link goes from every citation of the record, which cite their original page again; Page pins and Record ranges stay. A Match discarded becomes a **Rejection**.
+Taking a reference's **Box** back by hand in the Scan viewer, a Mark's or a **Match**'s, so its Link goes back to the estimate. The link goes from every citation of the record, which cite their original page again; Page pins and Record ranges stay. A Match discarded is only undone: nothing of it is kept and it writes no Change, so the vision pass may save it again (ADR-0029).
 _Avoid_: clear, delete (only the Box's pins go).
-
-**Rejection**:
-A **Match** discarded by hand: the reference isn't on that Image. Kept in the dataset, by the reference's URL. The vision pass never saves a Match there again, and lists one landing there for review by hand.
 
 **Provenance**:
 Who saved a Pin: by hand (the shipped Page pins, and every Mark) or by the vision model. What's saved by hand always wins over the vision model's. Vision pins still count other links' estimates and extend Record ranges; the links they steer stay Estimates.

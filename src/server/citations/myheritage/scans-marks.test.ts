@@ -8,7 +8,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import type { Pins } from './pins/locate';
-import { openMarks } from './pins/marks';
 import type { BoxAt, MarkTarget } from './pins/pins';
 import shipped from './pins/pins.json';
 import {
@@ -345,7 +344,7 @@ test("discarding a Mark's Box takes its pins back, leaving the Page pin", async 
   await scans.markRef(ref(150, 21), { ...at('a', 11), box: DRAWN });
   expect(await scans.discardRef(ref(150, 21), spot('a', 11))).toMatchObject({
     resolution: { links: [{ certainty: 'estimated' }] },
-    done: { rejection: false }
+    done: { match: false }
   });
   const { volumes, references } = await scans.snapshot();
   expect(volumes.a!.records).toBeUndefined();
@@ -357,31 +356,21 @@ test("discarding a Mark's Box takes its pins back, leaving the Page pin", async 
     'resolution.links'
   );
   expect((await scans.snapshot()).references).toEqual({});
-  // A Mark taken back is no Rejection: the model may match it again.
-  expect(await scans.isRejected(index, spot('b', 5))).toBe(false);
-  expect(openMarks(cited).rejections()).toEqual({});
 });
 
-test('discarding a Match rejects it there, and only there', async () => {
+test('discarding a Match only undoes it: it may be saved there again', async () => {
   const scans = open();
   await scans.saveMatch(ref(150, 21), match('a', 11, true));
   expect(await scans.discardRef(ref(150, 21), spot('a', 11))).toMatchObject({
-    done: { rejection: true }
+    done: { match: true }
   });
   const { volumes } = await scans.snapshot();
   expect(volumes.a!.records).toBeUndefined();
   // The Page pin the model read stays.
   expect(volumes.a!.pages.map((p) => p.image)).toEqual([10, 11]);
-  expect(await scans.isRejected(ref(150, 21), spot('a', 11))).toBe(true);
-  expect(await scans.saveMatch(ref(150, 21), match('a', 11))).toEqual({
-    saved: false
-  });
-  expect((await scans.snapshot()).volumes.a!.records).toBeUndefined();
-  expect(await scans.saveMatch(ref(150, 21), match('a', 12))).toEqual({
-    saved: true
-  });
+  expect(await scans.saveMatch(ref(150, 21), match('a', 11))).toBeNull();
   expect((await scans.snapshot()).volumes.a!.records).toEqual([
-    { record: 150, image: 12, by: 'vision', box: BOX, fileId: 'a-f12' }
+    { record: 150, image: 11, by: 'vision', box: BOX, fileId: 'a-f11' }
   ]);
 });
 

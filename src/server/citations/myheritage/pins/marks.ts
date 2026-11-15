@@ -1,5 +1,5 @@
 // A dataset's Marks and Matches, written into its citations
-// (ADR-0013), and its Rejections. A Mark is of a record: every citation of
+// (ADR-0013). A Mark is of a record: every citation of
 // the record holds its Link, and a reference with no Record number is
 // marked by its URL (record.ts, markKey). What a Mark does to each
 // citation is its Annotation's (annotations.ts).
@@ -13,14 +13,6 @@ import { openAnnotations, originalPageSql } from '../../annotations';
 import type { CitationLink } from '../../annotations';
 import { CITATIONS_READ } from '../../entries';
 import { markedRefOf, markKey } from '../record';
-
-// A Match taken back by hand: the reference isn't on that Image, of
-// the filming its file id is of.
-export interface Rejection {
-  volumeId: string;
-  image: number;
-  fileId?: string;
-}
 
 // A citation's Link, with the reference it's in.
 interface MarkedCitation {
@@ -92,32 +84,6 @@ export function openMarks(db: Database) {
     return indexed().byKey.get(key) ?? [];
   }
 
-  const rejectionsQuery = db.prepare<
-    { volume_id: string; image: number; file_id: string | null },
-    [string]
-  >(
-    `SELECT volume_id, image, file_id FROM rejections
-     WHERE reference_url = ? ORDER BY id`
-  );
-  const everyRejection = db.prepare<
-    {
-      reference_url: string;
-      volume_id: string;
-      image: number;
-      file_id: string | null;
-    },
-    []
-  >(
-    'SELECT reference_url, volume_id, image, file_id FROM rejections ORDER BY id'
-  );
-  const dropRejection = db.prepare(
-    'DELETE FROM rejections WHERE reference_url = ? AND volume_id = ? AND image = ?'
-  );
-  const addRejection = db.prepare(
-    `INSERT INTO rejections (reference_url, volume_id, image, file_id)
-     VALUES (?, ?, ?, ?)`
-  );
-
   // Changes made here; another process's show in SQLite's data_version.
   let writes = 0;
 
@@ -128,14 +94,6 @@ export function openMarks(db: Database) {
   function write(key: string, link: CitationLink | null) {
     annotations.swap(idsOf(key), link);
     writes += 1;
-  }
-
-  function rejectionsOf(url: string): Rejection[] {
-    return rejectionsQuery.all(url).map((r) => ({
-      volumeId: r.volume_id,
-      image: r.image,
-      ...(r.file_id === null ? {} : { fileId: r.file_id })
-    }));
   }
 
   return {
@@ -172,36 +130,6 @@ export function openMarks(db: Database) {
         const ref = byId.get(id);
         return ref === undefined ? [] : [{ ...ref, link }];
       });
-    },
-
-    rejectionsOf,
-
-    // A Match taken back at the Image, replacing one there before.
-    reject(url: string, rejection: Rejection) {
-      dropRejection.run(url, rejection.volumeId, rejection.image);
-      addRejection.run(
-        url,
-        rejection.volumeId,
-        rejection.image,
-        rejection.fileId ?? null
-      );
-      writes += 1;
-    },
-
-    // Every Rejection, by the reference's URL.
-    rejections() {
-      const out: Record<string, Rejection[]> = {};
-      for (const r of everyRejection.all()) {
-        out[r.reference_url] = [
-          ...(out[r.reference_url] ?? []),
-          {
-            volumeId: r.volume_id,
-            image: r.image,
-            ...(r.file_id === null ? {} : { fileId: r.file_id })
-          }
-        ];
-      }
-      return out;
     },
 
     // Changes whenever the Marks do, from this process or another.

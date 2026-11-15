@@ -17,8 +17,6 @@ export interface Found {
   missed: string | null;
 }
 
-const MISSED_SAVE = 'A Match there was taken back by hand before.';
-
 export async function findByVision(
   scans: Scans,
   ref: ChurchBookRef,
@@ -28,12 +26,9 @@ export async function findByVision(
   if (!match.confirmed) {
     return { resolution: await scans.resolveRef(ref), missed: match.reason };
   }
-  const done = await scans.saveMatch(ref, match);
-  if ('rejected' in done) return done;
-  return {
-    resolution: await scans.resolveRef(ref),
-    missed: done.saved ? null : MISSED_SAVE
-  };
+  const refused = await scans.saveMatch(ref, match);
+  if (refused !== null) return refused;
+  return { resolution: await scans.resolveRef(ref), missed: null };
 }
 
 // The reader, counting the questions asked of it.

@@ -49,9 +49,7 @@ export type MissReason =
   | 'no candidate volume'
   | 'no name'
   | 'no box'
-  | 'unsupported'
-  // Confirmed on an Image where a person took the Match back.
-  | 'rejected';
+  | 'unsupported';
 
 // A search that confirmed no Match, and where it ended, to open the Scan
 // viewer near the entry.
