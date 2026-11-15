@@ -128,6 +128,12 @@ test('refuses someone who may be living, unless they are on screen', async () =>
   expect(juho.name).toBe('Juho Esimerkki');
 });
 
+test('reads someone who may be living once the living are included', async () => {
+  const living = { personId: null, living: true };
+  const juho = await read('person', { id: 3 }, living);
+  expect(juho.name).toBe('Juho Esimerkki');
+});
+
 test('lists places with their counts, and what happened at one', async () => {
   expect(await run('places', { contains: 'kyla' })).toEqual({
     matched: 1,

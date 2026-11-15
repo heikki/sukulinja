@@ -5,19 +5,28 @@ import { customElement } from 'lit/decorators.js';
 import {
   answerStyle,
   assistantModel,
+  includeLiving,
   setAnswerStyle,
-  setAssistantModel
+  setAssistantModel,
+  setIncludeLiving
 } from '@/client/assistant-choices';
 import { ANSWER_STYLES, ASSISTANT_MODELS } from '@/common/assistant-choices';
 import { priceWords } from '@/common/claude-prices';
 
-import { rowStyles, segmented } from './segmented';
+import { OFF_ON, rowStyles, segmented } from './segmented';
 
 const MODELS = ASSISTANT_MODELS.map((m) => ({ value: m.id, label: m.label }));
 const STYLES = ANSWER_STYLES.map((s) => ({ value: s.id, label: s.label }));
 
+// Whether people who may be living are sent to Claude, said under the
+// choice.
+function livingWords(on: boolean) {
+  return on ? 'Sent to Anthropic too' : 'Left out, unless selected';
+}
+
 // Settings' rows for the Assistant once it's on: which Claude answers,
-// with what it costs, and how much it says (assistant-choices.ts). Its
+// with what it costs, how much it says, and whether people who may be
+// living go to it (assistant-choices.ts). Its
 // rows join the Settings grid as its own.
 @customElement('sl-assistant-choices')
 class AssistantChoicesElement extends SignalWatcher(LitElement) {
@@ -40,6 +49,10 @@ class AssistantChoicesElement extends SignalWatcher(LitElement) {
       <span class="hint">${priceWords(model)}</span>
       <span class="label">Style</span>
       ${segmented(STYLES, answerStyle.get(), setAnswerStyle)}
+      <span class="label">Living people</span>
+      ${segmented(OFF_ON, includeLiving.get(), setIncludeLiving)}
+      <span></span>
+      <span class="hint">${livingWords(includeLiving.get())}</span>
     `;
   }
 }

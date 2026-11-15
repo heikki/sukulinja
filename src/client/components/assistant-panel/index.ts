@@ -5,7 +5,11 @@ import type { TemplateResult } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { repeat } from 'lit/directives/repeat.js';
 
-import { answerStyle, assistantModel } from '@/client/assistant-choices';
+import {
+  answerStyle,
+  assistantModel,
+  includeLiving
+} from '@/client/assistant-choices';
 import { appState } from '@/client/state';
 import type { AppState, Exchange, ProposedItem } from '@/client/state';
 import { typing } from '@/client/typing';
@@ -58,6 +62,19 @@ function renderExchange(
 // each one refused says why. Once none of an answer's items wait, its box
 // folds to a line saying what became of them. New conversation forgets
 // this one, Proposal and all.
+// What the tab says before anything is asked.
+function intro(living: boolean) {
+  const whoGoes = living
+    ? 'people who may be living go too, as chosen in Settings.'
+    : "people who may be living are left out unless they're on screen.";
+  return html`<p class="muted">
+    Ask about the tree: who someone was, what the sources say, where people
+    lived. Ask for changes too: they're listed for you to tick and apply, and
+    nothing is written before that. The Selected person goes with the question.
+    What Claude reads is sent to Anthropic; ${whoGoes}
+  </p>`;
+}
+
 @customElement('sl-assistant-panel')
 class AssistantPanelElement extends SignalWatcher(LitElement) {
   static override styles = [
@@ -225,7 +242,8 @@ class AssistantPanelElement extends SignalWatcher(LitElement) {
     this.text = '';
     void this.state.assistant.ask(text, this.state.selected.id.get(), {
       model: assistantModel.get(),
-      style: answerStyle.get()
+      style: answerStyle.get(),
+      living: includeLiving.get()
     });
   }
 
@@ -331,14 +349,7 @@ class AssistantPanelElement extends SignalWatcher(LitElement) {
       <div class="log" aria-live="polite">
         ${
           exchanges.length === 0
-            ? html`<p class="muted">
-                Ask about the tree: who someone was, what the sources say, where
-                people lived. Ask for changes too: they're listed for you to
-                tick and apply, and nothing is written before that. The Selected
-                person goes with the question. What Claude reads is sent to
-                Anthropic; people who may be living are left out unless they're
-                on screen.
-              </p>`
+            ? intro(includeLiving.get())
             : repeat(
                 exchanges,
                 (_, i) => i,

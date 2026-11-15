@@ -9,9 +9,14 @@ export const PRICES: Record<string, { input: number; output: number }> = {
   'claude-fable-5-1': { input: 10, output: 50 }
 };
 
-// "$2 / $10 per million tokens in / out"; null for a model without a price.
+// "$2 / $10 per million tokens in / out", cents shown under a dollar
+// ("$0.10"); null for a model without a price.
 export function priceWords(model: string) {
   const price = PRICES[model];
   if (price === undefined) return null;
-  return `$${price.input} / $${price.output} per million tokens in / out`;
+  return `${dollars(price.input)} / ${dollars(price.output)} per million tokens in / out`;
+}
+
+function dollars(n: number) {
+  return `$${n < 1 ? n.toFixed(2) : n}`;
 }

@@ -2,8 +2,8 @@ import { signal } from '@lit-labs/signals';
 
 import { ApiError } from '@/client/dataset-api';
 import type { DatasetApi } from '@/client/dataset-api';
-import { DEFAULT_MODEL, DEFAULT_STYLE } from '@/common/assistant-choices';
-import type { AnswerStyle, AssistantModel } from '@/common/assistant-choices';
+import { DEFAULT_CHOICE } from '@/common/assistant-choices';
+import type { AssistantChoice } from '@/common/assistant-choices';
 import type { AssistantTurnEnd, ProposalItem, Spend } from '@/common/types';
 
 import type { Readable } from './selected';
@@ -18,17 +18,6 @@ export interface Exchange {
   // Why it failed, if it did.
   failed: string | null;
 }
-
-// Which Claude answers, and how much it says.
-export interface AssistantChoice {
-  model: AssistantModel;
-  style: AnswerStyle;
-}
-
-const DEFAULT_CHOICE: AssistantChoice = {
-  model: DEFAULT_MODEL,
-  style: DEFAULT_STYLE
-};
 
 // An item of the Proposal as the tab shows it: ticked to be applied, and
 // what became of it: waiting, applied, refused with why, or taken back by

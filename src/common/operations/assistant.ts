@@ -18,22 +18,25 @@ import { answers, streams } from './operation';
 import { isId, isIdOrNull, isName } from './read';
 import type { Fields } from './read';
 
-// `{ model?, style? }`, by default Haiku, terse; null for a model or
-// style the assistant hasn't.
+// `{ model?, style?, living? }`, by default Haiku, terse, without the
+// living; null for a model or style the assistant hasn't.
 function choiceOf(body: Fields) {
-  const { model = DEFAULT_MODEL, style = DEFAULT_STYLE } = body;
-  return isAssistantModel(model) && isAnswerStyle(style)
-    ? { model, style }
+  const { model = DEFAULT_MODEL, style = DEFAULT_STYLE, living = false } = body;
+  return isAssistantModel(model) &&
+    isAnswerStyle(style) &&
+    typeof living === 'boolean'
+    ? { model, style, living }
     : null;
 }
 
 export const ASSISTANT_OPERATIONS = {
-  // Asks `{ conversation, text, personId, model?, style? }`: the
+  // Asks `{ conversation, text, personId, model?, style?, living? }`: the
   // conversation's id, or null for a new one; the question; the person on
-  // screen, or null; the model and style chosen, by default Haiku, terse.
+  // screen, or null; the model and style chosen, by default Haiku, terse;
+  // whether people who may be living go too, by default not.
   // What it tells of the turn as it runs, the conversation's id first.
   ask: streams<AssistantQuestion, AssistantEvent>(
-    '{ conversation, text, personId, model?, style? }',
+    '{ conversation, text, personId, model?, style?, living? }',
     (body) => {
       const { text } = body;
       const conversation = body.conversation ?? null;

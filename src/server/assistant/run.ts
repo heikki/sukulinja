@@ -35,8 +35,6 @@ You don't change the tree yourself. When the user asks for a change, or the answ
 
 Tidy the tree, not its sources: never propose rewriting what a source says. A conclusion only research can settle (that two houses were one, that two people are the same) is a Reminder for the user, not an edit.
 
-People who may be living are left out of what the tools give, unless they're the person on screen; don't try to work around it.
-
 Answer in the language the user writes in, naming people with their years, without greeting, restating the question or closing offers. Don't repeat what a proposed item already says. Write plain text: the app shows no Markdown.`;
 
 // How much an answer says, as the user chose.
@@ -48,9 +46,15 @@ const STYLES: Record<AnswerStyle, string> = {
     'Answer thoroughly: what you found, in which sources, what you conclude from it and how sure that is, and what is left open.'
 };
 
-// The system prompt for answers in the style chosen.
-export function systemFor(style: AnswerStyle) {
-  return `${SYSTEM}\n\n${STYLES[style]}`;
+// Said unless the person chose to include the living.
+const LIVING_LEFT_OUT =
+  "People who may be living are left out of what the tools give, unless they're the person on screen; don't try to work around it.";
+
+// The system prompt for answers in the style chosen, with or without the
+// living.
+export function systemFor(style: AnswerStyle, living = false) {
+  const parts = [SYSTEM, ...(living ? [] : [LIVING_LEFT_OUT]), STYLES[style]];
+  return parts.join('\n\n');
 }
 
 // The question as Claude gets it: what's on screen first, what became of
@@ -168,7 +172,7 @@ function closeCalls(
 export async function runTurn(options: {
   model: Model;
   // Which Claude answers, and how much it says.
-  choice: { model: AssistantModel; style: AnswerStyle };
+  choice: { model: AssistantModel; style: AnswerStyle; living: boolean };
   view: TreeView;
   messages: Anthropic.Beta.BetaMessageParam[];
   // What the conversation has proposed, which its writes add to.
@@ -179,7 +183,7 @@ export async function runTurn(options: {
   tell: (event: AssistantEvent) => void;
 }): Promise<Spend> {
   const { model, choice, view, messages, proposal, tell, signal } = options;
-  const system = systemFor(choice.style);
+  const system = systemFor(choice.style, choice.living);
   let spend = options.spend;
   messages.push(question(view, proposal, options.text));
   for (let step = 0; step < MAX_STEPS; step++) {

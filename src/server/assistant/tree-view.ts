@@ -1,6 +1,7 @@
 // The dataset as the assistant's read operations see it: everyone, by id,
 // with who may be living left out (ADR-0025), except
-// the person on screen, whom the question is about.
+// the person on screen, whom the question is about, unless the person
+// chose in Settings to include the living.
 
 import type { PersonRow } from '@/common/types';
 
@@ -15,9 +16,11 @@ export interface PersonRef {
   died: number | null;
 }
 
-// What's on screen when the question is asked.
+// What's on screen when the question is asked, and whether the living
+// are to be included.
 export interface OnScreen {
   personId: number | null;
+  living?: boolean;
 }
 
 // Where someone left out stood.
@@ -36,12 +39,13 @@ export function openTreeView(
   const persons = new Map(services.tree.persons().map((p) => [p.id, p]));
   const families = services.tree.families();
 
-  // Whether the person is left out: they may be living and aren't on
-  // screen.
+  // Whether the person is left out: they may be living, aren't on
+  // screen, and the living aren't included.
   function hidden(id: number) {
     const p = persons.get(id);
     if (p === undefined) return true;
-    return id !== onScreen.personId && mayBeLiving(p, thisYear);
+    if (onScreen.living === true || id === onScreen.personId) return false;
+    return mayBeLiving(p, thisYear);
   }
 
   function ref(id: number): PersonRef | string {

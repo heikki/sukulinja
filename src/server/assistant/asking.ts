@@ -64,8 +64,11 @@ export function assistantOperations(
     const model = deps.model(await deps.keyStore.get());
     const spend = await runTurn({
       model,
-      choice: { model: asked.model, style: asked.style },
-      view: openTreeView(services, { personId: asked.personId }),
+      choice: { model: asked.model, style: asked.style, living: asked.living },
+      view: openTreeView(services, {
+        personId: asked.personId,
+        living: asked.living
+      }),
       messages: conversation.messages,
       proposal: conversation.proposal,
       text: asked.text,

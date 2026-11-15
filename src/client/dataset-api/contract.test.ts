@@ -7,6 +7,7 @@ import { join } from 'node:path';
 
 import type Anthropic from '@anthropic-ai/sdk';
 
+import { DEFAULT_CHOICE } from '@/common/assistant-choices';
 import type { Model } from '@/server/assistant/model';
 import {
   IMAGES,
@@ -456,14 +457,9 @@ describe('the answers', () => {
 
 describe('the assistant', () => {
   test('answers a question in a conversation, and forgets it', async () => {
+    const asked = { conversation: null, text: 'Hei', personId: 1 };
     const events = await Array.fromAsync(
-      api.ask({
-        conversation: null,
-        text: 'Hei',
-        personId: 1,
-        model: 'claude-sonnet-5-5',
-        style: 'normal'
-      })
+      api.ask({ ...asked, ...DEFAULT_CHOICE, style: 'normal' })
     );
     expect(events[0]!.type).toBe('conversation');
     expect(events[1]).toEqual({ type: 'text', text: 'Hei.' });
