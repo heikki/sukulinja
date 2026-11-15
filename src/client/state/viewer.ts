@@ -1,7 +1,14 @@
 import { computed, signal } from '@lit-labs/signals';
 
 import type { DatasetApi, InEntry } from '@/client/dataset-api';
-import type { Box, Rescan, VolumeChoice, VolumeCitation } from '@/common/types';
+import type { ClaudeModel } from '@/common/assistant-choices';
+import type {
+  Box,
+  Link,
+  Rescan,
+  VolumeChoice,
+  VolumeCitation
+} from '@/common/types';
 
 import { confirmingSource } from './confirming';
 import type { Confirming } from './confirming';
@@ -18,6 +25,8 @@ import type { Readable, Selected } from './selected';
 import { linkedBeside, revealingOf, viewerOpening } from './source-open';
 import type { ImageOpen, LinkOpen } from './source-open';
 import type { Source } from './sources';
+import { visionMatching } from './vision-match';
+import type { VisionMatch } from './vision-match';
 
 export type { PendingAt, PendingChange } from './pending-change';
 export type { EntryEdit, PendingCite } from './pending-entry';
@@ -103,6 +112,13 @@ export interface Viewer {
   // How that's going. A refusal stays until the source, the Image or the
   // Box changes.
   confirming: Readable<Confirming | null>;
+  // Searches the scans for the source's reference with the vision model,
+  // where its Link is an estimate (ADR-0029); on a Match, to it.
+  findByVision: (model: ClaudeModel) => Promise<void>;
+  // How that's going, and what it found and took, for the source it was
+  // about, until forgotten.
+  visionMatch: Readable<VisionMatch | null>;
+  forgetVisionMatch: () => void;
   close: () => void;
   // The change not saved yet: a Mark, a new Entry or the source's edited.
   pending: Readable<PendingChange | null>;
@@ -205,6 +221,7 @@ export function openViewer(
   const placing = signal(false);
   const discarding = signal(false);
   const confirmation = confirmingSource(source, confirm);
+  const vision = visionMatching(source, selected.findByVision, followMatch);
   const leaving = signal(false);
   const filming = filmingOf(api, () => volume.get()?.id);
   const { oldFilming } = filming;
@@ -533,6 +550,14 @@ export function openViewer(
     await reload;
   }
 
+  // The citations reload, as after a confirmation, and the viewer goes to
+  // the Match.
+  function followMatch(shown: LinkOpen, link: Link) {
+    const here = volume.get();
+    if (here?.id === link.volumeId) void loadCitations(here.id);
+    openNow({ citation: shown.citation, link });
+  }
+
   async function imageFailed() {
     const shown = volume.get();
     if (shown !== null) await filming.ask(shown.id);
@@ -588,6 +613,9 @@ export function openViewer(
     confirm,
     confirmSource: confirmation.run,
     confirming: confirmation.status,
+    findByVision: vision.run,
+    visionMatch: vision.status,
+    forgetVisionMatch: vision.forget,
     close,
     pending,
     leaving,

@@ -6,7 +6,7 @@ import {
   DEFAULT_MODEL,
   DEFAULT_STYLE,
   isAnswerStyle,
-  isAssistantModel
+  isClaudeModel
 } from '@/common/assistant-choices';
 import type {
   Applied,
@@ -22,7 +22,7 @@ import type { Fields } from './read';
 // living; null for a model or style the assistant hasn't.
 function choiceOf(body: Fields) {
   const { model = DEFAULT_MODEL, style = DEFAULT_STYLE, living = false } = body;
-  return isAssistantModel(model) &&
+  return isClaudeModel(model) &&
     isAnswerStyle(style) &&
     typeof living === 'boolean'
     ? { model, style, living }

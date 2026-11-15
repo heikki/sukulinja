@@ -8,14 +8,16 @@ import {
   includeLiving,
   setAnswerStyle,
   setAssistantModel,
-  setIncludeLiving
+  setIncludeLiving,
+  setVisionModel,
+  visionModel
 } from '@/client/assistant-choices';
-import { ANSWER_STYLES, ASSISTANT_MODELS } from '@/common/assistant-choices';
+import { ANSWER_STYLES, CLAUDE_MODELS } from '@/common/assistant-choices';
 import { priceWords } from '@/common/claude-prices';
 
 import { OFF_ON, rowStyles, segmented } from './segmented';
 
-const MODELS = ASSISTANT_MODELS.map((m) => ({ value: m.id, label: m.label }));
+const MODELS = CLAUDE_MODELS.map((m) => ({ value: m.id, label: m.label }));
 const STYLES = ANSWER_STYLES.map((s) => ({ value: s.id, label: s.label }));
 
 // Whether people who may be living are sent to Claude, said under the
@@ -26,8 +28,8 @@ function livingWords(on: boolean) {
 
 // Settings' rows for the Assistant once it's on: which Claude answers,
 // with what it costs, how much it says, and whether people who may be
-// living go to it (assistant-choices.ts). Its
-// rows join the Settings grid as its own.
+// living go to it, and which Claude reads the scans for Vision Match
+// (assistant-choices.ts). Its rows join the Settings grid as its own.
 @customElement('sl-assistant-choices')
 class AssistantChoicesElement extends SignalWatcher(LitElement) {
   static override styles = [
@@ -53,6 +55,10 @@ class AssistantChoicesElement extends SignalWatcher(LitElement) {
       ${segmented(OFF_ON, includeLiving.get(), setIncludeLiving)}
       <span></span>
       <span class="hint">${livingWords(includeLiving.get())}</span>
+      <span class="label">Vision Match</span>
+      ${segmented(MODELS, visionModel.get(), setVisionModel)}
+      <span></span>
+      <span class="hint">${priceWords(visionModel.get())}</span>
     `;
   }
 }

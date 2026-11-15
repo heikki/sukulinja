@@ -3,19 +3,19 @@
 
 import type Anthropic from '@anthropic-ai/sdk';
 
-import type { AssistantModel } from '@/common/assistant-choices';
+import type { ClaudeModel } from '@/common/assistant-choices';
 
 import { connect, openRouterModel } from '../claude/client';
 
 // The models a declined request falls back from, on the Claude API: Haiku
 // has no server-side fallback.
-const FALLS_BACK = new Set<AssistantModel>([
+const FALLS_BACK = new Set<ClaudeModel>([
   'claude-opus-5-5',
   'claude-sonnet-5-5'
 ]);
 
 export interface ModelRequest {
-  model: AssistantModel;
+  model: ClaudeModel;
   system: string;
   tools: Anthropic.Beta.BetaTool[];
   messages: Anthropic.Beta.BetaMessageParam[];

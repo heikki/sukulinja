@@ -308,6 +308,20 @@ export type LinkResolution = { links: Link[] } | UnlinkedResolution;
 // resolves.
 export type CitationLinks = { citationId: number } & LinkResolution;
 
+// What a Vision Match of one reference did (ADR-0029): its Links as they
+// then resolve, and null when it saved a Match, else why it didn't; the
+// questions it asked the model, how many of them earlier readings
+// answered for nothing, what the rest cost, and how long it took.
+export interface VisionTry {
+  links: CitationLinks;
+  missed: string | null;
+  model: string;
+  readings: number;
+  cached: number;
+  dollars: number | null;
+  seconds: number;
+}
+
 // The kind of church book: rippikirja (communion book), lastenkirja
 // (children's book), baptisms or marriages.
 export type BookKind = 'rippi' | 'lasten' | 'kastetut' | 'vihityt';

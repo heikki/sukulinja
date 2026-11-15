@@ -1,5 +1,6 @@
-// The assistant's model, answer style and whether the living go to it, as
-// chosen in Settings, each in a cookie for the reason appearance.ts gives.
+// The assistant's model, answer style and whether the living go to it,
+// and the model Vision Match reads the scans with (ADR-0029), as chosen in
+// Settings, each in a cookie for the reason appearance.ts gives.
 
 import { signal } from '@lit-labs/signals';
 
@@ -7,13 +8,14 @@ import {
   DEFAULT_MODEL,
   DEFAULT_STYLE,
   isAnswerStyle,
-  isAssistantModel
+  isClaudeModel
 } from '@/common/assistant-choices';
-import type { AnswerStyle, AssistantModel } from '@/common/assistant-choices';
+import type { AnswerStyle, ClaudeModel } from '@/common/assistant-choices';
 
 const MODEL_COOKIE = 'sl-assistant-model';
 const STYLE_COOKIE = 'sl-assistant-style';
 const LIVING_COOKIE = 'sl-assistant-living';
+const VISION_COOKIE = 'sl-vision-model';
 const YEAR_S = 365 * 24 * 60 * 60;
 
 function cookie(name: string) {
@@ -28,9 +30,9 @@ function keep(name: string, value: string) {
   document.cookie = `${name}=${value}; path=/; max-age=${YEAR_S}; samesite=lax`;
 }
 
-function storedModel() {
-  const value = cookie(MODEL_COOKIE);
-  return isAssistantModel(value) ? value : DEFAULT_MODEL;
+function storedModel(name: string) {
+  const value = cookie(name);
+  return isClaudeModel(value) ? value : DEFAULT_MODEL;
 }
 
 function storedStyle() {
@@ -38,14 +40,20 @@ function storedStyle() {
   return isAnswerStyle(value) ? value : DEFAULT_STYLE;
 }
 
-export const assistantModel = signal<AssistantModel>(storedModel());
+export const assistantModel = signal<ClaudeModel>(storedModel(MODEL_COOKIE));
+export const visionModel = signal<ClaudeModel>(storedModel(VISION_COOKIE));
 // Off unless the person turned it on.
 export const includeLiving = signal(cookie(LIVING_COOKIE) === 'on');
 export const answerStyle = signal<AnswerStyle>(storedStyle());
 
-export function setAssistantModel(model: AssistantModel) {
+export function setAssistantModel(model: ClaudeModel) {
   keep(MODEL_COOKIE, model);
   assistantModel.set(model);
+}
+
+export function setVisionModel(model: ClaudeModel) {
+  keep(VISION_COOKIE, model);
+  visionModel.set(model);
 }
 
 export function setAnswerStyle(style: AnswerStyle) {

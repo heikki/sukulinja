@@ -5,6 +5,7 @@ import type { Viewer } from '@/client/state';
 import type { Loading } from './frame';
 
 import './rescan';
+import './vision';
 
 // When Astia re-scanned the Volume, along the top of the stage over any
 // Image, shown or failed: what switching to the new filming leaves out,
@@ -38,8 +39,8 @@ function loadingNote(
   `;
 }
 
-// What's over the stage: how the Image is loading, and Astia's re-scan of
-// the Volume when there is one. Over an Image of a filming Astia replaced,
+// What's over the stage: how the Image is loading, Astia's re-scan of the
+// Volume when there is one, and a Vision Match of the source. Over an Image of a filming Astia replaced,
 // a failed one can't be asked for again.
 export function stageNote(
   viewer: Viewer,
@@ -48,6 +49,7 @@ export function stageNote(
 ) {
   const old = viewer.oldFilming.get();
   const loading = loadingNote(shown.loading, shown.over, old ? null : retry);
-  if (viewer.rescan.get() === null) return loading;
-  return html`${loading}${rescanNote(retry)}`;
+  const vision = html`<sl-scan-vision></sl-scan-vision>`;
+  if (viewer.rescan.get() === null) return html`${loading}${vision}`;
+  return html`${loading}${rescanNote(retry)}${vision}`;
 }

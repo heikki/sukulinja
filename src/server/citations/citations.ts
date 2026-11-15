@@ -30,6 +30,7 @@ import { viewerUrl, volumeYears } from './astia/astia';
 import { citedArchives } from './cited-archives';
 import { CITATIONS_READ, createEntries } from './entries';
 import type { Images } from './images';
+import type { Reader } from './myheritage';
 import type { BookRef, BoxAt, MarkTarget, References } from './references';
 import { createRetext } from './retext';
 import { createSupport } from './support';
@@ -495,6 +496,19 @@ export function createCitations<R extends BookRef>(
         what: { kind: 'discard', volume, image: at.image, rejection }
       });
       return result;
+    },
+
+    // Searches the scans for the reference with the vision model, saving
+    // the Match it confirms (ADR-0029); null as for `mark`, and rejected for
+    // a Citation of an Entry, as `mark` is.
+    async findByVision(citationId: number, reader: Reader) {
+      const row = byId.get(citationId);
+      if (row === null) return null;
+      if (row.entryId !== null) {
+        return { rejected: 'An entry is placed by hand.' };
+      }
+      const book = bookOf(row);
+      return book === null ? null : await references.findByVision(book, reader);
     },
 
     // The Volumes the reference can be put in; null as for `mark`.

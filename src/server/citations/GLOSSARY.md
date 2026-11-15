@@ -176,14 +176,17 @@ MyHeritage's id for a record in the collection. Each Film's records form one unb
 A Volume's span of Record numbers. Overrides choosing the Volume by years. A Record pin outside it extends the nearest range to it, unless another Volume's range lies between.
 
 **Reader**:
-The vision model behind three questions about one Image: the Page numbers written on it, the earliest and latest entry dates on it, and whether a named person is written on it. "Unreadable" is an answer it can give. Only scripts ask it; the app never calls a model.
+The vision model behind three questions about one Image: the Page numbers written on it, the earliest and latest entry dates on it, and whether a named person is written on it. "Unreadable" is an answer it can give. A **Vision Match** asks it.
+
+**Vision Match**:
+Searching the scans for a Church-book reference with the **Reader**, and saving the **Match** it confirms: for a whole dataset by the scripts (the vision pass), or for one reference whose Link is an estimate, from the Scan viewer's menu (ADR-0029), which then says what it found and what it took. The name of the search, never of the Match it saves.
 
 **Confirmation**:
 Finding the person's name on the Image a search landed on, or on the Images around it. Only a confirmed match is saved.
 
 **Match**:
 A link the vision model wrote into the citations of a record after a Confirmation, always with where the entry is, and the Link it gives: a suggestion, ranked above an estimate. The citations keep their original page. A match with no entry found isn't saved. Confirming it from its Box's menu in the Scan viewer is a Mark, which makes the Link Marked at the entry.
-_Avoid_: Vision match, suggestion (as names).
+_Avoid_: Vision Match (that's the search), suggestion (as names).
 
 **Same scan** / **Different photograph**:
 Whether a record's MyHeritage Frame is the very scan Astia holds (same framing, shadows, blots) or a separate filming of the same page, matched by its content — page number, or village, house and household where the book has no page numbers.

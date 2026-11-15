@@ -6,7 +6,7 @@
 
 import type Anthropic from '@anthropic-ai/sdk';
 
-import type { AnswerStyle, AssistantModel } from '@/common/assistant-choices';
+import type { AnswerStyle, ClaudeModel } from '@/common/assistant-choices';
 import type { AssistantEvent, Spend } from '@/common/types';
 
 import { addSpend } from '../claude/client';
@@ -253,7 +253,7 @@ function closeCalls(
 export async function runTurn(options: {
   model: Model;
   // Which Claude answers, and how much it says.
-  choice: { model: AssistantModel; style: AnswerStyle; living: boolean };
+  choice: { model: ClaudeModel; style: AnswerStyle; living: boolean };
   view: TreeView;
   messages: Anthropic.Beta.BetaMessageParam[];
   // What the conversation has proposed, which its writes add to.

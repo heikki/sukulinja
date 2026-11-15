@@ -2,15 +2,15 @@
 // model that answers, how much it writes, and whether people who may be
 // living go to it. Each question carries all three.
 
-export const ASSISTANT_MODELS = [
+export const CLAUDE_MODELS = [
   { id: 'claude-haiku-5-5', label: 'Haiku 5.5' },
   { id: 'claude-sonnet-5-5', label: 'Sonnet 5.5' },
   { id: 'claude-opus-5-5', label: 'Opus 5.5' }
 ] as const;
 
-export type AssistantModel = (typeof ASSISTANT_MODELS)[number]['id'];
+export type ClaudeModel = (typeof CLAUDE_MODELS)[number]['id'];
 
-export const DEFAULT_MODEL: AssistantModel = 'claude-haiku-5-5';
+export const DEFAULT_MODEL: ClaudeModel = 'claude-haiku-5-5';
 
 export const ANSWER_STYLES = [
   { id: 'terse', label: 'Terse' },
@@ -24,7 +24,7 @@ export const DEFAULT_STYLE: AnswerStyle = 'terse';
 
 // Which Claude answers, how much it says, and whether the living go too.
 export interface AssistantChoice {
-  model: AssistantModel;
+  model: ClaudeModel;
   style: AnswerStyle;
   living: boolean;
 }
@@ -35,8 +35,8 @@ export const DEFAULT_CHOICE: AssistantChoice = {
   living: false
 };
 
-export function isAssistantModel(value: unknown): value is AssistantModel {
-  return ASSISTANT_MODELS.some((m) => m.id === value);
+export function isClaudeModel(value: unknown): value is ClaudeModel {
+  return CLAUDE_MODELS.some((m) => m.id === value);
 }
 
 export function isAnswerStyle(value: unknown): value is AnswerStyle {

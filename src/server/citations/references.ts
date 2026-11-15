@@ -14,6 +14,7 @@ import type {
 } from '@/common/types';
 
 import type { Annotation } from './annotations';
+import type { Reader } from './myheritage';
 import type { BookKind, Years } from './text';
 
 // What a Church-book reference says of the church books, whoever reads it.
@@ -93,6 +94,13 @@ export interface References<R extends BookRef = BookRef> {
   ) => Promise<{ resolution: LinkResolution; done: DiscardDone } | Refused>;
   // The Volumes the reference can be put in.
   volumeChoices: (ref: R) => Promise<VolumeChoices>;
+  // Searches the scans for the reference with the vision model, and saves
+  // the Match it confirms (ADR-0029): its Links as they then resolve, and
+  // null when a Match was saved, else why none was.
+  findByVision: (
+    ref: R,
+    reader: Reader
+  ) => Promise<{ resolution: LinkResolution; missed: string | null } | Refused>;
   // The citations the reference's Mark is written into that it puts at
   // the entry by hand, each with its text as plain lines: what a
   // Conversion makes Citations of their Image. None for a Mark that
@@ -123,5 +131,6 @@ export const noReferences: References<never> = {
   mark: async () => await Promise.resolve({ rejected: NO_REFERENCE }),
   discard: async () => await Promise.resolve({ rejected: NO_REFERENCE }),
   volumeChoices: async () => await Promise.resolve({ fits: [], others: [] }),
+  findByVision: async () => await Promise.resolve({ rejected: NO_REFERENCE }),
   converts: () => []
 };

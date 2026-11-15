@@ -18,6 +18,7 @@ import type {
   ReminderTarget,
   Rescan,
   StalePin,
+  VisionTry,
   VolumeChoices,
   VolumeCitation
 } from '@/common/types';
@@ -48,6 +49,8 @@ export interface MemoryDataset {
   marks?: Record<number, CitationLinks>;
   // What a Discard answers, by citation id.
   discards?: Record<number, CitationLinks>;
+  // What a Vision Match answers, by citation id.
+  visionTries?: Record<number, VisionTry>;
   // The Volumes each reference can be put in, by citation id.
   choices?: Record<number, VolumeChoices>;
   // Newest first. `remind` puts a new one first, numbered on from 2000.
@@ -78,7 +81,7 @@ type MemoryDatasetApi = DatasetApi & {
   // What was asked, in order: "persons", "families", "person <id>",
   // "links <id>", "mark <citation> <volume>/<image>" (or "<volume>" for
   // only the Volume; " box" or " no box" when it says), "discard <citation>
-  // <volume>/<image>", "uncite <citation>", "choices <citation>",
+  // <volume>/<image>", "vision <citation> <model>", "uncite <citation>", "choices <citation>",
   // "citations <volume>", "volume <volume>", "rescan <volume>", "switch
   // <volume>", "changes", "clear changes", "reminders", "remind person
   // <id>: <text>" (or "<volume>/<image> <file>"), "change reminder <id>",
@@ -236,6 +239,11 @@ export function memoryDatasetApi(
         `discard ${citationId} ${at.volumeId}/${at.image}`,
         undefined,
         () => found(data.discards?.[citationId], 'citation not found')
+      ),
+
+    findByVision: async (citationId, model) =>
+      await answer(`vision ${citationId} ${model}`, undefined, () =>
+        found(data.visionTries?.[citationId], 'citation not found')
       ),
 
     citeEntry: servedOnly('citeEntry'),

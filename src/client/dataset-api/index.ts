@@ -3,6 +3,7 @@
 // (common/operations); `memoryDatasetApi` (memory.ts) answers from values
 // a test gives.
 
+import type { ClaudeModel } from '@/common/assistant-choices';
 import type {
   BoxAt,
   EntryEdit,
@@ -34,6 +35,7 @@ import type {
   ReminderChange,
   ReminderTarget,
   Rescan,
+  VisionTry,
   VolumeChoices,
   VolumeCitation,
   VolumeContents
@@ -70,6 +72,9 @@ export interface DatasetApi {
   // Takes back the reference's Box at `at`, a Mark's or a Match's:
   // its Links, resolved again.
   discard: (citationId: number, at: BoxAt) => Promise<CitationLinks>;
+  // Searches the scans for the reference with the vision model `model`,
+  // saving the Match it confirms (ADR-0029): what it did and took.
+  findByVision: (citationId: number, model: ClaudeModel) => Promise<VisionTry>;
   // Makes an Entry with a Citation of it for each person named (ADR-0026):
   // them as the Volume's citations list them, in the order named.
   citeEntry: (at: EntryTarget, people: InEntry[]) => Promise<VolumeCitation[]>;
@@ -215,6 +220,8 @@ export function openDatasetApi(
       await call('mark', { citationId, at }, 'Mark'),
     discard: async (citationId, at) =>
       await call('discard', { citationId, at }, 'Discard'),
+    findByVision: async (citationId, model) =>
+      await call('findByVision', { citationId, model }, 'Vision Match'),
     citeEntry: async (at, people) =>
       await call('citeEntry', { at, people }, 'Citing'),
     editEntry: async (entryId, edit) =>

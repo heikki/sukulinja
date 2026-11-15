@@ -221,3 +221,21 @@ test("an Entry's Box offers Edit, and with others in it, Delete entry", async ()
     editing: { entryId: 7 }
   });
 });
+
+test('Find with Vision Match is offered on an estimate, where it can be asked', async () => {
+  const find = { model: 'Haiku 5.5', run: unasked };
+  const where = { onBox: false, canBox: true };
+  const estimate = await viewing(citation(1, false), ON_IMAGE);
+  expect(
+    linkItems(estimate, where, { ...NONE, findByVision: find }).find(
+      (i) => i.label === 'Find with Vision Match'
+    )?.detail
+  ).toBe('Haiku 5.5');
+  expect(labels(estimate, where)).not.toContain('Find with Vision Match');
+  const marked = await viewing(citation(2, false));
+  expect(
+    linkItems(marked, where, { ...NONE, findByVision: find }).map(
+      (i) => i.label
+    )
+  ).not.toContain('Find with Vision Match');
+});

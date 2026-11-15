@@ -1,6 +1,7 @@
 import { volumeTitle } from '@/client/link-labels';
 import { imageLabel } from '@/client/on';
 import type { Viewer } from '@/client/state';
+import { canFindByVision } from '@/client/state/vision-match';
 import { referenceName } from '@/common/books';
 
 import type { MenuItem } from '../context-menu';
@@ -13,7 +14,9 @@ import type { MenuItem } from '../context-menu';
 // Citation here, named under it as the lists name it, unless its Box is on
 // the Image already, and with nothing pending, one for a new Citation of
 // an entry for someone; then, with nothing pending, a Reminder, once Astia
-// lists the Image; then Change Volume…, which only shows another Volume.
+// lists the Image; then, where the source's Link is an estimate and Vision
+// Match can be asked (`findByVision`), a search for it (ADR-0029); then
+// Change Volume…, which only shows another Volume.
 // A Box's menu offers a Reminder too. An Entry made in the app is edited
 // in the card it was made in, people, words and Box at once (ADR-0026),
 // and deleting it deletes everyone's Citation of it. Opened on an Image with no source,
@@ -27,6 +30,8 @@ export function linkItems(
     placeBox: () => void;
     cite: () => void;
     remind: () => void;
+    // The model Vision Match asks, by its label, and asking it.
+    findByVision?: { model: string; run: () => void };
   }
 ) {
   const remind: MenuItem[] =
@@ -49,11 +54,24 @@ export function linkItems(
       items.push({ label: 'New entry here', run: open.cite });
     }
   }
-  items.push(...remind);
+  items.push(...remind, ...visionItems(viewer, open.findByVision));
   if (hasSource) {
     items.push({ label: 'Change Volume…', run: open.chooseVolume });
   }
   return items;
+}
+
+function visionItems(
+  viewer: Viewer,
+  find: { model: string; run: () => void } | undefined
+): MenuItem[] {
+  if (find === undefined || viewer.pending.get() !== null) return [];
+  if (!canFindByVision(viewer.source.get())) return [];
+  const status = viewer.visionMatch.get();
+  if (status !== null && 'searching' in status) return [];
+  return [
+    { label: 'Find with Vision Match', detail: find.model, run: find.run }
+  ];
 }
 
 // The source's Citation by its reference, or one made in the app by the

@@ -2,15 +2,24 @@
 // answered by its Citations.
 
 import type { CITATION_OPERATIONS } from '@/common/operations/citations';
+import type { VisionTry } from '@/common/types';
 
 import { answered, notFound, Refusal } from '../operations';
 import type { Handlers } from '../operations';
 import { AstiaError } from './astia/astia';
 import type { Citations } from './citations';
 
-// Switches a Volume, `volume` by its label, to Astia's new filming: its
-// Images' viewer URLs.
-type SwitchFilming = (volumeId: string, volume: string) => Promise<string[]>;
+interface Doers {
+  // Switches a Volume, `volume` by its label, to Astia's new filming: its
+  // Images' viewer URLs.
+  switchFilming: (volumeId: string, volume: string) => Promise<string[]>;
+  // Searches the scans for the citation's reference with the vision model
+  // (ADR-0029); null for no such reference.
+  findByVision: (
+    citationId: number,
+    model: string
+  ) => Promise<VisionTry | { rejected: string } | null>;
+}
 
 // A request to Astia failing is refused (502), in words the Scan viewer
 // can show; anything else thrown is a bug, and is thrown on.
@@ -27,7 +36,7 @@ export async function askingAstia<T>(asked: Promise<T>) {
 
 export function citationOperations(
   citations: Citations,
-  switchFilming: SwitchFilming
+  { switchFilming, findByVision }: Doers
 ): Handlers<typeof CITATION_OPERATIONS> {
   return {
     // Astia is slow and throttled, so a person's citations share one
@@ -82,6 +91,9 @@ export function citationOperations(
 
     support: ({ citationId, factId, on }) =>
       answered(citations.support(citationId, factId, on), 'citation or fact'),
+
+    findByVision: async ({ citationId, model }) =>
+      answered(await askingAstia(findByVision(citationId, model)), 'citation'),
 
     volumeChoices: async ({ citationId }) =>
       answered(

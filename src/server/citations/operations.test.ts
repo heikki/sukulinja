@@ -8,15 +8,46 @@ import { join } from 'node:path';
 
 import { DatasetRegistry } from '../datasets/registry';
 import { createApi, createStaticFetch } from '../server';
+import type { VisionReaders } from './index';
 import { juvaAstia, memoryAstia, rippiCitation } from './testing';
 import type { MemoryAstia } from './testing';
 
 let root = '';
 
+// A vision model that finds no one, for nothing.
+const visionAsked: string[] = [];
+async function vision(
+  ...[model]: Parameters<VisionReaders>
+): ReturnType<VisionReaders> {
+  let calls = 0;
+  function ask(what: string) {
+    visionAsked.push(what);
+    calls += 1;
+  }
+  return await Promise.resolve({
+    models: { pages: model, dates: model, entry: model },
+    spend: () => ({
+      [model]: { calls, inputTokens: 0, outputTokens: 0, dollars: 0 }
+    }),
+    pageNumbers: async ({ image }) => {
+      ask(`pages ${image}`);
+      return await Promise.resolve({ pages: [image] });
+    },
+    dates: async ({ image }) => {
+      ask(`dates ${image}`);
+      return await Promise.resolve({ unreadable: true as const });
+    },
+    findEntry: async ({ image }) => {
+      ask(`entry ${image}`);
+      return await Promise.resolve({ found: false, confidence: 0.9 });
+    }
+  });
+}
+
 // The app's routes over the data folder in `root`, with this Astia.
 function servedWith(astia: MemoryAstia) {
   return createStaticFetch({
-    api: createApi(new DatasetRegistry(join(root, 'data')), { astia }),
+    api: createApi(new DatasetRegistry(join(root, 'data')), { astia, vision }),
     staticRoots: []
   });
 }
@@ -275,6 +306,43 @@ describe("A dataset's Citations", () => {
         on: { kind: 'person', personId: 2 }
       }
     ]);
+  });
+
+  test('searches for a reference with the vision model', async () => {
+    await seedDataset();
+    async function find(body: unknown) {
+      const res = await op('juva', 'findByVision', body);
+      const text = await res.text();
+      return {
+        status: res.status,
+        body: (res.ok ? JSON.parse(text) : text) as unknown
+      };
+    }
+    const asked = { citationId: 1, model: 'claude-haiku-5-5' };
+    const first = await find(asked);
+    expect(first).toMatchObject({
+      status: 200,
+      body: {
+        links: { citationId: 1 },
+        missed: 'name not found',
+        model: 'claude-haiku-5-5',
+        cached: 0,
+        dollars: 0
+      }
+    });
+    const { readings } = first.body as { readings: number };
+    expect(readings).toBeGreaterThan(0);
+    // Asked again, the readings kept answer it.
+    const before = visionAsked.length;
+    expect((await find(asked)).body).toMatchObject({
+      readings,
+      cached: readings
+    });
+    expect(visionAsked.length).toBe(before);
+    expect((await find({ citationId: 1, model: 'gpt' })).status).toBe(400);
+    expect(
+      (await find({ citationId: 2, model: 'claude-haiku-5-5' })).status
+    ).toBe(404);
   });
 
   test('says when Astia fails', async () => {

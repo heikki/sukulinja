@@ -9,11 +9,11 @@ import { claude } from './assistant/model';
 import type { RunOperation } from './assistant/proposal';
 import type { Changes, NewChange } from './changes/changes';
 import { changeOperations } from './changes/operations';
-import { openCitations } from './citations';
-import type { Astia } from './citations';
+import { claudeVision, openCitations } from './citations';
+import type { Astia, VisionReaders } from './citations';
 import { systemKeyStore } from './claude/key';
 import type { KeyStore } from './claude/key';
-import { keyOperations } from './claude/key-operations';
+import { keyOperations, keyStatus } from './claude/key-operations';
 import { lifecycleRoutes } from './datasets/lifecycle-routes';
 import { mediaDirOf } from './datasets/registry';
 import type { DatasetRegistry } from './datasets/registry';
@@ -103,23 +103,33 @@ interface ApiOptions {
   keyStore?: KeyStore;
   // The assistant's model for a key; by default Claude.
   assistantModel?: AssistantDeps['model'];
+  // The Scan viewer's vision model; by default Claude, with the
+  // assistant's key.
+  vision?: VisionReaders;
 }
 
 export function createApi(
   registry: DatasetRegistry,
   options: ApiOptions = {}
 ): ApiHandlers {
+  const keyStore = options.keyStore ?? systemKeyStore();
   const scans = openCitations(registry.root, {
     astia: options.astia,
     warmUp: options.warmUp,
     datasets: async () => await openDatasets(),
-    changed
+    changed,
+    vision:
+      options.vision ??
+      claudeVision(async () =>
+        (await keyStatus(keyStore)).source === null
+          ? null
+          : { apiKey: await keyStore.get() }
+      )
   });
   // Kept by the Database they're bound to: the registry alone decides when
   // a dataset's Database is closed and replaced (by an import or a delete),
   // and the next request then opens the new one and gets new handlers.
   const handlersByDb = new WeakMap<Database, DatasetHandlers>();
-  const keyStore = options.keyStore ?? systemKeyStore();
   // The operations shared by every dataset, at /api/<name>.
   const appOperations = serveOperations(APP_OPERATIONS, {
     ...scans.operations,

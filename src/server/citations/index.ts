@@ -5,9 +5,12 @@
 import type { Database } from 'bun:sqlite';
 import { join } from 'node:path';
 
+import type { Spend, VisionTry } from '@/common/types';
+
 import type { NewChange } from '../changes/changes';
+import { Refusal } from '../operations';
 import { routeShared } from './astia-routes';
-import { openAstia } from './astia/astia';
+import { AstiaError, openAstia } from './astia/astia';
 import type { Astia, ImageRef } from './astia/astia';
 import { openDownloads } from './astia/downloads';
 import { openParishes } from './astia/parishes';
@@ -15,7 +18,15 @@ import type { Parishes } from './astia/parishes';
 import { imageSize, openScanCache } from './astia/scan-cache';
 import { createCitations } from './citations';
 import { openImages } from './images';
-import { openScanFolder, switchFilming } from './myheritage';
+import {
+  cachedReader,
+  claudeReader,
+  counting,
+  openScanFolder,
+  pacedImages,
+  switchFilming
+} from './myheritage';
+import type { ClaudeReader, Scan } from './myheritage';
 import { citationOperations } from './operations';
 import { sharedOperations } from './shared-operations';
 
@@ -41,6 +52,57 @@ interface Options {
   // Whether each dataset, once opened, asks Astia in the background for
   // what its references resolve against (the app's; not tests').
   warmUp?: boolean;
+  // The vision model the Scan viewer's Vision Match asks; none, and it's
+  // refused.
+  vision?: VisionReaders;
+}
+
+// The vision model `model`, reading the Images `image` gives, with what it
+// has spent; it throws a Refusal when it can't be asked.
+export type VisionReaders = (
+  model: string,
+  image: (at: ImageRef) => Promise<Scan>
+) => Promise<SpendingReader>;
+
+export type SpendingReader = Pick<
+  ClaudeReader,
+  'models' | 'versions' | 'pageNumbers' | 'dates' | 'findEntry' | 'spend'
+>;
+
+const NO_VISION = 'Vision Match is not set up.';
+const NO_KEY = 'Vision Match needs an Anthropic API key. Add one in Settings.';
+
+// Claude reading the scans with the key `key` gives, or the environment's
+// credentials when it gives null for the key; refused when it gives null.
+export function claudeVision(
+  key: () => Promise<{ apiKey: string | null } | null>
+): VisionReaders {
+  return async (model, image) => {
+    const credentials = await key();
+    if (credentials === null) throw new Refusal(400, NO_KEY);
+    const models = { pages: model, dates: model, entry: model };
+    return claudeReader({ models, image, apiKey: credentials.apiKey });
+  };
+}
+
+// A model or a scan failing is refused, in its own words, for the Scan
+// viewer to show; Astia failing is refused as everywhere else.
+function failedWith(err: unknown): never {
+  if (err instanceof AstiaError || err instanceof Refusal) throw err;
+  const words = err instanceof Error ? err.message : String(err);
+  throw new Refusal(502, `Vision Match failed: ${words}`);
+}
+
+// The search's spend, over every model it asked.
+function dollarsOf(spend: Record<string, Spend>) {
+  return Object.values(spend).reduce<number | null>(
+    (sum, s) => (sum === null || s.dollars === null ? null : sum + s.dollars),
+    0
+  );
+}
+
+function callsOf(spend: Record<string, Spend>) {
+  return Object.values(spend).reduce((sum, s) => sum + s.calls, 0);
 }
 
 // The Citations of the data folder at `root`, for every dataset in it.
@@ -55,6 +117,38 @@ export function openCitations(root: string, options: Options) {
   const parishes = options.parishes ?? openParishes(root);
   const images = openImages({ astia, parishes, sizeOf });
   const folder = openScanFolder(root, { astia, parishes });
+  // One queue for every search, so they don't hammer Astia together.
+  const visionImage = pacedImages(cache);
+  // Readings are kept where the scripts keep theirs, so neither asks twice.
+  const readings = join(root, '.vision-readings');
+
+  // Searches the scans for the citation's reference (ADR-0029), with what
+  // it took.
+  async function findByVision(
+    citations: ReturnType<typeof createCitations>,
+    citationId: number,
+    model: string
+  ): Promise<VisionTry | { rejected: string } | null> {
+    if (options.vision === undefined) return { rejected: NO_VISION };
+    const started = performance.now();
+    const reader = await options.vision(model, visionImage);
+    const counted = counting(cachedReader(reader, readings));
+    const found = await citations
+      .findByVision(citationId, counted.reader)
+      .catch(failedWith);
+    if (found === null || 'rejected' in found) return found;
+    const spend = reader.spend();
+    const readingsAsked = counted.asked();
+    return {
+      links: { citationId, ...found.resolution },
+      missed: found.missed,
+      model,
+      readings: readingsAsked,
+      cached: readingsAsked - callsOf(spend),
+      dollars: dollarsOf(spend),
+      seconds: Math.round((performance.now() - started) / 1000)
+    };
+  }
 
   // The pins on Astia's Images: the data folder's, and every dataset's
   // Marks, which a switch to a new filming leaves out alike.
@@ -102,7 +196,11 @@ export function openCitations(root: string, options: Options) {
       }
       return {
         // The operations on the dataset's Citations.
-        operations: citationOperations(citations, switchTo),
+        operations: citationOperations(citations, {
+          switchFilming: switchTo,
+          findByVision: async (citationId, model) =>
+            await findByVision(citations, citationId, model)
+        }),
         // The person's Citations, as the panel lists them.
         ofPerson: (personId: number) => citations.ofPerson(personId),
         // A person's Citation by its id, with whose it is.

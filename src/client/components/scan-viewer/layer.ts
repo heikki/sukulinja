@@ -3,10 +3,13 @@ import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
+import { visionModel } from '@/client/assistant-choices';
+import { assistantOn } from '@/client/assistant-flag';
 import type { InEntry } from '@/client/dataset-api';
 import type { Point, Transform } from '@/client/pan-zoom';
 import { appState, citingImage } from '@/client/state';
 import type { AppState } from '@/client/state';
+import { CLAUDE_MODELS } from '@/common/assistant-choices';
 import { bookKind } from '@/common/books';
 import type { Box } from '@/common/types';
 
@@ -214,6 +217,23 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     this.state.reminders.draft(places);
   }
 
+  // Searching for the source with Vision Match, while the Assistant is
+  // on: its key and the model are set beside it in Settings (ADR-0029).
+  private visionItem() {
+    if (!assistantOn.get()) return {};
+    const model = visionModel.get();
+    const label = CLAUDE_MODELS.find((m) => m.id === model)?.label ?? model;
+    return {
+      findByVision: {
+        model: label,
+        run: () => {
+          this.popup = null;
+          void this.viewer.findByVision(model);
+        }
+      }
+    };
+  }
+
   private renderPopup() {
     const { popup } = this;
     if (popup === null) return nothing;
@@ -240,7 +260,8 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
         },
         remind: () => {
           this.remind();
-        }
+        },
+        ...this.visionItem()
       }
     );
     return html`<sl-context-menu

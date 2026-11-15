@@ -3,11 +3,14 @@
 // Citation says and the Facts it supports, and the Volumes and archives
 // they're in.
 
+import { isClaudeModel } from '@/common/assistant-choices';
+import type { ClaudeModel } from '@/common/assistant-choices';
 import type {
   Box,
   ChurchBookArchive,
   CitationLinks,
   CitationRow,
+  VisionTry,
   VolumeChoices,
   VolumeCitation,
   VolumeContents
@@ -218,6 +221,14 @@ export const CITATION_OPERATIONS = {
     isId(citationId) && isId(factId) && typeof on === 'boolean'
       ? { citationId, factId, on }
       : null
+  ),
+
+  // Searches the scans for a reference with the vision model `model`, and
+  // saves the Match it confirms (ADR-0029).
+  findByVision: answers<{ citationId: number; model: ClaudeModel }, VisionTry>(
+    '{ citationId, model }',
+    ({ citationId, model }) =>
+      isId(citationId) && isClaudeModel(model) ? { citationId, model } : null
   ),
 
   // The Volumes a reference can be put in.

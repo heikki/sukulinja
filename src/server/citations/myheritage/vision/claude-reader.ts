@@ -295,6 +295,8 @@ function mediaType(bytes: Uint8Array) {
 
 interface ClaudeReaderOptions {
   models?: Partial<Record<Question, string>>;
+  // The key to ask with; by default the environment's credentials.
+  apiKey?: string | null;
   effort?: Partial<Record<Question, Effort>>;
   // The Image, scaled to send: pacedImages(cache), through the Scan
   // cache.
@@ -302,7 +304,7 @@ interface ClaudeReaderOptions {
   client?: Anthropic;
 }
 
-interface ClaudeReader extends Reader {
+export interface ClaudeReader extends Reader {
   spend: () => Record<string, Spend>;
 }
 
@@ -312,7 +314,7 @@ export function claudeReader(options: ClaudeReaderOptions): ClaudeReader {
   const image = options.image;
   const { client, openRouter } =
     options.client === undefined
-      ? connect()
+      ? connect(options.apiKey ?? null)
       : { client: options.client, openRouter: false };
   const spent = new Map<string, Spend>();
 

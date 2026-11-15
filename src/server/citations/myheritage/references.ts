@@ -14,6 +14,7 @@ import type { Marks } from './pins/marks';
 import { churchBookRefOf, indexRoleOf, markKey, readRecord } from './record';
 import type { ChurchBookRef } from './record';
 import type { Scans } from './scans';
+import { findByVision } from './vision/find';
 
 // A MyHeritage record's page: its text is the record's transcription.
 function isRecordPage(page: string | null) {
@@ -62,6 +63,7 @@ export function referencesOf(
     mark: async (ref, target) => await scans.markRef(ref, target),
     discard: async (ref, at) => await scans.discardRef(ref, at),
     volumeChoices: async (ref) => await scans.volumeChoices(ref),
+    findByVision: async (ref, reader) => await findByVision(scans, ref, reader),
 
     converts(ref) {
       return marks.idsOf(markKey(ref)).flatMap((id) => {
