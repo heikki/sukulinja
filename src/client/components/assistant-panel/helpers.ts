@@ -36,6 +36,23 @@ export function stateWords(state: ProposedItem['state']) {
   return `Not applied: ${state.refused}`;
 }
 
+// What a settled box of items says while folded: how many were applied,
+// refused or taken back, as "Changes: 2 applied, 1 not applied".
+export function settledWords(items: readonly ProposedItem[]) {
+  function count(state: string) {
+    return items.filter(
+      (p) => (typeof p.state === 'object' ? 'refused' : p.state) === state
+    ).length;
+  }
+  const parts = [
+    [count('applied'), 'applied'],
+    [count('refused'), 'not applied'],
+    [count('withdrawn'), 'taken back']
+  ] as const;
+  const said = parts.filter(([n]) => n > 0).map(([n, w]) => `${n} ${w}`);
+  return `Changes: ${said.join(', ')}`;
+}
+
 // The Apply button's words, for how many items are ticked.
 export function applyWords(ticked: number, applying: boolean) {
   if (applying) return 'Applying…';

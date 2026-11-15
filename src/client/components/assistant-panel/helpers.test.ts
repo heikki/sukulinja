@@ -1,9 +1,12 @@
 import { expect, test } from 'bun:test';
 
+import type { ProposedItem } from '@/client/state';
+
 import {
   applyWords,
   barWords,
   endNote,
+  settledWords,
   spendWords,
   stateWords
 } from './helpers';
@@ -36,4 +39,16 @@ test('says what became of an item, and what Apply applies', () => {
   expect(barWords(null, 0)).toBeNull();
   expect(barWords(null, 2)).toBe('2 changes wait');
   expect(barWords({ failed: 'No.' }, 2)).toBe('No.');
+});
+
+test('folds a settled box to what became of it', () => {
+  function item(state: ProposedItem['state']): ProposedItem {
+    return { id: 1, label: 'A', reason: '', exchange: 0, ticked: true, state };
+  }
+  expect(settledWords([item('applied'), item('applied')])).toBe(
+    'Changes: 2 applied'
+  );
+  expect(
+    settledWords([item('applied'), item({ refused: 'No.' }), item('withdrawn')])
+  ).toBe('Changes: 1 applied, 1 not applied, 1 taken back');
 });

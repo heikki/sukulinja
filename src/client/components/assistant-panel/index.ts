@@ -15,6 +15,7 @@ import {
   applyWords,
   barWords,
   endNote,
+  settledWords,
   spendWords,
   stateWords
 } from './helpers';
@@ -54,7 +55,8 @@ function renderExchange(
 // Shift+Enter starts a new line. Each change it proposes is listed under
 // the answer, ticked, with its reason; while any wait, a bar above the
 // field applies the ticked ones through the app's own operations, and
-// each one refused says why. New conversation forgets
+// each one refused says why. Once none of an answer's items wait, its box
+// folds to a line saying what became of them. New conversation forgets
 // this one, Proposal and all.
 @customElement('sl-assistant-panel')
 class AssistantPanelElement extends SignalWatcher(LitElement) {
@@ -141,6 +143,27 @@ class AssistantPanelElement extends SignalWatcher(LitElement) {
       .items li.withdrawn .what {
         color: var(--muted);
         text-decoration: line-through;
+      }
+      /* Once nothing in it waits, the box folds to a line saying what
+         became of it. */
+      .settled {
+        padding: 0.35rem 0.6rem;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      .settled summary {
+        cursor: pointer;
+      }
+      .settled summary:hover {
+        color: var(--accent);
+      }
+      .settled .items {
+        margin-top: 0.25rem;
+        padding: 0;
+        border: 0;
+        color: var(--fg);
       }
       .apply-bar {
         display: flex;
@@ -249,13 +272,18 @@ class AssistantPanelElement extends SignalWatcher(LitElement) {
       .filter((p) => p.exchange === exchange);
     if (items.length === 0) return nothing;
     const applying = assistant.applying.get();
-    return html`<ol class="items" aria-label="Proposed changes">
+    const list = html`<ol class="items" aria-label="Proposed changes">
       ${repeat(
         items,
         (p) => p.id,
         (p) => this.renderItem(p, applying)
       )}
     </ol>`;
+    if (applying || items.some((p) => p.state === 'open')) return list;
+    return html`<details class="settled">
+      <summary>${settledWords(items)}</summary>
+      ${list}
+    </details>`;
   }
 
   // Applying what's ticked, while anything waits; then what applying
