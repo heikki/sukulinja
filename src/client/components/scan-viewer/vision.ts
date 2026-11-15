@@ -5,24 +5,17 @@ import { customElement } from 'lit/decorators.js';
 
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
-import type { VisionBatch } from '@/client/state/vision-batch';
 
 import { controlStyles } from '../box-stage/styles';
-import {
-  batchFoundWords,
-  costWords,
-  foundWords,
-  modelLabel
-} from './vision-words';
+import { batchFoundWords, costWords, modelLabel } from './vision-words';
 
 function stop(e: Event) {
   e.stopPropagation();
 }
 
-// Along the top of the stage, while Vision Match searches for the source,
-// or for every estimate on the Image, and after (ADR-0029): how long it has
-// been at it, then what it found and what that took, or why it couldn't,
-// until closed.
+// Along the top of the stage, while Vision Match locates the estimates on
+// the Image, and after (ADR-0029): how long it has been at it, then what
+// it found and what that took, or why it couldn't, until closed.
 @customElement('sl-scan-vision')
 class ScanVisionElement extends SignalWatcher(LitElement) {
   static override styles = [
@@ -104,7 +97,6 @@ class ScanVisionElement extends SignalWatcher(LitElement) {
   private renderClose() {
     return html`<button
       @click=${() => {
-        this.state.viewer.forgetVisionMatch();
         this.state.viewer.forgetVisionBatch();
       }}
     >
@@ -112,19 +104,28 @@ class ScanVisionElement extends SignalWatcher(LitElement) {
     </button>`;
   }
 
-  // Every estimate on the Image: how far it has got, then how many it
-  // found and what it took. The ones not found stay under Estimate
-  // beside the scan.
-  private renderBatch(batch: VisionBatch) {
+  private renderUndo() {
+    return html`<button
+      title="Takes back every Match it found"
+      @click=${async () => {
+        await this.state.viewer.undoVisionBatch();
+      }}
+    >
+      Undo all
+    </button>`;
+  }
+
+  // How long it has been at it, then how many it found and what it took.
+  // The ones not found stay under Estimate beside the scan.
+  override render() {
+    const batch = this.state.viewer.visionBatch.get();
+    this.tick(batch !== null && 'searching' in batch);
+    if (batch === null) return nothing;
     if ('searching' in batch) {
       const seconds = Math.round((Date.now() - batch.since) / 1000);
       return html`<div class="card">
         <p>
-          ${
-            batch.atOnce
-              ? `Vision Match is reading the Image for all ${batch.of} at once with`
-              : `Vision Match is searching ${batch.done + 1} of ${batch.of} with`
-          }
+          Vision Match is locating ${batch.of} with
           ${modelLabel(batch.searching)}… ${seconds} s
         </p>
       </div>`;
@@ -133,66 +134,22 @@ class ScanVisionElement extends SignalWatcher(LitElement) {
     const found = tries.some((t) => t.missed === null);
     return html`<div class="card">
       <div>
-        <p>
-          ${batchFoundWords(tries, batch.of, this.state.viewer.image.get())}
-        </p>
         ${
           batch.refused === null
-            ? nothing
+            ? html`<p>
+                ${batchFoundWords(tries, batch.of, this.state.viewer.image.get())}
+              </p>`
             : html`<p class="refused">${batch.refused}</p>`
         }
-        <p class="cost">
-          ${costWords(batch.took)}${batch.atOnce ? ' · in one question' : ''}
-        </p>
+        ${
+          batch.took === null
+            ? nothing
+            : html`<p class="cost">${costWords(batch.took)}</p>`
+        }
       </div>
       <div class="actions">
-        ${
-          found
-            ? html`<button
-                title="Takes back every Match it found"
-                @click=${async () => {
-                  await this.state.viewer.undoVisionBatch();
-                }}
-              >
-                Undo all
-              </button>`
-            : nothing
-        }
-        ${this.renderClose()}
+        ${found ? this.renderUndo() : nothing} ${this.renderClose()}
       </div>
-    </div>`;
-  }
-
-  override render() {
-    const batch = this.state.viewer.visionBatch.get();
-    const status = this.state.viewer.visionMatch.get();
-    this.tick(
-      (batch !== null && 'searching' in batch) ||
-        (status !== null && 'searching' in status)
-    );
-    if (batch !== null) return this.renderBatch(batch);
-    if (status === null) return nothing;
-    if ('searching' in status) {
-      const seconds = Math.round((Date.now() - status.since) / 1000);
-      return html`<div class="card">
-        <p>
-          Vision Match is searching with ${modelLabel(status.searching)}…
-          ${seconds} s
-        </p>
-      </div>`;
-    }
-    if ('refused' in status) {
-      return html`<div class="card">
-        <p class="refused">${status.refused}</p>
-        ${this.renderClose()}
-      </div>`;
-    }
-    return html`<div class="card">
-      <div>
-        <p>${foundWords(status.tried)}</p>
-        <p class="cost">${costWords(status.tried)}</p>
-      </div>
-      ${this.renderClose()}
     </div>`;
   }
 }

@@ -2,13 +2,7 @@ import { computed, signal } from '@lit-labs/signals';
 
 import type { DatasetApi, InEntry } from '@/client/dataset-api';
 import type { ClaudeModel } from '@/common/assistant-choices';
-import type {
-  Box,
-  Link,
-  Rescan,
-  VolumeChoice,
-  VolumeCitation
-} from '@/common/types';
+import type { Box, Rescan, VolumeChoice, VolumeCitation } from '@/common/types';
 
 import { confirmingSource } from './confirming';
 import type { Confirming } from './confirming';
@@ -27,8 +21,6 @@ import type { ImageOpen, LinkOpen } from './source-open';
 import type { Source } from './sources';
 import { visionBatching } from './vision-batch';
 import type { VisionBatch } from './vision-batch';
-import { visionMatching } from './vision-match';
-import type { VisionMatch } from './vision-match';
 
 export type { PendingAt, PendingChange } from './pending-change';
 export type { EntryEdit, PendingCite } from './pending-entry';
@@ -114,21 +106,12 @@ export interface Viewer {
   // How that's going. A refusal stays until the source, the Image or the
   // Box changes.
   confirming: Readable<Confirming | null>;
-  // Searches the scans for the source's reference with the vision model,
-  // where its Link is an estimate (ADR-0029); on a Match, to it.
-  findByVision: (model: ClaudeModel) => Promise<void>;
-  // How that's going, and what it found and took, for the source it was
-  // about, until forgotten.
-  visionMatch: Readable<VisionMatch | null>;
-  forgetVisionMatch: () => void;
-  // The estimates on the Image shown that a batch would search, one per
-  // record.
+  // The estimates on the Image shown that Vision Match would look for,
+  // one per record.
   estimatesHere: Readable<VolumeCitation[]>;
-  // Searches for each of them in turn with the vision model (ADR-0029).
+  // Searches for them all with the vision model (ADR-0029); and takes
+  // back every Match that found.
   findAllByVision: (model: ClaudeModel) => Promise<void>;
-  // The same in one question, on the Image alone; and every Match found
-  // taken back.
-  findAllAtOnce: (model: ClaudeModel) => Promise<void>;
   undoVisionBatch: () => Promise<void>;
   // How far that has got, then what it found and took, for the Image it
   // was about while it's shown, until forgotten.
@@ -236,7 +219,6 @@ export function openViewer(
   const placing = signal(false);
   const discarding = signal(false);
   const confirmation = confirmingSource(source, confirm);
-  const vision = visionMatching(source, selected.findByVision, followMatch);
   const batch = visionBatching({ volume, image, citations }, api, batchSettled);
   const leaving = signal(false);
   const filming = filmingOf(api, () => volume.get()?.id);
@@ -566,14 +548,6 @@ export function openViewer(
     await reload;
   }
 
-  // The citations reload, as after a confirmation, and the viewer goes to
-  // the Match.
-  function followMatch(shown: LinkOpen, link: Link) {
-    const here = volume.get();
-    if (here?.id === link.volumeId) void loadCitations(here.id);
-    openNow({ citation: shown.citation, link });
-  }
-
   // After a batch the Volume's citations reload, drawing the Matches it
   // found, and the Selected person's Links, which it may have moved. The
   // viewer stays on the Image.
@@ -640,12 +614,8 @@ export function openViewer(
     confirm,
     confirmSource: confirmation.run,
     confirming: confirmation.status,
-    findByVision: vision.run,
-    visionMatch: vision.status,
-    forgetVisionMatch: vision.forget,
     estimatesHere: batch.estimates,
     findAllByVision: batch.run,
-    findAllAtOnce: batch.runAtOnce,
     undoVisionBatch: batch.undo,
     visionBatch: batch.status,
     forgetVisionBatch: batch.forget,

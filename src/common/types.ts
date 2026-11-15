@@ -309,23 +309,22 @@ export type LinkResolution = { links: Link[] } | UnlinkedResolution;
 export type CitationLinks = { citationId: number } & LinkResolution;
 
 // What a Vision Match of one reference did (ADR-0029): its Links as they
-// then resolve, and null when it saved a Match, else why it didn't; the
-// questions it asked the model, how many of them earlier readings
-// answered for nothing, what the rest cost, and how long it took.
+// then resolve, and null when it saved a Match, else why it didn't.
 export interface VisionTry {
   links: CitationLinks;
   missed: string | null;
+}
+
+// Every estimate on an Image looked for in one question (ADR-0029): each
+// one's try; the questions it asked the model, how many of them earlier
+// readings answered for nothing, what the rest cost, and how long it took.
+export interface VisionPageTry {
+  tries: VisionTry[];
   model: string;
   readings: number;
   cached: number;
   dollars: number | null;
   seconds: number;
-}
-
-// Every estimate on an Image looked for in one question (ADR-0029): each
-// one's Links and why it found none, and what that took.
-export interface VisionPageTry extends Omit<VisionTry, 'links' | 'missed'> {
-  tries: Array<Pick<VisionTry, 'links' | 'missed'>>;
 }
 
 // The kind of church book: rippikirja (communion book), lastenkirja

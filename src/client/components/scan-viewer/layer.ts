@@ -217,26 +217,19 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     this.state.reminders.draft(places);
   }
 
-  // Searching for the source with Vision Match, while the Assistant is
-  // on: its key and the model are set beside it in Settings (ADR-0029).
+  // Locating the estimates on the Image with Vision Match, while the
+  // Assistant is on: its key and the model are set beside it in Settings
+  // (ADR-0029).
   private visionItem() {
     if (!assistantOn.get()) return {};
     const model = visionModel.get();
     const label = CLAUDE_MODELS.find((m) => m.id === model)?.label ?? model;
     return {
-      findByVision: {
+      locate: {
         model: label,
         run: () => {
           this.popup = null;
-          void this.viewer.findByVision(model);
-        },
-        runAll: () => {
-          this.popup = null;
           void this.viewer.findAllByVision(model);
-        },
-        runAtOnce: () => {
-          this.popup = null;
-          void this.viewer.findAllAtOnce(model);
         }
       }
     };

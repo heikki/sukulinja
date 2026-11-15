@@ -1,7 +1,6 @@
 import { volumeTitle } from '@/client/link-labels';
 import { imageLabel } from '@/client/on';
 import type { Viewer } from '@/client/state';
-import { canFindByVision } from '@/client/state/vision-match';
 import { referenceName } from '@/common/books';
 
 import type { MenuItem } from '../context-menu';
@@ -14,9 +13,8 @@ import type { MenuItem } from '../context-menu';
 // Citation here, named under it as the lists name it, unless its Box is on
 // the Image already, and with nothing pending, one for a new Citation of
 // an entry for someone; then, with nothing pending, a Reminder, once Astia
-// lists the Image; then, where Vision Match can be asked (`findByVision`),
-// a search for the source where its Link is an estimate, and for every
-// estimate on the Image where there's more than one (ADR-0029); then
+// lists the Image; then, where Vision Match can be asked (`locate`) and
+// there are estimates on the Image, a search for them all (ADR-0029); then
 // Change Volume…, which only shows another Volume.
 // A Box's menu offers a Reminder too. An Entry made in the app is edited
 // in the card it was made in, people, words and Box at once (ADR-0026),
@@ -33,7 +31,7 @@ export function linkItems(
     remind: () => void;
     // The model Vision Match asks, by its label, and asking it for the
     // source, or for every estimate on the Image.
-    findByVision?: VisionFinds;
+    locate?: VisionFind;
   }
 ) {
   const remind: MenuItem[] =
@@ -56,54 +54,35 @@ export function linkItems(
       items.push({ label: 'New entry here', run: open.cite });
     }
   }
-  items.push(...remind, ...visionItems(viewer, open.findByVision));
+  items.push(...remind, ...visionItems(viewer, open.locate));
   if (hasSource) {
     items.push({ label: 'Change Volume…', run: open.chooseVolume });
   }
   return items;
 }
 
-// The Vision Match searches the menu offers, with the model's label.
-export interface VisionFinds {
+// Vision Match as the menu offers it, with the model's label.
+export interface VisionFind {
   model: string;
   run: () => void;
-  runAll: () => void;
-  runAtOnce: () => void;
 }
 
-function visionItems(
-  viewer: Viewer,
-  find: VisionFinds | undefined
-): MenuItem[] {
+// Locating every estimate on the Image with Vision Match, while none is
+// being looked for.
+function visionItems(viewer: Viewer, find: VisionFind | undefined): MenuItem[] {
   if (find === undefined || viewer.pending.get() !== null) return [];
-  const one = viewer.visionMatch.get();
-  const all = viewer.visionBatch.get();
-  if (one !== null && 'searching' in one) return [];
-  if (all !== null && 'searching' in all) return [];
-  const items: MenuItem[] = [];
-  if (canFindByVision(viewer.source.get())) {
-    items.push({
-      label: 'Find with Vision Match',
-      detail: find.model,
-      run: find.run
-    });
-  }
+  const batch = viewer.visionBatch.get();
+  if (batch !== null && 'searching' in batch) return [];
   const estimates = viewer.estimatesHere.get().length;
-  if (estimates > 1) {
-    items.push(
-      {
-        label: 'Find all estimates here',
-        detail: `${estimates} one by one · ${find.model}`,
-        run: find.runAll
-      },
-      {
-        label: 'Find all estimates here at once',
-        detail: `${estimates} in one question, this Image only · ${find.model}`,
-        run: find.runAtOnce
-      }
-    );
-  }
-  return items;
+  if (estimates === 0) return [];
+  const people = estimates === 1 ? '1 person' : `${estimates} people`;
+  return [
+    {
+      label: 'Locate estimates on this Image',
+      detail: `${people} · Vision Match · ${find.model}`,
+      run: find.run
+    }
+  ];
 }
 
 // The source's Citation by its reference, or one made in the app by the

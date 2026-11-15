@@ -40,6 +40,12 @@ async function vision(
     findEntry: async ({ image }) => {
       ask(`entry ${image}`);
       return await Promise.resolve({ found: false, confidence: 0.9 });
+    },
+    findEntries: async ({ image }, people) => {
+      ask(`entries ${image}`);
+      return await Promise.resolve(
+        people.map(() => ({ found: false, confidence: 0.9 }))
+      );
     }
   });
 }
@@ -308,23 +314,23 @@ describe("A dataset's Citations", () => {
     ]);
   });
 
-  test('searches for a reference with the vision model', async () => {
+  test('looks for references on an Image with the vision model', async () => {
     await seedDataset();
     async function find(body: unknown) {
-      const res = await op('juva', 'findByVision', body);
+      const res = await op('juva', 'findAllOnImage', body);
       const text = await res.text();
       return {
         status: res.status,
         body: (res.ok ? JSON.parse(text) : text) as unknown
       };
     }
-    const asked = { citationId: 1, model: 'claude-haiku-5-5' };
+    const at = { volumeId: 'juva-1', image: 12 };
+    const asked = { citationIds: [1], at, model: 'claude-haiku-5-5' };
     const first = await find(asked);
     expect(first).toMatchObject({
       status: 200,
       body: {
-        links: { citationId: 1 },
-        missed: 'name not found',
+        tries: [{ links: { citationId: 1 }, missed: 'name not found' }],
         model: 'claude-haiku-5-5',
         cached: 0,
         dollars: 0
@@ -339,10 +345,8 @@ describe("A dataset's Citations", () => {
       cached: readings
     });
     expect(visionAsked.length).toBe(before);
-    expect((await find({ citationId: 1, model: 'gpt' })).status).toBe(400);
-    expect(
-      (await find({ citationId: 2, model: 'claude-haiku-5-5' })).status
-    ).toBe(404);
+    expect((await find({ ...asked, model: 'gpt' })).status).toBe(400);
+    expect((await find({ ...asked, citationIds: [] })).status).toBe(400);
   });
 
   test('says when Astia fails', async () => {

@@ -30,7 +30,15 @@ const READER: Reader = {
       found: image === 12,
       confidence: 0.9,
       box: { left: 0.1, top: 0.5, width: 0.4, height: 0.05 }
-    })
+    }),
+  findEntries: async ({ image }, people) =>
+    await Promise.resolve(
+      people.map(() => ({
+        found: image === 12,
+        confidence: 0.9,
+        box: { left: 0.1, top: 0.5, width: 0.4, height: 0.05 }
+      }))
+    )
 };
 
 test('a Match taken back is only undone, and writes no Change', async () => {
@@ -55,18 +63,20 @@ test('a Match taken back is only undone, and writes no Change', async () => {
     }
   });
 
-  expect(await citations.findByVision(1, READER)).toMatchObject({
-    missed: null
-  });
   const at = { volumeId: 'juva-1', image: 12 };
+  expect(await citations.findAllOnImage([1], at, READER)).toMatchObject([
+    { citationId: 1, missed: null }
+  ]);
   expect(await citations.discard(1, at)).toMatchObject({
     done: { match: true },
     resolution: { links: [{ certainty: 'estimated' }] }
   });
   expect(changes).toEqual([]);
   // Found again, as nothing of it was kept.
-  expect(await citations.findByVision(1, READER)).toMatchObject({
-    missed: null,
-    resolution: { links: [{ certainty: 'match', image: 12 }] }
-  });
+  expect(await citations.findAllOnImage([1], at, READER)).toMatchObject([
+    {
+      missed: null,
+      resolution: { links: [{ certainty: 'match', image: 12 }] }
+    }
+  ]);
 });

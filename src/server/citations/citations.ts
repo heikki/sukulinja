@@ -502,23 +502,11 @@ export function createCitations<R extends BookRef>(
       return result;
     },
 
-    // Searches the scans for the reference with the vision model, saving
-    // the Match it confirms (ADR-0029); null as for `mark`, and rejected for
-    // a Citation of an Entry, as `mark` is.
-    async findByVision(citationId: number, reader: Reader) {
-      const row = byId.get(citationId);
-      if (row === null) return null;
-      if (row.entryId !== null) {
-        return { rejected: 'An entry is placed by hand.' };
-      }
-      const book = bookOf(row);
-      return book === null ? null : await references.findByVision(book, reader);
-    },
-
-    // Looks for the citations' references on the Image `at` at once, with
-    // the vision model, saving the Matches it confirms (ADR-0029): each
-    // reference's citation id with what `findByVision` gives. A citation
-    // that's no reference, or of an Entry, is left out.
+    // Looks for the citations' references on the Image `at` at once, and
+    // on the Images around it, with the vision model, saving the Matches
+    // it confirms (ADR-0029): each reference's citation id, its Links as
+    // they then resolve, and null where a Match was saved, else why none
+    // was. A citation that's no reference, or of an Entry, is left out.
     async findAllOnImage(citationIds: number[], at: BoxAt, reader: Reader) {
       const asked = citationIds.flatMap((citationId) => {
         const row = byId.get(citationId);

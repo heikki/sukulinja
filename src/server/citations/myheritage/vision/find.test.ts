@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { juvaAstia, rippiCitation } from '../../astia/test-parish';
 import { churchBookRefOf } from '../record';
 import { citing, scansOf } from '../test-pins';
-import { counting, findAllOnImage, findByVision } from './find';
+import { counting, findAllOnImage } from './find';
 import type { Reader } from './reader';
 
 // juva-1 numbers each spread with its Image number; Matti is on Image 12.
@@ -28,6 +28,8 @@ function reader(on: Record<number, string>): Reader {
 
 const MATTI = rippiCitation(5000, '1790 - 1796', 12, 'Matti Esimerkki');
 const REF = churchBookRefOf(MATTI.page, MATTI.text)!;
+const LIISA = rippiCitation(5001, '1790 - 1796', 12, 'Liisa Esimerkki');
+const LIISA_REF = churchBookRefOf(LIISA.page, LIISA.text)!;
 
 let dir = '';
 beforeEach(async () => {
@@ -38,44 +40,13 @@ afterEach(async () => {
 });
 
 function scans() {
-  return scansOf(dir, citing([MATTI]), {
+  return scansOf(dir, citing([MATTI, LIISA]), {
     astia: juvaAstia(),
     sizeOf: async () => await Promise.resolve({ width: 1000, height: 2000 })
   });
 }
 
-test('saves the Match it confirms, which the reference then links', async () => {
-  const found = await findByVision(
-    scans(),
-    REF,
-    reader({ 12: 'Matti Esimerkki' })
-  );
-  expect(found).toMatchObject({
-    missed: null,
-    resolution: {
-      links: [{ volumeId: 'juva-1', image: 12, certainty: 'match' }]
-    }
-  });
-});
-
-test('says why it found none, and leaves the estimate', async () => {
-  const found = await findByVision(scans(), REF, reader({}));
-  expect(found).toMatchObject({
-    missed: 'name not found',
-    resolution: { links: [{ certainty: 'estimated' }] }
-  });
-});
-
-test('counts the questions asked', async () => {
-  const counted = counting(reader({ 12: 'Matti Esimerkki' }));
-  await findByVision(scans(), REF, counted.reader);
-  expect(counted.asked()).toBeGreaterThan(1);
-});
-
-const LIISA = rippiCitation(5001, '1790 - 1796', 12, 'Liisa Esimerkki');
-const LIISA_REF = churchBookRefOf(LIISA.page, LIISA.text)!;
-
-test('looks for everyone on the Image in one question', async () => {
+test('looks for everyone on the Image in one question, then around it', async () => {
   const asked: string[][] = [];
   const atOnce: Reader = {
     ...reader({}),
@@ -93,16 +64,19 @@ test('looks for everyone on the Image in one question', async () => {
       );
     }
   };
+  const counted = counting(atOnce);
   const found = await findAllOnImage(
-    scansOf(dir, citing([MATTI, LIISA]), {
-      astia: juvaAstia(),
-      sizeOf: async () => await Promise.resolve({ width: 1000, height: 2000 })
-    }),
+    scans(),
     { volumeId: 'juva-1', image: 12 },
     [REF, LIISA_REF],
-    atOnce
+    counted.reader
   );
-  expect(asked).toEqual([['Matti Esimerkki', 'Liisa Esimerkki']]);
+  // Liisa, not found there, is looked for on the Images around it.
+  expect(asked).toEqual([
+    ['Matti Esimerkki', 'Liisa Esimerkki'],
+    ...[13, 11, 14, 10, 15, 9].map(() => ['Liisa Esimerkki'])
+  ]);
+  expect(counted.asked()).toBe(7);
   expect(found).toMatchObject([
     {
       missed: null,

@@ -222,30 +222,7 @@ test("an Entry's Box offers Edit, and with others in it, Delete entry", async ()
   });
 });
 
-test('Find with Vision Match is offered on an estimate, where it can be asked', async () => {
-  const find = {
-    model: 'Haiku 5.5',
-    run: unasked,
-    runAll: unasked,
-    runAtOnce: unasked
-  };
-  const where = { onBox: false, canBox: true };
-  const estimate = await viewing(citation(1, false), ON_IMAGE);
-  expect(
-    linkItems(estimate, where, { ...NONE, findByVision: find }).find(
-      (i) => i.label === 'Find with Vision Match'
-    )?.detail
-  ).toBe('Haiku 5.5');
-  expect(labels(estimate, where)).not.toContain('Find with Vision Match');
-  const marked = await viewing(citation(2, false));
-  expect(
-    linkItems(marked, where, { ...NONE, findByVision: find }).map(
-      (i) => i.label
-    )
-  ).not.toContain('Find with Vision Match');
-});
-
-test('Find all estimates here is offered with more than one estimate on the Image', async () => {
+test('Locating the estimates is offered where there are any on the Image', async () => {
   const api = memoryDatasetApi({
     volumes: {
       '201': {
@@ -261,21 +238,19 @@ test('Find all estimates here is offered with more than one estimate on the Imag
   const { viewer } = openAppState(api);
   viewer.open({ citation: citation(1, false), link: ON_IMAGE });
   await Bun.sleep(0);
-  const find = {
-    model: 'Haiku 5.5',
-    run: unasked,
-    runAll: unasked,
-    runAtOnce: unasked
-  };
+  const find = { model: 'Haiku 5.5', run: unasked };
+  expect(labels(viewer, { onBox: false, canBox: true })).not.toContain(
+    'Locate estimates on this Image'
+  );
   const items = linkItems(
     viewer,
     { onBox: false, canBox: true },
     {
       ...NONE,
-      findByVision: find
+      locate: find
     }
   );
-  expect(items.find((i) => i.label === 'Find all estimates here')?.detail).toBe(
-    '2 one by one · Haiku 5.5'
-  );
+  expect(
+    items.find((i) => i.label === 'Locate estimates on this Image')?.detail
+  ).toBe('2 people · Vision Match · Haiku 5.5');
 });

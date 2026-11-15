@@ -6,7 +6,7 @@ import type { Database } from 'bun:sqlite';
 import { join } from 'node:path';
 
 import type { BoxAt } from '@/common/operations';
-import type { Spend, VisionPageTry, VisionTry } from '@/common/types';
+import type { Spend, VisionPageTry } from '@/common/types';
 
 import type { NewChange } from '../changes/changes';
 import { Refusal } from '../operations';
@@ -129,34 +129,6 @@ export function openCitations(root: string, options: Options) {
   // Readings are kept where the scripts keep theirs, so neither asks twice.
   const readings = join(root, '.vision-readings');
 
-  // Searches the scans for the citation's reference (ADR-0029), with what
-  // it took.
-  async function findByVision(
-    citations: ReturnType<typeof createCitations>,
-    citationId: number,
-    model: string
-  ): Promise<VisionTry | { rejected: string } | null> {
-    if (options.vision === undefined) return { rejected: NO_VISION };
-    const started = performance.now();
-    const reader = await options.vision(model, visionImage);
-    const counted = counting(cachedReader(reader, readings));
-    const found = await citations
-      .findByVision(citationId, counted.reader)
-      .catch(failedWith);
-    if (found === null || 'rejected' in found) return found;
-    const spend = reader.spend();
-    const readingsAsked = counted.asked();
-    return {
-      links: { citationId, ...found.resolution },
-      missed: found.missed,
-      model,
-      readings: readingsAsked,
-      cached: readingsAsked - callsOf(spend),
-      dollars: dollarsOf(spend),
-      seconds: Math.round((performance.now() - started) / 1000)
-    };
-  }
-
   // Looks for the citations' references on the Image `at` in one
   // question (ADR-0029), with what it took.
   async function findAllOnImage(
@@ -234,8 +206,6 @@ export function openCitations(root: string, options: Options) {
         // The operations on the dataset's Citations.
         operations: citationOperations(citations, {
           switchFilming: switchTo,
-          findByVision: async (citationId, model) =>
-            await findByVision(citations, citationId, model),
           findAllOnImage: async (citationIds, at, model) =>
             await findAllOnImage(citations, { citationIds, at }, model)
         }),

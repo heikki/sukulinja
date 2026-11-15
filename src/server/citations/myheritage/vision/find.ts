@@ -1,14 +1,16 @@
-// One reference matched on request, as the Scan viewer asks (ADR-0029):
-// the matcher over the Volumes its estimate offers, as the scripts run it,
-// and the Match saved where it confirms one. The person still confirms or
-// discards it in the Scan viewer; nothing is Marked.
+// The estimates on an Image matched on request, as the Scan viewer asks
+// (ADR-0029): all of them in one question about that Image, those not
+// found then about each Image around it, each answer checked as the
+// matcher checks one, and the Match saved where it
+// confirms one. The person still confirms or discards it in the Scan
+// viewer; nothing is Marked.
 
 import type { LinkResolution } from '@/common/types';
 
 import type { ImageRef } from '../../astia/astia';
 import type { ChurchBookRef } from '../record';
 import type { Scans } from '../scans';
-import { matchRef, personOf } from './matcher';
+import { around, personOf } from './matcher';
 import type { MissReason } from './matcher';
 import { confirms } from './reader';
 import type { EntryReading, Person, Reader } from './reader';
@@ -20,30 +22,11 @@ export interface Found {
   missed: string | null;
 }
 
-export async function findByVision(
-  scans: Scans,
-  ref: ChurchBookRef,
-  reader: Reader
-): Promise<Found | { rejected: string }> {
-  const match = await matchRef(ref, await scans.matchCandidates(ref), reader);
-  if (!match.confirmed) {
-    return { resolution: await scans.resolveRef(ref), missed: match.reason };
-  }
-  const refused = await scans.saveMatch(ref, match);
-  if (refused !== null) return refused;
-  return { resolution: await scans.resolveRef(ref), missed: null };
-}
-
-// Why one asked about with the others found no Match, from its reading.
-function missOf(reading: EntryReading): MissReason {
-  if ('unreadable' in reading) return 'unreadable';
-  return 'name not found';
-}
-
 // Every reference estimated on the Image `at`, looked for there in one
-// question (ADR-0029): each one's Links as they then resolve, and null
-// where a Match was saved, else why none was. Only that Image is read, not
-// those around it, as the matcher's Confirmation does.
+// question (ADR-0029), then those not found on the Images around it, one
+// question for each Image, nearest first, as far as the matcher's
+// Confirmation looks: each one's Links as they then resolve, and null
+// where a Match was saved, else why none was.
 export async function findAllOnImage(
   scans: Scans,
   at: ImageRef,
@@ -55,23 +38,55 @@ export async function findAllOnImage(
   const asking = await Promise.all(
     refs.map(async (ref) => await askingOf(scans, at, ref))
   );
-  const people = asking.flatMap((a) => (a.missed === null ? [a.person] : []));
-  const readings = people.length === 0 ? [] : await findEntries(at, people);
-  let next = 0;
-  const found: Found[] = [];
-  for (const a of asking) {
-    // eslint-disable-next-line no-await-in-loop -- one save after another
-    const missed = a.missed ?? (await saved(scans, at, a, readings[next++]!));
-    // eslint-disable-next-line no-await-in-loop -- after its save
-    found.push({ resolution: await scans.resolveRef(a.ref), missed });
+  // Why each found none so far; none yet for one not read at all.
+  const missed = new Map<Asking, string | null>(
+    asking.flatMap((a) => (a.missed === null ? [] : [[a, a.missed]]))
+  );
+  let pending = asking.filter((a) => a.missed === null);
+  const images = Math.max(0, ...pending.map((a) => a.images));
+  for (const image of around(at.image, images)) {
+    if (pending.length === 0) break;
+    const on = { volumeId: at.volumeId, image };
+    // eslint-disable-next-line no-await-in-loop -- nearest first, stop when all are found
+    const readings = await findEntries(
+      on,
+      pending.map((a) => a.person)
+    );
+    const still: Searched[] = [];
+    for (const [i, a] of pending.entries()) {
+      const reading = readings[i]!;
+      // eslint-disable-next-line no-await-in-loop -- one save after another
+      const done = await saved(scans, on, a, reading);
+      if (done === undefined) {
+        still.push(a);
+        if (!('unreadable' in reading)) missed.set(a, 'name not found');
+      } else {
+        missed.set(a, done);
+      }
+    }
+    pending = still;
   }
-  return found;
+  return await Promise.all(
+    asking.map(async (a) => {
+      const why = missed.get(a);
+      return {
+        resolution: await scans.resolveRef(a.ref),
+        missed: why === undefined ? 'unreadable' : why
+      };
+    })
+  );
 }
 
-// A reference's person and Volume label, or why it isn't asked about.
-type Asking = { ref: ChurchBookRef } & (
-  { missed: null; person: Person; volume: string } | { missed: MissReason }
-);
+// A reference's person, its Volume's label and count of Images, or why it
+// isn't asked about.
+interface Searched {
+  ref: ChurchBookRef;
+  missed: null;
+  person: Person;
+  volume: string;
+  images: number;
+}
+type Asking = Searched | { ref: ChurchBookRef; missed: MissReason };
 
 async function askingOf(
   scans: Scans,
@@ -82,22 +97,19 @@ async function askingOf(
   const candidates = await scans.matchCandidates(ref);
   const c = candidates.find((v) => v.volumeId === at.volumeId);
   if (c === undefined) return { ref, missed: 'no candidate volume' };
-  return {
-    ref,
-    missed: null,
-    person: personOf(ref, ref.name),
-    volume: c.volume
-  };
+  const person = personOf(ref, ref.name);
+  return { ref, missed: null, person, volume: c.volume, images: c.images };
 }
 
-// Saves the Match a reading confirms: null when it did, else why not.
+// Saves the Match a reading on `at` confirms: null when it did, else why
+// not; undefined where the person isn't found there, to look further.
 async function saved(
   scans: Scans,
   at: ImageRef,
-  { ref, person, volume }: Asking & { missed: null },
+  { ref, person, volume }: Searched,
   reading: EntryReading
 ) {
-  if (!confirms(person, reading)) return missOf(reading);
+  if (!confirms(person, reading)) return undefined;
   const box = 'unreadable' in reading ? null : (reading.box ?? null);
   if (box === null) return 'no box';
   const match = { confirmed: true as const, ...at, volume, onCitedPage: false };

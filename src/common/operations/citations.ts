@@ -11,7 +11,6 @@ import type {
   CitationLinks,
   CitationRow,
   VisionPageTry,
-  VisionTry,
   VolumeChoices,
   VolumeCitation,
   VolumeContents
@@ -222,14 +221,6 @@ export const CITATION_OPERATIONS = {
     isId(citationId) && isId(factId) && typeof on === 'boolean'
       ? { citationId, factId, on }
       : null
-  ),
-
-  // Searches the scans for a reference with the vision model `model`, and
-  // saves the Match it confirms (ADR-0029).
-  findByVision: answers<{ citationId: number; model: ClaudeModel }, VisionTry>(
-    '{ citationId, model }',
-    ({ citationId, model }) =>
-      isId(citationId) && isClaudeModel(model) ? { citationId, model } : null
   ),
 
   // Looks for the citations' references on one Image at once, in one

@@ -94,13 +94,6 @@ export interface References<R extends BookRef = BookRef> {
   ) => Promise<{ resolution: LinkResolution; done: DiscardDone } | Refused>;
   // The Volumes the reference can be put in.
   volumeChoices: (ref: R) => Promise<VolumeChoices>;
-  // Searches the scans for the reference with the vision model, and saves
-  // the Match it confirms (ADR-0029): its Links as they then resolve, and
-  // null when a Match was saved, else why none was.
-  findByVision: (
-    ref: R,
-    reader: Reader
-  ) => Promise<{ resolution: LinkResolution; missed: string | null } | Refused>;
   // Looks for every reference of `refs` on the Image `at` at once, saving
   // the Matches it confirms (ADR-0029): each one's Links as they then
   // resolve, and why it saved none, in their order.
@@ -139,7 +132,6 @@ export const noReferences: References<never> = {
   mark: async () => await Promise.resolve({ rejected: NO_REFERENCE }),
   discard: async () => await Promise.resolve({ rejected: NO_REFERENCE }),
   volumeChoices: async () => await Promise.resolve({ fits: [], others: [] }),
-  findByVision: async () => await Promise.resolve({ rejected: NO_REFERENCE }),
   findAllOnImage: async () => await Promise.resolve([]),
   converts: () => []
 };

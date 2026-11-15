@@ -17,51 +17,24 @@ export interface ImageAt {
   image: number;
 }
 
-// What a search took, one's or a batch's.
-export type Took = Pick<
-  VisionTry,
-  'model' | 'readings' | 'cached' | 'dollars' | 'seconds'
->;
+// What a search took.
+export type Took = Omit<VisionPageTry, 'tries'>;
 
-// Each try a batch made, summed as one.
-export function batchTook(tries: Took[], model: string, seconds: number): Took {
-  return {
-    model,
-    readings: tries.reduce((n, t) => n + t.readings, 0),
-    cached: tries.reduce((n, t) => n + t.cached, 0),
-    dollars: tries.reduce<number | null>(
-      (sum, t) => (sum === null || t.dollars === null ? null : sum + t.dollars),
-      0
-    ),
-    seconds
-  };
-}
-
-// A Vision Match of every estimate on an Image (ADR-0029), one after
-// another or all at once in one question: how far it has got, then each
-// one's try, what they took, and the first refusal, which stops it.
+// Vision Match of every estimate on an Image (ADR-0029), in one question
+// for the Image and one for each Image around it while some aren't found:
+// how long it has been at it, then each one's try and what it took, or
+// the refusal.
 export type VisionBatch =
+  | { searching: ClaudeModel; since: number; of: number }
   | {
-      searching: ClaudeModel;
-      since: number;
-      done: number;
-      of: number;
-      atOnce: boolean;
-    }
-  | {
-      tries: Array<{ row: VolumeCitation; tried: Tried }>;
+      tries: Array<{ row: VolumeCitation; tried: VisionTry }>;
       of: number;
       refused: string | null;
-      took: Took;
-      atOnce: boolean;
+      took: Took | null;
     };
-
-// One reference's try: its Links, and why it found none.
-export type Tried = Pick<VisionTry, 'links' | 'missed'>;
 
 // What a batch asks of the server.
 export interface BatchAsks {
-  findByVision: (citationId: number, model: ClaudeModel) => Promise<VisionTry>;
   findAllOnImage: (
     citationIds: number[],
     at: ImageAt,
@@ -91,13 +64,13 @@ interface Shown {
   citations: Readable<VolumeCitation[] | null | 'failed'>;
 }
 
-// Runs a batch with `find` over the estimates on the Image shown, saying
+// Runs Vision Match over the estimates on the Image shown, saying
 // how it goes; `settled` is told once it's done, for the citations to
 // reload. What it says is kept for its Image while that's shown, until
 // `forget`.
 export function visionBatching(
   { volume, image, citations }: Shown,
-  { findByVision: find, findAllOnImage, discard }: BatchAsks,
+  { findAllOnImage, discard }: BatchAsks,
   settled: () => Promise<void>
 ) {
   const shown = computed(() => {
@@ -125,86 +98,29 @@ export function visionBatching(
     return k !== null && 'searching' in k.status;
   }
 
-  // A refusal told, or anything else thrown on.
-  function refusalOf(err: unknown) {
-    if (err instanceof ApiError) return err.message;
-    kept.set(null);
-    throw err instanceof Error ? err : new Error(String(err));
-  }
-
   async function run(model: ClaudeModel) {
     const at = shown.get();
     const rows = estimates.get();
     if (at === null || rows.length === 0 || searching()) return;
-    const since = Date.now();
     const of = rows.length;
-    const tries: Array<{ row: VolumeCitation; tried: VisionTry }> = [];
-    let refused: string | null = null;
-    for (const row of rows) {
-      kept.set({
-        at,
-        status: {
-          searching: model,
-          since,
-          done: tries.length,
-          of,
-          atOnce: false
-        }
-      });
-      try {
-        // eslint-disable-next-line no-await-in-loop -- one at a time, as Astia is paced
-        tries.push({ row, tried: await find(row.citation.id, model) });
-      } catch (err) {
-        refused = refusalOf(err);
-        break;
-      }
-    }
-    const seconds = Math.round((Date.now() - since) / 1000);
-    const took = batchTook(
-      tries.map((t) => t.tried),
-      model,
-      seconds
-    );
-    kept.set({ at, status: { tries, of, refused, took, atOnce: false } });
-    await settled();
-  }
-
-  async function allAtOnce(
-    rows: VolumeCitation[],
-    at: ImageAt,
-    model: ClaudeModel
-  ): Promise<VisionBatch> {
+    kept.set({ at, status: { searching: model, since: Date.now(), of } });
     const ids = rows.map((r) => r.citation.id);
-    const { tries, ...took } = await findAllOnImage(ids, at, model);
-    const byId = new Map(tries.map((t) => [t.links.citationId, t]));
-    return {
-      tries: rows.flatMap((row) => {
-        const tried = byId.get(row.citation.id);
-        return tried === undefined ? [] : [{ row, tried }];
-      }),
-      ...{ of: rows.length, refused: null, took, atOnce: true }
-    };
-  }
-
-  // Every estimate in one question, on this Image alone.
-  async function runAtOnce(model: ClaudeModel) {
-    const at = shown.get();
-    const rows = estimates.get();
-    if (at === null || rows.length === 0 || searching()) return;
-    const since = Date.now();
-    const of = rows.length;
-    kept.set({
-      at,
-      status: { searching: model, since, done: 0, of, atOnce: true }
-    });
-    const status = await allAtOnce(rows, at, model).catch(
-      (err: unknown): VisionBatch => {
-        const seconds = Math.round((Date.now() - since) / 1000);
-        const took = batchTook([], model, seconds);
-        const refused = refusalOf(err);
-        return { tries: [], of, refused, took, atOnce: true };
-      }
-    );
+    const status = await findAllOnImage(ids, at, model)
+      .then(({ tries, ...took }): VisionBatch => {
+        const byId = new Map(tries.map((t) => [t.links.citationId, t]));
+        const found = rows.flatMap((row) => {
+          const tried = byId.get(row.citation.id);
+          return tried === undefined ? [] : [{ row, tried }];
+        });
+        return { tries: found, of, refused: null, took };
+      })
+      .catch((err: unknown): VisionBatch => {
+        if (!(err instanceof ApiError)) {
+          kept.set(null);
+          throw err instanceof Error ? err : new Error(String(err));
+        }
+        return { tries: [], of, refused: err.message, took: null };
+      });
     kept.set({ at, status });
     await settled();
   }
@@ -237,7 +153,6 @@ export function visionBatching(
     status: status as Readable<VisionBatch | null>,
     estimates: estimates as Readable<VolumeCitation[]>,
     run,
-    runAtOnce,
     undo,
     forget,
     searching
@@ -245,7 +160,7 @@ export function visionBatching(
 }
 
 // Where a try's Match is, or null for none.
-export function matchAt(tried: Tried): ImageAt | null {
+export function matchAt(tried: VisionTry): ImageAt | null {
   if (tried.missed !== null || !('links' in tried.links)) return null;
   const match = tried.links.links.find((l) => l.certainty === 'match');
   return match === undefined || match.precision === 'volume'

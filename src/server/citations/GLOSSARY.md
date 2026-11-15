@@ -176,7 +176,7 @@ A Volume's span of Record numbers. Overrides choosing the Volume by years. A Rec
 The vision model behind three questions about one Image: the Page numbers written on it, the earliest and latest entry dates on it, and whether a named person is written on it. "Unreadable" is an answer it can give. A **Vision Match** asks it.
 
 **Vision Match**:
-Searching the scans for a Church-book reference with the **Reader**, and saving the **Match** it confirms: for a whole dataset by the scripts (the vision pass), or for one reference whose Link is an estimate, from the Scan viewer's menu (ADR-0029), which then says what it found and what it took. The name of the search, never of the Match it saves.
+Searching the scans for a Church-book reference with the **Reader**, and saving the **Match** it confirms: for a whole dataset by the scripts (the vision pass), or for every estimate on an Image at once, from the Scan viewer's menu (ADR-0029), which then says what it found and what it took. The name of the search, never of the Match it saves.
 
 **Confirmation**:
 Finding the person's name on the Image a search landed on, or on the Images around it. Only a confirmed match is saved.

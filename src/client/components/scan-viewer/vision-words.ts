@@ -1,20 +1,7 @@
-import { imageLabel } from '@/client/on';
 import { matchAt } from '@/client/state/vision-batch';
-import type { Took, Tried } from '@/client/state/vision-batch';
+import type { Took } from '@/client/state/vision-batch';
 import { CLAUDE_MODELS } from '@/common/assistant-choices';
 import type { VisionTry } from '@/common/types';
-
-// Why a search saved no Match, as the matcher says it, in a sentence.
-const MISSED: Record<string, string> = {
-  'name not found': "The name wasn't found on the Images searched.",
-  'unreadable': 'The scans were too hard to read.',
-  'did not converge': "The search didn't close in on the cited page.",
-  'ambiguous': 'Found in more than one Volume, so neither was saved.',
-  'no candidate volume': 'There is no Volume to search.',
-  'no name': 'The reference names no one to look for.',
-  'no box': 'Found, but not where on the Image.',
-  'unsupported': "This kind of reference isn't searched."
-};
 
 export function modelLabel(model: string) {
   return CLAUDE_MODELS.find((m) => m.id === model)?.label ?? model;
@@ -26,22 +13,10 @@ function dollarWords(dollars: number | null) {
   return `$${dollars.toFixed(dollars < 0.01 ? 3 : 2)}`;
 }
 
-// What it found: the Match's Image, or why there's none.
-export function foundWords(tried: VisionTry) {
-  if (tried.missed !== null) return missedWords(tried.missed);
-  const links = 'links' in tried.links ? tried.links.links : [];
-  const match = links.find((l) => l.certainty === 'match');
-  const at =
-    match === undefined || match.precision === 'volume'
-      ? ''
-      : ` on ${imageLabel(match.volume, match.image)}`;
-  return `Found${at}. Right-click its box to confirm or discard it.`;
-}
-
 // How many of a batch's tries on `image` found their entry, and which
 // Images the ones found elsewhere are on: "Found 5 of 7, their boxes on
 // the scan; 1 on Image 13."
-export function batchFoundWords(tries: Tried[], of: number, image: number) {
+export function batchFoundWords(tries: VisionTry[], of: number, image: number) {
   const images = tries.flatMap((t) => {
     const at = matchAt(t);
     return at === null ? [] : [at.image];
@@ -58,11 +33,6 @@ export function batchFoundWords(tries: Tried[], of: number, image: number) {
       ? ''
       : `; ${elsewhere.length} on Image ${[...new Set(elsewhere)].join(', ')}`;
   return `${found}${here}${away}.`;
-}
-
-// Why a try found none, in a sentence.
-export function missedWords(missed: string) {
-  return MISSED[missed] ?? missed;
 }
 
 // What it took: "14 readings, 3 of them kept from before · $0.004 · 41 s ·

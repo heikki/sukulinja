@@ -287,7 +287,9 @@ async function pageSearch(
 
 // ---------------------------------------------------------------- confirmation
 
-function around(image: number, images: number) {
+// The Image and those around it, nearest first, as far as Confirmation
+// looks.
+export function around(image: number, images: number) {
   const out = [image];
   for (let d = 1; d <= WINDOW; d++) {
     out.push(image + d, image - d);

@@ -19,7 +19,6 @@ import type {
   Rescan,
   StalePin,
   VisionPageTry,
-  VisionTry,
   VolumeChoices,
   VolumeCitation
 } from '@/common/types';
@@ -50,8 +49,6 @@ export interface MemoryDataset {
   marks?: Record<number, CitationLinks>;
   // What a Discard answers, by citation id.
   discards?: Record<number, CitationLinks>;
-  // What a Vision Match answers, by citation id.
-  visionTries?: Record<number, VisionTry>;
   // What looking for every estimate on an Image at once answers.
   visionPage?: VisionPageTry;
   // The Volumes each reference can be put in, by citation id.
@@ -242,11 +239,6 @@ export function memoryDatasetApi(
         `discard ${citationId} ${at.volumeId}/${at.image}`,
         undefined,
         () => found(data.discards?.[citationId], 'citation not found')
-      ),
-
-    findByVision: async (citationId, model) =>
-      await answer(`vision ${citationId} ${model}`, undefined, () =>
-        found(data.visionTries?.[citationId], 'citation not found')
       ),
 
     findAllOnImage: async (citationIds, at, model) =>

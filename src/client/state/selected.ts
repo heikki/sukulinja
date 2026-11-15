@@ -2,12 +2,10 @@ import { computed, signal } from '@lit-labs/signals';
 
 import { ApiError } from '@/client/dataset-api';
 import type { BoxAt, DatasetApi, MarkTarget } from '@/client/dataset-api';
-import type { ClaudeModel } from '@/common/assistant-choices';
 import type {
   CitationLinks,
   LinkResolution,
-  PersonDetails,
-  VisionTry
+  PersonDetails
 } from '@/common/types';
 
 import { groupSources } from './sources';
@@ -42,9 +40,6 @@ export interface Selected {
   mark: (citationId: number, at: MarkTarget) => Promise<CitationLinks>;
   // Takes back a reference's Box, as `mark` saves one.
   discard: (citationId: number, at: BoxAt) => Promise<CitationLinks>;
-  // Searches the scans for a reference with the vision model, as `mark`
-  // saves a Mark: what it did and took (ADR-0029).
-  findByVision: (citationId: number, model: ClaudeModel) => Promise<VisionTry>;
   // Deletes one of their Citations, throwing ApiError if it's refused;
   // their details are read again.
   uncite: (citationId: number) => Promise<void>;
@@ -180,12 +175,6 @@ export function openSelected(
     return await settled(api.discard(citationId, at));
   }
 
-  async function findByVision(citationId: number, model: ClaudeModel) {
-    const tried = await api.findByVision(citationId, model);
-    await settled(Promise.resolve(tried.links));
-    return tried;
-  }
-
   async function uncite(citationId: number) {
     await api.uncite(citationId);
     void refresh();
@@ -239,7 +228,6 @@ export function openSelected(
     select,
     mark,
     discard,
-    findByVision,
     uncite,
     retext,
     support,
