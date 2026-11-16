@@ -335,3 +335,18 @@ export function foundKeys(batch: VisionBatch | null) {
       .map((t) => t.row.citation.markKey)
   );
 }
+
+// What a batch didn't find, with why, by the Image each was estimated on.
+export function missedOf(
+  tries: Array<{ row: VolumeCitation; tried: VisionTry }>
+) {
+  return tries
+    .flatMap(({ row, tried }) =>
+      tried.missed === null ? [] : [{ row, why: tried.missed }]
+    )
+    .toSorted((a, b) => imageOf(a.row) - imageOf(b.row));
+}
+
+function imageOf(row: VolumeCitation) {
+  return row.link.precision === 'volume' ? 0 : row.link.image;
+}

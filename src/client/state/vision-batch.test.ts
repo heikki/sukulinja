@@ -5,10 +5,12 @@ import type {
   CitationRow,
   Link,
   VisionPageTry,
-  VisionSurvey
+  VisionSurvey,
+  VisionTry
 } from '@/common/types';
 
 import { openAppState } from '.';
+import { missedOf } from './vision-batch';
 
 const ESTIMATE: Link = {
   volumeId: '201',
@@ -189,4 +191,21 @@ test("a Volume's page survey runs alone, to try it", async () => {
     survey: { pinned: 6, settled: true },
     took: { readings: 7, seconds: 12 }
   });
+});
+
+function tried(citationId: number, missed: VisionTry['missed']) {
+  return { links: { citationId, links: [] }, missed };
+}
+
+test("what a batch didn't find is listed with why, by its Image", () => {
+  const later = row(11, 'record 4', { ...ESTIMATE, image: 25 });
+  const missed = missedOf([
+    { row: later, tried: tried(11, 'unreadable') },
+    { row: ROWS[0]!, tried: tried(7, null) },
+    { row: ROWS[2]!, tried: tried(9, 'name not found') }
+  ]);
+  expect(missed.map((m) => [m.row.citation.id, m.why])).toEqual([
+    [9, 'name not found'],
+    [11, 'unreadable']
+  ]);
 });
