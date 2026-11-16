@@ -181,3 +181,27 @@ test('puts back a leading digit read too high in a run of readings', async () =>
     expect(pages).toEqual([image + 14]);
   }
 });
+
+test('two readings misread alike pull none of the readings around them to their line', async () => {
+  // Images 60 and 118 read 4 and 42 for 54 and 112: alike, six too few.
+  const { reader } = reading((n) => {
+    if (n === 60) return { pages: [4] };
+    if (n === 118) return { pages: [42] };
+    return { pages: [n - 6] };
+  });
+  const survey = await surveyVolume(reader, { volumeId: 'v', images: 400 });
+  for (const { image, pages } of survey.readings) {
+    expect(pages).toEqual([image - 6]);
+  }
+});
+
+test('puts back the leading digit two readings misread alike, among more read right', async () => {
+  // Images 201 and 206 read 915 and 920 for 215 and 220.
+  const { reader } = reading((n) => ({
+    pages: [n === 201 || n === 206 ? n + 714 : n + 14]
+  }));
+  const survey = await surveyVolume(reader, { volumeId: 'v', images: 300 });
+  for (const { image, pages } of survey.readings) {
+    expect(pages).toEqual([image + 14]);
+  }
+});

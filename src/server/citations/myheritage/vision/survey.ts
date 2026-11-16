@@ -145,13 +145,24 @@ function leadingMisread(read: number, p: number) {
 }
 
 // Each reading, in Image order, with its leading digits put back where
-// they were misread of the number a reading near it puts on its Image.
+// they were misread of the number a reading near it puts on its Image,
+// and more of the readings near it are on that one's line than on its
+// own: two misread alike agree with each other, and would otherwise pull
+// the readings around them to their line.
 function withLeadingDigits(sorted: PageReading[]) {
+  const lines = sorted.map(lineOf);
   return sorted.map((r, i) => {
     const read = first(r);
-    const whole = sorted
-      .filter((_, k) => k !== i && Math.abs(k - i) <= NEAR)
-      .map((n) => onImage(n, r.image))
+    const near = sorted.flatMap((n, k) =>
+      Math.abs(k - i) <= NEAR ? [{ n, line: lines[k]! }] : []
+    );
+    function support(line: string) {
+      return near.filter((x) => x.line === line).length;
+    }
+    const own = support(lines[i]!);
+    const whole = near
+      .filter(({ n, line }) => n !== r && support(line) > own)
+      .map(({ n }) => onImage(n, r.image))
       .find((p) => leadingMisread(read, p));
     return whole === undefined
       ? r
