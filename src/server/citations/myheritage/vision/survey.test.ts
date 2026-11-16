@@ -164,3 +164,11 @@ test("a page-numbered book read at the top left alone is told by its pace, each 
     expect(pages).toEqual([2 * image - 1, 2 * image]);
   }
 });
+
+test('a digit misread where the survey ends, agreeing with no neighbour, is not pinned', async () => {
+  // Image 190 reads 1153 for 1145: no Image is left to read past it.
+  const { reader } = reading((n) => ({ pages: [n === 190 ? 1153 : n + 955] }));
+  const survey = await surveyVolume(reader, { volumeId: 'v', images: 200 });
+  expect(survey.readings.some((r) => r.image === 190)).toBe(false);
+  expect(survey.readings.every((r) => r.pages[0] === r.image + 955)).toBe(true);
+});

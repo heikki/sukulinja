@@ -20,7 +20,9 @@
 // printed form's own numbers in the other corner, and the model may give
 // either or both: of the numbers read on an Image, the survey takes those
 // that agree with its neighbours. A reading agreeing with neither, where
-// they agree with each other across it, is a misreading, left out.
+// they agree with each other across it, is a misreading, left out; and
+// none is pinned that agrees with no neighbour, as a digit misread where
+// no Image is left to read beside it.
 //
 // Readings are cached as any other (reader.ts), so a survey run again, or
 // one reaching an Image a search already read, asks nothing new.
@@ -152,6 +154,21 @@ function settle(readings: PageReading[]) {
   });
 }
 
+// The readings a neighbour agrees with: one agreeing with neither is
+// a misreading, or a run of one Image, too short to pin. A reading alone
+// stands.
+function confirmed(readings: PageReading[]) {
+  if (readings.length === 1) return readings;
+  return readings.filter((r, i) => {
+    const before = readings[i - 1];
+    const after = readings[i + 1];
+    return (
+      (before !== undefined && agree(before, r)) ||
+      (after !== undefined && agree(r, after))
+    );
+  });
+}
+
 // The Images first read: evenly from 5% into the Volume to 95%, at most
 // OPENING_GAP apart.
 function openingImages(images: number) {
@@ -269,7 +286,7 @@ export async function surveyVolume(
   const settled =
     readings.length > 0 && gaps(readings, tried, cited).length === 0;
   return {
-    readings: settle(readings),
+    readings: confirmed(settle(readings)),
     reads,
     settled
   };
