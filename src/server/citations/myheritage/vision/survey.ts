@@ -8,6 +8,11 @@
 // on to the Image. Each reading is then a Page pin, by the vision model,
 // which never replaces a hand one; it counts every estimate in the Volume.
 //
+// It surveys the whole Volume; given the pages its references cite, it
+// closes in first on the disagreements that could move one of them, so
+// that where it runs out of readings, it's where none is cited. Up to
+// READ_AT_ONCE Images are read at a time.
+//
 // Readings are cached as any other (reader.ts), so a survey run again, or
 // one reaching an Image a search already read, asks nothing new.
 
@@ -18,6 +23,8 @@ export const MAX_SURVEY_READS = 50;
 // Where the first readings go: from 5% into the Volume to 95%, past its
 // covers and front matter, at most this many Images apart.
 const OPENING_GAP = 20;
+// Images read at a time.
+const READ_AT_ONCE = 4;
 // Images tried beside an unreadable one before leaving the place.
 const BESIDE = [1, -1, 2, -2];
 
@@ -71,20 +78,56 @@ function between(a: PageReading, b: PageReading, tried: Set<number>) {
   return inner.toSorted((x, y) => Math.abs(x - mid) - Math.abs(y - mid))[0];
 }
 
-// An Image to read between each two neighbouring readings that don't
-// agree, while one is left untried there.
-function gaps(readings: PageReading[], tried: Set<number>) {
-  const sorted = readings.toSorted((a, b) => a.image - b.image);
-  return sorted.slice(1).flatMap((b, i) => {
-    const a = sorted[i]!;
-    const next = agree(a, b) ? undefined : between(a, b, tried);
-    return next === undefined ? [] : [next];
-  });
+// Whether a cited page could lie between the two readings: any, with no
+// pages given, or where the numbering goes back between them.
+function holdsCited(a: PageReading, b: PageReading, cited: number[] | null) {
+  if (cited === null || first(b) < first(a)) return true;
+  const last = Math.max(...b.pages);
+  return cited.some((p) => p >= first(a) && p <= last);
 }
 
+// An Image to read between each two neighbouring readings that don't
+// agree, while one is left untried there: first where a cited page could
+// be.
+function gaps(
+  readings: PageReading[],
+  tried: Set<number>,
+  cited: number[] | null
+) {
+  const sorted = readings.toSorted((a, b) => a.image - b.image);
+  const found = sorted.slice(1).flatMap((b, i) => {
+    const a = sorted[i]!;
+    const next = agree(a, b) ? undefined : between(a, b, tried);
+    return next === undefined ? [] : [{ next, first: holdsCited(a, b, cited) }];
+  });
+  return [
+    ...found.filter((g) => g.first),
+    ...found.filter((g) => !g.first)
+  ].map((g) => g.next);
+}
+
+// Runs `task` over `items`, `limit` at a time.
+async function inTurns<T>(
+  items: T[],
+  limit: number,
+  task: (item: T) => Promise<void>
+) {
+  const queue = [...items];
+  async function worker() {
+    for (let item = queue.shift(); item !== undefined; item = queue.shift()) {
+      // eslint-disable-next-line no-await-in-loop -- this worker's next in turn
+      await task(item);
+    }
+  }
+  await Promise.all(Array.from({ length: limit }, worker));
+}
+
+// Surveys the Volume; `cited`, the pages its references cite, to close in
+// on first, or null.
 export async function surveyVolume(
   reader: Pick<Reader, 'pageNumbers'>,
-  volume: { volumeId: string; images: number }
+  volume: { volumeId: string; images: number },
+  cited: number[] | null = null
 ): Promise<Survey> {
   const { volumeId, images } = volume;
   const readings: PageReading[] = [];
@@ -99,7 +142,7 @@ export async function surveyVolume(
       if (reads >= MAX_SURVEY_READS) return;
       tried.add(at);
       reads += 1;
-      // eslint-disable-next-line no-await-in-loop -- one reading at a time, paced
+      // eslint-disable-next-line no-await-in-loop -- beside it only if unreadable
       const reading: PagesReading = await reader.pageNumbers({
         volumeId,
         image: at
@@ -112,19 +155,15 @@ export async function surveyVolume(
     }
   }
 
-  for (const image of openingImages(images)) {
-    // eslint-disable-next-line no-await-in-loop -- one reading at a time
-    await readNear(image);
-  }
+  await inTurns(openingImages(images), READ_AT_ONCE, readNear);
   for (;;) {
-    const next = gaps(readings, tried);
+    const next = gaps(readings, tried, cited);
     if (next.length === 0 || reads >= MAX_SURVEY_READS) break;
-    for (const image of next) {
-      // eslint-disable-next-line no-await-in-loop -- one reading at a time
-      await readNear(image);
-    }
+    // eslint-disable-next-line no-await-in-loop -- each round follows the last's readings
+    await inTurns(next, READ_AT_ONCE, readNear);
   }
-  const settled = readings.length > 0 && gaps(readings, tried).length === 0;
+  const settled =
+    readings.length > 0 && gaps(readings, tried, cited).length === 0;
   return {
     readings: readings.toSorted((a, b) => a.image - b.image),
     reads,

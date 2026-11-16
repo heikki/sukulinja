@@ -87,3 +87,37 @@ test('reads beside an unreadable Image, and gives up after its reads', async () 
   expect(spent.reads).toBe(MAX_SURVEY_READS);
   expect(spent.settled).toBe(false);
 });
+
+test('closes in first where a cited page could be, the rest after', async () => {
+  // A leaf left out after Image 30 and after Image 150; page 40 is cited.
+  const asked: number[] = [];
+  const reader = {
+    pageNumbers: async ({ image }: { image: number }) => {
+      asked.push(image);
+      const pages = [image + (image > 30 ? 1 : 0) + (image > 150 ? 1 : 0)];
+      return await Promise.resolve({ pages });
+    }
+  };
+  const volume = { volumeId: 'v', images: 200 };
+  const survey = await surveyVolume(reader, volume, [40]);
+  expect(survey.settled).toBe(true);
+  const bisected = asked.slice(10);
+  expect(bisected[0]).toBeLessThan(50);
+  expect(bisected.some((n) => n > 150)).toBe(true);
+});
+
+test('reads four Images at a time', async () => {
+  let reading = 0;
+  let most = 0;
+  const reader = {
+    pageNumbers: async ({ image }: { image: number }) => {
+      reading += 1;
+      most = Math.max(most, reading);
+      await Bun.sleep(1);
+      reading -= 1;
+      return { pages: [image] };
+    }
+  };
+  await surveyVolume(reader, { volumeId: 'v', images: 200 });
+  expect(most).toBe(4);
+});
