@@ -165,7 +165,7 @@ test("a Volume's estimates are looked for Image by Image, after its page survey"
     tries: [{ tried: { missed: null } }, { tried: { missed: 'no box' } }],
     of: 3,
     scope: 'volume',
-    survey: { pinned: 6, settled: true },
+    survey: { pinned: 6, settled: true, readBefore: false },
     took: { readings: 13, cached: 1, seconds: 30 },
     refused: null
   });
@@ -188,7 +188,7 @@ test("a Volume's page survey runs alone, to try it", async () => {
   ]);
   expect(viewer.visionBatch.get()).toMatchObject({
     scope: 'survey',
-    survey: { pinned: 6, settled: true },
+    survey: { pinned: 6, settled: true, readBefore: false },
     took: { readings: 7, seconds: 12 }
   });
 });

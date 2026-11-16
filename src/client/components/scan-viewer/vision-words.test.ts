@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 
 import type { VisionTry } from '@/common/types';
 
-import { batchFoundWords, costWords } from './vision-words';
+import { batchFoundWords, costWords, surveyWords } from './vision-words';
 
 const FOUND: VisionTry = {
   links: {
@@ -44,5 +44,15 @@ test('says what it took', () => {
   );
   expect(costWords({ ...took, readings: 1, cached: 0, dollars: 0.12 })).toBe(
     '1 reading · $0.12 · 41 s · Haiku 5.5'
+  );
+});
+
+test('a page survey tells whether it read anything now', () => {
+  const survey = { pinned: 9, settled: true, readBefore: false };
+  expect(surveyWords(survey)).toBe(
+    'Page numbers read on 9 Images, all agreeing.'
+  );
+  expect(surveyWords({ ...survey, readBefore: true })).toBe(
+    'Page numbers already read on 9 Images, all agreeing.'
   );
 });

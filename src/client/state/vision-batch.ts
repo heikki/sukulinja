@@ -38,9 +38,20 @@ export type VisionBatch =
       survey: Surveyed | null;
     };
 
-// What a page survey read: on how many Images, and whether they all
-// agree.
-export type Surveyed = Pick<VisionSurvey, 'pinned' | 'settled'>;
+// What a page survey read: on how many Images, whether they all agree,
+// and whether every reading was kept from before, none read now.
+export type Surveyed = Pick<VisionSurvey, 'pinned' | 'settled'> & {
+  readBefore: boolean;
+};
+
+function surveyedOf({ pinned, settled, readings, cached }: VisionSurvey) {
+  return { pinned, settled, readBefore: readings > 0 && cached === readings };
+}
+
+// What a page survey took.
+function tookOf({ model, readings, cached, dollars, seconds }: VisionSurvey) {
+  return { model, readings, cached, dollars, seconds };
+}
 
 // What a batch asks of the server.
 export interface BatchAsks {
@@ -223,13 +234,9 @@ export function visionBatching(
     const tries: Array<{ row: VolumeCitation; tried: VisionTry }> = [];
     let refused: string | null = null;
     try {
-      const {
-        pinned,
-        settled: agree,
-        ...spent
-      } = await surveyPages(v.id, v.label, model, false);
-      surveyed = { pinned, settled: agree };
-      took = spent;
+      const survey = await surveyPages(v.id, v.label, model, false);
+      surveyed = surveyedOf(survey);
+      took = tookOf(survey);
       await settled();
       const images = inVolume.get();
       of = images.flatMap((on) => on.rows).length;
@@ -263,11 +270,11 @@ export function visionBatching(
     kept.set({ at, status: { searching: model, since, of: 0, step } });
     const done = { scope: 'survey' as const, tries: [], of: 0 };
     const status = await surveyPages(v.id, v.label, model, true)
-      .then(({ pinned, settled: agree, ...took }): VisionBatch => ({
+      .then((survey): VisionBatch => ({
         ...done,
         refused: null,
-        took,
-        survey: { pinned, settled: agree }
+        took: tookOf(survey),
+        survey: surveyedOf(survey)
       }))
       .catch((err: unknown): VisionBatch => ({
         ...done,
