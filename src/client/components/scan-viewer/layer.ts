@@ -239,7 +239,7 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
         },
         survey: () => {
           // The menu has closed by now: the warning opens where it was.
-          if (this.viewer.handPages.get() > 0 && shown?.show === 'menu') {
+          if (this.viewer.pages.byHand.get() > 0 && shown?.show === 'menu') {
             this.popup = { ...shown, show: 'survey' };
             return;
           }
@@ -291,7 +291,7 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   // Before a page survey takes away the pages set by hand in the Volume
   // (ADR-0032), how many: run it anyway, or not.
   private renderSurveyWarning(at: Point) {
-    const n = this.viewer.handPages.get();
+    const n = this.viewer.pages.byHand.get();
     const items: MenuItem[] = [
       {
         label: 'Survey and take them away',

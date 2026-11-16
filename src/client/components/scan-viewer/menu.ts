@@ -95,7 +95,7 @@ function visionItems(viewer: Viewer, find: VisionFind | undefined): MenuItem[] {
   if (inVolume > 0) {
     items.push({
       label: 'Locate estimates in this Volume',
-      detail: `${peopleWords(inVolume)} · page survey first · ${find.model}`,
+      detail: `${peopleWords(inVolume)} · ${viewer.pages.numbered.get() ? 'from its page numbers' : 'page survey first'} · ${find.model}`,
       run: find.runVolume
     });
   }

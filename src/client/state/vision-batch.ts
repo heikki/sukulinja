@@ -140,6 +140,9 @@ interface Shown {
   volume: Readable<{ id: string; label: string } | null>;
   image: Readable<number>;
   citations: Readable<VolumeCitation[] | null | 'failed'>;
+  // Whether the Volume's pages are read or set on any of its Images, so a
+  // Volume's batch counts from them without a survey first.
+  numbered: Readable<boolean>;
 }
 
 // Runs Vision Match over the estimates on the Image shown, or in its
@@ -147,7 +150,7 @@ interface Shown {
 // a Volume's survey, for the citations to reload. What it says is kept
 // for its Image, or Volume, while that's shown, until `forget`.
 export function visionBatching(
-  { volume, image, citations }: Shown,
+  { volume, image, citations, numbered }: Shown,
   { findAllOnImage, surveyPages, discard }: BatchAsks,
   settled: () => Promise<void>
 ) {
@@ -217,8 +220,9 @@ export function visionBatching(
     await settled();
   }
 
-  // Every estimate in the Volume shown: its page survey, the citations
-  // reloaded to count from it, then each Image's estimates in turn.
+  // Every estimate in the Volume shown: its page survey where none of its
+  // pages are known yet (Heikki, 2026-11-16), the citations reloaded to
+  // count from it, then each Image's estimates in turn.
   async function runVolume(model: ClaudeModel) {
     const v = volume.get();
     if (v === null || searching()) return;
@@ -234,10 +238,12 @@ export function visionBatching(
     const tries: Array<{ row: VolumeCitation; tried: VisionTry }> = [];
     let refused: string | null = null;
     try {
-      const survey = await surveyPages(v.id, v.label, model, false);
-      surveyed = surveyedOf(survey);
-      took = tookOf(survey);
-      await settled();
+      if (!numbered.get()) {
+        const survey = await surveyPages(v.id, v.label, model, false);
+        surveyed = surveyedOf(survey);
+        took = tookOf(survey);
+        await settled();
+      }
       const images = inVolume.get();
       of = images.flatMap((on) => on.rows).length;
       for (const [i, on] of images.entries()) {

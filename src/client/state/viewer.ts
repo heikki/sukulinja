@@ -2,13 +2,7 @@ import { computed, signal } from '@lit-labs/signals';
 
 import type { DatasetApi, InEntry } from '@/client/dataset-api';
 import type { ClaudeModel } from '@/common/assistant-choices';
-import type {
-  Box,
-  ImagePages,
-  Rescan,
-  VolumeChoice,
-  VolumeCitation
-} from '@/common/types';
+import type { Box, Rescan, VolumeChoice, VolumeCitation } from '@/common/types';
 
 import { confirmingSource } from './confirming';
 import type { Confirming } from './confirming';
@@ -28,6 +22,7 @@ import type { Source } from './sources';
 import { visionBatching } from './vision-batch';
 import type { VisionBatch } from './vision-batch';
 import { volumePagesOf } from './volume-pages';
+import type { VolumePages } from './volume-pages';
 
 export type { PendingAt, PendingChange } from './pending-change';
 export type { EntryEdit, PendingCite } from './pending-entry';
@@ -113,16 +108,9 @@ export interface Viewer {
   // How that's going. A refusal stays until the source, the Image or the
   // Box changes.
   confirming: Readable<Confirming | null>;
-  // The pages the Volume's Page pins put on the Image shown, read there or
-  // counted from the pins around it; null without pins, or until known.
-  pagesHere: Readable<ImagePages | null>;
-  // Sets the pages of the Image shown by hand, a spread's two or one, or
-  // with null takes them away, and reloads the estimates counted from
-  // them; throws ApiError if refused.
-  setPageHere: (pages: number[] | null) => Promise<void>;
-  // How many of the Volume's Images have pages set by hand, which a page
-  // survey takes away.
-  handPages: Readable<number>;
+  // The pages the Volume's Page pins put on its Images, and setting the
+  // Image shown's by hand.
+  pages: VolumePages;
   // The estimates on the Image shown that Vision Match would look for,
   // one per record.
   estimatesHere: Readable<VolumeCitation[]>;
@@ -243,7 +231,11 @@ export function openViewer(
   const placing = signal(false);
   const discarding = signal(false);
   const confirmation = confirmingSource(source, confirm);
-  const batch = visionBatching({ volume, image, citations }, api, batchSettled);
+  const batch = visionBatching(
+    { volume, image, citations, numbered: pages.numbered },
+    api,
+    batchSettled
+  );
   const leaving = signal(false);
   const filming = filmingOf(api, () => volume.get()?.id);
   const { oldFilming } = filming;
@@ -644,9 +636,7 @@ export function openViewer(
     confirm,
     confirmSource: confirmation.run,
     confirming: confirmation.status,
-    pagesHere: pages.here,
-    setPageHere: pages.setHere,
-    handPages: pages.byHand,
+    pages,
     estimatesHere: batch.estimates,
     findAllByVision: batch.run,
     estimatesInVolume: batch.inVolume,

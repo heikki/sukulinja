@@ -106,7 +106,7 @@ class ScanPageElement extends SignalWatcher(LitElement) {
 
   private async save(pages: number[] | null) {
     try {
-      await this.state.viewer.setPageHere(pages);
+      await this.state.viewer.pages.setHere(pages);
       this.editing = false;
       this.refused = null;
     } catch (err) {
@@ -188,7 +188,9 @@ class ScanPageElement extends SignalWatcher(LitElement) {
   }
 
   override render() {
-    const here = pageNumbersOn.get() ? this.state.viewer.pagesHere.get() : null;
+    const here = pageNumbersOn.get()
+      ? this.state.viewer.pages.here.get()
+      : null;
     if (here === null) return nothing;
     if (this.editing) {
       return html`${this.renderEditing(here.pages)}

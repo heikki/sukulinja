@@ -174,6 +174,31 @@ test("a Volume's estimates are looked for Image by Image, after its page survey"
   expect(viewer.visionBatch.get()).not.toBeNull();
 });
 
+test('a Volume whose pages are known is looked through without a survey', async () => {
+  const api = memoryDatasetApi({
+    volumes: {
+      '201': {
+        images: 40,
+        citations: ROWS,
+        pages: [{ image: 12, pages: [30], by: 'vision' }]
+      }
+    },
+    visionPage: PAGE,
+    survey: SURVEY
+  });
+  const { viewer } = openAppState(api);
+  viewer.open({ citation: CITATION, link: ESTIMATE });
+  await Bun.sleep(0);
+  await viewer.findAllInVolumeByVision('claude-haiku-5-5');
+  expect(api.asked.filter((a) => /^(?:survey|vision)/.test(a))).toEqual([
+    'vision all 7,9 on 18 claude-haiku-5-5'
+  ]);
+  expect(viewer.visionBatch.get()).toMatchObject({
+    scope: 'volume',
+    survey: null
+  });
+});
+
 test("a Volume's page survey runs alone, to try it", async () => {
   const api = memoryDatasetApi({
     volumes: { '201': { images: 40, citations: ROWS } },

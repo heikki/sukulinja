@@ -30,8 +30,17 @@ export function volumePagesOf(
     () => pages.get().filter((p) => p.by === 'hand').length
   );
 
+  const numbered = computed(() => pages.get().some((p) => p.by !== null));
+
   return {
+    // Those on the Image shown, read there or counted from the pins around
+    // it; null without pins, or until known.
     here: here as Readable<ImagePages | null>,
+    // Whether any Image has its pages read or set, so locating the
+    // Volume's estimates needs no survey first.
+    numbered: numbered as Readable<boolean>,
+    // How many Images have pages set by hand, which a page survey takes
+    // away.
     byHand: byHand as Readable<number>,
     async load(volumeId: string) {
       const volume = shown.volume.get()?.label ?? '';
@@ -56,3 +65,5 @@ export function volumePagesOf(
     }
   };
 }
+
+export type VolumePages = ReturnType<typeof volumePagesOf>;
