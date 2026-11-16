@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 
 import type { VisionTry } from '@/common/types';
 
-import { batchFoundWords, costWords, surveyWords } from './vision-words';
+import { batchFoundWords, costWords, volumeFoundWords } from './vision-words';
 
 const FOUND: VisionTry = {
   links: {
@@ -47,12 +47,12 @@ test('says what it took', () => {
   );
 });
 
-test('a page survey tells whether it read anything now', () => {
+test("a Volume's survey is told only when it read something now", () => {
   const survey = { pinned: 9, settled: true, readBefore: false };
-  expect(surveyWords(survey)).toBe(
-    'Page numbers read on 9 Images, all agreeing.'
+  expect(volumeFoundWords([], 3, survey)).toBe(
+    'Found none of 3 in this Volume. Page numbers read on 9 Images, all agreeing.'
   );
-  expect(surveyWords({ ...survey, readBefore: true })).toBe(
-    'Page numbers already read on 9 Images, all agreeing.'
+  expect(volumeFoundWords([], 3, { ...survey, readBefore: true })).toBe(
+    'Found none of 3 in this Volume.'
   );
 });

@@ -35,26 +35,19 @@ export function batchFoundWords(tries: VisionTry[], of: number, image: number) {
   return `${found}${here}${away}.`;
 }
 
-// What a page survey read: "Page numbers read on 9 Images, all agreeing.",
-// or, every reading kept from before, "Page numbers already read on 9
-// Images, …".
-export function surveyWords({ pinned, settled, readBefore }: Surveyed) {
-  if (pinned === 0) {
-    return readBefore
-      ? 'No page numbers could be read before.'
-      : 'No page numbers could be read.';
-  }
+// What a page survey read: "Page numbers read on 9 Images, all agreeing."
+export function surveyWords({ pinned, settled }: Surveyed) {
+  if (pinned === 0) return 'No page numbers could be read.';
   const on = pinned === 1 ? '1 Image' : `${pinned} Images`;
   const agree = settled
     ? 'all agreeing'
     : 'some still disagreeing when it ran out of readings';
-  const read = readBefore ? 'already read' : 'read';
-  return `Page numbers ${read} on ${on}, ${agree}.`;
+  return `Page numbers read on ${on}, ${agree}.`;
 }
 
 // How many of a Volume's estimates its batch found, and what its survey
-// read: "Found 12 of 30 in this Volume. Page numbers read on 9 Images,
-// all agreeing."
+// read, unless it read nothing new: "Found 12 of 30 in this Volume. Page
+// numbers read on 9 Images, all agreeing."
 export function volumeFoundWords(
   tries: VisionTry[],
   of: number,
@@ -62,7 +55,8 @@ export function volumeFoundWords(
 ) {
   const found = tries.filter((t) => matchAt(t) !== null).length;
   const what = found === 0 ? `Found none of ${of}` : `Found ${found} of ${of}`;
-  const read = survey === null ? '' : ` ${surveyWords(survey)}`;
+  const read =
+    survey === null || survey.readBefore ? '' : ` ${surveyWords(survey)}`;
   return `${what} in this Volume.${read}`;
 }
 
