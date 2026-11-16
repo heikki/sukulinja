@@ -4,30 +4,37 @@ import type { BrowserWindow } from 'electrobun/main';
 
 // The window opens holding the keyboard itself, not handing it to its webview,
 // so no key reaches the page (⌘F, the Scan viewer's arrows) until a click
-// does. Electrobun has no call for this, so it's asked of AppKit directly.
-// AppKit wants it on the main thread, and this process's JS isn't on it.
+// does. Electrobun has no call for this, so on macOS it's asked of AppKit
+// directly. AppKit wants it on the main thread, and this process's JS isn't
+// on it. Elsewhere there's no AppKit to ask, and nothing is done.
 //
 // objc_msgSend takes whatever signature the method has, so it's bound once per
 // signature used.
-const libobjc = '/usr/lib/libobjc.A.dylib';
-const registerSelector = dlopen(libobjc, {
-  sel_registerName: { args: [FFIType.cstring], returns: FFIType.ptr }
-}).symbols.sel_registerName;
-const send = dlopen(libobjc, {
-  objc_msgSend: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.ptr }
-}).symbols.objc_msgSend;
-const sendOnMain = dlopen(libobjc, {
-  objc_msgSend: {
-    args: [FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.bool],
-    returns: FFIType.ptr
+function bindObjc() {
+  const libobjc = '/usr/lib/libobjc.A.dylib';
+  const registerSelector = dlopen(libobjc, {
+    sel_registerName: { args: [FFIType.cstring], returns: FFIType.ptr }
+  }).symbols.sel_registerName;
+  const send = dlopen(libobjc, {
+    objc_msgSend: { args: [FFIType.ptr, FFIType.ptr], returns: FFIType.ptr }
+  }).symbols.objc_msgSend;
+  const sendOnMain = dlopen(libobjc, {
+    objc_msgSend: {
+      args: [FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.ptr, FFIType.bool],
+      returns: FFIType.ptr
+    }
+  }).symbols.objc_msgSend;
+  function selector(name: string) {
+    return registerSelector(Buffer.from(`${name}\0`));
   }
-}).symbols.objc_msgSend;
-
-function selector(name: string) {
-  return registerSelector(Buffer.from(`${name}\0`));
+  return { send, sendOnMain, selector };
 }
 
+const objc = process.platform === 'darwin' ? bindObjc() : null;
+
 export function focusWebview(win: BrowserWindow) {
+  if (objc === null) return;
+  const { send, sendOnMain, selector } = objc;
   const window = win.ptr;
   // Electrobun's webview pointer is its wrapper object, not an NSView: made
   // first responder itself, AppKit throws on the next click and the app dies.

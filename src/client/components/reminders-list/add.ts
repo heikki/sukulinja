@@ -8,13 +8,13 @@ import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import { targetOf } from '@/client/state/reminders';
 import type { ReminderPlaces } from '@/client/state/reminders';
-import { typing } from '@/client/typing';
+import { keepTyping } from '@/client/typing';
 
 import { reminderStyles } from './styles';
 
 // Writing a new Reminder, at the top of the list: what it will be on, in
 // muted lines (the Selected person, and while the Scan viewer is open, the
-// Image it shows); then its text. Save or ⌘Enter writes it, and it and
+// Image it shows); then its text. Save writes it, and it and
 // Cancel stop the draft.
 @customElement('sl-reminder-add')
 class ReminderAddElement extends LitElement {
@@ -45,16 +45,6 @@ class ReminderAddElement extends LitElement {
     if (saved) this.stop();
   }
 
-  private readonly onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && e.metaKey) {
-      e.preventDefault();
-      e.stopPropagation();
-      void this.save();
-    } else if (typing(e)) {
-      e.stopPropagation();
-    }
-  };
-
   private renderPlaces() {
     const { person, image } = this.places;
     return html`<div class="lines">
@@ -70,7 +60,7 @@ class ReminderAddElement extends LitElement {
         aria-label="New reminder"
         placeholder="What to come back to…"
         .value=${this.text}
-        @keydown=${this.onKeyDown}
+        @keydown=${keepTyping}
         @input=${(e: Event) => {
           this.text = (e.target as HTMLTextAreaElement).value;
         }}

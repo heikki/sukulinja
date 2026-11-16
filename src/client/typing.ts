@@ -8,3 +8,9 @@ export function typing(e: KeyboardEvent) {
     on instanceof HTMLSelectElement
   );
 }
+
+// A keydown listener for a field: what's typed in it stays the field's, and
+// doesn't reach the page's shortcuts.
+export function keepTyping(e: KeyboardEvent) {
+  if (typing(e)) e.stopPropagation();
+}
