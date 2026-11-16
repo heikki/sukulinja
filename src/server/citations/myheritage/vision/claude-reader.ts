@@ -38,7 +38,7 @@ type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 // household table, then the date written for the entry; dates gained the
 // register, then dates in any register.
 const VERSIONS: Partial<Record<Question, string>> = {
-  pages: '3',
+  pages: '4',
   dates: '3',
   entry: '4'
 };
@@ -61,18 +61,21 @@ const SYSTEM = `You read scans of Finnish parish church books from the 1700s and
 
 Answer only from what is written on the image you are shown. When you can't make out what you are asked for, say it is unreadable rather than guess: an unreadable answer is useful, a wrong one is not.`;
 
-// Page numbers are small, at the top corners: those are sent alone, at a
-// sharper scale than the whole spread allows.
-const PAGE_CORNERS: Region[] = [
-  { left: 0, top: 0, width: 0.4, height: 0.25 },
-  { left: 0.6, top: 0, width: 0.4, height: 0.25 }
+// Page numbers are small, at the top corners: each is asked of alone, at
+// a sharper scale than the whole spread allows, so a printed number in one
+// doesn't draw the model off a faint handwritten one in the other.
+const PAGE_CORNERS: Array<{ corner: 'left' | 'right'; region: Region }> = [
+  { corner: 'left', region: { left: 0, top: 0, width: 0.4, height: 0.25 } },
+  { corner: 'right', region: { left: 0.6, top: 0, width: 0.4, height: 0.25 } }
 ];
 
-const PAGES_PROMPT = `These are the top left and top right corners of one image of a book, in that order. Read the page numbers on them. A book may number each spread once, at its top left, or each page (two numbers, one in each corner). Give every page number you see from left to right, each saying which corner it is in and whether it is written by hand or printed: a book written on printed forms may carry the form's printed numbers as well as its own handwritten ones.
+function pagesPrompt(corner: 'left' | 'right') {
+  return `This is the top ${corner} corner of one image of a book: a spread, or a page. Read the page number written there, if any. A book numbering each spread once writes it at the top left; one numbering each page, one in each top corner. A handwritten page number is often written beside the heading, such as a village or farm name, and may be faint or slanted: look for it. A book written on printed forms may carry the form's printed numbers as well as its own handwritten ones: give each number with whether it is written by hand or printed.
 
-Leave out numbers that aren't page numbering: archive stamps, film or frame numbers, rulers and colour charts, house or household numbers, and years.
+Leave out numbers that aren't page numbering: archive stamps, film or frame numbers, rulers and colour charts, house or household numbers, entry or line numbers, and years.
 
 If no page number is legible, answer readable: false with no pages.`;
+}
 
 const DATES_PROMPT = `This image is from a parish register, whose entries run in date order. One book may hold several registers one after another: baptisms, marriages, deaths and burials, moves.
 
@@ -208,10 +211,9 @@ const SCHEMAS: Record<Question, Record<string, unknown>> = {
           type: 'object',
           properties: {
             number: { type: 'integer' },
-            corner: { type: 'string', enum: ['left', 'right'] },
             handwritten: { type: 'boolean' }
           },
-          required: ['number', 'corner', 'handwritten'],
+          required: ['number', 'handwritten'],
           additionalProperties: false
         }
       }
@@ -299,22 +301,23 @@ function parsed(response: Anthropic.Beta.BetaMessage): unknown {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-interface PageNumber {
-  number: number;
-  corner: 'left' | 'right';
-  handwritten: boolean;
+interface CornerJson {
+  readable: boolean;
+  pages: Array<{ number: number; handwritten: boolean }>;
 }
 
-// The handwritten numbers, where there are any: a printed form's own
-// numbers are the book's only where it has no others. Two that don't
-// follow each other aren't one per page: the spread's own is the left.
-export function toPages(json: {
-  readable: boolean;
-  pages: PageNumber[];
-}): PagesReading {
-  const read = json.pages.filter(
-    (p) => Number.isInteger(p.number) && p.number > 0
-  );
+// The numbers read in the top corners, each asked of alone: the
+// handwritten ones, where there are any, as a printed form's own numbers
+// are the book's only where it has no others. Two that don't follow each
+// other aren't one per page: the spread's own is the left.
+export function toPages(
+  corners: Array<{ corner: 'left' | 'right'; json: CornerJson | null }>
+): PagesReading {
+  const read = corners
+    .flatMap(({ corner, json }) =>
+      json?.readable === true ? json.pages.map((p) => ({ ...p, corner })) : []
+    )
+    .filter((p) => Number.isInteger(p.number) && p.number > 0);
   const byHand = read.filter((p) => p.handwritten);
   const taken = byHand.length > 0 ? byHand : read;
   // A book numbering spreads may write the number on both pages.
@@ -327,7 +330,7 @@ export function toPages(json: {
     numbers.length <= 1 || perPage || left.length === 0
       ? numbers
       : [...new Set(left)];
-  return json.readable && pages.length > 0 ? { pages } : UNREADABLE;
+  return pages.length > 0 ? { pages } : UNREADABLE;
 }
 
 function toDates(json: {
@@ -438,8 +441,10 @@ export function claudeReader(options: ClaudeReaderOptions): ClaudeReader {
       : { client: options.client, openRouter: false };
   const spent = new Map<string, Spend>();
 
-  function record(model: string, usage: Anthropic.Beta.BetaUsage) {
-    spent.set(model, addSpend(spent.get(model) ?? NO_SPEND, model, usage));
+  // What a call took; `call` false for one more part of the same question.
+  function record(model: string, usage: Anthropic.Beta.BetaUsage, call = true) {
+    const added = addSpend(spent.get(model) ?? NO_SPEND, model, usage);
+    spent.set(model, call ? added : { ...added, calls: added.calls - 1 });
   }
 
   // The parsed answer, or null for a refusal or an answer out of shape, and
@@ -451,7 +456,8 @@ export function claudeReader(options: ClaudeReaderOptions): ClaudeReader {
     prompt: string,
     {
       schema = SCHEMAS[question],
-      regions = [null] as Array<Region | null>
+      regions = [null] as Array<Region | null>,
+      call = true
     } = {}
   ) {
     const scans = [];
@@ -493,7 +499,7 @@ export function claudeReader(options: ClaudeReaderOptions): ClaudeReader {
         }
       ]
     });
-    record(claudeModel(response.model), response.usage);
+    record(claudeModel(response.model), response.usage, call);
     return { json: parsed(response), scan };
   }
 
@@ -502,12 +508,17 @@ export function claudeReader(options: ClaudeReaderOptions): ClaudeReader {
     versions: VERSIONS,
     spend: () => Object.fromEntries(spent),
     pageNumbers: async (at) => {
-      const { json } = await ask('pages', at, PAGES_PROMPT, {
-        regions: PAGE_CORNERS
-      });
-      return json === null
-        ? UNREADABLE
-        : toPages(json as Parameters<typeof toPages>[0]);
+      // Two calls, counted as the one question they answer.
+      const corners = await Promise.all(
+        PAGE_CORNERS.map(async ({ corner, region }, i) => {
+          const { json } = await ask('pages', at, pagesPrompt(corner), {
+            regions: [region],
+            call: i === 0
+          });
+          return { corner, json: json as CornerJson | null };
+        })
+      );
+      return toPages(corners);
     },
     dates: async (at) => {
       const { json } = await ask('dates', at, DATES_PROMPT);
