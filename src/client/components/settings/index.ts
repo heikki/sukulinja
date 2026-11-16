@@ -14,6 +14,7 @@ import {
   preferredGenerations,
   setPreferredGenerations
 } from '@/client/generations';
+import { pageNumbersOn, setPageNumbersOn } from '@/client/page-numbers-flag';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { ScanCacheStatus } from '@/common/types';
@@ -341,7 +342,8 @@ class SettingsElement extends LitElement {
       <div class="popover" role="group" aria-label="Settings">
         ${this.renderDataset()} ${this.renderAppearance()}
         ${this.renderGenerations()} ${this.renderScanCache()}
-        ${this.renderAssistant()} ${this.renderSpacingTuner()}
+        ${this.renderPageNumbers()} ${this.renderAssistant()}
+        ${this.renderSpacingTuner()}
       </div>
     `;
   }
@@ -364,6 +366,18 @@ class SettingsElement extends LitElement {
           : nothing
       }
       <hr class="rule" />
+    `;
+  }
+
+  // Off or on for the page each Image is counted as, over the scan, for
+  // checking a page survey (page-numbers-flag.ts).
+  private renderPageNumbers() {
+    return html`
+      <span class="label">Page numbers</span>
+      ${segmented(OFF_ON, pageNumbersOn.get(), (value) => {
+        setPageNumbersOn(value);
+        this.requestUpdate();
+      })}
     `;
   }
 

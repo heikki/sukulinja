@@ -3,6 +3,7 @@ import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
+import { pageNumbersOn } from '@/client/page-numbers-flag';
 import { appState } from '@/client/state';
 import type { AppState, ImageOpen, LinkOpen } from '@/client/state';
 import { foundKeys } from '@/client/state/vision-batch';
@@ -268,6 +269,27 @@ class ScanViewerElement extends SignalWatcher(LitElement) {
     `;
   }
 
+  // The page the Volume's Page pins put on the Image, where Settings asks
+  // for it: read there, by the vision model or by hand, or counted (≈)
+  // from the pins around it.
+  private renderPages() {
+    const here = pageNumbersOn.get() ? this.viewer.pagesHere.get() : null;
+    if (here === null) return nothing;
+    const { pages, by } = here;
+    const named =
+      pages.length === 1 ? `page ${pages[0]}` : `pages ${pages.join('–')}`;
+    const how = {
+      vision: 'Read on this Image by the vision model',
+      hand: 'Pinned on this Image by hand'
+    };
+    return html`<div
+      class="pages"
+      title=${by === null ? 'Counted from the Page pins around it' : how[by]}
+    >
+      ${by === null ? `≈ ${named}` : named}
+    </div>`;
+  }
+
   private renderStage(source: LinkOpen | null) {
     return html`
       <div
@@ -281,7 +303,7 @@ class ScanViewerElement extends SignalWatcher(LitElement) {
         @contextmenu=${this.onContextMenu}
       >
         ${this.renderImages()} ${this.renderEntries(source)}
-        ${this.renderNote()}
+        ${this.renderNote()} ${this.renderPages()}
         <sl-scan-nav></sl-scan-nav>
         <sl-scan-layer
           .view=${this.stage.view}

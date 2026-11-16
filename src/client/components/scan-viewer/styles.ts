@@ -2,6 +2,23 @@ import { css } from 'lit';
 
 // The Scan viewer's own, over the viewer's: the thumbnail and the frame.
 export const scanViewerStyles = css`
+  /* The Image's page, over the scan's top left corner where it's written:
+     a see-through bubble the scan shows through, which the pointer passes. */
+  .pages {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 2;
+    padding: 0.3rem 0.7rem;
+    border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--card) 55%, transparent);
+    backdrop-filter: blur(6px);
+    color: var(--fg);
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+
   /* The full Image arriving over its blurred thumbnail. */
   .stage img.fade {
     transition: opacity 0.35s ease-out;
@@ -65,13 +82,6 @@ export const scanNavStyles = css`
   .count {
     min-width: 7ch;
     font-variant-numeric: tabular-nums;
-  }
-
-  /* The Image's pages, quieter: what the estimates count it as. */
-  .pages {
-    color: var(--muted);
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
   }
 `;
 
