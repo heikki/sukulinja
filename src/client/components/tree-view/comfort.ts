@@ -30,7 +30,7 @@ export function comfortOf(
   boxes: Box[],
   coreIds: ReadonlySet<number>
 ): Comfort | null {
-  const rowPitch = card.boxH + dims().gapY;
+  const rowPitch = card.boxH + dims.gapY;
   const rows = boxes.filter((b) => b.pos.y <= 0 && b.pos.y >= -rowPitch);
   if (rows.length === 0) return null;
   const region = boundsOf(rows);

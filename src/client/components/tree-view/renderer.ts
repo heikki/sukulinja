@@ -1,6 +1,5 @@
 import { css, svg } from 'lit';
 
-import { currentSpacing } from '@/client/chart-spacing';
 import type { PersonRow } from '@/common/types';
 
 import { edgePath } from './connectors';
@@ -99,11 +98,19 @@ export function renderEdge(line: DrawnLine, isNew: boolean, ghost = false) {
 // them as a parameter rather than reaching back here.
 export const card = { boxW: 110, boxH: 140 };
 
-// The card's size and the spacing (chart-spacing.ts). Read inside a
-// render, so the chart lays out again when the spacing changes.
-export function dims(): Dims {
-  return { ...card, ...currentSpacing() };
-}
+// The card's size and the chart's gaps and line offsets, in px.
+export const dims: Readonly<Dims> = {
+  ...card,
+  // Between two cards side by side, and between a Couple's two cards.
+  gapX: 26,
+  coupleGap: 16,
+  // Between two rows of cards.
+  gapY: 70,
+  // How far above the cards' bottom edge a Tie runs.
+  tieLift: 28,
+  // How far a non-Primary spouse's Tie sits off the Primary one.
+  tieOffset: 6
+};
 
 // Half a card's size, either way from its centre.
 export const cardHalf = { x: card.boxW / 2, y: card.boxH / 2 };

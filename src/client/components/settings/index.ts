@@ -5,7 +5,6 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { currentAppearance, setAppearance } from '@/client/appearance';
 import type { Appearance } from '@/client/appearance';
 import { assistantOn, setAssistantOn } from '@/client/assistant-flag';
-import { setSpacingTunerOn, spacingTunerOn } from '@/client/chart-spacing';
 import { ApiError } from '@/client/dataset-api';
 import { dialogStyles } from '@/client/dialog-styles';
 import { focusRingStyles } from '@/client/focus-ring';
@@ -25,7 +24,6 @@ import { OFF_ON, rowStyles, segmented } from './segmented';
 
 import './assistant-choices';
 import './assistant-key';
-import './chart-spacing';
 import type { ScanCacheDrop } from './helpers';
 
 export type GenerationsChangeEvent = CustomEvent<number>;
@@ -343,7 +341,6 @@ class SettingsElement extends LitElement {
         ${this.renderDataset()} ${this.renderAppearance()}
         ${this.renderGenerations()} ${this.renderScanCache()}
         ${this.renderPageNumbers()} ${this.renderAssistant()}
-        ${this.renderSpacingTuner()}
       </div>
     `;
   }
@@ -378,20 +375,6 @@ class SettingsElement extends LitElement {
         setPageNumbersOn(value);
         this.requestUpdate();
       })}
-    `;
-  }
-
-  // Off or on for tuning the chart's spacing by eye (chart-spacing.ts); on,
-  // its sliders below.
-  private renderSpacingTuner() {
-    const on = spacingTunerOn.get();
-    return html`
-      <span class="label">Chart spacing</span>
-      ${segmented(OFF_ON, on, (value) => {
-        setSpacingTunerOn(value);
-        this.requestUpdate();
-      })}
-      ${on ? html`<span></span><sl-chart-spacing></sl-chart-spacing>` : nothing}
     `;
   }
 
