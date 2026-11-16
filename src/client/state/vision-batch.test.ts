@@ -184,7 +184,7 @@ test("a Volume's page survey runs alone, to try it", async () => {
   await Bun.sleep(0);
   await viewer.surveyPagesByVision('claude-haiku-5-5');
   expect(api.asked.filter((a) => /^(?:survey|vision)/.test(a))).toEqual([
-    'survey 201 claude-haiku-5-5'
+    'survey 201 claude-haiku-5-5 fresh'
   ]);
   expect(viewer.visionBatch.get()).toMatchObject({
     scope: 'survey',

@@ -52,7 +52,8 @@ export interface BatchAsks {
   surveyPages: (
     volumeId: string,
     volume: string,
-    model: ClaudeModel
+    model: ClaudeModel,
+    fresh: boolean
   ) => Promise<VisionSurvey>;
   discard: (citationId: number, at: ImageAt) => Promise<CitationLinks>;
 }
@@ -226,7 +227,7 @@ export function visionBatching(
         pinned,
         settled: agree,
         ...spent
-      } = await surveyPages(v.id, v.label, model);
+      } = await surveyPages(v.id, v.label, model, false);
       surveyed = { pinned, settled: agree };
       took = spent;
       await settled();
@@ -251,7 +252,8 @@ export function visionBatching(
     await settled();
   }
 
-  // The Volume shown's page survey alone, to try it (ADR-0032).
+  // The Volume shown's page survey alone, to try it (ADR-0032): read
+  // anew each time.
   async function runSurvey(model: ClaudeModel) {
     const v = volume.get();
     if (v === null || searching()) return;
@@ -260,7 +262,7 @@ export function visionBatching(
     const step = 'reading page numbers';
     kept.set({ at, status: { searching: model, since, of: 0, step } });
     const done = { scope: 'survey' as const, tries: [], of: 0 };
-    const status = await surveyPages(v.id, v.label, model)
+    const status = await surveyPages(v.id, v.label, model, true)
       .then(({ pinned, settled: agree, ...took }): VisionBatch => ({
         ...done,
         refused: null,

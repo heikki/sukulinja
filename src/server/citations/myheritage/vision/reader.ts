@@ -148,8 +148,13 @@ const ENTRIES_VERSION = '1';
 
 // Every reading on disk, one file per Volume, Image, question (with the
 // person asked about) and model: a re-run asks nothing twice, and a changed
-// model reads again.
-export function cachedReader(reader: Reader, dir: string): Reader {
+// model reads again. `fresh` reads everything again, keeping the new
+// readings.
+export function cachedReader(
+  reader: Reader,
+  dir: string,
+  { fresh = false } = {}
+): Reader {
   const findEntries = reader.findEntries;
   async function cached<T>(
     at: ImageRef,
@@ -169,7 +174,7 @@ export function cachedReader(reader: Reader, dir: string): Reader {
     const hash = createHash('sha1').update(key).digest('hex').slice(0, 16);
     const path = join(dir, at.volumeId, `${at.image}-${question}-${hash}.json`);
     const file = Bun.file(path);
-    if (await file.exists()) {
+    if (!fresh && (await file.exists())) {
       return ((await file.json()) as { answer: T }).answer;
     }
     const answer = await read();

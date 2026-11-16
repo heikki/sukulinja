@@ -101,3 +101,25 @@ test('a page survey saves what it read as Page pins, which the estimates count f
   expect(survey).toMatchObject({ settled: true, pinned: 2 });
   expect(await imagesAt(12)).toEqual([14]);
 });
+
+test('a page survey replacing the last puts its Page pins in their place', async () => {
+  const folder = openScanFolder(dir, {
+    astia: juvaAstia(),
+    parishes: memoryParishes()
+  });
+  function offBy(covers: number) {
+    return {
+      pageNumbers: async ({ image }: { image: number }) =>
+        await Promise.resolve(
+          image <= covers
+            ? { unreadable: true as const }
+            : { pages: [image - covers] }
+        )
+    };
+  }
+  await folder.surveyPages('juva-1', 'I Aa:1', offBy(2));
+  await folder.surveyPages('juva-1', 'I Aa:1', offBy(4), {
+    replace: true
+  });
+  expect(await imagesAt(12)).toEqual([16]);
+});

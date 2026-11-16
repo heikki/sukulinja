@@ -244,14 +244,20 @@ export const CITATION_OPERATIONS = {
 
   // Reads how the Volume, `volume` by its label, numbers its pages, with
   // the vision model `model`, and saves the Page numbers read as Page
-  // pins (ADR-0032).
+  // pins (ADR-0032); `fresh`, reading every Image again and replacing the
+  // Volume's vision Page pins.
   surveyPages: answers<
-    { volumeId: string; volume: string; model: ClaudeModel },
+    { volumeId: string; volume: string; model: ClaudeModel; fresh: boolean },
     VisionSurvey
-  >('{ volumeId, volume, model }', ({ volumeId, volume, model }) =>
-    isName(volumeId) && isName(volume) && isClaudeModel(model)
-      ? { volumeId, volume, model }
-      : null
+  >(
+    '{ volumeId, volume, model, fresh }',
+    ({ volumeId, volume, model, fresh }) =>
+      isName(volumeId) &&
+      isName(volume) &&
+      isClaudeModel(model) &&
+      typeof fresh === 'boolean'
+        ? { volumeId, volume, model, fresh }
+        : null
   ),
 
   // The Volumes a reference can be put in.

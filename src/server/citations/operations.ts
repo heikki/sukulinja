@@ -20,11 +20,13 @@ interface Doers {
     at: BoxAt,
     model: string
   ) => Promise<VisionPageTry | { rejected: string }>;
-  // Surveys how the Volume numbers its pages (ADR-0032).
+  // Surveys how the Volume numbers its pages (ADR-0032); `fresh`, reading
+  // it all again.
   surveyPages: (
     volumeId: string,
     volume: string,
-    model: string
+    model: string,
+    fresh: boolean
   ) => Promise<VisionSurvey | { rejected: string }>;
 }
 
@@ -105,9 +107,9 @@ export function citationOperations(
         'citation'
       ),
 
-    surveyPages: async ({ volumeId, volume, model }) =>
+    surveyPages: async ({ volumeId, volume, model, fresh }) =>
       answered(
-        await askingAstia(surveyPages(volumeId, volume, model)),
+        await askingAstia(surveyPages(volumeId, volume, model, fresh)),
         'volume'
       ),
 

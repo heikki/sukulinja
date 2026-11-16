@@ -354,20 +354,25 @@ export function openScanFolder(
   return {
     // Surveys how the Volume, `volume` by its label, numbers its pages
     // (ADR-0032), closing in first where the `cited` pages could be, and
-    // saves what it read as Page pins: the survey, or why
-    // it can't be made.
+    // saves what it read as Page pins, `replace`-ing the Volume's vision
+    // ones: the survey, or why it can't be made.
     async surveyPages(
       volumeId: string,
       volume: string,
       reader: Pick<Reader, 'pageNumbers'>,
-      cited: number[] | null = null
+      {
+        cited = null,
+        replace = false
+      }: { cited?: number[] | null; replace?: boolean } = {}
     ): Promise<{ rejected: string } | (Survey & { pinned: number })> {
       if (await onOldFilming(astia, volumeId)) return { rejected: OLD_FILMING };
       const images = (await astia.volumeImages(volumeId)).length;
       if (images === 0) return { rejected: 'The volume has no images.' };
       const survey = await surveyVolume(reader, { volumeId, images }, cited);
       const filming = await facts.filmingOf(volumeId);
-      await facts.savePageReadings(filming, volume, survey.readings);
+      await facts.savePageReadings(filming, volume, survey.readings, {
+        replace
+      });
       return { ...survey, pinned: survey.readings.length };
     },
 

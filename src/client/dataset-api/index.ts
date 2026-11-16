@@ -81,11 +81,12 @@ export interface DatasetApi {
     model: ClaudeModel
   ) => Promise<VisionPageTry>;
   // Reads how the Volume numbers its pages and saves it as Page pins
-  // (ADR-0032).
+  // (ADR-0032); `fresh`, reading it all again.
   surveyPages: (
     volumeId: string,
     volume: string,
-    model: ClaudeModel
+    model: ClaudeModel,
+    fresh: boolean
   ) => Promise<VisionSurvey>;
   // Makes an Entry with a Citation of it for each person named (ADR-0026):
   // them as the Volume's citations list them, in the order named.
@@ -234,8 +235,12 @@ export function openDatasetApi(
       await call('discard', { citationId, at }, 'Discard'),
     findAllOnImage: async (citationIds, at, model) =>
       await call('findAllOnImage', { citationIds, at, model }, 'Vision Match'),
-    surveyPages: async (volumeId, volume, model) =>
-      await call('surveyPages', { volumeId, volume, model }, 'Page survey'),
+    surveyPages: async (volumeId, volume, model, fresh) =>
+      await call(
+        'surveyPages',
+        { volumeId, volume, model, fresh },
+        'Page survey'
+      ),
     citeEntry: async (at, people) =>
       await call('citeEntry', { at, people }, 'Citing'),
     editEntry: async (entryId, edit) =>

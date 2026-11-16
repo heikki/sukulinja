@@ -251,9 +251,11 @@ export function memoryDatasetApi(
         () => found(data.visionPage, 'citation not found')
       ),
 
-    surveyPages: async (volumeId, _volume, model) =>
-      await answer(`survey ${volumeId} ${model}`, undefined, () =>
-        found(data.survey, 'volume not found')
+    surveyPages: async (volumeId, _volume, model, fresh) =>
+      await answer(
+        `survey ${volumeId} ${model}${fresh ? ' fresh' : ''}`,
+        undefined,
+        () => found(data.survey, 'volume not found')
       ),
 
     citeEntry: servedOnly('citeEntry'),

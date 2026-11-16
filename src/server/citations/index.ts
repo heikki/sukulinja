@@ -160,14 +160,15 @@ export function openCitations(root: string, options: Options) {
 
   // Surveys how the Volume numbers its pages (ADR-0032), first where the
   // dataset's estimates there cite, with what it took. Its Page pins are
-  // the data folder's, for every dataset.
+  // the data folder's, for every dataset. A `fresh` one reads every Image
+  // again and replaces the Volume's vision Page pins, to try it.
   async function surveyPages(
     citations: ReturnType<typeof createCitations>,
-    asked: { volumeId: string; volume: string },
+    asked: { volumeId: string; volume: string; fresh: boolean },
     model: string
   ): Promise<VisionSurvey | { rejected: string }> {
     if (options.vision === undefined) return { rejected: NO_VISION };
-    const { volumeId, volume } = asked;
+    const { volumeId, volume, fresh } = asked;
     const rows = (await citations.inVolume(volumeId)) ?? [];
     const cited = rows.flatMap(({ citation, link }) =>
       link.certainty === 'estimated' && citation.citedPage !== null
@@ -176,9 +177,9 @@ export function openCitations(root: string, options: Options) {
     );
     const started = performance.now();
     const reader = await options.vision(model, visionImage);
-    const counted = counting(cachedReader(reader, readings));
+    const counted = counting(cachedReader(reader, readings, { fresh }));
     const surveyed = await folder
-      .surveyPages(volumeId, volume, counted.reader, cited)
+      .surveyPages(volumeId, volume, counted.reader, { cited, replace: fresh })
       .catch(failedWith);
     if ('rejected' in surveyed) return surveyed;
     const spend = reader.spend();
@@ -244,8 +245,8 @@ export function openCitations(root: string, options: Options) {
           switchFilming: switchTo,
           findAllOnImage: async (citationIds, at, model) =>
             await findAllOnImage(citations, { citationIds, at }, model),
-          surveyPages: async (volumeId, volume, model) =>
-            await surveyPages(citations, { volumeId, volume }, model)
+          surveyPages: async (volumeId, volume, model, fresh) =>
+            await surveyPages(citations, { volumeId, volume, fresh }, model)
         }),
         // The person's Citations, as the panel lists them.
         ofPerson: (personId: number) => citations.ofPerson(personId),
