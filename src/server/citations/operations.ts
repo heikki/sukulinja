@@ -32,7 +32,7 @@ interface Doers {
   // nothing.
   setImagePage: (
     at: { volumeId: string; volume: string; image: number },
-    page: number | null
+    pages: number[] | null
   ) => Promise<{ rejected: string } | null>;
 }
 
@@ -136,9 +136,9 @@ export function citationOperations(
     volumePages: async ({ volumeId, volume }) =>
       await askingAstia(citations.pagesInVolume(volumeId, volume)),
 
-    async setImagePage({ volumeId, volume, image, page }) {
+    async setImagePage({ volumeId, volume, image, pages }) {
       const refused = await askingAstia(
-        setImagePage({ volumeId, volume, image }, page)
+        setImagePage({ volumeId, volume, image }, pages)
       );
       if (refused !== null) throw new Refusal(409, refused.rejected);
       return await askingAstia(citations.pagesInVolume(volumeId, volume));

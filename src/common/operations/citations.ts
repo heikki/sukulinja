@@ -29,6 +29,14 @@ import {
   optionalString
 } from './read';
 
+// One page, or a spread's two following each other.
+function isPages(value: unknown): value is number[] {
+  if (!Array.isArray(value) || !value.every(isId)) return false;
+  return (
+    value.length === 1 || (value.length === 2 && value[1] === value[0]! + 1)
+  );
+}
+
 // Where a Mark says the record is, in any Volume of the parish: on an
 // Image, or only somewhere in the Volume. On an Image, `box` is where the
 // entry is drawn, in pixels of the full-size Image, null for none; left
@@ -282,20 +290,28 @@ export const CITATION_OPERATIONS = {
       isName(volumeId) && isName(volume) ? { volumeId, volume } : null
   ),
 
-  // Sets the page on the Image of the Volume, `volume` by its label, by
-  // hand: a hand Page pin of `page` there (its right page following where
-  // the Volume numbers pages), or with null that pin taken away. The
-  // pages the Volume's Page pins then put on its Images.
+  // Sets the pages on the Image of the Volume, `volume` by its label, by
+  // hand: a hand Page pin of `pages` there, a spread's two following each
+  // other or one (its right page following where the Volume numbers
+  // pages), or with null that pin taken away. The pages the Volume's Page
+  // pins then put on its Images.
   setImagePage: answers<
-    { volumeId: string; volume: string; image: number; page: number | null },
+    {
+      volumeId: string;
+      volume: string;
+      image: number;
+      pages: number[] | null;
+    },
     ImagePages[]
-  >('{ volumeId, volume, image, page }', ({ volumeId, volume, image, page }) =>
-    isName(volumeId) &&
-    isName(volume) &&
-    isId(image) &&
-    (page === null || isId(page))
-      ? { volumeId, volume, image, page }
-      : null
+  >(
+    '{ volumeId, volume, image, pages }',
+    ({ volumeId, volume, image, pages }) =>
+      isName(volumeId) &&
+      isName(volume) &&
+      isId(image) &&
+      (pages === null || isPages(pages))
+        ? { volumeId, volume, image, pages }
+        : null
   ),
 
   // The archives the dataset's church books are in, most cited first.

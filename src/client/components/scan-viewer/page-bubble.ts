@@ -8,6 +8,8 @@ import { pageNumbersOn } from '@/client/page-numbers-flag';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 
+import { typedPages } from './typed-pages';
+
 function stop(e: Event) {
   e.stopPropagation();
 }
@@ -21,10 +23,11 @@ const HOW = {
 // it: a see-through bubble over the scan's top left corner, where the page
 // number is written. Read there, by the vision model or by hand, or
 // counted (≈) from the Page pins around it, or the book's numbering
-// without any. Clicked, it takes the page written there: Enter sets it by
-// hand, which the estimates around it count from; left empty, it takes a
-// page set by hand away. Escape, or clicking elsewhere, leaves it as it
-// was. Pointer and wheel input stays here, so a press doesn't pan.
+// without any. Clicked, it takes the page written there, or a spread's
+// two ("4-5"): Enter sets them by hand, which the estimates around it
+// count from. Escape, or clicking elsewhere, leaves it as it was. Pages
+// set by hand have a × beside them that takes them away. Pointer and
+// wheel input stays here, so a press doesn't pan.
 @customElement('sl-scan-page')
 class ScanPageElement extends SignalWatcher(LitElement) {
   static override styles = css`
@@ -48,8 +51,19 @@ class ScanPageElement extends SignalWatcher(LitElement) {
     }
 
     input.bubble {
-      width: 7ch;
+      width: 9ch;
       outline: none;
+    }
+
+    .remove {
+      margin-left: 0.25rem;
+      padding: 0.3rem 0.55rem;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .remove:hover {
+      color: var(--fg);
     }
 
     .refused {
@@ -71,15 +85,9 @@ class ScanPageElement extends SignalWatcher(LitElement) {
     }
   }
 
-  private async save(input: HTMLInputElement) {
-    const text = input.value.trim();
-    const page = text === '' ? null : Number(text);
-    if (page !== null && !(Number.isInteger(page) && page > 0)) {
-      this.refused = 'A page is a whole number.';
-      return;
-    }
+  private async save(pages: number[] | null) {
     try {
-      await this.state.viewer.setPageHere(page);
+      await this.state.viewer.setPageHere(pages);
       this.editing = false;
       this.refused = null;
     } catch (err) {
@@ -88,13 +96,12 @@ class ScanPageElement extends SignalWatcher(LitElement) {
     }
   }
 
-  private renderEditing(first: number) {
+  private renderEditing(pages: number[]) {
     return html`<input
       class="bubble"
       type="text"
-      inputmode="numeric"
       aria-label="Page"
-      .value=${String(first)}
+      .value=${pages.join('-')}
       @keydown=${(e: KeyboardEvent) => {
         const input = e.target as HTMLInputElement;
         if (e.key === 'Escape') {
@@ -102,7 +109,12 @@ class ScanPageElement extends SignalWatcher(LitElement) {
           this.editing = false;
           this.refused = null;
         } else if (e.key === 'Enter') {
-          void this.save(input);
+          const pages = typedPages(input.value);
+          if (pages === null) {
+            this.refused = 'A page, or a spread’s two such as 4-5.';
+          } else {
+            void this.save(pages);
+          }
         } else {
           return;
         }
@@ -133,7 +145,7 @@ class ScanPageElement extends SignalWatcher(LitElement) {
     return html`
       ${
         this.editing
-          ? this.renderEditing(pages[0]!)
+          ? this.renderEditing(pages)
           : html`<button
               class="bubble"
               title=${
@@ -147,6 +159,20 @@ class ScanPageElement extends SignalWatcher(LitElement) {
             >
               ${by === null ? `≈ ${named}` : named}
             </button>`
+      }
+      ${
+        by === 'hand' && !this.editing
+          ? html`<button
+              class="bubble remove"
+              title="Take away the page set by hand"
+              aria-label="Take away the page set by hand"
+              @click=${() => {
+                void this.save(null);
+              }}
+            >
+              ×
+            </button>`
+          : nothing
       }
       ${this.refused === null ? nothing : html`<p class="refused">${this.refused}</p>`}
     `;

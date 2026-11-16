@@ -380,11 +380,11 @@ export function openScanFolder(
       return { ...survey, pinned: survey.readings.length };
     },
 
-    // Sets the Image's page by hand, or with null takes the hand one away
+    // Sets the Image's pages by hand, or with null takes the hand ones away
     // (ADR-0032): why it can't be, or nothing.
     async setImagePage(
       at: { volumeId: string; volume: string; image: number },
-      page: number | null
+      pages: number[] | null
     ): Promise<{ rejected: string } | null> {
       const { volumeId, volume, image } = at;
       if (await onOldFilming(astia, volumeId)) return { rejected: OLD_FILMING };
@@ -392,7 +392,7 @@ export function openScanFolder(
       if (image < 1 || image > filming.files.length) {
         return { rejected: 'The volume has no such image.' };
       }
-      await facts.setImagePage(filming, volume, image, page);
+      await facts.setImagePage(filming, volume, image, pages);
       return null;
     },
 

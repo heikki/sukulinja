@@ -298,17 +298,15 @@ export function memoryDatasetApi(
 
     // A hand Page pin replaces whatever was told of the Image, alone: the
     // pages around it aren't counted anew.
-    setImagePage: async ({ volumeId, image }, page) =>
+    setImagePage: async ({ volumeId, image }, pages) =>
       await answer(
-        `page ${volumeId}/${image} ${page ?? 'none'}`,
+        `page ${volumeId}/${image} ${pages?.join('-') ?? 'none'}`,
         undefined,
         () => {
           const shown = volume(volumeId);
           const others = (shown.pages ?? []).filter((p) => p.image !== image);
           const set =
-            page === null
-              ? []
-              : [{ image, pages: [page], by: 'hand' as const }];
+            pages === null ? [] : [{ image, pages, by: 'hand' as const }];
           shown.pages = [...others, ...set].toSorted(
             (a, b) => a.image - b.image
           );

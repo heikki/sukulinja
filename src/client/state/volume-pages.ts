@@ -35,14 +35,14 @@ export function volumePagesOf(
       );
       if (got !== undefined) pages.set(got ?? []);
     },
-    // Sets the page of the Image shown by hand, or with null takes it
-    // away; throws ApiError if it's refused.
-    setHere: async (page: number | null) => {
+    // Sets the pages of the Image shown by hand, a spread's two or one, or
+    // with null takes them away; throws ApiError if it's refused.
+    setHere: async (set: number[] | null) => {
       const v = shown.volume.get();
       if (v === null) return;
       const at = { volumeId: v.id, volume: v.label, image: image.get() };
       req.stop();
-      pages.set(await api.setImagePage(at, page));
+      pages.set(await api.setImagePage(at, set));
       await reload(v.id);
     },
     clear() {

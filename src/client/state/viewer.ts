@@ -116,9 +116,10 @@ export interface Viewer {
   // The pages the Volume's Page pins put on the Image shown, read there or
   // counted from the pins around it; null without pins, or until known.
   pagesHere: Readable<ImagePages | null>;
-  // Sets the page of the Image shown by hand, or with null takes it away,
-  // and reloads the estimates counted from it; throws ApiError if refused.
-  setPageHere: (page: number | null) => Promise<void>;
+  // Sets the pages of the Image shown by hand, a spread's two or one, or
+  // with null takes them away, and reloads the estimates counted from
+  // them; throws ApiError if refused.
+  setPageHere: (pages: number[] | null) => Promise<void>;
   // The estimates on the Image shown that Vision Match would look for,
   // one per record.
   estimatesHere: Readable<VolumeCitation[]>;

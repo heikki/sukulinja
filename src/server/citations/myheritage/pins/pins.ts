@@ -368,15 +368,15 @@ export function openVolumeFacts(folder: string, options: { astia: Astia }) {
       merged = null;
     },
 
-    // A hand Page pin of `page` on the Image, as the Scan viewer sets it,
-    // its right page following where the Volume numbers pages; null takes
-    // the hand Page pin there away, so the Image is counted again. One
-    // write.
+    // A hand Page pin of `pages` on the Image, as the Scan viewer sets it:
+    // a spread's two, or one, its right page following where the Volume
+    // numbers pages; null takes the hand Page pin there away, so the Image
+    // is counted again. One write.
     async setImagePage(
       filming: Filming,
       volume: string,
       image: number,
-      page: number | null
+      pages: number[] | null
     ) {
       await migrated();
       await mkdir(folder, { recursive: true });
@@ -384,16 +384,17 @@ export function openVolumeFacts(folder: string, options: { astia: Astia }) {
         const draft = { local: await readLocal(), filming };
         const kept = draft.local.volumes[filming.volumeId];
         const current = split(filming, kept?.pages ?? []).current;
-        if (page === null) {
+        if (pages === null) {
           if (kept === undefined) return;
           kept.pages = kept.pages.filter(
             (p) => !(p.image === image && isHand(p) && current.includes(p))
           );
         } else {
           const twoPages = current.some((p) => p.pages.length === 2);
+          const [page] = pages as [number];
           addPagePin(draft, volume, {
             image,
-            pages: twoPages ? [page, page + 1] : [page],
+            pages: pages.length === 1 && twoPages ? [page, page + 1] : pages,
             note: 'set in the Scan viewer',
             by: 'hand',
             ...fileOf(filming, image)

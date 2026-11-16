@@ -183,11 +183,14 @@ test('a page set on an Image by hand counts the Volume from it, and taken away n
     parishes: memoryParishes()
   });
   const at = { volumeId: 'juva-1', volume: 'I Aa:1', image: 5 };
-  expect(await folder.setImagePage(at, 40)).toBeNull();
+  expect(await folder.setImagePage(at, [40])).toBeNull();
   expect(await imagesAt(45)).toEqual([10]);
   expect(await folder.setImagePage(at, null)).toBeNull();
   expect(await imagesAt(12)).toEqual([12]);
-  expect(await folder.setImagePage({ ...at, image: 99 }, 40)).toEqual({
+  // A spread's two pages: two an Image from there.
+  expect(await folder.setImagePage(at, [40, 41])).toBeNull();
+  expect(await imagesAt(44)).toEqual([7]);
+  expect(await folder.setImagePage({ ...at, image: 99 }, [40])).toEqual({
     rejected: 'The volume has no such image.'
   });
 });

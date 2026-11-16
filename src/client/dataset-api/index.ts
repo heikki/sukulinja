@@ -124,11 +124,11 @@ export interface DatasetApi {
     at: { volumeId: string; volume: string },
     signal?: AbortSignal
   ) => Promise<ImagePages[]>;
-  // Sets the Image's page by hand, or with null takes it away: the
-  // Volume's pages then.
+  // Sets the Image's pages by hand, a spread's two or one, or with null
+  // takes them away: the Volume's pages then.
   setImagePage: (
     at: { volumeId: string; volume: string; image: number },
-    page: number | null
+    pages: number[] | null
   ) => Promise<ImagePages[]>;
   // The archives the dataset's church books are in, most cited first.
   archives: (signal?: AbortSignal) => Promise<ChurchBookArchive[]>;
@@ -279,8 +279,8 @@ export function openDatasetApi(
       ),
     volumePages: async (at, signal) =>
       await call('volumePages', at, "the Volume's pages", signal),
-    setImagePage: async (at, page) =>
-      await call('setImagePage', { ...at, page }, 'the page'),
+    setImagePage: async (at, pages) =>
+      await call('setImagePage', { ...at, pages }, 'the page'),
     archives: async (signal) =>
       await call('archives', {}, 'the church books', signal),
     archiveCitations: async (archiveId, signal) =>

@@ -28,7 +28,7 @@ test("a page set by hand on the Image shown is told, and the Volume's citations 
   const viewer = openAppState(api).viewer;
   viewer.openImage({ volumeId: '201', volume: 'I Aa:201', image: 2 });
   await Bun.sleep(0);
-  await viewer.setPageHere(12);
+  await viewer.setPageHere([12]);
   expect(viewer.pagesHere.get()).toEqual({ image: 2, pages: [12], by: 'hand' });
   expect(api.asked.slice(-3)).toEqual([
     'page 201/2 12',
