@@ -13,6 +13,12 @@
 // that where it runs out of readings, it's where none is cited. Up to
 // READ_AT_ONCE Images are read at a time.
 //
+// An Image may carry another numbering beside the book's, such as a
+// printed form's own numbers in the other corner, and the model may give
+// either or both: of the numbers read on an Image, the survey takes those
+// that agree with its neighbours. A reading agreeing with neither, where
+// they agree with each other across it, is a misreading, left out.
+//
 // Readings are cached as any other (reader.ts), so a survey run again, or
 // one reaching an Image a search already read, asks nothing new.
 
@@ -51,6 +57,57 @@ function first(r: PageReading) {
 function agree(a: PageReading, b: PageReading) {
   const perImage = Math.max(a.pages.length, b.pages.length);
   return first(b) === first(a) + (b.image - a.image) * perImage;
+}
+
+// What an Image's numbers could be of the book's numbering: all of them,
+// each alone, or two following each other (a page-numbered spread).
+function choices(r: PageReading): PageReading[] {
+  const sorted = r.pages.toSorted((a, b) => a - b);
+  const pairs = sorted.flatMap((p, i) =>
+    sorted[i + 1] === p + 1 ? [[p, p + 1]] : []
+  );
+  const all = [sorted, ...sorted.map((p) => [p]), ...pairs];
+  const seen = new Set<string>();
+  return all.flatMap((pages) => {
+    const key = pages.join(',');
+    if (seen.has(key)) return [];
+    seen.add(key);
+    return [{ image: r.image, pages }];
+  });
+}
+
+// Where a choice puts the numbering: its pace, and the number it would
+// give Image 0. Readings of one numbering share it, until a leaf goes
+// missing or the numbering starts over; another numbering's drift.
+function lineOf(c: PageReading) {
+  const pace = c.pages.length;
+  return `${pace} ${first(c) - c.image * pace}`;
+}
+
+// Readings either side of the one weighed, for its choice.
+const NEAR = 4;
+
+// Each reading, in Image order, as the choice of its numbers most of the
+// readings near it share the line of (all it read, where none does), less
+// the misreadings.
+function settle(readings: PageReading[]) {
+  const sorted = readings.toSorted((a, b) => a.image - b.image);
+  const lines = sorted.map((r) => new Set(choices(r).map(lineOf)));
+  const chosen = sorted.map((r, i) => {
+    const near = lines.filter((_, k) => k !== i && Math.abs(k - i) <= NEAR);
+    const scored = choices(r).map((c) => {
+      const line = lineOf(c);
+      return { c, score: near.filter((l) => l.has(line)).length };
+    });
+    const best = Math.max(...scored.map((x) => x.score));
+    return best === 0 ? r : scored.find((x) => x.score === best)!.c;
+  });
+  return chosen.filter((r, i) => {
+    const before = chosen[i - 1];
+    const after = chosen[i + 1];
+    if (before === undefined || after === undefined) return true;
+    return agree(before, r) || agree(r, after) || !agree(before, after);
+  });
 }
 
 // The Images first read: evenly from 5% into the Volume to 95%, at most
@@ -94,7 +151,7 @@ function gaps(
   tried: Set<number>,
   cited: number[] | null
 ) {
-  const sorted = readings.toSorted((a, b) => a.image - b.image);
+  const sorted = settle(readings);
   const found = sorted.slice(1).flatMap((b, i) => {
     const a = sorted[i]!;
     const next = agree(a, b) ? undefined : between(a, b, tried);
@@ -165,7 +222,7 @@ export async function surveyVolume(
   const settled =
     readings.length > 0 && gaps(readings, tried, cited).length === 0;
   return {
-    readings: readings.toSorted((a, b) => a.image - b.image),
+    readings: settle(readings),
     reads,
     settled
   };

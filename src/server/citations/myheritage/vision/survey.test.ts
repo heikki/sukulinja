@@ -121,3 +121,21 @@ test('reads four Images at a time', async () => {
   await surveyVolume(reader, { volumeId: 'v', images: 200 });
   expect(most).toBe(4);
 });
+
+test("takes the book's numbers where an Image carries another numbering too", async () => {
+  // Handwritten, one number a spread after six front leaves; printed form
+  // numbers in the other corner, slower. Read both, either, or misread.
+  const { reader } = reading((n) => {
+    const hand = n - 6;
+    const printed = Math.round(0.7 * n);
+    if (n <= 6) return UNREADABLE;
+    if (n % 41 === 0) return { pages: [hand + 600] };
+    if (n % 7 === 2) return { pages: [printed] };
+    return { pages: n % 2 === 0 ? [hand, printed] : [printed, hand] };
+  });
+  const survey = await surveyVolume(reader, { volumeId: 'v', images: 420 });
+  expect(survey.settled).toBe(true);
+  for (const { image, pages } of survey.readings) {
+    expect(pages).toEqual([image - 6]);
+  }
+});

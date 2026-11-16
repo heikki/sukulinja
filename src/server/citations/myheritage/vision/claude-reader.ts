@@ -59,7 +59,7 @@ Answer only from what is written on the image you are shown. When you can't make
 
 const PAGES_PROMPT = `Read the book's own page numbers written on this image, usually at the top outer corners. A book may number each spread once (one number on the image) or each page (two numbers, one per page). Give the numbers from left to right.
 
-Leave out numbers that aren't the book's page numbering: archive stamps, film or frame numbers, rulers and colour charts, house or household numbers, and years.
+Leave out numbers that aren't the book's page numbering: archive stamps, film or frame numbers, rulers and colour charts, house or household numbers, and years. A book written on printed forms may carry the form's printed numbers too, often in another corner: where the pages are numbered by hand as well, give only the handwritten numbers.
 
 If no page number is legible, answer readable: false with no pages.`;
 
