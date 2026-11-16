@@ -5,31 +5,16 @@
 //
 // A scan is some 6700 × 5200 px and up to 8 MB, past what the API accepts;
 // the models read at most 2576 px on the long edge and 3.75 MP. So each is
-// scaled to fit before it's sent, with macOS's sips: the app and the
-// scripts run on the Mac the app ships for.
-
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+// scaled to fit before it's sent, with Bun's own Bun.Image, on any system.
 
 import type { ImageRef } from '../../astia/astia';
 import type { ScanCache } from '../../astia/scan-cache';
+import { cropImage } from './crop';
 
 const GAP_MS = 1000;
 const MAX_EDGE = 2576;
 const MAX_PIXELS = 3.75e6;
 const JPEG_QUALITY = 85;
-
-async function sips(args: string[]) {
-  const proc = Bun.spawn(['sips', ...args], { stdout: 'pipe', stderr: 'pipe' });
-  const out = await new Response(proc.stdout).text();
-  if ((await proc.exited) !== 0) {
-    throw new Error(
-      `sips ${args.join(' ')}: ${await new Response(proc.stderr).text()}`
-    );
-  }
-  return out;
-}
 
 // The longest edge that keeps the scan within the models' limits.
 function fittedEdge(width: number, height: number) {
@@ -54,62 +39,35 @@ export interface Scan {
   height: number;
 }
 
-async function sizeOf(path: string) {
-  const info = await sips(['-g', 'pixelWidth', '-g', 'pixelHeight', path]);
-  return {
-    width: Number(/pixelWidth: (?<n>\d+)/.exec(info)?.groups?.n),
-    height: Number(/pixelHeight: (?<n>\d+)/.exec(info)?.groups?.n)
-  };
-}
-
-// The scan at `path`, or its `region`, scaled to send.
-async function fitted(path: string, region: Region | null): Promise<Scan> {
-  const dir = await mkdtemp(join(tmpdir(), 'sukulinja-scan-'));
-  try {
-    let from = path;
-    let { width, height } = await sizeOf(path);
-    if (region !== null) {
-      const cropped = join(dir, 'region.jpg');
-      const w = Math.round(width * region.width);
-      const h = Math.round(height * region.height);
-      await sips([
-        '-c',
-        String(h),
-        String(w),
-        '--cropOffset',
-        String(Math.round(height * region.top)),
-        String(Math.round(width * region.left)),
-        path,
-        '--out',
-        cropped
-      ]);
-      from = cropped;
-      ({ width, height } = await sizeOf(cropped));
-    }
-    const edge = fittedEdge(width, height);
-    const scale = edge / Math.max(width, height);
-    const out = join(dir, 'scan.jpg');
-    await sips([
-      '-Z',
-      String(edge),
-      '-s',
-      'format',
-      'jpeg',
-      '-s',
-      'formatOptions',
-      String(JPEG_QUALITY),
-      from,
-      '--out',
-      out
-    ]);
-    return {
-      bytes: await Bun.file(out).bytes(),
-      width: Math.round(width * scale),
-      height: Math.round(height * scale)
-    };
-  } finally {
-    await rm(dir, { recursive: true, force: true });
+// The image `input`, or its `region`, scaled to send.
+export async function fitted(
+  input: Uint8Array | string,
+  region: Region | null
+): Promise<Scan> {
+  const whole = await new Bun.Image(input).metadata();
+  let from = input;
+  let { width, height } = whole;
+  if (region !== null) {
+    width = Math.round(whole.width * region.width);
+    height = Math.round(whole.height * region.height);
+    from = await cropImage(input, {
+      left: Math.round(whole.width * region.left),
+      top: Math.round(whole.height * region.top),
+      width,
+      height
+    });
   }
+  const edge = fittedEdge(width, height);
+  const scale = edge / Math.max(width, height);
+  const scaled = {
+    width: Math.round(width * scale),
+    height: Math.round(height * scale)
+  };
+  const bytes = await new Bun.Image(from)
+    .resize(scaled.width, scaled.height)
+    .jpeg({ quality: JPEG_QUALITY })
+    .bytes();
+  return { bytes, ...scaled };
 }
 
 // Loads Images through the Scan cache given, one at a time: whole, or a

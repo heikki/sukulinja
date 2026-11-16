@@ -8,7 +8,7 @@ Heikki (2026-11-15) wanted to try the vision pass from the app before deciding w
 - **A Match it confirms is saved as the script saves one**: a suggestion with its Box, which the person confirms (a Mark) or discards in the Scan viewer. Nothing is Marked, and as with the script, saving a Match writes no Change.
 - **Discarding a Match only undoes it** (amended 2026-11-15): the Link goes back to the estimate, and nothing else is kept, neither a Rejection nor a Change. It undoes a search, not a finding that the entry isn't there; a later run of the script may save the same Match again. The old `rejections` table is no longer written or read, and goes with the rest (ADR-0016).
 - **No accuracy gate.** The script saves nothing until `scripts/evaluate-reader` has shown the model confirms at most 1% of decoys, as it runs unattended. A search asked from the Scan viewer is checked by the person at once, so it isn't gated. The script's gate stays.
-- **It says what it took**: the questions asked, how many of them earlier readings answered (they're kept in the data folder's `.vision-readings`, shared with the scripts), what the rest cost, and the seconds. Scans are scaled with macOS's `sips`, so it runs only on the Mac.
+- **It says what it took**: the questions asked, how many of them earlier readings answered (they're kept in the data folder's `.vision-readings`, shared with the scripts), what the rest cost, and the seconds. Scans are scaled, and cut to a region, with Bun's own `Bun.Image`, on any system (2026-11-16, Heikki; it was macOS's `sips` before).
 
 ## Considered options
 
