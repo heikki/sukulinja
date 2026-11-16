@@ -38,7 +38,7 @@ type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 // household table, then the date written for the entry; dates gained the
 // register, then dates in any register.
 const VERSIONS: Partial<Record<Question, string>> = {
-  pages: '7',
+  pages: '8',
   dates: '3',
   entry: '4'
 };
@@ -68,8 +68,13 @@ Answer only from what is written on the image you are shown. When you can't make
 // form's entry numbers and column headings, which drew the model off the
 // handwritten number; read digit by digit, fewer digits are lost.
 const PAGE_CORNER: Region = { left: 0, top: 0, width: 0.2, height: 0.12 };
+// Where there is none in that corner, the top of the left page is asked:
+// some books write it there in the middle, as "Pagina 12".
+const PAGE_TOP: Region = { left: 0, top: 0, width: 0.5, height: 0.15 };
 
 const PAGES_PROMPT = `This is the top left corner of a spread in a church book. Its page number is handwritten in ink at the very top left: a large number, often with a flourish under or through it. Ignore printed numbers, column headings and entry numbers. Read the page number one digit at a time, from left to right, counting every digit, then give the whole number. If there is none, answer readable: false.`;
+
+const PAGE_TOP_PROMPT = `This is the top of the left page of a spread in a church book. Its page number is handwritten in ink at the top, at the left or in the middle, sometimes after a word such as Pagina. Ignore printed numbers, column headings and entry numbers. Read the page number one digit at a time, from left to right, counting every digit, then give the whole number. If there is none, answer readable: false.`;
 
 const DATES_PROMPT = `This image is from a parish register, whose entries run in date order. One book may hold several registers one after another: baptisms, marriages, deaths and burials, moves.
 
@@ -469,10 +474,15 @@ export function claudeReader(options: ClaudeReaderOptions): ClaudeReader {
     versions: VERSIONS,
     spend: () => Object.fromEntries(spent),
     pageNumbers: async (at) => {
-      const { json } = await ask('pages', at, PAGES_PROMPT, {
+      const corner = await ask('pages', at, PAGES_PROMPT, {
         regions: [PAGE_CORNER]
       });
-      return toPages(json as Parameters<typeof toPages>[0]);
+      const read = toPages(corner.json as Parameters<typeof toPages>[0]);
+      if (!('unreadable' in read)) return read;
+      const top = await ask('pages', at, PAGE_TOP_PROMPT, {
+        regions: [PAGE_TOP]
+      });
+      return toPages(top.json as Parameters<typeof toPages>[0]);
     },
     dates: async (at) => {
       const { json } = await ask('dates', at, DATES_PROMPT);
