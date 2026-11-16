@@ -137,12 +137,20 @@ const SURVEY: VisionSurvey = {
   seconds: 12
 };
 
-test("a Volume's estimates are looked for Image by Image, after its page survey", async () => {
+test("a Volume's estimates are located as the server goes, then told by its citations", async () => {
   const later = row(11, 'record 4', { ...ESTIMATE, image: 25 });
+  const took = { ...PAGE, tries: undefined };
   const api = memoryDatasetApi({
     volumes: { '201': { images: 40, citations: [...ROWS, later] } },
-    visionPage: PAGE,
-    survey: SURVEY
+    locating: [
+      { surveying: true },
+      { surveyed: SURVEY },
+      { searching: { nth: 1, images: 2, estimates: 3 } },
+      { tried: PAGE.tries },
+      { searching: { nth: 2, images: 2, estimates: 3 } },
+      { tried: [{ links: { citationId: 11, links: [] }, missed: 'no box' }] },
+      { done: { ...took, readings: 13, cached: 1, seconds: 30 } }
+    ]
   });
   const { viewer } = openAppState(api);
   viewer.open({ citation: CITATION, link: ESTIMATE });
@@ -156,13 +164,18 @@ test("a Volume's estimates are looked for Image by Image, after its page survey"
     of: 3
   });
   await searching;
-  expect(api.asked.filter((a) => /^(?:survey|vision)/.test(a))).toEqual([
-    'survey 201 claude-haiku-5-5',
-    'vision all 7,9 on 18 claude-haiku-5-5',
-    'vision all 11 on 25 claude-haiku-5-5'
+  expect(api.asked.filter((a) => /^(?:locate|citations)/.test(a))).toEqual([
+    'citations 201',
+    'locate 201 claude-haiku-5-5',
+    'citations 201',
+    'citations 201'
   ]);
   expect(viewer.visionBatch.get()).toMatchObject({
-    tries: [{ tried: { missed: null } }, { tried: { missed: 'no box' } }],
+    tries: [
+      { row: { citation: { id: 7 } }, tried: { missed: null } },
+      { row: { citation: { id: 9 } }, tried: { missed: 'no box' } },
+      { row: { citation: { id: 11 } }, tried: { missed: 'no box' } }
+    ],
     of: 3,
     scope: 'volume',
     survey: { pinned: 6, settled: true, readBefore: false },
@@ -174,28 +187,25 @@ test("a Volume's estimates are looked for Image by Image, after its page survey"
   expect(viewer.visionBatch.get()).not.toBeNull();
 });
 
-test('a Volume whose pages are known is looked through without a survey', async () => {
+test("a Volume's locating stopped is told with why, and what it took", async () => {
+  const took = { ...PAGE, tries: undefined };
   const api = memoryDatasetApi({
-    volumes: {
-      '201': {
-        images: 40,
-        citations: ROWS,
-        pins: [{ image: 12, pages: [30], by: 'vision' }]
-      }
-    },
-    visionPage: PAGE,
-    survey: SURVEY
+    volumes: { '201': { images: 40, citations: ROWS } },
+    locating: [
+      { searching: { nth: 1, images: 1, estimates: 2 } },
+      { refused: 'Vision Match failed: overloaded', took }
+    ]
   });
   const { viewer } = openAppState(api);
   viewer.open({ citation: CITATION, link: ESTIMATE });
   await Bun.sleep(0);
   await viewer.findAllInVolumeByVision('claude-haiku-5-5');
-  expect(api.asked.filter((a) => /^(?:survey|vision)/.test(a))).toEqual([
-    'vision all 7,9 on 18 claude-haiku-5-5'
-  ]);
   expect(viewer.visionBatch.get()).toMatchObject({
+    tries: [],
     scope: 'volume',
-    survey: null
+    survey: null,
+    took: { readings: 3 },
+    refused: 'Vision Match failed: overloaded'
   });
 });
 

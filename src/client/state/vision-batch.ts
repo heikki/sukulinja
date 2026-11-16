@@ -2,12 +2,15 @@ import { computed, signal } from '@lit-labs/signals';
 
 import { ApiError } from '@/client/dataset-api';
 import type { ClaudeModel } from '@/common/assistant-choices';
+import { estimatesByImage, estimatesOn } from '@/common/estimates';
 import type {
   CitationLinks,
   VisionPageTry,
   VisionSurvey,
+  VisionTook,
   VisionTry,
-  VolumeCitation
+  VolumeCitation,
+  VolumeLocating
 } from '@/common/types';
 
 import type { Readable } from './selected';
@@ -19,7 +22,7 @@ export interface ImageAt {
 }
 
 // What a search took.
-export type Took = Omit<VisionPageTry, 'tries'>;
+export type Took = VisionTook;
 
 // Vision Match of every estimate on an Image (ADR-0029), in one question
 // for the Image and one for each Image around it while some aren't found,
@@ -66,58 +69,12 @@ export interface BatchAsks {
     model: ClaudeModel,
     fresh: boolean
   ) => Promise<VisionSurvey>;
+  locateVolume: (
+    volumeId: string,
+    volume: string,
+    model: ClaudeModel
+  ) => AsyncIterable<VolumeLocating>;
   discard: (citationId: number, at: ImageAt) => Promise<CitationLinks>;
-}
-
-// The rows on the Image whose Link is an estimate there, one per record:
-// a Match saved for one is saved for everyone citing it.
-export function estimatesOn(rows: VolumeCitation[], image: number) {
-  const byRecord = new Map<string, VolumeCitation>();
-  for (const row of rows) {
-    const { link } = row;
-    if (link.certainty !== 'estimated' || link.precision !== 'image') continue;
-    if (link.image !== image) continue;
-    const key = row.citation.markKey;
-    if (!byRecord.has(key)) byRecord.set(key, row);
-  }
-  return [...byRecord.values()];
-}
-
-// The estimates in the Volume by the Image they're on, in Image order,
-// one per record.
-export function estimatesByImage(rows: VolumeCitation[]) {
-  const images = new Set<number>();
-  for (const { link } of rows) {
-    if (link.certainty === 'estimated' && link.precision === 'image') {
-      images.add(link.image);
-    }
-  }
-  const seen = new Set<string>();
-  return [...images]
-    .toSorted((a, b) => a - b)
-    .map((image) => ({
-      image,
-      rows: estimatesOn(rows, image).filter((r) => {
-        const key = r.citation.markKey;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-    }))
-    .filter((on) => on.rows.length > 0);
-}
-
-// Two searches' costs as one.
-function plus(a: Took | null, b: Took): Took {
-  if (a === null) return b;
-  return {
-    model: b.model,
-    readings: a.readings + b.readings,
-    cached: a.cached + b.cached,
-    dollars:
-      a.dollars === null || b.dollars === null ? null : a.dollars + b.dollars,
-    seconds: a.seconds + b.seconds
-  };
 }
 
 // The tries an Image's search gave, by the rows asked.
@@ -140,9 +97,6 @@ interface Shown {
   volume: Readable<{ id: string; label: string } | null>;
   image: Readable<number>;
   citations: Readable<VolumeCitation[] | null | 'failed'>;
-  // Whether the Volume's pages are read or set on any of its Images, so a
-  // Volume's batch counts from them without a survey first.
-  numbered: Readable<boolean>;
 }
 
 // Runs Vision Match over the estimates on the Image shown, or in its
@@ -150,8 +104,8 @@ interface Shown {
 // a Volume's survey, for the citations to reload. What it says is kept
 // for its Image, or Volume, while that's shown, until `forget`.
 export function visionBatching(
-  { volume, image, citations, numbered }: Shown,
-  { findAllOnImage, surveyPages, discard }: BatchAsks,
+  { volume, image, citations }: Shown,
+  { findAllOnImage, surveyPages, locateVolume, discard }: BatchAsks,
   settled: () => Promise<void>
 ) {
   const shown = computed(() => {
@@ -220,9 +174,10 @@ export function visionBatching(
     await settled();
   }
 
-  // Every estimate in the Volume shown: its page survey where none of its
-  // pages are known yet (Heikki, 2026-11-16), the citations reloaded to
-  // count from it, then each Image's estimates in turn.
+  // Every estimate in the Volume shown, located on the server (ADR-0032):
+  // its page survey where none of its pages are known yet, then each
+  // Image's estimates in turn. The citations are reloaded after the
+  // survey, and once it's done, for its tries to be told by them.
   async function runVolume(model: ClaudeModel) {
     const v = volume.get();
     if (v === null || searching()) return;
@@ -235,34 +190,38 @@ export function visionBatching(
     step('reading page numbers', of);
     let took: Took | null = null;
     let surveyed: Surveyed | null = null;
-    const tries: Array<{ row: VolumeCitation; tried: VisionTry }> = [];
+    const tried: VisionTry[] = [];
     let refused: string | null = null;
-    try {
-      if (!numbered.get()) {
-        const survey = await surveyPages(v.id, v.label, model, false);
-        surveyed = surveyedOf(survey);
-        took = tookOf(survey);
+    async function told(line: VolumeLocating) {
+      if ('surveyed' in line) {
+        surveyed = surveyedOf(line.surveyed);
         await settled();
+      } else if ('searching' in line) {
+        const { nth, images, estimates } = line.searching;
+        of = estimates;
+        step(`Image ${nth} of ${images}`, of);
+      } else if ('tried' in line) {
+        tried.push(...line.tried);
+      } else if ('done' in line) {
+        took = line.done;
+      } else if ('refused' in line) {
+        ({ refused, took } = line);
       }
-      const images = inVolume.get();
-      of = images.flatMap((on) => on.rows).length;
-      for (const [i, on] of images.entries()) {
-        step(`Image ${i + 1} of ${images.length}`, of);
-        const ids = on.rows.map((r) => r.citation.id);
-        const at = { volumeId: v.id, image: on.image };
-        // eslint-disable-next-line no-await-in-loop -- one Image after another
-        const found = await findAllOnImage(ids, at, model);
-        tries.push(...triesOf(on.rows, found.tries));
-        took = plus(took, found);
+    }
+    try {
+      for await (const line of locateVolume(v.id, v.label, model)) {
+        await told(line);
       }
     } catch (err) {
       refused = refusalOf(err);
     }
+    await settled();
+    const rows = citations.get();
+    const tries = triesOf(Array.isArray(rows) ? rows : [], tried);
     kept.set({
       at,
       status: { scope: 'volume', tries, of, refused, took, survey: surveyed }
     });
-    await settled();
   }
 
   // The Volume shown's page survey alone, to try it (ADR-0032): read

@@ -3,7 +3,11 @@
 
 import type { BoxAt } from '@/common/operations';
 import type { CITATION_OPERATIONS } from '@/common/operations/citations';
-import type { VisionPageTry, VisionSurvey } from '@/common/types';
+import type {
+  VisionPageTry,
+  VisionSurvey,
+  VolumeLocating
+} from '@/common/types';
 
 import { answered, notFound, Refusal } from '../operations';
 import type { Handlers } from '../operations';
@@ -28,6 +32,13 @@ interface Doers {
     model: string,
     fresh: boolean
   ) => Promise<VisionSurvey | { rejected: string }>;
+  // Locates every estimate in the Volume, its page survey first where
+  // none of its pages are known (ADR-0032).
+  locateVolume: (
+    volumeId: string,
+    volume: string,
+    model: string
+  ) => AsyncIterable<VolumeLocating>;
   // Sets the Image's page by hand, or takes it away: why it can't be, or
   // nothing.
   setImagePage: (
@@ -57,6 +68,7 @@ export function citationOperations(
     switchFilming,
     findAllOnImage,
     surveyPages,
+    locateVolume,
     setImagePage,
     clearVolumePages
   }: Doers
@@ -126,6 +138,9 @@ export function citationOperations(
         await askingAstia(surveyPages(volumeId, volume, model, fresh)),
         'volume'
       ),
+
+    locateVolume: ({ volumeId, volume, model }) =>
+      locateVolume(volumeId, volume, model),
 
     volumeChoices: async ({ citationId }) =>
       answered(

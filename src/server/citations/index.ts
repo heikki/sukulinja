@@ -5,13 +5,9 @@
 import type { Database } from 'bun:sqlite';
 import { join } from 'node:path';
 
-import type { BoxAt } from '@/common/operations';
-import type { Spend, VisionPageTry, VisionSurvey } from '@/common/types';
-
 import type { NewChange } from '../changes/changes';
-import { Refusal } from '../operations';
 import { routeShared } from './astia-routes';
-import { AstiaError, openAstia } from './astia/astia';
+import { openAstia } from './astia/astia';
 import type { Astia, ImageRef } from './astia/astia';
 import { openDownloads } from './astia/downloads';
 import { openParishes } from './astia/parishes';
@@ -19,19 +15,15 @@ import type { Parishes } from './astia/parishes';
 import { imageSize, openScanCache } from './astia/scan-cache';
 import { createCitations } from './citations';
 import { openImages } from './images';
-import {
-  cachedReader,
-  claudeReader,
-  counting,
-  openScanFolder,
-  pacedImages,
-  switchFilming
-} from './myheritage';
-import type { ClaudeReader, Region, Scan } from './myheritage';
+import { openScanFolder, pacedImages, switchFilming } from './myheritage';
 import { citationOperations } from './operations';
 import { sharedOperations } from './shared-operations';
+import { openVision } from './vision';
+import type { VisionReaders } from './vision';
 
 export type { Astia } from './astia/astia';
+export { claudeVision } from './vision';
+export type { SpendingReader, VisionReaders } from './vision';
 export { annotated, openAnnotations } from './annotations';
 export type { Annotation, Annotations, CitationLink } from './annotations';
 export { PUBLISHER as ASTIA_PUBLISHER } from './app-citations';
@@ -58,56 +50,6 @@ interface Options {
   vision?: VisionReaders;
 }
 
-// The vision model `model`, reading the Images `image` gives, with what it
-// has spent; it throws a Refusal when it can't be asked.
-export type VisionReaders = (
-  model: string,
-  image: (at: ImageRef, region?: Region | null) => Promise<Scan>
-) => Promise<SpendingReader>;
-
-export type SpendingReader = Pick<
-  ClaudeReader,
-  | 'models'
-  | 'versions'
-  | 'pageNumbers'
-  | 'dates'
-  | 'findEntry'
-  | 'findEntries'
-  | 'spend'
->;
-
-const NO_VISION = 'Vision Match is not set up.';
-const NO_KEY = 'Vision Match needs an Anthropic API key. Add one in Settings.';
-
-// Claude reading the scans with the key `key` gives, or the environment's
-// credentials when it gives null for the key; refused when it gives null.
-export function claudeVision(
-  key: () => Promise<{ apiKey: string | null } | null>
-): VisionReaders {
-  return async (model, image) => {
-    const credentials = await key();
-    if (credentials === null) throw new Refusal(400, NO_KEY);
-    const models = { pages: model, dates: model, entry: model };
-    return claudeReader({ models, image, apiKey: credentials.apiKey });
-  };
-}
-
-// A model or a scan failing is refused, in its own words, for the Scan
-// viewer to show; Astia failing is refused as everywhere else.
-function failedWith(err: unknown): never {
-  if (err instanceof AstiaError || err instanceof Refusal) throw err;
-  const words = err instanceof Error ? err.message : String(err);
-  throw new Refusal(502, `Vision Match failed: ${words}`);
-}
-
-// The search's spend, over every model it asked.
-function dollarsOf(spend: Record<string, Spend>) {
-  return Object.values(spend).reduce<number | null>(
-    (sum, s) => (sum === null || s.dollars === null ? null : sum + s.dollars),
-    0
-  );
-}
-
 // The Citations of the data folder at `root`, for every dataset in it.
 export function openCitations(root: string, options: Options) {
   const astia = options.astia ?? openAstia(join(root, '.astia-cache'));
@@ -125,74 +67,12 @@ export function openCitations(root: string, options: Options) {
   // Readings are kept where the scripts keep theirs, so neither asks twice.
   const readings = join(root, '.vision-readings');
 
-  // Looks for the citations' references on the Image `at` in one
-  // question (ADR-0029), with what it took.
-  async function findAllOnImage(
-    citations: ReturnType<typeof createCitations>,
-    asked: { citationIds: number[]; at: BoxAt },
-    model: string
-  ): Promise<VisionPageTry | { rejected: string }> {
-    if (options.vision === undefined) return { rejected: NO_VISION };
-    const started = performance.now();
-    const reader = await options.vision(model, visionImage);
-    // Readings asked, and those the model made: one may take it two calls.
-    const made = counting(reader);
-    const counted = counting(cachedReader(made.reader, readings));
-    const found = await citations
-      .findAllOnImage(asked.citationIds, asked.at, counted.reader)
-      .catch(failedWith);
-    const spend = reader.spend();
-    const readingsAsked = counted.asked();
-    return {
-      tries: found.map(({ citationId, resolution, missed }) => ({
-        links: { citationId, ...resolution },
-        missed
-      })),
-      model,
-      readings: readingsAsked,
-      cached: readingsAsked - made.asked(),
-      dollars: dollarsOf(spend),
-      seconds: Math.round((performance.now() - started) / 1000)
-    };
-  }
-
-  // Surveys how the Volume numbers its pages (ADR-0032), first where the
-  // dataset's estimates there cite, with what it took. Its Page pins are
-  // the data folder's, for every dataset. A `fresh` one reads every Image
-  // again and replaces the Volume's vision Page pins, to try it.
-  async function surveyPages(
-    citations: ReturnType<typeof createCitations>,
-    asked: { volumeId: string; volume: string; fresh: boolean },
-    model: string
-  ): Promise<VisionSurvey | { rejected: string }> {
-    if (options.vision === undefined) return { rejected: NO_VISION };
-    const { volumeId, volume, fresh } = asked;
-    const rows = (await citations.inVolume(volumeId)) ?? [];
-    const cited = rows.flatMap(({ citation, link }) =>
-      link.certainty === 'estimated' && citation.citedPage !== null
-        ? [citation.citedPage]
-        : []
-    );
-    const started = performance.now();
-    const reader = await options.vision(model, visionImage);
-    const made = counting(reader);
-    const counted = counting(cachedReader(made.reader, readings, { fresh }));
-    const surveyed = await folder
-      .surveyPages(volumeId, volume, counted.reader, { cited, replace: fresh })
-      .catch(failedWith);
-    if ('rejected' in surveyed) return surveyed;
-    const spend = reader.spend();
-    const readingsAsked = counted.asked();
-    return {
-      pinned: surveyed.pinned,
-      settled: surveyed.settled,
-      model,
-      readings: readingsAsked,
-      cached: readingsAsked - made.asked(),
-      dollars: dollarsOf(spend),
-      seconds: Math.round((performance.now() - started) / 1000)
-    };
-  }
+  const vision = openVision({
+    readers: options.vision,
+    image: visionImage,
+    readings,
+    folder
+  });
 
   // The pins on Astia's Images: the data folder's, and every dataset's
   // Marks, which a switch to a new filming leaves out alike.
@@ -243,9 +123,15 @@ export function openCitations(root: string, options: Options) {
         operations: citationOperations(citations, {
           switchFilming: switchTo,
           findAllOnImage: async (citationIds, at, model) =>
-            await findAllOnImage(citations, { citationIds, at }, model),
+            await vision.findAllOnImage(citations, { citationIds, at }, model),
           surveyPages: async (volumeId, volume, model, fresh) =>
-            await surveyPages(citations, { volumeId, volume, fresh }, model),
+            await vision.surveyPages(
+              citations,
+              { volumeId, volume, fresh },
+              model
+            ),
+          locateVolume: (volumeId, volume, model) =>
+            vision.locateVolume(citations, { volumeId, volume }, model),
           setImagePage: async (at, pages) =>
             await folder.setImagePage(at, pages),
           clearVolumePages: async (volumeId) =>

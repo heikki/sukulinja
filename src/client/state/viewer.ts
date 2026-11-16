@@ -231,11 +231,7 @@ export function openViewer(
   const placing = signal(false);
   const discarding = signal(false);
   const confirmation = confirmingSource(source, confirm);
-  const batch = visionBatching(
-    { volume, image, citations, numbered: pages.numbered },
-    api,
-    batchSettled
-  );
+  const batch = visionBatching({ volume, image, citations }, api, batchSettled);
   const leaving = signal(false);
   const filming = filmingOf(api, () => volume.get()?.id);
   const { oldFilming } = filming;

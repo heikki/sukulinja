@@ -25,7 +25,8 @@ import type {
   VisionPageTry,
   VisionSurvey,
   VolumeChoices,
-  VolumeCitation
+  VolumeCitation,
+  VolumeLocating
 } from '@/common/types';
 
 import { ApiError, NOT_RESPONDING } from './';
@@ -67,6 +68,8 @@ export interface MemoryDataset {
   visionPage?: VisionPageTry;
   // What a page survey answers.
   survey?: VisionSurvey;
+  // What locating a Volume's estimates says, line by line.
+  locating?: VolumeLocating[];
   // The Volumes each reference can be put in, by citation id.
   choices?: Record<number, VolumeChoices>;
   // Newest first. `remind` puts a new one first, numbered on from 2000.
@@ -270,6 +273,15 @@ export function memoryDatasetApi(
         undefined,
         () => found(data.survey, 'volume not found')
       ),
+
+    async *locateVolume(volumeId, _volume, model) {
+      const lines = await answer(
+        `locate ${volumeId} ${model}`,
+        undefined,
+        () => data.locating ?? []
+      );
+      yield* lines;
+    },
 
     citeEntry: servedOnly('citeEntry'),
     editEntry: servedOnly('editEntry'),

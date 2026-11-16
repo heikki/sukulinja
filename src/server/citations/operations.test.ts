@@ -349,6 +349,31 @@ describe("A dataset's Citations", () => {
     expect((await find({ ...asked, citationIds: [] })).status).toBe(400);
   });
 
+  test("locates a Volume's estimates a line a step", async () => {
+    await seedDataset();
+    const body = {
+      volumeId: 'juva-1',
+      volume: 'I Aa:1 Pää- ja rippikirjat (1790-1796)',
+      model: 'claude-haiku-5-5'
+    };
+    const res = await op('juva', 'locateVolume', body);
+    expect(res.headers.get('content-type')).toBe('application/x-ndjson');
+    const lines = (await res.text())
+      .trim()
+      .split('\n')
+      .map((l) => Object.keys(JSON.parse(l) as object)[0]);
+    expect(lines).toEqual([
+      'surveying',
+      'surveyed',
+      'searching',
+      'tried',
+      'done'
+    ]);
+    expect(
+      (await op('juva', 'locateVolume', { ...body, model: 'gpt' })).status
+    ).toBe(400);
+  });
+
   test('says when Astia fails', async () => {
     await seedDataset();
     serveWith(memoryAstia({}, { down: true }));

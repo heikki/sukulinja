@@ -40,7 +40,8 @@ import type {
   VisionSurvey,
   VolumeChoices,
   VolumeCitation,
-  VolumeContents
+  VolumeContents,
+  VolumeLocating
 } from '@/common/types';
 
 import { asker, operationsAt, settled } from './ask';
@@ -89,6 +90,14 @@ export interface DatasetApi {
     model: ClaudeModel,
     fresh: boolean
   ) => Promise<VisionSurvey>;
+  // Locates every estimate in the Volume, `volume` by its label: its page
+  // survey first where none of its pages are known, then each Image's
+  // estimates (ADR-0032), a line a step.
+  locateVolume: (
+    volumeId: string,
+    volume: string,
+    model: ClaudeModel
+  ) => AsyncGenerator<VolumeLocating, void, undefined>;
   // Makes an Entry with a Citation of it for each person named (ADR-0026):
   // them as the Volume's citations list them, in the order named.
   citeEntry: (at: EntryTarget, people: InEntry[]) => Promise<VolumeCitation[]>;
@@ -258,6 +267,8 @@ export function openDatasetApi(
         { volumeId, volume, model, fresh },
         'Page survey'
       ),
+    locateVolume: (volumeId, volume, model) =>
+      lines('locateVolume', { volumeId, volume, model }, 'Vision Match'),
     citeEntry: async (at, people) =>
       await call('citeEntry', { at, people }, 'Citing'),
     editEntry: async (entryId, edit) =>

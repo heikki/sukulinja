@@ -15,7 +15,8 @@ import type {
   VisionSurvey,
   VolumeChoices,
   VolumeCitation,
-  VolumeContents
+  VolumeContents,
+  VolumeLocating
 } from '@/common/types';
 
 import { answers, asksNothing, streams } from './operation';
@@ -267,6 +268,19 @@ export const CITATION_OPERATIONS = {
       typeof fresh === 'boolean'
         ? { volumeId, volume, model, fresh }
         : null
+  ),
+
+  // Locates every estimate in the Volume, `volume` by its label, with the
+  // vision model `model` (ADR-0032): its page survey first where none of
+  // its pages are known, then each Image's estimates in one question each,
+  // saving the Matches confirmed. Says how it goes, a line a step.
+  locateVolume: streams<
+    { volumeId: string; volume: string; model: ClaudeModel },
+    VolumeLocating
+  >('{ volumeId, volume, model }', ({ volumeId, volume, model }) =>
+    isName(volumeId) && isName(volume) && isClaudeModel(model)
+      ? { volumeId, volume, model }
+      : null
   ),
 
   // The Volumes a reference can be put in.
