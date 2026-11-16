@@ -162,11 +162,31 @@ test("a Volume's estimates are looked for Image by Image, after its page survey"
   expect(viewer.visionBatch.get()).toMatchObject({
     tries: [{ tried: { missed: null } }, { tried: { missed: 'no box' } }],
     of: 3,
-    pinned: 6,
+    scope: 'volume',
+    survey: { pinned: 6, settled: true },
     took: { readings: 13, cached: 1, seconds: 30 },
     refused: null
   });
   // It's told on any Image of the Volume.
   viewer.show(25);
   expect(viewer.visionBatch.get()).not.toBeNull();
+});
+
+test("a Volume's page survey runs alone, to try it", async () => {
+  const api = memoryDatasetApi({
+    volumes: { '201': { images: 40, citations: ROWS } },
+    survey: SURVEY
+  });
+  const { viewer } = openAppState(api);
+  viewer.open({ citation: CITATION, link: ESTIMATE });
+  await Bun.sleep(0);
+  await viewer.surveyPagesByVision('claude-haiku-5-5');
+  expect(api.asked.filter((a) => /^(?:survey|vision)/.test(a))).toEqual([
+    'survey 201 claude-haiku-5-5'
+  ]);
+  expect(viewer.visionBatch.get()).toMatchObject({
+    scope: 'survey',
+    survey: { pinned: 6, settled: true },
+    took: { readings: 7, seconds: 12 }
+  });
 });

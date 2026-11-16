@@ -62,11 +62,12 @@ export function linkItems(
 }
 
 // Vision Match as the menu offers it, with the model's label: on the
-// Image, or in the whole Volume.
+// Image, or in the whole Volume; and the Volume's page survey alone.
 export interface VisionFind {
   model: string;
   run: () => void;
   runVolume: () => void;
+  survey: () => void;
 }
 
 function peopleWords(n: number) {
@@ -98,6 +99,11 @@ function visionItems(viewer: Viewer, find: VisionFind | undefined): MenuItem[] {
       run: find.runVolume
     });
   }
+  items.push({
+    label: 'Survey page numbers',
+    detail: `This Volume · ${find.model}`,
+    run: find.survey
+  });
   return items;
 }
 

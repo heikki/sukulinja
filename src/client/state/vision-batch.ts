@@ -25,17 +25,22 @@ export type Took = Omit<VisionPageTry, 'tries'>;
 // for the Image and one for each Image around it while some aren't found,
 // or of every estimate in a Volume (ADR-0032): its page survey first, then
 // each Image's. How long it has been at it and at what, then each one's
-// try and what it took, or the refusal; of a Volume, the Page pins its
-// survey saved.
+// try and what it took, or the refusal; of a Volume, what its survey
+// read. A survey runs alone too, to try it.
 export type VisionBatch =
   | { searching: ClaudeModel; since: number; of: number; step: string | null }
   | {
+      scope: 'image' | 'volume' | 'survey';
       tries: Array<{ row: VolumeCitation; tried: VisionTry }>;
       of: number;
       refused: string | null;
       took: Took | null;
-      pinned: number | null;
+      survey: Surveyed | null;
     };
+
+// What a page survey read: on how many Images, and whether they all
+// agree.
+export type Surveyed = Pick<VisionSurvey, 'pinned' | 'settled'>;
 
 // What a batch asks of the server.
 export interface BatchAsks {
@@ -181,18 +186,20 @@ export function visionBatching(
     const ids = rows.map((r) => r.citation.id);
     const status = await findAllOnImage(ids, at, model)
       .then(({ tries, ...took }): VisionBatch => ({
+        scope: 'image',
         tries: triesOf(rows, tries),
         of,
         refused: null,
         took,
-        pinned: null
+        survey: null
       }))
       .catch((err: unknown): VisionBatch => ({
+        scope: 'image',
         tries: [],
         of,
         refused: refusalOf(err),
         took: null,
-        pinned: null
+        survey: null
       }));
     kept.set({ at, status });
     await settled();
@@ -211,13 +218,17 @@ export function visionBatching(
     let of = inVolume.get().flatMap((on) => on.rows).length;
     step('reading page numbers', of);
     let took: Took | null = null;
-    let pinned: number | null = null;
+    let surveyed: Surveyed | null = null;
     const tries: Array<{ row: VolumeCitation; tried: VisionTry }> = [];
     let refused: string | null = null;
     try {
-      const survey = await surveyPages(v.id, v.label, model);
-      pinned = survey.pinned;
-      took = plus(took, survey);
+      const {
+        pinned,
+        settled: agree,
+        ...spent
+      } = await surveyPages(v.id, v.label, model);
+      surveyed = { pinned, settled: agree };
+      took = spent;
       await settled();
       const images = inVolume.get();
       of = images.flatMap((on) => on.rows).length;
@@ -233,7 +244,36 @@ export function visionBatching(
     } catch (err) {
       refused = refusalOf(err);
     }
-    kept.set({ at, status: { tries, of, refused, took, pinned } });
+    kept.set({
+      at,
+      status: { scope: 'volume', tries, of, refused, took, survey: surveyed }
+    });
+    await settled();
+  }
+
+  // The Volume shown's page survey alone, to try it (ADR-0032).
+  async function runSurvey(model: ClaudeModel) {
+    const v = volume.get();
+    if (v === null || searching()) return;
+    const at: Scope = { volumeId: v.id, image: null };
+    const since = Date.now();
+    const step = 'reading page numbers';
+    kept.set({ at, status: { searching: model, since, of: 0, step } });
+    const done = { scope: 'survey' as const, tries: [], of: 0 };
+    const status = await surveyPages(v.id, v.label, model)
+      .then(({ pinned, settled: agree, ...took }): VisionBatch => ({
+        ...done,
+        refused: null,
+        took,
+        survey: { pinned, settled: agree }
+      }))
+      .catch((err: unknown): VisionBatch => ({
+        ...done,
+        refused: refusalOf(err),
+        took: null,
+        survey: null
+      }));
+    kept.set({ at, status });
     await settled();
   }
 
@@ -269,6 +309,7 @@ export function visionBatching(
     >,
     run,
     runVolume,
+    runSurvey,
     undo,
     forget,
     searching

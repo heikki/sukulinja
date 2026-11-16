@@ -238,7 +238,12 @@ test('Locating the estimates is offered where there are any on the Image', async
   const { viewer } = openAppState(api);
   viewer.open({ citation: citation(1, false), link: ON_IMAGE });
   await Bun.sleep(0);
-  const find = { model: 'Haiku 5.5', run: unasked, runVolume: unasked };
+  const find = {
+    model: 'Haiku 5.5',
+    run: unasked,
+    runVolume: unasked,
+    survey: unasked
+  };
   expect(labels(viewer, { onBox: false, canBox: true })).not.toContain(
     'Locate estimates on this Image'
   );

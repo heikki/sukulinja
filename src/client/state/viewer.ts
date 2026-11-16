@@ -117,6 +117,8 @@ export interface Viewer {
   // looking for them all, its page survey first (ADR-0032).
   estimatesInVolume: Readable<Array<{ image: number; rows: VolumeCitation[] }>>;
   findAllInVolumeByVision: (model: ClaudeModel) => Promise<void>;
+  // Its page survey alone, to try it.
+  surveyPagesByVision: (model: ClaudeModel) => Promise<void>;
   // How far either has got, then what it found and took, for the Image
   // or Volume it was about while it's shown, until forgotten.
   visionBatch: Readable<VisionBatch | null>;
@@ -622,6 +624,7 @@ export function openViewer(
     findAllByVision: batch.run,
     estimatesInVolume: batch.inVolume,
     findAllInVolumeByVision: batch.runVolume,
+    surveyPagesByVision: batch.runSurvey,
     undoVisionBatch: batch.undo,
     visionBatch: batch.status,
     forgetVisionBatch: batch.forget,

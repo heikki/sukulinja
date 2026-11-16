@@ -1,5 +1,5 @@
 import { matchAt } from '@/client/state/vision-batch';
-import type { Took } from '@/client/state/vision-batch';
+import type { Surveyed, Took } from '@/client/state/vision-batch';
 import { CLAUDE_MODELS } from '@/common/assistant-choices';
 import type { VisionTry } from '@/common/types';
 
@@ -35,21 +35,28 @@ export function batchFoundWords(tries: VisionTry[], of: number, image: number) {
   return `${found}${here}${away}.`;
 }
 
-// How many of a Volume's estimates its batch found, and on how many
-// Images its survey read the Page numbers: "Found 12 of 30 in this Volume.
-// Page numbers read on 9 Images."
+// What a page survey read: "Page numbers read on 9 Images, all agreeing."
+export function surveyWords({ pinned, settled }: Surveyed) {
+  if (pinned === 0) return 'No page numbers could be read.';
+  const on = pinned === 1 ? '1 Image' : `${pinned} Images`;
+  const agree = settled
+    ? 'all agreeing'
+    : 'some still disagreeing when it ran out of readings';
+  return `Page numbers read on ${on}, ${agree}.`;
+}
+
+// How many of a Volume's estimates its batch found, and what its survey
+// read: "Found 12 of 30 in this Volume. Page numbers read on 9 Images,
+// all agreeing."
 export function volumeFoundWords(
   tries: VisionTry[],
   of: number,
-  pinned: number
+  survey: Surveyed | null
 ) {
   const found = tries.filter((t) => matchAt(t) !== null).length;
   const what = found === 0 ? `Found none of ${of}` : `Found ${found} of ${of}`;
-  const read =
-    pinned === 0
-      ? 'No page numbers could be read.'
-      : `Page numbers read on ${pinned === 1 ? '1 Image' : `${pinned} Images`}.`;
-  return `${what} in this Volume. ${read}`;
+  const read = survey === null ? '' : ` ${surveyWords(survey)}`;
+  return `${what} in this Volume.${read}`;
 }
 
 // What it took: "14 readings, 3 of them kept from before · $0.004 · 41 s ·

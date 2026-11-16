@@ -5,13 +5,17 @@ import { customElement } from 'lit/decorators.js';
 
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
+import type { VisionBatch } from '@/client/state/vision-batch';
 import type { VisionTry } from '@/common/types';
+
+type Done = Exclude<VisionBatch, { searching: unknown }>;
 
 import { controlStyles } from '../box-stage/styles';
 import {
   batchFoundWords,
   costWords,
   modelLabel,
+  surveyWords,
   volumeFoundWords
 } from './vision-words';
 
@@ -124,11 +128,16 @@ class ScanVisionElement extends SignalWatcher(LitElement) {
 
   private foundWords(
     tries: VisionTry[],
-    batch: { of: number; pinned: number | null }
+    batch: Pick<Done, 'scope' | 'of' | 'survey'>
   ) {
-    return batch.pinned === null
-      ? batchFoundWords(tries, batch.of, this.state.viewer.image.get())
-      : volumeFoundWords(tries, batch.of, batch.pinned);
+    switch (batch.scope) {
+      case 'image':
+        return batchFoundWords(tries, batch.of, this.state.viewer.image.get());
+      case 'volume':
+        return volumeFoundWords(tries, batch.of, batch.survey);
+      case 'survey':
+        return batch.survey === null ? '' : surveyWords(batch.survey);
+    }
   }
 
   // How long it has been at it, then how many it found and what it took.
@@ -142,8 +151,12 @@ class ScanVisionElement extends SignalWatcher(LitElement) {
       const step = batch.step === null ? '' : `, ${batch.step}`;
       return html`<div class="card">
         <p>
-          Vision Match is locating ${batch.of} with
-          ${modelLabel(batch.searching)}${step}… ${seconds} s
+          ${
+            batch.of === 0
+              ? `Vision Match with ${modelLabel(batch.searching)}${step}`
+              : `Vision Match is locating ${batch.of} with ${modelLabel(batch.searching)}${step}`
+          }…
+          ${seconds} s
         </p>
       </div>`;
     }
