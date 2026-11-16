@@ -120,22 +120,6 @@ test('asks for everyone at once, each by number', () => {
   expect(prompt).not.toContain('Name: …');
 });
 
-// What the two corners gave.
-function corners(
-  left: Array<{ number: number; handwritten: boolean }>,
-  right: Array<{ number: number; handwritten: boolean }>
-) {
-  return [
-    {
-      corner: 'left' as const,
-      json: { readable: left.length > 0, pages: left }
-    },
-    {
-      corner: 'right' as const,
-      json: { readable: right.length > 0, pages: right }
-    }
-  ];
-}
 function hand(number: number) {
   return { number, handwritten: true };
 }
@@ -143,24 +127,15 @@ function printed(number: number) {
   return { number, handwritten: false };
 }
 
-test("a printed form's numbers give way to the handwritten ones", () => {
-  expect(toPages(corners([hand(983)], [printed(18)]))).toEqual({
+test("a printed form's number gives way to the handwritten one", () => {
+  expect(toPages({ readable: true, pages: [printed(18), hand(983)] })).toEqual({
     pages: [983]
   });
-  // Where the book has no others, printed numbers are its own.
-  expect(toPages(corners([], [printed(18)]))).toEqual({ pages: [18] });
-  // One a page, or the spread's own at its left.
-  expect(toPages(corners([hand(40)], [hand(41)]))).toEqual({
-    pages: [40, 41]
+  // Where the book has no other, the printed number is its own.
+  expect(toPages({ readable: true, pages: [printed(18)] })).toEqual({
+    pages: [18],
+    printed: true
   });
-  expect(toPages(corners([hand(983)], [hand(18)]))).toEqual({
-    pages: [983]
-  });
-  expect(toPages(corners([], []))).toEqual({ unreadable: true });
-  expect(
-    toPages([
-      { corner: 'left', json: null },
-      { corner: 'right', json: null }
-    ])
-  ).toEqual({ unreadable: true });
+  expect(toPages({ readable: true, pages: [] })).toEqual({ unreadable: true });
+  expect(toPages(null)).toEqual({ unreadable: true });
 });
