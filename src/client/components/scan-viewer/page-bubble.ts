@@ -7,6 +7,7 @@ import { ApiError } from '@/client/dataset-api';
 import { pageNumbersOn } from '@/client/page-numbers-flag';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
+import type { ImagePages } from '@/common/types';
 
 import { typedPages } from './typed-pages';
 
@@ -21,9 +22,9 @@ const HOW = {
 
 // The page the Image is counted as (ADR-0032), where Settings asks for
 // it: a see-through bubble over the scan's top left corner, where the page
-// number is written. Read there, by the vision model or by hand, or
-// counted (≈) from the Page pins around it, or the book's numbering
-// without any. Clicked, it takes the page written there, or a spread's
+// number is written. Read there, by the vision model (tagged AI) or set by
+// hand, or counted (≈) from the Page pins around it, or the book's
+// numbering without any. Clicked, it takes the page written there, or a spread's
 // two ("4-5"): Enter sets them by hand, which the estimates around it
 // count from. Escape, or clicking elsewhere, leaves it as it was. Pages
 // set by hand have a × beside them that takes them away. Pointer and
@@ -53,6 +54,18 @@ class ScanPageElement extends SignalWatcher(LitElement) {
     input.bubble {
       width: 9ch;
       outline: none;
+    }
+
+    /* Read by the vision model: a small tag, set apart from a page set by
+       hand. */
+    .ai {
+      margin-left: 0.35rem;
+      padding: 0 0.3rem;
+      border-radius: 4px;
+      background: color-mix(in srgb, var(--accent) 30%, transparent);
+      font-size: 0.7em;
+      font-weight: 600;
+      vertical-align: 0.1em;
     }
 
     .remove {
@@ -136,46 +149,48 @@ class ScanPageElement extends SignalWatcher(LitElement) {
     }
   }
 
+  private renderShown({ pages, by }: ImagePages) {
+    const named =
+      pages.length === 1 ? `page ${pages[0]}` : `pages ${pages.join('–')}`;
+    return html`<button
+      class="bubble"
+      title=${
+        by === null
+          ? 'Counted, not read here. Click to set the page written on this Image'
+          : `${HOW[by]}. Click to correct it`
+      }
+      @click=${() => {
+        this.editing = true;
+      }}
+    >
+      ${by === null ? `≈ ${named}` : named}
+      ${by === 'vision' ? html`<span class="ai">AI</span>` : nothing}
+    </button>`;
+  }
+
+  private renderRemove() {
+    return html`<button
+      class="bubble remove"
+      title="Take away the page set by hand"
+      aria-label="Take away the page set by hand"
+      @click=${() => {
+        void this.save(null);
+      }}
+    >
+      ×
+    </button>`;
+  }
+
   override render() {
     const here = pageNumbersOn.get() ? this.state.viewer.pagesHere.get() : null;
     if (here === null) return nothing;
-    const { pages, by } = here;
-    const named =
-      pages.length === 1 ? `page ${pages[0]}` : `pages ${pages.join('–')}`;
-    return html`
-      ${
-        this.editing
-          ? this.renderEditing(pages)
-          : html`<button
-              class="bubble"
-              title=${
-                by === null
-                  ? 'Counted, not read here. Click to set the page written on this Image'
-                  : `${HOW[by]}. Click to correct it`
-              }
-              @click=${() => {
-                this.editing = true;
-              }}
-            >
-              ${by === null ? `≈ ${named}` : named}
-            </button>`
-      }
-      ${
-        by === 'hand' && !this.editing
-          ? html`<button
-              class="bubble remove"
-              title="Take away the page set by hand"
-              aria-label="Take away the page set by hand"
-              @click=${() => {
-                void this.save(null);
-              }}
-            >
-              ×
-            </button>`
-          : nothing
-      }
-      ${this.refused === null ? nothing : html`<p class="refused">${this.refused}</p>`}
-    `;
+    if (this.editing) {
+      return html`${this.renderEditing(here.pages)}
+      ${this.refused === null ? nothing : html`<p class="refused">${this.refused}</p>`}`;
+    }
+    return html`${this.renderShown(here)}
+    ${here.by === 'hand' ? this.renderRemove() : nothing}
+    ${this.refused === null ? nothing : html`<p class="refused">${this.refused}</p>`}`;
   }
 }
 
