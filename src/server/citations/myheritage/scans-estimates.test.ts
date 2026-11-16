@@ -181,6 +181,27 @@ test('without Page pins, each Image has the page its book is numbered with', asy
   }
 });
 
+test('a page set by hand on an Image keeps the same page on another', async () => {
+  // A page filmed twice: page 12 on Images 12 and 13.
+  const folder = openScanFolder(dir, {
+    astia: juvaAstia(),
+    parishes: memoryParishes()
+  });
+  const at = { volumeId: 'juva-1', volume: 'I Aa:1', image: 12 };
+  await folder.setImagePage(at, [12]);
+  await folder.setImagePage({ ...at, image: 13 }, [12]);
+  const db = citing([], join(dir, 'twice.sqlite'));
+  try {
+    const scans = scansOf(dir, db, { astia: juvaAstia() });
+    const shown = await scans.pagesInVolume('juva-1', 'I Aa:1');
+    expect(shown.filter((p) => p.by === 'hand').map((p) => p.image)).toEqual([
+      12, 13
+    ]);
+  } finally {
+    db.close();
+  }
+});
+
 test('a page the vision model read can be taken away, leaving the Image counted', async () => {
   // Image 5 misread as page 40: the pages after it count from there.
   await Bun.write(

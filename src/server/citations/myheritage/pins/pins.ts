@@ -81,10 +81,23 @@ function byImage(a: PagePin, b: PagePin) {
   return a.image - b.image;
 }
 
+type Clash = (pin: PagePin) => (p: PagePin) => boolean;
+
+// Only a pin on the same Image: a page set there by hand, where a book may
+// have a page twice, filmed twice or numbered so.
+function sameImage(pin: PagePin) {
+  return (p: PagePin) => p.image === pin.image;
+}
+
 // The list with the Page pin in, unless a pin it clashes with wins. Saving
 // into the Volume of `filming`, its stale pins aren't weighed.
-function withPagePin(pins: PagePin[], pin: PagePin, filming: Filming) {
-  const clashes = pageClash(pin);
+function withPagePin(
+  pins: PagePin[],
+  pin: PagePin,
+  filming: Filming,
+  clash: Clash
+) {
+  const clashes = clash(pin);
   const weighed = split(filming, pins).current;
   if (!overrides(pin, weighed.filter(clashes))) return pins;
   return [...pins.filter((p) => !clashes(p)), pin].sort(byImage);
@@ -217,18 +230,23 @@ function mergedVolumes(draft: Draft) {
   return readVolumes(draft.local);
 }
 
-function addPagePin(draft: Draft, title: string, pin: PagePin) {
+function addPagePin(
+  draft: Draft,
+  title: string,
+  pin: PagePin,
+  clash: Clash = pageClash
+) {
   const { filming } = draft;
   const { volumeId } = filming;
   const known = mergedVolumes(draft)[volumeId]?.pages ?? [];
   const weighed = split(filming, known).current;
-  if (!overrides(pin, weighed.filter(pageClash(pin)))) return;
+  if (!overrides(pin, weighed.filter(clash(pin)))) return;
   const { volumes } = draft.local;
   const volume = volumes[volumeId];
   volumes[volumeId] = {
     ...volume,
     title: volume?.title ?? title,
-    pages: withPagePin(volume?.pages ?? [], pin, filming)
+    pages: withPagePin(volume?.pages ?? [], pin, filming, clash)
   };
 }
 
@@ -394,13 +412,18 @@ export function openVolumeFacts(folder: string, options: { astia: Astia }) {
         } else {
           const twoPages = current.some((p) => p.pages.length === 2);
           const [page] = pages as [number];
-          addPagePin(draft, volume, {
-            image,
-            pages: pages.length === 1 && twoPages ? [page, page + 1] : pages,
-            note: 'set in the Scan viewer',
-            by: 'hand',
-            ...fileOf(filming, image)
-          });
+          addPagePin(
+            draft,
+            volume,
+            {
+              image,
+              pages: pages.length === 1 && twoPages ? [page, page + 1] : pages,
+              note: 'set in the Scan viewer',
+              by: 'hand',
+              ...fileOf(filming, image)
+            },
+            sameImage
+          );
         }
         await writeLocalFile(localFile, draft.local);
       });
