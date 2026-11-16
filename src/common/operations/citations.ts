@@ -10,6 +10,7 @@ import type {
   ChurchBookArchive,
   CitationLinks,
   CitationRow,
+  ImagePages,
   VisionPageTry,
   VisionSurvey,
   VolumeChoices,
@@ -268,6 +269,13 @@ export const CITATION_OPERATIONS = {
 
   // The dataset's people citing a Volume, wherever its Links put them.
   volumeCitations: answers<{ volumeId: string }, VolumeCitation[]>(
+    '{ volumeId }',
+    ({ volumeId }) => (isName(volumeId) ? { volumeId } : null)
+  ),
+
+  // The pages the Volume's Page pins put on each of its Images, as its
+  // estimates count them (ADR-0032).
+  volumePages: answers<{ volumeId: string }, ImagePages[]>(
     '{ volumeId }',
     ({ volumeId }) => (isName(volumeId) ? { volumeId } : null)
   ),

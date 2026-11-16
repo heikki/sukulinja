@@ -13,3 +13,5 @@ With nothing shipped (ADR-0031), an unpinned Volume's estimates are counted from
 - **Survey at import.** Rejected: an import doesn't reach Astia, works without a key, and would read Volumes no one opens.
 - **Survey on its own as each download finishes.** Rejected for now (Heikki chose asking): it reads a model without being asked.
 - **Read the page number on each Image Vision Match asks about instead.** Leaves a Volume's numbering unknown until each reference is searched, and costs a reading per search rather than a few per Volume.
+
+Amended 2026-11-16: the Scan viewer shows, beside the Image number, the pages the Volume's Page pins put on the Image shown, as the estimates count them: plain where a pin is on that Image (its tooltip says read by the vision model or pinned by hand), "≈" where counted from the pins around it. Stepping through a Volume then shows where a survey's readings or the counting between them are off (Heikki asked for it to check surveys).

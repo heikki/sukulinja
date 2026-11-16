@@ -2,7 +2,13 @@ import { computed, signal } from '@lit-labs/signals';
 
 import type { DatasetApi, InEntry } from '@/client/dataset-api';
 import type { ClaudeModel } from '@/common/assistant-choices';
-import type { Box, Rescan, VolumeChoice, VolumeCitation } from '@/common/types';
+import type {
+  Box,
+  ImagePages,
+  Rescan,
+  VolumeChoice,
+  VolumeCitation
+} from '@/common/types';
 
 import { confirmingSource } from './confirming';
 import type { Confirming } from './confirming';
@@ -21,6 +27,7 @@ import type { ImageOpen, LinkOpen } from './source-open';
 import type { Source } from './sources';
 import { visionBatching } from './vision-batch';
 import type { VisionBatch } from './vision-batch';
+import { volumePagesOf } from './volume-pages';
 
 export type { PendingAt, PendingChange } from './pending-change';
 export type { EntryEdit, PendingCite } from './pending-entry';
@@ -106,6 +113,9 @@ export interface Viewer {
   // How that's going. A refusal stays until the source, the Image or the
   // Box changes.
   confirming: Readable<Confirming | null>;
+  // The pages the Volume's Page pins put on the Image shown, read there or
+  // counted from the pins around it; null without pins, or until known.
+  pagesHere: Readable<ImagePages | null>;
   // The estimates on the Image shown that Vision Match would look for,
   // one per record.
   estimatesHere: Readable<VolumeCitation[]>;
@@ -220,6 +230,7 @@ export function openViewer(
   // Astia's viewer address of each of the Volume's Images.
   let files: string[] = [];
   const citations = signal<VolumeCitation[] | null | 'failed'>(null);
+  const pages = volumePagesOf(api, image);
   const archive = signal<string | null>(null);
   const sourcesInView = signal(false);
   const placing = signal(false);
@@ -295,10 +306,14 @@ export function openViewer(
     image.set(clampImage(image.get(), files.length));
   }
 
+  // The Volume's citations, and the pages its Page pins put on its Images.
   async function loadCitations(volumeId: string) {
-    const rows = await citationsReq.run(
-      async (signal) => await api.volumeCitations(volumeId, signal)
-    );
+    const [rows] = await Promise.all([
+      citationsReq.run(
+        async (signal) => await api.volumeCitations(volumeId, signal)
+      ),
+      pages.load(volumeId)
+    ]);
     if (rows !== undefined) citations.set(rows ?? 'failed');
   }
 
@@ -321,6 +336,7 @@ export function openViewer(
     count.set(null);
     files = [];
     citations.set(null);
+    pages.clear();
     void loadVolume(id);
     void loadCitations(id);
     void filming.ask(id);
@@ -331,6 +347,7 @@ export function openViewer(
     filming.forget();
     volumeReq.stop();
     citationsReq.stop();
+    pages.clear();
     archive.set(null);
     volume.set(null);
     image.set(1);
@@ -620,6 +637,7 @@ export function openViewer(
     confirm,
     confirmSource: confirmation.run,
     confirming: confirmation.status,
+    pagesHere: pages.here,
     estimatesHere: batch.estimates,
     findAllByVision: batch.run,
     estimatesInVolume: batch.inVolume,

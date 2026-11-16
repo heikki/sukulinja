@@ -358,6 +358,15 @@ export interface VolumeChoice {
 // The `volumeChoices` operation: the parish's Volumes of the Book a
 // reference cites, those its years or Record range give first, then the
 // others by years.
+// The page numbers on an Image of a Volume, as its estimates count them
+// from its Page pins (ADR-0032): `by` whom they were read on that very
+// Image, null where counted from the pins around it.
+export interface ImagePages {
+  image: number;
+  pages: number[];
+  by: Provenance | null;
+}
+
 export interface VolumeChoices {
   fits: VolumeChoice[];
   others: VolumeChoice[];

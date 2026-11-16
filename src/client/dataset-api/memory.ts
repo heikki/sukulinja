@@ -10,6 +10,7 @@ import type {
   ChurchBookArchive,
   CitationLinks,
   FamilyRow,
+  ImagePages,
   PersonDetails,
   PersonRow,
   PhotoRow,
@@ -35,6 +36,8 @@ export interface MemoryVolume {
   rescan?: { images: number; stale: StalePin[] };
   // The title of the archive it's in.
   archive?: string;
+  // The pages its Page pins put on its Images.
+  pages?: ImagePages[];
 }
 
 export interface MemoryDataset {
@@ -287,6 +290,11 @@ export function memoryDatasetApi(
         signal,
         () => volume(volumeId).citations
       ),
+
+    volumePages: async (volumeId, signal) =>
+      await answer(`pages ${volumeId}`, signal, () => [
+        ...(volume(volumeId).pages ?? [])
+      ]),
 
     // Every Volume given is taken as the archive's.
     archives: async (signal) =>

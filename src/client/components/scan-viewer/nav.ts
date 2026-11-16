@@ -110,6 +110,25 @@ class ScanNavElement extends SignalWatcher(LitElement) {
     </button>`;
   }
 
+  // The pages the Volume's Page pins put on the Image: read there, by the
+  // vision model or by hand, or counted (≈) from the pins around it.
+  private renderPages() {
+    const here = this.state.viewer.pagesHere.get();
+    if (here === null) return nothing;
+    const { pages, by } = here;
+    const named =
+      pages.length === 1 ? `page ${pages[0]}` : `pages ${pages.join('–')}`;
+    const how = {
+      vision: 'Read on this Image by the vision model',
+      hand: 'Pinned on this Image by hand'
+    };
+    return html`<span
+      class="pages"
+      title=${by === null ? 'Counted from the Page pins around it' : how[by]}
+      >${by === null ? `≈ ${named}` : named}</span
+    >`;
+  }
+
   override render() {
     const count = this.state.viewer.count.get();
     const image = this.state.viewer.image.get();
@@ -157,7 +176,7 @@ class ScanNavElement extends SignalWatcher(LitElement) {
         }}
       />
       <span class="count">${count === null ? '' : `of ${count}`}</span>
-      ${this.renderMove(1, 'Next image', '›')}
+      ${this.renderPages()} ${this.renderMove(1, 'Next image', '›')}
       ${this.renderMove(10, 'Forward 10 images', '»')}
       ${this.renderMove('last', 'Last image', '⇥')} ${this.renderOldFilming()}
       ${

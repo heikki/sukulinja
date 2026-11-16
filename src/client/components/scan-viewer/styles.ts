@@ -66,6 +66,13 @@ export const scanNavStyles = css`
     min-width: 7ch;
     font-variant-numeric: tabular-nums;
   }
+
+  /* The Image's pages, quieter: what the estimates count it as. */
+  .pages {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
 `;
 
 // The stage with no Volume shown: its note, and the Volume list over it.

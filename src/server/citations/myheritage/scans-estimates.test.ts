@@ -123,3 +123,40 @@ test('a page survey replacing the last puts its Page pins in their place', async
   });
   expect(await imagesAt(12)).toEqual([16]);
 });
+
+test("each Image's pages are those its Page pin gives, or counted from the pins around it", async () => {
+  // A leaf missing after page 5: page 10 is on Image 9.
+  const pages = [
+    { image: 3, pages: [3], by: 'vision' },
+    { image: 9, pages: [10] }
+  ];
+  await Bun.write(
+    join(dir, 'pins.local.json'),
+    JSON.stringify({ volumes: { 'juva-1': { pages } }, references: {} })
+  );
+  const db = citing([], join(dir, 'pages.sqlite'));
+  try {
+    const scans = scansOf(dir, db, { astia: juvaAstia() });
+    const shown = await scans.pagesInVolume('juva-1');
+    expect(shown.find((p) => p.image === 3)).toEqual({
+      image: 3,
+      pages: [3],
+      by: 'vision'
+    });
+    expect(shown.find((p) => p.image === 9)).toEqual({
+      image: 9,
+      pages: [10],
+      by: 'hand'
+    });
+    // Before the first pin and after the last, at its pace; between them,
+    // spread over the gap as an estimate is.
+    expect(shown.find((p) => p.image === 1)).toMatchObject({ pages: [1] });
+    expect(shown.find((p) => p.image === 6)).toMatchObject({
+      pages: [7],
+      by: null
+    });
+    expect(shown.find((p) => p.image === 20)).toMatchObject({ pages: [21] });
+  } finally {
+    db.close();
+  }
+});

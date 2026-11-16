@@ -536,6 +536,11 @@ export function createCitations<R extends BookRef>(
     // Throws when Astia can't be reached.
     inVolume,
 
+    // The pages the Volume's Page pins put on each of its Images.
+    // Throws when Astia can't be reached.
+    pagesInVolume: async (volumeId: string) =>
+      await references.pagesInVolume(volumeId),
+
     // How many Citations link into each of the parish archive's Volumes.
     // Throws when Astia can't be reached.
     countInArchive,

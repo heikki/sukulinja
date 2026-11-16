@@ -119,10 +119,11 @@ test("confirm reloads the citations and the Selected person's details and Links,
   await viewer.confirm(ROW_21);
   await settle();
   // Confirmed, it's a Citation of its Image (ADR-0016): their details too.
-  expect(api.asked.slice(-4)).toEqual([
+  expect(api.asked.slice(-5)).toEqual([
     'mark 21 201/18',
     'person 2',
     'citations 201',
+    'pages 201',
     'links 2'
   ]);
   expect(viewer.source.get()?.link).toEqual(MARKED_21);

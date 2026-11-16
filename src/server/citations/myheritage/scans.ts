@@ -26,7 +26,7 @@ import {
   unknownSize
 } from '../images';
 import type { ImageSizeOf } from '../images';
-import { resolveChurchBookRef } from './pins/locate';
+import { resolveChurchBookRef, volumePages } from './pins/locate';
 import type { Pins } from './pins/locate';
 import { openMarks } from './pins/marks';
 import { openPins, openVolumeFacts } from './pins/pins';
@@ -197,6 +197,10 @@ function openScans({
     // The dataset's Marks and Matches as the pins they're kept as, and its
     // Rejections.
     marked: () => pins.marked(),
+
+    // The pages the Volume's Page pins put on each of its Images.
+    pagesInVolume: async (volumeId: string) =>
+      await volumePages(astia, volumeId, await pins.snapshot()),
 
     // Changes when a save, a Volume's list kept anew, or a spelling given
     // another archive changes what references resolve to.

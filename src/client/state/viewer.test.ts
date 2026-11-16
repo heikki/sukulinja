@@ -235,6 +235,7 @@ test('show keeps to the Images Astia lists, once it has said how many', async ()
   expect(api.asked.filter((a) => a.endsWith(' 201'))).toEqual([
     'volume 201',
     'citations 201',
+    'pages 201',
     'rescan 201'
   ]);
 });
@@ -511,10 +512,11 @@ test('a Discard waits to be saved, and takes the Box back where it is', async ()
   viewer.discard();
   await viewer.confirmDiscard();
   await settle();
-  expect(api.asked.slice(-4)).toEqual([
+  expect(api.asked.slice(-5)).toEqual([
     'discard 21 201/18',
     'person 2',
     'citations 201',
+    'pages 201',
     'links 2'
   ]);
   expect(viewer.discarding.get()).toBe(false);

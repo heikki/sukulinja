@@ -127,6 +127,9 @@ export function citationOperations(
       return rows;
     },
 
+    volumePages: async ({ volumeId }) =>
+      await askingAstia(citations.pagesInVolume(volumeId)),
+
     archives: async () => await askingAstia(citations.churchBookArchives()),
 
     archiveCitations: async ({ archiveId }) =>

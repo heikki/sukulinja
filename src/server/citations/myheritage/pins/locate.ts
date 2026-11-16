@@ -20,6 +20,7 @@
 
 import type {
   Box,
+  ImagePages,
   Link,
   LinkResolution,
   LinkTarget,
@@ -256,6 +257,46 @@ function runImage(run: PageRun, page: number) {
   return image !== null && image >= run.from && image <= run.to
     ? { image, pins: run.pins.length }
     : null;
+}
+
+// The pages a run puts on the Image, the inverse of placing a page: a
+// pin's own on its Image; between two, proportionally; elsewhere counted
+// from the nearest at its pace.
+function runPages(run: PageRun, image: number): ImagePages {
+  const pin = run.pins.find((p) => p.image === image);
+  if (pin !== undefined) {
+    return { image, pages: pin.pages, by: pin.by ?? 'hand' };
+  }
+  const lo = run.pins.filter((p) => p.image < image).at(-1);
+  const hi = run.pins.find((p) => p.image > image);
+  const from = lo ?? hi!;
+  const perImage = from.pages.length;
+  const first = Math.min(...from.pages);
+  let page = first + (image - from.image) * perImage;
+  if (lo !== undefined && hi !== undefined) {
+    const share = (image - lo.image) / (hi.image - lo.image);
+    const span = Math.min(...hi.pages) - first;
+    page = first + Math.round((share * span) / perImage) * perImage;
+  }
+  const pages = perImage === 2 ? [page, page + 1] : [page];
+  return { image, pages, by: null };
+}
+
+// The pages the Volume's Page pins put on each of its Images, as its
+// estimates count them; none without pins.
+export async function volumePages(
+  astia: Astia,
+  volumeId: string,
+  pins: Pins
+): Promise<ImagePages[]> {
+  const filming = await filmingOf(astia, volumeId);
+  const images = filming.files.length;
+  const runs = runsOf(splitVolume(filming, pins).current.pages, images);
+  return runs.flatMap((run) =>
+    Array.from({ length: run.to - run.from + 1 }, (_, i) =>
+      runPages(run, run.from + i)
+    ).filter((p) => p.pages.every((n) => n > 0))
+  );
 }
 
 // The Images the Volume's Record pins leave the record: after those of

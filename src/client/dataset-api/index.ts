@@ -25,6 +25,7 @@ import type {
   CitationRow,
   FactFields,
   FamilyRow,
+  ImagePages,
   NewFact,
   NewRelative,
   PersonDetails,
@@ -118,6 +119,11 @@ export interface DatasetApi {
     volumeId: string,
     signal?: AbortSignal
   ) => Promise<VolumeCitation[]>;
+  // The pages the Volume's Page pins put on each of its Images.
+  volumePages: (
+    volumeId: string,
+    signal?: AbortSignal
+  ) => Promise<ImagePages[]>;
   // The archives the dataset's church books are in, most cited first.
   archives: (signal?: AbortSignal) => Promise<ChurchBookArchive[]>;
   // How many of the dataset's Citations link into each of a parish
@@ -265,6 +271,8 @@ export function openDatasetApi(
         "the Volume's citations",
         signal
       ),
+    volumePages: async (volumeId, signal) =>
+      await call('volumePages', { volumeId }, "the Volume's pages", signal),
     archives: async (signal) =>
       await call('archives', {}, 'the church books', signal),
     archiveCitations: async (archiveId, signal) =>
