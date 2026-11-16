@@ -177,6 +177,27 @@ test('without Page pins, each Image has the page its book is numbered with', asy
   }
 });
 
+test('a page the vision model read can be taken away, leaving the Image counted', async () => {
+  // Image 5 misread as page 40: the pages after it count from there.
+  await Bun.write(
+    join(dir, 'pins.local.json'),
+    JSON.stringify({
+      volumes: {
+        'juva-1': { pages: [{ image: 5, pages: [40], by: 'vision' }] }
+      },
+      references: {}
+    })
+  );
+  expect(await imagesAt(45)).toEqual([10]);
+  const folder = openScanFolder(dir, {
+    astia: juvaAstia(),
+    parishes: memoryParishes()
+  });
+  const at = { volumeId: 'juva-1', volume: 'I Aa:1', image: 5 };
+  expect(await folder.setImagePage(at, null)).toBeNull();
+  expect(await imagesAt(12)).toEqual([12]);
+});
+
 test('a page set on an Image by hand counts the Volume from it, and taken away no longer', async () => {
   const folder = openScanFolder(dir, {
     astia: juvaAstia(),

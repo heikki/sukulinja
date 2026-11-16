@@ -380,7 +380,7 @@ export function openScanFolder(
       return { ...survey, pinned: survey.readings.length };
     },
 
-    // Sets the Image's pages by hand, or with null takes the hand ones away
+    // Sets the Image's pages by hand, or with null takes the pinned ones away
     // (ADR-0032): why it can't be, or nothing.
     async setImagePage(
       at: { volumeId: string; volume: string; image: number },

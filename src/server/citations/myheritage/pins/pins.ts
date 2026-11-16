@@ -370,8 +370,8 @@ export function openVolumeFacts(folder: string, options: { astia: Astia }) {
 
     // A hand Page pin of `pages` on the Image, as the Scan viewer sets it:
     // a spread's two, or one, its right page following where the Volume
-    // numbers pages; null takes the hand Page pin there away, so the Image
-    // is counted again. One write.
+    // numbers pages; null takes the Page pins there away, hand or the vision
+    // model's, so the Image is counted again. One write.
     async setImagePage(
       filming: Filming,
       volume: string,
@@ -387,7 +387,7 @@ export function openVolumeFacts(folder: string, options: { astia: Astia }) {
         if (pages === null) {
           if (kept === undefined) return;
           kept.pages = kept.pages.filter(
-            (p) => !(p.image === image && isHand(p) && current.includes(p))
+            (p) => !(p.image === image && current.includes(p))
           );
         } else {
           const twoPages = current.some((p) => p.pages.length === 2);

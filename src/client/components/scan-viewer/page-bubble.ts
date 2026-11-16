@@ -26,8 +26,9 @@ const HOW = {
 // hand, or counted (≈) from the Page pins around it, or the book's
 // numbering without any. Clicked, it takes the page written there, or a spread's
 // two ("4-5"): Enter sets them by hand, which the estimates around it
-// count from. Escape, or clicking elsewhere, leaves it as it was. Pages
-// set by hand have a × beside them that takes them away. Pointer and
+// count from. Escape, or clicking elsewhere, leaves it as it was. A page
+// read or set here has a × beside it that takes it away, the Image then
+// counted; a later survey may read it again. Pointer and
 // wheel input stays here, so a press doesn't pan.
 @customElement('sl-scan-page')
 class ScanPageElement extends SignalWatcher(LitElement) {
@@ -171,8 +172,8 @@ class ScanPageElement extends SignalWatcher(LitElement) {
   private renderRemove() {
     return html`<button
       class="bubble remove"
-      title="Take away the page set by hand"
-      aria-label="Take away the page set by hand"
+      title="Take away this page; the Image is then counted"
+      aria-label="Take away this page"
       @click=${() => {
         void this.save(null);
       }}
@@ -189,7 +190,7 @@ class ScanPageElement extends SignalWatcher(LitElement) {
       ${this.refused === null ? nothing : html`<p class="refused">${this.refused}</p>`}`;
     }
     return html`${this.renderShown(here)}
-    ${here.by === 'hand' ? this.renderRemove() : nothing}
+    ${here.by === null ? nothing : this.renderRemove()}
     ${this.refused === null ? nothing : html`<p class="refused">${this.refused}</p>`}`;
   }
 }
