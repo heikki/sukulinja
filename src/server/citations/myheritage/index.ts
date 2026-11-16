@@ -22,6 +22,6 @@ export { claudeReader } from './vision/claude-reader';
 export type { ClaudeReader } from './vision/claude-reader';
 export { counting } from './vision/find';
 export { pacedImages } from './vision/images';
-export type { Scan } from './vision/images';
+export type { Region, Scan } from './vision/images';
 export { cachedReader } from './vision/reader';
 export type { Reader } from './vision/reader';

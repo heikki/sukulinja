@@ -38,6 +38,15 @@ function fittedEdge(width: number, height: number) {
   return Math.floor(Math.max(width, height) * scale);
 }
 
+// A part of a scan, in fractions of its width and height from its top
+// left.
+export interface Region {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
 export interface Scan {
   bytes: Uint8Array;
   // The size it was scaled to, which the model's coordinates refer to.
@@ -45,14 +54,40 @@ export interface Scan {
   height: number;
 }
 
-async function fitted(path: string): Promise<Scan> {
+async function sizeOf(path: string) {
   const info = await sips(['-g', 'pixelWidth', '-g', 'pixelHeight', path]);
-  const width = Number(/pixelWidth: (?<n>\d+)/.exec(info)?.groups?.n);
-  const height = Number(/pixelHeight: (?<n>\d+)/.exec(info)?.groups?.n);
-  const edge = fittedEdge(width, height);
-  const scale = edge / Math.max(width, height);
+  return {
+    width: Number(/pixelWidth: (?<n>\d+)/.exec(info)?.groups?.n),
+    height: Number(/pixelHeight: (?<n>\d+)/.exec(info)?.groups?.n)
+  };
+}
+
+// The scan at `path`, or its `region`, scaled to send.
+async function fitted(path: string, region: Region | null): Promise<Scan> {
   const dir = await mkdtemp(join(tmpdir(), 'sukulinja-scan-'));
   try {
+    let from = path;
+    let { width, height } = await sizeOf(path);
+    if (region !== null) {
+      const cropped = join(dir, 'region.jpg');
+      const w = Math.round(width * region.width);
+      const h = Math.round(height * region.height);
+      await sips([
+        '-c',
+        String(h),
+        String(w),
+        '--cropOffset',
+        String(Math.round(height * region.top)),
+        String(Math.round(width * region.left)),
+        path,
+        '--out',
+        cropped
+      ]);
+      from = cropped;
+      ({ width, height } = await sizeOf(cropped));
+    }
+    const edge = fittedEdge(width, height);
+    const scale = edge / Math.max(width, height);
     const out = join(dir, 'scan.jpg');
     await sips([
       '-Z',
@@ -63,7 +98,7 @@ async function fitted(path: string): Promise<Scan> {
       '-s',
       'formatOptions',
       String(JPEG_QUALITY),
-      path,
+      from,
       '--out',
       out
     ]);
@@ -77,13 +112,14 @@ async function fitted(path: string): Promise<Scan> {
   }
 }
 
-// Loads Images through the Scan cache given, one at a time.
+// Loads Images through the Scan cache given, one at a time: whole, or a
+// region of one.
 export function pacedImages(cache: ScanCache) {
   let queue: Promise<unknown> = Promise.resolve();
   // Resolves when the next fetch from Astia may start.
   let gap: Promise<void> = Promise.resolve();
 
-  async function load(at: ImageRef) {
+  async function load(at: ImageRef, region: Region | null) {
     const fetching = !(await cache.isCached(at));
     if (fetching) {
       const wait = gap;
@@ -96,11 +132,11 @@ export function pacedImages(cache: ScanCache) {
     if (path === null) {
       throw new Error(`Volume ${at.volumeId} has no Image ${at.image}`);
     }
-    return await fitted(path);
+    return await fitted(path, region);
   }
 
-  return function pacedImage(at: ImageRef) {
-    const run = queue.then(async () => await load(at));
+  return function pacedImage(at: ImageRef, region: Region | null = null) {
+    const run = queue.then(async () => await load(at, region));
     queue = run.catch(() => undefined);
     return run;
   };

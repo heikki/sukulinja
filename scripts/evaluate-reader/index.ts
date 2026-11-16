@@ -31,7 +31,7 @@ import {
 } from '@/server/citations/myheritage/vision/claude-reader';
 import type { Spend } from '@/server/citations/myheritage/vision/claude-reader';
 import { pacedImages } from '@/server/citations/myheritage/vision/images';
-import type { Scan } from '@/server/citations/myheritage/vision/images';
+import type { Region, Scan } from '@/server/citations/myheritage/vision/images';
 import { cachedReader } from '@/server/citations/myheritage/vision/reader';
 import type {
   Question,
@@ -103,7 +103,7 @@ function row(question: Question, model: string, tally: Tally, cost: string) {
 // The data folder evaluated in, and how Images are loaded.
 interface Bench {
   root: string;
-  image: (at: ImageRef) => Promise<Scan>;
+  image: (at: ImageRef, region?: Region | null) => Promise<Scan>;
 }
 
 async function evaluate(

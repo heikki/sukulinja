@@ -27,7 +27,7 @@ import {
   pacedImages,
   switchFilming
 } from './myheritage';
-import type { ClaudeReader, Scan } from './myheritage';
+import type { ClaudeReader, Region, Scan } from './myheritage';
 import { citationOperations } from './operations';
 import { sharedOperations } from './shared-operations';
 
@@ -62,7 +62,7 @@ interface Options {
 // has spent; it throws a Refusal when it can't be asked.
 export type VisionReaders = (
   model: string,
-  image: (at: ImageRef) => Promise<Scan>
+  image: (at: ImageRef, region?: Region | null) => Promise<Scan>
 ) => Promise<SpendingReader>;
 
 export type SpendingReader = Pick<

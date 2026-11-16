@@ -120,11 +120,11 @@ test('asks for everyone at once, each by number', () => {
   expect(prompt).not.toContain('Name: …');
 });
 
-function hand(number: number) {
-  return { number, handwritten: true };
+function hand(number: number, corner: 'left' | 'right' = 'left') {
+  return { number, corner, handwritten: true };
 }
-function printed(number: number) {
-  return { number, handwritten: false };
+function printed(number: number, corner: 'left' | 'right' = 'right') {
+  return { number, corner, handwritten: false };
 }
 
 test("a printed form's numbers give way to the handwritten ones", () => {
@@ -135,5 +135,12 @@ test("a printed form's numbers give way to the handwritten ones", () => {
   expect(toPages({ readable: true, pages: [printed(18)] })).toEqual({
     pages: [18]
   });
+  // One a page, or the spread's own at its left.
+  expect(
+    toPages({ readable: true, pages: [hand(40), hand(41, 'right')] })
+  ).toEqual({ pages: [40, 41] });
+  expect(
+    toPages({ readable: true, pages: [hand(983), hand(18, 'right')] })
+  ).toEqual({ pages: [983] });
   expect(toPages({ readable: true, pages: [] })).toEqual({ unreadable: true });
 });

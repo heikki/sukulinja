@@ -20,7 +20,7 @@ import {
 import type { Spend } from '../../../claude/client';
 import type { ImageRef } from '../../astia/astia';
 import type { Fractions } from '../scans';
-import type { Scan } from './images';
+import type { Region, Scan } from './images';
 import type {
   DatesReading,
   EntryReading,
@@ -38,7 +38,7 @@ type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 // household table, then the date written for the entry; dates gained the
 // register, then dates in any register.
 const VERSIONS: Partial<Record<Question, string>> = {
-  pages: '2',
+  pages: '3',
   dates: '3',
   entry: '4'
 };
@@ -61,7 +61,14 @@ const SYSTEM = `You read scans of Finnish parish church books from the 1700s and
 
 Answer only from what is written on the image you are shown. When you can't make out what you are asked for, say it is unreadable rather than guess: an unreadable answer is useful, a wrong one is not.`;
 
-const PAGES_PROMPT = `Read the page numbers on this image, usually at the top corners. A book may number each spread once (one number on the image) or each page (two numbers, one per page). Give every page number you see from left to right, each saying whether it is written by hand or printed: a book written on printed forms may carry the form's printed numbers as well as its own handwritten ones, often in other corners.
+// Page numbers are small, at the top corners: those are sent alone, at a
+// sharper scale than the whole spread allows.
+const PAGE_CORNERS: Region[] = [
+  { left: 0, top: 0, width: 0.4, height: 0.25 },
+  { left: 0.6, top: 0, width: 0.4, height: 0.25 }
+];
+
+const PAGES_PROMPT = `These are the top left and top right corners of one image of a book, in that order. Read the page numbers on them. A book may number each spread once, at its top left, or each page (two numbers, one in each corner). Give every page number you see from left to right, each saying which corner it is in and whether it is written by hand or printed: a book written on printed forms may carry the form's printed numbers as well as its own handwritten ones.
 
 Leave out numbers that aren't page numbering: archive stamps, film or frame numbers, rulers and colour charts, house or household numbers, and years.
 
@@ -201,9 +208,10 @@ const SCHEMAS: Record<Question, Record<string, unknown>> = {
           type: 'object',
           properties: {
             number: { type: 'integer' },
+            corner: { type: 'string', enum: ['left', 'right'] },
             handwritten: { type: 'boolean' }
           },
-          required: ['number', 'handwritten'],
+          required: ['number', 'corner', 'handwritten'],
           additionalProperties: false
         }
       }
@@ -291,20 +299,34 @@ function parsed(response: Anthropic.Beta.BetaMessage): unknown {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+interface PageNumber {
+  number: number;
+  corner: 'left' | 'right';
+  handwritten: boolean;
+}
+
 // The handwritten numbers, where there are any: a printed form's own
-// numbers are the book's only where it has no others.
+// numbers are the book's only where it has no others. Two that don't
+// follow each other aren't one per page: the spread's own is the left.
 export function toPages(json: {
   readable: boolean;
-  pages: Array<{ number: number; handwritten: boolean }>;
+  pages: PageNumber[];
 }): PagesReading {
   const read = json.pages.filter(
     (p) => Number.isInteger(p.number) && p.number > 0
   );
   const byHand = read.filter((p) => p.handwritten);
+  const taken = byHand.length > 0 ? byHand : read;
   // A book numbering spreads may write the number on both pages.
-  const pages = [
-    ...new Set((byHand.length > 0 ? byHand : read).map((p) => p.number))
-  ];
+  const numbers = [...new Set(taken.map((p) => p.number))].toSorted(
+    (a, b) => a - b
+  );
+  const perPage = numbers.length === 2 && numbers[1] === numbers[0]! + 1;
+  const left = taken.filter((p) => p.corner === 'left').map((p) => p.number);
+  const pages =
+    numbers.length <= 1 || perPage || left.length === 0
+      ? numbers
+      : [...new Set(left)];
   return json.readable && pages.length > 0 ? { pages } : UNREADABLE;
 }
 
@@ -398,7 +420,7 @@ interface ClaudeReaderOptions {
   effort?: Partial<Record<Question, Effort>>;
   // The Image, scaled to send: pacedImages(cache), through the Scan
   // cache.
-  image: (at: ImageRef) => Promise<Scan>;
+  image: (at: ImageRef, region?: Region | null) => Promise<Scan>;
   client?: Anthropic;
 }
 
@@ -421,15 +443,33 @@ export function claudeReader(options: ClaudeReaderOptions): ClaudeReader {
   }
 
   // The parsed answer, or null for a refusal or an answer out of shape, and
-  // the size of the Image the model saw.
+  // the size of the Image the model saw: the whole Image, or the `regions`
+  // of it, in turn.
   async function ask(
     question: Question,
     at: ImageRef,
     prompt: string,
-    schema = SCHEMAS[question]
+    {
+      schema = SCHEMAS[question],
+      regions = [null] as Array<Region | null>
+    } = {}
   ) {
-    const scan = await image(at);
-    const { bytes } = scan;
+    const scans = [];
+    for (const region of regions) {
+      // eslint-disable-next-line no-await-in-loop -- the Images come one at a time
+      scans.push(await image(at, region));
+    }
+    const scan = scans[0]!;
+    const images: Anthropic.Beta.BetaContentBlockParam[] = scans.map(
+      ({ bytes }) => ({
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: mediaType(bytes),
+          data: Buffer.from(bytes).toString('base64')
+        }
+      })
+    );
     const model = models[question];
     const fallback = !openRouter && !model.startsWith('claude-haiku');
     const response = await client.beta.messages.create({
@@ -449,17 +489,7 @@ export function claudeReader(options: ClaudeReaderOptions): ClaudeReader {
       messages: [
         {
           role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: mediaType(bytes),
-                data: Buffer.from(bytes).toString('base64')
-              }
-            },
-            { type: 'text', text: prompt }
-          ]
+          content: [...images, { type: 'text', text: prompt }]
         }
       ]
     });
@@ -472,7 +502,9 @@ export function claudeReader(options: ClaudeReaderOptions): ClaudeReader {
     versions: VERSIONS,
     spend: () => Object.fromEntries(spent),
     pageNumbers: async (at) => {
-      const { json } = await ask('pages', at, PAGES_PROMPT);
+      const { json } = await ask('pages', at, PAGES_PROMPT, {
+        regions: PAGE_CORNERS
+      });
       return json === null
         ? UNREADABLE
         : toPages(json as Parameters<typeof toPages>[0]);
@@ -488,12 +520,9 @@ export function claudeReader(options: ClaudeReaderOptions): ClaudeReader {
       return json === null ? UNREADABLE : toEntry(json as EntryJson, scan);
     },
     findEntries: async (at, people) => {
-      const asked = await ask(
-        'entry',
-        at,
-        entriesPrompt(people),
-        ENTRIES_SCHEMA
-      );
+      const asked = await ask('entry', at, entriesPrompt(people), {
+        schema: ENTRIES_SCHEMA
+      });
       return toEntries(
         asked.json as EntriesJson | null,
         people.length,
