@@ -4,7 +4,8 @@ import {
   entriesPrompt,
   entryNames,
   householdTable,
-  toEntries
+  toEntries,
+  toPages
 } from './claude-reader';
 
 const members = [
@@ -117,4 +118,22 @@ test('asks for everyone at once, each by number', () => {
   );
   expect(prompt).toContain('## Person 2\nName: Liisa Malli');
   expect(prompt).not.toContain('Name: …');
+});
+
+function hand(number: number) {
+  return { number, handwritten: true };
+}
+function printed(number: number) {
+  return { number, handwritten: false };
+}
+
+test("a printed form's numbers give way to the handwritten ones", () => {
+  expect(toPages({ readable: true, pages: [hand(983), printed(18)] })).toEqual({
+    pages: [983]
+  });
+  // Where the book has no others, printed numbers are its own.
+  expect(toPages({ readable: true, pages: [printed(18)] })).toEqual({
+    pages: [18]
+  });
+  expect(toPages({ readable: true, pages: [] })).toEqual({ unreadable: true });
 });

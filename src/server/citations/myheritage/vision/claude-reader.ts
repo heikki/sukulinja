@@ -37,7 +37,11 @@ type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 // again: find-entry gained the birth year and the entry's box, then the
 // household table, then the date written for the entry; dates gained the
 // register, then dates in any register.
-const VERSIONS: Partial<Record<Question, string>> = { dates: '3', entry: '4' };
+const VERSIONS: Partial<Record<Question, string>> = {
+  pages: '2',
+  dates: '3',
+  entry: '4'
+};
 
 export const DEFAULT_MODELS: Record<Question, string> = {
   pages: 'claude-haiku-5-5',
@@ -57,9 +61,9 @@ const SYSTEM = `You read scans of Finnish parish church books from the 1700s and
 
 Answer only from what is written on the image you are shown. When you can't make out what you are asked for, say it is unreadable rather than guess: an unreadable answer is useful, a wrong one is not.`;
 
-const PAGES_PROMPT = `Read the book's own page numbers written on this image, usually at the top outer corners. A book may number each spread once (one number on the image) or each page (two numbers, one per page). Give the numbers from left to right.
+const PAGES_PROMPT = `Read the page numbers on this image, usually at the top corners. A book may number each spread once (one number on the image) or each page (two numbers, one per page). Give every page number you see from left to right, each saying whether it is written by hand or printed: a book written on printed forms may carry the form's printed numbers as well as its own handwritten ones, often in other corners.
 
-Leave out numbers that aren't the book's page numbering: archive stamps, film or frame numbers, rulers and colour charts, house or household numbers, and years. A book written on printed forms may carry the form's printed numbers too, often in another corner: where the pages are numbered by hand as well, give only the handwritten numbers.
+Leave out numbers that aren't page numbering: archive stamps, film or frame numbers, rulers and colour charts, house or household numbers, and years.
 
 If no page number is legible, answer readable: false with no pages.`;
 
@@ -191,7 +195,18 @@ const SCHEMAS: Record<Question, Record<string, unknown>> = {
     type: 'object',
     properties: {
       readable: { type: 'boolean' },
-      pages: { type: 'array', items: { type: 'integer' } }
+      pages: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            number: { type: 'integer' },
+            handwritten: { type: 'boolean' }
+          },
+          required: ['number', 'handwritten'],
+          additionalProperties: false
+        }
+      }
     },
     required: ['readable', 'pages'],
     additionalProperties: false
@@ -276,10 +291,19 @@ function parsed(response: Anthropic.Beta.BetaMessage): unknown {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-function toPages(json: { readable: boolean; pages: number[] }): PagesReading {
+// The handwritten numbers, where there are any: a printed form's own
+// numbers are the book's only where it has no others.
+export function toPages(json: {
+  readable: boolean;
+  pages: Array<{ number: number; handwritten: boolean }>;
+}): PagesReading {
+  const read = json.pages.filter(
+    (p) => Number.isInteger(p.number) && p.number > 0
+  );
+  const byHand = read.filter((p) => p.handwritten);
   // A book numbering spreads may write the number on both pages.
   const pages = [
-    ...new Set(json.pages.filter((p) => Number.isInteger(p) && p > 0))
+    ...new Set((byHand.length > 0 ? byHand : read).map((p) => p.number))
   ];
   return json.readable && pages.length > 0 ? { pages } : UNREADABLE;
 }
