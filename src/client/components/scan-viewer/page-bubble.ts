@@ -54,7 +54,7 @@ class ScanPageElement extends SignalWatcher(LitElement) {
 
     /* Counted from the pins around it, not read here: dimmer. */
     .bubble.counted {
-      color: var(--muted);
+      color: color-mix(in srgb, var(--muted) 75%, transparent);
     }
 
     input.bubble {
