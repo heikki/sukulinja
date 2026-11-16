@@ -314,6 +314,13 @@ export function memoryDatasetApi(
         }
       ),
 
+    // Without pins, no pages are told.
+    clearVolumePages: async ({ volumeId }) =>
+      await answer(`pages cleared ${volumeId}`, undefined, () => {
+        volume(volumeId).pages = [];
+        return [];
+      }),
+
     // Every Volume given is taken as the archive's.
     archives: async (signal) =>
       await answer('archives', signal, () => [...(data.archives ?? [])]),

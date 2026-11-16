@@ -159,7 +159,7 @@ class ScanPageElement extends SignalWatcher(LitElement) {
   private renderShown({ pages, by }: ImagePages) {
     const named =
       pages.length === 0
-        ? 'no page'
+        ? 'skipped'
         : pages.length === 1
           ? `page ${pages[0]}`
           : `pages ${pages.join('–')}`;

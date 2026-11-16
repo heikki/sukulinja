@@ -247,7 +247,9 @@ export function openCitations(root: string, options: Options) {
           surveyPages: async (volumeId, volume, model, fresh) =>
             await surveyPages(citations, { volumeId, volume, fresh }, model),
           setImagePage: async (at, pages) =>
-            await folder.setImagePage(at, pages)
+            await folder.setImagePage(at, pages),
+          clearVolumePages: async (volumeId) =>
+            await folder.clearVolumePages(volumeId)
         }),
         // The person's Citations, as the panel lists them.
         ofPerson: (personId: number) => citations.ofPerson(personId),

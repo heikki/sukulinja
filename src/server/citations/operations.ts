@@ -34,6 +34,8 @@ interface Doers {
     at: { volumeId: string; volume: string; image: number },
     pages: number[] | null
   ) => Promise<{ rejected: string } | null>;
+  // Takes the Volume's Page pins away: why it can't be, or nothing.
+  clearVolumePages: (volumeId: string) => Promise<{ rejected: string } | null>;
 }
 
 // A request to Astia failing is refused (502), in words the Scan viewer
@@ -51,7 +53,13 @@ export async function askingAstia<T>(asked: Promise<T>) {
 
 export function citationOperations(
   citations: Citations,
-  { switchFilming, findAllOnImage, surveyPages, setImagePage }: Doers
+  {
+    switchFilming,
+    findAllOnImage,
+    surveyPages,
+    setImagePage,
+    clearVolumePages
+  }: Doers
 ): Handlers<typeof CITATION_OPERATIONS> {
   return {
     // Astia is slow and throttled, so a person's citations share one
@@ -140,6 +148,12 @@ export function citationOperations(
       const refused = await askingAstia(
         setImagePage({ volumeId, volume, image }, pages)
       );
+      if (refused !== null) throw new Refusal(409, refused.rejected);
+      return await askingAstia(citations.pagesInVolume(volumeId, volume));
+    },
+
+    async clearVolumePages({ volumeId, volume }) {
+      const refused = await askingAstia(clearVolumePages(volumeId));
       if (refused !== null) throw new Refusal(409, refused.rejected);
       return await askingAstia(citations.pagesInVolume(volumeId, volume));
     },

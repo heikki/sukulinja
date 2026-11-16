@@ -314,6 +314,14 @@ export const CITATION_OPERATIONS = {
         : null
   ),
 
+  // Takes every Page pin of the Volume away, hand or the vision model's,
+  // so its pages are counted as its book is numbered: its pages then.
+  clearVolumePages: answers<{ volumeId: string; volume: string }, ImagePages[]>(
+    '{ volumeId, volume }',
+    ({ volumeId, volume }) =>
+      isName(volumeId) && isName(volume) ? { volumeId, volume } : null
+  ),
+
   // The archives the dataset's church books are in, most cited first.
   archives: asksNothing<ChurchBookArchive[]>(),
 

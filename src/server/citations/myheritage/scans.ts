@@ -396,6 +396,16 @@ export function openScanFolder(
       return null;
     },
 
+    // Takes the Volume's Page pins away (ADR-0032): why it can't be, or
+    // nothing.
+    async clearVolumePages(
+      volumeId: string
+    ): Promise<{ rejected: string } | null> {
+      if (await onOldFilming(astia, volumeId)) return { rejected: OLD_FILMING };
+      await facts.clearPages(await facts.filmingOf(volumeId));
+      return null;
+    },
+
     // A dataset's Scans, resolving with its Marks and Matches.
     scans: (db: Database, { sizeOf }: { sizeOf?: ImageSizeOf } = {}) =>
       openScans({ pins: pinsOf(db), astia, parishes, sizeOf }),

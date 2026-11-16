@@ -32,6 +32,8 @@ export function linkItems(
     // The model Vision Match asks, by its label, and asking it for the
     // source, or for every estimate on the Image.
     locate?: VisionFind;
+    // Taking the Volume's page numbers away, where they're shown.
+    clearPages?: () => void;
   }
 ) {
   const remind: MenuItem[] =
@@ -54,11 +56,24 @@ export function linkItems(
       items.push({ label: 'New entry', run: open.cite });
     }
   }
-  items.push(...remind, ...visionItems(viewer, open.locate));
+  items.push(
+    ...remind,
+    ...visionItems(viewer, open.locate),
+    ...pageItems(viewer, open.clearPages)
+  );
   if (hasSource) {
     items.push({ label: 'Change Volume…', run: open.chooseVolume });
   }
   return items;
+}
+
+// Taking the Volume's page numbers away (ADR-0032), where any are read or
+// set and they're shown.
+function pageItems(viewer: Viewer, clearPages: (() => void) | undefined) {
+  if (clearPages === undefined || !viewer.pages.numbered.get()) return [];
+  return [
+    { label: 'Clear page numbers', detail: 'This Volume', run: clearPages }
+  ];
 }
 
 // Vision Match as the menu offers it, with the model's label: on the

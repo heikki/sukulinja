@@ -6,6 +6,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { visionModel } from '@/client/assistant-choices';
 import { assistantOn } from '@/client/assistant-flag';
 import type { InEntry } from '@/client/dataset-api';
+import { pageNumbersOn } from '@/client/page-numbers-flag';
 import type { Point, Transform } from '@/client/pan-zoom';
 import { appState, citingImage } from '@/client/state';
 import type { AppState } from '@/client/state';
@@ -41,7 +42,7 @@ import './volumes';
 // the people to name in a new entry's Role (or with none), listed or
 // searched.
 type Popup =
-  | { at: Point; onBox: boolean; show: 'menu' | 'volumes' | 'survey' }
+  | { at: Point; onBox: boolean; show: 'menu' | 'volumes' | 'survey' | 'clear' }
   | { at: Point; show: 'pick'; role: string | null };
 
 // Editing the current source's Link over the scan: the menu a right-click
@@ -256,6 +257,7 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     if (popup.show === 'pick') return this.renderPick(popup.at, popup.role);
     const { at, onBox, show } = popup;
     if (show === 'survey') return this.renderSurveyWarning(at);
+    if (show === 'clear') return this.renderClearWarning(at);
     if (show === 'volumes') {
       return html`<sl-scan-volumes
         .at=${at}
@@ -278,6 +280,13 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
         remind: () => {
           this.remind();
         },
+        ...(pageNumbersOn.get() && !this.viewer.oldFilming.get()
+          ? {
+              clearPages: () => {
+                this.popup = { at, onBox, show: 'clear' };
+              }
+            }
+          : {}),
         ...this.visionItem()
       }
     );
@@ -292,23 +301,51 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   // (ADR-0032), how many: run it anyway, or not.
   private renderSurveyWarning(at: Point) {
     const n = this.viewer.pages.byHand.get();
-    const items: MenuItem[] = [
+    return this.renderAsk(
+      at,
+      `The survey takes away ${n === 1 ? 'the page' : `${n} pages`} set by hand in this Volume`,
       {
         label: 'Survey and take them away',
         run: () => {
-          this.popup = null;
           void this.viewer.surveyPagesByVision(visionModel.get());
         }
-      },
+      }
+    );
+  }
+
+  // Before the Volume's pages read or set are taken away, how many: its
+  // pages then counted as its book is numbered.
+  private renderClearWarning(at: Point) {
+    const n = this.viewer.pages.pinned.get();
+    return this.renderAsk(
+      at,
+      `Takes away the page numbers read or set on ${n === 1 ? '1 Image' : `${n} Images`} of this Volume`,
       {
-        label: 'Cancel',
+        label: 'Clear page numbers',
         run: () => {
-          this.popup = null;
+          void this.viewer.pages.clearVolume();
         }
       }
+    );
+  }
+
+  // A step that can't be undone, under what it does: it, or Cancel.
+  private renderAsk(at: Point, heading: string, step: MenuItem) {
+    const close = () => {
+      this.popup = null;
+    };
+    const items: MenuItem[] = [
+      {
+        ...step,
+        run: () => {
+          close();
+          step.run();
+        }
+      },
+      { label: 'Cancel', run: close }
     ];
     return html`<sl-context-menu
-      .heading=${`The survey takes away ${n === 1 ? 'the page' : `${n} pages`} set by hand in this Volume`}
+      .heading=${heading}
       .items=${items}
       .at=${at}
       @close=${this.onPopupClose}

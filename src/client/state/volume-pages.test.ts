@@ -40,3 +40,21 @@ test("a page set by hand on the Image shown is told, and the Volume's citations 
     'pages 201'
   ]);
 });
+
+test("the Volume's page numbers are cleared, and its citations reloaded", async () => {
+  const pages = [{ image: 2, pages: [8], by: 'hand' as const }];
+  const api = memoryDatasetApi({
+    volumes: { '201': { images: 3, citations: [], pages } }
+  });
+  const viewer = openAppState(api).viewer;
+  viewer.openImage({ volumeId: '201', volume: 'I Aa:201', image: 2 });
+  await Bun.sleep(0);
+  expect(viewer.pages.pinned.get()).toBe(1);
+  await viewer.pages.clearVolume();
+  expect(viewer.pages.pinned.get()).toBe(0);
+  expect(api.asked.slice(-3)).toEqual([
+    'pages cleared 201',
+    'citations 201',
+    'pages 201'
+  ]);
+});

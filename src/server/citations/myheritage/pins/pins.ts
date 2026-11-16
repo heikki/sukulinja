@@ -430,6 +430,22 @@ export function openVolumeFacts(folder: string, options: { astia: Astia }) {
       merged = null;
     },
 
+    // Takes every Page pin of the Volume's filming away, hand or the
+    // vision model's: its pages counted anew as its book is numbered.
+    async clearPages(filming: Filming) {
+      await migrated();
+      await mkdir(folder, { recursive: true });
+      await withLock(lockFile, async () => {
+        const local = await readLocal();
+        const kept = local.volumes[filming.volumeId];
+        if (kept === undefined) return;
+        const { current } = split(filming, kept.pages);
+        kept.pages = kept.pages.filter((p) => !current.includes(p));
+        await writeLocalFile(localFile, local);
+      });
+      merged = null;
+    },
+
     // The pins as the local file keeps them.
     async kept() {
       return await readLocal();

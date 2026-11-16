@@ -229,6 +229,19 @@ test('an Image set to have no page is left out of the counting', async () => {
   }
 });
 
+test("a Volume's page numbers cleared count it as its book is numbered", async () => {
+  const folder = openScanFolder(dir, {
+    astia: juvaAstia(),
+    parishes: memoryParishes()
+  });
+  const at = { volumeId: 'juva-1', volume: 'I Aa:1', image: 5 };
+  await folder.setImagePage(at, [40]);
+  await folder.setImagePage({ ...at, image: 2 }, []);
+  expect(await imagesAt(45)).toEqual([10]);
+  expect(await folder.clearVolumePages('juva-1')).toBeNull();
+  expect(await imagesAt(12)).toEqual([12]);
+});
+
 test('a page the vision model read can be taken away, leaving the Image counted', async () => {
   // Image 5 misread as page 40: the pages after it count from there.
   await Bun.write(

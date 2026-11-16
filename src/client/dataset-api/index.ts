@@ -130,6 +130,11 @@ export interface DatasetApi {
     at: { volumeId: string; volume: string; image: number },
     pages: number[] | null
   ) => Promise<ImagePages[]>;
+  // Takes every Page pin of the Volume away: its pages then.
+  clearVolumePages: (at: {
+    volumeId: string;
+    volume: string;
+  }) => Promise<ImagePages[]>;
   // The archives the dataset's church books are in, most cited first.
   archives: (signal?: AbortSignal) => Promise<ChurchBookArchive[]>;
   // How many of the dataset's Citations link into each of a parish
@@ -281,6 +286,8 @@ export function openDatasetApi(
       await call('volumePages', at, "the Volume's pages", signal),
     setImagePage: async (at, pages) =>
       await call('setImagePage', { ...at, pages }, 'the page'),
+    clearVolumePages: async (at) =>
+      await call('clearVolumePages', at, "the Volume's pages"),
     archives: async (signal) =>
       await call('archives', {}, 'the church books', signal),
     archiveCitations: async (archiveId, signal) =>
