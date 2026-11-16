@@ -20,22 +20,28 @@ function reading(pages: (image: number) => PagesReading) {
 
 const UNREADABLE = { unreadable: true as const };
 
-test('a Volume numbered evenly is settled by its first readings', async () => {
+test('a Volume numbered evenly is settled by its first readings, 20 Images apart', async () => {
   // Two covers, then one number a spread.
   const { reader, asked } = reading((n) =>
     n <= 2 ? UNREADABLE : { pages: [n - 2] }
   );
   const survey = await surveyVolume(reader, { volumeId: 'v', images: 200 });
+  const opening = Array.from({ length: 10 }, (_, i) => 10 + 20 * i);
   expect(survey).toEqual({
-    readings: [
-      { image: 10, pages: [8] },
-      { image: 100, pages: [98] },
-      { image: 190, pages: [188] }
-    ],
-    reads: 3,
+    readings: opening.map((image) => ({ image, pages: [image - 2] })),
+    reads: 10,
     settled: true
   });
-  expect(asked).toEqual([10, 100, 190]);
+  expect(asked).toEqual(opening);
+});
+
+test('closes in on one leaf left out, to the Image', async () => {
+  // Page 61 is missing: Image 61 holds page 62.
+  const { reader } = reading((n) => ({ pages: [n <= 60 ? n : n + 1] }));
+  const survey = await surveyVolume(reader, { volumeId: 'v', images: 200 });
+  expect(survey.settled).toBe(true);
+  expect(survey.readings).toContainEqual({ image: 60, pages: [60] });
+  expect(survey.readings).toContainEqual({ image: 61, pages: [62] });
 });
 
 test('closes in on leaves inserted between two readings', async () => {
@@ -64,6 +70,7 @@ test('a page-numbered book takes two numbers an Image, once each', async () => {
   const { reader } = reading((n) => ({ pages: [2 * n, 2 * n + 1] }));
   const survey = await surveyVolume(reader, { volumeId: 'v', images: 40 });
   expect(survey).toMatchObject({ settled: true, reads: 3 });
+  expect(survey.readings.map((r) => r.image)).toEqual([2, 20, 38]);
 });
 
 test('reads beside an unreadable Image, and gives up after its reads', async () => {
@@ -71,7 +78,7 @@ test('reads beside an unreadable Image, and gives up after its reads', async () 
   const survey = await surveyVolume(reader, { volumeId: 'v', images: 200 });
   expect(survey.readings).toEqual([]);
   expect(survey.settled).toBe(false);
-  expect(survey.reads).toBe(15);
+  expect(survey.reads).toBe(MAX_SURVEY_READS);
   const noisy = reading((n) => ({ pages: [(n * 7919) % 500] }));
   const spent = await surveyVolume(noisy.reader, {
     volumeId: 'v',

@@ -1,10 +1,11 @@
 // A page survey of a Volume: how its Page numbers go, read by the vision
-// model on as few Images as it takes (ADR-0032). It reads a few Images
-// spread over the Volume, then, between any two readings that don't agree
-// with the book's pace (one number an Image a spread, two a page), the
-// Image halfway, until every two neighbouring readings agree or have no
-// Image left to read between them: where the numbering starts over, the
-// survey closes in on the place. Each reading is then a Page pin, by the vision model,
+// model on as few Images as it takes (ADR-0032). It reads Images spread
+// over the Volume, no more than OPENING_GAP apart, then, between any two
+// readings that don't agree exactly with the book's pace (one number an
+// Image a spread, two a page), the Image halfway, until every two
+// neighbouring readings agree or have no Image left to read between them:
+// a leaf missing or inserted, or the numbering starting over, is closed in
+// on to the Image. Each reading is then a Page pin, by the vision model,
 // which never replaces a hand one; it counts every estimate in the Volume.
 //
 // Readings are cached as any other (reader.ts), so a survey run again, or
@@ -13,13 +14,10 @@
 import type { PagesReading, Reader } from './reader';
 
 // Readings a survey may make in one Volume.
-export const MAX_SURVEY_READS = 30;
-// How far a reading may stray from where its neighbour's pace puts it, in
-// Page numbers, and still agree: a leaf left unnumbered, a number skipped.
-const SLACK = 2;
-// Where the first readings go, in fractions of the Volume: not its very
-// first Images, which are covers and front matter.
-const OPENING = [0.05, 0.5, 0.95];
+export const MAX_SURVEY_READS = 50;
+// Where the first readings go: from 5% into the Volume to 95%, past its
+// covers and front matter, at most this many Images apart.
+const OPENING_GAP = 20;
 // Images tried beside an unreadable one before leaving the place.
 const BESIDE = [1, -1, 2, -2];
 
@@ -42,10 +40,25 @@ function first(r: PageReading) {
   return Math.min(...r.pages);
 }
 
-// Whether `b` is numbered where `a`'s pace puts it.
+// Whether `b` is numbered just where `a`'s pace puts it.
 function agree(a: PageReading, b: PageReading) {
-  const expected = first(a) + (b.image - a.image) * a.pages.length;
-  return Math.abs(first(b) - expected) <= SLACK * a.pages.length;
+  const perImage = Math.max(a.pages.length, b.pages.length);
+  return first(b) === first(a) + (b.image - a.image) * perImage;
+}
+
+// The Images first read: evenly from 5% into the Volume to 95%, at most
+// OPENING_GAP apart.
+function openingImages(images: number) {
+  const from = Math.max(1, Math.round(0.05 * images));
+  const to = Math.max(from, Math.round(0.95 * images));
+  const steps = Math.max(1, Math.ceil((to - from) / OPENING_GAP));
+  return [
+    ...new Set(
+      Array.from({ length: steps + 1 }, (_, i) =>
+        Math.round(from + ((to - from) * i) / steps)
+      )
+    )
+  ];
 }
 
 // The untried Image nearest halfway between `a` and `b`, if any.
@@ -99,10 +112,7 @@ export async function surveyVolume(
     }
   }
 
-  const opening = [
-    ...new Set(OPENING.map((f) => Math.max(1, Math.round(f * images))))
-  ];
-  for (const image of opening) {
+  for (const image of openingImages(images)) {
     // eslint-disable-next-line no-await-in-loop -- one reading at a time
     await readNear(image);
   }

@@ -98,6 +98,6 @@ test('a page survey saves what it read as Page pins, which the estimates count f
       )
   };
   const survey = await folder.surveyPages('juva-1', 'I Aa:1', reader);
-  expect(survey).toMatchObject({ settled: true, pinned: 3 });
+  expect(survey).toMatchObject({ settled: true, pinned: 2 });
   expect(await imagesAt(12)).toEqual([14]);
 });
