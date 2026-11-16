@@ -9,10 +9,17 @@ import type { Readable } from './selected';
 // The pages the shown Volume's Page pins put on its Images (ADR-0032),
 // for the Scan viewer to tell those of the Image shown: loaded with the
 // Volume's citations, as a Mark, a Match or a page survey changes both.
+// One set here by hand moves the estimates counted from it, so `reload`
+// loads them anew.
 export function volumePagesOf(
-  api: Pick<DatasetApi, 'volumePages'>,
-  image: Readable<number>
+  api: Pick<DatasetApi, 'volumePages' | 'setImagePage'>,
+  shown: {
+    volume: Readable<{ id: string; label: string } | null>;
+    image: Readable<number>;
+  },
+  reload: (volumeId: string) => Promise<void>
 ) {
+  const { image } = shown;
   const pages = signal<ImagePages[]>([]);
   const req = new Latest();
   const here = computed(
@@ -22,10 +29,21 @@ export function volumePagesOf(
   return {
     here: here as Readable<ImagePages | null>,
     async load(volumeId: string) {
+      const volume = shown.volume.get()?.label ?? '';
       const got = await req.run(
-        async (signal) => await api.volumePages(volumeId, signal)
+        async (signal) => await api.volumePages({ volumeId, volume }, signal)
       );
       if (got !== undefined) pages.set(got ?? []);
+    },
+    // Sets the page of the Image shown by hand, or with null takes it
+    // away; throws ApiError if it's refused.
+    setHere: async (page: number | null) => {
+      const v = shown.volume.get();
+      if (v === null) return;
+      const at = { volumeId: v.id, volume: v.label, image: image.get() };
+      req.stop();
+      pages.set(await api.setImagePage(at, page));
+      await reload(v.id);
     },
     clear() {
       req.stop();

@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { memoryParishes } from '../astia/parishes';
-import { juvaAstia, rippiCitation } from '../astia/test-parish';
+import { juvaAstia, rippiCitation, VOLUMES } from '../astia/test-parish';
 import { openMarks } from './pins/marks';
 import { churchBookRefOf, markKey } from './record';
 import { openScanFolder } from './scans';
@@ -137,7 +137,7 @@ test("each Image's pages are those its Page pin gives, or counted from the pins 
   const db = citing([], join(dir, 'pages.sqlite'));
   try {
     const scans = scansOf(dir, db, { astia: juvaAstia() });
-    const shown = await scans.pagesInVolume('juva-1');
+    const shown = await scans.pagesInVolume('juva-1', 'I Aa:1');
     expect(shown.find((p) => p.image === 3)).toEqual({
       image: 3,
       pages: [3],
@@ -159,4 +159,35 @@ test("each Image's pages are those its Page pin gives, or counted from the pins 
   } finally {
     db.close();
   }
+});
+
+test('without Page pins, each Image has the page its book is numbered with', async () => {
+  const db = citing([], join(dir, 'numbered.sqlite'));
+  try {
+    const scans = scansOf(dir, db, { astia: juvaAstia() });
+    const rippi = await scans.pagesInVolume('juva-1', VOLUMES['juva-1']);
+    expect(rippi.slice(0, 2)).toEqual([
+      { image: 1, pages: [1], by: null },
+      { image: 2, pages: [2], by: null }
+    ]);
+    const lasten = await scans.pagesInVolume('juva-2', 'I Ab:1 Lastenkirjat');
+    expect(lasten[0]).toEqual({ image: 2, pages: [2, 3], by: null });
+  } finally {
+    db.close();
+  }
+});
+
+test('a page set on an Image by hand counts the Volume from it, and taken away no longer', async () => {
+  const folder = openScanFolder(dir, {
+    astia: juvaAstia(),
+    parishes: memoryParishes()
+  });
+  const at = { volumeId: 'juva-1', volume: 'I Aa:1', image: 5 };
+  expect(await folder.setImagePage(at, 40)).toBeNull();
+  expect(await imagesAt(45)).toEqual([10]);
+  expect(await folder.setImagePage(at, null)).toBeNull();
+  expect(await imagesAt(12)).toEqual([12]);
+  expect(await folder.setImagePage({ ...at, image: 99 }, 40)).toEqual({
+    rejected: 'The volume has no such image.'
+  });
 });

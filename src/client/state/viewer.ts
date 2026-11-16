@@ -116,6 +116,9 @@ export interface Viewer {
   // The pages the Volume's Page pins put on the Image shown, read there or
   // counted from the pins around it; null without pins, or until known.
   pagesHere: Readable<ImagePages | null>;
+  // Sets the page of the Image shown by hand, or with null takes it away,
+  // and reloads the estimates counted from it; throws ApiError if refused.
+  setPageHere: (page: number | null) => Promise<void>;
   // The estimates on the Image shown that Vision Match would look for,
   // one per record.
   estimatesHere: Readable<VolumeCitation[]>;
@@ -230,7 +233,7 @@ export function openViewer(
   // Astia's viewer address of each of the Volume's Images.
   let files: string[] = [];
   const citations = signal<VolumeCitation[] | null | 'failed'>(null);
-  const pages = volumePagesOf(api, image);
+  const pages = volumePagesOf(api, { volume, image }, loadCitations);
   const archive = signal<string | null>(null);
   const sourcesInView = signal(false);
   const placing = signal(false);
@@ -638,6 +641,7 @@ export function openViewer(
     confirmSource: confirmation.run,
     confirming: confirmation.status,
     pagesHere: pages.here,
+    setPageHere: pages.setHere,
     estimatesHere: batch.estimates,
     findAllByVision: batch.run,
     estimatesInVolume: batch.inVolume,

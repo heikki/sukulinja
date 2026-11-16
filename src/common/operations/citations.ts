@@ -274,10 +274,28 @@ export const CITATION_OPERATIONS = {
   ),
 
   // The pages the Volume's Page pins put on each of its Images, as its
-  // estimates count them (ADR-0032).
-  volumePages: answers<{ volumeId: string }, ImagePages[]>(
-    '{ volumeId }',
-    ({ volumeId }) => (isName(volumeId) ? { volumeId } : null)
+  // estimates count them (ADR-0032); without pins, as its books are
+  // numbered, by `volume`, its label.
+  volumePages: answers<{ volumeId: string; volume: string }, ImagePages[]>(
+    '{ volumeId, volume }',
+    ({ volumeId, volume }) =>
+      isName(volumeId) && isName(volume) ? { volumeId, volume } : null
+  ),
+
+  // Sets the page on the Image of the Volume, `volume` by its label, by
+  // hand: a hand Page pin of `page` there (its right page following where
+  // the Volume numbers pages), or with null that pin taken away. The
+  // pages the Volume's Page pins then put on its Images.
+  setImagePage: answers<
+    { volumeId: string; volume: string; image: number; page: number | null },
+    ImagePages[]
+  >('{ volumeId, volume, image, page }', ({ volumeId, volume, image, page }) =>
+    isName(volumeId) &&
+    isName(volume) &&
+    isId(image) &&
+    (page === null || isId(page))
+      ? { volumeId, volume, image, page }
+      : null
   ),
 
   // The archives the dataset's church books are in, most cited first.

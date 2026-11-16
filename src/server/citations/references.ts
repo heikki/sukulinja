@@ -97,9 +97,9 @@ export interface References<R extends BookRef = BookRef> {
   ) => Promise<{ resolution: LinkResolution; done: DiscardDone } | Refused>;
   // The Volumes the reference can be put in.
   volumeChoices: (ref: R) => Promise<VolumeChoices>;
-  // The pages the Volume's Page pins put on each of its Images; none
-  // without pins.
-  pagesInVolume: (volumeId: string) => Promise<ImagePages[]>;
+  // The pages the Volume's Page pins put on each of its Images, or its
+  // numbering without them; of the Volume `label` by its label.
+  pagesInVolume: (volumeId: string, label: string) => Promise<ImagePages[]>;
   // Looks for every reference of `refs` on the Image `at` at once, saving
   // the Matches it confirms (ADR-0029): each one's Links as they then
   // resolve, and why it saved none, in their order.

@@ -28,6 +28,12 @@ interface Doers {
     model: string,
     fresh: boolean
   ) => Promise<VisionSurvey | { rejected: string }>;
+  // Sets the Image's page by hand, or takes it away: why it can't be, or
+  // nothing.
+  setImagePage: (
+    at: { volumeId: string; volume: string; image: number },
+    page: number | null
+  ) => Promise<{ rejected: string } | null>;
 }
 
 // A request to Astia failing is refused (502), in words the Scan viewer
@@ -45,7 +51,7 @@ export async function askingAstia<T>(asked: Promise<T>) {
 
 export function citationOperations(
   citations: Citations,
-  { switchFilming, findAllOnImage, surveyPages }: Doers
+  { switchFilming, findAllOnImage, surveyPages, setImagePage }: Doers
 ): Handlers<typeof CITATION_OPERATIONS> {
   return {
     // Astia is slow and throttled, so a person's citations share one
@@ -127,8 +133,16 @@ export function citationOperations(
       return rows;
     },
 
-    volumePages: async ({ volumeId }) =>
-      await askingAstia(citations.pagesInVolume(volumeId)),
+    volumePages: async ({ volumeId, volume }) =>
+      await askingAstia(citations.pagesInVolume(volumeId, volume)),
+
+    async setImagePage({ volumeId, volume, image, page }) {
+      const refused = await askingAstia(
+        setImagePage({ volumeId, volume, image }, page)
+      );
+      if (refused !== null) throw new Refusal(409, refused.rejected);
+      return await askingAstia(citations.pagesInVolume(volumeId, volume));
+    },
 
     archives: async () => await askingAstia(citations.churchBookArchives()),
 

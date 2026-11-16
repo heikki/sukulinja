@@ -199,8 +199,8 @@ function openScans({
     marked: () => pins.marked(),
 
     // The pages the Volume's Page pins put on each of its Images.
-    pagesInVolume: async (volumeId: string) =>
-      await volumePages(astia, volumeId, await pins.snapshot()),
+    pagesInVolume: async (volumeId: string, label: string) =>
+      await volumePages(astia, { volumeId, label }, await pins.snapshot()),
 
     // Changes when a save, a Volume's list kept anew, or a spelling given
     // another archive changes what references resolve to.
@@ -378,6 +378,22 @@ export function openScanFolder(
         replace
       });
       return { ...survey, pinned: survey.readings.length };
+    },
+
+    // Sets the Image's page by hand, or with null takes the hand one away
+    // (ADR-0032): why it can't be, or nothing.
+    async setImagePage(
+      at: { volumeId: string; volume: string; image: number },
+      page: number | null
+    ): Promise<{ rejected: string } | null> {
+      const { volumeId, volume, image } = at;
+      if (await onOldFilming(astia, volumeId)) return { rejected: OLD_FILMING };
+      const filming = await facts.filmingOf(volumeId);
+      if (image < 1 || image > filming.files.length) {
+        return { rejected: 'The volume has no such image.' };
+      }
+      await facts.setImagePage(filming, volume, image, page);
+      return null;
     },
 
     // A dataset's Scans, resolving with its Marks and Matches.

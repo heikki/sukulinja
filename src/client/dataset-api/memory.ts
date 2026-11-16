@@ -291,10 +291,30 @@ export function memoryDatasetApi(
         () => volume(volumeId).citations
       ),
 
-    volumePages: async (volumeId, signal) =>
+    volumePages: async ({ volumeId }, signal) =>
       await answer(`pages ${volumeId}`, signal, () => [
         ...(volume(volumeId).pages ?? [])
       ]),
+
+    // A hand Page pin replaces whatever was told of the Image, alone: the
+    // pages around it aren't counted anew.
+    setImagePage: async ({ volumeId, image }, page) =>
+      await answer(
+        `page ${volumeId}/${image} ${page ?? 'none'}`,
+        undefined,
+        () => {
+          const shown = volume(volumeId);
+          const others = (shown.pages ?? []).filter((p) => p.image !== image);
+          const set =
+            page === null
+              ? []
+              : [{ image, pages: [page], by: 'hand' as const }];
+          shown.pages = [...others, ...set].toSorted(
+            (a, b) => a.image - b.image
+          );
+          return [...shown.pages];
+        }
+      ),
 
     // Every Volume given is taken as the archive's.
     archives: async (signal) =>

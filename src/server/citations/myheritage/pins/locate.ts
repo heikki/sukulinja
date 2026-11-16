@@ -30,6 +30,7 @@ import type {
 
 import { viewerUrl } from '../../astia/astia';
 import type { Astia, Volume } from '../../astia/astia';
+import { bookKind } from '../../text';
 import type { BookKind, Years } from '../../text';
 import type { ChurchBookRef } from '../record';
 import { filmingOf, leavesOut, splitVolume } from './filming';
@@ -282,16 +283,34 @@ function runPages(run: PageRun, image: number): ImagePages {
   return { image, pages, by: null };
 }
 
+// The pages a Volume without Page pins is counted as having on the Image,
+// from its first: a lastenkirja two an Image, any other book one.
+function numberedPages(kind: BookKind | null, image: number): ImagePages {
+  const page = kind === 'lasten' ? 2 * (image - 1) : image;
+  return {
+    image,
+    pages: kind === 'lasten' ? [page, page + 1] : [page],
+    by: null
+  };
+}
+
 // The pages the Volume's Page pins put on each of its Images, as its
-// estimates count them; none without pins.
+// estimates count them; without pins, as its books are numbered. Of the
+// Volume `volumeId`, `label` by its label.
 export async function volumePages(
   astia: Astia,
-  volumeId: string,
+  volume: { volumeId: string; label: string },
   pins: Pins
 ): Promise<ImagePages[]> {
-  const filming = await filmingOf(astia, volumeId);
+  const filming = await filmingOf(astia, volume.volumeId);
   const images = filming.files.length;
   const runs = runsOf(splitVolume(filming, pins).current.pages, images);
+  if (runs.length === 0) {
+    const kind = bookKind(volume.label);
+    return Array.from({ length: images }, (_, i) =>
+      numberedPages(kind, i + 1)
+    ).filter((p) => p.pages[0]! > 0);
+  }
   return runs.flatMap((run) =>
     Array.from({ length: run.to - run.from + 1 }, (_, i) =>
       runPages(run, run.from + i)
