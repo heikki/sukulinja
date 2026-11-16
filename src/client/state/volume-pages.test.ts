@@ -5,25 +5,26 @@ import { memoryDatasetApi } from '@/client/dataset-api/memory';
 import { openAppState } from '.';
 
 test("tells the pages the Volume's Page pins put on the Image shown", async () => {
-  const pages = [
-    { image: 1, pages: [7], by: 'vision' as const },
-    { image: 2, pages: [8], by: null }
-  ];
+  const pins = [{ image: 1, pages: [7], by: 'vision' as const }];
   const api = memoryDatasetApi({
-    volumes: { '201': { images: 3, citations: [], pages } }
+    volumes: { '201': { images: 3, citations: [], pins } }
   });
   const viewer = openAppState(api).viewer;
-  viewer.openImage({ volumeId: '201', volume: 'I Aa:201', image: 2 });
-  await Bun.sleep(0);
-  expect(viewer.pages.here.get()).toEqual(pages[1]!);
-  viewer.show(3);
+  viewer.openImage({ volumeId: '201', volume: 'I Aa:201', image: 1 });
   expect(viewer.pages.here.get()).toBeNull();
+  await Bun.sleep(0);
+  expect(viewer.pages.here.get()).toEqual({
+    image: 1,
+    pages: [7],
+    by: 'vision'
+  });
+  viewer.show(3);
+  expect(viewer.pages.here.get()).toEqual({ image: 3, pages: [9], by: null });
 });
 
 test("a page set by hand on the Image shown is told, and the Volume's citations reloaded", async () => {
-  const pages = [{ image: 2, pages: [8], by: null }];
   const api = memoryDatasetApi({
-    volumes: { '201': { images: 3, citations: [], pages } }
+    volumes: { '201': { images: 3, citations: [] } }
   });
   const viewer = openAppState(api).viewer;
   viewer.openImage({ volumeId: '201', volume: 'I Aa:201', image: 2 });
@@ -42,9 +43,9 @@ test("a page set by hand on the Image shown is told, and the Volume's citations 
 });
 
 test("the Volume's page numbers are cleared, and its citations reloaded", async () => {
-  const pages = [{ image: 2, pages: [8], by: 'hand' as const }];
+  const pins = [{ image: 2, pages: [8] }];
   const api = memoryDatasetApi({
-    volumes: { '201': { images: 3, citations: [], pages } }
+    volumes: { '201': { images: 3, citations: [], pins } }
   });
   const viewer = openAppState(api).viewer;
   viewer.openImage({ volumeId: '201', volume: 'I Aa:201', image: 2 });

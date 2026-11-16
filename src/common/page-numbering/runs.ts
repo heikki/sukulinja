@@ -9,58 +9,61 @@
 // run but an aside: a Mark of a page MyHeritage misread, where the pin
 // gives the number as cited. It places that page only.
 
-import type { PagePin } from './locate';
+import type { NumberedPin } from './index';
 
 // How far apart two Page pins of the same page may be and still be one
 // page pinned twice, the later one moving it: further, it's a page of
 // another run.
 export const SAME_PAGE_IMAGES = 10;
 
-export interface PageRun {
-  pins: PagePin[];
-  asides: PagePin[];
+export interface PageRun<P extends NumberedPin = NumberedPin> {
+  pins: P[];
+  asides: P[];
   // The Images the run can reach: from just after the run before it to
   // just before the next.
   from: number;
   to: number;
 }
 
-function first(pin: PagePin) {
+function first(pin: NumberedPin) {
   return Math.min(...pin.pages);
 }
 
 // Pages an Image the run goes at: one number a spread unless its pins
 // show otherwise.
-function pace(run: PagePin[]) {
+export function pace(run: NumberedPin[]) {
   const [a, b] = [run[0]!, run.at(-1)!];
   if (a === b) return a.pages.length;
   return (first(b) - first(a)) / (b.image - a.image);
 }
 
 // Where a run at `perImage` from `from` would be numbered on `pin`'s Image.
-function expected(from: PagePin, perImage: number, pin: PagePin) {
+function expected(from: NumberedPin, perImage: number, pin: NumberedPin) {
   return first(from) + (pin.image - from.image) * perImage;
 }
 
 // Whether `next` carries on `run` past `pin` better than a run starting
 // at `pin` would reach it.
-function carriesOn(run: PagePin[], pin: PagePin, next: PagePin) {
+function carriesOn(run: NumberedPin[], pin: NumberedPin, next: NumberedPin) {
   const perImage = pace(run);
   const old = Math.abs(first(next) - expected(run.at(-1)!, perImage, next));
   const fresh = Math.abs(first(next) - expected(pin, perImage, next));
   return first(next) >= first(run.at(-1)!) && old < fresh;
 }
 
-function numbered(pins: PagePin[]) {
+function numbered<P extends NumberedPin>(pins: P[]) {
   return pins
     .filter((p) => p.pages.length > 0)
     .toSorted((a, b) => a.image - b.image);
 }
 
 // The Volume's runs, over its `images`.
-export function runsOf(pins: PagePin[], images: number): PageRun[] {
+export function runsOf<P extends NumberedPin>(
+  pins: P[],
+  images: number
+): Array<PageRun<P>> {
   const list = numbered(pins);
-  const runs: Array<Pick<PageRun, 'pins' | 'asides'>> = [];
+  const runs: Array<Pick<PageRun<P>, 'pins' | 'asides'>> = [];
   for (const [i, pin] of list.entries()) {
     const run = runs.at(-1);
     const last = run?.pins.at(-1);
@@ -84,8 +87,8 @@ export function runsOf(pins: PagePin[], images: number): PageRun[] {
 
 // Whether two Page pins pin the same thing, so a newer one replaces the
 // other: on the same Image, or the same page near enough to be one run's.
-export function pageClash(pin: PagePin) {
-  return (p: PagePin) =>
+export function pageClash(pin: NumberedPin) {
+  return (p: NumberedPin) =>
     p.image === pin.image ||
     (Math.abs(p.image - pin.image) <= SAME_PAGE_IMAGES &&
       p.pages.some((n) => pin.pages.includes(n)));

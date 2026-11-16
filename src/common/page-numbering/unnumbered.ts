@@ -4,9 +4,9 @@
 // the counting is done over the other Images, numbered on from 1, and
 // what it gives is turned back into the Volume's own Image numbers.
 
-import type { PagePin } from './locate';
+import type { NumberedPin } from './index';
 
-export function skipping(pins: PagePin[], images: number) {
+export function skipping<P extends NumberedPin>(pins: P[], images: number) {
   const skipped = [
     ...new Set(pins.filter((p) => p.pages.length === 0).map((p) => p.image))
   ].toSorted((a, b) => a - b);

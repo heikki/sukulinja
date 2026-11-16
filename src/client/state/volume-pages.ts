@@ -37,7 +37,7 @@ export function volumePagesOf(
 
   return {
     // Those on the Image shown, read there or counted from the pins around
-    // it; null without pins, or until known.
+    // it, or as its book is numbered without any; null until known.
     here: here as Readable<ImagePages | null>,
     // Whether any Image has its pages read or set, so locating the
     // Volume's estimates needs no survey first.

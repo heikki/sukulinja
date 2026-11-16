@@ -175,7 +175,10 @@ test('without Page pins, each Image has the page its book is numbered with', asy
       { image: 2, pages: [2], by: null }
     ]);
     const lasten = await scans.pagesInVolume('juva-2', 'I Ab:1 Lastenkirjat');
-    expect(lasten[0]).toEqual({ image: 2, pages: [2, 3], by: null });
+    expect(lasten.slice(0, 2)).toEqual([
+      { image: 1, pages: [1], by: null },
+      { image: 2, pages: [2, 3], by: null }
+    ]);
   } finally {
     db.close();
   }

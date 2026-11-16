@@ -18,6 +18,7 @@
 // film places every record numbered around it there too. A Record pin puts
 // its record on a known image; so does a Reference pin its reference.
 
+import { pageNumbering } from '@/common/page-numbering';
 import type {
   Box,
   ImagePages,
@@ -34,9 +35,6 @@ import { bookKind } from '../../text';
 import type { BookKind, Years } from '../../text';
 import type { ChurchBookRef } from '../record';
 import { filmingOf, leavesOut, splitVolume } from './filming';
-import { runsOf } from './runs';
-import type { PageRun } from './runs';
-import { skipping } from './unnumbered';
 
 // Pins say who saved them; a missing `by` is by hand, which covers every
 // local file written before the vision model.
@@ -202,106 +200,6 @@ function narrowByVillage(volumes: Volume[], places: string[], pins: Pins) {
 
 // ---------------------------------------------------------------- pages
 
-interface Numbering {
-  image: number;
-  first: number;
-  pagesPerImage: number;
-}
-
-const BY_SPREAD: Numbering = { image: 1, first: 1, pagesPerImage: 1 };
-const BY_PAGE: Numbering = { image: 1, first: 0, pagesPerImage: 2 };
-
-// Where the page is counted from the book's first Image: by spread, unless
-// it's a lastenkirja or the page wouldn't fit the Volume that way.
-function numberedImage(kind: BookKind, page: number, images: number) {
-  const spread = imageFor(BY_SPREAD, page);
-  return kind === 'lasten' || spread > images
-    ? imageFor(BY_PAGE, page)
-    : spread;
-}
-
-// As numberedImage, with the Images set to have no page left out.
-function numberedFrom(pins: PagePin[], ref: ChurchBookRef, images: number) {
-  const s = skipping(pins, images);
-  const at = numberedImage(ref.kind!, ref.page!, s.images);
-  return at < 1 ? at : s.image(at);
-}
-
-function imageFor(n: Numbering, page: number) {
-  return n.image + Math.floor((page - n.first) / n.pagesPerImage);
-}
-
-// Between two Page pins a page is placed proportionally, which spreads
-// unnumbered or inserted leaves over the gap; elsewhere it's counted from
-// the nearest one. Page pins out of image order (a misread page, see
-// above) are only counted from.
-function countedImage(pins: PagePin[], page: number) {
-  const numbered = pins
-    .filter((a) => a.pages.length > 0)
-    .map((a) => ({
-      image: a.image,
-      first: Math.min(...a.pages),
-      pagesPerImage: a.pages.length
-    }))
-    .sort((a, b) => a.first - b.first);
-  const lo = numbered.filter((n) => n.first <= page).at(-1);
-  const hi = numbered.find((n) => n.first > page);
-  if (lo === undefined || hi === undefined) {
-    const only = lo ?? hi;
-    return only === undefined ? null : imageFor(only, page);
-  }
-  if (page < lo.first + lo.pagesPerImage) return lo.image;
-  if (hi.image > lo.image) {
-    const share = (page - lo.first) / (hi.first - lo.first);
-    return lo.image + Math.floor(share * (hi.image - lo.image));
-  }
-  return imageFor(page - lo.first <= hi.first - page ? lo : hi, page);
-}
-
-// Where the page is in the run, if the run reaches it: an aside giving the
-// page as cited places it, else it's counted from the run's pins.
-function runImage(run: PageRun, page: number) {
-  const aside = run.asides.find((a) => a.pages.includes(page));
-  const image = aside?.image ?? countedImage(run.pins, page);
-  return image !== null && image >= run.from && image <= run.to
-    ? { image, pins: run.pins.length }
-    : null;
-}
-
-// The pages a run puts on the Image, the inverse of placing a page: a
-// pin's own on its Image; between two, proportionally; elsewhere counted
-// from the nearest at its pace.
-function runPages(run: PageRun, image: number): ImagePages {
-  const pin = run.pins.find((p) => p.image === image);
-  if (pin !== undefined) {
-    return { image, pages: pin.pages, by: pin.by ?? 'hand' };
-  }
-  const lo = run.pins.filter((p) => p.image < image).at(-1);
-  const hi = run.pins.find((p) => p.image > image);
-  const from = lo ?? hi!;
-  const perImage = from.pages.length;
-  const first = Math.min(...from.pages);
-  let page = first + (image - from.image) * perImage;
-  if (lo !== undefined && hi !== undefined) {
-    const share = (image - lo.image) / (hi.image - lo.image);
-    const span = Math.min(...hi.pages) - first;
-    page = first + Math.round((share * span) / perImage) * perImage;
-  }
-  const pages = perImage === 2 ? [page, page + 1] : [page];
-  return { image, pages, by: null };
-}
-
-// The pages a Volume without Page pins is counted as having on the Image,
-// from its first: a lastenkirja two an Image, any other book one.
-function numberedPages(kind: BookKind | null, image: number): ImagePages {
-  const page = kind === 'lasten' ? 2 * (image - 1) : image;
-  return {
-    image,
-    pages: kind === 'lasten' ? [page, page + 1] : [page],
-    by: null
-  };
-}
-
 // The pages the Volume's Page pins put on each of its Images, as its
 // estimates count them; without pins, as its books are numbered. Of the
 // Volume `volumeId`, `label` by its label.
@@ -311,31 +209,12 @@ export async function volumePages(
   pins: Pins
 ): Promise<ImagePages[]> {
   const filming = await filmingOf(astia, volume.volumeId);
-  const s = skipping(
-    splitVolume(filming, pins).current.pages,
-    filming.files.length
-  );
-  const runs = runsOf(s.pins, s.images);
-  const kind = bookKind(volume.label);
-  const counted =
-    runs.length === 0
-      ? Array.from({ length: s.images }, (_, i) => numberedPages(kind, i + 1))
-      : runs.flatMap((run) =>
-          Array.from({ length: run.to - run.from + 1 }, (_, i) =>
-            runPages(run, run.from + i)
-          )
-        );
-  const none = s.skipped.map((image) => ({
-    image,
-    pages: [],
-    by: 'hand' as const
-  }));
-  return [
-    ...counted
-      .filter((p) => p.pages.every((n) => n > 0))
-      .map((p) => ({ ...p, image: s.image(p.image) })),
-    ...none
-  ].toSorted((a, b) => a.image - b.image);
+  const own = splitVolume(filming, pins).current;
+  return pageNumbering(
+    own.pages,
+    filming.files.length,
+    bookKind(volume.label)
+  ).pages();
 }
 
 // The Images the Volume's Record pins leave the record: after those of
@@ -351,28 +230,25 @@ function recordBounds(records: RecordPin[], recordId: number | null) {
   };
 }
 
-// Where the cited page is by the Volume's Page pins: null with none, and
-// 'overran' when no run of them reaches it. Of a Volume numbering its
-// pages over again, the run the Record pins leave the record in, else the
-// one with the most pins.
-function pinnedImage(
+// Where the cited page is, by the Volume's numbering: an Image, null
+// past the Volume, or 'overran' when no run of its Page pins reaches it.
+// Of a Volume numbering its pages over again, the run the Record pins
+// leave the record in, else the one with the most pins.
+function countedImage(
   pins: PagePin[],
   images: number,
   ref: ChurchBookRef,
   records: RecordPin[]
 ) {
-  const s = skipping(pins, images);
-  const runs = runsOf(s.pins, s.images);
-  if (runs.length === 0) return null;
-  const reached = runs.flatMap((run) => {
-    const at = runImage(run, ref.page!);
-    return at === null ? [] : [{ ...at, image: s.image(at.image) }];
-  });
+  const placing = pageNumbering(pins, images, ref.kind).place(ref.page!);
+  if (placing.from === 'numbering') return placing;
+  const reached = placing.places;
   if (reached.length === 0) return 'overran' as const;
   const { from, to } = recordBounds(records, ref.recordId);
   const fits = reached.filter((r) => r.image >= from && r.image <= to);
   const pool = fits.length > 0 ? fits : reached;
-  return pool.reduce((best, r) => (r.pins > best.pins ? r : best)).image;
+  const best = pool.reduce((a, r) => (r.pins > a.pins ? r : a));
+  return { from: 'pins' as const, image: best.image };
 }
 
 interface Located {
@@ -401,13 +277,12 @@ async function locate(
   const pinned = pin === undefined ? null : pinnedTarget(pin);
   if (pinned !== null) return { volume: v, files, target: pinned };
   if (ref.page === null) return { volume: v, files, target: ESTIMATED_VOLUME };
-  const counted = pinnedImage(own.pages, files.length, ref, own.records);
+  const counted = countedImage(own.pages, files.length, ref, own.records);
   if (counted === 'overran') {
     return { volume: v, files, target: ESTIMATED_VOLUME, overran: true };
   }
-  const image = counted ?? numberedFrom(own.pages, ref, files.length);
-  const from = counted === null ? 'numbering' : 'pins';
-  if (image < 1 || image > files.length) {
+  const { image, from } = counted;
+  if (image === null || image < 1 || image > files.length) {
     return { volume: v, files, target: ESTIMATED_VOLUME };
   }
   return {

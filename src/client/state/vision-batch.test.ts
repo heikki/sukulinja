@@ -180,7 +180,7 @@ test('a Volume whose pages are known is looked through without a survey', async 
       '201': {
         images: 40,
         citations: ROWS,
-        pages: [{ image: 12, pages: [30], by: 'vision' }]
+        pins: [{ image: 12, pages: [30], by: 'vision' }]
       }
     },
     visionPage: PAGE,

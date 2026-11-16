@@ -2,6 +2,9 @@
 // state runs without a server. It fails as the app does: unknown people,
 // Volumes and Marks throw ApiError with the server's words.
 
+import { bookKind } from '@/common/books';
+import { pageNumbering } from '@/common/page-numbering';
+import type { NumberedPin } from '@/common/page-numbering';
 import type {
   AddedPhoto,
   Applied,
@@ -36,8 +39,15 @@ export interface MemoryVolume {
   rescan?: { images: number; stale: StalePin[] };
   // The title of the archive it's in.
   archive?: string;
-  // The pages its Page pins put on its Images.
-  pages?: ImagePages[];
+  // Its Page pins, which its pages are counted from as the app counts
+  // them.
+  pins?: NumberedPin[];
+}
+
+// The pages the Volume's Page pins put on its Images, `label` by its
+// label, as the server counts them.
+function pagesOf(v: MemoryVolume, label: string): ImagePages[] {
+  return pageNumbering(v.pins ?? [], v.images, bookKind(label)).pages();
 }
 
 export interface MemoryDataset {
@@ -291,34 +301,48 @@ export function memoryDatasetApi(
         () => volume(volumeId).citations
       ),
 
-    volumePages: async ({ volumeId }, signal) =>
-      await answer(`pages ${volumeId}`, signal, () => [
-        ...(volume(volumeId).pages ?? [])
-      ]),
+    volumePages: async ({ volumeId, volume: label }, signal) =>
+      await answer(`pages ${volumeId}`, signal, () =>
+        pagesOf(volume(volumeId), label)
+      ),
 
-    // A hand Page pin replaces whatever was told of the Image, alone: the
-    // pages around it aren't counted anew.
-    setImagePage: async ({ volumeId, image }, pages) =>
+    // A hand Page pin replaces any pin on the Image: the pages around it
+    // are counted anew, though the estimates aren't.
+    setImagePage: async ({ volumeId, volume: label, image }, pages) =>
       await answer(
         `page ${volumeId}/${image} ${pages?.join('-') ?? 'none'}`,
         undefined,
         () => {
           const shown = volume(volumeId);
-          const others = (shown.pages ?? []).filter((p) => p.image !== image);
-          const set =
-            pages === null ? [] : [{ image, pages, by: 'hand' as const }];
-          shown.pages = [...others, ...set].toSorted(
-            (a, b) => a.image - b.image
+          const others = (shown.pins ?? []).filter((p) => p.image !== image);
+          const numbering = pageNumbering(
+            others,
+            shown.images,
+            bookKind(label)
           );
-          return [...shown.pages];
+          const set =
+            pages === null
+              ? []
+              : [
+                  {
+                    image,
+                    pages:
+                      pages.length === 1
+                        ? numbering.pinPages(pages[0]!)
+                        : pages,
+                    by: 'hand' as const
+                  }
+                ];
+          shown.pins = [...others, ...set];
+          return pagesOf(shown, label);
         }
       ),
 
-    // Without pins, no pages are told.
-    clearVolumePages: async ({ volumeId }) =>
+    clearVolumePages: async ({ volumeId, volume: label }) =>
       await answer(`pages cleared ${volumeId}`, undefined, () => {
-        volume(volumeId).pages = [];
-        return [];
+        const shown = volume(volumeId);
+        shown.pins = [];
+        return pagesOf(shown, label);
       }),
 
     // Every Volume given is taken as the archive's.

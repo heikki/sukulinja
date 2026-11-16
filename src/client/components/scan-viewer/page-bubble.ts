@@ -162,7 +162,7 @@ class ScanPageElement extends SignalWatcher(LitElement) {
         ? 'skipped'
         : pages.length === 1
           ? `page ${pages[0]}`
-          : `pages ${pages.join('–')}`;
+          : `pages ${pages[0]}–${pages.at(-1)}`;
     return html`<button
       class=${by === null ? 'bubble counted' : 'bubble'}
       title=${
@@ -198,7 +198,10 @@ class ScanPageElement extends SignalWatcher(LitElement) {
       : null;
     if (here === null) return nothing;
     if (this.editing) {
-      return html`${this.renderEditing(here.pages)}
+      // A counted Image may have more pages placed on it than are written
+      // there: its first is typed, the Volume's pace giving the rest.
+      const typed = here.by === null ? here.pages.slice(0, 1) : here.pages;
+      return html`${this.renderEditing(typed)}
       ${this.refused === null ? nothing : html`<p class="refused">${this.refused}</p>`}`;
     }
     return html`${this.renderShown(here)}

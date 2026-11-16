@@ -28,6 +28,8 @@
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import { bookKind } from '@/common/books';
+import { pageClash, pageNumbering } from '@/common/page-numbering';
 import type { Box } from '@/common/types';
 
 import type { CitationLink } from '../../annotations';
@@ -60,7 +62,6 @@ import type {
   VolumePins
 } from './locate';
 import type { Marks } from './marks';
-import { pageClash } from './runs';
 
 // ---------------------------------------------------------------- merging
 
@@ -251,15 +252,14 @@ function addPagePin(
 }
 
 // A volume numbered by page carries two numbers per image; the new Page pin
-// follows the ones already in that volume, or the book type.
-function pagesFor(draft: Draft, volumeId: string, ref: ChurchBookRef) {
-  const page = ref.page!;
-  const known = mergedVolumes(draft)[volumeId]?.pages ?? [];
-  const twoPages =
-    known.length > 0
-      ? known.some((a) => a.pages.length === 2)
-      : ref.kind === 'lasten';
-  return twoPages ? [page, page + 1] : [page];
+// follows the ones already in that volume, or how it's counted.
+function pagesFor(draft: Draft, ref: ChurchBookRef) {
+  const { filming } = draft;
+  const known = mergedVolumes(draft)[filming.volumeId]?.pages ?? [];
+  const { current } = split(filming, known);
+  return pageNumbering(current, filming.files.length, ref.kind).pinPages(
+    ref.page!
+  );
 }
 
 // The pages a Page pin for the reference's cited page gives on `image`.
@@ -271,7 +271,7 @@ function pagePin(
 ): PagePin {
   return {
     image,
-    pages: pagesFor(draft, draft.filming.volumeId, ref),
+    pages: pagesFor(draft, ref),
     note: by === 'hand' ? 'marked in the app' : 'read by the vision model',
     by,
     ...fileOf(draft.filming, image)
@@ -410,14 +410,18 @@ export function openVolumeFacts(folder: string, options: { astia: Astia }) {
             (p) => !(p.image === image && current.includes(p))
           );
         } else {
-          const twoPages = current.some((p) => p.pages.length === 2);
+          const numbering = pageNumbering(
+            current,
+            filming.files.length,
+            bookKind(volume)
+          );
           const [page] = pages as [number];
           addPagePin(
             draft,
             volume,
             {
               image,
-              pages: pages.length === 1 && twoPages ? [page, page + 1] : pages,
+              pages: pages.length === 1 ? numbering.pinPages(page) : pages,
               note: 'set in the Scan viewer',
               by: 'hand',
               ...fileOf(filming, image)
