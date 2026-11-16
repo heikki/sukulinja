@@ -123,23 +123,36 @@ function onImage(r: PageReading, image: number) {
   return first(r) + (image - r.image) * r.pages.length;
 }
 
-// Each reading, in Image order, with the leading digits the model lost
-// put back: a number that is the end of the one a reading near it puts on
-// its Image, such as 127 where that gives 1127. Those lost in a run agree
-// with each other, and would be taken for the numbering starting over.
-// Only four-digit numbers are put back so: a part of a book ending at page
+// Whether `read` is `p` with its leading digits misread: lost, as 127 for
+// 1127, or one read too high, as 915 for 215. Either in a run agrees with
+// itself, and would be taken for the numbering starting over. Lost ones
+// are only taken so of four-digit numbers: a part of a book ending at page
 // 100 or 200 and the next starting at 1 reads just like a lost digit, one
-// ending at page 1000 or 2000 hardly.
+// ending at page 1000 or 2000 hardly. A numbering never goes up anew by
+// hundreds, so a leading digit read too high is any number's.
 const LONG_NUMBER = 1000;
 
+function leadingMisread(read: number, p: number) {
+  const digits = String(read).length;
+  if (p >= LONG_NUMBER && p > read) return p % 10 ** digits === read;
+  const rest = 10 ** (digits - 1);
+  return (
+    digits > 1 &&
+    String(p).length === digits &&
+    read > p &&
+    read % rest === p % rest
+  );
+}
+
+// Each reading, in Image order, with its leading digits put back where
+// they were misread of the number a reading near it puts on its Image.
 function withLeadingDigits(sorted: PageReading[]) {
   return sorted.map((r, i) => {
     const read = first(r);
-    const ends = 10 ** String(read).length;
     const whole = sorted
       .filter((_, k) => k !== i && Math.abs(k - i) <= NEAR)
       .map((n) => onImage(n, r.image))
-      .find((p) => p >= LONG_NUMBER && p > read && p % ends === read);
+      .find((p) => leadingMisread(read, p));
     return whole === undefined
       ? r
       : { ...r, pages: r.pages.map((p) => p - read + whole) };

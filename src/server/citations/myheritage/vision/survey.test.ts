@@ -169,3 +169,15 @@ test('puts back the leading digit lost in a run of readings, not taking it for t
     expect(pages).toEqual([image + 956]);
   }
 });
+
+test('puts back a leading digit read too high in a run of readings', async () => {
+  // 204 to 254 read with a 9 for their 2, on Images 190 to 240.
+  const { reader } = reading((n) => ({
+    pages: [n >= 190 && n <= 240 ? n + 714 : n + 14]
+  }));
+  const survey = await surveyVolume(reader, { volumeId: 'v', images: 300 });
+  expect(survey.settled).toBe(true);
+  for (const { image, pages } of survey.readings) {
+    expect(pages).toEqual([image + 14]);
+  }
+});
