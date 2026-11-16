@@ -52,6 +52,11 @@ class ScanPageElement extends SignalWatcher(LitElement) {
       cursor: text;
     }
 
+    /* Counted from the pins around it, not read here: dimmer. */
+    .bubble.counted {
+      color: var(--muted);
+    }
+
     input.bubble {
       width: 9ch;
       outline: none;
@@ -154,7 +159,7 @@ class ScanPageElement extends SignalWatcher(LitElement) {
     const named =
       pages.length === 1 ? `page ${pages[0]}` : `pages ${pages.join('–')}`;
     return html`<button
-      class="bubble"
+      class=${by === null ? 'bubble counted' : 'bubble'}
       title=${
         by === null
           ? 'Counted, not read here. Click to set the page written on this Image'
