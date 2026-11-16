@@ -205,3 +205,24 @@ test('puts back the leading digit two readings misread alike, among more read ri
     expect(pages).toEqual([image + 14]);
   }
 });
+
+test('puts back digits misread among more read right, and keeps a leaf missing', async () => {
+  // Page 160 missing: Image 162 holds 161. Images 160 and 161 read with an
+  // 8 for their tens' 5, Image 246 with its 4 twice.
+  function truth(n: number) {
+    return n < 162 ? n - 2 : n - 1;
+  }
+  function read(n: number) {
+    if (n === 160 || n === 161) return truth(n) + 30;
+    if (n === 246) return Number(String(truth(n)).replace('4', '44'));
+    return truth(n);
+  }
+  const { reader } = reading((n) => ({ pages: [read(n)] }));
+  const survey = await surveyVolume(reader, { volumeId: 'v', images: 320 });
+  expect(survey.settled).toBe(true);
+  for (const { image, pages } of survey.readings) {
+    expect(pages).toEqual([truth(image)]);
+  }
+  expect(survey.readings).toContainEqual({ image: 165, pages: [164] });
+  expect(survey.readings).toContainEqual({ image: 162, pages: [161] });
+});

@@ -123,29 +123,37 @@ function onImage(r: PageReading, image: number) {
   return first(r) + (image - r.image) * r.pages.length;
 }
 
-// Whether `read` is `p` with its leading digits misread: lost, as 127 for
-// 1127, or one read too high, as 915 for 215. Either in a run agrees with
-// itself, and would be taken for the numbering starting over. Lost ones
-// are only taken so of four-digit numbers: a part of a book ending at page
-// 100 or 200 and the next starting at 1 reads just like a lost digit, one
-// ending at page 1000 or 2000 hardly. A numbering never goes up anew by
-// hundreds, so a leading digit read too high is any number's.
+// Whether `read` is `p` with a digit misread: its leading digits lost, as
+// 127 for 1127; one digit other than the last read wrong, as 915 for 215;
+// or one read twice, as 2446 for 246. Misread alike in a run, they agree
+// with each other, and would be taken for the numbering starting over.
+// The last digit read wrong is a leaf missing or inserted as much as a
+// misreading, and is left to the survey to close in on. Lost ones are
+// only taken so of four-digit numbers: a part of a book ending at page 100
+// or 200 and the next starting at 1 reads just like a lost digit, one
+// ending at page 1000 or 2000 hardly.
 const LONG_NUMBER = 1000;
 
-function leadingMisread(read: number, p: number) {
-  const digits = String(read).length;
-  if (p >= LONG_NUMBER && p > read) return p % 10 ** digits === read;
-  const rest = 10 ** (digits - 1);
+function digitMisread(read: number, p: number) {
+  const r = String(read);
+  const q = String(p);
+  if (p >= LONG_NUMBER && p > read) return p % 10 ** r.length === read;
+  if (r.length === q.length) {
+    const wrong = Array.from(r.matchAll(/\d/gu), (m) => m.index).filter(
+      (k) => r[k] !== q[k]
+    );
+    return wrong.length === 1 && wrong[0] !== r.length - 1;
+  }
   return (
-    digits > 1 &&
-    String(p).length === digits &&
-    read > p &&
-    read % rest === p % rest
+    r.length === q.length + 1 &&
+    Array.from(r.matchAll(/\d/gu), (m) => m.index).some(
+      (k) => r[k] === r[k + 1] && r.slice(0, k) + r.slice(k + 1) === q
+    )
   );
 }
 
-// Each reading, in Image order, with its leading digits put back where
-// they were misread of the number a reading near it puts on its Image,
+// Each reading, in Image order, with its digits put back where they were
+// misread of the number a reading near it puts on its Image,
 // and more of the readings near it are on that one's line than on its
 // own: two misread alike agree with each other, and would otherwise pull
 // the readings around them to their line.
@@ -161,9 +169,9 @@ function withLeadingDigits(sorted: PageReading[]) {
     }
     const own = support(lines[i]!);
     const whole = near
-      .filter(({ n, line }) => n !== r && support(line) > own)
+      .filter(({ n, line }) => n !== r && support(line) > Math.max(own, 2))
       .map(({ n }) => onImage(n, r.image))
-      .find((p) => leadingMisread(read, p));
+      .find((p) => digitMisread(read, p));
     return whole === undefined
       ? r
       : { ...r, pages: r.pages.map((p) => p - read + whole) };
