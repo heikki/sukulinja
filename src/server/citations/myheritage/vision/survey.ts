@@ -118,11 +118,41 @@ function atPace(readings: PageReading[]) {
   );
 }
 
+// The number a reading's pace puts on `image`.
+function onImage(r: PageReading, image: number) {
+  return first(r) + (image - r.image) * r.pages.length;
+}
+
+// Each reading, in Image order, with the leading digits the model lost
+// put back: a number that is the end of the one a reading near it puts on
+// its Image, such as 127 where that gives 1127. Those lost in a run agree
+// with each other, and would be taken for the numbering starting over.
+// Only four-digit numbers are put back so: a part of a book ending at page
+// 100 or 200 and the next starting at 1 reads just like a lost digit, one
+// ending at page 1000 or 2000 hardly.
+const LONG_NUMBER = 1000;
+
+function withLeadingDigits(sorted: PageReading[]) {
+  return sorted.map((r, i) => {
+    const read = first(r);
+    const ends = 10 ** String(read).length;
+    const whole = sorted
+      .filter((_, k) => k !== i && Math.abs(k - i) <= NEAR)
+      .map((n) => onImage(n, r.image))
+      .find((p) => p >= LONG_NUMBER && p > read && p % ends === read);
+    return whole === undefined
+      ? r
+      : { ...r, pages: r.pages.map((p) => p - read + whole) };
+  });
+}
+
 // Each reading, in Image order, as the choice of its numbers most of the
 // readings near it share the line of (all it read, where none does), less
 // the misreadings.
 function settle(readings: PageReading[]) {
-  const sorted = atPace(readings).toSorted((a, b) => a.image - b.image);
+  const sorted = withLeadingDigits(
+    atPace(readings).toSorted((a, b) => a.image - b.image)
+  );
   const lines = sorted.map((r) => new Set(choices(r).map(lineOf)));
   const chosen = sorted.map((r, i) => {
     const near = lines.filter((_, k) => k !== i && Math.abs(k - i) <= NEAR);

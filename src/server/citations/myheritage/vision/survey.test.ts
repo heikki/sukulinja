@@ -157,3 +157,15 @@ test('a digit misread where the survey ends, agreeing with no neighbour, is not 
   expect(survey.readings.some((r) => r.image === 190)).toBe(false);
   expect(survey.readings.every((r) => r.pages[0] === r.image + 955)).toBe(true);
 });
+
+test('puts back the leading digit lost in a run of readings, not taking it for the numbering starting over', async () => {
+  // 1101 to 1131 read without their 1, on Images 145 to 175.
+  const { reader } = reading((n) => ({
+    pages: [n >= 145 && n <= 175 ? n - 44 : n + 956]
+  }));
+  const survey = await surveyVolume(reader, { volumeId: 'v', images: 200 });
+  expect(survey.settled).toBe(true);
+  for (const { image, pages } of survey.readings) {
+    expect(pages).toEqual([image + 956]);
+  }
+});
