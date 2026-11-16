@@ -1,5 +1,5 @@
 import type { Database } from 'bun:sqlite';
-import { relative, resolve } from 'node:path';
+import { resolve } from 'node:path';
 
 import { APP_OPERATIONS, OPERATIONS } from '@/common/operations';
 
@@ -20,6 +20,7 @@ import type { DatasetRegistry } from './datasets/registry';
 import { openServices } from './datasets/services';
 import type { DatasetServices } from './datasets/services';
 import { factOperations } from './facts/operations';
+import { isInside } from './inside';
 import { serveOperations } from './operations';
 import type { Handler } from './operations';
 import { treeOperations } from './persons/operations';
@@ -43,7 +44,7 @@ interface DatasetHandlers {
 async function serveMedia(mediaDir: string, rest: string) {
   const rel = decodeURIComponent(rest.slice('/media/'.length));
   const fullPath = resolve(mediaDir, rel);
-  if (relative(mediaDir, fullPath).startsWith('..')) {
+  if (!isInside(mediaDir, fullPath)) {
     return new Response('forbidden', { status: 403 });
   }
   const file = Bun.file(fullPath);

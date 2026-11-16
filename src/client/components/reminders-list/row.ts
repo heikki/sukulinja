@@ -8,7 +8,7 @@ import { focusRingStyles } from '@/client/focus-ring';
 import { isStale } from '@/client/on';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
-import { typing } from '@/client/typing';
+import { keepTyping } from '@/client/typing';
 import type { Reminder } from '@/common/types';
 
 import { onLines, renderLines } from './lines';
@@ -16,7 +16,7 @@ import { reminderStyles } from './styles';
 
 // A Reminder in the list: its text, then what it's on, each line going
 // there; under it Edit, Done or Reopen, and Delete. Edit turns the text into
-// a field, saved with Save or ⌘Enter. One refused says why.
+// a field, saved with Save. One refused says why.
 @customElement('sl-reminder-row')
 class ReminderRowElement extends SignalWatcher(LitElement) {
   static override styles = [focusRingStyles, reminderStyles];
@@ -47,16 +47,6 @@ class ReminderRowElement extends SignalWatcher(LitElement) {
     });
   }
 
-  private readonly onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Enter' && e.metaKey) {
-      e.preventDefault();
-      e.stopPropagation();
-      void this.save();
-    } else if (typing(e)) {
-      e.stopPropagation();
-    }
-  };
-
   // Set on Edit, so the field takes focus once it's drawn.
   private focusField = false;
 
@@ -70,7 +60,7 @@ class ReminderRowElement extends SignalWatcher(LitElement) {
     return html`<textarea
         aria-label="Reminder"
         .value=${text}
-        @keydown=${this.onKeyDown}
+        @keydown=${keepTyping}
         @input=${(e: Event) => {
           this.typed = (e.target as HTMLTextAreaElement).value;
         }}

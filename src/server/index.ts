@@ -80,14 +80,22 @@ const server = Bun.serve({
   }
 });
 
+// Hiding the app is macOS's; elsewhere the app's menu has only Quit.
+const hideItems =
+  process.platform === 'darwin'
+    ? ([
+        { role: 'hide', accelerator: 'CmdOrCtrl+H' },
+        { role: 'hideOthers', accelerator: 'Alt+CmdOrCtrl+H' },
+        { role: 'showAll' },
+        { type: 'divider' }
+      ] as const)
+    : [];
+
 ApplicationMenu.setApplicationMenu([
   {
     label: 'Sukulinja',
     submenu: [
-      { role: 'hide', accelerator: 'CmdOrCtrl+H' },
-      { role: 'hideOthers', accelerator: 'Alt+CmdOrCtrl+H' },
-      { role: 'showAll' },
-      { type: 'divider' },
+      ...hideItems,
       {
         label: 'Quit Sukulinja',
         action: 'quit',

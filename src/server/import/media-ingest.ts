@@ -1,9 +1,10 @@
 import { mkdir } from 'node:fs/promises';
-import { extname, isAbsolute, relative, resolve } from 'node:path';
+import { extname, resolve } from 'node:path';
 
 import { storeMediaFile } from '../datasets/media-files';
 import { localPaths, storedPaths } from '../gedcom/media-refs';
 import type { GedNode } from '../gedcom/parser';
+import { isInside } from '../inside';
 import { runPool } from './pool';
 
 // Each worker reads a whole file into memory to hash it, so keep the in-flight
@@ -47,10 +48,7 @@ async function existing(sourceDir: string, relpaths: string[]) {
   const inside = relpaths
     .flatMap(localPaths)
     .map((path) => resolve(sourceDir, path))
-    .filter((abs) => {
-      const rel = relative(sourceDir, abs);
-      return rel !== '..' && !rel.startsWith('../') && !isAbsolute(rel);
-    });
+    .filter((abs) => isInside(sourceDir, abs));
   const found = await Promise.all(inside.map((abs) => Bun.file(abs).exists()));
   return inside.find((_, i) => found[i] === true) ?? null;
 }
