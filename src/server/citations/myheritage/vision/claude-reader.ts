@@ -38,7 +38,7 @@ type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 // household table, then the date written for the entry; dates gained the
 // register, then dates in any register.
 const VERSIONS: Partial<Record<Question, string>> = {
-  pages: '6',
+  pages: '7',
   dates: '3',
   entry: '4'
 };
@@ -64,12 +64,12 @@ Answer only from what is written on the image you are shown. When you can't make
 // A spread's page number is at its top left: a book numbering spreads
 // writes it there, and one numbering pages its left page's, the right
 // page's following it (the survey tells the two apart by their pace). That
-// corner alone is sent, at a sharper scale than the whole spread allows,
-// and without a printed form's own numbers in the other corner to draw the
-// model off a faint handwritten one.
-const PAGE_CORNER: Region = { left: 0, top: 0, width: 0.4, height: 0.25 };
+// corner alone is sent, enlarged, tight enough to leave out a printed
+// form's entry numbers and column headings, which drew the model off the
+// handwritten number; read digit by digit, fewer digits are lost.
+const PAGE_CORNER: Region = { left: 0, top: 0, width: 0.2, height: 0.12 };
 
-const PAGES_PROMPT = `This is the top left corner of a spread in a church book. What is its page number? Give each page number you see, and whether it is handwritten or printed. If there is none, answer readable: false.`;
+const PAGES_PROMPT = `This is the top left corner of a spread in a church book. Its page number is handwritten in ink at the very top left: a large number, often with a flourish under or through it. Ignore printed numbers, column headings and entry numbers. Read the page number one digit at a time, from left to right, counting every digit, then give the whole number. If there is none, answer readable: false.`;
 
 const DATES_PROMPT = `This image is from a parish register, whose entries run in date order. One book may hold several registers one after another: baptisms, marriages, deaths and burials, moves.
 
@@ -199,20 +199,10 @@ const SCHEMAS: Record<Question, Record<string, unknown>> = {
     type: 'object',
     properties: {
       readable: { type: 'boolean' },
-      pages: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            number: { type: 'integer' },
-            handwritten: { type: 'boolean' }
-          },
-          required: ['number', 'handwritten'],
-          additionalProperties: false
-        }
-      }
+      digits: { type: 'array', items: { type: 'integer' } },
+      number: { type: 'integer' }
     },
-    required: ['readable', 'pages'],
+    required: ['readable', 'digits', 'number'],
     additionalProperties: false
   },
   dates: {
@@ -295,25 +285,16 @@ function parsed(response: Anthropic.Beta.BetaMessage): unknown {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-// The page number read in the top left corner: the handwritten one, where
-// there is one, as a printed form's own number is the book's only where it
-// has no other.
+// The page number read in the top left corner; its digits, read one by
+// one before it, are the model's working.
 export function toPages(
-  json: {
-    readable: boolean;
-    pages: Array<{ number: number; handwritten: boolean }>;
-  } | null
+  json: { readable: boolean; digits: number[]; number: number } | null
 ): PagesReading {
   if (json?.readable !== true) return UNREADABLE;
-  const read = json.pages.filter(
-    (p) => Number.isInteger(p.number) && p.number > 0
-  );
-  const byHand = read.filter((p) => p.handwritten);
-  const pages = [
-    ...new Set((byHand.length > 0 ? byHand : read).map((p) => p.number))
-  ];
-  if (pages.length === 0) return UNREADABLE;
-  return byHand.length === 0 ? { pages, printed: true } : { pages };
+  const { number } = json;
+  return Number.isInteger(number) && number > 0
+    ? { pages: [number] }
+    : UNREADABLE;
 }
 
 function toDates(json: {

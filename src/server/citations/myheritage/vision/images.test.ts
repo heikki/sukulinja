@@ -35,10 +35,11 @@ test('a scan is scaled to what the models take', async () => {
   });
 });
 
-test('a region of it is cut out at its own size, where that fits', async () => {
+test('a region of it is cut out and enlarged to what the models take', async () => {
   const corner = { left: 0.6, top: 0, width: 0.4, height: 0.25 };
   const sent = await fitted(scan(), corner);
-  expect(sent).toMatchObject({ width: 1600, height: 750 });
+  // 1600 × 750 in the scan.
+  expect(sent).toMatchObject({ width: 2576, height: 1208 });
   // All of it from the white corner; the whole scan mostly dark.
   expect(await brightness(sent.bytes)).toBeGreaterThan(250);
   expect(await brightness((await fitted(scan(), null)).bytes)).toBeLessThan(40);

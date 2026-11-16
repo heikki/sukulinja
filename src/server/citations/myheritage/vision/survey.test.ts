@@ -140,21 +140,6 @@ test("takes the book's numbers where an Image carries another numbering too", as
   }
 });
 
-test("a Volume numbered by hand leaves out the printed form's numbers read where the hand was missed", async () => {
-  // Handwritten from 955 on; where that's missed (every third Image), the
-  // form's printed number, slower.
-  const { reader } = reading((n) =>
-    n % 3 === 0
-      ? { pages: [Math.round(0.8 * n)], printed: true as const }
-      : { pages: [n + 955] }
-  );
-  const survey = await surveyVolume(reader, { volumeId: 'v', images: 360 });
-  expect(survey.settled).toBe(true);
-  for (const { image, pages } of survey.readings) {
-    expect(pages).toEqual([image + 955]);
-  }
-});
-
 test("a page-numbered book read at the top left alone is told by its pace, each Image's right page following", async () => {
   const { reader } = reading((n) => ({ pages: [2 * n - 1] }));
   const survey = await surveyVolume(reader, { volumeId: 'v', images: 200 });

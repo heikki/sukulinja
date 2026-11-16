@@ -120,22 +120,15 @@ test('asks for everyone at once, each by number', () => {
   expect(prompt).not.toContain('Name: …');
 });
 
-function hand(number: number) {
-  return { number, handwritten: true };
-}
-function printed(number: number) {
-  return { number, handwritten: false };
-}
-
-test("a printed form's number gives way to the handwritten one", () => {
-  expect(toPages({ readable: true, pages: [printed(18), hand(983)] })).toEqual({
+test('the page number is read whole, after its digits', () => {
+  expect(toPages({ readable: true, digits: [9, 8, 3], number: 983 })).toEqual({
     pages: [983]
   });
-  // Where the book has no other, the printed number is its own.
-  expect(toPages({ readable: true, pages: [printed(18)] })).toEqual({
-    pages: [18],
-    printed: true
+  expect(toPages({ readable: true, digits: [], number: 0 })).toEqual({
+    unreadable: true
   });
-  expect(toPages({ readable: true, pages: [] })).toEqual({ unreadable: true });
+  expect(toPages({ readable: false, digits: [], number: 0 })).toEqual({
+    unreadable: true
+  });
   expect(toPages(null)).toEqual({ unreadable: true });
 });

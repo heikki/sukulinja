@@ -42,8 +42,6 @@ const BESIDE = [1, -1, 2, -2];
 export interface PageReading {
   image: number;
   pages: number[];
-  // Only a printed form's numbers read on it.
-  printed?: true;
 }
 
 export interface Survey {
@@ -120,22 +118,11 @@ function atPace(readings: PageReading[]) {
   );
 }
 
-// A Volume numbered by hand on enough of its Images: the readings of a
-// printed form's numbers, where the handwritten were missed, are left out.
-const BY_HAND_SHARE = 0.25;
-
-function byHand(readings: PageReading[]) {
-  const hand = readings.filter((r) => r.printed !== true);
-  const numbered =
-    hand.length >= 3 && hand.length >= BY_HAND_SHARE * readings.length;
-  return numbered ? hand : readings;
-}
-
 // Each reading, in Image order, as the choice of its numbers most of the
 // readings near it share the line of (all it read, where none does), less
 // the misreadings.
 function settle(readings: PageReading[]) {
-  const sorted = atPace(byHand(readings)).toSorted((a, b) => a.image - b.image);
+  const sorted = atPace(readings).toSorted((a, b) => a.image - b.image);
   const lines = sorted.map((r) => new Set(choices(r).map(lineOf)));
   const chosen = sorted.map((r, i) => {
     const near = lines.filter((_, k) => k !== i && Math.abs(k - i) <= NEAR);
@@ -266,11 +253,7 @@ export async function surveyVolume(
       if (!('unreadable' in reading) && reading.pages.length > 0) {
         // A spread's number written on both pages counts once.
         const pages = [...new Set(reading.pages)];
-        readings.push(
-          reading.printed === true
-            ? { image: at, pages, printed: true }
-            : { image: at, pages }
-        );
+        readings.push({ image: at, pages });
         return;
       }
     }

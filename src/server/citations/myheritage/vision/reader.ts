@@ -32,9 +32,7 @@ export interface Unreadable {
 
 // The Page numbers written on the Image: one for a book numbering spreads,
 // two for one numbering pages.
-// `printed` where the numbers read were a printed form's alone, none
-// written by hand.
-export type PagesReading = { pages: number[]; printed?: true } | Unreadable;
+export type PagesReading = { pages: number[] } | Unreadable;
 
 // Which register an Image's entries are in: one Volume may hold its
 // marriages and its baptisms one after the other, each in date order.

@@ -16,10 +16,13 @@ const MAX_EDGE = 2576;
 const MAX_PIXELS = 3.75e6;
 const JPEG_QUALITY = 85;
 
-// The longest edge that keeps the scan within the models' limits.
-function fittedEdge(width: number, height: number) {
+// The longest edge that keeps the scan within the models' limits; a
+// region of one is enlarged up to them too, as the models read small
+// handwriting better so.
+function fittedEdge(width: number, height: number, enlarge: boolean) {
   const area = Math.sqrt(MAX_PIXELS / (width * height));
-  const scale = Math.min(1, MAX_EDGE / Math.max(width, height), area);
+  const most = Math.min(MAX_EDGE / Math.max(width, height), area);
+  const scale = enlarge ? most : Math.min(1, most);
   return Math.floor(Math.max(width, height) * scale);
 }
 
@@ -57,7 +60,7 @@ export async function fitted(
       height
     });
   }
-  const edge = fittedEdge(width, height);
+  const edge = fittedEdge(width, height, region !== null);
   const scale = edge / Math.max(width, height);
   const scaled = {
     width: Math.round(width * scale),
