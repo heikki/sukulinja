@@ -36,6 +36,7 @@ import type { ChurchBookRef } from '../record';
 import { filmingOf, leavesOut, splitVolume } from './filming';
 import { runsOf } from './runs';
 import type { PageRun } from './runs';
+import { skipping } from './unnumbered';
 
 // Pins say who saved them; a missing `by` is by hand, which covers every
 // local file written before the vision model.
@@ -219,6 +220,13 @@ function numberedImage(kind: BookKind, page: number, images: number) {
     : spread;
 }
 
+// As numberedImage, with the Images set to have no page left out.
+function numberedFrom(pins: PagePin[], ref: ChurchBookRef, images: number) {
+  const s = skipping(pins, images);
+  const at = numberedImage(ref.kind!, ref.page!, s.images);
+  return at < 1 ? at : s.image(at);
+}
+
 function imageFor(n: Numbering, page: number) {
   return n.image + Math.floor((page - n.first) / n.pagesPerImage);
 }
@@ -303,19 +311,31 @@ export async function volumePages(
   pins: Pins
 ): Promise<ImagePages[]> {
   const filming = await filmingOf(astia, volume.volumeId);
-  const images = filming.files.length;
-  const runs = runsOf(splitVolume(filming, pins).current.pages, images);
-  if (runs.length === 0) {
-    const kind = bookKind(volume.label);
-    return Array.from({ length: images }, (_, i) =>
-      numberedPages(kind, i + 1)
-    ).filter((p) => p.pages[0]! > 0);
-  }
-  return runs.flatMap((run) =>
-    Array.from({ length: run.to - run.from + 1 }, (_, i) =>
-      runPages(run, run.from + i)
-    ).filter((p) => p.pages.every((n) => n > 0))
+  const s = skipping(
+    splitVolume(filming, pins).current.pages,
+    filming.files.length
   );
+  const runs = runsOf(s.pins, s.images);
+  const kind = bookKind(volume.label);
+  const counted =
+    runs.length === 0
+      ? Array.from({ length: s.images }, (_, i) => numberedPages(kind, i + 1))
+      : runs.flatMap((run) =>
+          Array.from({ length: run.to - run.from + 1 }, (_, i) =>
+            runPages(run, run.from + i)
+          )
+        );
+  const none = s.skipped.map((image) => ({
+    image,
+    pages: [],
+    by: 'hand' as const
+  }));
+  return [
+    ...counted
+      .filter((p) => p.pages.every((n) => n > 0))
+      .map((p) => ({ ...p, image: s.image(p.image) })),
+    ...none
+  ].toSorted((a, b) => a.image - b.image);
 }
 
 // The Images the Volume's Record pins leave the record: after those of
@@ -341,11 +361,12 @@ function pinnedImage(
   ref: ChurchBookRef,
   records: RecordPin[]
 ) {
-  const runs = runsOf(pins, images);
+  const s = skipping(pins, images);
+  const runs = runsOf(s.pins, s.images);
   if (runs.length === 0) return null;
   const reached = runs.flatMap((run) => {
     const at = runImage(run, ref.page!);
-    return at === null ? [] : [at];
+    return at === null ? [] : [{ ...at, image: s.image(at.image) }];
   });
   if (reached.length === 0) return 'overran' as const;
   const { from, to } = recordBounds(records, ref.recordId);
@@ -384,7 +405,7 @@ async function locate(
   if (counted === 'overran') {
     return { volume: v, files, target: ESTIMATED_VOLUME, overran: true };
   }
-  const image = counted ?? numberedImage(ref.kind!, ref.page, files.length);
+  const image = counted ?? numberedFrom(own.pages, ref, files.length);
   const from = counted === null ? 'numbering' : 'pins';
   if (image < 1 || image > files.length) {
     return { volume: v, files, target: ESTIMATED_VOLUME };

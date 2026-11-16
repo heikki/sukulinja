@@ -25,7 +25,8 @@ const HOW = {
 // number is written. Read there, by the vision model (tagged AI) or set by
 // hand, or counted (≈) from the Page pins around it, or the book's
 // numbering without any. Clicked, it takes the page written there, or a spread's
-// two ("4-5"): Enter sets them by hand, which the estimates around it
+// two ("4-5"), or nothing for an Image without a page number, left out
+// of the counting: Enter sets them by hand, which the estimates around it
 // count from. Escape, or clicking elsewhere, leaves it as it was. A page
 // read or set here has a × beside it that takes it away, the Image then
 // counted; a later survey may read it again. Pointer and
@@ -130,7 +131,7 @@ class ScanPageElement extends SignalWatcher(LitElement) {
         } else if (e.key === 'Enter') {
           const pages = typedPages(input.value);
           if (pages === null) {
-            this.refused = 'A page, or a spread’s two such as 4-5.';
+            this.refused = 'A page, a spread’s two such as 4-5, or none.';
           } else {
             void this.save(pages);
           }
@@ -157,7 +158,11 @@ class ScanPageElement extends SignalWatcher(LitElement) {
 
   private renderShown({ pages, by }: ImagePages) {
     const named =
-      pages.length === 1 ? `page ${pages[0]}` : `pages ${pages.join('–')}`;
+      pages.length === 0
+        ? 'no page'
+        : pages.length === 1
+          ? `page ${pages[0]}`
+          : `pages ${pages.join('–')}`;
     return html`<button
       class=${by === null ? 'bubble counted' : 'bubble'}
       title=${

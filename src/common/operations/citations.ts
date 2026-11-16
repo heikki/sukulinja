@@ -33,7 +33,7 @@ import {
 function isPages(value: unknown): value is number[] {
   if (!Array.isArray(value) || !value.every(isId)) return false;
   return (
-    value.length === 1 || (value.length === 2 && value[1] === value[0]! + 1)
+    value.length <= 1 || (value.length === 2 && value[1] === value[0]! + 1)
   );
 }
 

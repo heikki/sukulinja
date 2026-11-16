@@ -202,6 +202,33 @@ test('a page set by hand on an Image keeps the same page on another', async () =
   }
 });
 
+test('an Image set to have no page is left out of the counting', async () => {
+  const folder = openScanFolder(dir, {
+    astia: juvaAstia(),
+    parishes: memoryParishes()
+  });
+  const at = { volumeId: 'juva-1', volume: 'I Aa:1', image: 3 };
+  // Counted from the book's first Image, then from a page set by hand.
+  await folder.setImagePage(at, []);
+  expect(await imagesAt(12)).toEqual([13]);
+  await folder.setImagePage({ ...at, image: 5 }, [40]);
+  await folder.setImagePage({ ...at, image: 7 }, []);
+  expect(await imagesAt(45)).toEqual([11]);
+  const db = citing([], join(dir, 'none.sqlite'));
+  try {
+    const scans = scansOf(dir, db, { astia: juvaAstia() });
+    const shown = await scans.pagesInVolume('juva-1', 'I Aa:1');
+    expect(shown.slice(4, 8)).toEqual([
+      { image: 5, pages: [40], by: 'hand' },
+      { image: 6, pages: [41], by: null },
+      { image: 7, pages: [], by: 'hand' },
+      { image: 8, pages: [42], by: null }
+    ]);
+  } finally {
+    db.close();
+  }
+});
+
 test('a page the vision model read can be taken away, leaving the Image counted', async () => {
   // Image 5 misread as page 40: the pages after it count from there.
   await Bun.write(
