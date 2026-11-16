@@ -120,6 +120,9 @@ export interface Viewer {
   // with null takes them away, and reloads the estimates counted from
   // them; throws ApiError if refused.
   setPageHere: (pages: number[] | null) => Promise<void>;
+  // How many of the Volume's Images have pages set by hand, which a page
+  // survey takes away.
+  handPages: Readable<number>;
   // The estimates on the Image shown that Vision Match would look for,
   // one per record.
   estimatesHere: Readable<VolumeCitation[]>;
@@ -643,6 +646,7 @@ export function openViewer(
     confirming: confirmation.status,
     pagesHere: pages.here,
     setPageHere: pages.setHere,
+    handPages: pages.byHand,
     estimatesHere: batch.estimates,
     findAllByVision: batch.run,
     estimatesInVolume: batch.inVolume,

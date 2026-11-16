@@ -26,8 +26,13 @@ export function volumePagesOf(
     () => pages.get().find((p) => p.image === image.get()) ?? null
   );
 
+  const byHand = computed(
+    () => pages.get().filter((p) => p.by === 'hand').length
+  );
+
   return {
     here: here as Readable<ImagePages | null>,
+    byHand: byHand as Readable<number>,
     async load(volumeId: string) {
       const volume = shown.volume.get()?.label ?? '';
       const got = await req.run(

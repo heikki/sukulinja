@@ -102,7 +102,7 @@ test('a page survey saves what it read as Page pins, which the estimates count f
   expect(await imagesAt(12)).toEqual([14]);
 });
 
-test('a page survey replacing the last puts its Page pins in their place', async () => {
+test('a page survey replacing the last puts its Page pins in their place, hand ones too', async () => {
   const folder = openScanFolder(dir, {
     astia: juvaAstia(),
     parishes: memoryParishes()
@@ -118,6 +118,10 @@ test('a page survey replacing the last puts its Page pins in their place', async
     };
   }
   await folder.surveyPages('juva-1', 'I Aa:1', offBy(2));
+  // A page set by hand goes too: the Scan viewer warns of it first.
+  const at = { volumeId: 'juva-1', volume: 'I Aa:1', image: 5 };
+  await folder.setImagePage(at, [12]);
+  expect(await imagesAt(12)).toEqual([5]);
   await folder.surveyPages('juva-1', 'I Aa:1', offBy(4), {
     replace: true
   });

@@ -14,6 +14,7 @@ import { bookKind } from '@/common/books';
 import type { Box } from '@/common/types';
 
 import { boxFromStage, boxOnStage } from '../box-stage/geometry';
+import type { MenuItem } from '../context-menu';
 import { searchable } from '../person-search/choices';
 import { placesHere } from '../reminders-list/places';
 import { entriesOn } from './citations';
@@ -40,7 +41,7 @@ import './volumes';
 // the people to name in a new entry's Role (or with none), listed or
 // searched.
 type Popup =
-  | { at: Point; onBox: boolean; show: 'menu' | 'volumes' }
+  | { at: Point; onBox: boolean; show: 'menu' | 'volumes' | 'survey' }
   | { at: Point; show: 'pick'; role: string | null };
 
 // Editing the current source's Link over the scan: the menu a right-click
@@ -224,6 +225,7 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     if (!assistantOn.get()) return {};
     const model = visionModel.get();
     const label = CLAUDE_MODELS.find((m) => m.id === model)?.label ?? model;
+    const shown = this.popup;
     return {
       locate: {
         model: label,
@@ -236,6 +238,11 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
           void this.viewer.findAllInVolumeByVision(model);
         },
         survey: () => {
+          // The menu has closed by now: the warning opens where it was.
+          if (this.viewer.handPages.get() > 0 && shown?.show === 'menu') {
+            this.popup = { ...shown, show: 'survey' };
+            return;
+          }
           this.popup = null;
           void this.viewer.surveyPagesByVision(model);
         }
@@ -248,6 +255,7 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     if (popup === null) return nothing;
     if (popup.show === 'pick') return this.renderPick(popup.at, popup.role);
     const { at, onBox, show } = popup;
+    if (show === 'survey') return this.renderSurveyWarning(at);
     if (show === 'volumes') {
       return html`<sl-scan-volumes
         .at=${at}
@@ -274,6 +282,33 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
       }
     );
     return html`<sl-context-menu
+      .items=${items}
+      .at=${at}
+      @close=${this.onPopupClose}
+    ></sl-context-menu>`;
+  }
+
+  // Before a page survey takes away the pages set by hand in the Volume
+  // (ADR-0032), how many: run it anyway, or not.
+  private renderSurveyWarning(at: Point) {
+    const n = this.viewer.handPages.get();
+    const items: MenuItem[] = [
+      {
+        label: 'Survey and take them away',
+        run: () => {
+          this.popup = null;
+          void this.viewer.surveyPagesByVision(visionModel.get());
+        }
+      },
+      {
+        label: 'Cancel',
+        run: () => {
+          this.popup = null;
+        }
+      }
+    ];
+    return html`<sl-context-menu
+      .heading=${`The survey takes away ${n === 1 ? 'the page' : `${n} pages`} set by hand in this Volume`}
       .items=${items}
       .at=${at}
       @close=${this.onPopupClose}

@@ -339,7 +339,8 @@ export function openVolumeFacts(folder: string, options: { astia: Astia }) {
 
     // Page pins for the Page numbers the vision model read on the
     // Volume's Images, each unless a hand one there wins; `replace` takes
-    // the Volume's vision Page pins away first. One write.
+    // the Volume's Page pins away first, hand ones too (Heikki, 2026-11-16:
+    // the Scan viewer warns of them). One write.
     async savePageReadings(
       filming: Filming,
       volume: string,
@@ -352,7 +353,8 @@ export function openVolumeFacts(folder: string, options: { astia: Astia }) {
         const draft = { local: await readLocal(), filming };
         const kept = draft.local.volumes[filming.volumeId];
         if (replace && kept !== undefined) {
-          kept.pages = kept.pages.filter(isHand);
+          const { current } = split(filming, kept.pages);
+          kept.pages = kept.pages.filter((p) => !current.includes(p));
         }
         for (const { image, pages } of readings) {
           addPagePin(draft, volume, {
