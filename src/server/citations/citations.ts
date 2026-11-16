@@ -47,6 +47,8 @@ interface CitationDbRow {
   // The Entry it cites (ADR-0026), or null.
   entryId: number | null;
   entryRole: string | null;
+  // As imported.
+  role: string | null;
   annotation: Annotation;
 }
 
@@ -208,6 +210,7 @@ export function createCitations<R extends BookRef>(
   const SELECT = `SELECT c.id, c.scope_id AS personId, s.title AS source,
     ${originalPageSql('c')} AS page, c.text, c.entry_id AS entryId,
     CASE WHEN c.entry_id IS NULL THEN NULL ELSE c.role END AS entryRole,
+    c.role,
     (SELECT group_concat(fact_id) FROM fact_citations
       WHERE citation_id = c.id) AS supports,
     ${annotationColumnsSql('c')}

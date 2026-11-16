@@ -292,10 +292,30 @@ export function parseChurchBookRef(url: string, raw: string) {
     : parseIndexRef(url, collection, text);
 }
 
-// The Church-book reference a Citation makes, if it makes one: its page is
-// a link into a church-book collection. The one rule the app and the
-// scripts tell church books by.
-export function churchBookRefOf(page: string | null, text: string | null) {
+// The page a Citation's reference is read from: its page, or, where
+// MyHeritage's export left that out, the record its ROLE names
+// ("10509:25272880-:…": the collection and the record's itemId, the same
+// as its page's), as a link to it. Null for neither.
+export function referencePageOf(page: string | null, role: string | null) {
+  if (page !== null && collectionOf(page) !== null) return page;
+  const named = /^(?<c>\d+):(?<item>\d+-[A-Z]*):/.exec(role ?? '')?.groups;
+  if (named === undefined || !CHURCH_COLLECTIONS.has(named.c!)) return page;
+  const item =
+    named.c === BAPTISM_COLLECTION
+      ? named.item!.replace(/-[A-Z]*$/u, '')
+      : named.item!;
+  return `https://www.myheritage.com/research/collection-${named.c}/?itemId=${item}&action=showRecord`;
+}
+
+// The Church-book reference a Citation makes, if it makes one: its page,
+// or the record its ROLE names, is a link into a church-book collection.
+// The one rule the app and the scripts tell church books by.
+export function churchBookRefOf(
+  given: string | null,
+  text: string | null,
+  role: string | null = null
+) {
+  const page = referencePageOf(given, role);
   if (page === null || !/^https?:/.test(page)) return null;
   const collection = collectionOf(page);
   return collection !== null && CHURCH_COLLECTIONS.has(collection)
@@ -317,7 +337,8 @@ export function recordMarkKey(recordId: number) {
 // The reference a citation's page makes, as far as a Mark needs it: its
 // URL and Record number, without reading the citation's text. Null as for
 // churchBookRefOf.
-export function markedRefOf(page: string | null) {
+export function markedRefOf(given: string | null, role: string | null = null) {
+  const page = referencePageOf(given, role);
   if (page === null || !/^https?:/.test(page)) return null;
   const collection = collectionOf(page);
   if (collection === null || !CHURCH_COLLECTIONS.has(collection)) return null;

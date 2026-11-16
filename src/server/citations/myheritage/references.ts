@@ -11,7 +11,13 @@ import { annotated, annotationColumnsSql } from '../annotations';
 import { CITATIONS_READ } from '../entries';
 import type { References } from '../references';
 import type { Marks } from './pins/marks';
-import { churchBookRefOf, indexRoleOf, markKey, readRecord } from './record';
+import {
+  churchBookRefOf,
+  indexRoleOf,
+  markKey,
+  readRecord,
+  referencePageOf
+} from './record';
 import type { ChurchBookRef } from './record';
 import type { Scans } from './scans';
 import { findAllOnImage } from './vision/find';
@@ -47,11 +53,11 @@ export function referencesOf(
   );
 
   return {
-    refOf: ({ page, text, annotation }) =>
-      annotation.madeInApp ? null : churchBookRefOf(page, text),
+    refOf: ({ page, text, role, annotation }) =>
+      annotation.madeInApp ? null : churchBookRefOf(page, text, role),
     markKey,
-    recordOf: ({ page, text, annotation }) =>
-      !annotation.madeInApp && isRecordPage(page)
+    recordOf: ({ page, text, role, annotation }) =>
+      !annotation.madeInApp && isRecordPage(referencePageOf(page, role))
         ? readRecord(text ?? '')
         : null,
     resolve: scans.resolveRef,

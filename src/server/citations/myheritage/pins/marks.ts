@@ -53,9 +53,19 @@ export function openMarks(db: Database) {
     const now = version();
     if (index?.version === now) return index;
     const rows = db
-      .query<{ id: number; page: string; madeInApp: number }, []>(
-        `SELECT id, ${originalPageSql()} AS page, added_in_app AS madeInApp
-         FROM ${CITATIONS_READ} WHERE ${originalPageSql()} LIKE 'http%'
+      .query<
+        {
+          id: number;
+          page: string | null;
+          role: string | null;
+          madeInApp: number;
+        },
+        []
+      >(
+        `SELECT id, ${originalPageSql()} AS page, role,
+           added_in_app AS madeInApp
+         FROM ${CITATIONS_READ}
+         WHERE ${originalPageSql()} LIKE 'http%' OR role IS NOT NULL
          ORDER BY id`
       )
       .all();
@@ -63,7 +73,7 @@ export function openMarks(db: Database) {
     const converted = new Map<string, number[]>();
     const byId = new Map<number, { url: string; recordId: number | null }>();
     for (const row of rows) {
-      const ref = markedRefOf(row.page);
+      const ref = markedRefOf(row.page, row.role);
       if (ref === null) continue;
       byId.set(row.id, ref);
       const key = markKey(ref);

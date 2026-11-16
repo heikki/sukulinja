@@ -15,16 +15,20 @@ import type { Person } from '@/server/citations/myheritage/vision/reader';
 export function datasetRefs(dbPath: string) {
   const db = new Database(dbPath, { readonly: true });
   const rows = db
-    .query<{ page: string; text: string | null }, []>(
-      `SELECT ${originalPageSql()} AS page, text FROM citations
+    .query<
+      { page: string | null; text: string | null; role: string | null },
+      []
+    >(
+      `SELECT ${originalPageSql()} AS page, text, role FROM citations
        WHERE ${originalPageSql()} LIKE '%myheritage%collection-%'
+         OR role IS NOT NULL
        ORDER BY id`
     )
     .all();
   db.close();
   const refs = new Map<string, ChurchBookRef>();
   for (const row of rows) {
-    const ref = churchBookRefOf(row.page, row.text);
+    const ref = churchBookRefOf(row.page, row.text, row.role);
     if (ref !== null && !refs.has(ref.url)) {
       refs.set(ref.url, ref);
     }

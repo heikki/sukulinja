@@ -1,20 +1,28 @@
 // Church-book references from a MyHeritage GEDCOM export, read from the
-// SOUR citations whose PAGE is a MyHeritage record URL.
+// SOUR citations whose PAGE, or failing that ROLE, names a MyHeritage
+// record.
 
 import { churchBookRefOf } from '@/server/citations/myheritage/record';
 import type { ChurchBookRef } from '@/server/citations/myheritage/record';
 import { parseGedcom } from '@/server/gedcom/parser';
 import type { GedNode } from '@/server/gedcom/parser';
 
+// A child's value, `tags` the path down to it.
+function valueAt(node: GedNode, ...tags: string[]) {
+  let at: GedNode | undefined = node;
+  for (const tag of tags) at = at?.children.find((c) => c.tag === tag);
+  return at?.value ?? null;
+}
+
 export function churchBookRefs(gedcom: string) {
   const out: ChurchBookRef[] = [];
   function walk(node: GedNode) {
     if (node.tag === 'SOUR' && node.level > 0) {
-      const page = node.children.find((c) => c.tag === 'PAGE')?.value;
-      const text = node.children
-        .find((c) => c.tag === 'DATA')
-        ?.children.find((c) => c.tag === 'TEXT')?.value;
-      const ref = churchBookRefOf(page ?? null, text ?? null);
+      const ref = churchBookRefOf(
+        valueAt(node, 'PAGE'),
+        valueAt(node, 'DATA', 'TEXT'),
+        valueAt(node, 'EVEN', 'ROLE')
+      );
       if (ref !== null) out.push(ref);
     }
     for (const c of node.children) walk(c);

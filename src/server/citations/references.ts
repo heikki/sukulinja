@@ -50,10 +50,12 @@ export interface DiscardDone {
 }
 
 // A citation row as a port reads it: the page its reference is read from
-// (its original page, or its page), its text and its Annotation.
+// (its original page, or its page), its text, its role as imported (a
+// port may read the source's record from it) and its Annotation.
 export interface ReferenceRow {
   page: string | null;
   text: string | null;
+  role: string | null;
   annotation: Annotation;
 }
 

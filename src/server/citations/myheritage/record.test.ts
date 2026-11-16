@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+  churchBookRefOf,
   indexRoleOf,
   parseChurchBookRef,
   readRecord,
@@ -207,4 +208,35 @@ test("a baptism index entry's Role is read from its person's suffix", () => {
   expect(indexRoleOf('10509:6877741-:d2c425')).toBeNull();
   expect(indexRoleOf('30200:140231-S:')).toBeNull();
   expect(indexRoleOf(null)).toBeNull();
+});
+
+test('a reference whose page the export left out is read from the record its ROLE names', () => {
+  const text =
+    'Anna Malli\nKirja:Lastenkirja, 1852 - 1866\nHallintoalue:PitäjäSivu:371';
+  const ref = churchBookRefOf(null, text, '10509:1234567-:a1b2c3');
+  expect(ref).toMatchObject({
+    collection: '10509',
+    recordId: 1234567,
+    kind: 'lasten',
+    page: 371
+  });
+  // A Mark moved its page aside for the Astia Image's.
+  const marked = churchBookRefOf(
+    'https://astia.narc.fi/x',
+    text,
+    '10509:1234567-:a1b2c3'
+  );
+  expect(marked?.recordId).toBe(1234567);
+  // A baptism's names the entry, not the person.
+  expect(
+    churchBookRefOf(
+      null,
+      'Juho\nRistiäiset: 1. Touko 1830 - Pitäjä',
+      '30233:548464-F:'
+    )?.url
+  ).toContain('itemId=548464&');
+  // A page of its own wins; another collection, or none, makes none.
+  expect(churchBookRefOf(URL, text, '10509:99-:x')?.recordId).toBe(1);
+  expect(churchBookRefOf(null, text, '10180:113797316-:x')).toBeNull();
+  expect(churchBookRefOf(null, text, null)).toBeNull();
 });
