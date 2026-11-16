@@ -108,10 +108,6 @@ function dollarsOf(spend: Record<string, Spend>) {
   );
 }
 
-function callsOf(spend: Record<string, Spend>) {
-  return Object.values(spend).reduce((sum, s) => sum + s.calls, 0);
-}
-
 // The Citations of the data folder at `root`, for every dataset in it.
 export function openCitations(root: string, options: Options) {
   const astia = options.astia ?? openAstia(join(root, '.astia-cache'));
@@ -139,7 +135,9 @@ export function openCitations(root: string, options: Options) {
     if (options.vision === undefined) return { rejected: NO_VISION };
     const started = performance.now();
     const reader = await options.vision(model, visionImage);
-    const counted = counting(cachedReader(reader, readings));
+    // Readings asked, and those the model made: one may take it two calls.
+    const made = counting(reader);
+    const counted = counting(cachedReader(made.reader, readings));
     const found = await citations
       .findAllOnImage(asked.citationIds, asked.at, counted.reader)
       .catch(failedWith);
@@ -152,7 +150,7 @@ export function openCitations(root: string, options: Options) {
       })),
       model,
       readings: readingsAsked,
-      cached: readingsAsked - callsOf(spend),
+      cached: readingsAsked - made.asked(),
       dollars: dollarsOf(spend),
       seconds: Math.round((performance.now() - started) / 1000)
     };
@@ -177,7 +175,8 @@ export function openCitations(root: string, options: Options) {
     );
     const started = performance.now();
     const reader = await options.vision(model, visionImage);
-    const counted = counting(cachedReader(reader, readings, { fresh }));
+    const made = counting(reader);
+    const counted = counting(cachedReader(made.reader, readings, { fresh }));
     const surveyed = await folder
       .surveyPages(volumeId, volume, counted.reader, { cited, replace: fresh })
       .catch(failedWith);
@@ -189,7 +188,7 @@ export function openCitations(root: string, options: Options) {
       settled: surveyed.settled,
       model,
       readings: readingsAsked,
-      cached: readingsAsked - callsOf(spend),
+      cached: readingsAsked - made.asked(),
       dollars: dollarsOf(spend),
       seconds: Math.round((performance.now() - started) / 1000)
     };
