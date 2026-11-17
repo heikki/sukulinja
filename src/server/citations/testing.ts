@@ -5,7 +5,7 @@
 export { openAppCitations } from './app-citations';
 export { openMarks } from './myheritage/pins/marks';
 export { memoryAstia } from './astia/memory-astia';
-export type { MemoryAstia } from './astia/memory-astia';
+export type { MemoryArchive, MemoryAstia } from './astia/memory-astia';
 export {
   baptismCitation,
   IMAGES,

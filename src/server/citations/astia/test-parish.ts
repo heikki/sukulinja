@@ -3,7 +3,7 @@
 // and a baptism one, of 20 Images each.
 
 import { memoryAstia } from './memory-astia';
-import type { MemoryOptions } from './memory-astia';
+import type { MemoryArchive, MemoryOptions } from './memory-astia';
 import { STARTING_PARISHES } from './parishes';
 
 export const JUVA = '1212295491';
@@ -15,11 +15,13 @@ export const VOLUMES = {
 export const IMAGES = 20;
 
 // Juva's archive holds the Volumes, titled `title` if given; every other
-// starting parish's archive is there too, holding none of them.
+// starting parish's archive is there too, holding none of them, and the
+// `more` archives, by their ids.
 export function juvaAstia(
   title?: string,
   volumes: Record<string, string> = VOLUMES,
-  options: MemoryOptions = {}
+  options: MemoryOptions = {},
+  more: Record<string, MemoryArchive> = {}
 ) {
   const others = STARTING_PARISHES.map(
     (p) => [p.archiveId, { volumes: [] }] as const
@@ -34,7 +36,8 @@ export function juvaAstia(
           label,
           images: IMAGES
         }))
-      }
+      },
+      ...more
     },
     options
   );

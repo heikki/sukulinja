@@ -13,7 +13,7 @@ export interface MemoryVolume {
   digitized?: boolean;
 }
 
-interface MemoryArchive {
+export interface MemoryArchive {
   title?: string;
   volumes: MemoryVolume[];
 }
