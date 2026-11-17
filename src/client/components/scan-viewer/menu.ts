@@ -15,7 +15,8 @@ import type { MenuItem } from '../context-menu';
 // an entry for someone; then, with nothing pending, a Reminder, once Astia
 // lists the Image; then, where Vision Match can be asked (`locate`) and
 // there are estimates on the Image, a search for them all (ADR-0029); then
-// Change Volume…, which only shows another Volume.
+// Change Volume… for a Church-book reference, which only shows another
+// Volume.
 // A Box's menu offers a Reminder too. An Entry made in the app is edited
 // in the card it was made in, people, words and Box at once (ADR-0026),
 // and deleting it deletes everyone's Citation of it. Opened on an Image with no source,
@@ -59,12 +60,18 @@ export function linkItems(
   items.push(
     ...remind,
     ...visionItems(viewer, open.locate),
-    ...pageItems(viewer, open.clearPages)
+    ...pageItems(viewer, open.clearPages),
+    ...volumeItems(viewer, open.chooseVolume)
   );
-  if (hasSource) {
-    items.push({ label: 'Change Volume…', run: open.chooseVolume });
-  }
   return items;
+}
+
+// Another Volume, for a Church-book reference: a Citation made in the
+// app, or a reference a Mark made one, is in its Volume for good.
+function volumeItems(viewer: Viewer, chooseVolume: () => void): MenuItem[] {
+  return viewer.source.get()?.citation.madeInApp === false
+    ? [{ label: 'Change Volume…', run: chooseVolume }]
+    : [];
 }
 
 // Taking the Volume's page numbers away (ADR-0032), where any are read or

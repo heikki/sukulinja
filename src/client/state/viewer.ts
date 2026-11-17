@@ -551,24 +551,11 @@ export function openViewer(
     await reloadShown();
   }
 
-  // A confirmation moves its row, and a Page pin its neighbours', so the
-  // citations reload. The viewer follows the Link in the marked Volume only
-  // when the Mark was for its own reference.
+  // A Match confirmed, in the Volume shown.
   async function confirm(row: Pick<VolumeCitation, 'citation' | 'link'>) {
     const shown = volume.get();
-    const at = imageOf(row.link);
-    if (shown === null || at === null || oldFilming.get()) return;
-    const resolved = await selected.mark(row.citation.id, {
-      volumeId: shown.id,
-      image: at
-    });
-    const reload = loadCitations(shown.id);
-    const current = source.get();
-    const link = markedIn(resolved, shown.id);
-    if (current?.citation.id === resolved.citationId && link !== null) {
-      openNow({ citation: current.citation, link });
-    }
-    await reload;
+    if (shown === null || oldFilming.get()) return;
+    await changing.confirm(row, shown.id);
   }
 
   // After a batch the Volume's citations reload, drawing the Matches it

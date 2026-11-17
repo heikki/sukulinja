@@ -1,6 +1,6 @@
 // A MyHeritage reference placed by hand (ADR-0021, ADR-0033): its Estimate
 // is where the reference points; another Volume of the Book can be looked
-// at first; Place entry marks the line.
+// at first; Place entry marks the line, making it a Citation of the Image.
 
 import { afterAll, expect, test } from 'bun:test';
 
@@ -41,5 +41,20 @@ test("a reference's entry is placed by hand", async () => {
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await people.getByText('Marked').waitFor();
     await shot(page, 'manual-mark-marked');
+
+    // The reference is now a Citation of the Image (ADR-0016): its Entry
+    // is edited or deleted, and it stays in this Volume.
+    await page.locator('[data-own]').click({ button: 'right' });
+    expect(await page.getByRole('menuitem').allInnerTexts()).toEqual([
+      'Edit',
+      'Delete',
+      'Add reminder…'
+    ]);
+    await page.keyboard.press('Escape');
+    await rightClickLine(page, 12, 1);
+    expect(await page.getByRole('menuitem').allInnerTexts()).toEqual([
+      'New entry',
+      'Add reminder…'
+    ]);
   });
 });

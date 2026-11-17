@@ -170,6 +170,13 @@ test('Place entry names one made in the app by its Image', async () => {
   expect(linkItems(viewer, where, NONE)[0]?.detail).toBe('I Aa:201, Image 18');
 });
 
+test('Change Volume… is only for a Church-book reference', async () => {
+  const made = await viewing(citation(1, true));
+  expect(labels(made, { onBox: false, canBox: false })).toEqual([
+    'Add reminder…'
+  ]);
+});
+
 test('opened on an Image with no source, a new Citation and a Reminder are offered', async () => {
   const api = memoryDatasetApi({
     volumes: { '201': { images: 40, citations: [] } }

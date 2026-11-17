@@ -2,12 +2,12 @@ import { signal } from '@lit-labs/signals';
 
 import type { DatasetApi, InEntry } from '@/client/dataset-api';
 import type { EntryEvent } from '@/common/entry-events';
-import type { Box, VolumeCitation } from '@/common/types';
+import type { Box, CitationRow, VolumeCitation } from '@/common/types';
 
 import { NO_TYPED } from './entry-lines';
 import { pendingEntry } from './pending-entry';
 import type { EntryEdit, EntryForm, PendingCite } from './pending-entry';
-import { markedIn } from './places';
+import { imageOf, markedIn } from './places';
 import type { Readable, Selected } from './selected';
 import type { ImageOpen, LinkOpen } from './source-open';
 
@@ -74,6 +74,11 @@ export interface Pending {
   // Saves it, throwing ApiError if it's refused: a new Entry's Citation
   // to open, its person's if they're the Selected person, else null.
   save: () => Promise<VolumeCitation | null>;
+  // A Match in the Volume confirmed: a Mark where its Box is.
+  confirm: (
+    row: Pick<VolumeCitation, 'citation' | 'link'>,
+    volumeId: string
+  ) => Promise<void>;
 }
 
 // What a pending change is, wherever it is; nothing pending moves the
@@ -142,7 +147,38 @@ export function pendingChange(deps: PendingDeps): Pending {
     await reload(volumeId);
     if (source.get() !== shown) return;
     if (link === null) change.set(null);
-    else deps.openLink({ citation: shown.citation, link });
+    else deps.openLink({ citation: reread(shown.citation), link });
+  }
+
+  // The Citation as the Volume's citations read again have it: a Mark at
+  // the entry makes a reference a Citation of its Image (ADR-0016).
+  function reread(citation: CitationRow) {
+    const rows = citations.get();
+    const now = Array.isArray(rows)
+      ? rows.find((r) => r.citation.id === citation.id)
+      : undefined;
+    return now?.citation ?? citation;
+  }
+
+  // A confirmation moves its row, and a Page pin its neighbours', so the
+  // citations reload. The viewer follows the Link in the marked Volume only
+  // when the Mark was for its own reference.
+  async function confirm(
+    row: Pick<VolumeCitation, 'citation' | 'link'>,
+    volumeId: string
+  ) {
+    const at = imageOf(row.link);
+    if (at === null) return;
+    const resolved = await selected.mark(row.citation.id, {
+      volumeId,
+      image: at
+    });
+    await reload(volumeId);
+    const current = source.get();
+    const link = markedIn(resolved, volumeId);
+    if (current?.citation.id === resolved.citationId && link !== null) {
+      deps.openLink({ citation: reread(current.citation), link });
+    }
   }
 
   // The source's Entry changed: the viewer stays on its Citation, at the
@@ -200,6 +236,7 @@ export function pendingChange(deps: PendingDeps): Pending {
       change.set(null);
     },
     cancel,
-    save
+    save,
+    confirm
   };
 }

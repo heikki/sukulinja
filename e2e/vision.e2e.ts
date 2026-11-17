@@ -2,7 +2,7 @@
 // finds the person on the Image asked: a MyHeritage export's estimate is
 // located, and undone.
 
-import { afterAll, test } from 'bun:test';
+import { afterAll, expect, test } from 'bun:test';
 
 import { closeBrowser, shot, withApp } from './app';
 import { importTree, openJuvaVolume, turnAssistantOn } from './steps';
@@ -35,6 +35,43 @@ test('an estimate is located on its Image, and undone', async () => {
       await page.getByRole('button', { name: 'Undo all' }).click();
       await people.getByText('Estimate', { exact: true }).waitFor();
       await shot(page, 'vision-undone');
+    },
+    { vision: findsOn(12) }
+  );
+});
+
+// Confirmed, the Match is a Citation of the Image (ADR-0016), its Entry
+// edited or deleted from then on.
+test('a located estimate is confirmed', async () => {
+  await withApp(
+    async ({ page }) => {
+      await importTree(page, 'myheritage-export.ged');
+      await turnAssistantOn(page);
+      await openJuvaVolume(page, 'Pää- ja rippikirjat (1790-1796)');
+      await page.getByLabel('Image', { exact: true }).fill('12');
+      await page.keyboard.press('Enter');
+      const people = page.locator('sl-scan-people');
+      await people.getByText('Estimate', { exact: true }).waitFor();
+      await page
+        .getByRole('img', { name: 'Image 12' })
+        .click({ button: 'right', position: { x: 600, y: 500 } });
+      await page
+        .getByRole('menuitem', { name: /^Locate estimates on this Image/ })
+        .click();
+      await people.getByRole('button', { name: /Matti Esimerkki/ }).click();
+
+      const own = page.locator('[data-own]');
+      await own.click({ button: 'right' });
+      await page.getByRole('menuitem', { name: 'Confirm' }).click();
+      await people.getByText('Match', { exact: true }).waitFor({
+        state: 'detached'
+      });
+      await own.click({ button: 'right' });
+      expect(await page.getByRole('menuitem').allInnerTexts()).toEqual([
+        'Edit',
+        'Delete',
+        'Add reminder…'
+      ]);
     },
     { vision: findsOn(12) }
   );
