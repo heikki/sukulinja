@@ -17,10 +17,27 @@ const PHOTOS = [
   resolve(import.meta.dir, '../resources/icon.iconset/icon_256x256.png')
 ];
 
-// A right-click on the Photo shown, `x` and `y` across it.
+// The Photo the Photos list names by who is in it, once the viewer shows
+// it: those `people`, or no one.
+async function openPhoto(page: Page, label: string, people: string[]) {
+  await openList(page, 'Photos');
+  await page.getByRole('button', { name: label }).click();
+  const viewer = page.getByRole('region', { name: 'Photo viewer' });
+  if (people.length === 0) {
+    await viewer.getByText('No one is linked to or tagged here.').waitFor();
+  }
+  for (const name of people) {
+    // eslint-disable-next-line no-await-in-loop -- each in turn
+    await viewer.getByRole('button', { name }).waitFor();
+  }
+}
+
+// A right-click on the Photo shown, once it's drawn, `x` and `y` across it.
 async function rightClickPhoto(page: Page, x: number, y: number) {
   const viewer = page.getByRole('region', { name: 'Photo viewer' });
-  const at = await viewer.getByRole('img', { name: 'Photo' }).boundingBox();
+  const photo = viewer.locator('img[alt="Photo"]:not(.hidden)');
+  await photo.waitFor();
+  const at = await photo.boundingBox();
   if (at === null) throw new Error("the Photo isn't shown");
   await page.mouse.click(at.x + at.width * x, at.y + at.height * y, {
     button: 'right'
@@ -77,8 +94,7 @@ test('people are tagged in photos, one their portrait', async () => {
     await boxOf(page, 'Juho').locator('image.avatar-img').waitFor();
 
     // In the other, the portrait isn't his until it's chosen.
-    await openList(page, 'Photos');
-    await page.getByRole('button', { name: 'Photo, no one' }).click();
+    await openPhoto(page, 'Photo, no one', []);
     await tag(page, 0.5, 0.5, 'Matti Esimerkki');
     await page.locator('[data-key]').click({ button: 'right' });
     await page.getByRole('menuitem', { name: 'Use as portrait' }).click();
@@ -86,8 +102,7 @@ test('people are tagged in photos, one their portrait', async () => {
     await boxOf(page, 'Matti')
       .locator(`image.avatar-img:not([href="${first}"])`)
       .waitFor();
-    await openList(page, 'Photos');
-    await page.getByRole('button', { name: 'Photo, 1 person' }).click();
+    await openPhoto(page, 'Photo, 1 person', ['Matti Esimerkki']);
     await page.locator('[data-key]').click({ button: 'right' });
     expect(await page.getByRole('menuitem').allInnerTexts()).toEqual([
       'Edit',
@@ -101,8 +116,10 @@ test('people are tagged in photos, one their portrait', async () => {
     await page.getByText('No one is linked to or tagged here.').waitFor();
 
     await page.keyboard.press('Escape');
-    await openList(page, 'Photos');
-    await page.getByRole('button', { name: 'Photo, 2 people' }).click();
+    await openPhoto(page, 'Photo, 2 people', [
+      'Matti Esimerkki',
+      'Juho Esimerkki'
+    ]);
     await rightClickPhoto(page, 0.5, 0.9);
     await page.getByRole('menuitem', { name: 'Delete photo…' }).click();
     await page
