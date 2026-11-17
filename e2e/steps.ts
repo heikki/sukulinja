@@ -60,3 +60,30 @@ export async function openSection(page: Page, name: string) {
   const closed = page.getByRole('button', { name, expanded: false });
   if ((await closed.count()) > 0) await closed.click();
 }
+
+// The person's box in the tree, by a name it shows.
+export function boxOf(page: Page, name: string) {
+  return page.locator('[data-box-key]').filter({ hasText: name });
+}
+
+// From the menu on the person's box, `item` taken: "Add father…",
+// "Delete person…" and the like.
+export async function fromBox(page: Page, name: string, item: string) {
+  await boxOf(page, name).click({ button: 'right' });
+  await page.getByRole('menuitem', { name: item, exact: true }).click();
+}
+
+// A new person added from the menu on someone's box: "Add father…" and
+// the like, then their name.
+export async function addRelative(
+  page: Page,
+  of: string,
+  item: string,
+  [given, surname]: [string, string]
+) {
+  await fromBox(page, of, item);
+  await page.getByLabel('Given names').fill(given);
+  await page.getByLabel('Surname').fill(surname);
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  await boxOf(page, given).waitFor();
+}
