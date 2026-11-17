@@ -37,6 +37,10 @@ From the Genealogical Proof Standard and citation practice (`.scratch/citation-p
 9. **A place is written one way.** The same place spelled differently (`Kylä, Pitäjä` and `Kylä, Pitäjä, Suomi`), or without its parish. The parish's name as Astia gives it (the app's naming rule). Fix: edit the Facts, as a batch.
 10. **A residence says where.** A residence Fact with no place, as MyHeritage's copies of communion-book lines often are.
 
+### Entries
+
+11. **An Entry names the people the tree gives it.** A baptism Entry whose child has a father or mother in the tree not named in it. Only the person can fix it, from its Box's _Edit_; one left out on purpose (the book doesn't name the father) is dismissed with that reason. From `.scratch/source-first/spec.md`, replacing Entries tickets 07 and 08.
+
 ### Not checked
 
 - **A reasonably exhaustive search** (GPS 1) and **a written conclusion** (GPS 5) are the researcher's, not the data's. Searches done and found nothing would be a feature of their own (`idea.md` #5).

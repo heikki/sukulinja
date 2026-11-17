@@ -8,7 +8,7 @@ A person's **Citations**, as the panel lists them, and linking each **Church-boo
 A reference in the tree to where something comes from, from any source: a person's (or family's) one says they are in that source, a church-book one which **Event** its **Entry** records and their **Role** in it. It may **Support** their Facts. None is on a Fact itself: an import makes a Fact's citation its owner's, supporting the Fact (ADR-0022).
 
 **Support**:
-A Citation's backing of one of its person's Facts, or their marriages': _this source says so_. One Citation may support several Facts (a rippikirja line gives the birth, the residence and the marriage), and a Fact may rest on several. Checked or unchecked under the picked Fact in _Events_ (_Add source_ / _Edit sources_), which lists only **Marked** sources (and sources with no Link, which aren't church books), never a **Match** or an **Estimate**; a Citation made of a baptism for its child supports their Christening (else Birth), one of a marriage for a spouse their marriage. Each added or taken back is a **Change**. GEDCOM writes it as the citation repeated under the Fact.
+A Citation's backing of one of its person's Facts, or their marriages': _this source says so_. One Citation may support several Facts (a rippikirja line gives the birth, the residence and the marriage), and a Fact may rest on several. Checked or unchecked under the picked Fact in _Events_ (_Add source_ / _Edit sources_), which lists only **Marked** sources (and sources with no Link, which aren't church books), never a **Match** or an **Estimate**; an Entry's filled dates and place make or support the Facts it records, a difference asked about once (ADR-0033). Each added or taken back is a **Change**. GEDCOM writes it as the citation repeated under the Fact.
 _Avoid_: evidence (the Entry is that), link (a church-book Citation's place in Astia).
 
 **Fact**:
@@ -16,7 +16,7 @@ What the tree says about a person or family: an event (birth, baptism, marriage,
 _Avoid_: event (alone; that's what an Entry records), claim.
 
 **Event**:
-What an **Entry** records, as GEDCOM's citation `EVEN` names it: a baptism (`CHR`), a marriage (`MARR`), a burial (`BURI`), or a household in a rippikirja or lastenkirja (`RESI`). Told by the Entry's **Book**. MyHeritage's `EVEN Record` isn't one.
+What an **Entry** records, as GEDCOM's citation `EVEN` names it: a baptism (`CHR`), a marriage (`MARR`), a burial (`BURI`), or a household in a rippikirja or lastenkirja (`RESI`). Chosen on the Entry's card, as a Volume may hold several **Registers**; its **Book** gives the first guess (ADR-0033). MyHeritage's `EVEN Record` isn't one.
 _Avoid_: fact (that's the tree's conclusion).
 
 **Role**:
@@ -63,7 +63,7 @@ One scan in a Volume, numbered from 1 in Astia's order. What a **Link** opens.
 _Avoid_: page (written on the scan), frame (MyHeritage's numbering).
 
 **Entry**:
-One record written in a church book: a baptism, a marriage, or a person's line in a household, on one **Image**, where its **Box** is. What a church-book Citation is evidence from. Several people's Citations may cite one Entry, each in their own **Role**: a baptism names the child, the parents and the godparents. The app holds one for its own Citations of an Image (made in the Scan viewer or converted), with the Box, Event and Transcription once for all who cite it (ADR-0026); a Church-book reference still holds its own Box until the MyHeritage import goes. One the app holds is edited as a whole: its Box, its Transcription and who it names in which Role, all of it or none.
+One record written in a church book: a baptism, a marriage, or a person's line in a household, on one **Image**, where its **Box** is. What a church-book Citation is evidence from: it keeps its own dates and place as the book writes them (a baptism's born and baptised), which the Facts it supports are concluded from (ADR-0033). Several people's Citations may cite one Entry, each in their own **Role**: a baptism names the child, the parents and the godparents. The app holds one for its own Citations of an Image (made in the Scan viewer or converted), with the Box, Event and Transcription once for all who cite it (ADR-0026); a Church-book reference still holds its own Box until the MyHeritage import goes. One the app holds is edited as a whole: its Box, its Transcription and who it names in which Role, all of it or none.
 _Avoid_: record (MyHeritage's record of an Entry, with its **Record number**), citation (one person's reference to it).
 
 **Transcription**:

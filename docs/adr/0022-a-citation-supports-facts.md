@@ -1,5 +1,7 @@
 # A Citation supports Facts
 
+_Amended by ADR-0033: support at making goes; an Entry's filled dates and place decide it._
+
 Every Citation in ylonen is on its person, and none says which of the tree's Facts it is evidence for. Since ADR-0021 the Facts are edited in the app, so a Fact should show what it rests on, and disagreeing sources should show side by side. The earlier plan (`.scratch/citation-practices/fact-citations.md`, option A) moved an app-made Citation _onto_ the Fact its Entry is about. Heikki (2026-11-13) agreed to do it as the end model has it instead.
 
 So a Citation and what it supports are two things:
