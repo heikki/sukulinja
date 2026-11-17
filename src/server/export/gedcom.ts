@@ -205,7 +205,6 @@ function gedcomTree(db: Database) {
       ...optional('CAUS', f.cause),
       ...optional('AGE', f.age),
       ...notes('fact', f.id),
-      ...citations('fact', f.id),
       ...support(f.id),
       ...media.linksOf('fact', f.id)
     ];

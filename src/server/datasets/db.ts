@@ -177,7 +177,7 @@ const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS citations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     scope_type TEXT NOT NULL CHECK (
-      scope_type IN ('person','family','fact','name','note','shared_note')
+      scope_type IN ('person','family','name','note','shared_note')
     ),
     scope_id INTEGER NOT NULL,
     source_id INTEGER REFERENCES sources(id) ON DELETE SET NULL,
