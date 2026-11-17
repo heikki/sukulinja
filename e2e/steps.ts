@@ -40,11 +40,14 @@ export async function turnAssistantOn(page: Page) {
   await page.keyboard.press('Escape');
 }
 
-// The corner's lists open on `tab`: Reminders, Changes, Church books,
-// Photos, or the Assistant once it's on.
+// The corner's lists on `tab`, opened first if they're closed: Reminders,
+// Changes, Church books, Photos, or the Assistant once it's on.
 export async function openList(page: Page, tab: string) {
-  await page.getByRole('button', { name: /^Reminders, Changes/ }).click();
-  await page.getByRole('tab', { name: tab }).click();
+  const tabs = page.getByRole('tab', { name: tab });
+  if (!(await tabs.isVisible())) {
+    await page.getByRole('button', { name: /^Reminders, Changes/ }).click();
+  }
+  await tabs.click();
 }
 
 // The Volume of Juva's archive in the Scan viewer, from the Church books.
