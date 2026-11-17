@@ -572,9 +572,8 @@ export function createCitations<R extends BookRef>(
     },
 
     // The Church-book references resolving into the Volume, one per person
-    // and record, then the Citations of its Images; null when the Volume is
-    // in none of the dataset's parishes and none cites its Images.
-    // Throws when Astia can't be reached.
+    // and record, then the Citations of its Images; none for a Volume no
+    // one is linked into yet. Throws when Astia can't be reached.
     inVolume,
 
     // How many Citations link into each of the parish archive's Volumes.
