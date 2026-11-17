@@ -45,6 +45,8 @@ With nothing ticked, Save saves the Entry, its dates and people only. A person o
 
 The Entry, its people, their families and the ticked Facts and support are saved in one request and one transaction (the Entry's edit, ADR-0026); one part refused refuses all of it. Each piece is a Change.
 
+**Later:** the list isn't kept, it's worked out from the Entry's dates and the tree as it is now. So _Edit_ shows it again, with what was left unticked (or has since changed in the tree) still on offer, and nothing else is needed. The tree-quality checks 2 (a source supports nothing) and 4 (a source and its Fact disagree) list such Entries, for the person or the assistant.
+
 Emptying a field on Edit takes nothing back: the Fact and its support stay, as the tree's.
 
 ## What goes
