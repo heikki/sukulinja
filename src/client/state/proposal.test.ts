@@ -5,11 +5,10 @@
 
 import { afterEach, beforeEach, expect, test } from 'bun:test';
 
-import type Anthropic from '@anthropic-ai/sdk';
-
 import type { DatasetApi } from '@/client/dataset-api';
 import { servedDataset } from '@/client/dataset-api/served';
 import type { Model, ModelAnswer } from '@/server/assistant/model';
+import { answer, call } from '@/server/assistant/testing';
 import { memoryAstia } from '@/server/citations/testing';
 
 import { openAssistant } from './assistant';
@@ -33,29 +32,12 @@ const GEDCOM = [
   ''
 ].join('\n');
 
-const USAGE = JSON.parse(
-  '{"input_tokens":1000,"output_tokens":100}'
-) as Anthropic.Beta.BetaUsage;
-
-function answer(content: unknown[], stopReason: ModelAnswer['stopReason']) {
-  return {
-    content: content as Anthropic.Beta.BetaContentBlock[],
-    stopReason,
-    usage: USAGE,
-    model: 'claude-opus-5-5'
-  };
-}
-
 // Claude, answering in turn; what it's given each time is kept.
 const script: ModelAnswer[] = [];
 const given: string[] = [];
 async function model(...[request]: Parameters<Model>) {
   given.push(JSON.stringify(request.messages.at(-1)));
   return await Promise.resolve(script.shift()!);
-}
-
-function call(id: string, name: string, input: Record<string, unknown>) {
-  return { type: 'tool_use', id, name, input };
 }
 
 let served: Awaited<ReturnType<typeof servedDataset>> | null = null;

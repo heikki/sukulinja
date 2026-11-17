@@ -46,17 +46,17 @@ class AssistantChoicesElement extends SignalWatcher(LitElement) {
     const model = assistantModel.get();
     return html`
       <span class="label">Model</span>
-      ${segmented(MODELS, model, setAssistantModel)}
+      ${segmented('Model', MODELS, model, setAssistantModel)}
       <span></span>
       <span class="hint">${priceWords(model)}</span>
       <span class="label">Style</span>
-      ${segmented(STYLES, answerStyle.get(), setAnswerStyle)}
+      ${segmented('Style', STYLES, answerStyle.get(), setAnswerStyle)}
       <span class="label">Living people</span>
-      ${segmented(OFF_ON, includeLiving.get(), setIncludeLiving)}
+      ${segmented('Living people', OFF_ON, includeLiving.get(), setIncludeLiving)}
       <span></span>
       <span class="hint">${livingWords(includeLiving.get())}</span>
       <span class="label">Vision Match</span>
-      ${segmented(MODELS, visionModel.get(), setVisionModel)}
+      ${segmented('Vision Match', MODELS, visionModel.get(), setVisionModel)}
       <span></span>
       <span class="hint">${priceWords(visionModel.get())}</span>
     `;

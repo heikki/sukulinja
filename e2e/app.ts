@@ -1,7 +1,9 @@
 // The app as an e2e test opens it: served to a headless Chromium from a
 // data folder of its own, empty, with nothing reaching outside this
-// machine. Astia answers from fixtureAstia, the assistant has no key, and
-// exports go to the data folder.
+// machine. Astia answers from fixtureAstia, Claude from the test's script
+// (the assistant has no key without one), and exports go to the data
+// folder. The models are always the test's: a key in the environment
+// must not reach Claude from a test.
 
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -10,7 +12,10 @@ import { join } from 'node:path';
 import { chromium } from 'playwright';
 import type { Browser, Page } from 'playwright';
 
+import type { ModelAnswer } from '../src/server/assistant/model';
+import { scripted } from '../src/server/assistant/testing';
 import { serveInBrowser } from '../src/server/browser';
+import type { VisionReaders } from '../src/server/citations';
 import { memoryKeyStore } from '../src/server/claude/key';
 import { DatasetRegistry } from '../src/server/datasets/registry';
 import { fixtureAstia } from './astia';
@@ -30,11 +35,30 @@ async function sharedBrowser() {
   return await launched;
 }
 
-export async function openApp(): Promise<App> {
+export interface AppOptions {
+  // What Claude answers the assistant, in turn; with it, a key is set.
+  assistant?: ModelAnswer[];
+  // What reads the scans for Vision Match; with it, a key is set.
+  vision?: VisionReaders;
+}
+
+async function noVision(): ReturnType<VisionReaders> {
+  return await Promise.reject(new Error('no vision model in this test'));
+}
+
+export async function openApp({
+  assistant,
+  vision
+}: AppOptions = {}): Promise<App> {
   const dataDir = await mkdtemp(join(tmpdir(), 'sukulinja-e2e-'));
+  const { model } = scripted(assistant ?? []);
   const server = serveInBrowser(new DatasetRegistry(dataDir), {
     astia: await fixtureAstia(),
-    keyStore: memoryKeyStore(),
+    keyStore: memoryKeyStore(
+      assistant === undefined && vision === undefined ? null : 'sk-e2e'
+    ),
+    assistantModel: () => model,
+    vision: vision ?? noVision,
     exportDir: dataDir
   });
   const context = await (
@@ -67,8 +91,11 @@ export async function shot(page: Page, name: string) {
 }
 
 // Runs `steps` in an app of its own, closed after whatever happened.
-export async function withApp(steps: (app: App) => Promise<void>) {
-  const app = await openApp();
+export async function withApp(
+  steps: (app: App) => Promise<void>,
+  options: AppOptions = {}
+) {
+  const app = await openApp(options);
   try {
     await steps(app);
   } finally {

@@ -352,7 +352,7 @@ class SettingsElement extends LitElement {
     return html`
       <hr class="rule" />
       <span class="label">Assistant</span>
-      ${segmented(OFF_ON, on, (value) => {
+      ${segmented('Assistant', OFF_ON, on, (value) => {
         setAssistantOn(value);
         this.requestUpdate();
       })}
@@ -371,7 +371,7 @@ class SettingsElement extends LitElement {
   private renderPageNumbers() {
     return html`
       <span class="label">Page numbers</span>
-      ${segmented(OFF_ON, pageNumbersOn.get(), (value) => {
+      ${segmented('Page numbers', OFF_ON, pageNumbersOn.get(), (value) => {
         setPageNumbersOn(value);
         this.requestUpdate();
       })}
@@ -392,7 +392,7 @@ class SettingsElement extends LitElement {
   private renderAppearance() {
     return html`
       <span class="label">Appearance</span>
-      ${segmented(APPEARANCES, this.appearance, (value) => {
+      ${segmented('Appearance', APPEARANCES, this.appearance, (value) => {
         this.pickAppearance(value);
       })}
     `;

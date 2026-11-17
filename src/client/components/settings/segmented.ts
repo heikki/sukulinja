@@ -54,13 +54,15 @@ export interface Choice<T> {
   label: string;
 }
 
-// The choices, `current` raised; picking one calls `pick` with it.
+// The choices, `current` raised, as a group `name`d as its row is;
+// picking one calls `pick` with it.
 export function segmented<T>(
+  name: string,
   choices: ReadonlyArray<Choice<T>>,
   current: T,
   pick: (value: T) => void
 ) {
-  return html`<div class="segmented">
+  return html`<div class="segmented" role="group" aria-label=${name}>
     ${choices.map(
       ({ value, label }) => html`
         <button

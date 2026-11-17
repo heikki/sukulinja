@@ -5,25 +5,17 @@
 import { afterAll, expect, test } from 'bun:test';
 
 import { closeBrowser, shot, withApp } from './app';
+import { newTree, openJuvaVolume, openSection } from './steps';
 
 afterAll(closeBrowser);
 
 test("a tree grows from its first person's baptism", async () => {
   await withApp(async ({ page }) => {
-    await page.getByRole('button', { name: 'New dataset…' }).click();
-    await page.getByLabel('Name', { exact: true }).fill('Esimerkin suku');
-    await page.getByLabel('Given names').fill('Matti');
-    await page.getByLabel('Surname').fill('Esimerkki');
-    await page.getByRole('button', { name: 'Create' }).click();
-    await page.waitForURL(/\/d\/esimerkin-suku\/#\/person\/1$/);
+    await newTree(page);
     expect(await page.locator('[data-box-key]').count()).toBe(1);
 
     // The baptism book, from the parish's archive in the Church books.
-    await page.getByRole('button', { name: /^Reminders, Changes/ }).click();
-    await page.getByRole('tab', { name: 'Church books' }).click();
-    await page.getByText('Juvan seurakunnan arkisto').click();
-    await page.getByText('Syntyneiden ja kastettujen luettelot').click();
-    await page.keyboard.press('Escape');
+    await openJuvaVolume(page, 'Syntyneiden ja kastettujen luettelot');
     await page.getByText('No one in the tree is linked here.').waitFor();
 
     // The first line of its first page, his baptism.
@@ -57,7 +49,7 @@ test("a tree grows from its first person's baptism", async () => {
       .getByRole('button', { name: /Matti Esimerkki$/ })
       .first()
       .click();
-    await page.getByRole('button', { name: 'Events' }).click();
+    await openSection(page, 'Events');
     await page.getByText('3.3.1795 · Esimerkkilä 2, Juva, Suomi').waitFor();
     await shot(page, 'new-tree-done');
   });

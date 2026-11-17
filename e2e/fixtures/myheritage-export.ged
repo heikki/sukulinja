@@ -1,0 +1,20 @@
+0 HEAD
+1 SOUR MYHERITAGE
+1 GEDC
+2 VERS 5.5.1
+1 CHAR UTF-8
+0 @S1@ SOUR
+1 TITL Suomalaiset rippi- ja lastenkirjat, 1657-1915
+1 PUBL MyHeritage
+0 @I1@ INDI
+1 NAME Matti /Esimerkki/
+1 SEX M
+1 BIRT
+2 DATE 1780
+1 SOUR @S1@
+2 PAGE https://www.myheritage.fi/research/collection-10509/x?itemId=5000&action=showRecord
+2 DATA
+3 TEXT Matti Esimerkki
+4 CONT Kirja:Rippikirja, 1790 - 1796
+4 CONT Hallintoalue:JuvaSivu:12
+0 TRLR

@@ -2,8 +2,6 @@ import { expect, test } from 'bun:test';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type Anthropic from '@anthropic-ai/sdk';
-
 import { OPERATIONS } from '@/common/operations';
 import type { AssistantEvent } from '@/common/types';
 
@@ -16,7 +14,8 @@ import { openServices } from '../datasets/services';
 import { parseGedcom } from '../gedcom/parser';
 import { importGedcom } from '../import/gedcom';
 import { assistantOperations, NO_KEY } from './asking';
-import type { Model, ModelAnswer, ModelRequest } from './model';
+import type { Model } from './model';
+import { answer, scripted } from './testing';
 
 const SCANS = openCitations(join(tmpdir(), 'assistant-asking-unread'), {
   astia: memoryAstia({}),
@@ -32,36 +31,6 @@ const GEDCOM = [
   '2 DATE 1860',
   ''
 ].join('\n');
-
-// Only the counts are read.
-const USAGE = JSON.parse(
-  '{"input_tokens":1000,"output_tokens":100}'
-) as Anthropic.Beta.BetaUsage;
-
-function answer(
-  content: unknown[],
-  stopReason: ModelAnswer['stopReason']
-): ModelAnswer {
-  return {
-    content: content as Anthropic.Beta.BetaContentBlock[],
-    stopReason,
-    usage: USAGE,
-    model: 'claude-opus-5-5'
-  };
-}
-
-// Answers in turn, writing each answer's text as it goes; keeps what it
-// was asked, as it stood then.
-function scripted(answers: ModelAnswer[]) {
-  const asked: ModelRequest[] = [];
-  async function model(...[request, onText]: Parameters<Model>) {
-    asked.push(structuredClone(request));
-    const next = answers.shift()!;
-    for (const b of next.content) if (b.type === 'text') onText(b.text);
-    return await Promise.resolve(next);
-  }
-  return { model, asked };
-}
 
 withoutEnvironmentKeys();
 
