@@ -14,8 +14,8 @@ import { JUVA } from '../astia/test-parish';
 import type { ImageSizeOf } from '../images';
 import type { Pins } from './pins/locate';
 import type { ChurchBookRef } from './record';
-import type { Match } from './scans';
 import { openScanFolder } from './scans';
+import type { Match } from './vision/matcher';
 
 // In pixels of the full-size Image.
 export const BOX = { left: 100, top: 400, width: 500, height: 50 };

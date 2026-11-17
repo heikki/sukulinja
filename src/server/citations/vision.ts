@@ -105,7 +105,10 @@ interface Options {
   // Where readings are kept, so none is asked twice.
   readings: string;
   // The data folder's Page pins, which a survey saves.
-  folder: Pick<ReturnType<typeof openScanFolder>, 'surveyPages'>;
+  folder: Pick<
+    ReturnType<typeof openScanFolder>,
+    'surveyPages' | 'pagesInVolume'
+  >;
 }
 
 export function openVision({ readers, image, readings, folder }: Options) {
@@ -194,7 +197,7 @@ export function openVision({ readers, image, readings, folder }: Options) {
     const { volumeId, volume } = asked;
     let took: VisionTook | null = null;
     try {
-      const pages = await citations.pagesInVolume(volumeId, volume);
+      const pages = await folder.pagesInVolume(volumeId, volume);
       if (!pages.some((p) => p.by !== null)) {
         yield { surveying: true };
         const surveyed = await surveyPages(

@@ -140,7 +140,10 @@ test("each Image's pages are those its Page pin gives, or counted from the pins 
   );
   const db = citing([], join(dir, 'pages.sqlite'));
   try {
-    const scans = scansOf(dir, db, { astia: juvaAstia() });
+    const scans = openScanFolder(dir, {
+      astia: juvaAstia(),
+      parishes: memoryParishes()
+    });
     const shown = await scans.pagesInVolume('juva-1', 'I Aa:1');
     expect(shown.find((p) => p.image === 3)).toEqual({
       image: 3,
@@ -168,7 +171,10 @@ test("each Image's pages are those its Page pin gives, or counted from the pins 
 test('without Page pins, each Image has the page its book is numbered with', async () => {
   const db = citing([], join(dir, 'numbered.sqlite'));
   try {
-    const scans = scansOf(dir, db, { astia: juvaAstia() });
+    const scans = openScanFolder(dir, {
+      astia: juvaAstia(),
+      parishes: memoryParishes()
+    });
     const rippi = await scans.pagesInVolume('juva-1', VOLUMES['juva-1']);
     expect(rippi.slice(0, 2)).toEqual([
       { image: 1, pages: [1], by: null },
@@ -195,7 +201,10 @@ test('a page set by hand on an Image keeps the same page on another', async () =
   await folder.setImagePage({ ...at, image: 13 }, [12]);
   const db = citing([], join(dir, 'twice.sqlite'));
   try {
-    const scans = scansOf(dir, db, { astia: juvaAstia() });
+    const scans = openScanFolder(dir, {
+      astia: juvaAstia(),
+      parishes: memoryParishes()
+    });
     const shown = await scans.pagesInVolume('juva-1', 'I Aa:1');
     expect(shown.filter((p) => p.by === 'hand').map((p) => p.image)).toEqual([
       12, 13
@@ -219,7 +228,10 @@ test('an Image set to have no page is left out of the counting', async () => {
   expect(await imagesAt(45)).toEqual([11]);
   const db = citing([], join(dir, 'none.sqlite'));
   try {
-    const scans = scansOf(dir, db, { astia: juvaAstia() });
+    const scans = openScanFolder(dir, {
+      astia: juvaAstia(),
+      parishes: memoryParishes()
+    });
     const shown = await scans.pagesInVolume('juva-1', 'I Aa:1');
     expect(shown.slice(4, 8)).toEqual([
       { image: 5, pages: [40], by: 'hand' },

@@ -132,6 +132,8 @@ export function openCitations(root: string, options: Options) {
             ),
           locateVolume: (volumeId, volume, model) =>
             vision.locateVolume(citations, { volumeId, volume }, model),
+          volumePages: async (volumeId, volume) =>
+            await folder.pagesInVolume(volumeId, volume),
           setImagePage: async (at, pages) =>
             await folder.setImagePage(at, pages),
           clearVolumePages: async (volumeId) =>

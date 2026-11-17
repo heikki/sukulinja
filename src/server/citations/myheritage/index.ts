@@ -1,8 +1,10 @@
 // MyHeritage's Church-book references: read from a Citation's page and
 // text, resolved to Astia's scans with the pins, and saved where one is (a
 // Mark, a Match or a Discard). The rest of the Citations reach them only
-// through here, so that once every reference is converted to a Citation of
-// its Image, this folder can go.
+// through here. It stays, as a MyHeritage export stays a way in (ADR-0030);
+// a reference Marked at its entry still converts (ADR-0016). Page pins are
+// kept here with the Record ranges and Record pins they're saved beside,
+// though the Scan viewer's pages serve every Volume.
 
 export { routeRescan, switchFilming } from './pins/rescans';
 export type { KeptPins } from './pins/rescans';

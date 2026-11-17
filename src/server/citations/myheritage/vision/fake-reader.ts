@@ -1,7 +1,7 @@
 // Test support: a scripted Volume read by a fake Reader, so matcher tests
 // say what each Image reads as and who is on it, without a model.
 
-import type { Candidate } from '../scans';
+import type { Candidate } from './matcher';
 import type { DatesReading, PagesReading, Reader } from './reader';
 
 export const DAY = 24 * 60 * 60 * 1000;

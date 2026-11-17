@@ -69,8 +69,6 @@ export function referencesOf(
     mark: async (ref, target) => await scans.markRef(ref, target),
     discard: async (ref, at) => await scans.discardRef(ref, at),
     volumeChoices: async (ref) => await scans.volumeChoices(ref),
-    pagesInVolume: async (volumeId, label) =>
-      await scans.pagesInVolume(volumeId, label),
     findAllOnImage: async (refs, at, reader) =>
       await findAllOnImage(scans, at, refs, reader),
 

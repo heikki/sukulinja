@@ -13,9 +13,10 @@ import { openParishes } from '@/server/citations/astia/parishes';
 import { RIPPI_COLLECTION } from '@/server/citations/myheritage/record';
 import type { ChurchBookRef } from '@/server/citations/myheritage/record';
 import { openScanFolder } from '@/server/citations/myheritage/scans';
-import type { Match, Scans } from '@/server/citations/myheritage/scans';
+import type { Scans } from '@/server/citations/myheritage/scans';
 import { matchRef } from '@/server/citations/myheritage/vision/matcher';
 import type {
+  Match,
   Miss,
   MissReason
 } from '@/server/citations/myheritage/vision/matcher';

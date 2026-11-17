@@ -30,15 +30,42 @@
 import type { BookKind, Years } from '@/common/types';
 
 import type { ChurchBookRef } from '../record';
-import type { Candidate, Fractions, Match } from '../scans';
 import { confirms } from './reader';
 import type {
   DatesReading,
+  Fractions,
   PagesReading,
   Person,
   Reader,
   Register
 } from './reader';
+
+// What a search is given and gives back: the Volumes to search, and the
+// entry it confirmed.
+
+// A Volume the existing resolution offers for the reference, with its
+// number of Images, the years its label gives, and the Image it links when
+// it knows one.
+export interface Candidate {
+  volumeId: string;
+  volume: string;
+  images: number;
+  years: Years | null;
+  start: number | null;
+}
+
+// Where the vision model confirmed the entry.
+export interface Match {
+  confirmed: true;
+  volumeId: string;
+  volume: string;
+  image: number;
+  // Whether page search read the cited Page number on this very Image,
+  // so it can stand as a Page pin.
+  onCitedPage: boolean;
+  // Where on the Image the entry is: a Match saves only with one.
+  box: Fractions;
+}
 
 // Why a search confirmed no Match.
 export type MissReason =

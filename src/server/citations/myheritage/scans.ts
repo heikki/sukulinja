@@ -9,8 +9,7 @@ import type {
   Link,
   LinkResolution,
   VolumeChoice,
-  VolumeChoices,
-  Years
+  VolumeChoices
 } from '@/common/types';
 
 import { archiveAmong } from '../astia/archives';
@@ -33,7 +32,8 @@ import { openPins, openVolumeFacts } from './pins/pins';
 import type { BoxAt, MarkTarget, PinStore } from './pins/pins';
 import type { ChurchBookRef } from './record';
 import { referencesOf } from './references';
-import type { Reader } from './vision/reader';
+import type { Candidate, Match } from './vision/matcher';
+import type { Fractions, Reader } from './vision/reader';
 import { surveyVolume } from './vision/survey';
 import type { Survey } from './vision/survey';
 
@@ -41,43 +41,6 @@ import type { Survey } from './vision/survey';
 // the Book it cites, not by where it was pinned before.
 async function byBook(pins: PinStore) {
   return { volumes: (await pins.snapshot()).volumes, references: {} };
-}
-
-// What the vision pass (vision/) is given and gives back: the
-// Volumes to search, and the entry it confirmed.
-
-// A Volume the existing resolution offers for the reference, with its
-// number of Images, the years its label gives, and the Image it links when
-// it knows one.
-export interface Candidate {
-  volumeId: string;
-  volume: string;
-  images: number;
-  years: Years | null;
-  start: number | null;
-}
-
-// Where an entry is on an Image, in fractions of its width and height:
-// what a reading gives, whatever size the model read the Image at. A Box
-// saved is in pixels of the full-size Image (see Box).
-export interface Fractions {
-  left: number;
-  top: number;
-  width: number;
-  height: number;
-}
-
-// Where the vision model confirmed the entry.
-export interface Match {
-  confirmed: true;
-  volumeId: string;
-  volume: string;
-  image: number;
-  // Whether page search read the cited Page number on this very Image,
-  // so it can stand as a Page pin.
-  onCitedPage: boolean;
-  // Where on the Image the entry is: a Match saves only with one.
-  box: Fractions;
 }
 
 // What's wrong with a Mark's entry Box, if anything.
@@ -197,10 +160,6 @@ function openScans({
     // The dataset's Marks and Matches as the pins they're kept as, and its
     // Rejections.
     marked: () => pins.marked(),
-
-    // The pages the Volume's Page pins put on each of its Images.
-    pagesInVolume: async (volumeId: string, label: string) =>
-      await volumePages(astia, { volumeId, label }, await pins.snapshot()),
 
     // Changes when a save, a Volume's list kept anew, or a spelling given
     // another archive changes what references resolve to.
@@ -356,6 +315,16 @@ export function openScanFolder(
   }
 
   return {
+    // The pages the Volume's Page pins put on each of its Images, or its
+    // numbering without them; of the Volume `label` by its label. Page
+    // pins are the folder's, for every dataset, never a dataset's Marks.
+    pagesInVolume: async (volumeId: string, label: string) =>
+      await volumePages(
+        astia,
+        { volumeId, label },
+        { volumes: await facts.volumes(), references: {} }
+      ),
+
     // Surveys how the Volume, `volume` by its label, numbers its pages
     // (ADR-0032), closing in first where the `cited` pages could be, and
     // saves what it read as Page pins, `replace`-ing the Volume's vision

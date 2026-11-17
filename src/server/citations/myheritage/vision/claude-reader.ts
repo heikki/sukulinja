@@ -19,11 +19,11 @@ import {
 } from '../../../claude/client';
 import type { Spend } from '../../../claude/client';
 import type { ImageRef } from '../../astia/astia';
-import type { Fractions } from '../scans';
 import type { Region, Scan } from './images';
 import type {
   DatesReading,
   EntryReading,
+  Fractions,
   PagesReading,
   Person,
   Question,

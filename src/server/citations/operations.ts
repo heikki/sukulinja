@@ -4,6 +4,7 @@
 import type { BoxAt } from '@/common/operations';
 import type { CITATION_OPERATIONS } from '@/common/operations/citations';
 import type {
+  ImagePages,
   VisionPageTry,
   VisionSurvey,
   VolumeLocating
@@ -39,6 +40,9 @@ interface Doers {
     volume: string,
     model: string
   ) => AsyncIterable<VolumeLocating>;
+  // The pages the Volume's Page pins put on each of its Images, or its
+  // numbering without them; `volume` by its label.
+  volumePages: (volumeId: string, volume: string) => Promise<ImagePages[]>;
   // Sets the Image's page by hand, or takes it away: why it can't be, or
   // nothing.
   setImagePage: (
@@ -69,6 +73,7 @@ export function citationOperations(
     findAllOnImage,
     surveyPages,
     locateVolume,
+    volumePages,
     setImagePage,
     clearVolumePages
   }: Doers
@@ -157,20 +162,20 @@ export function citationOperations(
     },
 
     volumePages: async ({ volumeId, volume }) =>
-      await askingAstia(citations.pagesInVolume(volumeId, volume)),
+      await askingAstia(volumePages(volumeId, volume)),
 
     async setImagePage({ volumeId, volume, image, pages }) {
       const refused = await askingAstia(
         setImagePage({ volumeId, volume, image }, pages)
       );
       if (refused !== null) throw new Refusal(409, refused.rejected);
-      return await askingAstia(citations.pagesInVolume(volumeId, volume));
+      return await askingAstia(volumePages(volumeId, volume));
     },
 
     async clearVolumePages({ volumeId, volume }) {
       const refused = await askingAstia(clearVolumePages(volumeId));
       if (refused !== null) throw new Refusal(409, refused.rejected);
-      return await askingAstia(citations.pagesInVolume(volumeId, volume));
+      return await askingAstia(volumePages(volumeId, volume));
     },
 
     archives: async () => await askingAstia(citations.churchBookArchives()),

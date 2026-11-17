@@ -13,7 +13,16 @@ import { join } from 'node:path';
 
 import type { ImageRef } from '../../astia/astia';
 import type { EntryName, Household } from '../record';
-import type { Fractions } from '../scans';
+
+// Where an entry is on an Image, in fractions of its width and height:
+// what a reading gives, whatever size the model read the Image at. A Box
+// saved is in pixels of the full-size Image (see Box).
+export interface Fractions {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
 
 // Who to look for: the name as the tree or the citation has it, with the
 // event date (YYYY-MM-DD, or a shorter prefix), village, household, and the
