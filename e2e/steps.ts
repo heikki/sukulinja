@@ -15,15 +15,19 @@ export async function newTree(page: Page) {
   await page.waitForURL(/\/d\/esimerkin-suku\/#\/person\/1$/);
 }
 
-// The GEDCOM in e2e/fixtures imported as "Esimerkin suku", whose tree it
-// then shows.
-export async function importTree(page: Page, fixture: string) {
+// The GEDCOM or GEDZIP in e2e/fixtures, or at an absolute path, imported
+// from the dataset list as `name`, whose tree it then shows.
+export async function importTree(
+  page: Page,
+  file: string,
+  name = 'Esimerkin suku'
+) {
   await page
     .locator('#file-input')
-    .setInputFiles(resolve(import.meta.dir, 'fixtures', fixture));
-  await page.getByLabel('Name').fill('Esimerkin suku');
+    .setInputFiles(resolve(import.meta.dir, 'fixtures', file));
+  await page.getByLabel('Name').fill(name);
   await page.getByRole('button', { name: 'Import', exact: true }).click();
-  await page.waitForURL(/\/d\/esimerkin-suku\/#\/person\/1$/);
+  await page.waitForURL(/\/d\/[^/]+\/#\/person\/\d+$/);
 }
 
 // The Assistant, and Vision Match with it, turned on in Settings.

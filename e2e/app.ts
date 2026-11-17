@@ -1,11 +1,11 @@
 // The app as an e2e test opens it: served to a headless Chromium from a
 // data folder of its own, empty, with nothing reaching outside this
 // machine. Astia answers from fixtureAstia, Claude from the test's script
-// (the assistant has no key without one), and exports go to the data
-// folder. The models are always the test's: a key in the environment
+// (the assistant has no key without one), and exports go to a folder
+// beside the data folder. The models are always the test's: a key in the environment
 // must not reach Claude from a test.
 
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -22,8 +22,10 @@ import { fixtureAstia } from './astia';
 
 export interface App {
   page: Page;
-  // Where the app keeps its datasets, removed on close.
+  // Where the app keeps its datasets, and saves its exports; both removed
+  // on close.
   dataDir: string;
+  exportDir: string;
   close: () => Promise<void>;
 }
 
@@ -50,7 +52,10 @@ export async function openApp({
   assistant,
   vision
 }: AppOptions = {}): Promise<App> {
-  const dataDir = await mkdtemp(join(tmpdir(), 'sukulinja-e2e-'));
+  const root = await mkdtemp(join(tmpdir(), 'sukulinja-e2e-'));
+  const dataDir = join(root, 'data');
+  const exportDir = join(root, 'exports');
+  await mkdir(exportDir);
   const { model } = scripted(assistant ?? []);
   const server = serveInBrowser(new DatasetRegistry(dataDir), {
     astia: await fixtureAstia(),
@@ -59,7 +64,7 @@ export async function openApp({
     ),
     assistantModel: () => model,
     vision: vision ?? noVision,
-    exportDir: dataDir
+    exportDir
   });
   const context = await (
     await sharedBrowser()
@@ -74,10 +79,11 @@ export async function openApp({
   return {
     page,
     dataDir,
+    exportDir,
     async close() {
       await context.close();
       await server.stop(true);
-      await rm(dataDir, { recursive: true, force: true });
+      await rm(root, { recursive: true, force: true });
     }
   };
 }
