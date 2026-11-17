@@ -11,8 +11,7 @@ function said(value: string | null) {
   return kept === '' ? null : kept;
 }
 
-// The fields an Entry of the Event keeps: its own dates, and the village
-// and farm. A date of another Event's, left from a kind chosen before,
+// The fields an Entry of the Event keeps: its own dates, and its place. A date of another Event's, left from a kind chosen before,
 // goes.
 export function keptFields(
   event: EntryEvent | null,
@@ -22,8 +21,7 @@ export function keptFields(
   return {
     date: keys.has('date') ? said(fields.date) : null,
     lifeDate: keys.has('lifeDate') ? said(fields.lifeDate) : null,
-    village: said(fields.village),
-    farm: said(fields.farm)
+    place: said(fields.place)
   };
 }
 

@@ -21,13 +21,8 @@ export interface TickDetail {
   on: boolean;
 }
 
-const PLACES = [
-  { key: 'village', label: 'Village' },
-  { key: 'farm', label: 'Farm' }
-] as const;
-
 // An Entry's fields on its card (ADR-0033): the dates its Event gives,
-// typed the app's way, then its village and farm, each set as typed
+// typed the app's way, then its place, each set as typed
 // (`set-field`). Under them the lines of what they'd do to the tree,
 // each with its box (`tick`), but two Facts of a kind, to choose between
 // in Sources. Never required: nothing ticked saves the Entry alone.
@@ -110,7 +105,7 @@ class EntryFieldsElement extends LitElement {
       <input
         type="text"
         .value=${text}
-        placeholder=${date ? '3.3.1761' : ''}
+        placeholder=${date ? '3.3.1761' : 'Esimerkkilä 2'}
         aria-invalid=${unread ? 'true' : 'false'}
         @input=${(e: Event) => {
           this.set(key, (e.target as HTMLInputElement).value);
@@ -149,7 +144,7 @@ class EntryFieldsElement extends LitElement {
       ${eventDates(this.event).map(({ key, label }) =>
         this.renderField(key, label, true)
       )}
-      ${PLACES.map(({ key, label }) => this.renderField(key, label, false))}
+      ${this.renderField('place', 'Place', false)}
       ${
         this.offers.length === 0
           ? nothing

@@ -174,11 +174,10 @@ const SCHEMA_SQL = `
     box_height INTEGER NOT NULL,
     -- What the Entry says as its book writes it (ADR-0033): the date of
     -- its Event, and of the birth or death it follows (a baptism's Born,
-    -- a burial's Died), as GEDCOM dates, and the village and farm.
+    -- a burial's Died), as GEDCOM dates, and its place as it writes it.
     date TEXT,
     life_date TEXT,
-    village TEXT,
-    farm TEXT
+    place TEXT
   );
 
   CREATE TABLE IF NOT EXISTS citations (

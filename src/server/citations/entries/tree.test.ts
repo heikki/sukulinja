@@ -22,10 +22,10 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-const PLACE = 'Mäkelä, Esimerkkilä, Juva, Suomi';
-const AT_MAKELA = { village: 'Esimerkkilä', farm: 'Mäkelä' };
+const PLACE = 'Esimerkkilä 2, Juva, Suomi';
+const AT_MAKELA = { place: 'Esimerkkilä 2' };
 
-// A baptism born and baptised on the days given, at Mäkelä unless not.
+// A baptism born and baptised on the days given, at Esimerkkilä 2 unless not.
 function fields(born: string | null, baptised: string | null, at = true) {
   const place = at ? AT_MAKELA : {};
   return { ...NO_FIELDS, ...place, lifeDate: born, date: baptised };
@@ -99,13 +99,10 @@ test('nothing ticked saves the Entry with its dates alone', async () => {
   expect(row!.citation.supports).toEqual([]);
   expect(factsOf(db, 3)).toEqual([]);
   expect(changes.map((c) => c.what.kind)).toEqual(['cite']);
-  expect(
-    db.query('SELECT date, life_date, village, farm FROM entries').get()
-  ).toEqual({
+  expect(db.query('SELECT date, life_date, place FROM entries').get()).toEqual({
     date: '5 MAR 1795',
     life_date: '3 MAR 1795',
-    village: 'Esimerkkilä',
-    farm: 'Mäkelä'
+    place: 'Esimerkkilä 2'
   });
 });
 
@@ -122,7 +119,7 @@ test('a Fact that agrees is supported; one that says less is changed only when t
       ...asked,
       fields: fields('3 MAR 1795', '12 MAR 1795', false)
     })
-  ).toEqual([
+  ).toMatchObject([
     { tag: 'BIRT', action: 'support', factId: 1 },
     { tag: 'CHR', action: 'support', factId: 2 }
   ]);

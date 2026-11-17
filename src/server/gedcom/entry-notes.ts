@@ -1,7 +1,7 @@
 // What an Entry says in GEDCOM 7 (ADR-0033), written by the export and read
 // back by the import. Its Event's date is the citation's DATA DATE, which
-// other programs read; each of its dates, its village and its farm is a
-// NOTE on the citation too ("Born: 3 MAR 1761", "Farm: Mäkelä"), as the
+// other programs read; each of its dates and its place is a NOTE on the
+// citation too ("Born: 3 MAR 1761", "Place: Pyhäjärvi 2"), as the
 // Annotation's are (astia-links.ts), which the import reads back into the
 // Entry. A citation has one DATA DATE, and a baptism two dates.
 
@@ -16,8 +16,7 @@ const LABELS: ReadonlyArray<readonly [string, Key]> = [
   ...new Map(
     ENTRY_EVENTS.flatMap((e) => e.dates.map((d) => [d.label, d.key] as const))
   ).entries(),
-  ['Village', 'village'],
-  ['Farm', 'farm']
+  ['Place', 'place']
 ];
 
 const NOTE = /^(?<label>[A-Z][a-z]+): (?<value>.+)$/su;
@@ -28,11 +27,7 @@ export function entryNotes(
   dates: ReadonlyArray<{ key: Key; label: string }>,
   fields: EntryFields
 ) {
-  const named = [
-    ...dates,
-    { key: 'village' as const, label: 'Village' },
-    { key: 'farm' as const, label: 'Farm' }
-  ];
+  const named = [...dates, { key: 'place' as const, label: 'Place' }];
   return named.flatMap(({ key, label }) => {
     const value = fields[key];
     return value === null ? [] : [`${label}: ${value}`];

@@ -435,7 +435,7 @@ describe('exporting a GEDZIP', () => {
     ).toEqual({ n: 1 });
   });
 
-  test("carries an Entry's dates, village and farm, and its Event's date as the DATA DATE", async () => {
+  test("carries an Entry's dates and place, and its Event's date as the DATA DATE", async () => {
     await importFixture();
     const db = registry.open('a');
     const id = openAppCitations(db).create({
@@ -453,8 +453,7 @@ describe('exporting a GEDZIP', () => {
     const fields = {
       date: '5 MAR 1791',
       lifeDate: '3 MAR 1791',
-      village: 'Esimerkkilä',
-      farm: 'Mäkelä'
+      place: 'Esimerkkilä 2'
     };
     putEntryFields(db, new Map([[id, fields]]));
 
@@ -465,15 +464,14 @@ describe('exporting a GEDZIP', () => {
     expect(
       registry
         .open('b')
-        .query('SELECT event, date, life_date, village, farm FROM entries')
+        .query('SELECT event, date, life_date, place FROM entries')
         .all()
     ).toEqual([
       {
         event: 'CHR',
         date: '5 MAR 1791',
         life_date: '3 MAR 1791',
-        village: 'Esimerkkilä',
-        farm: 'Mäkelä'
+        place: 'Esimerkkilä 2'
       }
     ]);
     // Read back into the Entry, not kept as the citation's own notes.

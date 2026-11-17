@@ -27,6 +27,7 @@ import { CHANGES_SAY_VIA_THE_ASSISTANT } from './migration-9';
 import { REIMPORT_LEFTOVERS_GO } from './migration-10';
 import { FACT_CITATIONS_GO } from './migration-11';
 import { ENTRIES_SAY_THEIR_DATES } from './migration-12';
+import { ENTRIES_SAY_ONE_PLACE } from './migration-13';
 
 export interface Migration {
   to: number;
@@ -47,7 +48,8 @@ export const MIGRATIONS: Migration[] = [
   CHANGES_SAY_VIA_THE_ASSISTANT,
   REIMPORT_LEFTOVERS_GO,
   FACT_CITATIONS_GO,
-  ENTRIES_SAY_THEIR_DATES
+  ENTRIES_SAY_THEIR_DATES,
+  ENTRIES_SAY_ONE_PLACE
 ];
 
 // The version the steps take a database to.

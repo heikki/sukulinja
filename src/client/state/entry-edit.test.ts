@@ -304,7 +304,7 @@ test("the card lists what the Entry's dates would do, and Save does those ticked
   const form = viewer.entryForm;
   form.setField('lifeDate', '30.1.1790');
   form.setField('date', '1.2.1790');
-  form.setField('village', 'Esimerkkilä');
+  form.setField('place', 'Esimerkkilä 2');
   await until(() => form.offers.get().length === 2);
   expect(form.offers.get()).toMatchObject([
     { tag: 'BIRT', action: 'add', now: { date: '30 JAN 1790' } },
@@ -321,8 +321,7 @@ test("the card lists what the Entry's dates would do, and Save does those ticked
   expect(cited?.fields).toEqual({
     date: '1 FEB 1790',
     lifeDate: '30 JAN 1790',
-    village: 'Esimerkkilä',
-    farm: null
+    place: 'Esimerkkilä 2'
   });
 
   // Opened again: the Birth agrees now, the Christening is still to add.

@@ -60,8 +60,7 @@ interface CitationDbRow {
   entryEvent: string | null;
   entryDate: string | null;
   entryLifeDate: string | null;
-  entryVillage: string | null;
-  entryFarm: string | null;
+  entryPlace: string | null;
   // As imported.
   role: string | null;
   annotation: Annotation;
@@ -137,8 +136,7 @@ function fieldsOf(row: CitationDbRow): EntryFields | null {
   return {
     date: row.entryDate,
     lifeDate: row.entryLifeDate,
-    village: row.entryVillage,
-    farm: row.entryFarm
+    place: row.entryPlace
   };
 }
 
@@ -245,7 +243,7 @@ export function createCitations<R extends BookRef>(
     CASE WHEN c.entry_id IS NULL THEN NULL ELSE c.role END AS entryRole,
     CASE WHEN c.entry_id IS NULL THEN NULL ELSE c.event END AS entryEvent,
     e.date AS entryDate, e.life_date AS entryLifeDate,
-    e.village AS entryVillage, e.farm AS entryFarm,
+    e.place AS entryPlace,
     c.role,
     (SELECT group_concat(fact_id) FROM fact_citations
       WHERE citation_id = c.id) AS supports,

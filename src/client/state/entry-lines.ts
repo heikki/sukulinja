@@ -20,8 +20,7 @@ export type TypedFields = Record<keyof EntryFields, string>;
 export const NO_TYPED: TypedFields = {
   date: '',
   lifeDate: '',
-  village: '',
-  farm: ''
+  place: ''
 };
 
 // A line by what it does, as its box is kept: "BIRT add".
@@ -31,12 +30,11 @@ export function lineKey(line: { tag: string; action: string }) {
 
 // Fields saved, as the card shows them to edit.
 export function typedOf(fields: EntryFields | null): TypedFields {
-  const { date, lifeDate, village, farm } = fields ?? NO_FIELDS;
+  const { date, lifeDate, place } = fields ?? NO_FIELDS;
   return {
     date: date === null ? '' : gedcomDate(date),
     lifeDate: lifeDate === null ? '' : gedcomDate(lifeDate),
-    village: village ?? '',
-    farm: farm ?? ''
+    place: place ?? ''
   };
 }
 
@@ -50,8 +48,7 @@ function cleaned(text: string) {
 export function fieldsOf(event: EntryEvent | null, typed: TypedFields) {
   const fields: EntryFields = {
     ...NO_FIELDS,
-    village: cleaned(typed.village),
-    farm: cleaned(typed.farm)
+    place: cleaned(typed.place)
   };
   for (const { key } of eventDates(event)) {
     const text = cleaned(typed[key]);

@@ -25,13 +25,13 @@ export interface FactSays {
 
 // One line of the card's list:
 // - 'add': there's no such Fact; one is added, as the Entry says;
-// - 'support': the Fact agrees; the Entry's Citation supports it;
+// - 'support': the Fact (`was`) agrees; the Entry's Citation supports it;
 // - 'change': the Fact says less, or differs; it's made to say what the
 //   Entry does (`now`), and supported;
 // - 'two': there are two or more, to choose between in Sources; no box.
 export type Offer =
   | { tag: string; action: 'add'; now: FactSays }
-  | { tag: string; action: 'support'; factId: number }
+  | { tag: string; action: 'support'; factId: number; was: FactSays }
   | {
       tag: string;
       action: 'change';
@@ -92,7 +92,7 @@ function offersFor(
     now: { date: now.date, place: now.place ?? fact.place }
   };
   if (date === 'other' || place === 'other') return [change];
-  const support: Offer = { tag, action: 'support', factId: fact.id };
+  const support: Offer = { tag, action: 'support', factId: fact.id, was };
   return date === 'same' && place === 'same' ? [support] : [support, change];
 }
 
@@ -110,14 +110,14 @@ export function entryOffers(
   });
 }
 
-// The Entry's place, as a Fact's is written (ADR-0023, ADR-0024): "farm,
-// village, parish, Suomi", of what's known. Null with neither village nor
-// farm.
+// The Entry's place as a Fact's is written (ADR-0024): as its book writes
+// it, in its parish, in Finland: "Esimerkkilä 2, Juva, Suomi". One typed
+// with a comma says where it is itself, and is taken as written. Null
+// with none.
 export function entryPlace(fields: EntryFields, parish: string | null) {
-  const { farm, village } = fields;
-  if (farm === null && village === null) return null;
-  const parts = [farm, village === parish ? null : village, parish, 'Suomi'];
-  return parts.filter((p) => p !== null).join(', ');
+  const { place } = fields;
+  if (place === null || place.includes(',')) return place;
+  return [place, parish, 'Suomi'].filter((p) => p !== null).join(', ');
 }
 
 function dateWords(date: string | null) {
@@ -140,8 +140,8 @@ function changeWords(was: FactSays, now: FactSays) {
   return parts.join(', ');
 }
 
-// A line as its card writes it: "Add Birth 3.3.1761 at Mäkelä, …",
-// "Supports Christening", "Change Birth 1761 → 3.3.1761", "Two Births:
+// A line as its card writes it: "Add Birth 3.3.1761 at Esimerkkilä 2, …",
+// "Christening 5.3.1761 matches: use as its source", "Change Birth 1761 → 3.3.1761", "Two Births:
 // choose in Sources".
 export function offerWords(offer: Offer) {
   const kind = factKindLabel(offer.tag);
@@ -151,8 +151,11 @@ export function offerWords(offer: Offer) {
       const at = place === null ? '' : ` at ${place}`;
       return `Add ${kind} ${dateWords(date)}${at}`;
     }
-    case 'support':
-      return `Supports ${kind}`;
+    case 'support': {
+      const date =
+        offer.was.date === null ? '' : ` ${dateWords(offer.was.date)}`;
+      return `${kind}${date} matches: use as its source`;
+    }
     case 'change':
       return `Change ${kind} ${changeWords(offer.was, offer.now)}`;
     case 'two':

@@ -100,8 +100,7 @@ export function entryFieldsOf(value: unknown): EntryFields | null {
   const read = {
     date: optionalString(fields.date),
     lifeDate: optionalString(fields.lifeDate),
-    village: optionalString(fields.village),
-    farm: optionalString(fields.farm)
+    place: optionalString(fields.place)
   };
   return Object.values(read).includes(undefined) ? null : (read as EntryFields);
 }

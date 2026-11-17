@@ -127,12 +127,12 @@ export function openEntries(db: Database) {
   >(
     `SELECT volume_id AS volumeId, volume, image, file_id AS fileId, event,
        box_left AS left, box_top AS top, box_width AS width,
-       box_height AS height, date, life_date AS lifeDate, village, farm
+       box_height AS height, date, life_date AS lifeDate, place
      FROM entries WHERE id = ?`
   );
   const setFields = db.prepare(
     `UPDATE entries SET date = $date, life_date = $lifeDate,
-       village = $village, farm = $farm WHERE id = $id`
+       place = $place WHERE id = $id`
   );
   const ofCitation = db.prepare<{ id: number }, [number]>(
     'SELECT entry_id AS id FROM citations WHERE id = ? AND entry_id IS NOT NULL'
@@ -185,12 +185,12 @@ export function openEntries(db: Database) {
       const row = entryOf.get(id);
       if (row === null) return null;
       const { left, top, width, height, event, ...rest } = row;
-      const { date, lifeDate, village, farm, ...at } = rest;
+      const { date, lifeDate, place, ...at } = rest;
       const entry: StoredEntry = {
         ...at,
         event: isEntryEvent(event) ? event : null,
         box: { left, top, width, height },
-        fields: { date, lifeDate, village, farm }
+        fields: { date, lifeDate, place }
       };
       return entry;
     },
@@ -216,8 +216,7 @@ export function openEntries(db: Database) {
         $id: id,
         $date: f.date,
         $lifeDate: f.lifeDate,
-        $village: f.village,
-        $farm: f.farm
+        $place: f.place
       });
     },
 

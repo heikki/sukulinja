@@ -11,13 +11,12 @@ import {
   tickedFirst
 } from './entry-offers';
 
-const PLACE = 'Mäkelä, Esimerkkilä, Juva, Suomi';
+const PLACE = 'Esimerkkilä 2, Juva, Suomi';
 const BAPTISM = {
   ...NO_FIELDS,
   lifeDate: '3 MAR 1761',
   date: '5 MAR 1761',
-  village: 'Esimerkkilä',
-  farm: 'Mäkelä'
+  place: 'Esimerkkilä 2'
 };
 
 function birth(date: string | null, place: string | null = PLACE, id = 1) {
@@ -38,7 +37,9 @@ test('a date with no Fact of its kind adds one, ticked; an empty one does nothin
 });
 
 test('a Fact that agrees is supported', () => {
-  expect(entryOffers('CHR', BAPTISM, PLACE, [birth('3 MAR 1761')])[0]).toEqual({
+  expect(
+    entryOffers('CHR', BAPTISM, PLACE, [birth('3 MAR 1761')])[0]
+  ).toMatchObject({
     tag: 'BIRT',
     action: 'support',
     factId: 1
@@ -46,13 +47,17 @@ test('a Fact that agrees is supported', () => {
   // The Entry with no place agrees with any.
   expect(
     entryOffers('CHR', BAPTISM, null, [birth('3 MAR 1761', 'Juva')])[0]
-  ).toEqual({ tag: 'BIRT', action: 'support', factId: 1 });
+  ).toMatchObject({ tag: 'BIRT', action: 'support', factId: 1 });
 });
 
 test('a Fact that agrees but says less is supported, and its change offered unticked', () => {
   for (const date of ['1761', 'ABT 1761', 'BET 1760 AND 1762', null]) {
     const [support, change] = entryOffers('CHR', BAPTISM, PLACE, [birth(date)]);
-    expect(support).toEqual({ tag: 'BIRT', action: 'support', factId: 1 });
+    expect(support).toMatchObject({
+      tag: 'BIRT',
+      action: 'support',
+      factId: 1
+    });
     expect(change).toMatchObject({
       action: 'change',
       was: { date },
@@ -91,25 +96,24 @@ test('two Facts of a kind are left to choose between in Sources', () => {
   });
 });
 
-test('the place is the farm, village and parish, in Finland', () => {
+test('the place is as the book writes it, in its parish, in Finland', () => {
   expect(entryPlace(BAPTISM, 'Juva')).toBe(PLACE);
-  expect(entryPlace({ ...BAPTISM, farm: null }, 'Juva')).toBe(
-    'Esimerkkilä, Juva, Suomi'
-  );
-  // The church village is named once.
-  expect(entryPlace({ ...BAPTISM, village: 'Juva' }, 'Juva')).toBe(
-    'Mäkelä, Juva, Suomi'
-  );
+  expect(entryPlace(BAPTISM, null)).toBe('Esimerkkilä 2, Suomi');
+  // One typed with a comma says where it is itself.
+  expect(
+    entryPlace({ ...BAPTISM, place: 'Esimerkkilä 2, Malliranta' }, 'Juva')
+  ).toBe('Esimerkkilä 2, Malliranta');
   expect(entryPlace(NO_FIELDS, 'Juva')).toBeNull();
 });
 
 test('a line is written as the card shows it', () => {
-  const now = { date: '3 MAR 1761', place: 'Mäkelä, Esimerkkilä, Juva, Suomi' };
+  const now = { date: '3 MAR 1761', place: 'Esimerkkilä 2, Juva, Suomi' };
   expect(offerWords({ tag: 'BIRT', action: 'add', now })).toBe(
-    'Add Birth 3.3.1761 at Mäkelä, Esimerkkilä, Juva, Suomi'
+    'Add Birth 3.3.1761 at Esimerkkilä 2, Juva, Suomi'
   );
-  expect(offerWords({ tag: 'CHR', action: 'support', factId: 1 })).toBe(
-    'Supports Christening'
+  const was = { date: '5 MAR 1761', place: null };
+  expect(offerWords({ tag: 'CHR', action: 'support', factId: 1, was })).toBe(
+    'Christening 5.3.1761 matches: use as its source'
   );
   expect(
     offerWords({
@@ -119,7 +123,7 @@ test('a line is written as the card shows it', () => {
       was: { date: '1761', place: null },
       now
     })
-  ).toBe('Change Birth 1761 → 3.3.1761, at Mäkelä, Esimerkkilä, Juva, Suomi');
+  ).toBe('Change Birth 1761 → 3.3.1761, at Esimerkkilä 2, Juva, Suomi');
   expect(
     offerWords({
       tag: 'BIRT',
@@ -128,7 +132,7 @@ test('a line is written as the card shows it', () => {
       was: { date: '3 MAR 1761', place: 'Juva' },
       now
     })
-  ).toBe('Change Birth place Juva → Mäkelä, Esimerkkilä, Juva, Suomi');
+  ).toBe('Change Birth place Juva → Esimerkkilä 2, Juva, Suomi');
   expect(offerWords({ tag: 'BIRT', action: 'two' })).toBe(
     'Two Births: choose in Sources'
   );

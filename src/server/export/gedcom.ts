@@ -123,8 +123,7 @@ function gedcomTree(db: Database) {
     const fields = {
       date: c.entry_date,
       lifeDate: c.entry_life_date,
-      village: c.entry_village,
-      farm: c.entry_farm
+      place: c.entry_place
     };
     const dates = eventDates(isEntryEvent(c.event) ? c.event : null);
     return entryNotes(dates, fields).map((note) => line('NOTE', note));
