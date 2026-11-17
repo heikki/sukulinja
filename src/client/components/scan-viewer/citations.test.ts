@@ -47,6 +47,7 @@ function row(
       supports: [],
       entryId: null,
       event: null,
+      fields: null,
       role: null
     },
     link: {

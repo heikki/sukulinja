@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test';
 
+import { NO_TYPED } from '@/client/state';
 import type { PendingChange } from '@/client/state';
 import type { Box, VolumeCitation } from '@/common/types';
 
@@ -28,6 +29,7 @@ function row(id: number, markKey: string, entryId: number | null = null) {
       supports: [],
       entryId,
       event: null,
+      fields: null,
       role: null
     },
     link: {
@@ -65,7 +67,7 @@ test('an edited Entry hides the Box of everyone in it', () => {
   const pending: PendingChange = {
     ...AT,
     kind: 'edit',
-    cite: { event: null, people: [], text: '' },
+    cite: { event: null, people: [], text: '', fields: NO_TYPED, ticks: {} },
     editing: { entryId: 7, event: null, was, text: '', box: BOX }
   };
   expect(ids(rowsShown(rows, rows[0] ?? null, pending))).toEqual([3]);
@@ -76,7 +78,7 @@ test('a new Entry hides no Box', () => {
   const pending: PendingChange = {
     ...AT,
     kind: 'new',
-    cite: { event: null, people: [], text: '' }
+    cite: { event: null, people: [], text: '', fields: NO_TYPED, ticks: {} }
   };
   expect(ids(rowsShown(rows, rows[0] ?? null, pending))).toEqual([1, 2]);
 });

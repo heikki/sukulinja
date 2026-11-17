@@ -29,6 +29,7 @@ import {
   withEvent
 } from './cite';
 import { scanLayerStyles } from './edit-styles';
+import type { FieldDetail, TickDetail } from './entry-fields';
 import type { ChooseDetail } from './entry-form';
 import { newEntryBox } from './frame';
 import type { Frame } from './frame';
@@ -221,6 +222,13 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
       .editing=${pending.kind === 'edit'}
       .persons=${this.persons}
       .parents=${parentRows(pending.cite.people, ix)}
+      .offers=${this.viewer.entryForm.offers.get()}
+      @set-field=${(e: CustomEvent<FieldDetail>) => {
+        this.viewer.entryForm.setField(e.detail.key, e.detail.text);
+      }}
+      @tick=${(e: CustomEvent<TickDetail>) => {
+        this.viewer.entryForm.setTick(e.detail.key, e.detail.on);
+      }}
       @choose-event=${(e: CustomEvent<EntryEvent>) => {
         this.chooseEvent(e.detail);
       }}

@@ -26,6 +26,7 @@ const CITATION: CitationRow = {
   supports: [],
   entryId: null,
   event: null,
+  fields: null,
   role: null
 };
 

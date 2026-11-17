@@ -3,6 +3,9 @@
 
 import { join } from 'node:path';
 
+import { NO_FIELDS } from '@/common/entry-events';
+import type { EntryFields } from '@/common/entry-events';
+import type { Ticked } from '@/common/entry-offers';
 import type { VolumeCitation } from '@/common/types';
 
 import type { NewChange } from '../../changes/changes';
@@ -28,9 +31,19 @@ export function at(image: number, box = BOX) {
   };
 }
 
-// A baptism there, its Event chosen on the card.
-export function baptism(image: number, box = BOX) {
-  return { ...at(image, box), event: 'CHR' as const };
+// A baptism there, its Event chosen on the card, its fields empty and
+// nothing ticked unless given.
+export function baptism(
+  image: number,
+  box = BOX,
+  said: { fields?: EntryFields; ticked?: Ticked[] } = {}
+) {
+  return {
+    ...at(image, box),
+    event: 'CHR' as const,
+    fields: said.fields ?? NO_FIELDS,
+    ticked: said.ticked ?? []
+  };
 }
 
 // Matti (1) and Liisa (2), married in family 1; Juho (3) and Kalle (4) in

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { dateOrder, gedcomDate, isoDate, typedDate } from './dates';
+import { dateOrder, dateSpan, gedcomDate, isoDate, typedDate } from './dates';
 
 describe('gedcomDate', () => {
   test('writes a day, month or year the Finnish way', () => {
@@ -100,4 +100,17 @@ test('dateOrder sorts dates by the first day they name', () => {
   expect(dateOrder('BET 1867 AND 1879')).toBe(18670000);
   expect(dateOrder('ABT 12 JAN 1850')).toBe(18500112);
   expect(dateOrder('@#DJULIAN@ x')).toBeNull();
+});
+
+test('a date spans the days it can be', () => {
+  const day = 17610303;
+  expect(dateSpan('3 MAR 1761')).toEqual([day, day]);
+  expect(dateSpan('MAR 1761')).toEqual([17610301, 17610331]);
+  expect(dateSpan('1761')).toEqual([17610101, 17611231]);
+  expect(dateSpan('ABT 1761')).toEqual([17610101, 17611231]);
+  expect(dateSpan('BET 1760 AND 1762')).toEqual([17600101, 17621231]);
+  expect(dateSpan('FROM 1790 TO 1796')).toEqual([17900101, 17961231]);
+  expect(dateSpan('BEF 1761')).toEqual([-Infinity, 17611231]);
+  expect(dateSpan('AFT 1761')).toEqual([17610101, Infinity]);
+  expect(dateSpan('@#DJULIAN@ 1761')).toBeNull();
 });

@@ -9,7 +9,13 @@ import { unzipSync } from 'fflate';
 import { importGedcomFixture } from '../../../test/gedcom-fixture';
 import { gedcom7Errors } from '../../../test/gedcom7/validate';
 import { treeSnapshot } from '../../../test/tree-snapshot';
-import { CITATIONS_READ, openAnnotations, openSupport } from '../citations';
+import {
+  CITATIONS_READ,
+  gatherEntries,
+  openAnnotations,
+  openSupport,
+  putEntryFields
+} from '../citations';
 import { openAppCitations, openMarks } from '../citations/testing';
 import { openDb } from '../datasets/db';
 import { DatasetRegistry } from '../datasets/registry';
@@ -427,6 +433,53 @@ describe('exporting a GEDZIP', () => {
         .query('SELECT COUNT(*) AS n FROM citations WHERE added_in_app = 1')
         .get()
     ).toEqual({ n: 1 });
+  });
+
+  test("carries an Entry's dates, village and farm, and its Event's date as the DATA DATE", async () => {
+    await importFixture();
+    const db = registry.open('a');
+    const id = openAppCitations(db).create({
+      personId: 1,
+      volumeId: '1234',
+      volume: 'I C:1 Syntyneiden ja kastettujen luettelot (1790-1796)',
+      archive: 'Juvan seurakunnan arkisto',
+      image: 25,
+      fileId: '5678',
+      box: { left: 10, top: 20, width: 300, height: 40 },
+      text: null
+    });
+    gatherEntries(db);
+    db.run("UPDATE entries SET event = 'CHR'");
+    const fields = {
+      date: '5 MAR 1791',
+      lifeDate: '3 MAR 1791',
+      village: 'Esimerkkilä',
+      farm: 'Mäkelä'
+    };
+    putEntryFields(db, new Map([[id, fields]]));
+
+    const text = gedcomOf(await roundTrip());
+    expect(text).toContain('DATE 5 MAR 1791');
+    expect(text).toContain('NOTE Born: 3 MAR 1791');
+    expect(gedcom7Errors(text)).toEqual([]);
+    expect(
+      registry
+        .open('b')
+        .query('SELECT event, date, life_date, village, farm FROM entries')
+        .all()
+    ).toEqual([
+      {
+        event: 'CHR',
+        date: '5 MAR 1791',
+        life_date: '3 MAR 1791',
+        village: 'Esimerkkilä',
+        farm: 'Mäkelä'
+      }
+    ]);
+    // Read back into the Entry, not kept as the citation's own notes.
+    expect(
+      registry.open('b').query('SELECT COUNT(*) AS n FROM notes').get()
+    ).toEqual(db.query('SELECT COUNT(*) AS n FROM notes').get());
   });
 
   test('gives back the demo, which is valid GEDCOM 7 but for one untyped event', async () => {

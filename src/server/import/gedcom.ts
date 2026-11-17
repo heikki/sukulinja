@@ -1,6 +1,6 @@
 import type { Database } from 'bun:sqlite';
 
-import { gatherEntries, openAnnotations } from '../citations';
+import { gatherEntries, openAnnotations, putEntryFields } from '../citations';
 import { pageOf } from '../gedcom/astia-links';
 import { objectRecords, unlinkedPhotos } from '../gedcom/media-refs';
 import { parseName } from '../gedcom/names';
@@ -13,6 +13,7 @@ import {
   PERSON_FACT_TAGS
 } from '../gedcom/tags';
 import { gedcom7Date, gedcom7Quality, languageTag } from '../gedcom/values';
+import { entryNotesReader } from './entry-notes';
 import { factCitations } from './fact-citations';
 import { factImporter } from './facts';
 import { annotationReader } from './links';
@@ -133,6 +134,7 @@ export function importGedcom(
   const citationRows = openAnnotations(db);
   const factSours = factCitations(db, lines.use);
   const readAnnotation = annotationReader(roots, lines);
+  const entryNotes = entryNotesReader(lines);
 
   // A record's UID, or a new one: only a UID says reliably who is who from
   // one file to the next (ADR-0013).
@@ -444,6 +446,7 @@ export function importGedcom(
     sortOrder: number
   ) {
     const annotation = readAnnotation(sour);
+    const said = entryNotes.read(sour);
     const c = readCitation(sour);
     // A Citation of an Image's PAGE text gives back its page (ADR-0019).
     const page = pageOf(c.page, annotation.link);
@@ -451,6 +454,7 @@ export function importGedcom(
       { scopeType: scope, scopeId, sortOrder, ...c, page },
       annotation
     );
+    entryNotes.keep(citationId, said);
     importNotes(sour, 'citation', citationId);
     importMediaLinks(sour, 'citation', citationId);
     stats.citations += 1;
@@ -486,6 +490,7 @@ export function importGedcom(
     );
     // The app's Citations of one entry, alike, cite one Entry (ADR-0026).
     gatherEntries(db);
+    putEntryFields(db, entryNotes.said());
   });
 
   tx();

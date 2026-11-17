@@ -8,13 +8,20 @@
 
 import type { Database } from 'bun:sqlite';
 
-import type { EntryEvent } from '@/common/entry-events';
+import type { EntryEvent, EntryFields } from '@/common/entry-events';
 import {
   ALREADY_LINKED,
   citingImage,
   namingRefusal
 } from '@/common/entry-naming';
-import type { EntryAt, EntryEdit, InEntry } from '@/common/operations';
+import type { Ticked } from '@/common/entry-offers';
+import type {
+  EntryAsked,
+  EntryAt,
+  EntryEdit,
+  EntryTarget,
+  InEntry
+} from '@/common/operations';
 import type { VolumeCitation } from '@/common/types';
 
 import type { NewChange } from '../../changes/changes';
@@ -23,11 +30,14 @@ import { viewerUrl } from '../astia/astia';
 import type { Images } from '../images';
 import type { createSupport } from '../support';
 import { plainText } from '../text';
+import { fieldsRefusal, keptFields } from './fields';
 import { openEntries } from './storage';
 import type { EntryCitation, StoredEntry } from './storage';
+import type { entryTree, Offered } from './tree';
 
 export { CITATIONS_READ, dropUncitedEntries } from './storage';
-export { gatherEntries } from './gathering';
+export { gatherEntries, putEntryFields } from './gathering';
+export { entryTree } from './tree';
 
 export type { EntryAt, EntryEdit, InEntry } from '@/common/operations';
 
@@ -46,6 +56,8 @@ interface EntryDeps<R> {
   volumeArchive: (volumeId: string) => Promise<string | null>;
   personExists: (personId: number) => boolean;
   support: ReturnType<typeof createSupport>;
+  // The Entry against the tree: what it would do to its owner's Facts.
+  tree: ReturnType<typeof entryTree>;
   changed: (change: NewChange) => void;
   // A Citation as the Scan viewer lists it.
   listed: (citationId: number) => Promise<VolumeCitation>;
@@ -75,7 +87,7 @@ function renames(edit: EntryEdit, moved: boolean) {
 
 export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
   const { made, images, citable, inVolume, volumeArchive, personExists } = deps;
-  const { support, changed, listed, uncite } = deps;
+  const { tree, changed, listed, uncite } = deps;
   const stored = openEntries(db);
 
   // Why the people can't be named in an Entry of the Event on the Image
@@ -99,20 +111,56 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
     return people.some((p) => linking.has(p.personId)) ? ALREADY_LINKED : null;
   }
 
-  // Stores the person's Citation of the Entry, with its Change and the
-  // support of the Fact the entry records for them; its id.
+  // Stores the person's Citation of the Entry, with its Change; its id.
+  // It supports nothing of itself: only the lines ticked on the card do
+  // (ADR-0033).
   function name(
     entryId: number,
     p: InEntry,
-    at: { volume: string; image: number; event: string | null }
+    at: { volume: string; image: number }
   ) {
     const id = made.cite(entryId, p.personId, p.role);
     changed({
       on: { citationId: id },
       what: { kind: 'cite', volume: at.volume, image: at.image }
     });
-    support.recorded(id, p.personId, at.event, p.role);
     return id;
+  }
+
+  // What the Entry would do to the tree, and whether the lines ticked are
+  // among it: refused with why not.
+  async function offeredFor(
+    shape: Parameters<typeof tree.offered>[0],
+    ticked: Ticked[]
+  ): Promise<Offered | Refused> {
+    const offered = await tree.offered(shape);
+    const refused = tree.tickRefusal(offered, ticked);
+    return refused === null ? offered : { rejected: refused };
+  }
+
+  // The fields the Entry keeps, what it would do to the tree with them,
+  // and the lines ticked; refused where a date can't be read or a line
+  // ticked isn't offered.
+  async function saying(
+    shape: Omit<Parameters<typeof tree.offered>[0], 'fields'>,
+    given: EntryFields,
+    ticked: Ticked[]
+  ) {
+    const fields = keptFields(shape.event, given);
+    const wrong = fieldsRefusal(fields);
+    if (wrong !== null) return { rejected: wrong };
+    const offered = await offeredFor({ ...shape, fields }, ticked);
+    return 'rejected' in offered ? offered : { fields, offered, ticked };
+  }
+
+  // Does the lines ticked, by the owner's Citation of the Entry.
+  function doTicked(entryId: number, offered: Offered, ticked: Ticked[]) {
+    tree.doTicked(offered, ticked, (personId) => {
+      const own = stored
+        .citationsOf(entryId)
+        .find((c) => c.personId === personId);
+      return own!.id;
+    });
   }
 
   async function listedOf(entryId: number) {
@@ -181,12 +229,11 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
     }
   }
 
-  // The person's Role changed on their Citation, keeping it, with the
-  // support the new Role plainly gives added.
+  // The person's Role changed on their Citation, keeping it.
   function recast(
     c: EntryCitation,
     role: string | null,
-    at: { volume: string; image: number; event: string | null }
+    at: { volume: string; image: number }
   ) {
     stored.setRole(c.id, role);
     changed({
@@ -199,14 +246,12 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
         to: role
       }
     });
-    support.recorded(c.id, c.personId, at.event, role);
   }
 
-  // Who the Entry names after the edit, the Event it records and where
-  // it moves to, if it moves, checked as it would be after: its people
-  // where they, its Event or its Box change. Null when someone named isn't
-  // a person.
-  async function checked(
+  // Who the Entry names after the edit, the Event it records and where it
+  // moves to, if it moves: its people checked where they, its Event or
+  // its Box change. Null when someone named isn't a person.
+  async function renamed(
     entryId: number,
     entry: StoredEntry,
     was: EntryCitation[],
@@ -223,6 +268,26 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
       if (refused !== null) return { rejected: refused };
     }
     return { people, to, event };
+  }
+
+  // The edit checked as a whole, as it would be after: who it names, its
+  // fields and the lines ticked. Null when someone named isn't a person.
+  async function checked(
+    entryId: number,
+    entry: StoredEntry,
+    was: EntryCitation[],
+    edit: EntryEdit
+  ) {
+    const named = await renamed(entryId, entry, was, edit);
+    if (named === null || 'rejected' in named) return named;
+    const { people, to, event } = named;
+    const said = await saying(
+      { volumeId: entry.volumeId, event, people },
+      edit.fields ?? entry.fields,
+      edit.ticked ?? []
+    );
+    if ('rejected' in said) return said;
+    return { people, to, event, ...said };
   }
 
   // The Event the Entry records chosen anew, if it's another, with a
@@ -255,9 +320,11 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
       text: string | null | undefined;
       event: EntryEvent | null;
       wasEvent: EntryEvent | null;
+      fields: EntryFields;
     }
   ) {
     const { was, people, to, text, event, wasEvent } = e;
+    stored.setFields(entryId, e.fields);
     const { added, gone, retyped } = diffed(was, people);
     const kept = was.filter((w) => !gone.includes(w));
     const place = { ...e, image: to?.image ?? e.image };
@@ -277,7 +344,7 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
     // lists them. Null when one of them isn't a person; rejected where
     // the entry can't be cited there, or they can't be named in it.
     async make(
-      at: EntryAt & { event: EntryEvent | null },
+      at: Omit<EntryTarget, 'text'>,
       text: string | null,
       people: InEntry[]
     ): Promise<VolumeCitation[] | Refused | null> {
@@ -287,6 +354,14 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
       if ('rejected' in checked) return checked;
       const refused = await refusal(at, at.event, people, null);
       if (refused !== null) return { rejected: refused };
+      const { event, volumeId } = at;
+      const said = await saying(
+        { volumeId, event, people },
+        at.fields,
+        at.ticked
+      );
+      if ('rejected' in said) return said;
+      const { fields, offered, ticked } = said;
       const archive = await volumeArchive(at.volumeId);
       const ids = db.transaction(() => {
         const entryId = made.entry({
@@ -295,10 +370,20 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
           archive,
           text: plainText(text)
         });
+        stored.setFields(entryId, fields);
         const entry = stored.entryOf(entryId)!;
-        return people.map((p) => name(entryId, p, entry));
+        const named = people.map((p) => name(entryId, p, entry));
+        doTicked(entryId, offered, ticked);
+        return named;
       })();
       return await Promise.all(ids.map(listed));
+    },
+
+    // What an Entry would do to the tree as it is now, the lines its card
+    // lists (ADR-0033).
+    async offers(asked: EntryAsked) {
+      const fields = keptFields(asked.event, asked.fields);
+      return (await tree.offered({ ...asked, fields })).offers;
     },
 
     // Changes the Entry to be as `edit` says, all of it or none: its Box
@@ -320,6 +405,7 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
       const text = edit.text === undefined ? undefined : plainText(edit.text);
       db.transaction(() => {
         write(entryId, { ...entry, was, ...ok, text, wasEvent: entry.event });
+        doTicked(entryId, ok.offered, ok.ticked);
       })();
       return await listedOf(entryId);
     },

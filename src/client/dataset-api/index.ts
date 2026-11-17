@@ -4,8 +4,10 @@
 // a test gives.
 
 import type { ClaudeModel } from '@/common/assistant-choices';
+import type { Offer } from '@/common/entry-offers';
 import type {
   BoxAt,
+  EntryAsked,
   EntryEdit,
   EntryTarget,
   InEntry,
@@ -101,6 +103,9 @@ export interface DatasetApi {
   // Makes an Entry with a Citation of it for each person named (ADR-0026):
   // them as the Volume's citations list them, in the order named.
   citeEntry: (at: EntryTarget, people: InEntry[]) => Promise<VolumeCitation[]>;
+  // What an Entry would do to the tree as it is now, as its card lists it
+  // (ADR-0033).
+  entryOffers: (asked: EntryAsked, signal?: AbortSignal) => Promise<Offer[]>;
   // Changes an Entry as a whole, or refuses all of it (ADR-0026): its
   // Citations as the Volume's citations list them.
   editEntry: (entryId: number, edit: EntryEdit) => Promise<VolumeCitation[]>;
@@ -271,6 +276,8 @@ export function openDatasetApi(
       lines('locateVolume', { volumeId, volume, model }, 'Vision Match'),
     citeEntry: async (at, people) =>
       await call('citeEntry', { at, people }, 'Citing'),
+    entryOffers: async (asked, signal) =>
+      await call('entryOffers', asked, 'the lines', signal),
     editEntry: async (entryId, edit) =>
       await call('editEntry', { entryId, edit }, 'Saving'),
     async retext(citationId, text) {

@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import type Anthropic from '@anthropic-ai/sdk';
 
 import { DEFAULT_CHOICE } from '@/common/assistant-choices';
+import { NO_FIELDS } from '@/common/entry-events';
 import type { Model } from '@/server/assistant/model';
 import {
   IMAGES,
@@ -129,9 +130,10 @@ describe('the answers', () => {
   test('an Entry made, edited as a whole, and deleted', async () => {
     const box = { left: 100, top: 400, width: 300, height: 30 };
     const at = { volumeId: VOLUME, image: 9, fileId: `${VOLUME}-f9`, box };
-    const [made] = await api.citeEntry({ ...at, event: 'CHR', text: 'Talo' }, [
-      { personId: 2, role: 'CHIL' }
-    ]);
+    const [made] = await api.citeEntry(
+      { ...at, event: 'CHR', text: 'Talo', fields: NO_FIELDS, ticked: [] },
+      [{ personId: 2, role: 'CHIL' }]
+    );
     const entryId = made!.citation.entryId!;
     const moved = { ...box, top: 450 };
     const edited = await api.editEntry(entryId, {

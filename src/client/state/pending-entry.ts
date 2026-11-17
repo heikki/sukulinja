@@ -6,18 +6,25 @@ import type { DatasetApi, InEntry } from '@/client/dataset-api';
 import { eventRoles } from '@/common/entry-events';
 import type { EntryEvent } from '@/common/entry-events';
 import { citingImage } from '@/common/entry-naming';
+import type { Offer } from '@/common/entry-offers';
 import type { Box, VolumeCitation } from '@/common/types';
 
+import { datesRefusal, entryLines, fieldsOf, typedOf } from './entry-lines';
+import type { TypedFields } from './entry-lines';
 import type { PendingChange } from './pending-change';
 import type { Readable, Selected } from './selected';
 
 // An Entry not saved yet (ADR-0026), new or the source's changed: the
 // Event it records, null until one is chosen (ADR-0033), who is in it,
-// each in their Role if its Event has Roles, and what it says, as typed.
+// each in their Role if its Event has Roles, what it says, its fields as
+// typed, and the boxes pressed on the lines of what they'd do to the
+// tree, by lineKey.
 export interface PendingCite {
   event: EntryEvent | null;
   people: InEntry[];
   text: string;
+  fields: TypedFields;
+  ticks: Record<string, boolean>;
 }
 
 // The source's Entry as it was when its editing began: who was in it, by
@@ -40,6 +47,11 @@ export interface EntryForm {
   // Chooses the Event it records, naming these people then.
   setEvent: (event: EntryEvent, people: InEntry[]) => void;
   setText: (text: string) => void;
+  setField: (key: keyof TypedFields, text: string) => void;
+  // A line's box set, by lineKey.
+  setTick: (key: string, on: boolean) => void;
+  // What its fields would do to the tree as it is, for its card to list.
+  offers: Readable<Offer[]>;
   setInEntry: (person: InEntry) => void;
   setPeople: (people: InEntry[]) => void;
   drop: (personId: number) => void;
@@ -67,6 +79,25 @@ export function pendingEntry(
   pending: Signal.State<PendingChange | null>,
   { api, selected, fileOf, reload, citations }: SaveDeps
 ) {
+  const lines = entryLines(api);
+
+  // The lines asked for the pending Entry as it is now.
+  function refresh() {
+    const now = pending.get();
+    if (now === null || now.kind === 'mark') {
+      lines.clear();
+      return;
+    }
+    lines.ask({ volumeId: now.volumeId, ...now.cite });
+  }
+
+  // The lines asked afresh, as the pending change begins: the tree may
+  // have changed since they were last asked.
+  function begin() {
+    lines.clear();
+    refresh();
+  }
+
   const notNamable = computed(() => {
     const change = pending.get();
     if (change === null || change.kind === 'mark') return new Set<number>();
@@ -86,6 +117,7 @@ export function pendingEntry(
     if (now !== null && now.kind !== 'mark') {
       pending.set({ ...now, cite: { ...now.cite, ...to(now.cite) } });
     }
+    refresh();
   }
 
   function setEvent(event: EntryEvent, people: InEntry[]) {
@@ -95,6 +127,25 @@ export function pendingEntry(
   // What it says, as typed.
   function setText(text: string) {
     change(() => ({ text }));
+  }
+
+  function setField(key: keyof TypedFields, text: string) {
+    change(({ fields }) => ({ fields: { ...fields, [key]: text } }));
+  }
+
+  function setTick(key: string, on: boolean) {
+    change(({ ticks }) => ({ ticks: { ...ticks, [key]: on } }));
+  }
+
+  // The fields and lines to save with the Entry, as it is now. Throws
+  // ApiError for a date that can't be read.
+  async function saying(volumeId: string, cite: PendingCite) {
+    const wrong = datesRefusal(cite.event, cite.fields);
+    if (wrong !== null) throw new ApiError(wrong);
+    return {
+      fields: fieldsOf(cite.event, cite.fields),
+      ticked: await lines.ticked({ volumeId, ...cite }, cite.ticks)
+    };
   }
 
   // Names the person in the Role, in place of whoever had it; with no
@@ -140,7 +191,8 @@ export function pendingEntry(
         fileId,
         box,
         event: cite.event,
-        text: text === '' ? null : text
+        text: text === '' ? null : text,
+        ...(await saying(volumeId, cite))
       },
       cite.people
     );
@@ -161,9 +213,10 @@ export function pendingEntry(
     }));
     const text = rows[0]?.citation.text ?? '';
     const event = rows[0]?.citation.event ?? null;
+    const fields = typedOf(rows[0]?.citation.fields ?? null);
     const people = was.map(({ personId, role }) => ({ personId, role }));
     return {
-      cite: { event, people, text },
+      cite: { event, people, text, fields, ticks: {} },
       editing: { entryId, event, was, text, box }
     };
   }
@@ -184,7 +237,8 @@ export function pendingEntry(
   // it, by their Citation. Throws ApiError if it's refused.
   async function saveEdit(change: EditedEntry) {
     const { editing } = change;
-    const { event, people, text } = change.cite;
+    const { cite } = change;
+    const { event, people, text } = cite;
     if (people.length === 0) throw new ApiError('Name someone in the entry.');
     if (event === null) throw new ApiError('Choose what kind of entry it is.');
     const said = text.trim();
@@ -192,7 +246,8 @@ export function pendingEntry(
       ...movedTo(change),
       ...(event === editing.event ? {} : { event }),
       text: said === '' ? null : said,
-      people
+      people,
+      ...(await saying(change.volumeId, cite))
     });
     void selected.refresh();
     await reload(change.volumeId);
@@ -210,9 +265,12 @@ export function pendingEntry(
     notNamable,
     setEvent,
     setText,
+    setField,
+    setTick,
+    offers: lines.offers,
     setInEntry,
     setPeople,
     drop
   };
-  return { form, save, editing, saveEdit };
+  return { form, save, editing, saveEdit, begin };
 }

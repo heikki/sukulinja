@@ -1,5 +1,5 @@
 import type { AssistantChoice } from './assistant-choices';
-import type { EntryEvent } from './entry-events';
+import type { EntryEvent, EntryFields } from './entry-events';
 
 // A face rectangle marked in the source photo, in the original image's pixel
 // space. Used to crop the avatar to the marked area instead of the whole image.
@@ -203,6 +203,9 @@ export interface CitationRow {
   // The Event that Entry records (ADR-0033); null when it isn't known,
   // and with no Entry.
   event: EntryEvent | null;
+  // What that Entry says, its dates and place (ADR-0033); null with no
+  // Entry.
+  fields: EntryFields | null;
   // Who its person is in that Entry, one of its Event's Roles; null for
   // none, and with no Entry.
   role: string | null;

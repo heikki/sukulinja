@@ -108,6 +108,20 @@ export function openImages({
       }
     },
 
+    // The parish of the archive holding the Volume, by the name the
+    // parishes first know it by ("Juva"), looked for among the `archives`;
+    // null when none holds it, the parish has no name, or Astia can't say.
+    async parishOf(volumeId: string, archives: string[]) {
+      try {
+        const archive = await archiveAmong(astia, volumeId, archives);
+        const parish = parishes.all().find((p) => p.archiveId === archive);
+        return parish?.spellings[0] ?? null;
+      } catch (err) {
+        if (err instanceof AstiaError) return null;
+        throw err;
+      }
+    },
+
     // The label of the Volume an entry is cited in, by its Box on an Image
     // of the filming `fileId` is of (the one listed now if not given), and
     // the Image's file id; or why it can't be. The Volume must be in one of

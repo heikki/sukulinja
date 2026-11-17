@@ -7,6 +7,7 @@ import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { DatasetApi } from '@/client/dataset-api';
 import { servedDataset } from '@/client/dataset-api/served';
+import { NO_FIELDS } from '@/common/entry-events';
 import type { CitationRow, Link } from '@/common/types';
 import { juvaAstia, rippiCitation, VOLUMES } from '@/server/citations/testing';
 
@@ -202,7 +203,9 @@ test('a Discard of a Citation made in the app deletes it, once confirmed', async
       fileId: `${VOLUME}-f20`,
       box: BOX,
       event: 'RESI',
-      text: null
+      text: null,
+      fields: NO_FIELDS,
+      ticked: []
     },
     [{ personId: 1, role: null }]
   );

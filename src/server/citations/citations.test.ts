@@ -128,6 +128,7 @@ test("serves a person's Citations, church books first", () => {
       supports: [],
       entryId: null,
       event: null,
+      fields: null,
       role: null
     },
     {
@@ -146,6 +147,7 @@ test("serves a person's Citations, church books first", () => {
       supports: [],
       entryId: null,
       event: null,
+      fields: null,
       role: null
     }
   ]);

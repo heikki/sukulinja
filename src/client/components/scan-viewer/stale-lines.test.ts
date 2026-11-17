@@ -36,6 +36,7 @@ function row(personId: number, markKey: string, entry: string): VolumeCitation {
     supports: [],
     entryId: null,
     event: null,
+    fields: null,
     role: null
   };
   return { personId, citation, link: LINK };

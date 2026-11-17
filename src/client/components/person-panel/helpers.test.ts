@@ -66,6 +66,7 @@ const OF_IMAGE: CitationRow = {
   supports: [],
   entryId: null,
   event: null,
+  fields: null,
   role: null
 };
 

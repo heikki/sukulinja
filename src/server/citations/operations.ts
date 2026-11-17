@@ -107,6 +107,9 @@ export function citationOperations(
       );
     },
 
+    entryOffers: async (asked) =>
+      await askingAstia(citations.entries.offers(asked)),
+
     async editEntry({ entryId, edit }) {
       return answered(
         await askingAstia(citations.entries.edit(entryId, edit)),

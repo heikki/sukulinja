@@ -5,10 +5,12 @@ import type { InEntry } from '@/client/dataset-api';
 import type { PendingCite } from '@/client/state';
 import { ENTRY_EVENTS, eventRoles, isEntryEvent } from '@/common/entry-events';
 import type { EntryRole } from '@/common/entry-events';
+import type { Offer } from '@/common/entry-offers';
 import type { PersonRow } from '@/common/types';
 
 import { formatName } from '../tree-view/renderer';
 import type { ParentRow } from './cite';
+import './entry-fields';
 import { ARROW_AT, placeCard } from './entry-place';
 import type { Rect } from './entry-place';
 
@@ -27,8 +29,10 @@ export interface ChooseDetail {
 // pending Box (ADR-0026). First what it records, its Event, chosen
 // (`choose-event`, ADR-0033); then in a baptism or a marriage a row for
 // each Role, its person or none, each chosen (`choose`) or taken out
-// (`drop`); in a burial or a household line its one person. What it says
-// is written in the person's sources (source-text.ts). Cancel and Save stay in the foot bar. It places itself beside its Box (`anchor`,
+// (`drop`); in a burial or a household line its one person; then its
+// fields and what they'd do to the tree (entry-fields.ts). What it says
+// is written in the person's sources (source-text.ts). Cancel and Save
+// stay in the foot bar. It places itself beside its Box (`anchor`,
 // on the stage) and inside the stage (entry-place.ts). Presses stay here,
 // so they don't pan the scan.
 @customElement('sl-scan-entry')
@@ -157,6 +161,8 @@ class ScanEntryElement extends LitElement {
   };
   // A baptism's parents, as the tree gives them for its child.
   @property({ attribute: false }) parents: ParentRow[] = [];
+  // What its fields would do to the tree.
+  @property({ attribute: false }) offers: Offer[] = [];
 
   override connectedCallback() {
     super.connectedCallback();
@@ -372,6 +378,16 @@ class ScanEntryElement extends LitElement {
     return html`
       <h3>${this.editing ? 'Edit entry' : 'New entry'}</h3>
       ${this.renderEvent()} ${this.renderPeople()}
+      ${
+        this.cite.event === null
+          ? nothing
+          : html`<sl-entry-fields
+              .event=${this.cite.event}
+              .fields=${this.cite.fields}
+              .ticks=${this.cite.ticks}
+              .offers=${this.offers}
+            ></sl-entry-fields>`
+      }
       ${
         this.cite.event === null
           ? html`<p class="none">Choose what kind of entry it is.</p>`

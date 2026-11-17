@@ -60,7 +60,7 @@ function count(db: ReturnType<typeof openDb>, table: string) {
     .get()!.n;
 }
 
-test('an Entry is made naming its people at once, one Box for all, and its child has its support', async () => {
+test('an Entry is made naming its people at once, one Box for all, and supports nothing of itself', async () => {
   const { db, entries, changes } = dataset();
   expect(
     await entries.make(baptism(3), 'x', [
@@ -91,13 +91,9 @@ test('an Entry is made naming its people at once, one Box for all, and its child
     { personId: 2, role: 'MOTH', text: 'Kaste 12.3.1795', image: 3, box: BOX }
   ]);
   expect(new Set(rows.map((r) => r.citation.entryId)).size).toBe(1);
-  expect(rows.map((r) => r.citation.supports)).toEqual([[2], [], []]);
-  expect(changes.map((c) => c.what.kind)).toEqual([
-    'cite',
-    'support',
-    'cite',
-    'cite'
-  ]);
+  // Nothing is supported of itself (ADR-0033).
+  expect(rows.map((r) => r.citation.supports)).toEqual([[], [], []]);
+  expect(changes.map((c) => c.what.kind)).toEqual(['cite', 'cite', 'cite']);
   expect(count(db, 'entries')).toBe(1);
 });
 
@@ -270,7 +266,7 @@ test('an edit with one part refused writes nothing', async () => {
   expect(changes).toEqual([]);
 });
 
-test("a Role changed keeps the person's Citation, with its notes and support, and adds what the new Role gives", async () => {
+test("a Role changed keeps the person's Citation, with its notes and support", async () => {
   const { db, entries, citations, changes } = dataset();
   const rows = made(
     await entries.make(baptism(3), 'Kaste', [
@@ -299,8 +295,8 @@ test("a Role changed keeps the person's Citation, with its notes and support, an
     [matti, 'CHIL'],
     [rows[1]!.citation.id, 'MOTH']
   ]);
-  // His Birth stays, and the child's Christening is added.
-  expect(after[0]!.citation.supports).toEqual([1, 2]);
+  // His Birth stays; the new Role adds nothing of itself.
+  expect(after[0]!.citation.supports).toEqual([1]);
   expect(
     db.query("SELECT text FROM notes WHERE owner_type = 'citation'").all()
   ).toEqual([{ text: 'Seen' }]);
@@ -314,10 +310,6 @@ test("a Role changed keeps the person's Citation, with its notes and support, an
         from: 'FATH',
         to: 'CHIL'
       }
-    },
-    {
-      on: { citationId: matti },
-      what: { kind: 'support', did: 'add', tag: 'CHR', fact: '12.3.1795' }
     }
   ]);
 
@@ -333,7 +325,7 @@ test("a Role changed keeps the person's Citation, with its notes and support, an
   expect(back[0]!.citation).toMatchObject({
     id: matti,
     role: 'FATH',
-    supports: [1, 2]
+    supports: [1]
   });
 });
 

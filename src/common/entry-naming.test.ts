@@ -29,6 +29,7 @@ function row(
       supports: [],
       entryId,
       event: null,
+      fields: null,
       role: null
     },
     link

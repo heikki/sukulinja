@@ -6,6 +6,8 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { NO_FIELDS } from '@/common/entry-events';
+
 import { at, baptism, BAPTISMS, entriesDataset, made } from './test-entries';
 
 let dir = '';
@@ -24,22 +26,28 @@ test('an Entry records the Event chosen on its card, whatever its Volume', async
   const { db, entries, changes } = dataset();
   // A burial in the baptisms' Volume: books mix their Registers.
   const rows = made(
-    await entries.make({ ...at(3), event: 'BURI' }, null, [
-      { personId: 3, role: null }
-    ])
+    await entries.make(
+      { ...at(3), event: 'BURI', fields: NO_FIELDS, ticked: [] },
+      null,
+      [{ personId: 3, role: null }]
+    )
   );
   const entryId = rows[0]!.citation.entryId!;
   expect(rows[0]!.citation.event).toBe('BURI');
   expect(
-    await entries.make({ ...at(4), event: null }, null, [
-      { personId: 4, role: null }
-    ])
+    await entries.make(
+      { ...at(4), event: null, fields: NO_FIELDS, ticked: [] },
+      null,
+      [{ personId: 4, role: null }]
+    )
   ).toEqual({ rejected: 'Choose what kind of entry it is.' });
   // Its Roles are the Event's: a burial names one person, in none.
   expect(
-    await entries.make({ ...at(4), event: 'BURI' }, null, [
-      { personId: 4, role: 'CHIL' }
-    ])
+    await entries.make(
+      { ...at(4), event: 'BURI', fields: NO_FIELDS, ticked: [] },
+      null,
+      [{ personId: 4, role: 'CHIL' }]
+    )
   ).toEqual({ rejected: "That isn't a Role in this kind of entry." });
   expect(
     await entries.edit(entryId, {

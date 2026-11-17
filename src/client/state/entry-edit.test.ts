@@ -7,6 +7,7 @@ import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import type { DatasetApi } from '@/client/dataset-api';
 import { servedDataset } from '@/client/dataset-api/served';
+import { NO_FIELDS } from '@/common/entry-events';
 import type { VolumeCitation } from '@/common/types';
 import {
   baptismCitation,
@@ -91,7 +92,9 @@ async function viewing() {
       fileId: `${VOLUME}-f12`,
       box: BOX,
       event: 'CHR',
-      text: 'Kaste 1.2.1790'
+      text: 'Kaste 1.2.1790',
+      fields: NO_FIELDS,
+      ticked: []
     },
     [
       { personId: 1, role: 'CHIL' },
@@ -206,7 +209,9 @@ test('an edit refused changes nothing', async () => {
       fileId: `${VOLUME}-f12`,
       box: { ...BOX, top: 400 },
       event: 'CHR',
-      text: null
+      text: null,
+      fields: NO_FIELDS,
+      ticked: []
     },
     [{ personId: 4, role: 'CHIL' }]
   );
@@ -291,4 +296,51 @@ test('a Citation of the Entry deleted in Sources goes from beside the scan', asy
     (viewer.citations.get() as VolumeCitation[]).map((r) => r.personId)
   ).toEqual([1]);
   expect(viewer.source.get()).not.toBeNull();
+});
+
+test("the card lists what the Entry's dates would do, and Save does those ticked", async () => {
+  const { viewer, child, entryId } = await viewing();
+  viewer.editEntry();
+  const form = viewer.entryForm;
+  form.setField('lifeDate', '30.1.1790');
+  form.setField('date', '1.2.1790');
+  form.setField('village', 'Esimerkkilä');
+  await until(() => form.offers.get().length === 2);
+  expect(form.offers.get()).toMatchObject([
+    { tag: 'BIRT', action: 'add', now: { date: '30 JAN 1790' } },
+    { tag: 'CHR', action: 'add', now: { date: '1 FEB 1790' } }
+  ]);
+  form.setTick('CHR add', false);
+  await viewer.save();
+
+  const details = await api!.person(1);
+  const facts = details.facts.map((f) => [f.tag, f.date]);
+  expect(facts).toEqual([['BIRT', '30 JAN 1790']]);
+  const cited = details.citations.find((c) => c.id === child.citation.id);
+  expect(cited?.supports).toEqual([details.facts[0]!.id]);
+  expect(cited?.fields).toEqual({
+    date: '1 FEB 1790',
+    lifeDate: '30 JAN 1790',
+    village: 'Esimerkkilä',
+    farm: null
+  });
+
+  // Opened again: the Birth agrees now, the Christening is still to add.
+  viewer.editEntry();
+  expect(viewer.pending.get()).toMatchObject({
+    cite: { fields: { lifeDate: '30.1.1790', date: '1.2.1790' } },
+    editing: { entryId }
+  });
+  await until(() => form.offers.get()[0]?.action === 'support');
+  expect(form.offers.get().map((o) => [o.tag, o.action])).toEqual([
+    ['BIRT', 'support'],
+    ['CHR', 'add']
+  ]);
+});
+
+test("a date the card can't read is refused on Save, saying how to write it", async () => {
+  const { viewer } = await viewing();
+  viewer.editEntry();
+  viewer.entryForm.setField('lifeDate', 'maaliskuussa');
+  expect(viewer.save()).rejects.toThrow(/^Born: write the date as 3\.3\.1761/);
 });

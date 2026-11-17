@@ -12,6 +12,7 @@ import type { Database, SQLQueryBindings } from 'bun:sqlite';
 import { bookLabel } from '@/common/books';
 import { isoDate } from '@/common/dates';
 import { isEntryEvent } from '@/common/entry-events';
+import type { EntryFields } from '@/common/entry-events';
 import type {
   CitationRow,
   Link,
@@ -20,6 +21,7 @@ import type {
 } from '@/common/types';
 
 import type { NewChange } from '../changes/changes';
+import { createFacts } from '../facts/facts';
 import {
   annotated,
   annotationColumnsSql,
@@ -29,7 +31,7 @@ import type { Annotation } from './annotations';
 import { openAppCitations } from './app-citations';
 import { viewerUrl, volumeYears } from './astia/astia';
 import { citedArchives } from './cited-archives';
-import { CITATIONS_READ, createEntries } from './entries';
+import { CITATIONS_READ, createEntries, entryTree } from './entries';
 import type { Images } from './images';
 import type { Reader } from './myheritage';
 import type { BookRef, BoxAt, MarkTarget, References } from './references';
@@ -48,8 +50,12 @@ interface CitationDbRow {
   // The Entry it cites (ADR-0026), or null.
   entryId: number | null;
   entryRole: string | null;
-  // The Event the Entry records, as stored.
+  // The Event the Entry records, as stored, and its dates and place.
   entryEvent: string | null;
+  entryDate: string | null;
+  entryLifeDate: string | null;
+  entryVillage: string | null;
+  entryFarm: string | null;
   // As imported.
   role: string | null;
   annotation: Annotation;
@@ -119,6 +125,17 @@ function eventOf(row: CitationDbRow) {
   return isEntryEvent(row.entryEvent) ? row.entryEvent : null;
 }
 
+// What its Entry says; null for none.
+function fieldsOf(row: CitationDbRow): EntryFields | null {
+  if (row.entryId === null) return null;
+  return {
+    date: row.entryDate,
+    lifeDate: row.entryLifeDate,
+    village: row.entryVillage,
+    farm: row.entryFarm
+  };
+}
+
 // A Citation as the panel and the Scan viewer show it: a record the port
 // reads into its fields, or its text.
 function citationOf<R extends BookRef>(references: References<R>) {
@@ -152,6 +169,7 @@ function citationOf<R extends BookRef>(references: References<R>) {
       supports: idsOf(row.supports),
       entryId: row.entryId,
       event: eventOf(row),
+      fields: fieldsOf(row),
       role: row.entryRole
     };
     return citation;
@@ -220,11 +238,14 @@ export function createCitations<R extends BookRef>(
     ${originalPageSql('c')} AS page, c.text, c.entry_id AS entryId,
     CASE WHEN c.entry_id IS NULL THEN NULL ELSE c.role END AS entryRole,
     CASE WHEN c.entry_id IS NULL THEN NULL ELSE c.event END AS entryEvent,
+    e.date AS entryDate, e.life_date AS entryLifeDate,
+    e.village AS entryVillage, e.farm AS entryFarm,
     c.role,
     (SELECT group_concat(fact_id) FROM fact_citations
       WHERE citation_id = c.id) AS supports,
     ${annotationColumnsSql('c')}
-    FROM ${CITATIONS_READ} c LEFT JOIN sources s ON s.id = c.source_id`;
+    FROM ${CITATIONS_READ} c LEFT JOIN sources s ON s.id = c.source_id
+    LEFT JOIN entries e ON e.id = c.entry_id`;
   function query(where: string) {
     const statement = db.prepare<DbRow, SQLQueryBindings[]>(
       `${SELECT} ${where}`
@@ -413,6 +434,12 @@ export function createCitations<R extends BookRef>(
     volumeArchive,
     personExists: (id) => personExists.get(id) !== null,
     support,
+    tree: entryTree(db, {
+      facts: createFacts(db, changed),
+      support,
+      parishOf: async (volumeId) =>
+        await images.parishOf(volumeId, await citable())
+    }),
     changed,
     listed,
     uncite: removeCitation

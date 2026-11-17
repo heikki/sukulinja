@@ -27,7 +27,12 @@ export type { SpendingReader, VisionReaders } from './vision';
 export { annotated, openAnnotations } from './annotations';
 export type { Annotation, Annotations, CitationLink } from './annotations';
 export { PUBLISHER as ASTIA_PUBLISHER } from './app-citations';
-export { CITATIONS_READ, dropUncitedEntries, gatherEntries } from './entries';
+export {
+  CITATIONS_READ,
+  dropUncitedEntries,
+  gatherEntries,
+  putEntryFields
+} from './entries';
 export { viewerUrl } from './astia/astia';
 export { leaveFamilySupport, openSupport } from './support';
 export { BAPTISM_COLLECTION, collectionOf } from './myheritage';

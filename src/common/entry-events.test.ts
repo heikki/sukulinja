@@ -33,6 +33,7 @@ function entry(
       supports: [],
       entryId: 1,
       event,
+      fields: null,
       role: null
     },
     link: {

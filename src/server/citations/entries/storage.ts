@@ -6,7 +6,7 @@
 import type { Database, SQLQueryBindings } from 'bun:sqlite';
 
 import { isEntryEvent } from '@/common/entry-events';
-import type { EntryEvent } from '@/common/entry-events';
+import type { EntryEvent, EntryFields } from '@/common/entry-events';
 import type { Box } from '@/common/types';
 
 // A Citation's columns an Entry holds instead, by the Entry's name for
@@ -76,8 +76,8 @@ export interface NewEntry {
   box: Box;
 }
 
-// An Entry as stored: where it's written, and the Event it records, null
-// for one that never had it chosen.
+// An Entry as stored: where it's written, the Event it records, null for
+// one that never had it chosen, and its dates and place (ADR-0033).
 export interface StoredEntry {
   volumeId: string;
   volume: string;
@@ -85,6 +85,7 @@ export interface StoredEntry {
   fileId: string;
   box: Box;
   event: EntryEvent | null;
+  fields: EntryFields;
 }
 
 // A person's Citation of an Entry: who they are in it, and what it says
@@ -119,13 +120,19 @@ export function openEntries(db: Database) {
      WHERE id = $id`
   );
   const entryOf = db.prepare<
-    Omit<StoredEntry, 'box' | 'event'> & Box & { event: string | null },
+    Omit<StoredEntry, 'box' | 'event' | 'fields'> &
+      Box &
+      EntryFields & { event: string | null },
     [number]
   >(
     `SELECT volume_id AS volumeId, volume, image, file_id AS fileId, event,
        box_left AS left, box_top AS top, box_width AS width,
-       box_height AS height
+       box_height AS height, date, life_date AS lifeDate, village, farm
      FROM entries WHERE id = ?`
+  );
+  const setFields = db.prepare(
+    `UPDATE entries SET date = $date, life_date = $lifeDate,
+       village = $village, farm = $farm WHERE id = $id`
   );
   const ofCitation = db.prepare<{ id: number }, [number]>(
     'SELECT entry_id AS id FROM citations WHERE id = ? AND entry_id IS NOT NULL'
@@ -178,10 +185,12 @@ export function openEntries(db: Database) {
       const row = entryOf.get(id);
       if (row === null) return null;
       const { left, top, width, height, event, ...rest } = row;
+      const { date, lifeDate, village, farm, ...at } = rest;
       const entry: StoredEntry = {
-        ...rest,
+        ...at,
         event: isEntryEvent(event) ? event : null,
-        box: { left, top, width, height }
+        box: { left, top, width, height },
+        fields: { date, lifeDate, village, farm }
       };
       return entry;
     },
@@ -199,6 +208,17 @@ export function openEntries(db: Database) {
     // The person's Role in the Entry their Citation cites.
     setRole(citationId: number, role: string | null) {
       setRole.run(role, citationId);
+    },
+
+    // Its dates and place, as its book writes them (ADR-0033).
+    setFields(id: number, f: EntryFields) {
+      setFields.run({
+        $id: id,
+        $date: f.date,
+        $lifeDate: f.lifeDate,
+        $village: f.village,
+        $farm: f.farm
+      });
     },
 
     // The Event the Entry records, as chosen on its card (ADR-0033).

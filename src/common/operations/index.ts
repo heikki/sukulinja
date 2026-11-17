@@ -21,14 +21,14 @@ export const OPERATIONS = {
 export type Operations = typeof OPERATIONS;
 export type OperationName = keyof Operations;
 
+export type { BoxAt, MarkTarget } from './citations';
 export type {
-  BoxAt,
+  EntryAsked,
   EntryAt,
   EntryEdit,
   EntryTarget,
-  InEntry,
-  MarkTarget
-} from './citations';
+  InEntry
+} from './entries';
 export { APP_OPERATIONS } from './app';
 export type { AppOperations } from './app';
 export type { AnyOperation, InputOf, OutputOf } from './operation';

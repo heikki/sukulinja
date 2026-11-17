@@ -4,6 +4,7 @@ import type { DatasetApi, InEntry } from '@/client/dataset-api';
 import type { EntryEvent } from '@/common/entry-events';
 import type { Box, VolumeCitation } from '@/common/types';
 
+import { NO_TYPED } from './entry-lines';
 import { pendingEntry } from './pending-entry';
 import type { EntryEdit, EntryForm, PendingCite } from './pending-entry';
 import { markedIn } from './places';
@@ -103,6 +104,7 @@ export function pendingChange(deps: PendingDeps): Pending {
     if (kind.kind === 'mark' && source.get() === null) return;
     deps.placing();
     change.set({ ...at, box, ...kind });
+    entry.begin();
   }
 
   function moveBox(box: Box) {
@@ -176,7 +178,8 @@ export function pendingChange(deps: PendingDeps): Pending {
       place(box, { kind: 'mark' });
     },
     newEntry(box, event, people) {
-      place(box, { kind: 'new', cite: { event, people, text: '' } });
+      const cite = { event, people, text: '', fields: NO_TYPED, ticks: {} };
+      place(box, { kind: 'new', cite });
     },
     editEntry(entryId, box, rows) {
       place(box, { kind: 'edit', ...entry.editing(entryId, box, rows) });

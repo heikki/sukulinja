@@ -5,8 +5,7 @@
 
 import { isClaudeModel } from '@/common/assistant-choices';
 import type { ClaudeModel } from '@/common/assistant-choices';
-import { isEntryEvent } from '@/common/entry-events';
-import type { EntryEvent } from '@/common/entry-events';
+import type { Offer } from '@/common/entry-offers';
 import type {
   Box,
   ChurchBookArchive,
@@ -21,6 +20,8 @@ import type {
   VolumeLocating
 } from '@/common/types';
 
+import { entryAskedOf, entryEditOf, entryTargetOf, inEntryOf } from './entries';
+import type { EntryAsked, EntryEdit, EntryTarget, InEntry } from './entries';
 import { answers, asksNothing, streams } from './operation';
 import {
   boxOf,
@@ -56,37 +57,6 @@ export interface BoxAt {
   image: number;
 }
 
-// Where an entry is, as the Scan viewer gives it: its Box on an Image of a
-// Volume, by the Image's file id.
-export interface EntryAt {
-  volumeId: string;
-  image: number;
-  fileId: string;
-  box: Box;
-}
-
-// An entry made in the app, with the Event it records, chosen on its card
-// (null for none chosen, which is refused), and what it says, if said.
-export interface EntryTarget extends EntryAt {
-  event: EntryEvent | null;
-  text: string | null;
-}
-
-// Someone named in an entry, and who they are in it: one of its Event's
-// Roles, or none.
-export interface InEntry {
-  personId: number;
-  role: string | null;
-}
-
-// An Entry as it should be after an edit; a part left out stays.
-export interface EntryEdit {
-  at?: EntryAt;
-  event?: EntryEvent;
-  text?: string | null;
-  people?: InEntry[];
-}
-
 // `{ volumeId, image, box? }`, or `{ volumeId }` for only the Volume; `box`
 // null for none.
 function markTargetOf(value: unknown): MarkTarget | null {
@@ -105,58 +75,6 @@ function boxAtOf(value: unknown): BoxAt | null {
   if (fields === null) return null;
   const { volumeId, image } = fields;
   return isName(volumeId) && isInteger(image) ? { volumeId, image } : null;
-}
-
-function entryAtOf(value: unknown): EntryAt | null {
-  const fields = fieldsOf(value);
-  if (fields === null) return null;
-  const { volumeId, image, fileId } = fields;
-  if (!isName(volumeId) || !isInteger(image) || !isName(fileId)) return null;
-  const box = boxOf(fields.box);
-  return box === null ? null : { volumeId, image, fileId, box };
-}
-
-function entryTargetOf(value: unknown): EntryTarget | null {
-  const at = entryAtOf(value);
-  const fields = fieldsOf(value);
-  const text = optionalString(fields?.text);
-  const event = fields?.event ?? null;
-  if (at === null || text === undefined) return null;
-  return event === null || isEntryEvent(event) ? { ...at, event, text } : null;
-}
-
-function inEntryOf(value: unknown): InEntry | null {
-  const fields = fieldsOf(value);
-  if (fields === null || !isId(fields.personId)) return null;
-  const role = optionalString(fields.role);
-  return role === undefined ? null : { personId: fields.personId, role };
-}
-
-// A part left out stays; one that's there must be read.
-function entryEditOf(value: unknown): EntryEdit | null {
-  const fields = fieldsOf(value);
-  if (fields === null) return null;
-  const edit: EntryEdit = {};
-  if (fields.at !== undefined) {
-    const at = entryAtOf(fields.at);
-    if (at === null) return null;
-    edit.at = at;
-  }
-  if (fields.event !== undefined) {
-    if (!isEntryEvent(fields.event)) return null;
-    edit.event = fields.event;
-  }
-  if (fields.text !== undefined) {
-    const text = optionalString(fields.text);
-    if (text === undefined) return null;
-    edit.text = text;
-  }
-  if (fields.people !== undefined) {
-    const people = listOf(fields.people, inEntryOf);
-    if (people === null) return null;
-    edit.people = people;
-  }
-  return edit;
 }
 
 export const CITATION_OPERATIONS = {
@@ -193,7 +111,7 @@ export const CITATION_OPERATIONS = {
   // Makes an Entry with a Citation of it for each person named (ADR-0026):
   // them as the Volume's citations list them, in the order named.
   citeEntry: answers<{ at: EntryTarget; people: InEntry[] }, VolumeCitation[]>(
-    '{ at: { volumeId, image, fileId, box, event, text? }, people: [{ personId, role? }] }',
+    '{ at: { volumeId, image, fileId, box, event, text?, fields?, ticked? }, people: [{ personId, role? }] }',
     (body) => {
       const at = entryTargetOf(body.at);
       const people = listOf(body.people, inEntryOf);
@@ -201,10 +119,16 @@ export const CITATION_OPERATIONS = {
     }
   ),
 
+  // What an Entry would do to the tree, as its card lists it (ADR-0033).
+  entryOffers: answers<EntryAsked, Offer[]>(
+    '{ volumeId, event, people: [{ personId, role? }], fields }',
+    entryAskedOf
+  ),
+
   // Changes an Entry as a whole, or refuses all of it (ADR-0026): its
   // Citations as the Volume's citations list them.
   editEntry: answers<{ entryId: number; edit: EntryEdit }, VolumeCitation[]>(
-    '{ entryId, edit: { at?, event?, text?, people? } }',
+    '{ entryId, edit: { at?, event?, text?, people?, fields?, ticked? } }',
     ({ entryId, edit }) => {
       const read = entryEditOf(edit);
       return isId(entryId) && read !== null ? { entryId, edit: read } : null;

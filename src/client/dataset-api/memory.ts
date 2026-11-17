@@ -284,6 +284,7 @@ export function memoryDatasetApi(
     },
 
     citeEntry: servedOnly('citeEntry'),
+    entryOffers: servedOnly('entryOffers'),
     editEntry: servedOnly('editEntry'),
     deleteEntry: servedOnly('deleteEntry'),
 

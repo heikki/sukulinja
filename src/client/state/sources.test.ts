@@ -100,6 +100,7 @@ function source(id: number, citedPage: number | null, churchBook = true) {
     supports: [],
     entryId: null,
     event: null,
+    fields: null,
     role: null
   };
   return row;

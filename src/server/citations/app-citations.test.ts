@@ -7,6 +7,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { NO_FIELDS } from '@/common/entry-events';
 import type { EntryEvent } from '@/common/entry-events';
 import type { CitationLinks, Link, VolumeCitation } from '@/common/types';
 
@@ -90,6 +91,8 @@ function entry(image: number, text: string | null = null) {
     fileId: fileId('juva-1', image, 'full'),
     box: BOX,
     event: 'RESI' as EntryEvent,
+    fields: NO_FIELDS,
+    ticked: [],
     text,
     role: null
   };
@@ -541,18 +544,12 @@ test("a Citation of a baptism keeps the person's Role in the entry, and refuses 
   const { db, citations } = withPeople([
     cite(1, rippiCitation(5001, '1790 - 1796', 12))
   ]);
-  const baptisms = {
-    ...entry(3),
-    volumeId: 'juva-3',
-    fileId: 'juva-3-f3',
-    event: 'CHR' as const
-  };
+  const baptisms = { ...entry(3), volumeId: 'juva-3', fileId: 'juva-3-f3' };
+  baptisms.event = 'CHR';
 
   expect(
     await citeFor(citations, 2, { ...baptisms, role: 'FATH' })
-  ).toMatchObject({
-    personId: 2
-  });
+  ).toMatchObject({ personId: 2 });
   expect(
     db.query(`SELECT event, role FROM ${CITATIONS_READ} WHERE id = 2`).get()
   ).toEqual({ event: 'CHR', role: 'FATH' });

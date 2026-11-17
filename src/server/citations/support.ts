@@ -20,31 +20,6 @@ export interface SupportedFact {
   value: string | null;
 }
 
-// The Fact an entry plainly records for whoever is in it in `role`, of
-// the person's Facts: a baptism's child, their one Christening, else their
-// one Birth; a marriage's spouse, their one marriage. Null for anyone
-// else, and where there are two.
-export function entryFact<F extends { tag: string; familyId: number | null }>(
-  event: string | null,
-  role: string | null,
-  facts: F[]
-): F | null {
-  function one(tag: string) {
-    const found = facts.filter((f) => f.tag === tag);
-    return found.length === 1 ? found[0]! : null;
-  }
-  if (event === 'CHR' && role === 'CHIL') {
-    return facts.some((f) => f.tag === 'CHR') ? one('CHR') : one('BIRT');
-  }
-  if (event === 'MARR' && (role === 'HUSB' || role === 'WIFE')) {
-    const marriages = facts.filter(
-      (f) => f.tag === 'MARR' && f.familyId !== null
-    );
-    return marriages.length === 1 ? marriages[0]! : null;
-  }
-  return null;
-}
-
 // The person leaving the family as a spouse: their Citations no longer
 // support its Facts.
 export function leaveFamilySupport(
@@ -117,20 +92,6 @@ export function createSupport(
   const isPersons = db.prepare<{ id: number }, [number]>(
     "SELECT id FROM citations WHERE id = ? AND scope_type = 'person'"
   );
-  // The person's Facts and their marriages', for the one a new Citation's
-  // entry records.
-  const factsOf = db.prepare<
-    { id: number; tag: string; familyId: number | null },
-    [number]
-  >(
-    `SELECT f.id, f.tag,
-       CASE WHEN f.scope_type = 'family' THEN f.scope_id END AS familyId
-     FROM facts f
-     LEFT JOIN families fam ON f.scope_type = 'family' AND fam.id = f.scope_id
-     WHERE (f.scope_type = 'person' AND f.scope_id = ?1)
-       OR fam.husband_id = ?1 OR fam.wife_id = ?1
-     ORDER BY f.id`
-  );
 
   // Makes the Citation support the Fact, or no longer: false when it isn't
   // a person's, or the Fact isn't theirs or their marriages'.
@@ -155,19 +116,5 @@ export function createSupport(
     return true;
   }
 
-  return {
-    set,
-
-    // A new Citation of the person's supports the Fact its entry plainly
-    // records for them in their Role.
-    recorded(
-      citationId: number,
-      personId: number,
-      event: string | null,
-      role: string | null
-    ) {
-      const fact = entryFact(event, role, factsOf.all(personId));
-      if (fact !== null) set(citationId, fact.id, true);
-    }
-  };
+  return { set };
 }

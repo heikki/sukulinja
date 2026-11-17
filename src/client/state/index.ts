@@ -34,6 +34,8 @@ export type { Chart, ChartView, UrlView } from './chart';
 export type { Facts } from './facts';
 export type { Selected } from './selected';
 export { isMarked } from './sources';
+export { lineKey, NO_TYPED } from './entry-lines';
+export type { TypedFields } from './entry-lines';
 export { citingImage } from '@/common/entry-naming';
 export type { LinkStatus, Source, SourceGroup } from './sources';
 export type { Confirming } from './confirming';

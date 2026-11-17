@@ -118,3 +118,50 @@ export function dateOrder(text: string) {
   const month = name === undefined ? 0 : MONTHS.indexOf(name) + 1;
   return Number(year) * 10000 + month * 100 + Number(day);
 }
+
+// The first and last day a GEDCOM date can be, as dateOrder numbers them:
+// "1761" all of 1761, "MAR 1761" its March, "3 MAR 1761" that day, "ABT
+// 1761" (CAL, EST) as 1761, "BET 1760 AND 1762" (FROM … TO) from the
+// first to the last, "BEF 1761" (TO) any day up to it, "AFT 1761" (FROM)
+// any day after. Null when it can't be read.
+export function dateSpan(text: string): [number, number] | null {
+  const date = text.trim().toUpperCase();
+  return spanOfTwo(date) ?? spanOfOne(date);
+}
+
+// A span between two dates; undefined for any other date.
+function spanOfTwo(date: string): [number, number] | null | undefined {
+  const two = /^(?:BET (?<a>.+) AND|FROM (?<c>.+) TO) (?<b>.+)$/.exec(date);
+  if (two?.groups === undefined) return undefined;
+  const a = daySpan(two.groups.a ?? two.groups.c ?? '');
+  const b = daySpan(two.groups.b ?? '');
+  return a === null || b === null ? null : [a[0], b[1]];
+}
+
+// A date alone, or with a word before it.
+function spanOfOne(date: string): [number, number] | null {
+  const one = /^(?<q>ABT|CAL|EST|BEF|TO|AFT|FROM) (?<a>.+)$/.exec(date);
+  if (one?.groups === undefined) return daySpan(date);
+  const a = daySpan(one.groups.a ?? '');
+  if (a === null) return null;
+  const q = one.groups.q;
+  if (q === 'BEF' || q === 'TO') return [-Infinity, a[1]];
+  if (q === 'AFT' || q === 'FROM') return [a[0], Infinity];
+  return a;
+}
+
+// A day, month or year's first and last day.
+function daySpan(text: string): [number, number] | null {
+  const m =
+    /^(?:(?:(?<day>\d{1,2}) )?(?<name>[A-Z]{3}) )?(?<year>\d{3,4})$/.exec(text);
+  if (m?.groups === undefined) return null;
+  const { day, name, year = '' } = m.groups;
+  const y = Number(year) * 10000;
+  if (name === undefined) return [y + 101, y + 1231];
+  const month = MONTHS.indexOf(name) + 1;
+  if (month === 0) return null;
+  const at = y + month * 100;
+  return day === undefined
+    ? [at + 1, at + 31]
+    : [at + Number(day), at + Number(day)];
+}

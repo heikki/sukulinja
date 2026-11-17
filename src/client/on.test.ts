@@ -67,6 +67,7 @@ const C11: CitationRow = {
   supports: [],
   entryId: null,
   event: null,
+  fields: null,
   role: null
 };
 const L11: Link = {

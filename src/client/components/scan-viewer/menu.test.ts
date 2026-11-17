@@ -43,6 +43,7 @@ function citation(id: number, madeInApp: boolean): CitationRow {
     supports: [],
     entryId: null,
     event: null,
+    fields: null,
     role: null
   };
 }

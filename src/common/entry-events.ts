@@ -15,13 +15,42 @@ export interface EntryRole {
   label: string;
 }
 
-// Each Event as the card names it, with its Roles, GEDCOM's citation ROLE.
-// A burial or a household line names one person, in none: isäntä or piika
-// is who they are in the household, which its Transcription says.
+// What an Entry says as its book writes it (ADR-0033): the date of its
+// Event, and of the birth or death it follows (a baptism's Born, a
+// burial's Died), as GEDCOM dates, and the village and farm. Null for
+// what it doesn't say.
+export interface EntryFields {
+  date: string | null;
+  lifeDate: string | null;
+  village: string | null;
+  farm: string | null;
+}
+
+export const NO_FIELDS: EntryFields = {
+  date: null,
+  lifeDate: null,
+  village: null,
+  farm: null
+};
+
+// One of an Entry's dates on its card, and the Fact it gives: "Born", of
+// a Birth.
+export interface EntryDate {
+  key: 'date' | 'lifeDate';
+  tag: string;
+  label: string;
+}
+
+// A burial or a household line names one person, in no Role: isäntä or
+// piika is who they are in the household, which its Transcription says.
+// Each Event as the card names it, with its Roles, GEDCOM's citation ROLE,
+// and its dates, in the order the book writes them. A household line's
+// date is its Volume's years.
 export const ENTRY_EVENTS: ReadonlyArray<{
   event: EntryEvent;
   label: string;
   roles: readonly EntryRole[];
+  dates: readonly EntryDate[];
 }> = [
   {
     event: 'CHR',
@@ -30,6 +59,10 @@ export const ENTRY_EVENTS: ReadonlyArray<{
       { role: 'CHIL', label: 'Child' },
       { role: 'FATH', label: 'Father' },
       { role: 'MOTH', label: 'Mother' }
+    ],
+    dates: [
+      { key: 'lifeDate', tag: 'BIRT', label: 'Born' },
+      { key: 'date', tag: 'CHR', label: 'Baptised' }
     ]
   },
   {
@@ -38,10 +71,19 @@ export const ENTRY_EVENTS: ReadonlyArray<{
     roles: [
       { role: 'HUSB', label: 'Groom' },
       { role: 'WIFE', label: 'Bride' }
+    ],
+    dates: [{ key: 'date', tag: 'MARR', label: 'Married' }]
+  },
+  {
+    event: 'BURI',
+    label: 'Burial',
+    roles: [],
+    dates: [
+      { key: 'lifeDate', tag: 'DEAT', label: 'Died' },
+      { key: 'date', tag: 'BURI', label: 'Buried' }
     ]
   },
-  { event: 'BURI', label: 'Burial', roles: [] },
-  { event: 'RESI', label: 'Household line', roles: [] }
+  { event: 'RESI', label: 'Household line', roles: [], dates: [] }
 ];
 
 export function isEntryEvent(value: unknown): value is EntryEvent {
@@ -56,6 +98,11 @@ export function eventLabel(event: EntryEvent) {
 // The Roles an Entry of the Event names its people in; none with no Event.
 export function eventRoles(event: EntryEvent | null): readonly EntryRole[] {
   return ENTRY_EVENTS.find((e) => e.event === event)?.roles ?? [];
+}
+
+// The dates an Entry of the Event gives; none with no Event.
+export function eventDates(event: EntryEvent | null): readonly EntryDate[] {
+  return ENTRY_EVENTS.find((e) => e.event === event)?.dates ?? [];
 }
 
 // The Role's label, of whichever Event has it: "Father".

@@ -4,10 +4,11 @@
 
 import type { Database } from 'bun:sqlite';
 
+import type { EntryFields } from '@/common/entry-events';
 import type { Box } from '@/common/types';
 
 import { placeEntryRoles } from './roles';
-import { HELD } from './storage';
+import { HELD, openEntries } from './storage';
 
 // The app's Citations of an Image, not yet of an Entry: by hand, with a
 // Box. Those alike in all an Entry holds are one.
@@ -97,5 +98,21 @@ function mergeEntries(db: Database) {
     if (text !== keeper.text) ownText.run(text, id);
     move.run(keeper.id, id);
     drop.run(id);
+  }
+}
+
+// What the import read of each Entry (ADR-0033), by a citation of it: an
+// Entry gets what the first of its citations said, once they're gathered.
+export function putEntryFields(db: Database, said: Map<number, EntryFields>) {
+  const entryOf = db.prepare<{ id: number }, [number]>(
+    'SELECT entry_id AS id FROM citations WHERE id = ? AND entry_id IS NOT NULL'
+  );
+  const entries = openEntries(db);
+  const done = new Set<number>();
+  for (const [citationId, fields] of said) {
+    const entry = entryOf.get(citationId);
+    if (entry === null || done.has(entry.id)) continue;
+    done.add(entry.id);
+    entries.setFields(entry.id, fields);
   }
 }

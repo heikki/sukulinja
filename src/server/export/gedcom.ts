@@ -4,7 +4,10 @@
 
 import type { Database } from 'bun:sqlite';
 
+import { eventDates, isEntryEvent } from '@/common/entry-events';
+
 import { astiaLinkExport, citationPage } from '../gedcom/astia-links';
+import { entryNotes } from '../gedcom/entry-notes';
 import { EVENTS } from '../gedcom/tags';
 import { enumeration, EVENT_TYPES, NAME_TYPES, ROLES } from '../gedcom/values';
 import { line, optional, pointer, writeGedcom } from '../gedcom/writer';
@@ -102,14 +105,29 @@ function gedcomTree(db: Database) {
     return [enumLine('EVEN', c.event, EVENT, role)];
   }
 
+  // Its DATA: the date of its Entry's Event, if it says one, else its
+  // own, and its text.
   function citationData(c: CitationRow) {
-    if (c.data_date === null && c.text === null) return [];
+    const date = c.entry_date ?? c.data_date;
+    if (date === null && c.text === null) return [];
     return [
       line('DATA', null, [
-        ...optional('DATE', c.data_date),
+        ...optional('DATE', date),
         ...optional('TEXT', c.text)
       ])
     ];
+  }
+
+  // What its Entry says, as NOTEs the import reads back (ADR-0033).
+  function entrySays(c: CitationRow) {
+    const fields = {
+      date: c.entry_date,
+      lifeDate: c.entry_life_date,
+      village: c.entry_village,
+      farm: c.entry_farm
+    };
+    const dates = eventDates(isEntryEvent(c.event) ? c.event : null);
+    return entryNotes(dates, fields).map((note) => line('NOTE', note));
   }
 
   // What a citation says of where it's from: its PAGE, DATA, EVEN and
@@ -142,7 +160,8 @@ function gedcomTree(db: Database) {
         ...media.linksOf('citation', c.id),
         ...link.objects,
         ...notes('citation', c.id),
-        ...link.notes
+        ...link.notes,
+        ...entrySays(c)
       ]);
     });
   }

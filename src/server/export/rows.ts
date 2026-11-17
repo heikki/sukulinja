@@ -68,6 +68,10 @@ interface AddressRow {
   country: string | null;
 }
 
+// What a Citation's Entry says, its columns as a CitationRow names them.
+const ENTRY_SAYS = `e.date AS entry_date, e.life_date AS entry_life_date,
+  e.village AS entry_village, e.farm AS entry_farm`;
+
 export interface CitationRow {
   id: number;
   scope_type: string;
@@ -79,6 +83,11 @@ export interface CitationRow {
   quality: number | null;
   data_date: string | null;
   text: string | null;
+  // What its Entry says (ADR-0033); all null with none.
+  entry_date: string | null;
+  entry_life_date: string | null;
+  entry_village: string | null;
+  entry_farm: string | null;
   annotation: Annotation;
 }
 
@@ -201,7 +210,9 @@ export function readExportRows(db: Database) {
     ),
     citationsOf: grouped(
       all<Omit<CitationRow, 'annotation'>>(
-        `SELECT * FROM ${CITATIONS_READ} ${ordered}`
+        `SELECT c.*, ${ENTRY_SAYS} FROM ${CITATIONS_READ} c
+         LEFT JOIN entries e ON e.id = c.entry_id
+         ORDER BY c.sort_order, c.id`
       ).map(annotated),
       (r) => ownerKey(r.scope_type, r.scope_id)
     ),
@@ -209,8 +220,9 @@ export function readExportRows(db: Database) {
     // order.
     supportOf: grouped(
       all<Omit<CitationRow, 'annotation'> & { fact_id: number }>(
-        `SELECT c.*, fc.fact_id FROM fact_citations fc
+        `SELECT c.*, ${ENTRY_SAYS}, fc.fact_id FROM fact_citations fc
          JOIN ${CITATIONS_READ} c ON c.id = fc.citation_id
+         LEFT JOIN entries e ON e.id = c.entry_id
          ORDER BY c.scope_type, c.scope_id, c.sort_order, c.id`
       ).map(annotated),
       (r) => String(r.fact_id)

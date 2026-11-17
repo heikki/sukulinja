@@ -1,11 +1,13 @@
-// A Citation supporting its person's Facts (ADR-0022): which Fact a new
-// one's entry records, adding and taking back support with its Change, and
+// A Citation supporting its person's Facts (ADR-0022): adding and taking
+// back support with its Change, none made of itself by a new one, and
 // support going with a spouse who leaves the family.
 
-import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+import { NO_FIELDS } from '@/common/entry-events';
 
 import type { NewChange } from '../changes/changes';
 import { openDb } from '../datasets/db';
@@ -17,35 +19,6 @@ import { juvaAstia } from './astia/test-parish';
 import { createCitations } from './citations';
 import { openImages } from './images';
 import { referencesFor } from './myheritage/test-pins';
-import { entryFact } from './support';
-
-describe('entryFact', () => {
-  const chr = { id: 1, tag: 'CHR', familyId: null };
-  const birth = { id: 2, tag: 'BIRT', familyId: null };
-  const marriage = { id: 3, tag: 'MARR', familyId: 7 };
-
-  test("a baptism's child: their Christening, else their Birth", () => {
-    expect(entryFact('CHR', 'CHIL', [birth, chr])).toBe(chr);
-    expect(entryFact('CHR', 'CHIL', [birth])).toBe(birth);
-    expect(entryFact('CHR', 'CHIL', [chr, { ...chr, id: 4 }, birth])).toBe(
-      null
-    );
-  });
-
-  test("a marriage's spouse: their one marriage", () => {
-    expect(entryFact('MARR', 'WIFE', [birth, marriage])).toBe(marriage);
-    expect(
-      entryFact('MARR', 'HUSB', [marriage, { ...marriage, id: 5, familyId: 8 }])
-    ).toBe(null);
-  });
-
-  test('anyone else in an entry, or a household line, supports nothing', () => {
-    expect(entryFact('CHR', 'FATH', [chr, birth])).toBe(null);
-    expect(entryFact('CHR', null, [chr])).toBe(null);
-    expect(entryFact('RESI', null, [chr])).toBe(null);
-    expect(entryFact(null, 'CHIL', [chr])).toBe(null);
-  });
-});
 
 let dir = '';
 beforeEach(async () => {
@@ -161,25 +134,21 @@ test('support goes with its Fact, its Citation, and a spouse leaving the family'
   ).toEqual([{ fact_id: 3, citation_id: 1 }]);
 });
 
-test('a Citation made of a baptism for its child supports their Christening', async () => {
+test('a Citation made of a baptism supports nothing of itself, only what is ticked (ADR-0033)', async () => {
   const { citations, changes } = dataset();
-  function at(image: number) {
-    return {
+  const made = await citations.entries.make(
+    {
       volumeId: 'juva-3',
-      image,
-      fileId: fileId('juva-3', image, 'full'),
+      image: 3,
+      fileId: fileId('juva-3', 3, 'full'),
       box: { left: 100, top: 200, width: 500, height: 50 },
-      event: 'CHR' as const
-    };
-  }
-  const made = await citations.entries.make(at(3), null, [
-    { personId: 1, role: 'CHIL' }
-  ]);
-  expect(made).toMatchObject([{ citation: { supports: [2] } }]);
-  expect(changes.map((c) => c.what.kind)).toEqual(['cite', 'support']);
-  // Their father in it supports none of his Facts.
-  const father = await citations.entries.make(at(4), null, [
-    { personId: 3, role: 'FATH' }
-  ]);
-  expect(father).toMatchObject([{ citation: { supports: [] } }]);
+      event: 'CHR',
+      fields: NO_FIELDS,
+      ticked: []
+    },
+    null,
+    [{ personId: 1, role: 'CHIL' }]
+  );
+  expect(made).toMatchObject([{ citation: { supports: [] } }]);
+  expect(changes.map((c) => c.what.kind)).toEqual(['cite']);
 });
