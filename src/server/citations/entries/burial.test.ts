@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { NO_FIELDS } from '@/common/entry-events';
 import type { EntryFields } from '@/common/entry-events';
 import type { Ticked } from '@/common/entry-offers';
+import type { InEntry } from '@/common/operations';
 
 import { at, entriesDataset, made } from './test-entries';
 
@@ -23,7 +24,8 @@ afterEach(async () => {
 
 function burial(fields: EntryFields, ticked: Ticked[], image = 7) {
   const target = { ...at(image), event: 'BURI' as const, fields, ticked };
-  return [target, null, [{ personId: 3, role: null }]] as const;
+  const people: InEntry[] = [{ personId: 3, role: null }];
+  return [target, null, people] as const;
 }
 
 const BURIED = { ...NO_FIELDS, date: '9 APR 1801', place: 'Esimerkkilä 2' };

@@ -8,6 +8,7 @@ import { dateSpan, gedcomDate } from './dates';
 import { eventDates } from './entry-events';
 import type { EntryEvent, EntryFields } from './entry-events';
 import { factKindLabel } from './facts';
+import type { Years } from './types';
 
 // A Fact as the Entry is held to it.
 export interface OwnFact {
@@ -97,17 +98,50 @@ function offersFor(
 }
 
 // What the Entry of the Event would do to its owner's Facts: a line for
-// each date it gives, at its place (null for none).
+// each date of its `fields`, at its place as a Fact's (null for none); a
+// household line's Residence over its Volume's `years`.
 export function entryOffers(
   event: EntryEvent | null,
-  fields: EntryFields,
-  place: string | null,
+  {
+    fields,
+    place,
+    years = null
+  }: { fields: EntryFields; place: string | null; years?: Years | null },
   facts: OwnFact[]
 ): Offer[] {
+  if (event === 'RESI') return residenceOffers(place, years, facts);
   return eventDates(event).flatMap(({ key, tag }) => {
     const date = fields[key];
     return date === null ? [] : offersFor(tag, { date, place }, facts);
   });
+}
+
+// Whether a Fact's date may fall in the years: one it doesn't give may.
+function overlaps(date: string | null, years: Years) {
+  if (date === null) return true;
+  const span = dateSpan(date);
+  if (span === null) return false;
+  return span[0] <= years.to * 10000 + 1231 && span[1] >= years.from * 10000;
+}
+
+// A household line's Residence: one at the same place in the years agrees,
+// and is supported; else one is added, from the Volume's first year to its
+// last. None without a place or years.
+function residenceOffers(
+  place: string | null,
+  years: Years | null,
+  facts: OwnFact[]
+): Offer[] {
+  if (place === null || years === null) return [];
+  const same = facts.find(
+    (f) => f.tag === 'RESI' && f.place === place && overlaps(f.date, years)
+  );
+  if (same !== undefined) {
+    const was = { date: same.date, place: same.place };
+    return [{ tag: 'RESI', action: 'support', factId: same.id, was }];
+  }
+  const now = { date: `BET ${years.from} AND ${years.to}`, place };
+  return [{ tag: 'RESI', action: 'add', now }];
 }
 
 // The Entry's place as a Fact's is written (ADR-0024): as its book writes

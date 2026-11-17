@@ -2,7 +2,7 @@
 // the Volume is in the tree's church books, whether Astia has re-scanned
 // it, the Image's file, and whether a Box lies on the Image.
 
-import type { Box } from '@/common/types';
+import type { Box, Years } from '@/common/types';
 
 import { archiveAmong } from './astia/archives';
 import { AstiaError, viewerUrls } from './astia/astia';
@@ -108,16 +108,27 @@ export function openImages({
       }
     },
 
-    // The parish of the archive holding the Volume, by the name the
-    // parishes first know it by ("Juva"), looked for among the `archives`;
-    // null when none holds it, the parish has no name, or Astia can't say.
-    async parishOf(volumeId: string, archives: string[]) {
+    // Where and when the Volume is: the parish of the archive holding it,
+    // by the name the parishes first know it by ("Juva"), and the years
+    // its label gives, looked for among the `archives`; each null when
+    // none holds it, it doesn't say, or Astia can't say.
+    async volumeWhere(
+      volumeId: string,
+      archives: string[]
+    ): Promise<{ parish: string | null; years: Years | null }> {
       try {
         const archive = await archiveAmong(astia, volumeId, archives);
+        if (archive === null) return { parish: null, years: null };
         const parish = parishes.all().find((p) => p.archiveId === archive);
-        return parish?.spellings[0] ?? null;
+        const volume = (await astia.archiveVolumes(archive)).find(
+          (v) => v.id === volumeId
+        );
+        return {
+          parish: parish?.spellings[0] ?? null,
+          years: volume?.years ?? null
+        };
       } catch (err) {
-        if (err instanceof AstiaError) return null;
+        if (err instanceof AstiaError) return { parish: null, years: null };
         throw err;
       }
     },

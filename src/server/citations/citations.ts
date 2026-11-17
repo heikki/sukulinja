@@ -441,8 +441,8 @@ export function createCitations<R extends BookRef>(
     tree: entryTree(db, {
       facts: createFacts(db, changed),
       support,
-      parishOf: async (volumeId) =>
-        await images.parishOf(volumeId, await citable())
+      volumeWhere: async (volumeId) =>
+        await images.volumeWhere(volumeId, await citable())
     }),
     newcomers: entryNewcomers(db, createRelatives(db, changed)),
     changed,

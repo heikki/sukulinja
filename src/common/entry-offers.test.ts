@@ -24,21 +24,25 @@ function birth(date: string | null, place: string | null = PLACE, id = 1) {
 }
 
 test('a date with no Fact of its kind adds one, ticked; an empty one does nothing', () => {
-  const offers = entryOffers('CHR', BAPTISM, PLACE, []);
+  const offers = entryOffers('CHR', { fields: BAPTISM, place: PLACE }, []);
   expect(offers).toEqual([
     { tag: 'BIRT', action: 'add', now: { date: '3 MAR 1761', place: PLACE } },
     { tag: 'CHR', action: 'add', now: { date: '5 MAR 1761', place: PLACE } }
   ]);
   expect(offers.every(tickedFirst)).toBe(true);
-  expect(entryOffers('CHR', { ...BAPTISM, date: null }, PLACE, [])).toEqual([
+  expect(
+    entryOffers('CHR', { fields: { ...BAPTISM, date: null }, place: PLACE }, [])
+  ).toEqual([
     { tag: 'BIRT', action: 'add', now: { date: '3 MAR 1761', place: PLACE } }
   ]);
-  expect(entryOffers(null, BAPTISM, PLACE, [])).toEqual([]);
+  expect(entryOffers(null, { fields: BAPTISM, place: PLACE }, [])).toEqual([]);
 });
 
 test('a Fact that agrees is supported', () => {
   expect(
-    entryOffers('CHR', BAPTISM, PLACE, [birth('3 MAR 1761')])[0]
+    entryOffers('CHR', { fields: BAPTISM, place: PLACE }, [
+      birth('3 MAR 1761')
+    ])[0]
   ).toMatchObject({
     tag: 'BIRT',
     action: 'support',
@@ -46,13 +50,19 @@ test('a Fact that agrees is supported', () => {
   });
   // The Entry with no place agrees with any.
   expect(
-    entryOffers('CHR', BAPTISM, null, [birth('3 MAR 1761', 'Juva')])[0]
+    entryOffers('CHR', { fields: BAPTISM, place: null }, [
+      birth('3 MAR 1761', 'Juva')
+    ])[0]
   ).toMatchObject({ tag: 'BIRT', action: 'support', factId: 1 });
 });
 
 test('a Fact that agrees but says less is supported, and its change offered unticked', () => {
   for (const date of ['1761', 'ABT 1761', 'BET 1760 AND 1762', null]) {
-    const [support, change] = entryOffers('CHR', BAPTISM, PLACE, [birth(date)]);
+    const [support, change] = entryOffers(
+      'CHR',
+      { fields: BAPTISM, place: PLACE },
+      [birth(date)]
+    );
     expect(support).toMatchObject({
       tag: 'BIRT',
       action: 'support',
@@ -67,13 +77,17 @@ test('a Fact that agrees but says less is supported, and its change offered unti
   }
   // A place filled.
   expect(
-    entryOffers('CHR', BAPTISM, PLACE, [birth('3 MAR 1761', null)])[1]
+    entryOffers('CHR', { fields: BAPTISM, place: PLACE }, [
+      birth('3 MAR 1761', null)
+    ])[1]
   ).toMatchObject({ action: 'change', now: { place: PLACE } });
 });
 
 test('a Fact that differs is offered only its change, unticked', () => {
   expect(
-    entryOffers('CHR', BAPTISM, PLACE, [birth('1762')]).slice(0, 1)
+    entryOffers('CHR', { fields: BAPTISM, place: PLACE }, [
+      birth('1762')
+    ]).slice(0, 1)
   ).toEqual([
     {
       tag: 'BIRT',
@@ -84,16 +98,20 @@ test('a Fact that differs is offered only its change, unticked', () => {
     }
   ]);
   expect(
-    entryOffers('CHR', BAPTISM, PLACE, [birth('3 MAR 1761', 'Juva')])
+    entryOffers('CHR', { fields: BAPTISM, place: PLACE }, [
+      birth('3 MAR 1761', 'Juva')
+    ])
   ).toMatchObject([{ action: 'change', now: { place: PLACE } }, {}]);
 });
 
 test('two Facts of a kind are left to choose between in Sources', () => {
   const two = [birth('1761'), birth('1762', null, 2)];
-  expect(entryOffers('CHR', BAPTISM, PLACE, two)[0]).toEqual({
-    tag: 'BIRT',
-    action: 'two'
-  });
+  expect(entryOffers('CHR', { fields: BAPTISM, place: PLACE }, two)[0]).toEqual(
+    {
+      tag: 'BIRT',
+      action: 'two'
+    }
+  );
 });
 
 test('the place is as the book writes it, in its parish, in Finland', () => {
@@ -136,4 +154,31 @@ test('a line is written as the card shows it', () => {
   expect(offerWords({ tag: 'BIRT', action: 'two' })).toBe(
     'Two Births: choose in Sources'
   );
+});
+
+function resi(date: string | null, place = PLACE) {
+  return { id: 5, tag: 'RESI', date, place };
+}
+
+test("a household line's Residence agrees at the same place in overlapping years", () => {
+  const years = { from: 1790, to: 1796 };
+  const said = { fields: NO_FIELDS, place: PLACE, years };
+  expect(entryOffers('RESI', said, [])).toEqual([
+    {
+      tag: 'RESI',
+      action: 'add',
+      now: { date: 'BET 1790 AND 1796', place: PLACE }
+    }
+  ]);
+  for (const date of ['1795', 'BET 1780 AND 1791', 'AFT 1796', null]) {
+    expect(entryOffers('RESI', said, [resi(date)])).toMatchObject([
+      { action: 'support', factId: 5 }
+    ]);
+  }
+  for (const fact of [resi('1789'), resi('1795', 'Juva, Suomi')]) {
+    expect(entryOffers('RESI', said, [fact])).toMatchObject([
+      { action: 'add' }
+    ]);
+  }
+  expect(entryOffers('RESI', { ...said, place: null }, [])).toEqual([]);
 });

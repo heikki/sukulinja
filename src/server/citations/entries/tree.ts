@@ -12,6 +12,7 @@ import type { EntryEvent, EntryFields } from '@/common/entry-events';
 import { entryOffers, entryPlace } from '@/common/entry-offers';
 import type { Offer, OwnFact, Ticked } from '@/common/entry-offers';
 import type { InEntry } from '@/common/operations';
+import type { Years } from '@/common/types';
 
 import type { Facts } from '../../facts/facts';
 import type { createSupport } from '../support';
@@ -62,8 +63,11 @@ export function ownerOf(
 interface TreeDeps {
   facts: Facts;
   support: ReturnType<typeof createSupport>;
-  // The parish of the Volume's archive, by its name, if known.
-  parishOf: (volumeId: string) => Promise<string | null>;
+  // The parish of the Volume's archive, by its name, and the Volume's
+  // years, each if known.
+  volumeWhere: (
+    volumeId: string
+  ) => Promise<{ parish: string | null; years: Years | null }>;
 }
 
 // What the Entry would be: in the Volume, of the Event, naming the people,
@@ -86,7 +90,7 @@ function sameLine(o: Offer, t: Ticked) {
 
 export function entryTree(
   db: Database,
-  { facts, support, parishOf }: TreeDeps
+  { facts, support, volumeWhere }: TreeDeps
 ) {
   const factsOf = db.prepare<OwnFact, [string, number]>(
     `SELECT id, tag, date_text AS date, place FROM facts
@@ -172,11 +176,11 @@ export function entryTree(
     async offered(entry: EntryShape): Promise<Offered> {
       const owner = ownerOf(entry.event, entry.people, coupleOf);
       if (owner === null) return { offers: [] };
-      const place = entryPlace(entry.fields, await parishOf(entry.volumeId));
+      const { parish, years } = await volumeWhere(entry.volumeId);
+      const place = entryPlace(entry.fields, parish);
       const offers = entryOffers(
         entry.event,
-        entry.fields,
-        place,
+        { fields: entry.fields, place, years },
         ownFacts(owner)
       );
       return { offers };
