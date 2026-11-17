@@ -11,7 +11,7 @@ Heikki, 2026-11-17: start a new tree from scratch, source first. Research starts
 1. A new dataset starts as now, from its first person (name only).
 2. Church books: open their parish's baptisms, find the first person's baptism, _New entry here_, draw the Box.
 3. The card: kind _Baptism_ (first guess), child = the first person, _Born_ 3.3.1761, _Baptised_ 5.3.1761, village Esimerkkilä, farm Mäkelä; Father and Mother _New father…_ / _New mother…_ with their names as the tree writes them.
-4. Save: the Entry, the parents as a new family with the child in it, the child's Birth and Christening at "Mäkelä, Esimerkkilä, <parish>", each supported by the child's Citation. One Change for each.
+4. Save, with the card's _Add Birth_ and _Add Christening_ left ticked: the Entry, the parents as a new family with the child in it, the child's Birth and Christening at "Mäkelä, Esimerkkilä, <parish>", each supported by the child's Citation. One Change for each.
 5. From the parents: their marriage, their burials, the household lines in the rippikirjat, each the same way.
 
 ## The card
@@ -33,15 +33,17 @@ Heikki, 2026-11-17: start a new tree from scratch, source first. Research starts
 
 ## Saving: the Entry against the tree
 
-For each filled field, against the Fact of that kind of its owner (the child, the family, the person):
+Nothing the Entry would do to a Fact is required (Heikki, 2026-11-17). Under the fields the card lists it, one line and one box each, kept up to date as the fields and people change. For each filled field, against the Fact of that kind of its owner (the child, the family, the person):
 
-- **None:** the Fact is added from the Entry's date and place, and the Citation supports it.
-- **Agrees:** the Citation supports it. A date agrees when the Entry's falls within the Fact's (the Fact's 1761, `ABT 1761` or `BET 1760 AND 1762` against 3.3.1761); a place agrees when it's the same, or the Fact has none. A Fact that agrees but says less (a year only, or no place) is made the Entry's, as one Change, without asking.
-- **Differs:** one question for the Entry, listing each difference ("Birth: tree 1762, entry 3.3.1761"): _Change to the entry's_ or _Keep the tree's_. Kept, the Fact isn't supported; the Entry keeps its own, and the tree-quality check 4 lists it.
-- **Two or more** Facts of the kind: none is touched or supported; support is chosen in _Sources_.
-- **A Residence** agrees when it's at the same place with overlapping years; else a new one is added, `FROM` and `TO` the Volume's years.
+- **None:** _Add Birth 3.3.1761 at Mäkelä, Esimerkkilä_, ticked. Added from the Entry's date and place, and the Citation supports it.
+- **Agrees:** _Supports Christening_, ticked. A date agrees when the Entry's falls within the Fact's (the Fact's 1761, `ABT 1761` or `BET 1760 AND 1762` against 3.3.1761); a place agrees when it's the same, or the Fact has none.
+- **Says less or differs:** _Change Birth 1762 → 3.3.1761_ (a year only made exact, a place filled or another one), unticked. Ticked, the Fact is made the Entry's and supported; left, it isn't supported, the Entry keeps its own, and the tree-quality check 4 lists a difference.
+- **Two or more** Facts of the kind: no line ("Two Births: choose in _Sources_").
+- **A Residence** agrees when it's at the same place with overlapping years; else _Add Residence 1790–1796 at …_, ticked.
 
-The Entry, its people, their families, Facts and support are saved in one request and one transaction (the Entry's edit, ADR-0026); one part refused refuses all of it. Each piece is a Change.
+With nothing ticked, Save saves the Entry, its dates and people only. A person or family the Roles make (`03`) isn't one of these: naming someone new is asked for by _New …_.
+
+The Entry, its people, their families and the ticked Facts and support are saved in one request and one transaction (the Entry's edit, ADR-0026); one part refused refuses all of it. Each piece is a Change.
 
 Emptying a field on Edit takes nothing back: the Fact and its support stay, as the tree's.
 
