@@ -91,7 +91,7 @@ function createDatasetHandlers(
   };
 }
 
-interface ApiOptions {
+export interface ApiOptions {
   // Astia's answers; by default over HTTP, kept in the data folder.
   astia?: Astia;
   // Where exports are saved; by default the user's Downloads.

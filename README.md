@@ -19,6 +19,14 @@ bun install
 bun dev       # serve the app in a browser
 ```
 
+The end-to-end tests drive that page in Chromium, with a fixture Astia
+(ADR-0034):
+
+```bash
+bunx playwright install chromium   # one-time
+bun run e2e
+```
+
 To build and install to `/Applications` (macOS):
 
 ```bash

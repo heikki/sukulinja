@@ -22,3 +22,5 @@ jobs:
       - run: bun run lint
       - run: bun run typecheck
       - run: bun run test
+      - run: bunx playwright install chromium
+      - run: bun run e2e

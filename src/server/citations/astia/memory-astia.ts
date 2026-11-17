@@ -55,17 +55,19 @@ function filmingIds(volumeId: string, { filming, images }: Filming) {
   );
 }
 
-interface MemoryOptions {
+export interface MemoryOptions {
   // Every request fails with an AstiaError, as when Astia is down.
   down?: boolean;
+  // What every Image's file holds; by default a JPEG's first two bytes,
+  // enough for what reads them but not for a page that shows them.
+  image?: Uint8Array;
 }
 
 // The archives, by Astia id. Asking for an archive or Volume not given is
-// a mistake in the test, and throws a plain Error; image bytes are a
-// JPEG's first two.
+// a mistake in the test, and throws a plain Error.
 export function memoryAstia(
   archives: Record<string, MemoryArchive>,
-  { down = false }: MemoryOptions = {}
+  { down = false, image = new Uint8Array([0xff, 0xd8]) }: MemoryOptions = {}
 ): MemoryAstia {
   const asked: string[] = [];
 
@@ -194,7 +196,7 @@ export function memoryAstia(
       if (!filmingIds(volumeId, now).includes(id)) {
         throw new NoImageError(`no image ${id}`);
       }
-      return await Promise.resolve(new Uint8Array([0xff, 0xd8]));
+      return await Promise.resolve(image);
     }
   };
 }

@@ -3,6 +3,7 @@
 // and a baptism one, of 20 Images each.
 
 import { memoryAstia } from './memory-astia';
+import type { MemoryOptions } from './memory-astia';
 import { STARTING_PARISHES } from './parishes';
 
 export const JUVA = '1212295491';
@@ -17,22 +18,26 @@ export const IMAGES = 20;
 // starting parish's archive is there too, holding none of them.
 export function juvaAstia(
   title?: string,
-  volumes: Record<string, string> = VOLUMES
+  volumes: Record<string, string> = VOLUMES,
+  options: MemoryOptions = {}
 ) {
   const others = STARTING_PARISHES.map(
     (p) => [p.archiveId, { volumes: [] }] as const
   );
-  return memoryAstia({
-    ...Object.fromEntries(others),
-    [JUVA]: {
-      ...(title === undefined ? {} : { title }),
-      volumes: Object.entries(volumes).map(([id, label]) => ({
-        id,
-        label,
-        images: IMAGES
-      }))
-    }
-  });
+  return memoryAstia(
+    {
+      ...Object.fromEntries(others),
+      [JUVA]: {
+        ...(title === undefined ? {} : { title }),
+        volumes: Object.entries(volumes).map(([id, label]) => ({
+          id,
+          label,
+          images: IMAGES
+        }))
+      }
+    },
+    options
+  );
 }
 
 // A rippikirja citation in the shape MyHeritage writes, of a made-up person.

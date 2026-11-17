@@ -1,10 +1,8 @@
 import { resolve } from 'node:path';
 
-import indexHtml from '../client/index.html';
-import { lastViewRoute } from './app/last-view';
+import { serveInBrowser } from './browser';
 import { seedDemo } from './datasets/demo';
 import { DatasetRegistry } from './datasets/registry';
-import { createApi, createStaticFetch } from './server';
 
 // The checkout's data/, unless SUKULINJA_DATA names another folder (e.g. a
 // copy of the installed app's ~/Library/Application Support/Sukulinja/data,
@@ -14,28 +12,6 @@ const registry = new DatasetRegistry(
 );
 await seedDemo(registry, resolve('resources/demo/bourbon.gdz'));
 void registry.sweepStaging(); // clear staging dirs left by interrupted imports
-const api = createApi(registry, { warmUp: true });
-// A browser tab keeps its own URL, so the page's last view is dropped.
-const fetch = lastViewRoute(
-  () => undefined,
-  createStaticFetch({ api, staticRoots: ['src/client'] })
-);
-
-const server = Bun.serve({
-  hostname: '127.0.0.1',
-  port: 0,
-  // Imports stream progress across slow photo downloads; keep the connection
-  // alive through quiet stretches (default idleTimeout is only 10s).
-  idleTimeout: 255,
-  routes: {
-    '/': indexHtml,
-    '/d/:slug/api/*': false,
-    '/d/:slug/media/*': false,
-    '/d/:slug': indexHtml,
-    '/d/:slug/*': indexHtml
-  },
-  development: { hmr: true, console: true },
-  fetch
-});
+const server = serveInBrowser(registry, { warmUp: true, hmr: true });
 
 console.log(`sukulinja dev → ${server.url.toString()}`);
