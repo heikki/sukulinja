@@ -29,8 +29,10 @@ function stop(e: Event) {
 // which. People already in the tree with a name like the one typed are
 // offered first, and picking one links them instead. Add or Enter adds a
 // new person, then says who was put in place with `added`; it, Cancel,
-// Esc or a press elsewhere say `closed`. Presses
-// on it stay on it, so they don't pan the chart.
+// Esc or a press elsewhere say `closed`. `deferred`, nothing is added:
+// whom it would add or link is said with `named`, for an Entry to make
+// with it (ADR-0033). Presses on it stay on it, so they don't pan the
+// chart.
 @customElement('sl-relative-form')
 class RelativeFormElement extends LitElement {
   static override styles = [
@@ -107,6 +109,10 @@ class RelativeFormElement extends LitElement {
   @property({ attribute: false }) families: ChildFamily[] = [];
   // Everyone in the tree, some of whom may be the one meant.
   @property({ attribute: false }) persons = new Map<number, PersonRow>();
+  // Says whom it would add or link, adding no one.
+  @property({ attribute: false }) deferred = false;
+  // Whether the sex is asked; else it's `sex`.
+  @property({ attribute: false }) askSex = true;
 
   @state() private given = '';
   @state() private surname = '';
@@ -155,6 +161,11 @@ class RelativeFormElement extends LitElement {
 
   // Puts the new person, or someone already in the tree, in place.
   private async save(who: RelativeWho) {
+    if (this.deferred) {
+      this.dispatchEvent(new CustomEvent('named', { detail: who }));
+      this.close();
+      return;
+    }
     const familyId =
       this.families.length === 0
         ? null
@@ -230,6 +241,15 @@ class RelativeFormElement extends LitElement {
     </div>`;
   }
 
+  private addLabel(alike: boolean) {
+    if (this.asking.busy) return 'Adding…';
+    return alike
+      ? `${this.deferred ? 'Name' : 'Add'} as new`
+      : this.deferred
+        ? 'Name'
+        : 'Add';
+  }
+
   override render() {
     const alike = this.alike();
     return html`<div class="form" role="dialog" @keydown=${this.onKeyDown}>
@@ -241,9 +261,13 @@ class RelativeFormElement extends LitElement {
         this.surname = v;
       })}
       ${this.renderAlike(alike)}
-      ${sexField(this.chosenSex ?? this.sex, (sex) => {
-        this.chosenSex = sex;
-      })}
+      ${
+        this.askSex
+          ? sexField(this.chosenSex ?? this.sex, (sex) => {
+              this.chosenSex = sex;
+            })
+          : nothing
+      }
       ${this.renderFamily()}
       ${
         this.asking.refused === null
@@ -267,7 +291,7 @@ class RelativeFormElement extends LitElement {
             this.saveNew();
           }}
         >
-          ${this.asking.busy ? 'Adding…' : alike.length > 0 ? 'Add as new' : 'Add'}
+          ${this.addLabel(alike.length > 0)}
         </button>
       </div>
     </div>`;

@@ -6,7 +6,13 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type { Point } from '@/client/pan-zoom';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
-import type { PersonRow, Relation } from '@/common/types';
+import type {
+  PersonName,
+  PersonRow,
+  Relation,
+  RelativeWho,
+  Sex
+} from '@/common/types';
 
 import {
   addableRelations,
@@ -28,7 +34,9 @@ function stop(e: Event) {
 // `relativesOf`, which open the new-relative form in its place and pick
 // the person it puts in the tree; then "Someone else…", which opens the
 // search of `persons` in its place. Names the person picked with `pick`,
-// and asks to `close` on Esc or a press elsewhere. Presses on it stay on
+// and asks to `close` on Esc or a press elsewhere. With `newOne`, its
+// "New …" makes no one: the name typed is said with `pick-new`, for an
+// Entry to make them with it (ADR-0033). Presses on it stay on
 // it, so they don't pan the picture under it.
 @customElement('sl-person-pick')
 class PersonPickElement extends SignalWatcher(LitElement) {
@@ -58,6 +66,12 @@ class PersonPickElement extends SignalWatcher(LitElement) {
   @property({ attribute: false }) relativesOf: number | null = null;
   // The one relation a new relative can be made as; null for any.
   @property({ attribute: false }) newAs: Relation | null = null;
+  // Someone new named, not made: who they'd be ("father"), and their
+  // sex, or null to ask it.
+  @property({ attribute: false }) newOne: {
+    label: string;
+    sex: Sex | null;
+  } | null = null;
   // Whether anyone else can be searched for.
   @property({ attribute: false }) search = true;
 
@@ -66,6 +80,8 @@ class PersonPickElement extends SignalWatcher(LitElement) {
   @state() private searching = false;
   // The relation a new person is being made as, once picked.
   @state() private adding: Relation | null = null;
+  // Whether someone new is being named, `newOne`.
+  @state() private namingNew = false;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -147,8 +163,42 @@ class PersonPickElement extends SignalWatcher(LitElement) {
     ></sl-relative-form>`;
   }
 
-  // "New father…" and the rest, of `relativesOf`.
+  // The form for someone new, named, not made.
+  private renderNewOne(newOne: { label: string; sex: Sex | null }) {
+    return html`<sl-relative-form
+      .heading=${`New ${newOne.label}`}
+      .at=${this.at}
+      .sex=${newOne.sex ?? 'U'}
+      .askSex=${newOne.sex === null}
+      .deferred=${true}
+      .persons=${this.state.chart.people.get().persons}
+      @named=${(e: CustomEvent<RelativeWho>) => {
+        const who = e.detail;
+        if ('personId' in who) this.picked(who.personId);
+        else this.pickedNew(who);
+      }}
+      @closed=${() => {
+        this.close();
+      }}
+    ></sl-relative-form>`;
+  }
+
+  private pickedNew(name: PersonName) {
+    this.dispatchEvent(new CustomEvent('pick-new', { detail: name }));
+  }
+
+  // "New father…" and the rest, of `relativesOf`; or with `newOne`, it.
   private newItems() {
+    if (this.newOne !== null) {
+      return [
+        {
+          label: `New ${this.newOne.label}…`,
+          run: () => {
+            this.namingNew = true;
+          }
+        }
+      ];
+    }
     const of = this.relativesOf;
     if (of === null) return [];
     const people = this.state.chart.people.get();
@@ -165,6 +215,9 @@ class PersonPickElement extends SignalWatcher(LitElement) {
 
   override render() {
     if (this.searching) return this.renderSearch();
+    if (this.namingNew && this.newOne !== null) {
+      return this.renderNewOne(this.newOne);
+    }
     if (this.adding !== null && this.relativesOf !== null) {
       return this.renderNew(this.relativesOf, this.adding);
     }
@@ -196,7 +249,9 @@ class PersonPickElement extends SignalWatcher(LitElement) {
         // The menu asks to close before it runs the item chosen, which may
         // open the search instead.
         queueMicrotask(() => {
-          if (!this.searching && this.adding === null) this.close();
+          if (!this.searching && this.adding === null && !this.namingNew) {
+            this.close();
+          }
         });
       }}
     ></sl-context-menu>`;

@@ -92,7 +92,13 @@ export function openAppState(
       void chart.reloadPeople();
     }
   });
-  const viewer = openViewer(api, selected, { opening: photoViewer.close });
+  const viewer = openViewer(api, selected, {
+    opening: photoViewer.close,
+    // An Entry saved may make people and Facts.
+    treeChanged: () => {
+      void chart.relinked();
+    }
+  });
   const chart = openChart(api, selected, viewer, photoViewer);
   const facts = openFacts(api, selected, {
     // A birth or death gives a card its years.

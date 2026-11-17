@@ -27,7 +27,8 @@ export type {
   EntryAt,
   EntryEdit,
   EntryTarget,
-  InEntry
+  InEntry,
+  Newcomer
 } from './entries';
 export { APP_OPERATIONS } from './app';
 export type { AppOperations } from './app';

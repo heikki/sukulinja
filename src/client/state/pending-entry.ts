@@ -7,7 +7,8 @@ import { eventRoles } from '@/common/entry-events';
 import type { EntryEvent } from '@/common/entry-events';
 import { citingImage } from '@/common/entry-naming';
 import type { Offer } from '@/common/entry-offers';
-import type { Box, VolumeCitation } from '@/common/types';
+import type { Newcomer } from '@/common/operations';
+import type { Box, PersonName, VolumeCitation } from '@/common/types';
 
 import { datesRefusal, entryLines, fieldsOf, typedOf } from './entry-lines';
 import type { TypedFields } from './entry-lines';
@@ -17,14 +18,15 @@ import type { Readable, Selected } from './selected';
 // An Entry not saved yet (ADR-0026), new or the source's changed: the
 // Event it records, null until one is chosen (ADR-0033), who is in it,
 // each in their Role if its Event has Roles, what it says, its fields as
-// typed, and the boxes pressed on the lines of what they'd do to the
-// tree, by lineKey.
+// typed, the boxes pressed on the lines of what they'd do to the tree, by
+// lineKey, and those it names who aren't in the tree yet, to make with it.
 export interface PendingCite {
   event: EntryEvent | null;
   people: InEntry[];
   text: string;
   fields: TypedFields;
   ticks: Record<string, boolean>;
+  newcomers: Newcomer[];
 }
 
 // The source's Entry as it was when its editing began: who was in it, by
@@ -53,6 +55,9 @@ export interface EntryForm {
   // What its fields would do to the tree as it is, for its card to list.
   offers: Readable<Offer[]>;
   setInEntry: (person: InEntry) => void;
+  // Someone not in the tree, by their name, to name in it and make with
+  // it: the number that stands for them (below zero).
+  nameNew: (name: PersonName) => number;
   setPeople: (people: InEntry[]) => void;
   drop: (personId: number) => void;
 }
@@ -68,16 +73,23 @@ interface SaveDeps {
   reload: (volumeId: string) => Promise<void>;
   // The Volume's citations; null until they arrive.
   citations: Readable<VolumeCitation[] | null | 'failed'>;
+  // Told once an Entry saved may have made people or Facts.
+  treeChanged: () => void;
 }
 
 type NewEntry = PendingChange & { kind: 'new' };
+
+// The newcomers it still names, those named in its place since left out.
+function namedNew({ people, newcomers }: PendingCite) {
+  return newcomers.filter((n) => people.some((p) => p.personId === n.personId));
+}
 type EditedEntry = PendingChange & { kind: 'edit' };
 
 // Changing the pending Entry (ADR-0026), new or edited, if there's one:
 // what it says, and who is in it; and saving it.
 export function pendingEntry(
   pending: Signal.State<PendingChange | null>,
-  { api, selected, fileOf, reload, citations }: SaveDeps
+  { api, selected, fileOf, reload, citations, treeChanged }: SaveDeps
 ) {
   const lines = entryLines(api);
 
@@ -163,11 +175,22 @@ export function pendingEntry(
     }));
   }
 
-  // Takes the person out of it.
+  // Takes the person out of it, and someone new out of those to make.
   function drop(personId: number) {
-    change(({ people }) => ({
-      people: people.filter((p) => p.personId !== personId)
+    change(({ people, newcomers }) => ({
+      people: people.filter((p) => p.personId !== personId),
+      newcomers: newcomers.filter((n) => n.personId !== personId)
     }));
+  }
+
+  function nameNew(name: PersonName) {
+    const now = pending.get();
+    const was = now === null || now.kind === 'mark' ? [] : now.cite.newcomers;
+    const personId = Math.min(0, ...was.map((n) => n.personId)) - 1;
+    change(({ newcomers }) => ({
+      newcomers: [...newcomers, { personId, name }]
+    }));
+    return personId;
   }
 
   // The new Entry's Citations show beside the scan once the Volume's
@@ -192,12 +215,14 @@ export function pendingEntry(
         box,
         event: cite.event,
         text: text === '' ? null : text,
+        newcomers: namedNew(cite),
         ...(await saying(volumeId, cite))
       },
       cite.people
     );
     const id = selected.id.get();
     if (cite.people.some((p) => p.personId === id)) void selected.refresh();
+    treeChanged();
     await reload(volumeId);
     if (pending.get() !== change) return null;
     pending.set(null);
@@ -216,7 +241,7 @@ export function pendingEntry(
     const fields = typedOf(rows[0]?.citation.fields ?? null);
     const people = was.map(({ personId, role }) => ({ personId, role }));
     return {
-      cite: { event, people, text, fields, ticks: {} },
+      cite: { event, people, text, fields, ticks: {}, newcomers: [] },
       editing: { entryId, event, was, text, box }
     };
   }
@@ -247,9 +272,11 @@ export function pendingEntry(
       ...(event === editing.event ? {} : { event }),
       text: said === '' ? null : said,
       people,
+      newcomers: namedNew(cite),
       ...(await saying(change.volumeId, cite))
     });
     void selected.refresh();
+    treeChanged();
     await reload(change.volumeId);
     if (pending.get() === change) pending.set(null);
     const now = new Set(rows.map((r) => r.citation.id));
@@ -269,6 +296,7 @@ export function pendingEntry(
     setTick,
     offers: lines.offers,
     setInEntry,
+    nameNew,
     setPeople,
     drop
   };

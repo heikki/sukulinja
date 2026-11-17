@@ -129,8 +129,7 @@ test("a baptism's parents are the child's in the tree, its child theirs; no sear
   );
   expect(ids(father)).toEqual([2]);
   expect(father).toMatchObject({
-    relativesOf: 1,
-    newAs: 'father',
+    newOne: { label: 'father', sex: 'M' },
     search: false
   });
   // With no parent in the tree, only a new one.
@@ -145,7 +144,7 @@ test("a baptism's parents are the child's in the tree, its child theirs; no sear
       4,
       new Set()
     )
-  ).toMatchObject({ choices: [], relativesOf: 4, newAs: 'mother' });
+  ).toMatchObject({ choices: [], newOne: { label: 'mother', sex: 'F' } });
   const ofParents = pickFor(
     {
       event: BAPTISMS,
@@ -160,14 +159,14 @@ test("a baptism's parents are the child's in the tree, its child theirs; no sear
     new Set()
   );
   expect(ids(ofParents)).toEqual([1]);
-  expect(ofParents).toMatchObject({ relativesOf: 2, newAs: 'child' });
+  expect(ofParents).toMatchObject({ newOne: { label: 'child', sex: null } });
   // With no one named yet, or in another Book, anyone.
   expect(
     pickFor({ event: BAPTISMS, role: 'FATH', named: [] }, IX, 1, new Set())
-  ).toMatchObject({ search: true, newAs: null });
+  ).toMatchObject({ search: true, newOne: { label: 'father' } });
   expect(
     pickFor({ event: RIPPI, role: null, named: [child] }, IX, 1, new Set())
-  ).toMatchObject({ search: true });
+  ).toMatchObject({ search: true, newOne: null });
 });
 
 test("a baptism's parents rows are the child's in the tree, and a new child brings theirs", () => {

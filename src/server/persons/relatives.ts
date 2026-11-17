@@ -126,8 +126,13 @@ export function createRelatives(
   }
 
   // A child goes into the family picked, or the person's one family, or a
-  // new one of only the person.
-  function asChild(person: Person, familyId: number | null): Placed {
+  // new one of only the person, as when it's asked for.
+  function asChild(person: Person, familyId: number | null | 'new'): Placed {
+    const alone: Placed =
+      person.sex === 'F'
+        ? { husband: null, wife: 'person', children: ['relative'] }
+        : { husband: 'person', wife: null, children: ['relative'] };
+    if (familyId === 'new') return alone;
     const families = spouseFamiliesOf.all(person.id);
     if (familyId !== null) {
       return families.some((f) => f.id === familyId)
@@ -138,9 +143,7 @@ export function createRelatives(
       return rejected('Say which of their families the child is in.');
     }
     if (families.length === 1) return { into: families[0]!.id, as: 'child' };
-    return person.sex === 'F'
-      ? { husband: null, wife: 'person', children: ['relative'] }
-      : { husband: 'person', wife: null, children: ['relative'] };
+    return alone;
   }
 
   // The Plan for the relative, or why they can't go anywhere.

@@ -344,3 +344,27 @@ test("a date the card can't read is refused on Save, saying how to write it", as
   viewer.entryForm.setField('lifeDate', 'maaliskuussa');
   expect(viewer.save()).rejects.toThrow(/^Born: write the date as 3\.3\.1761/);
 });
+
+test('someone new named on the card is made with the Entry, and only then', async () => {
+  const { viewer, entryId } = await viewing();
+  viewer.editEntry();
+  const form = viewer.entryForm;
+  const id = form.nameNew({ given: 'Antti', surname: 'Malli', sex: 'U' });
+  form.setInEntry({ personId: id, role: 'FATH' });
+  // One named and taken out again is left out.
+  form.nameNew({ given: 'Ei', surname: 'Ketään', sex: 'U' });
+  expect((await api!.persons()).length).toBe(4);
+  await viewer.save();
+
+  const persons = await api!.persons();
+  const father = persons.find((p) => p.given === 'Antti');
+  expect(persons.length).toBe(5);
+  expect(father?.sex).toBe('M');
+  expect(await entryNow(entryId)).toMatchObject([
+    { personId: 1, role: 'CHIL' },
+    { personId: 2, role: 'MOTH' },
+    { personId: father!.id, role: 'FATH' }
+  ]);
+  const families = await api!.families();
+  expect(families).toMatchObject([{ husband_id: father!.id, child_ids: [1] }]);
+});

@@ -20,7 +20,8 @@ import type {
   EntryAt,
   EntryEdit,
   EntryTarget,
-  InEntry
+  InEntry,
+  Newcomer
 } from '@/common/operations';
 import type { VolumeCitation } from '@/common/types';
 
@@ -31,6 +32,8 @@ import type { Images } from '../images';
 import type { createSupport } from '../support';
 import { plainText } from '../text';
 import { fieldsRefusal, keptFields } from './fields';
+import { NewcomerRefused, newcomersRefusal } from './newcomers';
+import type { entryNewcomers } from './newcomers';
 import { openEntries } from './storage';
 import type { EntryCitation, StoredEntry } from './storage';
 import type { entryTree, Offered } from './tree';
@@ -38,6 +41,7 @@ import type { entryTree, Offered } from './tree';
 export { CITATIONS_READ, dropUncitedEntries } from './storage';
 export { gatherEntries, putEntryFields } from './gathering';
 export { entryTree } from './tree';
+export { entryNewcomers } from './newcomers';
 
 export type { EntryAt, EntryEdit, InEntry } from '@/common/operations';
 
@@ -58,6 +62,8 @@ interface EntryDeps<R> {
   support: ReturnType<typeof createSupport>;
   // The Entry against the tree: what it would do to its owner's Facts.
   tree: ReturnType<typeof entryTree>;
+  // Those it names who aren't in the tree yet, made with it.
+  newcomers: ReturnType<typeof entryNewcomers>;
   changed: (change: NewChange) => void;
   // A Citation as the Scan viewer lists it.
   listed: (citationId: number) => Promise<VolumeCitation>;
@@ -85,9 +91,24 @@ function renames(edit: EntryEdit, moved: boolean) {
   return edit.people !== undefined || edit.event !== undefined || moved;
 }
 
+// Whether someone named isn't a person: one in the tree, or a newcomer.
+function unknown(people: InEntry[], personExists: (id: number) => boolean) {
+  return people.some((p) => p.personId > 0 && !personExists(p.personId));
+}
+
+// The save run in its transaction, or why a part of it was refused.
+function saved<T>(db: Database, save: () => T): T | Refused {
+  try {
+    return db.transaction(save)();
+  } catch (err) {
+    if (err instanceof NewcomerRefused) return { rejected: err.message };
+    throw err;
+  }
+}
+
 export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
   const { made, images, citable, inVolume, volumeArchive, personExists } = deps;
-  const { tree, changed, listed, uncite } = deps;
+  const { tree, newcomers, changed, listed, uncite } = deps;
   const stored = openEntries(db);
 
   // Why the people can't be named in an Entry of the Event on the Image
@@ -153,14 +174,30 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
     return 'rejected' in offered ? offered : { fields, offered, ticked };
   }
 
-  // Does the lines ticked, by the owner's Citation of the Entry.
-  function doTicked(entryId: number, offered: Offered, ticked: Ticked[]) {
-    tree.doTicked(offered, ticked, (personId) => {
+  // Does the lines ticked, by the owner's Citation of the Entry; `ids`
+  // gives the newcomers' ids as made.
+  function doTicked(
+    entryId: number,
+    offered: Offered,
+    ticked: Ticked[],
+    ids: Map<number, number>
+  ) {
+    const { owner } = offered;
+    const made = { ...offered, owner: ids.get(owner ?? 0) ?? owner };
+    tree.doTicked(made, ticked, (personId) => {
       const own = stored
         .citationsOf(entryId)
         .find((c) => c.personId === personId);
       return own!.id;
     });
+  }
+
+  // The newcomers made, and the people with their ids as made, by the
+  // number that stood for them.
+  function madeNow(people: InEntry[], those: Newcomer[] | undefined) {
+    const now = newcomers.make(people, those ?? []);
+    const ids = new Map(people.map((p, i) => [p.personId, now[i]!.personId]));
+    return { people: now, ids };
   }
 
   async function listedOf(entryId: number) {
@@ -258,7 +295,7 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
     edit: EntryEdit
   ) {
     const people = edit.people ?? was;
-    if (people.some((p) => !personExists(p.personId))) return null;
+    if (unknown(people, personExists)) return null;
     const to = await movedTo(entry, edit.at);
     if (to !== null && 'rejected' in to) return to;
     const event = edit.event ?? entry.event;
@@ -281,6 +318,8 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
     const named = await renamed(entryId, entry, was, edit);
     if (named === null || 'rejected' in named) return named;
     const { people, to, event } = named;
+    const fresh = newcomersRefusal(event, people, edit.newcomers ?? []);
+    if (fresh !== null) return { rejected: fresh };
     const said = await saying(
       { volumeId: entry.volumeId, event, people },
       edit.fields ?? entry.fields,
@@ -348,8 +387,10 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
       text: string | null,
       people: InEntry[]
     ): Promise<VolumeCitation[] | Refused | null> {
-      if (people.some((p) => !personExists(p.personId))) return null;
+      if (unknown(people, personExists)) return null;
       if (people.length === 0) return { rejected: 'Name someone in it.' };
+      const fresh = newcomersRefusal(at.event, people, at.newcomers ?? []);
+      if (fresh !== null) return { rejected: fresh };
       const checked = await images.imageToCite(at, await citable());
       if ('rejected' in checked) return checked;
       const refused = await refusal(at, at.event, people, null);
@@ -363,7 +404,8 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
       if ('rejected' in said) return said;
       const { fields, offered, ticked } = said;
       const archive = await volumeArchive(at.volumeId);
-      const ids = db.transaction(() => {
+      const ids = saved(db, () => {
+        const now = madeNow(people, at.newcomers);
         const entryId = made.entry({
           ...at,
           ...checked,
@@ -372,10 +414,11 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
         });
         stored.setFields(entryId, fields);
         const entry = stored.entryOf(entryId)!;
-        const named = people.map((p) => name(entryId, p, entry));
-        doTicked(entryId, offered, ticked);
+        const named = now.people.map((p) => name(entryId, p, entry));
+        doTicked(entryId, offered, ticked, now.ids);
         return named;
-      })();
+      });
+      if ('rejected' in ids) return ids;
       return await Promise.all(ids.map(listed));
     },
 
@@ -403,10 +446,14 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
       const ok = await checked(entryId, entry, was, edit);
       if (ok === null || 'rejected' in ok) return ok;
       const text = edit.text === undefined ? undefined : plainText(edit.text);
-      db.transaction(() => {
-        write(entryId, { ...entry, was, ...ok, text, wasEvent: entry.event });
-        doTicked(entryId, ok.offered, ok.ticked);
-      })();
+      const done = saved(db, () => {
+        const now = madeNow(ok.people, edit.newcomers);
+        const e = { ...entry, was, ...ok, people: now.people };
+        write(entryId, { ...e, text, wasEvent: entry.event });
+        doTicked(entryId, ok.offered, ok.ticked, now.ids);
+        return null;
+      });
+      if (done !== null) return done;
       return await listedOf(entryId);
     },
 

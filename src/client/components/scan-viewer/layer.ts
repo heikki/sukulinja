@@ -13,7 +13,7 @@ import type { AppState } from '@/client/state';
 import { CLAUDE_MODELS } from '@/common/assistant-choices';
 import { firstGuess } from '@/common/entry-events';
 import type { EntryEvent } from '@/common/entry-events';
-import type { Box } from '@/common/types';
+import type { Box, PersonName } from '@/common/types';
 
 import { boxFromStage, boxOnStage } from '../box-stage/geometry';
 import type { MenuItem } from '../context-menu';
@@ -169,14 +169,17 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     return html`<sl-person-pick
       .heading=${rolePickLabel(event, role)}
       .at=${at}
-      .relativesOf=${pick.relativesOf}
-      .newAs=${pick.newAs}
+      .newOne=${pick.newOne}
       .search=${pick.search}
       .choices=${pick.choices}
       .persons=${searchable(this.persons, left)}
       @pick=${(e: CustomEvent<{ id: number }>) => {
         this.popup = null;
         this.named(e.detail.id, role);
+      }}
+      @pick-new=${(e: CustomEvent<PersonName>) => {
+        this.popup = null;
+        this.named(this.viewer.entryForm.nameNew(e.detail), role);
       }}
       @close=${this.onPopupClose}
     ></sl-person-pick>`;

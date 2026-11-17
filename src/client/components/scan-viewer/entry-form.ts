@@ -186,7 +186,14 @@ class ScanEntryElement extends LitElement {
     this.setAttribute('side', at.side);
   }
 
+  // Their name as the tree writes it; someone new's as typed.
   private nameOf(personId: number) {
+    const fresh = this.cite.newcomers.find((n) => n.personId === personId);
+    if (fresh !== undefined) {
+      const { given, surname } = fresh.name;
+      const name = `${given.trim()} ${surname.trim()}`.trim();
+      return `${name === '' ? 'Someone' : name} (new)`;
+    }
     const person = this.persons.get(personId);
     return person === undefined ? 'Someone' : formatName(person);
   }

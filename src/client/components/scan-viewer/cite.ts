@@ -1,7 +1,7 @@
 import type { InEntry } from '@/client/dataset-api';
 import { eventRoles } from '@/common/entry-events';
 import type { EntryEvent } from '@/common/entry-events';
-import type { Relation } from '@/common/types';
+import type { Sex } from '@/common/types';
 
 import type { FamilyIndices } from '../person-panel/family';
 import { choiceOf, familyChoices } from '../person-search/choices';
@@ -95,19 +95,32 @@ export function rolePickLabel(event: EntryEvent | null, role: string | null) {
 
 // Whom a baptism's Role may name once its child or a parent is named
 // (ADR-0026): the tree says who they are. The child's father or mother in
-// the tree, or the named parents' children; whom to make one anew
-// (`newAs`, of `relativesOf`); and no one else, by search. Null when it
-// isn't a baptism's or no one it hangs on is named yet: then anyone.
+// the tree, or the named parents' children; and no one else, by search,
+// but someone new. Null when it isn't a baptism's or no one it hangs on
+// is named yet: then anyone.
 export interface RoleChoices {
   choices: PersonChoice[];
-  relativesOf: number;
-  newAs: Relation;
 }
 
-const PARENT_ROLES: Partial<Record<string, Relation>> = {
-  FATH: 'father',
-  MOTH: 'mother'
+// Someone new the Role can name, made with the Entry (ADR-0033): who
+// they are in it ("father"), and their sex, a parent's by the Role, a
+// child's asked (null).
+export interface NewOne {
+  label: string;
+  sex: Sex | null;
+}
+
+const NEW_IN_BAPTISM: Partial<Record<string, NewOne>> = {
+  CHIL: { label: 'child', sex: null },
+  FATH: { label: 'father', sex: 'M' },
+  MOTH: { label: 'mother', sex: 'F' }
 };
+
+// Whom the Role can name anew: a baptism's child or parent; null for any
+// other.
+export function newOneFor(event: EntryEvent | null, role: string | null) {
+  return event === 'CHR' ? (NEW_IN_BAPTISM[role ?? ''] ?? null) : null;
+}
 
 export function roleChoices(
   event: EntryEvent | null,
@@ -116,8 +129,7 @@ export function roleChoices(
   ix: FamilyIndices
 ): RoleChoices | null {
   if (event !== 'CHR' || role === null) return null;
-  const parent = PARENT_ROLES[role];
-  if (parent !== undefined) {
+  if (role === 'FATH' || role === 'MOTH') {
     const child = named.find((p) => p.role === 'CHIL');
     if (child === undefined) return null;
     const theirs = parentsOf(child.personId, ix).filter((p) => p.role === role);
@@ -125,9 +137,7 @@ export function roleChoices(
       choices: theirs.flatMap(({ personId }) => {
         const p = ix.persons.get(personId);
         return p === undefined ? [] : [choiceOf(p, null)];
-      }),
-      relativesOf: child.personId,
-      newAs: parent
+      })
     };
   }
   if (role !== 'CHIL') return null;
@@ -144,33 +154,31 @@ export function roleChoices(
     choices: children.flatMap((id) => {
       const p = ix.persons.get(id);
       return p === undefined ? [] : [choiceOf(p, null)];
-    }),
-    relativesOf: first.personId,
-    newAs: 'child'
+    })
   };
 }
 
 // What the picker offers for the Role of the pending entry: whom the tree
-// says (roleChoices), or the Selected person's family and the search.
-// Those in `left` are left out.
+// says (roleChoices), or the Selected person's family and the search; and
+// someone new where the Role can name them. Those in `left` are left out.
 export function pickFor(
   entry: { event: EntryEvent | null; role: string | null; named: InEntry[] },
   ix: FamilyIndices,
   selected: number | null,
   left: Set<number>
 ) {
+  const newOne = newOneFor(entry.event, entry.role);
   const tree = roleChoices(entry.event, entry.role, entry.named, ix);
   if (tree !== null) {
     return {
-      ...tree,
       choices: tree.choices.filter((c) => !left.has(c.personId)),
+      newOne,
       search: false
     };
   }
   return {
     choices: selected === null ? [] : familyChoices(selected, ix, left),
-    relativesOf: selected,
-    newAs: null,
+    newOne,
     search: true
   };
 }
@@ -197,13 +205,17 @@ export function parentRows(named: InEntry[], ix: FamilyIndices): ParentRow[] {
 }
 
 // The entry's people once the child is the one named: the parents named
-// before give way to the child's in the tree.
+// before give way to the child's in the tree. A new child, with none in
+// the tree, keeps them.
 export function withChild(
   named: InEntry[],
   childId: number,
   ix: FamilyIndices
 ): InEntry[] {
-  const parents = parentsOf(childId, ix);
+  const parents =
+    childId < 0
+      ? named.filter((p) => p.role === 'FATH' || p.role === 'MOTH')
+      : parentsOf(childId, ix);
   const placed = new Set([childId, ...parents.map((p) => p.personId)]);
   const others = named.filter(
     (p) =>

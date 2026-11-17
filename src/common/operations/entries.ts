@@ -6,18 +6,18 @@
 import { isEntryEvent, NO_FIELDS } from '@/common/entry-events';
 import type { EntryEvent, EntryFields } from '@/common/entry-events';
 import type { Ticked } from '@/common/entry-offers';
-import type { Box } from '@/common/types';
+import type { Box, PersonName } from '@/common/types';
 
 import {
   boxOf,
   fieldsOf,
-  isId,
   isInteger,
   isName,
   listOf,
   optionalString
 } from './read';
 import type { Fields } from './read';
+import { personNameOf } from './tree';
 
 // Where an entry is, as the Scan viewer gives it: its Box on an Image of a
 // Volume, by the Image's file id.
@@ -28,19 +28,28 @@ export interface EntryAt {
   box: Box;
 }
 
+// Someone the Entry names who isn't in the tree yet (ADR-0033), made with
+// it from their name: `personId`, below zero, stands for them where it
+// names them (InEntry) until they're made.
+export interface Newcomer {
+  personId: number;
+  name: PersonName;
+}
+
 // An entry made in the app, with the Event it records, chosen on its card
 // (null for none chosen, which is refused), what it says, if said, its
-// dates and place (ADR-0033), and the lines of what it would do to the
-// tree that were ticked.
+// dates and place (ADR-0033), the lines of what it would do to the tree
+// that were ticked, and those it makes.
 export interface EntryTarget extends EntryAt {
   event: EntryEvent | null;
   text: string | null;
   fields: EntryFields;
   ticked: Ticked[];
+  newcomers?: Newcomer[];
 }
 
 // Someone named in an entry, and who they are in it: one of its Event's
-// Roles, or none.
+// Roles, or none. A `personId` below zero is a Newcomer's.
 export interface InEntry {
   personId: number;
   role: string | null;
@@ -55,6 +64,7 @@ export interface EntryEdit {
   people?: InEntry[];
   fields?: EntryFields;
   ticked?: Ticked[];
+  newcomers?: Newcomer[];
 }
 
 // What an Entry of the Event in the Volume, naming the people, with the
@@ -64,6 +74,7 @@ export interface EntryAsked {
   event: EntryEvent | null;
   people: InEntry[];
   fields: EntryFields;
+  newcomers?: Newcomer[];
 }
 
 export function entryAtOf(value: unknown): EntryAt | null {
@@ -104,28 +115,51 @@ function tickedOf(value: unknown): Ticked | null {
     : null;
 }
 
+function newcomerOf(value: unknown): Newcomer | null {
+  const fields = fieldsOf(value);
+  if (fields === null) return null;
+  const { personId } = fields;
+  const name = personNameOf(fields.name);
+  if (!isInteger(personId) || personId >= 0 || name === null) return null;
+  return { personId, name };
+}
+
+// Those an Entry makes; none left out.
+function newcomersOf(value: unknown) {
+  return value === undefined ? [] : listOf(value, newcomerOf);
+}
+
 // The lines ticked; none left out.
 export function tickedListOf(value: unknown) {
   return value === undefined ? [] : listOf(value, tickedOf);
 }
 
+// What a new Entry says beside where it is; null if a part can't be read.
+function targetSaysOf(fields: Fields): Omit<EntryTarget, keyof EntryAt> | null {
+  const text = optionalString(fields.text);
+  const event = eventOf(fields.event);
+  const said = entryFieldsOf(fields.fields);
+  const ticked = tickedListOf(fields.ticked);
+  const newcomers = newcomersOf(fields.newcomers);
+  if (text === undefined || event === undefined || said === null) return null;
+  return ticked === null || newcomers === null
+    ? null
+    : { event, text, fields: said, ticked, newcomers };
+}
+
 export function entryTargetOf(value: unknown): EntryTarget | null {
   const at = entryAtOf(value);
   const fields = fieldsOf(value);
-  const text = optionalString(fields?.text);
-  const event = eventOf(fields?.event);
-  const said = entryFieldsOf(fields?.fields);
-  const ticked = tickedListOf(fields?.ticked);
-  if (at === null || text === undefined || event === undefined) return null;
-  if (said === null || ticked === null) return null;
-  return { ...at, event, text, fields: said, ticked };
+  const says = fields === null ? null : targetSaysOf(fields);
+  return at === null || says === null ? null : { ...at, ...says };
 }
 
 export function inEntryOf(value: unknown): InEntry | null {
   const fields = fieldsOf(value);
-  if (fields === null || !isId(fields.personId)) return null;
+  const personId = fields?.personId;
+  if (fields === null || !isInteger(personId) || personId === 0) return null;
   const role = optionalString(fields.role);
-  return role === undefined ? null : { personId: fields.personId, role };
+  return role === undefined ? null : { personId, role };
 }
 
 // A part left out stays; one that's there must be read.
@@ -155,16 +189,18 @@ export function entryEditOf(value: unknown): EntryEdit | null {
   return said(fields, edit);
 }
 
-// An edit with its fields and ticks read onto it.
+// An edit with its fields, ticks and newcomers read onto it.
 function said(fields: Fields, edit: EntryEdit): EntryEdit | null {
   const read =
     fields.fields === undefined ? undefined : entryFieldsOf(fields.fields);
   const ticked = tickedListOf(fields.ticked);
-  if (read === null || ticked === null) return null;
+  const newcomers = newcomersOf(fields.newcomers);
+  if (read === null || ticked === null || newcomers === null) return null;
   return {
     ...edit,
     ...(read === undefined ? {} : { fields: read }),
-    ...(fields.ticked === undefined ? {} : { ticked })
+    ...(fields.ticked === undefined ? {} : { ticked }),
+    ...(newcomers.length === 0 ? {} : { newcomers })
   };
 }
 
@@ -174,6 +210,9 @@ export function entryAskedOf(value: unknown): EntryAsked | null {
   const event = eventOf(fields.event);
   const people = listOf(fields.people, inEntryOf);
   const said = entryFieldsOf(fields.fields);
+  const newcomers = newcomersOf(fields.newcomers);
   if (event === undefined || people === null || said === null) return null;
-  return { volumeId: fields.volumeId, event, people, fields: said };
+  if (newcomers === null) return null;
+  const { volumeId } = fields;
+  return { volumeId, event, people, fields: said, newcomers };
 }

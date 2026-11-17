@@ -22,6 +22,7 @@ import type {
 
 import type { NewChange } from '../changes/changes';
 import { createFacts } from '../facts/facts';
+import { createRelatives } from '../persons/relatives';
 import {
   annotated,
   annotationColumnsSql,
@@ -31,7 +32,12 @@ import type { Annotation } from './annotations';
 import { openAppCitations } from './app-citations';
 import { viewerUrl, volumeYears } from './astia/astia';
 import { citedArchives } from './cited-archives';
-import { CITATIONS_READ, createEntries, entryTree } from './entries';
+import {
+  CITATIONS_READ,
+  createEntries,
+  entryNewcomers,
+  entryTree
+} from './entries';
 import type { Images } from './images';
 import type { Reader } from './myheritage';
 import type { BookRef, BoxAt, MarkTarget, References } from './references';
@@ -440,6 +446,7 @@ export function createCitations<R extends BookRef>(
       parishOf: async (volumeId) =>
         await images.parishOf(volumeId, await citable())
     }),
+    newcomers: entryNewcomers(db, createRelatives(db, changed)),
     changed,
     listed,
     uncite: removeCitation

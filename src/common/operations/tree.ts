@@ -27,7 +27,7 @@ const RELATIONS = new Set<string>([
 
 // `{ given, surname, sex }`, each a string. A sex GEDCOM doesn't have is
 // the operation's to refuse, in words.
-function nameOf(value: unknown): PersonName | null {
+export function personNameOf(value: unknown): PersonName | null {
   const fields = fieldsOf(value);
   if (fields === null) return null;
   const { given, surname, sex } = fields;
@@ -39,7 +39,9 @@ function nameOf(value: unknown): PersonName | null {
 function whoOf(value: unknown): RelativeWho | null {
   const fields = fieldsOf(value);
   if (fields === null) return null;
-  return isId(fields.personId) ? { personId: fields.personId } : nameOf(value);
+  return isId(fields.personId)
+    ? { personId: fields.personId }
+    : personNameOf(value);
 }
 
 // `{ relation, who, familyId }`.
@@ -89,7 +91,7 @@ export const TREE_OPERATIONS = {
   editPerson: answers<{ personId: number; name: PersonName }, undefined>(
     '{ personId, name: { given, surname, sex } }',
     ({ personId, name }) => {
-      const read = nameOf(name);
+      const read = personNameOf(name);
       return isId(personId) && read !== null ? { personId, name: read } : null;
     }
   ),

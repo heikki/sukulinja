@@ -157,11 +157,11 @@ export interface PersonName {
 
 // A relative put in place for someone. A child goes into `familyId`, one
 // of the person's families as a spouse, when they have more than one; null
-// otherwise.
+// otherwise, or 'new' for a new family of only the person.
 export interface NewRelative {
   relation: Relation;
   who: RelativeWho;
-  familyId: number | null;
+  familyId: number | null | 'new';
 }
 
 export interface CitationRow {

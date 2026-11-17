@@ -213,7 +213,10 @@ export interface Viewer {
 export function openViewer(
   api: DatasetApi,
   selected: Selected,
-  { opening = () => undefined }: { opening?: () => void } = {}
+  {
+    opening = () => undefined,
+    treeChanged = () => undefined
+  }: { opening?: () => void; treeChanged?: () => void } = {}
 ): Viewer {
   const opened = signal<LinkOpen | ImageOpen | null>(null);
   const source = computed(() => {
@@ -277,6 +280,7 @@ export function openViewer(
     fileOf: (n) => fileIdOf(files[n - 1]),
     reload: loadCitations,
     citations,
+    treeChanged,
     placing() {
       discarding.set(false);
       confirmation.forget();

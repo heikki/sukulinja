@@ -44,6 +44,8 @@ export interface PendingDeps {
   // The Volume's citations read again.
   reload: (volumeId: string) => Promise<void>;
   citations: Readable<VolumeCitation[] | null | 'failed'>;
+  // Told once an Entry saved may have made people or Facts.
+  treeChanged: () => void;
   // Told as a Box is placed: what else was asked of the Image is dropped.
   placing: () => void;
   // The viewer to the source's Link, or onto an Image with no source.
@@ -95,7 +97,8 @@ export function pendingChange(deps: PendingDeps): Pending {
     selected,
     fileOf,
     reload,
-    citations
+    citations,
+    treeChanged: deps.treeChanged
   });
 
   function place(box: Box, kind: Kind) {
@@ -178,7 +181,14 @@ export function pendingChange(deps: PendingDeps): Pending {
       place(box, { kind: 'mark' });
     },
     newEntry(box, event, people) {
-      const cite = { event, people, text: '', fields: NO_TYPED, ticks: {} };
+      const cite = {
+        event,
+        people,
+        text: '',
+        fields: NO_TYPED,
+        ticks: {},
+        newcomers: []
+      };
       place(box, { kind: 'new', cite });
     },
     editEntry(entryId, box, rows) {
