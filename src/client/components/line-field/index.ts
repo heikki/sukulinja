@@ -78,6 +78,9 @@ class LineFieldElement extends LitElement {
 
   @property() value = '';
   @property() placeholder = '';
+  // Its name, as the form's label says it: the textarea is in the shadow
+  // root, out of the label's reach.
+  @property() label = '';
   @property({ attribute: false }) suggestions: readonly string[] = [];
 
   // Whether the suggestions are out: from typing until one is taken, Esc,
@@ -161,6 +164,7 @@ class LineFieldElement extends LitElement {
         role="combobox"
         aria-autocomplete="list"
         aria-expanded=${shown.length > 0 ? 'true' : 'false'}
+        aria-label=${this.label}
         placeholder=${this.placeholder}
         .value=${this.value}
         @input=${this.onInput}

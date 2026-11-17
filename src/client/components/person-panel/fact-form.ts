@@ -223,6 +223,7 @@ class FactFormElement extends SignalWatcher(LitElement) {
     return html`<label class="lines">
       <span>${label}</span>
       <sl-line-field
+        label=${label}
         placeholder=${placeholder}
         .value=${this.fields[key]}
         .suggestions=${suggestions}
