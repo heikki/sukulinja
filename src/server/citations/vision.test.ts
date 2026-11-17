@@ -90,7 +90,7 @@ test("a Volume's survey moves its estimates, and each is looked for where it the
   const { db, citations, vision } = setUp();
   try {
     const before = await citations.inVolume('juva-1');
-    expect(before?.map((r) => r.link)).toMatchObject([
+    expect(before.map((r) => r.link)).toMatchObject([
       { certainty: 'estimated', image: 12 }
     ]);
     const said = await located(
@@ -104,7 +104,7 @@ test("a Volume's survey moves its estimates, and each is looked for where it the
       { done: { model: 'claude-haiku-5-5' } }
     ]);
     const after = await citations.inVolume('juva-1');
-    expect(after?.map((r) => r.link)).toMatchObject([
+    expect(after.map((r) => r.link)).toMatchObject([
       { certainty: 'match', image: 7 }
     ]);
   } finally {

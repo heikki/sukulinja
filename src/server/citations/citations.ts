@@ -368,11 +368,10 @@ export function createCitations<R extends BookRef>(
       entry.rows.catch(() => kept.delete(volumeId));
       hit = entry;
     }
-    const church = await hit.rows;
-    const ours = await storedIn(volumeId);
-    return church === null && ours.length === 0
-      ? null
-      : [...(church ?? []), ...ours];
+    // A Volume none of the references reach, opened from the Church
+    // books, has no one in it yet: not a mistake.
+    const church = (await hit.rows) ?? [];
+    return [...church, ...(await storedIn(volumeId))];
   }
 
   // How many of the dataset's Citations link into each of the parish

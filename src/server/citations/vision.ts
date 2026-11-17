@@ -166,7 +166,7 @@ export function openVision({ readers, image, readings, folder }: Options) {
   ): Promise<VisionSurvey | { rejected: string }> {
     if (readers === undefined) return { rejected: NO_VISION };
     const { volumeId, volume, fresh } = asked;
-    const rows = (await citations.inVolume(volumeId)) ?? [];
+    const rows = await citations.inVolume(volumeId);
     const cited = rows.flatMap(({ citation, link }) =>
       link.certainty === 'estimated' && citation.citedPage !== null
         ? [citation.citedPage]
@@ -212,9 +212,7 @@ export function openVision({ readers, image, readings, folder }: Options) {
         took = tookOf(surveyed);
         yield { surveyed };
       }
-      const images = estimatesByImage(
-        (await citations.inVolume(volumeId)) ?? []
-      );
+      const images = estimatesByImage(await citations.inVolume(volumeId));
       const estimates = images.flatMap((on) => on.rows).length;
       for (const [i, on] of images.entries()) {
         yield { searching: { nth: i + 1, images: images.length, estimates } };

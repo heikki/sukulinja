@@ -330,9 +330,9 @@ test("lists the Volume's Matches and its Estimates, of an Image or only the Volu
     { personId: 1, image: 9, at: 'match entry' },
     { personId: 2, image: 6, at: 'estimated image' }
   ]);
-  expect(first![0]!.link).toMatchObject({ certainty: 'match', box: BOX });
-  expect(first![1]!.link).toMatchObject({ from: 'pins' });
-  expect(first![0]!.citation).toMatchObject({
+  expect(first[0]!.link).toMatchObject({ certainty: 'match', box: BOX });
+  expect(first[1]!.link).toMatchObject({ from: 'pins' });
+  expect(first[0]!.citation).toMatchObject({
     churchBook: true,
     madeInApp: false,
     citedPage: 12
@@ -364,7 +364,7 @@ test('people citing one record get a row each, sharing its Image and box', async
   visionSaved(5001);
 
   const rows = await citations.inVolume('juva-1');
-  expect(rows!.map((r) => [r.personId, imageOf(r), boxOf(r)])).toEqual([
+  expect(rows.map((r) => [r.personId, imageOf(r), boxOf(r)])).toEqual([
     [1, 9, BOX],
     [2, 9, BOX]
   ]);
@@ -379,7 +379,7 @@ test('Citations of one record share a markKey, whatever their URL', async () => 
     cite(3, { page: null, text: 'Family bible' })
   ]);
   const rows = await citations.inVolume('juva-1');
-  expect(rows!.map((r) => [r.personId, r.citation.markKey])).toEqual([
+  expect(rows.map((r) => [r.personId, r.citation.markKey])).toEqual([
     [1, 'record 5001'],
     [2, 'record 5001'],
     [3, 'record 5002']
@@ -399,7 +399,7 @@ test('a Mark shows in the next answer, dropping the vision box', async () => {
   ]);
 
   visionSaved(5001);
-  const pinned = (await citations.inVolume('juva-1'))!;
+  const pinned = await citations.inVolume('juva-1');
   expect(pinned).toHaveLength(1);
   expect(pinned[0]!.link).toMatchObject({
     image: 9,
@@ -408,7 +408,7 @@ test('a Mark shows in the next answer, dropping the vision box', async () => {
   });
 
   await citations.mark(1, { volumeId: 'juva-1', image: 10 });
-  const [row] = (await citations.inVolume('juva-1'))!;
+  const [row] = await citations.inVolume('juva-1');
   expect(row!.link).toMatchObject({
     image: 10,
     precision: 'image',
@@ -445,16 +445,16 @@ test("another parish's citations are never resolved", async () => {
   ]);
 
   const rows = await citations.inVolume('juva-1');
-  expect(rows!.map((r) => r.personId)).toEqual([1, 2]);
+  expect(rows.map((r) => r.personId)).toEqual([1, 2]);
   // Haukivuori's archive was never asked for.
   expect(astia.asked).not.toContain('volumes 1202439501');
 });
 
-test('a Volume in none of the parishes cited is not found', async () => {
+test('a Volume in none of the parishes cited has no one in it', async () => {
   const citations = datasetOf([
     cite(1, rippiCitation(5001, '1790 - 1796', 12))
   ]);
-  expect(await citations.inVolume('elsewhere-1')).toBeNull();
+  expect(await citations.inVolume('elsewhere-1')).toEqual([]);
 });
 
 test("a Church-book reference can be deleted; the record's Mark stays with the others citing it", async () => {

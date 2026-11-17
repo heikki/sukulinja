@@ -156,13 +156,8 @@ export function citationOperations(
         'citation'
       ),
 
-    async volumeCitations({ volumeId }) {
-      const rows = await askingAstia(citations.inVolume(volumeId));
-      if (rows === null) {
-        throw new Refusal(404, "volume not in the dataset's parishes");
-      }
-      return rows;
-    },
+    volumeCitations: async ({ volumeId }) =>
+      await askingAstia(citations.inVolume(volumeId)),
 
     volumePages: async ({ volumeId, volume }) =>
       await askingAstia(volumePages(volumeId, volume)),

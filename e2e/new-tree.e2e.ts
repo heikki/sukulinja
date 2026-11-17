@@ -24,6 +24,7 @@ test("a tree grows from its first person's baptism", async () => {
     await page.getByText('Juvan seurakunnan arkisto').click();
     await page.getByText('Syntyneiden ja kastettujen luettelot').click();
     await page.keyboard.press('Escape');
+    await page.getByText('No one in the tree is linked here.').waitFor();
 
     // The first line of its first page, his baptism.
     await page

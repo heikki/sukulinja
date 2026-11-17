@@ -56,7 +56,7 @@ interface EntryDeps<R> {
   // The archives an Image may be cited from.
   citable: () => Promise<string[]>;
   // The Citations linking into the Volume, as the Scan viewer lists them.
-  inVolume: (volumeId: string) => Promise<VolumeCitation[] | null>;
+  inVolume: (volumeId: string) => Promise<VolumeCitation[]>;
   volumeArchive: (volumeId: string) => Promise<string | null>;
   personExists: (personId: number) => boolean;
   support: ReturnType<typeof createSupport>;
@@ -125,7 +125,7 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
     const refused = namingRefusal(event, people, before);
     if (refused !== null) return refused;
     const linking = citingImage(
-      (await inVolume(at.volumeId)) ?? [],
+      await inVolume(at.volumeId),
       at.image,
       entry?.id ?? null
     );

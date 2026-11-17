@@ -476,9 +476,6 @@ describe('the assistant', () => {
 describe('failing', () => {
   test("says why in the server's words", async () => {
     expect(await failure(api.person(99))).toBe('person not found');
-    expect(await failure(api.volumeCitations('elsewhere'))).toBe(
-      "volume not in the dataset's parishes"
-    );
     expect(await failure(api.mark(9, { volumeId: VOLUME, image: 7 }))).toBe(
       'citation not found'
     );

@@ -335,7 +335,7 @@ test('a Citation made in the app is read back with its Link Marked at the entry'
     { personId: 2, image: 12, at: 'estimated image' },
     { personId: 1, image: 13, at: 'marked entry' }
   ]);
-  const rows = (await citations.inVolume('juva-1'))!;
+  const rows = await citations.inVolume('juva-1');
   expect(rows.at(-1)!.link).toEqual({ ...ENTRY_LINK, archive: ARCHIVE });
 });
 

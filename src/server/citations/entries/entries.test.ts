@@ -50,7 +50,7 @@ function shown(rows: VolumeCitation[]) {
 }
 
 async function entryNow(citations: Citations, entryId: number) {
-  const rows = (await citations.inVolume('juva-3')) ?? [];
+  const rows = await citations.inVolume('juva-3');
   return shown(rows.filter((r) => r.citation.entryId === entryId));
 }
 

@@ -162,9 +162,10 @@ describe("A dataset's Citations", () => {
 
     const volume = await op('juva', 'volumeCitations', { volumeId: 'juva-1' });
     expect(((await volume.json()) as unknown[]).length).toBe(1);
-    expect(
-      (await op('juva', 'volumeCitations', { volumeId: 'elsewhere' })).status
-    ).toBe(404);
+    const elsewhere = await op('juva', 'volumeCitations', {
+      volumeId: 'elsewhere'
+    });
+    expect(await elsewhere.json()).toEqual([]);
   });
 
   test("lists the archives the dataset's church books are in", async () => {
