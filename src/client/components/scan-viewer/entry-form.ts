@@ -3,7 +3,8 @@ import { customElement, property } from 'lit/decorators.js';
 
 import type { InEntry } from '@/client/dataset-api';
 import type { PendingCite } from '@/client/state';
-import { bookKind, entryRoles } from '@/common/books';
+import { ENTRY_EVENTS, eventRoles, isEntryEvent } from '@/common/entry-events';
+import type { EntryRole } from '@/common/entry-events';
 import type { PersonRow } from '@/common/types';
 
 import { formatName } from '../tree-view/renderer';
@@ -11,30 +12,23 @@ import type { ParentRow } from './cite';
 import { ARROW_AT, placeCard } from './entry-place';
 import type { Rect } from './entry-place';
 
-// What an entry of the Volume's Book is called: a baptism or a marriage,
-// else an entry.
-const ENTRY_NAMES: Partial<Record<string, string>> = {
-  kastetut: 'baptism',
-  vihityt: 'marriage'
-};
-
 function stop(e: Event) {
   e.stopPropagation();
 }
 
-// Asked of the layer: someone to name in the Role, or with none in a
-// Role-less Book, picked where the press was.
+// Asked of the layer: someone to name in the Role, or with none in an
+// Entry with no Roles, picked where the press was.
 export interface ChooseDetail {
   role: string | null;
   at: { x: number; y: number };
 }
 
-// A new Entry's people and words, or the source's being edited, beside
-// its pending Box (ADR-0026). In a
-// baptism or a marriage a row for each Role, its person or none, each
-// chosen (`choose`) or taken out (`drop`); in another Book the people
-// named, and _Add person…_. What it says is written in the person's
-// sources (source-text.ts). Cancel and Save stay in the foot bar. It places itself beside its Box (`anchor`,
+// A new Entry's kind and people, or the source's being edited, beside its
+// pending Box (ADR-0026). First what it records, its Event, chosen
+// (`choose-event`, ADR-0033); then in a baptism or a marriage a row for
+// each Role, its person or none, each chosen (`choose`) or taken out
+// (`drop`); in a burial or a household line its one person. What it says
+// is written in the person's sources (source-text.ts). Cancel and Save stay in the foot bar. It places itself beside its Box (`anchor`,
 // on the stage) and inside the stage (entry-place.ts). Presses stay here,
 // so they don't pan the scan.
 @customElement('sl-scan-entry')
@@ -137,13 +131,22 @@ class ScanEntryElement extends LitElement {
       background: none;
       color: var(--muted);
     }
+
+    select {
+      grid-column: 2 / span 2;
+      min-width: 0;
+      padding: 0.1rem 0.3rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--card);
+      color: var(--fg);
+      font: inherit;
+    }
   `;
 
   @property({ attribute: false }) cite!: PendingCite;
   // The source's Entry changed, not a new one.
   @property({ type: Boolean }) editing = false;
-  // The Volume's label, whose Book tells the Roles.
-  @property() volume = '';
   @property({ attribute: false }) persons = new Map<number, PersonRow>();
   // The pending Box on the stage.
   @property({ attribute: false }) anchor: Rect = {
@@ -209,8 +212,34 @@ class ScanEntryElement extends LitElement {
       </button>`;
   }
 
+  // What it records, to choose; none chosen yet, the Book couldn't tell.
+  private renderEvent() {
+    const { event } = this.cite;
+    return html`<div class="row">
+      <span class="role">Kind</span>
+      <select
+        aria-label="Kind of entry"
+        @change=${(e: Event) => {
+          const { value } = e.target as HTMLSelectElement;
+          if (!isEntryEvent(value)) return;
+          this.dispatchEvent(
+            new CustomEvent('choose-event', { detail: value })
+          );
+        }}
+      >
+        ${event === null ? html`<option selected>Choose…</option>` : nothing}
+        ${ENTRY_EVENTS.map(
+          (e) =>
+            html`<option value=${e.event} ?selected=${e.event === event}>
+              ${e.label}
+            </option>`
+        )}
+      </select>
+    </div>`;
+  }
+
   // A row for each Role, its person or a button to choose one.
-  private renderRoles(roles: ReturnType<typeof entryRoles>) {
+  private renderRoles(roles: readonly EntryRole[]) {
     return roles.map(({ role, label }) => {
       const named = this.cite.people.find((p) => p.role === role);
       return html`<div class="row">
@@ -263,14 +292,14 @@ class ScanEntryElement extends LitElement {
           }
         </div>
       </div>
-      ${this.renderUnplaced()}`;
+      ${this.renderUnplaced(eventRoles('CHR'))}`;
   }
 
-  // Those named in it in no Role of a baptism, as the tree couldn't place.
-  private renderUnplaced() {
-    const roles = new Set(['CHIL', 'FATH', 'MOTH']);
+  // Those named in it in none of its Roles, as the tree couldn't place.
+  private renderUnplaced(roles: readonly EntryRole[]) {
+    const known = new Set(roles.map((r) => r.role));
     return this.cite.people
-      .filter((p) => p.role === null || !roles.has(p.role))
+      .filter((p) => p.role === null || !known.has(p.role))
       .map(
         (p) =>
           html`<div class="row">
@@ -305,45 +334,50 @@ class ScanEntryElement extends LitElement {
     </label>`;
   }
 
-  // The people named, then one more to add.
-  private renderPeople() {
-    return html`${this.cite.people.map(
+  // Its one person, or a button to choose them. One made before naming
+  // more shows them all.
+  private renderOnePerson() {
+    const { people } = this.cite;
+    if (people.length > 0) {
+      return people.map(
         (p) =>
           html`<div class="row">
             <span class="role">Person</span>${this.renderPerson(p.personId)}
           </div>`
-      )}
-      <div class="row">
-        <span></span>
-        <button
-          class="choose"
-          @click=${(e: MouseEvent) => {
-            this.choose(e, null);
-          }}
-        >
-          Add person…
-        </button>
-      </div>`;
+      );
+    }
+    return html`<div class="row">
+      <span class="role">Person</span>
+      <button
+        class="choose"
+        @click=${(e: MouseEvent) => {
+          this.choose(e, null);
+        }}
+      >
+        Choose…
+      </button>
+      <span></span>
+    </div>`;
+  }
+
+  private renderPeople() {
+    const { event } = this.cite;
+    if (event === 'CHR') return this.renderBaptism();
+    const roles = eventRoles(event);
+    if (roles.length === 0) return this.renderOnePerson();
+    return html`${this.renderRoles(roles)}${this.renderUnplaced(roles)}`;
   }
 
   override render() {
-    const roles = entryRoles(this.volume);
     return html`
-      <h3>
-        ${this.editing ? 'Edit' : 'New'}
-        ${ENTRY_NAMES[bookKind(this.volume) ?? ''] ?? 'entry'}
-      </h3>
+      <h3>${this.editing ? 'Edit entry' : 'New entry'}</h3>
+      ${this.renderEvent()} ${this.renderPeople()}
       ${
-        bookKind(this.volume) === 'kastetut'
-          ? this.renderBaptism()
-          : roles.length === 0
-            ? this.renderPeople()
-            : this.renderRoles(roles)
-      }
-      ${
-        this.cite.people.length === 0
-          ? html`<p class="none">Name someone in it.</p>`
-          : nothing
+        this.cite.event === null
+          ? html`<p class="none">Choose what kind of entry it is.</p>`
+          : this.cite.people.length === 0
+            ? html`<p class="none">Name someone in it.</p>`
+            : nothing
       }
     `;
   }

@@ -5,6 +5,8 @@
 
 import { isClaudeModel } from '@/common/assistant-choices';
 import type { ClaudeModel } from '@/common/assistant-choices';
+import { isEntryEvent } from '@/common/entry-events';
+import type { EntryEvent } from '@/common/entry-events';
 import type {
   Box,
   ChurchBookArchive,
@@ -63,12 +65,14 @@ export interface EntryAt {
   box: Box;
 }
 
-// An entry made in the app, with what it says, if said.
+// An entry made in the app, with the Event it records, chosen on its card
+// (null for none chosen, which is refused), and what it says, if said.
 export interface EntryTarget extends EntryAt {
+  event: EntryEvent | null;
   text: string | null;
 }
 
-// Someone named in an entry, and who they are in it: one of its Book's
+// Someone named in an entry, and who they are in it: one of its Event's
 // Roles, or none.
 export interface InEntry {
   personId: number;
@@ -78,6 +82,7 @@ export interface InEntry {
 // An Entry as it should be after an edit; a part left out stays.
 export interface EntryEdit {
   at?: EntryAt;
+  event?: EntryEvent;
   text?: string | null;
   people?: InEntry[];
 }
@@ -113,8 +118,11 @@ function entryAtOf(value: unknown): EntryAt | null {
 
 function entryTargetOf(value: unknown): EntryTarget | null {
   const at = entryAtOf(value);
-  const text = optionalString(fieldsOf(value)?.text);
-  return at === null || text === undefined ? null : { ...at, text };
+  const fields = fieldsOf(value);
+  const text = optionalString(fields?.text);
+  const event = fields?.event ?? null;
+  if (at === null || text === undefined) return null;
+  return event === null || isEntryEvent(event) ? { ...at, event, text } : null;
 }
 
 function inEntryOf(value: unknown): InEntry | null {
@@ -133,6 +141,10 @@ function entryEditOf(value: unknown): EntryEdit | null {
     const at = entryAtOf(fields.at);
     if (at === null) return null;
     edit.at = at;
+  }
+  if (fields.event !== undefined) {
+    if (!isEntryEvent(fields.event)) return null;
+    edit.event = fields.event;
   }
   if (fields.text !== undefined) {
     const text = optionalString(fields.text);
@@ -181,7 +193,7 @@ export const CITATION_OPERATIONS = {
   // Makes an Entry with a Citation of it for each person named (ADR-0026):
   // them as the Volume's citations list them, in the order named.
   citeEntry: answers<{ at: EntryTarget; people: InEntry[] }, VolumeCitation[]>(
-    '{ at: { volumeId, image, fileId, box, text? }, people: [{ personId, role? }] }',
+    '{ at: { volumeId, image, fileId, box, event, text? }, people: [{ personId, role? }] }',
     (body) => {
       const at = entryTargetOf(body.at);
       const people = listOf(body.people, inEntryOf);
@@ -192,7 +204,7 @@ export const CITATION_OPERATIONS = {
   // Changes an Entry as a whole, or refuses all of it (ADR-0026): its
   // Citations as the Volume's citations list them.
   editEntry: answers<{ entryId: number; edit: EntryEdit }, VolumeCitation[]>(
-    '{ entryId, edit: { at?, text?, people? } }',
+    '{ entryId, edit: { at?, event?, text?, people? } }',
     ({ entryId, edit }) => {
       const read = entryEditOf(edit);
       return isId(entryId) && read !== null ? { entryId, edit: read } : null;

@@ -8,6 +8,7 @@
 
 import type { Database } from 'bun:sqlite';
 
+import type { EntryEvent } from '@/common/entry-events';
 import {
   ALREADY_LINKED,
   citingImage,
@@ -65,26 +66,35 @@ function sameAt(a: EntryAt, b: StoredEntry) {
   );
 }
 
+// Whether the edit changes whom the Entry names or how: its people, its
+// Event, or the Image its Box is on. Only then are they checked again, so
+// what an Entry made before says can be put as it is.
+function renames(edit: EntryEdit, moved: boolean) {
+  return edit.people !== undefined || edit.event !== undefined || moved;
+}
+
 export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
   const { made, images, citable, inVolume, volumeArchive, personExists } = deps;
   const { support, changed, listed, uncite } = deps;
   const stored = openEntries(db);
 
-  // Why the people can't be named in an entry of the Volume on the Image
+  // Why the people can't be named in an Entry of the Event on the Image
   // (common/entry-naming), or with another Citation linking the Image
-  // than the Entry's own. Null when they can.
+  // than the Entry's own. `was` are those it named before. Null when
+  // they can.
   async function refusal(
     at: { volumeId: string; image: number },
-    volume: string,
+    event: EntryEvent | null,
     people: InEntry[],
-    entryId: number | null
+    entry: { id: number; was: EntryCitation[] } | null
   ) {
-    const refused = namingRefusal(volume, people);
+    const before = entry?.was.map((c) => c.personId) ?? [];
+    const refused = namingRefusal(event, people, before);
     if (refused !== null) return refused;
     const linking = citingImage(
       (await inVolume(at.volumeId)) ?? [],
       at.image,
-      entryId
+      entry?.id ?? null
     );
     return people.some((p) => linking.has(p.personId)) ? ALREADY_LINKED : null;
   }
@@ -192,9 +202,10 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
     support.recorded(c.id, c.personId, at.event, role);
   }
 
-  // Who the Entry names after the edit and where it moves to, if it
-  // moves, checked as it would be after: its people where they or its Box
-  // change. Null when someone named isn't a person.
+  // Who the Entry names after the edit, the Event it records and where
+  // it moves to, if it moves, checked as it would be after: its people
+  // where they, its Event or its Box change. Null when someone named isn't
+  // a person.
   async function checked(
     entryId: number,
     entry: StoredEntry,
@@ -205,30 +216,52 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
     if (people.some((p) => !personExists(p.personId))) return null;
     const to = await movedTo(entry, edit.at);
     if (to !== null && 'rejected' in to) return to;
-    if (edit.people !== undefined || to !== null) {
+    const event = edit.event ?? entry.event;
+    if (renames(edit, to !== null)) {
       const at = to ?? entry;
-      const refused = await refusal(at, entry.volume, people, entryId);
+      const refused = await refusal(at, event, people, { id: entryId, was });
       if (refused !== null) return { rejected: refused };
     }
-    return { people, to };
+    return { people, to, event };
   }
 
-  // Writes the edit checked: those named anew first, so the Entry is never
-  // left uncited, then those no longer named, then the rest, each with
-  // its Changes.
+  // The Event the Entry records chosen anew, if it's another, with a
+  // Change on each of its Citations `kept`.
+  function rekind(
+    entryId: number,
+    { from, to }: { from: EntryEvent | null; to: EntryEvent | null },
+    at: { volume: string; image: number },
+    kept: EntryCitation[]
+  ) {
+    if (to === null || to === from) return;
+    stored.setEvent(entryId, to);
+    for (const c of kept) {
+      changed({
+        on: { citationId: c.id },
+        what: { kind: 'event', volume: at.volume, image: at.image, from, to }
+      });
+    }
+  }
+
+  // Writes the edit checked: the Event first, then those named anew, so
+  // the Entry is never left uncited, then those no longer named, then the
+  // rest, each with its Changes.
   function write(
     entryId: number,
-    e: StoredEntry & {
+    e: Omit<StoredEntry, 'event'> & {
       was: EntryCitation[];
       people: InEntry[];
       to: (EntryAt & { volume: string }) | null;
       text: string | null | undefined;
+      event: EntryEvent | null;
+      wasEvent: EntryEvent | null;
     }
   ) {
-    const { was, people, to, text } = e;
+    const { was, people, to, text, event, wasEvent } = e;
     const { added, gone, retyped } = diffed(was, people);
     const kept = was.filter((w) => !gone.includes(w));
     const place = { ...e, image: to?.image ?? e.image };
+    rekind(entryId, { from: wasEvent, to: event }, e, kept);
     for (const p of added) name(entryId, p, place);
     for (const w of gone) uncite(w.id);
     if (to !== null) relocate(entryId, to, kept);
@@ -239,12 +272,12 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
   }
 
   return {
-    // Makes an Entry at the Box with a Citation of it for each person
-    // named, in their Role, and gives them as the Scan viewer lists them.
-    // Null when one of them isn't a person; rejected where the entry can't
-    // be cited there, or they can't be named in it.
+    // Makes an Entry of the Event at the Box with a Citation of it for
+    // each person named, in their Role, and gives them as the Scan viewer
+    // lists them. Null when one of them isn't a person; rejected where
+    // the entry can't be cited there, or they can't be named in it.
     async make(
-      at: EntryAt,
+      at: EntryAt & { event: EntryEvent | null },
       text: string | null,
       people: InEntry[]
     ): Promise<VolumeCitation[] | Refused | null> {
@@ -252,7 +285,7 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
       if (people.length === 0) return { rejected: 'Name someone in it.' };
       const checked = await images.imageToCite(at, await citable());
       if ('rejected' in checked) return checked;
-      const refused = await refusal(at, checked.volume, people, null);
+      const refused = await refusal(at, at.event, people, null);
       if (refused !== null) return { rejected: refused };
       const archive = await volumeArchive(at.volumeId);
       const ids = db.transaction(() => {
@@ -286,7 +319,7 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
       if (ok === null || 'rejected' in ok) return ok;
       const text = edit.text === undefined ? undefined : plainText(edit.text);
       db.transaction(() => {
-        write(entryId, { ...entry, was, ...ok, text });
+        write(entryId, { ...entry, was, ...ok, text, wasEvent: entry.event });
       })();
       return await listedOf(entryId);
     },

@@ -5,6 +5,8 @@
 
 import type { Database, SQLQueryBindings } from 'bun:sqlite';
 
+import { isEntryEvent } from '@/common/entry-events';
+import type { EntryEvent } from '@/common/entry-events';
 import type { Box } from '@/common/types';
 
 // A Citation's columns an Entry holds instead, by the Entry's name for
@@ -74,14 +76,15 @@ export interface NewEntry {
   box: Box;
 }
 
-// An Entry as stored: where it's written, and the Event it records.
+// An Entry as stored: where it's written, and the Event it records, null
+// for one that never had it chosen.
 export interface StoredEntry {
   volumeId: string;
   volume: string;
   image: number;
   fileId: string;
   box: Box;
-  event: string | null;
+  event: EntryEvent | null;
 }
 
 // A person's Citation of an Entry: who they are in it, and what it says
@@ -115,7 +118,10 @@ export function openEntries(db: Database) {
        box_height = $height
      WHERE id = $id`
   );
-  const entryOf = db.prepare<Omit<StoredEntry, 'box'> & Box, [number]>(
+  const entryOf = db.prepare<
+    Omit<StoredEntry, 'box' | 'event'> & Box & { event: string | null },
+    [number]
+  >(
     `SELECT volume_id AS volumeId, volume, image, file_id AS fileId, event,
        box_left AS left, box_top AS top, box_width AS width,
        box_height AS height
@@ -135,6 +141,7 @@ export function openEntries(db: Database) {
      WHERE c.entry_id = ? ORDER BY c.id`
   );
   const setRole = db.prepare('UPDATE citations SET role = ? WHERE id = ?');
+  const setEvent = db.prepare('UPDATE entries SET event = ? WHERE id = ?');
 
   function boxParams(box: Box) {
     return {
@@ -170,8 +177,12 @@ export function openEntries(db: Database) {
     entryOf(id: number) {
       const row = entryOf.get(id);
       if (row === null) return null;
-      const { left, top, width, height, ...rest } = row;
-      const entry: StoredEntry = { ...rest, box: { left, top, width, height } };
+      const { left, top, width, height, event, ...rest } = row;
+      const entry: StoredEntry = {
+        ...rest,
+        event: isEntryEvent(event) ? event : null,
+        box: { left, top, width, height }
+      };
       return entry;
     },
 
@@ -188,6 +199,11 @@ export function openEntries(db: Database) {
     // The person's Role in the Entry their Citation cites.
     setRole(citationId: number, role: string | null) {
       setRole.run(role, citationId);
+    },
+
+    // The Event the Entry records, as chosen on its card (ADR-0033).
+    setEvent(id: number, event: EntryEvent) {
+      setEvent.run(event, id);
     },
 
     // Puts what the Entry says, for every Citation of it: none keeps

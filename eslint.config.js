@@ -58,6 +58,7 @@ export default [
     ignores: [
       'src/server/citations/myheritage/**',
       'src/server/citations/**/*.test.ts',
+      'src/server/citations/**/test-*.ts',
       'src/server/citations/testing.ts'
     ],
     rules: {

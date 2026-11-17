@@ -5,7 +5,8 @@ export const BOOK_NAMES: Record<BookKind, string> = {
   rippi: 'Pää- ja rippikirjat',
   lasten: 'Lastenkirjat',
   kastetut: 'Syntyneiden ja kastettujen luettelot',
-  vihityt: 'Vihittyjen luettelot'
+  vihityt: 'Vihittyjen luettelot',
+  haudatut: 'Kuolleiden ja haudattujen luettelot'
 };
 
 // The kind of church book a name gives, a Volume's label or a reference's
@@ -15,31 +16,8 @@ export function bookKind(name: string): BookKind | null {
   if (/ripp|pääkirj|kirkonkirj|historiakirj/i.test(name)) return 'rippi';
   if (/synty|kastet/i.test(name)) return 'kastetut';
   if (/vihit|kuulut/i.test(name)) return 'vihityt';
+  if (/kuoll|haudat/i.test(name)) return 'haudatut';
   return null;
-}
-
-// The Roles a person may have in an entry of the kind of book, GEDCOM's
-// citation ROLE, as a new entry offers them: for a baptism or a
-// marriage. A household's line has none: isäntä or piika is who they are
-// in the household, which its transcription says.
-export const ENTRY_ROLES: Partial<
-  Record<BookKind, ReadonlyArray<{ role: string; label: string }>>
-> = {
-  kastetut: [
-    { role: 'CHIL', label: 'Child' },
-    { role: 'FATH', label: 'Father' },
-    { role: 'MOTH', label: 'Mother' }
-  ],
-  vihityt: [
-    { role: 'HUSB', label: 'Groom' },
-    { role: 'WIFE', label: 'Bride' }
-  ]
-};
-
-// The Roles an entry in the Volume of the label may give.
-export function entryRoles(volume: string) {
-  const kind = bookKind(volume);
-  return (kind === null ? undefined : ENTRY_ROLES[kind]) ?? [];
 }
 
 // A cited church book by its series name and years, then the page:

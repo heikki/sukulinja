@@ -2,6 +2,7 @@ import { computed, signal } from '@lit-labs/signals';
 
 import type { DatasetApi, InEntry } from '@/client/dataset-api';
 import type { ClaudeModel } from '@/common/assistant-choices';
+import type { EntryEvent } from '@/common/entry-events';
 import type { Box, Rescan, VolumeChoice, VolumeCitation } from '@/common/types';
 
 import { confirmingSource } from './confirming';
@@ -145,9 +146,9 @@ export interface Viewer {
   setBox: (box: Box) => void;
   // Starts a pending change from the Link's own Box, to adjust it.
   editBox: () => void;
-  // Puts a new Entry at the Box, on the Image shown, pending, with the
-  // people in it so far.
-  newEntry: (box: Box, people: InEntry[]) => void;
+  // Puts a new Entry at the Box, on the Image shown, pending, of the
+  // Event guessed and with the people in it so far.
+  newEntry: (box: Box, event: EntryEvent | null, people: InEntry[]) => void;
   // Changing the pending Entry: who can't be named in it
   // (`notNamable`), what it says (`setText`), who is named in each Role,
   // in place of whoever had it, or for a Role-less Book added

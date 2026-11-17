@@ -27,6 +27,7 @@ function row(id: number, markKey: string, entryId: number | null = null) {
       cited: null,
       supports: [],
       entryId,
+      event: null,
       role: null
     },
     link: {
@@ -64,8 +65,8 @@ test('an edited Entry hides the Box of everyone in it', () => {
   const pending: PendingChange = {
     ...AT,
     kind: 'edit',
-    cite: { people: [], text: '' },
-    editing: { entryId: 7, was, text: '', box: BOX }
+    cite: { event: null, people: [], text: '' },
+    editing: { entryId: 7, event: null, was, text: '', box: BOX }
   };
   expect(ids(rowsShown(rows, rows[0] ?? null, pending))).toEqual([3]);
 });
@@ -75,7 +76,7 @@ test('a new Entry hides no Box', () => {
   const pending: PendingChange = {
     ...AT,
     kind: 'new',
-    cite: { people: [], text: '' }
+    cite: { event: null, people: [], text: '' }
   };
   expect(ids(rowsShown(rows, rows[0] ?? null, pending))).toEqual([1, 2]);
 });

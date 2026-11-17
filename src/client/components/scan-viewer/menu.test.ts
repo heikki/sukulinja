@@ -42,6 +42,7 @@ function citation(id: number, madeInApp: boolean): CitationRow {
     cited: null,
     supports: [],
     entryId: null,
+    event: null,
     role: null
   };
 }
@@ -182,7 +183,7 @@ test('opened on an Image with no source, a new Citation and a Reminder are offer
   expect(labels(viewer, { onBox: false, canBox: false })).toEqual([
     'Add reminder…'
   ]);
-  viewer.newEntry(BOX, [{ personId: 1, role: null }]);
+  viewer.newEntry(BOX, 'RESI', [{ personId: 1, role: null }]);
   expect(labels(viewer, { onBox: true, canBox: true })).toEqual([
     'Discard changes'
   ]);

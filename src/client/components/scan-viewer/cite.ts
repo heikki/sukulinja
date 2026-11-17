@@ -1,5 +1,6 @@
 import type { InEntry } from '@/client/dataset-api';
-import { bookKind, entryRoles } from '@/common/books';
+import { eventRoles } from '@/common/entry-events';
+import type { EntryEvent } from '@/common/entry-events';
 import type { Relation } from '@/common/types';
 
 import type { FamilyIndices } from '../person-panel/family';
@@ -26,36 +27,70 @@ function spouseRole(sex: string | null) {
   return sex === 'F' ? 'WIFE' : null;
 }
 
-// Whom a new entry in the Volume names to start with (ADR-0026): in a
-// baptism, the Selected person as its child and their parents as father
-// and mother; in a marriage, them as groom or bride by their sex; in
-// another book, them. Those in `citing` are left out.
+// Whom an entry of the Event names, starting from the person (ADR-0026):
+// in a baptism, them as its child and their parents as father and
+// mother; in a marriage, them as groom or bride by their sex; else them.
+function startingFrom(
+  event: EntryEvent | null,
+  personId: number,
+  ix: FamilyIndices
+): InEntry[] {
+  if (event === 'CHR') {
+    return [{ personId, role: 'CHIL' }, ...parentsOf(personId, ix)];
+  }
+  const sex = ix.persons.get(personId)?.sex ?? null;
+  return [{ personId, role: event === 'MARR' ? spouseRole(sex) : null }];
+}
+
+// Whom a new entry of the Event names to start with: from the Selected
+// person (startingFrom). Those in `citing` are left out.
 export function startingPeople(
-  volume: string,
+  event: EntryEvent | null,
   selectedId: number | null,
   ix: FamilyIndices,
   citing: Set<number>
 ): InEntry[] {
-  const self = selectedId === null ? undefined : ix.persons.get(selectedId);
-  if (self === undefined) return [];
-  const kind = bookKind(volume);
-  const people: InEntry[] =
-    kind === 'kastetut'
-      ? [{ personId: self.id, role: 'CHIL' }, ...parentsOf(self.id, ix)]
-      : [
-          {
-            personId: self.id,
-            role: kind === 'vihityt' ? spouseRole(self.sex) : null
-          }
-        ];
-  return people.filter((p) => !citing.has(p.personId));
+  if (selectedId === null || !ix.persons.has(selectedId)) return [];
+  return startingFrom(event, selectedId, ix).filter(
+    (p) => !citing.has(p.personId)
+  );
 }
 
-// What a person is chosen as in a new entry of the Volume: their Role's
-// label, or "Add person" in a Book with none.
-export function roleLabel(volume: string, role: string | null) {
-  const found = entryRoles(volume).find((r) => r.role === role);
-  return found === undefined ? 'Add person' : found.label;
+// Whom the entry names once its Event is chosen anew (ADR-0033): one
+// named in a Role of the new Event keeps it. With no Roles, everyone keeps
+// their place, in none. One named in none gets a Role where it fits: the
+// only one named as a baptism's child, with their parents in the tree;
+// in a marriage, as groom or bride by their sex, where that's free.
+export function withEvent(
+  named: InEntry[],
+  event: EntryEvent,
+  ix: FamilyIndices
+): InEntry[] {
+  const roles = eventRoles(event).map((r) => r.role);
+  if (roles.length === 0) return named.map((p) => ({ ...p, role: null }));
+  const kept = named.map((p) => ({
+    ...p,
+    role: p.role !== null && roles.includes(p.role) ? p.role : null
+  }));
+  if (event === 'CHR') {
+    const [only, ...more] = kept;
+    return only?.role === null && more.length === 0
+      ? startingFrom(event, only.personId, ix)
+      : kept;
+  }
+  return kept.map((p) => {
+    if (p.role !== null) return p;
+    const role = spouseRole(ix.persons.get(p.personId)?.sex ?? null);
+    const free = role !== null && !kept.some((o) => o.role === role);
+    return free ? { ...p, role } : p;
+  });
+}
+
+// What a person is chosen as in a new entry of the Event: their Role's
+// label, or "Person" in one with none.
+export function rolePickLabel(event: EntryEvent | null, role: string | null) {
+  const found = eventRoles(event).find((r) => r.role === role);
+  return found === undefined ? 'Person' : found.label;
 }
 
 // Whom a baptism's Role may name once its child or a parent is named
@@ -75,12 +110,12 @@ const PARENT_ROLES: Partial<Record<string, Relation>> = {
 };
 
 export function roleChoices(
-  volume: string,
+  event: EntryEvent | null,
   role: string | null,
   named: InEntry[],
   ix: FamilyIndices
 ): RoleChoices | null {
-  if (bookKind(volume) !== 'kastetut' || role === null) return null;
+  if (event !== 'CHR' || role === null) return null;
   const parent = PARENT_ROLES[role];
   if (parent !== undefined) {
     const child = named.find((p) => p.role === 'CHIL');
@@ -119,12 +154,12 @@ export function roleChoices(
 // says (roleChoices), or the Selected person's family and the search.
 // Those in `left` are left out.
 export function pickFor(
-  entry: { volume: string; role: string | null; named: InEntry[] },
+  entry: { event: EntryEvent | null; role: string | null; named: InEntry[] },
   ix: FamilyIndices,
   selected: number | null,
   left: Set<number>
 ) {
-  const tree = roleChoices(entry.volume, entry.role, entry.named, ix);
+  const tree = roleChoices(entry.event, entry.role, entry.named, ix);
   if (tree !== null) {
     return {
       ...tree,

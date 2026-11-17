@@ -25,6 +25,7 @@ function churchBook(id: number): CitationRow {
     cited: null,
     supports: [],
     entryId: null,
+    event: null,
     role: null
   };
 }

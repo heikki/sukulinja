@@ -67,6 +67,9 @@ test('says what each was', () => {
   expect(
     doneLabel({ kind: 'role', volume: 'v', image: 1, from: null, to: 'CHIL' })
   ).toBe('Changed the Role');
+  expect(
+    doneLabel({ kind: 'event', volume: 'v', image: 1, from: null, to: 'BURI' })
+  ).toBe('Changed the kind of entry');
   const discard = { kind: 'discard', volume: 'v', image: 1 } as const;
   expect(doneLabel(discard)).toBe('Discarded the Box');
   expect(doneLabel({ kind: 'import', file: 'tree.ged' })).toBe(
@@ -111,6 +114,24 @@ test('says where, and what more it did', () => {
       to: 'MOTH'
     })
   ).toEndWith(': no Role → Mother');
+  expect(
+    detailOf({
+      kind: 'event',
+      volume: 'I C:1',
+      image: 3,
+      from: 'CHR',
+      to: 'BURI'
+    })
+  ).toBe('I C:1, Image 3: Baptism → Burial');
+  expect(
+    detailOf({
+      kind: 'event',
+      volume: 'I C:1',
+      image: 3,
+      from: null,
+      to: 'RESI'
+    })
+  ).toBe('I C:1, Image 3: Household line');
   expect(detailOf({ kind: 'addresses-to-places', facts: 2311 })).toBe(
     '2311 Facts'
   );

@@ -2,7 +2,8 @@
 // Entry by, and the Scan viewer's card offers people by, so the two can't
 // drift apart.
 
-import { entryRoles } from '@/common/books';
+import { eventRoles } from '@/common/entry-events';
+import type { EntryEvent } from '@/common/entry-events';
 import type { InEntry } from '@/common/operations';
 import type { VolumeCitation } from '@/common/types';
 
@@ -24,15 +25,27 @@ export function citingImage(
   );
 }
 
-// Why the people can't be named in an entry of the Volume, by its label,
-// whoever else cites the Image: no one named, a Role not one of its
-// Book's, or someone named twice. Null when they can.
-export function namingRefusal(volume: string, people: InEntry[]) {
+// Why the people can't be named in an Entry of the Event (ADR-0033),
+// whoever else cites the Image: no one named, no Event chosen, a Role not
+// one of its Event's, someone named twice, or more than one in an Entry
+// with no Roles. One made before naming more (`before`, by person) keeps
+// them, but takes no one else. Null when they can.
+export function namingRefusal(
+  event: EntryEvent | null,
+  people: InEntry[],
+  before: number[] = []
+) {
   if (people.length === 0) return 'Name someone in it.';
-  const roles = entryRoles(volume).map((r) => r.role);
+  if (event === null) return 'Choose what kind of entry it is.';
+  const roles = eventRoles(event).map((r) => r.role);
   if (people.some((p) => p.role !== null && !roles.includes(p.role))) {
     return "That isn't a Role in this kind of entry.";
   }
   const named = new Set(people.map((p) => p.personId));
-  return named.size < people.length ? 'Someone is named twice.' : null;
+  if (named.size < people.length) return 'Someone is named twice.';
+  const added = people.filter((p) => !before.includes(p.personId));
+  if (roles.length === 0 && people.length > 1 && added.length > 0) {
+    return 'This kind of entry names one person.';
+  }
+  return null;
 }

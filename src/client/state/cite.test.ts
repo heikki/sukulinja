@@ -88,7 +88,7 @@ async function viewing() {
 
 test('a pending Citation is saved for its person, with its text, and opens', async () => {
   const { state, viewer } = await viewing();
-  viewer.newEntry(BOX, [{ personId: 2, role: null }]);
+  viewer.newEntry(BOX, 'RESI', [{ personId: 2, role: null }]);
   expect(viewer.boxHere.get()).toEqual(BOX);
   expect(viewer.boxPending.get()).toBe(true);
   const moved = { ...BOX, top: 260 };
@@ -115,7 +115,7 @@ test('a pending Citation is saved for its person, with its text, and opens', asy
 
 test("a pending entry's Role goes to whoever is named in it, and someone taken out leaves it", async () => {
   const { viewer } = await viewing();
-  viewer.newEntry(BOX, [
+  viewer.newEntry(BOX, 'RESI', [
     { personId: 1, role: 'CHIL' },
     { personId: 2, role: 'FATH' }
   ]);
@@ -132,14 +132,14 @@ test("a pending entry's Role goes to whoever is named in it, and someone taken o
 
 test('a pending Citation without text is saved with none, and Cancel leaves nothing', async () => {
   const { viewer, reference } = await viewing();
-  viewer.newEntry(BOX, [{ personId: 2, role: null }]);
+  viewer.newEntry(BOX, 'RESI', [{ personId: 2, role: null }]);
   viewer.cancel();
   expect(viewer.pending.get()).toBeNull();
   expect(viewer.source.get()?.citation.id).toBe(reference.id);
 
   viewer.show(14);
   await until(() => viewer.image.get() === 14);
-  viewer.newEntry(BOX, [{ personId: 1, role: null }]);
+  viewer.newEntry(BOX, 'RESI', [{ personId: 1, role: null }]);
   expect(await viewer.save()).toBeNull();
   expect(await madeNow()).toEqual([
     { personId: 1, text: null, image: 14, box: BOX }
@@ -153,7 +153,7 @@ test('a pending Citation without text is saved with none, and Cancel leaves noth
 
 test('a way out of a pending Citation waits to save it', async () => {
   const { viewer, reference } = await viewing();
-  viewer.newEntry(BOX, [{ personId: 2, role: null }]);
+  viewer.newEntry(BOX, 'RESI', [{ personId: 2, role: null }]);
   viewer.show(19);
   expect(viewer.leaving.get()).toBe(true);
   expect(viewer.image.get()).toBe(12);
@@ -169,7 +169,7 @@ test('opened on an Image with no source, a new Citation is made and opens', asyn
   const { viewer } = await viewing();
   viewer.openImage({ volumeId: VOLUME, volume: VOLUME_LABEL, image: 16 });
   await until(() => viewer.image.get() === 16);
-  viewer.newEntry(BOX, [{ personId: 1, role: null }]);
+  viewer.newEntry(BOX, 'RESI', [{ personId: 1, role: null }]);
   viewer.setBox({ ...BOX, top: 300 });
   expect(viewer.pending.get()).toMatchObject({
     image: 16,
@@ -187,7 +187,7 @@ test('opened on an Image with no source, Cancel drops the pending Citation', asy
   const { viewer } = await viewing();
   viewer.openImage({ volumeId: VOLUME, volume: VOLUME_LABEL, image: 16 });
   await until(() => viewer.image.get() === 16);
-  viewer.newEntry(BOX, [{ personId: 2, role: null }]);
+  viewer.newEntry(BOX, 'RESI', [{ personId: 2, role: null }]);
   viewer.cancel();
   expect(viewer.pending.get()).toBeNull();
   expect(viewer.image.get()).toBe(16);
@@ -201,6 +201,7 @@ test('a Discard of a Citation made in the app deletes it, once confirmed', async
       image: 20,
       fileId: `${VOLUME}-f20`,
       box: BOX,
+      event: 'RESI',
       text: null
     },
     [{ personId: 1, role: null }]

@@ -1,4 +1,5 @@
 import type { AssistantChoice } from './assistant-choices';
+import type { EntryEvent } from './entry-events';
 
 // A face rectangle marked in the source photo, in the original image's pixel
 // space. Used to crop the avatar to the marked area instead of the whole image.
@@ -199,8 +200,11 @@ export interface CitationRow {
   // The Entry it cites, which everyone in the entry cites (ADR-0026);
   // null for one that cites none.
   entryId: number | null;
-  // Who its person is in that Entry, one of its Book's entryRoles; null
-  // for none, and with no Entry.
+  // The Event that Entry records (ADR-0033); null when it isn't known,
+  // and with no Entry.
+  event: EntryEvent | null;
+  // Who its person is in that Entry, one of its Event's Roles; null for
+  // none, and with no Entry.
   role: string | null;
 }
 
@@ -354,7 +358,7 @@ export type VolumeLocating =
 
 // The kind of church book: rippikirja (communion book), lastenkirja
 // (children's book), baptisms or marriages.
-export type BookKind = 'rippi' | 'lasten' | 'kastetut' | 'vihityt';
+export type BookKind = 'rippi' | 'lasten' | 'kastetut' | 'vihityt' | 'haudatut';
 
 export interface Years {
   from: number;
@@ -563,6 +567,14 @@ export type ChangeWhat =
       image: number;
       from: string | null;
       to: string | null;
+    }
+  // The Event an Entry records changed, from and to, null for none.
+  | {
+      kind: 'event';
+      volume: string;
+      image: number;
+      from: EntryEvent | null;
+      to: EntryEvent;
     }
   // What a Citation of no Entry says changed, by what it cites, as it
   // reads now.

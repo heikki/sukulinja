@@ -208,7 +208,7 @@ describe("A dataset's Citations", () => {
   test('makes an Entry with its people, edits it as a whole, and deletes it', async () => {
     await seedPeople();
     const made = await op('juva', 'citeEntry', {
-      at: { ...at, text: 'Rippikirja' },
+      at: { ...at, event: 'RESI', text: 'Rippikirja' },
       people: [{ personId: 2 }]
     });
     expect(made.status).toBe(200);
@@ -229,8 +229,12 @@ describe("A dataset's Citations", () => {
       entryId,
       edit: {
         at: moved,
+        event: 'CHR',
         text: ' Rippikirja,\n\n sivu  12 ',
-        people: [{ personId: 2 }, { personId: 3 }]
+        people: [
+          { personId: 2, role: 'CHIL' },
+          { personId: 3, role: 'FATH' }
+        ]
       }
     });
     expect(edited.status).toBe(200);
@@ -251,10 +255,10 @@ describe("A dataset's Citations", () => {
         })
       ).status
     ).toBe(400);
-    const unread = [{ text: 1 }, { at: { image: 2 } }].map(
+    const unread = [{ text: 1 }, { at: { image: 2 } }, { event: 'BIRT' }].map(
       async (edit) => (await op('juva', 'editEntry', { entryId, edit })).status
     );
-    expect(await Promise.all(unread)).toEqual([400, 400]);
+    expect(await Promise.all(unread)).toEqual([400, 400, 400]);
     const missing = await op('juva', 'editEntry', {
       entryId: 99,
       edit: { text: 'x' }
@@ -266,7 +270,7 @@ describe("A dataset's Citations", () => {
 
   test('makes a Citation on an Image, and deletes it', async () => {
     await seedPeople();
-    const entry = { ...at, text: 'Baptism' };
+    const entry = { ...at, event: 'CHR', text: 'Baptism' };
     function naming(personId: number, at: object = entry) {
       return { at, people: [{ personId }] };
     }

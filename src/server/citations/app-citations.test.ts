@@ -7,6 +7,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import type { EntryEvent } from '@/common/entry-events';
 import type { CitationLinks, Link, VolumeCitation } from '@/common/types';
 
 import { openDb } from '../datasets/db';
@@ -88,6 +89,7 @@ function entry(image: number, text: string | null = null) {
     image,
     fileId: fileId('juva-1', image, 'full'),
     box: BOX,
+    event: 'RESI' as EntryEvent,
     text,
     role: null
   };
@@ -535,14 +537,15 @@ test('the Volume sources made before are retitled by their archive, once', async
   expect(await citations.retitleVolumeSources()).toEqual([]);
 });
 
-test("a Citation made in a baptism Volume keeps the person's Role in the entry, and refuses another kind's", async () => {
+test("a Citation of a baptism keeps the person's Role in the entry, and refuses another kind's", async () => {
   const { db, citations } = withPeople([
     cite(1, rippiCitation(5001, '1790 - 1796', 12))
   ]);
   const baptisms = {
     ...entry(3),
     volumeId: 'juva-3',
-    fileId: 'juva-3-f3'
+    fileId: 'juva-3-f3',
+    event: 'CHR' as const
   };
 
   expect(
@@ -553,7 +556,7 @@ test("a Citation made in a baptism Volume keeps the person's Role in the entry, 
   expect(
     db.query(`SELECT event, role FROM ${CITATIONS_READ} WHERE id = 2`).get()
   ).toEqual({ event: 'CHR', role: 'FATH' });
-  // A marriage's Role in a baptism, or any Role in a rippikirja's entry.
+  // A marriage's Role in a baptism, or any Role in a household line.
   const refused = { rejected: "That isn't a Role in this kind of entry." };
   expect(await citeFor(citations, 3, { ...baptisms, role: 'HUSB' })).toEqual(
     refused

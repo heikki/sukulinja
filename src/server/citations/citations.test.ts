@@ -127,6 +127,7 @@ test("serves a person's Citations, church books first", () => {
       cited: { parish: null, kind: 'rippi', years: { from: 1794, to: 1808 } },
       supports: [],
       entryId: null,
+      event: null,
       role: null
     },
     {
@@ -144,6 +145,7 @@ test("serves a person's Citations, church books first", () => {
       cited: null,
       supports: [],
       entryId: null,
+      event: null,
       role: null
     }
   ]);

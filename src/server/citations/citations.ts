@@ -11,6 +11,7 @@ import type { Database, SQLQueryBindings } from 'bun:sqlite';
 
 import { bookLabel } from '@/common/books';
 import { isoDate } from '@/common/dates';
+import { isEntryEvent } from '@/common/entry-events';
 import type {
   CitationRow,
   Link,
@@ -47,6 +48,8 @@ interface CitationDbRow {
   // The Entry it cites (ADR-0026), or null.
   entryId: number | null;
   entryRole: string | null;
+  // The Event the Entry records, as stored.
+  entryEvent: string | null;
   // As imported.
   role: string | null;
   annotation: Annotation;
@@ -111,6 +114,11 @@ function entryText(book: BookRef | null, stored: EntryLink | null) {
   return stored === null ? null : `Image\u00a0${stored.image}`;
 }
 
+// The Event its Entry records, one the card offers; null for none.
+function eventOf(row: CitationDbRow) {
+  return isEntryEvent(row.entryEvent) ? row.entryEvent : null;
+}
+
 // A Citation as the panel and the Scan viewer show it: a record the port
 // reads into its fields, or its text.
 function citationOf<R extends BookRef>(references: References<R>) {
@@ -143,6 +151,7 @@ function citationOf<R extends BookRef>(references: References<R>) {
           : { parish: book.parish, kind: book.kind, years: book.years },
       supports: idsOf(row.supports),
       entryId: row.entryId,
+      event: eventOf(row),
       role: row.entryRole
     };
     return citation;
@@ -210,6 +219,7 @@ export function createCitations<R extends BookRef>(
   const SELECT = `SELECT c.id, c.scope_id AS personId, s.title AS source,
     ${originalPageSql('c')} AS page, c.text, c.entry_id AS entryId,
     CASE WHEN c.entry_id IS NULL THEN NULL ELSE c.role END AS entryRole,
+    CASE WHEN c.entry_id IS NULL THEN NULL ELSE c.event END AS entryEvent,
     c.role,
     (SELECT group_concat(fact_id) FROM fact_citations
       WHERE citation_id = c.id) AS supports,

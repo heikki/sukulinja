@@ -5,9 +5,10 @@ import type { FamilyRow, PersonRow } from '@/common/types';
 import {
   parentRows,
   pickFor,
-  roleLabel,
+  rolePickLabel,
   startingPeople,
-  withChild
+  withChild,
+  withEvent
 } from './cite';
 
 function person(id: number, sex: string): PersonRow {
@@ -39,9 +40,9 @@ const IX = {
     [3, [BORN]]
   ])
 };
-const BAPTISMS = 'I C:3 Syntyneiden ja kastettujen luettelot (1790-1800)';
-const MARRIAGES = 'I E:1 Vihittyjen luettelot (1790-1800)';
-const RIPPI = 'I Aa:1 Pää- ja rippikirjat (1790-1796)';
+const BAPTISMS = 'CHR';
+const MARRIAGES = 'MARR';
+const RIPPI = 'RESI';
 
 test('a new baptism names the Selected person its child and their parents', () => {
   expect(startingPeople(BAPTISMS, 1, IX, new Set())).toEqual([
@@ -70,8 +71,49 @@ test('a new marriage names them groom or bride, another Book with no Role', () =
   expect(startingPeople(RIPPI, 1, IX, new Set())).toEqual([
     { personId: 1, role: null }
   ]);
-  expect(roleLabel(BAPTISMS, 'FATH')).toBe('Father');
-  expect(roleLabel(RIPPI, null)).toBe('Add person');
+  expect(rolePickLabel(BAPTISMS, 'FATH')).toBe('Father');
+  expect(rolePickLabel(RIPPI, null)).toBe('Person');
+});
+
+test('choosing another kind of entry keeps whom it fits, in their Role', () => {
+  // A household line's person becomes a baptism's child, with their parents.
+  expect(withEvent([{ personId: 1, role: null }], 'CHR', IX)).toEqual([
+    { personId: 1, role: 'CHIL' },
+    { personId: 2, role: 'FATH' },
+    { personId: 3, role: 'MOTH' }
+  ]);
+  // A marriage's: groom or bride by their sex.
+  expect(withEvent([{ personId: 4, role: null }], 'MARR', IX)).toEqual([
+    { personId: 4, role: 'WIFE' }
+  ]);
+  // A burial or a household line has no Roles.
+  expect(
+    withEvent(
+      [
+        { personId: 1, role: 'CHIL' },
+        { personId: 2, role: 'FATH' }
+      ],
+      'BURI',
+      IX
+    )
+  ).toEqual([
+    { personId: 1, role: null },
+    { personId: 2, role: null }
+  ]);
+  // A Role the new kind hasn't is let go; one it has stays.
+  expect(
+    withEvent(
+      [
+        { personId: 2, role: 'FATH' },
+        { personId: 3, role: 'WIFE' }
+      ],
+      'MARR',
+      IX
+    )
+  ).toEqual([
+    { personId: 2, role: 'HUSB' },
+    { personId: 3, role: 'WIFE' }
+  ]);
 });
 
 test("a baptism's parents are the child's in the tree, its child theirs; no search", () => {
@@ -80,7 +122,7 @@ test("a baptism's parents are the child's in the tree, its child theirs; no sear
     return p.choices.map((c) => c.personId);
   }
   const father = pickFor(
-    { volume: BAPTISMS, role: 'FATH', named: [child] },
+    { event: BAPTISMS, role: 'FATH', named: [child] },
     IX,
     1,
     new Set()
@@ -95,7 +137,7 @@ test("a baptism's parents are the child's in the tree, its child theirs; no sear
   expect(
     pickFor(
       {
-        volume: BAPTISMS,
+        event: BAPTISMS,
         role: 'MOTH',
         named: [{ personId: 4, role: 'CHIL' }]
       },
@@ -106,7 +148,7 @@ test("a baptism's parents are the child's in the tree, its child theirs; no sear
   ).toMatchObject({ choices: [], relativesOf: 4, newAs: 'mother' });
   const ofParents = pickFor(
     {
-      volume: BAPTISMS,
+      event: BAPTISMS,
       role: 'CHIL',
       named: [
         { personId: 2, role: 'FATH' },
@@ -121,10 +163,10 @@ test("a baptism's parents are the child's in the tree, its child theirs; no sear
   expect(ofParents).toMatchObject({ relativesOf: 2, newAs: 'child' });
   // With no one named yet, or in another Book, anyone.
   expect(
-    pickFor({ volume: BAPTISMS, role: 'FATH', named: [] }, IX, 1, new Set())
+    pickFor({ event: BAPTISMS, role: 'FATH', named: [] }, IX, 1, new Set())
   ).toMatchObject({ search: true, newAs: null });
   expect(
-    pickFor({ volume: RIPPI, role: null, named: [child] }, IX, 1, new Set())
+    pickFor({ event: RIPPI, role: null, named: [child] }, IX, 1, new Set())
   ).toMatchObject({ search: true });
 });
 

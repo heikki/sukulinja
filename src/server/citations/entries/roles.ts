@@ -7,8 +7,6 @@
 
 import type { Database } from 'bun:sqlite';
 
-import { bookKind } from '@/common/books';
-
 const UNPLACED = `c.entry_id = $entry AND c.scope_type = 'person'
   AND (c.role IS NULL OR c.role NOT IN ('CHIL', 'FATH', 'MOTH'))`;
 
@@ -18,9 +16,8 @@ const IN_ENTRY = `SELECT o.scope_id FROM citations o
 
 export function placeEntryRoles(db: Database) {
   const baptisms = db
-    .query<{ id: number; volume: string }, []>('SELECT id, volume FROM entries')
-    .all()
-    .filter((e) => bookKind(e.volume) === 'kastetut');
+    .query<{ id: number }, []>("SELECT id FROM entries WHERE event = 'CHR'")
+    .all();
   const child = db.prepare(
     `UPDATE citations AS c SET role = 'CHIL' WHERE ${UNPLACED}
        AND EXISTS (SELECT 1 FROM family_children fc

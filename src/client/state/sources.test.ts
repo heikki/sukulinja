@@ -99,6 +99,7 @@ function source(id: number, citedPage: number | null, churchBook = true) {
     cited: null,
     supports: [],
     entryId: null,
+    event: null,
     role: null
   };
   return row;

@@ -44,6 +44,7 @@ const CITATION: CitationRow = {
   cited: null,
   supports: [],
   entryId: null,
+  event: null,
   role: null
 };
 

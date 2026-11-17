@@ -1,6 +1,6 @@
 import { volumeTitle } from '@/client/link-labels';
 import { imageLabel, isStale, onLabel, personLabel } from '@/client/on';
-import { entryRoles } from '@/common/books';
+import { eventLabel, roleLabel } from '@/common/entry-events';
 import { factKindLabel } from '@/common/facts';
 import type { Change, ChangeOn, ChangeWhat, PersonRow } from '@/common/types';
 
@@ -15,17 +15,26 @@ function inVolume(volume: string, image: number | null) {
 
 type RoleChange = Extract<ChangeWhat, { kind: 'role' }>;
 
-// A Role in an entry of the Volume by its label, "Father"; "no Role" for
-// none.
-function roleName(volume: string, role: string | null) {
+// A Role in an entry by its label, "Father"; "no Role" for none.
+function roleName(role: string | null) {
   if (role === null) return 'no Role';
-  return entryRoles(volume).find((r) => r.role === role)?.label ?? role;
+  return roleLabel(role) ?? role;
 }
 
 // The Role changed, on the Image: "I C:1, Image 3: Father → Child".
 function roleDetail({ volume, image, from, to }: RoleChange) {
-  const roles = `${roleName(volume, from)} → ${roleName(volume, to)}`;
+  const roles = `${roleName(from)} → ${roleName(to)}`;
   return `${imageLabel(volume, image)}: ${roles}`;
+}
+
+type EventChange = Extract<ChangeWhat, { kind: 'event' }>;
+
+// The Event chosen anew, on the Image: "I C:1, Image 3: Baptism → Burial",
+// or only what it is now where it had none.
+function eventDetail({ volume, image, from, to }: EventChange) {
+  const events =
+    from === null ? eventLabel(to) : `${eventLabel(from)} → ${eventLabel(to)}`;
+  return `${imageLabel(volume, image)}: ${events}`;
 }
 
 type FactChange = Extract<ChangeWhat, { kind: 'fact' }>;
@@ -101,6 +110,8 @@ export function doneLabel(what: ChangeWhat) {
       return 'Moved the entry';
     case 'role':
       return 'Changed the Role';
+    case 'event':
+      return 'Changed the kind of entry';
     case 'retext':
       return 'Changed what the source says';
     case 'tag':
@@ -149,6 +160,8 @@ export function detailOf(what: ChangeWhat) {
       return imageLabel(what.volume, what.image);
     case 'role':
       return roleDetail(what);
+    case 'event':
+      return eventDetail(what);
     case 'uncite':
       return what.cited;
     case 'transcribe':

@@ -11,7 +11,8 @@ import type { Point, Transform } from '@/client/pan-zoom';
 import { appState, citingImage } from '@/client/state';
 import type { AppState } from '@/client/state';
 import { CLAUDE_MODELS } from '@/common/assistant-choices';
-import { bookKind } from '@/common/books';
+import { firstGuess } from '@/common/entry-events';
+import type { EntryEvent } from '@/common/entry-events';
 import type { Box } from '@/common/types';
 
 import { boxFromStage, boxOnStage } from '../box-stage/geometry';
@@ -22,9 +23,10 @@ import { entriesOn } from './citations';
 import {
   parentRows,
   pickFor,
-  roleLabel,
+  rolePickLabel,
   startingPeople,
-  withChild
+  withChild,
+  withEvent
 } from './cite';
 import { scanLayerStyles } from './edit-styles';
 import type { ChooseDetail } from './entry-form';
@@ -113,20 +115,35 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     if (box !== null) this.viewer.setBox(box);
   }
 
-  // A pending Box at `at` for a new Entry, naming to start with whom the
-  // Volume's Book and the Selected person suggest.
+  // A pending Box at `at` for a new Entry, of the Event the Entry before
+  // it or the Volume's Book suggests, naming to start with whom that and
+  // the Selected person suggest.
   private newEntry(at: Point) {
     this.popup = null;
     const box = this.newBoxAt(at);
     const shown = this.viewer.volume.get();
     if (box === null || shown === null) return;
+    const rows = this.viewer.citations.get();
+    const event = firstGuess(shown.label, Array.isArray(rows) ? rows : [], {
+      image: this.viewer.image.get(),
+      box
+    });
     const people = startingPeople(
-      shown.label,
+      event,
       this.state.selected.id.get(),
       this.state.chart.people.get(),
       this.citingHere()
     );
-    this.viewer.newEntry(box, people);
+    this.viewer.newEntry(box, event, people);
+  }
+
+  // The pending Entry's Event chosen anew, with whom it names then.
+  private chooseEvent(event: EntryEvent) {
+    const ix = this.state.chart.people.get();
+    this.viewer.entryForm.setEvent(
+      event,
+      withEvent(this.namedNow(), event, ix)
+    );
   }
 
   // Whose Citations already link the Image shown: not cited for again.
@@ -145,11 +162,11 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     const selected = this.state.selected.id.get();
     const named = this.namedNow();
     const left = this.viewer.entryForm.notNamable.get();
-    const volume = this.viewer.volume.get()?.label ?? '';
+    const event = this.eventNow();
     const ix = this.state.chart.people.get();
-    const pick = pickFor({ volume, role, named }, ix, selected, left);
+    const pick = pickFor({ event, role, named }, ix, selected, left);
     return html`<sl-person-pick
-      .heading=${roleLabel(volume, role)}
+      .heading=${rolePickLabel(event, role)}
       .at=${at}
       .relativesOf=${pick.relativesOf}
       .newAs=${pick.newAs}
@@ -168,11 +185,18 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   // in the tree, in place of those named before.
   private named(personId: number, role: string | null) {
     const people = this.namedNow();
-    const volume = this.viewer.volume.get()?.label ?? '';
-    if (role === 'CHIL' && bookKind(volume) === 'kastetut') {
+    if (role === 'CHIL' && this.eventNow() === 'CHR') {
       const ix = this.state.chart.people.get();
       this.viewer.entryForm.setPeople(withChild(people, personId, ix));
     } else this.viewer.entryForm.setInEntry({ personId, role });
+  }
+
+  // What the pending Entry records, if chosen.
+  private eventNow() {
+    const pending = this.viewer.pending.get();
+    return pending === null || pending.kind === 'mark'
+      ? null
+      : pending.cite.event;
   }
 
   // Who the pending Entry names so far.
@@ -195,9 +219,11 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
       .anchor=${boxOnStage(pending.box, view)}
       .cite=${pending.cite}
       .editing=${pending.kind === 'edit'}
-      .volume=${pending.volume}
       .persons=${this.persons}
       .parents=${parentRows(pending.cite.people, ix)}
+      @choose-event=${(e: CustomEvent<EntryEvent>) => {
+        this.chooseEvent(e.detail);
+      }}
       @name=${(e: CustomEvent<InEntry>) => {
         this.viewer.entryForm.setInEntry(e.detail);
       }}

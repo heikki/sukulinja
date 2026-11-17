@@ -129,8 +129,8 @@ describe('the answers', () => {
   test('an Entry made, edited as a whole, and deleted', async () => {
     const box = { left: 100, top: 400, width: 300, height: 30 };
     const at = { volumeId: VOLUME, image: 9, fileId: `${VOLUME}-f9`, box };
-    const [made] = await api.citeEntry({ ...at, text: 'Talo' }, [
-      { personId: 2, role: null }
+    const [made] = await api.citeEntry({ ...at, event: 'CHR', text: 'Talo' }, [
+      { personId: 2, role: 'CHIL' }
     ]);
     const entryId = made!.citation.entryId!;
     const moved = { ...box, top: 450 };
@@ -138,8 +138,8 @@ describe('the answers', () => {
       at: { ...at, box: moved },
       text: ' Talo  3 ',
       people: [
-        { personId: 2, role: null },
-        { personId: 3, role: null }
+        { personId: 2, role: 'CHIL' },
+        { personId: 3, role: 'FATH' }
       ]
     });
     const now = { citation: { entryId, text: 'Talo 3' }, link: { box: moved } };

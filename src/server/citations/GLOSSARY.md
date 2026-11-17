@@ -45,7 +45,7 @@ _Avoid_: index (alone; an index is also a book's own list of names).
 ### Church books and scans
 
 **Book**:
-The kind of church book referenced — rippikirja (communion book), lastenkirja (children's book), kastetut (baptisms) or vihityt (marriages); the app calls them by their Astia series names (Pää- ja rippikirjat, Lastenkirjat, Syntyneiden ja kastettujen luettelot, Vihittyjen luettelot) — with the years it covers. A Book may span several **Volumes** or share one.
+The kind of church book referenced — rippikirja (communion book), lastenkirja (children's book), kastetut (baptisms), vihityt (marriages) or haudatut (burials); the app calls them by their Astia series names (Pää- ja rippikirjat, Lastenkirjat, Syntyneiden ja kastettujen luettelot, Vihittyjen luettelot, Kuolleiden ja haudattujen luettelot) — with the years it covers. A Book may span several **Volumes** or share one.
 
 **Volume**:
 One book in Astia, with its own Astia id and label (e.g. "I Aa:5 Pää- ja rippikirjat (1790-1796)"). The unit a link points into.

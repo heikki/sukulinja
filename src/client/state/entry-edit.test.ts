@@ -90,6 +90,7 @@ async function viewing() {
       image: 12,
       fileId: `${VOLUME}-f12`,
       box: BOX,
+      event: 'CHR',
       text: 'Kaste 1.2.1790'
     },
     [
@@ -204,6 +205,7 @@ test('an edit refused changes nothing', async () => {
       image: 12,
       fileId: `${VOLUME}-f12`,
       box: { ...BOX, top: 400 },
+      event: 'CHR',
       text: null
     },
     [{ personId: 4, role: 'CHIL' }]

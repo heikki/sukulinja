@@ -168,7 +168,8 @@ test('a Citation made of a baptism for its child supports their Christening', as
       volumeId: 'juva-3',
       image,
       fileId: fileId('juva-3', image, 'full'),
-      box: { left: 100, top: 200, width: 500, height: 50 }
+      box: { left: 100, top: 200, width: 500, height: 50 },
+      event: 'CHR' as const
     };
   }
   const made = await citations.entries.make(at(3), null, [

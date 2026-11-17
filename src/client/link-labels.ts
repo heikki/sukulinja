@@ -74,7 +74,8 @@ const BOOK_NOUN: Record<BookKind, string> = {
   rippi: 'communion book',
   lasten: "children's book",
   kastetut: 'baptism',
-  vihityt: 'marriage'
+  vihityt: 'marriage',
+  haudatut: 'burial'
 };
 
 function yearsText({ from, to }: { from: number; to: number }) {

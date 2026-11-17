@@ -1,6 +1,7 @@
 import { signal } from '@lit-labs/signals';
 
 import type { DatasetApi, InEntry } from '@/client/dataset-api';
+import type { EntryEvent } from '@/common/entry-events';
 import type { Box, VolumeCitation } from '@/common/types';
 
 import { pendingEntry } from './pending-entry';
@@ -53,8 +54,9 @@ export interface Pending {
   change: Readable<PendingChange | null>;
   // A Box for the source's entry, to move it there.
   mark: (box: Box) => void;
-  // A new Entry at the Box, with the people in it so far.
-  newEntry: (box: Box, people: InEntry[]) => void;
+  // A new Entry at the Box, of the Event guessed, with the people in it
+  // so far.
+  newEntry: (box: Box, event: EntryEvent | null, people: InEntry[]) => void;
   // The source's Entry to edit, from its Box and its Citations' rows.
   editEntry: (entryId: number, box: Box, rows: VolumeCitation[]) => void;
   // The pending Box moved; the change stays of its kind.
@@ -173,8 +175,8 @@ export function pendingChange(deps: PendingDeps): Pending {
     mark(box) {
       place(box, { kind: 'mark' });
     },
-    newEntry(box, people) {
-      place(box, { kind: 'new', cite: { people, text: '' } });
+    newEntry(box, event, people) {
+      place(box, { kind: 'new', cite: { event, people, text: '' } });
     },
     editEntry(entryId, box, rows) {
       place(box, { kind: 'edit', ...entry.editing(entryId, box, rows) });

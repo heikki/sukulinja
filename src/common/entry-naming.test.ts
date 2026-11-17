@@ -28,6 +28,7 @@ function row(
       cited: null,
       supports: [],
       entryId,
+      event: null,
       role: null
     },
     link
@@ -65,23 +66,40 @@ test("the Entry's own Citations don't keep its people out", () => {
   expect([...citingImage(rows, 18, 7)]).toEqual([2]);
 });
 
-test('an entry names someone, each once, in a Role of its Book', () => {
-  const baptisms = 'I C:3 Syntyneiden ja kastettujen luettelot (1790-1810)';
+test('an entry names someone, each once, in a Role of its Event', () => {
   const child = { personId: 1, role: 'CHIL' };
-  expect(namingRefusal(baptisms, [])).toBe('Name someone in it.');
-  expect(
-    namingRefusal(baptisms, [child, { personId: 2, role: null }])
-  ).toBeNull();
-  expect(namingRefusal(baptisms, [{ personId: 1, role: 'HUSB' }])).toBe(
+  expect(namingRefusal('CHR', [])).toBe('Name someone in it.');
+  expect(namingRefusal('CHR', [child, { personId: 2, role: null }])).toBeNull();
+  expect(namingRefusal('CHR', [{ personId: 1, role: 'HUSB' }])).toBe(
     "That isn't a Role in this kind of entry."
   );
-  expect(namingRefusal(baptisms, [child, { ...child, role: 'FATH' }])).toBe(
+  expect(namingRefusal('CHR', [child, { ...child, role: 'FATH' }])).toBe(
     'Someone is named twice.'
   );
   // A household's line has no Roles.
-  expect(
-    namingRefusal('I Aa:1 Pää- ja rippikirjat (1790-1796)', [
-      { personId: 1, role: 'CHIL' }
-    ])
-  ).toBe("That isn't a Role in this kind of entry.");
+  expect(namingRefusal('RESI', [{ personId: 1, role: 'CHIL' }])).toBe(
+    "That isn't a Role in this kind of entry."
+  );
+});
+
+test('its kind is chosen, whatever the Book', () => {
+  expect(namingRefusal(null, [{ personId: 1, role: null }])).toBe(
+    'Choose what kind of entry it is.'
+  );
+});
+
+test('a burial or a household line names one person', () => {
+  const two = [
+    { personId: 1, role: null },
+    { personId: 2, role: null }
+  ];
+  expect(namingRefusal('BURI', two.slice(0, 1))).toBeNull();
+  expect(namingRefusal('BURI', two)).toBe(
+    'This kind of entry names one person.'
+  );
+  // One made before naming more keeps them, but takes no one else.
+  expect(namingRefusal('RESI', two, [1, 2])).toBeNull();
+  expect(namingRefusal('RESI', two, [1])).toBe(
+    'This kind of entry names one person.'
+  );
 });

@@ -5,6 +5,8 @@
 
 import type { Database } from 'bun:sqlite';
 
+import { bookEvent } from '@/common/entry-events';
+import type { EntryEvent } from '@/common/entry-events';
 import type { Box } from '@/common/types';
 
 import { openAnnotations } from './annotations';
@@ -12,7 +14,6 @@ import { viewerUrl } from './astia/astia';
 import { CITATIONS_READ, dropUncitedEntries, gatherEntries } from './entries';
 import { openEntries } from './entries/storage';
 import type { Converting } from './references';
-import { bookKind } from './text';
 
 // Who publishes every Volume, and where.
 export const PUBLISHER = 'Kansallisarkisto, Astia';
@@ -23,20 +24,7 @@ export function volumeSourceTitle(volume: string, archive: string | null) {
   return archive === null ? volume : `${archive}, ${volume}`;
 }
 
-// The Event an entry records, by its Volume's Book: GEDCOM's citation EVEN.
-const EVENTS = {
-  kastetut: 'CHR',
-  vihityt: 'MARR',
-  rippi: 'RESI',
-  lasten: 'RESI'
-} as const;
-
-export function entryEvent(volume: string) {
-  const kind = bookKind(volume);
-  return kind === null ? null : EVENTS[kind];
-}
-
-// An Entry at the Box on an Image.
+// An Entry at the Box on an Image, and the Event it records.
 export interface NewEntryAt {
   volumeId: string;
   // The Volume's label and its archive's title, which title its source.
@@ -45,6 +33,7 @@ export interface NewEntryAt {
   image: number;
   fileId: string;
   box: Box;
+  event: EntryEvent | null;
   text: string | null;
 }
 
@@ -61,6 +50,8 @@ interface NewCitation {
   text: string | null;
   // The person's Role in the entry, GEDCOM's citation ROLE.
   role?: string | null;
+  // The Event the entry records; left out, what its Book gives.
+  event?: EntryEvent | null;
 }
 
 // A Volume's archive title, or null when it isn't known.
@@ -162,8 +153,9 @@ export function openAppCitations(db: Database) {
         const at = linkedVolume.get(id);
         if (at === null) continue;
         const source = sourceOf(at.volumeId, at.volume, archiveOf(at.volumeId));
-        // MyHeritage's EVEN and ROLE, not GEDCOM's, give way (ADR-0016).
-        adopt.run(source, text, entryEvent(at.volume), role, id);
+        // MyHeritage's EVEN and ROLE, not GEDCOM's, give way (ADR-0016);
+        // the Book gives the Event, as it gives a new Entry's first guess.
+        adopt.run(source, text, bookEvent(at.volume), role, id);
       }
       // Every citation of the record, alike, then cites one Entry.
       gatherEntries(db);
@@ -185,7 +177,7 @@ export function openAppCitations(db: Database) {
     return entries.create({
       sourceId: sourceOf(e.volumeId, e.volume, e.archive ?? null),
       page: viewerUrl(e.volumeId, e.fileId),
-      event: entryEvent(e.volume),
+      event: e.event,
       text: e.text,
       volumeId: e.volumeId,
       volume: e.volume,
@@ -224,7 +216,10 @@ export function openAppCitations(db: Database) {
 
     // Stores the Citation, of a new Entry at the Box; its id.
     create(c: NewCitation) {
-      return db.transaction(() => cite(entry(c), c.personId, c.role ?? null))();
+      const event = c.event === undefined ? bookEvent(c.volume) : c.event;
+      return db.transaction(() =>
+        cite(entry({ ...c, event }), c.personId, c.role ?? null)
+      )();
     },
 
     // Makes each of the citations, a reference Marked at the entry, a

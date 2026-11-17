@@ -3,17 +3,19 @@ import type { Signal } from '@lit-labs/signals';
 
 import { ApiError } from '@/client/dataset-api';
 import type { DatasetApi, InEntry } from '@/client/dataset-api';
-import { entryRoles } from '@/common/books';
+import { eventRoles } from '@/common/entry-events';
+import type { EntryEvent } from '@/common/entry-events';
 import { citingImage } from '@/common/entry-naming';
 import type { Box, VolumeCitation } from '@/common/types';
 
 import type { PendingChange } from './pending-change';
 import type { Readable, Selected } from './selected';
 
-// An Entry not saved yet (ADR-0026), new or the source's changed: who is
-// in it, each in their Role if its Book has Roles, and what it says, as
-// typed.
+// An Entry not saved yet (ADR-0026), new or the source's changed: the
+// Event it records, null until one is chosen (ADR-0033), who is in it,
+// each in their Role if its Event has Roles, and what it says, as typed.
 export interface PendingCite {
+  event: EntryEvent | null;
   people: InEntry[];
   text: string;
 }
@@ -22,6 +24,7 @@ export interface PendingCite {
 // their Citation, what it said, and its Box.
 export interface EntryEdit {
   entryId: number;
+  event: EntryEvent | null;
   was: Array<InEntry & { citationId: number }>;
   text: string;
   box: Box;
@@ -34,6 +37,8 @@ export interface EntryForm {
   // those named, but someone named in no Role of a Book with Roles can
   // still be given one.
   notNamable: Readable<Set<number>>;
+  // Chooses the Event it records, naming these people then.
+  setEvent: (event: EntryEvent, people: InEntry[]) => void;
   setText: (text: string) => void;
   setInEntry: (person: InEntry) => void;
   setPeople: (people: InEntry[]) => void;
@@ -68,7 +73,7 @@ export function pendingEntry(
     const { cite } = change;
     const rows = citations.get();
     const editing = change.kind === 'edit' ? change.editing.entryId : null;
-    const roles = entryRoles(change.volume).length;
+    const roles = eventRoles(cite.event).length;
     const named = cite.people.filter((p) => p.role !== null || roles === 0);
     return new Set([
       ...citingImage(Array.isArray(rows) ? rows : [], change.image, editing),
@@ -81,6 +86,10 @@ export function pendingEntry(
     if (now !== null && now.kind !== 'mark') {
       pending.set({ ...now, cite: { ...now.cite, ...to(now.cite) } });
     }
+  }
+
+  function setEvent(event: EntryEvent, people: InEntry[]) {
+    change(() => ({ event, people }));
   }
 
   // What it says, as typed.
@@ -125,7 +134,14 @@ export function pendingEntry(
     }
     const text = cite.text.trim();
     const made = await api.citeEntry(
-      { volumeId, image: at, fileId, box, text: text === '' ? null : text },
+      {
+        volumeId,
+        image: at,
+        fileId,
+        box,
+        event: cite.event,
+        text: text === '' ? null : text
+      },
       cite.people
     );
     const id = selected.id.get();
@@ -144,8 +160,12 @@ export function pendingEntry(
       citationId: r.citation.id
     }));
     const text = rows[0]?.citation.text ?? '';
+    const event = rows[0]?.citation.event ?? null;
     const people = was.map(({ personId, role }) => ({ personId, role }));
-    return { cite: { people, text }, editing: { entryId, was, text, box } };
+    return {
+      cite: { event, people, text },
+      editing: { entryId, event, was, text, box }
+    };
   }
 
   // Where the Box is now, if it moved.
@@ -164,11 +184,13 @@ export function pendingEntry(
   // it, by their Citation. Throws ApiError if it's refused.
   async function saveEdit(change: EditedEntry) {
     const { editing } = change;
-    const { people, text } = change.cite;
+    const { event, people, text } = change.cite;
     if (people.length === 0) throw new ApiError('Name someone in the entry.');
+    if (event === null) throw new ApiError('Choose what kind of entry it is.');
     const said = text.trim();
     const rows = await api.editEntry(editing.entryId, {
       ...movedTo(change),
+      ...(event === editing.event ? {} : { event }),
       text: said === '' ? null : said,
       people
     });
@@ -184,6 +206,13 @@ export function pendingEntry(
     change(() => ({ people }));
   }
 
-  const form: EntryForm = { notNamable, setText, setInEntry, setPeople, drop };
+  const form: EntryForm = {
+    notNamable,
+    setEvent,
+    setText,
+    setInEntry,
+    setPeople,
+    drop
+  };
   return { form, save, editing, saveEdit };
 }
