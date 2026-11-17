@@ -87,3 +87,22 @@ export async function addRelative(
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await boxOf(page, given).waitFor();
 }
+
+// Where a line of the fixture's church book page is, as fractions of the
+// Image: its first four lines, and the column of names.
+export const PAGE_LINES = [0.171, 0.238, 0.305, 0.372];
+const NAME_COLUMN = 0.27;
+
+// A right-click on the line of the Image shown, as a person makes it: on
+// the picture, or a Box over it.
+export async function rightClickLine(page: Page, image: number, line: number) {
+  const at = await page
+    .getByRole('img', { name: `Image ${image}` })
+    .boundingBox();
+  if (at === null) throw new Error(`Image ${image} isn't shown`);
+  await page.mouse.click(
+    at.x + at.width * NAME_COLUMN,
+    at.y + at.height * PAGE_LINES[line - 1]!,
+    { button: 'right' }
+  );
+}
