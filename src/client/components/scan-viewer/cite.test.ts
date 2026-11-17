@@ -167,6 +167,9 @@ test("a baptism's parents are the child's in the tree, its child theirs; no sear
   expect(
     pickFor({ event: RIPPI, role: null, named: [child] }, IX, 1, new Set())
   ).toMatchObject({ search: true, newOne: null });
+  expect(
+    pickFor({ event: 'MARR', role: 'WIFE', named: [] }, IX, 1, new Set())
+  ).toMatchObject({ search: true, newOne: { label: 'bride', sex: 'F' } });
 });
 
 test("a baptism's parents rows are the child's in the tree, and a new child brings theirs", () => {

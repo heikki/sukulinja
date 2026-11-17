@@ -174,17 +174,15 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
     return 'rejected' in offered ? offered : { fields, offered, ticked };
   }
 
-  // Does the lines ticked, by the owner's Citation of the Entry; `ids`
-  // gives the newcomers' ids as made.
+  // Does the lines ticked for the Entry of the Event naming the people as
+  // saved, by the owner's Citation of it.
   function doTicked(
     entryId: number,
+    saved: { event: EntryEvent | null; people: InEntry[] },
     offered: Offered,
-    ticked: Ticked[],
-    ids: Map<number, number>
+    ticked: Ticked[]
   ) {
-    const { owner } = offered;
-    const made = { ...offered, owner: ids.get(owner ?? 0) ?? owner };
-    tree.doTicked(made, ticked, (personId) => {
+    tree.doTicked(saved, offered, ticked, (personId) => {
       const own = stored
         .citationsOf(entryId)
         .find((c) => c.personId === personId);
@@ -192,12 +190,13 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
     });
   }
 
-  // The newcomers made, and the people with their ids as made, by the
-  // number that stood for them.
-  function madeNow(people: InEntry[], those: Newcomer[] | undefined) {
-    const now = newcomers.make(people, those ?? []);
-    const ids = new Map(people.map((p, i) => [p.personId, now[i]!.personId]));
-    return { people: now, ids };
+  // The people with the newcomers made, and a marriage's couple a family.
+  function madeNow(
+    event: EntryEvent | null,
+    people: InEntry[],
+    those: Newcomer[] | undefined
+  ) {
+    return newcomers.make(event, people, those ?? []);
   }
 
   async function listedOf(entryId: number) {
@@ -405,7 +404,7 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
       const { fields, offered, ticked } = said;
       const archive = await volumeArchive(at.volumeId);
       const ids = saved(db, () => {
-        const now = madeNow(people, at.newcomers);
+        const now = madeNow(event, people, at.newcomers);
         const entryId = made.entry({
           ...at,
           ...checked,
@@ -414,8 +413,8 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
         });
         stored.setFields(entryId, fields);
         const entry = stored.entryOf(entryId)!;
-        const named = now.people.map((p) => name(entryId, p, entry));
-        doTicked(entryId, offered, ticked, now.ids);
+        const named = now.map((p) => name(entryId, p, entry));
+        doTicked(entryId, { event, people: now }, offered, ticked);
         return named;
       });
       if ('rejected' in ids) return ids;
@@ -447,10 +446,11 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
       if (ok === null || 'rejected' in ok) return ok;
       const text = edit.text === undefined ? undefined : plainText(edit.text);
       const done = saved(db, () => {
-        const now = madeNow(ok.people, edit.newcomers);
-        const e = { ...entry, was, ...ok, people: now.people };
+        const now = madeNow(ok.event, ok.people, edit.newcomers);
+        const e = { ...entry, was, ...ok, people: now };
         write(entryId, { ...e, text, wasEvent: entry.event });
-        doTicked(entryId, ok.offered, ok.ticked, now.ids);
+        const saved = { event: ok.event, people: now };
+        doTicked(entryId, saved, ok.offered, ok.ticked);
         return null;
       });
       if (done !== null) return done;

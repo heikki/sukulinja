@@ -110,16 +110,22 @@ export interface NewOne {
   sex: Sex | null;
 }
 
-const NEW_IN_BAPTISM: Partial<Record<string, NewOne>> = {
-  CHIL: { label: 'child', sex: null },
-  FATH: { label: 'father', sex: 'M' },
-  MOTH: { label: 'mother', sex: 'F' }
+const NEW_ONES: Partial<Record<string, Partial<Record<string, NewOne>>>> = {
+  CHR: {
+    CHIL: { label: 'child', sex: null },
+    FATH: { label: 'father', sex: 'M' },
+    MOTH: { label: 'mother', sex: 'F' }
+  },
+  MARR: {
+    HUSB: { label: 'groom', sex: 'M' },
+    WIFE: { label: 'bride', sex: 'F' }
+  }
 };
 
-// Whom the Role can name anew: a baptism's child or parent; null for any
-// other.
+// Whom the Role can name anew: a baptism's child or parent, a marriage's
+// groom or bride; null for any other.
 export function newOneFor(event: EntryEvent | null, role: string | null) {
-  return event === 'CHR' ? (NEW_IN_BAPTISM[role ?? ''] ?? null) : null;
+  return NEW_ONES[event ?? '']?.[role ?? ''] ?? null;
 }
 
 export function roleChoices(

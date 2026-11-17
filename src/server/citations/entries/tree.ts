@@ -1,9 +1,9 @@
 // An Entry against the tree (ADR-0033): what its dates and place would do
 // to its owner's Facts, as its card lists it (common/entry-offers), and
 // doing the lines ticked when it's saved. Its owner is whom the Facts are
-// of: a baptism's child, a burial's or a household line's one person. A
-// marriage's is its couple's family, which ticket 04 brings; till then it
-// offers nothing.
+// of: a baptism's child, a burial's or a household line's one person, a
+// marriage's couple's family, through its groom (a couple not one yet has
+// no Facts, and becomes a family when the Entry is saved).
 
 import type { Database } from 'bun:sqlite';
 
@@ -16,16 +16,47 @@ import type { InEntry } from '@/common/operations';
 import type { Facts } from '../../facts/facts';
 import type { createSupport } from '../support';
 
+// Whose Facts an Entry's are: a person's own, or a family's they're a
+// spouse in (`familyId`), null for a couple not a family yet.
+export interface Owner {
+  personId: number;
+  family: boolean;
+  familyId: number | null;
+}
+
+// A person as the owner of their own Facts; null for none.
+function personOwner(personId: number | undefined): Owner | null {
+  return personId === undefined
+    ? null
+    : { personId, family: false, familyId: null };
+}
+
+// A marriage's owner: its couple's family, through its groom.
+function coupleOwner(
+  people: InEntry[],
+  coupleOf: (a: number, b: number) => number | null
+): Owner | null {
+  const groom = people.find((p) => p.role === 'HUSB')?.personId;
+  const bride = people.find((p) => p.role === 'WIFE')?.personId;
+  if (groom === undefined || bride === undefined) return null;
+  return { personId: groom, family: true, familyId: coupleOf(groom, bride) };
+}
+
 // Whom the Entry's Facts are of, of those it names; null for none.
-export function ownerOf(event: EntryEvent | null, people: InEntry[]) {
+// `coupleOf` gives the family two are a couple in.
+export function ownerOf(
+  event: EntryEvent | null,
+  people: InEntry[],
+  coupleOf: (a: number, b: number) => number | null
+): Owner | null {
   if (event === 'CHR') {
-    return people.find((p) => p.role === 'CHIL')?.personId ?? null;
+    return personOwner(people.find((p) => p.role === 'CHIL')?.personId);
   }
-  if (event === 'BURI' || event === 'RESI') {
-    const [only, ...more] = people;
-    return only !== undefined && more.length === 0 ? only.personId : null;
-  }
-  return null;
+  if (event === 'MARR') return coupleOwner(people, coupleOf);
+  const [only, ...more] = people;
+  return event !== null && more.length === 0
+    ? personOwner(only?.personId)
+    : null;
 }
 
 interface TreeDeps {
@@ -44,9 +75,8 @@ export interface EntryShape {
   fields: EntryFields;
 }
 
-// The lines worked out for an Entry, with whose Facts they're of.
+// The lines worked out for an Entry.
 export interface Offered {
-  owner: number | null;
   offers: Offer[];
 }
 
@@ -58,10 +88,24 @@ export function entryTree(
   db: Database,
   { facts, support, parishOf }: TreeDeps
 ) {
-  const ownFacts = db.prepare<OwnFact, [number]>(
+  const factsOf = db.prepare<OwnFact, [string, number]>(
     `SELECT id, tag, date_text AS date, place FROM facts
-     WHERE scope_type = 'person' AND scope_id = ? ORDER BY id`
+     WHERE scope_type = ? AND scope_id = ? ORDER BY id`
   );
+  const couple = db.prepare<{ id: number }, [number, number]>(
+    `SELECT id FROM families
+     WHERE (husband_id = ?1 AND wife_id = ?2) OR (husband_id = ?2 AND wife_id = ?1)
+     ORDER BY id LIMIT 1`
+  );
+  function coupleOf(a: number, b: number) {
+    return couple.get(a, b)?.id ?? null;
+  }
+
+  // The owner's Facts: a couple not a family yet has none.
+  function ownFacts(owner: Owner) {
+    if (!owner.family) return factsOf.all('person', owner.personId);
+    return owner.familyId === null ? [] : factsOf.all('family', owner.familyId);
+  }
   const factRow = db.prepare<
     {
       type: string | null;
@@ -87,13 +131,13 @@ export function entryTree(
 
   // The Fact the line adds or changes, done, or agrees with: its id.
   // Throws if the Facts refuse, which undoes the save around it.
-  function factOf(owner: number, offer: Offer) {
+  function factOf(owner: Owner, offer: Offer) {
     if (offer.action === 'support') return offer.factId;
     if (offer.action === 'add') {
       const empty = { type: null, address: null, value: null };
-      const added = facts.add(owner, {
+      const added = facts.add(owner.personId, {
         tag: offer.tag,
-        familyId: null,
+        familyId: owner.familyId,
         ...typed(offer.now, empty)
       });
       if (added === null || 'rejected' in added) {
@@ -103,7 +147,11 @@ export function entryTree(
     }
     if (offer.action === 'change') {
       const kept = factRow.get(offer.factId)!;
-      const edited = facts.edit(owner, offer.factId, typed(offer.now, kept));
+      const edited = facts.edit(
+        owner.personId,
+        offer.factId,
+        typed(offer.now, kept)
+      );
       if (edited === null || 'rejected' in edited) {
         throw new Error(`The ${offer.tag} couldn't be changed.`);
       }
@@ -114,7 +162,7 @@ export function entryTree(
 
   // Does one line, the Entry's Citation of its owner `cited` supporting
   // the Fact it adds, changes or agrees with.
-  function doLine(owner: number, cited: number, offer: Offer) {
+  function doLine(owner: Owner, cited: number, offer: Offer) {
     const factId = factOf(owner, offer);
     if (factId !== null) support.set(cited, factId, true);
   }
@@ -122,16 +170,16 @@ export function entryTree(
   return {
     // What the Entry would do to the tree as it is now.
     async offered(entry: EntryShape): Promise<Offered> {
-      const owner = ownerOf(entry.event, entry.people);
-      if (owner === null) return { owner, offers: [] };
+      const owner = ownerOf(entry.event, entry.people, coupleOf);
+      if (owner === null) return { offers: [] };
       const place = entryPlace(entry.fields, await parishOf(entry.volumeId));
       const offers = entryOffers(
         entry.event,
         entry.fields,
         place,
-        ownFacts.all(owner)
+        ownFacts(owner)
       );
-      return { owner, offers };
+      return { offers };
     },
 
     // Why the lines ticked can't be done: one the Entry doesn't offer now,
@@ -143,16 +191,19 @@ export function entryTree(
         : 'The tree has changed since; look at the list again.';
     },
 
-    // Does the lines ticked, in the order listed, each with its Changes;
-    // `citationOf` gives the owner's Citation of the Entry. Run inside the
-    // save's transaction.
+    // Does the lines ticked, in the order listed, each with its Changes,
+    // for the Entry of the Event naming the people as saved: the family
+    // a marriage made is its owner now. `citationOf` gives the owner's
+    // Citation of the Entry. Run inside the save's transaction.
     doTicked(
-      { owner, offers }: Offered,
+      saved: { event: EntryEvent | null; people: InEntry[] },
+      { offers }: Offered,
       ticked: Ticked[],
       citationOf: (personId: number) => number
     ) {
+      const owner = ownerOf(saved.event, saved.people, coupleOf);
       if (owner === null) return;
-      const cited = citationOf(owner);
+      const cited = citationOf(owner.personId);
       for (const offer of offers) {
         if (ticked.some((t) => sameLine(offer, t))) doLine(owner, cited, offer);
       }

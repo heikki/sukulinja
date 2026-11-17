@@ -80,6 +80,7 @@ export function entriesDataset(dir: string) {
 
 // What `make` or `edit` gave, made.
 export function made(rows: VolumeCitation[] | { rejected: string } | null) {
-  if (rows === null || 'rejected' in rows) throw new Error('not made');
+  if (rows === null) throw new Error('not made');
+  if ('rejected' in rows) throw new Error(rows.rejected);
   return rows;
 }

@@ -2,14 +2,16 @@
 // it, from their name, by the Tree context's own adding of a relative, so
 // each goes into a family and has its Change. A baptism's new child goes
 // into its named parents' family, a new one when they aren't a couple;
-// its new parents go in with the child. Someone it names must be in the
-// tree already, so the tree stays one piece.
+// its new parents go in with the child. A marriage's couple is a family
+// once it's saved: theirs, or a new one of the two, a new spouse made
+// into it. Someone it names must be in the tree already, so the tree
+// stays one piece.
 
 import type { Database } from 'bun:sqlite';
 
 import type { EntryEvent } from '@/common/entry-events';
 import type { InEntry, Newcomer } from '@/common/operations';
-import type { Relation } from '@/common/types';
+import type { Relation, Sex } from '@/common/types';
 
 import type { Relatives } from '../../persons/relatives';
 
@@ -22,8 +24,15 @@ const PARENTS: Partial<Record<string, Relation>> = {
   MOTH: 'mother'
 };
 
-// A parent's sex is their Role's.
-const PARENT_SEX = { FATH: 'M', MOTH: 'F' } as const;
+// A parent's or a spouse's sex is their Role's.
+const ROLE_SEX = { FATH: 'M', MOTH: 'F', HUSB: 'M', WIFE: 'F' } as const;
+
+// The name of someone new in the Role, their sex the Role's where it has
+// one.
+function named(newcomer: Newcomer, role: string | null) {
+  const sex = ROLE_SEX[role as keyof typeof ROLE_SEX] as Sex | undefined;
+  return sex === undefined ? newcomer.name : { ...newcomer.name, sex };
+}
 
 // Why the newcomers can't be made with the Entry of the Event naming the
 // people; null when they can. Each one named once, every one named, none
@@ -41,7 +50,9 @@ export function newcomersRefusal(
     named.every((id) => made.includes(id));
   if (!same) return 'Someone new is named twice, or not at all.';
   if (made.length === 0) return null;
-  if (event !== 'CHR') return 'Only a baptism names someone new yet.';
+  if (event !== 'CHR' && event !== 'MARR') {
+    return 'Only a baptism or a marriage names someone new.';
+  }
   if (people.every((p) => p.personId < 0)) return 'Name someone in the tree.';
   return null;
 }
@@ -104,22 +115,20 @@ function placeBaptism(
   const ids = new Map<number, number>();
   const newcomer = new Map(newcomers.map((n) => [n.personId, n]));
   const parents = people.filter((p) => PARENTS[p.role ?? ''] !== undefined);
-  const named = people.find((p) => p.role === 'CHIL')?.personId ?? null;
-  const fresh = named === null ? undefined : newcomer.get(named);
+  const child = people.find((p) => p.role === 'CHIL')?.personId ?? null;
+  const fresh = child === null ? undefined : newcomer.get(child);
   const childId =
-    fresh === undefined ? named : placeChild(placing, fresh, parents);
+    fresh === undefined ? child : placeChild(placing, fresh, parents);
   if (fresh !== undefined) ids.set(fresh.personId, childId!);
 
   for (const p of parents.filter((q) => q.personId < 0)) {
     if (childId === null) {
       throw new NewcomerRefused('Name the child to make their parents.');
     }
-    const role = p.role as 'FATH' | 'MOTH';
-    const { given, surname } = newcomer.get(p.personId)!.name;
     const made = added(
       placing.relatives.add(childId, {
-        relation: PARENTS[role]!,
-        who: { given, surname, sex: PARENT_SEX[role] },
+        relation: PARENTS[p.role!]!,
+        who: named(newcomer.get(p.personId)!, p.role),
         familyId: null
       })
     );
@@ -127,6 +136,45 @@ function placeBaptism(
   }
   return ids;
 }
+
+// Makes a marriage's couple a family: theirs if they're one, else a new
+// one of the two, a new spouse made into it. The ids newcomers are made
+// with, by the number that stood for them.
+function placeMarriage(
+  { relatives, coupleOf }: Placing,
+  people: InEntry[],
+  newcomers: Newcomer[]
+) {
+  const ids = new Map<number, number>();
+  const groom = people.find((p) => p.role === 'HUSB');
+  const bride = people.find((p) => p.role === 'WIFE');
+  if (groom === undefined || bride === undefined) return ids;
+  const [known, other] = groom.personId > 0 ? [groom, bride] : [bride, groom];
+  if (other.personId > 0 && coupleOf(known.personId, other.personId) !== null) {
+    return ids;
+  }
+  const fresh = newcomers.find((n) => n.personId === other.personId);
+  const made = added(
+    relatives.add(known.personId, {
+      relation: 'spouse',
+      who:
+        fresh === undefined
+          ? { personId: other.personId }
+          : named(fresh, other.role),
+      familyId: null
+    })
+  );
+  if (fresh !== undefined) ids.set(fresh.personId, made);
+  return ids;
+}
+
+// How each kind of Entry makes its people and family.
+const PLACING: Partial<
+  Record<
+    string,
+    (p: Placing, people: InEntry[], n: Newcomer[]) => Map<number, number>
+  >
+> = { CHR: placeBaptism, MARR: placeMarriage };
 
 export function entryNewcomers(db: Database, relatives: Relatives) {
   const couple = db.prepare<{ id: number }, [number, number]>(
@@ -140,12 +188,18 @@ export function entryNewcomers(db: Database, relatives: Relatives) {
   };
 
   return {
-    // Makes the newcomers the people name, and gives the people with the
-    // ids they were made with. Run inside the Entry's transaction; throws
+    // Makes the newcomers the people name in an Entry of the Event, and a
+    // marriage's couple a family; gives the people with the ids they were
+    // made with. Run inside the Entry's transaction; throws
     // NewcomerRefused.
-    make(people: InEntry[], newcomers: Newcomer[]): InEntry[] {
-      if (newcomers.length === 0) return people;
-      const ids = placeBaptism(placing, people, newcomers);
+    make(
+      event: EntryEvent | null,
+      people: InEntry[],
+      newcomers: Newcomer[]
+    ): InEntry[] {
+      const place = PLACING[event ?? ''];
+      const ids =
+        place?.(placing, people, newcomers) ?? new Map<number, number>();
       return people.map((p) => ({
         ...p,
         personId: ids.get(p.personId) ?? p.personId
