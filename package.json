@@ -22,16 +22,16 @@
     "verify": "bun run format:check && bun run lint && bun run typecheck && bun run test"
   },
   "devDependencies": {
-    "@domorium/validator": "2.2.1",
+    "@domorium/validator": "2.3.0",
     "@total-typescript/tsconfig": "^1.0.4",
     "@types/bun": "1.4.4",
-    "eslint": "10.14.0",
+    "eslint": "10.15.0",
     "eslint-config-love": "158.0.0",
     "playwright": "1.63.0",
     "typescript": "^6.0.3"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.8.0",
+    "@anthropic-ai/sdk": "^1.10.0",
     "@lit-labs/signals": "0.3.0",
     "@lit/context": "^1.1.6",
     "electrobun": "2.0.6",
