@@ -33,7 +33,7 @@ export default [
   },
   {
     // The Citations are reached through their index.ts, and by tests
-    // through testing.ts; the tools in scripts/ are theirs and reach inside.
+    // through testing.ts.
     files: ['src/**/*.ts'],
     ignores: ['src/server/citations/**'],
     rules: {

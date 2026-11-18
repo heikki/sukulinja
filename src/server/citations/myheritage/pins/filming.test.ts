@@ -3,8 +3,8 @@
 
 import { describe, expect, test } from 'bun:test';
 
-import { fileId, memoryAstia } from '../../astia/memory-astia';
-import { leavesOut, split, splitVolume, withoutStale } from './filming';
+import { fileId } from '../../astia/memory-astia';
+import { leavesOut, split, splitVolume } from './filming';
 import type { Filming } from './filming';
 import type { Pins } from './locate';
 
@@ -126,36 +126,5 @@ test("a Volume's own Page and Record pins split together", () => {
   expect(splitVolume({ volumeId: 'x', files: [] }, pins)).toEqual({
     current: { pages: [], records: [] },
     stale: { pages: [], records: [] }
-  });
-});
-
-test('every Volume read against the filming Astia lists now', async () => {
-  const astia = memoryAstia({
-    '1': {
-      volumes: [
-        { id: 'v', label: 'V', images: 10 },
-        { id: 'w', label: 'W', images: 10 }
-      ]
-    }
-  });
-  astia.rescan('v', 8);
-  await astia.refreshImages('v');
-  const kept = { image: 4, pages: [7], fileId: 'w-f4' };
-  const pins: Pins = {
-    volumes: {
-      v: {
-        pages: [{ image: 4, pages: [7], fileId: 'v-f4' }],
-        records: [{ record: 70, image: 6, fileId: 'v-f6' }]
-      },
-      w: { pages: [kept] }
-    },
-    references: {
-      'ref-v': { volumeId: 'v', volume: 'V', image: 2, fileId: 'v-f2' },
-      'ref-w': { volumeId: 'w', volume: 'W', image: 2, fileId: 'w-f2' }
-    }
-  };
-  expect(await withoutStale(pins, astia)).toEqual({
-    volumes: { v: { pages: [], records: [] }, w: { pages: [kept] } },
-    references: { 'ref-w': pins.references['ref-w']! }
   });
 });

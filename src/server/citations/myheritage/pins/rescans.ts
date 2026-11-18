@@ -1,7 +1,6 @@
 // Astia re-scanning a pinned Volume: the pins made on the filming it
-// replaced, which switching to the new one leaves out. scripts/check-rescans
-// checks every pinned Volume this way; the Scan viewer asks about the one
-// it shows, and switches when the person says so.
+// replaced, which switching to the new one leaves out. The Scan viewer asks
+// about the Volume it shows, and switches when the person says so.
 
 import type { Rescan, StalePin } from '@/common/types';
 
@@ -101,63 +100,6 @@ function staleIn(entries: Entry[], filming: Filming) {
     ...e.about,
     image: e.image
   }));
-}
-
-function byVolume(entries: Entry[]) {
-  const out = new Map<string, Entry[]>();
-  for (const e of entries) {
-    out.set(e.volumeId, [...(out.get(e.volumeId) ?? []), e]);
-  }
-  return out;
-}
-
-// ---------------------------------------------------------------- the check
-
-export interface Rescanned extends Rescan {
-  volumeId: string;
-  title: string;
-}
-
-export interface CheckResult {
-  volumes: number;
-  // Pins on an Image saved without a file id, which can't be checked.
-  unchecked: number;
-  rescanned: Rescanned[];
-}
-
-type Lists = (volumeId: string) => Promise<string[]>;
-
-// Checks every Volume with a pin on an Image against `now`, its list as
-// Astia gives it now; `cached` is the list the data folder keeps, for its
-// Image count.
-export async function checkRescans(
-  pins: KeptPins,
-  now: Lists,
-  cached: Lists
-): Promise<CheckResult> {
-  const all = entriesOf(pins);
-  const checkable = all.filter((e) => e.fileId !== undefined);
-  const groups = byVolume(checkable);
-  const rescanned: Rescanned[] = [];
-  for (const [volumeId, entries] of groups) {
-    // eslint-disable-next-line no-await-in-loop -- one Volume at a time
-    const files = await now(volumeId);
-    const stale = staleIn(entries, { volumeId, files });
-    if (stale.length === 0) continue;
-    rescanned.push({
-      volumeId,
-      title: entries.find((e) => e.title !== null)?.title ?? volumeId,
-      // eslint-disable-next-line no-await-in-loop -- as above
-      cached: (await cached(volumeId)).length,
-      images: files.length,
-      stale
-    });
-  }
-  return {
-    volumes: groups.size,
-    unchecked: all.length - checkable.length,
-    rescanned
-  };
 }
 
 // ---------------------------------------------------------------- the app

@@ -43,7 +43,7 @@ const VERSIONS: Partial<Record<Question, string>> = {
   entry: '4'
 };
 
-export const DEFAULT_MODELS: Record<Question, string> = {
+const DEFAULT_MODELS: Record<Question, string> = {
   pages: 'claude-haiku-5-5',
   dates: 'claude-haiku-5-5',
   entry: 'claude-haiku-5-5'

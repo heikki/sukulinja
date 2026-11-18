@@ -1,6 +1,5 @@
 // The Citations context, as the rest of the app reaches it: nothing
-// outside this folder imports any other file in it (tests use testing.ts;
-// the tools in scripts/ reach inside).
+// outside this folder imports any other file in it (tests use testing.ts).
 
 import type { Database } from 'bun:sqlite';
 import { join } from 'node:path';

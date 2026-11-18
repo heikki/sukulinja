@@ -9,7 +9,7 @@ import { fileId, memoryAstia } from '../../astia/memory-astia';
 import type { MemoryAstia } from '../../astia/memory-astia';
 import { openScanCache } from '../../astia/scan-cache';
 import { openVolumeFacts } from './pins';
-import { checkRescans, routeRescan, switchFilming } from './rescans';
+import { routeRescan, switchFilming } from './rescans';
 
 let dir = '';
 
@@ -79,33 +79,6 @@ const STALE: StalePin[] = [
     markKey: 'url ref-a'
   }
 ];
-
-test('names the re-scanned Volume and its stale pins, and nothing else', async () => {
-  const listed = astia();
-  listed.rescan('v1', 8);
-  const result = await checkRescans(
-    [LOCAL],
-    async (id) => await listed.peekImages(id),
-    async (id) => await listed.volumeImages(id)
-  );
-  expect(result).toEqual({
-    volumes: 2,
-    unchecked: 1,
-    rescanned: [
-      { volumeId: 'v1', title: 'I Ab:1', cached: 10, images: 8, stale: STALE }
-    ]
-  });
-});
-
-test('finds nothing when no pinned Volume was re-scanned', async () => {
-  const listed = astia();
-  const result = await checkRescans(
-    [LOCAL],
-    async (id) => await listed.peekImages(id),
-    async (id) => await listed.volumeImages(id)
-  );
-  expect(result).toEqual({ volumes: 2, unchecked: 1, rescanned: [] });
-});
 
 // ---------------------------------------------------------------- the app
 

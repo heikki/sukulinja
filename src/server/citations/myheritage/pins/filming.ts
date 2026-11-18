@@ -77,31 +77,3 @@ export function splitVolume(filming: Filming, pins: Pins) {
     stale: { pages: pages.stale, records: records.stale }
   };
 }
-
-// The pins made on each Volume's filming now, for a reader of them all;
-// resolution looks only at the Volumes it links.
-export async function withoutStale(pins: Pins, astia: Astia) {
-  const volumes = await Promise.all(
-    Object.entries(pins.volumes).map(async ([id, v]) => {
-      const filming = await filmingOf(astia, id);
-      const kept = { ...v, pages: split(filming, v.pages).current };
-      return [
-        id,
-        v.records === undefined
-          ? kept
-          : { ...kept, records: split(filming, v.records).current }
-      ] as const;
-    })
-  );
-  const references = await Promise.all(
-    Object.entries(pins.references).map(async ([url, p]) => {
-      const filming = await filmingOf(astia, p.volumeId);
-      return leavesOut(filming, p) ? [] : [[url, p] as const];
-    })
-  );
-  const out: Pins = {
-    volumes: Object.fromEntries(volumes),
-    references: Object.fromEntries(references.flat())
-  };
-  return out;
-}
