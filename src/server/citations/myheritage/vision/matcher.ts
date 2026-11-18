@@ -27,9 +27,6 @@ export interface Match {
   volumeId: string;
   volume: string;
   image: number;
-  // Whether page search read the cited Page number on this very Image,
-  // so it can stand as a Page pin.
-  onCitedPage: boolean;
   // Where on the Image the entry is: a Match saves only with one.
   box: Fractions;
 }

@@ -277,7 +277,6 @@ function openScans({
         volumeId,
         volume: checked.volume,
         image,
-        onCitedPage: match.onCitedPage,
         box
       });
       return null;

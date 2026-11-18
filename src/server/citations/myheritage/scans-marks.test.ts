@@ -354,14 +354,12 @@ test("discarding a Mark's Box takes its pins back, leaving the Page pin", async 
 
 test('discarding a Match only undoes it: it may be saved there again', async () => {
   const scans = open();
-  await scans.saveMatch(ref(150, 21), match('a', 11, true));
+  await scans.saveMatch(ref(150, 21), match('a', 11));
   expect(await scans.discardRef(ref(150, 21), spot('a', 11))).toMatchObject({
     done: { match: true }
   });
   const { volumes } = await scans.snapshot();
   expect(volumes.a!.records).toBeUndefined();
-  // The Page pin the model read stays.
-  expect(volumes.a!.pages.map((p) => p.image)).toEqual([10, 11]);
   expect(await scans.saveMatch(ref(150, 21), match('a', 11))).toBeNull();
   expect((await scans.snapshot()).volumes.a!.records).toEqual([
     { record: 150, image: 11, by: 'vision', box: BOX, fileId: 'a-f11' }

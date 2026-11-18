@@ -112,7 +112,7 @@ async function saved(
   if (!confirms(person, reading)) return undefined;
   const box = 'unreadable' in reading ? null : (reading.box ?? null);
   if (box === null) return 'no box';
-  const match = { confirmed: true as const, ...at, volume, onCitedPage: false };
+  const match = { confirmed: true as const, ...at, volume };
   const refused = await scans.saveMatch(ref, { ...match, box });
   return refused === null ? null : refused.rejected;
 }

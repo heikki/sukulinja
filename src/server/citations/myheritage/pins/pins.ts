@@ -468,8 +468,6 @@ interface PixelMatch {
   volumeId: string;
   volume: string;
   image: number;
-  // Whether the model read the cited page on that very Image.
-  onCitedPage: boolean;
   box: Box;
 }
 
@@ -591,8 +589,7 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
       };
     },
 
-    // A match the vision model confirmed. A Mark is never replaced. The cited page
-    // becomes a Page pin only where the model read it on that very Image.
+    // A match the vision model confirmed. A Mark is never replaced.
     async recordMatch(ref: ChurchBookRef, match: PixelMatch) {
       const key = markKey(ref);
       const { volumeId, volume, image, box } = match;
@@ -611,15 +608,6 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
           });
         }
       });
-      if (ref.recordId !== null && ref.page !== null) {
-        if (match.onCitedPage) {
-          await facts.savePagePin(filming, ref, {
-            volume,
-            image,
-            by: 'vision'
-          });
-        }
-      }
     },
 
     // Takes back the Box the reference's Link shows at `at`, a Mark's or a

@@ -102,17 +102,12 @@ export function referencesFor(
 }
 
 // A Match the vision model confirmed at BOX, on an Image of SIZE.
-export function match(
-  volumeId: string,
-  image: number,
-  onCitedPage = false
-): Match {
+export function match(volumeId: string, image: number): Match {
   return {
     confirmed: true,
     volumeId,
     volume: volumeId,
     image,
-    onCitedPage,
     box: fractionsOf(BOX)
   };
 }

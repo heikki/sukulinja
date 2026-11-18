@@ -128,9 +128,9 @@ test('a dry run checks a Match and saves nothing', async () => {
 test('a Match never replaces a hand pin', async () => {
   const scans = open();
   await scans.markRef(ref(150, 21), at('a', 11));
-  await scans.saveMatch(ref(150, 21), match('a', 12, true));
+  await scans.saveMatch(ref(150, 21), match('a', 12));
   // Nor a Page pin saved without a `by`, which counts as by hand.
-  await scans.saveMatch(ref(160, 20), match('a', 10, true));
+  await scans.saveMatch(ref(160, 20), match('a', 10));
   const index = ref(null);
   await scans.markRef(index, at('b', 5));
   await scans.saveMatch(index, match('b', 6));
@@ -161,7 +161,7 @@ test('a Match never replaces a hand pin', async () => {
 
 test('a hand pin replaces a Match', async () => {
   const scans = open();
-  await scans.saveMatch(ref(150, 21), match('a', 11, true));
+  await scans.saveMatch(ref(150, 21), match('a', 11));
   await scans.markRef(ref(150, 21), at('a', 12));
   const index = ref(null);
   await scans.saveMatch(index, match('b', 6));
@@ -257,22 +257,11 @@ test('a hand pin made on another filming never keeps a Match out', async () => {
   marks.write(markKey(ref(150)), { ...on, image: 12, fileId: 'a-old12' });
   marks.write(markKey(ref(160)), { ...on, image: 20, fileId: 'a-f20' });
   const scans = open();
-  await scans.saveMatch(ref(150, 30), match('a', 13, true));
-  await scans.saveMatch(ref(160, 40), match('a', 21, true));
+  await scans.saveMatch(ref(150, 30), match('a', 13));
+  await scans.saveMatch(ref(160, 40), match('a', 21));
   const a = (await scans.snapshot()).volumes.a!;
   expect(a.records).toEqual([
     { record: 150, image: 13, by: 'vision', box: BOX, fileId: 'a-f13' },
     { record: 160, image: 20, by: 'hand', fileId: 'a-f20' }
-  ]);
-  expect(a.pages).toEqual([
-    { image: 10, pages: [20], fileId: 'a-f10' },
-    {
-      image: 13,
-      pages: [30],
-      note: 'read by the vision model',
-      by: 'vision',
-      fileId: 'a-f13'
-    },
-    { image: 20, pages: [40], by: 'hand', fileId: 'a-f20' }
   ]);
 });
