@@ -18,7 +18,7 @@ import type {
   VolumePins
 } from './locate';
 
-const LOCK_RETRY_MS = 50;
+const LOCK_RETRY_MS = 10;
 const LOCK_WAIT_MS = 5000;
 // Older than any save takes: its process died holding it.
 const LOCK_STALE_MS = 30_000;
