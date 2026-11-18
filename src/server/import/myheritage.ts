@@ -13,8 +13,8 @@
 //     dataset's earlier import where it's there, else downloaded, and rewrite
 //     the FILE value to the photo's name (failed downloads keep the remote URL
 //     so a re-run retries them)
-//   - drop face-cutout OBJE blocks (each person keeps the parent photo with
-//     their face rectangle, converted to CROP below)
+//   - drop face-cutout and profile-photo OBJE blocks (each person keeps the
+//     parent photo with their face rectangle, converted to CROP below)
 //   - strip MyHeritage-private metadata and prune the empty leaves it leaves
 //   - move each OBJE's FORM under its FILE as a MIME type, and convert
 //     `_POSITION x1 y1 x2 y2` to a standard `CROP { TOP, LEFT, WIDTH, HEIGHT }`
@@ -67,8 +67,13 @@ const UNASSOCIATED_PHOTOS_XREF = '@I88888888@';
 // variable's `.children` (loop vars, not function parameters, so eslint's
 // no-param-reassign stays satisfied) while still mutating the caller's tree.
 
+// A face cut from a photo: MyHeritage's own cutout, or a profile photo
+// someone cropped and uploaded by hand, which says nothing of where from.
 function isCutout(obje: GedNode): boolean {
-  return obje.children.some((c) => c.tag === '_CUTOUT' && c.value === 'Y');
+  return obje.children.some(
+    (c) =>
+      (c.tag === '_CUTOUT' || c.tag === '_PERSONALPHOTO') && c.value === 'Y'
+  );
 }
 
 function shiftLevels(node: GedNode, by: number): GedNode {

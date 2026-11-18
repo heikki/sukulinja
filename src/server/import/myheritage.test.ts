@@ -73,12 +73,13 @@ describe('unparkUnassociatedPhotos', () => {
 });
 
 describe('stripCutouts', () => {
-  test('removes OBJE blocks flagged _CUTOUT Y, keeps the rest', () => {
+  test('removes OBJE blocks flagged _CUTOUT or _PERSONALPHOTO Y, keeps the rest', () => {
     const root = indi(
       obje('cut.jpg', node(2, '_CUTOUT', 'Y')),
+      obje('profile.jpg', node(2, '_PERSONALPHOTO', 'Y')),
       obje('keep.jpg')
     );
-    expect(stripCutouts([root])).toBe(1);
+    expect(stripCutouts([root])).toBe(2);
     const files = root.children.map((o) => findChild(o, 'FILE')?.value);
     expect(files).toEqual(['keep.jpg']);
   });
