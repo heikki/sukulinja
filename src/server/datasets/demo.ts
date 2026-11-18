@@ -2,8 +2,8 @@
 // imported from its GEDZIP as an upload is, so the current code always builds
 // it. Offered once per data folder, which a marker records, and only to one
 // with no datasets: deleting the demo never brings it back, and a reset that
-// keeps the pins and caches (scripts/reset-install.sh) offers it again by
-// removing the marker. A demo an older version built is deleted and
+// keeps the Page pins and caches (scripts/reset-install.sh) offers it again
+// by removing the marker. A demo an older version built is deleted and
 // imported again.
 
 import { existsSync } from 'node:fs';

@@ -390,7 +390,7 @@ test('a vision Reference pin confirmed by hand keeps its box', async () => {
   ]);
 });
 
-test('the matcher searches the Volumes a reference links', async () => {
+test('Vision Match searches the Volumes a reference links', async () => {
   const index = parseChurchBookRef(
     'https://www.myheritage.fi/research/collection-30233/x?itemId=9',
     'Juho Esimerkki\nRistiäiset: 29. Marras 1795 - Juva, Mikkeli, Finland'

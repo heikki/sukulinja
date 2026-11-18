@@ -309,7 +309,7 @@ export function referencePageOf(page: string | null, role: string | null) {
 
 // The Church-book reference a Citation makes, if it makes one: its page,
 // or the record its ROLE names, is a link into a church-book collection.
-// The one rule the app and the scripts tell church books by.
+// The one rule the app tells church books by.
 export function churchBookRefOf(
   given: string | null,
   text: string | null,

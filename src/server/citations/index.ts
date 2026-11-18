@@ -61,7 +61,7 @@ interface Options {
 // The Citations of the data folder at `root`, for every dataset in it.
 export function openCitations(root: string, options: Options) {
   const astia = options.astia ?? openAstia(join(root, '.astia-cache'));
-  const cache = openScanCache({ astia, root, switches: false });
+  const cache = openScanCache({ astia, root });
   const downloads = openDownloads({ astia, cache }, options.downloads);
   // The Scan viewer has just shown the Image a Box is drawn on.
   async function sizeOf(at: ImageRef) {
@@ -72,7 +72,7 @@ export function openCitations(root: string, options: Options) {
   const folder = openScanFolder(root, { astia, parishes });
   // One queue for every search, so they don't hammer Astia together.
   const visionImage = pacedImages(cache);
-  // Readings are kept where the scripts keep theirs, so neither asks twice.
+  // Readings are kept on disk, so the same question isn't asked twice.
   const readings = join(root, '.vision-readings');
 
   const vision = openVision({

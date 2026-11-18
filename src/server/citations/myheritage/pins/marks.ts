@@ -4,8 +4,8 @@
 // marked by its URL (record.ts, markKey). What a Mark does to each
 // citation is its Annotation's (annotations.ts).
 //
-// The app and the vision pass write here from two processes; each change
-// is one transaction, read and written under SQLite's write lock.
+// More than one process may write here at once; each change is one
+// transaction, read and written under SQLite's write lock.
 
 import type { Database } from 'bun:sqlite';
 

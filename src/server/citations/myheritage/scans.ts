@@ -206,7 +206,7 @@ function openScans({
 
     // The Volumes the existing resolution links a reference to, by the
     // Book it cites, with each one's Image count, years and the Image it
-    // links if any: where the matcher searches.
+    // links if any: where Vision Match searches.
     async matchCandidates(ref: ChurchBookRef) {
       const resolved = await resolveIn(ref, await byBook(pins));
       if ('unlinked' in resolved) return [];

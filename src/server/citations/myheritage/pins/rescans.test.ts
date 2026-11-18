@@ -87,7 +87,7 @@ async function app(listed: MemoryAstia) {
   const facts = openVolumeFacts(dir, { astia: listed });
   const shared = {
     astia: listed,
-    cache: openScanCache({ astia: listed, root: dir, switches: false }),
+    cache: openScanCache({ astia: listed, root: dir }),
     kept: async () => [await facts.kept()]
   };
   async function ask(method: string, volumeId: string) {

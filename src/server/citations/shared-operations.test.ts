@@ -23,7 +23,7 @@ afterAll(() => {
 
 // The operations over the parishes.
 function parishOperations(parishes: ReturnType<typeof memoryParishes>) {
-  const cache = openScanCache({ astia: ASTIA, root, switches: false });
+  const cache = openScanCache({ astia: ASTIA, root });
   const downloads = openDownloads({ astia: ASTIA, cache });
   return sharedOperations({ astia: ASTIA, parishes, cache, downloads });
 }

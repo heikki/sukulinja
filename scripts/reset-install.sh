@@ -5,8 +5,9 @@
 # By default, deletes what makes a launch a first one: the datasets, the
 # marker that the demo was offered (src/server/datasets/demo.ts), state.json (the
 # window's frame) and the webview's storage (the appearance cookie). It keeps
-# what's hard or slow to get back: the pins (vision matches and hand marks),
-# settings, and Astia's answers and Images.
+# what's hard or slow to get back: the data folder's Page pins and Record
+# ranges, settings, and Astia's answers and Images. Marks and Matches live
+# in each dataset, so they go with it.
 #
 # --all deletes the app's folder and the webview's storage outright, pins and
 # caches included, after asking.
@@ -30,7 +31,7 @@ fi
 case "${1:-}" in
   "") ;;
   --all)
-    read -r -p "Delete $SUPPORT, pins and caches included? Type yes: " answer
+    read -r -p "Delete $SUPPORT, Page pins and caches included? Type yes: " answer
     if [[ "$answer" != yes ]]; then
       echo "reset-install: nothing deleted"
       exit 1
@@ -58,4 +59,4 @@ done
 rm -f "$DATA/.demo-offered" "$SUPPORT/state.json"
 rm -rf "$WEBKIT"
 
-echo "reset-install: kept pins, settings and caches; next launch is a first launch"
+echo "reset-install: kept Page pins, settings and caches; next launch is a first launch"

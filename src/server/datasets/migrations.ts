@@ -65,8 +65,8 @@ export function versionOf(db: Database) {
 }
 
 // Takes the database from its version through the steps, in one
-// transaction. The app and the vision pass may open it at once: the first
-// to lock it migrates, and the other finds it done. With `backup`, the
+// transaction. Two processes may open it at once: the first to lock it
+// migrates, and the other finds it done. With `backup`, the
 // database's file as it was is copied there first: with the write lock
 // held and no write-ahead log, the file alone is the whole database.
 export function migrate(

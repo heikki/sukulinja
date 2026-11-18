@@ -160,7 +160,7 @@ describe('the answers', () => {
   });
 
   test("a Discard takes a Match's Box back to the estimate, once", async () => {
-    // As the vision pass saves one: a Mark at the entry would convert the
+    // As Vision Match saves one: a Mark at the entry would convert the
     // reference to a Citation of its Image instead (ADR-0016).
     served!.db().run(
       `UPDATE citations SET link_volume_id = ?, link_volume = ?,

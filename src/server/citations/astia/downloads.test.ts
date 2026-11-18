@@ -28,8 +28,7 @@ let placeholders = 0;
 let noThumbs = false;
 let cache: ScanCache = openScanCache({
   astia: astia(),
-  root: dir,
-  switches: false
+  root: dir
 });
 let downloads: Downloads = openDownloads({ astia: astia(), cache });
 
@@ -96,7 +95,7 @@ beforeEach(async () => {
   placeholders = 0;
   noThumbs = false;
   const a = astia();
-  cache = openScanCache({ astia: a, root: dir, switches: false });
+  cache = openScanCache({ astia: a, root: dir });
   downloads = openDownloads(
     { astia: a, cache },
     { gapMs: 0, retryMs: 0, retries: 2 }

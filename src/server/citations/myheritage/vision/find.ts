@@ -1,8 +1,7 @@
 // The estimates on an Image matched on request, as the Scan viewer asks
 // (ADR-0029): all of them in one question about that Image, those not
-// found then about each Image around it, each answer checked as the
-// matcher checks one, and the Match saved where it
-// confirms one. The person still confirms or discards it in the Scan
+// found then about each Image around it, each answer checked (`confirms`,
+// reader.ts), and the Match saved where it confirms one. The person still confirms or discards it in the Scan
 // viewer; nothing is Marked.
 
 import type { LinkResolution } from '@/common/types';
@@ -24,8 +23,7 @@ export interface Found {
 
 // Every reference estimated on the Image `at`, looked for there in one
 // question (ADR-0029), then those not found on the Images around it, one
-// question for each Image, nearest first, as far as the matcher's
-// Confirmation looks: each one's Links as they then resolve, and null
+// question for each Image, nearest first, as far as `around` looks: each one's Links as they then resolve, and null
 // where a Match was saved, else why none was.
 export async function findAllOnImage(
   scans: Scans,

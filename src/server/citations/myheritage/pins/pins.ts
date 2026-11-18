@@ -1,8 +1,8 @@
 // What resolution reads (see locate.ts), and the saving of it.
 //
 // Facts about Volumes are shared by every dataset: the Page pins and
-// Record ranges in the data folder's pins.local.json, where a Mark or the
-// vision pass saves a Page pin. Nothing is shipped with the app: an
+// Record ranges in the data folder's pins.local.json, where a Mark or a
+// page read or set in the Scan viewer saves a Page pin. Nothing is shipped with the app: an
 // estimate starts from the reference alone, and what the person Marks or
 // the vision model reads is all it learns from. A newer Page pin replaces
 // any on the same image or claiming one of its pages, so re-marking a page
@@ -22,8 +22,8 @@
 // (filming.ts) is left out of the clashes a save weighs, so it never keeps
 // a pin for the filming now from being saved.
 //
-// How the local file is kept on disk, and saved from two processes at
-// once, is files.ts.
+// How the local file is kept on disk, and saved from more than one
+// process at once, is files.ts.
 
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';

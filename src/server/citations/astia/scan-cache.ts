@@ -1,5 +1,5 @@
-// The Scan cache: Astia's Images kept on disk for the Scan viewer and the
-// vision pass. Full-size ones are fetched one at a time, the latest request
+// The Scan cache: Astia's Images kept on disk for the Scan viewer and
+// Vision Match. Full-size ones are fetched one at a time, the latest request
 // first; thumbnails, a few KB each, go straight away, so one never waits
 // behind a full Image. The cache is capped by a size the install sets,
 // kept in the data folder rather than a viewer's cookie, and drops the
@@ -9,10 +9,8 @@
 // Astia may re-scan a Volume, giving every Image a new file id and none by
 // the old ones. Switching to the new filming means asking for the
 // Volume's list again and dropping the cached Images of the one replaced.
-// A cache that `switches` on its own does so when an Image's id is gone,
-// and fetches it once more by its new id: the vision pass and the scripts,
-// which have no one to ask. The app's doesn't, so the Scan viewer can ask
-// first (see pins/rescans.ts).
+// The cache never switches on its own: the Scan viewer asks first (see
+// pins/rescans.ts).
 
 import { readdir, rename, rm, rmdir, stat, utimes } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -180,15 +178,7 @@ async function savedCap(file: string) {
 
 // The Scan cache of the data folder at `root`, fetching from `astia`: its
 // Images in `.astia-images/<volumeId>`, its cap in `settings.local.json`.
-export function openScanCache({
-  astia,
-  root,
-  switches
-}: {
-  astia: Astia;
-  root: string;
-  switches: boolean;
-}) {
+export function openScanCache({ astia, root }: { astia: Astia; root: string }) {
   const dir = join(root, '.astia-images');
   const settingsFile = join(root, 'settings.local.json');
   const inQueue = openQueue();
@@ -274,11 +264,6 @@ export function openScanCache({
     );
   }
 
-  async function renewed(at: ImageRef, size: ImageSize, gone: string) {
-    if ((await fileAt(at, size)) === gone) await refresh(at.volumeId);
-    return await fileAt(at, size);
-  }
-
   return {
     // The cached file of a Volume's Image (numbered from 1), fetched if need
     // be; null when the Volume has no such Image. Throws when Astia fails,
@@ -286,15 +271,7 @@ export function openScanCache({
     async image(at: ImageRef, size: ImageSize, signal: AbortSignal) {
       const fileId = await fileAt(at, size);
       if (fileId === undefined) return null;
-      try {
-        return await cached(at, size, fileId, signal);
-      } catch (err) {
-        if (!(err instanceof NoImageError) || !switches) throw err;
-        const now = await renewed(at, size, fileId);
-        if (now === undefined) return null;
-        if (now === fileId) throw err;
-        return await cached(at, size, now, signal);
-      }
+      return await cached(at, size, fileId, signal);
     },
 
     refresh,

@@ -1,7 +1,6 @@
-// The Reader: a vision model behind three questions about one Image of a
-// Volume. The matcher depends only on this interface; the real Reader is
-// claude-reader.ts. The scripts run it over a whole dataset; the Scan
-// viewer, on one reference when asked (ADR-0029).
+// The Reader: a vision model behind two questions about one Image of a
+// Volume. The search depends only on this interface; the real Reader is
+// claude-reader.ts. The Scan viewer runs it when asked (ADR-0029).
 //
 // "Unreadable" and "not found" are answers, not errors: a smudged page
 // number is skipped rather than guessed, and a model's refusal reads as

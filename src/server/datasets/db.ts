@@ -339,7 +339,7 @@ function backupOf(path: string) {
 export function openDb(path: string): Database {
   const db = new Database(path, { create: true });
   db.run('PRAGMA foreign_keys = ON;');
-  // The app and the vision pass write Marks at once, from two processes.
+  // Two processes may write at once, as the dev server beside the app.
   db.run('PRAGMA busy_timeout = 5000;');
   if (hasTables(db)) {
     const version = versionOf(db);

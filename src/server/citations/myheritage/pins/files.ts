@@ -1,5 +1,5 @@
-// The pins' files in a data folder. The app and the vision pass save into
-// one folder at once, from separate processes. Each save takes pins.lock,
+// The pins' files in a data folder. More than one process may save into
+// one folder at once, as the dev server beside the app. Each save takes pins.lock,
 // re-reads pins.local.json, applies all its changes, and renames a whole new
 // file over it; reads take no lock, as the rename means they never see half
 // a file. A folder saved before pins has its files migrated, and pins saved

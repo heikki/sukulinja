@@ -71,7 +71,7 @@ What an **Entry** says, written out: today a Citation's text, as MyHeritage's vo
 _Avoid_: text (alone), abstract.
 
 **Box**:
-Where an entry is written on its Image, as a rectangle in whole pixels of the full-size Image, as GEDCOM's `CROP` holds it. The Scan viewer and the vision pass scale it by the Image they have open. People citing the same **Entry** share one.
+Where an entry is written on its Image, as a rectangle in whole pixels of the full-size Image, as GEDCOM's `CROP` holds it. The Scan viewer and Vision Match scale it by the Image they have open. People citing the same **Entry** share one.
 
 **Link**:
 Where a Church-book reference points in Astia, as far down as its **Precision** goes, and who says so: its **Certainty**. A Split reference has one per candidate Volume.
@@ -94,7 +94,7 @@ A stretch of a Volume whose Page numbers go up with its Images; one starts where
 A second photograph of the same page within one Volume, on the next Image.
 
 **Re-scan**:
-Astia replacing a Volume's Images with a new filming of the book, as it did Mikkeli I Ab:9 (455 greyscale Images, then 434 in colour). Every Image's file id changes, and an Image number may hold another page. Astia gives no notice; it answers an old file id with a placeholder. The Scan viewer then says what switching to the new filming leaves out, and switches when the person says so; the vision pass and the scripts switch on their own.
+Astia replacing a Volume's Images with a new filming of the book, as it did Mikkeli I Ab:9 (455 greyscale Images, then 434 in colour). Every Image's file id changes, and an Image number may hold another page. Astia gives no notice; it answers an old file id with a placeholder. The Scan viewer then says what switching to the new filming leaves out, and switches when the person says so.
 _Avoid_: rescan, refilming (as names).
 
 **Doubled volume**:
@@ -105,7 +105,7 @@ Where the app shows the Image a Church-book reference links, opened from its sou
 _Avoid_: record viewer (a record is MyHeritage's), Astia viewer (Astia's own site).
 
 **Scan cache**:
-The Images kept on disk for the Scan viewer and the vision pass, up to a size the install sets; the least recently viewed go first.
+The Images kept on disk for the Scan viewer and Vision Match, up to a size the install sets; the least recently viewed go first.
 _Avoid_: image cache, Astia cache (that's Astia's answers about archives and Volumes).
 
 **Parish**:
@@ -158,7 +158,7 @@ Turning a Church-book reference Marked at the entry, with its Box, into a Citati
 _Avoid_: migration (that's the one-off script).
 
 **Discard**:
-Taking a reference's **Box** back by hand in the Scan viewer, a Mark's or a **Match**'s, so its Link goes back to the estimate. The link goes from every citation of the record, which cite their original page again; Page pins and Record ranges stay. A Match discarded is only undone: nothing of it is kept and it writes no Change, so the vision pass may save it again (ADR-0029).
+Taking a reference's **Box** back by hand in the Scan viewer, a Mark's or a **Match**'s, so its Link goes back to the estimate. The link goes from every citation of the record, which cite their original page again; Page pins and Record ranges stay. A Match discarded is only undone: nothing of it is kept and it writes no Change, so Vision Match may save it again (ADR-0029).
 _Avoid_: clear, delete (only the Box's pins go).
 
 **Provenance**:
@@ -182,7 +182,7 @@ A Volume's span of Record numbers. Overrides choosing the Volume by years. A Rec
 The vision model behind three questions about one Image: the Page numbers written on it, the earliest and latest entry dates on it, and whether a named person is written on it. "Unreadable" is an answer it can give. A **Vision Match** asks it.
 
 **Vision Match**:
-Searching the scans for a Church-book reference with the **Reader**, and saving the **Match** it confirms: for a whole dataset by the scripts (the vision pass), or for every estimate on an Image at once, from the Scan viewer's menu (ADR-0029), which then says what it found and what it took. The name of the search, never of the Match it saves.
+Searching the scans for a Church-book reference with the **Reader**, and saving the **Match** it confirms: for every estimate on an Image at once, from the Scan viewer's menu (ADR-0029), which then says what it found and what it took. The name of the search, never of the Match it saves.
 
 **Confirmation**:
 Finding the person's name on the Image a search landed on, or on the Images around it. Only a confirmed match is saved.
