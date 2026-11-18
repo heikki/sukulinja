@@ -21,3 +21,4 @@ After ADR-0023 a residence's place is MyHeritage's whole chain, "farm, village, 
 
 - No schema change; the Change kind `places-tidied` stays for the script's Changes.
 - Still open: the villages' and farms' old spellings ("Wehmais", "Kyrckoby"). Those need a way to rename a place everywhere.
+- 2026-11-18: the script was removed, as nothing ran it any more; places are tidied with the assistant, and later by the checks of `.scratch/tree-quality/spec.md`. The Change kinds `addresses-to-places` and `places-tidied` stay for the Changes it made.
