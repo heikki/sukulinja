@@ -29,13 +29,7 @@ export type VisionReaders = (
 
 export type SpendingReader = Pick<
   ClaudeReader,
-  | 'models'
-  | 'versions'
-  | 'pageNumbers'
-  | 'dates'
-  | 'findEntry'
-  | 'findEntries'
-  | 'spend'
+  'models' | 'versions' | 'pageNumbers' | 'findEntry' | 'findEntries' | 'spend'
 >;
 
 const NO_VISION = 'Vision Match is not set up.';
@@ -49,7 +43,7 @@ export function claudeVision(
   return async (model, image) => {
     const credentials = await key();
     if (credentials === null) throw new Refusal(400, NO_KEY);
-    const models = { pages: model, dates: model, entry: model };
+    const models = { pages: model, entry: model };
     return claudeReader({ models, image, apiKey: credentials.apiKey });
   };
 }

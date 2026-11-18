@@ -12,9 +12,8 @@ import type { Reader } from './reader';
 // juva-1 numbers each spread with its Image number; Matti is on Image 12.
 function reader(on: Record<number, string>): Reader {
   return {
-    models: { pages: 'fake', dates: 'fake', entry: 'fake' },
+    models: { pages: 'fake', entry: 'fake' },
     pageNumbers: async ({ image }) => await Promise.resolve({ pages: [image] }),
-    dates: async () => await Promise.resolve({ unreadable: true }),
     findEntry: async ({ image }, { name }) => {
       const found = on[image] === name;
       return await Promise.resolve({

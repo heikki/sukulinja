@@ -21,37 +21,31 @@ import type { Spend } from '../../../claude/client';
 import type { ImageRef } from '../../astia/astia';
 import type { Region, Scan } from './images';
 import type {
-  DatesReading,
   EntryReading,
   Fractions,
   PagesReading,
   Person,
   Question,
-  Reader,
-  Register
+  Reader
 } from './reader';
 
 type Effort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 
 // Changed with what a question asks, so readings made before are asked
 // again: find-entry gained the birth year and the entry's box, then the
-// household table, then the date written for the entry; dates gained the
-// register, then dates in any register.
+// household table, then the date written for the entry.
 const VERSIONS: Partial<Record<Question, string>> = {
   pages: '8',
-  dates: '3',
   entry: '4'
 };
 
 const DEFAULT_MODELS: Record<Question, string> = {
   pages: 'claude-haiku-5-5',
-  dates: 'claude-haiku-5-5',
   entry: 'claude-haiku-5-5'
 };
 
 const DEFAULT_EFFORT: Record<Question, Effort> = {
   pages: 'low',
-  dates: 'low',
   entry: 'high'
 };
 
@@ -75,16 +69,6 @@ const PAGE_TOP: Region = { left: 0, top: 0, width: 0.5, height: 0.15 };
 const PAGES_PROMPT = `This is the top left corner of a spread in a church book. Its page number is handwritten in ink at the very top left: a large number, often with a flourish under or through it. Ignore printed numbers, column headings and entry numbers. Read the page number one digit at a time, from left to right, counting every digit, then give the whole number. If there is none, answer readable: false.`;
 
 const PAGE_TOP_PROMPT = `This is the top of the left page of a spread in a church book. Its page number is handwritten in ink at the top, at the left or in the middle, sometimes after a word such as Pagina. Ignore printed numbers, column headings and entry numbers. Read the page number one digit at a time, from left to right, counting every digit, then give the whole number. If there is none, answer readable: false.`;
-
-const DATES_PROMPT = `This image is from a parish register, whose entries run in date order. One book may hold several registers one after another: baptisms, marriages, deaths and burials, moves.
-
-Say which register the entries on this image are in: baptisms (births and baptisms), marriages (marriages or banns, often headed Copulati or Vihityt), or other (deaths and burials, often headed Döde or Kuolleet; communicants, moves, an index, a title page).
-
-Give the earliest and the latest date of the entries on it, as YYYY-MM-DD, whatever the register: for baptisms, any birth or baptism date written for an entry; for marriages, the marriage (or banns) dates; for deaths, the death or burial dates. Give the dates of the entries actually written on this image, not the span of the year or section they belong to.
-
-The year is often written only at the top of the page or of a section and holds for the entries below it; month names may be in Swedish, Finnish or Latin, or abbreviated.
-
-If you can't read at least one complete date with its year, leave the dates empty: on a page of baptisms or marriages, answer readable: false; on a page of another register, answer readable: true with its register. If you can't tell the register either, answer readable: false.`;
 
 function householdLines(person: Person) {
   const h = person.household ?? null;
@@ -210,17 +194,6 @@ const SCHEMAS: Record<Question, Record<string, unknown>> = {
     required: ['readable', 'digits', 'number'],
     additionalProperties: false
   },
-  dates: {
-    type: 'object',
-    properties: {
-      readable: { type: 'boolean' },
-      earliest: { type: 'string' },
-      latest: { type: 'string' },
-      register: { type: 'string', enum: ['baptisms', 'marriages', 'other'] }
-    },
-    required: ['readable', 'earliest', 'latest', 'register'],
-    additionalProperties: false
-  },
   entry: {
     type: 'object',
     properties: {
@@ -300,25 +273,6 @@ export function toPages(
   return Number.isInteger(number) && number > 0
     ? { pages: [number] }
     : UNREADABLE;
-}
-
-function toDates(json: {
-  readable: boolean;
-  earliest: string;
-  latest: string;
-  register: Register;
-}): DatesReading {
-  const { earliest, latest, register } = json;
-  if (!json.readable) return UNREADABLE;
-  if (!ISO_DATE.test(earliest) || !ISO_DATE.test(latest)) {
-    // Another register's page tells the search to pass it, dated or not.
-    return register === 'other'
-      ? { earliest: '', latest: '', register }
-      : UNREADABLE;
-  }
-  return earliest <= latest
-    ? { earliest, latest, register }
-    : { earliest: latest, latest: earliest, register };
 }
 
 interface EntryJson {
@@ -483,12 +437,6 @@ export function claudeReader(options: ClaudeReaderOptions): ClaudeReader {
         regions: [PAGE_TOP]
       });
       return toPages(top.json as Parameters<typeof toPages>[0]);
-    },
-    dates: async (at) => {
-      const { json } = await ask('dates', at, DATES_PROMPT);
-      return json === null
-        ? UNREADABLE
-        : toDates(json as Parameters<typeof toDates>[0]);
     },
     findEntry: async (at, person) => {
       const { json, scan } = await ask('entry', at, entryPrompt(person));

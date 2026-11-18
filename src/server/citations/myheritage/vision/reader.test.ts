@@ -21,20 +21,12 @@ afterEach(async () => {
 // A Volume whose Image n carries page n + 2, with Liisa Malli on Image 4.
 function fakeReader(model: string): Reader {
   return {
-    models: { pages: model, dates: model, entry: model },
+    models: { pages: model, entry: model },
     pageNumbers: async ({ image }) => {
       asked.push(`pages ${image}`);
       return await Promise.resolve(
         image === 9 ? { unreadable: true } : { pages: [image + 2] }
       );
-    },
-    dates: async ({ image }) => {
-      asked.push(`dates ${image}`);
-      return await Promise.resolve({
-        earliest: `1829-0${image}-01`,
-        latest: `1829-0${image}-28`,
-        register: 'baptisms' as const
-      });
     },
     findEntry: async ({ image }, person) => {
       asked.push(`entry ${image} ${person.name}`);
@@ -49,7 +41,6 @@ async function readAll(reader: Reader) {
   return [
     await reader.pageNumbers(at),
     await reader.pageNumbers({ volumeId: 'v', image: 9 }),
-    await reader.dates(at),
     await reader.findEntry(at, { name: 'Liisa Malli' }),
     await reader.findEntry(at, { name: 'Matti Esimerkki', date: '1829' })
   ];
@@ -60,11 +51,10 @@ test('a re-run gives the same readings without asking again', async () => {
   expect(first).toEqual([
     { pages: [6] },
     { unreadable: true },
-    { earliest: '1829-04-01', latest: '1829-04-28', register: 'baptisms' },
     { found: true, confidence: 0.9 },
     { found: false, confidence: 0.8 }
   ]);
-  expect(asked).toHaveLength(5);
+  expect(asked).toHaveLength(4);
 
   asked = [];
   expect(await readAll(cachedReader(fakeReader('m1'), dir))).toEqual(first);
@@ -75,7 +65,7 @@ test('another model, or another person asked about, reads again', async () => {
   await readAll(cachedReader(fakeReader('m1'), dir));
   asked = [];
   await readAll(cachedReader(fakeReader('m2'), dir));
-  expect(asked).toHaveLength(5);
+  expect(asked).toHaveLength(4);
 
   asked = [];
   const reader = cachedReader(fakeReader('m1'), dir);

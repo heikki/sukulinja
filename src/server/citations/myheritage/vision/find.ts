@@ -130,7 +130,6 @@ export function counting(reader: Reader) {
     reader: {
       ...reader,
       pageNumbers: counted(reader.pageNumbers),
-      dates: counted(reader.dates),
       findEntry: counted(reader.findEntry),
       ...(reader.findEntries === undefined
         ? {}

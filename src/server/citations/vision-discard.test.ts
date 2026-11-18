@@ -22,9 +22,8 @@ afterEach(async () => {
 
 // Finds anyone on Image 12, whose spreads are numbered as the Images.
 const READER: Reader = {
-  models: { pages: 'fake', dates: 'fake', entry: 'fake' },
+  models: { pages: 'fake', entry: 'fake' },
   pageNumbers: async ({ image }) => await Promise.resolve({ pages: [image] }),
-  dates: async () => await Promise.resolve({ unreadable: true }),
   findEntry: async ({ image }) =>
     await Promise.resolve({
       found: image === 12,

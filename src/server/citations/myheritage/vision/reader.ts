@@ -43,15 +43,6 @@ export interface Unreadable {
 // two for one numbering pages.
 export type PagesReading = { pages: number[] } | Unreadable;
 
-// Which register an Image's entries are in: one Volume may hold its
-// marriages and its baptisms one after the other, each in date order.
-export type Register = 'baptisms' | 'marriages' | 'other';
-
-// The earliest and latest entry dates on the Image, as YYYY-MM-DD; empty on
-// an Image of another register whose dates can't be read.
-export type DatesReading =
-  { earliest: string; latest: string; register: Register } | Unreadable;
-
 // Whether the person is written on the Image, and how sure the model is,
 // from 0 to 1; where found, the birth year written beside them and the
 // date of the baptism or marriage the entry records (YYYY-MM-DD; null when
@@ -66,7 +57,7 @@ export type EntryReading =
     }
   | Unreadable;
 
-export type Question = 'pages' | 'dates' | 'entry';
+export type Question = 'pages' | 'entry';
 
 export interface Reader {
   // The model answering each question; a reading is cached per model.
@@ -75,7 +66,6 @@ export interface Reader {
   // made before are asked again.
   versions?: Partial<Record<Question, string>>;
   pageNumbers: (at: ImageRef) => Promise<PagesReading>;
-  dates: (at: ImageRef) => Promise<DatesReading>;
   findEntry: (at: ImageRef, person: Person) => Promise<EntryReading>;
   // Each of `people` on the Image, asked in one question, in their order:
   // every estimate on it at once, with the find-entry model (ADR-0029).
@@ -198,8 +188,6 @@ export function cachedReader(
     ...(reader.versions === undefined ? {} : { versions: reader.versions }),
     pageNumbers: async (at) =>
       await cached(at, 'pages', null, async () => await reader.pageNumbers(at)),
-    dates: async (at) =>
-      await cached(at, 'dates', null, async () => await reader.dates(at)),
     findEntry: async (at, person) =>
       await cached(
         at,

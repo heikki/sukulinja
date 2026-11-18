@@ -1,5 +1,5 @@
 // A vision model for the e2e tests, so Vision Match runs without one: it
-// reads no dates, the page numbers `pagesOf` gives an Image if any, and
+// reads the page numbers `pagesOf` gives an Image if any, and
 // finds everyone it's asked about on the Image `on`, at BOX.
 
 import type { SpendingReader, VisionReaders } from '@/server/citations';
@@ -12,8 +12,8 @@ export function findsOn(
 ): VisionReaders {
   return async (model) => {
     const reader: SpendingReader = {
-      models: { pages: model, dates: model, entry: model },
-      versions: { pages: '1', dates: '1', entry: '1' },
+      models: { pages: model, entry: model },
+      versions: { pages: '1', entry: '1' },
       spend: () => ({}),
       pageNumbers: async ({ image }) =>
         await Promise.resolve(
@@ -21,7 +21,6 @@ export function findsOn(
             ? { unreadable: true as const }
             : { pages: pagesOf(image) }
         ),
-      dates: async () => await Promise.resolve({ unreadable: true as const }),
       findEntry: async ({ image }) =>
         await Promise.resolve(foundIf(image === on)),
       findEntries: async ({ image }, people) =>

@@ -32,14 +32,13 @@ async function reader(model: string): Promise<SpendingReader> {
     return { found: image === 7, confidence: 0.9, box: BOX };
   }
   return await Promise.resolve({
-    models: { pages: model, dates: model, entry: model },
-    versions: { pages: '1', dates: '1', entry: '1' },
+    models: { pages: model, entry: model },
+    versions: { pages: '1', entry: '1' },
     spend: () => ({
       [model]: { calls: 0, inputTokens: 0, outputTokens: 0, dollars: 0 }
     }),
     pageNumbers: async ({ image }) =>
       await Promise.resolve({ pages: [image + 5] }),
-    dates: async () => await Promise.resolve({ unreadable: true as const }),
     findEntry: async ({ image }) => await Promise.resolve(found(image)),
     findEntries: async ({ image }, people) =>
       await Promise.resolve(people.map(() => found(image)))

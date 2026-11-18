@@ -25,17 +25,13 @@ async function vision(
     calls += 1;
   }
   return await Promise.resolve({
-    models: { pages: model, dates: model, entry: model },
+    models: { pages: model, entry: model },
     spend: () => ({
       [model]: { calls, inputTokens: 0, outputTokens: 0, dollars: 0 }
     }),
     pageNumbers: async ({ image }) => {
       ask(`pages ${image}`);
       return await Promise.resolve({ pages: [image] });
-    },
-    dates: async ({ image }) => {
-      ask(`dates ${image}`);
-      return await Promise.resolve({ unreadable: true as const });
     },
     findEntry: async ({ image }) => {
       ask(`entry ${image}`);
