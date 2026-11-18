@@ -4,11 +4,11 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
+import { importGedcomFixture } from '@test/gedcom-fixture';
+import { gedcom7Errors } from '@test/gedcom7/validate';
+import { treeSnapshot } from '@test/tree-snapshot';
 import { unzipSync } from 'fflate';
 
-import { importGedcomFixture } from '../../../test/gedcom-fixture';
-import { gedcom7Errors } from '../../../test/gedcom7/validate';
-import { treeSnapshot } from '../../../test/tree-snapshot';
 import {
   CITATIONS_READ,
   gatherEntries,

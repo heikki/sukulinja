@@ -5,7 +5,8 @@ import { mkdir, mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
 
-import { gedcom7Errors } from '../../../test/gedcom7/validate';
+import { gedcom7Errors } from '@test/gedcom7/validate';
+
 import { exportGedcom } from '../export/gedcom';
 import { OutdatedDatasetError, SCHEMA_VERSION } from './db';
 import { DatasetExists, DatasetNotFound, DatasetRegistry } from './registry';
