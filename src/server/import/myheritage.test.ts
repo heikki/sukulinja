@@ -9,14 +9,14 @@ import {
   collectFileUrls,
   convertMyHeritage,
   dropTags,
-  dropUnassociatedPhotos,
   isMyHeritageExport,
   photoNameOf,
   plainEntryPages,
   pruneEmptyLeaves,
   standardUids,
   stripCutouts,
-  transformObjes
+  transformObjes,
+  unparkUnassociatedPhotos
 } from './myheritage';
 
 function node(
@@ -44,14 +44,31 @@ function indi(...children: GedNode[]): GedNode {
   return node(0, 'INDI', undefined, children);
 }
 
-describe('dropUnassociatedPhotos', () => {
-  test('removes the @I88888888@ photo-bucket person, keeps real people', () => {
-    const bucket = { ...indi(obje('a.jpg')), xref: '@I88888888@' };
+describe('unparkUnassociatedPhotos', () => {
+  test("makes the @I88888888@ photo bucket's photos records of their own", () => {
+    const bucket = {
+      ...indi(obje('a.jpg', node(2, 'TITL', 'A'))),
+      xref: '@I88888888@'
+    };
     const person = { ...indi(obje('b.jpg')), xref: '@I500001@' };
-    const roots = [person, bucket];
-    expect(dropUnassociatedPhotos(roots)).toBe(true);
-    expect(roots).toEqual([person]);
-    expect(dropUnassociatedPhotos(roots)).toBe(false);
+    const taken = { ...node(0, 'NOTE', 'x'), xref: '@U1@' };
+    const roots = [person, taken, bucket];
+    expect(unparkUnassociatedPhotos(roots)).toBe(1);
+    expect(roots).toEqual([
+      person,
+      taken,
+      {
+        level: 0,
+        xref: '@U2@',
+        tag: 'OBJE',
+        children: [
+          node(1, 'FORM', 'jpg'),
+          node(1, 'FILE', 'a.jpg'),
+          node(1, 'TITL', 'A')
+        ]
+      }
+    ]);
+    expect(unparkUnassociatedPhotos(roots)).toBe(0);
   });
 });
 

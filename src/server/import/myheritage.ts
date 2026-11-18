@@ -6,8 +6,9 @@
 // other app understands. This module transforms such an export in place so the
 // existing media-ingest + GEDCOM import pipeline can consume it:
 //
-//   - drop the synthetic "Unassociated photos" person MyHeritage parks untagged
-//     photos under (before downloading, so its photos aren't fetched)
+//   - turn the photos MyHeritage parks under its synthetic "Unassociated
+//     photos" person into OBJE records nothing points at: Photos linked to
+//     no one, not a person in the tree
 //   - gather every referenced image into a staging dir, copied from the
 //     dataset's earlier import where it's there, else downloaded, and rewrite
 //     the FILE value to the photo's name (failed downloads keep the remote URL
@@ -26,7 +27,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 import { BAPTISM_COLLECTION, collectionOf } from '../citations';
 import { mimeOf } from '../gedcom/media-refs';
-import { findChild } from '../gedcom/parser';
+import { findChild, findChildren } from '../gedcom/parser';
 import type { GedNode } from '../gedcom/parser';
 import { runPool } from './pool';
 
@@ -70,13 +71,35 @@ function isCutout(obje: GedNode): boolean {
   return obje.children.some((c) => c.tag === '_CUTOUT' && c.value === 'Y');
 }
 
-export function dropUnassociatedPhotos(roots: GedNode[]) {
+function shiftLevels(node: GedNode, by: number): GedNode {
+  return {
+    ...node,
+    level: node.level + by,
+    children: node.children.map((c) => shiftLevels(c, by))
+  };
+}
+
+// The "Unassociated photos" person goes, and each of its OBJEs becomes a
+// record of its own, which nothing points at. Run once its MyHeritage-private
+// tags are dropped: they're keyed by the level they have under a person.
+export function unparkUnassociatedPhotos(roots: GedNode[]) {
   const i = roots.findIndex(
     (r) => r.tag === 'INDI' && r.xref === UNASSOCIATED_PHOTOS_XREF
   );
-  if (i === -1) return false;
-  roots.splice(i, 1);
-  return true;
+  if (i === -1) return 0;
+  const taken = new Set(roots.map((r) => r.xref));
+  let n = 0;
+  function nextXref(): string {
+    n += 1;
+    const xref = `@U${n}@`;
+    return taken.has(xref) ? nextXref() : xref;
+  }
+  const records = findChildren(roots[i]!, 'OBJE').map((obje) => ({
+    ...shiftLevels(obje, -1),
+    xref: nextXref()
+  }));
+  roots.splice(i, 1, ...records);
+  return records.length;
 }
 
 export function stripCutouts(roots: GedNode[]) {
@@ -177,10 +200,8 @@ function transformObje(obje: GedNode): void {
 
 export function transformObjes(roots: GedNode[]): void {
   function walk(node: GedNode): void {
-    for (const c of node.children) {
-      if (c.tag === 'OBJE') transformObje(c);
-      walk(c);
-    }
+    if (node.tag === 'OBJE') transformObje(node);
+    for (const c of node.children) walk(c);
   }
   for (const r of roots) walk(r);
 }
@@ -433,9 +454,9 @@ export async function convertMyHeritage(
   roots: GedNode[],
   options: MyHeritageOptions
 ): Promise<MyHeritageResult> {
-  dropUnassociatedPhotos(roots);
   const stripped = stripCutouts(roots);
   const dropped = dropTags(roots, DROP_TAGS);
+  unparkUnassociatedPhotos(roots);
   standardUids(roots);
   plainEntryPages(roots);
   const pruned = pruneEmptyLeaves(roots);

@@ -138,6 +138,34 @@ test('every file copied has a media row, and every row a file', async () => {
   expect(files.toSorted()).toEqual(rows.toSorted());
 });
 
+test('a photo no one is tagged in lands linked to no one', async () => {
+  const text = gedcom().replace(
+    '0 TRLR',
+    [
+      '0 @I88888888@ INDI',
+      '1 NAME Unassociated photos //',
+      '1 OBJE',
+      '2 FORM jpg',
+      `2 FILE ${photo('tok1', 'untagged')}`,
+      '2 _ALBUM @A1@',
+      '0 TRLR'
+    ].join('\n')
+  );
+  const { db } = await imported(undefined, text);
+  const people = db
+    .query<{ n: number }, []>('SELECT COUNT(*) AS n FROM persons')
+    .get();
+  expect(people?.n).toBe(2);
+  const row = db
+    .query<{ format: string | null; links: number }, []>(
+      `SELECT m.format,
+         (SELECT COUNT(*) FROM media_links l WHERE l.media_id = m.id) AS links
+       FROM media m WHERE m.original_path = '1/2/3/untagged.jpg'`
+    )
+    .get();
+  expect(row).toEqual({ format: 'image/jpeg', links: 0 });
+});
+
 async function photoStagings() {
   return (await readdir(tmpdir())).filter((f) =>
     f.startsWith('myheritage-photos-')
