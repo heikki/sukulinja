@@ -19,9 +19,6 @@ bun install
 bun dev       # serve the app in a browser
 ```
 
-The end-to-end tests drive that page in Chromium: see
-[e2e/README.md](e2e/README.md).
-
 To build and install to `/Applications` (macOS):
 
 ```bash
