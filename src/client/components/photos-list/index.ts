@@ -143,7 +143,7 @@ class PhotosListElement extends SignalWatcher(LitElement) {
     return html`<button
       class="photo ${viewing ? 'viewing' : ''}"
       aria-current=${viewing ? 'true' : 'false'}
-      aria-label=${`Photo, ${line.toLowerCase()}`}
+      aria-label=${`Photo, ${line ?? 'no one'}`}
       @click=${() => {
         this.state.chart.openPhoto(p, 'all');
       }}
@@ -157,7 +157,7 @@ class PhotosListElement extends SignalWatcher(LitElement) {
           draggable="false"
         />
       </span>
-      <span>${line}</span>
+      ${line === null ? nothing : html`<span>${line}</span>`}
     </button>`;
   }
 
