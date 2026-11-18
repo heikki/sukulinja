@@ -14,8 +14,8 @@ bun run e2e:headed                 # every test in a window you can watch
 One file:
 
 ```bash
-bun test --timeout 30000 ./e2e/photos.e2e.ts
-SUKULINJA_E2E_HEADED=1 bun test --timeout 60000 ./e2e/photos.e2e.ts
+bun test --timeout 30000 ./test/e2e/photos.e2e.ts
+SUKULINJA_E2E_HEADED=1 bun test --timeout 60000 ./test/e2e/photos.e2e.ts
 ```
 
 `bun run e2e <file>` still runs them all: the script names every test already.
@@ -28,7 +28,7 @@ Headed in a cloud session, which has no display: `xvfb-run -a bun run e2e:headed
 
 ## Writing a test
 
-- A test is `e2e/<path>.e2e.ts`, one path a person takes through the app.
+- A test is `test/e2e/<path>.e2e.ts`, one path a person takes through the app.
   `withApp(async ({ page }) => …)` gives it an app of its own on an empty data
   folder; `afterAll(closeBrowser)` closes the shared browser.
 - Take steps from `steps.ts` (`newTree`, `importTree`, `openList`,

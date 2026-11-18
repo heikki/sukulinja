@@ -3,7 +3,8 @@
 
 import { afterAll, test } from 'bun:test';
 
-import { answer, call } from '../src/server/assistant/testing';
+import { answer, call } from '@/server/assistant/testing';
+
 import { closeBrowser, shot, withApp } from './app';
 import { newTree, openList, turnAssistantOn } from './steps';
 

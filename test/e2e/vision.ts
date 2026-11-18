@@ -2,7 +2,7 @@
 // reads no dates, the page numbers `pagesOf` gives an Image if any, and
 // finds everyone it's asked about on the Image `on`, at BOX.
 
-import type { SpendingReader, VisionReaders } from '../src/server/citations';
+import type { SpendingReader, VisionReaders } from '@/server/citations';
 
 export const BOX = { left: 0.1, top: 0.2, width: 0.4, height: 0.05 };
 

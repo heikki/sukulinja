@@ -21,7 +21,7 @@ async function photosOf(page: Page, slug: string) {
 }
 
 // The demo the app ships, with its photos.
-const DEMO = resolve(import.meta.dir, '../resources/demo/bourbon.gdz');
+const DEMO = resolve(import.meta.dir, '../../resources/demo/bourbon.gdz');
 
 test('an exported GEDZIP imports back as the same tree', async () => {
   await withApp(async ({ page, exportDir }) => {

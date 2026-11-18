@@ -5,7 +5,7 @@
 
 import { resolve } from 'node:path';
 
-import { juvaAstia, VOLUMES } from '../src/server/citations/testing';
+import { juvaAstia, VOLUMES } from '@/server/citations/testing';
 
 export const BAPTISMS = '1000003';
 

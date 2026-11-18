@@ -15,7 +15,7 @@ export async function newTree(page: Page) {
   await page.waitForURL(/\/d\/esimerkin-suku\/#\/person\/1$/);
 }
 
-// The GEDCOM or GEDZIP in e2e/fixtures, or at an absolute path, imported
+// The GEDCOM or GEDZIP in test/e2e/fixtures, or at an absolute path, imported
 // from the dataset list as `name`, whose tree it then shows.
 export async function importTree(
   page: Page,

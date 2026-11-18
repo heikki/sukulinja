@@ -14,7 +14,7 @@ afterAll(closeBrowser);
 
 const PHOTOS = [
   resolve(import.meta.dir, 'fixtures/church-book-page.jpg'),
-  resolve(import.meta.dir, '../resources/icon.iconset/icon_256x256.png')
+  resolve(import.meta.dir, '../../resources/icon.iconset/icon_256x256.png')
 ];
 
 // The Photo the Photos list names by who is in it, once the viewer shows

@@ -12,12 +12,13 @@ import { join } from 'node:path';
 import { chromium } from 'playwright';
 import type { Browser, Page } from 'playwright';
 
-import type { ModelAnswer } from '../src/server/assistant/model';
-import { scripted } from '../src/server/assistant/testing';
-import { serveInBrowser } from '../src/server/browser';
-import type { VisionReaders } from '../src/server/citations';
-import { memoryKeyStore } from '../src/server/claude/key';
-import { DatasetRegistry } from '../src/server/datasets/registry';
+import type { ModelAnswer } from '@/server/assistant/model';
+import { scripted } from '@/server/assistant/testing';
+import { serveInBrowser } from '@/server/browser';
+import type { VisionReaders } from '@/server/citations';
+import { memoryKeyStore } from '@/server/claude/key';
+import { DatasetRegistry } from '@/server/datasets/registry';
+
 import { fixtureAstia } from './astia';
 
 export interface App {
