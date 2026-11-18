@@ -25,6 +25,7 @@ The end-to-end tests drive that page in Chromium, with a fixture Astia
 ```bash
 bunx playwright install chromium   # one-time
 bun run e2e
+SUKULINJA_E2E_HEADED=1 bun test --timeout 60000 ./e2e/photos.e2e.ts   # watch one
 ```
 
 To build and install to `/Applications` (macOS):

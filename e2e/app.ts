@@ -31,9 +31,12 @@ export interface App {
 
 let launched: Promise<Browser> | null = null;
 
-// One Chromium for the run, each app in a window of its own.
+// One Chromium for the run, each app in a window of its own. With
+// SUKULINJA_E2E_HEADED set, its windows show, each step a moment apart, to
+// watch a test run.
 async function sharedBrowser() {
-  launched ??= chromium.launch();
+  const headed = process.env.SUKULINJA_E2E_HEADED !== undefined;
+  launched ??= chromium.launch(headed ? { headless: false, slowMo: 200 } : {});
   return await launched;
 }
 
