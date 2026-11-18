@@ -148,10 +148,6 @@ export function openCitations(root: string, options: Options) {
         ofPerson: (personId: number) => citations.ofPerson(personId),
         // A person's Citation by its id, with whose it is.
         citationOf: (citationId: number) => citations.ofId(citationId),
-        // Titles the Volume sources made before with their archive, once
-        // (scripts/retitle-volume-sources).
-        retitleVolumeSources: async () =>
-          await citations.retitleVolumeSources(),
         // Whether a Re-scan replaced the Image's file.
         replaced: async (at: {
           volumeId: string;

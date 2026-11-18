@@ -516,30 +516,6 @@ test("a Volume's source is titled by its archive, so another parish's Volume of 
   ]);
 });
 
-test('the Volume sources made before are retitled by their archive, once', async () => {
-  astia = titledJuva();
-  const { db, citations } = withPeople([
-    cite(1, rippiCitation(5001, '1790 - 1796', 12))
-  ]);
-  // Made before a source named its archive.
-  db.run(
-    "INSERT INTO sources (id, xref, title, publisher) VALUES (7, '@ASTIA_JUVA_1@', ?, 'Kansallisarkisto, Astia')",
-    [JUVA_1]
-  );
-  db.run(
-    `INSERT INTO citations (scope_type, scope_id, source_id, page,
-       link_volume_id, link_volume, link_image, link_file_id, link_by, added_in_app)
-     VALUES ('person', 2, 7, ?, 'juva-1', ?, 13, 'juva-1-f13', 'hand', 1)`,
-    [ENTRY_LINK.url, JUVA_1]
-  );
-
-  expect(await citations.retitleVolumeSources()).toEqual([
-    { from: JUVA_1, to: `${ARCHIVE}, ${JUVA_1}` }
-  ]);
-  expect(sources(db)).toMatchObject([{ title: `${ARCHIVE}, ${JUVA_1}` }]);
-  expect(await citations.retitleVolumeSources()).toEqual([]);
-});
-
 test("a Citation of a baptism keeps the person's Role in the entry, and refuses another kind's", async () => {
   const { db, citations } = withPeople([
     cite(1, rippiCitation(5001, '1790 - 1796', 12))

@@ -73,20 +73,6 @@ export function openAppCitations(db: Database) {
      WHERE xref = ?1 OR (?2 IS NOT NULL AND title = ?2 AND publisher = ?3)
      ORDER BY xref = ?1 DESC, id LIMIT 1`
   );
-  // The Volume sources the app made, each with a Volume its Citations of
-  // Images are in.
-  const volumeSources = db.prepare<
-    { id: number; title: string | null; volumeId: string; volume: string },
-    [string]
-  >(
-    `SELECT s.id, s.title, c.link_volume_id AS volumeId,
-       c.link_volume AS volume
-     FROM sources s JOIN ${CITATIONS_READ} c ON c.source_id = s.id
-     WHERE s.publisher = ? AND c.added_in_app = 1
-       AND c.link_volume_id IS NOT NULL
-     GROUP BY s.id ORDER BY s.id`
-  );
-  const retitle = db.prepare('UPDATE sources SET title = ? WHERE id = ?');
   const xrefTaken = db.prepare<{ id: number }, [string]>(
     'SELECT id FROM sources WHERE xref = ?'
   );
@@ -237,23 +223,6 @@ export function openAppCitations(db: Database) {
         archives.set(at.volumeId, (await archiveOf?.(at.volumeId)) ?? null);
       }
       convertNow(rows, (volumeId) => archives.get(volumeId) ?? null);
-    },
-
-    // Titles each Volume source the app made with its archive, where
-    // `archiveOf` says which (ADR-0019): what was retitled, from and to.
-    // Again, none.
-    async retitleVolumeSources(archiveOf: ArchiveOf) {
-      const done: Array<{ from: string | null; to: string }> = [];
-      for (const s of volumeSources.all(PUBLISHER)) {
-        // eslint-disable-next-line no-await-in-loop -- one Volume at a time
-        const archive = await archiveOf(s.volumeId);
-        if (archive === null) continue;
-        const to = volumeSourceTitle(s.volume, archive);
-        if (s.title === to) continue;
-        retitle.run(to, s.id);
-        done.push({ from: s.title, to });
-      }
-      return done;
     },
 
     // Deletes a Citation, imported or made in the app (ADR-0021), with its

@@ -605,9 +605,6 @@ export function createCitations<R extends BookRef>(
     // Makes, edits, unnames someone in and removes an Entry (ADR-0026).
     entries,
 
-    // Titles the Volume sources made before with their archive (ADR-0019).
-    retitleVolumeSources: () => made.retitleVolumeSources(volumeArchive),
-
     // Deletes a Citation, and gives it as it was, with whose it was; null
     // when there's no such Citation. One of an Entry is unnamed from it.
     uncite(citationId: number) {
