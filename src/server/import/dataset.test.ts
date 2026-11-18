@@ -166,14 +166,7 @@ test('a photo no one is tagged in lands linked to no one', async () => {
   expect(row).toEqual({ format: 'image/jpeg', links: 0 });
 });
 
-async function photoStagings() {
-  return (await readdir(tmpdir())).filter((f) =>
-    f.startsWith('myheritage-photos-')
-  );
-}
-
 test('a download that throws fails the import and leaves nothing behind', async () => {
-  const before = await photoStagings();
   const registry = new DatasetRegistry(root);
   const failed = await registry
     .import({
@@ -189,7 +182,6 @@ test('a download that throws fails the import and leaves nothing behind', async 
     .catch((err: unknown) => err);
   expect(String(failed)).toContain('connection reset');
   expect(await readdir(root)).toEqual([]);
-  expect(await photoStagings()).toEqual(before);
 });
 
 // A GEDZIP of a person with a photo, a photo whose name has a space, and a
@@ -232,21 +224,14 @@ async function importedGedzip(zip: Uint8Array) {
   return { outcome, log, db: registry.open('doe') };
 }
 
-async function importStagings() {
-  return (await readdir(tmpdir())).filter((f) =>
-    f.startsWith('sukulinja-import-')
-  );
-}
-
 test("a GEDZIP's photos are imported, a percent-escaped name too", async () => {
-  const before = await importStagings();
   const { outcome, db } = await importedGedzip(gedzip());
   expect(outcome.skipped).toEqual([]);
   expect(linkRows(db).map((r) => r.original_path)).toEqual([
     'media/portrait.jpg',
     'media/photo%201.jpg'
   ]);
-  expect(await importStagings()).toEqual(before);
+  expect(await readdir(root)).toEqual(['doe']);
 });
 
 test('a GEDZIP file no FILE names is logged, not imported', async () => {
@@ -264,7 +249,6 @@ test('a GEDZIP entry named to climb out is not written', async () => {
 });
 
 test('a GEDZIP without gedcom.ged, or not a zip, fails the import', async () => {
-  const before = await importStagings();
   const registry = new DatasetRegistry(root);
   async function failure(zip: Uint8Array) {
     return await registry
@@ -284,5 +268,4 @@ test('a GEDZIP without gedcom.ged, or not a zip, fails the import', async () => 
     'not a zip archive'
   );
   expect(await readdir(root)).toEqual([]);
-  expect(await importStagings()).toEqual(before);
 });

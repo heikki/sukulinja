@@ -3,9 +3,7 @@
 // the media and write the new dataset's SQLite DB.
 
 import type { Database } from 'bun:sqlite';
-import { mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { rm } from 'node:fs/promises';
 
 import { unpackGedzip } from '../gedcom/gedzip';
 import { localPaths } from '../gedcom/media-refs';
@@ -53,11 +51,13 @@ export interface ImportRequest {
   log?: (msg: string) => void;
 }
 
-// Where an import is built: a staged database and media folder. An import
-// only makes a new dataset (ADR-0021).
+// Where an import is built: a staged database and media folder, and new
+// folders for its own unpacking and downloads, which it removes when done.
+// An import only makes a new dataset (ADR-0021).
 interface ImportInto {
   db: Database;
   mediaDir: string;
+  scratchDir: () => Promise<string>;
 }
 
 // Standard lines the database has nowhere to keep yet (ADR-0013).
@@ -115,7 +115,7 @@ export async function buildImport(into: ImportInto, req: ImportRequest) {
   let unpacked: string | null = null;
   let photoStaging: string | null = null;
   try {
-    unpacked = await mkdtemp(join(tmpdir(), 'sukulinja-import-'));
+    unpacked = await into.scratchDir();
     let sourceDir = unpacked;
     const { text, archived } = await readSource(req.source, unpacked, log);
 
@@ -125,7 +125,7 @@ export async function buildImport(into: ImportInto, req: ImportRequest) {
     let myheritage: MyHeritageSummary | null = null;
 
     if (isMyHeritageExport(roots)) {
-      photoStaging = await mkdtemp(join(tmpdir(), 'myheritage-photos-'));
+      photoStaging = await into.scratchDir();
       const conv = await convertMyHeritage(roots, {
         stagingDir: photoStaging,
         download: req.download,

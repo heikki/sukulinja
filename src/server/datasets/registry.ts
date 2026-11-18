@@ -105,7 +105,15 @@ export class DatasetRegistry {
     }
     const staging = await this.createStaging(req.slug);
     try {
-      const built = await buildImport(staging, req);
+      // Its scratch folders are staging dirs too, so a killed import's
+      // are swept with the rest.
+      const built = await buildImport(
+        {
+          ...staging,
+          scratchDir: async () => await mkdtemp(join(this.root, '.staging-'))
+        },
+        req
+      );
       writeMeta(staging.db, {
         display_name: req.displayName ?? req.slug,
         source_filename: req.sourceFilename,
