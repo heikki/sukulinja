@@ -20,7 +20,7 @@ const GAP_MS = 1000;
 const RETRY_MS = 30_000;
 const RETRIES = 3;
 
-interface Options {
+export interface DownloadOptions {
   // The pause after each Image fetched from Astia.
   gapMs?: number;
   // The wait before trying an Image again after Astia failed on it, and
@@ -69,7 +69,7 @@ function errorOf(err: unknown): DownloadError {
 
 export function openDownloads(
   { astia, cache }: { astia: Astia; cache: ScanCache },
-  options: Options = {}
+  options: DownloadOptions = {}
 ) {
   const gapMs = options.gapMs ?? GAP_MS;
   const retryMs = options.retryMs ?? RETRY_MS;

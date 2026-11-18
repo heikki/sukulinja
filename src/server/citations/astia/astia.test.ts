@@ -63,6 +63,13 @@ let dir = '';
 let sent: string[] = [];
 // Statuses, or 200 bodies, to answer with, in order, before the real answer.
 let failures: Array<number | Uint8Array<ArrayBuffer>> = [];
+// The waits Astia would have made, kept instead of waited out.
+let waits: number[] = [];
+
+function wait(ms: number) {
+  waits.push(ms);
+  return Promise.resolve();
+}
 
 function fakeFetch(url: string) {
   const path = url.replace(/^https:\/\/astia\.narc\.fi\/uusiastia\//, '');
@@ -93,7 +100,7 @@ async function failure(request: Promise<unknown>) {
 }
 
 function open(cacheDir = join(dir, 'cache')) {
-  return openAstia(cacheDir, { fetch: fakeFetch, gapMs: 0 });
+  return openAstia(cacheDir, { fetch: fakeFetch, sleep: wait });
 }
 
 beforeEach(async () => {
@@ -101,6 +108,7 @@ beforeEach(async () => {
   answers = { ...ANSWERS };
   sent = [];
   failures = [];
+  waits = [];
 });
 afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
@@ -203,13 +211,12 @@ test("doesn't keep a failure: the next call asks again", async () => {
 });
 
 test('retries a failing Image briefly, then gives up', async () => {
-  const started = performance.now();
   failures = [503, 503, 503];
   expect(await failure(open().imageBytes('121', '121-f1'))).toMatch(
     /^AstiaError: 503 /
   );
   expect(sent).toHaveLength(3);
-  expect(performance.now() - started).toBeLessThan(3000);
+  expect(waits).toEqual([500, 1000]);
 });
 
 // The start of the PNG Astia gives in place of an Image now and then.
@@ -328,7 +335,7 @@ test("doesn't wait out a rate limit on an Image", async () => {
 test("a request that can't reach Astia throws an AstiaError", async () => {
   const astia = openAstia(join(dir, 'cache'), {
     fetch: () => Promise.reject(new TypeError('network down')),
-    gapMs: 0
+    sleep: wait
   });
   expect(await failure(astia.archiveVolumes(ARCHIVE))).toBe(
     `AstiaError: TypeError: network down on ws/aineisto/readOne.php?id=${ARCHIVE}`

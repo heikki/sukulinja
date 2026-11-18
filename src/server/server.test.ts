@@ -73,11 +73,14 @@ describe('createStaticFetch', () => {
   });
 });
 
-// Serves with this Astia instead.
+// Serves with this Astia instead, which downloads from without a pause.
 function serveWith(other: MemoryAstia) {
   astia = other;
   fetch = createStaticFetch({
-    api: createApi(new DatasetRegistry(join(root, 'data')), { astia }),
+    api: createApi(new DatasetRegistry(join(root, 'data')), {
+      astia,
+      downloads: { gapMs: 0 }
+    }),
     staticRoots: []
   });
 }

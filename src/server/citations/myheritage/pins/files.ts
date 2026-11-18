@@ -87,8 +87,12 @@ async function tryLock(lock: string) {
 }
 
 // Runs `fn` holding the lock: retries while another save holds it, takes
-// over one left by a process that died, and gives up after LOCK_WAIT_MS.
-export async function withLock<T>(lock: string, fn: () => Promise<T>) {
+// over one left by a process that died, and gives up after `waitMs`.
+export async function withLock<T>(
+  lock: string,
+  fn: () => Promise<T>,
+  { waitMs = LOCK_WAIT_MS } = {}
+) {
   const since = Date.now();
   // eslint-disable-next-line no-await-in-loop -- waiting on the other save
   while (!(await tryLock(lock))) {
@@ -99,7 +103,7 @@ export async function withLock<T>(lock: string, fn: () => Promise<T>) {
       await rm(lock, { force: true });
       continue;
     }
-    if (Date.now() - since >= LOCK_WAIT_MS) {
+    if (Date.now() - since >= waitMs) {
       throw new Error(`The pins are locked by another save: ${lock}`);
     }
     // eslint-disable-next-line no-await-in-loop -- as above

@@ -165,9 +165,10 @@ interface ImageLists {
 type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
 interface AstiaOptions {
-  // What requests go out through, and the gap kept between them.
+  // What requests go out through, and how the gaps between them and the
+  // waits before a retry are waited out.
   fetch?: Fetch;
-  gapMs?: number;
+  sleep?: (ms: number) => Promise<void>;
 }
 
 // Astia returns XML converted to JSON: elements as {name, children, tagData}.
@@ -245,7 +246,7 @@ function unitsOf(json: { sisaltyvat?: XmlNode[] | '' }) {
 // back to back, so callers queue them as they see fit.
 export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
   const send = options.fetch ?? fetch;
-  const gapMs = options.gapMs ?? REQUEST_GAP_MS;
+  const sleep = options.sleep ?? Bun.sleep;
   let gate: Promise<unknown> = Promise.resolve();
   const inflight = new Map<string, Promise<unknown>>();
   const fetchingPast = new Map<string, Promise<string>>();
@@ -255,7 +256,7 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
 
   function throttled<T>(fn: () => Promise<T>) {
     const run = gate.then(fn);
-    gate = run.catch(() => undefined).then(() => Bun.sleep(gapMs));
+    gate = run.catch(() => undefined).then(() => sleep(REQUEST_GAP_MS));
     return run;
   }
 
@@ -286,7 +287,7 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
     if (wait !== null) {
       const why = empty ? 'unusable response' : String(res.status);
       console.log(`  ${why} on ${path}, waiting ${Math.round(wait / 1000)}s`);
-      await Bun.sleep(wait);
+      await sleep(wait);
       return await request(path, patience, attempt + 1, usable);
     }
     if (empty) return null;

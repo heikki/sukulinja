@@ -10,7 +10,7 @@ import type { RunOperation } from './assistant/proposal';
 import type { Changes, NewChange } from './changes/changes';
 import { changeOperations } from './changes/operations';
 import { claudeVision, openCitations } from './citations';
-import type { Astia, VisionReaders } from './citations';
+import type { Astia, DownloadOptions, VisionReaders } from './citations';
 import { systemKeyStore } from './claude/key';
 import type { KeyStore } from './claude/key';
 import { keyOperations, keyStatus } from './claude/key-operations';
@@ -107,6 +107,8 @@ export interface ApiOptions {
   // The Scan viewer's vision model; by default Claude, with the
   // assistant's key.
   vision?: VisionReaders;
+  // How church book downloads pace Astia; by default gently.
+  downloads?: DownloadOptions;
 }
 
 export function createApi(
@@ -117,6 +119,7 @@ export function createApi(
   const scans = openCitations(registry.root, {
     astia: options.astia,
     warmUp: options.warmUp,
+    downloads: options.downloads,
     datasets: async () => await openDatasets(),
     changed,
     vision:

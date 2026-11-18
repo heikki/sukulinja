@@ -9,6 +9,7 @@ import { routeShared } from './astia-routes';
 import { openAstia } from './astia/astia';
 import type { Astia, ImageRef } from './astia/astia';
 import { openDownloads } from './astia/downloads';
+import type { DownloadOptions } from './astia/downloads';
 import { openParishes } from './astia/parishes';
 import type { Parishes } from './astia/parishes';
 import { imageSize, openScanCache } from './astia/scan-cache';
@@ -21,6 +22,7 @@ import { openVision } from './vision';
 import type { VisionReaders } from './vision';
 
 export type { Astia } from './astia/astia';
+export type { DownloadOptions } from './astia/downloads';
 export { claudeVision } from './vision';
 export type { SpendingReader, VisionReaders } from './vision';
 export { annotated, openAnnotations } from './annotations';
@@ -52,13 +54,15 @@ interface Options {
   // The vision model the Scan viewer's Vision Match asks; none, and it's
   // refused.
   vision?: VisionReaders;
+  // How church book downloads pace Astia; by default gently.
+  downloads?: DownloadOptions;
 }
 
 // The Citations of the data folder at `root`, for every dataset in it.
 export function openCitations(root: string, options: Options) {
   const astia = options.astia ?? openAstia(join(root, '.astia-cache'));
   const cache = openScanCache({ astia, root, switches: false });
-  const downloads = openDownloads({ astia, cache });
+  const downloads = openDownloads({ astia, cache }, options.downloads);
   // The Scan viewer has just shown the Image a Box is drawn on.
   async function sizeOf(at: ImageRef) {
     return await imageSize(cache, at);

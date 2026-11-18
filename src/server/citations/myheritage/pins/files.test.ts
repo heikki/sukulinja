@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { BOX, listedAstia, ref } from '../test-pins';
-import { fillFileIds } from './files';
+import { fillFileIds, withLock } from './files';
 import { openVolumeFacts } from './pins';
 
 let dir = '';
@@ -92,19 +92,25 @@ test('takes over a lock left by a process that died', async () => {
   expect(await readdir(dir)).toEqual(['pins.local.json']);
 });
 
-test('gives up after 5 s on a lock another save holds', async () => {
-  await Bun.write(
-    join(dir, 'pins.lock'),
-    JSON.stringify({ pid: 1, at: Date.now() })
-  );
+test('gives up waiting on a lock another save holds', async () => {
+  const lock = join(dir, 'pins.lock');
+  await Bun.write(lock, JSON.stringify({ pid: 1, at: Date.now() }));
+  let ran = false;
   const since = Date.now();
-  const failed = await savePage(open(), 21, 11)
+  const failed = await withLock(
+    lock,
+    async () => {
+      ran = true;
+      await Promise.resolve();
+    },
+    { waitMs: 100 }
+  )
     .then(() => null)
     .catch((err: unknown) => err);
-  expect(Date.now() - since).toBeGreaterThanOrEqual(5000);
+  expect(Date.now() - since).toBeGreaterThanOrEqual(100);
   expect(String(failed)).toContain('locked');
-  expect(await Bun.file(localFile()).exists()).toBe(false);
-}, 10_000);
+  expect(ran).toBe(false);
+});
 
 // ---------------------------------------------------------------- migration
 
