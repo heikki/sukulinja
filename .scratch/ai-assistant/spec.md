@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved — tickets 01–07 built (ADR-0028); 08 open
 
 On master behind a switch (Settings → Assistant, off by default) since 2026-11-13; the read-only version (tickets 01–05, 07) is done, and Proposals (06) since 2026-11-15 (ADR-0028).
 

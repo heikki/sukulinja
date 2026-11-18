@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved — built as ADR-0026; tickets 07–09 went to source-first and tree-quality
 
 # One Box per Entry
 

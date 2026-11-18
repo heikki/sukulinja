@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved — tickets 01–06 built (ADR-0033)
 
 # Source first: a new tree from its church-book Entries
 
