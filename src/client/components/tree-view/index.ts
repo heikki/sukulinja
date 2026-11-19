@@ -16,7 +16,7 @@ import '../scan-viewer';
 
 import { detailsWidth, setDetailsWidth } from '../person-panel/helpers';
 
-import '../person-search';
+import '../find-person';
 import '../corner-lists';
 import '../settings';
 
@@ -394,12 +394,12 @@ class TreeViewElement extends SignalWatcher(LitElement) {
   private renderCorner() {
     return html`
       <div class="corner">
-        <sl-person-search
+        <sl-find-person
           .persons=${this.persons}
           @pick=${(e: PickEvent) => {
             this.state.chart.select(e.detail.id);
           }}
-        ></sl-person-search>
+        ></sl-find-person>
         <sl-corner-lists @dock-open=${this.openDock}></sl-corner-lists>
         <sl-settings
           .generations=${this.gen}

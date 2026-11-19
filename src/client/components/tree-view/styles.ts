@@ -30,10 +30,6 @@ export const treeViewStyles = css`
     gap: 0.75rem;
   }
 
-  sl-person-search {
-    width: min(280px, 40vw);
-  }
-
   /* The chart and, beside it, the selected person's details panel. */
   .main {
     flex: 1;

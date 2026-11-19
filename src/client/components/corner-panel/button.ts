@@ -1,4 +1,4 @@
-import { css, html, LitElement } from 'lit';
+import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 import { focusRingStyles } from '@/client/focus-ring';
@@ -7,9 +7,16 @@ import { focusRingStyles } from '@/client/focus-ring';
 // that opens a panel over the chart and closes it again: the icon is its
 // content, `label` names it, and `expanded` says its panel is open. Its
 // owner keeps whether it's open, and clicks on it reach the owner as they
-// would on any button.
+// would on any button. `popup` is what it opens, for assistive tech; empty
+// when it opens nothing that pops up, as Find person turns into its field.
 @customElement('sl-corner-button')
 class CornerButtonElement extends LitElement {
+  // Focusing the element focuses its button.
+  static override shadowRootOptions = {
+    ...LitElement.shadowRootOptions,
+    delegatesFocus: true
+  };
+
   static override styles = [
     focusRingStyles,
     css`
@@ -48,11 +55,13 @@ class CornerButtonElement extends LitElement {
 
   @property({ type: Boolean }) expanded = false;
 
+  @property() popup = 'dialog';
+
   override render() {
     return html`<button
       aria-label=${this.label}
-      aria-haspopup="dialog"
-      aria-expanded=${this.expanded ? 'true' : 'false'}
+      aria-haspopup=${this.popup === '' ? nothing : this.popup}
+      aria-expanded=${this.popup === '' ? nothing : this.expanded ? 'true' : 'false'}
     >
       <slot></slot>
     </button>`;

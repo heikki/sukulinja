@@ -7,6 +7,7 @@ import type { PersonRow } from '@/common/types';
 
 import type { Point } from '../tree-view/emit';
 import { formatDates, formatName } from '../tree-view/renderer';
+import { SEARCH_ICON } from './icon';
 import { matchPersons } from './match';
 
 const MAX_RESULTS = 50;
@@ -58,11 +59,15 @@ class PersonSearchElement extends LitElement {
         position: absolute;
         top: 50%;
         left: 0.6rem;
-        width: 0.875rem;
-        height: 0.875rem;
+        display: flex;
         transform: translateY(-50%);
         color: var(--muted);
         pointer-events: none;
+      }
+
+      .icon svg {
+        width: 0.875rem;
+        height: 0.875rem;
       }
 
       .results {
@@ -126,31 +131,11 @@ class PersonSearchElement extends LitElement {
     this.active = i;
   }
 
-  override connectedCallback() {
-    super.connectedCallback();
-    document.addEventListener('keydown', this.onDocumentKeydown);
-  }
-
-  override disconnectedCallback() {
-    super.disconnectedCallback();
-    document.removeEventListener('keydown', this.onDocumentKeydown);
-  }
-
-  // ⌘F (Ctrl+F elsewhere) jumps to the search, in place of the browser's
-  // find-in-page, which can't see into the chart's SVG anyway.
-  private readonly onDocumentKeydown = (e: KeyboardEvent) => {
-    if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
-    if (e.key.toLowerCase() !== 'f') return;
-    const input = this.renderRoot.querySelector('input');
-    if (input === null) return;
-    e.preventDefault();
-    input.focus();
-    input.select();
-  };
-
-  // Puts the cursor in the search, as ⌘F does.
+  // Puts the cursor in the search, with any query selected to type over.
   focusInput() {
-    this.renderRoot.querySelector('input')?.focus();
+    const input = this.renderRoot.querySelector('input');
+    input?.focus();
+    input?.select();
   }
 
   private pick(id: number) {
@@ -215,22 +200,7 @@ class PersonSearchElement extends LitElement {
     const results = this.results();
     const open = results.length > 0;
     return html`
-      <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
-        <circle
-          cx="7"
-          cy="7"
-          r="4.5"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-        />
-        <path
-          d="M10.5 10.5 14 14"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linecap="round"
-        />
-      </svg>
+      <span class="icon">${SEARCH_ICON}</span>
       <input
         type="search"
         placeholder="Find person…"
