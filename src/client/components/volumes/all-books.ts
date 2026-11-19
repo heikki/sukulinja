@@ -254,7 +254,7 @@ class AllBooksElement extends LitElement {
   // In the offload's place, with what comes back.
   private renderBringBack(book: InstalledBook) {
     const away = book.offloaded === null ? null : awayText(book.offloaded);
-    const what = away ?? 'its Images';
+
     return actButton(
       'Bring back',
       BRING_BACK_ICON,
@@ -262,7 +262,7 @@ class AllBooksElement extends LitElement {
         void this.bringBack(book);
       },
       {
-        title: `Bring back: ${what}, loaded again as you open them`,
+        title: away === null ? 'Bring back' : `Bring back: ${away}`,
         disabled: this.asking.busy
       }
     );
