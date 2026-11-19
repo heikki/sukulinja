@@ -124,6 +124,12 @@ export const APP_OPERATIONS = {
   ),
   // Whether the Volume is offloaded: then only its cited Images load.
   isOffloaded: answers<{ volumeId: string }, boolean>('{ volumeId }', volumeOf),
+  // The bytes offloading the Volume would free, keeping its cited Images;
+  // null when that can't be known.
+  offloadFrees: answers<{ volumeId: string }, number | null>(
+    '{ volumeId }',
+    volumeOf
+  ),
 
   // The Scan cache: what it holds against its cap. Setting the cap, one of
   // its choices, and clearing it answer with it as it then stands.

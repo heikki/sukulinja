@@ -89,8 +89,12 @@ test("a reference's entry is placed by hand", async () => {
       .locator('sl-all-books')
       .getByRole('row')
       .filter({ hasText: 'I Aa:1' });
-    // With the folder chosen, it isn't asked first.
-    await row.getByRole('button', { name: 'Offload' }).click();
+    // Pointed at, it says what it frees; with the folder chosen, it isn't
+    // asked first.
+    const offload = row.getByRole('button', { name: 'Offload' });
+    await offload.hover();
+    await row.locator('button[title^="Offload: frees "]').waitFor();
+    await offload.click();
     await row.locator('td[title^="Offloaded: "]').waitFor();
     expect(await row.getByRole('button').count()).toBe(1);
     expect(

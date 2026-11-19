@@ -55,6 +55,7 @@ export type SharedOperations = Pick<
   | 'checkPages'
   | 'pagesChecked'
   | 'isOffloaded'
+  | 'offloadFrees'
   | 'scanCache'
   | 'setScanCap'
   | 'clearScanCache'
@@ -98,12 +99,7 @@ export function sharedOperations({
       { astia, cache, downloads },
       {
         parishes: parishes.archives(),
-        pagesOf: pages.numbering,
-        // Unknown when what's cited can't be, as Astia isn't reached.
-        freedBy: async (volumeId) => {
-          const cited = await citedImages(volumeId).catch(() => null);
-          return cited === null ? null : await cache.freedBy(volumeId, cited);
-        }
+        pagesOf: pages.numbering
       }
     );
   }
@@ -168,6 +164,12 @@ export function sharedOperations({
     pagesChecked: async ({ volumeId }) =>
       (await pages.numbering(volumeId)) === 'checked',
     isOffloaded: async ({ volumeId }) => await cache.isOffloaded(volumeId),
+    // Asked of one Volume at a time, as what's cited is slow to know; null
+    // when it can't be, as Astia isn't reached.
+    async offloadFrees({ volumeId }) {
+      const cited = await citedImages(volumeId).catch(() => null);
+      return cited === null ? null : await cache.freedBy(volumeId, cited);
+    },
     scanCache: async () => await cache.status(),
     async setScanCap({ cap }) {
       if (!CAPS.includes(cap)) {

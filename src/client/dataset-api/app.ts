@@ -47,6 +47,7 @@ export interface AppApi {
   checkPages: (volumeId: string, checked: boolean) => Promise<InstalledBook[]>;
   pagesChecked: (volumeId: string, signal?: AbortSignal) => Promise<boolean>;
   isOffloaded: (volumeId: string) => Promise<boolean>;
+  offloadFrees: (volumeId: string) => Promise<number | null>;
   // The Scan cache; setting its cap and clearing it answer with it as it
   // then stands.
   scanCache: () => Promise<ScanCacheStatus>;
@@ -101,6 +102,8 @@ export function openAppApi({
       await call('pagesChecked', { volumeId }, 'the pages', signal),
     isOffloaded: async (volumeId) =>
       await call('isOffloaded', { volumeId }, 'whether it is offloaded'),
+    offloadFrees: async (volumeId) =>
+      await call('offloadFrees', { volumeId }, 'what offloading frees'),
     scanCache: async () => await call('scanCache', {}, 'the Scan cache'),
     setScanCap: async (cap) =>
       await call('setScanCap', { cap }, 'Setting the cap'),

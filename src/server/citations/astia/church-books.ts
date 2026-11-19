@@ -55,25 +55,19 @@ export async function installBooks(
   sources: Sources,
   {
     parishes,
-    pagesOf,
-    freedBy
+    pagesOf
   }: {
     parishes: string[];
     // What's known of a Volume's page numbers.
     pagesOf: (volumeId: string) => Promise<PageNumbering>;
-    // The bytes offloading the Volume would free, if known.
-    freedBy: (volumeId: string) => Promise<number | null>;
   }
 ): Promise<InstalledBook[]> {
   const { astia, cache, downloads } = sources;
-  // Its page numbers, and what of it is offloaded, or what offloading it
-  // would free.
+  // Its page numbers, and what of it is offloaded.
   async function offloadOf(volumeId: string) {
-    const offloaded = await cache.offloadedOf(volumeId);
     return {
       pages: await pagesOf(volumeId),
-      offloaded,
-      offloadFrees: offloaded === null ? await freedBy(volumeId) : null
+      offloaded: await cache.offloadedOf(volumeId)
     };
   }
   const here = new Set([

@@ -92,6 +92,10 @@ class AllBooksElement extends LitElement {
   // Images go; null for none.
   @state() private folder: OffloadFolder | null = null;
 
+  // What offloading a Volume would free, by its id, asked as its Offload
+  // is pointed at; null when that can't be known.
+  @state() private frees = new Map<string, number | null>();
+
   // Removing a Volume from disk or offloading it; why it was refused.
   private readonly asking = new Asking(this);
 
@@ -144,8 +148,17 @@ class AllBooksElement extends LitElement {
     }
   }
 
+  // Asked once for each showing of the Volumes.
+  private async askFrees(volumeId: string) {
+    if (this.frees.has(volumeId)) return;
+    this.frees.set(volumeId, null);
+    const freed = await this.state.app.offloadFrees(volumeId).catch(() => null);
+    this.frees = new Map(this.frees).set(volumeId, freed);
+  }
+
   private show(books: InstalledBook[]) {
     this.books = books;
+    this.frees = new Map();
     this.stopPolling();
     if (busy(books) && this.isConnected) {
       this.poll = setTimeout(() => {
@@ -260,10 +273,11 @@ class AllBooksElement extends LitElement {
   // with none, asked first.
   private renderOffload(book: InstalledBook) {
     if (book.onDisk.cached === 0) return EMPTY_SLOT;
+    const freed = this.frees.get(book.id);
     const frees =
-      book.offloadFrees === null
+      freed === undefined || freed === null
         ? 'keep only the cited images on disk'
-        : `frees ${formatBytes(book.offloadFrees)}, keeping the cited images`;
+        : `frees ${formatBytes(freed)}, keeping the cited images`;
     return actButton(
       'Offload',
       OFFLOAD_ICON,
@@ -271,7 +285,13 @@ class AllBooksElement extends LitElement {
         if (this.folder === null) this.confirming = { book, what: 'offload' };
         else void this.leave(book, 'offload');
       },
-      { title: `Offload: ${frees}`, disabled: this.asking.busy }
+      {
+        title: `Offload: ${frees}`,
+        disabled: this.asking.busy,
+        onHint: () => {
+          void this.askFrees(book.id);
+        }
+      }
     );
   }
 

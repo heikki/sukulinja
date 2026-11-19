@@ -119,8 +119,15 @@ export function actButton(
   {
     title = label,
     disabled = false,
-    pressed = null
-  }: { title?: string; disabled?: boolean; pressed?: boolean | null } = {}
+    pressed = null,
+    onHint
+  }: {
+    title?: string;
+    disabled?: boolean;
+    pressed?: boolean | null;
+    // Called as its title is about to show: pointed at or focused.
+    onHint?: () => void;
+  } = {}
 ) {
   return html`<button
     class="act"
@@ -129,6 +136,8 @@ export function actButton(
     title=${title}
     ?disabled=${disabled}
     @click=${run}
+    @mouseenter=${onHint}
+    @focus=${onHint}
   >
     ${icon}
   </button>`;
