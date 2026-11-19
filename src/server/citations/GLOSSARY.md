@@ -101,7 +101,7 @@ _Avoid_: rescan, refilming (as names).
 A Volume whose Images hold the book twice, as if filmed twice; the copies drift apart in Image numbers. Page pins point into the copy the references were indexed from.
 
 **Scan viewer**:
-Where the app shows the Image a Church-book reference links, opened from its source. You step through the link's Volume there, or look in another Volume of its Book. An **Unlinked** reference whose parish's books were looked through opens it too, on no Volume, to look through them for the entry, and an Image's **Reminder**, the **Volumes** view or the **Volume picker** opens it on an Image with no source; there or with one, a new Citation of an entry can be made for someone, and the viewer then opens on it as its source. Beside the scan are the people whose references link the Image shown, and the source's **Match** can be confirmed from its Box's menu. A **Box** placed there for the source's entry waits until it's saved as a **Mark**, and the source's own Box can be taken back with a **Discard**.
+Where the app shows the Image a Church-book reference links, opened from its source. You step through the link's Volume there, or look in another Volume through the **Volume picker**. An **Unlinked** reference whose parish's books were looked through opens it too, on no Volume, to look through them for the entry, and an Image's **Reminder**, the **Volumes** view or the **Volume picker** opens it on an Image with no source; there or with one, a new Citation of an entry can be made for someone, and the viewer then opens on it as its source. Beside the scan are the people whose references link the Image shown, and the source's **Match** can be confirmed from its Box's menu. A **Box** placed there for the source's entry waits until it's saved as a **Mark**, and the source's own Box can be taken back with a **Discard**.
 _Avoid_: record viewer (a record is MyHeritage's), Astia viewer (Astia's own site).
 
 **Scan cache**:
@@ -121,7 +121,7 @@ The Volumes a dataset works in: every Volume its Citations link into, and those 
 _Avoid_: shelf, bookmarks.
 
 **Volume picker**:
-Where Volumes are found to add to the **Book list** or open: the dataset's parishes, then the install's other **Parishes**, and finding another in Astia; the Volumes that fit the Selected person, each of their **Expected entries** with the Volumes it fits; and a parish's Volumes by series, narrowed by a series or a year.
+Where Volumes are found to add to the **Book list** or open: the dataset's parishes, then the install's other **Parishes**, and finding another in Astia; the Volumes that fit the Selected person, each of their **Expected entries** with the Volumes it fits; and a parish's Volumes by series, narrowed by a series or a year. The Scan viewer's _Change Volume…_ opens it too, on the shown Volume's parish and series, with the Volumes a Church-book reference fits on top; a Volume opened there is shown, the source's Link left as it is.
 _Avoid_: book picker (a Book is a kind of book, not a Volume).
 
 **Expected entry**:

@@ -173,10 +173,11 @@ test('Place entry names one made in the app by its Image', async () => {
   expect(linkItems(viewer, where, NONE)[0]?.detail).toBe('I Aa:201, Image 18');
 });
 
-test('Change Volume… is only for a Church-book reference', async () => {
+test('Change Volume… is offered whatever the source', async () => {
   const made = await viewing(citation(1, true));
   expect(labels(made, { onBox: false, canBox: false })).toEqual([
-    'Add reminder…'
+    'Add reminder…',
+    'Change Volume…'
   ]);
 });
 
@@ -189,10 +190,12 @@ test('opened on an Image with no source, a new Citation and a Reminder are offer
   await Bun.sleep(0);
   expect(labels(viewer, { onBox: false, canBox: true })).toEqual([
     'New entry',
-    'Add reminder…'
+    'Add reminder…',
+    'Change Volume…'
   ]);
   expect(labels(viewer, { onBox: false, canBox: false })).toEqual([
-    'Add reminder…'
+    'Add reminder…',
+    'Change Volume…'
   ]);
   viewer.newEntry(BOX, 'RESI', [{ personId: 1, role: null }]);
   expect(labels(viewer, { onBox: true, canBox: true })).toEqual([
@@ -300,11 +303,13 @@ test('page numbers are marked checked, which leaves nothing to change them by', 
     'Add reminder…',
     'Survey page numbers',
     'Clear page numbers',
-    'Mark page numbers checked'
+    'Mark page numbers checked',
+    'Change Volume…'
   ]);
   await viewer.pages.setChecked(true);
   expect(linkItems(viewer, where, open).map((i) => i.label)).toEqual([
     'Add reminder…',
-    'Unmark page numbers checked'
+    'Unmark page numbers checked',
+    'Change Volume…'
   ]);
 });

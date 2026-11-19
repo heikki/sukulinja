@@ -174,7 +174,6 @@ class BookListElement extends LitElement {
   }
 
   override render() {
-    const listed = Array.isArray(this.books) ? this.books : [];
     return html`
       <div class="bar">
         <input
@@ -198,7 +197,6 @@ class BookListElement extends LitElement {
       ${
         this.picking
           ? html`<sl-volume-picker
-              .listed=${new Set(listed.map((b) => b.id))}
               @book-listed=${this.onListed}
               @open-volume=${(e: CustomEvent<VolumeOpen>) => {
                 this.picking = false;

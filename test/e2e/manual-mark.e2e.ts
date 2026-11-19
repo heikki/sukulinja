@@ -22,16 +22,22 @@ test("a reference's entry is placed by hand", async () => {
     // The Volumes of the Book, the one the reference fits first.
     await rightClickLine(page, 12, 3);
     await page.getByRole('menuitem', { name: 'Change Volume…' }).click();
-    await page.getByText('Fits the reference').waitFor();
+    await page.getByRole('region', { name: 'Fits the reference' }).waitFor();
     await shot(page, 'manual-mark-volumes');
-    await page.getByRole('button', { name: /I Aa:2/ }).click();
+    await page
+      .getByRole('button', { name: /^Open .*I Aa:2/ })
+      .first()
+      .click();
     await page.getByText('· Pää- ja rippikirjat (1797-1803)').waitFor();
     await page.getByText('No one in the tree is linked here.').waitFor();
 
     // Back in its own Volume, on its page, the entry placed on a line.
     await rightClickLine(page, 1, 1);
     await page.getByRole('menuitem', { name: 'Change Volume…' }).click();
-    await page.getByRole('button', { name: /I Aa:1/ }).click();
+    await page
+      .getByRole('button', { name: /^Open .*I Aa:1/ })
+      .first()
+      .click();
     await page.getByText('· Pää- ja rippikirjat (1790-1796)').waitFor();
     expect(await page.getByLabel('Image', { exact: true }).inputValue()).toBe(
       '12'
@@ -43,7 +49,7 @@ test("a reference's entry is placed by hand", async () => {
     await shot(page, 'manual-mark-marked');
 
     // The reference is now a Citation of the Image (ADR-0016): its Entry
-    // is edited or deleted, and it stays in this Volume.
+    // is edited or deleted; another Volume is still a right-click away.
     await page.locator('[data-own]').click({ button: 'right' });
     expect(await page.getByRole('menuitem').allInnerTexts()).toEqual([
       'Edit',
@@ -54,7 +60,8 @@ test("a reference's entry is placed by hand", async () => {
     await rightClickLine(page, 12, 1);
     expect(await page.getByRole('menuitem').allInnerTexts()).toEqual([
       'New entry',
-      'Add reminder…'
+      'Add reminder…',
+      'Change Volume…'
     ]);
   });
 });

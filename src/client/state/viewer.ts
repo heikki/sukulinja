@@ -440,7 +440,12 @@ export function openViewer(
 
   function changeVolume(choice: VolumeChoice) {
     const shown = source.get();
-    if (shown === null) return;
+    if (shown === null) {
+      leave(() => {
+        showVolume(choice.id, choice.label, null);
+      });
+      return;
+    }
     const { link } = shown;
     const own =
       link !== null && choice.id === link.volumeId ? imageOf(link) : null;

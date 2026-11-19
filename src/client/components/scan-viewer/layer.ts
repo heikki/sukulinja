@@ -34,12 +34,12 @@ import type { ChooseDetail } from './entry-form';
 import { newEntryBox } from './frame';
 import type { Frame } from './frame';
 import { linkItems } from './menu';
+import { renderVolumeChange } from './volume-change';
 
 import '../box-stage/handles';
 import '../context-menu';
 import '../person-search/pick';
 import './entry-form';
-import './volumes';
 
 // What a right-click opened: the menu, or the Volumes chosen from it; or
 // the people to name in a new entry's Role (or with none), listed or
@@ -316,10 +316,7 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
       return this.renderUncheckedWarning(at, popup.locate);
     }
     if (show === 'volumes') {
-      return html`<sl-scan-volumes
-        .at=${at}
-        @close=${this.onPopupClose}
-      ></sl-scan-volumes>`;
+      return renderVolumeChange(this.viewer, this.onPopupClose);
     }
     const items = linkItems(
       this.viewer,

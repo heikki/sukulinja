@@ -1,5 +1,9 @@
-Status: ready-for-agent
+Status: resolved
 
 # The Scan viewer changes Volume through the picker
 
 The Scan viewer's _Change Volume…_ (`scan-viewer/volumes.ts`) is still its own list of the source's Book, and only for a Church-book reference; with no source or a Citation made in the app there's no way to another Volume but back through the Volumes tab. Open the Volume picker instead, on the source's parish and series with its Book's years filled in, _Fits the reference_ on top where there is one, and from a scan with no source too. Opening a Volume there shows it, leaving a source's Link as it is, as `changeVolume` does now.
+
+## Resolved
+
+_Change Volume…_ opens the Volume picker (`scan-viewer/volume-change.ts`), offered whenever a Volume is shown and from the empty stage's _Choose a Volume…_. It opens on the shown Volume's parish and series, the shown one marked _Shown_, with _Fits the reference_ on top for a Church-book reference. The year isn't filled in: _Fits the reference_ already gives the years. `scan-viewer/volumes.ts` is gone.

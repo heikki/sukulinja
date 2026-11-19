@@ -1,28 +1,32 @@
 import { SignalWatcher } from '@lit-labs/signals';
+import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { missingText, unlinkedLabel } from '@/client/link-labels';
 import type { Point } from '@/client/pan-zoom';
+import { appState } from '@/client/state';
+import type { AppState } from '@/client/state';
 import type { CitedBook, UnlinkedResolution } from '@/common/types';
 
 import { controlStyles } from '../box-stage/styles';
 import { scanEmptyStyles } from './styles';
-
-import './volumes';
+import { renderVolumeChange } from './volume-change';
 
 // The stage before any Volume is shown, for a source with no Link: what's
 // missing, by its parish, Book and years (`cited`), and the parish's Volumes
-// to look through for it, from the button or a right-click. Choosing one
-// shows it in place of this.
+// to look through for it in the Volume picker, from the button or a
+// right-click. Choosing one shows it in place of this.
 @customElement('sl-scan-empty')
 class ScanEmptyElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, scanEmptyStyles];
 
+  @consume({ context: appState }) private readonly state!: AppState;
+
   @property({ attribute: false }) unlinked!: UnlinkedResolution;
   @property({ attribute: false }) cited: CitedBook | null = null;
 
-  // Where the Volume list is open.
+  // Where the Volume picker was asked for, while it's open.
   @state() private choosing: Point | null = null;
 
   override connectedCallback() {
@@ -62,12 +66,13 @@ class ScanEmptyElement extends SignalWatcher(LitElement) {
       ${
         this.choosing === null
           ? nothing
-          : html`<sl-scan-volumes
-              .at=${this.choosing}
-              @close=${() => {
+          : renderVolumeChange(
+              this.state.viewer,
+              () => {
                 this.choosing = null;
-              }}
-            ></sl-scan-volumes>`
+              },
+              this.unlinked.archive ?? null
+            )
       }
     `;
   }

@@ -13,7 +13,8 @@ import type {
   ChurchBookArchive,
   ChurchBookVolume,
   ListedBook,
-  SuggestedVolume
+  SuggestedVolume,
+  VolumeChoice
 } from '@/common/types';
 
 import { fitLines } from './fits';
@@ -44,16 +45,38 @@ export interface VolumeOpen {
 // in Astia; on top, the Volumes that fit the Selected person, each of
 // their Expected entries with the Volumes it fits; then the parish's
 // Volumes by series, which a series or a year narrows. A Volume not on
-// the Book list (`listed`) is added to it, which says the list as it now
-// is (`book-listed`); any can be opened (`open-volume`). A parish picked
+// the Book list is added to it, which says the list as it now is
+// (`book-listed`); any can be opened (`open-volume`). A parish picked
 // scrolls its Volumes to the top. Esc, the close button or a press outside
-// asks to `close`.
+// asks to `close`. From the Scan viewer (`shown`), it opens on the shown
+// Volume's parish and series, the Volume marked, and for a source's
+// reference (`citationId`) the Volumes it fits on top in place of the
+// person's.
 @customElement('sl-volume-picker')
 class VolumePickerElement extends SignalWatcher(LitElement) {
   static override styles = [focusRingStyles, volumePickerStyles];
 
+  // What it's called, and what it's for.
+  @property() heading = 'Add volumes';
+  @property() subtitle = "to this tree's list, or open one straight away";
+
+  // The Volume the Scan viewer shows, if any, with its archive's title;
+  // and the Citation of its source, if any.
+  @property({ attribute: false }) shown: {
+    volumeId: string | null;
+    archive: string | null;
+  } | null = null;
+  @property({ attribute: false }) citationId: number | null = null;
+
   // The Volumes on the Book list, by id.
-  @property({ attribute: false }) listed = new Set<string>();
+  @state() private listed = new Set<string>();
+
+  // The Volumes a source's reference fits; null until known, or without
+  // one.
+  @state() private referenceFits: VolumeChoice[] | null = null;
+
+  // The shown Volume's series is picked once its parish's Volumes are in.
+  private seriesPicked = false;
 
   @query('dialog') private readonly dialog!: HTMLDialogElement;
   @query('section.parish') private readonly parishSection!: HTMLElement | null;
@@ -83,6 +106,20 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
   override connectedCallback() {
     super.connectedCallback();
     void this.loadParishes();
+    void this.loadListed();
+    if (this.citationId !== null) void this.loadReferenceFits(this.citationId);
+  }
+
+  private async loadListed() {
+    const books = await this.state.api.bookList().catch(() => []);
+    this.listed = new Set(books.map((b) => b.id));
+  }
+
+  private async loadReferenceFits(citationId: number) {
+    const choices = await this.state.api
+      .volumeChoices(citationId)
+      .catch(() => null);
+    this.referenceFits = choices?.fits ?? [];
   }
 
   override firstUpdated() {
@@ -96,6 +133,7 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
   }
 
   override willUpdate() {
+    if (this.citationId !== null) return;
     const id = this.state.selected.id.get();
     if (id !== null && this.fits?.personId !== id) void this.loadFits(id);
     if (id === null && this.fits !== null) this.fits = null;
@@ -119,8 +157,10 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
     ]);
     this.own = own;
     this.others = own === 'failed' ? all : othersOf(own, all);
-    const first = (own === 'failed' ? [] : own)[0] ?? this.others[0] ?? null;
-    this.pick(open ?? this.parish ?? first);
+    const parishes = [...(own === 'failed' ? [] : own), ...this.others];
+    const shownIn =
+      parishes.find((p) => p.title === this.shown?.archive) ?? null;
+    this.pick(open ?? this.parish ?? shownIn ?? parishes[0] ?? null);
   }
 
   private pick(parish: ChurchBookArchive | null) {
@@ -136,7 +176,15 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
     const volumes = await this.state.app
       .churchBooks(parish.archiveId)
       .catch(() => 'failed' as const);
-    if (this.parish === parish) this.volumes = volumes;
+    if (this.parish !== parish) return;
+    this.volumes = volumes;
+    const shown = Array.isArray(volumes)
+      ? volumes.find((v) => v.id === this.shown?.volumeId)
+      : undefined;
+    if (shown !== undefined && !this.seriesPicked) {
+      this.seriesPicked = true;
+      this.kind = shown.kind;
+    }
   }
 
   private async addFound(archive: ChurchBookArchive) {
@@ -150,6 +198,7 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
   private async list(volumeId: string, archiveId: string) {
     await this.adding.run(async () => {
       const books = await this.state.api.listBook({ volumeId, archiveId });
+      this.listed = new Set(books.map((b) => b.id));
       this.dispatchEvent(new CustomEvent('book-listed', { detail: books }));
     });
   }
@@ -199,20 +248,54 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
         <span class="muted">${yearsText(v.years)}</span>
         ${v.near ? nothing : html`<span class="muted">· ${v.parish}</span>`}
       </span>
-      <button
-        class="ghost"
-        aria-label="Open ${v.label}"
-        @click=${() => {
-          this.open(v.id, v.label);
-        }}
-      >
-        Open
-      </button>
+      ${this.renderOpen(v.id, v.label)}
       ${this.renderAdd(v.id, v.archiveId, v.label)}
     </span>`;
   }
 
+  // The Volumes a source's reference fits, those its years or Record
+  // range give.
+  private renderReferenceFits() {
+    const fits = this.referenceFits;
+    return html`<section class="fits" aria-label="Fits the reference">
+      <h3>Fits the reference</h3>
+      ${
+        fits === null
+          ? html`<span class="muted">Finding them…</span>`
+          : fits.length === 0
+            ? html`<span class="muted">None it dates.</span>`
+            : fits.map(
+                (v) =>
+                  html`<span class="row">
+                    <span class="name">
+                      ${volumeCode(v.label)}
+                      <span class="muted">${yearsText(v.years)}</span>
+                    </span>
+                    ${this.renderOpen(v.id, v.label)}
+                  </span>`
+              )
+      }
+    </section>`;
+  }
+
+  // Open, or for the Volume the Scan viewer shows, that it's shown.
+  private renderOpen(volumeId: string, label: string) {
+    if (volumeId === this.shown?.volumeId) {
+      return html`<span class="on">Shown</span>`;
+    }
+    return html`<button
+      class="ghost"
+      aria-label="Open ${label}"
+      @click=${() => {
+        this.open(volumeId, label);
+      }}
+    >
+      Open
+    </button>`;
+  }
+
   private renderFits() {
+    if (this.citationId !== null) return this.renderReferenceFits();
     const { fits } = this;
     if (fits === null) return nothing;
     const name =
@@ -334,16 +417,8 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
       </span>
       ${
         v.digitized
-          ? html`<button
-                class="ghost"
-                aria-label="Open ${v.label}"
-                @click=${() => {
-                  this.open(v.id, v.label);
-                }}
-              >
-                Open
-              </button>
-              ${this.renderAdd(v.id, archiveId, v.label)}`
+          ? html`${this.renderOpen(v.id, v.label)}
+            ${this.renderAdd(v.id, archiveId, v.label)}`
           : html`<span class="on">Not digitized</span>`
       }
     </div>`;
@@ -388,7 +463,7 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
 
   override render() {
     return html`<dialog
-      aria-label="Add volumes"
+      aria-label=${this.heading}
       @keydown=${this.onKeyDown}
       @click=${this.onClick}
       @cancel=${(e: Event) => {
@@ -399,8 +474,8 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
       <div class="frame">
         <header>
           <div>
-            <h2>Add volumes</h2>
-            <p>to this tree's list, or open one straight away</p>
+            <h2>${this.heading}</h2>
+            <p>${this.subtitle}</p>
           </div>
           <button
             class="ghost"
