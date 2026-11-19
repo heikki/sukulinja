@@ -76,13 +76,15 @@ function columns<T extends Book>(table: BookTable<T>) {
 }
 
 function renderGroup<T extends Book>(table: BookTable<T>, g: ArchiveGroup<T>) {
-  return html`<tr class="archive">
+  return html`<tbody>
+    <tr class="archive">
       <td colspan=${columns(table)}>
         ${g.archive ?? table.noArchive}
         <span class="count">${g.books.length}</span>
       </td>
     </tr>
-    ${g.books.map((b) => renderBook(table, b))}`;
+    ${g.books.map((b) => renderBook(table, b))}
+  </tbody>`;
 }
 
 // The Volumes as a table by archive, each one's by series and years, with
@@ -104,9 +106,7 @@ export function renderBookTable<T extends Book>(table: BookTable<T>) {
           <th></th>
         </tr>
       </thead>
-      <tbody>
-        ${groupByArchive(table.books).map((g) => renderGroup(table, g))}
-      </tbody>
+      ${groupByArchive(table.books).map((g) => renderGroup(table, g))}
     </table>
   </div>`;
 }
@@ -157,6 +157,26 @@ export function revealShown(root: ShadowRoot | null) {
   const from = at.top - box.getBoundingClientRect().top;
   box.scrollTop += from - (box.clientHeight - at.height) / 2;
   return true;
+}
+
+// Keeps an archive's name under the column headers, however tall they are,
+// while its Volumes scroll by.
+export function pinUnderHead(root: ShadowRoot | null) {
+  const head = root?.querySelector<HTMLElement>('thead');
+  const box = root?.querySelector<HTMLElement>('div.table');
+  if (
+    head === null ||
+    head === undefined ||
+    box === null ||
+    box === undefined
+  ) {
+    return;
+  }
+  // A pixel under them, as their height needn't be whole.
+  box.style.setProperty(
+    '--head',
+    `${head.getBoundingClientRect().height - 1}px`
+  );
 }
 
 // A note under the table, or nothing.
@@ -239,6 +259,7 @@ export const bookTableStyles = [
     th {
       position: sticky;
       top: 0;
+      z-index: 2;
       padding: 0.3rem 0.35rem;
       background: var(--card);
       color: var(--muted);
@@ -247,7 +268,8 @@ export const bookTableStyles = [
       letter-spacing: 0.04em;
       text-align: left;
       text-transform: uppercase;
-      border-bottom: 1px solid var(--border);
+      /* Not a border: a collapsed one isn't drawn with a sticky cell. */
+      box-shadow: inset 0 -1px 0 var(--border);
     }
 
     td {
@@ -256,7 +278,12 @@ export const bookTableStyles = [
       white-space: nowrap;
     }
 
+    /* Under the headers while its Volumes scroll by. */
     tr.archive td {
+      position: sticky;
+      top: var(--head, 0);
+      z-index: 1;
+      background: var(--card);
       padding-top: 0.75rem;
       font-weight: 600;
       border-bottom: 0;

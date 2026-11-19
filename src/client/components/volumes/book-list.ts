@@ -15,6 +15,7 @@ import {
   bookTableStyles,
   DOWNLOAD_ICON,
   EMPTY_SLOT,
+  pinUnderHead,
   REMOVE_ICON,
   renderBookTable,
   renderRefused,
@@ -66,6 +67,7 @@ class BookListElement extends LitElement {
   }
 
   override updated() {
+    pinUnderHead(this.shadowRoot);
     if (this.shown !== this.revealed && revealShown(this.shadowRoot)) {
       this.revealed = this.shown;
     }

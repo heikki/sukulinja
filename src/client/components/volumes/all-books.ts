@@ -25,6 +25,7 @@ import {
   DOWNLOAD_ICON,
   EMPTY_SLOT,
   OFFLOAD_ICON,
+  pinUnderHead,
   renderBookTable,
   renderRefused,
   revealShown,
@@ -116,6 +117,7 @@ class AllBooksElement extends LitElement {
   }
 
   override updated() {
+    pinUnderHead(this.shadowRoot);
     if (this.shown !== this.revealed && revealShown(this.shadowRoot)) {
       this.revealed = this.shown;
     }
