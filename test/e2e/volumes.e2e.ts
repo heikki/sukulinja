@@ -3,7 +3,7 @@
 // stopped there, removed from disk among all the books, and taken off; and the picker offering first the Volumes
 // the Selected person's Facts fit.
 
-import { afterAll, test } from 'bun:test';
+import { afterAll, expect, test } from 'bun:test';
 
 import { closeBrowser, shot, withApp } from './app';
 import { importTree, newTree, openList } from './steps';
@@ -79,5 +79,21 @@ test("the picker offers the Volumes the Selected person's Facts fit", async () =
       })
       .waitFor();
     await shot(page, 'volumes-fits');
+
+    // A parish picked, its Volumes scroll up past what fits him.
+    await page
+      .getByRole('dialog', { name: 'Add volumes' })
+      .getByRole('button', { name: 'Juvan seurakunnan arkisto' })
+      .click();
+    expect(
+      await fits.evaluate((el) => {
+        const main = el.parentElement?.getBoundingClientRect();
+        return (
+          main !== undefined &&
+          el.getBoundingClientRect().bottom <= main.top + 1
+        );
+      })
+    ).toBe(true);
+    await shot(page, 'volumes-parish');
   });
 });

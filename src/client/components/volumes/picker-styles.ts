@@ -158,6 +158,17 @@ export const volumePickerStyles = css`
     gap: 0.3rem;
   }
 
+  /* Tall enough that scrolled to the top, under main's padding, nothing
+     above it shows. */
+  section.parish {
+    flex: none;
+    min-height: calc(100% + 1rem);
+    scroll-margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
   .filters {
     display: flex;
     flex-wrap: wrap;

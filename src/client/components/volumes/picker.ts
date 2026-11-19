@@ -45,8 +45,9 @@ export interface VolumeOpen {
 // their Expected entries with the Volumes it fits; then the parish's
 // Volumes by series, which a series or a year narrows. A Volume not on
 // the Book list (`listed`) is added to it, which says the list as it now
-// is (`book-listed`); any can be opened (`open-volume`). Esc, the close
-// button or a press outside asks to `close`.
+// is (`book-listed`); any can be opened (`open-volume`). A parish picked
+// scrolls its Volumes to the top. Esc, the close button or a press outside
+// asks to `close`.
 @customElement('sl-volume-picker')
 class VolumePickerElement extends SignalWatcher(LitElement) {
   static override styles = [focusRingStyles, volumePickerStyles];
@@ -55,6 +56,11 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
   @property({ attribute: false }) listed = new Set<string>();
 
   @query('dialog') private readonly dialog!: HTMLDialogElement;
+  @query('section.parish') private readonly parishSection!: HTMLElement | null;
+
+  // A parish picked from the side: its Volumes scroll to the top once
+  // they're shown, past what fits the Selected person.
+  private scrollToParish = false;
 
   @consume({ context: appState }) private readonly state!: AppState;
 
@@ -81,6 +87,12 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
 
   override firstUpdated() {
     this.dialog.showModal();
+  }
+
+  override updated() {
+    if (!this.scrollToParish || this.volumes === null) return;
+    this.scrollToParish = false;
+    this.parishSection?.scrollIntoView({ block: 'start' });
   }
 
   override willUpdate() {
@@ -237,7 +249,9 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
       class="parish"
       aria-current=${p.archiveId === this.parish?.archiveId ? 'true' : 'false'}
       @click=${() => {
+        this.scrollToParish = true;
         this.pick(p);
+        this.requestUpdate();
       }}
     >
       ${p.title}
@@ -407,7 +421,12 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
                 ? nothing
                 : html`<p class="refused">${this.adding.refused}</p>`
             }
-            ${this.renderFilters()} ${this.renderVolumes()}
+            <section
+              class="parish"
+              aria-label=${this.parish?.title ?? 'Parish'}
+            >
+              ${this.renderFilters()} ${this.renderVolumes()}
+            </section>
           </main>
         </div>
       </div>
