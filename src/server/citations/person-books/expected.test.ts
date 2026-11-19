@@ -93,7 +93,7 @@ test('runs a life with no death to the last year a Fact gives', () => {
   expect(expected.map((e) => e.of)).toEqual(['birth', 'childhood', 'life']);
 });
 
-test('runs a life known only by its birth through childhood', () => {
+test('runs a life known only by its birth at least through childhood', () => {
   const expected = expectedEntries([fact('BIRT', '1780', 'Juva')]);
   expect(expected.find((e) => e.of === 'life')).toMatchObject({
     years: { from: 1780, to: 1795 },

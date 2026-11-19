@@ -103,8 +103,8 @@ function childhood(all: Dated[], birth: Dated | null): ExpectedEntry[] {
 }
 
 // From birth to death; failing either, from or to the furthest year any
-// Fact gives. A household's rippikirja lists its children too, so a life
-// with a birth and no death runs at least through childhood.
+// Fact gives. Looked for broadly rather than missed: from birth, not
+// confirmation, and with no death at least through childhood.
 function life(
   all: Dated[],
   birth: Dated | null,
