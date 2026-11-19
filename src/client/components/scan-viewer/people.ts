@@ -77,8 +77,8 @@ class ScanPeopleElement extends SignalWatcher(LitElement) {
       }
 
       nav button[aria-current='true'] {
-        background: color-mix(in srgb, var(--accent) 18%, transparent);
-        color: var(--accent);
+        background: var(--bg);
+        color: var(--fg);
         font-weight: 600;
       }
     `
