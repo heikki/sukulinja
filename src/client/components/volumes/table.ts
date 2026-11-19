@@ -130,6 +130,19 @@ export function actButton(
 // An icon button's place in a row without it.
 export const EMPTY_SLOT = html`<span class="slot" aria-hidden="true"></span>`;
 
+// Scrolls the table in `root` to centre the shown Volume's row; false when
+// there's no such row yet.
+export function revealShown(root: ShadowRoot | null) {
+  if (root === null) return false;
+  const row = root.querySelector<HTMLElement>('tr[aria-current="true"]');
+  const box = root.querySelector<HTMLElement>('div.table');
+  if (row === null || box === null) return false;
+  const at = row.getBoundingClientRect();
+  const from = at.top - box.getBoundingClientRect().top;
+  box.scrollTop += from - (box.clientHeight - at.height) / 2;
+  return true;
+}
+
 // A note under the table, or nothing.
 export function renderRefused(refused: string | null) {
   return refused === null ? nothing : html`<p class="refused">${refused}</p>`;

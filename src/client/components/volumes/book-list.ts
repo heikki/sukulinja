@@ -18,6 +18,7 @@ import {
   REMOVE_ICON,
   renderBookTable,
   renderRefused,
+  revealShown,
   STOP_ICON
 } from './table';
 
@@ -44,6 +45,10 @@ class BookListElement extends LitElement {
   // The Volume the Scan viewer shows, marked in the table.
   @property({ attribute: false }) shown: string | null = null;
 
+  // The shown Volume last scrolled to, so it's brought into view once as
+  // the list opens and again only when another is shown.
+  private revealed: string | null = null;
+
   // Whether the Volume picker is open.
   @state() private picking = false;
 
@@ -56,7 +61,14 @@ class BookListElement extends LitElement {
 
   override connectedCallback() {
     super.connectedCallback();
+    this.revealed = null;
     void this.load();
+  }
+
+  override updated() {
+    if (this.shown !== this.revealed && revealShown(this.shadowRoot)) {
+      this.revealed = this.shown;
+    }
   }
 
   override disconnectedCallback() {

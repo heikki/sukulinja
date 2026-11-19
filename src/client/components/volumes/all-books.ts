@@ -18,6 +18,7 @@ import {
   EMPTY_SLOT,
   renderBookTable,
   renderRefused,
+  revealShown,
   STOP_ICON,
   TRASH_ICON
 } from './table';
@@ -69,6 +70,10 @@ class AllBooksElement extends LitElement {
   // The Volume the Scan viewer shows, marked in the table.
   @property({ attribute: false }) shown: string | null = null;
 
+  // The shown Volume last scrolled to, so it's brought into view once as
+  // the list opens and again only when another is shown.
+  private revealed: string | null = null;
+
   // The Volume whose removal from disk waits to be confirmed in its row.
   @state() private confirming: string | null = null;
 
@@ -81,7 +86,14 @@ class AllBooksElement extends LitElement {
 
   override connectedCallback() {
     super.connectedCallback();
+    this.revealed = null;
     void this.load();
+  }
+
+  override updated() {
+    if (this.shown !== this.revealed && revealShown(this.shadowRoot)) {
+      this.revealed = this.shown;
+    }
   }
 
   override disconnectedCallback() {
