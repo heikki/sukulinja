@@ -12,7 +12,15 @@
 // The cache never switches on its own: the Scan viewer asks first (see
 // pins/rescans.ts).
 
-import { readdir, rename, rm, rmdir, stat, utimes } from 'node:fs/promises';
+import {
+  readdir,
+  rename,
+  rm,
+  rmdir,
+  stat,
+  statfs,
+  utimes
+} from 'node:fs/promises';
 import { basename, join } from 'node:path';
 
 import type { ScanCacheStatus, VolumeOnDisk } from '@/common/types';
@@ -22,7 +30,11 @@ import type { Astia, ImageRef, ImageSize } from './astia';
 import { jpegSize } from './jpeg';
 
 const GB = 1024 ** 3;
-export const CAPS = [5, 10, 20, 40].map((n) => n * GB);
+// Every cap the cache can be set to; offered are those its disk has room
+// for (`capChoices`).
+export const CAPS = [5, 10, 20, 40, 80, 160, 320, 640].map((n) => n * GB);
+// How many caps are offered at most: the largest that fit.
+const OFFERED = 5;
 const DEFAULT_CAP_BYTES = 5 * GB;
 
 // ---------------------------------------------------------------- the queue
@@ -174,11 +186,37 @@ async function savedCap(file: string) {
     : DEFAULT_CAP_BYTES;
 }
 
+// The caps offered, smallest first: those the cache could fill, `room`
+// being what it holds and the disk's free space together, the largest of
+// them when more fit; the smallest when none does; and the one set.
+export function capChoices(room: number, cap: number) {
+  const fit = CAPS.filter((c) => c <= room || c === CAPS[0]);
+  const offered = fit.slice(-OFFERED);
+  return offered.includes(cap)
+    ? offered
+    : [...offered, cap].toSorted((a, b) => a - b);
+}
+
+// The free space on the disk holding `path`, in bytes.
+async function diskFree(path: string) {
+  const info = await statfs(path).catch(() => null);
+  return info === null ? 0 : info.bavail * info.bsize;
+}
+
 // ---------------------------------------------------------------- the cache
 
 // The Scan cache of the data folder at `root`, fetching from `astia`: its
-// Images in `.astia-images/<volumeId>`, its cap in `settings.local.json`.
-export function openScanCache({ astia, root }: { astia: Astia; root: string }) {
+// Images in `.astia-images/<volumeId>`, its cap in `settings.local.json`;
+// the caps offered by `freeSpace`, the disk's by default.
+export function openScanCache({
+  astia,
+  root,
+  freeSpace = async () => await diskFree(root)
+}: {
+  astia: Astia;
+  root: string;
+  freeSpace?: () => Promise<number>;
+}) {
   const dir = join(root, '.astia-images');
   const settingsFile = join(root, 'settings.local.json');
   const inQueue = openQueue();
@@ -286,7 +324,9 @@ export function openScanCache({ astia, root }: { astia: Astia; root: string }) {
 
     async status(): Promise<ScanCacheStatus> {
       await ready;
-      return { cap, used: totalSize(await cachedFiles(dir)), caps: CAPS };
+      const used = totalSize(await cachedFiles(dir));
+      const room = used + (await freeSpace());
+      return { cap, used, caps: capChoices(room, cap) };
     },
 
     // What of the Volume is on disk: its full-size Images of Astia's list

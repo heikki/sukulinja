@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { NoImageError } from './astia';
 import type { Astia } from './astia';
 import { memoryAstia } from './memory-astia';
-import { openScanCache } from './scan-cache';
+import { capChoices, openScanCache } from './scan-cache';
 import type { ScanCache } from './scan-cache';
 
 const IMAGES = 10;
@@ -201,6 +201,19 @@ test('shrinks to a lowered cap at once, and clears', async () => {
   expect(await readdir(join(dir, '.astia-images'))).toEqual([]);
 });
 
+test('offers the caps its disk has room for, the largest of them', () => {
+  expect(capChoices(30 * GB, 5 * GB)).toEqual([5 * GB, 10 * GB, 20 * GB]);
+  // Little room: the smallest still, and the one set.
+  expect(capChoices(1 * GB, 20 * GB)).toEqual([5 * GB, 20 * GB]);
+  expect(capChoices(1000 * GB, 5 * GB)).toEqual(
+    [5, 40, 80, 160, 320, 640].map((n) => n * GB)
+  );
+});
+
+async function freeSpace() {
+  return await Promise.resolve(30 * GB);
+}
+
 async function writeSettings(root: string, settings: unknown) {
   await mkdir(root, { recursive: true });
   await Bun.write(join(root, 'settings.local.json'), JSON.stringify(settings));
@@ -209,10 +222,10 @@ async function writeSettings(root: string, settings: unknown) {
 test('reads the cap saved for the install before anything else', async () => {
   const root = join(dir, 'saved');
   await writeSettings(root, { scanCacheBytes: 10 * GB });
-  expect(await openScanCache({ astia, root }).status()).toEqual({
+  expect(await openScanCache({ astia, root, freeSpace }).status()).toEqual({
     cap: 10 * GB,
     used: 0,
-    caps: [5 * GB, 10 * GB, 20 * GB, 40 * GB]
+    caps: [5 * GB, 10 * GB, 20 * GB]
   });
   // A cap no longer offered falls back to the default.
   await writeSettings(root, { scanCacheBytes: 1 * GB });
