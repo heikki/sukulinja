@@ -102,7 +102,7 @@ export function renderBookTable<T extends Book>(table: BookTable<T>) {
               ? nothing
               : html`<th class="num">${table.column.header}</th>`
           }
-          <th class="num">On disk</th>
+          <th class="num">Downloaded</th>
           <th></th>
         </tr>
       </thead>

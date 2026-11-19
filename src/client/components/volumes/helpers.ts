@@ -205,29 +205,32 @@ function share(d: VolumeOnDisk) {
   return `${Math.min(pct, 99)}%`;
 }
 
-// What of a Volume is on disk, in a table's cell: its line made short,
-// the share of its Images in place of their count, which `diskLine`
-// gives whole for its tooltip; "—" for nothing, and nothing for one
-// wholly on disk or offloaded, as its buttons say.
+// How much of a Volume is downloaded, in a table's cell: its line made
+// short, the share of its Images alone, which `diskLine` gives whole with
+// their size for its tooltip; "—" for nothing, nothing for one wholly
+// downloaded, and for an offloaded one, how much it had.
 export function diskCell(volume: ChurchBookVolume & { offloaded?: Away }) {
-  if (volume.offloaded !== undefined && volume.offloaded !== null) return '';
-  return volumeCell(volume);
+  const { offloaded, onDisk } = volume;
+  if (offloaded === undefined || offloaded === null) return volumeCell(volume);
+  // What it had when offloaded, but nothing when that was all of it, or
+  // isn't known.
+  const had = { ...onDisk, cached: onDisk.cached + offloaded.images };
+  return offloaded.images === 0 || whole(had) ? '' : share(had);
 }
 
 function volumeCell(volume: ChurchBookVolume) {
   if (!volume.digitized) return 'Not digitized';
   const { download, onDisk } = volume;
-  const size = onDisk.bytes > 0 ? ` · ${formatBytes(onDisk.bytes)}` : '';
   const state = download?.state;
   if (state === 'queued') return 'Waiting';
   if (state === 'downloading') return `Downloading ${share(onDisk)}`;
   if (state === 'stopped' && !whole(onDisk)) {
-    return `Stopped at ${share(onDisk)}${size}`;
+    return `Stopped at ${share(onDisk)}`;
   }
   // Wholly on disk, as the row's buttons say, it says nothing.
   if (whole(onDisk)) return '';
   if (onDisk.cached === 0) return '—';
-  return `${share(onDisk)}${size}`;
+  return share(onDisk);
 }
 
 // The Book list in a line: how many, how many cited, and how many whole

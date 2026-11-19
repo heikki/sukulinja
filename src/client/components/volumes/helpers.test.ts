@@ -179,20 +179,33 @@ test("says a Volume's code, years and disk in a table's cells", () => {
   expect(yearsText(null)).toBe('');
   expect(diskCell(volume(null))).toBe('—');
   expect(diskCell(volume(null, WHOLE))).toBe('');
-  expect(diskCell(volume(null, PART))).toBe('23% · 105 MB');
+  expect(diskCell(volume(null, PART))).toBe('23%');
   expect(diskCell(volume({ state: 'downloading' }, PART))).toBe(
     'Downloading 23%'
   );
   expect(diskCell(volume({ state: 'queued' }, PART))).toBe('Waiting');
   expect(
     diskCell(volume({ state: 'stopped', error: 'unreachable' }, PART))
-  ).toBe('Stopped at 23% · 105 MB');
+  ).toBe('Stopped at 23%');
   expect(diskCell(volume(null, { images: 1000, cached: 1, bytes: 0 }))).toBe(
     '<1%'
   );
   expect(diskCell(volume(null, { images: 1000, cached: 999, bytes: 0 }))).toBe(
     '99%'
   );
+});
+
+test('an offloaded Volume shows how much of it it had, if not all', () => {
+  function offloaded(cached: number, away: number) {
+    return {
+      ...volume(null, { images: 100, cached, bytes: 0 }),
+      offloaded: { images: away, bytes: 0 }
+    };
+  }
+  expect(diskCell(offloaded(2, 38))).toBe('40%');
+  expect(diskCell(offloaded(2, 98))).toBe('');
+  // Offloaded before what it took was kept.
+  expect(diskCell(offloaded(2, 0))).toBe('');
 });
 
 test('sums the Book list up in a line', () => {
