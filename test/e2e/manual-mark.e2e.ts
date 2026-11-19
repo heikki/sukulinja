@@ -84,8 +84,10 @@ test("a reference's entry is placed by hand", async () => {
       .getByRole('row')
       .filter({ hasText: 'I Aa:1' });
     await row.getByRole('button', { name: 'Offload' }).click();
-    await row.getByText('Keep only the cited images on disk?').waitFor();
-    await row.getByRole('button', { name: 'Offload', exact: true }).click();
+    const ask = list.locator('sl-all-books tr.below');
+    await ask.getByText('Keep only the cited images on disk?').waitFor();
+    await shot(page, 'manual-mark-offload-ask');
+    await ask.getByRole('button', { name: 'Offload', exact: true }).click();
     await row.locator('td[title^="Offloaded: 1 of 20 Images kept"]').waitFor();
     await shot(page, 'manual-mark-offloaded');
 

@@ -183,7 +183,7 @@ class AllBooksElement extends LitElement {
   }
 
   // Removing a Volume's Images from disk, or all but the cited ones, asked
-  // first in its row.
+  // first under its row.
   private renderConfirm(book: InstalledBook, what: Leaving) {
     const ask =
       what === 'remove'
@@ -210,13 +210,9 @@ class AllBooksElement extends LitElement {
     ];
   }
 
-  // Marking its page numbers, its download or bringing it back, offloading
-  // it and removing it from disk, each in its place.
+  // Marking its page numbers, its download, offloading it or bringing it
+  // back, and removing it from disk, each in its place.
   private renderActs(book: InstalledBook) {
-    const { confirming } = this;
-    if (confirming?.id === book.id) {
-      return this.renderConfirm(book, confirming.what);
-    }
     const checked = book.pages === 'checked';
     const [download] = downloadActions(book);
     return [
@@ -228,40 +224,16 @@ class AllBooksElement extends LitElement {
         },
         { pressed: checked, disabled: this.asking.busy }
       ),
-      book.offloaded
-        ? actButton(
-            'Bring back',
-            BRING_BACK_ICON,
-            () => {
-              void this.bringBack(book);
-            },
-            {
-              title: 'Bring back: fetch its images from Astia again',
-              disabled: this.asking.busy
-            }
-          )
-        : download === undefined
-          ? EMPTY_SLOT
-          : actButton(
-              download.label,
-              download.action === 'start' ? DOWNLOAD_ICON : STOP_ICON,
-              () => {
-                void this.act(book, download.action);
-              }
-            ),
-      book.offloaded || book.onDisk.cached === 0
+      book.offloaded || download === undefined
         ? EMPTY_SLOT
         : actButton(
-            'Offload',
-            OFFLOAD_ICON,
+            download.label,
+            download.action === 'start' ? DOWNLOAD_ICON : STOP_ICON,
             () => {
-              this.confirming = { id: book.id, what: 'offload' };
-            },
-            {
-              title: 'Offload: keep only the cited images on disk',
-              disabled: this.asking.busy
+              void this.act(book, download.action);
             }
           ),
+      this.renderOffload(book),
       book.onDisk.bytes === 0
         ? EMPTY_SLOT
         : actButton(
@@ -273,6 +245,35 @@ class AllBooksElement extends LitElement {
             { disabled: this.asking.busy }
           )
     ];
+  }
+
+  // Offloading it, or bringing it back, in the same place.
+  private renderOffload(book: InstalledBook) {
+    if (book.offloaded) {
+      return actButton(
+        'Bring back',
+        BRING_BACK_ICON,
+        () => {
+          void this.bringBack(book);
+        },
+        {
+          title: 'Bring back: fetch its images from Astia again',
+          disabled: this.asking.busy
+        }
+      );
+    }
+    if (book.onDisk.cached === 0) return EMPTY_SLOT;
+    return actButton(
+      'Offload',
+      OFFLOAD_ICON,
+      () => {
+        this.confirming = { id: book.id, what: 'offload' };
+      },
+      {
+        title: 'Offload: keep only the cited images on disk',
+        disabled: this.asking.busy
+      }
+    );
   }
 
   private renderCache() {
@@ -313,6 +314,10 @@ class AllBooksElement extends LitElement {
         }
       },
       acts: (b) => this.renderActs(b),
+      below: (b) =>
+        this.confirming?.id === b.id
+          ? html`${this.renderConfirm(b, this.confirming.what)}`
+          : null,
       noArchive: 'Not in your parishes',
       open: (b) => {
         this.open(b);
