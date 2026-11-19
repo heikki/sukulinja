@@ -11,6 +11,7 @@ import { cornerListStyles } from '../corner-panel/list-styles';
 import {
   busy,
   diskCell,
+  diskLine,
   downloadActions,
   groupByArchive,
   listSummary,
@@ -148,7 +149,8 @@ class VolumesListElement extends LitElement {
         color: var(--muted);
       }
 
-      td.num {
+      td.num,
+      th.num {
         text-align: right;
       }
 
@@ -156,6 +158,7 @@ class VolumesListElement extends LitElement {
       td.disk {
         min-width: 7rem;
         white-space: normal;
+        text-align: right;
       }
 
       td.muted,
@@ -272,7 +275,7 @@ class VolumesListElement extends LitElement {
       <td class="num ${book.cited === 0 ? 'muted' : ''}">
         ${book.cited === 0 ? '–' : book.cited}
       </td>
-      <td class="muted disk">${diskCell(book)}</td>
+      <td class="muted disk" title=${diskLine(book)}>${diskCell(book)}</td>
       <td
         class="acts"
         @click=${(e: Event) => {
@@ -329,7 +332,7 @@ class VolumesListElement extends LitElement {
             <th>Series</th>
             <th>Years</th>
             <th class="num">Cited</th>
-            <th>On disk</th>
+            <th class="num">On disk</th>
             <th></th>
           </tr>
         </thead>

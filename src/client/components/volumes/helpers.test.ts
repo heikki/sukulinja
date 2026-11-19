@@ -162,6 +162,20 @@ test("says a Volume's code, years and disk in a table's cells", () => {
   expect(yearsText(null)).toBe('');
   expect(diskCell(volume(null))).toBe('—');
   expect(diskCell(volume(null, WHOLE))).toBe('On disk · 3 MB');
+  expect(diskCell(volume(null, PART))).toBe('23% · 105 MB');
+  expect(diskCell(volume({ state: 'downloading' }, PART))).toBe(
+    'Downloading 23%'
+  );
+  expect(diskCell(volume({ state: 'queued' }, PART))).toBe('Waiting');
+  expect(
+    diskCell(volume({ state: 'stopped', error: 'unreachable' }, PART))
+  ).toBe('Stopped at 23% · 105 MB');
+  expect(diskCell(volume(null, { images: 1000, cached: 1, bytes: 0 }))).toBe(
+    '<1%'
+  );
+  expect(diskCell(volume(null, { images: 1000, cached: 999, bytes: 0 }))).toBe(
+    '99%'
+  );
 });
 
 test('sums the Book list up in a line', () => {

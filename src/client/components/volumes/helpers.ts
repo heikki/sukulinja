@@ -167,11 +167,31 @@ export function matches(
     .includes(words);
 }
 
-// What of a Volume is on disk, in a table's cell: its whole line, but
-// "—" for nothing.
+// How much of a Volume is on disk, as a share of its Images: never 100%
+// short of whole, nor 0% once any is there.
+function share(d: VolumeOnDisk) {
+  if (d.images === null || d.images === 0) return `${d.cached} Images`;
+  const pct = Math.floor((d.cached / d.images) * 100);
+  if (pct === 0 && d.cached > 0) return '<1%';
+  return `${Math.min(pct, 99)}%`;
+}
+
+// What of a Volume is on disk, in a table's cell: its line made short,
+// the share of its Images in place of their count, which `diskLine`
+// gives whole for its tooltip; "—" for nothing.
 export function diskCell(volume: ChurchBookVolume) {
-  const line = diskLine(volume);
-  return line === 'Not on disk' ? '—' : line;
+  if (!volume.digitized) return 'Not digitized';
+  const { download, onDisk } = volume;
+  const size = onDisk.bytes > 0 ? ` · ${formatBytes(onDisk.bytes)}` : '';
+  const state = download?.state;
+  if (state === 'queued') return 'Waiting';
+  if (state === 'downloading') return `Downloading ${share(onDisk)}`;
+  if (state === 'stopped' && !whole(onDisk)) {
+    return `Stopped at ${share(onDisk)}${size}`;
+  }
+  if (whole(onDisk)) return `On disk${size}`;
+  if (onDisk.cached === 0) return '—';
+  return `${share(onDisk)}${size}`;
 }
 
 // The Book list in a line: how many, how many cited, and how many whole

@@ -1,11 +1,12 @@
 // The Volumes: a parish no source cites found in Astia from the Volume
 // picker, one of its Volumes added to the Book list, downloaded and
-// stopped there, and taken off.
+// stopped there, and taken off; and the picker offering first the Volumes
+// the Selected person's Facts fit.
 
 import { afterAll, test } from 'bun:test';
 
 import { closeBrowser, shot, withApp } from './app';
-import { newTree, openList } from './steps';
+import { importTree, newTree, openList } from './steps';
 
 afterAll(closeBrowser);
 
@@ -37,13 +38,32 @@ test('a Volume of another parish is added, downloaded and taken off', async () =
     const book = list.getByRole('row').filter({ hasText: 'I Aa:1' });
     await book.getByText('1800–1810').waitFor();
     await book.getByRole('button', { name: 'Download' }).click();
-    await book.getByText(/^Downloading \d+ of 5/).waitFor();
+    await book.getByText(/^Downloading \d+%/).waitFor();
     await shot(page, 'volumes-downloading');
     await book.getByRole('button', { name: 'Stop' }).click();
-    await book.getByText(/^Stopped at \d+ of 5/).waitFor();
+    await book.getByText(/^Stopped at \d+%/).waitFor();
 
     // Cited by nothing, it comes off the list.
     await book.getByRole('button', { name: 'Remove' }).click();
     await list.getByText('No sources here cite a Volume yet.').waitFor();
+  });
+});
+
+test("the picker offers the Volumes the Selected person's Facts fit", async () => {
+  await withApp(async ({ page }) => {
+    await importTree(page, 'myheritage-export.ged');
+    await openList(page, 'Volumes');
+    await page.getByRole('button', { name: 'Add volumes…' }).click();
+
+    // Born in Juva in 1780, Matti is in its rippikirja of his childhood.
+    const fits = page
+      .getByRole('dialog', { name: 'Add volumes' })
+      .getByRole('region', { name: 'Fits Matti Esimerkki' });
+    await fits
+      .getByRole('button', {
+        name: 'Open I Aa:1 Pää- ja rippikirjat (1790-1796)'
+      })
+      .waitFor();
+    await shot(page, 'volumes-fits');
   });
 });
