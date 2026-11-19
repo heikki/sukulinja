@@ -1,4 +1,4 @@
-Status: built — tickets 01–05 (ADR-0035)
+Status: resolved — tickets 01–05 built (ADR-0035)
 
 # Volumes: the Book list and the Volume picker
 
@@ -14,12 +14,12 @@ Heikki, 2026-11-19: the app should offer first the books that fit the Selected p
 - A cited Volume stays on the list; one added by hand and cited by nothing can be taken off. Its Images stay on disk.
 - The Volume picker is a modal: parishes down the side, _Fits <Selected person>_ on top, then a parish's Volumes by series, narrowed by series or year.
 - Page numbers can be marked checked for a Volume; checked, they're locked in the Scan viewer until unmarked, and Vision Match warns before running on one unchecked. Kept simple: one mark, nothing more until tried.
-- Expected entries from a person's own Facts and sources. Parents' and spouse's places as a weaker reason where their own is missing: agreed, not built yet.
+- Expected entries from a person's own Facts and sources. Parents' and spouse's places as a weaker reason where their own is missing: agreed, left for `.scratch/small/issues/09-expected-entries-from-relatives.md`.
 
 ## Tickets
 
 - `01` Expected entries and `personBooks` — done.
 - `02` The Book list, the Volumes tab and the Volume picker — done.
-- `03` The _All books_ mode.
-- `04` Page numbers checked.
-- `05` The Scan viewer changes Volume through the picker.
+- `03` The _All books_ mode — done.
+- `04` Page numbers checked — done.
+- `05` The Scan viewer changes Volume through the picker — done.

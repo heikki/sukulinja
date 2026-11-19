@@ -16,5 +16,5 @@ The Church books view listed a dataset's archives, and an archive's Volumes in A
 
 ## Consequences
 
-- A view of every Volume with anything on this computer, shared by every dataset (downloads, offloading, page numbers checked), is the tab's second mode, still to come.
-- The Scan viewer's _Change Volume…_ is still its own list, until it uses the picker too.
+- A view of every Volume with anything on this computer, shared by every dataset (downloads, page numbers checked, and later offloading), is the tab's second mode, _All books_.
+- The Scan viewer's _Change Volume…_ opens the same picker.
