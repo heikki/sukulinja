@@ -8,11 +8,13 @@ import type { NewChange } from '../changes/changes';
 import { routeShared } from './astia-routes';
 import { openAstia } from './astia/astia';
 import type { Astia, ImageRef } from './astia/astia';
+import { parishBooks } from './astia/church-books';
 import { openDownloads } from './astia/downloads';
 import type { DownloadOptions } from './astia/downloads';
 import { openParishes } from './astia/parishes';
 import type { Parishes } from './astia/parishes';
 import { imageSize, openScanCache } from './astia/scan-cache';
+import { openBookList } from './book-list';
 import { createCitations } from './citations';
 import { openImages } from './images';
 import { openScanFolder, pacedImages, switchFilming } from './myheritage';
@@ -111,6 +113,14 @@ export function openCitations(root: string, options: Options) {
         options.changed?.(db, change);
       }
       const citations = createCitations(db, { images, references, changed });
+      const bookList = openBookList(db, {
+        books: async (archiveId) =>
+          await parishBooks({ astia, cache, downloads }, archiveId),
+        titleOf: async (archiveId) => await images.titleOf(archiveId),
+        archives: async () => await citations.churchBookArchives(),
+        countInArchive: async (archiveId) =>
+          await citations.countInArchive(archiveId)
+      });
       if (options.warmUp === true) void citations.warmUp();
       // Switches the Volume, `volume` by its label, to Astia's new filming,
       // which every dataset then sees, and says so in this one's Changes.
@@ -152,6 +162,8 @@ export function openCitations(root: string, options: Options) {
           clearVolumePages: async (volumeId) =>
             await folder.clearVolumePages(volumeId)
         }),
+        // The dataset's Book list, and adding and taking off Volumes.
+        bookList,
         // The church books a person's Facts say they should be in, each
         // Expected entry with the Volumes it fits.
         booksFor: async (life: PersonLife) => await personBooks.booksFor(life),

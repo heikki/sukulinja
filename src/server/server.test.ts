@@ -245,6 +245,8 @@ describe('Church books', () => {
       {
         id: '301',
         label: 'I Aa:1 Pää- ja rippikirjat (1790-1796)',
+        kind: 'rippi',
+        years: { from: 1790, to: 1796 },
         digitized: true,
         onDisk: { images: 2, cached: 0, bytes: 0 },
         download: null

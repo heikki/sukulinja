@@ -225,6 +225,13 @@ const SCHEMA_SQL = `
     PRIMARY KEY (fact_id, citation_id)
   );
   CREATE INDEX IF NOT EXISTS fact_citations_citation_idx ON fact_citations(citation_id);
+  -- The Book list: the Volumes added to the dataset's list of church
+  -- books beside those its Citations link into, with the parish archive
+  -- each is in. No export writes it.
+  CREATE TABLE IF NOT EXISTS listed_books (
+    volume_id TEXT PRIMARY KEY,
+    archive_id TEXT NOT NULL
+  );
   -- Reminders, on a person or an Image, one on an Image maybe about a
   -- person too. No export writes them.
   CREATE TABLE IF NOT EXISTS reminders (

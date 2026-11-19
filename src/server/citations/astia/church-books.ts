@@ -24,6 +24,8 @@ export async function parishBooks(
     volumes.map(async (v) => ({
       id: v.id,
       label: v.label,
+      kind: v.kind,
+      years: v.years,
       digitized: v.digitized,
       onDisk: await cache.onDisk(v.id),
       download: downloads.of(v.id)

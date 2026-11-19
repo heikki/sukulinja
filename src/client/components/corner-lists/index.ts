@@ -10,24 +10,24 @@ import type { AppState } from '@/client/state';
 import type { ChangeOn, On } from '@/common/types';
 
 import type { ChangePickEvent } from '../changes-list';
-import type { VolumeOpenEvent } from '../church-books';
 import type { TabPickEvent } from '../corner-panel/panel';
 import { CornerPopover } from '../corner-panel/popover';
 import { openCount } from '../reminders-list/helpers';
+import type { VolumeOpenEvent } from '../volumes';
 import { listsLabel, tabsShown } from './helpers';
 import type { CornerList } from './helpers';
 import { LISTS_ICON } from './icons';
 
 import '../assistant-panel';
 import '../changes-list';
-import '../church-books';
 import '../corner-panel/button';
 import '../corner-panel/panel';
 import '../photos-list';
 import '../reminders-list';
+import '../volumes';
 
 // Beside Settings: one button opening a popover of the Reminders, the
-// Changes, the Church books, the Photos and, when it's turned on, the
+// Changes, the Volumes, the Photos and, when it's turned on, the
 // Assistant, a tab each, as Settings opens its own; only one popover is open at a time. It opens on the tab last
 // shown, and a Reminder being drafted, as from the Scan viewer's menu,
 // opens it on the Reminders. Only the open tab's list is drawn. A line of
@@ -102,10 +102,10 @@ class CornerListsElement extends SignalWatcher(LitElement) {
         ></sl-reminders-list>`;
       case 'changes':
         return html`<sl-changes-list @pick=${this.onChange}></sl-changes-list>`;
-      case 'church-books':
-        return html`<sl-church-books-list
+      case 'volumes':
+        return html`<sl-volumes-list
           @open-volume=${this.onVolume}
-        ></sl-church-books-list>`;
+        ></sl-volumes-list>`;
       case 'photos':
         return html`<sl-photos-list></sl-photos-list>`;
       case 'assistant':

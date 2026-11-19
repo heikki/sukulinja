@@ -14,7 +14,7 @@ test("a tree grows from its first person's baptism", async () => {
     await newTree(page);
     expect(await page.locator('[data-box-key]').count()).toBe(1);
 
-    // The baptism book, from the parish's archive in the Church books.
+    // The baptism book, from the parish's archive in the Volume picker.
     await openJuvaVolume(page, 'Syntyneiden ja kastettujen luettelot');
     await page.getByText('No one in the tree is linked here.').waitFor();
 

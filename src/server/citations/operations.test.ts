@@ -7,12 +7,12 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { BookSuggestion } from '@/common/types';
+import type { BookSuggestion, ListedBook } from '@/common/types';
 
 import { DatasetRegistry } from '../datasets/registry';
 import { createApi, createStaticFetch } from '../server';
 import type { VisionReaders } from './index';
-import { juvaAstia, memoryAstia, rippiCitation } from './testing';
+import { JUVA, juvaAstia, memoryAstia, rippiCitation } from './testing';
 import type { MemoryAstia } from './testing';
 
 let root = '';
@@ -190,6 +190,44 @@ describe("A dataset's Citations", () => {
       archiveId: '1200716382'
     });
     expect(await elsewhere.json()).toEqual({});
+  });
+
+  test('lists the books cited, and adds and takes off others', async () => {
+    await seedDataset();
+    async function listed(name: string, body: unknown = {}) {
+      const res = await op('juva', name, body);
+      expect(res.status).toBe(200);
+      return ((await res.json()) as ListedBook[]).map((b) => ({
+        id: b.id,
+        kind: b.kind,
+        cited: b.cited,
+        added: b.added
+      }));
+    }
+    expect(await listed('bookList')).toEqual([
+      { id: 'juva-1', kind: 'rippi', cited: 1, added: false }
+    ]);
+    expect(
+      await listed('listBook', { volumeId: 'juva-3', archiveId: JUVA })
+    ).toEqual([
+      { id: 'juva-1', kind: 'rippi', cited: 1, added: false },
+      { id: 'juva-3', kind: 'kastetut', cited: 0, added: true }
+    ]);
+    const elsewhere = await op('juva', 'listBook', {
+      volumeId: 'juva-3',
+      archiveId: '1200716382'
+    });
+    expect(elsewhere.status).toBe(400);
+    // A book cited stays, added or not.
+    const cited = await op('juva', 'unlistBook', { volumeId: 'juva-1' });
+    expect(cited.status).toBe(404);
+    await listed('listBook', { volumeId: 'juva-1', archiveId: JUVA });
+    expect(
+      (await op('juva', 'unlistBook', { volumeId: 'juva-1' })).status
+    ).toBe(409);
+    expect(await listed('unlistBook', { volumeId: 'juva-3' })).toEqual([
+      { id: 'juva-1', kind: 'rippi', cited: 1, added: true }
+    ]);
   });
 
   test("finds the church books a person's Facts say they're in", async () => {

@@ -47,6 +47,15 @@ export function openPersonBooks({
     return [...new Set(found)];
   }
 
+  // The parish's name as the parishes first spell it; null for one with
+  // no spelling.
+  function parishName(archiveId: string) {
+    return (
+      parishes.all().find((p) => p.archiveId === archiveId)?.spellings[0] ??
+      null
+    );
+  }
+
   // The person's parishes, most named first: by their Facts' places and
   // their sources' parishes.
   function personArchives({ facts, citations }: PersonLife) {
@@ -66,7 +75,11 @@ export function openPersonBooks({
           astia.archiveTitle(archive.archiveId),
           astia.archiveVolumes(archive.archiveId)
         ]);
-        const named = { ...archive, title: title ?? archive.archiveId };
+        const named = {
+          ...archive,
+          title: title ?? archive.archiveId,
+          parish: parishName(archive.archiveId) ?? title ?? archive.archiveId
+        };
         return { named, volumes: fitting(expected, volumes, named) };
       })
     );
@@ -74,7 +87,8 @@ export function openPersonBooks({
       expected,
       parishes: looked.map(({ named }) => ({
         archiveId: named.archiveId,
-        title: named.title
+        title: named.title,
+        parish: named.parish
       })),
       volumes: looked.flatMap((l) => l.volumes)
     };

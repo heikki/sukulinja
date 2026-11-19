@@ -28,6 +28,7 @@ import { REIMPORT_LEFTOVERS_GO } from './migration-10';
 import { FACT_CITATIONS_GO } from './migration-11';
 import { ENTRIES_SAY_THEIR_DATES } from './migration-12';
 import { ENTRIES_SAY_ONE_PLACE } from './migration-13';
+import { BOOKS_ARE_LISTED } from './migration-14';
 
 export interface Migration {
   to: number;
@@ -49,7 +50,8 @@ export const MIGRATIONS: Migration[] = [
   REIMPORT_LEFTOVERS_GO,
   FACT_CITATIONS_GO,
   ENTRIES_SAY_THEIR_DATES,
-  ENTRIES_SAY_ONE_PLACE
+  ENTRIES_SAY_ONE_PLACE,
+  BOOKS_ARE_LISTED
 ];
 
 // The version the steps take a database to.

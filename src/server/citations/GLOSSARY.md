@@ -101,7 +101,7 @@ _Avoid_: rescan, refilming (as names).
 A Volume whose Images hold the book twice, as if filmed twice; the copies drift apart in Image numbers. Page pins point into the copy the references were indexed from.
 
 **Scan viewer**:
-Where the app shows the Image a Church-book reference links, opened from its source. You step through the link's Volume there, or look in another Volume of its Book. An **Unlinked** reference whose parish's books were looked through opens it too, on no Volume, to look through them for the entry, and an Image's **Reminder** or the **Church books** view opens it on an Image with no source; there or with one, a new Citation of an entry can be made for someone, and the viewer then opens on it as its source. Beside the scan are the people whose references link the Image shown, and the source's **Match** can be confirmed from its Box's menu. A **Box** placed there for the source's entry waits until it's saved as a **Mark**, and the source's own Box can be taken back with a **Discard**.
+Where the app shows the Image a Church-book reference links, opened from its source. You step through the link's Volume there, or look in another Volume of its Book. An **Unlinked** reference whose parish's books were looked through opens it too, on no Volume, to look through them for the entry, and an Image's **Reminder**, the **Volumes** view or the **Volume picker** opens it on an Image with no source; there or with one, a new Citation of an entry can be made for someone, and the viewer then opens on it as its source. Beside the scan are the people whose references link the Image shown, and the source's **Match** can be confirmed from its Box's menu. A **Box** placed there for the source's entry waits until it's saved as a **Mark**, and the source's own Box can be taken back with a **Discard**.
 _Avoid_: record viewer (a record is MyHeritage's), Astia viewer (Astia's own site).
 
 **Scan cache**:
@@ -109,15 +109,23 @@ The Images kept on disk for the Scan viewer and Vision Match, up to a size the i
 _Avoid_: image cache, Astia cache (that's Astia's answers about archives and Volumes).
 
 **Parish**:
-A parish whose church books the app finds in Astia: its archive ("… seurakunnan arkisto"), shown by the archive's title, and the spellings references give it, each linking into it. Kept per install in the data folder, so every dataset uses them. A spelling gets its archive where an **Unlinked** reference offers to find it in Astia, and is changed the same way; the Church books view adds one with no spelling.
+A parish whose church books the app finds in Astia: its archive ("… seurakunnan arkisto"), shown by the archive's title, and the spellings references give it, each linking into it. Kept per install in the data folder, so every dataset uses them. A spelling gets its archive where an **Unlinked** reference offers to find it in Astia, and is changed the same way; the **Volume picker** adds one with no spelling.
 _Avoid_: parish name (it has none of its own).
 
-**Church books**:
-The view of the Volumes of the archives the dataset's church books are in (by their titles in Astia, most cited first), then apart the install's other **Parishes**, apart from any citation, with how many of the dataset's Citations link into each and what of it is on disk: where a Volume is downloaded into the Scan cache, every Image at once under the same cap, or opened in the Scan viewer with no source.
-_Avoid_: archive (a parish's fonds in Astia), library.
+**Volumes** (the view):
+The corner panel's tab of the dataset's **Book list**, as a table by archive, each one's Volumes by series and years, with how many of the dataset's Citations link into each and what of it is on disk; a year or words filter it. A Volume is opened from it in the Scan viewer with no source, downloaded into the Scan cache (every Image at once, under the same cap) or stopped, and one added by hand taken off. _Add volumes…_ opens the **Volume picker**. Named Volumes, not Church books, as other sources than church books will be listed too.
+_Avoid_: church books (as the view's name), archive (a parish's fonds in Astia), library.
+
+**Book list**:
+The Volumes a dataset works in: every Volume its Citations link into, and those added by hand from the **Volume picker**, with the archive holding each. Only which Volumes are listed is the dataset's; what of a Volume is on disk, its download and its Page pins are the install's, shared by every dataset. One no Citation links into can be taken off; one cited stays. No export writes it.
+_Avoid_: shelf, bookmarks.
+
+**Volume picker**:
+Where Volumes are found to add to the **Book list** or open: the dataset's parishes, then the install's other **Parishes**, and finding another in Astia; the Volumes that fit the Selected person, each of their **Expected entries** with the Volumes it fits; and a parish's Volumes by series, narrowed by a series or a year.
+_Avoid_: book picker (a Book is a kind of book, not a Volume).
 
 **Expected entry**:
-An **Entry** a person's Facts say a kind of **Book** should hold of them, in some years, in the parishes their places name: their baptism in the kastetut of their birth year, their childhood (birth to 15) in the lastenkirjat, their life in the rippikirjat, each marriage in the vihityt, their burial in the haudatut. A life with no death runs to the last year a Fact gives, and says so. Each is looked for in the **Parishes** its own Facts' places name (any part of the place, as a spelling), failing those in the person's other places' and sources' parishes; a life and a childhood in both, as people moved. The Volumes it fits are those of its Book, digitized, covering its years. One no Citation of theirs records is a gap, where a search for it would start.
+An **Entry** a person's Facts say a kind of **Book** should hold of them, in some years, in the parishes their places name: their baptism in the kastetut of their birth year, their childhood (birth to 15) in the lastenkirjat, their life in the rippikirjat, each marriage in the vihityt, their burial in the haudatut. A life with no death runs to the last year a Fact gives, and says so. Each is looked for in the **Parishes** its own Facts' places name (any part of the place, as a spelling), failing those in the person's other places' and sources' parishes; a life and a childhood in both, as people moved. The Volumes it fits are those of its Book, digitized, covering its years: what the **Volume picker** offers first for the Selected person. One no Citation of theirs records is a gap, where a search for it would start.
 _Avoid_: suggestion (that's the Volume offered), gap (one not yet found).
 
 **Precision**:

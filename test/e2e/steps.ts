@@ -41,7 +41,7 @@ export async function turnAssistantOn(page: Page) {
 }
 
 // The corner's lists on `tab`, opened first if they're closed: Reminders,
-// Changes, Church books, Photos, or the Assistant once it's on.
+// Changes, Volumes, Photos, or the Assistant once it's on.
 export async function openList(page: Page, tab: string) {
   const tabs = page.getByRole('tab', { name: tab });
   if (!(await tabs.isVisible())) {
@@ -50,11 +50,21 @@ export async function openList(page: Page, tab: string) {
   await tabs.click();
 }
 
-// The Volume of Juva's archive in the Scan viewer, from the Church books.
+// The Volume of Juva's archive in the Scan viewer, from the Volume
+// picker.
 export async function openJuvaVolume(page: Page, volume: string) {
-  await openList(page, 'Church books');
-  await page.getByRole('button', { name: 'Juvan seurakunnan arkisto' }).click();
-  await page.locator('sl-church-books-list').getByText(volume).click();
+  await openList(page, 'Volumes');
+  await page.getByRole('button', { name: 'Add volumes…' }).click();
+  const picker = page.getByRole('dialog', { name: 'Add volumes' });
+  await picker
+    .getByRole('button', { name: 'Juvan seurakunnan arkisto' })
+    .click();
+  await picker
+    .getByRole('button', {
+      name: new RegExp(`^Open .*${RegExp.escape(volume)}`)
+    })
+    .first()
+    .click();
   await page.keyboard.press('Escape');
 }
 

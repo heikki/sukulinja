@@ -41,7 +41,7 @@ export function archivesFor(expected: ExpectedEntry, where: WhereToLook) {
 export function fitting(
   expected: ExpectedEntry,
   volumes: Volume[],
-  archive: { archiveId: string; title: string; near: boolean }
+  archive: { archiveId: string; title: string; parish: string; near: boolean }
 ): SuggestedVolume[] {
   return volumes
     .filter(
@@ -55,6 +55,7 @@ export function fitting(
       years: v.years,
       archiveId: archive.archiveId,
       archive: archive.title,
+      parish: archive.parish,
       near: archive.near
     }));
 }

@@ -3,15 +3,21 @@ import { describe, expect, test } from 'bun:test';
 import type {
   ChurchBookVolume,
   DownloadStatus,
+  ListedBook,
   VolumeOnDisk
 } from '@/common/types';
 
 import {
   busy,
+  diskCell,
   diskLine,
   downloadActions,
+  groupByArchive,
+  listSummary,
+  matches,
   othersOf,
-  volumeLine
+  volumeCode,
+  yearsText
 } from './helpers';
 
 const MB = 1024 ** 2;
@@ -24,6 +30,8 @@ function volume(
   return {
     id: '1',
     label: 'I Ab:5 Pää- ja rippikirjat (1790-1796)',
+    kind: 'rippi',
+    years: { from: 1790, to: 1796 },
     digitized,
     onDisk,
     download:
@@ -87,13 +95,6 @@ describe('diskLine', () => {
   });
 });
 
-test('volumeLine leads with the Citations linking into it', () => {
-  expect(volumeLine(volume(null), 12)).toBe('12 citations · Not on disk');
-  expect(volumeLine(volume(null), 1)).toBe('1 citation · Not on disk');
-  expect(volumeLine(volume(null), 0)).toBe('Not on disk');
-  expect(volumeLine(volume(null), null)).toBe('Not on disk');
-});
-
 test('busy while any is downloading or waiting to', () => {
   expect(busy([volume(null), volume({ state: 'stopped' })])).toBe(false);
   expect(busy([volume(null), volume({ state: 'queued' })])).toBe(true);
@@ -103,4 +104,71 @@ test("the install's other parishes leave out the dataset's own", () => {
   const juva = { archiveId: '1', title: 'Juvan seurakunnan arkisto' };
   const puumala = { archiveId: '2', title: 'Puumalan seurakunnan arkisto' };
   expect(othersOf([juva], [juva, puumala])).toEqual([puumala]);
+});
+
+function listed(
+  id: string,
+  archiveId: string,
+  label: string,
+  more: Partial<ListedBook> = {}
+): ListedBook {
+  return {
+    ...volume(null),
+    id,
+    label,
+    archiveId,
+    archive: `Archive ${archiveId}`,
+    cited: 0,
+    added: false,
+    ...more
+  };
+}
+
+test('groups the Book list by archive, each by series and years', () => {
+  const books = [
+    listed('b', 'A', 'I C:1 Syntyneiden ja kastettujen luettelot (1790-1810)', {
+      kind: 'kastetut',
+      years: { from: 1790, to: 1810 }
+    }),
+    listed('c', 'B', 'I Aa:1 Pää- ja rippikirjat (1790-1796)'),
+    listed('a2', 'A', 'I Aa:2 Pää- ja rippikirjat (1797-1803)', {
+      years: { from: 1797, to: 1803 }
+    }),
+    listed('a1', 'A', 'I Aa:1 Pää- ja rippikirjat (1790-1796)')
+  ];
+  expect(
+    groupByArchive(books).map((g) => [g.archiveId, g.books.map((b) => b.id)])
+  ).toEqual([
+    ['A', ['a1', 'a2', 'b']],
+    ['B', ['c']]
+  ]);
+});
+
+test('filters by a year a Volume covers, or words in it', () => {
+  const book = listed('a', 'A', 'I Aa:1 Pää- ja rippikirjat (1790-1796)');
+  expect(matches(book, '')).toBe(true);
+  expect(matches(book, '1793')).toBe(true);
+  expect(matches(book, '1800')).toBe(false);
+  expect(matches(book, 'rippi')).toBe(true);
+  expect(matches(book, 'archive a')).toBe(true);
+  expect(matches(book, 'kastet')).toBe(false);
+});
+
+test("says a Volume's code, years and disk in a table's cells", () => {
+  expect(volumeCode('I Aa:10 Pää- ja rippikirjat (1790-1796)')).toBe('I Aa:10');
+  expect(volumeCode('Rippikirja (1800-1810)')).toBe('Rippikirja (1800-1810)');
+  expect(yearsText({ from: 1790, to: 1796 })).toBe('1790–1796');
+  expect(yearsText({ from: 1790, to: 1790 })).toBe('1790');
+  expect(yearsText(null)).toBe('');
+  expect(diskCell(volume(null))).toBe('—');
+  expect(diskCell(volume(null, WHOLE))).toBe('On disk · 3 MB');
+});
+
+test('sums the Book list up in a line', () => {
+  expect(
+    listSummary([
+      listed('a', 'A', 'x', { cited: 2, onDisk: WHOLE }),
+      listed('b', 'A', 'y')
+    ])
+  ).toBe('2 volumes · 1 cited · 1 on disk');
 });

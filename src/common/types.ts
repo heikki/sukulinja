@@ -386,13 +386,21 @@ export interface ExpectedEntry {
   places: string[];
 }
 
-// A Volume an Expected entry may be in, with the archive holding it.
+// A parish an Expected entry is looked for in: its archive, and its name
+// as the parishes first spell it ("Pieksämäki"), else the archive's title.
+export interface LookedParish extends ChurchBookArchive {
+  parish: string;
+}
+
+// A Volume an Expected entry may be in, with the archive holding it and
+// its parish's name.
 export interface SuggestedVolume {
   id: string;
   label: string;
   years: Years | null;
   archiveId: string;
   archive: string;
+  parish: string;
   // In a parish its own Facts' places name, rather than one of the
   // person's other places or sources.
   near: boolean;
@@ -404,7 +412,7 @@ export interface SuggestedVolume {
 // known for the person's places.
 export interface BookSuggestion {
   expected: ExpectedEntry;
-  parishes: ChurchBookArchive[];
+  parishes: LookedParish[];
   volumes: SuggestedVolume[];
 }
 
@@ -495,9 +503,23 @@ export interface ChurchBookArchive {
 export interface ChurchBookVolume {
   id: string;
   label: string;
+  // The kind of Book and the years its label gives, null where it doesn't.
+  kind: BookKind | null;
+  years: Years | null;
   digitized: boolean;
   onDisk: VolumeOnDisk;
   download: DownloadStatus | null;
+}
+
+// The `bookList` operation: a Volume on the dataset's Book list, with the
+// archive holding it, by its id and title, how many of the dataset's
+// Citations link into it, and whether it was added to the list by hand.
+// One no Citation links into is on it only as added, and can be taken off.
+export interface ListedBook extends ChurchBookVolume {
+  archiveId: string;
+  archive: string;
+  cited: number;
+  added: boolean;
 }
 
 // A pin made on a filming of its Volume that Astia has since replaced,

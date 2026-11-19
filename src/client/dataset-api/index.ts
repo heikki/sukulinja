@@ -29,6 +29,7 @@ import type {
   FactFields,
   FamilyRow,
   ImagePages,
+  ListedBook,
   NewFact,
   NewRelative,
   PersonDetails,
@@ -158,6 +159,16 @@ export interface DatasetApi {
     archiveId: string,
     signal?: AbortSignal
   ) => Promise<Record<string, number>>;
+  // The dataset's Book list: the Volumes its Citations link into and
+  // those added by hand, by archive.
+  bookList: (signal?: AbortSignal) => Promise<ListedBook[]>;
+  // Adds the archive's Volume to the Book list, or takes one added off:
+  // the list. A refusal says why in the app's words.
+  listBook: (at: {
+    volumeId: string;
+    archiveId: string;
+  }) => Promise<ListedBook[]>;
+  unlistBook: (volumeId: string) => Promise<ListedBook[]>;
   // The person's Expected entries in the order of their life, each with
   // the Volumes it fits.
   personBooks: (
@@ -322,6 +333,11 @@ export function openDatasetApi(
         "the parish's citations",
         signal
       ),
+    bookList: async (signal) =>
+      await call('bookList', {}, 'the church books', signal),
+    listBook: async (at) => await call('listBook', at, 'the book'),
+    unlistBook: async (volumeId) =>
+      await call('unlistBook', { volumeId }, 'the book'),
     personBooks: async (personId, signal) =>
       await call('personBooks', { personId }, 'the church books', signal),
     volume: async (volumeId, signal) =>

@@ -65,7 +65,7 @@ test("finds the Volumes a person's Facts fit, in the parishes their places name"
     citations: []
   });
   expect(baptism?.parishes).toEqual([
-    { archiveId: JUVA, title: 'Juvan seurakunnan arkisto' }
+    { archiveId: JUVA, title: 'Juvan seurakunnan arkisto', parish: 'Juva' }
   ]);
   expect(baptism?.volumes).toEqual([
     {
@@ -74,6 +74,7 @@ test("finds the Volumes a person's Facts fit, in the parishes their places name"
       years: { from: 1790, to: 1810 },
       archiveId: JUVA,
       archive: 'Juvan seurakunnan arkisto',
+      parish: 'Juva',
       near: true
     }
   ]);

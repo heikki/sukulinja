@@ -15,6 +15,7 @@ import type {
   CitationLinks,
   FamilyRow,
   ImagePages,
+  ListedBook,
   PersonDetails,
   PersonRow,
   PhotoRow,
@@ -32,6 +33,7 @@ import type {
 
 import { ApiError, NOT_RESPONDING } from './';
 import type { DatasetApi } from './';
+import { memoryBookList } from './memory-books';
 
 export interface MemoryVolume {
   images: number;
@@ -81,6 +83,10 @@ export interface MemoryDataset {
   places?: string[];
   // The archives the church books are in, as given.
   archives?: ChurchBookArchive[];
+  // The Book list; `listBook` adds one of `listable` to it, as added, and
+  // `unlistBook` takes one added and uncited off.
+  bookList?: ListedBook[];
+  listable?: ListedBook[];
   // The church books each person should be in, by person id, as given.
   books?: Record<number, BookSuggestion[]>;
   // By Photo id: what `tag` and `untag` change, `addPhoto` adds to,
@@ -364,6 +370,8 @@ export function memoryDatasetApi(
     // Every Volume given is taken as the archive's.
     archives: async (signal) =>
       await answer('archives', signal, () => [...(data.archives ?? [])]),
+
+    ...memoryBookList(data, answer),
 
     personBooks: async (personId, signal) =>
       await answer(`person books ${personId}`, signal, () => [
