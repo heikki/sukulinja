@@ -47,7 +47,7 @@ class CornerListsElement extends SignalWatcher(LitElement) {
 
   @consume({ context: appState }) private readonly state!: AppState;
 
-  @state() private tab: CornerList = 'reminders';
+  @state() private tab: CornerList = 'volumes';
 
   // Whether a Reminder was being drafted at the last update, so one just
   // started opens the Reminders.
@@ -91,7 +91,7 @@ class CornerListsElement extends SignalWatcher(LitElement) {
       this.tab = 'reminders';
     }
     this.drafted = drafting;
-    if (this.tab === 'assistant' && !assistantOn.get()) this.tab = 'reminders';
+    if (this.tab === 'assistant' && !assistantOn.get()) this.tab = 'volumes';
   }
 
   private renderList() {

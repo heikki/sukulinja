@@ -40,12 +40,12 @@ export async function turnAssistantOn(page: Page) {
   await page.keyboard.press('Escape');
 }
 
-// The corner's lists on `tab`, opened first if they're closed: Reminders,
-// Changes, Volumes, Photos, or the Assistant once it's on.
+// The corner's lists on `tab`, opened first if they're closed: Volumes,
+// Photos, Reminders, Changes, or the Assistant once it's on.
 export async function openList(page: Page, tab: string) {
   const tabs = page.getByRole('tab', { name: tab });
   if (!(await tabs.isVisible())) {
-    await page.getByRole('button', { name: /^Reminders, Changes/ }).click();
+    await page.getByRole('button', { name: /^Volumes, Photos/ }).click();
   }
   await tabs.click();
 }
