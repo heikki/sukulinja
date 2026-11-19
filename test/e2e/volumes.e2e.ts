@@ -1,6 +1,6 @@
 // The Volumes: a parish no source cites found in Astia from the Volume
 // picker, one of its Volumes added to the Book list, downloaded and
-// stopped there, and taken off; and the picker offering first the Volumes
+// stopped there, removed from disk among all the books, and taken off; and the picker offering first the Volumes
 // the Selected person's Facts fit.
 
 import { afterAll, test } from 'bun:test';
@@ -10,7 +10,7 @@ import { importTree, newTree, openList } from './steps';
 
 afterAll(closeBrowser);
 
-test('a Volume of another parish is added, downloaded and taken off', async () => {
+test('a Volume of another parish is added, downloaded, removed and taken off', async () => {
   await withApp(async ({ page }) => {
     await newTree(page);
     await openList(page, 'Volumes');
@@ -42,6 +42,20 @@ test('a Volume of another parish is added, downloaded and taken off', async () =
     await shot(page, 'volumes-downloading');
     await book.getByRole('button', { name: 'Stop' }).click();
     await book.getByText(/^Stopped at \d+%/).waitFor();
+
+    // Among all the books on this computer, it comes off the disk.
+    const modes = list.getByRole('group', { name: 'Volumes shown' });
+    await modes.getByRole('button', { name: 'All books' }).click();
+    const all = list.locator('sl-all-books');
+    await all.getByText('Keksityn seurakunnan arkisto').waitFor();
+    await shot(page, 'volumes-all-books');
+    await all
+      .getByRole('row')
+      .filter({ hasText: 'I Aa:1' })
+      .getByRole('button', { name: 'Remove from disk' })
+      .click();
+    await all.getByText('Nothing of any volume is on this computer').waitFor();
+    await modes.getByRole('button', { name: 'This tree' }).click();
 
     // Cited by nothing, it comes off the list.
     await book.getByRole('button', { name: 'Remove' }).click();

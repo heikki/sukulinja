@@ -522,6 +522,15 @@ export interface ListedBook extends ChurchBookVolume {
   added: boolean;
 }
 
+// The `allBooks` operation: a Volume with something on this computer, in
+// the Scan cache or downloading, whatever dataset it's of; with the
+// archive holding it, by its id and title, when one of the install's
+// parishes has it, null when none does.
+export interface InstalledBook extends ChurchBookVolume {
+  archiveId: string | null;
+  archive: string | null;
+}
+
 // A pin made on a filming of its Volume that Astia has since replaced,
 // which switching to the new filming leaves out: saved in the data folder
 // or a dataset's Marks, on the Image it gives. A Page pin gives its

@@ -122,16 +122,25 @@ export function bySeries<T extends Pick<ChurchBookVolume, 'kind' | 'years'>>(
   return (a.years?.from ?? Infinity) - (b.years?.from ?? Infinity);
 }
 
-export interface ArchiveGroup {
-  archiveId: string;
-  archive: string;
-  books: ListedBook[];
+// A Volume with the archive holding it; null when none of the install's
+// parishes has it.
+type InArchive = Pick<ChurchBookVolume, 'kind' | 'years'> & {
+  archiveId: string | null;
+  archive: string | null;
+};
+
+export interface ArchiveGroup<T extends InArchive> {
+  archiveId: string | null;
+  archive: string | null;
+  books: T[];
 }
 
-// The Book list by archive, in the order the archives come, each one's
-// books by series and years.
-export function groupByArchive(books: ListedBook[]): ArchiveGroup[] {
-  const groups = new Map<string, ArchiveGroup>();
+// The Volumes by archive, in the order the archives come, each one's by
+// series and years.
+export function groupByArchive<T extends InArchive>(
+  books: T[]
+): Array<ArchiveGroup<T>> {
+  const groups = new Map<string | null, ArchiveGroup<T>>();
   for (const book of books) {
     const group = groups.get(book.archiveId) ?? {
       archiveId: book.archiveId,
@@ -150,7 +159,9 @@ export function groupByArchive(books: ListedBook[]): ArchiveGroup[] {
 // Whether the Volume answers what's typed: a year it covers, or words in
 // its label, series or archive.
 export function matches(
-  book: Pick<ListedBook, 'label' | 'kind' | 'years'> & { archive?: string },
+  book: Pick<ListedBook, 'label' | 'kind' | 'years'> & {
+    archive?: string | null;
+  },
   typed: string
 ) {
   const words = typed.trim().toLowerCase();

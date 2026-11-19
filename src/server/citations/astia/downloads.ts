@@ -75,7 +75,11 @@ export function openDownloads(
   const retryMs = options.retryMs ?? RETRY_MS;
   const retries = options.retries ?? RETRIES;
   const queue: string[] = [];
-  let running: { volumeId: string; stop: AbortController } | null = null;
+  let running: {
+    volumeId: string;
+    stop: AbortController;
+    settled: Promise<void>;
+  } | null = null;
   // Those stopped short this run, and why: null when stopped by hand.
   const ended = new Map<string, DownloadError | null>();
   let idle = Promise.withResolvers<undefined>();
@@ -147,7 +151,8 @@ export function openDownloads(
       return;
     }
     const stop = new AbortController();
-    running = { volumeId, stop };
+    const settled = Promise.withResolvers<undefined>();
+    running = { volumeId, stop, settled: settled.promise };
     void download(volumeId, stop.signal)
       .then(() => {
         if (stop.signal.aborted) ended.set(volumeId, null);
@@ -157,6 +162,7 @@ export function openDownloads(
       })
       .finally(() => {
         running = null;
+        settled.resolve(undefined);
         pump();
       });
   }
@@ -197,6 +203,15 @@ export function openDownloads(
     // Stops the Volume's download; what it fetched stays in the cache.
     stop(volumeId: string) {
       unqueue(volumeId);
+    },
+
+    // Stops the Volume's download and, once it has, forgets it: nothing
+    // more of it is written, and it's no longer listed as stopped.
+    async drop(volumeId: string) {
+      const was = running?.volumeId === volumeId ? running.settled : null;
+      unqueue(volumeId);
+      await was;
+      ended.delete(volumeId);
     },
 
     // The Volume's download this run; null for none, or one that finished.

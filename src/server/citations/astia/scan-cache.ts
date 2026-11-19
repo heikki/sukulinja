@@ -13,7 +13,7 @@
 // pins/rescans.ts).
 
 import { readdir, rename, rm, rmdir, stat, utimes } from 'node:fs/promises';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 
 import type { ScanCacheStatus, VolumeOnDisk } from '@/common/types';
 
@@ -307,6 +307,22 @@ export function openScanCache({ astia, root }: { astia: Astia; root: string }) {
         cached: (listed ?? []).filter((id) => files.has(`${id}.jpg`)).length,
         bytes: sizes.reduce((sum, b) => sum + b, 0)
       };
+    },
+
+    // The Volumes with any Image on disk, by id.
+    async volumes() {
+      const listed = await Promise.all(
+        (await volumeDirs(dir)).map(async (volume) => {
+          const names = await readdir(volume).catch(() => []);
+          return names.some((n) => n.endsWith('.jpg')) ? [volume] : [];
+        })
+      );
+      return listed.flat().map((path) => basename(path));
+    },
+
+    // Drops the Volume's Images, and its folder.
+    async remove(volumeId: string) {
+      await rm(join(dir, volumeId), { recursive: true, force: true });
     },
 
     // Saves the cap for the install, and shrinks to it at once.

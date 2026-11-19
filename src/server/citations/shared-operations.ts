@@ -1,8 +1,8 @@
 // The operations outside any dataset that the Citations answer
 // (common/operations/app.ts): the install's parishes, finding a parish's
 // archive in Astia and choosing one, for a spelling references give or
-// for none; a parish's church books and their downloads; and the Scan
-// cache they're kept in.
+// for none; a parish's church books and their downloads, every one with
+// something on this computer; and the Scan cache they're kept in.
 
 import type { AppOperations } from '@/common/operations';
 import type { ChurchBookArchive } from '@/common/types';
@@ -10,7 +10,7 @@ import type { ChurchBookArchive } from '@/common/types';
 import { Refusal } from '../operations';
 import type { Handlers } from '../operations';
 import type { Astia } from './astia/astia';
-import { parishBooks } from './astia/church-books';
+import { installBooks, parishBooks } from './astia/church-books';
 import type { Downloads } from './astia/downloads';
 import { findParishArchives, isParishArchive } from './astia/parish-search';
 import type { Parishes } from './astia/parishes';
@@ -35,6 +35,8 @@ export type SharedOperations = Pick<
   | 'downloads'
   | 'startDownload'
   | 'stopDownload'
+  | 'allBooks'
+  | 'removeFromDisk'
   | 'scanCache'
   | 'setScanCap'
   | 'clearScanCache'
@@ -55,6 +57,10 @@ export function sharedOperations({
     if (!isParishArchive(title)) {
       throw new Refusal(400, `${title} isn't a parish's archive.`);
     }
+  }
+
+  async function allBooks() {
+    return await installBooks({ astia, cache, downloads }, parishes.archives());
   }
 
   return {
@@ -88,6 +94,12 @@ export function sharedOperations({
     stopDownload({ volumeId }) {
       downloads.stop(volumeId);
       return downloads.list();
+    },
+    allBooks,
+    async removeFromDisk({ volumeId }) {
+      await downloads.drop(volumeId);
+      await cache.remove(volumeId);
+      return await allBooks();
     },
     scanCache: async () => await cache.status(),
     async setScanCap({ cap }) {

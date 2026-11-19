@@ -1,0 +1,215 @@
+import { consume } from '@lit/context';
+import { css, html, LitElement } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
+
+import { Asking } from '@/client/asking';
+import { appState } from '@/client/state';
+import type { AppState } from '@/client/state';
+import type { InstalledBook, ScanCacheStatus } from '@/common/types';
+
+import { formatBytes } from '../settings/helpers';
+import { busy, downloadActions, matches } from './helpers';
+import type { DownloadAction } from './helpers';
+import {
+  actButton,
+  bookTableStyles,
+  DOWNLOAD_ICON,
+  renderBookTable,
+  renderRefused,
+  STOP_ICON,
+  TRASH_ICON
+} from './table';
+
+// How often the Volumes are asked for again while one downloads.
+const POLL_MS = 2000;
+
+// The Volumes tab's _All books_: every Volume with something on this
+// computer, whatever tree it's of, as a table by archive, with the Scan
+// cache's fill against its cap above it. Each one's download is started
+// or stopped there, and what of it is on disk removed. Typing filters it,
+// as the Book list's. Clicking a row opens it (`open-volume`).
+@customElement('sl-all-books')
+class AllBooksElement extends LitElement {
+  static override styles = [
+    bookTableStyles,
+    css`
+      .cache {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        color: var(--muted);
+        font-size: 0.75rem;
+      }
+
+      .meter {
+        height: 4px;
+        border-radius: 2px;
+        background: color-mix(in srgb, var(--fg) 10%, transparent);
+        overflow: hidden;
+      }
+
+      .meter span {
+        display: block;
+        height: 100%;
+        background: var(--accent);
+      }
+    `
+  ];
+
+  @state() private books: InstalledBook[] | 'failed' | null = null;
+  @state() private cache: ScanCacheStatus | null = null;
+  @state() private filter = '';
+
+  // Removing a Volume from disk; why it was refused.
+  private readonly asking = new Asking(this);
+
+  @consume({ context: appState }) private readonly state!: AppState;
+
+  private poll: ReturnType<typeof setTimeout> | null = null;
+
+  override connectedCallback() {
+    super.connectedCallback();
+    void this.load();
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.stopPolling();
+  }
+
+  private stopPolling() {
+    if (this.poll !== null) clearTimeout(this.poll);
+    this.poll = null;
+  }
+
+  // The Volumes and the cache, asked for again while any downloads; one
+  // that fails keeps what was shown, once something was.
+  private async load() {
+    this.stopPolling();
+    const { app } = this.state;
+    try {
+      const [books, cache] = await Promise.all([
+        app.allBooks(),
+        app.scanCache()
+      ]);
+      this.cache = cache;
+      this.show(books);
+    } catch {
+      if (!Array.isArray(this.books)) this.books = 'failed';
+    }
+  }
+
+  private show(books: InstalledBook[]) {
+    this.books = books;
+    this.stopPolling();
+    if (busy(books) && this.isConnected) {
+      this.poll = setTimeout(() => {
+        void this.load();
+      }, POLL_MS);
+    }
+  }
+
+  private async act(book: InstalledBook, action: DownloadAction) {
+    const { app } = this.state;
+    const send = action === 'start' ? app.startDownload : app.stopDownload;
+    await send(book.id).catch(() => undefined);
+    await this.load();
+  }
+
+  private async removeFromDisk(book: InstalledBook) {
+    await this.asking.run(async () => {
+      this.show(await this.state.app.removeFromDisk(book.id));
+      this.cache = await this.state.app.scanCache();
+    });
+  }
+
+  private open(book: InstalledBook) {
+    this.dispatchEvent(
+      new CustomEvent('open-volume', {
+        detail: { volumeId: book.id, label: book.label }
+      })
+    );
+  }
+
+  private renderActs(book: InstalledBook) {
+    const downloads = downloadActions(book).map(({ action, label }) =>
+      actButton(label, action === 'start' ? DOWNLOAD_ICON : STOP_ICON, () => {
+        void this.act(book, action);
+      })
+    );
+    if (book.onDisk.bytes === 0) return downloads;
+    return [
+      ...downloads,
+      actButton(
+        'Remove from disk',
+        TRASH_ICON,
+        () => {
+          void this.removeFromDisk(book);
+        },
+        { disabled: this.asking.busy }
+      )
+    ];
+  }
+
+  private renderCache() {
+    const { cache } = this;
+    if (cache === null) return html`<span class="cache"></span>`;
+    const pct = Math.min(100, (cache.used / cache.cap) * 100);
+    return html`<span class="cache">
+      Scan cache ${formatBytes(cache.used)} of ${formatBytes(cache.cap)}
+      <span class="meter"><span style="width: ${pct}%"></span></span>
+    </span>`;
+  }
+
+  private renderBody() {
+    const { books } = this;
+    if (books === null) return html`<p class="muted">Loading…</p>`;
+    if (books === 'failed') {
+      return html`<p class="muted">
+        The volumes on this computer couldn't be listed.
+      </p>`;
+    }
+    if (books.length === 0) {
+      return html`<p class="muted">
+        Nothing of any volume is on this computer yet.
+      </p>`;
+    }
+    const shown = books.filter((b) => matches(b, this.filter));
+    if (shown.length === 0) {
+      return html`<p class="muted">No volume here matches.</p>`;
+    }
+    return renderBookTable({
+      books: shown,
+      acts: (b) => this.renderActs(b),
+      noArchive: 'Not in your parishes',
+      open: (b) => {
+        this.open(b);
+      }
+    });
+  }
+
+  override render() {
+    return html`
+      <div class="bar">
+        <input
+          aria-label="Filter volumes"
+          placeholder="Filter by year or name"
+          .value=${this.filter}
+          @input=${(e: InputEvent) => {
+            this.filter = (e.target as HTMLInputElement).value;
+          }}
+        />
+        ${this.renderCache()}
+      </div>
+      ${this.renderBody()} ${renderRefused(this.asking.refused)}
+    `;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'sl-all-books': AllBooksElement;
+  }
+}

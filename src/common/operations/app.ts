@@ -10,6 +10,7 @@ import type {
   ChurchBookArchive,
   ChurchBookVolume,
   DownloadStatus,
+  InstalledBook,
   ScanCacheStatus
 } from '@/common/types';
 
@@ -78,6 +79,15 @@ export const APP_OPERATIONS = {
     volumeOf
   ),
   stopDownload: answers<{ volumeId: string }, DownloadStatus[]>(
+    '{ volumeId }',
+    volumeOf
+  ),
+
+  // Every Volume with something on this computer, the install's parishes'
+  // first, in their order. Taking one off the disk stops its download and
+  // answers with them as they then stand.
+  allBooks: asksNothing<InstalledBook[]>(),
+  removeFromDisk: answers<{ volumeId: string }, InstalledBook[]>(
     '{ volumeId }',
     volumeOf
   ),

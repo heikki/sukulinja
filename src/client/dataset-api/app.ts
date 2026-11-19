@@ -9,6 +9,7 @@ import type {
   AssistantKeyStatus,
   ChurchBookArchive,
   ChurchBookVolume,
+  InstalledBook,
   ScanCacheStatus
 } from '@/common/types';
 
@@ -34,6 +35,10 @@ export interface AppApi {
   // Starts or carries on with the Volume's download, or stops it.
   startDownload: (volumeId: string) => Promise<void>;
   stopDownload: (volumeId: string) => Promise<void>;
+  // Every Volume with something on this computer; taking one off the disk
+  // answers with them as they then stand.
+  allBooks: () => Promise<InstalledBook[]>;
+  removeFromDisk: (volumeId: string) => Promise<InstalledBook[]>;
   // The Scan cache; setting its cap and clearing it answer with it as it
   // then stands.
   scanCache: () => Promise<ScanCacheStatus>;
@@ -70,6 +75,9 @@ export function openAppApi({
     async stopDownload(volumeId) {
       await call('stopDownload', { volumeId }, 'Stopping the download');
     },
+    allBooks: async () => await call('allBooks', {}, 'the volumes'),
+    removeFromDisk: async (volumeId) =>
+      await call('removeFromDisk', { volumeId }, 'Removing from disk'),
     scanCache: async () => await call('scanCache', {}, 'the Scan cache'),
     setScanCap: async (cap) =>
       await call('setScanCap', { cap }, 'Setting the cap'),

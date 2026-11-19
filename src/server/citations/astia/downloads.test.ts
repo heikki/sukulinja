@@ -197,6 +197,17 @@ test('stopped, keeps what it fetched; started again, fetches only the rest', asy
   expect(await stateOf('201')).toBe('done');
 });
 
+test('dropped, settles once nothing more of it is written, and is forgotten', async () => {
+  hold = Promise.withResolvers();
+  downloads.start('201');
+  await until(() => fetched.includes('201-f1'));
+  const dropped = downloads.drop('201');
+  hold.resolve();
+  await dropped;
+  expect(downloads.of('201')).toBeNull();
+  expect(downloads.list()).toEqual([]);
+});
+
 test('stopped while queued, never starts', async () => {
   hold = Promise.withResolvers();
   downloads.start('201');

@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 
 # The _All books_ mode of the Volumes tab
 
@@ -10,3 +10,7 @@ Actions: download / stop, remove from disk, and later offload (`.scratch/church-
 
 - Counting Trees means opening every dataset's list; or leave the column out at first.
 - Which archive a Volume is in, for one no dataset lists: from the cache folder alone it isn't known; Astia's crawl of the install's parishes can say.
+
+## Built
+
+The toggle, and _All books_ as a table by archive like the Book list's (Volume, Series, Years, On disk), under the Scan cache's fill; download / stop and _Remove from disk_ (`allBooks`, `removeFromDisk`). A Volume of none of the install's parishes shows by its id. Left out for now: the Trees column (each dataset's list would have to be opened), the state filters, and Pages until ticket 04.

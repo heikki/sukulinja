@@ -33,6 +33,12 @@ import '../archive-search';
 
 export type BookListEvent = CustomEvent<ListedBook[]>;
 
+// A Volume to open in the Scan viewer.
+export interface VolumeOpen {
+  volumeId: string;
+  label: string;
+}
+
 // The Volume picker, a modal over the window: the parishes down its side,
 // the dataset's own first, then the install's others and finding another
 // in Astia; on top, the Volumes that fit the Selected person, each of

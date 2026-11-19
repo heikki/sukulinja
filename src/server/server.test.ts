@@ -268,6 +268,49 @@ describe('Church books', () => {
     });
     expect((await appOp('stopDownload', { volumeId: 'x' })).status).toBe(400);
   });
+
+  test('lists every Volume on this computer, and takes one off the disk', async () => {
+    serveWith(
+      memoryAstia({
+        [JUVA_ARCHIVE]: {
+          ...JUVA_BOOKS[JUVA_ARCHIVE],
+          title: 'Juvan seurakunnan arkisto'
+        },
+        // An archive the install has no parish of.
+        '555': { volumes: [{ id: '999', label: 'I Aa:9', images: 1 }] }
+      })
+    );
+    expect((await appOp('allBooks')).body).toEqual([]);
+    await appOp('startDownload', { volumeId: '302' });
+    await until(async () => {
+      const { body } = await appOp('downloads');
+      return (body as unknown[]).length === 0;
+    });
+    expect((await appOp('allBooks')).body).toEqual([
+      expect.objectContaining({
+        id: '302',
+        label: 'I C:1 Syntyneiden ja kastettujen luettelot',
+        archiveId: JUVA_ARCHIVE,
+        archive: 'Juvan seurakunnan arkisto',
+        onDisk: { images: 3, cached: 3, bytes: 12 }
+      })
+    ]);
+    // One of no parish the install has is known by its id alone.
+    await Bun.write(join(root, 'data', '.astia-images', '999', 'f.jpg'), 'x');
+    expect((await appOp('allBooks')).body).toEqual([
+      expect.objectContaining({ id: '302' }),
+      expect.objectContaining({
+        id: '999',
+        label: '999',
+        archiveId: null,
+        archive: null
+      })
+    ]);
+    await appOp('removeFromDisk', { volumeId: '999' });
+    const removed = await appOp('removeFromDisk', { volumeId: '302' });
+    expect(removed.body).toEqual([]);
+    expect((await appOp('scanCache')).body).toMatchObject({ used: 0 });
+  });
 });
 
 describe('A dataset replaced while open', () => {
