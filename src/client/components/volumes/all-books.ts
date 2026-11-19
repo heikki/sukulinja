@@ -1,6 +1,6 @@
 import { consume } from '@lit/context';
 import { css, html, LitElement } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 
 import { Asking } from '@/client/asking';
 import { appState } from '@/client/state';
@@ -65,6 +65,9 @@ class AllBooksElement extends LitElement {
   @state() private books: InstalledBook[] | 'failed' | null = null;
   @state() private cache: ScanCacheStatus | null = null;
   @state() private filter = '';
+
+  // The Volume the Scan viewer shows, marked in the table.
+  @property({ attribute: false }) shown: string | null = null;
 
   // The Volume whose removal from disk waits to be confirmed in its row.
   @state() private confirming: string | null = null;
@@ -239,6 +242,7 @@ class AllBooksElement extends LitElement {
     }
     return renderBookTable({
       books: shown,
+      shown: this.shown,
       column: { header: 'Pages', cell: (b) => pagesCell(b.pages) },
       acts: (b) => this.renderActs(b),
       noArchive: 'Not in your parishes',

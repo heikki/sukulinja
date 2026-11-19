@@ -28,6 +28,8 @@ type Book = ChurchBookVolume & {
 
 export interface BookTable<T extends Book> {
   books: T[];
+  // The Volume the Scan viewer shows, marked, if any.
+  shown: string | null;
   // A column between the years and what's on disk, if any: its header,
   // and each Volume's cell.
   column?: { header: string; cell: (book: T) => unknown };
@@ -40,7 +42,8 @@ export interface BookTable<T extends Book> {
 
 function renderBook<T extends Book>(table: BookTable<T>, book: T) {
   return html`<tr
-    class="book ${book.digitized ? '' : 'off'}"
+    class="book ${book.digitized ? '' : 'off'} ${book.id === table.shown ? 'shown' : ''}"
+    aria-current=${book.id === table.shown ? 'true' : nothing}
     @click=${() => {
       if (book.digitized) table.open(book);
     }}
@@ -257,6 +260,12 @@ export const bookTableStyles = [
 
     tr.book:hover {
       background: color-mix(in srgb, var(--fg) 6%, transparent);
+    }
+
+    /* The one the Scan viewer shows. */
+    tr.book.shown {
+      background: color-mix(in srgb, var(--accent) 14%, transparent);
+      box-shadow: inset 3px 0 0 var(--accent);
     }
 
     tr.book.off {

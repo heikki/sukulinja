@@ -1,6 +1,6 @@
 import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 
 import { Asking } from '@/client/asking';
 import { appState } from '@/client/state';
@@ -40,6 +40,9 @@ class BookListElement extends LitElement {
   @state() private books: ListedBook[] | 'failed' | null = null;
 
   @state() private filter = '';
+
+  // The Volume the Scan viewer shows, marked in the table.
+  @property({ attribute: false }) shown: string | null = null;
 
   // Whether the Volume picker is open.
   @state() private picking = false;
@@ -148,6 +151,7 @@ class BookListElement extends LitElement {
     }
     return renderBookTable({
       books: shown,
+      shown: this.shown,
       column: {
         header: 'Cited',
         cell: (b) =>

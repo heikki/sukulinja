@@ -43,6 +43,14 @@ test('a Volume of another parish is added, downloaded, removed and taken off', a
     await book.getByRole('button', { name: 'Stop' }).click();
     await book.getByText(/^Stopped at \d+%/).waitFor();
 
+    // Opened in the Scan viewer, it's marked as the one shown.
+    await book.getByRole('cell', { name: 'I Aa:1' }).click();
+    await openList(page, 'Volumes');
+    await list
+      .locator('tr[aria-current="true"]', { hasText: 'I Aa:1' })
+      .waitFor();
+    await shot(page, 'volumes-shown');
+
     // Among all the books on this computer, it comes off the disk, asked
     // first.
     const modes = list.getByRole('group', { name: 'Volumes shown' });

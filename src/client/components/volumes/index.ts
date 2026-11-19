@@ -1,5 +1,10 @@
+import { SignalWatcher } from '@lit-labs/signals';
+import { consume } from '@lit/context';
 import { css, html, LitElement } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
+
+import { appState } from '@/client/state';
+import type { AppState } from '@/client/state';
 
 import type { VolumeOpen } from './picker';
 
@@ -18,9 +23,10 @@ const MODES: ReadonlyArray<{ mode: Mode; label: string }> = [
 // The Volumes tab of the corner panel, in one of two modes: _This tree_,
 // the dataset's Book list (book-list.ts), and _All books_, every Volume
 // with something on this computer, whatever tree it's of (all-books.ts).
-// Either one's Volume clicked is opened (`open-volume`).
+// Either one's Volume clicked is opened (`open-volume`); the one the Scan
+// viewer shows is marked in both.
 @customElement('sl-volumes-list')
-class VolumesListElement extends LitElement {
+class VolumesListElement extends SignalWatcher(LitElement) {
   static override styles = css`
     :host {
       display: flex;
@@ -55,6 +61,8 @@ class VolumesListElement extends LitElement {
     }
   `;
 
+  @consume({ context: appState }) private readonly state!: AppState;
+
   @state() private mode: Mode = 'tree';
 
   private readonly onOpen = (e: VolumeOpenEvent) => {
@@ -62,6 +70,7 @@ class VolumesListElement extends LitElement {
   };
 
   override render() {
+    const shown = this.state.viewer.volume.get()?.id ?? null;
     return html`
       <div class="modes" role="group" aria-label="Volumes shown">
         ${MODES.map(
@@ -78,8 +87,14 @@ class VolumesListElement extends LitElement {
       </div>
       ${
         this.mode === 'tree'
-          ? html`<sl-book-list @open-volume=${this.onOpen}></sl-book-list>`
-          : html`<sl-all-books @open-volume=${this.onOpen}></sl-all-books>`
+          ? html`<sl-book-list
+              .shown=${shown}
+              @open-volume=${this.onOpen}
+            ></sl-book-list>`
+          : html`<sl-all-books
+              .shown=${shown}
+              @open-volume=${this.onOpen}
+            ></sl-all-books>`
       }
     `;
   }
