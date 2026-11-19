@@ -113,7 +113,7 @@ A parish whose church books the app finds in Astia: its archive ("… seurakunna
 _Avoid_: parish name (it has none of its own).
 
 **Volumes** (the view):
-The corner panel's tab of Volumes, in two modes. _This tree_ is the dataset's **Book list**, as a table by archive, each one's Volumes by series and years, with how many of the dataset's Citations link into each and what of it is on disk; a year or words filter it. A Volume is opened from it in the Scan viewer with no source, downloaded into the Scan cache (every Image at once, under the same cap) or stopped, and one added by hand taken off. _Add volumes…_ opens the **Volume picker**. _All books_ is every Volume with something on this computer, whatever dataset it's of: Images in the **Scan cache** or a download this run, by archive, one in none of the install's **Parishes** by its id alone, under the Scan cache's fill against its cap; a download is started or stopped there, and a Volume's Images removed from disk. In either, the Volume the Scan viewer shows is marked. Named Volumes, not Church books, as other sources than church books will be listed too.
+The corner panel's tab of Volumes, in two modes. _This tree_ is the dataset's **Book list**, as a table by archive, each one's Volumes by series and years, with how many of the dataset's Citations link into each and what of it is on disk; a year or words filter it. A Volume is opened from it in the Scan viewer with no source, downloaded into the Scan cache (every Image at once, under the same cap) or stopped, and one added by hand taken off. _Add volumes…_ opens the **Volume picker**. _All books_ is every Volume with something on this computer, whatever dataset it's of: Images in the **Scan cache** or a download this run, by archive, one in none of the install's **Parishes** by its id alone, under the Scan cache's fill against its cap; a download is started or stopped there, a Volume **Offloaded**, and its Images removed from disk. In either, the Volume the Scan viewer shows is marked. Named Volumes, not Church books, as other sources than church books will be listed too.
 _Avoid_: church books (as the view's name), archive (a parish's fonds in Astia), library.
 
 **Book list**:
@@ -152,6 +152,9 @@ _Avoid_: correction, anchor (alone), placement.
 **Page pin**:
 A Page number known to be on an Image. Images for other pages of the Volume are counted from the nearest Page pins, so one helps every reference in the Volume. Where a source misread a page number, the Page pin gives the number as referenced and notes what's written.
 _Avoid_: anchor.
+
+**Offloaded**:
+A Volume with every full-size Image off the disk but those any dataset's Citations link, its thumbnails kept, from its row in _All books_. The rest are fetched from Astia again when they're shown.
 
 **Pages checked**:
 A Volume's Page numbers marked by hand as right, for every dataset, from the Volume's row in _All books_ or the Scan viewer's menu. Then they're locked: neither set by hand, cleared nor surveyed until unmarked. Vision Match on a Volume not checked asks first, as its estimates count from them.

@@ -91,6 +91,12 @@ export const APP_OPERATIONS = {
     '{ volumeId }',
     volumeOf
   ),
+  // Every Image of the Volume but those any dataset's Citations link off
+  // the disk, its download stopped; the Volumes as they then stand.
+  offload: answers<{ volumeId: string }, InstalledBook[]>(
+    '{ volumeId }',
+    volumeOf
+  ),
 
   // Marks the Volume's page numbers checked, locking them in the Scan
   // viewer, or no longer: every Volume on this computer then. Whether

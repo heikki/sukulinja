@@ -16,6 +16,7 @@ import type { Parishes } from './astia/parishes';
 import { imageSize, openScanCache } from './astia/scan-cache';
 import { openBookList } from './book-list';
 import { createCitations } from './citations';
+import type { Citations } from './citations';
 import { openImages } from './images';
 import { openScanFolder, pacedImages, switchFilming } from './myheritage';
 import { askingAstia, citationOperations } from './operations';
@@ -95,6 +96,37 @@ export function openCitations(root: string, options: Options) {
     return await folder.kept(await options.datasets());
   }
 
+  // Each dataset's Citations, made once for its Database: by its
+  // operations, or first by a question about every dataset.
+  const made = new WeakMap<Database, Citations>();
+  function citationsOf(db: Database) {
+    let citations = made.get(db);
+    if (citations === undefined) {
+      const references = folder.references(db, { sizeOf });
+      citations = createCitations(db, {
+        images,
+        references,
+        changed: (change) => options.changed?.(db, change)
+      });
+      made.set(db, citations);
+    }
+    return citations;
+  }
+
+  // The Images of the Volume any dataset's Citations link, by number.
+  // Throws when Astia can't be reached.
+  async function citedImages(volumeId: string) {
+    const rows = await Promise.all(
+      (await options.datasets()).map(
+        async (db) => await citationsOf(db).inVolume(volumeId)
+      )
+    );
+    const cited = rows
+      .flat()
+      .flatMap((row) => ('image' in row.link ? [row.link.image] : []));
+    return [...new Set(cited)];
+  }
+
   return {
     // The parishes, the church books and their downloads, and the Scan
     // cache, shared by every dataset.
@@ -103,6 +135,7 @@ export function openCitations(root: string, options: Options) {
       parishes,
       cache,
       downloads,
+      citedImages,
       pages: {
         numbering: async (volumeId) => await folder.pageNumbering(volumeId),
         check: async (volumeId, on) => {
@@ -119,11 +152,10 @@ export function openCitations(root: string, options: Options) {
     // One dataset's Citations, resolved against the scans. Opened once for
     // each Database.
     forDataset(db: Database) {
-      const references = folder.references(db, { sizeOf });
       function changed(change: NewChange) {
         options.changed?.(db, change);
       }
-      const citations = createCitations(db, { images, references, changed });
+      const citations = citationsOf(db);
       const bookList = openBookList(db, {
         books: async (archiveId) =>
           await parishBooks({ astia, cache, downloads }, archiveId),

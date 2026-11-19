@@ -5,7 +5,7 @@
 import { afterAll, expect, test } from 'bun:test';
 
 import { closeBrowser, shot, withApp } from './app';
-import { importTree, openJuvaVolume, rightClickLine } from './steps';
+import { importTree, openJuvaVolume, openList, rightClickLine } from './steps';
 
 afterAll(closeBrowser);
 
@@ -70,5 +70,23 @@ test("a reference's entry is placed by hand", async () => {
       'Add reminder…',
       'Change Volume…'
     ]);
+    await page.keyboard.press('Escape');
+
+    // Offloaded, the Volume keeps only its cited Image on disk.
+    await openList(page, 'Volumes');
+    const list = page.locator('sl-volumes-list');
+    await list
+      .getByRole('group', { name: 'Volumes shown' })
+      .getByRole('button', { name: 'All books' })
+      .click();
+    const row = list
+      .locator('sl-all-books')
+      .getByRole('row')
+      .filter({ hasText: 'I Aa:1' });
+    await row.getByRole('button', { name: 'Offload' }).click();
+    await row.getByText('Keep only the cited images on disk?').waitFor();
+    await row.getByRole('button', { name: 'Offload', exact: true }).click();
+    await row.locator('td[title^="1 of 20 Images on disk"]').waitFor();
+    await shot(page, 'manual-mark-offloaded');
   });
 });

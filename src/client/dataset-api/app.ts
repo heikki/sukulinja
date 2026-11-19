@@ -39,6 +39,7 @@ export interface AppApi {
   // answers with them as they then stand.
   allBooks: () => Promise<InstalledBook[]>;
   removeFromDisk: (volumeId: string) => Promise<InstalledBook[]>;
+  offload: (volumeId: string) => Promise<InstalledBook[]>;
   // Marks the Volume's page numbers checked, locking them, or no longer,
   // answering with every Volume on this computer; whether they're marked.
   checkPages: (volumeId: string, checked: boolean) => Promise<InstalledBook[]>;
@@ -82,6 +83,8 @@ export function openAppApi({
     allBooks: async () => await call('allBooks', {}, 'the volumes'),
     removeFromDisk: async (volumeId) =>
       await call('removeFromDisk', { volumeId }, 'Removing from disk'),
+    offload: async (volumeId) =>
+      await call('offload', { volumeId }, 'Offloading'),
     checkPages: async (volumeId, checked) =>
       await call('checkPages', { volumeId, checked }, 'Marking the pages'),
     pagesChecked: async (volumeId, signal) =>

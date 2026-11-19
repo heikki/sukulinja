@@ -316,6 +316,12 @@ describe('Church books', () => {
       expect.objectContaining({ id: '302', pages: 'checked' })
     ]);
     expect((await appOp('pagesChecked', { volumeId: '302' })).body).toBe(true);
+    // Offloaded, with nothing cited in it: no full Image of it stays, only
+    // the thumbnails.
+    const offloaded = await appOp('offload', { volumeId: '302' });
+    expect(offloaded.body).toMatchObject([
+      { id: '302', onDisk: { images: 3, cached: 0 } }
+    ]);
     const removed = await appOp('removeFromDisk', { volumeId: '302' });
     expect(removed.body).toEqual([]);
     expect((await appOp('scanCache')).body).toMatchObject({ used: 0 });

@@ -334,3 +334,12 @@ test('says what of a Volume is on disk', async () => {
     bytes: 3 * IMAGE_BYTES
   });
 });
+
+test('an offloaded Volume keeps only the Images asked for, and thumbnails', async () => {
+  await Promise.all([1, 2, 3].map(async (n) => await open('106', n)));
+  await thumb('106', 1);
+  await cache.keepOnly('106', [2, 7]);
+  expect((await readdir(join(dir, '.astia-images', '106'))).toSorted()).toEqual(
+    ['106-f2.jpg', '106-t1.jpg']
+  );
+});

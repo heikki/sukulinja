@@ -16,12 +16,17 @@ import {
   CHECK_ICON,
   DOWNLOAD_ICON,
   EMPTY_SLOT,
+  OFFLOAD_ICON,
   renderBookTable,
   renderRefused,
   revealShown,
   STOP_ICON,
   TRASH_ICON
 } from './table';
+
+// What leaving the disk takes: all of a Volume, or all but its cited
+// Images.
+type Leaving = 'remove' | 'offload';
 
 // How often the Volumes are asked for again while one downloads.
 const POLL_MS = 2000;
@@ -74,10 +79,11 @@ class AllBooksElement extends LitElement {
   // the list opens and again only when another is shown.
   private revealed: string | null = null;
 
-  // The Volume whose removal from disk waits to be confirmed in its row.
-  @state() private confirming: string | null = null;
+  // The Volume whose removal from disk, or offload, waits to be confirmed
+  // in its row.
+  @state() private confirming: { id: string; what: Leaving } | null = null;
 
-  // Removing a Volume from disk; why it was refused.
+  // Removing a Volume from disk or offloading it; why it was refused.
   private readonly asking = new Asking(this);
 
   @consume({ context: appState }) private readonly state!: AppState;
@@ -140,11 +146,17 @@ class AllBooksElement extends LitElement {
     await this.load();
   }
 
-  private async removeFromDisk(book: InstalledBook) {
+  // All of it off the disk, or all but its cited Images.
+  private async leave(book: InstalledBook, what: Leaving) {
     this.confirming = null;
+    const { app } = this.state;
     await this.asking.run(async () => {
-      this.show(await this.state.app.removeFromDisk(book.id));
-      this.cache = await this.state.app.scanCache();
+      this.show(
+        await (what === 'remove'
+          ? app.removeFromDisk(book.id)
+          : app.offload(book.id))
+      );
+      this.cache = await app.scanCache();
     });
   }
 
@@ -163,19 +175,22 @@ class AllBooksElement extends LitElement {
     });
   }
 
-  // Removing a Volume's Images from disk, asked first in its row.
-  private renderConfirm(book: InstalledBook) {
+  // Removing a Volume's Images from disk, or all but the cited ones, asked
+  // first in its row.
+  private renderConfirm(book: InstalledBook, what: Leaving) {
+    const ask =
+      what === 'remove'
+        ? `Remove ${formatBytes(book.onDisk.bytes)} from disk?`
+        : 'Keep only the cited images on disk?';
     return [
-      html`<span class="ask"
-        >Remove ${formatBytes(book.onDisk.bytes)} from disk?</span
-      >`,
+      html`<span class="ask">${ask}</span>`,
       html`<button
         class="text danger"
         @click=${() => {
-          void this.removeFromDisk(book);
+          void this.leave(book, what);
         }}
       >
-        Remove
+        ${what === 'remove' ? 'Remove' : 'Offload'}
       </button>`,
       html`<button
         class="text"
@@ -188,10 +203,13 @@ class AllBooksElement extends LitElement {
     ];
   }
 
-  // Marking its page numbers, its download, and removing it from disk,
-  // each in its place.
+  // Marking its page numbers, its download, offloading it and removing it
+  // from disk, each in its place.
   private renderActs(book: InstalledBook) {
-    if (this.confirming === book.id) return this.renderConfirm(book);
+    const { confirming } = this;
+    if (confirming?.id === book.id) {
+      return this.renderConfirm(book, confirming.what);
+    }
     const checked = book.pages === 'checked';
     const [download] = downloadActions(book);
     return [
@@ -212,13 +230,26 @@ class AllBooksElement extends LitElement {
               void this.act(book, download.action);
             }
           ),
+      book.onDisk.cached === 0
+        ? EMPTY_SLOT
+        : actButton(
+            'Offload',
+            OFFLOAD_ICON,
+            () => {
+              this.confirming = { id: book.id, what: 'offload' };
+            },
+            {
+              title: 'Offload: keep only the cited images on disk',
+              disabled: this.asking.busy
+            }
+          ),
       book.onDisk.bytes === 0
         ? EMPTY_SLOT
         : actButton(
             'Remove from disk',
             TRASH_ICON,
             () => {
-              this.confirming = book.id;
+              this.confirming = { id: book.id, what: 'remove' };
             },
             { disabled: this.asking.busy }
           )

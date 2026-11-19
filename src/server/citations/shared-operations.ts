@@ -2,7 +2,8 @@
 // (common/operations/app.ts): the install's parishes, finding a parish's
 // archive in Astia and choosing one, for a spelling references give or
 // for none; a parish's church books and their downloads, every one with
-// something on this computer; and the Scan cache they're kept in.
+// something on this computer, removed from it or offloaded to their cited
+// Images; and the Scan cache they're kept in.
 
 import type { AppOperations } from '@/common/operations';
 import type { ChurchBookArchive, PageNumbering } from '@/common/types';
@@ -23,6 +24,9 @@ interface Sources {
   parishes: Parishes;
   cache: ScanCache;
   downloads: Downloads;
+  // The Images of a Volume any dataset's Citations link, kept on disk by
+  // an offload.
+  citedImages: (volumeId: string) => Promise<number[]>;
   // What's known of a Volume's page numbers, and marking them checked.
   pages: {
     numbering: (volumeId: string) => Promise<PageNumbering>;
@@ -42,6 +46,7 @@ export type SharedOperations = Pick<
   | 'stopDownload'
   | 'allBooks'
   | 'removeFromDisk'
+  | 'offload'
   | 'checkPages'
   | 'pagesChecked'
   | 'scanCache'
@@ -54,6 +59,7 @@ export function sharedOperations({
   parishes,
   cache,
   downloads,
+  citedImages,
   pages
 }: Sources): Handlers<SharedOperations> {
   // The archive, if it's a parish's in Astia.
@@ -110,6 +116,14 @@ export function sharedOperations({
     async removeFromDisk({ volumeId }) {
       await downloads.drop(volumeId);
       await cache.remove(volumeId);
+      return await allBooks();
+    },
+    // Every Image but the cited ones off the disk; none, when what's cited
+    // can't be known.
+    async offload({ volumeId }) {
+      await downloads.drop(volumeId);
+      const cited = await askingAstia(citedImages(volumeId));
+      await askingAstia(cache.keepOnly(volumeId, cited));
       return await allBooks();
     },
     async checkPages({ volumeId, checked }) {

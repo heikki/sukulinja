@@ -360,6 +360,20 @@ export function openScanCache({
       return listed.flat().map((path) => basename(path));
     },
 
+    // Drops the Volume's full-size Images but those numbered in `images`;
+    // its thumbnails stay. Throws when Astia's list of them can't be had.
+    async keepOnly(volumeId: string, images: number[]) {
+      const full = await astia.volumeImages(volumeId, 'full');
+      const kept = new Set(images.map((n) => full[n - 1]));
+      await Promise.all(
+        full
+          .filter((id) => !kept.has(id))
+          .map(async (id) => {
+            await rm(pathOf(volumeId, id), { force: true });
+          })
+      );
+    },
+
     // Drops the Volume's Images, and its folder.
     async remove(volumeId: string) {
       await rm(join(dir, volumeId), { recursive: true, force: true });
