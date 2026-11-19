@@ -335,24 +335,47 @@ test('says what of a Volume is on disk', async () => {
   });
 });
 
-test('an offloaded Volume keeps only its cited Images, and fetches no other', async () => {
+test('an offloaded Volume fetches its cited Images first, then nothing', async () => {
   await Promise.all([1, 2, 3].map(async (n) => await open('106', n)));
   await thumb('106', 1);
+  fetched = [];
   await cache.offload('106', [2, 7]);
+  expect(fetched).toEqual(['106-f7']);
   expect(await cache.isOffloaded('106')).toBe(true);
   expect((await readdir(join(dir, '.astia-images', '106'))).toSorted()).toEqual(
-    ['106-f2.jpg', '106-t1.jpg', 'offloaded.json']
+    ['106-f2.jpg', '106-f7.jpg', '106-t1.jpg', 'offloaded.json']
   );
-  fetched = [];
   expect(await open('106', 7)).toEndWith('106-f7.jpg');
-  expect(await thumb('106', 4)).toEndWith('106-t4.jpg');
-  const refused = await open('106', 3).catch((err: unknown) => err);
-  expect(refused).toBeInstanceOf(OffloadedError);
-  expect(fetched).toEqual(['106-f7', '106-t4']);
+  const refused = await Promise.all(
+    [open('106', 3), thumb('106', 4)].map(
+      async (p) => await p.catch((err: unknown) => err)
+    )
+  );
+  for (const err of refused) expect(err).toBeInstanceOf(OffloadedError);
+  expect(fetched).toEqual(['106-f7']);
+  expect(await cache.keeps({ volumeId: '106', image: 7 })).toBe(true);
+  expect(await cache.keeps({ volumeId: '106', image: 3 })).toBe(false);
   // Brought back, it's any Volume again.
   await cache.bringBack('106');
-  expect(await cache.isOffloaded('106')).toBe(false);
+  expect(await cache.keeps({ volumeId: '106', image: 3 })).toBe(true);
   expect(await open('106', 3)).toEndWith('106-f3.jpg');
+});
+
+test("an offloaded Volume's kept Images are never pruned", async () => {
+  await open('105', 1);
+  await cache.offload('105', [1]);
+  await cache.setCap(2.5 * IMAGE_BYTES);
+  await open('104', 1);
+  await Bun.sleep(5);
+  await open('104', 2);
+  await Bun.sleep(5);
+  await open('104', 3);
+  expect(await readdir(join(dir, '.astia-images', '105'))).toContain(
+    '105-f1.jpg'
+  );
+  expect(await readdir(join(dir, '.astia-images', '104'))).toEqual([
+    '104-f3.jpg'
+  ]);
 });
 
 test('an offloaded Volume with no Image left is still listed', async () => {

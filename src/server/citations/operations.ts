@@ -51,6 +51,23 @@ interface Doers {
   ) => Promise<{ rejected: string } | null>;
   // Takes the Volume's Page pins away: why it can't be, or nothing.
   clearVolumePages: (volumeId: string) => Promise<{ rejected: string } | null>;
+  // Whether an entry can be cited on the Image: not on one an offloaded
+  // Volume doesn't keep.
+  citable: (at: { volumeId: string; image: number }) => Promise<boolean>;
+}
+
+// Refused (409) on an Image an offloaded Volume doesn't keep.
+async function onCitable(
+  citable: Doers['citable'],
+  at: { volumeId: string; image?: number }
+) {
+  if (at.image === undefined) return;
+  if (!(await citable({ volumeId: at.volumeId, image: at.image }))) {
+    throw new Refusal(
+      409,
+      'The volume is offloaded: only its cited images can be cited.'
+    );
+  }
 }
 
 // A request to Astia failing is refused (502), in words the Scan viewer
@@ -75,7 +92,8 @@ export function citationOperations(
     locateVolume,
     volumePages,
     setImagePage,
-    clearVolumePages
+    clearVolumePages,
+    citable
   }: Doers
 ): Handlers<typeof CITATION_OPERATIONS> {
   return {
@@ -84,6 +102,7 @@ export function citationOperations(
     personLinks: ({ personId }) => citations.linksOf(personId),
 
     async mark({ citationId, at }) {
+      await onCitable(citable, at);
       const { resolution } = answered(
         await askingAstia(citations.mark(citationId, at)),
         'citation'
@@ -100,6 +119,7 @@ export function citationOperations(
     },
 
     async citeEntry({ at, people }) {
+      await onCitable(citable, at);
       const { text, ...where } = at;
       return answered(
         await askingAstia(citations.entries.make(where, text, people)),
@@ -111,6 +131,7 @@ export function citationOperations(
       await askingAstia(citations.entries.offers(asked)),
 
     async editEntry({ entryId, edit }) {
+      if (edit.at !== undefined) await onCitable(citable, edit.at);
       return answered(
         await askingAstia(citations.entries.edit(entryId, edit)),
         'entry or person'

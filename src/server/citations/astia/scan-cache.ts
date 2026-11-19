@@ -12,9 +12,9 @@
 // The cache never switches on its own: the Scan viewer asks first (see
 // pins/rescans.ts).
 //
-// An offloaded Volume keeps only its cited full-size Images, named in
-// `offloaded.json` in its folder; no other is fetched from Astia until it's
-// brought back.
+// An offloaded Volume keeps only its cited full-size Images, fetched first
+// and named in `offloaded.json` in its folder; they're never pruned, and
+// nothing of it is fetched from Astia until it's brought back.
 
 import {
   mkdir,
@@ -44,7 +44,13 @@ const DEFAULT_CAP_BYTES = 5 * GB;
 // In an offloaded Volume's folder: the Images it keeps.
 const OFFLOADED = 'offloaded.json';
 
-// A full-size Image of an offloaded Volume that it doesn't keep.
+// What an offloaded Volume keeps: its Images by number, and their files.
+interface Kept {
+  images: number[];
+  files: string[];
+}
+
+// An Image of an offloaded Volume that isn't on disk.
 export class OffloadedError extends Error {
   override name = 'OffloadedError';
 }
@@ -247,11 +253,12 @@ export function openScanCache({
   async function prune(keep: string | null) {
     await ready;
     const files = await cachedFiles(dir);
+    const kept = await keptPaths();
     let total = totalSize(files);
     const dropped: string[] = [];
     for (const f of files.sort((a, b) => a.viewed - b.viewed)) {
       if (total <= cap) break;
-      if (f.path === keep) continue;
+      if (f.path === keep || kept.has(f.path)) continue;
       dropped.push(f.path);
       total -= f.size;
     }
@@ -276,21 +283,29 @@ export function openScanCache({
     return (await astia.volumeImages(at.volumeId, size))[at.image - 1];
   }
 
-  // The Images an offloaded Volume keeps; null for one not offloaded.
+  // What an offloaded Volume keeps: its Images by number, and their
+  // files; null for one not offloaded.
   async function keptOf(volumeId: string) {
     const file = Bun.file(join(dir, volumeId, OFFLOADED));
     if (!(await file.exists())) return null;
-    const read = (await file.json().catch(() => null)) as {
-      kept?: unknown;
-    } | null;
-    return Array.isArray(read?.kept) ? (read.kept as number[]) : [];
+    const read = (await file.json().catch(() => null)) as Partial<Kept> | null;
+    return {
+      images: Array.isArray(read?.images) ? read.images : [],
+      files: Array.isArray(read?.files) ? read.files : []
+    };
   }
 
-  // Whether the Image may be fetched from Astia: any of a Volume not
-  // offloaded, and those an offloaded one keeps.
-  async function fetchable(at: ImageRef) {
-    const kept = await keptOf(at.volumeId);
-    return kept === null || kept.includes(at.image);
+  // The files of every offloaded Volume's kept Images, by path: never
+  // pruned, as they aren't fetched again.
+  async function keptPaths() {
+    const kept = await Promise.all(
+      (await volumeDirs(dir)).map(async (volume) => {
+        const id = basename(volume);
+        const files = (await keptOf(id))?.files ?? [];
+        return files.map((f) => pathOf(id, f));
+      })
+    );
+    return new Set(kept.flat());
   }
 
   async function cached(
@@ -301,7 +316,7 @@ export function openScanCache({
   ) {
     const path = pathOf(at.volumeId, fileId);
     if (await touch(path)) return path;
-    if (size === 'full' && !(await fetchable(at))) {
+    if ((await keptOf(at.volumeId)) !== null) {
       throw new OffloadedError(`offloaded: ${at.volumeId} ${at.image}`);
     }
     if (size === 'thumb') {
@@ -310,6 +325,14 @@ export function openScanCache({
       await inQueue(fileId, () => download(at.volumeId, fileId, path), signal);
     }
     return path;
+  }
+
+  // An Image an offload keeps, on disk before it's offloaded.
+  async function fetchKept(volumeId: string, image: number) {
+    const at = { volumeId, image };
+    const fileId = await fileAt(at, 'full');
+    if (fileId === undefined) return;
+    await cached(at, 'full', fileId, new AbortController().signal);
   }
 
   // The Image's id after asking Astia for the Volume's list again, unless
@@ -393,24 +416,46 @@ export function openScanCache({
       return listed.flat().map((path) => basename(path));
     },
 
-    // Offloads the Volume: drops its full-size Images but those numbered
-    // in `images`, and fetches no other until it's brought back; its
-    // thumbnails stay. Throws when Astia's list of them can't be had.
+    // Offloads the Volume: fetches the Images numbered in `images` that
+    // aren't on disk yet, then drops every other full-size one, and from
+    // then on fetches none, nor prunes those kept, until it's brought back;
+    // its thumbnails stay. Throws, offloading nothing, when Astia fails.
     async offload(volumeId: string, images: number[]) {
+      const marker = join(dir, volumeId, OFFLOADED);
+      // Offloaded already, as it was until the cited ones are on disk.
+      const before = await keptOf(volumeId);
+      await rm(marker, { force: true });
+      try {
+        await Promise.all(
+          images.map(async (n) => {
+            await fetchKept(volumeId, n);
+          })
+        );
+      } catch (err) {
+        if (before !== null) await Bun.write(marker, JSON.stringify(before));
+        throw err;
+      }
       const full = await astia.volumeImages(volumeId, 'full');
+      const sorted = images.toSorted((a, b) => a - b);
+      const files = sorted.flatMap((n) => full[n - 1] ?? []);
+      const kept: Kept = { images: sorted, files };
       await mkdir(join(dir, volumeId), { recursive: true });
-      await Bun.write(
-        join(dir, volumeId, OFFLOADED),
-        `${JSON.stringify({ kept: images.toSorted((a, b) => a - b) })}\n`
-      );
-      const kept = new Set(images.map((n) => full[n - 1]));
+      await Bun.write(marker, `${JSON.stringify(kept)}\n`);
+      const keep = new Set(files);
       await Promise.all(
         full
-          .filter((id) => !kept.has(id))
+          .filter((id) => !keep.has(id))
           .map(async (id) => {
             await rm(pathOf(volumeId, id), { force: true });
           })
       );
+    },
+
+    // Whether the Image is one an entry can be cited on: any of a Volume
+    // not offloaded, and those an offloaded one keeps.
+    async keeps(at: ImageRef) {
+      const kept = await keptOf(at.volumeId);
+      return kept === null || kept.images.includes(at.image);
     },
 
     // Whether the Volume is offloaded.

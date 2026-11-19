@@ -203,7 +203,8 @@ export function openCitations(root: string, options: Options) {
           setImagePage: async (at, pages) =>
             await folder.setImagePage(at, pages),
           clearVolumePages: async (volumeId) =>
-            await folder.clearVolumePages(volumeId)
+            await folder.clearVolumePages(volumeId),
+          citable: async (at) => await cache.keeps(at)
         }),
         // The dataset's Book list, and adding and taking off Volumes.
         bookList,
