@@ -1,6 +1,6 @@
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
-import { html, LitElement, nothing } from 'lit';
+import { html, LitElement, noChange, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { live } from 'lit/directives/live.js';
 
@@ -33,6 +33,11 @@ class ScanNavElement extends SignalWatcher(LitElement) {
   // nothing: there's no step to show. Landing on the first or last Image, its
   // button stays pressed, not disabled, until the key is let go.
   @state() private pressed: ImageMove | null = null;
+
+  // Whether the Image field has focus. While it does, what's typed there
+  // stays, though the Volume's Images arrive or the Image shown changes;
+  // letting go commits it, or puts the Image shown back.
+  private typing = false;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -122,9 +127,14 @@ class ScanNavElement extends SignalWatcher(LitElement) {
         min="1"
         max=${count ?? nothing}
         aria-label="Image"
-        .value=${live(String(image))}
+        .value=${this.typing ? noChange : live(String(image))}
         @focus=${(e: FocusEvent) => {
+          this.typing = true;
           (e.target as HTMLInputElement).select();
+        }}
+        @blur=${() => {
+          this.typing = false;
+          this.requestUpdate();
         }}
         @mousedown=${(e: MouseEvent) => {
           // Taking focus, a click selects the number to type over: its own
