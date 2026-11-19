@@ -14,7 +14,7 @@ let collapsed = false;
 const OPEN_PX = 256;
 
 // A column beside the picture, under its `heading`, holding what's slotted
-// into it. As the person dock does: the whole header hides it, and hidden,
+// into it, and at its foot what's slotted as `foot`. As the person dock does: the whole header hides it, and hidden,
 // a rail with the heading brings it back.
 @customElement('sl-side-pane')
 class SidePaneElement extends LitElement {
@@ -73,6 +73,7 @@ class SidePaneElement extends LitElement {
           <span class="chevron" aria-hidden="true">›</span>
         </button>
         <div class="list"><slot></slot></div>
+        <slot name="foot"></slot>
       </div>
       <button class="rail" ?inert=${!collapsed} @click=${this.toggle}>
         <span aria-hidden="true">‹</span>

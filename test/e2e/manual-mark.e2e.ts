@@ -17,6 +17,13 @@ test("a reference's entry is placed by hand", async () => {
     await page.keyboard.press('Enter');
     const people = page.locator('sl-scan-people');
     await people.getByText('Estimate').waitFor();
+    const cited = people.getByRole('navigation', { name: 'Cited images' });
+    expect(
+      await cited
+        .getByRole('button', { name: '12' })
+        .getAttribute('aria-current')
+    ).toBe('true');
+    await shot(page, 'manual-mark-cited');
     await people.getByRole('button', { name: /Matti Esimerkki/ }).click();
 
     // The Volumes of the Book, the one the reference fits first.

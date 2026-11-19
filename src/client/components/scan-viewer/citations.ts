@@ -52,6 +52,16 @@ export function imageOf(row: VolumeCitation) {
   return 'image' in row.link ? row.link.image : null;
 }
 
+// The Images the Volume's rows link, in order, each once.
+export function citedImages(rows: VolumeCitation[]) {
+  const images = new Set<number>();
+  for (const row of rows) {
+    const image = imageOf(row);
+    if (image !== null) images.add(image);
+  }
+  return [...images].toSorted((a, b) => a - b);
+}
+
 // Where on its Image a row's entry is, when its Link points at the entry.
 export function boxOf(row: VolumeCitation) {
   return row.link.precision === 'entry' ? row.link.box : null;

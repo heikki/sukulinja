@@ -2,7 +2,13 @@ import { expect, test } from 'bun:test';
 
 import type { Box, LinkTarget, VolumeCitation } from '@/common/types';
 
-import { boxOf, entriesOn, groupCitations, imageOf } from './citations';
+import {
+  boxOf,
+  citedImages,
+  entriesOn,
+  groupCitations,
+  imageOf
+} from './citations';
 
 const BOX: Box = { left: 0, top: 0.5, width: 1, height: 0.05 };
 
@@ -172,4 +178,14 @@ test('a Box and an Image are there only as far down as the Link points', () => {
     certainty: 'match'
   };
   expect([boxed, imaged, vague]).toHaveLength(3);
+});
+
+test('the cited Images are those any row links, in order, each once', () => {
+  const rows = [
+    row(1, marked(12)),
+    row(2, vision(3)),
+    row(3, estimated(12, 'pins')),
+    row(4, VOLUME)
+  ];
+  expect(citedImages(rows)).toEqual([3, 12]);
 });

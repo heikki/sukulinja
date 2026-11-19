@@ -8,7 +8,13 @@ import type { AppState } from '@/client/state';
 import type { VolumeCitation } from '@/common/types';
 
 import { controlStyles, paneRowsStyles } from '../box-stage/styles';
-import { boxOf, groupCitations, rowDates, rowName } from './citations';
+import {
+  boxOf,
+  citedImages,
+  groupCitations,
+  rowDates,
+  rowName
+} from './citations';
 
 import '../box-stage/side-pane';
 
@@ -20,7 +26,8 @@ const HOLD_MS = 300;
 // shown, grouped as `groupCitations` says. Clicking one picks them; the
 // citation the viewer is on is marked. Hovering a row with an entry on the
 // scan names the entry's key with `box-hover`, and rows of the entry
-// picked out there (`hovered`) are highlighted.
+// picked out there (`hovered`) are highlighted. At its foot, quietly, the
+// Volume's Images any citation links, each a way to it.
 @customElement('sl-scan-people')
 class ScanPeopleElement extends SignalWatcher(LitElement) {
   static override styles = [
@@ -29,6 +36,50 @@ class ScanPeopleElement extends SignalWatcher(LitElement) {
     css`
       :host {
         display: contents;
+      }
+
+      nav {
+        flex: none;
+        max-height: 30%;
+        overflow-y: auto;
+        padding: 0.4rem 0.75rem 0.6rem;
+        border-top: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 0.75rem;
+      }
+
+      nav h3 {
+        margin: 0 0 0.25rem;
+      }
+
+      nav ol {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.1rem 0.15rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      nav button {
+        min-width: 1.6rem;
+        padding: 0.05rem 0.25rem;
+        border: 0;
+        border-radius: 4px;
+        background: none;
+        color: var(--muted);
+        font: inherit;
+        font-variant-numeric: tabular-nums;
+      }
+
+      nav button:hover {
+        color: var(--accent);
+      }
+
+      nav button[aria-current='true'] {
+        background: var(--bg);
+        color: var(--fg);
+        font-weight: 600;
       }
     `
   ];
@@ -136,9 +187,36 @@ class ScanPeopleElement extends SignalWatcher(LitElement) {
     );
   }
 
+  // The Images of the Volume its citations link, the one shown marked.
+  private renderCited() {
+    const { citations, image } = this.state.viewer;
+    const rows = citations.get();
+    const images = Array.isArray(rows) ? citedImages(rows) : [];
+    if (images.length === 0) return nothing;
+    const here = image.get();
+    return html`<nav slot="foot" aria-label="Cited images">
+      <h3>Cited images</h3>
+      <ol>
+        ${images.map(
+          (n) =>
+            html`<li>
+              <button
+                aria-current=${n === here ? 'true' : nothing}
+                @click=${() => {
+                  this.state.viewer.show(n);
+                }}
+              >
+                ${n}
+              </button>
+            </li>`
+        )}
+      </ol>
+    </nav>`;
+  }
+
   override render() {
     return html`<sl-side-pane heading="People here"
-      >${this.renderList()}</sl-side-pane
+      >${this.renderList()}${this.renderCited()}</sl-side-pane
     >`;
   }
 }
