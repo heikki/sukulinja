@@ -1,4 +1,4 @@
-Status: ready-for-agent
+Status: resolved
 
 # Archive downloaded books elsewhere, keep only cited pages
 
@@ -24,4 +24,4 @@ Heikki, 2026-11-19: both, as one feature. An offload always keeps the cited Imag
 - Done: _Offload_ in _All books_ drops every full-size Image but the cited ones (any dataset's), thumbnails kept (`offload` app operation, `ScanCache.keepOnly`).
 - Heikki, 2026-11-19: nothing fetched from Astia while a Volume is offloaded. Done: `offloaded.json` in its cache folder names the Images kept; others are refused (`OffloadedError`, 409), its download refused, and _Bring back_ undoes it.
 - Heikki, 2026-11-19: the cited Images are on disk before it's offloaded, and while it is, entries are cited only on them. Done: `offload` fetches them first (nothing changes if that fails), they're never pruned, nothing at all is fetched for it, and `mark`, `citeEntry` and `editEntry` refuse (409) any other of its Images.
-- Next: an offload folder in Settings (an external SSD). With one set, the rest are moved there instead of dropped, and the Scan cache reads them from there while the drive is attached, falling back to Astia.
+- Left for `.scratch/small/issues/10-offload-folder.md`: an offload folder in Settings (an external SSD). With one set, the rest are moved there instead of dropped, and the Scan cache reads them from there while the drive is attached, falling back to Astia.
