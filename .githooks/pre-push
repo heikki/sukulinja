@@ -1,12 +1,22 @@
 #!/bin/sh
 # Runs CI's checks before a push, since CI only says so after master broke.
-# Lint and typecheck need Electrobun's SDK (.hutch/devkit, from the
-# postinstall), so without it they're left to CI.
+# Without Electrobun's SDK (.hutch/devkit, from the postinstall), the few
+# files using it can't be checked, so only errors elsewhere stop the push.
 set -e
 cd "$(git rev-parse --show-toplevel)"
 if [ -d .hutch/devkit ]; then
   exec bun run verify
 fi
-echo 'pre-push: no .hutch/devkit, so lint and typecheck are left to CI' >&2
+SDK='electrobun.config.ts|src/server/index.ts|src/server/app/focus-webview.ts'
+echo 'pre-push: no .hutch/devkit, so the files using it are left to CI' >&2
 bun run format:check
+bunx eslint . --concurrency=auto --ignore-pattern electrobun.config.ts \
+  --ignore-pattern src/server/index.ts \
+  --ignore-pattern src/server/app/focus-webview.ts
+others=$(bun check 2>&1 | grep -E '^<error file=|error TS' |
+  grep -vE "$SDK" || true)
+if [ -n "$others" ]; then
+  echo "$others" >&2
+  exit 1
+fi
 bun run test
