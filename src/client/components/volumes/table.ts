@@ -124,6 +124,9 @@ export function actButton(
   </button>`;
 }
 
+// An icon button's place in a row without it.
+export const EMPTY_SLOT = html`<span class="slot" aria-hidden="true"></span>`;
+
 // A note under the table, or nothing.
 export function renderRefused(refused: string | null) {
   return refused === null ? nothing : html`<p class="refused">${refused}</p>`;
@@ -290,8 +293,17 @@ export const bookTableStyles = [
       text-align: right;
     }
 
-    td.acts button + button {
+    td.acts > * + * {
       margin-left: 0.25rem;
+    }
+
+    /* Where a row has no such button: its place kept, so each button
+       stays in its column. */
+    span.slot {
+      display: inline-block;
+      width: 1.6rem;
+      height: 1.6rem;
+      vertical-align: middle;
     }
 
     p.summary {

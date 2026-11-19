@@ -14,6 +14,7 @@ import {
   actButton,
   bookTableStyles,
   DOWNLOAD_ICON,
+  EMPTY_SLOT,
   REMOVE_ICON,
   renderBookTable,
   renderRefused,
@@ -109,23 +110,29 @@ class BookListElement extends LitElement {
     );
   }
 
+  // Its download, then taking it off the list, each in its place.
   private renderActs(book: ListedBook) {
-    const downloads = downloadActions(book).map(({ action, label }) =>
-      actButton(label, action === 'start' ? DOWNLOAD_ICON : STOP_ICON, () => {
-        void this.act(book, action);
-      })
-    );
-    if (!book.added || book.cited > 0) return downloads;
+    const [download] = downloadActions(book);
     return [
-      ...downloads,
-      actButton(
-        'Remove',
-        REMOVE_ICON,
-        () => {
-          void this.unlist(book);
-        },
-        { title: 'Remove from the list', disabled: this.asking.busy }
-      )
+      download === undefined
+        ? EMPTY_SLOT
+        : actButton(
+            download.label,
+            download.action === 'start' ? DOWNLOAD_ICON : STOP_ICON,
+            () => {
+              void this.act(book, download.action);
+            }
+          ),
+      !book.added || book.cited > 0
+        ? EMPTY_SLOT
+        : actButton(
+            'Remove',
+            REMOVE_ICON,
+            () => {
+              void this.unlist(book);
+            },
+            { title: 'Remove from the list', disabled: this.asking.busy }
+          )
     ];
   }
 

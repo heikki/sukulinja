@@ -15,6 +15,7 @@ import {
   bookTableStyles,
   CHECK_ICON,
   DOWNLOAD_ICON,
+  EMPTY_SLOT,
   renderBookTable,
   renderRefused,
   STOP_ICON,
@@ -172,10 +173,13 @@ class AllBooksElement extends LitElement {
     ];
   }
 
+  // Marking its page numbers, its download, and removing it from disk,
+  // each in its place.
   private renderActs(book: InstalledBook) {
     if (this.confirming === book.id) return this.renderConfirm(book);
     const checked = book.pages === 'checked';
-    const acts = [
+    const [download] = downloadActions(book);
+    return [
       actButton(
         checked ? 'Unmark page numbers checked' : 'Mark page numbers checked',
         CHECK_ICON,
@@ -184,23 +188,25 @@ class AllBooksElement extends LitElement {
         },
         { pressed: checked, disabled: this.asking.busy }
       ),
-      ...downloadActions(book).map(({ action, label }) =>
-        actButton(label, action === 'start' ? DOWNLOAD_ICON : STOP_ICON, () => {
-          void this.act(book, action);
-        })
-      )
-    ];
-    if (book.onDisk.bytes === 0) return acts;
-    return [
-      ...acts,
-      actButton(
-        'Remove from disk',
-        TRASH_ICON,
-        () => {
-          this.confirming = book.id;
-        },
-        { disabled: this.asking.busy }
-      )
+      download === undefined
+        ? EMPTY_SLOT
+        : actButton(
+            download.label,
+            download.action === 'start' ? DOWNLOAD_ICON : STOP_ICON,
+            () => {
+              void this.act(book, download.action);
+            }
+          ),
+      book.onDisk.bytes === 0
+        ? EMPTY_SLOT
+        : actButton(
+            'Remove from disk',
+            TRASH_ICON,
+            () => {
+              this.confirming = book.id;
+            },
+            { disabled: this.asking.busy }
+          )
     ];
   }
 
