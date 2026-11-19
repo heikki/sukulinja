@@ -24,6 +24,7 @@ import { OFF_ON, rowStyles, segmented } from './segmented';
 
 import './assistant-choices';
 import './assistant-key';
+import './offload-folder';
 import type { ScanCacheDrop } from './helpers';
 
 export type GenerationsChangeEvent = CustomEvent<number>;
@@ -340,6 +341,8 @@ class SettingsElement extends LitElement {
       <div class="popover" role="group" aria-label="Settings">
         ${this.renderDataset()} ${this.renderAppearance()}
         ${this.renderGenerations()} ${this.renderScanCache()}
+        <span class="label">Offload folder</span>
+        <sl-offload-folder></sl-offload-folder>
         ${this.renderPageNumbers()} ${this.renderAssistant()}
       </div>
     `;

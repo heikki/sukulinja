@@ -13,6 +13,7 @@ import type { Handlers } from '../operations';
 import type { Astia } from './astia/astia';
 import { installBooks, parishBooks } from './astia/church-books';
 import type { Downloads } from './astia/downloads';
+import { FolderAwayError } from './astia/offload-folder';
 import { findParishArchives, isParishArchive } from './astia/parish-search';
 import type { Parishes } from './astia/parishes';
 import { CAPS } from './astia/scan-cache';
@@ -27,6 +28,9 @@ interface Sources {
   // The Images of a Volume any dataset's Citations link, kept on disk by
   // an offload.
   citedImages: (volumeId: string) => Promise<number[]>;
+  // The app's folder picker: the folder chosen, or null; none outside the
+  // app.
+  chooseFolder?: () => Promise<string | null>;
   // What's known of a Volume's page numbers, and marking them checked.
   pages: {
     numbering: (volumeId: string) => Promise<PageNumbering>;
@@ -54,7 +58,20 @@ export type SharedOperations = Pick<
   | 'scanCache'
   | 'setScanCap'
   | 'clearScanCache'
+  | 'offloadFolder'
+  | 'chooseOffloadFolder'
+  | 'clearOffloadFolder'
 >;
+
+// The offload folder away, or no folder, is refused; anything else thrown
+// is thrown on.
+function folderAway(err: unknown): never {
+  if (err instanceof FolderAwayError) {
+    throw new Refusal(409, "The offload folder's drive isn't attached.");
+  }
+  // eslint-disable-next-line @typescript-eslint/only-throw-error -- rethrown as caught
+  throw err;
+}
 
 export function sharedOperations({
   astia,
@@ -62,6 +79,7 @@ export function sharedOperations({
   cache,
   downloads,
   citedImages,
+  chooseFolder,
   pages
 }: Sources): Handlers<SharedOperations> {
   // The archive, if it's a parish's in Astia.
@@ -128,7 +146,7 @@ export function sharedOperations({
     async offload({ volumeId }) {
       await downloads.drop(volumeId);
       const cited = await askingAstia(citedImages(volumeId));
-      await askingAstia(cache.offload(volumeId, cited));
+      await askingAstia(cache.offload(volumeId, cited)).catch(folderAway);
       return await allBooks();
     },
     async bringBack({ volumeId }) {
@@ -153,6 +171,21 @@ export function sharedOperations({
     async clearScanCache() {
       await cache.clear();
       return await cache.status();
+    },
+    offloadFolder: async () => await cache.offloadFolder.status(),
+    async chooseOffloadFolder() {
+      if (chooseFolder === undefined) {
+        throw new Refusal(501, 'A folder is chosen in the app.');
+      }
+      const chosen = await chooseFolder();
+      if (chosen !== null) {
+        await cache.offloadFolder.set(chosen).catch(folderAway);
+      }
+      return await cache.offloadFolder.status();
+    },
+    async clearOffloadFolder() {
+      await cache.offloadFolder.set(null);
+      return null;
     }
   };
 }

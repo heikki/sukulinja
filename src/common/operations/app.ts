@@ -11,6 +11,7 @@ import type {
   ChurchBookVolume,
   DownloadStatus,
   InstalledBook,
+  OffloadFolder,
   ScanCacheStatus
 } from '@/common/types';
 
@@ -131,6 +132,14 @@ export const APP_OPERATIONS = {
     isInteger(cap) ? { cap } : null
   ),
   clearScanCache: asksNothing<ScanCacheStatus>(),
+
+  // The offload folder an offload moves Images into, and whether it's
+  // attached; null for none, when an offload drops them. Choosing one asks
+  // with the app's own folder picker, refused outside the app; each
+  // answers with it as it then stands.
+  offloadFolder: asksNothing<OffloadFolder | null>(),
+  chooseOffloadFolder: asksNothing<OffloadFolder | null>(),
+  clearOffloadFolder: asksNothing<OffloadFolder | null>(),
 
   // Where the assistant's credentials come from. Keeping a key, or
   // removing the one kept, answer with it as it then stands; the key is

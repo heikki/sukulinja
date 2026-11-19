@@ -153,8 +153,11 @@ _Avoid_: correction, anchor (alone), placement.
 A Page number known to be on an Image. Images for other pages of the Volume are counted from the nearest Page pins, so one helps every reference in the Volume. Where a source misread a page number, the Page pin gives the number as referenced and notes what's written.
 _Avoid_: anchor.
 
+**Offload folder**:
+Where an offload moves the Images a Volume doesn't keep, an external drive say, set for the install in Settings with the app's folder picker, in the Scan cache's own layout. The Scan cache reads any Image it has while it's attached; an offload waits for it rather than remove what it would move. With none, an offload removes them.
+
 **Offloaded**:
-A Volume with every full-size Image off the disk but those any dataset's Citations link, fetched first and never pruned, its thumbnails kept, from its row in _All books_. Nothing of it is fetched from Astia, nor is it downloaded, and entries are cited only on the Images it keeps, until it's brought back from the same row; the Scan viewer says so in place of an Image it doesn't keep.
+A Volume with every full-size Image off the disk but those any dataset's Citations link, fetched first and never pruned, its thumbnails kept, from its row in _All books_. Nothing of it is fetched from Astia, nor is it downloaded, and entries are cited only on the Images it keeps, until it's brought back from the same row; the Scan viewer says so in place of an Image it doesn't keep. With an **Offload folder** set, the rest are moved there instead of removed.
 
 **Pages checked**:
 A Volume's Page numbers marked by hand as right, for every dataset, from the Volume's row in _All books_ or the Scan viewer's menu. Then they're locked: neither set by hand, cleared nor surveyed until unmarked. Vision Match on a Volume not checked asks first, as its estimates count from them.

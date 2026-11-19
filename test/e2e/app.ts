@@ -60,6 +60,9 @@ export async function openApp({
   const dataDir = join(root, 'data');
   const exportDir = join(root, 'exports');
   await mkdir(exportDir);
+  // The folder the app's folder picker gives, as if chosen.
+  const offloadDir = join(root, 'offload');
+  await mkdir(offloadDir);
   const { model } = scripted(assistant ?? []);
   const server = serveInBrowser(new DatasetRegistry(dataDir), {
     astia: await fixtureAstia(),
@@ -68,7 +71,8 @@ export async function openApp({
     ),
     assistantModel: () => model,
     vision: vision ?? noVision,
-    exportDir
+    exportDir,
+    chooseFolder: async () => await Promise.resolve(offloadDir)
   });
   const context = await (
     await sharedBrowser()

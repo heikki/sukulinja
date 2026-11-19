@@ -51,7 +51,20 @@ const registry = new DatasetRegistry(dataDir);
 await seedDemo(registry, join(resourcesDir, 'app', 'demo', 'bourbon.gdz'));
 void registry.sweepStaging(); // clear staging dirs left by interrupted imports
 // Each dataset opened has Astia's lists in hand by the time they're needed.
-const api = createApi(registry, { warmUp: true });
+const api = createApi(registry, { warmUp: true, chooseFolder });
+
+// The macOS folder picker, for the offload folder: the folder chosen, or
+// null when it's cancelled.
+async function chooseFolder() {
+  const chosen = await Utils.openFileDialog({
+    startingFolder: '/Volumes',
+    allowedFileTypes: '*',
+    canChooseFiles: false,
+    canChooseDirectory: true,
+    allowsMultipleSelection: false
+  });
+  return chosen.find((path) => path !== '') ?? null;
+}
 // Only the app's window gets in; see windowOnly.
 const windowKey = newWindowKey();
 const fetch = windowOnly(

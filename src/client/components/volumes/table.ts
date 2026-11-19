@@ -37,9 +37,7 @@ export interface BookTable<T extends Book> {
   column?: { header: string; cell: (book: T) => unknown };
   // The buttons at the end of each Volume's row.
   acts: (book: T) => TemplateResult[];
-  // A line under a Volume's row, if any: asking before one of its buttons
-  // acts.
-  below?: (book: T) => TemplateResult | null;
+
   // The archive's heading for the Volumes of none.
   noArchive: string;
   open: (book: T) => void;
@@ -47,43 +45,34 @@ export interface BookTable<T extends Book> {
 
 function renderBook<T extends Book>(table: BookTable<T>, book: T) {
   return html`<tr
-      class="book ${book.digitized ? '' : 'off'} ${book.id === table.shown ? 'shown' : ''}"
-      aria-current=${book.id === table.shown ? 'true' : nothing}
-      @click=${() => {
-        if (book.digitized) table.open(book);
+    class="book ${book.digitized ? '' : 'off'} ${book.id === table.shown ? 'shown' : ''}"
+    aria-current=${book.id === table.shown ? 'true' : nothing}
+    @click=${() => {
+      if (book.digitized) table.open(book);
+    }}
+  >
+    <td class="code" title=${book.label}>${volumeCode(book.label)}</td>
+    <td class="muted">${seriesName(book.kind)}</td>
+    <td class="muted">${yearsText(book.years)}</td>
+    ${
+      table.column === undefined
+        ? nothing
+        : html`<td class="num">${table.column.cell(book)}</td>`
+    }
+    <td class="muted disk" title=${diskLine(book)}>${diskCell(book)}</td>
+    <td
+      class="acts"
+      @click=${(e: Event) => {
+        e.stopPropagation();
       }}
     >
-      <td class="code" title=${book.label}>${volumeCode(book.label)}</td>
-      <td class="muted">${seriesName(book.kind)}</td>
-      <td class="muted">${yearsText(book.years)}</td>
-      ${
-        table.column === undefined
-          ? nothing
-          : html`<td class="num">${table.column.cell(book)}</td>`
-      }
-      <td class="muted disk" title=${diskLine(book)}>${diskCell(book)}</td>
-      <td
-        class="acts"
-        @click=${(e: Event) => {
-          e.stopPropagation();
-        }}
-      >
-        ${table.acts(book)}
-      </td>
-    </tr>
-    ${renderBelow(table, book)}`;
+      ${table.acts(book)}
+    </td>
+  </tr>`;
 }
 
 function columns<T extends Book>(table: BookTable<T>) {
   return table.column === undefined ? 5 : 6;
-}
-
-function renderBelow<T extends Book>(table: BookTable<T>, book: T) {
-  const below = table.below?.(book) ?? null;
-  if (below === null) return nothing;
-  return html`<tr class="below">
-    <td colspan=${columns(table)}>${below}</td>
-  </tr>`;
 }
 
 function renderGroup<T extends Book>(table: BookTable<T>, g: ArchiveGroup<T>) {
@@ -209,26 +198,6 @@ export const bookTableStyles = [
       color: var(--accent);
     }
 
-    button.text {
-      padding: 0.15rem 0.5rem;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: none;
-      color: var(--fg);
-      font-size: 0.8rem;
-    }
-
-    button.text.danger {
-      border-color: var(--danger);
-      color: var(--danger);
-    }
-
-    span.ask {
-      margin-right: 0.35rem;
-      color: var(--muted);
-      font-size: 0.8rem;
-    }
-
     button.act:hover,
     button.add:hover {
       border-color: var(--accent);
@@ -344,17 +313,6 @@ export const bookTableStyles = [
       width: 1.6rem;
       height: 1.6rem;
       vertical-align: middle;
-    }
-
-    /* Under its row, at the end, where its buttons are. */
-    tr.below td {
-      padding-top: 0;
-      text-align: right;
-      white-space: normal;
-    }
-
-    tr.below td > * + * {
-      margin-left: 0.25rem;
     }
 
     p.summary {

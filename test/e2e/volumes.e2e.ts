@@ -65,9 +65,10 @@ test('a Volume of another parish is added, downloaded, removed and taken off', a
     await row.getByText('Checked').waitFor();
     await shot(page, 'volumes-all-books');
     await row.getByRole('button', { name: 'Remove from disk' }).click();
-    const ask = all.locator('tr.below');
-    await ask.getByText(/^Remove .* from disk\?$/).waitFor();
-    await ask.getByRole('button', { name: 'Remove', exact: true }).click();
+    const ask = page.getByRole('alertdialog', {
+      name: 'Remove I Aa:1 from disk?'
+    });
+    await ask.getByRole('button', { name: 'Remove' }).click();
     await all.getByText('Nothing of any volume is on this computer').waitFor();
     await modes.getByRole('button', { name: 'This tree' }).click();
 

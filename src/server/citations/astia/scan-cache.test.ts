@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { NoImageError } from './astia';
 import type { Astia } from './astia';
 import { memoryAstia } from './memory-astia';
+import { FolderAwayError } from './offload-folder';
 import { capChoices, OffloadedError, openScanCache } from './scan-cache';
 import type { ScanCache } from './scan-cache';
 
@@ -383,4 +384,28 @@ test('an offloaded Volume with no Image left is still listed', async () => {
   expect(await cache.volumes()).toContain('104');
   await cache.remove('104');
   expect(await cache.isOffloaded('104')).toBe(false);
+});
+
+test('an offload moves the rest into the offload folder, read from there', async () => {
+  const away = join(dir, 'ssd');
+  await mkdir(away);
+  await cache.offloadFolder.set(away);
+  await Promise.all([1, 2].map(async (n) => await open('103', n)));
+  fetched = [];
+  await cache.offload('103', [1]);
+  expect(await readdir(join(away, '103'))).toEqual(['103-f2.jpg']);
+  expect(await open('103', 2)).toBe(join(away, '103', '103-f2.jpg'));
+  expect(fetched).toEqual([]);
+  // Its drive away, it's unavailable, and nothing more is offloaded.
+  await rm(away, { recursive: true });
+  expect(await cache.offloadFolder.status()).toEqual({
+    path: away,
+    attached: false
+  });
+  const unread = await open('103', 2).catch((err: unknown) => err);
+  expect(unread).toBeInstanceOf(OffloadedError);
+  await open('102', 1);
+  const refused = await cache.offload('102', []).catch((err: unknown) => err);
+  expect(refused).toBeInstanceOf(FolderAwayError);
+  expect(await cache.isOffloaded('102')).toBe(false);
 });

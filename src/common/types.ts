@@ -534,6 +534,13 @@ export interface InstalledBook extends ChurchBookVolume {
   offloaded: boolean;
 }
 
+// The offload folder set for the install, and whether its drive is
+// attached.
+export interface OffloadFolder {
+  path: string;
+  attached: boolean;
+}
+
 // What's known of a Volume's page numbers: none read or set (`counted` as
 // its book is numbered), some read or set, or all marked checked by hand.
 export type PageNumbering = 'counted' | 'read' | 'checked';

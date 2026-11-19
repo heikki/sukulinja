@@ -32,7 +32,9 @@ import type { ScanCacheStatus, VolumeOnDisk } from '@/common/types';
 
 import { NoImageError } from './astia';
 import type { Astia, ImageRef, ImageSize } from './astia';
+import { readSettings, saveSetting } from './install-settings';
 import { jpegSize } from './jpeg';
+import { openOffloadFolder } from './offload-folder';
 
 const GB = 1024 ** 3;
 // Every cap the cache can be set to; offered are those its disk has room
@@ -187,15 +189,6 @@ function totalSize(files: Array<{ size: number }>) {
 
 // ---------------------------------------------------------------- the setting
 
-// The install's settings; none when the file is missing or unreadable.
-async function readSettings(file: string) {
-  const none: Record<string, unknown> = {};
-  const settings = Bun.file(file);
-  if (!(await settings.exists())) return none;
-  const read = (await settings.json().catch(() => null)) as typeof none | null;
-  return read ?? none;
-}
-
 // The cap saved for the install, if it's one of the choices.
 async function savedCap(file: string) {
   const { scanCacheBytes } = await readSettings(file);
@@ -237,6 +230,7 @@ export function openScanCache({
 }) {
   const dir = join(root, '.astia-images');
   const settingsFile = join(root, 'settings.local.json');
+  const folder = openOffloadFolder(settingsFile);
   const inQueue = openQueue();
   function pathOf(volumeId: string, fileId: string) {
     return join(dir, volumeId, `${fileId}.jpg`);
@@ -316,6 +310,8 @@ export function openScanCache({
   ) {
     const path = pathOf(at.volumeId, fileId);
     if (await touch(path)) return path;
+    const away = await folder.find(at.volumeId, fileId);
+    if (away !== null) return away;
     if ((await keptOf(at.volumeId)) !== null) {
       throw new OffloadedError(`offloaded: ${at.volumeId} ${at.image}`);
     }
@@ -325,6 +321,17 @@ export function openScanCache({
       await inQueue(fileId, () => download(at.volumeId, fileId, path), signal);
     }
     return path;
+  }
+
+  // The Volume's files of those ids that are on disk.
+  async function onDisk(fileIds: string[], volumeId: string) {
+    const found = await Promise.all(
+      fileIds.map(async (fileId) => {
+        const from = pathOf(volumeId, fileId);
+        return (await Bun.file(from).exists()) ? [{ from, fileId }] : [];
+      })
+    );
+    return found.flat();
   }
 
   // An Image an offload keeps, on disk before it's offloaded.
@@ -421,6 +428,7 @@ export function openScanCache({
     // then on fetches none, nor prunes those kept, until it's brought back;
     // its thumbnails stay. Throws, offloading nothing, when Astia fails.
     async offload(volumeId: string, images: number[]) {
+      await folder.ready();
       const marker = join(dir, volumeId, OFFLOADED);
       // Offloaded already, as it was until the cited ones are on disk.
       const before = await keptOf(volumeId);
@@ -442,12 +450,16 @@ export function openScanCache({
       await mkdir(join(dir, volumeId), { recursive: true });
       await Bun.write(marker, `${JSON.stringify(kept)}\n`);
       const keep = new Set(files);
+      const leaving = await onDisk(
+        full.filter((id) => !keep.has(id)),
+        volumeId
+      );
+      // Into the offload folder, if one is set; dropped with none.
+      await folder.moveIn(volumeId, leaving);
       await Promise.all(
-        full
-          .filter((id) => !keep.has(id))
-          .map(async (id) => {
-            await rm(pathOf(volumeId, id), { force: true });
-          })
+        leaving.map(async ({ from }) => {
+          await rm(from, { force: true });
+        })
       );
     },
 
@@ -457,6 +469,9 @@ export function openScanCache({
       const kept = await keptOf(at.volumeId);
       return kept === null || kept.images.includes(at.image);
     },
+
+    // The offload folder: set, attached, or none.
+    offloadFolder: folder,
 
     // Whether the Volume is offloaded.
     async isOffloaded(volumeId: string) {
@@ -476,9 +491,7 @@ export function openScanCache({
     // Saves the cap for the install, and shrinks to it at once.
     async setCap(bytes: number) {
       await ready;
-      const settings = await readSettings(settingsFile);
-      const saved = { ...settings, scanCacheBytes: bytes };
-      await Bun.write(settingsFile, `${JSON.stringify(saved, null, 2)}\n`);
+      await saveSetting(settingsFile, 'scanCacheBytes', bytes);
       cap = bytes;
       await prune(null);
     },

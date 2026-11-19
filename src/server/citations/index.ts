@@ -63,6 +63,8 @@ interface Options {
   vision?: VisionReaders;
   // How church book downloads pace Astia; by default gently.
   downloads?: DownloadOptions;
+  // The app's folder picker, for the offload folder; none outside the app.
+  chooseFolder?: () => Promise<string | null>;
 }
 
 // The Citations of the data folder at `root`, for every dataset in it.
@@ -136,6 +138,7 @@ export function openCitations(root: string, options: Options) {
       cache,
       downloads,
       citedImages,
+      chooseFolder: options.chooseFolder,
       pages: {
         numbering: async (volumeId) => await folder.pageNumbering(volumeId),
         check: async (volumeId, on) => {

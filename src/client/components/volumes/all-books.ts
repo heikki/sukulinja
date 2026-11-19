@@ -1,15 +1,22 @@
 import { consume } from '@lit/context';
-import { css, html, LitElement } from 'lit';
+import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { Asking } from '@/client/asking';
+import { dialogStyles } from '@/client/dialog-styles';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
-import type { InstalledBook, ScanCacheStatus } from '@/common/types';
+import type {
+  InstalledBook,
+  OffloadFolder,
+  ScanCacheStatus
+} from '@/common/types';
 
 import { formatBytes } from '../settings/helpers';
 import { busy, downloadActions, matches, pagesCell } from './helpers';
 import type { DownloadAction } from './helpers';
+import { renderLeaveDialog } from './leave-dialog';
+import type { Leaving } from './leave-dialog';
 import {
   actButton,
   bookTableStyles,
@@ -25,10 +32,6 @@ import {
   TRASH_ICON
 } from './table';
 
-// What leaving the disk takes: all of a Volume, or all but its cited
-// Images.
-type Leaving = 'remove' | 'offload';
-
 // How often the Volumes are asked for again while one downloads.
 const POLL_MS = 2000;
 
@@ -37,12 +40,13 @@ const POLL_MS = 2000;
 // cache's fill against its cap above it, and what's known of each one's
 // page numbers. Each one's page numbers are marked checked there, which
 // locks them, its download started or stopped, and what of it is on disk
-// removed, asked first. Typing filters it,
-// as the Book list's. Clicking a row opens it (`open-volume`).
+// removed or offloaded, asked first, and an offloaded one brought back.
+// Typing filters it, as the Book list's. Clicking a row opens it (`open-volume`).
 @customElement('sl-all-books')
 class AllBooksElement extends LitElement {
   static override styles = [
     bookTableStyles,
+    dialogStyles,
     css`
       .cache {
         flex: 1;
@@ -80,9 +84,13 @@ class AllBooksElement extends LitElement {
   // the list opens and again only when another is shown.
   private revealed: string | null = null;
 
-  // The Volume whose removal from disk, or offload, waits to be confirmed
-  // in its row.
-  @state() private confirming: { id: string; what: Leaving } | null = null;
+  // The Volume whose removal from disk, or offload, waits to be confirmed.
+  @state() private confirming: { book: InstalledBook; what: Leaving } | null =
+    null;
+
+  // The offload folder, for the offload's question to say where its
+  // Images go; null for none.
+  @state() private folder: OffloadFolder | null = null;
 
   // Removing a Volume from disk or offloading it; why it was refused.
   private readonly asking = new Asking(this);
@@ -95,6 +103,12 @@ class AllBooksElement extends LitElement {
     super.connectedCallback();
     this.revealed = null;
     void this.load();
+    void this.state.app
+      .offloadFolder()
+      .then((folder) => {
+        this.folder = folder;
+      })
+      .catch(() => undefined);
   }
 
   override updated() {
@@ -182,34 +196,6 @@ class AllBooksElement extends LitElement {
     });
   }
 
-  // Removing a Volume's Images from disk, or all but the cited ones, asked
-  // first under its row.
-  private renderConfirm(book: InstalledBook, what: Leaving) {
-    const ask =
-      what === 'remove'
-        ? `Remove ${formatBytes(book.onDisk.bytes)} from disk?`
-        : 'Keep only the cited images on disk?';
-    return [
-      html`<span class="ask">${ask}</span>`,
-      html`<button
-        class="text danger"
-        @click=${() => {
-          void this.leave(book, what);
-        }}
-      >
-        ${what === 'remove' ? 'Remove' : 'Offload'}
-      </button>`,
-      html`<button
-        class="text"
-        @click=${() => {
-          this.confirming = null;
-        }}
-      >
-        Cancel
-      </button>`
-    ];
-  }
-
   // Marking its page numbers, its download, offloading it or bringing it
   // back, and removing it from disk, each in its place.
   private renderActs(book: InstalledBook) {
@@ -240,7 +226,7 @@ class AllBooksElement extends LitElement {
             'Remove from disk',
             TRASH_ICON,
             () => {
-              this.confirming = { id: book.id, what: 'remove' };
+              this.confirming = { book, what: 'remove' };
             },
             { disabled: this.asking.busy }
           )
@@ -267,7 +253,7 @@ class AllBooksElement extends LitElement {
       'Offload',
       OFFLOAD_ICON,
       () => {
-        this.confirming = { id: book.id, what: 'offload' };
+        this.confirming = { book, what: 'offload' };
       },
       {
         title: 'Offload: keep only the cited images on disk',
@@ -314,10 +300,6 @@ class AllBooksElement extends LitElement {
         }
       },
       acts: (b) => this.renderActs(b),
-      below: (b) =>
-        this.confirming?.id === b.id
-          ? html`${this.renderConfirm(b, this.confirming.what)}`
-          : null,
       noArchive: 'Not in your parishes',
       open: (b) => {
         this.open(b);
@@ -339,7 +321,24 @@ class AllBooksElement extends LitElement {
         ${this.renderCache()}
       </div>
       ${this.renderBody()} ${renderRefused(this.asking.refused)}
+      ${this.renderConfirm()}
     `;
+  }
+
+  // Asked before a Volume's Images leave the disk.
+  private renderConfirm() {
+    const { confirming } = this;
+    if (confirming === null) return nothing;
+    return renderLeaveDialog({
+      ...confirming,
+      folder: this.folder,
+      confirm: () => {
+        void this.leave(confirming.book, confirming.what);
+      },
+      cancel: () => {
+        this.confirming = null;
+      }
+    });
   }
 }
 

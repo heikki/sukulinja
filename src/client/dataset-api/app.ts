@@ -10,6 +10,7 @@ import type {
   ChurchBookArchive,
   ChurchBookVolume,
   InstalledBook,
+  OffloadFolder,
   ScanCacheStatus
 } from '@/common/types';
 
@@ -51,6 +52,11 @@ export interface AppApi {
   scanCache: () => Promise<ScanCacheStatus>;
   setScanCap: (cap: number) => Promise<ScanCacheStatus>;
   clearScanCache: () => Promise<ScanCacheStatus>;
+  // The offload folder, choosing one with the app's picker, and none; each
+  // answers with it as it then stands.
+  offloadFolder: () => Promise<OffloadFolder | null>;
+  chooseOffloadFolder: () => Promise<OffloadFolder | null>;
+  clearOffloadFolder: () => Promise<OffloadFolder | null>;
   // Where the assistant's credentials come from; keeping a key and
   // removing it answer with it as it then stands.
   assistantKey: () => Promise<AssistantKeyStatus>;
@@ -100,6 +106,12 @@ export function openAppApi({
       await call('setScanCap', { cap }, 'Setting the cap'),
     clearScanCache: async () =>
       await call('clearScanCache', {}, 'Clearing the Scan cache'),
+    offloadFolder: async () =>
+      await call('offloadFolder', {}, 'the offload folder'),
+    chooseOffloadFolder: async () =>
+      await call('chooseOffloadFolder', {}, 'Choosing a folder'),
+    clearOffloadFolder: async () =>
+      await call('clearOffloadFolder', {}, 'Clearing the offload folder'),
     assistantKey: async () => await call('assistantKey', {}, 'the key'),
     setAssistantKey: async (key) =>
       await call('setAssistantKey', { key }, 'Saving the key'),

@@ -72,7 +72,13 @@ test("a reference's entry is placed by hand", async () => {
     ]);
     await page.keyboard.press('Escape');
 
-    // Offloaded, the Volume keeps only its cited Image on disk.
+    // Offloaded, the Volume keeps only its cited Image on disk, the rest
+    // moved into the offload folder chosen in Settings.
+    await page.getByRole('button', { name: 'Settings' }).click();
+    await page.getByRole('button', { name: 'Choose…' }).click();
+    await page.getByText(/sukulinja-e2e-.*offload$/).waitFor();
+    await shot(page, 'manual-mark-offload-folder');
+    await page.keyboard.press('Escape');
     await openList(page, 'Volumes');
     const list = page.locator('sl-volumes-list');
     await list
@@ -84,15 +90,16 @@ test("a reference's entry is placed by hand", async () => {
       .getByRole('row')
       .filter({ hasText: 'I Aa:1' });
     await row.getByRole('button', { name: 'Offload' }).click();
-    const ask = list.locator('sl-all-books tr.below');
-    await ask.getByText('Keep only the cited images on disk?').waitFor();
+    const ask = page.getByRole('alertdialog', { name: 'Offload I Aa:1?' });
+    await ask.getByText(/The rest are moved to .*offload/).waitFor();
     await shot(page, 'manual-mark-offload-ask');
-    await ask.getByRole('button', { name: 'Offload', exact: true }).click();
+    await ask.getByRole('button', { name: 'Offload' }).click();
     await row.locator('td[title^="Offloaded: 1 of 20 Images kept"]').waitFor();
     await shot(page, 'manual-mark-offloaded');
 
-    // Off its cited Image, nothing is fetched until it's brought back.
-    await page.getByLabel('Image', { exact: true }).fill('11');
+    // Off its cited Image and the ones moved away, nothing is fetched until
+    // it's brought back.
+    await page.getByLabel('Image', { exact: true }).fill('18');
     await page.keyboard.press('Enter');
     await page.getByText('Offloaded', { exact: true }).waitFor();
     await openList(page, 'Volumes');

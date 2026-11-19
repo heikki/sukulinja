@@ -111,6 +111,8 @@ export interface ApiOptions {
   vision?: VisionReaders;
   // How church book downloads pace Astia; by default gently.
   downloads?: DownloadOptions;
+  // The app's folder picker, for the offload folder; none in a browser.
+  chooseFolder?: () => Promise<string | null>;
 }
 
 export function createApi(
@@ -122,6 +124,7 @@ export function createApi(
     astia: options.astia,
     warmUp: options.warmUp,
     downloads: options.downloads,
+    chooseFolder: options.chooseFolder,
     datasets: async () => await openDatasets(),
     changed,
     vision:
