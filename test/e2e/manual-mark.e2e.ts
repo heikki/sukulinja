@@ -89,12 +89,15 @@ test("a reference's entry is placed by hand", async () => {
       .locator('sl-all-books')
       .getByRole('row')
       .filter({ hasText: 'I Aa:1' });
+    // With the folder chosen, it isn't asked first.
     await row.getByRole('button', { name: 'Offload' }).click();
-    const ask = page.getByRole('alertdialog', { name: 'Offload I Aa:1?' });
-    await ask.getByText(/The rest are moved to .*offload/).waitFor();
-    await shot(page, 'manual-mark-offload-ask');
-    await ask.getByRole('button', { name: 'Offload' }).click();
-    await row.locator('td[title^="Offloaded: 1 of 20 Images kept"]').waitFor();
+    await row.locator('td[title^="Offloaded: "]').waitFor();
+    expect(await row.getByRole('button').count()).toBe(1);
+    expect(
+      await row
+        .getByRole('button', { name: 'Bring back' })
+        .getAttribute('title')
+    ).toMatch(/^Bring back: \d+ images, /);
     await shot(page, 'manual-mark-offloaded');
 
     // Off its cited Image and the ones moved away, nothing is fetched until

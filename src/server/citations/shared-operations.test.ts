@@ -31,7 +31,14 @@ function parishOperations(parishes: ReturnType<typeof memoryParishes>) {
       await Promise.resolve();
     }
   };
-  return sharedOperations({ astia: ASTIA, parishes, cache, downloads, pages });
+  return sharedOperations({
+    astia: ASTIA,
+    parishes,
+    cache,
+    downloads,
+    pages,
+    citedImages: async () => await Promise.resolve([])
+  });
 }
 
 const SIGNAL = new AbortController().signal;

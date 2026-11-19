@@ -96,7 +96,15 @@ export function sharedOperations({
   async function allBooks() {
     return await installBooks(
       { astia, cache, downloads },
-      { parishes: parishes.archives(), pagesOf: pages.numbering }
+      {
+        parishes: parishes.archives(),
+        pagesOf: pages.numbering,
+        // Unknown when what's cited can't be, as Astia isn't reached.
+        freedBy: async (volumeId) => {
+          const cited = await citedImages(volumeId).catch(() => null);
+          return cited === null ? null : await cache.freedBy(volumeId, cited);
+        }
+      }
     );
   }
 
@@ -175,7 +183,7 @@ export function sharedOperations({
     offloadFolder: async () => await cache.offloadFolder.status(),
     async chooseOffloadFolder() {
       if (chooseFolder === undefined) {
-        throw new Refusal(501, 'A folder is chosen in the app.');
+        throw new Refusal(400, 'A folder is chosen in the app.');
       }
       const chosen = await chooseFolder();
       if (chosen !== null) {

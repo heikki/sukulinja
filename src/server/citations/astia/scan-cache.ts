@@ -46,10 +46,12 @@ const DEFAULT_CAP_BYTES = 5 * GB;
 // In an offloaded Volume's folder: the Images it keeps.
 const OFFLOADED = 'offloaded.json';
 
-// What an offloaded Volume keeps: its Images by number, and their files.
+// What an offloaded Volume keeps: its Images by number, and their files;
+// and what it offloaded, its full-size Images and their bytes.
 interface Kept {
   images: number[];
   files: string[];
+  away: { images: number; bytes: number };
 }
 
 // An Image of an offloaded Volume that isn't on disk.
@@ -285,7 +287,8 @@ export function openScanCache({
     const read = (await file.json().catch(() => null)) as Partial<Kept> | null;
     return {
       images: Array.isArray(read?.images) ? read.images : [],
-      files: Array.isArray(read?.files) ? read.files : []
+      files: Array.isArray(read?.files) ? read.files : [],
+      away: read?.away ?? { images: 0, bytes: 0 }
     };
   }
 
@@ -323,12 +326,13 @@ export function openScanCache({
     return path;
   }
 
-  // The Volume's files of those ids that are on disk.
+  // The Volume's files of those ids that are on disk, with their sizes.
   async function onDisk(fileIds: string[], volumeId: string) {
     const found = await Promise.all(
       fileIds.map(async (fileId) => {
         const from = pathOf(volumeId, fileId);
-        return (await Bun.file(from).exists()) ? [{ from, fileId }] : [];
+        const info = await stat(from).catch(() => null);
+        return info === null ? [] : [{ from, fileId, size: info.size }];
       })
     );
     return found.flat();
@@ -446,14 +450,18 @@ export function openScanCache({
       const full = await astia.volumeImages(volumeId, 'full');
       const sorted = images.toSorted((a, b) => a - b);
       const files = sorted.flatMap((n) => full[n - 1] ?? []);
-      const kept: Kept = { images: sorted, files };
-      await mkdir(join(dir, volumeId), { recursive: true });
-      await Bun.write(marker, `${JSON.stringify(kept)}\n`);
       const keep = new Set(files);
       const leaving = await onDisk(
         full.filter((id) => !keep.has(id)),
         volumeId
       );
+      const away = {
+        images: leaving.length + (before?.away.images ?? 0),
+        bytes: totalSize(leaving) + (before?.away.bytes ?? 0)
+      };
+      const kept: Kept = { images: sorted, files, away };
+      await mkdir(join(dir, volumeId), { recursive: true });
+      await Bun.write(marker, `${JSON.stringify(kept)}\n`);
       // Into the offload folder, if one is set; dropped with none.
       await folder.moveIn(volumeId, leaving);
       await Promise.all(
@@ -476,6 +484,23 @@ export function openScanCache({
     // Whether the Volume is offloaded.
     async isOffloaded(volumeId: string) {
       return (await keptOf(volumeId)) !== null;
+    },
+
+    // What an offloaded Volume offloaded: its full-size Images and their
+    // bytes; null for one not offloaded.
+    async offloadedOf(volumeId: string) {
+      return (await keptOf(volumeId))?.away ?? null;
+    },
+
+    // The bytes an offload keeping the Images numbered in `images` would
+    // free; null while Astia's list of the Volume isn't kept. Never asks
+    // Astia.
+    async freedBy(volumeId: string, images: number[]) {
+      const full = await astia.cachedImages(volumeId);
+      if (full === null) return null;
+      const keep = new Set(images.map((n) => full[n - 1]));
+      const leaving = full.filter((id) => !keep.has(id));
+      return totalSize(await onDisk(leaving, volumeId));
     },
 
     // Its Images fetched from Astia again, as any Volume's.

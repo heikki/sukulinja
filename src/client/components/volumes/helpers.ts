@@ -55,13 +55,15 @@ function downloadLine(download: DownloadStatus, onDisk: VolumeOnDisk) {
   }
 }
 
+// What an offloaded Volume offloaded; null for one that isn't.
+type Away = { images: number; bytes: number } | null;
+
 // What of a Volume is on disk, and its download, in a line under its
-// title.
-export function diskLine(volume: ChurchBookVolume & { offloaded?: boolean }) {
-  if (volume.offloaded !== true) return volumeLine(volume);
-  const { onDisk } = volume;
-  const size = onDisk.bytes > 0 ? ` · ${formatBytes(onDisk.bytes)}` : '';
-  return `Offloaded: ${ofImages(onDisk)} Images kept, the cited ones${size}`;
+// title; for an offloaded one, what it offloaded.
+export function diskLine(volume: ChurchBookVolume & { offloaded?: Away }) {
+  const { offloaded } = volume;
+  if (offloaded === undefined || offloaded === null) return volumeLine(volume);
+  return `Offloaded: ${offloaded.images} Images, ${formatBytes(offloaded.bytes)}`;
 }
 
 function volumeLine(volume: ChurchBookVolume) {
@@ -197,11 +199,11 @@ function share(d: VolumeOnDisk) {
 
 // What of a Volume is on disk, in a table's cell: its line made short,
 // the share of its Images in place of their count, which `diskLine`
-// gives whole for its tooltip; "—" for nothing.
-export function diskCell(volume: ChurchBookVolume & { offloaded?: boolean }) {
-  if (volume.offloaded !== true) return volumeCell(volume);
-  const { bytes } = volume.onDisk;
-  return bytes > 0 ? `Offloaded · ${formatBytes(bytes)}` : 'Offloaded';
+// gives whole for its tooltip; "—" for nothing, and nothing for one
+// wholly on disk or offloaded, as its buttons say.
+export function diskCell(volume: ChurchBookVolume & { offloaded?: Away }) {
+  if (volume.offloaded !== undefined && volume.offloaded !== null) return '';
+  return volumeCell(volume);
 }
 
 function volumeCell(volume: ChurchBookVolume) {
@@ -214,7 +216,8 @@ function volumeCell(volume: ChurchBookVolume) {
   if (state === 'stopped' && !whole(onDisk)) {
     return `Stopped at ${share(onDisk)}${size}`;
   }
-  if (whole(onDisk)) return `On disk${size}`;
+  // Wholly on disk, as the row's buttons say, it says nothing.
+  if (whole(onDisk)) return '';
   if (onDisk.cached === 0) return '—';
   return `${share(onDisk)}${size}`;
 }

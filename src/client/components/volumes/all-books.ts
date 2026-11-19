@@ -196,9 +196,12 @@ class AllBooksElement extends LitElement {
     });
   }
 
-  // Marking its page numbers, its download, offloading it or bringing it
-  // back, and removing it from disk, each in its place.
+  // Marking its page numbers, its download, offloading it and removing it
+  // from disk, each in its place; an offloaded one is only brought back.
   private renderActs(book: InstalledBook) {
+    if (book.offloaded !== null) {
+      return [EMPTY_SLOT, EMPTY_SLOT, this.renderBringBack(book), EMPTY_SLOT];
+    }
     const checked = book.pages === 'checked';
     const [download] = downloadActions(book);
     return [
@@ -210,7 +213,7 @@ class AllBooksElement extends LitElement {
         },
         { pressed: checked, disabled: this.asking.busy }
       ),
-      book.offloaded || download === undefined
+      download === undefined
         ? EMPTY_SLOT
         : actButton(
             download.label,
@@ -233,32 +236,42 @@ class AllBooksElement extends LitElement {
     ];
   }
 
-  // Offloading it, or bringing it back, in the same place.
+  // In the offload's place, with what comes back.
+  private renderBringBack(book: InstalledBook) {
+    const away = book.offloaded;
+    const what =
+      away === null
+        ? ''
+        : ` ${away.images} images, ${formatBytes(away.bytes)},`;
+    return actButton(
+      'Bring back',
+      BRING_BACK_ICON,
+      () => {
+        void this.bringBack(book);
+      },
+      {
+        title: `Bring back:${what} read again as they're shown`,
+        disabled: this.asking.busy
+      }
+    );
+  }
+
+  // With an offload folder, offloaded at once, as nothing leaves for good;
+  // with none, asked first.
   private renderOffload(book: InstalledBook) {
-    if (book.offloaded) {
-      return actButton(
-        'Bring back',
-        BRING_BACK_ICON,
-        () => {
-          void this.bringBack(book);
-        },
-        {
-          title: 'Bring back: fetch its images from Astia again',
-          disabled: this.asking.busy
-        }
-      );
-    }
     if (book.onDisk.cached === 0) return EMPTY_SLOT;
+    const frees =
+      book.offloadFrees === null
+        ? 'keep only the cited images on disk'
+        : `frees ${formatBytes(book.offloadFrees)}, keeping the cited images`;
     return actButton(
       'Offload',
       OFFLOAD_ICON,
       () => {
-        this.confirming = { book, what: 'offload' };
+        if (this.folder === null) this.confirming = { book, what: 'offload' };
+        else void this.leave(book, 'offload');
       },
-      {
-        title: 'Offload: keep only the cited images on disk',
-        disabled: this.asking.busy
-      }
+      { title: `Offload: ${frees}`, disabled: this.asking.busy }
     );
   }
 

@@ -530,8 +530,12 @@ export interface InstalledBook extends ChurchBookVolume {
   archiveId: string | null;
   archive: string | null;
   pages: PageNumbering;
-  // Whether it's offloaded: only its cited Images kept, no other fetched.
-  offloaded: boolean;
+  // What it offloaded, its full-size Images and their bytes, when it's
+  // offloaded: only its cited Images kept, no other fetched; else null.
+  offloaded: { images: number; bytes: number } | null;
+  // The bytes offloading it would free; null when it's offloaded, or
+  // when that isn't known.
+  offloadFrees: number | null;
 }
 
 // The offload folder set for the install, and whether its drive is
