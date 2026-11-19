@@ -36,6 +36,9 @@ export function onImage(box: Box, size: Viewport | null) {
 export const OFF_IMAGE =
   'The entry box must lie on the Image, in whole pixels.';
 
+export const CHECKED =
+  'The page numbers of this Volume are marked checked. Unmark them to change them.';
+
 export const OLD_FILMING =
   'Astia has re-scanned this Volume. It can be changed once switched to the new filming.';
 

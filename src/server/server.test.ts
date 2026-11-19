@@ -307,6 +307,15 @@ describe('Church books', () => {
       })
     ]);
     await appOp('removeFromDisk', { volumeId: '999' });
+    // Its page numbers marked checked, for every dataset.
+    const checked = await appOp('checkPages', {
+      volumeId: '302',
+      checked: true
+    });
+    expect(checked.body).toEqual([
+      expect.objectContaining({ id: '302', pages: 'checked' })
+    ]);
+    expect((await appOp('pagesChecked', { volumeId: '302' })).body).toBe(true);
     const removed = await appOp('removeFromDisk', { volumeId: '302' });
     expect(removed.body).toEqual([]);
     expect((await appOp('scanCache')).body).toMatchObject({ used: 0 });

@@ -92,6 +92,24 @@ export const APP_OPERATIONS = {
     volumeOf
   ),
 
+  // Marks the Volume's page numbers checked, locking them in the Scan
+  // viewer, or no longer: every Volume on this computer then. Whether
+  // they're marked.
+  checkPages: answers<{ volumeId: string; checked: boolean }, InstalledBook[]>(
+    '{ volumeId, checked }',
+    (body) => {
+      const volume = volumeOf(body);
+      const { checked } = body;
+      return volume === null || typeof checked !== 'boolean'
+        ? null
+        : { ...volume, checked };
+    }
+  ),
+  pagesChecked: answers<{ volumeId: string }, boolean>(
+    '{ volumeId }',
+    volumeOf
+  ),
+
   // The Scan cache: what it holds against its cap. Setting the cap, one of
   // its choices, and clearing it answer with it as it then stands.
   scanCache: asksNothing<ScanCacheStatus>(),

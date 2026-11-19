@@ -8,11 +8,12 @@ import type { AppState } from '@/client/state';
 import type { InstalledBook, ScanCacheStatus } from '@/common/types';
 
 import { formatBytes } from '../settings/helpers';
-import { busy, downloadActions, matches } from './helpers';
+import { busy, downloadActions, matches, pagesCell } from './helpers';
 import type { DownloadAction } from './helpers';
 import {
   actButton,
   bookTableStyles,
+  CHECK_ICON,
   DOWNLOAD_ICON,
   renderBookTable,
   renderRefused,
@@ -25,8 +26,10 @@ const POLL_MS = 2000;
 
 // The Volumes tab's _All books_: every Volume with something on this
 // computer, whatever tree it's of, as a table by archive, with the Scan
-// cache's fill against its cap above it. Each one's download is started
-// or stopped there, and what of it is on disk removed. Typing filters it,
+// cache's fill against its cap above it, and what's known of each one's
+// page numbers. Each one's page numbers are marked checked there, which
+// locks them, its download started or stopped, and what of it is on disk
+// removed, asked first. Typing filters it,
 // as the Book list's. Clicking a row opens it (`open-volume`).
 @customElement('sl-all-books')
 class AllBooksElement extends LitElement {
@@ -61,6 +64,9 @@ class AllBooksElement extends LitElement {
   @state() private books: InstalledBook[] | 'failed' | null = null;
   @state() private cache: ScanCacheStatus | null = null;
   @state() private filter = '';
+
+  // The Volume whose removal from disk waits to be confirmed in its row.
+  @state() private confirming: string | null = null;
 
   // Removing a Volume from disk; why it was refused.
   private readonly asking = new Asking(this);
@@ -119,6 +125,7 @@ class AllBooksElement extends LitElement {
   }
 
   private async removeFromDisk(book: InstalledBook) {
+    this.confirming = null;
     await this.asking.run(async () => {
       this.show(await this.state.app.removeFromDisk(book.id));
       this.cache = await this.state.app.scanCache();
@@ -133,20 +140,64 @@ class AllBooksElement extends LitElement {
     );
   }
 
-  private renderActs(book: InstalledBook) {
-    const downloads = downloadActions(book).map(({ action, label }) =>
-      actButton(label, action === 'start' ? DOWNLOAD_ICON : STOP_ICON, () => {
-        void this.act(book, action);
-      })
-    );
-    if (book.onDisk.bytes === 0) return downloads;
+  private async check(book: InstalledBook) {
+    await this.asking.run(async () => {
+      const checked = book.pages !== 'checked';
+      this.show(await this.state.app.checkPages(book.id, checked));
+    });
+  }
+
+  // Removing a Volume's Images from disk, asked first in its row.
+  private renderConfirm(book: InstalledBook) {
     return [
-      ...downloads,
+      html`<span class="ask"
+        >Remove ${formatBytes(book.onDisk.bytes)} from disk?</span
+      >`,
+      html`<button
+        class="text danger"
+        @click=${() => {
+          void this.removeFromDisk(book);
+        }}
+      >
+        Remove
+      </button>`,
+      html`<button
+        class="text"
+        @click=${() => {
+          this.confirming = null;
+        }}
+      >
+        Cancel
+      </button>`
+    ];
+  }
+
+  private renderActs(book: InstalledBook) {
+    if (this.confirming === book.id) return this.renderConfirm(book);
+    const checked = book.pages === 'checked';
+    const acts = [
+      actButton(
+        checked ? 'Unmark page numbers checked' : 'Mark page numbers checked',
+        CHECK_ICON,
+        () => {
+          void this.check(book);
+        },
+        { pressed: checked, disabled: this.asking.busy }
+      ),
+      ...downloadActions(book).map(({ action, label }) =>
+        actButton(label, action === 'start' ? DOWNLOAD_ICON : STOP_ICON, () => {
+          void this.act(book, action);
+        })
+      )
+    ];
+    if (book.onDisk.bytes === 0) return acts;
+    return [
+      ...acts,
       actButton(
         'Remove from disk',
         TRASH_ICON,
         () => {
-          void this.removeFromDisk(book);
+          this.confirming = book.id;
         },
         { disabled: this.asking.busy }
       )
@@ -182,6 +233,7 @@ class AllBooksElement extends LitElement {
     }
     return renderBookTable({
       books: shown,
+      column: { header: 'Pages', cell: (b) => pagesCell(b.pages) },
       acts: (b) => this.renderActs(b),
       noArchive: 'Not in your parishes',
       open: (b) => {

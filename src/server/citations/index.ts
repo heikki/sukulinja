@@ -98,7 +98,18 @@ export function openCitations(root: string, options: Options) {
   return {
     // The parishes, the church books and their downloads, and the Scan
     // cache, shared by every dataset.
-    operations: sharedOperations({ astia, parishes, cache, downloads }),
+    operations: sharedOperations({
+      astia,
+      parishes,
+      cache,
+      downloads,
+      pages: {
+        numbering: async (volumeId) => await folder.pageNumbering(volumeId),
+        check: async (volumeId, on) => {
+          await folder.checkPages(volumeId, on);
+        }
+      }
+    }),
 
     // Astia's Images and a Volume's re-scan, shared by every dataset. Null
     // for any other path.

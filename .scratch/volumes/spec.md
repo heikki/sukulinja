@@ -1,4 +1,4 @@
-Status: in progress — tickets 01–03 built (ADR-0035); 04–05 open
+Status: in progress — tickets 01–04 built (ADR-0035); 05 open
 
 # Volumes: the Book list and the Volume picker
 

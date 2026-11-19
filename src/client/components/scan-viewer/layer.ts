@@ -45,7 +45,13 @@ import './volumes';
 // the people to name in a new entry's Role (or with none), listed or
 // searched.
 type Popup =
-  | { at: Point; onBox: boolean; show: 'menu' | 'volumes' | 'survey' | 'clear' }
+  | {
+      at: Point;
+      onBox: boolean;
+      show: 'menu' | 'volumes' | 'survey' | 'clear' | 'unchecked';
+      // With `unchecked`: the Vision Match asked for.
+      locate?: () => void;
+    }
   | { at: Point; show: 'pick'; role: string | null };
 
 // Editing the current source's Link over the scan: the menu a right-click
@@ -264,17 +270,19 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     const model = visionModel.get();
     const label = CLAUDE_MODELS.find((m) => m.id === model)?.label ?? model;
     const shown = this.popup;
+    // On a Volume whose page numbers aren't marked checked, it asks first
+    // (Heikki, 2026-11-19): its estimates count from them.
+    const asking = (locate: () => void) =>
+      this.askUnchecked.bind(this, shown, locate);
     return {
       locate: {
         model: label,
-        run: () => {
-          this.popup = null;
+        run: asking(() => {
           void this.viewer.findAllByVision(model);
-        },
-        runVolume: () => {
-          this.popup = null;
+        }),
+        runVolume: asking(() => {
           void this.viewer.findAllInVolumeByVision(model);
-        },
+        }),
         survey: () => {
           // The menu has closed by now: the warning opens where it was.
           if (this.viewer.pages.byHand.get() > 0 && shown?.show === 'menu') {
@@ -288,6 +296,15 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     };
   }
 
+  private askUnchecked(shown: Popup | null, locate: () => void) {
+    if (this.viewer.pages.checked.get() || shown?.show !== 'menu') {
+      this.popup = null;
+      locate();
+      return;
+    }
+    this.popup = { ...shown, show: 'unchecked', locate };
+  }
+
   private renderPopup() {
     const { popup } = this;
     if (popup === null) return nothing;
@@ -295,6 +312,9 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     const { at, onBox, show } = popup;
     if (show === 'survey') return this.renderSurveyWarning(at);
     if (show === 'clear') return this.renderClearWarning(at);
+    if (show === 'unchecked' && popup.locate !== undefined) {
+      return this.renderUncheckedWarning(at, popup.locate);
+    }
     if (show === 'volumes') {
       return html`<sl-scan-volumes
         .at=${at}
@@ -321,6 +341,11 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
           ? {
               clearPages: () => {
                 this.popup = { at, onBox, show: 'clear' };
+              },
+              checkPages: () => {
+                this.popup = null;
+                const { pages } = this.viewer;
+                void pages.setChecked(!pages.checked.get());
               }
             }
           : {}),
@@ -332,6 +357,16 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
       .at=${at}
       @close=${this.onPopupClose}
     ></sl-context-menu>`;
+  }
+
+  // Before Vision Match on a Volume whose page numbers aren't marked
+  // checked: locate anyway, or not.
+  private renderUncheckedWarning(at: Point, locate: () => void) {
+    return this.renderAsk(
+      at,
+      "This Volume's page numbers aren't marked checked; the estimates count from them",
+      { label: 'Locate anyway', run: locate }
+    );
   }
 
   // Before a page survey takes away the pages set by hand in the Volume

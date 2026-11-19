@@ -5,7 +5,7 @@
 // something on this computer; and the Scan cache they're kept in.
 
 import type { AppOperations } from '@/common/operations';
-import type { ChurchBookArchive } from '@/common/types';
+import type { ChurchBookArchive, PageNumbering } from '@/common/types';
 
 import { Refusal } from '../operations';
 import type { Handlers } from '../operations';
@@ -23,6 +23,11 @@ interface Sources {
   parishes: Parishes;
   cache: ScanCache;
   downloads: Downloads;
+  // What's known of a Volume's page numbers, and marking them checked.
+  pages: {
+    numbering: (volumeId: string) => Promise<PageNumbering>;
+    check: (volumeId: string, on: boolean) => Promise<void>;
+  };
 }
 
 export type SharedOperations = Pick<
@@ -37,6 +42,8 @@ export type SharedOperations = Pick<
   | 'stopDownload'
   | 'allBooks'
   | 'removeFromDisk'
+  | 'checkPages'
+  | 'pagesChecked'
   | 'scanCache'
   | 'setScanCap'
   | 'clearScanCache'
@@ -46,7 +53,8 @@ export function sharedOperations({
   astia,
   parishes,
   cache,
-  downloads
+  downloads,
+  pages
 }: Sources): Handlers<SharedOperations> {
   // The archive, if it's a parish's in Astia.
   async function parishArchive(archiveId: string) {
@@ -60,7 +68,10 @@ export function sharedOperations({
   }
 
   async function allBooks() {
-    return await installBooks({ astia, cache, downloads }, parishes.archives());
+    return await installBooks(
+      { astia, cache, downloads },
+      { parishes: parishes.archives(), pagesOf: pages.numbering }
+    );
   }
 
   return {
@@ -101,6 +112,12 @@ export function sharedOperations({
       await cache.remove(volumeId);
       return await allBooks();
     },
+    async checkPages({ volumeId, checked }) {
+      await pages.check(volumeId, checked);
+      return await allBooks();
+    },
+    pagesChecked: async ({ volumeId }) =>
+      (await pages.numbering(volumeId)) === 'checked',
     scanCache: async () => await cache.status(),
     async setScanCap({ cap }) {
       if (!CAPS.includes(cap)) {

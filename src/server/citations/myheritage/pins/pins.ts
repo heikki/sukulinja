@@ -316,6 +316,18 @@ export function openVolumeFacts(folder: string, options: { astia: Astia }) {
     return await fileStamp(localFile);
   }
 
+  // One write of the local file, as `edit` changes it.
+  async function saving(edit: (local: LocalPins) => void) {
+    await migrated();
+    await mkdir(folder, { recursive: true });
+    await withLock(lockFile, async () => {
+      const local = await readLocal();
+      edit(local);
+      await writeLocalFile(localFile, local);
+    });
+    merged = null;
+  }
+
   return {
     astia,
 
@@ -344,15 +356,10 @@ export function openVolumeFacts(folder: string, options: { astia: Astia }) {
       ref: ChurchBookRef,
       at: { volume: string; image: number; by: 'hand' | 'vision' }
     ) {
-      await migrated();
-      await mkdir(folder, { recursive: true });
-      await withLock(lockFile, async () => {
-        const draft = { local: await readLocal(), filming };
-        const pin = pagePin(draft, ref, at.image, at.by);
-        addPagePin(draft, at.volume, pin);
-        await writeLocalFile(localFile, draft.local);
+      await saving((local) => {
+        const draft = { local, filming };
+        addPagePin(draft, at.volume, pagePin(draft, ref, at.image, at.by));
       });
-      merged = null;
     },
 
     // Page pins for the Page numbers the vision model read on the
@@ -437,17 +444,21 @@ export function openVolumeFacts(folder: string, options: { astia: Astia }) {
     // Takes every Page pin of the Volume's filming away, hand or the
     // vision model's: its pages counted anew as its book is numbered.
     async clearPages(filming: Filming) {
-      await migrated();
-      await mkdir(folder, { recursive: true });
-      await withLock(lockFile, async () => {
-        const local = await readLocal();
+      await saving((local) => {
         const kept = local.volumes[filming.volumeId];
         if (kept === undefined) return;
         const { current } = split(filming, kept.pages);
         kept.pages = kept.pages.filter((p) => !current.includes(p));
-        await writeLocalFile(localFile, local);
       });
-      merged = null;
+    },
+
+    // The Volume's page numbers marked checked, or no longer. One write.
+    async setChecked(volumeId: string, checked: boolean) {
+      await saving((local) => {
+        const { volumes } = local;
+        const { checked: _was, ...kept } = volumes[volumeId] ?? { pages: [] };
+        volumes[volumeId] = checked ? { ...kept, checked } : kept;
+      });
     },
 
     // The pins as the local file keeps them.

@@ -1,8 +1,13 @@
 // The church books as the app can list them apart from any citation: a
 // parish archive's Volumes, and every Volume with something on this
-// computer, with what of them is on disk and their downloads.
+// computer, with what of them is on disk, their downloads and what's
+// known of their page numbers.
 
-import type { ChurchBookVolume, InstalledBook } from '@/common/types';
+import type {
+  ChurchBookVolume,
+  InstalledBook,
+  PageNumbering
+} from '@/common/types';
 
 import type { Astia, Volume } from './astia';
 import type { Downloads } from './downloads';
@@ -48,7 +53,14 @@ export async function parishBooks(
 // alone. A parish Astia can't be asked about names none of its Volumes.
 export async function installBooks(
   sources: Sources,
-  parishes: string[]
+  {
+    parishes,
+    pagesOf
+  }: {
+    parishes: string[];
+    // What's known of a Volume's page numbers.
+    pagesOf: (volumeId: string) => Promise<PageNumbering>;
+  }
 ): Promise<InstalledBook[]> {
   const { astia, cache, downloads } = sources;
   const here = new Set([
@@ -75,7 +87,8 @@ export async function installBooks(
     ...books.map(async ({ v, archiveId, archive }) => ({
       ...(await bookOf(sources, v)),
       archiveId,
-      archive
+      archive,
+      pages: await pagesOf(v.id)
     })),
     ...unnamed.map(async (id) => ({
       ...(await bookOf(sources, {
@@ -86,7 +99,8 @@ export async function installBooks(
         digitized: true
       })),
       archiveId: null,
-      archive: null
+      archive: null,
+      pages: await pagesOf(id)
     }))
   ]);
 }

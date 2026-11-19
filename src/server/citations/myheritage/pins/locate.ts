@@ -71,6 +71,9 @@ export interface RecordPin {
 export interface VolumePins {
   title?: string;
   pages: PagePin[];
+  // The Volume's page numbers marked checked by hand: locked until
+  // unmarked.
+  checked?: boolean;
   villages?: string[];
   ranges?: RecordRange[];
   records?: RecordPin[];

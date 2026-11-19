@@ -25,7 +25,13 @@ afterAll(() => {
 function parishOperations(parishes: ReturnType<typeof memoryParishes>) {
   const cache = openScanCache({ astia: ASTIA, root });
   const downloads = openDownloads({ astia: ASTIA, cache });
-  return sharedOperations({ astia: ASTIA, parishes, cache, downloads });
+  const pages = {
+    numbering: async () => await Promise.resolve('counted' as const),
+    check: async () => {
+      await Promise.resolve();
+    }
+  };
+  return sharedOperations({ astia: ASTIA, parishes, cache, downloads, pages });
 }
 
 const SIGNAL = new AbortController().signal;

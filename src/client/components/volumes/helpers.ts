@@ -5,6 +5,7 @@ import type {
   DownloadError,
   DownloadStatus,
   ListedBook,
+  PageNumbering,
   VolumeOnDisk,
   Years
 } from '@/common/types';
@@ -240,4 +241,16 @@ export function volumeCode(label: string) {
     .join(',')
     .trim();
   return rest === '' ? '–' : rest;
+}
+
+// What's known of a Volume's page numbers, in a table's cell.
+export function pagesCell(pages: PageNumbering) {
+  switch (pages) {
+    case 'counted':
+      return '–';
+    case 'read':
+      return 'Read';
+    case 'checked':
+      return 'Checked';
+  }
 }

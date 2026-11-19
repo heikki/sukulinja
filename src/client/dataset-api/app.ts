@@ -39,6 +39,10 @@ export interface AppApi {
   // answers with them as they then stand.
   allBooks: () => Promise<InstalledBook[]>;
   removeFromDisk: (volumeId: string) => Promise<InstalledBook[]>;
+  // Marks the Volume's page numbers checked, locking them, or no longer,
+  // answering with every Volume on this computer; whether they're marked.
+  checkPages: (volumeId: string, checked: boolean) => Promise<InstalledBook[]>;
+  pagesChecked: (volumeId: string, signal?: AbortSignal) => Promise<boolean>;
   // The Scan cache; setting its cap and clearing it answer with it as it
   // then stands.
   scanCache: () => Promise<ScanCacheStatus>;
@@ -78,6 +82,10 @@ export function openAppApi({
     allBooks: async () => await call('allBooks', {}, 'the volumes'),
     removeFromDisk: async (volumeId) =>
       await call('removeFromDisk', { volumeId }, 'Removing from disk'),
+    checkPages: async (volumeId, checked) =>
+      await call('checkPages', { volumeId, checked }, 'Marking the pages'),
+    pagesChecked: async (volumeId, signal) =>
+      await call('pagesChecked', { volumeId }, 'the pages', signal),
     scanCache: async () => await call('scanCache', {}, 'the Scan cache'),
     setScanCap: async (cap) =>
       await call('setScanCap', { cap }, 'Setting the cap'),

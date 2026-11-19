@@ -43,17 +43,22 @@ test('a Volume of another parish is added, downloaded, removed and taken off', a
     await book.getByRole('button', { name: 'Stop' }).click();
     await book.getByText(/^Stopped at \d+%/).waitFor();
 
-    // Among all the books on this computer, it comes off the disk.
+    // Among all the books on this computer, it comes off the disk, asked
+    // first.
     const modes = list.getByRole('group', { name: 'Volumes shown' });
     await modes.getByRole('button', { name: 'All books' }).click();
     const all = list.locator('sl-all-books');
     await all.getByText('Keksityn seurakunnan arkisto').waitFor();
-    await shot(page, 'volumes-all-books');
-    await all
-      .getByRole('row')
-      .filter({ hasText: 'I Aa:1' })
-      .getByRole('button', { name: 'Remove from disk' })
+    const row = all.getByRole('row').filter({ hasText: 'I Aa:1' });
+    // Its page numbers marked checked, for every tree.
+    await row
+      .getByRole('button', { name: 'Mark page numbers checked' })
       .click();
+    await row.getByText('Checked').waitFor();
+    await shot(page, 'volumes-all-books');
+    await row.getByRole('button', { name: 'Remove from disk' }).click();
+    await row.getByText(/^Remove .* from disk\?$/).waitFor();
+    await row.getByRole('button', { name: 'Remove', exact: true }).click();
     await all.getByText('Nothing of any volume is on this computer').waitFor();
     await modes.getByRole('button', { name: 'This tree' }).click();
 

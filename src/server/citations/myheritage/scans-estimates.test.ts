@@ -295,3 +295,32 @@ test('a page set on an Image by hand counts the Volume from it, and taken away n
     rejected: 'The volume has no such image.'
   });
 });
+
+test("a Volume's page numbers marked checked are kept until unmarked", async () => {
+  const folder = openScanFolder(dir, {
+    astia: juvaAstia(),
+    parishes: memoryParishes()
+  });
+  const at = { volumeId: 'juva-1', volume: 'I Aa:1', image: 5 };
+  expect(await folder.pageNumbering('juva-1')).toBe('counted');
+  await folder.setImagePage(at, [12]);
+  expect(await folder.pageNumbering('juva-1')).toBe('read');
+  await folder.checkPages('juva-1', true);
+  expect(await folder.pageNumbering('juva-1')).toBe('checked');
+  const reader = {
+    pageNumbers: async () => await Promise.resolve({ pages: [1] })
+  };
+  for (const refused of [
+    await folder.setImagePage(at, [20]),
+    await folder.clearVolumePages('juva-1'),
+    await folder.surveyPages('juva-1', 'I Aa:1', reader)
+  ]) {
+    expect(
+      refused !== null && 'rejected' in refused && refused.rejected
+    ).toMatch(/checked/u);
+  }
+  expect(await imagesAt(12)).toEqual([5]);
+  await folder.checkPages('juva-1', false);
+  expect(await folder.pageNumbering('juva-1')).toBe('read');
+  expect(await folder.clearVolumePages('juva-1')).toBeNull();
+});

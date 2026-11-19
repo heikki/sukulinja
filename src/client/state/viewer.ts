@@ -22,8 +22,8 @@ import type { ImageOpen, LinkOpen } from './source-open';
 import type { Source } from './sources';
 import { visionBatching } from './vision-batch';
 import type { VisionBatch } from './vision-batch';
-import { volumePagesOf } from './volume-pages';
-import type { VolumePages } from './volume-pages';
+import { NO_CHECKS, volumePagesOf } from './volume-pages';
+import type { PagesChecked, VolumePages } from './volume-pages';
 
 export type { PendingAt, PendingChange } from './pending-change';
 export type { EntryEdit, PendingCite } from './pending-entry';
@@ -215,8 +215,15 @@ export function openViewer(
   selected: Selected,
   {
     opening = () => undefined,
-    treeChanged = () => undefined
-  }: { opening?: () => void; treeChanged?: () => void } = {}
+    treeChanged = () => undefined,
+    checks = NO_CHECKS
+  }: {
+    opening?: () => void;
+    treeChanged?: () => void;
+    // Whether a Volume's page numbers are marked checked, and marking
+    // them: the install's, outside any dataset.
+    checks?: PagesChecked;
+  } = {}
 ): Viewer {
   const opened = signal<LinkOpen | ImageOpen | null>(null);
   const source = computed(() => {
@@ -229,7 +236,7 @@ export function openViewer(
   // Astia's viewer address of each of the Volume's Images.
   let files: string[] = [];
   const citations = signal<VolumeCitation[] | null | 'failed'>(null);
-  const pages = volumePagesOf(api, { volume, image }, loadCitations);
+  const pages = volumePagesOf(api, { volume, image }, loadCitations, checks);
   const archive = signal<string | null>(null);
   const sourcesInView = signal(false);
   const placing = signal(false);

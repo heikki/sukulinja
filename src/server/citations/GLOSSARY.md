@@ -153,6 +153,9 @@ _Avoid_: correction, anchor (alone), placement.
 A Page number known to be on an Image. Images for other pages of the Volume are counted from the nearest Page pins, so one helps every reference in the Volume. Where a source misread a page number, the Page pin gives the number as referenced and notes what's written.
 _Avoid_: anchor.
 
+**Pages checked**:
+A Volume's Page numbers marked by hand as right, for every dataset, from the Volume's row in _All books_ or the Scan viewer's menu. Then they're locked: neither set by hand, cleared nor surveyed until unmarked. Vision Match on a Volume not checked asks first, as its estimates count from them.
+
 **Record pin**:
 A record known to be on an Image, by the source's id for it (today a MyHeritage **Record number**): a Mark or Match on an Image, as resolution reads it from the dataset's citations of the record. It holds for everyone citing the record, and extends its Volume's **Record range** for that dataset.
 _Avoid_: seen record.

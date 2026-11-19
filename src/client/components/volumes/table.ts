@@ -17,6 +17,7 @@ import type { ArchiveGroup } from './helpers';
 export const DOWNLOAD_ICON = svg`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12" /><path d="m6 11 6 6 6-6" /><path d="M5 20h14" /></svg>`;
 export const STOP_ICON = svg`<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" /></svg>`;
 export const REMOVE_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12" /><path d="M18 6 6 18" /></svg>`;
+export const CHECK_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10" /></svg>`;
 export const TRASH_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M6 7l1 13h10l1-13" /><path d="M9 7V4h6v3" /></svg>`;
 
 // A Volume in a table of the Volumes tab, grouped under its archive.
@@ -107,12 +108,14 @@ export function actButton(
   run: () => void,
   {
     title = label,
-    disabled = false
-  }: { title?: string; disabled?: boolean } = {}
+    disabled = false,
+    pressed = null
+  }: { title?: string; disabled?: boolean; pressed?: boolean | null } = {}
 ) {
   return html`<button
     class="act"
     aria-label=${label}
+    aria-pressed=${pressed === null ? nothing : String(pressed)}
     title=${title}
     ?disabled=${disabled}
     @click=${run}
@@ -160,6 +163,32 @@ export const bookTableStyles = [
       border-radius: 6px;
       background: none;
       color: var(--fg);
+      font-size: 0.8rem;
+    }
+
+    button.act[aria-pressed='true'] {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 18%, transparent);
+      color: var(--accent);
+    }
+
+    button.text {
+      padding: 0.15rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: none;
+      color: var(--fg);
+      font-size: 0.8rem;
+    }
+
+    button.text.danger {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    span.ask {
+      margin-right: 0.35rem;
+      color: var(--muted);
       font-size: 0.8rem;
     }
 
@@ -246,7 +275,7 @@ export const bookTableStyles = [
 
     /* A download's line is long; it wraps before the buttons go. */
     td.disk {
-      min-width: 7rem;
+      min-width: 5rem;
       white-space: normal;
       text-align: right;
     }

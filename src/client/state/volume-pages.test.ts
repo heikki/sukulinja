@@ -3,6 +3,8 @@ import { expect, test } from 'bun:test';
 import { memoryDatasetApi } from '@/client/dataset-api/memory';
 
 import { openAppState } from '.';
+import { openSelected } from './selected';
+import { openViewer } from './viewer';
 
 test("tells the pages the Volume's Page pins put on the Image shown", async () => {
   const pins = [{ image: 1, pages: [7], by: 'vision' as const }];
@@ -58,4 +60,27 @@ test("the Volume's page numbers are cleared, and its citations reloaded", async 
     'citations 201',
     'pages 201'
   ]);
+});
+
+test("the Volume's page numbers are marked checked, and no longer", async () => {
+  const api = memoryDatasetApi({
+    volumes: { '201': { images: 3, citations: [] } }
+  });
+  const marked = new Set(['201']);
+  const viewer = openViewer(api, openSelected(api), {
+    checks: {
+      checked: async (volumeId) => await Promise.resolve(marked.has(volumeId)),
+      async check(volumeId, on) {
+        if (on) marked.add(volumeId);
+        else marked.delete(volumeId);
+        await Promise.resolve();
+      }
+    }
+  });
+  viewer.openImage({ volumeId: '201', volume: 'I Aa:201', image: 2 });
+  await Bun.sleep(0);
+  expect(viewer.pages.checked.get()).toBe(true);
+  await viewer.pages.setChecked(false);
+  expect(viewer.pages.checked.get()).toBe(false);
+  expect(marked.has('201')).toBe(false);
 });

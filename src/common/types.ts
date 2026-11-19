@@ -529,7 +529,12 @@ export interface ListedBook extends ChurchBookVolume {
 export interface InstalledBook extends ChurchBookVolume {
   archiveId: string | null;
   archive: string | null;
+  pages: PageNumbering;
 }
+
+// What's known of a Volume's page numbers: none read or set (`counted` as
+// its book is numbered), some read or set, or all marked checked by hand.
+export type PageNumbering = 'counted' | 'read' | 'checked';
 
 // A pin made on a filming of its Volume that Astia has since replaced,
 // which switching to the new filming leaves out: saved in the data folder

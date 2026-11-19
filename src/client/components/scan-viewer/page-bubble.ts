@@ -29,8 +29,9 @@ const HOW = {
 // of the counting: Enter sets them by hand, which the estimates around it
 // count from. Escape, or clicking elsewhere, leaves it as it was. A page
 // read or set here has a × beside it that takes it away, the Image then
-// counted; a later survey may read it again. Pointer and
-// wheel input stays here, so a press doesn't pan.
+// counted; a later survey may read it again. A Volume whose page numbers
+// are marked checked shows them locked, with a ✓. Pointer and wheel input
+// stays here, so a press doesn't pan.
 @customElement('sl-scan-page')
 class ScanPageElement extends SignalWatcher(LitElement) {
   static override styles = css`
@@ -56,6 +57,16 @@ class ScanPageElement extends SignalWatcher(LitElement) {
     /* Counted from the pins around it, not read here: dimmer. */
     .bubble.counted {
       color: color-mix(in srgb, var(--muted) 75%, transparent);
+    }
+
+    /* Marked checked: shown, not changed. */
+    .bubble.locked {
+      cursor: default;
+    }
+
+    .lock {
+      margin-left: 0.25rem;
+      color: var(--accent);
     }
 
     input.bubble {
@@ -163,6 +174,13 @@ class ScanPageElement extends SignalWatcher(LitElement) {
         : pages.length === 1
           ? `page ${pages[0]}`
           : `pages ${pages[0]}–${pages.at(-1)}`;
+    if (this.state.viewer.pages.checked.get()) {
+      return html`<span
+        class="bubble locked"
+        title="This Volume's page numbers are marked checked. Unmark them from the menu to change them"
+        >${named} <span class="lock" aria-label="checked">✓</span></span
+      >`;
+    }
     return html`<button
       class=${by === null ? 'bubble counted' : 'bubble'}
       title=${
@@ -204,8 +222,9 @@ class ScanPageElement extends SignalWatcher(LitElement) {
       return html`${this.renderEditing(typed)}
       ${this.refused === null ? nothing : html`<p class="refused">${this.refused}</p>`}`;
     }
+    const locked = this.state.viewer.pages.checked.get();
     return html`${this.renderShown(here)}
-    ${here.by === null ? nothing : this.renderRemove()}
+    ${here.by === null || locked ? nothing : this.renderRemove()}
     ${this.refused === null ? nothing : html`<p class="refused">${this.refused}</p>`}`;
   }
 }

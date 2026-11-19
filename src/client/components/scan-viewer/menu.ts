@@ -33,8 +33,10 @@ export function linkItems(
     // The model Vision Match asks, by its label, and asking it for the
     // source, or for every estimate on the Image.
     locate?: VisionFind;
-    // Taking the Volume's page numbers away, where they're shown.
+    // Taking the Volume's page numbers away, and marking them checked or
+    // no longer, where they're shown.
     clearPages?: () => void;
+    checkPages?: () => void;
   }
 ) {
   const remind: MenuItem[] =
@@ -60,7 +62,7 @@ export function linkItems(
   items.push(
     ...remind,
     ...visionItems(viewer, open.locate),
-    ...pageItems(viewer, open.clearPages),
+    ...pageItems(viewer, open),
     ...volumeItems(viewer, open.chooseVolume)
   );
   return items;
@@ -74,12 +76,26 @@ function volumeItems(viewer: Viewer, chooseVolume: () => void): MenuItem[] {
     : [];
 }
 
-// Taking the Volume's page numbers away (ADR-0032), where any are read or
-// set and they're shown.
-function pageItems(viewer: Viewer, clearPages: (() => void) | undefined) {
-  if (clearPages === undefined || !viewer.pages.numbered.get()) return [];
+// The Volume's page numbers where they're shown (ADR-0032): marked
+// checked, or no longer; not checked, taken away where any are read or
+// set.
+function pageItems(
+  viewer: Viewer,
+  {
+    clearPages,
+    checkPages
+  }: { clearPages?: () => void; checkPages?: () => void }
+): MenuItem[] {
+  if (clearPages === undefined || checkPages === undefined) return [];
+  const detail = 'This Volume';
+  if (viewer.pages.checked.get()) {
+    return [{ label: 'Unmark page numbers checked', detail, run: checkPages }];
+  }
   return [
-    { label: 'Clear page numbers', detail: 'This Volume', run: clearPages }
+    ...(viewer.pages.numbered.get()
+      ? [{ label: 'Clear page numbers', detail, run: clearPages }]
+      : []),
+    { label: 'Mark page numbers checked', detail, run: checkPages }
   ];
 }
 
@@ -121,11 +137,13 @@ function visionItems(viewer: Viewer, find: VisionFind | undefined): MenuItem[] {
       run: find.runVolume
     });
   }
-  items.push({
-    label: 'Survey page numbers',
-    detail: `This Volume · ${find.model}`,
-    run: find.survey
-  });
+  if (!viewer.pages.checked.get()) {
+    items.push({
+      label: 'Survey page numbers',
+      detail: `This Volume · ${find.model}`,
+      run: find.survey
+    });
+  }
   return items;
 }
 

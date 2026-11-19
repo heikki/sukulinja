@@ -8,6 +8,7 @@ import type { Database } from 'bun:sqlite';
 import type {
   Link,
   LinkResolution,
+  PageNumbering,
   VolumeChoice,
   VolumeChoices
 } from '@/common/types';
@@ -18,6 +19,7 @@ import type { Astia, Volume } from '../astia/astia';
 import type { Viewport } from '../astia/jpeg';
 import type { Parishes } from '../astia/parishes';
 import {
+  CHECKED,
   OFF_IMAGE,
   OLD_FILMING,
   onImage,
@@ -313,7 +315,24 @@ export function openScanFolder(
     return openPins(facts, openMarks(db));
   }
 
+  // A Volume's page numbers marked checked are kept as they are.
+  async function checked(volumeId: string) {
+    return (await facts.volumes())[volumeId]?.checked === true;
+  }
+
   return {
+    // What's known of the Volume's page numbers.
+    async pageNumbering(volumeId: string): Promise<PageNumbering> {
+      const kept = (await facts.volumes())[volumeId];
+      if (kept?.checked === true) return 'checked';
+      return (kept?.pages.length ?? 0) > 0 ? 'read' : 'counted';
+    },
+
+    // Marks the Volume's page numbers checked, locking them, or no longer.
+    checkPages: async (volumeId: string, on: boolean) => {
+      await facts.setChecked(volumeId, on);
+    },
+
     // The pages the Volume's Page pins put on each of its Images, or its
     // numbering without them; of the Volume `label` by its label. Page
     // pins are the folder's, for every dataset, never a dataset's Marks.
@@ -338,6 +357,7 @@ export function openScanFolder(
       }: { cited?: number[] | null; replace?: boolean } = {}
     ): Promise<{ rejected: string } | (Survey & { pinned: number })> {
       if (await onOldFilming(astia, volumeId)) return { rejected: OLD_FILMING };
+      if (await checked(volumeId)) return { rejected: CHECKED };
       const images = (await astia.volumeImages(volumeId)).length;
       if (images === 0) return { rejected: 'The volume has no images.' };
       const survey = await surveyVolume(reader, { volumeId, images }, cited);
@@ -356,6 +376,7 @@ export function openScanFolder(
     ): Promise<{ rejected: string } | null> {
       const { volumeId, volume, image } = at;
       if (await onOldFilming(astia, volumeId)) return { rejected: OLD_FILMING };
+      if (await checked(volumeId)) return { rejected: CHECKED };
       const filming = await facts.filmingOf(volumeId);
       if (image < 1 || image > filming.files.length) {
         return { rejected: 'The volume has no such image.' };
@@ -370,6 +391,7 @@ export function openScanFolder(
       volumeId: string
     ): Promise<{ rejected: string } | null> {
       if (await onOldFilming(astia, volumeId)) return { rejected: OLD_FILMING };
+      if (await checked(volumeId)) return { rejected: CHECKED };
       await facts.clearPages(await facts.filmingOf(volumeId));
       return null;
     },
