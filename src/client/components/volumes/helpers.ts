@@ -243,14 +243,23 @@ export function volumeCode(label: string) {
   return rest === '' ? '–' : rest;
 }
 
-// What's known of a Volume's page numbers, in a table's cell.
+// What's known of a Volume's page numbers, in a table's cell: a word, and
+// what it means in full.
 export function pagesCell(pages: PageNumbering) {
   switch (pages) {
     case 'counted':
-      return '–';
+      return { text: '–', title: 'No page numbers set yet' };
     case 'read':
-      return 'Read';
+      return {
+        text: 'Started',
+        title:
+          'Some pages are numbered, read from the scans or set by hand. Open the volume to look them over, then mark them checked.'
+      };
     case 'checked':
-      return 'Checked';
+      return {
+        text: 'Checked',
+        title:
+          'Looked over and marked checked: locked until unmarked, and used as they are.'
+      };
   }
 }

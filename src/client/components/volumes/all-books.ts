@@ -243,7 +243,13 @@ class AllBooksElement extends LitElement {
     return renderBookTable({
       books: shown,
       shown: this.shown,
-      column: { header: 'Pages', cell: (b) => pagesCell(b.pages) },
+      column: {
+        header: 'Page numbers',
+        cell: (b) => {
+          const { text, title } = pagesCell(b.pages);
+          return html`<span title=${title}>${text}</span>`;
+        }
+      },
       acts: (b) => this.renderActs(b),
       noArchive: 'Not in your parishes',
       open: (b) => {
