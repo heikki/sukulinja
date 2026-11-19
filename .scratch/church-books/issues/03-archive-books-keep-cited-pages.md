@@ -22,4 +22,5 @@ Two ideas:
 Heikki, 2026-11-19: both, as one feature. An offload always keeps the cited Images; offloading needs a setting anyway, the folder to offload to.
 
 - Done: _Offload_ in _All books_ drops every full-size Image but the cited ones (any dataset's), thumbnails kept (`offload` app operation, `ScanCache.keepOnly`).
+- Heikki, 2026-11-19: nothing fetched from Astia while a Volume is offloaded. Done: `offloaded.json` in its cache folder names the Images kept; others are refused (`OffloadedError`, 409), its download refused, and _Bring back_ undoes it.
 - Next: an offload folder in Settings (an external SSD). With one set, the rest are moved there instead of dropped, and the Scan cache reads them from there while the drive is attached, falling back to Astia.

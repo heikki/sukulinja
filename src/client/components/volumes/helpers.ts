@@ -57,7 +57,14 @@ function downloadLine(download: DownloadStatus, onDisk: VolumeOnDisk) {
 
 // What of a Volume is on disk, and its download, in a line under its
 // title.
-export function diskLine(volume: ChurchBookVolume) {
+export function diskLine(volume: ChurchBookVolume & { offloaded?: boolean }) {
+  if (volume.offloaded !== true) return volumeLine(volume);
+  const { onDisk } = volume;
+  const size = onDisk.bytes > 0 ? ` · ${formatBytes(onDisk.bytes)}` : '';
+  return `Offloaded: ${ofImages(onDisk)} Images kept, the cited ones${size}`;
+}
+
+function volumeLine(volume: ChurchBookVolume) {
   if (!volume.digitized) return 'Not digitized';
   const { download, onDisk } = volume;
   const size = onDisk.bytes > 0 ? ` · ${formatBytes(onDisk.bytes)}` : '';
@@ -191,7 +198,13 @@ function share(d: VolumeOnDisk) {
 // What of a Volume is on disk, in a table's cell: its line made short,
 // the share of its Images in place of their count, which `diskLine`
 // gives whole for its tooltip; "—" for nothing.
-export function diskCell(volume: ChurchBookVolume) {
+export function diskCell(volume: ChurchBookVolume & { offloaded?: boolean }) {
+  if (volume.offloaded !== true) return volumeCell(volume);
+  const { bytes } = volume.onDisk;
+  return bytes > 0 ? `Offloaded · ${formatBytes(bytes)}` : 'Offloaded';
+}
+
+function volumeCell(volume: ChurchBookVolume) {
   if (!volume.digitized) return 'Not digitized';
   const { download, onDisk } = volume;
   const size = onDisk.bytes > 0 ? ` · ${formatBytes(onDisk.bytes)}` : '';

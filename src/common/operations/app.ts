@@ -92,8 +92,14 @@ export const APP_OPERATIONS = {
     volumeOf
   ),
   // Every Image of the Volume but those any dataset's Citations link off
-  // the disk, its download stopped; the Volumes as they then stand.
+  // the disk, its download stopped, and no other fetched until it's
+  // brought back; the Volumes as they then stand.
   offload: answers<{ volumeId: string }, InstalledBook[]>(
+    '{ volumeId }',
+    volumeOf
+  ),
+  // An offloaded Volume's Images fetched again as any Volume's.
+  bringBack: answers<{ volumeId: string }, InstalledBook[]>(
     '{ volumeId }',
     volumeOf
   ),
@@ -115,6 +121,8 @@ export const APP_OPERATIONS = {
     '{ volumeId }',
     volumeOf
   ),
+  // Whether the Volume is offloaded: then only its cited Images load.
+  isOffloaded: answers<{ volumeId: string }, boolean>('{ volumeId }', volumeOf),
 
   // The Scan cache: what it holds against its cap. Setting the cap, one of
   // its choices, and clearing it answer with it as it then stands.

@@ -154,7 +154,7 @@ A Page number known to be on an Image. Images for other pages of the Volume are 
 _Avoid_: anchor.
 
 **Offloaded**:
-A Volume with every full-size Image off the disk but those any dataset's Citations link, its thumbnails kept, from its row in _All books_. The rest are fetched from Astia again when they're shown.
+A Volume with every full-size Image off the disk but those any dataset's Citations link, its thumbnails kept, from its row in _All books_. No other of its Images is fetched from Astia, nor is it downloaded, until it's brought back from the same row; the Scan viewer says so in place of one.
 
 **Pages checked**:
 A Volume's Page numbers marked by hand as right, for every dataset, from the Volume's row in _All books_ or the Scan viewer's menu. Then they're locked: neither set by hand, cleared nor surveyed until unmarked. Vision Match on a Volume not checked asks first, as its estimates count from them.

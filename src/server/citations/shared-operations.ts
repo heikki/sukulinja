@@ -47,8 +47,10 @@ export type SharedOperations = Pick<
   | 'allBooks'
   | 'removeFromDisk'
   | 'offload'
+  | 'bringBack'
   | 'checkPages'
   | 'pagesChecked'
+  | 'isOffloaded'
   | 'scanCache'
   | 'setScanCap'
   | 'clearScanCache'
@@ -104,7 +106,10 @@ export function sharedOperations({
     churchBooks: async ({ archiveId }) =>
       await askingAstia(parishBooks({ astia, cache, downloads }, archiveId)),
     downloads: () => downloads.list(),
-    startDownload({ volumeId }) {
+    async startDownload({ volumeId }) {
+      if (await cache.isOffloaded(volumeId)) {
+        throw new Refusal(409, 'Bring the volume back first.');
+      }
       downloads.start(volumeId);
       return downloads.list();
     },
@@ -118,12 +123,16 @@ export function sharedOperations({
       await cache.remove(volumeId);
       return await allBooks();
     },
-    // Every Image but the cited ones off the disk; none, when what's cited
-    // can't be known.
+    // Every Image but the cited ones off the disk, and none fetched again
+    // until it's brought back; none, when what's cited can't be known.
     async offload({ volumeId }) {
       await downloads.drop(volumeId);
       const cited = await askingAstia(citedImages(volumeId));
-      await askingAstia(cache.keepOnly(volumeId, cited));
+      await askingAstia(cache.offload(volumeId, cited));
+      return await allBooks();
+    },
+    async bringBack({ volumeId }) {
+      await cache.bringBack(volumeId);
       return await allBooks();
     },
     async checkPages({ volumeId, checked }) {
@@ -132,6 +141,7 @@ export function sharedOperations({
     },
     pagesChecked: async ({ volumeId }) =>
       (await pages.numbering(volumeId)) === 'checked',
+    isOffloaded: async ({ volumeId }) => await cache.isOffloaded(volumeId),
     scanCache: async () => await cache.status(),
     async setScanCap({ cap }) {
       if (!CAPS.includes(cap)) {

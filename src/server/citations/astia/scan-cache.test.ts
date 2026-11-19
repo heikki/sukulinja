@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { NoImageError } from './astia';
 import type { Astia } from './astia';
 import { memoryAstia } from './memory-astia';
-import { capChoices, openScanCache } from './scan-cache';
+import { capChoices, OffloadedError, openScanCache } from './scan-cache';
 import type { ScanCache } from './scan-cache';
 
 const IMAGES = 10;
@@ -335,11 +335,29 @@ test('says what of a Volume is on disk', async () => {
   });
 });
 
-test('an offloaded Volume keeps only the Images asked for, and thumbnails', async () => {
+test('an offloaded Volume keeps only its cited Images, and fetches no other', async () => {
   await Promise.all([1, 2, 3].map(async (n) => await open('106', n)));
   await thumb('106', 1);
-  await cache.keepOnly('106', [2, 7]);
+  await cache.offload('106', [2, 7]);
+  expect(await cache.isOffloaded('106')).toBe(true);
   expect((await readdir(join(dir, '.astia-images', '106'))).toSorted()).toEqual(
-    ['106-f2.jpg', '106-t1.jpg']
+    ['106-f2.jpg', '106-t1.jpg', 'offloaded.json']
   );
+  fetched = [];
+  expect(await open('106', 7)).toEndWith('106-f7.jpg');
+  expect(await thumb('106', 4)).toEndWith('106-t4.jpg');
+  const refused = await open('106', 3).catch((err: unknown) => err);
+  expect(refused).toBeInstanceOf(OffloadedError);
+  expect(fetched).toEqual(['106-f7', '106-t4']);
+  // Brought back, it's any Volume again.
+  await cache.bringBack('106');
+  expect(await cache.isOffloaded('106')).toBe(false);
+  expect(await open('106', 3)).toEndWith('106-f3.jpg');
+});
+
+test('an offloaded Volume with no Image left is still listed', async () => {
+  await cache.offload('104', []);
+  expect(await cache.volumes()).toContain('104');
+  await cache.remove('104');
+  expect(await cache.isOffloaded('104')).toBe(false);
 });

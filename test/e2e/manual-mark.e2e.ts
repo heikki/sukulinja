@@ -86,7 +86,15 @@ test("a reference's entry is placed by hand", async () => {
     await row.getByRole('button', { name: 'Offload' }).click();
     await row.getByText('Keep only the cited images on disk?').waitFor();
     await row.getByRole('button', { name: 'Offload', exact: true }).click();
-    await row.locator('td[title^="1 of 20 Images on disk"]').waitFor();
+    await row.locator('td[title^="Offloaded: 1 of 20 Images kept"]').waitFor();
     await shot(page, 'manual-mark-offloaded');
+
+    // Off its cited Image, nothing is fetched until it's brought back.
+    await page.getByLabel('Image', { exact: true }).fill('11');
+    await page.keyboard.press('Enter');
+    await page.getByText('Offloaded', { exact: true }).waitFor();
+    await openList(page, 'Volumes');
+    await row.getByRole('button', { name: 'Bring back' }).click();
+    await row.getByRole('button', { name: 'Offload' }).waitFor();
   });
 });

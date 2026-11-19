@@ -50,8 +50,12 @@ class ScanViewerElement extends SignalWatcher(LitElement) {
     },
     failed: () => {
       void this.viewer.imageFailed();
+      void this.askOffloaded();
     }
   });
+  // The Volume found offloaded when one of its Images failed: then only
+  // its cited Images load, and the note says so.
+  @state() private offloaded: string | null = null;
   // The Image panned and zoomed, fitted once the first of the Volume is.
   private readonly stage = new PictureStage(this, {
     stage: () => this.renderRoot.querySelector('.stage'),
@@ -169,6 +173,13 @@ class ScanViewerElement extends SignalWatcher(LitElement) {
     this.renderRoot.querySelector('sl-scan-layer')?.openMenu(at, onBox);
   };
 
+  private async askOffloaded() {
+    const id = this.viewer.volume.get()?.id;
+    if (id === undefined) return;
+    const is = await this.state.app.isOffloaded(id).catch(() => false);
+    this.offloaded = is ? id : null;
+  }
+
   // ------------------------------------------------------------ render
 
   private renderNote() {
@@ -176,9 +187,10 @@ class ScanViewerElement extends SignalWatcher(LitElement) {
       this.arrival.retry();
     };
     const { loading } = this.arrival;
+    const offloaded = this.offloaded === this.viewer.volume.get()?.id;
     return stageNote(
       this.viewer,
-      { loading, over: this.stage.view !== null },
+      { loading, over: this.stage.view !== null, offloaded },
       retry
     );
   }

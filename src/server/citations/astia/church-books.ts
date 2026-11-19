@@ -88,7 +88,8 @@ export async function installBooks(
       ...(await bookOf(sources, v)),
       archiveId,
       archive,
-      pages: await pagesOf(v.id)
+      pages: await pagesOf(v.id),
+      offloaded: await cache.isOffloaded(v.id)
     })),
     ...unnamed.map(async (id) => ({
       ...(await bookOf(sources, {
@@ -100,7 +101,8 @@ export async function installBooks(
       })),
       archiveId: null,
       archive: null,
-      pages: await pagesOf(id)
+      pages: await pagesOf(id),
+      offloaded: await cache.isOffloaded(id)
     }))
   ]);
 }

@@ -530,6 +530,8 @@ export interface InstalledBook extends ChurchBookVolume {
   archiveId: string | null;
   archive: string | null;
   pages: PageNumbering;
+  // Whether it's offloaded: only its cited Images kept, no other fetched.
+  offloaded: boolean;
 }
 
 // What's known of a Volume's page numbers: none read or set (`counted` as

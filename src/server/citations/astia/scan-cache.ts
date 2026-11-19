@@ -11,8 +11,13 @@
 // Volume's list again and dropping the cached Images of the one replaced.
 // The cache never switches on its own: the Scan viewer asks first (see
 // pins/rescans.ts).
+//
+// An offloaded Volume keeps only its cited full-size Images, named in
+// `offloaded.json` in its folder; no other is fetched from Astia until it's
+// brought back.
 
 import {
+  mkdir,
   readdir,
   rename,
   rm,
@@ -36,6 +41,13 @@ export const CAPS = [5, 10, 20, 40, 80, 160, 320, 640].map((n) => n * GB);
 // How many caps are offered at most: the largest that fit.
 const OFFERED = 5;
 const DEFAULT_CAP_BYTES = 5 * GB;
+// In an offloaded Volume's folder: the Images it keeps.
+const OFFLOADED = 'offloaded.json';
+
+// A full-size Image of an offloaded Volume that it doesn't keep.
+export class OffloadedError extends Error {
+  override name = 'OffloadedError';
+}
 
 // ---------------------------------------------------------------- the queue
 
@@ -264,6 +276,23 @@ export function openScanCache({
     return (await astia.volumeImages(at.volumeId, size))[at.image - 1];
   }
 
+  // The Images an offloaded Volume keeps; null for one not offloaded.
+  async function keptOf(volumeId: string) {
+    const file = Bun.file(join(dir, volumeId, OFFLOADED));
+    if (!(await file.exists())) return null;
+    const read = (await file.json().catch(() => null)) as {
+      kept?: unknown;
+    } | null;
+    return Array.isArray(read?.kept) ? (read.kept as number[]) : [];
+  }
+
+  // Whether the Image may be fetched from Astia: any of a Volume not
+  // offloaded, and those an offloaded one keeps.
+  async function fetchable(at: ImageRef) {
+    const kept = await keptOf(at.volumeId);
+    return kept === null || kept.includes(at.image);
+  }
+
   async function cached(
     at: ImageRef,
     size: ImageSize,
@@ -272,6 +301,9 @@ export function openScanCache({
   ) {
     const path = pathOf(at.volumeId, fileId);
     if (await touch(path)) return path;
+    if (size === 'full' && !(await fetchable(at))) {
+      throw new OffloadedError(`offloaded: ${at.volumeId} ${at.image}`);
+    }
     if (size === 'thumb') {
       await download(at.volumeId, fileId, path);
     } else {
@@ -349,21 +381,28 @@ export function openScanCache({
       };
     },
 
-    // The Volumes with any Image on disk, by id.
+    // The Volumes with any Image on disk, or offloaded, by id.
     async volumes() {
       const listed = await Promise.all(
         (await volumeDirs(dir)).map(async (volume) => {
           const names = await readdir(volume).catch(() => []);
-          return names.some((n) => n.endsWith('.jpg')) ? [volume] : [];
+          const kept = names.some((n) => n.endsWith('.jpg') || n === OFFLOADED);
+          return kept ? [volume] : [];
         })
       );
       return listed.flat().map((path) => basename(path));
     },
 
-    // Drops the Volume's full-size Images but those numbered in `images`;
-    // its thumbnails stay. Throws when Astia's list of them can't be had.
-    async keepOnly(volumeId: string, images: number[]) {
+    // Offloads the Volume: drops its full-size Images but those numbered
+    // in `images`, and fetches no other until it's brought back; its
+    // thumbnails stay. Throws when Astia's list of them can't be had.
+    async offload(volumeId: string, images: number[]) {
       const full = await astia.volumeImages(volumeId, 'full');
+      await mkdir(join(dir, volumeId), { recursive: true });
+      await Bun.write(
+        join(dir, volumeId, OFFLOADED),
+        `${JSON.stringify({ kept: images.toSorted((a, b) => a - b) })}\n`
+      );
       const kept = new Set(images.map((n) => full[n - 1]));
       await Promise.all(
         full
@@ -372,6 +411,16 @@ export function openScanCache({
             await rm(pathOf(volumeId, id), { force: true });
           })
       );
+    },
+
+    // Whether the Volume is offloaded.
+    async isOffloaded(volumeId: string) {
+      return (await keptOf(volumeId)) !== null;
+    },
+
+    // Its Images fetched from Astia again, as any Volume's.
+    async bringBack(volumeId: string) {
+      await rm(join(dir, volumeId, OFFLOADED), { force: true });
     },
 
     // Drops the Volume's Images, and its folder.

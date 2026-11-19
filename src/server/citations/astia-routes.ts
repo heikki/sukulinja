@@ -7,6 +7,7 @@ import { basename } from 'node:path';
 
 import { AstiaError, NoImageError, viewerUrls } from './astia/astia';
 import type { Astia, ImageRef } from './astia/astia';
+import { OffloadedError } from './astia/scan-cache';
 import type { ScanCache } from './astia/scan-cache';
 import { routeRescan } from './myheritage';
 import type { KeptPins } from './myheritage';
@@ -49,7 +50,11 @@ async function handleAstiaImage(cache: ScanCache, req: Request, at: ImageRef) {
     .catch((err: unknown) =>
       err instanceof NoImageError
         ? new Response('Astia no longer has this Image.', { status: 410 })
-        : astiaFailed(req.signal.aborted ? new AstiaError('client left') : err)
+        : err instanceof OffloadedError
+          ? new Response('This Image is offloaded.', { status: 409 })
+          : astiaFailed(
+              req.signal.aborted ? new AstiaError('client left') : err
+            )
     );
   if (path instanceof Response) return path;
   if (path === null) return new Response('image not found', { status: 404 });

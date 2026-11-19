@@ -13,6 +13,7 @@ import type { DownloadAction } from './helpers';
 import {
   actButton,
   bookTableStyles,
+  BRING_BACK_ICON,
   CHECK_ICON,
   DOWNLOAD_ICON,
   EMPTY_SLOT,
@@ -160,6 +161,12 @@ class AllBooksElement extends LitElement {
     });
   }
 
+  private async bringBack(book: InstalledBook) {
+    await this.asking.run(async () => {
+      this.show(await this.state.app.bringBack(book.id));
+    });
+  }
+
   private open(book: InstalledBook) {
     this.dispatchEvent(
       new CustomEvent('open-volume', {
@@ -203,8 +210,8 @@ class AllBooksElement extends LitElement {
     ];
   }
 
-  // Marking its page numbers, its download, offloading it and removing it
-  // from disk, each in its place.
+  // Marking its page numbers, its download or bringing it back, offloading
+  // it and removing it from disk, each in its place.
   private renderActs(book: InstalledBook) {
     const { confirming } = this;
     if (confirming?.id === book.id) {
@@ -221,16 +228,28 @@ class AllBooksElement extends LitElement {
         },
         { pressed: checked, disabled: this.asking.busy }
       ),
-      download === undefined
-        ? EMPTY_SLOT
-        : actButton(
-            download.label,
-            download.action === 'start' ? DOWNLOAD_ICON : STOP_ICON,
+      book.offloaded
+        ? actButton(
+            'Bring back',
+            BRING_BACK_ICON,
             () => {
-              void this.act(book, download.action);
+              void this.bringBack(book);
+            },
+            {
+              title: 'Bring back: fetch its images from Astia again',
+              disabled: this.asking.busy
             }
-          ),
-      book.onDisk.cached === 0
+          )
+        : download === undefined
+          ? EMPTY_SLOT
+          : actButton(
+              download.label,
+              download.action === 'start' ? DOWNLOAD_ICON : STOP_ICON,
+              () => {
+                void this.act(book, download.action);
+              }
+            ),
+      book.offloaded || book.onDisk.cached === 0
         ? EMPTY_SLOT
         : actButton(
             'Offload',

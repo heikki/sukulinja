@@ -320,7 +320,14 @@ describe('Church books', () => {
     // the thumbnails.
     const offloaded = await appOp('offload', { volumeId: '302' });
     expect(offloaded.body).toMatchObject([
-      { id: '302', onDisk: { images: 3, cached: 0 } }
+      { id: '302', offloaded: true, onDisk: { images: 3, cached: 0 } }
+    ]);
+    // Not downloaded again until it's brought back.
+    expect((await appOp('startDownload', { volumeId: '302' })).status).toBe(
+      409
+    );
+    expect((await appOp('bringBack', { volumeId: '302' })).body).toMatchObject([
+      { id: '302', offloaded: false }
     ]);
     const removed = await appOp('removeFromDisk', { volumeId: '302' });
     expect(removed.body).toEqual([]);
