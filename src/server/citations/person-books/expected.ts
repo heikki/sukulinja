@@ -103,7 +103,8 @@ function childhood(all: Dated[], birth: Dated | null): ExpectedEntry[] {
 }
 
 // From birth to death; failing either, from or to the furthest year any
-// Fact gives.
+// Fact gives. A household's rippikirja lists its children too, so a life
+// with a birth and no death runs at least through childhood.
 function life(
   all: Dated[],
   birth: Dated | null,
@@ -112,7 +113,12 @@ function life(
   if (all.length === 0) return [];
   const years = {
     from: birth?.years.from ?? Math.min(...all.map((d) => d.years.from)),
-    to: death?.years.to ?? Math.max(...all.map((d) => d.years.to))
+    to:
+      death?.years.to ??
+      Math.max(
+        ...all.map((d) => d.years.to),
+        (birth?.years.to ?? -Infinity) + CHILDHOOD_YEARS
+      )
   };
   const others = all.map((d) => d.fact);
   return [
