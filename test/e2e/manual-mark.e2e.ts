@@ -85,10 +85,7 @@ test("a reference's entry is placed by hand", async () => {
       .getByRole('group', { name: 'Volumes shown' })
       .getByRole('button', { name: 'All books' })
       .click();
-    const row = list
-      .locator('sl-all-books')
-      .getByRole('row')
-      .filter({ hasText: 'I Aa:1' });
+    const row = list.getByRole('row').filter({ hasText: 'I Aa:1' });
     // Pointed at, it says what it frees; with the folder chosen, it isn't
     // asked first.
     const offload = row.getByRole('button', { name: 'Offload' });

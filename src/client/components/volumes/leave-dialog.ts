@@ -1,9 +1,10 @@
 import { html } from 'lit';
 
-import type { InstalledBook, OffloadFolder } from '@/common/types';
+import type { OffloadFolder } from '@/common/types';
 
 import { formatBytes } from '../settings/helpers';
 import { volumeCode } from './helpers';
+import type { VolumeRow } from './rows';
 
 // What leaving the disk takes: all of a Volume, or all but its cited
 // Images.
@@ -28,7 +29,7 @@ export function renderLeaveDialog({
   confirm,
   cancel
 }: {
-  book: InstalledBook;
+  book: VolumeRow;
   what: Leaving;
   // The offload folder; null for none.
   folder: OffloadFolder | null;

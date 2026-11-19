@@ -51,26 +51,22 @@ test('a Volume of another parish is added, downloaded, removed and taken off', a
       .waitFor();
     await shot(page, 'volumes-shown');
 
-    // Among all the books on this computer, it comes off the disk, asked
-    // first.
-    const modes = list.getByRole('group', { name: 'Volumes shown' });
-    await modes.getByRole('button', { name: 'All books' }).click();
-    const all = list.locator('sl-all-books');
-    await all.getByText('Keksityn seurakunnan arkisto').waitFor();
-    const row = all.getByRole('row').filter({ hasText: 'I Aa:1' });
-    // Its page numbers marked checked, for every tree.
-    await row
+    // Nothing else is on this computer, so all the books are the tree's
+    // and aren't offered apart. Its page numbers are marked checked, for
+    // every tree, and it comes off the disk, asked first.
+    expect(
+      await list.getByRole('group', { name: 'Volumes shown' }).count()
+    ).toBe(0);
+    await book
       .getByRole('button', { name: 'Mark page numbers checked' })
       .click();
-    await row.getByText('Checked').waitFor();
-    await shot(page, 'volumes-all-books');
-    await row.getByRole('button', { name: 'Remove from disk' }).click();
+    await book.getByText('Checked').waitFor();
+    await shot(page, 'volumes-checked');
+    await book.getByRole('button', { name: 'Remove from disk' }).click();
     const ask = page.getByRole('alertdialog', {
       name: 'Remove I Aa:1 from disk?'
     });
     await ask.getByRole('button', { name: 'Remove' }).click();
-    await all.getByText('Nothing of any volume is on this computer').waitFor();
-    await modes.getByRole('button', { name: 'This tree' }).click();
 
     // Cited by nothing, it comes off the list.
     await book.getByRole('button', { name: 'Remove' }).click();

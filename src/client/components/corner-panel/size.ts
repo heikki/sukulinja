@@ -10,7 +10,7 @@ export interface PanelSize {
 const COOKIE = 'sl-corner-size';
 const YEAR_S = 365 * 24 * 60 * 60;
 
-export const DEFAULT_SIZE: PanelSize = { width: 512, height: 576 };
+export const DEFAULT_SIZE: PanelSize = { width: 576, height: 576 };
 const MIN: PanelSize = { width: 320, height: 280 };
 
 // The size within what fits: at least the smallest, at most the window

@@ -1,18 +1,18 @@
 import { css, html, nothing, svg } from 'lit';
 import type { TemplateResult } from 'lit';
 
-import type { ChurchBookVolume } from '@/common/types';
-
 import { cornerListStyles } from '../corner-panel/list-styles';
 import {
   diskCell,
   diskLine,
   groupByArchive,
+  pagesCell,
   seriesName,
   volumeCode,
   yearsText
 } from './helpers';
 import type { ArchiveGroup } from './helpers';
+import type { VolumeRow } from './rows';
 
 export const DOWNLOAD_ICON = svg`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12" /><path d="m6 11 6 6 6-6" /><path d="M5 20h14" /></svg>`;
 export const STOP_ICON = svg`<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" /></svg>`;
@@ -22,28 +22,29 @@ export const OFFLOAD_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" 
 export const BRING_BACK_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" /></svg>`;
 export const TRASH_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M6 7l1 13h10l1-13" /><path d="M9 7V4h6v3" /></svg>`;
 
-// A Volume in a table of the Volumes tab, grouped under its archive.
-type Book = ChurchBookVolume & {
-  archiveId: string | null;
-  archive: string | null;
-};
-
-export interface BookTable<T extends Book> {
-  books: T[];
+export interface BookTable {
+  books: VolumeRow[];
   // The Volume the Scan viewer shows, marked, if any.
   shown: string | null;
-  // A column between the years and what's on disk, if any: its header,
-  // and each Volume's cell.
-  column?: { header: string; cell: (book: T) => unknown };
   // The buttons at the end of each Volume's row.
-  acts: (book: T) => TemplateResult[];
-
-  // The archive's heading for the Volumes of none.
-  noArchive: string;
-  open: (book: T) => void;
+  acts: (book: VolumeRow) => TemplateResult[];
+  open: (book: VolumeRow) => void;
 }
 
-function renderBook<T extends Book>(table: BookTable<T>, book: T) {
+// How many of the dataset's Citations link into it; nothing for one off
+// the Book list.
+function citedCell(book: VolumeRow) {
+  if (book.cited === null) return nothing;
+  return book.cited === 0 ? html`<span class="count">–</span>` : book.cited;
+}
+
+function pagesOf(book: VolumeRow) {
+  if (book.pages === null) return nothing;
+  const { text, title } = pagesCell(book.pages);
+  return html`<span title=${title}>${text}</span>`;
+}
+
+function renderBook(table: BookTable, book: VolumeRow) {
   return html`<tr
     class="book ${book.digitized ? '' : 'off'} ${book.id === table.shown ? 'shown' : ''}"
     aria-current=${book.id === table.shown ? 'true' : nothing}
@@ -54,11 +55,8 @@ function renderBook<T extends Book>(table: BookTable<T>, book: T) {
     <td class="code" title=${book.label}>${volumeCode(book.label)}</td>
     <td class="muted">${seriesName(book.kind)}</td>
     <td class="muted">${yearsText(book.years)}</td>
-    ${
-      table.column === undefined
-        ? nothing
-        : html`<td class="num">${table.column.cell(book)}</td>`
-    }
+    <td class="num">${citedCell(book)}</td>
+    <td class="num">${pagesOf(book)}</td>
     <td class="muted disk" title=${diskLine(book)}>${diskCell(book)}</td>
     <td
       class="acts"
@@ -71,15 +69,11 @@ function renderBook<T extends Book>(table: BookTable<T>, book: T) {
   </tr>`;
 }
 
-function columns<T extends Book>(table: BookTable<T>) {
-  return table.column === undefined ? 5 : 6;
-}
-
-function renderGroup<T extends Book>(table: BookTable<T>, g: ArchiveGroup<T>) {
+function renderGroup(table: BookTable, g: ArchiveGroup<VolumeRow>) {
   return html`<tbody>
     <tr class="archive">
-      <td colspan=${columns(table)}>
-        ${g.archive ?? table.noArchive}
+      <td colspan="7">
+        ${g.archive ?? 'Not in your parishes'}
         <span class="count">${g.books.length}</span>
       </td>
     </tr>
@@ -89,7 +83,7 @@ function renderGroup<T extends Book>(table: BookTable<T>, g: ArchiveGroup<T>) {
 
 // The Volumes as a table by archive, each one's by series and years, with
 // what of it is on disk; clicking a row opens its Volume.
-export function renderBookTable<T extends Book>(table: BookTable<T>) {
+export function renderBookTable(table: BookTable) {
   return html`<div class="table">
     <table>
       <thead>
@@ -97,11 +91,8 @@ export function renderBookTable<T extends Book>(table: BookTable<T>) {
           <th>Volume</th>
           <th>Series</th>
           <th>Years</th>
-          ${
-            table.column === undefined
-              ? nothing
-              : html`<th class="num">${table.column.header}</th>`
-          }
+          <th class="num">Cited</th>
+          <th class="num">Page numbers</th>
           <th class="num">Downloaded</th>
           <th></th>
         </tr>
