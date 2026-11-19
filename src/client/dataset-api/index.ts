@@ -20,6 +20,7 @@ import type {
   Applied,
   AssistantEvent,
   AssistantQuestion,
+  BookSuggestion,
   Box,
   Change,
   ChurchBookArchive,
@@ -157,6 +158,12 @@ export interface DatasetApi {
     archiveId: string,
     signal?: AbortSignal
   ) => Promise<Record<string, number>>;
+  // The person's Expected entries in the order of their life, each with
+  // the Volumes it fits.
+  personBooks: (
+    personId: number,
+    signal?: AbortSignal
+  ) => Promise<BookSuggestion[]>;
   // What Astia says of a Volume, in one answer: its Images and its
   // archive.
   volume: (volumeId: string, signal?: AbortSignal) => Promise<VolumeContents>;
@@ -315,6 +322,8 @@ export function openDatasetApi(
         "the parish's citations",
         signal
       ),
+    personBooks: async (personId, signal) =>
+      await call('personBooks', { personId }, 'the church books', signal),
     volume: async (volumeId, signal) =>
       await call('volume', { volumeId }, 'the Volume', signal),
 

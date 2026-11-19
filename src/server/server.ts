@@ -23,6 +23,7 @@ import { factOperations } from './facts/operations';
 import { isInside } from './inside';
 import { serveOperations } from './operations';
 import type { Handler } from './operations';
+import { bookOperations } from './person-books';
 import { treeOperations } from './persons/operations';
 import { photoOperations, routeAddPhoto } from './photos';
 import { reminderOperations } from './reminders/operations';
@@ -66,6 +67,7 @@ function createDatasetHandlers(
     ...treeOperations(services),
     ...factOperations(facts),
     ...scans.operations,
+    ...bookOperations(services),
     ...photoOperations(services),
     ...reminderOperations(reminders),
     ...changeOperations(changes)

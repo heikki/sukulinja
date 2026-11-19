@@ -16,7 +16,9 @@ import { imageSize, openScanCache } from './astia/scan-cache';
 import { createCitations } from './citations';
 import { openImages } from './images';
 import { openScanFolder, pacedImages, switchFilming } from './myheritage';
-import { citationOperations } from './operations';
+import { askingAstia, citationOperations } from './operations';
+import { openPersonBooks } from './person-books';
+import type { PersonLife } from './person-books';
 import { sharedOperations } from './shared-operations';
 import { openVision } from './vision';
 import type { VisionReaders } from './vision';
@@ -37,6 +39,8 @@ export {
 export { viewerUrl } from './astia/astia';
 export { leaveFamilySupport, openSupport } from './support';
 export { BAPTISM_COLLECTION, collectionOf } from './myheritage';
+export { askingAstia };
+export type { PersonLife } from './person-books';
 
 interface Options {
   // Astia's answers; by default over HTTP, kept in the data folder.
@@ -69,6 +73,7 @@ export function openCitations(root: string, options: Options) {
   }
   const parishes = options.parishes ?? openParishes(root);
   const images = openImages({ astia, parishes, sizeOf });
+  const personBooks = openPersonBooks({ astia, parishes });
   const folder = openScanFolder(root, { astia, parishes });
   // One queue for every search, so they don't hammer Astia together.
   const visionImage = pacedImages(cache);
@@ -147,6 +152,9 @@ export function openCitations(root: string, options: Options) {
           clearVolumePages: async (volumeId) =>
             await folder.clearVolumePages(volumeId)
         }),
+        // The church books a person's Facts say they should be in, each
+        // Expected entry with the Volumes it fits.
+        booksFor: async (life: PersonLife) => await personBooks.booksFor(life),
         // The person's Citations, as the panel lists them.
         ofPerson: (personId: number) => citations.ofPerson(personId),
         // A person's Citation by its id, with whose it is.

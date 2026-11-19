@@ -1,10 +1,13 @@
 // The operations on a dataset's Citations, over HTTP as the app serves
 // them: what each answers, and what it refuses with which status.
 
+import type { Database } from 'bun:sqlite';
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+import type { BookSuggestion } from '@/common/types';
 
 import { DatasetRegistry } from '../datasets/registry';
 import { createApi, createStaticFetch } from '../server';
@@ -81,7 +84,7 @@ async function op(slug: string, name: string, body: unknown = {}) {
 }
 
 describe("A dataset's Citations", () => {
-  async function seedDataset() {
+  async function seedDataset(more: (db: Database) => void = () => undefined) {
     const data = join(root, 'data');
     const staging = await new DatasetRegistry(data).createStaging('juva');
     staging.db.run("INSERT INTO persons (id, xref) VALUES (1, '@I1@')");
@@ -95,6 +98,7 @@ describe("A dataset's Citations", () => {
     const rippi = rippiCitation(5001, '1790 - 1796', 12);
     insert.run(rippi.page, rippi.text, 0);
     insert.run(null, 'Family bible', 1);
+    more(staging.db);
     await staging.commit();
   }
 
@@ -186,6 +190,19 @@ describe("A dataset's Citations", () => {
       archiveId: '1200716382'
     });
     expect(await elsewhere.json()).toEqual({});
+  });
+
+  test("finds the church books a person's Facts say they're in", async () => {
+    await seedDataset((db) => {
+      db.run(
+        `INSERT INTO facts (scope_type, scope_id, tag, date_text, place)
+         VALUES ('person', 1, 'BIRT', '1792', 'Juva, Suomi')`
+      );
+    });
+    const books = await op('juva', 'personBooks', { personId: 1 });
+    const [baptism] = (await books.json()) as BookSuggestion[];
+    expect(baptism?.volumes.map((v) => v.id)).toEqual(['juva-3']);
+    expect((await op('juva', 'personBooks', { personId: 9 })).status).toBe(404);
   });
 
   // An entry on Image 13, and people 2 and 3 beside the seeded dataset's.

@@ -9,6 +9,7 @@ import type {
   AddedPhoto,
   Applied,
   AssistantEvent,
+  BookSuggestion,
   Change,
   ChurchBookArchive,
   CitationLinks,
@@ -80,6 +81,8 @@ export interface MemoryDataset {
   places?: string[];
   // The archives the church books are in, as given.
   archives?: ChurchBookArchive[];
+  // The church books each person should be in, by person id, as given.
+  books?: Record<number, BookSuggestion[]>;
   // By Photo id: what `tag` and `untag` change, `addPhoto` adds to,
   // numbered on from 5000 with its file name as its path, `deletePhoto`
   // takes out, and `photos` lists by id.
@@ -361,6 +364,11 @@ export function memoryDatasetApi(
     // Every Volume given is taken as the archive's.
     archives: async (signal) =>
       await answer('archives', signal, () => [...(data.archives ?? [])]),
+
+    personBooks: async (personId, signal) =>
+      await answer(`person books ${personId}`, signal, () => [
+        ...(data.books?.[personId] ?? [])
+      ]),
 
     archiveCitations: async (archiveId, signal) =>
       await answer(`archive citations ${archiveId}`, signal, () =>

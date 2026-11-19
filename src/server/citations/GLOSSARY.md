@@ -116,6 +116,10 @@ _Avoid_: parish name (it has none of its own).
 The view of the Volumes of the archives the dataset's church books are in (by their titles in Astia, most cited first), then apart the install's other **Parishes**, apart from any citation, with how many of the dataset's Citations link into each and what of it is on disk: where a Volume is downloaded into the Scan cache, every Image at once under the same cap, or opened in the Scan viewer with no source.
 _Avoid_: archive (a parish's fonds in Astia), library.
 
+**Expected entry**:
+An **Entry** a person's Facts say a kind of **Book** should hold of them, in some years, in the parishes their places name: their baptism in the kastetut of their birth year, their childhood (birth to 15) in the lastenkirjat, their life in the rippikirjat, each marriage in the vihityt, their burial in the haudatut. A life with no death runs to the last year a Fact gives, and says so. Each is looked for in the **Parishes** its own Facts' places name (any part of the place, as a spelling), failing those in the person's other places' and sources' parishes; a life and a childhood in both, as people moved. The Volumes it fits are those of its Book, digitized, covering its years. One no Citation of theirs records is a gap, where a search for it would start.
+_Avoid_: suggestion (that's the Volume offered), gap (one not yet found).
+
 **Precision**:
 How far down a Link points: the **entry** on its Image (where on the Image, its Box), the **Image**, or only the **Volume**.
 

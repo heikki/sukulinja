@@ -1,6 +1,7 @@
 // Every operation on a dataset (operation.ts), by its name.
 
 import { ASSISTANT_OPERATIONS } from './assistant';
+import { BOOK_OPERATIONS } from './books';
 import { CHANGE_OPERATIONS } from './changes';
 import { CITATION_OPERATIONS } from './citations';
 import { FACT_OPERATIONS } from './facts';
@@ -12,6 +13,7 @@ export const OPERATIONS = {
   ...TREE_OPERATIONS,
   ...FACT_OPERATIONS,
   ...CITATION_OPERATIONS,
+  ...BOOK_OPERATIONS,
   ...PHOTO_OPERATIONS,
   ...REMINDER_OPERATIONS,
   ...CHANGE_OPERATIONS,

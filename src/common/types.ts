@@ -368,6 +368,46 @@ export interface Years {
   to: number;
 }
 
+// What in a person's life an Expected entry is of: their baptism, their
+// childhood in the lastenkirjat, their life in the rippikirjat, a marriage
+// or their burial.
+export type LifeStage = 'birth' | 'childhood' | 'life' | 'marriage' | 'death';
+
+// An Entry a person's Facts say a kind of Book should hold of them, in
+// some years, in the parishes their places name.
+export interface ExpectedEntry {
+  kind: BookKind;
+  of: LifeStage;
+  years: Years;
+  // Its years aren't all a Fact's own: a life with no death runs to the
+  // last year a Fact gives.
+  estimated: boolean;
+  // The places of the Facts it's from, as written, its own Fact's first.
+  places: string[];
+}
+
+// A Volume an Expected entry may be in, with the archive holding it.
+export interface SuggestedVolume {
+  id: string;
+  label: string;
+  years: Years | null;
+  archiveId: string;
+  archive: string;
+  // In a parish its own Facts' places name, rather than one of the
+  // person's other places or sources.
+  near: boolean;
+}
+
+// The `personBooks` operation: one of a person's Expected entries, the
+// parishes it was looked for in, and the Volumes it fits, nearest first,
+// then by years. None where no Volume covers its years, or no parish is
+// known for the person's places.
+export interface BookSuggestion {
+  expected: ExpectedEntry;
+  parishes: ChurchBookArchive[];
+  volumes: SuggestedVolume[];
+}
+
 // A Volume a Church-book reference can be put in, by its Astia label.
 export interface VolumeChoice {
   id: string;
