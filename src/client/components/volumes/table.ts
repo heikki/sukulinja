@@ -44,7 +44,7 @@ function renderBook<T extends Book>(table: BookTable<T>, book: T) {
       if (book.digitized) table.open(book);
     }}
   >
-    <td title=${book.label}>${volumeCode(book.label)}</td>
+    <td class="code" title=${book.label}>${volumeCode(book.label)}</td>
     <td class="muted">${seriesName(book.kind)}</td>
     <td class="muted">${yearsText(book.years)}</td>
     ${
@@ -230,6 +230,13 @@ export const bookTableStyles = [
     tr.book.off {
       cursor: default;
       color: var(--muted);
+    }
+
+    /* A label with no code in it is cut short; its title has it whole. */
+    td.code {
+      max-width: 9rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     td.num,

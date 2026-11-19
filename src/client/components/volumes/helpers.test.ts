@@ -156,7 +156,16 @@ test('filters by a year a Volume covers, or words in it', () => {
 
 test("says a Volume's code, years and disk in a table's cells", () => {
   expect(volumeCode('I Aa:10 Pää- ja rippikirjat (1790-1796)')).toBe('I Aa:10');
-  expect(volumeCode('Rippikirja (1800-1810)')).toBe('Rippikirja (1800-1810)');
+  expect(volumeCode('I Aa: 3 Pää- ja rippikirjat (1790-1796)')).toBe('I Aa: 3');
+  expect(volumeCode('IAa:12b Pää- ja rippikirjat')).toBe('IAa:12b');
+  expect(volumeCode('Ca:4 Syntyneiden ja kastettujen luettelot')).toBe('Ca:4');
+  // Without one, what the series and years beside it leave.
+  expect(volumeCode('Rippikirja (1800-1810)')).toBe('–');
+  expect(volumeCode('Rippikirja, 1801-1803, 1806-1810 (1801-1810)')).toBe('–');
+  expect(volumeCode('Pää- ja rippikirjat, Hankamäki - Orala (1790-1796)')).toBe(
+    'Hankamäki - Orala'
+  );
+  expect(volumeCode('Pää- ja rippikirjat 1790-1796')).toBe('–');
   expect(yearsText({ from: 1790, to: 1796 })).toBe('1790–1796');
   expect(yearsText({ from: 1790, to: 1790 })).toBe('1790');
   expect(yearsText(null)).toBe('');

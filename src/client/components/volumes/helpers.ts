@@ -221,8 +221,23 @@ export function listSummary(books: ListedBook[]) {
   ].join(' · ');
 }
 
+// An archival code as Astia's labels begin with it, written this way or
+// near it: "I Aa:10", "I Aa: 10", "IAa:10", "I Aa 10b", "Aa:10".
+const CODE = /^(?:[IVX]+\s*)?[A-Z][a-z]?\s*:?\s*\d+[a-z]?(?![\p{L}\d])/u;
+
 // A Volume's archival code, as its Astia label begins ("I Aa:10" of "I
-// Aa:10 Pää- ja rippikirjat (1790-1796)"); the whole label without one.
+// Aa:10 Pää- ja rippikirjat (1790-1796)"). A label without one is short
+// of what its series and years, shown beside it, say: the villages it
+// holds, or "–".
 export function volumeCode(label: string) {
-  return /^[IVX]+\s+[A-Za-z]+:\s*\d+[a-z]?/u.exec(label)?.[0] ?? label;
+  const code = CODE.exec(label)?.[0];
+  if (code !== undefined) return code.replaceAll(/\s+/gu, ' ');
+  const rest = label
+    .replace(/\s*\(\d{4}(?:-\d{4})?\)\s*$/u, '')
+    .split(',')
+    .slice(1)
+    .filter((part) => !/^\s*[\d\s,-]+$/u.test(part))
+    .join(',')
+    .trim();
+  return rest === '' ? '–' : rest;
 }
