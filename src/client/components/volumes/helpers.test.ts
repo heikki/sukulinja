@@ -93,6 +93,14 @@ describe('diskLine', () => {
       diskLine(volume({ state: 'stopped', error: 'no-image' }, PART))
     ).toBe('Stopped at 42 of 180: Astia gave no image · 105 MB');
   });
+
+  test('offloaded, with what it took off the disk when that was kept', () => {
+    function offloaded(images: number, bytes: number) {
+      return { ...volume(null, WHOLE), offloaded: { images, bytes } };
+    }
+    expect(diskLine(offloaded(19, 3 * MB))).toBe('Offloaded: 19 Images, 3 MB');
+    expect(diskLine(offloaded(0, 0))).toBe('Offloaded');
+  });
 });
 
 test('busy while any is downloading or waiting to', () => {

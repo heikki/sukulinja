@@ -13,7 +13,7 @@ import type {
 } from '@/common/types';
 
 import { formatBytes } from '../settings/helpers';
-import { busy, downloadActions, matches, pagesCell } from './helpers';
+import { awayText, busy, downloadActions, matches, pagesCell } from './helpers';
 import type { DownloadAction } from './helpers';
 import { renderLeaveDialog } from './leave-dialog';
 import type { Leaving } from './leave-dialog';
@@ -253,11 +253,8 @@ class AllBooksElement extends LitElement {
 
   // In the offload's place, with what comes back.
   private renderBringBack(book: InstalledBook) {
-    const away = book.offloaded;
-    const what =
-      away === null
-        ? ''
-        : ` ${away.images} images, ${formatBytes(away.bytes)},`;
+    const away = book.offloaded === null ? null : awayText(book.offloaded);
+    const what = away === null ? '' : ` ${away},`;
     return actButton(
       'Bring back',
       BRING_BACK_ICON,

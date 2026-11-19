@@ -101,7 +101,7 @@ test("a reference's entry is placed by hand", async () => {
       await row
         .getByRole('button', { name: 'Bring back' })
         .getAttribute('title')
-    ).toMatch(/^Bring back: \d+ images, /);
+    ).toMatch(/^Bring back: \d+ Images, /);
     await shot(page, 'manual-mark-offloaded');
 
     // Off its cited Image and the ones moved away, nothing is fetched until

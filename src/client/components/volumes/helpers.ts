@@ -58,12 +58,20 @@ function downloadLine(download: DownloadStatus, onDisk: VolumeOnDisk) {
 // What an offloaded Volume offloaded; null for one that isn't.
 type Away = { images: number; bytes: number } | null;
 
+// How many Images an offload took off the disk, and their size; null when
+// that isn't known, as for one offloaded before it was kept.
+export function awayText(away: NonNullable<Away>) {
+  if (away.images === 0) return null;
+  return `${away.images} Images, ${formatBytes(away.bytes)}`;
+}
+
 // What of a Volume is on disk, and its download, in a line under its
 // title; for an offloaded one, what it offloaded.
 export function diskLine(volume: ChurchBookVolume & { offloaded?: Away }) {
   const { offloaded } = volume;
   if (offloaded === undefined || offloaded === null) return volumeLine(volume);
-  return `Offloaded: ${offloaded.images} Images, ${formatBytes(offloaded.bytes)}`;
+  const away = awayText(offloaded);
+  return away === null ? 'Offloaded' : `Offloaded: ${away}`;
 }
 
 function volumeLine(volume: ChurchBookVolume) {
