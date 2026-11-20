@@ -6,7 +6,7 @@ import type {
   ListedBook
 } from '@/common/types';
 
-import { allRows, hasOthers, treeRows } from './rows';
+import { hasOthers, offList, treeRows } from './rows';
 
 function volume(id: string): ChurchBookVolume {
   return {
@@ -41,13 +41,12 @@ test("each table's rows carry what the other list knows", () => {
     ['1', 2, 'checked'],
     ['2', 0, null]
   ]);
-  expect(allRows(all, tree).map((r) => [r.id, r.cited, r.pages])).toEqual([
-    ['1', 2, 'checked'],
+  expect(offList(tree, all).map((r) => [r.id, r.cited, r.pages])).toEqual([
     ['3', null, 'checked']
   ]);
 });
 
-test('all the books are offered apart only when some are off the list', () => {
+test('the tree is a filter only when some books are off its list', () => {
   expect(hasOthers([listed('1', 1)], [installed('1')])).toBe(false);
   expect(hasOthers([listed('1', 1)], [installed('1'), installed('2')])).toBe(
     true

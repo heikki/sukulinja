@@ -22,10 +22,11 @@ import type { Leaving } from './leave-dialog';
 import type { BookListEvent, VolumeOpen } from './picker';
 import { renderActs } from './row-acts';
 import type { RowActions } from './row-acts';
-import { allRows, hasOthers, treeRows } from './rows';
+import { hasOthers, offList, treeRows } from './rows';
 import type { VolumeRow } from './rows';
 import {
   bookTableStyles,
+  CHECK_ICON,
   pinUnderHead,
   renderBookTable,
   renderRefused,
@@ -35,13 +36,6 @@ import {
 import './picker';
 
 export type VolumeOpenEvent = CustomEvent<VolumeOpen>;
-
-type Mode = 'tree' | 'all';
-
-const MODES: ReadonlyArray<{ mode: Mode; label: string }> = [
-  { mode: 'tree', label: 'This tree' },
-  { mode: 'all', label: 'All books' }
-];
 
 // How often the Volumes are asked for again while one downloads.
 const POLL_MS = 2000;
@@ -72,29 +66,38 @@ class VolumesListElement extends SignalWatcher(LitElement) {
         flex-direction: column;
       }
 
-      .modes {
-        display: flex;
-        align-self: flex-start;
-        margin-bottom: 0.5rem;
-        padding: 2px;
+      button.only {
+        flex: none;
+        padding: 0.3rem 0.65rem;
         border: 1px solid var(--border);
-        border-radius: 8px;
-      }
-
-      .modes button {
-        padding: 0.2rem 0.65rem;
-        border: 0;
         border-radius: 6px;
         background: none;
         color: var(--muted);
-        font: inherit;
-        font-size: 0.8rem;
+        font-size: 0.85rem;
         cursor: pointer;
       }
 
-      .modes button[aria-pressed='true'] {
+      button.only[aria-pressed='true'] {
         background: var(--border);
         color: var(--fg);
+      }
+
+      button.only svg {
+        vertical-align: -1px;
+      }
+
+      .foot {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .foot .summary {
+        flex: 1;
+      }
+
+      .foot .cache {
+        flex: 0 0 11rem;
       }
 
       .cache {
@@ -124,7 +127,9 @@ class VolumesListElement extends SignalWatcher(LitElement) {
 
   @consume({ context: appState }) private readonly state!: AppState;
 
-  @state() private mode: Mode = 'tree';
+  // Whether only the Book list's Volumes are shown, or every one on this
+  // computer too.
+  @state() private treeOnly = true;
   @state() private listed: ListedBook[] | 'failed' | null = null;
   @state() private installed: InstalledBook[] | 'failed' | null = null;
   @state() private cache: ScanCacheStatus | null = null;
@@ -281,27 +286,24 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     );
   }
 
-  // The choice between the two, when there's more to all of them.
+  // The filter to the Book list, when this computer has more.
   private offered() {
     const { listed, installed } = this;
     if (!Array.isArray(installed)) return false;
     return !Array.isArray(listed) || hasOthers(listed, installed);
   }
 
-  private renderModes() {
-    return html`<div class="modes" role="group" aria-label="Volumes shown">
-      ${MODES.map(
-        (m) =>
-          html`<button
-            aria-pressed=${this.mode === m.mode ? 'true' : 'false'}
-            @click=${() => {
-              this.mode = m.mode;
-            }}
-          >
-            ${m.label}
-          </button>`
-      )}
-    </div>`;
+  private renderOnly() {
+    return html`<button
+      class="only"
+      aria-pressed=${this.treeOnly ? 'true' : 'false'}
+      title="Only the volumes of this tree, not every one on this computer"
+      @click=${() => {
+        this.treeOnly = !this.treeOnly;
+      }}
+    >
+      ${this.treeOnly ? CHECK_ICON : nothing} This tree
+    </button>`;
   }
 
   private renderCache() {
@@ -309,69 +311,67 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     if (cache === null) return html`<span class="cache"></span>`;
     const pct = Math.min(100, (cache.used / cache.cap) * 100);
     return html`<span class="cache">
-      Scan cache ${formatBytes(cache.used)} of ${formatBytes(cache.cap)}
+      Storage ${formatBytes(cache.used)} of ${formatBytes(cache.cap)}
       <span class="meter"><span style="width: ${pct}%"></span></span>
     </span>`;
   }
 
-  // The rows of the mode, or why there are none.
-  private rows(mode: Mode): VolumeRow[] | string {
+  // The Book list's Volumes, with every other one on this computer unless
+  // `treeOnly`; or why there are none.
+  private rows(treeOnly: boolean): VolumeRow[] | string {
     const { listed, installed } = this;
     if (listed === null || installed === null) return 'Loading…';
     const fromAll = Array.isArray(installed) ? installed : [];
     const fromTree = Array.isArray(listed) ? listed : [];
-    if (mode === 'all') {
-      if (installed === 'failed') {
-        return "The volumes on this computer couldn't be listed.";
-      }
-      if (installed.length === 0) {
-        return 'Nothing of any volume is on this computer yet.';
-      }
-      return allRows(installed, fromTree);
-    }
+    const rows = [
+      ...treeRows(fromTree, fromAll),
+      ...(treeOnly ? [] : offList(fromTree, fromAll))
+    ];
+    if (rows.length > 0) return rows;
     if (listed === 'failed') {
       return "Astia couldn't be reached, and the volumes here aren't known yet.";
     }
-    if (listed.length === 0) {
-      return 'No sources here cite a Volume yet. Add volumes to look through.';
-    }
-    return treeRows(listed, fromAll);
+    return 'No sources here cite a Volume yet. Add volumes to look through.';
   }
 
-  private renderBody(mode: Mode) {
-    const rows = this.rows(mode);
+  private renderBody(rows: VolumeRow[] | string, shown: VolumeRow[]) {
     if (typeof rows === 'string') return html`<p class="muted">${rows}</p>`;
-    const shown = rows.filter((b) => matches(b, this.filter));
-    const table =
-      shown.length === 0
-        ? html`<p class="muted">No volume here matches.</p>`
-        : renderBookTable({
-            books: shown,
-            shown: this.shownId(),
-            acts: (b) =>
-              renderActs(b, {
-                ...this.does,
-                busy: this.asking.busy,
-                frees: this.frees
-              }),
-            open: (b) => {
-              this.open(b.id, b.label);
-            }
-          });
-    const { listed } = this;
-    return html`${table}
-    ${
-      mode === 'tree' && Array.isArray(listed)
-        ? html`<p class="summary">${listSummary(listed)}</p>`
-        : nothing
-    }`;
+    if (shown.length === 0) {
+      return html`<p class="muted">No volume here matches.</p>`;
+    }
+    return renderBookTable({
+      books: shown,
+      shown: this.shownId(),
+      acts: (b) =>
+        renderActs(b, {
+          ...this.does,
+          busy: this.asking.busy,
+          frees: this.frees
+        }),
+      open: (b) => {
+        this.open(b.id, b.label);
+      }
+    });
+  }
+
+  // What the table shows, and the Scan cache's fill.
+  private renderFoot(shown: VolumeRow[]) {
+    return html`<div class="foot">
+      <p class="summary">
+        ${shown.length === 0 ? nothing : listSummary(shown)}
+      </p>
+      ${this.renderCache()}
+    </div>`;
   }
 
   override render() {
     const offered = this.offered();
-    const mode = offered ? this.mode : 'tree';
+    const rows = this.rows(!offered || this.treeOnly);
+    const shown =
+      typeof rows === 'string'
+        ? []
+        : rows.filter((b) => matches(b, this.filter));
     return html`
-      ${offered ? this.renderModes() : nothing}
       <div class="bar">
         <input
           aria-label="Filter volumes"
@@ -381,21 +381,19 @@ class VolumesListElement extends SignalWatcher(LitElement) {
             this.filter = (e.target as HTMLInputElement).value;
           }}
         />
-        ${
-          mode === 'all'
-            ? this.renderCache()
-            : html`<button
-                class="add"
-                @click=${() => {
-                  this.picking = true;
-                }}
-              >
-                Add volumes…
-              </button>`
-        }
+        ${offered ? this.renderOnly() : nothing}
+        <button
+          class="add"
+          @click=${() => {
+            this.picking = true;
+          }}
+        >
+          Add volumes…
+        </button>
       </div>
-      ${this.renderBody(mode)} ${renderRefused(this.asking.refused)}
-      ${this.renderConfirm()} ${this.renderPicker()}
+      ${this.renderBody(rows, shown)} ${this.renderFoot(shown)}
+      ${renderRefused(this.asking.refused)} ${this.renderConfirm()}
+      ${this.renderPicker()}
     `;
   }
 

@@ -81,10 +81,10 @@ test("a reference's entry is placed by hand", async () => {
     await page.keyboard.press('Escape');
     await openList(page, 'Volumes');
     const list = page.locator('sl-volumes-list');
-    await list
-      .getByRole('group', { name: 'Volumes shown' })
-      .getByRole('button', { name: 'All books' })
-      .click();
+    // Another Volume was looked at, so the tree is a filter, off for
+    // every book on this computer.
+    await list.getByRole('button', { name: 'This tree' }).click();
+    await list.getByRole('row').filter({ hasText: 'I Aa:2' }).waitFor();
     const row = list.getByRole('row').filter({ hasText: 'I Aa:1' });
     // Pointed at, it says what it frees; with the folder chosen, it isn't
     // asked first.

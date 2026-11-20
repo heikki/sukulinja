@@ -153,8 +153,8 @@ export interface ArchiveGroup<T extends InArchive> {
   books: T[];
 }
 
-// The Volumes by archive, in the order the archives come, each one's by
-// series and years.
+// The Volumes by archive, the archives in alphabetical order and the
+// Volumes of none last, each one's by series and years.
 export function groupByArchive<T extends InArchive>(
   books: T[]
 ): Array<ArchiveGroup<T>> {
@@ -168,10 +168,16 @@ export function groupByArchive<T extends InArchive>(
     group.books.push(book);
     groups.set(book.archiveId, group);
   }
-  return [...groups.values()].map((g) => ({
-    ...g,
-    books: g.books.toSorted(bySeries)
-  }));
+  return [...groups.values()]
+    .toSorted((a, b) => byName(a.archive, b.archive))
+    .map((g) => ({ ...g, books: g.books.toSorted(bySeries) }));
+}
+
+function byName(a: string | null, b: string | null) {
+  if (a === null || b === null) {
+    return (a === null ? 1 : 0) - (b === null ? 1 : 0);
+  }
+  return a.localeCompare(b, 'fi');
 }
 
 // Whether the Volume answers what's typed: a year it covers, or words in
@@ -239,13 +245,15 @@ function counted(k: number, one: string, many: string) {
   return k === 1 ? `1 ${one}` : `${k} ${many}`;
 }
 
-export function listSummary(books: ListedBook[]) {
-  const cited = books.filter((b) => b.cited > 0).length;
-  const onDisk = books.filter((b) => whole(b.onDisk)).length;
+export function listSummary(
+  books: Array<Pick<ChurchBookVolume, 'onDisk'> & { cited: number | null }>
+) {
+  const cited = books.filter((b) => (b.cited ?? 0) > 0).length;
+  const downloaded = books.filter((b) => whole(b.onDisk)).length;
   return [
     counted(books.length, 'volume', 'volumes'),
     `${cited} cited`,
-    `${onDisk} on disk`
+    `${downloaded} downloaded`
   ].join(' · ');
 }
 

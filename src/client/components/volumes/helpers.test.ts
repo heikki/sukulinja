@@ -152,6 +152,19 @@ test('groups the Book list by archive, each by series and years', () => {
   ]);
 });
 
+test('puts the archives in alphabetical order, those of none last', () => {
+  const books = [
+    { ...listed('n', 'N', 'I Aa:1'), archiveId: null, archive: null },
+    listed('c', 'C', 'I Aa:1'),
+    listed('a', 'A', 'I Aa:1')
+  ];
+  expect(groupByArchive(books).map((g) => g.archiveId)).toEqual([
+    'A',
+    'C',
+    null
+  ]);
+});
+
 test('filters by a year a Volume covers, or words in it', () => {
   const book = listed('a', 'A', 'I Aa:1 Pää- ja rippikirjat (1790-1796)');
   expect(matches(book, '')).toBe(true);
@@ -214,5 +227,5 @@ test('sums the Book list up in a line', () => {
       listed('a', 'A', 'x', { cited: 2, onDisk: WHOLE }),
       listed('b', 'A', 'y')
     ])
-  ).toBe('2 volumes · 1 cited · 1 on disk');
+  ).toBe('2 volumes · 1 cited · 1 downloaded');
 });

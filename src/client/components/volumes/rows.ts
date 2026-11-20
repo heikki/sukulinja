@@ -31,17 +31,15 @@ export function treeRows(
   }));
 }
 
-// Every Volume on this computer, with what the Book list knows of each.
-export function allRows(
-  installed: InstalledBook[],
-  listed: ListedBook[]
+// The Volumes on this computer the Book list leaves out.
+export function offList(
+  listed: ListedBook[],
+  installed: InstalledBook[]
 ): VolumeRow[] {
-  const byId = new Map(listed.map((b) => [b.id, b]));
-  return installed.map((b) => ({
-    ...b,
-    cited: byId.get(b.id)?.cited ?? null,
-    added: byId.get(b.id)?.added ?? false
-  }));
+  const ids = new Set(listed.map((b) => b.id));
+  return installed
+    .filter((b) => !ids.has(b.id))
+    .map((b) => ({ ...b, cited: null, added: false }));
 }
 
 // Whether this computer has a Volume the Book list leaves out: only then

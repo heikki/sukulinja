@@ -54,9 +54,9 @@ test('a Volume of another parish is added, downloaded, removed and taken off', a
     // Nothing else is on this computer, so all the books are the tree's
     // and aren't offered apart. Its page numbers are marked checked, for
     // every tree, and it comes off the disk, asked first.
-    expect(
-      await list.getByRole('group', { name: 'Volumes shown' }).count()
-    ).toBe(0);
+    expect(await list.getByRole('button', { name: 'This tree' }).count()).toBe(
+      0
+    );
     await book
       .getByRole('button', { name: 'Mark page numbers checked' })
       .click();
