@@ -52,6 +52,11 @@ export type {
   Viewer
 } from './viewer';
 
+// What's asked outside any dataset, provided by the app on every page,
+// the chooser too: the install-wide screens (Settings) consume it rather
+// than a dataset's state.
+export const appApi = createContext<AppApi>(Symbol('app-api'));
+
 export interface AppState {
   api: DatasetApi;
   // What's asked outside any dataset, shared by them all: the parishes,

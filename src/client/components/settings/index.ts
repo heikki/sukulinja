@@ -6,6 +6,7 @@ import { currentAppearance, setAppearance } from '@/client/appearance';
 import type { Appearance } from '@/client/appearance';
 import { assistantOn, setAssistantOn } from '@/client/assistant-flag';
 import { ApiError } from '@/client/dataset-api';
+import type { AppApi } from '@/client/dataset-api/app';
 import { dialogStyles } from '@/client/dialog-styles';
 import { focusRingStyles } from '@/client/focus-ring';
 import {
@@ -14,8 +15,7 @@ import {
   setPreferredGenerations
 } from '@/client/generations';
 import { pageNumbersOn, setPageNumbersOn } from '@/client/page-numbers-flag';
-import { appState } from '@/client/state';
-import type { AppState } from '@/client/state';
+import { appApi } from '@/client/state';
 import type { ScanCacheStatus } from '@/common/types';
 
 import { CornerPopover, popoverStyles } from '../corner-panel/popover';
@@ -180,7 +180,7 @@ class SettingsElement extends LitElement {
     `
   ];
 
-  @consume({ context: appState }) private readonly state!: AppState;
+  @consume({ context: appApi }) private readonly app!: AppApi;
 
   @property({ attribute: false }) generations: number | null = null;
   @property({ attribute: false }) datasetName: string | null = null;
@@ -225,7 +225,7 @@ class SettingsElement extends LitElement {
   }
 
   private setCap(cap: number) {
-    return this.askScanCache(async () => await this.state.app.setScanCap(cap));
+    return this.askScanCache(async () => await this.app.setScanCap(cap));
   }
 
   // A cap that keeps everything on disk is saved at once; one that would
@@ -243,7 +243,7 @@ class SettingsElement extends LitElement {
   private async confirmDrop(drop: ScanCacheDrop) {
     this.dropping = true;
     if (drop.kind === 'clear') {
-      await this.askScanCache(this.state.app.clearScanCache);
+      await this.askScanCache(this.app.clearScanCache);
     } else await this.setCap(drop.cap);
     this.dropping = false;
     this.confirming = null;
@@ -263,7 +263,7 @@ class SettingsElement extends LitElement {
         aria-expanded=${this.open}
         @click=${() => {
           this.corner.set(!this.open);
-          if (this.open) void this.askScanCache(this.state.app.scanCache);
+          if (this.open) void this.askScanCache(this.app.scanCache);
         }}
       >
         ${GEAR_ICON}
