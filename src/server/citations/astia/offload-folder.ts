@@ -1,7 +1,8 @@
 // The offload folder: an archive of every Image fetched while it's
 // attached, an external drive say, in the Scan cache's own layout
 // (`<volumeId>/<fileId>.jpg`), where an offload moves the Images a Volume
-// doesn't keep. Nothing is removed from it. They're read from there while
+// doesn't keep. Nothing is removed from it but an old filming's Images
+// once a Volume is switched to a re-scan. They're read from there while
 // it's attached; with none set, an offload drops them.
 
 import { copyFile, mkdir, readdir, rename, rm, stat } from 'node:fs/promises';
@@ -90,6 +91,14 @@ export function openOffloadFolder(settingsFile: string) {
       );
     },
 
+    // The Volumes the folder has files of, when it's attached; none else.
+    async volumes() {
+      const folder = await attached();
+      if (folder === undefined || folder === null) return [];
+      const entries = await readdir(folder, { withFileTypes: true });
+      return entries.filter((e) => e.isDirectory()).map((e) => e.name);
+    },
+
     // The names of the Volume's files in the folder, when it's attached;
     // none else.
     async names(volumeId: string) {
@@ -117,6 +126,24 @@ export function openOffloadFolder(settingsFile: string) {
         ? copyFile(from, part)
         : Bun.write(part, from));
       await rename(part, at);
+    },
+
+    // Drops the Volume's files of those names, when the folder's attached:
+    // an old filming's, after a re-scan. Nothing else is removed from it.
+    async drop(volumeId: string, names: string[]) {
+      const folder = await attached();
+      if (folder === undefined || folder === null) return;
+      await Promise.all(
+        names.map(async (name) => {
+          const at = join(folder, volumeId, name);
+          // A copy on its way in is let be: only one left cut off goes.
+          if (name.endsWith('.part')) {
+            const info = await stat(at).catch(() => null);
+            if (info === null || Date.now() - info.mtimeMs < 60_000) return;
+          }
+          await rm(at, { force: true });
+        })
+      );
     },
 
     // Copies the Volume's files from the folder into `to`, leaving the

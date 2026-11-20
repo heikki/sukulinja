@@ -54,6 +54,9 @@ describe('downloadActions', () => {
     expect(labels(volume(null, PART))).toEqual(['Download']);
     expect(labels(volume({ state: 'stopped' }, PART))).toEqual(['Download']);
     expect(labels(volume(null, WHOLE))).toEqual([]);
+    expect(
+      labels(volume({ state: 'stopped', error: 'rescanned' }, PART))
+    ).toEqual([]);
   });
 
   test('offers Stop while one downloads or waits to', () => {
@@ -200,6 +203,9 @@ test("says a Volume's code, years and disk in a table's cells", () => {
   expect(
     diskCell(volume({ state: 'stopped', error: 'unreachable' }, PART))
   ).toBe('Stopped at 23%');
+  expect(diskCell(volume({ state: 'stopped', error: 'rescanned' }, PART))).toBe(
+    'Re-scanned'
+  );
   expect(diskCell(volume(null, { images: 1000, cached: 1, bytes: 0 }))).toBe(
     '<1%'
   );

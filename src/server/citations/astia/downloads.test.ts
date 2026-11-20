@@ -251,6 +251,20 @@ test('a re-scan found mid-way stops it as re-scanned', async () => {
   });
 });
 
+test('a re-scan stops it at once, without waiting to try again', async () => {
+  const a = astia();
+  const slow = openDownloads(
+    { astia: a, cache: openScanCache({ astia: a, root: dir }) },
+    { gapMs: 0, retryMs: 60_000, retries: 2 }
+  );
+  listed.rescan('202', 3);
+  slow.start('202');
+  await slow.idle();
+  expect(slow.list()).toMatchObject([
+    { volumeId: '202', state: 'stopped', error: 'rescanned' }
+  ]);
+});
+
 test("Astia's placeholder for a file it still lists is no re-scan", async () => {
   placeholders = 2;
   downloads.start('202');

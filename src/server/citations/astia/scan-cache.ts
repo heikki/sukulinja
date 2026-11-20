@@ -360,7 +360,7 @@ export function openScanCache({
   }
 
   // Asks Astia for the Volume's list again, and drops the cached Images of
-  // file ids it no longer lists.
+  // file ids it no longer lists, here and in the offload folder.
   async function refresh(volumeId: string) {
     const before = await listed(volumeId);
     await astia.refreshImages(volumeId);
@@ -368,6 +368,26 @@ export function openScanCache({
     const gone = before.filter((id) => !now.has(id));
     await Promise.all(
       gone.map((id) => rm(pathOf(volumeId, id), { force: true }))
+    );
+    await folder.drop(
+      volumeId,
+      gone.map((id) => `${id}.jpg`)
+    );
+  }
+
+  // Drops from the offload folder whatever of the Volume's Astia's kept
+  // list doesn't have, an old filming's Images, and copies left cut off;
+  // none while that list isn't kept.
+  async function dropOldFilming(volumeId: string) {
+    if ((await astia.cachedImages(volumeId)) === null) return;
+    const now = new Set((await listed(volumeId)).map((id) => `${id}.jpg`));
+    const names = await folder.names(volumeId);
+    await folder.drop(
+      volumeId,
+      // Only an Image or a copy of one: anything else there isn't the app's.
+      names.filter(
+        (n) => n.endsWith('.part') || (n.endsWith('.jpg') && !now.has(n))
+      )
     );
   }
 
@@ -522,7 +542,9 @@ export function openScanCache({
 
     // Copies into the offload folder every Image on disk it hasn't whole,
     // as those fetched before it was set or while it was away, or cut off
-    // on their way in. Only sizes are compared, so it's quick.
+    // on their way in; then drops from it an old filming's Images, left
+    // there by a switch to a re-scan made while it was away. Only names
+    // and sizes are compared, and Astia isn't asked, so it's quick.
     async archive() {
       for (const { path } of await cachedFiles(dir)) {
         // eslint-disable-next-line no-await-in-loop -- one file at a time
@@ -530,6 +552,10 @@ export function openScanCache({
           .keep(basename(dirname(path)), basename(path), path)
           // One pruned meanwhile is let be; the rest are still copied.
           .catch(() => undefined);
+      }
+      for (const volumeId of await folder.volumes()) {
+        // eslint-disable-next-line no-await-in-loop -- one Volume at a time
+        await dropOldFilming(volumeId);
       }
     },
 

@@ -107,10 +107,15 @@ export function openDownloads(
         if (stopped(signal)) return false;
         // Stops on anything but Astia failing.
         errorOf(err);
+        // A re-scan is known with one look at Astia's list, and waiting
+        // won't bring the old file back.
+        // eslint-disable-next-line no-await-in-loop -- once, on no image
+        if (err instanceof NoImageError && (await rescanned(at))) {
+          throw new Stopped('rescanned');
+        }
         if (attempt >= retries) {
           if (!(err instanceof NoImageError)) throw err;
-          // eslint-disable-next-line no-await-in-loop -- once, at the end
-          throw new Stopped((await rescanned(at)) ? 'rescanned' : 'no-image');
+          throw new Stopped('no-image');
         }
         // eslint-disable-next-line no-await-in-loop -- waiting out Astia
         await pause(retryMs, signal);

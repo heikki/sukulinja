@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdir, mkdtemp, readdir, rename, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, rename, rm, utimes } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -301,6 +301,44 @@ describe('a re-scanned Volume', () => {
     expect(await scans.image(at(5), 'full', signal)).toBe(
       join(dir, '.astia-images', '301', '301-2-f5.jpg')
     );
+  });
+
+  test('refreshed, the old filming leaves the offload folder too', async () => {
+    const { astia, cache: scans } = rescanned();
+    const away = join(dir, 'ssd');
+    await mkdir(away);
+    await scans.offloadFolder.set(away);
+    await scans.image(at(2), 'full', signal);
+    await scans.archive();
+    expect(await readdir(join(away, '301'))).toEqual(['301-f2.jpg']);
+    astia.rescan('301', 8);
+    await scans.refresh('301');
+    expect(await readdir(join(away, '301'))).toEqual([]);
+  });
+
+  test('switched while the offload folder was away, the old filming leaves it at the next sync', async () => {
+    const { astia, cache: scans } = rescanned();
+    const away = join(dir, 'ssd');
+    await mkdir(away);
+    await scans.offloadFolder.set(away);
+    await scans.image(at(2), 'full', signal);
+    await scans.archive();
+    await rename(away, `${away}-off`);
+    astia.rescan('301', 8);
+    await scans.refresh('301');
+    await scans.image(at(3), 'full', signal);
+    await rename(`${away}-off`, away);
+    // And a copy left cut off, but not one on its way in.
+    const cutOff = join(away, '301', '301-2-f4.jpg.1.part');
+    await Bun.write(cutOff, 'x');
+    const old = new Date(Date.now() - 120_000);
+    await utimes(cutOff, old, old);
+    await Bun.write(join(away, '301', '301-2-f5.jpg.2.part'), 'x');
+    await scans.archive();
+    expect((await readdir(join(away, '301'))).toSorted()).toEqual([
+      '301-2-f3.jpg',
+      '301-2-f5.jpg.2.part'
+    ]);
   });
 
   test("doesn't ask Astia for an Image a peek found gone", async () => {

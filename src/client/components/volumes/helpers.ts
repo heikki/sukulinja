@@ -19,7 +19,8 @@ function whole(d: VolumeOnDisk) {
 }
 
 // What can be done with a Volume's download, as its button says it: stop
-// one on its way, or download one not yet whole on disk.
+// one on its way, or download one not yet whole on disk, unless Astia has
+// re-scanned it, when only switching to the new filming goes on.
 export function downloadActions(
   volume: ChurchBookVolume
 ): Array<{ action: DownloadAction; label: string }> {
@@ -28,13 +29,14 @@ export function downloadActions(
     return [{ action: 'stop', label: 'Stop' }];
   }
   if (!volume.digitized || whole(volume.onDisk)) return [];
+  if (volume.download?.error === 'rescanned') return [];
   return [{ action: 'start', label: 'Download' }];
 }
 
 const WHY: Record<DownloadError, string> = {
   'unreachable': "Astia couldn't be reached",
   'no-image': 'Astia gave no image',
-  'rescanned': 'Astia has re-scanned it'
+  'rescanned': 'Astia has re-scanned it; open it to switch to the new filming'
 };
 
 function ofImages(d: VolumeOnDisk) {
@@ -224,15 +226,23 @@ export function diskCell(volume: ChurchBookVolume & { offloaded?: Away }) {
 function volumeCell(volume: ChurchBookVolume) {
   if (!volume.digitized) return 'Not digitized';
   const { download, onDisk } = volume;
-  const state = download?.state;
-  if (state === 'queued') return 'Waiting';
-  if (state === 'downloading') return `Downloading ${share(onDisk)}`;
-  if (state === 'stopped' && !whole(onDisk)) {
-    return `Stopped at ${share(onDisk)}`;
+  if (download !== null && !whole(onDisk)) {
+    return downloadCell(download, onDisk);
   }
+  if (download?.state === 'downloading') return `Downloading ${share(onDisk)}`;
   if (whole(onDisk)) return '100%';
   if (onDisk.cached === 0) return '—';
   return share(onDisk);
+}
+
+// A download not yet whole in a cell: where it is, or where it stopped;
+// one Astia has re-scanned goes no further until it's switched to the new
+// filming.
+function downloadCell(download: DownloadStatus, onDisk: VolumeOnDisk) {
+  if (download.state === 'queued') return 'Waiting';
+  if (download.state === 'downloading') return `Downloading ${share(onDisk)}`;
+  if (download.error === 'rescanned') return 'Re-scanned';
+  return `Stopped at ${share(onDisk)}`;
 }
 
 // The Book list in a line: how many, how many cited, and how many whole
