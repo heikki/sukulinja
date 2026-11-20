@@ -238,7 +238,6 @@ export const bookTableStyles = [
       flex: 1;
       min-height: 0;
       overflow: auto;
-      margin: 0 -0.75rem;
     }
 
     table {
@@ -251,7 +250,7 @@ export const bookTableStyles = [
       position: sticky;
       top: 0;
       z-index: 2;
-      padding: 0.3rem 0.35rem;
+      padding: 0.3rem 0.3rem;
       background: var(--card);
       color: var(--muted);
       font-size: 0.7rem;
@@ -264,9 +263,25 @@ export const bookTableStyles = [
     }
 
     td {
-      padding: 0.3rem 0.35rem;
+      padding: 0.3rem 0.3rem;
       border-bottom: 1px solid color-mix(in srgb, var(--fg) 6%, transparent);
       white-space: nowrap;
+    }
+
+    /* Its edges in line with the bar above and the line below: the
+       headers and an archive's name from the left edge, its Volumes set
+       in under it, and the buttons up to the right edge. */
+    th:first-child {
+      padding-left: 0;
+    }
+
+    td:first-child {
+      padding-left: 0.5rem;
+    }
+
+    th:last-child,
+    td:last-child {
+      padding-right: 0;
     }
 
     /* Under the headers while its Volumes scroll by. */
@@ -276,6 +291,7 @@ export const bookTableStyles = [
       z-index: 1;
       background: var(--card);
       padding-top: 0.75rem;
+      padding-left: 0;
       font-weight: 600;
       border-bottom: 0;
       white-space: normal;
@@ -292,7 +308,6 @@ export const bookTableStyles = [
     /* The one the Scan viewer shows. */
     tr.book.shown {
       background: color-mix(in srgb, var(--accent) 14%, transparent);
-      box-shadow: inset 3px 0 0 var(--accent);
     }
 
     tr.book.off {

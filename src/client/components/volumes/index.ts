@@ -37,6 +37,11 @@ import './picker';
 
 export type VolumeOpenEvent = CustomEvent<VolumeOpen>;
 
+// Where the table would be, why there's none.
+function renderEmpty(why: string) {
+  return html`<div class="table"><p class="empty">${why}</p></div>`;
+}
+
 // How often the Volumes are asked for again while one downloads.
 const POLL_MS = 2000;
 
@@ -86,14 +91,22 @@ class VolumesListElement extends SignalWatcher(LitElement) {
         vertical-align: -1px;
       }
 
+      p.empty {
+        margin: 0.75rem 0 0;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
       .foot {
         display: flex;
         align-items: center;
         gap: 1rem;
+        margin-top: 0.5rem;
       }
 
       .foot .summary {
         flex: 1;
+        margin: 0;
       }
 
       .foot .cache {
@@ -335,9 +348,9 @@ class VolumesListElement extends SignalWatcher(LitElement) {
   }
 
   private renderBody(rows: VolumeRow[] | string, shown: VolumeRow[]) {
-    if (typeof rows === 'string') return html`<p class="muted">${rows}</p>`;
+    if (typeof rows === 'string') return renderEmpty(rows);
     if (shown.length === 0) {
-      return html`<p class="muted">No volume here matches.</p>`;
+      return renderEmpty(`No volume matches “${this.filter.trim()}”.`);
     }
     return renderBookTable({
       books: shown,
@@ -356,10 +369,9 @@ class VolumesListElement extends SignalWatcher(LitElement) {
 
   // What the table shows, and the Scan cache's fill.
   private renderFoot(shown: VolumeRow[]) {
+    if (shown.length === 0) return nothing;
     return html`<div class="foot">
-      <p class="summary">
-        ${shown.length === 0 ? nothing : listSummary(shown)}
-      </p>
+      <p class="summary">${listSummary(shown)}</p>
       ${this.renderCache()}
     </div>`;
   }
