@@ -97,11 +97,14 @@ class VolumesListElement extends SignalWatcher(LitElement) {
         font-size: 0.85rem;
       }
 
+      /* Set off from the table by a line, about as far below it as the
+         panel's edge is below the line's words. */
       .foot {
         display: flex;
         align-items: center;
         gap: 1rem;
-        margin-top: 0.5rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid var(--border);
       }
 
       .foot .summary {
@@ -109,21 +112,18 @@ class VolumesListElement extends SignalWatcher(LitElement) {
         margin: 0;
       }
 
-      .foot .cache {
-        flex: 0 0 11rem;
-      }
-
+      /* On one line with the summary: its words, then the meter. */
       .cache {
-        flex: 1;
-        min-width: 0;
         display: flex;
-        flex-direction: column;
-        gap: 0.2rem;
+        align-items: center;
+        gap: 0.5rem;
         color: var(--muted);
-        font-size: 0.75rem;
+        font-size: 0.8rem;
+        white-space: nowrap;
       }
 
       .meter {
+        width: 5rem;
         height: 4px;
         border-radius: 2px;
         background: color-mix(in srgb, var(--fg) 10%, transparent);
