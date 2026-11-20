@@ -454,6 +454,11 @@ describe('the answers', () => {
     expect(await status(api.imageUrl(VOLUME, 2, 3))).toBe(200);
     expect(await status(api.thumbUrl(VOLUME, 2))).toBe(200);
     expect(await status(api.mediaUrl('photo.jpg'))).toBe(200);
+    // Switched to a re-scan, a Volume's Images are at new URLs.
+    const before = api.imageUrl(VOLUME, 2, 0);
+    await api.switchFilming(VOLUME, 'Volume');
+    expect(api.imageUrl(VOLUME, 2, 0)).not.toBe(before);
+    expect(await status(api.imageUrl(VOLUME, 2, 0))).toBe(200);
   });
 });
 

@@ -257,6 +257,12 @@ export interface DatasetApi {
   forgetConversation: (id: string) => Promise<void>;
 }
 
+// How many times each Volume was switched to a re-scan while the app is
+// open, for every dataset: an Image's URL carries it, as the webview keeps
+// what it showed by URL alone, and a re-scan puts another photograph at
+// the same number.
+const switches = new Map<string, number>();
+
 // The dataset `slug`, over HTTP.
 export function openDatasetApi(
   slug: string,
@@ -267,6 +273,17 @@ export function openDatasetApi(
 ): DatasetApi {
   const dataset = `${origin}/d/${slug}`;
   const astia = `${origin}/astia/volumes`;
+
+  // The Volume's Image by number, as the filming it's on now has it.
+  function imageAt(volumeId: string, n: number, query: Record<string, string>) {
+    const filming = switches.get(volumeId);
+    const params = new URLSearchParams({
+      ...query,
+      ...(filming === undefined ? {} : { filming: `${filming}` })
+    }).toString();
+    const url = `${astia}/${volumeId}/images/${n}`;
+    return params === '' ? url : `${url}?${params}`;
+  }
 
   const ask = asker(send);
   const { call, lines } = operationsAt<Operations>(send, `${dataset}/api`);
@@ -352,15 +369,21 @@ export function openDatasetApi(
       });
     },
 
-    switchFilming: async (volumeId, volume) =>
-      await call('switchFilming', { volumeId, volume }, 'Switching'),
-
-    imageUrl(volumeId, n, retry) {
-      const url = `${astia}/${volumeId}/images/${n}`;
-      return retry === 0 ? url : `${url}?retry=${retry}`;
+    async switchFilming(volumeId, volume) {
+      const urls = await call(
+        'switchFilming',
+        { volumeId, volume },
+        'Switching'
+      );
+      switches.set(volumeId, (switches.get(volumeId) ?? 0) + 1);
+      return urls;
     },
 
-    thumbUrl: (volumeId, n) => `${astia}/${volumeId}/images/${n}?size=thumb`,
+    imageUrl(volumeId, n, retry) {
+      return imageAt(volumeId, n, retry === 0 ? {} : { retry: `${retry}` });
+    },
+
+    thumbUrl: (volumeId, n) => imageAt(volumeId, n, { size: 'thumb' }),
 
     photos: async (signal) => await call('photos', {}, 'Photos', signal),
 
