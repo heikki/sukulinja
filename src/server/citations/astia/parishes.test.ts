@@ -74,6 +74,15 @@ test('an archive added has no spelling, and is added once', async () => {
   expect(parishes.all()).toEqual([{ archiveId: '7', spellings: [] }]);
 });
 
+test('an archive no spelling links into can be removed', async () => {
+  const parishes = memoryParishes([]);
+  await parishes.add('7');
+  await parishes.link('Puumala', '8');
+  expect(await parishes.remove('7')).toBe(true);
+  expect(await parishes.remove('8')).toBe(false);
+  expect(parishes.all()).toEqual([{ archiveId: '8', spellings: ['Puumala'] }]);
+});
+
 test('a change is saved in the data folder', async () => {
   const folder = await mkdtemp(join(tmpdir(), 'parishes-'));
   try {

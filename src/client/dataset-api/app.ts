@@ -29,6 +29,8 @@ export interface AppApi {
   ) => Promise<ChurchBookArchive[]>;
   // The archive joins the install's parishes, with no spelling.
   addParish: (archiveId: string) => Promise<void>;
+  // The archive leaves the install's parishes.
+  removeParish: (archiveId: string) => Promise<void>;
   // Every reference giving the spelling links into the archive from now on.
   linkSpelling: (spelling: string, archiveId: string) => Promise<void>;
   // The parish archive's Volumes, with what of each is on disk.
@@ -77,6 +79,9 @@ export function openAppApi({
       await call('findParishArchives', { name }, 'Finding', signal),
     async addParish(archiveId) {
       await call('addParish', { archiveId }, 'Adding the parish');
+    },
+    async removeParish(archiveId) {
+      await call('removeParish', { archiveId }, 'Removing the parish');
     },
     async linkSpelling(spelling, archiveId) {
       await call('linkSpelling', { spelling, archiveId }, 'Linking');

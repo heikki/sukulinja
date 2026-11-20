@@ -27,10 +27,13 @@ test('a Volume of another parish is added, downloaded, removed and taken off', a
     await picker
       .getByRole('button', { name: 'Keksityn seurakunnan arkisto' })
       .click();
+    // One of the install's other parishes can be removed again.
+    await picker.getByRole('button', { name: 'Remove parish' }).waitFor();
+    await shot(page, 'volumes-picker-other');
     await picker
       .getByRole('button', { name: 'Add I Aa:1 Rippikirja (1800-1810)' })
       .click();
-    await picker.getByText('On list').waitFor();
+    await picker.getByRole('button', { name: 'Added' }).waitFor();
     await shot(page, 'volumes-picker');
     await picker.getByRole('button', { name: 'Close' }).click();
 

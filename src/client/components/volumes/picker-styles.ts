@@ -1,7 +1,7 @@
 import { css } from 'lit';
 
 // The Volume picker's: a modal over a scrim, its parishes down the side,
-// the Fits box, the filters and the parish's Volumes by series.
+// the Fits box, the parish's name and the parish's Volumes by series.
 export const volumePickerStyles = css`
   dialog {
     width: min(60rem, calc(100vw - 2rem));
@@ -169,7 +169,7 @@ export const volumePickerStyles = css`
     gap: 1rem;
   }
 
-  .filters {
+  .head {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -177,52 +177,22 @@ export const volumePickerStyles = css`
     font-size: 0.8rem;
   }
 
-  .filters .title {
+  .head .title {
     margin-right: 0.5rem;
     font-size: 0.95rem;
     font-weight: 600;
   }
 
-  button.chip {
-    padding: 0.15rem 0.6rem;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: none;
-    color: var(--muted);
-  }
-
-  button.chip[aria-pressed='true'] {
-    border-color: transparent;
-    background: color-mix(in srgb, var(--fg) 12%, transparent);
-    color: var(--fg);
-  }
-
-  .filters label {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    color: var(--muted);
-  }
-
-  .filters input,
   aside sl-archive-search {
     font: inherit;
   }
 
-  .filters input {
-    width: 4rem;
-    padding: 0.2rem 0.4rem;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--bg);
-    color: var(--fg);
-  }
-
+  /* One series under another: side by side, their rows ran together. */
   .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
-    gap: 0.75rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 30rem;
   }
 
   .series h3 {
@@ -247,11 +217,24 @@ export const volumePickerStyles = css`
     min-width: 0;
   }
 
+  /* A row's buttons all as wide, whatever they say, so they line up. */
+  button.act {
+    min-width: 4.25rem;
+  }
+
+  /* The years lined up under each other, whatever the code's length. */
+  .row .code {
+    display: inline-block;
+    min-width: 4.5rem;
+  }
+
   .muted {
     color: var(--muted);
   }
 
+  /* As tall as a button beside it, so rows without one keep the pace. */
   .on {
+    padding: calc(0.25rem + 1px) 0;
     color: var(--muted);
     font-size: 0.8rem;
   }

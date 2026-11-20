@@ -43,6 +43,7 @@ export type SharedOperations = Pick<
   | 'parishes'
   | 'findParishArchives'
   | 'addParish'
+  | 'removeParish'
   | 'linkSpelling'
   | 'churchBooks'
   | 'downloads'
@@ -119,6 +120,11 @@ export function sharedOperations({
     async addParish({ archiveId }) {
       await parishArchive(archiveId);
       await parishes.add(archiveId);
+    },
+    async removeParish({ archiveId }) {
+      if (!(await parishes.remove(archiveId))) {
+        throw new Refusal(409, 'References in a tree link into this parish.');
+      }
     },
     // Every reference giving the spelling then resolves there.
     async linkSpelling({ spelling, archiveId }) {

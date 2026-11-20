@@ -52,6 +52,13 @@ export const APP_OPERATIONS = {
     archiveOf
   ),
 
+  // The archive leaves the install's parishes; refused while a spelling
+  // links into it.
+  removeParish: answers<{ archiveId: string }, undefined>(
+    '{ archiveId }',
+    archiveOf
+  ),
+
   // Every reference giving the spelling links into the archive from now
   // on.
   linkSpelling: answers<{ spelling: string; archiveId: string }, undefined>(

@@ -21,7 +21,6 @@ import { fitLines } from './fits';
 import type { FitLine } from './fits';
 import {
   bySeries,
-  matches,
   othersOf,
   SERIES,
   seriesName,
@@ -44,7 +43,7 @@ export interface VolumeOpen {
 // the dataset's own first, then the install's others and finding another
 // in Astia; on top, the Volumes that fit the Selected person, each of
 // their Expected entries with the Volumes it fits; then the parish's
-// Volumes by series, which a series or a year narrows. A Volume not on
+// Volumes by series, one under another. A Volume not on
 // the Book list is added to it, which says the list as it now is
 // (`book-listed`); any can be opened (`open-volume`). A parish picked
 // scrolls its Volumes to the top. Esc, the close button or a press outside
@@ -75,9 +74,6 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
   // one.
   @state() private referenceFits: VolumeChoice[] | null = null;
 
-  // The shown Volume's series is picked once its parish's Volumes are in.
-  private seriesPicked = false;
-
   @query('dialog') private readonly dialog!: HTMLDialogElement;
   @query('section.parish') private readonly parishSection!: HTMLElement | null;
 
@@ -91,8 +87,6 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
   @state() private others: ChurchBookArchive[] = [];
   @state() private parish: ChurchBookArchive | null = null;
   @state() private volumes: ChurchBookVolume[] | 'failed' | null = null;
-  @state() private kind: BookKind | null = null;
-  @state() private year = '';
   @state() private finding = false;
 
   // The Selected person's, by their id; null until known, and if they
@@ -178,13 +172,6 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
       .catch(() => 'failed' as const);
     if (this.parish !== parish) return;
     this.volumes = volumes;
-    const shown = Array.isArray(volumes)
-      ? volumes.find((v) => v.id === this.shown?.volumeId)
-      : undefined;
-    if (shown !== undefined && !this.seriesPicked) {
-      this.seriesPicked = true;
-      this.kind = shown.kind;
-    }
   }
 
   private async addFound(archive: ChurchBookArchive) {
@@ -192,6 +179,14 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
       await this.state.app.addParish(archive.archiveId);
       this.finding = false;
       await this.loadParishes(archive);
+    });
+  }
+
+  private async removeParish(parish: ChurchBookArchive) {
+    await this.adding.run(async () => {
+      await this.state.app.removeParish(parish.archiveId);
+      this.parish = null;
+      await this.loadParishes();
     });
   }
 
@@ -228,9 +223,19 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
   };
 
   private renderAdd(volumeId: string, archiveId: string, label: string) {
-    if (this.listed.has(volumeId)) return html`<span class="on">On list</span>`;
+    // Taken off the list from the Volumes tab, where what cites it is seen.
+    if (this.listed.has(volumeId)) {
+      return html`<button
+        class="ghost act"
+        disabled
+        title="On this tree's list"
+        aria-label="${label} added"
+      >
+        Added
+      </button>`;
+    }
     return html`<button
-      class="ghost"
+      class="ghost act"
       aria-label="Add ${label}"
       ?disabled=${this.adding.busy}
       @click=${() => {
@@ -281,10 +286,12 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
   // Open, or for the Volume the Scan viewer shows, that it's shown.
   private renderOpen(volumeId: string, label: string) {
     if (volumeId === this.shown?.volumeId) {
-      return html`<span class="on">Shown</span>`;
+      return html`<button class="ghost act" disabled title="In the Scan viewer">
+        Shown
+      </button>`;
     }
     return html`<button
-      class="ghost"
+      class="ghost act"
       aria-label="Open ${label}"
       @click=${() => {
         this.open(volumeId, label);
@@ -382,37 +389,35 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
     </aside>`;
   }
 
-  private renderFilters() {
-    return html`<div class="filters">
+  // Only for one of the install's other parishes, as this tree's own are
+  // the ones its sources cite.
+  private renderRemove() {
+    const { parish } = this;
+    if (!this.others.some((p) => p.archiveId === parish?.archiveId)) {
+      return nothing;
+    }
+    return html`<button
+      class="ghost"
+      ?disabled=${this.adding.busy}
+      @click=${() => {
+        void this.removeParish(parish!);
+      }}
+    >
+      Remove parish
+    </button>`;
+  }
+
+  private renderHead() {
+    return html`<div class="head">
       <span class="title">${this.parish?.title}</span>
-      ${[{ kind: null, name: 'All series' }, ...SERIES].map(
-        (s) =>
-          html`<button
-            class="chip"
-            aria-pressed=${this.kind === s.kind ? 'true' : 'false'}
-            @click=${() => {
-              this.kind = s.kind;
-            }}
-          >
-            ${s.name}
-          </button>`
-      )}
-      <label
-        >Year
-        <input
-          inputmode="numeric"
-          .value=${this.year}
-          @input=${(e: InputEvent) => {
-            this.year = (e.target as HTMLInputElement).value;
-          }}
-      /></label>
+      ${this.renderRemove()}
     </div>`;
   }
 
   private renderVolume(v: ChurchBookVolume, archiveId: string) {
     return html`<div class="row">
       <span class="name ${v.digitized ? '' : 'muted'}">
-        ${volumeCode(v.label)}
+        <span class="code">${volumeCode(v.label)}</span>
         <span class="muted">${yearsText(v.years)}</span>
       </span>
       ${
@@ -437,14 +442,9 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
         Astia couldn't be reached, and its volumes here aren't known yet.
       </p>`;
     }
-    const shown = volumes
-      .filter((v) => this.kind === null || v.kind === this.kind)
-      .filter((v) =>
-        /^\d{4}$/u.test(this.year.trim()) ? matches(v, this.year) : true
-      )
-      .toSorted(bySeries);
+    const shown = volumes.toSorted(bySeries);
     if (shown.length === 0) {
-      return html`<p class="muted">No volume here matches.</p>`;
+      return html`<p class="muted">Astia has no volumes of this parish.</p>`;
     }
     const groups = [...SERIES.map((s) => s.kind), null].flatMap((kind) => {
       const of = shown.filter((v) => v.kind === kind);
@@ -500,7 +500,7 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
               class="parish"
               aria-label=${this.parish?.title ?? 'Parish'}
             >
-              ${this.renderFilters()} ${this.renderVolumes()}
+              ${this.renderHead()} ${this.renderVolumes()}
             </section>
           </main>
         </div>

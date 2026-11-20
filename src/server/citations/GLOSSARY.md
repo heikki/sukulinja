@@ -121,7 +121,7 @@ The Volumes a dataset works in: every Volume its Citations link into, and those 
 _Avoid_: shelf, bookmarks.
 
 **Volume picker**:
-Where Volumes are found to add to the **Book list** or open: the dataset's parishes, then the install's other **Parishes**, and finding another in Astia; the Volumes that fit the Selected person, each of their **Expected entries** with the Volumes it fits; and a parish's Volumes by series, narrowed by a series or a year. The Scan viewer's _Change Volume…_ opens it too, on the shown Volume's parish and series, with the Volumes a Church-book reference fits on top; a Volume opened there is shown, the source's Link left as it is.
+Where Volumes are found to add to the **Book list** or open: the dataset's parishes, then the install's other **Parishes**, and finding another in Astia; the Volumes that fit the Selected person, each of their **Expected entries** with the Volumes it fits; and a parish's Volumes by series, one under another; another parish of the install's can be taken off. The Scan viewer's _Change Volume…_ opens it too, on the shown Volume's parish, with the Volumes a Church-book reference fits on top; a Volume opened there is shown, the source's Link left as it is.
 _Avoid_: book picker (a Book is a kind of book, not a Volume).
 
 **Expected entry**:

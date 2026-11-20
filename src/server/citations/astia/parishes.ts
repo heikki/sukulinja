@@ -52,6 +52,9 @@ export interface Parishes {
   // The archive joins the parishes, with no spelling yet, unless it's
   // among them.
   add: (archiveId: string) => Promise<void>;
+  // The archive leaves the parishes, unless a spelling links into it;
+  // says whether it left.
+  remove: (archiveId: string) => Promise<boolean>;
   // Changes whenever a spelling's archive or the archives may have.
   stamp: () => number;
 }
@@ -127,6 +130,14 @@ function parishesOver(
       const now = read();
       const next = withArchive(now, archiveId);
       if (next !== now) await change(next);
+    },
+    async remove(archiveId) {
+      const now = read();
+      const parish = now.find((p) => p.archiveId === archiveId);
+      if (parish === undefined) return true;
+      if (parish.spellings.length > 0) return false;
+      await change(now.filter((p) => p !== parish));
+      return true;
     },
     stamp: () => version
   };
