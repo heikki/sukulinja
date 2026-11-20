@@ -213,9 +213,8 @@ function share(d: VolumeOnDisk) {
 
 // How much of a Volume is downloaded, in a table's cell: its line made
 // short, the share of its Images alone, which `diskLine` gives whole with
-// their size for its tooltip; "—" for nothing, nothing for one wholly
-// downloaded, and for an offloaded one, how much of it is here or in the
-// offload folder, all of it too.
+// their size for its tooltip; "—" for nothing, and for an offloaded one,
+// how much of it is here or in the offload folder.
 export function diskCell(volume: ChurchBookVolume & { offloaded?: Away }) {
   const { offloaded, onDisk } = volume;
   if (offloaded === undefined || offloaded === null) return volumeCell(volume);
@@ -231,8 +230,7 @@ function volumeCell(volume: ChurchBookVolume) {
   if (state === 'stopped' && !whole(onDisk)) {
     return `Stopped at ${share(onDisk)}`;
   }
-  // Wholly on disk, as the row's buttons say, it says nothing.
-  if (whole(onDisk)) return '';
+  if (whole(onDisk)) return '100%';
   if (onDisk.cached === 0) return '—';
   return share(onDisk);
 }

@@ -191,7 +191,7 @@ test("says a Volume's code, years and disk in a table's cells", () => {
   expect(yearsText({ from: 1790, to: 1790 })).toBe('1790');
   expect(yearsText(null)).toBe('');
   expect(diskCell(volume(null))).toBe('—');
-  expect(diskCell(volume(null, WHOLE))).toBe('');
+  expect(diskCell(volume(null, WHOLE))).toBe('100%');
   expect(diskCell(volume(null, PART))).toBe('23%');
   expect(diskCell(volume({ state: 'downloading' }, PART))).toBe(
     'Downloading 23%'
