@@ -3,7 +3,7 @@
 // (`<volumeId>/<fileId>.jpg`). They're read from there while it's
 // attached; with none set, an offload drops them.
 
-import { copyFile, mkdir, rm, stat } from 'node:fs/promises';
+import { copyFile, mkdir, readdir, rm, stat } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
 import type { OffloadFolder } from '@/common/types';
@@ -85,6 +85,23 @@ export function openOffloadFolder(settingsFile: string) {
           // Copied, then dropped: the folder is on another drive.
           await copyFile(from, join(dir, `${fileId}.jpg`));
           await rm(from, { force: true });
+        })
+      );
+    },
+
+    // Moves the Volume's files out of the folder into `to`; throws
+    // FolderAwayError when it's set and away, moving none.
+    async moveOut(volumeId: string, to: string) {
+      const folder = await attached();
+      if (folder === undefined) return;
+      if (folder === null) throw new FolderAwayError('offload folder away');
+      const dir = join(folder, volumeId);
+      const names = await readdir(dir).catch(() => []);
+      await mkdir(to, { recursive: true });
+      await Promise.all(
+        names.map(async (name) => {
+          await copyFile(join(dir, name), join(to, name));
+          await rm(join(dir, name), { force: true });
         })
       );
     }

@@ -154,7 +154,7 @@ export function sharedOperations({
       return await allBooks();
     },
     async bringBack({ volumeId }) {
-      await cache.bringBack(volumeId);
+      await cache.bringBack(volumeId).catch(folderAway);
       return await allBooks();
     },
     async checkPages({ volumeId, checked }) {

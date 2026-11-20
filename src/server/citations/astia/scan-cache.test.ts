@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdir, mkdtemp, readdir, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, rename, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -408,4 +408,27 @@ test('an offload moves the rest into the offload folder, read from there', async
   const refused = await cache.offload('102', []).catch((err: unknown) => err);
   expect(refused).toBeInstanceOf(FolderAwayError);
   expect(await cache.isOffloaded('102')).toBe(false);
+});
+
+test('bringing back moves the Images back from the offload folder', async () => {
+  const away = join(dir, 'ssd');
+  await mkdir(away);
+  await cache.offloadFolder.set(away);
+  await Promise.all([1, 2, 3].map(async (n) => await open('103', n)));
+  await cache.offload('103', [1]);
+  // Its drive away, nothing is brought back.
+  await rename(away, `${away}-off`);
+  const refused = await cache.bringBack('103').catch((err: unknown) => err);
+  expect(refused).toBeInstanceOf(FolderAwayError);
+  expect(await cache.isOffloaded('103')).toBe(true);
+  await rename(`${away}-off`, away);
+  fetched = [];
+  await cache.bringBack('103');
+  expect(await cache.isOffloaded('103')).toBe(false);
+  expect(await cache.onDisk('103')).toMatchObject({ cached: 3 });
+  expect(await readdir(join(away, '103'))).toEqual([]);
+  expect(await open('103', 2)).toBe(
+    join(dir, '.astia-images', '103', '103-f2.jpg')
+  );
+  expect(fetched).toEqual([]);
 });

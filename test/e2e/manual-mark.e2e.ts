@@ -88,6 +88,8 @@ test("a reference's entry is placed by hand", async () => {
     const row = list.getByRole('row').filter({ hasText: 'I Aa:1' });
     // Pointed at, it says what it frees; with the folder chosen, it isn't
     // asked first.
+    const downloaded = row.locator('td').nth(5);
+    const had = await downloaded.getAttribute('title');
     const offload = row.getByRole('button', { name: 'Offload' });
     await offload.hover();
     await row.locator('button[title^="Offload: frees "]').waitFor();
@@ -109,5 +111,8 @@ test("a reference's entry is placed by hand", async () => {
     await openList(page, 'Volumes');
     await row.getByRole('button', { name: 'Bring back' }).click();
     await row.getByRole('button', { name: 'Offload' }).waitFor();
+    // Back from the offload folder, all it had is on disk again.
+    expect(await downloaded.getAttribute('title')).toBe(had);
+    await shot(page, 'manual-mark-brought-back');
   });
 });
