@@ -208,7 +208,7 @@ test("says a Volume's code, years and disk in a table's cells", () => {
   );
 });
 
-test('an offloaded Volume shows how much of it is left, if not all', () => {
+test('an offloaded Volume shows how much of it is left, all of it too', () => {
   function offloaded(cached: number) {
     return {
       ...volume(null, { images: 100, cached, bytes: 0 }),
@@ -216,7 +216,7 @@ test('an offloaded Volume shows how much of it is left, if not all', () => {
     };
   }
   expect(diskCell(offloaded(40))).toBe('40%');
-  expect(diskCell(offloaded(100))).toBe('');
+  expect(diskCell(offloaded(100))).toBe('100%');
 });
 
 test('sums the Book list up in a line', () => {

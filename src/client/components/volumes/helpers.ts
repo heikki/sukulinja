@@ -215,11 +215,11 @@ function share(d: VolumeOnDisk) {
 // short, the share of its Images alone, which `diskLine` gives whole with
 // their size for its tooltip; "—" for nothing, nothing for one wholly
 // downloaded, and for an offloaded one, how much of it is here or in the
-// offload folder.
+// offload folder, all of it too.
 export function diskCell(volume: ChurchBookVolume & { offloaded?: Away }) {
   const { offloaded, onDisk } = volume;
   if (offloaded === undefined || offloaded === null) return volumeCell(volume);
-  return whole(onDisk) ? '' : share(onDisk);
+  return whole(onDisk) ? '100%' : share(onDisk);
 }
 
 function volumeCell(volume: ChurchBookVolume) {
