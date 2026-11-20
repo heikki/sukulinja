@@ -190,6 +190,7 @@ export function sharedOperations({
       const chosen = await chooseFolder();
       if (chosen !== null) {
         await cache.offloadFolder.set(chosen).catch(folderAway);
+        void cache.archive().catch(() => undefined);
       }
       return await cache.offloadFolder.status();
     },

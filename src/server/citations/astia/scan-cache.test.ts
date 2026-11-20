@@ -393,7 +393,7 @@ test('an offload moves the rest into the offload folder, read from there', async
   await Promise.all([1, 2].map(async (n) => await open('103', n)));
   fetched = [];
   await cache.offload('103', [1]);
-  expect(await readdir(join(away, '103'))).toEqual(['103-f2.jpg']);
+  expect(await readdir(join(away, '103'))).toContain('103-f2.jpg');
   expect(await open('103', 2)).toBe(join(away, '103', '103-f2.jpg'));
   expect(fetched).toEqual([]);
   // Its drive away, it's unavailable, and nothing more is offloaded.
@@ -427,7 +427,8 @@ test('bringing back copies the Images back from the offload folder', async () =>
   expect(await cache.isOffloaded('103')).toBe(false);
   expect(await cache.onDisk('103')).toMatchObject({ cached: 3 });
   // The folder keeps them.
-  expect((await readdir(join(away, '103'))).toSorted()).toEqual([
+  expect(await kept(away, '103', 3)).toEqual([
+    '103-f1.jpg',
     '103-f2.jpg',
     '103-f3.jpg'
   ]);
@@ -435,4 +436,67 @@ test('bringing back copies the Images back from the offload folder', async () =>
     join(dir, '.astia-images', '103', '103-f2.jpg')
   );
   expect(fetched).toEqual([]);
+});
+
+// Lists what the offload folder has of the Volume once its copies, made
+// aside, are in.
+async function kept(away: string, volumeId: string, count: number) {
+  async function names() {
+    const all = await readdir(join(away, volumeId)).catch(() => []);
+    return all.filter((n) => n.endsWith('.jpg'));
+  }
+  for (let tries = 0; tries < 500; tries++) {
+    // eslint-disable-next-line no-await-in-loop -- polling, one look at a time
+    if ((await names()).length >= count) break;
+    // eslint-disable-next-line no-await-in-loop -- polling, one look at a time
+    await Bun.sleep(2);
+  }
+  return (await names()).toSorted();
+}
+
+test('every Image fetched with the offload folder attached is kept there too', async () => {
+  const away = join(dir, 'ssd');
+  await mkdir(away);
+  await cache.offloadFolder.set(away);
+  await open('103', 1);
+  await thumb('103', 1);
+  expect(await kept(away, '103', 2)).toEqual(['103-f1.jpg', '103-t1.jpg']);
+  // Pruned off the disk, it's read from there, not fetched again.
+  await rm(join(dir, '.astia-images', '103', '103-f1.jpg'));
+  fetched = [];
+  expect(await open('103', 1)).toBe(join(away, '103', '103-f1.jpg'));
+  expect(fetched).toEqual([]);
+});
+
+test('what was fetched before the offload folder was set is copied in', async () => {
+  await Promise.all([1, 2].map(async (n) => await open('104', n)));
+  await thumb('104', 1);
+  await cache.offload('104', [1]);
+  const away = join(dir, 'ssd');
+  await mkdir(away);
+  await cache.offloadFolder.set(away);
+  await cache.archive();
+  expect(await kept(away, '104', 2)).toEqual(['104-f1.jpg', '104-t1.jpg']);
+  // Copied in once: again, nothing changes.
+  await cache.archive();
+  expect(await readdir(join(away, '104'))).toHaveLength(2);
+});
+
+test('what the offload folder has counts as on disk, and a cut-off copy is made whole', async () => {
+  await Promise.all([1, 2].map(async (n) => await open('105', n)));
+  const away = join(dir, 'ssd');
+  await mkdir(join(away, '105'), { recursive: true });
+  // One cut off on its way in, and one only there.
+  await Bun.write(join(away, '105', '105-f1.jpg'), 'x');
+  await Bun.write(join(away, '105', '105-f3.jpg'), 'y'.repeat(IMAGE_BYTES));
+  await cache.offloadFolder.set(away);
+  expect(await cache.onDisk('105')).toMatchObject({ cached: 3 });
+  expect(await cache.isCached({ volumeId: '105', image: 3 })).toBe(true);
+  await cache.archive();
+  expect(Bun.file(join(away, '105', '105-f1.jpg')).size).toBe(IMAGE_BYTES);
+  expect(await kept(away, '105', 3)).toEqual([
+    '105-f1.jpg',
+    '105-f2.jpg',
+    '105-f3.jpg'
+  ]);
 });

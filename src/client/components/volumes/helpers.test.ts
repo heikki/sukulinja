@@ -208,17 +208,15 @@ test("says a Volume's code, years and disk in a table's cells", () => {
   );
 });
 
-test('an offloaded Volume shows how much of it it had, if not all', () => {
-  function offloaded(cached: number, away: number) {
+test('an offloaded Volume shows how much of it is left, if not all', () => {
+  function offloaded(cached: number) {
     return {
       ...volume(null, { images: 100, cached, bytes: 0 }),
-      offloaded: { images: away, bytes: 0 }
+      offloaded: { images: 98, bytes: 0 }
     };
   }
-  expect(diskCell(offloaded(2, 38))).toBe('40%');
-  expect(diskCell(offloaded(2, 98))).toBe('');
-  // Offloaded before what it took was kept.
-  expect(diskCell(offloaded(2, 0))).toBe('');
+  expect(diskCell(offloaded(40))).toBe('40%');
+  expect(diskCell(offloaded(100))).toBe('');
 });
 
 test('sums the Book list up in a line', () => {

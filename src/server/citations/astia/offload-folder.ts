@@ -1,9 +1,10 @@
-// The offload folder: where an offload moves the Images a Volume doesn't
-// keep, an external drive say, in the Scan cache's own layout
-// (`<volumeId>/<fileId>.jpg`). They're read from there while it's
-// attached; with none set, an offload drops them.
+// The offload folder: an archive of every Image fetched while it's
+// attached, an external drive say, in the Scan cache's own layout
+// (`<volumeId>/<fileId>.jpg`), where an offload moves the Images a Volume
+// doesn't keep. Nothing is removed from it. They're read from there while
+// it's attached; with none set, an offload drops them.
 
-import { copyFile, mkdir, readdir, rm, stat } from 'node:fs/promises';
+import { copyFile, mkdir, readdir, rename, rm, stat } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
 import type { OffloadFolder } from '@/common/types';
@@ -87,6 +88,35 @@ export function openOffloadFolder(settingsFile: string) {
           await rm(from, { force: true });
         })
       );
+    },
+
+    // The names of the Volume's files in the folder, when it's attached;
+    // none else.
+    async names(volumeId: string) {
+      const folder = await attached();
+      if (folder === undefined || folder === null) return [];
+      return await readdir(join(folder, volumeId)).catch(() => []);
+    },
+
+    // Keeps a copy of the Volume's file in the folder, when it's attached
+    // and hasn't it whole yet: bytes just fetched, or a file on disk.
+    async keep(volumeId: string, name: string, from: Uint8Array | string) {
+      const folder = await attached();
+      if (folder === undefined || folder === null) return;
+      const at = join(folder, volumeId, name);
+      // One there already of the same size is the same; one that isn't
+      // was cut off on its way in.
+      const size =
+        typeof from === 'string' ? (await stat(from)).size : from.byteLength;
+      if ((await stat(at).catch(() => null))?.size === size) return;
+      await mkdir(join(folder, volumeId), { recursive: true });
+      // Written aside and moved in, so a cut-off copy never shows as kept;
+      // aside under a name of its own, as two copies may cross.
+      const part = `${at}.${crypto.randomUUID()}.part`;
+      await (typeof from === 'string'
+        ? copyFile(from, part)
+        : Bun.write(part, from));
+      await rename(part, at);
     },
 
     // Copies the Volume's files from the folder into `to`, leaving the

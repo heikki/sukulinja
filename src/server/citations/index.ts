@@ -71,6 +71,8 @@ interface Options {
 export function openCitations(root: string, options: Options) {
   const astia = options.astia ?? openAstia(join(root, '.astia-cache'));
   const cache = openScanCache({ astia, root });
+  // What was fetched with the offload folder away, into it now.
+  void cache.archive().catch(() => undefined);
   const downloads = openDownloads({ astia, cache }, options.downloads);
   // The Scan viewer has just shown the Image a Box is drawn on.
   async function sizeOf(at: ImageRef) {

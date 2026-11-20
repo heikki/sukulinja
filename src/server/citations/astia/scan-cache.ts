@@ -26,7 +26,7 @@ import {
   statfs,
   utimes
 } from 'node:fs/promises';
-import { basename, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 
 import type { ScanCacheStatus, VolumeOnDisk } from '@/common/types';
 
@@ -272,6 +272,9 @@ export function openScanCache({
     const part = `${path}.part`;
     await Bun.write(part, bytes);
     await rename(part, path);
+    // A copy into the offload folder too, aside: a slow drive never holds
+    // up the Image.
+    void folder.keep(volumeId, basename(path), bytes).catch(() => undefined);
     await prune(path);
   }
 
@@ -385,7 +388,8 @@ export function openScanCache({
     async isCached(at: ImageRef) {
       const fileId = (await astia.volumeImages(at.volumeId))[at.image - 1];
       if (fileId === undefined) return false;
-      return await Bun.file(pathOf(at.volumeId, fileId)).exists();
+      if (await Bun.file(pathOf(at.volumeId, fileId)).exists()) return true;
+      return (await folder.find(at.volumeId, fileId)) !== null;
     },
 
     async status(): Promise<ScanCacheStatus> {
@@ -396,11 +400,13 @@ export function openScanCache({
     },
 
     // What of the Volume is on disk: its full-size Images of Astia's list
-    // (`images`, null until the list has been asked for), and the space
-    // its files take, thumbnails and all. Never asks Astia.
+    // (`images`, null until the list has been asked for) here or in the
+    // offload folder while it's attached, and the space its files take
+    // here, thumbnails and all. Never asks Astia.
     async onDisk(volumeId: string): Promise<VolumeOnDisk> {
       const names = await readdir(join(dir, volumeId)).catch(() => []);
       const files = new Set(names.filter((n) => n.endsWith('.jpg')));
+      const away = new Set(await folder.names(volumeId));
       const listed = await astia.cachedImages(volumeId);
       const sizes = await Promise.all(
         [...files].map(
@@ -410,7 +416,9 @@ export function openScanCache({
       );
       return {
         images: listed?.length ?? null,
-        cached: (listed ?? []).filter((id) => files.has(`${id}.jpg`)).length,
+        cached: (listed ?? []).filter(
+          (id) => files.has(`${id}.jpg`) || away.has(`${id}.jpg`)
+        ).length,
         bytes: sizes.reduce((sum, b) => sum + b, 0)
       };
     },
@@ -510,6 +518,19 @@ export function openScanCache({
     async bringBack(volumeId: string) {
       await folder.copyOut(volumeId, join(dir, volumeId));
       await rm(join(dir, volumeId, OFFLOADED), { force: true });
+    },
+
+    // Copies into the offload folder every Image on disk it hasn't whole,
+    // as those fetched before it was set or while it was away, or cut off
+    // on their way in. Only sizes are compared, so it's quick.
+    async archive() {
+      for (const { path } of await cachedFiles(dir)) {
+        // eslint-disable-next-line no-await-in-loop -- one file at a time
+        await folder
+          .keep(basename(dirname(path)), basename(path), path)
+          // One pruned meanwhile is let be; the rest are still copied.
+          .catch(() => undefined);
+      }
     },
 
     // Drops the Volume's Images, and its folder.
