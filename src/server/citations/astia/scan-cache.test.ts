@@ -410,7 +410,7 @@ test('an offload moves the rest into the offload folder, read from there', async
   expect(await cache.isOffloaded('102')).toBe(false);
 });
 
-test('bringing back moves the Images back from the offload folder', async () => {
+test('bringing back copies the Images back from the offload folder', async () => {
   const away = join(dir, 'ssd');
   await mkdir(away);
   await cache.offloadFolder.set(away);
@@ -426,7 +426,11 @@ test('bringing back moves the Images back from the offload folder', async () => 
   await cache.bringBack('103');
   expect(await cache.isOffloaded('103')).toBe(false);
   expect(await cache.onDisk('103')).toMatchObject({ cached: 3 });
-  expect(await readdir(join(away, '103'))).toEqual([]);
+  // The folder keeps them.
+  expect((await readdir(join(away, '103'))).toSorted()).toEqual([
+    '103-f2.jpg',
+    '103-f3.jpg'
+  ]);
   expect(await open('103', 2)).toBe(
     join(dir, '.astia-images', '103', '103-f2.jpg')
   );

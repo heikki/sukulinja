@@ -503,11 +503,12 @@ export function openScanCache({
       return totalSize(await onDisk(leaving, volumeId));
     },
 
-    // Its Images moved back from the offload folder, those not there
-    // fetched from Astia again, as any Volume's. Throws FolderAwayError,
-    // bringing back nothing, when the folder is set and away.
+    // Its Images copied back from the offload folder, which keeps them;
+    // those not there fetched from Astia again, as any Volume's. Throws
+    // FolderAwayError, bringing back nothing, when the folder is set and
+    // away.
     async bringBack(volumeId: string) {
-      await folder.moveOut(volumeId, join(dir, volumeId));
+      await folder.copyOut(volumeId, join(dir, volumeId));
       await rm(join(dir, volumeId, OFFLOADED), { force: true });
     },
 

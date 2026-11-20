@@ -89,9 +89,10 @@ export function openOffloadFolder(settingsFile: string) {
       );
     },
 
-    // Moves the Volume's files out of the folder into `to`; throws
-    // FolderAwayError when it's set and away, moving none.
-    async moveOut(volumeId: string, to: string) {
+    // Copies the Volume's files from the folder into `to`, leaving the
+    // folder as it is; throws FolderAwayError when it's set and away,
+    // copying none.
+    async copyOut(volumeId: string, to: string) {
       const folder = await attached();
       if (folder === undefined) return;
       if (folder === null) throw new FolderAwayError('offload folder away');
@@ -101,7 +102,6 @@ export function openOffloadFolder(settingsFile: string) {
       await Promise.all(
         names.map(async (name) => {
           await copyFile(join(dir, name), join(to, name));
-          await rm(join(dir, name), { force: true });
         })
       );
     }
