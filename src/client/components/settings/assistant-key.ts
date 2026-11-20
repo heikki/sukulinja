@@ -3,9 +3,9 @@ import { css, html, LitElement } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
 import { Asking } from '@/client/asking';
+import type { AppApi } from '@/client/dataset-api/app';
 import { focusRingStyles } from '@/client/focus-ring';
-import { appState } from '@/client/state';
-import type { AppState } from '@/client/state';
+import { appApi } from '@/client/state';
 import type { AssistantKeyStatus } from '@/common/types';
 
 // Settings' Assistant row: whether the assistant has an Anthropic API key,
@@ -63,7 +63,7 @@ class AssistantKeyElement extends LitElement {
     `
   ];
 
-  @consume({ context: appState }) private readonly state!: AppState;
+  @consume({ context: appApi }) private readonly app!: AppApi;
 
   private readonly asking = new Asking(this);
 
@@ -73,7 +73,7 @@ class AssistantKeyElement extends LitElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    void this.ask(this.state.app.assistantKey);
+    void this.ask(this.app.assistantKey);
   }
 
   // Every ask answers with the status as it then stands.
@@ -88,7 +88,7 @@ class AssistantKeyElement extends LitElement {
     e.preventDefault();
     const key = this.typed;
     if (key.trim() === '') return;
-    void this.ask(async () => await this.state.app.setAssistantKey(key));
+    void this.ask(async () => await this.app.setAssistantKey(key));
   };
 
   override render() {
@@ -105,7 +105,7 @@ class AssistantKeyElement extends LitElement {
           <button
             ?disabled=${this.asking.busy}
             @click=${() => {
-              void this.ask(this.state.app.removeAssistantKey);
+              void this.ask(this.app.removeAssistantKey);
             }}
           >
             Remove

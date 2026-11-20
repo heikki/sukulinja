@@ -3,9 +3,9 @@ import { css, html, LitElement, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
 import { Asking } from '@/client/asking';
+import type { AppApi } from '@/client/dataset-api/app';
 import { focusRingStyles } from '@/client/focus-ring';
-import { appState } from '@/client/state';
-import type { AppState } from '@/client/state';
+import { appApi } from '@/client/state';
 import type { OffloadFolder } from '@/common/types';
 
 // The folder set, and whether it's attached; or that there's none.
@@ -72,7 +72,7 @@ class OffloadFolderElement extends LitElement {
     `
   ];
 
-  @consume({ context: appState }) private readonly state!: AppState;
+  @consume({ context: appApi }) private readonly app!: AppApi;
 
   // Undefined until asked.
   @state() private folder: OffloadFolder | null | undefined = undefined;
@@ -81,7 +81,7 @@ class OffloadFolderElement extends LitElement {
 
   override connectedCallback() {
     super.connectedCallback();
-    void this.ask(async () => await this.state.app.offloadFolder());
+    void this.ask(async () => await this.app.offloadFolder());
   }
 
   private async ask(asked: () => Promise<OffloadFolder | null>) {
@@ -92,7 +92,7 @@ class OffloadFolderElement extends LitElement {
 
   override render() {
     const { folder } = this;
-    const { app } = this.state;
+    const { app } = this;
     return html`
       ${
         folder === undefined

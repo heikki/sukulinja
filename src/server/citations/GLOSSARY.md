@@ -105,7 +105,7 @@ Where the app shows the Image a Church-book reference links, opened from its sou
 _Avoid_: record viewer (a record is MyHeritage's), Astia viewer (Astia's own site).
 
 **Scan cache**:
-The Images kept on disk for the Scan viewer and Vision Match, up to a size the install sets, from 5 GB up to as much as its disk has room for; the least recently viewed go first.
+The Images kept on disk for the Scan viewer and Vision Match, up to a size the install sets, from 5 GB up to as much as its disk has room for; the least recently viewed go first. Shown as _Storage_ in the app.
 _Avoid_: image cache, Astia cache (that's Astia's answers about archives and Volumes).
 
 **Parish**:

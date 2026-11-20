@@ -8,11 +8,13 @@ import '../tree-view';
 import './new-dataset';
 
 import { ApiError, openDatasetApi } from '@/client/dataset-api';
+import { openAppApi } from '@/client/dataset-api/app';
+import type { AppApi } from '@/client/dataset-api/app';
 import { openLifecycleApi } from '@/client/dataset-api/lifecycle';
 import { dialogStyles } from '@/client/dialog-styles';
 import { focusRingStyles } from '@/client/focus-ring';
 import { reportView } from '@/client/last-view';
-import { appState, openAppState } from '@/client/state';
+import { appApi, appState, openAppState } from '@/client/state';
 import { slugFromFilename, withoutExtension } from '@/common/slug';
 import type { DatasetInfo } from '@/common/types';
 
@@ -44,14 +46,19 @@ function currentSlug(): string | null {
   return m === null ? null : m.groups!.slug!;
 }
 
-// The dataset's app state, provided by `host`. Given the slug rather than
-// reading the host's: the app build sets undecorated fields before
-// decorated ones, so `slug` isn't set yet when this runs.
-function provideDataset(host: ReactiveElement, slug: string | null) {
+// The dataset's app state, provided by `host` over the install's `app`.
+// Given the slug rather than reading the host's: the app build sets
+// undecorated fields before decorated ones, so `slug` isn't set yet when
+// this runs.
+function provideDataset(
+  host: ReactiveElement,
+  slug: string | null,
+  app: AppApi
+) {
   if (slug === null) return null;
   return new ContextProvider(host, {
     context: appState,
-    initialValue: openAppState(openDatasetApi(slug))
+    initialValue: openAppState(openDatasetApi(slug), app)
   });
 }
 
@@ -90,10 +97,20 @@ class AppElement extends LitElement {
   // Why the dataset list didn't load, in the app's words.
   @state() private datasetsError: string | null = null;
   @state() private readonly slug: string | null = currentSlug();
+  // What's asked outside any dataset, provided on every page, the chooser
+  // too, for Settings; the dataset's state is built over the same one.
+  private readonly app = new ContextProvider(this, {
+    context: appApi,
+    initialValue: openAppApi()
+  });
   // The dataset shown: its state, built over one API from its slug, and
   // provided to the screens below. A provider rather than `@provide`, whose
   // field can't be null, since the chooser has no dataset to provide.
-  private readonly provider = provideDataset(this, currentSlug());
+  private readonly provider = provideDataset(
+    this,
+    currentSlug(),
+    this.app.value
+  );
   @state() private pendingImport: File | null = null;
   // A row's menu: its dataset, and the corner it drops from.
   @state() private menu: RowMenu | null = null;
