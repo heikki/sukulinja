@@ -309,7 +309,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     if (cache === null) return html`<span class="cache"></span>`;
     const pct = Math.min(100, (cache.used / cache.cap) * 100);
     return html`<span class="cache">
-      Scan cache ${formatBytes(cache.used)} of ${formatBytes(cache.cap)}
+      Storage ${formatBytes(cache.used)} of ${formatBytes(cache.cap)}
       <span class="meter"><span style="width: ${pct}%"></span></span>
     </span>`;
   }

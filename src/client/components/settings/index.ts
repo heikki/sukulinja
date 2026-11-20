@@ -297,7 +297,7 @@ class SettingsElement extends LitElement {
           <h2 id="drop-title">
             ${
               clear
-                ? 'Clear scan cache?'
+                ? 'Clear storage?'
                 : `Lower the cap to ${formatBytes(drop.cap)}?`
             }
           </h2>
@@ -407,12 +407,12 @@ class SettingsElement extends LitElement {
     const cache = this.scanCache;
     if (cache === null || typeof cache === 'string') {
       return html`
-        <span class="label">Scan cache</span>
+        <span class="label">Storage</span>
         <span class="label">${cache ?? 'Asking the app…'}</span>
       `;
     }
     return html`
-      <span class="label">Scan cache</span>
+      <span class="label">Storage</span>
       <div class="segmented">
         ${cache.caps.map(
           (cap) => html`
