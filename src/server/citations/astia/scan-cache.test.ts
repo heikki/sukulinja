@@ -476,6 +476,23 @@ test('bringing back copies the Images back from the offload folder', async () =>
   expect(fetched).toEqual([]);
 });
 
+test('a Volume removed for good leaves the offload folder, only while attached', async () => {
+  const away = join(dir, 'ssd');
+  await mkdir(away);
+  await cache.offloadFolder.set(away);
+  await Promise.all([1, 2].map(async (n) => await open('103', n)));
+  await cache.offload('103', []);
+  await rename(away, `${away}-off`);
+  const refused = await cache.offloadFolder
+    .forget('103')
+    .catch((err: unknown) => err);
+  expect(refused).toBeInstanceOf(FolderAwayError);
+  await rename(`${away}-off`, away);
+  expect(await kept(away, '103', 2)).toHaveLength(2);
+  await cache.offloadFolder.forget('103');
+  expect(await readdir(away)).toEqual([]);
+});
+
 // Lists what the offload folder has of the Volume once its copies, made
 // aside, are in.
 async function kept(away: string, volumeId: string, count: number) {

@@ -2,7 +2,7 @@
 // attached, an external drive say, in the Scan cache's own layout
 // (`<volumeId>/<fileId>.jpg`), where an offload moves the Images a Volume
 // doesn't keep. Nothing is removed from it but an old filming's Images
-// once a Volume is switched to a re-scan. They're read from there while
+// once a Volume is switched to a re-scan, and a Volume removed for good. They're read from there while
 // it's attached; with none set, an offload drops them.
 
 import { copyFile, mkdir, readdir, rename, rm, stat } from 'node:fs/promises';
@@ -144,6 +144,15 @@ export function openOffloadFolder(settingsFile: string) {
           await rm(at, { force: true });
         })
       );
+    },
+
+    // Removes all of the Volume from the folder; throws FolderAwayError
+    // when it's set and away, removing nothing.
+    async forget(volumeId: string) {
+      const folder = await attached();
+      if (folder === undefined) return;
+      if (folder === null) throw new FolderAwayError('offload folder away');
+      await rm(join(folder, volumeId), { recursive: true, force: true });
     },
 
     // Copies the Volume's files from the folder into `to`, leaving the

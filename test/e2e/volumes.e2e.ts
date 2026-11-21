@@ -44,7 +44,8 @@ test('a Volume of another parish is added, downloaded, removed and taken off', a
     await book.getByText(/^Downloading \d+%/).waitFor();
     await shot(page, 'volumes-downloading');
     await book.getByRole('button', { name: 'Stop' }).click();
-    await book.getByText(/^Stopped at \d+%/).waitFor();
+    await book.getByRole('button', { name: 'Download' }).waitFor();
+    await book.getByText(/^\d+%$/).waitFor();
 
     // Opened in the Scan viewer, it's marked as the one shown.
     await book.getByRole('cell', { name: 'I Aa:1' }).click();
@@ -56,7 +57,8 @@ test('a Volume of another parish is added, downloaded, removed and taken off', a
 
     // Nothing else is on this computer, so all the books are the tree's
     // and aren't offered apart. Its page numbers are marked checked, for
-    // every tree, and it comes off the disk, asked first.
+    // every tree, and with no offload folder its trash button takes it off the disk,
+    // asked first.
     expect(await list.getByRole('button', { name: 'This tree' }).count()).toBe(
       0
     );
@@ -71,8 +73,8 @@ test('a Volume of another parish is added, downloaded, removed and taken off', a
     });
     await ask.getByRole('button', { name: 'Remove' }).click();
 
-    // Cited by nothing, it comes off the list.
-    await book.getByRole('button', { name: 'Remove' }).click();
+    // Cited by nothing, the same button then takes it off the list.
+    await book.getByRole('button', { name: 'Remove from the list' }).click();
     await list.getByText('No sources here cite a Volume yet.').waitFor();
   });
 });

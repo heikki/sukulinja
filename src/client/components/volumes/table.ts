@@ -16,10 +16,7 @@ import type { VolumeRow } from './rows';
 
 export const DOWNLOAD_ICON = svg`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12" /><path d="m6 11 6 6 6-6" /><path d="M5 20h14" /></svg>`;
 export const STOP_ICON = svg`<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" /></svg>`;
-export const REMOVE_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12" /><path d="M18 6 6 18" /></svg>`;
 export const CHECK_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10" /></svg>`;
-export const OFFLOAD_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3" /><path d="m7 8 5-5 5 5" /><path d="M5 14v6h14v-6" /></svg>`;
-export const BRING_BACK_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" /></svg>`;
 export const TRASH_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M6 7l1 13h10l1-13" /><path d="M9 7V4h6v3" /></svg>`;
 
 export interface BookTable {
@@ -29,6 +26,9 @@ export interface BookTable {
   // The buttons at the end of each Volume's row.
   acts: (book: VolumeRow) => TemplateResult[];
   open: (book: VolumeRow) => void;
+  // Its page numbers marked checked, or no longer.
+  check: (book: VolumeRow) => void;
+  busy: boolean;
 }
 
 // How many of the dataset's Citations link into it; nothing for one off
@@ -38,10 +38,25 @@ function citedCell(book: VolumeRow) {
   return book.cited === 0 ? html`<span class="count">–</span>` : book.cited;
 }
 
-function pagesOf(book: VolumeRow) {
+// Clicked, marked checked, or no longer; only for one All books knows,
+// whose page numbers it says.
+function pagesOf(table: BookTable, book: VolumeRow) {
   if (book.pages === null) return nothing;
   const { text, title } = pagesCell(book.pages);
-  return html`<span title=${title}>${text}</span>`;
+  const checked = book.pages === 'checked';
+  return html`<button
+    class="pages"
+    aria-label=${checked ? 'Unmark page numbers checked' : 'Mark page numbers checked'}
+    aria-pressed=${String(checked)}
+    title="${title} Click to ${checked ? 'unmark them' : 'mark them checked'}."
+    ?disabled=${table.busy}
+    @click=${(e: Event) => {
+      e.stopPropagation();
+      table.check(book);
+    }}
+  >
+    ${text}
+  </button>`;
 }
 
 function renderBook(table: BookTable, book: VolumeRow) {
@@ -56,7 +71,7 @@ function renderBook(table: BookTable, book: VolumeRow) {
     <td class="muted">${seriesName(book.kind)}</td>
     <td class="muted">${yearsText(book.years)}</td>
     <td class="num">${citedCell(book)}</td>
-    <td class="num">${pagesOf(book)}</td>
+    <td class="num">${pagesOf(table, book)}</td>
     <td class="muted disk" title=${diskLine(book)}>${diskCell(book)}</td>
     <td
       class="acts"
@@ -111,17 +126,20 @@ export function actButton(
     title = label,
     disabled = false,
     pressed = null,
+    kind = '',
     onHint
   }: {
     title?: string;
     disabled?: boolean;
     pressed?: boolean | null;
+    // A class for its colour.
+    kind?: string;
     // Called as its title is about to show: pointed at or focused.
     onHint?: () => void;
   } = {}
 ) {
   return html`<button
-    class="act"
+    class="act ${kind}"
     aria-label=${label}
     aria-pressed=${pressed === null ? nothing : String(pressed)}
     title=${title}
@@ -221,6 +239,58 @@ export const bookTableStyles = [
     button.act:hover,
     button.add:hover {
       border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* The trash button, by what it would do: kept in the offload folder,
+       gone from this computer, or only off the list. */
+    button.act.offload {
+      border-color: color-mix(in srgb, var(--accent) 60%, var(--border));
+      color: var(--accent);
+    }
+
+    button.act.remove,
+    button.act.purge {
+      border-color: color-mix(in srgb, var(--danger) 60%, var(--border));
+      color: var(--danger);
+    }
+
+    button.act.unlist {
+      color: var(--muted);
+    }
+
+    button.act.remove:hover,
+    button.act.purge:hover {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    button.act:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    button.act:disabled:hover {
+      border-color: var(--border);
+      color: var(--fg);
+    }
+
+    /* Page numbers, as text that toggles their check. */
+    button.pages {
+      padding: 0;
+      border: 0;
+      background: none;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button.pages:hover:not(:disabled) {
+      color: var(--accent);
+      text-decoration: underline;
+    }
+
+    button.pages[aria-pressed='true'] {
       color: var(--accent);
     }
 

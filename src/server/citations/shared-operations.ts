@@ -51,8 +51,8 @@ export type SharedOperations = Pick<
   | 'stopDownload'
   | 'allBooks'
   | 'removeFromDisk'
+  | 'removeForGood'
   | 'offload'
-  | 'bringBack'
   | 'checkPages'
   | 'pagesChecked'
   | 'isOffloaded'
@@ -134,9 +134,11 @@ export function sharedOperations({
     churchBooks: async ({ archiveId }) =>
       await askingAstia(parishBooks({ astia, cache, downloads }, archiveId)),
     downloads: () => downloads.list(),
+    // An offloaded one is brought back from the offload folder first, and
+    // only the rest fetched from Astia.
     async startDownload({ volumeId }) {
       if (await cache.isOffloaded(volumeId)) {
-        throw new Refusal(409, 'Bring the volume back first.');
+        await cache.bringBack(volumeId).catch(folderAway);
       }
       downloads.start(volumeId);
       return downloads.list();
@@ -151,16 +153,19 @@ export function sharedOperations({
       await cache.remove(volumeId);
       return await allBooks();
     },
+    // Out of the offload folder first, so with its drive away nothing goes.
+    async removeForGood({ volumeId }) {
+      await downloads.drop(volumeId);
+      await cache.offloadFolder.forget(volumeId).catch(folderAway);
+      await cache.remove(volumeId);
+      return await allBooks();
+    },
     // Every Image but the cited ones off the disk, and none fetched again
     // until it's brought back; none, when what's cited can't be known.
     async offload({ volumeId }) {
       await downloads.drop(volumeId);
       const cited = await askingAstia(citedImages(volumeId));
       await askingAstia(cache.offload(volumeId, cited)).catch(folderAway);
-      return await allBooks();
-    },
-    async bringBack({ volumeId }) {
-      await cache.bringBack(volumeId).catch(folderAway);
       return await allBooks();
     },
     async checkPages({ volumeId, checked }) {

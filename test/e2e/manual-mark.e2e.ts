@@ -9,6 +9,11 @@ import { importTree, openJuvaVolume, openList, rightClickLine } from './steps';
 
 afterAll(closeBrowser);
 
+// The images on disk a Volume's Downloaded title counts.
+function count(title: string | null) {
+  return Number(/(?<n>\d+) of /.exec(title ?? '')?.groups?.n);
+}
+
 test("a reference's entry is placed by hand", async () => {
   await withApp(async ({ page }) => {
     await importTree(page, 'myheritage-export.ged');
@@ -86,8 +91,8 @@ test("a reference's entry is placed by hand", async () => {
     await list.getByRole('button', { name: 'This tree' }).click();
     await list.getByRole('row').filter({ hasText: 'I Aa:2' }).waitFor();
     const row = list.getByRole('row').filter({ hasText: 'I Aa:1' });
-    // Pointed at, it says what it frees; with the folder chosen, it isn't
-    // asked first.
+    // With the folder chosen, its trash button offloads it, unasked, and
+    // says first what that frees.
     const downloaded = row.locator('td').nth(5);
     const had = await downloaded.getAttribute('title');
     const offload = row.getByRole('button', { name: 'Offload' });
@@ -95,24 +100,36 @@ test("a reference's entry is placed by hand", async () => {
     await row.locator('button[title^="Offload: frees "]').waitFor();
     await offload.click();
     await row.locator('td[title^="Offloaded: "]').waitFor();
-    expect(await row.getByRole('button').count()).toBe(1);
     expect(
-      await row
-        .getByRole('button', { name: 'Bring back' })
-        .getAttribute('title')
-    ).toMatch(/^Bring back: \d+ Images, /);
+      await row.getByRole('button', { name: 'Download' }).getAttribute('title')
+    ).toMatch(/^Download: brought back from the offload folder/);
     await shot(page, 'manual-mark-offloaded');
 
     // Off its cited Image and the ones moved away, nothing is fetched until
-    // it's brought back.
+    // it's downloaded again.
     await page.getByLabel('Image', { exact: true }).fill('18');
     await page.keyboard.press('Enter');
     await page.getByText('Offloaded', { exact: true }).waitFor();
     await openList(page, 'Volumes');
-    await row.getByRole('button', { name: 'Bring back' }).click();
+    await row.getByRole('button', { name: 'Download' }).click();
     await row.getByRole('button', { name: 'Offload' }).waitFor();
-    // Back from the offload folder, all it had is on disk again.
-    expect(await downloaded.getAttribute('title')).toBe(had);
+    // Back from the offload folder, all it had is on disk again, and only
+    // the rest comes from Astia.
+    expect(
+      count(await downloaded.getAttribute('title'))
+    ).toBeGreaterThanOrEqual(count(had));
     await shot(page, 'manual-mark-brought-back');
+
+    // Offloaded, the other Volume's trash button then removes it from the
+    // folder too, asked first, and it's gone from this computer.
+    const other = list.getByRole('row').filter({ hasText: 'I Aa:2' });
+    await other.getByRole('button', { name: 'Offload' }).click();
+    await other.getByRole('button', { name: 'Remove for good' }).click();
+    await shot(page, 'manual-mark-for-good');
+    await page
+      .getByRole('alertdialog', { name: 'Remove I Aa:2 for good?' })
+      .getByRole('button', { name: 'Remove' })
+      .click();
+    await other.waitFor({ state: 'detached' });
   });
 });

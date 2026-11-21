@@ -242,6 +242,8 @@ function downloadCell(download: DownloadStatus, onDisk: VolumeOnDisk) {
   if (download.state === 'queued') return 'Waiting';
   if (download.state === 'downloading') return `Downloading ${share(onDisk)}`;
   if (download.error === 'rescanned') return 'Re-scanned';
+  // Stopped by hand, it's as far as it got; only a failure says so.
+  if (download.error === null) return share(onDisk);
   return `Stopped at ${share(onDisk)}`;
 }
 

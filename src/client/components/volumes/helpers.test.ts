@@ -200,6 +200,7 @@ test("says a Volume's code, years and disk in a table's cells", () => {
     'Downloading 23%'
   );
   expect(diskCell(volume({ state: 'queued' }, PART))).toBe('Waiting');
+  expect(diskCell(volume({ state: 'stopped' }, PART))).toBe('23%');
   expect(
     diskCell(volume({ state: 'stopped', error: 'unreachable' }, PART))
   ).toBe('Stopped at 23%');

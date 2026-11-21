@@ -30,8 +30,8 @@ function loadingNote(
       <div class="note">
         <span>Offloaded</span>
         <span class="hint"
-          >Only its cited images are kept. Bring it back in Volumes › All books
-          to see the rest.</span
+          >Only its cited images are kept. Download it in Volumes to see the
+          rest.</span
         >
       </div>
     `;

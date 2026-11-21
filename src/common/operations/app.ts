@@ -99,15 +99,15 @@ export const APP_OPERATIONS = {
     '{ volumeId }',
     volumeOf
   ),
+  // Off the disk and out of the offload folder too, for good.
+  removeForGood: answers<{ volumeId: string }, InstalledBook[]>(
+    '{ volumeId }',
+    volumeOf
+  ),
   // Every Image of the Volume but those any dataset's Citations link off
   // the disk, its download stopped, and no other fetched until it's
   // brought back; the Volumes as they then stand.
   offload: answers<{ volumeId: string }, InstalledBook[]>(
-    '{ volumeId }',
-    volumeOf
-  ),
-  // An offloaded Volume's Images fetched again as any Volume's.
-  bringBack: answers<{ volumeId: string }, InstalledBook[]>(
     '{ volumeId }',
     volumeOf
   ),

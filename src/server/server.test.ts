@@ -322,11 +322,11 @@ describe('Church books', () => {
     expect(offloaded.body).toMatchObject([
       { id: '302', offloaded: { images: 3 }, onDisk: { images: 3, cached: 0 } }
     ]);
-    // Not downloaded again until it's brought back.
+    // Downloaded again, it's brought back first.
     expect((await appOp('startDownload', { volumeId: '302' })).status).toBe(
-      409
+      200
     );
-    expect((await appOp('bringBack', { volumeId: '302' })).body).toMatchObject([
+    expect((await appOp('allBooks')).body).toMatchObject([
       { id: '302', offloaded: null }
     ]);
     const removed = await appOp('removeFromDisk', { volumeId: '302' });
