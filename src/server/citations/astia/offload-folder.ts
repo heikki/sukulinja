@@ -2,12 +2,21 @@
 // attached, an external drive say, in the Scan cache's own layout
 // (`<volumeId>/<fileId>.jpg`), where an offload moves the Images a Volume
 // doesn't keep. Nothing is removed from it but an old filming's Images
-// once a Volume is switched to a re-scan, and a Volume removed for good.
+// once a Volume is switched to a re-scan, and a Volume's Images removed
+// for good.
 // Beside a Volume's Images, its facts (`facts.json`): its page numbers and
 // their marks, so the folder holds the Volume whole. They're read from there while
 // it's attached; with none set, an offload drops them.
 
-import { copyFile, mkdir, readdir, rename, rm, stat } from 'node:fs/promises';
+import {
+  copyFile,
+  mkdir,
+  readdir,
+  rename,
+  rm,
+  rmdir,
+  stat
+} from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
 import type { OffloadFolder } from '@/common/types';
@@ -170,13 +179,23 @@ export function openOffloadFolder(settingsFile: string) {
       await rename(part, at);
     },
 
-    // Removes all of the Volume from the folder; throws FolderAwayError
+    // Removes the Volume's Images from the folder, its facts kept, as
+    // they're about the Volume and not its Images; throws FolderAwayError
     // when it's set and away, removing nothing.
     async forget(volumeId: string) {
       const folder = await attached();
       if (folder === undefined) return;
       if (folder === null) throw new FolderAwayError('offload folder away');
-      await rm(join(folder, volumeId), { recursive: true, force: true });
+      const at = join(folder, volumeId);
+      const names = await readdir(at).catch(() => []);
+      await Promise.all(
+        names
+          .filter((n) => !n.startsWith(FACTS))
+          .map(async (n) => {
+            await rm(join(at, n), { recursive: true, force: true });
+          })
+      );
+      await rmdir(at).catch(() => undefined);
     },
 
     // Copies the Volume's files from the folder into `to`, leaving the

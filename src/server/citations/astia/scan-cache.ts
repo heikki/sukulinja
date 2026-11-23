@@ -582,10 +582,18 @@ export function openScanCache({
       await prune(null);
     },
 
-    // Drops every Image, then the Volumes' folders they leave empty.
+    // Drops every Image but those offloaded Volumes keep, as they aren't
+    // fetched again; then the Volumes' folders that leaves empty.
     async clear() {
       const files = await cachedFiles(dir);
-      await Promise.all(files.map((f) => rm(f.path, { force: true })));
+      const kept = await keptPaths();
+      await Promise.all(
+        files
+          .filter((f) => !kept.has(f.path))
+          .map(async (f) => {
+            await rm(f.path, { force: true });
+          })
+      );
       const volumes = await volumeDirs(dir);
       // One a fetch is still writing into stays.
       await Promise.all(volumes.map((v) => rmdir(v).catch(() => undefined)));
