@@ -43,4 +43,5 @@ test('a region of it is cut out and enlarged to what the models take', async () 
   // All of it from the white corner; the whole scan mostly dark.
   expect(await brightness(sent.bytes)).toBeGreaterThan(250);
   expect(await brightness((await fitted(scan(), null)).bytes)).toBeLessThan(40);
-});
+  // Three 12-megapixel scans encoded, slow on CI's runners.
+}, 20_000);
