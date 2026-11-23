@@ -304,10 +304,14 @@ export const bookTableStyles = [
       font-size: 0.85rem;
     }
 
+    /* Its scrollbar out in the panel's margin, clear of the buttons, which
+       stay in line with the bar above. */
     .table {
       flex: 1;
       min-height: 0;
       overflow: auto;
+      margin-right: -1rem;
+      padding-right: 1rem;
     }
 
     table {
