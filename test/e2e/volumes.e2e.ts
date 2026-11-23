@@ -75,6 +75,10 @@ test('a Volume of another parish is added, downloaded, removed and taken off', a
     await page
       .getByRole('menuitem', { name: 'Unmark no page numbers' })
       .click();
+    // Done, as a row's menu waits while anything is being done.
+    await book
+      .getByText('None', { exact: true })
+      .waitFor({ state: 'detached' });
     await pages.click({ button: 'right' });
     await page
       .getByRole('menuitem', { name: 'Mark page numbers checked' })
