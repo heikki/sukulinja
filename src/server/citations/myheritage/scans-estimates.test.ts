@@ -79,6 +79,18 @@ test('a Volume numbering its pages over again places a page in the first run', a
   expect(await imagesAt(5)).toEqual([5]);
 });
 
+test('a page is placed in the first run even when a later one has more pins', async () => {
+  const pages = [1, 9, 11, 13, 15, 17, 19].map((image) => ({
+    image,
+    pages: [image > 10 ? image - 10 : image]
+  }));
+  await Bun.write(
+    join(dir, 'pins.local.json'),
+    JSON.stringify({ volumes: { 'juva-1': { pages } }, references: {} })
+  );
+  expect(await imagesAt(5)).toEqual([5]);
+});
+
 test('the Record pins around a record say which run its page is in', async () => {
   await numberedTwice();
   expect(await imagesAt(5, { 4000: 10 })).toEqual([15]);

@@ -33,10 +33,9 @@ export interface NumberedPin {
   by?: Provenance;
 }
 
-// Where a Page run puts a page, and how many pins it was counted from.
+// Where a Page run puts a page.
 export interface PagePlace {
   image: number;
-  pins: number;
 }
 
 export type Placing =
@@ -172,7 +171,7 @@ function countedRun(run: PageRun) {
     }));
     return [...before, ...shown];
   }
-  return { place, pages, pins: run.pins.length };
+  return { place, pages };
 }
 
 // The numbering of a Volume of `images` Images, its Page pins `pins` (of
@@ -202,7 +201,7 @@ export function pageNumbering(
       from: 'pins',
       places: runs.flatMap((run) => {
         const at = run.place(page);
-        return at === null ? [] : [{ image: s.image(at), pins: run.pins }];
+        return at === null ? [] : [{ image: s.image(at) }];
       })
     };
   }

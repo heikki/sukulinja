@@ -245,7 +245,7 @@ function recordBounds(records: RecordPin[], recordId: number | null) {
 // Where the cited page is, by the Volume's numbering: an Image, null
 // past the Volume, or 'overran' when no run of its Page pins reaches it.
 // Of a Volume numbering its pages over again, the run the Record pins
-// leave the record in, else the one with the most pins.
+// leave the record in, else the first: a Doubled volume's first copy.
 function countedImage(
   pins: PagePin[],
   images: number,
@@ -259,8 +259,8 @@ function countedImage(
   const { from, to } = recordBounds(records, ref.recordId);
   const fits = reached.filter((r) => r.image >= from && r.image <= to);
   const pool = fits.length > 0 ? fits : reached;
-  const best = pool.reduce((a, r) => (r.pins > a.pins ? r : a));
-  return { from: 'pins' as const, image: best.image };
+  const first = Math.min(...pool.map((r) => r.image));
+  return { from: 'pins' as const, image: first };
 }
 
 interface Located {
