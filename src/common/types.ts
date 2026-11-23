@@ -460,10 +460,13 @@ export interface VolumeCitation {
 }
 
 // The `storage` operation: how much space Astia's Images may take (`cap`)
-// and take now (`used`), in bytes, and the caps to choose from.
+// and take now (`used`), in bytes, of which `kept` is what Offloaded
+// Volumes keep, which neither a clear nor the cap drops; and the caps to
+// choose from.
 export interface StorageStatus {
   cap: number;
   used: number;
+  kept: number;
   caps: number[];
 }
 

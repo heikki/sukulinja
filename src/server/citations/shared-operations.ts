@@ -144,7 +144,7 @@ export function sharedOperations({
     },
     allBooks,
     async removeFromDisk({ volumeId }) {
-      await storage.remove(volumeId);
+      await storage.remove(volumeId).catch(folderAway);
       return await allBooks();
     },
     async removeForGood({ volumeId }) {

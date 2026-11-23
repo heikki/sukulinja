@@ -69,7 +69,7 @@ async function outcome(request: Promise<string | null>) {
 }
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), 'scan-cache-'));
+  dir = await mkdtemp(join(tmpdir(), 'storage-cache-'));
   cache = openCache({ astia, root: dir });
   fetched = [];
   hold = null;
@@ -238,6 +238,7 @@ test('reads the cap saved for the install before anything else', async () => {
   expect(await openCache({ astia, root, freeSpace }).status()).toEqual({
     cap: 10 * GB,
     used: 0,
+    kept: 0,
     caps: [5 * GB, 10 * GB, 20 * GB]
   });
   // A cap no longer offered falls back to the default.

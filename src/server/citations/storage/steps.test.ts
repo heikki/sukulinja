@@ -16,15 +16,18 @@ function steps(
   onDisk: VolumeOnDisk,
   folder: FolderState,
   {
+    digitized = true,
     download = null,
     offloaded = null
   }: {
+    digitized?: boolean;
     download?: Partial<DownloadStatus> | null;
     offloaded?: { images: number; bytes: number } | null;
   } = {}
 ) {
   return stepsOf(
     {
+      digitized,
       onDisk,
       download:
         download === null
@@ -50,6 +53,10 @@ describe('the download', () => {
     ).toBe('stop');
     const downloading = { download: { state: 'downloading' as const } };
     expect(steps(PART, 'away', downloading).download).toBe('stop');
+  });
+
+  test("isn't offered for a Volume with no scans", () => {
+    expect(steps(NONE, 'none', { digitized: false }).download).toBeNull();
   });
 
   test("isn't offered for a Volume Astia has re-scanned", () => {

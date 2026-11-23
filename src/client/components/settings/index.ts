@@ -213,7 +213,7 @@ class SettingsElement extends LitElement {
     );
   }
 
-  // Every ask answers with the cache as it now stands; a refusal shows in
+  // Every ask answers with Storage as it now stands; a refusal shows in
   // its place.
   private async askStorage(asked: () => Promise<StorageStatus>) {
     try {
@@ -305,7 +305,12 @@ class SettingsElement extends LitElement {
             ${
               clear
                 ? html`All <strong>${formatBytes(drop.bytes)}</strong> of
-                    downloaded scans will be removed.`
+                    downloaded scans will be
+                    removed.${
+                      drop.kept > 0
+                        ? ' The cited ones offloaded volumes keep stay.'
+                        : ''
+                    }`
                 : html`About <strong>${formatBytes(drop.bytes)}</strong> of
                     downloaded scans, the least recently viewed, will be removed
                     to fit.`
@@ -438,9 +443,9 @@ class SettingsElement extends LitElement {
             >${formatBytes(cache.used)} of ${formatBytes(cache.cap)} used</span
           >
           <button
-            ?disabled=${cache.used === 0}
+            ?disabled=${clearDrop(cache) === null}
             @click=${() => {
-              this.confirming = clearDrop(cache.used);
+              this.confirming = clearDrop(cache);
             }}
           >
             Clear

@@ -1,3 +1,4 @@
+import { isWhole } from '@/common/storage';
 import type {
   BookKind,
   ChurchBookArchive,
@@ -15,10 +16,6 @@ import { formatBytes } from '../settings/helpers';
 // A download asked for: started (an Offloaded Volume brought back first),
 // or stopped.
 export type DownloadAction = 'start' | 'stop';
-
-function whole(d: VolumeOnDisk) {
-  return d.images !== null && d.images > 0 && d.cached === d.images;
-}
 
 const WHY: Record<DownloadError, string> = {
   'unreachable': "Astia couldn't be reached",
@@ -69,7 +66,7 @@ function volumeLine(volume: ChurchBookVolume) {
   const size = onDisk.bytes > 0 ? ` · ${formatBytes(onDisk.bytes)}` : '';
   const going =
     download?.state === 'queued' || download?.state === 'downloading';
-  if (whole(onDisk) && !going) return `On disk${size}`;
+  if (isWhole(onDisk) && !going) return `On disk${size}`;
   if (download !== null) return `${downloadLine(download, onDisk)}${size}`;
   if (onDisk.cached === 0) return 'Not on disk';
   return `${ofImages(onDisk)} Images on disk${size}`;
@@ -207,17 +204,17 @@ function share(d: VolumeOnDisk) {
 export function diskCell(volume: ChurchBookVolume & { offloaded?: Away }) {
   const { offloaded, onDisk } = volume;
   if (offloaded === undefined || offloaded === null) return volumeCell(volume);
-  return whole(onDisk) ? '100%' : share(onDisk);
+  return isWhole(onDisk) ? '100%' : share(onDisk);
 }
 
 function volumeCell(volume: ChurchBookVolume) {
   if (!volume.digitized) return 'Not digitized';
   const { download, onDisk } = volume;
-  if (download !== null && !whole(onDisk)) {
+  if (download !== null && !isWhole(onDisk)) {
     return downloadCell(download, onDisk);
   }
   if (download?.state === 'downloading') return `Downloading ${share(onDisk)}`;
-  if (whole(onDisk)) return '100%';
+  if (isWhole(onDisk)) return '100%';
   if (onDisk.cached === 0) return '—';
   return share(onDisk);
 }
@@ -244,7 +241,7 @@ export function listSummary(
   books: Array<Pick<ChurchBookVolume, 'onDisk'> & { cited: number | null }>
 ) {
   const cited = books.filter((b) => (b.cited ?? 0) > 0).length;
-  const downloaded = books.filter((b) => whole(b.onDisk)).length;
+  const downloaded = books.filter((b) => isWhole(b.onDisk)).length;
   return [
     counted(books.length, 'volume', 'volumes'),
     `${cited} cited`,

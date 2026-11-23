@@ -22,12 +22,13 @@ export interface RowActions {
   unlist: (book: VolumeRow) => void;
 }
 
-// What the trash button does next: Storage's step, and with none left,
-// one added by hand that nothing cites taken off the Book list.
+// What the trash button does next: Storage's step; and with nothing of it
+// on disk, one added by hand that nothing cites taken off the Book list.
 export type TrashStep = NonNullable<VolumeRow['next']['trash']> | 'unlist';
 
 export function trashStep(book: VolumeRow): TrashStep | null {
   if (book.next.trash !== null) return book.next.trash;
+  if (book.onDisk.bytes > 0) return null;
   if (book.added && (book.cited ?? 0) === 0) return 'unlist';
   return null;
 }

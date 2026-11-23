@@ -149,7 +149,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
   @state() private treeOnly = true;
   @state() private listed: ListedBook[] | 'failed' | null = null;
   @state() private installed: InstalledBook[] | 'failed' | null = null;
-  @state() private cache: StorageStatus | null = null;
+  @state() private storage: StorageStatus | null = null;
   @state() private filter = '';
 
   // Whether the Volume picker is open.
@@ -207,7 +207,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
   private async load() {
     this.stopPolling();
     const { api, app } = this.state;
-    const [listed, installed, cache] = await Promise.all([
+    const [listed, installed, storage] = await Promise.all([
       api.bookList().catch(() => null),
       app.allBooks().catch(() => null),
       app.storage().catch(() => null)
@@ -216,7 +216,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     else if (!Array.isArray(this.listed)) this.listed = 'failed';
     if (installed !== null) this.installed = installed;
     else if (!Array.isArray(this.installed)) this.installed = 'failed';
-    if (cache !== null) this.cache = cache;
+    if (storage !== null) this.storage = storage;
     this.frees = new Map();
     const going = [listed ?? [], installed ?? []].some((l) => busy(l));
     if (going && this.isConnected) {
@@ -375,11 +375,11 @@ class VolumesListElement extends SignalWatcher(LitElement) {
   }
 
   private renderCache() {
-    const { cache } = this;
-    if (cache === null) return html`<span class="cache"></span>`;
-    const pct = Math.min(100, (cache.used / cache.cap) * 100);
+    const { storage } = this;
+    if (storage === null) return html`<span class="cache"></span>`;
+    const pct = Math.min(100, (storage.used / storage.cap) * 100);
     return html`<span class="cache">
-      Storage ${formatBytes(cache.used)} of ${formatBytes(cache.cap)}
+      Storage ${formatBytes(storage.used)} of ${formatBytes(storage.cap)}
       <span class="meter"><span style="width: ${pct}%"></span></span>
     </span>`;
   }

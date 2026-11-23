@@ -13,8 +13,19 @@ test('says a size in MB, then GB', () => {
 });
 
 test('Clear drops everything, an empty cache nothing', () => {
-  expect(clearDrop(12 * GB)).toEqual({ kind: 'clear', bytes: 12 * GB });
-  expect(clearDrop(0)).toBeNull();
+  expect(clearDrop({ used: 12 * GB, kept: 0 })).toEqual({
+    kind: 'clear',
+    bytes: 12 * GB,
+    kept: 0
+  });
+  // What Offloaded Volumes keep stays.
+  expect(clearDrop({ used: 12 * GB, kept: 2 * GB })).toEqual({
+    kind: 'clear',
+    bytes: 10 * GB,
+    kept: 2 * GB
+  });
+  expect(clearDrop({ used: 2 * GB, kept: 2 * GB })).toBeNull();
+  expect(clearDrop({ used: 0, kept: 0 })).toBeNull();
 });
 
 test('a cap below the space used drops the difference', () => {

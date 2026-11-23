@@ -176,8 +176,16 @@ test('clearing keeps what an offloaded Volume keeps, and its marker', async () =
   await open('105', 1);
   await open('104', 1);
   await offload('105', [1]);
+  expect(await storage.volumes.status()).toMatchObject({
+    used: 2 * IMAGE_BYTES,
+    kept: IMAGE_BYTES
+  });
   await storage.volumes.clear();
   expect(await offloaded('105')).toBe(true);
+  expect(await storage.volumes.status()).toMatchObject({
+    used: IMAGE_BYTES,
+    kept: IMAGE_BYTES
+  });
   fetched = [];
   expect(await open('105', 1)).toBe(
     join(dir, '.astia-images', '105', '105-f1.jpg')
@@ -255,6 +263,11 @@ test('a Volume removed for good leaves the Offload folder, only while attached',
     .removeForGood('103')
     .catch((err: unknown) => err);
   expect(refused).toBeInstanceOf(FolderAwayError);
+  // Nor is it removed from disk, losing what it keeps.
+  const notRemoved = await storage.volumes
+    .remove('103')
+    .catch((err: unknown) => err);
+  expect(notRemoved).toBeInstanceOf(FolderAwayError);
   expect(await offloaded('103')).toBe(true);
   await rename(`${away}-off`, away);
   expect(await kept(away, '103', 2)).toHaveLength(2);

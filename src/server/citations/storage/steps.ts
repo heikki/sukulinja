@@ -2,6 +2,7 @@
 // whether the Offload folder is set and attached. Nothing the folder being
 // away would refuse is offered.
 
+import { isWhole } from '@/common/storage';
 import type {
   DownloadStatus,
   StorageSteps,
@@ -12,13 +13,11 @@ import type {
 export type FolderState = 'none' | 'attached' | 'away';
 
 interface Has {
+  // Whether Astia has scans of it; true unless it says otherwise.
+  digitized: boolean;
   onDisk: VolumeOnDisk;
   download: DownloadStatus | null;
   offloaded: { images: number; bytes: number } | null;
-}
-
-function whole(d: VolumeOnDisk) {
-  return d.images !== null && d.images > 0 && d.cached === d.images;
 }
 
 // An Offloaded Volume's download brings it back from the Offload folder
@@ -29,18 +28,19 @@ function bringingBack(folder: FolderState): StorageSteps['download'] {
   return folder === 'attached' ? 'bringBack' : 'start';
 }
 
-// Stopped while it's on its way; an Offloaded one brought back first;
-// else downloaded until it's whole, unless
+// Stopped while it's on its way; none for one with no scans; an
+// Offloaded one brought back first; else downloaded until it's whole, unless
 // Astia has re-scanned it, when only switching to the new filming goes on.
 function downloadStep(
-  { onDisk, download, offloaded }: Has,
+  { digitized, onDisk, download, offloaded }: Has,
   folder: FolderState
 ): StorageSteps['download'] {
   if (download?.state === 'queued' || download?.state === 'downloading') {
     return 'stop';
   }
+  if (!digitized) return null;
   if (offloaded !== null) return bringingBack(folder);
-  if (download?.error === 'rescanned' || whole(onDisk)) return null;
+  if (download?.error === 'rescanned' || isWhole(onDisk)) return null;
   return 'start';
 }
 

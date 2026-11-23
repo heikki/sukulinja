@@ -193,6 +193,8 @@ function totalSize(files: Array<{ size: number }>) {
 // ---------------------------------------------------------------- the setting
 
 // The cap saved for the install, if it's one of the choices.
+// Still saved under the name it had as the Scan cache's, so a cap saved
+// then holds.
 async function savedCap(file: string) {
   const { scanCacheBytes } = await readSettings(file);
   return typeof scanCacheBytes === 'number' && CAPS.includes(scanCacheBytes)
@@ -419,9 +421,12 @@ export function openCache({
 
     async status(): Promise<StorageStatus> {
       await ready;
-      const used = totalSize(await cachedFiles(dir));
+      const files = await cachedFiles(dir);
+      const keptOnes = await keptPaths();
+      const used = totalSize(files);
+      const kept = totalSize(files.filter((f) => keptOnes.has(f.path)));
       const room = used + (await freeSpace());
-      return { cap, used, caps: capChoices(room, cap) };
+      return { cap, used, kept, caps: capChoices(room, cap) };
     },
 
     // What of the Volume is on disk: its full-size Images of Astia's list

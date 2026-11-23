@@ -33,8 +33,7 @@ function bookOf(
     digitized: v.digitized,
     onDisk,
     download,
-    // One with no scans has none to download.
-    next: v.digitized ? next : { ...next, download: null }
+    next
   };
 }
 
@@ -45,7 +44,9 @@ export async function parishBooks(
 ): Promise<ChurchBookVolume[]> {
   const volumes = await sources.astia.archiveVolumes(archiveId);
   return await Promise.all(
-    volumes.map(async (v) => bookOf(v, await sources.storage.of(v.id)))
+    volumes.map(async (v) =>
+      bookOf(v, await sources.storage.of(v.id, v.digitized))
+    )
   );
 }
 
@@ -68,7 +69,7 @@ export async function installBooks(
   // The Volume as described, with what Storage has of it and its page
   // numbers.
   async function installed(v: Described) {
-    const stored = await storage.of(v.id);
+    const stored = await storage.of(v.id, v.digitized);
     return {
       ...bookOf(v, stored),
       offloaded: stored.offloaded,

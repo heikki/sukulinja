@@ -33,6 +33,12 @@ test('with none left in Storage, it takes one added by hand off the list', () =>
   expect(trashStep(row({ cited: null }))).toBe('unlist');
 });
 
+test('with Images on disk it takes none off the list, as with the folder away', () => {
+  expect(
+    trashStep(row({ onDisk: { images: 4, cached: 2, bytes: 20 } }))
+  ).toBeNull();
+});
+
 test('with nothing to do, it has no step', () => {
   expect(trashStep(row({ cited: 2 }))).toBeNull();
   expect(trashStep(row({ added: false }))).toBeNull();

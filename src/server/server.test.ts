@@ -199,6 +199,7 @@ describe('Storage setting', () => {
       body: {
         cap: 5 * GB,
         used: 1000,
+        kept: 0,
         caps: expect.arrayContaining([5 * GB]) as number[]
       }
     });

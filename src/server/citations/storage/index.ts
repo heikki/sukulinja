@@ -93,13 +93,18 @@ export function openStorage({
     return set.attached ? 'attached' : 'away';
   }
 
-  async function stored(volumeId: string): Promise<Stored> {
+  // What Storage has of the Volume; with `digitized` false, as Astia says
+  // of one with no scans, none to download.
+  async function stored(volumeId: string, digitized = true): Promise<Stored> {
     const has = {
       onDisk: await cache.onDisk(volumeId),
       download: downloads.of(volumeId),
       offloaded: await cache.offloadedOf(volumeId)
     };
-    return { ...has, next: stepsOf(has, await folderState()) };
+    return {
+      ...has,
+      next: stepsOf({ ...has, digitized }, await folderState())
+    };
   }
 
   const volumes = {
@@ -147,8 +152,11 @@ export function openStorage({
       return cited === null ? null : await cache.freedBy(volumeId, cited);
     },
 
-    // Its Images off the disk; what the Offload folder has stays.
+    // Its Images off the disk; what the Offload folder has stays. With
+    // the folder set and away, nothing goes, as an Offloaded Volume would
+    // lose what it keeps.
     async remove(volumeId: string) {
+      await folder.ready();
       await downloads.drop(volumeId);
       await cache.remove(volumeId);
     },
