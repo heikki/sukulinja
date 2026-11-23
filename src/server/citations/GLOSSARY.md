@@ -159,6 +159,10 @@ An archive of every Image fetched while it's attached, full-size and thumbnails,
 **Offloaded**:
 A Volume with every full-size Image off the disk but those any dataset's Citations link, fetched first and never pruned, its thumbnails kept, by its row's trash button while an **Offload folder** is set, which keeps the rest. Nothing of it is fetched from Astia, and entries are cited only on the Images it keeps, until it's downloaded again; the Scan viewer says so in place of an Image it doesn't keep. Its trash button says first what offloading would free. Downloading it brings it back: its Images copied from the folder, the folder keeping them, which waits for the folder as an offload does; then only the rest fetched from Astia.
 
+**Volume storage**:
+What of a **Volume** is on this computer, and the steps between: its Images in the **Scan cache**, a download under way, **Offloaded** or not, its Images in the **Offload folder**, and with that whether the folder is attached now. It says each Volume's next steps (download, bring back, stop, offload, remove, remove for good), offering none the folder being away would refuse. What it keeps for an Offloaded Volume no step drops, a clear of the Scan cache included; removing a Volume for good takes its Images, never its **Page pins**.
+_Avoid_: Storage (alone; the app's name for the Scan cache), disk state.
+
 **Pages checked**:
 A Volume's Page numbers marked by hand as right, for every dataset, from its row's right-click menu in the **Volumes** tab, which also surveys them, clears them, or marks the Volume as having none: then a cited page places nothing in it, its references linking the Volume alone. Either mark locks them: neither set by hand, cleared nor surveyed until unmarked. Vision Match on a Volume not checked asks first, as its estimates count from them.
 
