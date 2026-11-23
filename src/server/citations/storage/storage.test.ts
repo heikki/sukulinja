@@ -102,6 +102,19 @@ async function kept(away: string, volumeId: string, count: number) {
   return (await names()).toSorted();
 }
 
+// Waits out the copies each fetch makes into the Offload folder aside, so
+// none lands after the folder is taken away or emptied.
+async function copiesSettled(away: string, volumeId: string) {
+  let quiet = 0;
+  while (quiet < 3) {
+    // eslint-disable-next-line no-await-in-loop -- polling, one look at a time
+    const names = await readdir(join(away, volumeId)).catch(() => []);
+    quiet = names.some((n) => n.endsWith('.part')) ? 0 : quiet + 1;
+    // eslint-disable-next-line no-await-in-loop -- polling, one look at a time
+    await Bun.sleep(2);
+  }
+}
+
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'storage-'));
   storage = opened(dir);
@@ -207,6 +220,7 @@ test('downloading an offloaded Volume brings it back from the Offload folder fir
   const away = await attachFolder();
   await Promise.all([1, 2, 3].map(async (n) => await open('103', n)));
   await offload('103', [1]);
+  await copiesSettled(away, '103');
   // Its drive away, nothing is brought back, nor downloaded.
   await rename(away, `${away}-off`);
   const refused = await storage.volumes
@@ -219,12 +233,9 @@ test('downloading an offloaded Volume brings it back from the Offload folder fir
   fetched = [];
   await storage.volumes.download('103');
   expect(await offloaded('103')).toBe(false);
-  // The folder keeps them.
-  expect(await kept(away, '103', 3)).toEqual([
-    '103-f1.jpg',
-    '103-f2.jpg',
-    '103-f3.jpg'
-  ]);
+  // The folder keeps them, beside the rest as they're downloaded.
+  const inFolder = await kept(away, '103', 3);
+  for (const n of [1, 2, 3]) expect(inFolder).toContain(`103-f${n}.jpg`);
   expect(await open('103', 2)).toBe(
     join(dir, '.astia-images', '103', '103-f2.jpg')
   );
@@ -238,6 +249,7 @@ test('a Volume removed for good leaves the Offload folder, only while attached',
   const away = await attachFolder();
   await Promise.all([1, 2].map(async (n) => await open('103', n)));
   await offload('103', []);
+  await copiesSettled(away, '103');
   await rename(away, `${away}-off`);
   const refused = await storage.volumes
     .removeForGood('103')
@@ -256,6 +268,7 @@ test('a Volume removed for good keeps its facts in the Offload folder', async ()
   await open('103', 1);
   await storage.folderFacts.keepFacts('103', '{"pages":[]}');
   expect(await kept(away, '103', 1)).toHaveLength(1);
+  await copiesSettled(away, '103');
   await storage.volumes.removeForGood('103');
   expect(await readdir(join(away, '103'))).toEqual(['facts.json']);
   expect(await storage.folderFacts.facts('103')).toBe('{"pages":[]}');
@@ -310,4 +323,24 @@ test('what the Offload folder has counts as here, and a cut-off copy is made who
     await Bun.sleep(2);
   }
   expect(Bun.file(join(away, '105', '105-f1.jpg')).size).toBe(IMAGE_BYTES);
+});
+
+test("a Volume's next steps wait for the Offload folder while it's away", async () => {
+  const away = await attachFolder();
+  await Promise.all([1, 2].map(async (n) => await open('103', n)));
+  expect((await storage.volumes.of('103')).next).toEqual({
+    download: 'start',
+    trash: 'offload'
+  });
+  await offload('103', [1]);
+  expect((await storage.volumes.of('103')).next).toEqual({
+    download: 'bringBack',
+    trash: 'removeForGood'
+  });
+  await copiesSettled(away, '103');
+  await rename(away, `${away}-off`);
+  expect((await storage.volumes.of('103')).next).toEqual({
+    download: null,
+    trash: null
+  });
 });

@@ -10,12 +10,7 @@ import { dialogStyles } from '@/client/dialog-styles';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import { CLAUDE_MODELS } from '@/common/assistant-choices';
-import type {
-  InstalledBook,
-  ListedBook,
-  OffloadFolder,
-  StorageStatus
-} from '@/common/types';
+import type { InstalledBook, ListedBook, StorageStatus } from '@/common/types';
 
 import { formatBytes } from '../settings/helpers';
 import { busy, listSummary, matches } from './helpers';
@@ -167,10 +162,6 @@ class VolumesListElement extends SignalWatcher(LitElement) {
   @state() private confirming: { book: VolumeRow; forGood: boolean } | null =
     null;
 
-  // The offload folder, so the trash button offloads into it; null for
-  // none.
-  @state() private folder: OffloadFolder | null = null;
-
   // What offloading a Volume would free, by its id, asked as its Offload
   // is pointed at; null when that can't be known.
   @state() private frees = new Map<string, number | null>();
@@ -187,12 +178,6 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     super.connectedCallback();
     this.revealed = null;
     void this.load();
-    void this.state.app
-      .offloadFolder()
-      .then((folder) => {
-        this.folder = folder;
-      })
-      .catch(() => undefined);
   }
 
   override updated() {
@@ -217,8 +202,8 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     this.poll = null;
   }
 
-  // Both lists and the cache, asked for again while any Volume downloads;
-  // a list that fails keeps what was shown, once something was.
+  // Both lists and Storage, asked for again while any Volume downloads; a
+  // list that fails keeps what was shown, once something was.
   private async load() {
     this.stopPolling();
     const { api, app } = this.state;
@@ -314,7 +299,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     };
   }
 
-  private readonly does: Omit<RowActions, 'busy' | 'folder' | 'frees'> = {
+  private readonly does: Omit<RowActions, 'busy' | 'frees'> = {
     askFrees: (book) => {
       void this.askFrees(book.id);
     },
@@ -332,7 +317,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     remove: (book) => {
       this.confirming = { book, forGood: false };
     },
-    purge: (book) => {
+    removeForGood: (book) => {
       this.confirming = { book, forGood: true };
     },
     unlist: (book) => {
@@ -429,7 +414,6 @@ class VolumesListElement extends SignalWatcher(LitElement) {
         renderActs(b, {
           ...this.does,
           busy: this.asking.busy,
-          folder: this.folder !== null,
           frees: this.frees
         }),
       open: (b) => {

@@ -10,7 +10,7 @@ function row(over: Partial<VolumeRow> = {}): VolumeRow {
     kind: null,
     years: null,
     digitized: true,
-    onDisk: { images: 4, cached: 4, bytes: 100 },
+    onDisk: { images: 4, cached: 0, bytes: 0 },
     download: null,
     archiveId: 'a',
     archive: 'Juva',
@@ -18,33 +18,22 @@ function row(over: Partial<VolumeRow> = {}): VolumeRow {
     added: true,
     pages: null,
     offloaded: null,
+    next: { download: null, trash: null },
     ...over
   };
 }
 
-test('the trash button offloads into a chosen folder, else removes from disk', () => {
-  expect(trashStep(row(), true)).toBe('offload');
-  expect(trashStep(row(), false)).toBe('remove');
+test("the trash button takes Storage's step first", () => {
+  const next = { download: null, trash: 'offload' as const };
+  expect(trashStep(row({ next }))).toBe('offload');
 });
 
-test('offloaded, or kept only in the folder, it removes it for good', () => {
-  const offloaded = row({ offloaded: { images: 3, bytes: 90 } });
-  expect(trashStep(offloaded, true)).toBe('purge');
-  const inFolder = row({ onDisk: { images: 4, cached: 4, bytes: 0 } });
-  expect(trashStep(inFolder, true)).toBe('purge');
-  // With the folder since cleared, what it kept is removed from disk.
-  expect(trashStep(offloaded, false)).toBe('remove');
-});
-
-test('with nothing left, it takes one added by hand off the list', () => {
-  const gone = { images: 4, cached: 0, bytes: 0 };
-  expect(trashStep(row({ onDisk: gone }), true)).toBe('unlist');
-  expect(trashStep(row({ onDisk: gone }), false)).toBe('unlist');
+test('with none left in Storage, it takes one added by hand off the list', () => {
+  expect(trashStep(row())).toBe('unlist');
+  expect(trashStep(row({ cited: null }))).toBe('unlist');
 });
 
 test('with nothing to do, it has no step', () => {
-  const gone = { images: 4, cached: 0, bytes: 0 };
-  expect(trashStep(row({ onDisk: gone, cited: 2 }), true)).toBeNull();
-  expect(trashStep(row({ onDisk: gone, added: false }), true)).toBeNull();
-  expect(trashStep(row({ onDisk: gone, cited: null }), true)).toBe('unlist');
+  expect(trashStep(row({ cited: 2 }))).toBeNull();
+  expect(trashStep(row({ added: false }))).toBeNull();
 });

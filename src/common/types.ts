@@ -509,6 +509,18 @@ export interface ChurchBookVolume {
   digitized: boolean;
   onDisk: VolumeOnDisk;
   download: DownloadStatus | null;
+  next: StorageSteps;
+}
+
+// What Storage would do next with a Volume, as its row's buttons offer
+// it: its download started, its Images brought back from the Offload
+// folder and the rest downloaded, or its download stopped; and the trash
+// button's step, offloading it, removing its Images from disk, or removing
+// them for good, from the Offload folder too. Null for none, as for one
+// the Offload folder being away would refuse.
+export interface StorageSteps {
+  download: 'start' | 'bringBack' | 'stop' | null;
+  trash: 'offload' | 'remove' | 'removeForGood' | null;
 }
 
 // The `bookList` operation: a Volume on the dataset's Book list, with the

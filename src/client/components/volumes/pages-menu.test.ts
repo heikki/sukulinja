@@ -18,7 +18,8 @@ function row(pages: VolumeRow['pages']): VolumeRow {
     cited: 0,
     added: true,
     pages,
-    offloaded: null
+    offloaded: null,
+    next: { download: null, trash: null }
   };
 }
 

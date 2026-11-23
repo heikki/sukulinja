@@ -237,7 +237,7 @@ export const bookTableStyles = [
     }
 
     button.act.remove,
-    button.act.purge {
+    button.act.removeForGood {
       border-color: color-mix(in srgb, var(--danger) 60%, var(--border));
       color: var(--danger);
     }
@@ -247,7 +247,7 @@ export const bookTableStyles = [
     }
 
     button.act.remove:hover,
-    button.act.purge:hover {
+    button.act.removeForGood:hover {
       border-color: var(--danger);
       color: var(--danger);
     }

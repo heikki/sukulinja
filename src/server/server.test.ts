@@ -251,7 +251,8 @@ describe('Church books', () => {
         years: { from: 1790, to: 1796 },
         digitized: true,
         onDisk: { images: 2, cached: 0, bytes: 0 },
-        download: null
+        download: null,
+        next: { download: 'start', trash: null }
       },
       expect.objectContaining({ id: '302', download: null })
     ]);
@@ -266,7 +267,8 @@ describe('Church books', () => {
     const after = await appOp('churchBooks', { archiveId: JUVA_ARCHIVE });
     expect((after.body as unknown[])[1]).toMatchObject({
       onDisk: { images: 3, cached: 3 },
-      download: null
+      download: null,
+      next: { download: null, trash: 'remove' }
     });
     expect((await appOp('stopDownload', { volumeId: 'x' })).status).toBe(400);
   });

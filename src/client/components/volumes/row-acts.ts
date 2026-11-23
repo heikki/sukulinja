@@ -1,5 +1,4 @@
 import { formatBytes } from '../settings/helpers';
-import { downloadActions } from './helpers';
 import type { DownloadAction } from './helpers';
 import type { VolumeRow } from './rows';
 import {
@@ -13,31 +12,22 @@ import {
 // What a row's buttons do, and whether one is already being done.
 export interface RowActions {
   busy: boolean;
-  // Whether an offload folder is chosen, so Images leaving the disk stay
-  // in it.
-  folder: boolean;
   // What offloading a Volume would free, by its id, once asked.
   frees: Map<string, number | null>;
   askFrees: (book: VolumeRow) => void;
   download: (book: VolumeRow, action: DownloadAction) => void;
   offload: (book: VolumeRow) => void;
   remove: (book: VolumeRow) => void;
-  purge: (book: VolumeRow) => void;
+  removeForGood: (book: VolumeRow) => void;
   unlist: (book: VolumeRow) => void;
 }
 
-// What the trash button does next: its Images off the disk, kept in the
-// offload folder when one is chosen, or else gone; then, kept in the
-// folder, removed from it too, for good; with none left, one added by hand
-// that nothing cites taken off the Book list.
-export type TrashStep = 'offload' | 'remove' | 'purge' | 'unlist';
+// What the trash button does next: Storage's step, and with none left,
+// one added by hand that nothing cites taken off the Book list.
+export type TrashStep = NonNullable<VolumeRow['next']['trash']> | 'unlist';
 
-export function trashStep(book: VolumeRow, folder: boolean): TrashStep | null {
-  const { onDisk, offloaded } = book;
-  // One offloaded before the folder was cleared still has its cited ones.
-  if (onDisk.bytes > 0 && !folder) return 'remove';
-  if (offloaded === null && onDisk.bytes > 0) return 'offload';
-  if (folder && onDisk.cached > 0) return 'purge';
+export function trashStep(book: VolumeRow): TrashStep | null {
+  if (book.next.trash !== null) return book.next.trash;
   if (book.added && (book.cited ?? 0) === 0) return 'unlist';
   return null;
 }
@@ -47,25 +37,25 @@ export function renderActs(book: VolumeRow, does: RowActions) {
   return [download(book, does), trash(book, does)];
 }
 
-// An offloaded one is brought back from the offload folder first.
+const DOWNLOAD_TITLE = {
+  start: 'Download',
+  bringBack:
+    'Download: brought back from the offload folder, the rest from Astia',
+  stop: 'Stop'
+} as const;
+
+// Storage's next step with the download; bringing back is a download too.
 function download(book: VolumeRow, does: RowActions) {
-  const next =
-    book.offloaded !== null && book.download === null
-      ? { action: 'start' as const, label: 'Download' }
-      : downloadActions(book)[0];
-  if (next === undefined) return EMPTY_SLOT;
-  const back = book.offloaded !== null && does.folder;
+  const step = book.next.download;
+  if (step === null) return EMPTY_SLOT;
+  const action: DownloadAction = step === 'stop' ? 'stop' : 'start';
   return actButton(
-    next.label,
-    next.action === 'start' ? DOWNLOAD_ICON : STOP_ICON,
+    action === 'start' ? 'Download' : 'Stop',
+    action === 'start' ? DOWNLOAD_ICON : STOP_ICON,
     () => {
-      does.download(book, next.action);
+      does.download(book, action);
     },
-    {
-      title: back
-        ? 'Download: brought back from the offload folder, the rest from Astia'
-        : next.label
-    }
+    { title: DOWNLOAD_TITLE[step] }
   );
 }
 
@@ -84,7 +74,7 @@ function trashTitle(book: VolumeRow, does: RowActions, step: TrashStep) {
       return offloadTitle(book, does);
     case 'remove':
       return `Remove from disk: all ${formatBytes(book.onDisk.bytes)}, downloaded again from Astia when opened`;
-    case 'purge':
+    case 'removeForGood':
       return 'Remove for good: from disk and from the offload folder, downloaded again from Astia when opened';
     case 'unlist':
       return 'Remove from the list';
@@ -94,16 +84,17 @@ function trashTitle(book: VolumeRow, does: RowActions, step: TrashStep) {
 const LABEL: Record<TrashStep, string> = {
   offload: 'Offload',
   remove: 'Remove from disk',
-  purge: 'Remove for good',
+  removeForGood: 'Remove for good',
   unlist: 'Remove from the list'
 };
 
 // Coloured by what it would do; dimmed with nothing to.
 function trash(book: VolumeRow, does: RowActions) {
-  const step = trashStep(book, does.folder);
+  const step = trashStep(book);
   if (step === null) {
     return actButton('Remove', TRASH_ICON, () => undefined, {
-      title: 'Nothing to remove: not on disk, and cited or not added by hand',
+      title:
+        "Nothing to remove: not on disk, or the offload folder's drive away; and cited or not added by hand",
       disabled: true
     });
   }

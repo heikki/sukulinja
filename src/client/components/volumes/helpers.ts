@@ -12,25 +12,12 @@ import type {
 
 import { formatBytes } from '../settings/helpers';
 
+// A download asked for: started (an Offloaded Volume brought back first),
+// or stopped.
 export type DownloadAction = 'start' | 'stop';
 
 function whole(d: VolumeOnDisk) {
   return d.images !== null && d.images > 0 && d.cached === d.images;
-}
-
-// What can be done with a Volume's download, as its button says it: stop
-// one on its way, or download one not yet whole on disk, unless Astia has
-// re-scanned it, when only switching to the new filming goes on.
-export function downloadActions(
-  volume: ChurchBookVolume
-): Array<{ action: DownloadAction; label: string }> {
-  const state = volume.download?.state;
-  if (state === 'queued' || state === 'downloading') {
-    return [{ action: 'stop', label: 'Stop' }];
-  }
-  if (!volume.digitized || whole(volume.onDisk)) return [];
-  if (volume.download?.error === 'rescanned') return [];
-  return [{ action: 'start', label: 'Download' }];
 }
 
 const WHY: Record<DownloadError, string> = {

@@ -11,7 +11,6 @@ import {
   busy,
   diskCell,
   diskLine,
-  downloadActions,
   groupByArchive,
   listSummary,
   matches,
@@ -37,37 +36,13 @@ function volume(
     download:
       download === null
         ? null
-        : { volumeId: '1', state: 'stopped', error: null, ...download }
+        : { volumeId: '1', state: 'stopped', error: null, ...download },
+    next: { download: null, trash: null }
   };
-}
-
-function labels(v: ChurchBookVolume) {
-  return downloadActions(v).map((a) => a.label);
 }
 
 const PART = { images: 180, cached: 42, bytes: 105 * MB };
 const WHOLE = { images: 3, cached: 3, bytes: 3 * MB };
-
-describe('downloadActions', () => {
-  test('offers Download until a Volume is whole on disk', () => {
-    expect(labels(volume(null))).toEqual(['Download']);
-    expect(labels(volume(null, PART))).toEqual(['Download']);
-    expect(labels(volume({ state: 'stopped' }, PART))).toEqual(['Download']);
-    expect(labels(volume(null, WHOLE))).toEqual([]);
-    expect(
-      labels(volume({ state: 'stopped', error: 'rescanned' }, PART))
-    ).toEqual([]);
-  });
-
-  test('offers Stop while one downloads or waits to', () => {
-    expect(labels(volume({ state: 'queued' }))).toEqual(['Stop']);
-    expect(labels(volume({ state: 'downloading' }, PART))).toEqual(['Stop']);
-  });
-
-  test('offers nothing for a Volume with no scans', () => {
-    expect(labels(volume(null, undefined, false))).toEqual([]);
-  });
-});
 
 describe('diskLine', () => {
   test('says what is on disk', () => {

@@ -19,9 +19,12 @@ interface Sources {
 
 type Described = Pick<Volume, 'id' | 'label' | 'kind' | 'years' | 'digitized'>;
 
-// The Volume as Astia describes it, with what of it is on disk and its
-// download.
-function bookOf(v: Described, { onDisk, download }: Stored): ChurchBookVolume {
+// The Volume as Astia describes it, with what of it is on disk, its
+// download, and what Storage would do next with it.
+function bookOf(
+  v: Described,
+  { onDisk, download, next }: Stored
+): ChurchBookVolume {
   return {
     id: v.id,
     label: v.label,
@@ -29,7 +32,9 @@ function bookOf(v: Described, { onDisk, download }: Stored): ChurchBookVolume {
     years: v.years,
     digitized: v.digitized,
     onDisk,
-    download
+    download,
+    // One with no scans has none to download.
+    next: v.digitized ? next : { ...next, download: null }
   };
 }
 

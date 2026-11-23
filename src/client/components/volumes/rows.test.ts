@@ -16,7 +16,8 @@ function volume(id: string): ChurchBookVolume {
     years: { from: 1790, to: 1796 },
     digitized: true,
     onDisk: { images: 10, cached: 10, bytes: 10 },
-    download: null
+    download: null,
+    next: { download: null, trash: 'remove' }
   };
 }
 

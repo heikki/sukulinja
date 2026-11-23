@@ -15,23 +15,30 @@
 // Volume keeps: no step drops it. A step the Offload folder being away
 // would refuse throws FolderAwayError, doing nothing.
 
-import type { DownloadStatus, VolumeOnDisk } from '@/common/types';
+import type {
+  DownloadStatus,
+  StorageSteps,
+  VolumeOnDisk
+} from '@/common/types';
 
 import type { Astia, ImageRef, ImageSize } from '../astia/astia';
 import { imageSize, openCache } from './cache';
 import { openDownloads } from './downloads';
 import type { DownloadOptions } from './downloads';
+import { stepsOf } from './steps';
+import type { FolderState } from './steps';
 
 export { CAPS, OffloadedError } from './cache';
 export { FolderAwayError } from './folder';
 export type { DownloadOptions } from './downloads';
 
 // What Storage has of a Volume: on disk, its download this run, and what
-// it offloaded when it's Offloaded.
+// it offloaded when it's Offloaded; and what it would do next with it.
 export interface Stored {
   onDisk: VolumeOnDisk;
   download: DownloadStatus | null;
   offloaded: { images: number; bytes: number } | null;
+  next: StorageSteps;
 }
 
 export function openStorage({
@@ -80,12 +87,19 @@ export function openStorage({
     }
   };
 
+  async function folderState(): Promise<FolderState> {
+    const set = await folder.status();
+    if (set === null) return 'none';
+    return set.attached ? 'attached' : 'away';
+  }
+
   async function stored(volumeId: string): Promise<Stored> {
-    return {
+    const has = {
       onDisk: await cache.onDisk(volumeId),
       download: downloads.of(volumeId),
       offloaded: await cache.offloadedOf(volumeId)
     };
+    return { ...has, next: stepsOf(has, await folderState()) };
   }
 
   const volumes = {
