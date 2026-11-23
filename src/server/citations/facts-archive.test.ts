@@ -14,7 +14,11 @@ function volume(page: number, saved?: string): Volume {
 }
 
 // An offload folder of facts files alone, and a local file of Volumes.
-function stores(archived: Record<string, Volume>, local: Pins['volumes']) {
+function stores(
+  archived: Record<string, Volume>,
+  local: Pins['volumes'],
+  about?: (id: string) => Promise<{ archive?: string; astia?: string }>
+) {
   const files = new Map(
     Object.entries(archived).map(([id, v]) => [id, JSON.stringify(v)])
   );
@@ -32,7 +36,8 @@ function stores(archived: Record<string, Volume>, local: Pins['volumes']) {
     async adoptVolumeFacts(volumes: Pins['volumes']) {
       Object.assign(kept.volumes, volumes);
       await Promise.resolve();
-    }
+    },
+    about
   };
   function inFolder(id: string) {
     const text = files.get(id);
@@ -62,9 +67,13 @@ test('a sync keeps each Volume whole where it was saved later, never merged', as
   expect(kept.volumes.a).toEqual(volume(10, '2026-11-23T10:00:00.000Z'));
   expect(kept.volumes.b).toEqual(volume(21, '2026-11-22T00:00:00.000Z'));
   expect(kept.volumes.c).toEqual(volume(30, '2026-11-02T00:00:00.000Z'));
-  for (const id of ['a', 'b', 'c', 'd']) {
+  for (const id of ['a', 'b', 'c']) {
     expect(inFolder(id)).toEqual(kept.volumes[id]);
   }
+  // One never stamped is stamped as it's written.
+  const { saved, ...d } = inFolder('d')!;
+  expect(d).toEqual(volume(40));
+  expect(saved).toBeString();
 });
 
 test('a save is written to the folder unless the folder has it later', async () => {
@@ -81,4 +90,27 @@ test('a save is written to the folder unless the folder has it later', async () 
   });
   expect(inFolder('a')).toEqual(volume(10, '2026-11-23T10:00:00.000Z'));
   expect(inFolder('b')).toEqual(volume(20, '2026-11-20T00:00:00.000Z'));
+});
+
+test('a copy says which archive holds its Volume, where it is in Astia and its Images in order, read back without them', async () => {
+  const told = {
+    archive: 'Hankasalmen seurakunnan arkisto',
+    astia: 'https://astia.example/a',
+    images: ['f1', 'f2']
+  };
+  async function about() {
+    return await Promise.resolve(told);
+  }
+  const { archive, kept, inFolder } = stores(
+    { a: volume(10, '2026-11-01T00:00:00.000Z') },
+    { a: volume(10, '2026-11-01T00:00:00.000Z') },
+    about
+  );
+  await archive.sync();
+  const whole: Volume & typeof told = {
+    ...volume(10, '2026-11-01T00:00:00.000Z'),
+    ...told
+  };
+  expect(inFolder('a')).toEqual(whole);
+  expect(kept.volumes.a).toEqual(volume(10, '2026-11-01T00:00:00.000Z'));
 });

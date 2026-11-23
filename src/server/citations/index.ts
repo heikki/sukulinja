@@ -17,7 +17,7 @@ import { imageSize, openScanCache } from './astia/scan-cache';
 import { openBookList } from './book-list';
 import { createCitations } from './citations';
 import type { Citations } from './citations';
-import { factsArchive } from './facts-archive';
+import { describeVolume, factsArchive } from './facts-archive';
 import { openImages } from './images';
 import { openScanFolder, pacedImages, switchFilming } from './myheritage';
 import { askingAstia, citationOperations } from './operations';
@@ -87,7 +87,9 @@ export function openCitations(root: string, options: Options) {
     volumeFacts: async () => await folder.volumeFacts(),
     adoptVolumeFacts: async (volumes) => {
       await folder.adoptVolumeFacts(volumes);
-    }
+    },
+    about: async (volumeId) =>
+      await describeVolume(astia, () => parishes.archives(), volumeId)
   });
   const folder = openScanFolder(root, {
     astia,
