@@ -35,6 +35,8 @@ interface Sources {
   // The app's folder picker: the folder chosen, or null; none outside the
   // app.
   chooseFolder?: () => Promise<string | null>;
+  // Told once an offload folder is set, to fill it.
+  folderSet?: () => void;
   // What's known of a Volume's page numbers, and marking them checked or
   // as none.
   pages: {
@@ -87,6 +89,7 @@ export function sharedOperations({
   downloads,
   citedImages,
   chooseFolder,
+  folderSet,
   pages
 }: Sources): Handlers<SharedOperations> {
   // The archive, if it's a parish's in Astia.
@@ -207,6 +210,7 @@ export function sharedOperations({
       if (chosen !== null) {
         await cache.offloadFolder.set(chosen).catch(folderAway);
         void cache.archive().catch(() => undefined);
+        folderSet?.();
       }
       return await cache.offloadFolder.status();
     },

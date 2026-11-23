@@ -57,11 +57,12 @@ import type {
   PagePin,
   Pins,
   RecordPin,
-  RecordRange,
   ReferencePin,
   VolumePins
 } from './locate';
 import type { Marks } from './marks';
+import { contains, extendedRange } from './ranges';
+import { isLater, sameFacts } from './stamps';
 
 // ---------------------------------------------------------------- merging
 
@@ -104,14 +105,6 @@ function withPagePin(
   return [...pins.filter((p) => !clashes(p)), pin].sort(byImage);
 }
 
-function covers(range: RecordRange, record: number) {
-  return range.from <= record && record <= range.to;
-}
-
-function contains(outer: RecordRange, inner: RecordRange) {
-  return outer.from <= inner.from && inner.to <= outer.to;
-}
-
 // The Volumes as the local file keeps them, without the Record pins left
 // there, which no dataset cites.
 function readVolumes(local: LocalPins) {
@@ -121,36 +114,6 @@ function readVolumes(local: LocalPins) {
       return [id, rest];
     })
   );
-}
-
-// The Record range a Record pin extends its volume's to, or null: none
-// when a range of the volume already holds it, or when the extension would
-// reach into another volume's range. A volume with no range starts one.
-// Each volume's records form one unbroken block on its film, so the records
-// numbered in between are on the volume too.
-function extendedRange(
-  volumes: Pins['volumes'],
-  volumeId: string,
-  record: number
-) {
-  const own = volumes[volumeId]?.ranges ?? [];
-  if (own.some((r) => covers(r, record))) return null;
-  function distance(r: RecordRange) {
-    return record < r.from ? r.from - record : record - r.to;
-  }
-  const nearest = own.toSorted((a, b) => distance(a) - distance(b))[0];
-  const range =
-    nearest === undefined
-      ? { from: record, to: record }
-      : {
-          from: Math.min(nearest.from, record),
-          to: Math.max(nearest.to, record)
-        };
-  const others = Object.entries(volumes)
-    .filter(([id]) => id !== volumeId)
-    .flatMap(([, v]) => v.ranges ?? []);
-  const blocked = others.some((r) => r.from <= range.to && range.from <= r.to);
-  return blocked ? null : range;
 }
 
 // ---------------------------------------------------------------- marks as pins
@@ -280,7 +243,11 @@ function pagePin(
 
 // The Page pins and Record ranges of a data folder, shared by its datasets,
 // saved with file ids from `astia`'s lists.
-export function openVolumeFacts(folder: string, options: { astia: Astia }) {
+// `saved` hears of each write, the Volumes as then saved.
+export function openVolumeFacts(
+  folder: string,
+  options: { astia: Astia; saved?: (local: LocalPins) => void }
+) {
   const { astia } = options;
   const localFile = join(folder, 'pins.local.json');
   const lockFile = join(folder, 'pins.lock');
@@ -316,6 +283,21 @@ export function openVolumeFacts(folder: string, options: { astia: Astia }) {
     return await fileStamp(localFile);
   }
 
+  // Each Volume changed by the write stamped with when, unless it came
+  // with a stamp of its own.
+  async function write(local: LocalPins) {
+    const before = (await readLocalFile(localFile)).volumes;
+    const now = new Date().toISOString();
+    for (const [id, volume] of Object.entries(local.volumes)) {
+      const was = before[id];
+      if (volume.saved === was?.saved && !sameFacts(volume, was)) {
+        volume.saved = now;
+      }
+    }
+    await writeLocalFile(localFile, local);
+    options.saved?.(local);
+  }
+
   // One write of the local file, as `edit` changes it.
   async function saving(edit: (local: LocalPins) => void) {
     await migrated();
@@ -323,7 +305,7 @@ export function openVolumeFacts(folder: string, options: { astia: Astia }) {
     await withLock(lockFile, async () => {
       const local = await readLocal();
       edit(local);
-      await writeLocalFile(localFile, local);
+      await write(local);
     });
     merged = null;
   }
@@ -390,7 +372,7 @@ export function openVolumeFacts(folder: string, options: { astia: Astia }) {
             ...fileOf(filming, image)
           });
         }
-        await writeLocalFile(localFile, draft.local);
+        await write(draft.local);
       });
       merged = null;
     },
@@ -436,7 +418,7 @@ export function openVolumeFacts(folder: string, options: { astia: Astia }) {
             sameImage
           );
         }
-        await writeLocalFile(localFile, draft.local);
+        await write(draft.local);
       });
       merged = null;
     },
@@ -468,6 +450,21 @@ export function openVolumeFacts(folder: string, options: { astia: Astia }) {
     // The pins as the local file keeps them.
     async kept() {
       return await readLocal();
+    },
+
+    // Volumes kept elsewhere, the offload folder say, each taken whole in
+    // place of the local file's where it's later, or the file has none.
+    async adopt(volumes: Pins['volumes']) {
+      const have = (await readLocal()).volumes;
+      if (!Object.entries(volumes).some(([id, v]) => isLater(v, have[id]))) {
+        return;
+      }
+      await saving((local) => {
+        const { volumes: kept } = local;
+        for (const [id, v] of Object.entries(volumes)) {
+          if (isLater(v, kept[id])) kept[id] = v;
+        }
+      });
     }
   };
 }

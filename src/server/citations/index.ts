@@ -17,6 +17,7 @@ import { imageSize, openScanCache } from './astia/scan-cache';
 import { openBookList } from './book-list';
 import { createCitations } from './citations';
 import type { Citations } from './citations';
+import { factsArchive } from './facts-archive';
 import { openImages } from './images';
 import { openScanFolder, pacedImages, switchFilming } from './myheritage';
 import { askingAstia, citationOperations } from './operations';
@@ -81,7 +82,21 @@ export function openCitations(root: string, options: Options) {
   const parishes = options.parishes ?? openParishes(root);
   const images = openImages({ astia, parishes, sizeOf });
   const personBooks = openPersonBooks({ astia, parishes });
-  const folder = openScanFolder(root, { astia, parishes });
+  // The Volumes' facts kept in the offload folder too.
+  const archive = factsArchive(cache.offloadFolder, {
+    volumeFacts: async () => await folder.volumeFacts(),
+    adoptVolumeFacts: async (volumes) => {
+      await folder.adoptVolumeFacts(volumes);
+    }
+  });
+  const folder = openScanFolder(root, {
+    astia,
+    parishes,
+    saved: (local) => {
+      void archive.keep(local).catch(() => undefined);
+    }
+  });
+  void archive.sync().catch(() => undefined);
   // One queue for every search, so they don't hammer Astia together.
   const visionImage = pacedImages(cache);
   // Readings are kept on disk, so the same question isn't asked twice.
@@ -141,6 +156,9 @@ export function openCitations(root: string, options: Options) {
       downloads,
       citedImages,
       chooseFolder: options.chooseFolder,
+      folderSet: () => {
+        void archive.sync().catch(() => undefined);
+      },
       pages: {
         numbering: async (volumeId) => await folder.pageNumbering(volumeId),
         mark: async (volumeId, as) => {

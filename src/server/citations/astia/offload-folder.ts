@@ -2,7 +2,9 @@
 // attached, an external drive say, in the Scan cache's own layout
 // (`<volumeId>/<fileId>.jpg`), where an offload moves the Images a Volume
 // doesn't keep. Nothing is removed from it but an old filming's Images
-// once a Volume is switched to a re-scan, and a Volume removed for good. They're read from there while
+// once a Volume is switched to a re-scan, and a Volume removed for good.
+// Beside a Volume's Images, its facts (`facts.json`): its page numbers and
+// their marks, so the folder holds the Volume whole. They're read from there while
 // it's attached; with none set, an offload drops them.
 
 import { copyFile, mkdir, readdir, rename, rm, stat } from 'node:fs/promises';
@@ -13,6 +15,7 @@ import type { OffloadFolder } from '@/common/types';
 import { readSettings, saveSetting } from './install-settings';
 
 const KEY = 'offloadFolder';
+const FACTS = 'facts.json';
 
 // Asked to move Images while the folder set isn't attached.
 export class FolderAwayError extends Error {
@@ -146,6 +149,27 @@ export function openOffloadFolder(settingsFile: string) {
       );
     },
 
+    // The Volume's facts as the folder keeps them, as written; null when
+    // it has none or isn't attached.
+    async facts(volumeId: string) {
+      const folder = await attached();
+      if (folder === undefined || folder === null) return null;
+      const file = Bun.file(join(folder, volumeId, FACTS));
+      return (await file.exists()) ? await file.text() : null;
+    },
+
+    // Keeps the Volume's facts in the folder, when it's attached: written
+    // aside and moved in, as an Image is.
+    async keepFacts(volumeId: string, text: string) {
+      const folder = await attached();
+      if (folder === undefined || folder === null) return;
+      const at = join(folder, volumeId, FACTS);
+      await mkdir(join(folder, volumeId), { recursive: true });
+      const part = `${at}.${crypto.randomUUID()}.part`;
+      await Bun.write(part, text);
+      await rename(part, at);
+    },
+
     // Removes all of the Volume from the folder; throws FolderAwayError
     // when it's set and away, removing nothing.
     async forget(volumeId: string) {
@@ -163,7 +187,8 @@ export function openOffloadFolder(settingsFile: string) {
       if (folder === undefined) return;
       if (folder === null) throw new FolderAwayError('offload folder away');
       const dir = join(folder, volumeId);
-      const names = await readdir(dir).catch(() => []);
+      const all = await readdir(dir).catch(() => []);
+      const names = all.filter((n) => n.endsWith('.jpg'));
       await mkdir(to, { recursive: true });
       await Promise.all(
         names.map(async (name) => {

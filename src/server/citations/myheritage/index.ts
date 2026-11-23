@@ -9,6 +9,8 @@
 export { routeRescan, switchFilming } from './pins/rescans';
 export type { KeptPins } from './pins/rescans';
 export type { BoxAt, DiscardDone, MarkDone, MarkTarget } from './pins/pins';
+export type { Pins } from './pins/locate';
+export { isLater, sameFacts } from './pins/stamps';
 export {
   BAPTISM_COLLECTION,
   churchBookRefOf,

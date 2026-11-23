@@ -307,7 +307,12 @@ export type Scans = ReturnType<typeof openScans>;
 // once for every dataset, and its parishes.
 export function openScanFolder(
   root: string,
-  options: { astia: Astia; parishes: Parishes }
+  options: {
+    astia: Astia;
+    parishes: Parishes;
+    // Hears of each save of the Volumes' facts.
+    saved?: (local: Pins) => void;
+  }
 ) {
   const { astia, parishes } = options;
   const facts = openVolumeFacts(root, options);
@@ -330,6 +335,13 @@ export function openScanFolder(
       if (kept?.checked === true) return 'checked';
       if (kept?.unnumbered === true) return 'none';
       return (kept?.pages.length ?? 0) > 0 ? 'read' : 'counted';
+    },
+
+    // The Volumes' facts as saved, and those kept elsewhere added where
+    // none are saved.
+    volumeFacts: async () => await facts.kept(),
+    adoptVolumeFacts: async (volumes: Pins['volumes']) => {
+      await facts.adopt(volumes);
     },
 
     // Marks the Volume's page numbers checked, or as none, locking them,

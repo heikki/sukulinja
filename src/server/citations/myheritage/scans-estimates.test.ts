@@ -345,3 +345,28 @@ test('a Volume marked as having no page numbers places no cited page, until unma
   await folder.markPages('juva-1', null);
   expect(await imagesAt(12)).toEqual([12]);
 });
+
+test("a Volume's facts are stamped when they change, and taken whole from elsewhere only when later", async () => {
+  const folder = openScanFolder(dir, {
+    astia: juvaAstia(),
+    parishes: memoryParishes()
+  });
+  await folder.markPages('juva-1', 'checked');
+  const stamped = (await folder.volumeFacts()).volumes['juva-1']!;
+  expect(typeof stamped.saved).toBe('string');
+  // Marked again, nothing changed, nor its stamp.
+  await folder.markPages('juva-1', 'checked');
+  expect((await folder.volumeFacts()).volumes['juva-1']).toEqual(stamped);
+  // Kept elsewhere earlier, it isn't taken; later, it is, stamp and all.
+  const earlier = { pages: [], saved: '2000-01-01T00:00:00.000Z' };
+  await folder.adoptVolumeFacts({ 'juva-1': earlier });
+  expect((await folder.volumeFacts()).volumes['juva-1']).toEqual(stamped);
+  const later = {
+    pages: [],
+    unnumbered: true,
+    saved: '2999-01-01T00:00:00.000Z'
+  };
+  await folder.adoptVolumeFacts({ 'juva-1': later });
+  expect((await folder.volumeFacts()).volumes['juva-1']).toEqual(later);
+  expect(await folder.pageNumbering('juva-1')).toBe('none');
+});

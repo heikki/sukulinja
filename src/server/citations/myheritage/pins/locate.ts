@@ -77,6 +77,9 @@ export interface VolumePins {
   // Marked by hand as having no page numbers: locked so, and a cited page
   // places nothing in it.
   unnumbered?: boolean;
+  // When it last changed (ISO), for the copy in the offload folder: the
+  // later of the two is kept whole.
+  saved?: string;
   villages?: string[];
   ranges?: RecordRange[];
   records?: RecordPin[];
