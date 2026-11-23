@@ -39,7 +39,7 @@ function stepsOf(
 }
 
 async function rowOf(
-  book: ChurchBookVolume & Pick<VolumesRow, 'archiveId' | 'archive'>,
+  book: HereBook,
   of: Pick<VolumesRow, 'onList' | 'added' | 'cited'>,
   pagesOf: Sources['pagesOf']
 ): Promise<VolumesRow> {
