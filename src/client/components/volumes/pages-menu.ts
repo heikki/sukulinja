@@ -7,31 +7,30 @@
 import { html, nothing } from 'lit';
 
 import type { Point } from '@/client/pan-zoom';
-import type { PageMark } from '@/common/types';
+import type { PageMark, VolumesRow } from '@/common/types';
 
 import '../context-menu';
 
 import type { MenuItem } from '../context-menu';
-import type { VolumeRow } from './rows';
 
 // An open menu, its Volume and where it drops from in the tab; with
 // `ask`, the question before a step that takes pages away.
 export interface PagesMenu {
-  book: VolumeRow;
+  book: VolumesRow;
   at: Point;
   ask?: { heading: string; step: MenuItem };
 }
 
 export interface PagesActions {
-  mark: (book: VolumeRow, as: PageMark | null) => void;
+  mark: (book: VolumesRow, as: PageMark | null) => void;
   // The model a survey asks, by its label; null while the Assistant is
   // off.
   model: string | null;
-  survey: (book: VolumeRow) => void;
-  clear: (book: VolumeRow) => void;
+  survey: (book: VolumesRow) => void;
+  clear: (book: VolumesRow) => void;
 }
 
-export function pagesItems(book: VolumeRow, on: PagesActions): MenuItem[] {
+export function pagesItems(book: VolumesRow, on: PagesActions): MenuItem[] {
   function mark(as: PageMark | null) {
     return () => {
       on.mark(book, as);

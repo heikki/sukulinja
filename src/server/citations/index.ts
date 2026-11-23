@@ -8,7 +8,7 @@ import type { NewChange } from '../changes/changes';
 import { routeShared } from './astia-routes';
 import { openAstia } from './astia/astia';
 import type { Astia, ImageRef } from './astia/astia';
-import { parishBooks } from './astia/church-books';
+import { installBooks, parishBooks } from './astia/church-books';
 import { openParishes } from './astia/parishes';
 import type { Parishes } from './astia/parishes';
 import { openBookList } from './book-list';
@@ -25,6 +25,7 @@ import { openStorage } from './storage';
 import type { DownloadOptions } from './storage';
 import { openVision } from './vision';
 import type { VisionReaders } from './vision';
+import { volumesView } from './volumes-view';
 
 export type { Astia } from './astia/astia';
 export type { DownloadOptions } from './storage';
@@ -232,6 +233,19 @@ export function openCitations(root: string, options: Options) {
         }),
         // The dataset's Book list, and adding and taking off Volumes.
         bookList,
+        // The Volumes view: the Book list, then every other Volume on this
+        // computer, with Storage's fill.
+        volumesView: async () =>
+          await volumesView({
+            listed: async () => await bookList.all(),
+            here: async () =>
+              await installBooks(
+                { astia, storage: storage.volumes },
+                parishes.archives()
+              ),
+            pagesOf: async (volumeId) => await folder.pageNumbering(volumeId),
+            storage: async () => await storage.volumes.status()
+          }),
         // The church books a person's Facts say they should be in, each
         // Expected entry with the Volumes it fits.
         booksFor: async (life: PersonLife) => await personBooks.booksFor(life),

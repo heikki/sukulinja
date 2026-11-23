@@ -37,6 +37,7 @@ function volume(
       download === null
         ? null
         : { volumeId: '1', state: 'stopped', error: null, ...download },
+    offloaded: null,
     next: { download: null, trash: null }
   };
 }

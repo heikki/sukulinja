@@ -1,6 +1,8 @@
 import { css, html, nothing, svg } from 'lit';
 import type { TemplateResult } from 'lit';
 
+import type { VolumesRow } from '@/common/types';
+
 import { cornerListStyles } from '../corner-panel/list-styles';
 import {
   diskCell,
@@ -12,7 +14,6 @@ import {
   yearsText
 } from './helpers';
 import type { ArchiveGroup } from './helpers';
-import type { VolumeRow } from './rows';
 
 export const DOWNLOAD_ICON = svg`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12" /><path d="m6 11 6 6 6-6" /><path d="M5 20h14" /></svg>`;
 export const STOP_ICON = svg`<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" /></svg>`;
@@ -20,30 +21,29 @@ export const CHECK_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fi
 export const TRASH_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M6 7l1 13h10l1-13" /><path d="M9 7V4h6v3" /></svg>`;
 
 export interface BookTable {
-  books: VolumeRow[];
+  books: VolumesRow[];
   // The Volume the Scan viewer shows, marked, if any.
   shown: string | null;
   // The buttons at the end of each Volume's row.
-  acts: (book: VolumeRow) => TemplateResult[];
-  open: (book: VolumeRow) => void;
+  acts: (book: VolumesRow) => TemplateResult[];
+  open: (book: VolumesRow) => void;
   // Its menu, opened by a right-click on its row.
-  menu: (book: VolumeRow, e: MouseEvent) => void;
+  menu: (book: VolumesRow, e: MouseEvent) => void;
 }
 
 // How many of the dataset's Citations link into it; nothing for one off
 // the Book list.
-function citedCell(book: VolumeRow) {
-  if (book.cited === null) return nothing;
+function citedCell(book: VolumesRow) {
+  if (!book.onList) return nothing;
   return book.cited === 0 ? html`<span class="count">–</span>` : book.cited;
 }
 
-function pagesOf(book: VolumeRow) {
-  if (book.pages === null) return nothing;
+function pagesOf(book: VolumesRow) {
   const { text, title } = pagesCell(book.pages);
   return html`<span title=${title}>${text}</span>`;
 }
 
-function renderBook(table: BookTable, book: VolumeRow) {
+function renderBook(table: BookTable, book: VolumesRow) {
   return html`<tr
     class="book ${book.digitized ? '' : 'off'} ${book.id === table.shown ? 'shown' : ''}"
     aria-current=${book.id === table.shown ? 'true' : nothing}
@@ -71,7 +71,7 @@ function renderBook(table: BookTable, book: VolumeRow) {
   </tr>`;
 }
 
-function renderGroup(table: BookTable, g: ArchiveGroup<VolumeRow>) {
+function renderGroup(table: BookTable, g: ArchiveGroup<VolumesRow>) {
   return html`<tbody>
     <tr class="archive">
       <td colspan="7">

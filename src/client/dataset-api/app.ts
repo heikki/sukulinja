@@ -9,7 +9,6 @@ import type {
   AssistantKeyStatus,
   ChurchBookArchive,
   ChurchBookVolume,
-  InstalledBook,
   OffloadFolder,
   PageMark,
   StorageStatus
@@ -39,19 +38,14 @@ export interface AppApi {
   // Starts or carries on with the Volume's download, or stops it.
   startDownload: (volumeId: string) => Promise<void>;
   stopDownload: (volumeId: string) => Promise<void>;
-  // Every Volume with something on this computer; taking one off the disk
-  // answers with them as they then stand.
-  allBooks: () => Promise<InstalledBook[]>;
-  removeFromDisk: (volumeId: string) => Promise<InstalledBook[]>;
-  removeForGood: (volumeId: string) => Promise<InstalledBook[]>;
-  offload: (volumeId: string) => Promise<InstalledBook[]>;
+  // Takes the Volume off the disk, out of the offload folder too for
+  // good, or offloads it.
+  removeFromDisk: (volumeId: string) => Promise<void>;
+  removeForGood: (volumeId: string) => Promise<void>;
+  offload: (volumeId: string) => Promise<void>;
   // Marks the Volume's page numbers checked or as none, locking them, or
-  // with null no longer, answering with every Volume on this computer;
-  // whether either mark locks them.
-  markPages: (
-    volumeId: string,
-    as: PageMark | null
-  ) => Promise<InstalledBook[]>;
+  // with null no longer; whether either mark locks them.
+  markPages: (volumeId: string, as: PageMark | null) => Promise<void>;
   pagesLocked: (volumeId: string, signal?: AbortSignal) => Promise<boolean>;
   isOffloaded: (volumeId: string) => Promise<boolean>;
   offloadFrees: (volumeId: string) => Promise<number | null>;
@@ -99,15 +93,18 @@ export function openAppApi({
     async stopDownload(volumeId) {
       await call('stopDownload', { volumeId }, 'Stopping the download');
     },
-    allBooks: async () => await call('allBooks', {}, 'the volumes'),
-    removeFromDisk: async (volumeId) =>
-      await call('removeFromDisk', { volumeId }, 'Removing from disk'),
-    removeForGood: async (volumeId) =>
-      await call('removeForGood', { volumeId }, 'Removing for good'),
-    offload: async (volumeId) =>
-      await call('offload', { volumeId }, 'Offloading'),
-    markPages: async (volumeId, as) =>
-      await call('markPages', { volumeId, as }, 'Marking the pages'),
+    async removeFromDisk(volumeId) {
+      await call('removeFromDisk', { volumeId }, 'Removing from disk');
+    },
+    async removeForGood(volumeId) {
+      await call('removeForGood', { volumeId }, 'Removing for good');
+    },
+    async offload(volumeId) {
+      await call('offload', { volumeId }, 'Offloading');
+    },
+    async markPages(volumeId, as) {
+      await call('markPages', { volumeId, as }, 'Marking the pages');
+    },
     pagesLocked: async (volumeId, signal) =>
       await call('pagesLocked', { volumeId }, 'the pages', signal),
     isOffloaded: async (volumeId) =>

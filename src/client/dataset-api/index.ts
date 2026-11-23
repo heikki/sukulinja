@@ -45,7 +45,8 @@ import type {
   VolumeChoices,
   VolumeCitation,
   VolumeContents,
-  VolumeLocating
+  VolumeLocating,
+  VolumesView
 } from '@/common/types';
 
 import { asker, operationsAt, settled } from './ask';
@@ -169,6 +170,10 @@ export interface DatasetApi {
     archiveId: string;
   }) => Promise<ListedBook[]>;
   unlistBook: (volumeId: string) => Promise<ListedBook[]>;
+  // The Volumes view: the Book list's Volumes, then every other one on
+  // this computer, each with its page numbers and its buttons' steps; and
+  // Storage's fill.
+  volumesView: (signal?: AbortSignal) => Promise<VolumesView>;
   // The person's Expected entries in the order of their life, each with
   // the Volumes it fits.
   personBooks: (
@@ -352,6 +357,8 @@ export function openDatasetApi(
       ),
     bookList: async (signal) =>
       await call('bookList', {}, 'the church books', signal),
+    volumesView: async (signal) =>
+      await call('volumesView', {}, 'the volumes', signal),
     listBook: async (at) => await call('listBook', at, 'the book'),
     unlistBook: async (volumeId) =>
       await call('unlistBook', { volumeId }, 'the book'),

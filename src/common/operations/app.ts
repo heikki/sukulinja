@@ -10,7 +10,6 @@ import type {
   ChurchBookArchive,
   ChurchBookVolume,
   DownloadStatus,
-  InstalledBook,
   OffloadFolder,
   PageMark,
   StorageStatus
@@ -92,41 +91,35 @@ export const APP_OPERATIONS = {
     volumeOf
   ),
 
-  // Every Volume with something on this computer, the install's parishes'
-  // first, in their order. Taking one off the disk stops its download and
-  // answers with them as they then stand.
-  allBooks: asksNothing<InstalledBook[]>(),
-  removeFromDisk: answers<{ volumeId: string }, InstalledBook[]>(
+  // Taking a Volume off the disk stops its download.
+  removeFromDisk: answers<{ volumeId: string }, undefined>(
     '{ volumeId }',
     volumeOf
   ),
   // Off the disk and out of the offload folder too, for good.
-  removeForGood: answers<{ volumeId: string }, InstalledBook[]>(
+  removeForGood: answers<{ volumeId: string }, undefined>(
     '{ volumeId }',
     volumeOf
   ),
   // Every Image of the Volume but those any dataset's Citations link off
   // the disk, its download stopped, and no other fetched until it's
-  // brought back; the Volumes as they then stand.
-  offload: answers<{ volumeId: string }, InstalledBook[]>(
-    '{ volumeId }',
-    volumeOf
-  ),
+  // brought back.
+  offload: answers<{ volumeId: string }, undefined>('{ volumeId }', volumeOf),
 
   // Marks the Volume's page numbers checked, or as none, locking them in
-  // the Scan viewer, or with null takes the mark away: every Volume on
-  // this computer then. Whether they're locked by either mark.
-  markPages: answers<
-    { volumeId: string; as: PageMark | null },
-    InstalledBook[]
-  >('{ volumeId, as }', (body) => {
-    const volume = volumeOf(body);
-    const { as } = body;
-    return volume === null ||
-      !(as === null || as === 'checked' || as === 'none')
-      ? null
-      : { ...volume, as };
-  }),
+  // the Scan viewer, or with null takes the mark away. Whether they're
+  // locked by either mark.
+  markPages: answers<{ volumeId: string; as: PageMark | null }, undefined>(
+    '{ volumeId, as }',
+    (body) => {
+      const volume = volumeOf(body);
+      const { as } = body;
+      return volume === null ||
+        !(as === null || as === 'checked' || as === 'none')
+        ? null
+        : { ...volume, as };
+    }
+  ),
   pagesLocked: answers<{ volumeId: string }, boolean>('{ volumeId }', volumeOf),
   // Whether the Volume is offloaded: then only its cited Images load.
   isOffloaded: answers<{ volumeId: string }, boolean>('{ volumeId }', volumeOf),

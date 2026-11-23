@@ -1,8 +1,8 @@
 // The operations on a dataset's church books as a whole: its Book list,
-// adding Volumes to it and taking them off, and the Volumes a person's
-// Facts say they should be in.
+// adding Volumes to it and taking them off, the Volumes view, and the
+// Volumes a person's Facts say they should be in.
 
-import type { BookSuggestion, ListedBook } from '@/common/types';
+import type { BookSuggestion, ListedBook, VolumesView } from '@/common/types';
 
 import { answers, asksNothing } from './operation';
 import { isId, isName } from './read';
@@ -11,6 +11,11 @@ export const BOOK_OPERATIONS = {
   // The dataset's Book list: the Volumes its Citations link into and those
   // added by hand, by archive.
   bookList: asksNothing<ListedBook[]>(),
+
+  // The Volumes view: the Book list's Volumes, then every other one on
+  // this computer, each with its page numbers and its buttons' steps; and
+  // Storage's fill.
+  volumesView: asksNothing<VolumesView>(),
 
   // Adds the archive's Volume to the Book list: the list.
   listBook: answers<{ volumeId: string; archiveId: string }, ListedBook[]>(

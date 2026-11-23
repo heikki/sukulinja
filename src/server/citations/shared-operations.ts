@@ -15,7 +15,7 @@ import type {
 import { Refusal } from '../operations';
 import type { Handlers } from '../operations';
 import type { Astia } from './astia/astia';
-import { installBooks, parishBooks } from './astia/church-books';
+import { parishBooks } from './astia/church-books';
 import { findParishArchives, isParishArchive } from './astia/parish-search';
 import type { Parishes } from './astia/parishes';
 import { askingAstia } from './operations';
@@ -50,7 +50,6 @@ export type SharedOperations = Pick<
   | 'downloads'
   | 'startDownload'
   | 'stopDownload'
-  | 'allBooks'
   | 'removeFromDisk'
   | 'removeForGood'
   | 'offload'
@@ -95,16 +94,6 @@ export function sharedOperations({
     }
   }
 
-  async function allBooks() {
-    return await installBooks(
-      { astia, storage },
-      {
-        parishes: parishes.archives(),
-        pagesOf: pages.numbering
-      }
-    );
-  }
-
   return {
     parishes: async () =>
       await Promise.all(
@@ -142,22 +131,17 @@ export function sharedOperations({
       storage.stop(volumeId);
       return storage.downloads();
     },
-    allBooks,
     async removeFromDisk({ volumeId }) {
       await storage.remove(volumeId).catch(folderAway);
-      return await allBooks();
     },
     async removeForGood({ volumeId }) {
       await storage.removeForGood(volumeId).catch(folderAway);
-      return await allBooks();
     },
     async offload({ volumeId }) {
       await askingAstia(storage.offload(volumeId)).catch(folderAway);
-      return await allBooks();
     },
     async markPages({ volumeId, as }) {
       await pages.mark(volumeId, as);
-      return await allBooks();
     },
     pagesLocked: async ({ volumeId }) =>
       ['checked', 'none'].includes(await pages.numbering(volumeId)),

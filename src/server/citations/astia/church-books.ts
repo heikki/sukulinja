@@ -1,13 +1,8 @@
 // The church books as the app can list them apart from any citation: a
 // parish archive's Volumes, and every Volume with something on this
-// computer, with what of them is on disk, their downloads and what's
-// known of their page numbers.
+// computer, with what Storage has of them.
 
-import type {
-  ChurchBookVolume,
-  InstalledBook,
-  PageNumbering
-} from '@/common/types';
+import type { ChurchBookVolume } from '@/common/types';
 
 import type { StorageVolumes, Stored } from '../storage';
 import type { Astia, Volume } from './astia';
@@ -19,11 +14,19 @@ interface Sources {
 
 type Described = Pick<Volume, 'id' | 'label' | 'kind' | 'years' | 'digitized'>;
 
+// A Volume with something on this computer, with the archive holding it,
+// by its id and title, when one of the install's parishes has it, null
+// when none does.
+export type HereBook = ChurchBookVolume & {
+  archiveId: string | null;
+  archive: string | null;
+};
+
 // The Volume as Astia describes it, with what of it is on disk, its
 // download, and what Storage would do next with it.
 function bookOf(
   v: Described,
-  { onDisk, download, next }: Stored
+  { onDisk, download, offloaded, next }: Stored
 ): ChurchBookVolume {
   return {
     id: v.id,
@@ -33,6 +36,7 @@ function bookOf(
     digitized: v.digitized,
     onDisk,
     download,
+    offloaded,
     next
   };
 }
@@ -56,25 +60,11 @@ export async function parishBooks(
 // alone. A parish Astia can't be asked about names none of its Volumes.
 export async function installBooks(
   sources: Sources,
-  {
-    parishes,
-    pagesOf
-  }: {
-    parishes: string[];
-    // What's known of a Volume's page numbers.
-    pagesOf: (volumeId: string) => Promise<PageNumbering>;
-  }
-): Promise<InstalledBook[]> {
+  parishes: string[]
+): Promise<HereBook[]> {
   const { astia, storage } = sources;
-  // The Volume as described, with what Storage has of it and its page
-  // numbers.
   async function installed(v: Described) {
-    const stored = await storage.of(v.id, v.digitized);
-    return {
-      ...bookOf(v, stored),
-      offloaded: stored.offloaded,
-      pages: await pagesOf(v.id)
-    };
+    return bookOf(v, await storage.of(v.id, v.digitized));
   }
   const here = new Set(await storage.here());
   const named = await Promise.all(

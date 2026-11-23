@@ -3,6 +3,8 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import type { VolumesView } from '@/common/types';
+
 import { juvaAstia, memoryAstia } from './citations/testing';
 import type { MemoryAstia } from './citations/testing';
 import { DatasetRegistry } from './datasets/registry';
@@ -253,6 +255,7 @@ describe('Church books', () => {
         digitized: true,
         onDisk: { images: 2, cached: 0, bytes: 0 },
         download: null,
+        offloaded: null,
         next: { download: 'start', trash: null }
       },
       expect.objectContaining({ id: '302', download: null })
@@ -274,7 +277,7 @@ describe('Church books', () => {
     expect((await appOp('stopDownload', { volumeId: 'x' })).status).toBe(400);
   });
 
-  test('lists every Volume on this computer, and takes one off the disk', async () => {
+  test('shows every Volume on this computer in the Volumes view, and takes one off the disk', async () => {
     serveWith(
       memoryAstia({
         [JUVA_ARCHIVE]: {
@@ -285,58 +288,63 @@ describe('Church books', () => {
         '555': { volumes: [{ id: '999', label: 'I Aa:9', images: 1 }] }
       })
     );
-    expect((await appOp('allBooks')).body).toEqual([]);
+    const staging = await new DatasetRegistry(join(root, 'data')).createStaging(
+      'tree'
+    );
+    await staging.commit();
+    async function view() {
+      return (await (await op('tree', 'volumesView')).json()) as VolumesView;
+    }
+    expect(await view()).toMatchObject({ rows: [], listed: true });
     await appOp('startDownload', { volumeId: '302' });
     await until(async () => {
       const { body } = await appOp('downloads');
       return (body as unknown[]).length === 0;
     });
-    expect((await appOp('allBooks')).body).toEqual([
-      expect.objectContaining({
+    expect((await view()).rows).toMatchObject([
+      {
         id: '302',
         label: 'I C:1 Syntyneiden ja kastettujen luettelot',
         archiveId: JUVA_ARCHIVE,
         archive: 'Juvan seurakunnan arkisto',
-        onDisk: { images: 3, cached: 3, bytes: 12 }
-      })
+        onList: false,
+        onDisk: { images: 3, cached: 3, bytes: 12 },
+        pages: 'counted',
+        steps: { download: null, trash: 'remove' }
+      }
     ]);
     // One of no parish the install has is known by its id alone.
     await Bun.write(join(root, 'data', '.astia-images', '999', 'f.jpg'), 'x');
-    expect((await appOp('allBooks')).body).toEqual([
-      expect.objectContaining({ id: '302' }),
-      expect.objectContaining({
+    expect((await view()).rows).toMatchObject([
+      { id: '302' },
+      {
         id: '999',
         label: '999',
         archiveId: null,
         archive: null
-      })
+      }
     ]);
     await appOp('removeFromDisk', { volumeId: '999' });
     // Its page numbers marked checked, for every dataset.
-    const checked = await appOp('markPages', {
-      volumeId: '302',
-      as: 'checked'
-    });
-    expect(checked.body).toEqual([
-      expect.objectContaining({ id: '302', pages: 'checked' })
+    await appOp('markPages', { volumeId: '302', as: 'checked' });
+    expect((await view()).rows).toMatchObject([
+      { id: '302', pages: 'checked' }
     ]);
     expect((await appOp('pagesLocked', { volumeId: '302' })).body).toBe(true);
     // Offloaded, with nothing cited in it: no full Image of it stays, only
     // the thumbnails.
-    const offloaded = await appOp('offload', { volumeId: '302' });
-    expect(offloaded.body).toMatchObject([
+    await appOp('offload', { volumeId: '302' });
+    expect((await view()).rows).toMatchObject([
       { id: '302', offloaded: { images: 3 }, onDisk: { images: 3, cached: 0 } }
     ]);
     // Downloaded again, it's brought back first.
     expect((await appOp('startDownload', { volumeId: '302' })).status).toBe(
       200
     );
-    expect((await appOp('allBooks')).body).toMatchObject([
-      { id: '302', offloaded: null }
-    ]);
-    const removed = await appOp('removeFromDisk', { volumeId: '302' });
-    expect(removed.body).toEqual([]);
-    expect((await appOp('storage')).body).toMatchObject({ used: 0 });
+    expect((await view()).rows).toMatchObject([{ id: '302', offloaded: null }]);
+    await appOp('removeFromDisk', { volumeId: '302' });
+    expect((await view()).rows).toEqual([]);
+    expect((await view()).storage).toMatchObject({ used: 0 });
   });
 });
 

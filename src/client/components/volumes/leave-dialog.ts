@@ -1,8 +1,9 @@
 import { html } from 'lit';
 
+import type { VolumesRow } from '@/common/types';
+
 import { formatBytes } from '../settings/helpers';
 import { volumeCode } from './helpers';
-import type { VolumeRow } from './rows';
 
 // Asked before all of a Volume's Images are removed from disk, with no
 // offload folder to keep them, or for good, from the folder too
@@ -13,7 +14,7 @@ export function renderLeaveDialog({
   confirm,
   cancel
 }: {
-  book: VolumeRow;
+  book: VolumesRow;
   forGood: boolean;
   confirm: () => void;
   cancel: () => void;

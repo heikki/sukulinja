@@ -1,6 +1,7 @@
+import type { VolumesRow } from '@/common/types';
+
 import { formatBytes } from '../settings/helpers';
 import type { DownloadAction } from './helpers';
-import type { VolumeRow } from './rows';
 import {
   actButton,
   DOWNLOAD_ICON,
@@ -14,27 +15,19 @@ export interface RowActions {
   busy: boolean;
   // What offloading a Volume would free, by its id, once asked.
   frees: Map<string, number | null>;
-  askFrees: (book: VolumeRow) => void;
-  download: (book: VolumeRow, action: DownloadAction) => void;
-  offload: (book: VolumeRow) => void;
-  remove: (book: VolumeRow) => void;
-  removeForGood: (book: VolumeRow) => void;
-  unlist: (book: VolumeRow) => void;
+  askFrees: (book: VolumesRow) => void;
+  download: (book: VolumesRow, action: DownloadAction) => void;
+  offload: (book: VolumesRow) => void;
+  remove: (book: VolumesRow) => void;
+  removeForGood: (book: VolumesRow) => void;
+  unlist: (book: VolumesRow) => void;
 }
 
-// What the trash button does next: Storage's step; and with nothing of it
-// on disk, one added by hand that nothing cites taken off the Book list.
-export type TrashStep = NonNullable<VolumeRow['next']['trash']> | 'unlist';
-
-export function trashStep(book: VolumeRow): TrashStep | null {
-  if (book.next.trash !== null) return book.next.trash;
-  if (book.onDisk.bytes > 0) return null;
-  if (book.added && (book.cited ?? 0) === 0) return 'unlist';
-  return null;
-}
+// What the trash button does next, as the view says.
+type TrashStep = NonNullable<VolumesRow['steps']['trash']>;
 
 // Its download, and the trash button, each in its place.
-export function renderActs(book: VolumeRow, does: RowActions) {
+export function renderActs(book: VolumesRow, does: RowActions) {
   return [download(book, does), trash(book, does)];
 }
 
@@ -46,8 +39,8 @@ const DOWNLOAD_TITLE = {
 } as const;
 
 // Storage's next step with the download; bringing back is a download too.
-function download(book: VolumeRow, does: RowActions) {
-  const step = book.next.download;
+function download(book: VolumesRow, does: RowActions) {
+  const step = book.steps.download;
   if (step === null) return EMPTY_SLOT;
   const action: DownloadAction = step === 'stop' ? 'stop' : 'start';
   return actButton(
@@ -60,7 +53,7 @@ function download(book: VolumeRow, does: RowActions) {
   );
 }
 
-function offloadTitle(book: VolumeRow, does: RowActions) {
+function offloadTitle(book: VolumesRow, does: RowActions) {
   const freed = does.frees.get(book.id);
   const frees =
     freed === undefined || freed === null
@@ -69,7 +62,7 @@ function offloadTitle(book: VolumeRow, does: RowActions) {
   return `Offload: ${frees}keeping the cited images on disk and the rest in the offload folder`;
 }
 
-function trashTitle(book: VolumeRow, does: RowActions, step: TrashStep) {
+function trashTitle(book: VolumesRow, does: RowActions, step: TrashStep) {
   switch (step) {
     case 'offload':
       return offloadTitle(book, does);
@@ -90,8 +83,8 @@ const LABEL: Record<TrashStep, string> = {
 };
 
 // Coloured by what it would do; dimmed with nothing to.
-function trash(book: VolumeRow, does: RowActions) {
-  const step = trashStep(book);
+function trash(book: VolumesRow, does: RowActions) {
+  const step = book.steps.trash;
   if (step === null) {
     return actButton('Remove', TRASH_ICON, () => undefined, {
       title:

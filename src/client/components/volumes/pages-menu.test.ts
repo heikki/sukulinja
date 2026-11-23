@@ -1,10 +1,11 @@
 import { expect, test } from 'bun:test';
 
+import type { VolumesRow } from '@/common/types';
+
 import { pagesItems } from './pages-menu';
 import type { PagesActions } from './pages-menu';
-import type { VolumeRow } from './rows';
 
-function row(pages: VolumeRow['pages']): VolumeRow {
+function row(pages: VolumesRow['pages']): VolumesRow {
   return {
     id: '1',
     label: 'I Aa:1',
@@ -15,11 +16,12 @@ function row(pages: VolumeRow['pages']): VolumeRow {
     download: null,
     archiveId: 'a',
     archive: 'Juva',
+    onList: true,
     cited: 0,
     added: true,
     pages,
     offloaded: null,
-    next: { download: null, trash: null }
+    steps: { download: null, trash: null }
   };
 }
 
@@ -32,7 +34,7 @@ function actions(model: string | null): PagesActions {
   };
 }
 
-function labels(pages: VolumeRow['pages'], model: string | null = null) {
+function labels(pages: VolumesRow['pages'], model: string | null = null) {
   return pagesItems(row(pages), actions(model)).map((i) => i.label);
 }
 

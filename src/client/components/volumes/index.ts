@@ -10,7 +10,7 @@ import { dialogStyles } from '@/client/dialog-styles';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import { CLAUDE_MODELS } from '@/common/assistant-choices';
-import type { InstalledBook, ListedBook, StorageStatus } from '@/common/types';
+import type { VolumesRow, VolumesView } from '@/common/types';
 
 import { formatBytes } from '../settings/helpers';
 import { busy, listSummary, matches } from './helpers';
@@ -22,8 +22,6 @@ import type { PagesActions, PagesMenu } from './pages-menu';
 import type { BookListEvent, VolumeOpen } from './picker';
 import { renderActs } from './row-acts';
 import type { RowActions } from './row-acts';
-import { hasOthers, offList, treeRows } from './rows';
-import type { VolumeRow } from './rows';
 import {
   bookTableStyles,
   CHECK_ICON,
@@ -147,9 +145,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
   // Whether only the Book list's Volumes are shown, or every one on this
   // computer too.
   @state() private treeOnly = true;
-  @state() private listed: ListedBook[] | 'failed' | null = null;
-  @state() private installed: InstalledBook[] | 'failed' | null = null;
-  @state() private storage: StorageStatus | null = null;
+  @state() private view: VolumesView | 'failed' | null = null;
   @state() private filter = '';
 
   // Whether the Volume picker is open.
@@ -159,7 +155,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
   @state() private pagesMenu: PagesMenu | null = null;
 
   // The Volume whose removal, from disk or for good, waits to be confirmed.
-  @state() private confirming: { book: VolumeRow; forGood: boolean } | null =
+  @state() private confirming: { book: VolumesRow; forGood: boolean } | null =
     null;
 
   // What offloading a Volume would free, by its id, asked as its Offload
@@ -202,23 +198,15 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     this.poll = null;
   }
 
-  // Both lists and Storage, asked for again while any Volume downloads; a
-  // list that fails keeps what was shown, once something was.
+  // The view, asked for again while any Volume downloads; one that fails
+  // keeps what was shown, once something was.
   private async load() {
     this.stopPolling();
-    const { api, app } = this.state;
-    const [listed, installed, storage] = await Promise.all([
-      api.bookList().catch(() => null),
-      app.allBooks().catch(() => null),
-      app.storage().catch(() => null)
-    ]);
-    if (listed !== null) this.listed = listed;
-    else if (!Array.isArray(this.listed)) this.listed = 'failed';
-    if (installed !== null) this.installed = installed;
-    else if (!Array.isArray(this.installed)) this.installed = 'failed';
-    if (storage !== null) this.storage = storage;
+    const view = await this.state.api.volumesView().catch(() => null);
+    if (view === null) this.view ??= 'failed';
+    else this.view = view;
     this.frees = new Map();
-    const going = [listed ?? [], installed ?? []].some((l) => busy(l));
+    const going = view !== null && busy(view.rows);
     if (going && this.isConnected) {
       this.poll = setTimeout(() => {
         void this.load();
@@ -226,7 +214,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     }
   }
 
-  // Done, refused or not, then both lists asked for again.
+  // Done, refused or not, then the view asked for again.
   private async doing(work: () => Promise<unknown>) {
     await this.asking.run(async () => {
       await work();
@@ -234,11 +222,10 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     await this.load();
   }
 
-  // The row's menu where it was right-clicked: its page numbers', for
-  // one whose page numbers are known.
-  private readonly openMenu = (book: VolumeRow, e: MouseEvent) => {
+  // The row's menu where it was right-clicked: its page numbers'.
+  private readonly openMenu = (book: VolumesRow, e: MouseEvent) => {
     e.preventDefault();
-    if (book.pages === null || this.asking.busy) return;
+    if (this.asking.busy) return;
     const box = this.getBoundingClientRect();
     this.pagesMenu = {
       book,
@@ -247,7 +234,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
   };
 
   // Asked first when it takes pages away; a survey taking none isn't.
-  private async askPages(book: VolumeRow, what: 'survey' | 'clear') {
+  private async askPages(book: VolumesRow, what: 'survey' | 'clear') {
     const at = this.pagesMenu?.at ?? { x: 0, y: 0 };
     const work = pageWork(this.state);
     const run = () => {
@@ -312,7 +299,9 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     },
     // At once, as nothing leaves for good.
     offload: (book) => {
-      void this.doing(async () => await this.state.app.offload(book.id));
+      void this.doing(async () => {
+        await this.state.app.offload(book.id);
+      });
     },
     remove: (book) => {
       this.confirming = { book, forGood: false };
@@ -334,7 +323,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
   }
 
   // All of it off the disk, or out of the offload folder too.
-  private async removeFromDisk(book: VolumeRow, forGood: boolean) {
+  private async removeFromDisk(book: VolumesRow, forGood: boolean) {
     this.confirming = null;
     const { app } = this.state;
     await this.doing(async () => {
@@ -344,8 +333,9 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     });
   }
 
-  private readonly onListed = (e: BookListEvent) => {
-    this.listed = e.detail;
+  // The picker changed the Book list: the view asked for again.
+  private readonly onListed = (_: BookListEvent) => {
+    void this.load();
   };
 
   private open(volumeId: string, label: string) {
@@ -354,11 +344,14 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     );
   }
 
+  // The view once it's loaded.
+  private loaded() {
+    return typeof this.view === 'object' ? this.view : null;
+  }
+
   // The filter to the Book list, when this computer has more.
   private offered() {
-    const { listed, installed } = this;
-    if (!Array.isArray(installed)) return false;
-    return !Array.isArray(listed) || hasOthers(listed, installed);
+    return this.loaded()?.rows.some((r) => !r.onList) ?? false;
   }
 
   private renderOnly() {
@@ -375,8 +368,8 @@ class VolumesListElement extends SignalWatcher(LitElement) {
   }
 
   private renderCache() {
-    const { storage } = this;
-    if (storage === null) return html`<span class="cache"></span>`;
+    const storage = this.loaded()?.storage;
+    if (storage === undefined) return html`<span class="cache"></span>`;
     const pct = Math.min(100, (storage.used / storage.cap) * 100);
     return html`<span class="cache">
       Storage ${formatBytes(storage.used)} of ${formatBytes(storage.cap)}
@@ -386,23 +379,19 @@ class VolumesListElement extends SignalWatcher(LitElement) {
 
   // The Book list's Volumes, with every other one on this computer unless
   // `treeOnly`; or why there are none.
-  private rows(treeOnly: boolean): VolumeRow[] | string {
-    const { listed, installed } = this;
-    if (listed === null || installed === null) return 'Loading…';
-    const fromAll = Array.isArray(installed) ? installed : [];
-    const fromTree = Array.isArray(listed) ? listed : [];
-    const rows = [
-      ...treeRows(fromTree, fromAll),
-      ...(treeOnly ? [] : offList(fromTree, fromAll))
-    ];
+  private rows(treeOnly: boolean): VolumesRow[] | string {
+    const { view } = this;
+    if (view === null) return 'Loading…';
+    if (view === 'failed') return "The volumes couldn't be had from the app.";
+    const rows = view.rows.filter((r) => !treeOnly || r.onList);
     if (rows.length > 0) return rows;
-    if (listed === 'failed') {
+    if (!view.listed) {
       return "Astia couldn't be reached, and the volumes here aren't known yet.";
     }
     return 'No sources here cite a Volume yet. Add volumes to look through.';
   }
 
-  private renderBody(rows: VolumeRow[] | string, shown: VolumeRow[]) {
+  private renderBody(rows: VolumesRow[] | string, shown: VolumesRow[]) {
     if (typeof rows === 'string') return renderEmpty(rows);
     if (shown.length === 0) {
       return renderEmpty(`No volume matches “${this.filter.trim()}”.`);
@@ -424,7 +413,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
   }
 
   // What the table shows, and Storage's fill.
-  private renderFoot(shown: VolumeRow[]) {
+  private renderFoot(shown: VolumesRow[]) {
     if (shown.length === 0) return nothing;
     return html`<div class="foot">
       <p class="summary">${listSummary(shown)}</p>

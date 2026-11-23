@@ -512,6 +512,9 @@ export interface ChurchBookVolume {
   digitized: boolean;
   onDisk: VolumeOnDisk;
   download: DownloadStatus | null;
+  // What it offloaded, its full-size Images and their bytes, when it's
+  // Offloaded: only its cited Images kept, no other fetched; else null.
+  offloaded: { images: number; bytes: number } | null;
   next: StorageSteps;
 }
 
@@ -537,17 +540,35 @@ export interface ListedBook extends ChurchBookVolume {
   added: boolean;
 }
 
-// The `allBooks` operation: a Volume with something on this computer, in
-// Storage or downloading, whatever dataset it's of; with the
-// archive holding it, by its id and title, when one of the install's
-// parishes has it, null when none does.
-export interface InstalledBook extends ChurchBookVolume {
+// A row of the Volumes view: a Volume on the dataset's Book list, or one
+// with something on this computer whatever dataset it's of (`onList`
+// false); the archive holding it, by its id and title, null for one in
+// none of the install's parishes; how many of the dataset's Citations
+// link into it, and whether it was added to the list by hand; its page
+// numbers; and its buttons' steps: Storage's download step, and the trash
+// button's, Storage's or, with nothing of it here, taking one added by
+// hand and cited nowhere off the list.
+export interface VolumesRow extends Omit<ChurchBookVolume, 'next'> {
   archiveId: string | null;
   archive: string | null;
+  onList: boolean;
+  cited: number;
+  added: boolean;
   pages: PageNumbering;
-  // What it offloaded, its full-size Images and their bytes, when it's
-  // offloaded: only its cited Images kept, no other fetched; else null.
-  offloaded: { images: number; bytes: number } | null;
+  steps: {
+    download: StorageSteps['download'];
+    trash: StorageSteps['trash'] | 'unlist';
+  };
+}
+
+// The `volumesView` operation: the Volumes view's rows, the Book list's
+// first, by archive, then every other one on this computer; whether the
+// Book list could be told (not while Astia can't be reached), and
+// Storage's fill.
+export interface VolumesView {
+  rows: VolumesRow[];
+  listed: boolean;
+  storage: StorageStatus;
 }
 
 // The offload folder set for the install, and whether its drive is

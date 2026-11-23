@@ -21,6 +21,8 @@ export function bookOperations({
   return {
     bookList: listed,
 
+    volumesView: async () => await scans.volumesView(),
+
     async listBook({ volumeId, archiveId }) {
       await askingAstia(bookList.add(volumeId, archiveId));
       return await listed();

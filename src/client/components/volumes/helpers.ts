@@ -42,7 +42,10 @@ function downloadLine(download: DownloadStatus, onDisk: VolumeOnDisk) {
 }
 
 // What an offloaded Volume offloaded; null for one that isn't.
-type Away = { images: number; bytes: number } | null;
+type Away = ChurchBookVolume['offloaded'];
+
+// A Volume as a row or the picker shows it, its steps aside.
+type Shown = Omit<ChurchBookVolume, 'next'>;
 
 // How many Images an offload took off the disk, and their size; null when
 // that isn't known, as for one offloaded before it was kept.
@@ -53,14 +56,14 @@ export function awayText(away: NonNullable<Away>) {
 
 // What of a Volume is on disk, and its download, in a line under its
 // title; for an offloaded one, what it offloaded.
-export function diskLine(volume: ChurchBookVolume & { offloaded?: Away }) {
+export function diskLine(volume: Shown) {
   const { offloaded } = volume;
-  if (offloaded === undefined || offloaded === null) return volumeLine(volume);
+  if (offloaded === null) return volumeLine(volume);
   const away = awayText(offloaded);
   return away === null ? 'Offloaded' : `Offloaded: ${away}`;
 }
 
-function volumeLine(volume: ChurchBookVolume) {
+function volumeLine(volume: Shown) {
   if (!volume.digitized) return 'Not digitized';
   const { download, onDisk } = volume;
   const size = onDisk.bytes > 0 ? ` · ${formatBytes(onDisk.bytes)}` : '';
@@ -74,7 +77,7 @@ function volumeLine(volume: ChurchBookVolume) {
 
 // Whether any of the Volumes is downloading or waiting to: then the list
 // is asked for again until none is.
-export function busy(volumes: ChurchBookVolume[]) {
+export function busy(volumes: Shown[]) {
   return volumes.some(
     (v) => v.download?.state === 'queued' || v.download?.state === 'downloading'
   );
@@ -201,13 +204,13 @@ function share(d: VolumeOnDisk) {
 // short, the share of its Images alone, which `diskLine` gives whole with
 // their size for its tooltip; "—" for nothing, and for an offloaded one,
 // how much of it is here or in the offload folder.
-export function diskCell(volume: ChurchBookVolume & { offloaded?: Away }) {
+export function diskCell(volume: Shown) {
   const { offloaded, onDisk } = volume;
-  if (offloaded === undefined || offloaded === null) return volumeCell(volume);
+  if (offloaded === null) return volumeCell(volume);
   return isWhole(onDisk) ? '100%' : share(onDisk);
 }
 
-function volumeCell(volume: ChurchBookVolume) {
+function volumeCell(volume: Shown) {
   if (!volume.digitized) return 'Not digitized';
   const { download, onDisk } = volume;
   if (download !== null && !isWhole(onDisk)) {
