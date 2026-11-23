@@ -1,5 +1,5 @@
 // A Volume's page numbers worked on from the Volumes tab (ADR-0032): the
-// menu its Page numbers cell opens, marking them checked or as none, or
+// menu a right-click on its row opens, marking them checked or as none, or
 // unmarked; and, not marked, a page survey (while the Assistant is on) or
 // taking those read or set away, each asked first where it takes away
 // what can't be got back.
@@ -108,7 +108,6 @@ export function renderPagesMenu(
       }
     }))}
     .at=${menu.at}
-    .arrow=${true}
     @close=${close}
   ></sl-context-menu>`;
 }

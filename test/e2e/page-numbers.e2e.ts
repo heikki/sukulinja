@@ -1,7 +1,7 @@
 // A Volume's page numbers (ADR-0032), shown where Settings asks for them:
 // read by a page survey, counted between, corrected by hand, cleared and
-// marked checked, those from the menu of its Page numbers cell in the
-// Volumes tab.
+// marked checked, those from its row's right-click menu in the Volumes
+// tab.
 
 import { afterAll, test } from 'bun:test';
 
@@ -22,9 +22,9 @@ async function fromPagesMenu(page: Page, step: string) {
     await only.click();
   }
   await list
-    .locator('tr[aria-current="true"]')
-    .getByRole('button', { name: /^Page numbers:/ })
-    .click();
+    .locator('tr[aria-current="true"] td')
+    .nth(4)
+    .click({ button: 'right' });
   await page.getByRole('menuitem', { name: step }).click();
 }
 

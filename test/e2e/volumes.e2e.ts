@@ -63,19 +63,19 @@ test('a Volume of another parish is added, downloaded, removed and taken off', a
       0
     );
     // Marked as having none first, then checked instead.
-    const pages = book.getByRole('button', { name: /^Page numbers:/ });
-    await pages.click();
+    const pages = book.getByRole('cell').nth(4);
+    await pages.click({ button: 'right' });
     await shot(page, 'volumes-pages-menu');
     await page
       .getByRole('menuitem', { name: 'Mark as no page numbers' })
       .click();
     await book.getByText('None', { exact: true }).waitFor();
     await shot(page, 'volumes-no-pages');
-    await pages.click();
+    await pages.click({ button: 'right' });
     await page
       .getByRole('menuitem', { name: 'Unmark no page numbers' })
       .click();
-    await pages.click();
+    await pages.click({ button: 'right' });
     await page
       .getByRole('menuitem', { name: 'Mark page numbers checked' })
       .click();

@@ -26,9 +26,8 @@ export interface BookTable {
   // The buttons at the end of each Volume's row.
   acts: (book: VolumeRow) => TemplateResult[];
   open: (book: VolumeRow) => void;
-  // The menu of its page numbers, opened from their cell.
-  pages: (book: VolumeRow, from: HTMLElement) => void;
-  busy: boolean;
+  // Its menu, opened by a right-click on its row.
+  menu: (book: VolumeRow, e: MouseEvent) => void;
 }
 
 // How many of the dataset's Citations link into it; nothing for one off
@@ -38,29 +37,10 @@ function citedCell(book: VolumeRow) {
   return book.cited === 0 ? html`<span class="count">–</span>` : book.cited;
 }
 
-// Clicked, the menu of what can be done with them; only for one All
-// books knows, whose page numbers it says.
-function pagesOf(table: BookTable, book: VolumeRow) {
+function pagesOf(book: VolumeRow) {
   if (book.pages === null) return nothing;
   const { text, title } = pagesCell(book.pages);
-  const marked = book.pages === 'checked' || book.pages === 'none';
-  return html`<button
-    class="pages"
-    aria-label="Page numbers: ${text}"
-    aria-haspopup="menu"
-    aria-pressed=${String(marked)}
-    title=${title}
-    ?disabled=${table.busy}
-    @mousedown=${(e: Event) => {
-      e.stopPropagation();
-    }}
-    @click=${(e: Event) => {
-      e.stopPropagation();
-      table.pages(book, e.currentTarget as HTMLElement);
-    }}
-  >
-    ${text}
-  </button>`;
+  return html`<span title=${title}>${text}</span>`;
 }
 
 function renderBook(table: BookTable, book: VolumeRow) {
@@ -70,12 +50,15 @@ function renderBook(table: BookTable, book: VolumeRow) {
     @click=${() => {
       if (book.digitized) table.open(book);
     }}
+    @contextmenu=${(e: MouseEvent) => {
+      table.menu(book, e);
+    }}
   >
     <td class="code" title=${book.label}>${volumeCode(book.label)}</td>
     <td class="muted">${seriesName(book.kind)}</td>
     <td class="muted">${yearsText(book.years)}</td>
     <td class="num">${citedCell(book)}</td>
-    <td class="num">${pagesOf(table, book)}</td>
+    <td class="num">${pagesOf(book)}</td>
     <td class="muted disk" title=${diskLine(book)}>${diskCell(book)}</td>
     <td
       class="acts"
@@ -277,25 +260,6 @@ export const bookTableStyles = [
     button.act:disabled:hover {
       border-color: var(--border);
       color: var(--fg);
-    }
-
-    /* Page numbers, as text that toggles their check. */
-    button.pages {
-      padding: 0;
-      border: 0;
-      background: none;
-      color: inherit;
-      font: inherit;
-      cursor: pointer;
-    }
-
-    button.pages:hover:not(:disabled) {
-      color: var(--accent);
-      text-decoration: underline;
-    }
-
-    button.pages[aria-pressed='true'] {
-      color: var(--accent);
     }
 
     button.add {

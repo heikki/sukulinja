@@ -55,8 +55,8 @@ const POLL_MS = 2000;
 // this computer, whatever tree it's of (_All books_), the choice offered
 // only when this computer has Volumes the Book list leaves out. Either
 // way each Volume says how many of the dataset's Citations link into it,
-// its page numbers and how much of it is downloaded. Clicking its page
-// numbers marks them checked or no longer; its buttons start or stop its
+// its page numbers and how much of it is downloaded. A right-click on
+// its row opens the menu of its page numbers; its buttons start or stop its
 // download (an offloaded one brought back first), and a trash button
 // takes the next step off this computer: offloaded with an offload folder
 // chosen, else removed from disk (asked first); then, kept in the folder,
@@ -249,21 +249,15 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     await this.load();
   }
 
-  // Opens the menu under the cell's button, or closes it if it's this
-  // Volume's.
-  private readonly openPages = (book: VolumeRow, from: HTMLElement) => {
-    if (this.pagesMenu?.book.id === book.id) {
-      this.pagesMenu = null;
-      return;
-    }
-    const at = from.getBoundingClientRect();
+  // The row's menu where it was right-clicked: its page numbers', for
+  // one whose page numbers are known.
+  private readonly openMenu = (book: VolumeRow, e: MouseEvent) => {
+    e.preventDefault();
+    if (book.pages === null || this.asking.busy) return;
     const box = this.getBoundingClientRect();
     this.pagesMenu = {
       book,
-      at: {
-        x: (at.left + at.right) / 2 - box.left,
-        y: at.bottom - box.top + 8
-      }
+      at: { x: e.clientX - box.left, y: e.clientY - box.top }
     };
   };
 
@@ -441,8 +435,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
       open: (b) => {
         this.open(b.id, b.label);
       },
-      pages: this.openPages,
-      busy: this.asking.busy
+      menu: this.openMenu
     });
   }
 
