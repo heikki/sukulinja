@@ -9,11 +9,8 @@ import { routeShared } from './astia-routes';
 import { openAstia } from './astia/astia';
 import type { Astia, ImageRef } from './astia/astia';
 import { parishBooks } from './astia/church-books';
-import { openDownloads } from './astia/downloads';
-import type { DownloadOptions } from './astia/downloads';
 import { openParishes } from './astia/parishes';
 import type { Parishes } from './astia/parishes';
-import { imageSize, openScanCache } from './astia/scan-cache';
 import { openBookList } from './book-list';
 import { createCitations } from './citations';
 import type { Citations } from './citations';
@@ -24,11 +21,13 @@ import { askingAstia, citationOperations } from './operations';
 import { openPersonBooks } from './person-books';
 import type { PersonLife } from './person-books';
 import { sharedOperations } from './shared-operations';
+import { openStorage } from './storage';
+import type { DownloadOptions } from './storage';
 import { openVision } from './vision';
 import type { VisionReaders } from './vision';
 
 export type { Astia } from './astia/astia';
-export type { DownloadOptions } from './astia/downloads';
+export type { DownloadOptions } from './storage';
 export { claudeVision } from './vision';
 export type { SpendingReader, VisionReaders } from './vision';
 export { annotated, openAnnotations } from './annotations';
@@ -71,19 +70,21 @@ interface Options {
 // The Citations of the data folder at `root`, for every dataset in it.
 export function openCitations(root: string, options: Options) {
   const astia = options.astia ?? openAstia(join(root, '.astia-cache'));
-  const cache = openScanCache({ astia, root });
-  // What was fetched with the offload folder away, into it now.
-  void cache.archive().catch(() => undefined);
-  const downloads = openDownloads({ astia, cache }, options.downloads);
+  const storage = openStorage({
+    astia,
+    root,
+    citedImages,
+    downloads: options.downloads
+  });
   // The Scan viewer has just shown the Image a Box is drawn on.
   async function sizeOf(at: ImageRef) {
-    return await imageSize(cache, at);
+    return await storage.images.sizeOf(at);
   }
   const parishes = options.parishes ?? openParishes(root);
   const images = openImages({ astia, parishes, sizeOf });
   const personBooks = openPersonBooks({ astia, parishes });
   // The Volumes' facts kept in the offload folder too.
-  const archive = factsArchive(cache.offloadFolder, {
+  const archive = factsArchive(storage.folderFacts, {
     volumeFacts: async () => await folder.volumeFacts(),
     adoptVolumeFacts: async (volumes) => {
       await folder.adoptVolumeFacts(volumes);
@@ -100,7 +101,7 @@ export function openCitations(root: string, options: Options) {
   });
   void archive.sync().catch(() => undefined);
   // One queue for every search, so they don't hammer Astia together.
-  const visionImage = pacedImages(cache);
+  const visionImage = pacedImages(storage.images);
   // Readings are kept on disk, so the same question isn't asked twice.
   const readings = join(root, '.vision-readings');
 
@@ -149,14 +150,12 @@ export function openCitations(root: string, options: Options) {
   }
 
   return {
-    // The parishes, the church books and their downloads, and the Scan
-    // cache, shared by every dataset.
+    // The parishes, the church books and their downloads, and Storage,
+    // shared by every dataset.
     operations: sharedOperations({
       astia,
       parishes,
-      cache,
-      downloads,
-      citedImages,
+      storage: storage.volumes,
       chooseFolder: options.chooseFolder,
       folderSet: () => {
         void archive.sync().catch(() => undefined);
@@ -172,7 +171,7 @@ export function openCitations(root: string, options: Options) {
     // Astia's Images and a Volume's re-scan, shared by every dataset. Null
     // for any other path.
     route: async (req: Request, pathname: string) =>
-      await routeShared({ astia, cache, kept }, req, pathname),
+      await routeShared({ astia, images: storage.images, kept }, req, pathname),
 
     // One dataset's Citations, resolved against the scans. Opened once for
     // each Database.
@@ -183,7 +182,7 @@ export function openCitations(root: string, options: Options) {
       const citations = citationsOf(db);
       const bookList = openBookList(db, {
         books: async (archiveId) =>
-          await parishBooks({ astia, cache, downloads }, archiveId),
+          await parishBooks({ astia, storage: storage.volumes }, archiveId),
         titleOf: async (archiveId) => await images.titleOf(archiveId),
         archives: async () => await citations.churchBookArchives(),
         countInArchive: async (archiveId) =>
@@ -194,7 +193,7 @@ export function openCitations(root: string, options: Options) {
       // which every dataset then sees, and says so in this one's Changes.
       async function switchTo(volumeId: string, volume: string) {
         const { urls, rescan } = await switchFilming(
-          { astia, cache, kept },
+          { astia, images: storage.images, kept },
           volumeId
         );
         if (rescan !== null) {
@@ -229,7 +228,7 @@ export function openCitations(root: string, options: Options) {
             await folder.setImagePage(at, pages),
           clearVolumePages: async (volumeId) =>
             await folder.clearVolumePages(volumeId),
-          citable: async (at) => await cache.keeps(at)
+          citable: async (at) => await storage.images.citable(at)
         }),
         // The dataset's Book list, and adding and taking off Volumes.
         bookList,

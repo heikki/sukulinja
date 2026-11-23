@@ -1,6 +1,6 @@
 // The operations outside any dataset, shared by them all (operation.ts),
 // served at POST /api/<name>: the install's parishes, a parish's church
-// books and their downloads, the Scan cache, and the assistant's key.
+// books and their downloads, Storage, and the assistant's key.
 // Astia's Images and a Volume's re-scan keep their own routes
 // (/astia/volumes/…), and the datasets as a whole theirs (/datasets,
 // /import).
@@ -13,7 +13,7 @@ import type {
   InstalledBook,
   OffloadFolder,
   PageMark,
-  ScanCacheStatus
+  StorageStatus
 } from '@/common/types';
 
 import { answers, asksNothing } from './operation';
@@ -137,13 +137,14 @@ export const APP_OPERATIONS = {
     volumeOf
   ),
 
-  // The Scan cache: what it holds against its cap. Setting the cap, one of
+  // Storage: what it holds against its cap. Setting the cap, one of
   // its choices, and clearing it answer with it as it then stands.
-  scanCache: asksNothing<ScanCacheStatus>(),
-  setScanCap: answers<{ cap: number }, ScanCacheStatus>('{ cap }', ({ cap }) =>
-    isInteger(cap) ? { cap } : null
+  storage: asksNothing<StorageStatus>(),
+  setStorageCap: answers<{ cap: number }, StorageStatus>(
+    '{ cap }',
+    ({ cap }) => (isInteger(cap) ? { cap } : null)
   ),
-  clearScanCache: asksNothing<ScanCacheStatus>(),
+  clearStorage: asksNothing<StorageStatus>(),
 
   // The offload folder an offload moves Images into, and whether it's
   // attached; null for none, when an offload drops them. Choosing one asks

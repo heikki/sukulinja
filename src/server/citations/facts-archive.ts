@@ -10,9 +10,9 @@
 import { archiveAmong } from './astia/archives';
 import { viewerUrl } from './astia/astia';
 import type { Astia } from './astia/astia';
-import type { OffloadFolderStore } from './astia/offload-folder';
 import { isLater, sameFacts } from './myheritage';
 import type { Pins } from './myheritage';
+import type { FolderFacts } from './storage';
 
 type Volume = Pins['volumes'][string];
 
@@ -83,7 +83,7 @@ export async function describeVolume(
   };
 }
 
-export function factsArchive(folder: OffloadFolderStore, facts: Facts) {
+export function factsArchive(folder: FolderFacts, facts: Facts) {
   // Those whose copy was told about them this run: one that can't be is
   // asked about once.
   const told = new Set<string>();

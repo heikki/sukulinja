@@ -1,4 +1,4 @@
-// How much more the Scan cache may take before it has to be listed again,
+// How much more Storage may take before it has to be listed again,
 // so that a fetch needn't list all of it to see that it still fits. What's
 // removed isn't counted: that only makes the next listing come early. What
 // arrives other than by a fetch has to `forget` what was measured.

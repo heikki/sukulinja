@@ -6,7 +6,7 @@ import type { Rescan, StalePin } from '@/common/types';
 
 import { viewerUrls } from '../../astia/astia';
 import type { Astia } from '../../astia/astia';
-import type { ScanCache } from '../../astia/scan-cache';
+import type { StorageImages } from '../../storage';
 import { markKey, recordMarkKey } from '../record';
 import type { LocalPins } from './files';
 import { split } from './filming';
@@ -132,18 +132,18 @@ async function rescanOf(
 
 interface RescanReads {
   astia: Astia;
-  cache: ScanCache;
+  images: Pick<StorageImages, 'refresh'>;
   kept: () => Promise<KeptPins>;
 }
 
 // Switches the Volume to Astia's new filming: its Images' viewer URLs, and
 // the re-scan it switched to, null when there was none.
 export async function switchFilming(
-  { astia, cache, kept }: RescanReads,
+  { astia, images, kept }: RescanReads,
   volumeId: string
 ) {
   const rescan = await rescanOf(astia, kept, volumeId);
-  await cache.refresh(volumeId);
+  await images.refresh(volumeId);
   return { urls: await viewerUrls(astia, volumeId), rescan };
 }
 

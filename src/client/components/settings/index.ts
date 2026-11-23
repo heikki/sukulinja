@@ -16,7 +16,7 @@ import {
 } from '@/client/generations';
 import { pageNumbersOn, setPageNumbersOn } from '@/client/page-numbers-flag';
 import { appApi } from '@/client/state';
-import type { ScanCacheStatus } from '@/common/types';
+import type { StorageStatus } from '@/common/types';
 
 import { CornerPopover, popoverStyles } from '../corner-panel/popover';
 import { capDrop, clearDrop, formatBytes } from './helpers';
@@ -25,7 +25,7 @@ import { OFF_ON, rowStyles, segmented } from './segmented';
 import './assistant-choices';
 import './assistant-key';
 import './offload-folder';
-import type { ScanCacheDrop } from './helpers';
+import type { StorageDrop } from './helpers';
 
 export type GenerationsChangeEvent = CustomEvent<number>;
 
@@ -57,7 +57,7 @@ const GEAR_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
 // Generation limit: inside a dataset the chart owns the value (`generations`)
 // and hears picks through `generations-change`; on the landing page there is
 // none and the row shows the preferred value. Every pick also becomes the
-// preference a dataset opens with. Scan cache is the install's, kept by the
+// preference a dataset opens with. Storage is the install's, kept by the
 // app: the row asks for it each time the popover opens. Anything that would
 // remove downloaded scans, Clear or a cap below the space used, asks to
 // confirm in a dialog first, naming how much goes.
@@ -131,7 +131,7 @@ class SettingsElement extends LitElement {
       .dataset a:hover {
         text-decoration: underline;
       }
-      /* Under the Scan cache sizes and as wide: a meter of the space used,
+      /* Under Storage sizes and as wide: a meter of the space used,
        then what it says and Clear at either end. */
       .usage {
         grid-column: 2;
@@ -188,9 +188,9 @@ class SettingsElement extends LitElement {
   @state() private appearance: Appearance = currentAppearance();
   @state() private preferred = preferredGenerations();
   // Null until the app answers; a string when it couldn't.
-  @state() private scanCache: ScanCacheStatus | string | null = null;
+  @state() private storage: StorageStatus | string | null = null;
   // The removal the dialog is asking to confirm, if it's up.
-  @state() private confirming: ScanCacheDrop | null = null;
+  @state() private confirming: StorageDrop | null = null;
   @state() private dropping = false;
 
   // Closed by another popover opening, a press outside or Esc, which
@@ -215,22 +215,22 @@ class SettingsElement extends LitElement {
 
   // Every ask answers with the cache as it now stands; a refusal shows in
   // its place.
-  private async askScanCache(asked: () => Promise<ScanCacheStatus>) {
+  private async askStorage(asked: () => Promise<StorageStatus>) {
     try {
-      this.scanCache = await asked();
+      this.storage = await asked();
     } catch (err) {
       if (!(err instanceof ApiError)) throw err;
-      this.scanCache = err.message;
+      this.storage = err.message;
     }
   }
 
   private setCap(cap: number) {
-    return this.askScanCache(async () => await this.app.setScanCap(cap));
+    return this.askStorage(async () => await this.app.setStorageCap(cap));
   }
 
   // A cap that keeps everything on disk is saved at once; one that would
   // drop scans asks first.
-  private pickCap(cache: ScanCacheStatus, cap: number) {
+  private pickCap(cache: StorageStatus, cap: number) {
     const drop = capDrop(cache.used, cap);
     if (drop === null) void this.setCap(cap);
     else this.confirming = drop;
@@ -240,10 +240,10 @@ class SettingsElement extends LitElement {
     if (!this.dropping) this.confirming = null;
   }
 
-  private async confirmDrop(drop: ScanCacheDrop) {
+  private async confirmDrop(drop: StorageDrop) {
     this.dropping = true;
     if (drop.kind === 'clear') {
-      await this.askScanCache(this.app.clearScanCache);
+      await this.askStorage(this.app.clearStorage);
     } else await this.setCap(drop.cap);
     this.dropping = false;
     this.confirming = null;
@@ -263,7 +263,7 @@ class SettingsElement extends LitElement {
         aria-expanded=${this.open}
         @click=${() => {
           this.corner.set(!this.open);
-          if (this.open) void this.askScanCache(this.app.scanCache);
+          if (this.open) void this.askStorage(this.app.storage);
         }}
       >
         ${GEAR_ICON}
@@ -277,7 +277,7 @@ class SettingsElement extends LitElement {
     `;
   }
 
-  private renderDropDialog(drop: ScanCacheDrop) {
+  private renderDropDialog(drop: StorageDrop) {
     const clear = drop.kind === 'clear';
     return html`
       <div
@@ -340,7 +340,7 @@ class SettingsElement extends LitElement {
     return html`
       <div class="popover" role="group" aria-label="Settings">
         ${this.renderDataset()} ${this.renderAppearance()}
-        ${this.renderGenerations()} ${this.renderScanCache()}
+        ${this.renderGenerations()} ${this.renderStorage()}
         <span class="label">Offload folder</span>
         <sl-offload-folder></sl-offload-folder>
         ${this.renderPageNumbers()} ${this.renderAssistant()}
@@ -403,8 +403,8 @@ class SettingsElement extends LitElement {
 
   // Astia's Images kept on disk: the cap to keep them under, and the space
   // they take now.
-  private renderScanCache() {
-    const cache = this.scanCache;
+  private renderStorage() {
+    const cache = this.storage;
     if (cache === null || typeof cache === 'string') {
       return html`
         <span class="label">Storage</span>

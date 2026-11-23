@@ -9,32 +9,27 @@ import type {
   PageNumbering
 } from '@/common/types';
 
+import type { StorageVolumes, Stored } from '../storage';
 import type { Astia, Volume } from './astia';
-import type { Downloads } from './downloads';
-import type { ScanCache } from './scan-cache';
 
 interface Sources {
   astia: Astia;
-  cache: ScanCache;
-  downloads: Downloads;
+  storage: Pick<StorageVolumes, 'of' | 'here'>;
 }
 
 type Described = Pick<Volume, 'id' | 'label' | 'kind' | 'years' | 'digitized'>;
 
 // The Volume as Astia describes it, with what of it is on disk and its
 // download.
-async function bookOf(
-  { cache, downloads }: Sources,
-  v: Described
-): Promise<ChurchBookVolume> {
+function bookOf(v: Described, { onDisk, download }: Stored): ChurchBookVolume {
   return {
     id: v.id,
     label: v.label,
     kind: v.kind,
     years: v.years,
     digitized: v.digitized,
-    onDisk: await cache.onDisk(v.id),
-    download: downloads.of(v.id)
+    onDisk,
+    download
   };
 }
 
@@ -44,11 +39,13 @@ export async function parishBooks(
   archiveId: string
 ): Promise<ChurchBookVolume[]> {
   const volumes = await sources.astia.archiveVolumes(archiveId);
-  return await Promise.all(volumes.map(async (v) => await bookOf(sources, v)));
+  return await Promise.all(
+    volumes.map(async (v) => bookOf(v, await sources.storage.of(v.id)))
+  );
 }
 
-// Every Volume with something on this computer: Images in the Scan cache,
-// or a download this run. Those in the install's parishes come first, in
+// Every Volume with something on this computer: Images in Storage, or a
+// download this run. Those in the install's parishes come first, in
 // their order and Astia's, named as Astia lists them; any other, by its id
 // alone. A parish Astia can't be asked about names none of its Volumes.
 export async function installBooks(
@@ -62,18 +59,18 @@ export async function installBooks(
     pagesOf: (volumeId: string) => Promise<PageNumbering>;
   }
 ): Promise<InstalledBook[]> {
-  const { astia, cache, downloads } = sources;
-  // Its page numbers, and what of it is offloaded.
-  async function offloadOf(volumeId: string) {
+  const { astia, storage } = sources;
+  // The Volume as described, with what Storage has of it and its page
+  // numbers.
+  async function installed(v: Described) {
+    const stored = await storage.of(v.id);
     return {
-      pages: await pagesOf(volumeId),
-      offloaded: await cache.offloadedOf(volumeId)
+      ...bookOf(v, stored),
+      offloaded: stored.offloaded,
+      pages: await pagesOf(v.id)
     };
   }
-  const here = new Set([
-    ...(await cache.volumes()),
-    ...downloads.list().map((d) => d.volumeId)
-  ]);
+  const here = new Set(await storage.here());
   const named = await Promise.all(
     parishes.map(async (archiveId) => {
       const volumes = await astia.archiveVolumes(archiveId).catch(() => []);
@@ -92,13 +89,12 @@ export async function installBooks(
   const unnamed = [...here].filter((id) => !seen.has(id)).toSorted();
   return await Promise.all([
     ...books.map(async ({ v, archiveId, archive }) => ({
-      ...(await bookOf(sources, v)),
+      ...(await installed(v)),
       archiveId,
-      archive,
-      ...(await offloadOf(v.id))
+      archive
     })),
     ...unnamed.map(async (id) => ({
-      ...(await bookOf(sources, {
+      ...(await installed({
         id,
         label: id,
         kind: null,
@@ -106,8 +102,7 @@ export async function installBooks(
         digitized: true
       })),
       archiveId: null,
-      archive: null,
-      ...(await offloadOf(id))
+      archive: null
     }))
   ]);
 }

@@ -3,7 +3,7 @@
 // archive in Astia and choosing one, for a spelling references give or
 // for none; a parish's church books and their downloads, every one with
 // something on this computer, removed from it or offloaded to their cited
-// Images; and the Scan cache they're kept in.
+// Images; and Storage, which keeps them.
 
 import type { AppOperations } from '@/common/operations';
 import type {
@@ -16,22 +16,16 @@ import { Refusal } from '../operations';
 import type { Handlers } from '../operations';
 import type { Astia } from './astia/astia';
 import { installBooks, parishBooks } from './astia/church-books';
-import type { Downloads } from './astia/downloads';
-import { FolderAwayError } from './astia/offload-folder';
 import { findParishArchives, isParishArchive } from './astia/parish-search';
 import type { Parishes } from './astia/parishes';
-import { CAPS } from './astia/scan-cache';
-import type { ScanCache } from './astia/scan-cache';
 import { askingAstia } from './operations';
+import { CAPS, FolderAwayError } from './storage';
+import type { StorageVolumes } from './storage';
 
 interface Sources {
   astia: Astia;
   parishes: Parishes;
-  cache: ScanCache;
-  downloads: Downloads;
-  // The Images of a Volume any dataset's Citations link, kept on disk by
-  // an offload.
-  citedImages: (volumeId: string) => Promise<number[]>;
+  storage: StorageVolumes;
   // The app's folder picker: the folder chosen, or null; none outside the
   // app.
   chooseFolder?: () => Promise<string | null>;
@@ -64,9 +58,9 @@ export type SharedOperations = Pick<
   | 'pagesLocked'
   | 'isOffloaded'
   | 'offloadFrees'
-  | 'scanCache'
-  | 'setScanCap'
-  | 'clearScanCache'
+  | 'storage'
+  | 'setStorageCap'
+  | 'clearStorage'
   | 'offloadFolder'
   | 'chooseOffloadFolder'
   | 'clearOffloadFolder'
@@ -85,9 +79,7 @@ function folderAway(err: unknown): never {
 export function sharedOperations({
   astia,
   parishes,
-  cache,
-  downloads,
-  citedImages,
+  storage,
   chooseFolder,
   folderSet,
   pages
@@ -105,7 +97,7 @@ export function sharedOperations({
 
   async function allBooks() {
     return await installBooks(
-      { astia, cache, downloads },
+      { astia, storage },
       {
         parishes: parishes.archives(),
         pagesOf: pages.numbering
@@ -140,40 +132,27 @@ export function sharedOperations({
       await parishes.link(spelling, archiveId);
     },
     churchBooks: async ({ archiveId }) =>
-      await askingAstia(parishBooks({ astia, cache, downloads }, archiveId)),
-    downloads: () => downloads.list(),
-    // An offloaded one is brought back from the offload folder first, and
-    // only the rest fetched from Astia.
+      await askingAstia(parishBooks({ astia, storage }, archiveId)),
+    downloads: () => storage.downloads(),
     async startDownload({ volumeId }) {
-      if (await cache.isOffloaded(volumeId)) {
-        await cache.bringBack(volumeId).catch(folderAway);
-      }
-      downloads.start(volumeId);
-      return downloads.list();
+      await storage.download(volumeId).catch(folderAway);
+      return storage.downloads();
     },
     stopDownload({ volumeId }) {
-      downloads.stop(volumeId);
-      return downloads.list();
+      storage.stop(volumeId);
+      return storage.downloads();
     },
     allBooks,
     async removeFromDisk({ volumeId }) {
-      await downloads.drop(volumeId);
-      await cache.remove(volumeId);
+      await storage.remove(volumeId);
       return await allBooks();
     },
-    // Out of the offload folder first, so with its drive away nothing goes.
     async removeForGood({ volumeId }) {
-      await downloads.drop(volumeId);
-      await cache.offloadFolder.forget(volumeId).catch(folderAway);
-      await cache.remove(volumeId);
+      await storage.removeForGood(volumeId).catch(folderAway);
       return await allBooks();
     },
-    // Every Image but the cited ones off the disk, and none fetched again
-    // until it's brought back; none, when what's cited can't be known.
     async offload({ volumeId }) {
-      await downloads.drop(volumeId);
-      const cited = await askingAstia(citedImages(volumeId));
-      await askingAstia(cache.offload(volumeId, cited)).catch(folderAway);
+      await askingAstia(storage.offload(volumeId)).catch(folderAway);
       return await allBooks();
     },
     async markPages({ volumeId, as }) {
@@ -182,40 +161,37 @@ export function sharedOperations({
     },
     pagesLocked: async ({ volumeId }) =>
       ['checked', 'none'].includes(await pages.numbering(volumeId)),
-    isOffloaded: async ({ volumeId }) => await cache.isOffloaded(volumeId),
+    isOffloaded: async ({ volumeId }) =>
+      (await storage.of(volumeId)).offloaded !== null,
     // Asked of one Volume at a time, as what's cited is slow to know; null
     // when it can't be, as Astia isn't reached.
-    async offloadFrees({ volumeId }) {
-      const cited = await citedImages(volumeId).catch(() => null);
-      return cited === null ? null : await cache.freedBy(volumeId, cited);
-    },
-    scanCache: async () => await cache.status(),
-    async setScanCap({ cap }) {
+    offloadFrees: async ({ volumeId }) => await storage.offloadFrees(volumeId),
+    storage: async () => await storage.status(),
+    async setStorageCap({ cap }) {
       if (!CAPS.includes(cap)) {
         throw new Refusal(400, `expected { cap } of ${CAPS.join(', ')}`);
       }
-      await cache.setCap(cap);
-      return await cache.status();
+      await storage.setCap(cap);
+      return await storage.status();
     },
-    async clearScanCache() {
-      await cache.clear();
-      return await cache.status();
+    async clearStorage() {
+      await storage.clear();
+      return await storage.status();
     },
-    offloadFolder: async () => await cache.offloadFolder.status(),
+    offloadFolder: async () => await storage.folder(),
     async chooseOffloadFolder() {
       if (chooseFolder === undefined) {
         throw new Refusal(400, 'A folder is chosen in the app.');
       }
       const chosen = await chooseFolder();
       if (chosen !== null) {
-        await cache.offloadFolder.set(chosen).catch(folderAway);
-        void cache.archive().catch(() => undefined);
+        await storage.setFolder(chosen).catch(folderAway);
         folderSet?.();
       }
-      return await cache.offloadFolder.status();
+      return await storage.folder();
     },
     async clearOffloadFolder() {
-      await cache.offloadFolder.set(null);
+      await storage.setFolder(null);
       return null;
     }
   };

@@ -459,15 +459,15 @@ export interface VolumeCitation {
   link: Link;
 }
 
-// The `scanCache` operation: how much space Astia's Images may take (`cap`)
+// The `storage` operation: how much space Astia's Images may take (`cap`)
 // and take now (`used`), in bytes, and the caps to choose from.
-export interface ScanCacheStatus {
+export interface StorageStatus {
   cap: number;
   used: number;
   caps: number[];
 }
 
-// What of a Volume the Scan cache has on disk: its full-size Images of
+// What of a Volume Storage has on disk: its full-size Images of
 // Astia's list (`images`, null until the list has been asked for), and
 // the space its files take, in bytes.
 export interface VolumeOnDisk {
@@ -523,7 +523,7 @@ export interface ListedBook extends ChurchBookVolume {
 }
 
 // The `allBooks` operation: a Volume with something on this computer, in
-// the Scan cache or downloading, whatever dataset it's of; with the
+// Storage or downloading, whatever dataset it's of; with the
 // archive holding it, by its id and title, when one of the install's
 // parishes has it, null when none does.
 export interface InstalledBook extends ChurchBookVolume {

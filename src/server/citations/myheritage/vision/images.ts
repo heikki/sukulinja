@@ -1,4 +1,4 @@
-// Full-size Images for the vision model, through the Scan cache: one at a
+// Full-size Images for the vision model, through Storage: one at a
 // time, with a gap between the ones fetched from Astia, so a bulk run
 // doesn't hammer the archive. Images already cached are read
 // straight away, and the ones fetched stay for the Scan viewer.
@@ -8,7 +8,7 @@
 // scaled to fit before it's sent, with Bun's own Bun.Image, on any system.
 
 import type { ImageRef } from '../../astia/astia';
-import type { ScanCache } from '../../astia/scan-cache';
+import type { StorageImages } from '../../storage';
 import { cropImage } from './crop';
 
 const GAP_MS = 1000;
@@ -73,15 +73,14 @@ export async function fitted(
   return { bytes, ...scaled };
 }
 
-// Loads Images through the Scan cache given, one at a time: whole, or a
-// region of one.
-export function pacedImages(cache: ScanCache) {
+// Loads Images through Storage, one at a time: whole, or a region of one.
+export function pacedImages(images: Pick<StorageImages, 'image' | 'isCached'>) {
   let queue: Promise<unknown> = Promise.resolve();
   // Resolves when the next fetch from Astia may start.
   let gap: Promise<void> = Promise.resolve();
 
   async function load(at: ImageRef, region: Region | null) {
-    const fetching = !(await cache.isCached(at));
+    const fetching = !(await images.isCached(at));
     if (fetching) {
       const wait = gap;
       gap = wait.then(async () => {
@@ -89,7 +88,7 @@ export function pacedImages(cache: ScanCache) {
       });
       await wait;
     }
-    const path = await cache.image(at, 'full', new AbortController().signal);
+    const path = await images.image(at, 'full', new AbortController().signal);
     if (path === null) {
       throw new Error(`Volume ${at.volumeId} has no Image ${at.image}`);
     }

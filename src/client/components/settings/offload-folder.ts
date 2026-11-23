@@ -24,7 +24,7 @@ function renderFolder(folder: OffloadFolder | null) {
     }`;
 }
 
-// Settings' Offload folder row, under the Scan cache: where an offload
+// Settings' Offload folder row, under Storage: where an offload
 // moves the Images a Volume doesn't keep, an external drive say, and
 // whether it's attached; with none, an offload drops them. Chosen with the
 // app's folder picker; Clear sets none. Asked for each time Settings opens.

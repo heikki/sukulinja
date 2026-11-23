@@ -7,7 +7,7 @@ import type { Rescan, StalePin } from '@/common/types';
 
 import { fileId, memoryAstia } from '../../astia/memory-astia';
 import type { MemoryAstia } from '../../astia/memory-astia';
-import { openScanCache } from '../../astia/scan-cache';
+import { openStorage } from '../../storage';
 import { openVolumeFacts } from './pins';
 import { routeRescan, switchFilming } from './rescans';
 
@@ -87,7 +87,11 @@ async function app(listed: MemoryAstia) {
   const facts = openVolumeFacts(dir, { astia: listed });
   const shared = {
     astia: listed,
-    cache: openScanCache({ astia: listed, root: dir }),
+    images: openStorage({
+      astia: listed,
+      root: dir,
+      citedImages: async () => await Promise.resolve([])
+    }).images,
     kept: async () => [await facts.kept()]
   };
   async function ask(method: string, volumeId: string) {
@@ -111,8 +115,8 @@ test("says there's no re-scan of a Volume Astia lists as cached", async () => {
 
 test('tells of a re-scan, and what switching leaves out, without switching', async () => {
   const listed = astia();
-  const { ask, cache } = await app(listed);
-  await cache.image(
+  const { ask, images } = await app(listed);
+  await images.image(
     { volumeId: 'v1', image: 2 },
     'full',
     new AbortController().signal
@@ -143,8 +147,8 @@ test('tells of a re-scan, and what switching leaves out, without switching', asy
 
 test('switches to the new filming when asked, saying what it switched from', async () => {
   const listed = astia();
-  const { ask, cache, switchTo } = await app(listed);
-  await cache.image(
+  const { ask, images, switchTo } = await app(listed);
+  await images.image(
     { volumeId: 'v1', image: 2 },
     'full',
     new AbortController().signal

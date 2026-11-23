@@ -1,6 +1,6 @@
 // What the screens ask the app outside any dataset, shared by them all
 // (common/operations/app.ts): the install's parishes, a parish's church
-// books and their downloads, the Scan cache, and the assistant's key.
+// books and their downloads, Storage, and the assistant's key.
 // The datasets as a whole are asked by the lifecycle adapter
 // (lifecycle.ts).
 
@@ -12,7 +12,7 @@ import type {
   InstalledBook,
   OffloadFolder,
   PageMark,
-  ScanCacheStatus
+  StorageStatus
 } from '@/common/types';
 
 import { operationsAt } from './ask';
@@ -55,11 +55,11 @@ export interface AppApi {
   pagesLocked: (volumeId: string, signal?: AbortSignal) => Promise<boolean>;
   isOffloaded: (volumeId: string) => Promise<boolean>;
   offloadFrees: (volumeId: string) => Promise<number | null>;
-  // The Scan cache; setting its cap and clearing it answer with it as it
+  // Storage; setting its cap and clearing it answer with it as it
   // then stands.
-  scanCache: () => Promise<ScanCacheStatus>;
-  setScanCap: (cap: number) => Promise<ScanCacheStatus>;
-  clearScanCache: () => Promise<ScanCacheStatus>;
+  storage: () => Promise<StorageStatus>;
+  setStorageCap: (cap: number) => Promise<StorageStatus>;
+  clearStorage: () => Promise<StorageStatus>;
   // The offload folder, choosing one with the app's picker, and none; each
   // answers with it as it then stands.
   offloadFolder: () => Promise<OffloadFolder | null>;
@@ -114,11 +114,11 @@ export function openAppApi({
       await call('isOffloaded', { volumeId }, 'whether it is offloaded'),
     offloadFrees: async (volumeId) =>
       await call('offloadFrees', { volumeId }, 'what offloading frees'),
-    scanCache: async () => await call('scanCache', {}, 'the Scan cache'),
-    setScanCap: async (cap) =>
-      await call('setScanCap', { cap }, 'Setting the cap'),
-    clearScanCache: async () =>
-      await call('clearScanCache', {}, 'Clearing the Scan cache'),
+    storage: async () => await call('storage', {}, 'Storage'),
+    setStorageCap: async (cap) =>
+      await call('setStorageCap', { cap }, 'Setting the cap'),
+    clearStorage: async () =>
+      await call('clearStorage', {}, 'Clearing Storage'),
     offloadFolder: async () =>
       await call('offloadFolder', {}, 'the offload folder'),
     chooseOffloadFolder: async () =>

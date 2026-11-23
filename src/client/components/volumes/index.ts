@@ -14,7 +14,7 @@ import type {
   InstalledBook,
   ListedBook,
   OffloadFolder,
-  ScanCacheStatus
+  StorageStatus
 } from '@/common/types';
 
 import { formatBytes } from '../settings/helpers';
@@ -154,7 +154,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
   @state() private treeOnly = true;
   @state() private listed: ListedBook[] | 'failed' | null = null;
   @state() private installed: InstalledBook[] | 'failed' | null = null;
-  @state() private cache: ScanCacheStatus | null = null;
+  @state() private cache: StorageStatus | null = null;
   @state() private filter = '';
 
   // Whether the Volume picker is open.
@@ -225,7 +225,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     const [listed, installed, cache] = await Promise.all([
       api.bookList().catch(() => null),
       app.allBooks().catch(() => null),
-      app.scanCache().catch(() => null)
+      app.storage().catch(() => null)
     ]);
     if (listed !== null) this.listed = listed;
     else if (!Array.isArray(this.listed)) this.listed = 'failed';
@@ -439,7 +439,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     });
   }
 
-  // What the table shows, and the Scan cache's fill.
+  // What the table shows, and Storage's fill.
   private renderFoot(shown: VolumeRow[]) {
     if (shown.length === 0) return nothing;
     return html`<div class="foot">

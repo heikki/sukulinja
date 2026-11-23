@@ -50,7 +50,7 @@ test('the Volumes on this computer are listed, and one taken off', async () => {
 
 test("a refusal is the server's words", async () => {
   const refused = await api
-    .setScanCap(3)
+    .setStorageCap(3)
     .catch((err: unknown) => (err instanceof ApiError ? err.message : err));
   expect(refused).toMatch(/^expected \{ cap \} of /u);
 });

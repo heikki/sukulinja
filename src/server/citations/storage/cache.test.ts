@@ -3,11 +3,11 @@ import { mkdir, mkdtemp, readdir, rename, rm, utimes } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { NoImageError } from './astia';
-import type { Astia } from './astia';
-import { memoryAstia } from './memory-astia';
-import { capChoices, openScanCache } from './scan-cache';
-import type { ScanCache } from './scan-cache';
+import { NoImageError } from '../astia/astia';
+import type { Astia } from '../astia/astia';
+import { memoryAstia } from '../astia/memory-astia';
+import { capChoices, openCache } from './cache';
+import type { Cache } from './cache';
 
 const IMAGES = 10;
 const IMAGE_BYTES = 1000;
@@ -40,7 +40,7 @@ const astia: Astia = {
 };
 
 // Opened afresh on each test's folder.
-let cache: ScanCache = openScanCache({ astia, root: dir });
+let cache: Cache = openCache({ astia, root: dir });
 
 function open(
   volumeId: string,
@@ -70,7 +70,7 @@ async function outcome(request: Promise<string | null>) {
 
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'scan-cache-'));
-  cache = openScanCache({ astia, root: dir });
+  cache = openCache({ astia, root: dir });
   fetched = [];
   hold = null;
 });
@@ -235,14 +235,14 @@ async function writeSettings(root: string, settings: unknown) {
 test('reads the cap saved for the install before anything else', async () => {
   const root = join(dir, 'saved');
   await writeSettings(root, { scanCacheBytes: 10 * GB });
-  expect(await openScanCache({ astia, root, freeSpace }).status()).toEqual({
+  expect(await openCache({ astia, root, freeSpace }).status()).toEqual({
     cap: 10 * GB,
     used: 0,
     caps: [5 * GB, 10 * GB, 20 * GB]
   });
   // A cap no longer offered falls back to the default.
   await writeSettings(root, { scanCacheBytes: 1 * GB });
-  expect((await openScanCache({ astia, root }).status()).cap).toBe(5 * GB);
+  expect((await openCache({ astia, root }).status()).cap).toBe(5 * GB);
 });
 
 test("saving a cap keeps the install's other settings", async () => {
@@ -252,13 +252,11 @@ test("saving a cap keeps the install's other settings", async () => {
     theme: 'dark',
     scanCacheBytes: 20 * GB
   });
-  expect((await openScanCache({ astia, root: dir }).status()).cap).toBe(
-    20 * GB
-  );
+  expect((await openCache({ astia, root: dir }).status()).cap).toBe(20 * GB);
 });
 
-test('Scan caches on two data folders share neither files nor a queue', async () => {
-  const other = openScanCache({
+test('caches on two data folders share neither files nor a queue', async () => {
+  const other = openCache({
     astia,
     root: join(dir, 'other')
   });
@@ -287,7 +285,7 @@ describe('a re-scanned Volume', () => {
     const astia = memoryAstia({
       '3': { volumes: [{ id: '301', label: 'Volume 301', images: IMAGES }] }
     });
-    return { astia, cache: openScanCache({ astia, root: dir }) };
+    return { astia, cache: openCache({ astia, root: dir }) };
   }
 
   function at(image: number) {

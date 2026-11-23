@@ -187,14 +187,14 @@ describe('Astia Images', () => {
   });
 });
 
-describe('Scan cache setting', () => {
+describe('Storage setting', () => {
   const GB = 1024 ** 3;
 
   test('changes the cap, keeps it for the install, and clears', async () => {
     const images = join(root, 'data', '.astia-images', '101');
     await mkdir(images, { recursive: true });
     await writeFile(join(images, 'a.jpg'), new Uint8Array(1000));
-    expect(await appOp('scanCache')).toEqual({
+    expect(await appOp('storage')).toEqual({
       status: 200,
       body: {
         cap: 5 * GB,
@@ -202,11 +202,13 @@ describe('Scan cache setting', () => {
         caps: expect.arrayContaining([5 * GB]) as number[]
       }
     });
-    expect((await appOp('setScanCap', { cap: 3 * GB })).status).toBe(400);
-    expect((await appOp('setScanCap', { cap: 10 * GB })).body).toMatchObject({
-      cap: 10 * GB,
-      used: 1000
-    });
+    expect((await appOp('setStorageCap', { cap: 3 * GB })).status).toBe(400);
+    expect((await appOp('setStorageCap', { cap: 10 * GB })).body).toMatchObject(
+      {
+        cap: 10 * GB,
+        used: 1000
+      }
+    );
     const saved = await readFile(join(root, 'data', 'settings.local.json'));
     expect(JSON.parse(saved.toString())).toEqual({ scanCacheBytes: 10 * GB });
     // As after a restart: the cap is read back from the data folder.
@@ -214,8 +216,8 @@ describe('Scan cache setting', () => {
       api: createApi(new DatasetRegistry(join(root, 'data')), { astia }),
       staticRoots: [root]
     });
-    expect((await appOp('scanCache')).body).toMatchObject({ cap: 10 * GB });
-    expect((await appOp('clearScanCache')).body).toMatchObject({ used: 0 });
+    expect((await appOp('storage')).body).toMatchObject({ cap: 10 * GB });
+    expect((await appOp('clearStorage')).body).toMatchObject({ used: 0 });
   });
 });
 
@@ -331,7 +333,7 @@ describe('Church books', () => {
     ]);
     const removed = await appOp('removeFromDisk', { volumeId: '302' });
     expect(removed.body).toEqual([]);
-    expect((await appOp('scanCache')).body).toMatchObject({ used: 0 });
+    expect((await appOp('storage')).body).toMatchObject({ used: 0 });
   });
 });
 

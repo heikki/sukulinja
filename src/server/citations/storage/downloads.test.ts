@@ -3,14 +3,14 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { AstiaError, NoImageError } from './astia';
-import type { Astia } from './astia';
+import { AstiaError, NoImageError } from '../astia/astia';
+import type { Astia } from '../astia/astia';
+import { memoryAstia } from '../astia/memory-astia';
+import type { MemoryAstia } from '../astia/memory-astia';
+import { openCache } from './cache';
+import type { Cache } from './cache';
 import { openDownloads } from './downloads';
 import type { Downloads } from './downloads';
-import { memoryAstia } from './memory-astia';
-import type { MemoryAstia } from './memory-astia';
-import { openScanCache } from './scan-cache';
-import type { ScanCache } from './scan-cache';
 
 const IMAGE_BYTES = 1000;
 
@@ -26,7 +26,7 @@ let failing = 0;
 // and whether every thumbnail does.
 let placeholders = 0;
 let noThumbs = false;
-let cache: ScanCache = openScanCache({
+let cache: Cache = openCache({
   astia: astia(),
   root: dir
 });
@@ -95,7 +95,7 @@ beforeEach(async () => {
   placeholders = 0;
   noThumbs = false;
   const a = astia();
-  cache = openScanCache({ astia: a, root: dir });
+  cache = openCache({ astia: a, root: dir });
   downloads = openDownloads(
     { astia: a, cache },
     { gapMs: 0, retryMs: 0, retries: 2 }
@@ -254,7 +254,7 @@ test('a re-scan found mid-way stops it as re-scanned', async () => {
 test('a re-scan stops it at once, without waiting to try again', async () => {
   const a = astia();
   const slow = openDownloads(
-    { astia: a, cache: openScanCache({ astia: a, root: dir }) },
+    { astia: a, cache: openCache({ astia: a, root: dir }) },
     { gapMs: 0, retryMs: 60_000, retries: 2 }
   );
   listed.rescan('202', 3);

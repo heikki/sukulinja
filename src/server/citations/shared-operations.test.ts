@@ -4,18 +4,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { Refusal } from '../operations';
-import { openDownloads } from './astia/downloads';
 import { memoryAstia } from './astia/memory-astia';
 import { memoryParishes } from './astia/parishes';
-import { openScanCache } from './astia/scan-cache';
 import { sharedOperations } from './shared-operations';
+import { openStorage } from './storage';
 
 const ASTIA = memoryAstia({
   10: { title: 'Puumalan seurakunnan arkisto', volumes: [] },
   11: { title: 'Puumalan kunnan arkisto', volumes: [] }
 });
 
-// A data folder for the Scan cache, which these don't fill.
+// A data folder for Storage, which these don't fill.
 const root = mkdtempSync(join(tmpdir(), 'shared-operations-'));
 afterAll(() => {
   rmSync(root, { recursive: true, force: true });
@@ -23,8 +22,11 @@ afterAll(() => {
 
 // The operations over the parishes.
 function parishOperations(parishes: ReturnType<typeof memoryParishes>) {
-  const cache = openScanCache({ astia: ASTIA, root });
-  const downloads = openDownloads({ astia: ASTIA, cache });
+  const storage = openStorage({
+    astia: ASTIA,
+    root,
+    citedImages: async () => await Promise.resolve([])
+  });
   const pages = {
     numbering: async () => await Promise.resolve('counted' as const),
     mark: async () => {
@@ -34,10 +36,8 @@ function parishOperations(parishes: ReturnType<typeof memoryParishes>) {
   return sharedOperations({
     astia: ASTIA,
     parishes,
-    cache,
-    downloads,
-    pages,
-    citedImages: async () => await Promise.resolve([])
+    storage: storage.volumes,
+    pages
   });
 }
 

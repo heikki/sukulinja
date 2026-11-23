@@ -1,4 +1,4 @@
-// The Scan cache: Astia's Images kept on disk for the Scan viewer and
+// Storage's cache: Astia's Images kept on disk for the Scan viewer and
 // Vision Match. Full-size ones are fetched one at a time, the latest request
 // first; thumbnails, a few KB each, go straight away, so one never waits
 // behind a full Image. The cache is capped by a size the install sets,
@@ -28,14 +28,14 @@ import {
 } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 
-import type { ScanCacheStatus, VolumeOnDisk } from '@/common/types';
+import type { StorageStatus, VolumeOnDisk } from '@/common/types';
 
-import { NoImageError } from './astia';
-import type { Astia, ImageRef, ImageSize } from './astia';
+import { NoImageError } from '../astia/astia';
+import type { Astia, ImageRef, ImageSize } from '../astia/astia';
+import { jpegSize } from '../astia/jpeg';
 import { openCacheRoom } from './cache-room';
+import { openFolder } from './folder';
 import { readSettings, saveSetting } from './install-settings';
-import { jpegSize } from './jpeg';
-import { openOffloadFolder } from './offload-folder';
 
 const GB = 1024 ** 3;
 // Every cap the cache can be set to; offered are those its disk has room
@@ -219,10 +219,10 @@ async function diskFree(path: string) {
 
 // ---------------------------------------------------------------- the cache
 
-// The Scan cache of the data folder at `root`, fetching from `astia`: its
+// The cache of the data folder at `root`, fetching from `astia`: its
 // Images in `.astia-images/<volumeId>`, its cap in `settings.local.json`;
 // the caps offered by `freeSpace`, the disk's by default.
-export function openScanCache({
+export function openCache({
   astia,
   root,
   freeSpace = async () => await diskFree(root)
@@ -233,7 +233,7 @@ export function openScanCache({
 }) {
   const dir = join(root, '.astia-images');
   const settingsFile = join(root, 'settings.local.json');
-  const folder = openOffloadFolder(settingsFile);
+  const folder = openFolder(settingsFile);
   const inQueue = openQueue();
   const cacheRoom = openCacheRoom();
   function pathOf(volumeId: string, fileId: string) {
@@ -417,7 +417,7 @@ export function openScanCache({
       return (await folder.find(at.volumeId, fileId)) !== null;
     },
 
-    async status(): Promise<ScanCacheStatus> {
+    async status(): Promise<StorageStatus> {
       await ready;
       const used = totalSize(await cachedFiles(dir));
       const room = used + (await freeSpace());
@@ -601,11 +601,11 @@ export function openScanCache({
   };
 }
 
-export type ScanCache = ReturnType<typeof openScanCache>;
+export type Cache = ReturnType<typeof openCache>;
 
 // The full-size Image's size in pixels, from its JPEG's header, through the
 // cache; null when it can't be had.
-export async function imageSize(cache: ScanCache, at: ImageRef) {
+export async function imageSize(cache: Cache, at: ImageRef) {
   const path = await cache
     .image(at, 'full', new AbortController().signal)
     .catch(() => null);

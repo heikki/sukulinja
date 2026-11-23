@@ -1,5 +1,5 @@
 // The offload folder: an archive of every Image fetched while it's
-// attached, an external drive say, in the Scan cache's own layout
+// attached, an external drive say, in Storage's own layout
 // (`<volumeId>/<fileId>.jpg`), where an offload moves the Images a Volume
 // doesn't keep. Nothing is removed from it but an old filming's Images
 // once a Volume is switched to a re-scan, and a Volume's Images removed
@@ -35,7 +35,7 @@ async function isDir(path: string) {
   return (await stat(path).catch(() => null))?.isDirectory() === true;
 }
 
-export function openOffloadFolder(settingsFile: string) {
+export function openFolder(settingsFile: string) {
   async function path() {
     const { [KEY]: saved } = await readSettings(settingsFile);
     return typeof saved === 'string' && isAbsolute(saved) ? saved : null;
@@ -230,4 +230,4 @@ export function openOffloadFolder(settingsFile: string) {
   };
 }
 
-export type OffloadFolderStore = ReturnType<typeof openOffloadFolder>;
+export type Folder = ReturnType<typeof openFolder>;

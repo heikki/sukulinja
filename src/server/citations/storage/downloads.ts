@@ -1,5 +1,5 @@
 // Downloading a Volume: every Image, full size and thumbnail, fetched into
-// the Scan cache, so stepping through it works without Astia. They're
+// Storage, so stepping through it works without Astia. They're
 // ordinary cache, under its cap like any Image viewed. One Volume at a
 // time, the rest queued behind it, and one Image at a time through the
 // cache's full-size lane: an Image the Scan viewer asks for meanwhile goes
@@ -12,9 +12,9 @@
 
 import type { DownloadError, DownloadStatus } from '@/common/types';
 
-import { AstiaError, NoImageError } from './astia';
-import type { Astia, ImageRef } from './astia';
-import type { ScanCache } from './scan-cache';
+import { AstiaError, NoImageError } from '../astia/astia';
+import type { Astia, ImageRef } from '../astia/astia';
+import type { Cache } from './cache';
 
 const GAP_MS = 1000;
 const RETRY_MS = 30_000;
@@ -68,7 +68,7 @@ function errorOf(err: unknown): DownloadError {
 }
 
 export function openDownloads(
-  { astia, cache }: { astia: Astia; cache: ScanCache },
+  { astia, cache }: { astia: Astia; cache: Cache },
   options: DownloadOptions = {}
 ) {
   const gapMs = options.gapMs ?? GAP_MS;

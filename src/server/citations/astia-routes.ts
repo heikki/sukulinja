@@ -7,19 +7,19 @@ import { basename } from 'node:path';
 
 import { AstiaError, NoImageError, viewerUrls } from './astia/astia';
 import type { Astia, ImageRef } from './astia/astia';
-import { OffloadedError } from './astia/scan-cache';
-import type { ScanCache } from './astia/scan-cache';
 import { routeRescan } from './myheritage';
 import type { KeptPins } from './myheritage';
+import { OffloadedError } from './storage';
+import type { StorageImages } from './storage';
 
 const ASTIA_RE =
   /^\/astia\/volumes\/(?<volumeId>\d+)\/(?:images(?:\/(?<n>\d+))?|(?<rescan>rescan))$/u;
 
-// What the shared routes read: Astia, the Scan cache its Images are kept
-// in, and the pins every dataset made on them.
+// What the shared routes read: Astia, the Images Storage keeps of it, and
+// the pins every dataset made on them.
 interface Shared {
   astia: Astia;
-  cache: ScanCache;
+  images: StorageImages;
   kept: () => Promise<KeptPins>;
 }
 
@@ -40,12 +40,16 @@ async function handleViewerUrls(astia: Astia, volumeId: string) {
 
 // `?size=thumb` gives the 250px one. The webview keeps it by its file id,
 // asking each time: a re-scan puts another photograph at the same number.
-async function handleAstiaImage(cache: ScanCache, req: Request, at: ImageRef) {
+async function handleAstiaImage(
+  images: StorageImages,
+  req: Request,
+  at: ImageRef
+) {
   const thumb = new URL(req.url).searchParams.get('size') === 'thumb';
   const size = thumb ? 'thumb' : 'full';
   // null: the Volume has no such Image. A request given up as its client
   // left gets the same answer as Astia failing; no one reads it.
-  const path = await cache
+  const path = await images
     .image(at, size, req.signal)
     .catch((err: unknown) =>
       err instanceof NoImageError
@@ -73,7 +77,7 @@ async function handleAstiaImage(cache: ScanCache, req: Request, at: ImageRef) {
 async function routeAstia(shared: Shared, req: Request, pathname: string) {
   const m = ASTIA_RE.exec(pathname);
   if (m === null) return null;
-  const { astia, cache } = shared;
+  const { astia, images } = shared;
   const { volumeId, n, rescan } = m.groups!;
   if (rescan !== undefined) {
     return await routeRescan(shared, req, volumeId!).catch(astiaFailed);
@@ -83,7 +87,7 @@ async function routeAstia(shared: Shared, req: Request, pathname: string) {
   }
   return n === undefined
     ? await handleViewerUrls(astia, volumeId!)
-    : await handleAstiaImage(cache, req, {
+    : await handleAstiaImage(images, req, {
         volumeId: volumeId!,
         image: Number(n)
       });

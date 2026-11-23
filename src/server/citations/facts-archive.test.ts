@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test';
 
-import type { OffloadFolderStore } from './astia/offload-folder';
 import { factsArchive } from './facts-archive';
 import type { Pins } from './myheritage';
+import type { FolderFacts } from './storage';
 
 type Volume = Pins['volumes'][string];
 
@@ -22,14 +22,14 @@ function stores(
   const files = new Map(
     Object.entries(archived).map(([id, v]) => [id, JSON.stringify(v)])
   );
-  const folder = {
+  const folder: FolderFacts = {
     facts: async (id: string) => await Promise.resolve(files.get(id) ?? null),
     async keepFacts(id: string, text: string) {
       files.set(id, text);
       await Promise.resolve();
     },
     volumes: async () => await Promise.resolve([...files.keys()])
-  } as unknown as OffloadFolderStore;
+  };
   const kept: Pins = { volumes: { ...local }, references: {} };
   const facts = {
     volumeFacts: async () => await Promise.resolve(kept),

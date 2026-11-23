@@ -60,7 +60,7 @@ export const appApi = createContext<AppApi>(Symbol('app-api'));
 export interface AppState {
   api: DatasetApi;
   // What's asked outside any dataset, shared by them all: the parishes,
-  // the church books, the Scan cache and the assistant's key.
+  // the church books, Storage and the assistant's key.
   app: AppApi;
   selected: Selected;
   // What the Scan viewer shows; it depends on `selected`, not the other
