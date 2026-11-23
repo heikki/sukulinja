@@ -32,6 +32,7 @@ import type { ScanCacheStatus, VolumeOnDisk } from '@/common/types';
 
 import { NoImageError } from './astia';
 import type { Astia, ImageRef, ImageSize } from './astia';
+import { openCacheRoom } from './cache-room';
 import { readSettings, saveSetting } from './install-settings';
 import { jpegSize } from './jpeg';
 import { openOffloadFolder } from './offload-folder';
@@ -234,6 +235,7 @@ export function openScanCache({
   const settingsFile = join(root, 'settings.local.json');
   const folder = openOffloadFolder(settingsFile);
   const inQueue = openQueue();
+  const cacheRoom = openCacheRoom();
   function pathOf(volumeId: string, fileId: string) {
     return join(dir, volumeId, `${fileId}.jpg`);
   }
@@ -248,6 +250,7 @@ export function openScanCache({
   // file just fetched stays even when it alone is over.
   async function prune(keep: string | null) {
     await ready;
+    const measured = cacheRoom.measuring();
     const files = await cachedFiles(dir);
     const kept = await keptPaths();
     let total = totalSize(files);
@@ -259,6 +262,7 @@ export function openScanCache({
       total -= f.size;
     }
     await Promise.all(dropped.map((path) => rm(path, { force: true })));
+    measured(cap - total);
   }
 
   // One Astia is known to no longer have isn't asked for. Writing the file
@@ -275,7 +279,8 @@ export function openScanCache({
     // A copy into the offload folder too, aside: a slow drive never holds
     // up the Image.
     void folder.keep(volumeId, basename(path), bytes).catch(() => undefined);
-    await prune(path);
+    cacheRoom.wrote(bytes.length);
+    if (cacheRoom.outgrown()) await prune(path);
   }
 
   async function fileAt(at: ImageRef, size: ImageSize) {
@@ -536,7 +541,12 @@ export function openScanCache({
     // FolderAwayError, bringing back nothing, when the folder is set and
     // away.
     async bringBack(volumeId: string) {
-      await folder.copyOut(volumeId, join(dir, volumeId));
+      try {
+        await folder.copyOut(volumeId, join(dir, volumeId));
+      } finally {
+        // Some may have arrived even if the copying failed.
+        cacheRoom.forget();
+      }
       await rm(join(dir, volumeId, OFFLOADED), { force: true });
     },
 

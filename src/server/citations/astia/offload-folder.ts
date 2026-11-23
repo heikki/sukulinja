@@ -190,11 +190,23 @@ export function openOffloadFolder(settingsFile: string) {
       const all = await readdir(dir).catch(() => []);
       const names = all.filter((n) => n.endsWith('.jpg'));
       await mkdir(to, { recursive: true });
-      await Promise.all(
+      // Each written aside and moved in, so a cut-off copy never shows as
+      // an Image; all settled before a failure is told, so none lands after.
+      const copies = await Promise.allSettled(
         names.map(async (name) => {
-          await copyFile(join(dir, name), join(to, name));
+          const part = join(to, `${name}.${crypto.randomUUID()}.part`);
+          try {
+            await copyFile(join(dir, name), part);
+            await rename(part, join(to, name));
+          } catch (err) {
+            await rm(part, { force: true }).catch(() => undefined);
+            throw err;
+          }
         })
       );
+      const failed = copies.find((c) => c.status === 'rejected');
+      // eslint-disable-next-line @typescript-eslint/only-throw-error -- rethrown as caught
+      if (failed !== undefined) throw failed.reason;
     }
   };
 }

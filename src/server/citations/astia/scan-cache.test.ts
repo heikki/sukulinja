@@ -185,6 +185,19 @@ async function used() {
   return (await cache.status()).used;
 }
 
+test('the next fetch after bringing back fits the cache to its cap', async () => {
+  const away = join(dir, 'ssd');
+  await mkdir(away);
+  await cache.offloadFolder.set(away);
+  await Promise.all([1, 2, 3].map(async (n) => await open('103', n)));
+  await cache.offload('103', [1]);
+  await cache.setCap(2.5 * IMAGE_BYTES);
+  await cache.bringBack('103');
+  expect(await used()).toBe(3 * IMAGE_BYTES);
+  await open('102', 1);
+  expect(await used()).toBeLessThanOrEqual(2.5 * IMAGE_BYTES);
+});
+
 test('shrinks to a lowered cap at once, and clears', async () => {
   expect(await used()).toBe(0);
   await open('109', 1);
