@@ -300,8 +300,12 @@ export const bookTableStyles = [
       letter-spacing: 0.04em;
       text-align: left;
       text-transform: uppercase;
-      /* Not a border: a collapsed one isn't drawn with a sticky cell. */
-      box-shadow: inset 0 -1px 0 var(--border);
+      /* Not a border: a collapsed one isn't drawn with a sticky cell. The
+         one above covers the rows scrolled up, which a header set on a
+         fraction of a pixel would let show through. */
+      box-shadow:
+        inset 0 -1px 0 var(--border),
+        0 -1px 0 var(--card);
     }
 
     td {
