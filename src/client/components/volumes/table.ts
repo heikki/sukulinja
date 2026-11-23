@@ -280,14 +280,14 @@ export const bookTableStyles = [
       overflow: auto;
       margin-right: -1rem;
       padding-right: 1rem;
+      /* Clipped at its edge exactly: WebKit otherwise lets a pixel of the
+         rows scrolled up show above it at some scroll positions. */
+      clip-path: inset(0);
     }
 
     table {
       width: 100%;
-      /* Not collapsed: WebKit lets the rows scrolled up show through
-         above a sticky header of a collapsed table. */
-      border-collapse: separate;
-      border-spacing: 0;
+      border-collapse: collapse;
       font-size: 0.85rem;
     }
 
@@ -303,7 +303,7 @@ export const bookTableStyles = [
       letter-spacing: 0.04em;
       text-align: left;
       text-transform: uppercase;
-      /* Not a border, which would make the header a pixel taller. */
+      /* Not a border: a collapsed one isn't drawn with a sticky cell. */
       box-shadow: inset 0 -1px 0 var(--border);
     }
 
