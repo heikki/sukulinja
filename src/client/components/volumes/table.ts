@@ -168,11 +168,10 @@ export function pinUnderHead(root: ShadowRoot | null) {
   ) {
     return;
   }
-  // A pixel under them, as their height needn't be whole; they start a
-  // pixel above the box.
+  // A pixel under them, as their height needn't be whole.
   box.style.setProperty(
     '--head',
-    `${head.getBoundingClientRect().height - 2}px`
+    `${head.getBoundingClientRect().height - 1}px`
   );
 }
 
@@ -285,18 +284,18 @@ export const bookTableStyles = [
 
     table {
       width: 100%;
-      border-collapse: collapse;
+      /* Not collapsed: WebKit lets the rows scrolled up show through
+         above a sticky header of a collapsed table. */
+      border-collapse: separate;
+      border-spacing: 0;
       font-size: 0.85rem;
     }
 
-    /* A pixel above the box's top, and a pixel taller, so the rows
-       scrolled up don't show through above them where WebKit sets them a
-       fraction of a pixel low. */
     th {
       position: sticky;
-      top: -1px;
+      top: 0;
       z-index: 2;
-      padding: calc(0.3rem + 1px) 0.3rem 0.3rem;
+      padding: 0.3rem 0.3rem;
       background: var(--card);
       color: var(--muted);
       font-size: 0.7rem;
@@ -304,7 +303,7 @@ export const bookTableStyles = [
       letter-spacing: 0.04em;
       text-align: left;
       text-transform: uppercase;
-      /* Not a border: a collapsed one isn't drawn with a sticky cell. */
+      /* Not a border, which would make the header a pixel taller. */
       box-shadow: inset 0 -1px 0 var(--border);
     }
 
