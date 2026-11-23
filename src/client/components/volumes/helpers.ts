@@ -304,5 +304,11 @@ export function pagesCell(pages: PageNumbering) {
         title:
           'Looked over and marked checked: locked until unmarked, and used as they are.'
       };
+    case 'none':
+      return {
+        text: 'None',
+        title:
+          'Marked as having no page numbers: a reference to it places the volume only.'
+      };
   }
 }

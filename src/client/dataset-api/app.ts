@@ -11,6 +11,7 @@ import type {
   ChurchBookVolume,
   InstalledBook,
   OffloadFolder,
+  PageMark,
   ScanCacheStatus
 } from '@/common/types';
 
@@ -44,10 +45,14 @@ export interface AppApi {
   removeFromDisk: (volumeId: string) => Promise<InstalledBook[]>;
   removeForGood: (volumeId: string) => Promise<InstalledBook[]>;
   offload: (volumeId: string) => Promise<InstalledBook[]>;
-  // Marks the Volume's page numbers checked, locking them, or no longer,
-  // answering with every Volume on this computer; whether they're marked.
-  checkPages: (volumeId: string, checked: boolean) => Promise<InstalledBook[]>;
-  pagesChecked: (volumeId: string, signal?: AbortSignal) => Promise<boolean>;
+  // Marks the Volume's page numbers checked or as none, locking them, or
+  // with null no longer, answering with every Volume on this computer;
+  // whether either mark locks them.
+  markPages: (
+    volumeId: string,
+    as: PageMark | null
+  ) => Promise<InstalledBook[]>;
+  pagesLocked: (volumeId: string, signal?: AbortSignal) => Promise<boolean>;
   isOffloaded: (volumeId: string) => Promise<boolean>;
   offloadFrees: (volumeId: string) => Promise<number | null>;
   // The Scan cache; setting its cap and clearing it answer with it as it
@@ -101,10 +106,10 @@ export function openAppApi({
       await call('removeForGood', { volumeId }, 'Removing for good'),
     offload: async (volumeId) =>
       await call('offload', { volumeId }, 'Offloading'),
-    checkPages: async (volumeId, checked) =>
-      await call('checkPages', { volumeId, checked }, 'Marking the pages'),
-    pagesChecked: async (volumeId, signal) =>
-      await call('pagesChecked', { volumeId }, 'the pages', signal),
+    markPages: async (volumeId, as) =>
+      await call('markPages', { volumeId, as }, 'Marking the pages'),
+    pagesLocked: async (volumeId, signal) =>
+      await call('pagesLocked', { volumeId }, 'the pages', signal),
     isOffloaded: async (volumeId) =>
       await call('isOffloaded', { volumeId }, 'whether it is offloaded'),
     offloadFrees: async (volumeId) =>

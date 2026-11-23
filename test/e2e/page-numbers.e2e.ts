@@ -1,13 +1,32 @@
 // A Volume's page numbers (ADR-0032), shown where Settings asks for them:
-// read by a page survey, counted between, corrected by hand, and cleared.
+// read by a page survey, counted between, corrected by hand, cleared and
+// marked checked, those from the menu of its Page numbers cell in the
+// Volumes tab.
 
 import { afterAll, test } from 'bun:test';
 
+import type { Page } from 'playwright';
+
 import { closeBrowser, shot, withApp } from './app';
-import { newTree, openJuvaVolume, turnAssistantOn } from './steps';
+import { newTree, openJuvaVolume, openList, turnAssistantOn } from './steps';
 import { findsOn } from './vision';
 
 afterAll(closeBrowser);
+
+// Picks the step from the menu of the shown Volume's page numbers.
+async function fromPagesMenu(page: Page, step: string) {
+  await openList(page, 'Volumes');
+  const list = page.locator('sl-volumes-list');
+  const only = list.getByRole('button', { name: 'This tree' });
+  if ((await only.getAttribute('aria-pressed').catch(() => null)) === 'true') {
+    await only.click();
+  }
+  await list
+    .locator('tr[aria-current="true"]')
+    .getByRole('button', { name: /^Page numbers:/ })
+    .click();
+  await page.getByRole('menuitem', { name: step }).click();
+}
 
 test("a Volume's page numbers are surveyed, corrected and cleared", async () => {
   await withApp(
@@ -24,13 +43,10 @@ test("a Volume's page numbers are surveyed, corrected and cleared", async () => 
       const bubble = page.locator('sl-scan-page');
 
       // Each Image's page is read six past its number.
-      await page
-        .getByRole('img', { name: 'Image 1' })
-        .click({ button: 'right', position: { x: 600, y: 500 } });
-      await page
-        .getByRole('menuitem', { name: /^Survey page numbers/ })
-        .click();
+      await page.getByRole('img', { name: 'Image 1' }).waitFor();
+      await fromPagesMenu(page, 'Survey page numbers');
       await page.getByText(/^Page numbers read on \d+ Images/).waitFor();
+      await page.keyboard.press('Escape');
       await bubble.getByRole('button', { name: /^page 7/ }).waitFor();
       await shot(page, 'page-numbers-surveyed');
       await page.getByRole('button', { name: 'Close', exact: true }).click();
@@ -45,15 +61,30 @@ test("a Volume's page numbers are surveyed, corrected and cleared", async () => 
       await bubble.getByRole('button', { name: '≈ page 8' }).waitFor();
 
       // Cleared, the Images are counted from the first again.
-      await page
-        .getByRole('img', { name: 'Image 2' })
-        .click({ button: 'right', position: { x: 600, y: 500 } });
-      await page.getByRole('menuitem', { name: /^Clear page numbers/ }).click();
+      await fromPagesMenu(page, 'Clear page numbers');
       await page
         .getByText('Takes away the page numbers read or set on 2 Images')
         .waitFor();
       await page.getByRole('menuitem', { name: 'Clear page numbers' }).click();
+      await page.keyboard.press('Escape');
       await bubble.getByRole('button', { name: '≈ page 2' }).waitFor();
+
+      // Image 2 left out of the counting, then the page numbers marked
+      // checked: locked, and nothing shown on it.
+      await bubble.getByRole('button', { name: '≈ page 2' }).click();
+      await bubble.getByLabel('Page').fill('');
+      await page.keyboard.press('Enter');
+      await bubble.getByRole('button', { name: 'skipped' }).waitFor();
+      await fromPagesMenu(page, 'Mark page numbers checked');
+      await page
+        .locator('sl-volumes-list tr[aria-current="true"]')
+        .getByText('Checked')
+        .waitFor();
+      await page.keyboard.press('Escape');
+      await bubble.getByText('skipped').waitFor({ state: 'detached' });
+      await page.getByRole('button', { name: 'Previous image' }).click();
+      await bubble.getByText('page 1', { exact: true }).waitFor();
+      await shot(page, 'page-numbers-checked');
     },
     { vision: findsOn(0, (image) => [image + 6]) }
   );

@@ -26,8 +26,8 @@ export interface BookTable {
   // The buttons at the end of each Volume's row.
   acts: (book: VolumeRow) => TemplateResult[];
   open: (book: VolumeRow) => void;
-  // Its page numbers marked checked, or no longer.
-  check: (book: VolumeRow) => void;
+  // The menu of its page numbers, opened from their cell.
+  pages: (book: VolumeRow, from: HTMLElement) => void;
   busy: boolean;
 }
 
@@ -38,21 +38,25 @@ function citedCell(book: VolumeRow) {
   return book.cited === 0 ? html`<span class="count">–</span>` : book.cited;
 }
 
-// Clicked, marked checked, or no longer; only for one All books knows,
-// whose page numbers it says.
+// Clicked, the menu of what can be done with them; only for one All
+// books knows, whose page numbers it says.
 function pagesOf(table: BookTable, book: VolumeRow) {
   if (book.pages === null) return nothing;
   const { text, title } = pagesCell(book.pages);
-  const checked = book.pages === 'checked';
+  const marked = book.pages === 'checked' || book.pages === 'none';
   return html`<button
     class="pages"
-    aria-label=${checked ? 'Unmark page numbers checked' : 'Mark page numbers checked'}
-    aria-pressed=${String(checked)}
-    title="${title} Click to ${checked ? 'unmark them' : 'mark them checked'}."
+    aria-label="Page numbers: ${text}"
+    aria-haspopup="menu"
+    aria-pressed=${String(marked)}
+    title=${title}
     ?disabled=${table.busy}
+    @mousedown=${(e: Event) => {
+      e.stopPropagation();
+    }}
     @click=${(e: Event) => {
       e.stopPropagation();
-      table.check(book);
+      table.pages(book, e.currentTarget as HTMLElement);
     }}
   >
     ${text}

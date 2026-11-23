@@ -256,8 +256,7 @@ test('Locating the estimates is offered where there are any on the Image', async
   const find = {
     model: 'Haiku 5.5',
     run: unasked,
-    runVolume: unasked,
-    survey: unasked
+    runVolume: unasked
   };
   expect(labels(viewer, { onBox: false, canBox: true })).not.toContain(
     'Locate estimates on this Image'
@@ -278,7 +277,7 @@ test('Locating the estimates is offered where there are any on the Image', async
   ).toBe('2 people · page survey first · Haiku 5.5');
 });
 
-test('page numbers are marked checked, which leaves nothing to change them by', async () => {
+test("the Volume's page numbers aren't worked on from the Scan viewer's menu", async () => {
   const api = memoryDatasetApi({
     volumes: {
       '201': { images: 40, citations: [], pins: [{ image: 2, pages: [8] }] }
@@ -289,27 +288,11 @@ test('page numbers are marked checked, which leaves nothing to change them by', 
   await Bun.sleep(0);
   const open = {
     ...NONE,
-    clearPages: unasked,
-    checkPages: unasked,
-    locate: {
-      model: 'Haiku 5.5',
-      run: unasked,
-      runVolume: unasked,
-      survey: unasked
-    }
+    locate: { model: 'Haiku 5.5', run: unasked, runVolume: unasked }
   };
   const where = { onBox: false, canBox: false };
   expect(linkItems(viewer, where, open).map((i) => i.label)).toEqual([
     'Add reminder…',
-    'Survey page numbers',
-    'Clear page numbers',
-    'Mark page numbers checked',
-    'Change Volume…'
-  ]);
-  await viewer.pages.setChecked(true);
-  expect(linkItems(viewer, where, open).map((i) => i.label)).toEqual([
-    'Add reminder…',
-    'Unmark page numbers checked',
     'Change Volume…'
   ]);
 });

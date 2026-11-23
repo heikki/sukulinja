@@ -143,8 +143,8 @@ export function openCitations(root: string, options: Options) {
       chooseFolder: options.chooseFolder,
       pages: {
         numbering: async (volumeId) => await folder.pageNumbering(volumeId),
-        check: async (volumeId, on) => {
-          await folder.checkPages(volumeId, on);
+        mark: async (volumeId, as) => {
+          await folder.markPages(volumeId, as);
         }
       }
     }),

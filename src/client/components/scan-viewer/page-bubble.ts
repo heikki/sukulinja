@@ -30,7 +30,8 @@ const HOW = {
 // count from. Escape, or clicking elsewhere, leaves it as it was. A page
 // read or set here has a × beside it that takes it away, the Image then
 // counted; a later survey may read it again. A Volume whose page numbers
-// are marked checked shows them locked, with a ✓. Pointer and wheel input
+// are marked checked shows them locked, and nothing on an Image left out
+// of the counting. Pointer and wheel input
 // stays here, so a press doesn't pan.
 @customElement('sl-scan-page')
 class ScanPageElement extends SignalWatcher(LitElement) {
@@ -62,11 +63,6 @@ class ScanPageElement extends SignalWatcher(LitElement) {
     /* Marked checked: shown, not changed. */
     .bubble.locked {
       cursor: default;
-    }
-
-    .lock {
-      margin-left: 0.25rem;
-      color: var(--accent);
     }
 
     input.bubble {
@@ -168,17 +164,19 @@ class ScanPageElement extends SignalWatcher(LitElement) {
   }
 
   private renderShown({ pages, by }: ImagePages) {
+    const locked = this.state.viewer.pages.checked.get();
+    if (locked && pages.length === 0) return nothing;
     const named =
       pages.length === 0
         ? 'skipped'
         : pages.length === 1
           ? `page ${pages[0]}`
           : `pages ${pages[0]}–${pages.at(-1)}`;
-    if (this.state.viewer.pages.checked.get()) {
+    if (locked) {
       return html`<span
         class="bubble locked"
         title="This Volume's page numbers are marked checked. Unmark them from the menu to change them"
-        >${named} <span class="lock" aria-label="checked">✓</span></span
+        >${named}</span
       >`;
     }
     return html`<button

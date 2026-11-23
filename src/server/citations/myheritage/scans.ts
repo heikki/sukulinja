@@ -8,6 +8,7 @@ import type { Database } from 'bun:sqlite';
 import type {
   Link,
   LinkResolution,
+  PageMark,
   PageNumbering,
   VolumeChoice,
   VolumeChoices
@@ -315,9 +316,11 @@ export function openScanFolder(
     return openPins(facts, openMarks(db));
   }
 
-  // A Volume's page numbers marked checked are kept as they are.
+  // A Volume's page numbers marked checked, or as none, are kept as they
+  // are.
   async function checked(volumeId: string) {
-    return (await facts.volumes())[volumeId]?.checked === true;
+    const kept = (await facts.volumes())[volumeId];
+    return kept?.checked === true || kept?.unnumbered === true;
   }
 
   return {
@@ -325,12 +328,14 @@ export function openScanFolder(
     async pageNumbering(volumeId: string): Promise<PageNumbering> {
       const kept = (await facts.volumes())[volumeId];
       if (kept?.checked === true) return 'checked';
+      if (kept?.unnumbered === true) return 'none';
       return (kept?.pages.length ?? 0) > 0 ? 'read' : 'counted';
     },
 
-    // Marks the Volume's page numbers checked, locking them, or no longer.
-    checkPages: async (volumeId: string, on: boolean) => {
-      await facts.setChecked(volumeId, on);
+    // Marks the Volume's page numbers checked, or as none, locking them,
+    // or with null no longer.
+    markPages: async (volumeId: string, as: PageMark | null) => {
+      await facts.markPages(volumeId, as);
     },
 
     // The pages the Volume's Page pins put on each of its Images, or its

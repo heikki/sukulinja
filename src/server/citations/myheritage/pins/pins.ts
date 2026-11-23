@@ -30,7 +30,7 @@ import { join } from 'node:path';
 
 import { bookKind } from '@/common/books';
 import { pageClash, pageNumbering } from '@/common/page-numbering';
-import type { Box } from '@/common/types';
+import type { Box, PageMark } from '@/common/types';
 
 import type { CitationLink } from '../../annotations';
 import type { Astia } from '../../astia/astia';
@@ -452,12 +452,16 @@ export function openVolumeFacts(folder: string, options: { astia: Astia }) {
       });
     },
 
-    // The Volume's page numbers marked checked, or no longer. One write.
-    async setChecked(volumeId: string, checked: boolean) {
+    // The Volume's page numbers marked checked, or as none, or with null
+    // no longer: one mark at a time. One write.
+    async markPages(volumeId: string, as: PageMark | null) {
       await saving((local) => {
         const { volumes } = local;
-        const { checked: _was, ...kept } = volumes[volumeId] ?? { pages: [] };
-        volumes[volumeId] = checked ? { ...kept, checked } : kept;
+        const kept = { ...(volumes[volumeId] ?? { pages: [] }) };
+        delete kept.checked;
+        delete kept.unnumbered;
+        if (as !== null) kept[as === 'none' ? 'unnumbered' : 'checked'] = true;
+        volumes[volumeId] = kept;
       });
     },
 

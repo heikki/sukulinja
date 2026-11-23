@@ -30,6 +30,9 @@ function stop(e: Event) {
 // corner, for a menu dropping from a button's right edge. Presses on it stay on it, so they don't pan
 // what's under it. A choice, Esc or a press anywhere else asks to `close`.
 // ↑/↓ move between the items.
+// How far into the menu its arrow is, from its left edge.
+const ARROW_IN = 16;
+
 @customElement('sl-context-menu')
 class ContextMenuElement extends LitElement {
   static override styles = contextMenuStyles;
@@ -38,6 +41,8 @@ class ContextMenuElement extends LitElement {
   @property({ attribute: false }) heading: string | null = null;
   @property({ attribute: false }) at: Point = { x: 0, y: 0 };
   @property({ attribute: false }) alignRight = false;
+  // With an arrow up to `at`, a point under what it drops from.
+  @property({ attribute: false }) arrow = false;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -62,10 +67,14 @@ class ContextMenuElement extends LitElement {
   }
 
   override updated() {
-    const left = this.alignRight ? this.at.x - this.offsetWidth : this.at.x;
+    const left = this.alignRight
+      ? this.at.x - this.offsetWidth
+      : this.at.x - (this.arrow ? ARROW_IN : 0);
     const { x, y } = placedInside(this, { x: left, y: this.at.y });
     this.style.left = `${x}px`;
     this.style.top = `${y}px`;
+    // Still under `at`, wherever the menu was moved in to.
+    this.style.setProperty('--arrow-x', `${this.at.x - x}px`);
   }
 
   private buttons() {
@@ -105,6 +114,7 @@ class ContextMenuElement extends LitElement {
 
   override render() {
     return html`
+      ${this.arrow ? html`<span class="arrow" aria-hidden="true"></span>` : nothing}
       ${
         this.heading === null
           ? nothing

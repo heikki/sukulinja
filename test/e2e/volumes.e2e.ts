@@ -62,8 +62,22 @@ test('a Volume of another parish is added, downloaded, removed and taken off', a
     expect(await list.getByRole('button', { name: 'This tree' }).count()).toBe(
       0
     );
-    await book
-      .getByRole('button', { name: 'Mark page numbers checked' })
+    // Marked as having none first, then checked instead.
+    const pages = book.getByRole('button', { name: /^Page numbers:/ });
+    await pages.click();
+    await shot(page, 'volumes-pages-menu');
+    await page
+      .getByRole('menuitem', { name: 'Mark as no page numbers' })
+      .click();
+    await book.getByText('None', { exact: true }).waitFor();
+    await shot(page, 'volumes-no-pages');
+    await pages.click();
+    await page
+      .getByRole('menuitem', { name: 'Unmark no page numbers' })
+      .click();
+    await pages.click();
+    await page
+      .getByRole('menuitem', { name: 'Mark page numbers checked' })
       .click();
     await book.getByText('Checked').waitFor();
     await shot(page, 'volumes-checked');

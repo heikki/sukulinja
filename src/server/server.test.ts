@@ -308,14 +308,14 @@ describe('Church books', () => {
     ]);
     await appOp('removeFromDisk', { volumeId: '999' });
     // Its page numbers marked checked, for every dataset.
-    const checked = await appOp('checkPages', {
+    const checked = await appOp('markPages', {
       volumeId: '302',
-      checked: true
+      as: 'checked'
     });
     expect(checked.body).toEqual([
       expect.objectContaining({ id: '302', pages: 'checked' })
     ]);
-    expect((await appOp('pagesChecked', { volumeId: '302' })).body).toBe(true);
+    expect((await appOp('pagesLocked', { volumeId: '302' })).body).toBe(true);
     // Offloaded, with nothing cited in it: no full Image of it stays, only
     // the thumbnails.
     const offloaded = await appOp('offload', { volumeId: '302' });

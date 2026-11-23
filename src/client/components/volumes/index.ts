@@ -4,9 +4,12 @@ import { css, html, LitElement, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
 import { Asking } from '@/client/asking';
+import { visionModel } from '@/client/assistant-choices';
+import { assistantOn } from '@/client/assistant-flag';
 import { dialogStyles } from '@/client/dialog-styles';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
+import { CLAUDE_MODELS } from '@/common/assistant-choices';
 import type {
   InstalledBook,
   ListedBook,
@@ -18,6 +21,9 @@ import { formatBytes } from '../settings/helpers';
 import { busy, listSummary, matches } from './helpers';
 import type { DownloadAction } from './helpers';
 import { renderLeaveDialog } from './leave-dialog';
+import { pageWork } from './page-work';
+import { clearAsk, renderPagesMenu, surveyAsk } from './pages-menu';
+import type { PagesActions, PagesMenu } from './pages-menu';
 import type { BookListEvent, VolumeOpen } from './picker';
 import { renderActs } from './row-acts';
 import type { RowActions } from './row-acts';
@@ -67,6 +73,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     dialogStyles,
     css`
       :host {
+        position: relative;
         display: flex;
         flex: 1;
         min-height: 0;
@@ -152,6 +159,9 @@ class VolumesListElement extends SignalWatcher(LitElement) {
 
   // Whether the Volume picker is open.
   @state() private picking = false;
+
+  // The menu of a Volume's page numbers, or its question, while open.
+  @state() private pagesMenu: PagesMenu | null = null;
 
   // The Volume whose removal, from disk or for good, waits to be confirmed.
   @state() private confirming: { book: VolumeRow; forGood: boolean } | null =
@@ -239,12 +249,76 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     await this.load();
   }
 
-  private readonly check = (book: VolumeRow) => {
-    void this.doing(
-      async () =>
-        await this.state.app.checkPages(book.id, book.pages !== 'checked')
-    );
+  // Opens the menu under the cell's button, or closes it if it's this
+  // Volume's.
+  private readonly openPages = (book: VolumeRow, from: HTMLElement) => {
+    if (this.pagesMenu?.book.id === book.id) {
+      this.pagesMenu = null;
+      return;
+    }
+    const at = from.getBoundingClientRect();
+    const box = this.getBoundingClientRect();
+    this.pagesMenu = {
+      book,
+      at: {
+        x: (at.left + at.right) / 2 - box.left,
+        y: at.bottom - box.top + 8
+      }
+    };
   };
+
+  // Asked first when it takes pages away; a survey taking none isn't.
+  private async askPages(book: VolumeRow, what: 'survey' | 'clear') {
+    const at = this.pagesMenu?.at ?? { x: 0, y: 0 };
+    const work = pageWork(this.state);
+    const run = () => {
+      void this.doing(async () => {
+        await work[what](book);
+      });
+    };
+    const { byHand, pinned } = await work.counts(book).catch(() => ({
+      byHand: 0,
+      pinned: 0
+    }));
+    if (what === 'survey' && byHand === 0) {
+      run();
+      return;
+    }
+    this.pagesMenu = {
+      book,
+      at,
+      ask:
+        what === 'survey'
+          ? {
+              heading: surveyAsk(byHand),
+              step: { label: 'Survey and take them away', run }
+            }
+          : {
+              heading: clearAsk(pinned),
+              step: { label: 'Clear page numbers', run }
+            }
+    };
+  }
+
+  private pagesActions(): PagesActions {
+    const model = visionModel.get();
+    return {
+      model: assistantOn.get()
+        ? (CLAUDE_MODELS.find((m) => m.id === model)?.label ?? model)
+        : null,
+      mark: (book, as) => {
+        void this.doing(async () => {
+          await pageWork(this.state).mark(book, as);
+        });
+      },
+      survey: (book) => {
+        void this.askPages(book, 'survey');
+      },
+      clear: (book) => {
+        void this.askPages(book, 'clear');
+      }
+    };
+  }
 
   private readonly does: Omit<RowActions, 'busy' | 'folder' | 'frees'> = {
     askFrees: (book) => {
@@ -367,7 +441,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
       open: (b) => {
         this.open(b.id, b.label);
       },
-      check: this.check,
+      pages: this.openPages,
       busy: this.asking.busy
     });
   }
@@ -410,6 +484,9 @@ class VolumesListElement extends SignalWatcher(LitElement) {
       </div>
       ${this.renderBody(rows, shown)} ${this.renderFoot(shown)}
       ${renderRefused(this.asking.refused)} ${this.renderConfirm()}
+      ${renderPagesMenu(this.pagesMenu, this.pagesActions(), () => {
+        this.pagesMenu = null;
+      })}
       ${this.renderPicker()}
     `;
   }

@@ -6,7 +6,11 @@
 // Images; and the Scan cache they're kept in.
 
 import type { AppOperations } from '@/common/operations';
-import type { ChurchBookArchive, PageNumbering } from '@/common/types';
+import type {
+  ChurchBookArchive,
+  PageMark,
+  PageNumbering
+} from '@/common/types';
 
 import { Refusal } from '../operations';
 import type { Handlers } from '../operations';
@@ -31,10 +35,11 @@ interface Sources {
   // The app's folder picker: the folder chosen, or null; none outside the
   // app.
   chooseFolder?: () => Promise<string | null>;
-  // What's known of a Volume's page numbers, and marking them checked.
+  // What's known of a Volume's page numbers, and marking them checked or
+  // as none.
   pages: {
     numbering: (volumeId: string) => Promise<PageNumbering>;
-    check: (volumeId: string, on: boolean) => Promise<void>;
+    mark: (volumeId: string, as: PageMark | null) => Promise<void>;
   };
 }
 
@@ -53,8 +58,8 @@ export type SharedOperations = Pick<
   | 'removeFromDisk'
   | 'removeForGood'
   | 'offload'
-  | 'checkPages'
-  | 'pagesChecked'
+  | 'markPages'
+  | 'pagesLocked'
   | 'isOffloaded'
   | 'offloadFrees'
   | 'scanCache'
@@ -168,12 +173,12 @@ export function sharedOperations({
       await askingAstia(cache.offload(volumeId, cited)).catch(folderAway);
       return await allBooks();
     },
-    async checkPages({ volumeId, checked }) {
-      await pages.check(volumeId, checked);
+    async markPages({ volumeId, as }) {
+      await pages.mark(volumeId, as);
       return await allBooks();
     },
-    pagesChecked: async ({ volumeId }) =>
-      (await pages.numbering(volumeId)) === 'checked',
+    pagesLocked: async ({ volumeId }) =>
+      ['checked', 'none'].includes(await pages.numbering(volumeId)),
     isOffloaded: async ({ volumeId }) => await cache.isOffloaded(volumeId),
     // Asked of one Volume at a time, as what's cited is slow to know; null
     // when it can't be, as Astia isn't reached.

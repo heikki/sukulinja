@@ -11,19 +11,15 @@ import type { Readable } from './selected';
 // Volume's citations, as a Mark, a Match or a page survey changes both.
 // One set here by hand moves the estimates counted from it, so `reload`
 // loads them anew.
-// Whether a Volume's page numbers are marked checked, and marking them,
-// the install's for every dataset; throws ApiError if it's refused.
+// Whether a Volume's page numbers are locked, marked checked or as none,
+// the install's for every dataset: marked from the Volumes tab.
 export interface PagesChecked {
   checked: (volumeId: string, signal: AbortSignal) => Promise<boolean>;
-  check: (volumeId: string, on: boolean) => Promise<void>;
 }
 
-// None marked, and marking kept nowhere.
+// None marked.
 export const NO_CHECKS: PagesChecked = {
-  checked: async () => await Promise.resolve(false),
-  async check() {
-    await Promise.resolve();
-  }
+  checked: async () => await Promise.resolve(false)
 };
 
 export function volumePagesOf(
@@ -65,8 +61,8 @@ export function volumePagesOf(
     // How many Images have pages set by hand, which a page survey takes
     // away.
     byHand: byHand as Readable<number>,
-    // Whether the Volume's page numbers are marked checked: then they're
-    // locked, and nothing here changes them.
+    // Whether the Volume's page numbers are marked checked or as none:
+    // then they're locked, and nothing here changes them.
     checked: checked as Readable<boolean>,
     async load(volumeId: string) {
       const volume = shown.volume.get()?.label ?? '';
@@ -78,14 +74,6 @@ export function volumePagesOf(
       ]);
       if (got !== undefined) pages.set(got ?? []);
       if (isChecked !== undefined) checked.set(isChecked ?? false);
-    },
-    // Marks the shown Volume's page numbers checked, or no longer.
-    setChecked: async (on: boolean) => {
-      const v = shown.volume.get();
-      if (v === null) return;
-      checkedReq.stop();
-      await checks.check(v.id, on);
-      checked.set(on);
     },
     // Sets the pages of the Image shown by hand, a spread's two or one, or
     // with null takes them away; throws ApiError if it's refused.

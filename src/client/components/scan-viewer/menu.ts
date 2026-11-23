@@ -32,10 +32,6 @@ export function linkItems(
     // The model Vision Match asks, by its label, and asking it for the
     // source, or for every estimate on the Image.
     locate?: VisionFind;
-    // Taking the Volume's page numbers away, and marking them checked or
-    // no longer, where they're shown.
-    clearPages?: () => void;
-    checkPages?: () => void;
   }
 ) {
   const remind: MenuItem[] =
@@ -61,7 +57,6 @@ export function linkItems(
   items.push(
     ...remind,
     ...visionItems(viewer, open.locate),
-    ...pageItems(viewer, open),
     ...volumeItems(viewer, open.chooseVolume)
   );
   return items;
@@ -75,36 +70,12 @@ function volumeItems(viewer: Viewer, chooseVolume: () => void): MenuItem[] {
     : [{ label: 'Change Volume…', run: chooseVolume }];
 }
 
-// The Volume's page numbers where they're shown (ADR-0032): marked
-// checked, or no longer; not checked, taken away where any are read or
-// set.
-function pageItems(
-  viewer: Viewer,
-  {
-    clearPages,
-    checkPages
-  }: { clearPages?: () => void; checkPages?: () => void }
-): MenuItem[] {
-  if (clearPages === undefined || checkPages === undefined) return [];
-  const detail = 'This Volume';
-  if (viewer.pages.checked.get()) {
-    return [{ label: 'Unmark page numbers checked', detail, run: checkPages }];
-  }
-  return [
-    ...(viewer.pages.numbered.get()
-      ? [{ label: 'Clear page numbers', detail, run: clearPages }]
-      : []),
-    { label: 'Mark page numbers checked', detail, run: checkPages }
-  ];
-}
-
 // Vision Match as the menu offers it, with the model's label: on the
-// Image, or in the whole Volume; and the Volume's page survey alone.
+// Image, or in the whole Volume.
 export interface VisionFind {
   model: string;
   run: () => void;
   runVolume: () => void;
-  survey: () => void;
 }
 
 function peopleWords(n: number) {
@@ -134,13 +105,6 @@ function visionItems(viewer: Viewer, find: VisionFind | undefined): MenuItem[] {
       label: 'Locate estimates in this Volume',
       detail: `${peopleWords(inVolume)} · ${viewer.pages.numbered.get() ? 'from its page numbers' : 'page survey first'} · ${find.model}`,
       run: find.runVolume
-    });
-  }
-  if (!viewer.pages.checked.get()) {
-    items.push({
-      label: 'Survey page numbers',
-      detail: `This Volume · ${find.model}`,
-      run: find.survey
     });
   }
   return items;

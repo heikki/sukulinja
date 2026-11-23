@@ -12,6 +12,7 @@ import type {
   DownloadStatus,
   InstalledBook,
   OffloadFolder,
+  PageMark,
   ScanCacheStatus
 } from '@/common/types';
 
@@ -112,23 +113,21 @@ export const APP_OPERATIONS = {
     volumeOf
   ),
 
-  // Marks the Volume's page numbers checked, locking them in the Scan
-  // viewer, or no longer: every Volume on this computer then. Whether
-  // they're marked.
-  checkPages: answers<{ volumeId: string; checked: boolean }, InstalledBook[]>(
-    '{ volumeId, checked }',
-    (body) => {
-      const volume = volumeOf(body);
-      const { checked } = body;
-      return volume === null || typeof checked !== 'boolean'
-        ? null
-        : { ...volume, checked };
-    }
-  ),
-  pagesChecked: answers<{ volumeId: string }, boolean>(
-    '{ volumeId }',
-    volumeOf
-  ),
+  // Marks the Volume's page numbers checked, or as none, locking them in
+  // the Scan viewer, or with null takes the mark away: every Volume on
+  // this computer then. Whether they're locked by either mark.
+  markPages: answers<
+    { volumeId: string; as: PageMark | null },
+    InstalledBook[]
+  >('{ volumeId, as }', (body) => {
+    const volume = volumeOf(body);
+    const { as } = body;
+    return volume === null ||
+      !(as === null || as === 'checked' || as === 'none')
+      ? null
+      : { ...volume, as };
+  }),
+  pagesLocked: answers<{ volumeId: string }, boolean>('{ volumeId }', volumeOf),
   // Whether the Volume is offloaded: then only its cited Images load.
   isOffloaded: answers<{ volumeId: string }, boolean>('{ volumeId }', volumeOf),
   // The bytes offloading the Volume would free, keeping its cited Images;

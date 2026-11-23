@@ -543,8 +543,12 @@ export interface OffloadFolder {
 }
 
 // What's known of a Volume's page numbers: none read or set (`counted` as
-// its book is numbered), some read or set, or all marked checked by hand.
-export type PageNumbering = 'counted' | 'read' | 'checked';
+// its book is numbered), some read or set, all marked checked by hand, or
+// marked by hand as having none (`none`). Either mark locks them.
+export type PageNumbering = 'counted' | 'read' | 'checked' | 'none';
+
+// A hand's mark on a Volume's page numbers, or null for none.
+export type PageMark = 'checked' | 'none';
 
 // A pin made on a filming of its Volume that Astia has since replaced,
 // which switching to the new filming leaves out: saved in the data folder

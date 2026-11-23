@@ -21,6 +21,21 @@ const menu = css`
     cursor: auto;
   }
 
+  /* The arrow up to what it drops from: a square turned 45° on the top
+     edge, only its outer two sides carrying the border, so it reads as
+     part of the outline. */
+  .arrow {
+    position: absolute;
+    top: -6px;
+    left: calc(var(--arrow-x, 1rem) - 5px);
+    width: 10px;
+    height: 10px;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    border-left: 1px solid var(--border);
+    transform: rotate(45deg);
+  }
+
   h3 {
     margin: 0 0 0.3rem;
     padding: 0.2rem 0.5rem 0.4rem;

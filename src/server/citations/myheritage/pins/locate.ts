@@ -74,6 +74,9 @@ export interface VolumePins {
   // The Volume's page numbers marked checked by hand: locked until
   // unmarked.
   checked?: boolean;
+  // Marked by hand as having no page numbers: locked so, and a cited page
+  // places nothing in it.
+  unnumbered?: boolean;
   villages?: string[];
   ranges?: RecordRange[];
   records?: RecordPin[];
@@ -212,6 +215,9 @@ export async function volumePages(
   pins: Pins
 ): Promise<ImagePages[]> {
   const filming = await filmingOf(astia, volume.volumeId);
+  if (pins.volumes[volume.volumeId]?.unnumbered === true) {
+    return filming.files.map((_, i) => ({ image: i + 1, pages: [], by: null }));
+  }
   const own = splitVolume(filming, pins).current;
   return pageNumbering(
     own.pages,
@@ -279,7 +285,10 @@ async function locate(
   const pin = own.records.find((r) => r.record === ref.recordId);
   const pinned = pin === undefined ? null : pinnedTarget(pin);
   if (pinned !== null) return { volume: v, files, target: pinned };
-  if (ref.page === null) return { volume: v, files, target: ESTIMATED_VOLUME };
+  // A Volume with no page numbers has no place for a cited page.
+  if (ref.page === null || pins.volumes[v.id]?.unnumbered === true) {
+    return { volume: v, files, target: ESTIMATED_VOLUME };
+  }
   const counted = countedImage(own.pages, files.length, ref, own.records);
   if (counted === 'overran') {
     return { volume: v, files, target: ESTIMATED_VOLUME, overran: true };

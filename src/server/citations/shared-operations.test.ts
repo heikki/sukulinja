@@ -27,7 +27,7 @@ function parishOperations(parishes: ReturnType<typeof memoryParishes>) {
   const downloads = openDownloads({ astia: ASTIA, cache });
   const pages = {
     numbering: async () => await Promise.resolve('counted' as const),
-    check: async () => {
+    mark: async () => {
       await Promise.resolve();
     }
   };

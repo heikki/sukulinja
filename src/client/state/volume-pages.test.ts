@@ -62,25 +62,20 @@ test("the Volume's page numbers are cleared, and its citations reloaded", async 
   ]);
 });
 
-test("the Volume's page numbers are marked checked, and no longer", async () => {
+test("the Volume's page numbers are known locked, and read again once unmarked", async () => {
   const api = memoryDatasetApi({
     volumes: { '201': { images: 3, citations: [] } }
   });
   const marked = new Set(['201']);
   const viewer = openViewer(api, openSelected(api), {
     checks: {
-      checked: async (volumeId) => await Promise.resolve(marked.has(volumeId)),
-      async check(volumeId, on) {
-        if (on) marked.add(volumeId);
-        else marked.delete(volumeId);
-        await Promise.resolve();
-      }
+      checked: async (volumeId) => await Promise.resolve(marked.has(volumeId))
     }
   });
   viewer.openImage({ volumeId: '201', volume: 'I Aa:201', image: 2 });
   await Bun.sleep(0);
   expect(viewer.pages.checked.get()).toBe(true);
-  await viewer.pages.setChecked(false);
+  marked.delete('201');
+  await viewer.pages.load('201');
   expect(viewer.pages.checked.get()).toBe(false);
-  expect(marked.has('201')).toBe(false);
 });

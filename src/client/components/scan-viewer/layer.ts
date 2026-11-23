@@ -6,7 +6,6 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { visionModel } from '@/client/assistant-choices';
 import { assistantOn } from '@/client/assistant-flag';
 import type { InEntry } from '@/client/dataset-api';
-import { pageNumbersOn } from '@/client/page-numbers-flag';
 import type { Point, Transform } from '@/client/pan-zoom';
 import { appState, citingImage } from '@/client/state';
 import type { AppState } from '@/client/state';
@@ -48,7 +47,7 @@ type Popup =
   | {
       at: Point;
       onBox: boolean;
-      show: 'menu' | 'volumes' | 'survey' | 'clear' | 'unchecked';
+      show: 'menu' | 'volumes' | 'unchecked';
       // With `unchecked`: the Vision Match asked for.
       locate?: () => void;
     }
@@ -282,16 +281,7 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
         }),
         runVolume: asking(() => {
           void this.viewer.findAllInVolumeByVision(model);
-        }),
-        survey: () => {
-          // The menu has closed by now: the warning opens where it was.
-          if (this.viewer.pages.byHand.get() > 0 && shown?.show === 'menu') {
-            this.popup = { ...shown, show: 'survey' };
-            return;
-          }
-          this.popup = null;
-          void this.viewer.surveyPagesByVision(model);
-        }
+        })
       }
     };
   }
@@ -310,8 +300,6 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     if (popup === null) return nothing;
     if (popup.show === 'pick') return this.renderPick(popup.at, popup.role);
     const { at, onBox, show } = popup;
-    if (show === 'survey') return this.renderSurveyWarning(at);
-    if (show === 'clear') return this.renderClearWarning(at);
     if (show === 'unchecked' && popup.locate !== undefined) {
       return this.renderUncheckedWarning(at, popup.locate);
     }
@@ -334,18 +322,6 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
         remind: () => {
           this.remind();
         },
-        ...(pageNumbersOn.get() && !this.viewer.oldFilming.get()
-          ? {
-              clearPages: () => {
-                this.popup = { at, onBox, show: 'clear' };
-              },
-              checkPages: () => {
-                this.popup = null;
-                const { pages } = this.viewer;
-                void pages.setChecked(!pages.checked.get());
-              }
-            }
-          : {}),
         ...this.visionItem()
       }
     );
@@ -363,38 +339,6 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
       at,
       "This Volume's page numbers aren't marked checked; the estimates count from them",
       { label: 'Locate anyway', run: locate }
-    );
-  }
-
-  // Before a page survey takes away the pages set by hand in the Volume
-  // (ADR-0032), how many: run it anyway, or not.
-  private renderSurveyWarning(at: Point) {
-    const n = this.viewer.pages.byHand.get();
-    return this.renderAsk(
-      at,
-      `The survey takes away ${n === 1 ? 'the page' : `${n} pages`} set by hand in this Volume`,
-      {
-        label: 'Survey and take them away',
-        run: () => {
-          void this.viewer.surveyPagesByVision(visionModel.get());
-        }
-      }
-    );
-  }
-
-  // Before the Volume's pages read or set are taken away, how many: its
-  // pages then counted as its book is numbered.
-  private renderClearWarning(at: Point) {
-    const n = this.viewer.pages.pinned.get();
-    return this.renderAsk(
-      at,
-      `Takes away the page numbers read or set on ${n === 1 ? '1 Image' : `${n} Images`} of this Volume`,
-      {
-        label: 'Clear page numbers',
-        run: () => {
-          void this.viewer.pages.clearVolume();
-        }
-      }
     );
   }
 

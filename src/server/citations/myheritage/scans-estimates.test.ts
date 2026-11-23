@@ -305,7 +305,7 @@ test("a Volume's page numbers marked checked are kept until unmarked", async () 
   expect(await folder.pageNumbering('juva-1')).toBe('counted');
   await folder.setImagePage(at, [12]);
   expect(await folder.pageNumbering('juva-1')).toBe('read');
-  await folder.checkPages('juva-1', true);
+  await folder.markPages('juva-1', 'checked');
   expect(await folder.pageNumbering('juva-1')).toBe('checked');
   const reader = {
     pageNumbers: async () => await Promise.resolve({ pages: [1] })
@@ -320,7 +320,28 @@ test("a Volume's page numbers marked checked are kept until unmarked", async () 
     ).toMatch(/checked/u);
   }
   expect(await imagesAt(12)).toEqual([5]);
-  await folder.checkPages('juva-1', false);
+  await folder.markPages('juva-1', null);
   expect(await folder.pageNumbering('juva-1')).toBe('read');
   expect(await folder.clearVolumePages('juva-1')).toBeNull();
+});
+
+test('a Volume marked as having no page numbers places no cited page, until unmarked', async () => {
+  const folder = openScanFolder(dir, {
+    astia: juvaAstia(),
+    parishes: memoryParishes()
+  });
+  const at = { volumeId: 'juva-1', volume: 'I Aa:1', image: 5 };
+  await folder.markPages('juva-1', 'none');
+  expect(await folder.pageNumbering('juva-1')).toBe('none');
+  // Linked to the Volume alone, with no page on any Image.
+  expect(await imagesAt(12)).toEqual([null]);
+  const pages = await folder.pagesInVolume('juva-1', 'I Aa:1');
+  expect(pages.every((p) => p.pages.length === 0 && p.by === null)).toBe(true);
+  const refused = await folder.setImagePage(at, [12]);
+  expect(refused !== null && 'rejected' in refused).toBe(true);
+  // Marked checked instead, the one mark goes.
+  await folder.markPages('juva-1', 'checked');
+  expect(await folder.pageNumbering('juva-1')).toBe('checked');
+  await folder.markPages('juva-1', null);
+  expect(await imagesAt(12)).toEqual([12]);
 });
