@@ -6,6 +6,7 @@ import { customElement, state } from 'lit/decorators.js';
 import { Asking } from '@/client/asking';
 import { visionModel } from '@/client/assistant-choices';
 import { assistantOn } from '@/client/assistant-flag';
+import type { DatasetApi } from '@/client/dataset-api';
 import type { Point } from '@/client/pan-zoom';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
@@ -62,6 +63,17 @@ const POLL_MS = 2000;
 // books choice.
 const lastViews = new WeakMap<object, VolumesView>();
 const lastTreeOnly = new WeakMap<object, boolean>();
+
+// Asks for the dataset's view as it opens, so even the tab's first opening
+// has one to show at once.
+export function preloadVolumes(api: DatasetApi) {
+  void api
+    .volumesView()
+    .then((view) => {
+      if (!lastViews.has(api)) lastViews.set(api, view);
+    })
+    .catch(() => undefined);
+}
 
 @customElement('sl-volumes-list')
 class VolumesListElement extends SignalWatcher(LitElement) {
