@@ -178,7 +178,26 @@ export function openCitations(root: string, options: Options) {
         countInArchive: async (archiveId) =>
           await citations.countInArchive(archiveId)
       });
-      if (options.warmUp === true) void citations.warmUp();
+      // The Volumes view, so its tab opens without a wait: Astia's lists
+      // first, then what the view keeps until something changes.
+      async function view() {
+        return await volumesView({
+          listed: async () => await bookList.all(),
+          here: async () =>
+            await installBooks(
+              { astia, storage: storage.volumes },
+              parishes.archives()
+            ),
+          pagesOf: async (volumeId) => await facts.numbering(volumeId),
+          storage: async () => await storage.volumes.status()
+        });
+      }
+      if (options.warmUp === true) {
+        void citations
+          .warmUp()
+          .then(view)
+          .catch(() => undefined);
+      }
       // Switches the Volume, `volume` by its label, to Astia's new filming,
       // which every dataset then sees, and says so in this one's Changes.
       async function switchTo(volumeId: string, volume: string) {
@@ -219,17 +238,7 @@ export function openCitations(root: string, options: Options) {
         bookList,
         // The Volumes view: the Book list, then every other Volume on this
         // computer, with Storage's fill.
-        volumesView: async () =>
-          await volumesView({
-            listed: async () => await bookList.all(),
-            here: async () =>
-              await installBooks(
-                { astia, storage: storage.volumes },
-                parishes.archives()
-              ),
-            pagesOf: async (volumeId) => await facts.numbering(volumeId),
-            storage: async () => await storage.volumes.status()
-          }),
+        volumesView: view,
         // The church books a person's Facts say they should be in, each
         // Expected entry with the Volumes it fits.
         booksFor: async (life: PersonLife) => await personBooks.booksFor(life),
