@@ -16,43 +16,16 @@
 import type { Database } from 'bun:sqlite';
 import { copyFileSync } from 'node:fs';
 
-import { BOXES_BECOME_TAGS } from './migration-2';
-import { CHANGES_NAME_THEIR_PHOTO } from './migration-3';
-import { CHANGES_FIND_THEIR_PHOTO } from './migration-4';
-import { CITATIONS_SUPPORT_FACTS } from './migration-5';
-import { ENTRIES_HOLD_THE_BOX } from './migration-6';
-import { ENTRIES_OF_ONE_ENTRY_MERGE } from './migration-7';
-import { BAPTISM_ROLES_FROM_THE_TREE } from './migration-8';
-import { CHANGES_SAY_VIA_THE_ASSISTANT } from './migration-9';
-import { REIMPORT_LEFTOVERS_GO } from './migration-10';
-import { FACT_CITATIONS_GO } from './migration-11';
-import { ENTRIES_SAY_THEIR_DATES } from './migration-12';
-import { ENTRIES_SAY_ONE_PLACE } from './migration-13';
-import { BOOKS_ARE_LISTED } from './migration-14';
-
 export interface Migration {
   to: number;
   up: (db: Database) => void;
 }
 
 // The oldest schema a database is taken from. One older is imported again.
-export const OLDEST_MIGRATED = 1;
+export const OLDEST_MIGRATED = 14;
 
-export const MIGRATIONS: Migration[] = [
-  BOXES_BECOME_TAGS,
-  CHANGES_NAME_THEIR_PHOTO,
-  CHANGES_FIND_THEIR_PHOTO,
-  CITATIONS_SUPPORT_FACTS,
-  ENTRIES_HOLD_THE_BOX,
-  ENTRIES_OF_ONE_ENTRY_MERGE,
-  BAPTISM_ROLES_FROM_THE_TREE,
-  CHANGES_SAY_VIA_THE_ASSISTANT,
-  REIMPORT_LEFTOVERS_GO,
-  FACT_CITATIONS_GO,
-  ENTRIES_SAY_THEIR_DATES,
-  ENTRIES_SAY_ONE_PLACE,
-  BOOKS_ARE_LISTED
-];
+// None yet since schema 14 became the oldest; the next is schema 15.
+export const MIGRATIONS: Migration[] = [];
 
 // The version the steps take a database to.
 export function latestOf(steps: Migration[]) {

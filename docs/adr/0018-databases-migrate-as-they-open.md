@@ -29,3 +29,7 @@ So a database is now taken to the app's schema as it's opened:
 - A schema change is a commit that changes `SCHEMA_SQL`, adds a step to `MIGRATIONS` and passes the migration test.
 - When the oldest version migrated is raised, its steps and `schema-<n>.sql` go, and a new snapshot of that version takes their place.
 - The merge still reads the database it replaces whatever its schema (ADR-0013), for one from before schema 1 and for _Undo last import_. A database put back by _Undo last import_ is migrated when it's next opened.
+
+## Since
+
+- On 2026-11-24 the oldest version migrated was raised to 14, once every dataset was at 14. Steps 2–14 and `schema-1.sql` went, and `schema-14.sql` took their place. A database older than 14, such as a `db.before-migration.sqlite` copy or one put back by _Undo last import_, has to be imported again.

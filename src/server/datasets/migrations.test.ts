@@ -9,9 +9,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { CITATIONS_READ } from '../citations';
 import { openDb, OutdatedDatasetError, SCHEMA_VERSION } from './db';
-import { REIMPORT_LEFTOVERS_GO } from './migration-10';
 import { migrate, OLDEST_MIGRATED, versionOf } from './migrations';
 import type { Migration } from './migrations';
 
@@ -57,12 +55,17 @@ function fill(db: Database) {
     INSERT INTO names (person_id, full_text, given, surname)
       VALUES (1, 'Liisa /Esimerkki/', 'Liisa', 'Esimerkki');
     INSERT INTO sources (id, xref, title) VALUES (1, '@S1@', 'Juva rippikirja');
-    INSERT INTO citations (id, scope_type, scope_id, source_id, page,
-      original_page, link_volume_id, link_volume, link_image, link_file_id,
-      link_box_left, link_box_top, link_box_width, link_box_height, link_by,
-      added_in_app)
-      VALUES (1, 'person', 1, 1, 'https://astia.fi/x', NULL, 'v1', 'Rippikirja',
-        12, 'f1', 10, 20, 30, 40, 'hand', 1);
+    INSERT INTO entries (id, source_id, page, event, volume_id, volume,
+      image, file_id, box_left, box_top, box_width, box_height, date)
+      VALUES (1, 1, 'https://astia.fi/x', 'BAPM', 'v1', 'Rippikirja', 12,
+        'f1', 10, 20, 30, 40, '3 MAR 1850');
+    INSERT INTO citations (id, scope_type, scope_id, link_by, added_in_app,
+      entry_id)
+      VALUES (1, 'person', 1, NULL, 1, 1);
+    INSERT INTO facts (id, scope_type, scope_id, tag)
+      VALUES (1, 'person', 1, 'BIRT');
+    INSERT INTO fact_citations (fact_id, citation_id) VALUES (1, 1);
+    INSERT INTO listed_books (volume_id, archive_id) VALUES ('v2', 'a1');
     INSERT INTO media (id, file_path, format, original_path)
       VALUES (1, 'media/a.jpg', 'image/jpeg', 'a.jpg');
     INSERT INTO media_links (media_id, scope_type, scope_id, crop_top,
@@ -165,109 +168,16 @@ describe('a database of the oldest schema migrated', () => {
     }));
     before.close();
     const migrated = openDb(path);
-    // Only the columns it had: a step may add some. The Rejections went
-    // with schema 10.
-    for (const { table, rows } of had.filter((h) => h.table !== 'rejections')) {
+    // Only the columns it had: a step may add some.
+    for (const { table, rows } of had) {
       const names = Object.keys(rows[0] ?? {});
       const columns = names.length === 0 ? '*' : names.join(', ');
-      // A Citation reads as it did once its Entry holds its link.
-      const read = table === 'citations';
       const now = migrated
-        .query(
-          `SELECT ${columns} FROM ${read ? CITATIONS_READ : table}
-           ORDER BY ${read ? 'id' : 'rowid'}`
-        )
+        .query(`SELECT ${columns} FROM ${table} ORDER BY rowid`)
         .all();
       expect({ table, rows: now }).toEqual({ table, rows });
     }
     expect(versionOf(migrated)).toBe(SCHEMA_VERSION);
-    migrated.close();
-  });
-});
-
-describe('schema 2', () => {
-  test("makes each person's Box from the import their Tag", () => {
-    const db = oldest();
-    runAll(
-      db,
-      `
-      INSERT INTO persons (id, xref) VALUES (1, '@I1@'), (2, '@I2@');
-      INSERT INTO media (id, file_path) VALUES (1, 'a.jpg'), (2, 'b.jpg');
-      INSERT INTO media_links (media_id, scope_type, scope_id, object_order,
-        crop_top, crop_left, crop_width, crop_height, sort_order, added_in_app)
-        VALUES (1, 'person', 1, 0, 1, 2, 3, 4, 0, 0),
-          (2, 'person', 1, 1, NULL, NULL, NULL, NULL, 1, 0),
-          (1, 'person', 2, 0, 1, 2, 3, 4, 0, 0),
-          (1, 'person', 2, 1, 5, 6, 7, 8, 1, 1),
-          (1, 'family', 1, 0, 1, 2, 3, 4, 0, 0);
-    `
-    );
-    db.close();
-    const migrated = openDb(path);
-    expect(
-      migrated
-        .query(
-          `SELECT media_id, scope_type, scope_id, object_order, crop_top,
-             sort_order, added_in_app
-           FROM media_links ORDER BY id`
-        )
-        .all()
-    ).toEqual([
-      {
-        media_id: 1,
-        scope_type: 'person',
-        scope_id: 1,
-        object_order: 0,
-        crop_top: null,
-        sort_order: 0,
-        added_in_app: 0
-      },
-      {
-        media_id: 2,
-        scope_type: 'person',
-        scope_id: 1,
-        object_order: 1,
-        crop_top: null,
-        sort_order: 1,
-        added_in_app: 0
-      },
-      {
-        media_id: 1,
-        scope_type: 'person',
-        scope_id: 2,
-        object_order: 0,
-        crop_top: null,
-        sort_order: 0,
-        added_in_app: 0
-      },
-      {
-        media_id: 1,
-        scope_type: 'person',
-        scope_id: 2,
-        object_order: 1,
-        crop_top: 5,
-        sort_order: 1,
-        added_in_app: 1
-      },
-      {
-        media_id: 1,
-        scope_type: 'family',
-        scope_id: 1,
-        object_order: 0,
-        crop_top: 1,
-        sort_order: 0,
-        added_in_app: 0
-      },
-      {
-        media_id: 1,
-        scope_type: 'person',
-        scope_id: 1,
-        object_order: 2,
-        crop_top: 1,
-        sort_order: 0,
-        added_in_app: 1
-      }
-    ]);
     migrated.close();
   });
 });
@@ -375,77 +285,6 @@ describe('migrate', () => {
   });
 });
 
-describe('schema 4', () => {
-  test('names the Photo of a tag Change from before, by its file name', () => {
-    const db = oldest(3);
-    db.run(
-      'ALTER TABLE changes ADD COLUMN media_id INTEGER REFERENCES media(id) ON DELETE SET NULL'
-    );
-    runAll(
-      db,
-      `
-      INSERT INTO persons (id, xref) VALUES (1, '@I1@'), (2, '@I2@');
-      INSERT INTO media (id, file_path, original_path)
-        VALUES (1, 'm/1.jpg', 'photos/Kes%C3%A4.jpg'),
-          (2, 'm/2.jpg', 'a/Talvi.jpg'), (3, 'm/3.jpg', 'b/Talvi.jpg');
-      INSERT INTO media_links (media_id, scope_type, scope_id)
-        VALUES (3, 'person', 1);
-      INSERT INTO changes (at, what, person_id) VALUES
-        ('t', '{"kind":"tag","photo":"Kesä.jpg","moved":false}', 2),
-        ('t', '{"kind":"untag","photo":"Talvi.jpg"}', 1),
-        ('t', '{"kind":"portrait","photo":"Talvi.jpg"}', 2),
-        ('t', '{"kind":"tag","photo":"Poissa.jpg","moved":false}', 1),
-        ('t', '{"kind":"uncite","cited":"Kesä.jpg"}', 1);
-    `
-    );
-    db.close();
-    const migrated = openDb(path);
-    expect(
-      migrated.query('SELECT media_id FROM changes ORDER BY id').all()
-    ).toEqual([
-      { media_id: 1 },
-      { media_id: 3 },
-      { media_id: null },
-      { media_id: null },
-      { media_id: null }
-    ]);
-    migrated.close();
-  });
-});
-
-describe('schema 10', () => {
-  test('drops what only a re-import or a Rejection needed', () => {
-    const db = oldest(9);
-    db.run(
-      "ALTER TABLE changes ADD COLUMN via TEXT CHECK (via IN ('assistant'))"
-    );
-    runAll(
-      db,
-      `
-      INSERT INTO rejections (reference_url, volume_id, image)
-        VALUES ('https://mh/x', '1234', 3);
-      INSERT INTO changes (at, what) VALUES
-        ('t', '{"kind":"import","file":"a.ged","merged":true,"lost":2}'),
-        ('t', '{"kind":"undo-import"}'),
-        ('t', '{"kind":"discard","volume":"I Aa:1","image":3,"rejection":true}'),
-        ('t', '{"kind":"new-dataset"}');
-    `
-    );
-    // Only its own step: the steps after it want the tables schema 9 had.
-    migrate(db, [REIMPORT_LEFTOVERS_GO], null);
-    const migrated = db;
-    expect(
-      migrated.query('SELECT what FROM changes ORDER BY id').all()
-    ).toEqual([
-      { what: '{"kind":"import","file":"a.ged"}' },
-      { what: '{"kind":"discard","volume":"I Aa:1","image":3}' },
-      { what: '{"kind":"new-dataset"}' }
-    ]);
-    expect(tablesOf(migrated)).not.toContain('rejections');
-    migrated.close();
-  });
-});
-
 describe('a step', () => {
   const ALLOWED = new Set(['bun:sqlite', './migrations']);
 
@@ -455,7 +294,6 @@ describe('a step', () => {
     const steps = readdirSync(import.meta.dir).filter((f) =>
       /^migration-\d+\.ts$/u.test(f)
     );
-    expect(steps.length).toBeGreaterThan(0);
     for (const step of steps) {
       const source = readFileSync(join(import.meta.dir, step), 'utf8');
       const outside = [...source.matchAll(/from '(?<from>[^']+)'/gu)]

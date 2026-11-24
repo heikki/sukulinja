@@ -177,6 +177,6 @@ test("an export of a dataset that isn't there, or won't open, says why", async (
   await upload();
   outdate('tree');
   expect(await failure(api.exportAs('tree'))).toBe(
-    'This dataset was made by an older version of the app, from before schema 1.'
+    'This dataset was made by an older version of the app, from before schema 14.'
   );
 });

@@ -1,4 +1,4 @@
--- The schema as version 1 built it: the oldest a database is migrated
+-- The schema as version 14 built it: the oldest a database is migrated
 -- from (ADR-0018). The migration test builds its databases from this.
 CREATE TABLE IF NOT EXISTS persons (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -109,8 +109,8 @@ CREATE TABLE IF NOT EXISTS media_links (
   crop_width INTEGER,
   crop_height INTEGER,
   sort_order INTEGER NOT NULL DEFAULT 0,
-  -- A Tag: a person in a Photo with their Box, made in the app, which a
-  -- re-import keeps (ADR-0017).
+  -- A Tag: a person in a Photo with their Box, made in the app, not by
+  -- the import (ADR-0017).
   added_in_app INTEGER NOT NULL DEFAULT 0,
   CHECK (added_in_app = 0 OR (
     scope_type = 'person' AND crop_top IS NOT NULL AND crop_left IS NOT NULL
@@ -147,10 +147,34 @@ CREATE TABLE IF NOT EXISTS source_repositories (
   sort_order INTEGER NOT NULL DEFAULT 0
 );
 
+-- An Entry in a church book, on an Image with its Box, held once for
+-- the app's Citations that cite it (ADR-0026).
+CREATE TABLE IF NOT EXISTS entries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source_id INTEGER REFERENCES sources(id) ON DELETE SET NULL,
+  page TEXT,
+  event TEXT,
+  text TEXT,
+  volume_id TEXT NOT NULL,
+  volume TEXT NOT NULL,
+  image INTEGER NOT NULL,
+  file_id TEXT NOT NULL,
+  box_left INTEGER NOT NULL,
+  box_top INTEGER NOT NULL,
+  box_width INTEGER NOT NULL,
+  box_height INTEGER NOT NULL,
+  -- What the Entry says as its book writes it (ADR-0033): the date of
+  -- its Event, and of the birth or death it follows (a baptism's Born,
+  -- a burial's Died), as GEDCOM dates, and its place as it writes it.
+  date TEXT,
+  life_date TEXT,
+  place TEXT
+);
+
 CREATE TABLE IF NOT EXISTS citations (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   scope_type TEXT NOT NULL CHECK (
-    scope_type IN ('person','family','fact','name','note','shared_note')
+    scope_type IN ('person','family','name','note','shared_note')
   ),
   scope_id INTEGER NOT NULL,
   source_id INTEGER REFERENCES sources(id) ON DELETE SET NULL,
@@ -174,21 +198,31 @@ CREATE TABLE IF NOT EXISTS citations (
   link_box_width INTEGER,
   link_box_height INTEGER,
   link_by TEXT CHECK (link_by IN ('hand','vision')),
-  -- Made in the app, not by an import: a re-import keeps it.
+  -- Made in the app, not by the import.
   added_in_app INTEGER NOT NULL DEFAULT 0,
   sort_order INTEGER NOT NULL DEFAULT 0,
+  -- The Entry a Citation of an Entry cites, which holds its source,
+  -- page, Event, text and link (ADR-0026), left empty here.
+  entry_id INTEGER REFERENCES entries(id),
   CHECK ((link_volume_id IS NULL) = (link_by IS NULL))
 );
 CREATE INDEX IF NOT EXISTS citations_scope_idx ON citations(scope_type, scope_id);
--- Matches taken back by hand: the reference isn't on that Image.
-CREATE TABLE IF NOT EXISTS rejections (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  reference_url TEXT NOT NULL,
-  volume_id TEXT NOT NULL,
-  image INTEGER NOT NULL,
-  file_id TEXT
+CREATE INDEX IF NOT EXISTS citations_entry_idx ON citations(entry_id);
+-- The Facts a Citation supports: its person's, their marriages', or a
+-- family Citation's family's (ADR-0022). Nothing is written on a Fact.
+CREATE TABLE IF NOT EXISTS fact_citations (
+  fact_id INTEGER NOT NULL REFERENCES facts(id) ON DELETE CASCADE,
+  citation_id INTEGER NOT NULL REFERENCES citations(id) ON DELETE CASCADE,
+  PRIMARY KEY (fact_id, citation_id)
 );
-CREATE INDEX IF NOT EXISTS rejections_url_idx ON rejections(reference_url);
+CREATE INDEX IF NOT EXISTS fact_citations_citation_idx ON fact_citations(citation_id);
+-- The Book list: the Volumes added to the dataset's list of church
+-- books beside those its Citations link into, with the parish archive
+-- each is in. No export writes it.
+CREATE TABLE IF NOT EXISTS listed_books (
+  volume_id TEXT PRIMARY KEY,
+  archive_id TEXT NOT NULL
+);
 -- Reminders, on a person or an Image, one on an Image maybe about a
 -- person too. No export writes them.
 CREATE TABLE IF NOT EXISTS reminders (
@@ -209,8 +243,9 @@ CREATE TABLE IF NOT EXISTS reminders (
 
 -- The Changes: what was done in the app, oldest first. Its what is a
 -- ChangeWhat as JSON. What it was on is held as a Reminder's is, with
--- who naming the person as they were then. A person or Citation gone leaves
--- it on nothing, or on the Citation's person. No export writes them.
+-- who naming the person as they were then, and a Tag's media_id its
+-- Photo. A person or Citation gone leaves it on nothing, or on the
+-- Citation's person, and a Photo gone, on its person. No export writes them.
 CREATE TABLE IF NOT EXISTS changes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   at TEXT NOT NULL,
@@ -221,7 +256,9 @@ CREATE TABLE IF NOT EXISTS changes (
   volume_id TEXT,
   volume TEXT,
   image INTEGER,
-  file_id TEXT
+  file_id TEXT,
+  media_id INTEGER REFERENCES media(id) ON DELETE SET NULL,
+  via TEXT CHECK (via IN ('assistant'))
 );
 
 CREATE TABLE IF NOT EXISTS shared_notes (
