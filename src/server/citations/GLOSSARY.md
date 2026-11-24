@@ -149,6 +149,10 @@ _Avoid_: method, scan method (they said how a link was found, not how far to tru
 Something known to be in a Volume, and on which Image: a page, a record, or one reference (which may be pinned to the Volume alone). Page pins and Record ranges are facts about Volumes, saved in the data folder and shared by every dataset; none ship with the app, so an estimate starts from the reference alone. Record pins and Reference pins are a dataset's Marks and Matches, kept in its citations (ADR-0013) and read as pins when a Link is resolved. A pin on an Image keeps the Image's file id, so it holds for one filming: after a **Re-scan** it's **stale**, left out as if never saved, with its Box, until the page or record is pinned again. Record ranges and villages aren't about Images, and stay.
 _Avoid_: correction, anchor (alone), placement.
 
+**Volume facts**:
+What's kept of a Volume for every dataset: its **Page pins**, their mark (**Pages checked**, or having none), and the Record ranges and villages found on its film. Saved in the data folder, and copied beside its Images in the **Offload folder** while one is set. Every change to its page numbers is refused on a filming Astia has replaced (a **Re-scan** not yet switched to), then while they're marked.
+_Avoid_: pins file, scan facts.
+
 **Page pin**:
 A Page number known to be on an Image. Images for other pages of the Volume are counted from the nearest Page pins, so one helps every reference in the Volume. Where a source misread a page number, the Page pin gives the number as referenced and notes what's written.
 _Avoid_: anchor.

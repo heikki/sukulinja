@@ -1,4 +1,4 @@
-import type { VolumePins } from './locate';
+import type { VolumePins } from './types';
 
 // Whether two of a Volume's facts say the same, whenever saved.
 export function sameFacts(a: VolumePins, b: VolumePins | undefined) {

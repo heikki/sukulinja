@@ -7,11 +7,9 @@ import type { Rescan, StalePin } from '@/common/types';
 import { viewerUrls } from '../../astia/astia';
 import type { Astia } from '../../astia/astia';
 import type { StorageImages } from '../../storage';
+import { split } from '../../volume-facts';
+import type { Filming, LocalPins, Pins } from '../../volume-facts';
 import { markKey, recordMarkKey } from '../record';
-import type { LocalPins } from './files';
-import { split } from './filming';
-import type { Filming } from './filming';
-import type { Pins } from './locate';
 
 // The pins as kept: the data folder's, in its file and in each dataset's
 // Marks.

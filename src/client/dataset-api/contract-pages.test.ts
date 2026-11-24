@@ -5,6 +5,7 @@ import { afterEach, beforeEach, expect, test } from 'bun:test';
 
 import { IMAGES, juvaAstia, VOLUMES } from '@/server/citations/testing';
 
+import { ApiError } from './';
 import type { DatasetApi } from './';
 import { memoryDatasetApi } from './memory';
 import { servedDataset } from './served';
@@ -34,14 +35,14 @@ test("a Volume's pages, set by hand and cleared, as the memory fake counts them"
   });
   const at = { volumeId: VOLUME, volume: VOLUMES['juva-1'] };
   const counted = await api!.volumePages(at);
-  expect(counted.slice(0, 2)).toEqual([
+  expect(counted.images.slice(0, 2)).toEqual([
     { image: 1, pages: [1], by: null },
     { image: 2, pages: [2], by: null }
   ]);
   expect(await fake.volumePages(at)).toEqual(counted);
   const set = { ...at, image: 5 };
   const served = await api!.setImagePage(set, [40]);
-  expect(served.slice(3, 7)).toEqual([
+  expect(served.images.slice(3, 7)).toEqual([
     { image: 4, pages: [39], by: null },
     { image: 5, pages: [40], by: 'hand' },
     { image: 6, pages: [41], by: null },
@@ -52,6 +53,23 @@ test("a Volume's pages, set by hand and cleared, as the memory fake counts them"
     await api!.setImagePage({ ...set, image: 7 }, [])
   );
   const cleared = await api!.clearVolumePages(at);
-  expect(cleared[4]).toEqual({ image: 5, pages: [5], by: null });
+  expect(cleared.images[4]).toEqual({ image: 5, pages: [5], by: null });
   expect(await fake.clearVolumePages(at)).toEqual(cleared);
+});
+
+test("a Volume's page numbers marked, and locked, as the memory fake marks them", async () => {
+  const fake = memoryDatasetApi({
+    volumes: { [VOLUME]: { images: IMAGES, citations: [] } }
+  });
+  const at = { volumeId: VOLUME, volume: VOLUMES['juva-1'] };
+  const none = await api!.markPages(at, 'none');
+  expect(none.numbering).toBe('none');
+  expect(none.images[0]).toEqual({ image: 1, pages: [], by: null });
+  expect(await fake.markPages(at, 'none')).toEqual(none);
+  const set = { ...at, image: 5 };
+  expect(api!.setImagePage(set, [40])).rejects.toThrow(ApiError);
+  expect(fake.setImagePage(set, [40])).rejects.toThrow(ApiError);
+  expect(await fake.markPages(at, null)).toEqual(
+    await api!.markPages(at, null)
+  );
 });

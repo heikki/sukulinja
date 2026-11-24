@@ -10,7 +10,6 @@ import type {
   ChurchBookArchive,
   ChurchBookVolume,
   OffloadFolder,
-  PageMark,
   StorageStatus
 } from '@/common/types';
 
@@ -45,8 +44,6 @@ export interface AppApi {
   offload: (volumeId: string) => Promise<void>;
   // Marks the Volume's page numbers checked or as none, locking them, or
   // with null no longer; whether either mark locks them.
-  markPages: (volumeId: string, as: PageMark | null) => Promise<void>;
-  pagesLocked: (volumeId: string, signal?: AbortSignal) => Promise<boolean>;
   isOffloaded: (volumeId: string) => Promise<boolean>;
   offloadFrees: (volumeId: string) => Promise<number | null>;
   // Storage; setting its cap and clearing it answer with it as it
@@ -102,11 +99,6 @@ export function openAppApi({
     async offload(volumeId) {
       await call('offload', { volumeId }, 'Offloading');
     },
-    async markPages(volumeId, as) {
-      await call('markPages', { volumeId, as }, 'Marking the pages');
-    },
-    pagesLocked: async (volumeId, signal) =>
-      await call('pagesLocked', { volumeId }, 'the pages', signal),
     isOffloaded: async (volumeId) =>
       await call('isOffloaded', { volumeId }, 'whether it is offloaded'),
     offloadFrees: async (volumeId) =>

@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { VolumesView } from '@/common/types';
+import type { VolumePages, VolumesView } from '@/common/types';
 
 import { juvaAstia, memoryAstia } from './citations/testing';
 import type { MemoryAstia } from './citations/testing';
@@ -326,11 +326,15 @@ describe('Church books', () => {
     ]);
     await appOp('removeFromDisk', { volumeId: '999' });
     // Its page numbers marked checked, for every dataset.
-    await appOp('markPages', { volumeId: '302', as: 'checked' });
+    const marked = await op('tree', 'markPages', {
+      volumeId: '302',
+      volume: 'I C:1',
+      as: 'checked'
+    });
+    expect(((await marked.json()) as VolumePages).numbering).toBe('checked');
     expect((await view()).rows).toMatchObject([
       { id: '302', pages: 'checked' }
     ]);
-    expect((await appOp('pagesLocked', { volumeId: '302' })).body).toBe(true);
     // Offloaded, with nothing cited in it: no full Image of it stays, only
     // the thumbnails.
     await appOp('offload', { volumeId: '302' });

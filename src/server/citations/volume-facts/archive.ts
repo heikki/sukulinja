@@ -7,12 +7,13 @@
 // Image each file is, for anyone reading the folder: what's read back
 // leaves those out.
 
-import { archiveAmong } from './astia/archives';
-import { viewerUrl } from './astia/astia';
-import type { Astia } from './astia/astia';
-import { isLater, sameFacts } from './myheritage';
-import type { Pins } from './myheritage';
-import type { FolderFacts } from './storage';
+import { archiveAmong } from '../astia/archives';
+import { viewerUrl } from '../astia/astia';
+import type { Astia } from '../astia/astia';
+import type { FolderFacts } from '../storage';
+import { readVolume } from './files';
+import { isLater, sameFacts } from './stamps';
+import type { Pins } from './types';
 
 type Volume = Pins['volumes'][string];
 
@@ -44,7 +45,7 @@ function parsed(text: string | null): Archived {
     const { archive, astia, images, ...facts } = JSON.parse(text) as Volume &
       About;
     return {
-      facts,
+      facts: readVolume(facts),
       about: {
         ...(archive === undefined ? {} : { archive }),
         ...(astia === undefined ? {} : { astia }),

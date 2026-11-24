@@ -8,7 +8,7 @@
 import { rename, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import type { Astia } from '../../astia/astia';
+import type { Astia } from '../astia/astia';
 import type {
   PagePin,
   Pins,
@@ -16,7 +16,7 @@ import type {
   RecordRange,
   ReferencePin,
   VolumePins
-} from './locate';
+} from './types';
 
 const LOCK_RETRY_MS = 10;
 const LOCK_WAIT_MS = 5000;
@@ -42,11 +42,28 @@ async function readIfThere<T>(path: string) {
   return (await file.exists()) ? ((await file.json()) as T) : null;
 }
 
+// A Volume's facts as saved before its page numbers' mark was one field:
+// `checked` or `unnumbered`.
+interface OldMarks {
+  checked?: boolean;
+  unnumbered?: boolean;
+}
+
+// A Volume's facts as read, whenever saved: an older one's mark read into
+// one field.
+export function readVolume(saved: VolumePins & OldMarks): VolumePins {
+  const { checked, unnumbered, ...volume } = saved;
+  if (volume.mark !== undefined) return volume;
+  if (unnumbered === true) return { ...volume, mark: 'none' };
+  if (checked === true) return { ...volume, mark: 'checked' };
+  return volume;
+}
+
 // The local pins, none where the file isn't there yet.
 export async function readLocalFile(path: string): Promise<LocalPins> {
   const local = await readIfThere<Partial<LocalPins>>(path);
   return {
-    volumes: local?.volumes ?? {},
+    volumes: mapValues(local?.volumes ?? {}, (v) => readVolume(v)),
     references: local?.references ?? {}
   };
 }

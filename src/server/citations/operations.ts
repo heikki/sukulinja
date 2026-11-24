@@ -4,7 +4,6 @@
 import type { BoxAt } from '@/common/operations';
 import type { CITATION_OPERATIONS } from '@/common/operations/citations';
 import type {
-  ImagePages,
   VisionPageTry,
   VisionSurvey,
   VolumeLocating
@@ -14,6 +13,7 @@ import { answered, notFound, Refusal } from '../operations';
 import type { Handlers } from '../operations';
 import { AstiaError } from './astia/astia';
 import type { Citations } from './citations';
+import type { VolumeFacts } from './volume-facts';
 
 interface Doers {
   // Switches a Volume, `volume` by its label, to Astia's new filming: its
@@ -40,17 +40,11 @@ interface Doers {
     volume: string,
     model: string
   ) => AsyncIterable<VolumeLocating>;
-  // The pages the Volume's Page pins put on each of its Images, or its
-  // numbering without them; `volume` by its label.
-  volumePages: (volumeId: string, volume: string) => Promise<ImagePages[]>;
-  // Sets the Image's page by hand, or takes it away: why it can't be, or
-  // nothing.
-  setImagePage: (
-    at: { volumeId: string; volume: string; image: number },
-    pages: number[] | null
-  ) => Promise<{ rejected: string } | null>;
-  // Takes the Volume's Page pins away: why it can't be, or nothing.
-  clearVolumePages: (volumeId: string) => Promise<{ rejected: string } | null>;
+  // The data folder's Volume facts: its Volumes' page numbers.
+  pages: Pick<
+    VolumeFacts,
+    'pagesOn' | 'numbering' | 'setImagePage' | 'clearPages' | 'mark'
+  >;
   // Whether an entry can be cited on the Image: not on one an offloaded
   // Volume doesn't keep.
   citable: (at: { volumeId: string; image: number }) => Promise<boolean>;
@@ -83,6 +77,12 @@ export async function askingAstia<T>(asked: Promise<T>) {
   }
 }
 
+// A refusal to change a Volume's page numbers is refused (409) in its
+// words.
+function refused(result: { rejected: string } | null) {
+  if (result !== null) throw new Refusal(409, result.rejected);
+}
+
 export function citationOperations(
   citations: Citations,
   {
@@ -90,12 +90,19 @@ export function citationOperations(
     findAllOnImage,
     surveyPages,
     locateVolume,
-    volumePages,
-    setImagePage,
-    clearVolumePages,
+    pages,
     citable
   }: Doers
 ): Handlers<typeof CITATION_OPERATIONS> {
+  // The Volume's pages, and what's known of its numbering.
+  async function pagesOf(volumeId: string, volume: string) {
+    const [images, numbering] = await Promise.all([
+      askingAstia(pages.pagesOn(volumeId, volume)),
+      pages.numbering(volumeId)
+    ]);
+    return { images, numbering };
+  }
+
   return {
     // Astia is slow and throttled, so a person's citations share one
     // streamed request rather than holding a connection each.
@@ -181,20 +188,23 @@ export function citationOperations(
       await askingAstia(citations.inVolume(volumeId)),
 
     volumePages: async ({ volumeId, volume }) =>
-      await askingAstia(volumePages(volumeId, volume)),
+      await pagesOf(volumeId, volume),
 
-    async setImagePage({ volumeId, volume, image, pages }) {
-      const refused = await askingAstia(
-        setImagePage({ volumeId, volume, image }, pages)
+    async setImagePage({ volumeId, volume, image, pages: set }) {
+      refused(
+        await askingAstia(pages.setImagePage({ volumeId, volume, image }, set))
       );
-      if (refused !== null) throw new Refusal(409, refused.rejected);
-      return await askingAstia(volumePages(volumeId, volume));
+      return await pagesOf(volumeId, volume);
     },
 
     async clearVolumePages({ volumeId, volume }) {
-      const refused = await askingAstia(clearVolumePages(volumeId));
-      if (refused !== null) throw new Refusal(409, refused.rejected);
-      return await askingAstia(volumePages(volumeId, volume));
+      refused(await askingAstia(pages.clearPages(volumeId)));
+      return await pagesOf(volumeId, volume);
+    },
+
+    async markPages({ volumeId, volume, as }) {
+      await pages.mark(volumeId, as);
+      return await pagesOf(volumeId, volume);
     },
 
     archives: async () => await askingAstia(citations.churchBookArchives()),

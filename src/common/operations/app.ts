@@ -11,7 +11,6 @@ import type {
   ChurchBookVolume,
   DownloadStatus,
   OffloadFolder,
-  PageMark,
   StorageStatus
 } from '@/common/types';
 
@@ -106,21 +105,6 @@ export const APP_OPERATIONS = {
   // brought back.
   offload: answers<{ volumeId: string }, undefined>('{ volumeId }', volumeOf),
 
-  // Marks the Volume's page numbers checked, or as none, locking them in
-  // the Scan viewer, or with null takes the mark away. Whether they're
-  // locked by either mark.
-  markPages: answers<{ volumeId: string; as: PageMark | null }, undefined>(
-    '{ volumeId, as }',
-    (body) => {
-      const volume = volumeOf(body);
-      const { as } = body;
-      return volume === null ||
-        !(as === null || as === 'checked' || as === 'none')
-        ? null
-        : { ...volume, as };
-    }
-  ),
-  pagesLocked: answers<{ volumeId: string }, boolean>('{ volumeId }', volumeOf),
   // Whether the Volume is offloaded: then only its cited Images load.
   isOffloaded: answers<{ volumeId: string }, boolean>('{ volumeId }', volumeOf),
   // The bytes offloading the Volume would free, keeping its cited Images;

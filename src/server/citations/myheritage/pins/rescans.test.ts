@@ -8,7 +8,7 @@ import type { Rescan, StalePin } from '@/common/types';
 import { fileId, memoryAstia } from '../../astia/memory-astia';
 import type { MemoryAstia } from '../../astia/memory-astia';
 import { openStorage } from '../../storage';
-import { openVolumeFacts } from './pins';
+import { openVolumeFacts } from '../../volume-facts';
 import { routeRescan, switchFilming } from './rescans';
 
 let dir = '';

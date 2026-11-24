@@ -28,10 +28,10 @@ import type {
   CitationRow,
   FactFields,
   FamilyRow,
-  ImagePages,
   ListedBook,
   NewFact,
   NewRelative,
+  PageMark,
   PersonDetails,
   PersonName,
   PersonRow,
@@ -46,6 +46,7 @@ import type {
   VolumeCitation,
   VolumeContents,
   VolumeLocating,
+  VolumePages,
   VolumesView
 } from '@/common/types';
 
@@ -136,22 +137,30 @@ export interface DatasetApi {
     volumeId: string,
     signal?: AbortSignal
   ) => Promise<VolumeCitation[]>;
-  // The pages the Volume's Page pins put on each of its Images.
+  // The pages the Volume's Page pins put on each of its Images, and
+  // what's known of its numbering. Page pins are the install's, for every
+  // dataset.
   volumePages: (
     at: { volumeId: string; volume: string },
     signal?: AbortSignal
-  ) => Promise<ImagePages[]>;
+  ) => Promise<VolumePages>;
   // Sets the Image's pages by hand, a spread's two or one, or with null
   // takes them away: the Volume's pages then.
   setImagePage: (
     at: { volumeId: string; volume: string; image: number },
     pages: number[] | null
-  ) => Promise<ImagePages[]>;
+  ) => Promise<VolumePages>;
   // Takes every Page pin of the Volume away: its pages then.
   clearVolumePages: (at: {
     volumeId: string;
     volume: string;
-  }) => Promise<ImagePages[]>;
+  }) => Promise<VolumePages>;
+  // Marks the Volume's page numbers checked, or as none, locking them, or
+  // with null no longer: its pages then.
+  markPages: (
+    at: { volumeId: string; volume: string },
+    as: PageMark | null
+  ) => Promise<VolumePages>;
   // The archives the dataset's church books are in, most cited first.
   archives: (signal?: AbortSignal) => Promise<ChurchBookArchive[]>;
   // How many of the dataset's Citations link into each of a parish
@@ -346,6 +355,8 @@ export function openDatasetApi(
       await call('setImagePage', { ...at, pages }, 'the page'),
     clearVolumePages: async (at) =>
       await call('clearVolumePages', at, "the Volume's pages"),
+    markPages: async (at, as) =>
+      await call('markPages', { ...at, as }, 'Marking the pages'),
     archives: async (signal) =>
       await call('archives', {}, 'the church books', signal),
     archiveCitations: async (archiveId, signal) =>

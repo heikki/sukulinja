@@ -1,5 +1,6 @@
 import type { AssistantChoice } from './assistant-choices';
 import type { EntryEvent, EntryFields } from './entry-events';
+import type { PageNumbering } from './page-numbering/types';
 
 // A face rectangle marked in the source photo, in the original image's pixel
 // space. Used to crop the avatar to the marked area instead of the whole image.
@@ -423,18 +424,16 @@ export interface VolumeChoice {
   years: Years | null;
 }
 
+export type {
+  ImagePages,
+  PageMark,
+  PageNumbering,
+  VolumePages
+} from './page-numbering/types';
+
 // The `volumeChoices` operation: the parish's Volumes of the Book a
 // reference cites, those its years or Record range give first, then the
 // others by years.
-// The page numbers on an Image of a Volume, as its estimates count them
-// from its Page pins (ADR-0032): `by` whom they were read on that very
-// Image, null where counted from the pins around it.
-export interface ImagePages {
-  image: number;
-  pages: number[];
-  by: Provenance | null;
-}
-
 export interface VolumeChoices {
   fits: VolumeChoice[];
   others: VolumeChoice[];
@@ -577,14 +576,6 @@ export interface OffloadFolder {
   path: string;
   attached: boolean;
 }
-
-// What's known of a Volume's page numbers: none read or set (`counted` as
-// its book is numbered), some read or set, all marked checked by hand, or
-// marked by hand as having none (`none`). Either mark locks them.
-export type PageNumbering = 'counted' | 'read' | 'checked' | 'none';
-
-// A hand's mark on a Volume's page numbers, or null for none.
-export type PageMark = 'checked' | 'none';
 
 // A pin made on a filming of its Volume that Astia has since replaced,
 // which switching to the new filming leaves out: saved in the data folder

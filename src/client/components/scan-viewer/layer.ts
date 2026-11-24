@@ -287,7 +287,7 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   }
 
   private askUnchecked(shown: Popup | null, locate: () => void) {
-    if (this.viewer.pages.checked.get() || shown?.show !== 'menu') {
+    if (this.viewer.pages.locked.get() || shown?.show !== 'menu') {
       this.popup = null;
       locate();
       return;

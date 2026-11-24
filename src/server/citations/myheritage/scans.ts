@@ -8,8 +8,6 @@ import type { Database } from 'bun:sqlite';
 import type {
   Link,
   LinkResolution,
-  PageMark,
-  PageNumbering,
   VolumeChoice,
   VolumeChoices
 } from '@/common/types';
@@ -20,7 +18,6 @@ import type { Astia, Volume } from '../astia/astia';
 import type { Viewport } from '../astia/jpeg';
 import type { Parishes } from '../astia/parishes';
 import {
-  CHECKED,
   OFF_IMAGE,
   OLD_FILMING,
   onImage,
@@ -28,17 +25,15 @@ import {
   unknownSize
 } from '../images';
 import type { ImageSizeOf } from '../images';
-import { resolveChurchBookRef, volumePages } from './pins/locate';
-import type { Pins } from './pins/locate';
+import type { Pins, VolumeFacts } from '../volume-facts';
+import { resolveChurchBookRef } from './pins/locate';
 import { openMarks } from './pins/marks';
-import { openPins, openVolumeFacts } from './pins/pins';
+import { openPins } from './pins/pins';
 import type { BoxAt, MarkTarget, PinStore } from './pins/pins';
 import type { ChurchBookRef } from './record';
 import { referencesOf } from './references';
 import type { Candidate, Match } from './vision/matcher';
-import type { Fractions, Reader } from './vision/reader';
-import { surveyVolume } from './vision/survey';
-import type { Survey } from './vision/survey';
+import type { Fractions } from './vision/reader';
 
 // The pins resolution reads, but no Reference pins: a reference's links by
 // the Book it cites, not by where it was pinned before.
@@ -303,116 +298,19 @@ function openScans({
 
 export type Scans = ReturnType<typeof openScans>;
 
-// A data folder's scans: its Page pins and Record ranges, read and kept
-// once for every dataset, and its parishes.
+// A data folder's scans: its Volume facts, read and kept once for every
+// dataset, with each dataset's Marks and Matches, and its parishes.
 export function openScanFolder(
-  root: string,
-  options: {
-    astia: Astia;
-    parishes: Parishes;
-    // Hears of each save of the Volumes' facts.
-    saved?: (local: Pins) => void;
-  }
+  facts: VolumeFacts,
+  options: { astia: Astia; parishes: Parishes }
 ) {
   const { astia, parishes } = options;
-  const facts = openVolumeFacts(root, options);
 
   function pinsOf(db: Database) {
     return openPins(facts, openMarks(db));
   }
 
-  // A Volume's page numbers marked checked, or as none, are kept as they
-  // are.
-  async function checked(volumeId: string) {
-    const kept = (await facts.volumes())[volumeId];
-    return kept?.checked === true || kept?.unnumbered === true;
-  }
-
   return {
-    // What's known of the Volume's page numbers.
-    async pageNumbering(volumeId: string): Promise<PageNumbering> {
-      const kept = (await facts.volumes())[volumeId];
-      if (kept?.checked === true) return 'checked';
-      if (kept?.unnumbered === true) return 'none';
-      return (kept?.pages.length ?? 0) > 0 ? 'read' : 'counted';
-    },
-
-    // The Volumes' facts as saved, and those kept elsewhere added where
-    // none are saved.
-    volumeFacts: async () => await facts.kept(),
-    adoptVolumeFacts: async (volumes: Pins['volumes']) => {
-      await facts.adopt(volumes);
-    },
-
-    // Marks the Volume's page numbers checked, or as none, locking them,
-    // or with null no longer.
-    markPages: async (volumeId: string, as: PageMark | null) => {
-      await facts.markPages(volumeId, as);
-    },
-
-    // The pages the Volume's Page pins put on each of its Images, or its
-    // numbering without them; of the Volume `label` by its label. Page
-    // pins are the folder's, for every dataset, never a dataset's Marks.
-    pagesInVolume: async (volumeId: string, label: string) =>
-      await volumePages(
-        astia,
-        { volumeId, label },
-        { volumes: await facts.volumes(), references: {} }
-      ),
-
-    // Surveys how the Volume, `volume` by its label, numbers its pages
-    // (ADR-0032), closing in first where the `cited` pages could be, and
-    // saves what it read as Page pins, `replace`-ing the Volume's vision
-    // ones: the survey, or why it can't be made.
-    async surveyPages(
-      volumeId: string,
-      volume: string,
-      reader: Pick<Reader, 'pageNumbers'>,
-      {
-        cited = null,
-        replace = false
-      }: { cited?: number[] | null; replace?: boolean } = {}
-    ): Promise<{ rejected: string } | (Survey & { pinned: number })> {
-      if (await onOldFilming(astia, volumeId)) return { rejected: OLD_FILMING };
-      if (await checked(volumeId)) return { rejected: CHECKED };
-      const images = (await astia.volumeImages(volumeId)).length;
-      if (images === 0) return { rejected: 'The volume has no images.' };
-      const survey = await surveyVolume(reader, { volumeId, images }, cited);
-      const filming = await facts.filmingOf(volumeId);
-      await facts.savePageReadings(filming, volume, survey.readings, {
-        replace
-      });
-      return { ...survey, pinned: survey.readings.length };
-    },
-
-    // Sets the Image's pages by hand, or with null takes the pinned ones away
-    // (ADR-0032): why it can't be, or nothing.
-    async setImagePage(
-      at: { volumeId: string; volume: string; image: number },
-      pages: number[] | null
-    ): Promise<{ rejected: string } | null> {
-      const { volumeId, volume, image } = at;
-      if (await onOldFilming(astia, volumeId)) return { rejected: OLD_FILMING };
-      if (await checked(volumeId)) return { rejected: CHECKED };
-      const filming = await facts.filmingOf(volumeId);
-      if (image < 1 || image > filming.files.length) {
-        return { rejected: 'The volume has no such image.' };
-      }
-      await facts.setImagePage(filming, volume, image, pages);
-      return null;
-    },
-
-    // Takes the Volume's Page pins away (ADR-0032): why it can't be, or
-    // nothing.
-    async clearVolumePages(
-      volumeId: string
-    ): Promise<{ rejected: string } | null> {
-      if (await onOldFilming(astia, volumeId)) return { rejected: OLD_FILMING };
-      if (await checked(volumeId)) return { rejected: CHECKED };
-      await facts.clearPages(await facts.filmingOf(volumeId));
-      return null;
-    },
-
     // A dataset's Scans, resolving with its Marks and Matches.
     scans: (db: Database, { sizeOf }: { sizeOf?: ImageSizeOf } = {}) =>
       openScans({ pins: pinsOf(db), astia, parishes, sizeOf }),

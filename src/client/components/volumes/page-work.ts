@@ -1,11 +1,16 @@
 import { visionModel } from '@/client/assistant-choices';
 import type { AppState } from '@/client/state';
+import { pageCounts } from '@/common/page-numbering';
 import type { PageMark, VolumesRow } from '@/common/types';
 
 // The work a Volume's page numbers menu asks for. A survey or clearing
 // shows the Volume in the Scan viewer first, which tells how they went;
 // a mark tells the viewer too, should it show the Volume.
-export function pageWork({ api, app, viewer }: AppState) {
+function at(book: VolumesRow) {
+  return { volumeId: book.id, volume: book.label };
+}
+
+export function pageWork({ api, viewer }: AppState) {
   function shown(book: VolumesRow) {
     return viewer.volume.get()?.id === book.id;
   }
@@ -19,17 +24,11 @@ export function pageWork({ api, app, viewer }: AppState) {
   return {
     // How many Images have pages set by hand, and read or set at all.
     async counts(book: VolumesRow) {
-      const pages = await api.volumePages({
-        volumeId: book.id,
-        volume: book.label
-      });
-      return {
-        byHand: pages.filter((p) => p.by === 'hand').length,
-        pinned: pages.filter((p) => p.by !== null).length
-      };
+      const { images } = await api.volumePages(at(book));
+      return pageCounts(images);
     },
     async mark(book: VolumesRow, as: PageMark | null) {
-      await app.markPages(book.id, as);
+      await api.markPages(at(book), as);
       if (shown(book)) await viewer.pages.load(book.id);
     },
     async survey(book: VolumesRow) {

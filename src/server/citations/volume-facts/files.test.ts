@@ -3,9 +3,9 @@ import { mkdtemp, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { BOX, listedAstia, ref } from '../test-pins';
+import { openVolumeFacts } from '.';
+import { BOX, listedAstia, ref } from '../myheritage/test-pins';
 import { fillFileIds, withLock } from './files';
-import { openVolumeFacts } from './pins';
 
 let dir = '';
 let lists: Record<string, string[]> = {};
@@ -35,7 +35,11 @@ async function savePage(
   by: 'hand' | 'vision' = 'vision'
 ) {
   const filming = await facts.filmingOf('v');
-  await facts.savePagePin(filming, ref(null, page), { volume: 'V', image, by });
+  await facts.savePagePin(
+    filming,
+    { page, kind: ref(null, page).kind },
+    { volume: 'V', image, by }
+  );
 }
 
 // ---------------------------------------------------------------- writing
@@ -257,4 +261,24 @@ test('a fill that fails is logged, and the pins read as they are', async () => {
   expect((await facts.kept()).references).toEqual(references);
   expect(error).toHaveBeenCalled();
   error.mockRestore();
+});
+
+test("an older file's page number marks are read as one mark", async () => {
+  await Bun.write(
+    localFile(),
+    JSON.stringify({
+      volumes: {
+        v: { pages: [], checked: true },
+        w: { pages: [], unnumbered: true, checked: true },
+        x: { pages: [] }
+      },
+      references: {}
+    })
+  );
+  const { volumes } = await open().kept();
+  expect(volumes).toEqual({
+    v: { pages: [], mark: 'checked' },
+    w: { pages: [], mark: 'none' },
+    x: { pages: [] }
+  });
 });

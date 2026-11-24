@@ -239,3 +239,12 @@ export function pageNumbering(
 
   return { place, pages, pinPages };
 }
+
+// How many of a Volume's Images have their pages read or set, and how
+// many of those were set by hand, which a page survey takes away.
+export function pageCounts(images: ImagePages[]) {
+  return {
+    pinned: images.filter((p) => p.by !== null).length,
+    byHand: images.filter((p) => p.by === 'hand').length
+  };
+}

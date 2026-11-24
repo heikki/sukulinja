@@ -99,14 +99,6 @@ export function openAppState(
   });
   const viewer = openViewer(api, selected, {
     opening: photoViewer.close,
-    checks: {
-      // Not known, they're left open: the server still keeps them.
-      checked: async (volumeId, signal) =>
-        await app.pagesLocked(volumeId, signal).catch((err: unknown) => {
-          if (signal.aborted) throw err;
-          return false;
-        })
-    },
     // An Entry saved may make people and Facts.
     treeChanged: () => {
       void chart.relinked();

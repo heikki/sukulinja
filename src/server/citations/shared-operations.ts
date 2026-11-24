@@ -6,11 +6,7 @@
 // Images; and Storage, which keeps them.
 
 import type { AppOperations } from '@/common/operations';
-import type {
-  ChurchBookArchive,
-  PageMark,
-  PageNumbering
-} from '@/common/types';
+import type { ChurchBookArchive } from '@/common/types';
 
 import { Refusal } from '../operations';
 import type { Handlers } from '../operations';
@@ -31,12 +27,6 @@ interface Sources {
   chooseFolder?: () => Promise<string | null>;
   // Told once an offload folder is set, to fill it.
   folderSet?: () => void;
-  // What's known of a Volume's page numbers, and marking them checked or
-  // as none.
-  pages: {
-    numbering: (volumeId: string) => Promise<PageNumbering>;
-    mark: (volumeId: string, as: PageMark | null) => Promise<void>;
-  };
 }
 
 export type SharedOperations = Pick<
@@ -53,8 +43,6 @@ export type SharedOperations = Pick<
   | 'removeFromDisk'
   | 'removeForGood'
   | 'offload'
-  | 'markPages'
-  | 'pagesLocked'
   | 'isOffloaded'
   | 'offloadFrees'
   | 'storage'
@@ -80,8 +68,7 @@ export function sharedOperations({
   parishes,
   storage,
   chooseFolder,
-  folderSet,
-  pages
+  folderSet
 }: Sources): Handlers<SharedOperations> {
   // The archive, if it's a parish's in Astia.
   async function parishArchive(archiveId: string) {
@@ -140,11 +127,6 @@ export function sharedOperations({
     async offload({ volumeId }) {
       await askingAstia(storage.offload(volumeId)).catch(folderAway);
     },
-    async markPages({ volumeId, as }) {
-      await pages.mark(volumeId, as);
-    },
-    pagesLocked: async ({ volumeId }) =>
-      ['checked', 'none'].includes(await pages.numbering(volumeId)),
     isOffloaded: async ({ volumeId }) =>
       (await storage.of(volumeId)).offloaded !== null,
     // Asked of one Volume at a time, as what's cited is slow to know; null

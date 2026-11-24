@@ -9,8 +9,8 @@
 // without an Image, or saved before pins kept file ids, can't be told, and
 // is current.
 
-import type { Astia } from '../../astia/astia';
-import type { Pins } from './locate';
+import type { Astia } from '../astia/astia';
+import type { Pins } from './types';
 
 // A Volume's filming: its Images' file ids, in Image order.
 export interface Filming {
@@ -35,6 +35,12 @@ export async function filmingOf(astia: Astia, volumeId: string) {
     files: await astia.volumeImages(volumeId)
   };
   return filming;
+}
+
+// The Astia file id of the filming's Image, to save with a pin on it.
+export function fileOf(filming: Filming, image: number) {
+  const fileId = filming.files[image - 1];
+  return fileId === undefined ? {} : { fileId };
 }
 
 function madeOn(filming: Filming, pin: OnImage) {

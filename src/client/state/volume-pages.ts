@@ -1,53 +1,40 @@
 import { computed, signal } from '@lit-labs/signals';
 
 import type { DatasetApi } from '@/client/dataset-api';
-import type { ImagePages } from '@/common/types';
+import { pageCounts } from '@/common/page-numbering';
+import type { ImagePages, VolumePages } from '@/common/types';
 
 import { Latest } from './latest';
 import type { Readable } from './selected';
 
 // The pages the shown Volume's Page pins put on its Images (ADR-0032),
-// for the Scan viewer to tell those of the Image shown: loaded with the
-// Volume's citations, as a Mark, a Match or a page survey changes both.
-// One set here by hand moves the estimates counted from it, so `reload`
-// loads them anew.
-// Whether a Volume's page numbers are locked, marked checked or as none,
-// the install's for every dataset: marked from the Volumes tab.
-export interface PagesChecked {
-  checked: (volumeId: string, signal: AbortSignal) => Promise<boolean>;
-}
-
-// None marked.
-export const NO_CHECKS: PagesChecked = {
-  checked: async () => await Promise.resolve(false)
-};
-
+// for the Scan viewer to tell those of the Image shown, and what's known
+// of its numbering: loaded with the Volume's citations, as a Mark, a Match
+// or a page survey changes both. One set here by hand moves the estimates
+// counted from it, so `reload` loads them anew. Page pins are the
+// install's, for every dataset.
 export function volumePagesOf(
   api: Pick<DatasetApi, 'volumePages' | 'setImagePage' | 'clearVolumePages'>,
   shown: {
     volume: Readable<{ id: string; label: string } | null>;
     image: Readable<number>;
   },
-  reload: (volumeId: string) => Promise<void>,
-  checks: PagesChecked = NO_CHECKS
+  reload: (volumeId: string) => Promise<void>
 ) {
   const { image } = shown;
-  const pages = signal<ImagePages[]>([]);
-  const checked = signal(false);
+  const pages = signal<VolumePages | null>(null);
   const req = new Latest();
-  const checkedReq = new Latest();
   const here = computed(
-    () => pages.get().find((p) => p.image === image.get()) ?? null
+    () => pages.get()?.images.find((p) => p.image === image.get()) ?? null
   );
-
-  const byHand = computed(
-    () => pages.get().filter((p) => p.by === 'hand').length
-  );
-
-  const pinned = computed(
-    () => pages.get().filter((p) => p.by !== null).length
-  );
+  const counts = computed(() => pageCounts(pages.get()?.images ?? []));
+  const pinned = computed(() => counts.get().pinned);
+  const byHand = computed(() => counts.get().byHand);
   const numbered = computed(() => pinned.get() > 0);
+  const locked = computed(() => {
+    const numbering = pages.get()?.numbering;
+    return numbering === 'checked' || numbering === 'none';
+  });
 
   return {
     // Those on the Image shown, read there or counted from the pins around
@@ -63,17 +50,13 @@ export function volumePagesOf(
     byHand: byHand as Readable<number>,
     // Whether the Volume's page numbers are marked checked or as none:
     // then they're locked, and nothing here changes them.
-    checked: checked as Readable<boolean>,
+    locked: locked as Readable<boolean>,
     async load(volumeId: string) {
       const volume = shown.volume.get()?.label ?? '';
-      const [got, isChecked] = await Promise.all([
-        req.run(
-          async (signal) => await api.volumePages({ volumeId, volume }, signal)
-        ),
-        checkedReq.run(async (signal) => await checks.checked(volumeId, signal))
-      ]);
-      if (got !== undefined) pages.set(got ?? []);
-      if (isChecked !== undefined) checked.set(isChecked ?? false);
+      const got = await req.run(
+        async (signal) => await api.volumePages({ volumeId, volume }, signal)
+      );
+      if (got !== undefined) pages.set(got);
     },
     // Sets the pages of the Image shown by hand, a spread's two or one, or
     // with null takes them away; throws ApiError if it's refused.
@@ -98,11 +81,9 @@ export function volumePagesOf(
     },
     clear() {
       req.stop();
-      checkedReq.stop();
-      pages.set([]);
-      checked.set(false);
+      pages.set(null);
     }
   };
 }
 
-export type VolumePages = ReturnType<typeof volumePagesOf>;
+export type ShownPages = ReturnType<typeof volumePagesOf>;

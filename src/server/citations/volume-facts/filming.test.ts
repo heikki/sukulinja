@@ -3,10 +3,10 @@
 
 import { describe, expect, test } from 'bun:test';
 
-import { fileId } from '../../astia/memory-astia';
+import { fileId } from '../astia/memory-astia';
 import { leavesOut, split, splitVolume } from './filming';
 import type { Filming } from './filming';
-import type { Pins } from './locate';
+import type { Pins } from './types';
 
 // Volume v of ten Images, as first filmed and as re-scanned with eight.
 const FIRST: Filming = {

@@ -1,4 +1,4 @@
-import type { Pins, RecordRange } from './locate';
+import type { Pins, RecordRange } from '../../volume-facts';
 
 function covers(range: RecordRange, record: number) {
   return range.from <= record && record <= range.to;

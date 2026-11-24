@@ -2,15 +2,13 @@
 // text, resolved to Astia's scans with the pins, and saved where one is (a
 // Mark, a Match or a Discard). The rest of the Citations reach them only
 // through here. It stays, as a MyHeritage export stays a way in (ADR-0030);
-// a reference Marked at its entry still converts (ADR-0016). Page pins are
-// kept here with the Record ranges and Record pins they're saved beside,
-// though the Scan viewer's pages serve every Volume.
+// a reference Marked at its entry still converts (ADR-0016). The Volume
+// facts it reads and saves Page pins into are every Volume's
+// (volume-facts/).
 
 export { routeRescan, switchFilming } from './pins/rescans';
 export type { KeptPins } from './pins/rescans';
 export type { BoxAt, DiscardDone, MarkDone, MarkTarget } from './pins/pins';
-export type { Pins } from './pins/locate';
-export { isLater, sameFacts } from './pins/stamps';
 export {
   BAPTISM_COLLECTION,
   churchBookRefOf,
@@ -29,3 +27,4 @@ export { pacedImages } from './vision/images';
 export type { Region, Scan } from './vision/images';
 export { cachedReader } from './vision/reader';
 export type { Reader } from './vision/reader';
+export { surveyVolume } from './vision/survey';

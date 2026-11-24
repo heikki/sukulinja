@@ -164,7 +164,7 @@ class ScanPageElement extends SignalWatcher(LitElement) {
   }
 
   private renderShown({ pages, by }: ImagePages) {
-    const locked = this.state.viewer.pages.checked.get();
+    const locked = this.state.viewer.pages.locked.get();
     if (locked && pages.length === 0) return nothing;
     const named =
       pages.length === 0
@@ -220,7 +220,7 @@ class ScanPageElement extends SignalWatcher(LitElement) {
       return html`${this.renderEditing(typed)}
       ${this.refused === null ? nothing : html`<p class="refused">${this.refused}</p>`}`;
     }
-    const locked = this.state.viewer.pages.checked.get();
+    const locked = this.state.viewer.pages.locked.get();
     return html`${this.renderShown(here)}
     ${here.by === null || locked ? nothing : this.renderRemove()}
     ${this.refused === null ? nothing : html`<p class="refused">${this.refused}</p>`}`;

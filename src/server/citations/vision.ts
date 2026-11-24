@@ -17,8 +17,14 @@ import { Refusal } from '../operations';
 import { AstiaError } from './astia/astia';
 import type { ImageRef } from './astia/astia';
 import type { Citations } from './citations';
-import { cachedReader, claudeReader, counting } from './myheritage';
-import type { ClaudeReader, openScanFolder, Region, Scan } from './myheritage';
+import {
+  cachedReader,
+  claudeReader,
+  counting,
+  surveyVolume
+} from './myheritage';
+import type { ClaudeReader, Region, Scan } from './myheritage';
+import type { VolumeFacts } from './volume-facts';
 
 // The vision model `model`, reading the Images `image` gives, with what it
 // has spent; it throws a Refusal when it can't be asked.
@@ -98,14 +104,11 @@ interface Options {
   image: (at: ImageRef, region?: Region | null) => Promise<Scan>;
   // Where readings are kept, so none is asked twice.
   readings: string;
-  // The data folder's Page pins, which a survey saves.
-  folder: Pick<
-    ReturnType<typeof openScanFolder>,
-    'surveyPages' | 'pagesInVolume'
-  >;
+  // The data folder's Volume facts, whose Page pins a survey saves.
+  facts: Pick<VolumeFacts, 'survey' | 'pagesOn'>;
 }
 
-export function openVision({ readers, image, readings, folder }: Options) {
+export function openVision({ readers, image, readings, facts }: Options) {
   // The model's reader, counting the readings asked and those it made: one
   // may take it two calls.
   async function readerFor(model: string, fresh = false) {
@@ -167,8 +170,14 @@ export function openVision({ readers, image, readings, folder }: Options) {
         : []
     );
     const { reader, took } = await readerFor(model, fresh);
-    const surveyed = await folder
-      .surveyPages(volumeId, volume, reader, { cited, replace: fresh })
+    const surveyed = await facts
+      .survey(
+        volumeId,
+        volume,
+        async (images) =>
+          await surveyVolume(reader, { volumeId, images }, cited),
+        { replace: fresh }
+      )
       .catch(failedWith);
     if ('rejected' in surveyed) return surveyed;
     return { pinned: surveyed.pinned, settled: surveyed.settled, ...took() };
@@ -191,7 +200,7 @@ export function openVision({ readers, image, readings, folder }: Options) {
     const { volumeId, volume } = asked;
     let took: VisionTook | null = null;
     try {
-      const pages = await folder.pagesInVolume(volumeId, volume);
+      const pages = await facts.pagesOn(volumeId, volume);
       if (!pages.some((p) => p.by !== null)) {
         yield { surveying: true };
         const surveyed = await surveyPages(

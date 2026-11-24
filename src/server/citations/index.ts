@@ -14,7 +14,6 @@ import type { Parishes } from './astia/parishes';
 import { openBookList } from './book-list';
 import { createCitations } from './citations';
 import type { Citations } from './citations';
-import { describeVolume, factsArchive } from './facts-archive';
 import { openImages } from './images';
 import { openScanFolder, pacedImages, switchFilming } from './myheritage';
 import { askingAstia, citationOperations } from './operations';
@@ -25,6 +24,7 @@ import { openStorage } from './storage';
 import type { DownloadOptions } from './storage';
 import { openVision } from './vision';
 import type { VisionReaders } from './vision';
+import { openVolumeFacts } from './volume-facts';
 import { volumesView } from './volumes-view';
 
 export type { Astia } from './astia/astia';
@@ -84,23 +84,14 @@ export function openCitations(root: string, options: Options) {
   const parishes = options.parishes ?? openParishes(root);
   const images = openImages({ astia, parishes, sizeOf });
   const personBooks = openPersonBooks({ astia, parishes });
-  // The Volumes' facts kept in the offload folder too.
-  const archive = factsArchive(storage.folderFacts, {
-    volumeFacts: async () => await folder.volumeFacts(),
-    adoptVolumeFacts: async (volumes) => {
-      await folder.adoptVolumeFacts(volumes);
-    },
-    about: async (volumeId) =>
-      await describeVolume(astia, () => parishes.archives(), volumeId)
-  });
-  const folder = openScanFolder(root, {
+  // The Volumes' facts, kept in the offload folder too.
+  const facts = openVolumeFacts(root, {
     astia,
-    parishes,
-    saved: (local) => {
-      void archive.keep(local).catch(() => undefined);
-    }
+    offload: storage.folderFacts,
+    parishes: () => parishes.archives()
   });
-  void archive.sync().catch(() => undefined);
+  void facts.syncFolder().catch(() => undefined);
+  const folder = openScanFolder(facts, { astia, parishes });
   // One queue for every search, so they don't hammer Astia together.
   const visionImage = pacedImages(storage.images);
   // Readings are kept on disk, so the same question isn't asked twice.
@@ -110,7 +101,7 @@ export function openCitations(root: string, options: Options) {
     readers: options.vision,
     image: visionImage,
     readings,
-    folder
+    facts
   });
 
   // The pins on Astia's Images: the data folder's, and every dataset's
@@ -159,13 +150,7 @@ export function openCitations(root: string, options: Options) {
       storage: storage.volumes,
       chooseFolder: options.chooseFolder,
       folderSet: () => {
-        void archive.sync().catch(() => undefined);
-      },
-      pages: {
-        numbering: async (volumeId) => await folder.pageNumbering(volumeId),
-        mark: async (volumeId, as) => {
-          await folder.markPages(volumeId, as);
-        }
+        void facts.syncFolder().catch(() => undefined);
       }
     }),
 
@@ -223,12 +208,7 @@ export function openCitations(root: string, options: Options) {
             ),
           locateVolume: (volumeId, volume, model) =>
             vision.locateVolume(citations, { volumeId, volume }, model),
-          volumePages: async (volumeId, volume) =>
-            await folder.pagesInVolume(volumeId, volume),
-          setImagePage: async (at, pages) =>
-            await folder.setImagePage(at, pages),
-          clearVolumePages: async (volumeId) =>
-            await folder.clearVolumePages(volumeId),
+          pages: facts,
           citable: async (at) => await storage.images.citable(at)
         }),
         // The dataset's Book list, and adding and taking off Volumes.
@@ -243,7 +223,7 @@ export function openCitations(root: string, options: Options) {
                 { astia, storage: storage.volumes },
                 parishes.archives()
               ),
-            pagesOf: async (volumeId) => await folder.pageNumbering(volumeId),
+            pagesOf: async (volumeId) => await facts.numbering(volumeId),
             storage: async () => await storage.volumes.status()
           }),
         // The church books a person's Facts say they should be in, each

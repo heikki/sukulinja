@@ -12,7 +12,8 @@ import { memoryParishes } from '../astia/parishes';
 import type { Parishes } from '../astia/parishes';
 import { JUVA } from '../astia/test-parish';
 import type { ImageSizeOf } from '../images';
-import type { Pins } from './pins/locate';
+import type { Pins } from '../volume-facts';
+import { openVolumeFacts } from '../volume-facts';
 import type { ChurchBookRef } from './record';
 import { openScanFolder } from './scans';
 import type { Match } from './vision/matcher';
@@ -79,14 +80,24 @@ interface FolderOptions {
   sizeOf?: ImageSizeOf;
 }
 
+// The scans of a data folder, over its Volume facts.
+export function scanFolder(
+  folder: string,
+  { astia, parishes = memoryParishes() }: FolderOptions
+) {
+  return openScanFolder(openVolumeFacts(folder, { astia }), {
+    astia,
+    parishes
+  });
+}
+
 // A dataset's Scans over a data folder.
 export function scansOf(
   folder: string,
   db: ReturnType<typeof openDb>,
   options: FolderOptions
 ) {
-  const { sizeOf, parishes = memoryParishes(), ...opened } = options;
-  return openScanFolder(folder, { ...opened, parishes }).scans(db, { sizeOf });
+  return scanFolder(folder, options).scans(db, { sizeOf: options.sizeOf });
 }
 
 // A dataset's references, as the rest of the Citations reach them.
@@ -95,9 +106,8 @@ export function referencesFor(
   db: ReturnType<typeof openDb>,
   options: FolderOptions
 ) {
-  const { sizeOf, parishes = memoryParishes(), ...opened } = options;
-  return openScanFolder(folder, { ...opened, parishes }).references(db, {
-    sizeOf
+  return scanFolder(folder, options).references(db, {
+    sizeOf: options.sizeOf
   });
 }
 

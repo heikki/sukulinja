@@ -11,13 +11,14 @@ import type {
   ChurchBookArchive,
   CitationLinks,
   CitationRow,
-  ImagePages,
+  PageMark,
   VisionPageTry,
   VisionSurvey,
   VolumeChoices,
   VolumeCitation,
   VolumeContents,
-  VolumeLocating
+  VolumeLocating,
+  VolumePages
 } from '@/common/types';
 
 import { entryAskedOf, entryEditOf, entryTargetOf, inEntryOf } from './entries';
@@ -233,8 +234,9 @@ export const CITATION_OPERATIONS = {
 
   // The pages the Volume's Page pins put on each of its Images, as its
   // estimates count them (ADR-0032); without pins, as its books are
-  // numbered, by `volume`, its label.
-  volumePages: answers<{ volumeId: string; volume: string }, ImagePages[]>(
+  // numbered, by `volume`, its label; and what's known of its numbering.
+  // Page pins are the data folder's, for every dataset.
+  volumePages: answers<{ volumeId: string; volume: string }, VolumePages>(
     '{ volumeId, volume }',
     ({ volumeId, volume }) =>
       isName(volumeId) && isName(volume) ? { volumeId, volume } : null
@@ -243,8 +245,7 @@ export const CITATION_OPERATIONS = {
   // Sets the pages on the Image of the Volume, `volume` by its label, by
   // hand: a hand Page pin of `pages` there, a spread's two following each
   // other or one (its right page following where the Volume numbers
-  // pages), or with null that pin taken away. The pages the Volume's Page
-  // pins then put on its Images.
+  // pages), or with null that pin taken away. Its pages then.
   setImagePage: answers<
     {
       volumeId: string;
@@ -252,7 +253,7 @@ export const CITATION_OPERATIONS = {
       image: number;
       pages: number[] | null;
     },
-    ImagePages[]
+    VolumePages
   >(
     '{ volumeId, volume, image, pages }',
     ({ volumeId, volume, image, pages }) =>
@@ -266,10 +267,23 @@ export const CITATION_OPERATIONS = {
 
   // Takes every Page pin of the Volume away, hand or the vision model's,
   // so its pages are counted as its book is numbered: its pages then.
-  clearVolumePages: answers<{ volumeId: string; volume: string }, ImagePages[]>(
+  clearVolumePages: answers<{ volumeId: string; volume: string }, VolumePages>(
     '{ volumeId, volume }',
     ({ volumeId, volume }) =>
       isName(volumeId) && isName(volume) ? { volumeId, volume } : null
+  ),
+
+  // Marks the Volume's page numbers checked, or as none, locking them, or
+  // with null takes the mark away: its pages then.
+  markPages: answers<
+    { volumeId: string; volume: string; as: PageMark | null },
+    VolumePages
+  >('{ volumeId, volume, as }', ({ volumeId, volume, as }) =>
+    isName(volumeId) &&
+    isName(volume) &&
+    (as === null || as === 'checked' || as === 'none')
+      ? { volumeId, volume, as }
+      : null
   ),
 
   // The archives the dataset's church books are in, most cited first.

@@ -1,8 +1,8 @@
 import { expect, test } from 'bun:test';
 
-import { factsArchive } from './facts-archive';
-import type { Pins } from './myheritage';
-import type { FolderFacts } from './storage';
+import type { FolderFacts } from '../storage';
+import { factsArchive } from './archive';
+import type { Pins } from './types';
 
 type Volume = Pins['volumes'][string];
 

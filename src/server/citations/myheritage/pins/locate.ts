@@ -21,7 +21,6 @@
 import { pageNumbering } from '@/common/page-numbering';
 import type {
   Box,
-  ImagePages,
   Link,
   LinkResolution,
   LinkTarget,
@@ -31,76 +30,15 @@ import type {
 
 import { viewerUrl } from '../../astia/astia';
 import type { Astia, Volume } from '../../astia/astia';
-import { bookKind } from '../../text';
 import type { BookKind, Years } from '../../text';
+import { filmingOf, leavesOut, splitVolume } from '../../volume-facts';
+import type {
+  PagePin,
+  Pins,
+  RecordPin,
+  ReferencePin
+} from '../../volume-facts';
 import type { ChurchBookRef } from '../record';
-import { filmingOf, leavesOut, splitVolume } from './filming';
-
-// Pins say who saved them; a missing `by` is by hand, which covers every
-// local file written before the vision model.
-// A pin on an Image keeps that Image's Astia file id, which tells the
-// filming it was made on: after a re-scan the Image number is another
-// page, and the pin is left out (see filming.ts).
-export interface PagePin {
-  image: number;
-  pages: number[];
-  note?: string;
-  by?: Provenance;
-  fileId?: string;
-}
-
-// MyHeritage record numbers, both ends included.
-export interface RecordRange {
-  from: number;
-  to: number;
-}
-
-// A record known to be on this image, by its MyHeritage Record number.
-export interface RecordPin {
-  record: number;
-  image: number;
-  by?: Provenance;
-  // Where on the Image the entry is, where the vision model said.
-  box?: Box;
-  fileId?: string;
-}
-
-// What's known of one volume: its Page pins, the villages found in it where
-// a book is split in parts without village ranges in their labels, the
-// Record ranges on its film, and its Record pins.
-export interface VolumePins {
-  title?: string;
-  pages: PagePin[];
-  // The Volume's page numbers marked checked by hand: locked until
-  // unmarked.
-  checked?: boolean;
-  // Marked by hand as having no page numbers: locked so, and a cited page
-  // places nothing in it.
-  unnumbered?: boolean;
-  // When it last changed (ISO), for the copy in the offload folder: the
-  // later of the two is kept whole.
-  saved?: string;
-  villages?: string[];
-  ranges?: RecordRange[];
-  records?: RecordPin[];
-}
-
-// One reference known to be in a volume, and on which image when known:
-// one naming no page, found in a volume its book doesn't match, or pinned
-// to its volume alone. Kept by the reference's URL.
-export interface ReferencePin {
-  volumeId: string;
-  volume: string;
-  image?: number;
-  by?: Provenance;
-  box?: Box;
-  fileId?: string;
-}
-
-export interface Pins {
-  volumes: Record<string, VolumePins>;
-  references: Record<string, ReferencePin>;
-}
 
 // Where a Record or Reference pin points, and who says so: as far down as it
 // goes, with the entry's Box. The vision model only pins an entry, so a
@@ -209,26 +147,6 @@ function narrowByVillage(volumes: Volume[], places: string[], pins: Pins) {
 
 // ---------------------------------------------------------------- pages
 
-// The pages the Volume's Page pins put on each of its Images, as its
-// estimates count them; without pins, as its books are numbered. Of the
-// Volume `volumeId`, `label` by its label.
-export async function volumePages(
-  astia: Astia,
-  volume: { volumeId: string; label: string },
-  pins: Pins
-): Promise<ImagePages[]> {
-  const filming = await filmingOf(astia, volume.volumeId);
-  if (pins.volumes[volume.volumeId]?.unnumbered === true) {
-    return filming.files.map((_, i) => ({ image: i + 1, pages: [], by: null }));
-  }
-  const own = splitVolume(filming, pins).current;
-  return pageNumbering(
-    own.pages,
-    filming.files.length,
-    bookKind(volume.label)
-  ).pages();
-}
-
 // The Images the Volume's Record pins leave the record: after those of
 // lower Record numbers, before those of higher, as MyHeritage numbers a
 // film's records in Image order.
@@ -289,7 +207,7 @@ async function locate(
   const pinned = pin === undefined ? null : pinnedTarget(pin);
   if (pinned !== null) return { volume: v, files, target: pinned };
   // A Volume with no page numbers has no place for a cited page.
-  if (ref.page === null || pins.volumes[v.id]?.unnumbered === true) {
+  if (ref.page === null || pins.volumes[v.id]?.mark === 'none') {
     return { volume: v, files, target: ESTIMATED_VOLUME };
   }
   const counted = countedImage(own.pages, files.length, ref, own.records);

@@ -27,17 +27,10 @@ function parishOperations(parishes: ReturnType<typeof memoryParishes>) {
     root,
     citedImages: async () => await Promise.resolve([])
   });
-  const pages = {
-    numbering: async () => await Promise.resolve('counted' as const),
-    mark: async () => {
-      await Promise.resolve();
-    }
-  };
   return sharedOperations({
     astia: ASTIA,
     parishes,
-    storage: storage.volumes,
-    pages
+    storage: storage.volumes
   });
 }
 

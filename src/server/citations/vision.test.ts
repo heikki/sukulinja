@@ -13,6 +13,7 @@ import { openImages } from './images';
 import { openScanFolder } from './myheritage';
 import { openVision } from './vision';
 import type { SpendingReader } from './vision';
+import { openVolumeFacts } from './volume-facts';
 
 let dir = '';
 beforeEach(async () => {
@@ -62,7 +63,8 @@ function setUp() {
   async function sizeOf() {
     return await Promise.resolve({ width: 1000, height: 800 });
   }
-  const folder = openScanFolder(dir, { astia, parishes });
+  const facts = openVolumeFacts(dir, { astia });
+  const folder = openScanFolder(facts, { astia, parishes });
   const citations = createCitations(db, {
     images: openImages({ astia, parishes, sizeOf }),
     references: folder.references(db, { sizeOf }),
@@ -72,7 +74,7 @@ function setUp() {
     readers: reader,
     image: async () => await Promise.reject(new Error('no scans here')),
     readings: join(dir, '.vision-readings'),
-    folder
+    facts
   });
   return { db, citations, vision };
 }
@@ -115,10 +117,7 @@ test('a Volume whose pages are known is located without a survey', async () => {
   const { db, citations, vision } = setUp();
   try {
     const at = { ...VOLUME, image: 9 };
-    await openScanFolder(dir, {
-      astia: juvaAstia(),
-      parishes: memoryParishes()
-    }).setImagePage(at, [14]);
+    await openVolumeFacts(dir, { astia: juvaAstia() }).setImagePage(at, [14]);
     const said = await located(
       vision.locateVolume(citations, VOLUME, 'claude-haiku-5-5')
     );
@@ -140,10 +139,7 @@ test('without a vision model, locating is refused', async () => {
       readers: undefined,
       image: async () => await Promise.reject(new Error('no scans here')),
       readings: join(dir, '.vision-readings'),
-      folder: openScanFolder(dir, {
-        astia: juvaAstia(),
-        parishes: memoryParishes()
-      })
+      facts: openVolumeFacts(dir, { astia: juvaAstia() })
     });
     expect(
       await located(vision.locateVolume(citations, VOLUME, 'claude-haiku-5-5'))

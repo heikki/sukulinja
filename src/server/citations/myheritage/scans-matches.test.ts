@@ -7,7 +7,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { Pins } from './pins/locate';
+import type { Pins } from '../volume-facts';
 import { openMarks } from './pins/marks';
 import type { MarkTarget } from './pins/pins';
 import { markKey } from './record';

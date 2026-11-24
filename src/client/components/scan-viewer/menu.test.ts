@@ -4,7 +4,6 @@ import { memoryDatasetApi } from '@/client/dataset-api/memory';
 import { openAppState } from '@/client/state';
 import { openSelected } from '@/client/state/selected';
 import { openViewer } from '@/client/state/viewer';
-import { NO_CHECKS } from '@/client/state/volume-pages';
 import type { CitationRow, Link } from '@/common/types';
 
 import { linkItems } from './menu';
@@ -283,7 +282,7 @@ test("the Volume's page numbers aren't worked on from the Scan viewer's menu", a
       '201': { images: 40, citations: [], pins: [{ image: 2, pages: [8] }] }
     }
   });
-  const viewer = openViewer(api, openSelected(api), { checks: NO_CHECKS });
+  const viewer = openViewer(api, openSelected(api));
   viewer.openImage({ volumeId: '201', volume: 'I Aa:201', image: 2 });
   await Bun.sleep(0);
   const open = {
