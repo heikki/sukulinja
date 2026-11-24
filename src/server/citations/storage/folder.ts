@@ -24,7 +24,7 @@ import type { OffloadFolder } from '@/common/types';
 import { readSettings, saveSetting } from './install-settings';
 
 const KEY = 'offloadFolder';
-const FACTS = 'facts.json';
+export const FACTS = 'facts.json';
 
 // Asked to move Images while the folder set isn't attached.
 export class FolderAwayError extends Error {

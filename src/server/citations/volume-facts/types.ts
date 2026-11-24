@@ -12,6 +12,9 @@ import type { Box, PageMark, Provenance } from '@/common/types';
 export interface PagePin {
   image: number;
   pages: number[];
+  // On a pin of no pages, that it skips its own Image only, not those
+  // between it and the next such pin (see common/page-numbering).
+  alone?: boolean;
   note?: string;
   by?: Provenance;
   fileId?: string;

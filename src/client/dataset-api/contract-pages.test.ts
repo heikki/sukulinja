@@ -74,3 +74,41 @@ test("a Volume's page numbers marked, and locked, as the memory fake marks them"
     await api!.markPages(at, null)
   );
 });
+
+test('two Images set to have no page skip those between, a page set there splitting the run, as the memory fake skips them', async () => {
+  const fake = memoryDatasetApi({
+    volumes: { [VOLUME]: { images: IMAGES, citations: [] } }
+  });
+  const at = { volumeId: VOLUME, volume: VOLUMES['juva-1'] };
+  async function both(image: number, pages: number[] | null) {
+    const served = await api!.setImagePage({ ...at, image }, pages);
+    expect(await fake.setImagePage({ ...at, image }, pages)).toEqual(served);
+    return served.images.filter((p) => p.image >= 2 && p.image <= 10);
+  }
+  await both(3, []);
+  const run = { from: 3, to: 9 };
+  expect(await both(9, [])).toEqual([
+    { image: 2, pages: [2], by: null },
+    { image: 3, pages: [], by: 'hand', skipped: run },
+    ...[4, 5, 6, 7, 8].map((image) => ({
+      image,
+      pages: [],
+      by: null,
+      skipped: run
+    })),
+    { image: 9, pages: [], by: 'hand', skipped: run },
+    { image: 10, pages: [3], by: null }
+  ]);
+  const split = await both(6, [40]);
+  expect(split.map((p) => [p.image, p.pages, p.by, p.skipped])).toEqual([
+    [2, [39], null, undefined],
+    [3, [], 'hand', { from: 3, to: 5 }],
+    [4, [], null, { from: 3, to: 5 }],
+    [5, [], 'hand', { from: 3, to: 5 }],
+    [6, [40], 'hand', undefined],
+    [7, [], 'hand', { from: 7, to: 9 }],
+    [8, [], null, { from: 7, to: 9 }],
+    [9, [], 'hand', { from: 7, to: 9 }],
+    [10, [41], null, undefined]
+  ]);
+});

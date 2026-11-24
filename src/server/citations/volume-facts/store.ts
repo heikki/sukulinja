@@ -12,7 +12,13 @@ import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { bookKind } from '@/common/books';
-import { pageClash, pageNumbering } from '@/common/page-numbering';
+import {
+  pageClash,
+  pageNumbering,
+  runOf,
+  splitSkips
+} from '@/common/page-numbering';
+import type { SkippedRun } from '@/common/page-numbering';
 import type { BookKind, PageMark } from '@/common/types';
 
 import type { Astia } from '../astia/astia';
@@ -95,13 +101,53 @@ function addPagePin(
   const known = mergedVolumes(draft)[volumeId]?.pages ?? [];
   const weighed = split(filming, known).current;
   if (!overrides(pin, weighed.filter(clash(pin)))) return;
+  const ends = splitEnds(weighed, pin);
+  if (ends === null) return;
   const { volumes } = draft.local;
   const volume = volumes[volumeId];
+  const pages = ends.reduce(
+    (kept, image) =>
+      withPagePin(kept, endOf(filming, pin, image), filming, sameImage),
+    withPagePin(volume?.pages ?? [], pin, filming, clash)
+  );
   volumes[volumeId] = {
     ...volume,
     title: volume?.title ?? title,
-    pages: withPagePin(volume?.pages ?? [], pin, filming, clash)
+    pages
   };
+}
+
+// A skip on the Image, where the page `pin` sets splits a run.
+function endOf(filming: Filming, pin: PagePin, image: number): PagePin {
+  return {
+    image,
+    pages: [],
+    note: pin.note ?? 'set in the Scan viewer',
+    by: pin.by ?? 'hand',
+    ...fileOf(filming, image)
+  };
+}
+
+// A page in a run of skipped Images splits it, the rest either side still
+// skipped: the Images either side it then skips, or null where the page
+// isn't saved, as a skip set there by hand wins over the vision model's
+// page.
+function splitEnds(weighed: PagePin[], pin: PagePin) {
+  const run = pin.pages.length === 0 ? null : runOf(weighed, pin.image);
+  if (run === null) return [];
+  if (!isHand(pin) && skippedByHand(weighed, run)) return null;
+  return splitSkips(weighed, pin.image);
+}
+
+// Whether the run's skips were set by hand.
+function skippedByHand(pins: PagePin[], run: SkippedRun) {
+  return pins.some(
+    (p) =>
+      p.pages.length === 0 &&
+      p.image >= run.from &&
+      p.image <= run.to &&
+      isHand(p)
+  );
 }
 
 // A cited page, in a book of the kind.
@@ -273,8 +319,10 @@ export function openStore(
 
     // A hand Page pin of `pages` on the Image, as the Scan viewer sets it:
     // a spread's two, or one, its right page following where the Volume
-    // numbers pages; null takes the Page pins there away, hand or the vision
-    // model's, so the Image is counted again. One write.
+    // numbers pages; none skips the Image, and with a skip before or
+    // after it, if no pin is between, the Images between; null takes the
+    // Page pins there away, hand or the vision model's, so the Image is
+    // counted again. One write.
     async setImagePage(
       filming: Filming,
       volume: string,

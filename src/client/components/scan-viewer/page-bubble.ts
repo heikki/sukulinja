@@ -20,17 +20,37 @@ const HOW = {
   hand: 'Set on this Image by hand'
 };
 
+// What the bubble says of the Image's pages.
+function nameOf({ pages, skipped }: ImagePages) {
+  if (pages.length === 1) return `page ${pages[0]}`;
+  if (pages.length > 1) return `pages ${pages[0]}–${pages.at(-1)}`;
+  return skipped === undefined
+    ? 'skipped'
+    : `skipped · images ${skipped.from}–${skipped.to}`;
+}
+
+function titleOf({ by, skipped }: ImagePages) {
+  if (by !== null) return `${HOW[by]}. Click to correct it`;
+  return skipped === undefined
+    ? 'Counted, not read here. Click to set the page written on this Image'
+    : `Skipped between Images ${skipped.from} and ${skipped.to}, set to have no page. Click to set the page written on this Image, the rest still skipped`;
+}
+
 // The page the Image is counted as (ADR-0032), where Settings asks for
-// it: a see-through bubble over the scan's top left corner, where the page
-// number is written. Read there, by the vision model (tagged AI) or set by
-// hand, or counted (≈) from the Page pins around it, or the book's
-// numbering without any. Clicked, it takes the page written there, or a spread's
-// two ("4-5"), or nothing for an Image without a page number, left out
-// of the counting: Enter sets them by hand, which the estimates around it
-// count from. Escape, or clicking elsewhere, leaves it as it was. A page
-// read or set here has a × beside it that takes it away, the Image then
-// counted; a later survey may read it again. A Volume whose page numbers
-// are marked checked shows them locked, and nothing on an Image left out
+// it: a see-through bubble over the scan's top left corner, where the
+// page number is written. Read there, by the vision model (tagged AI) or
+// set by hand, or counted (≈) from the Page pins around it, or the book's
+// numbering without any. Clicked, it takes the page written there, or a
+// spread's two ("4-5"), or nothing for an Image without a page number,
+// left out of the counting, and with a skip before or after it, if no pin
+// is between, the Images between, the run shown as "skipped · images
+// 12–40" at its two ends and "≈ skipped · images 12–40" between; a page
+// set in a run splits it. Enter sets them by hand, which the estimates
+// around it count from. Escape, or clicking elsewhere, leaves it as it
+// was. A page read or set here has a × beside it that takes it away, the
+// Image then counted; a later survey may read it again. A Volume whose
+// page numbers are marked checked shows them locked, and nothing on an
+// Image left out
 // of the counting. Pointer and wheel input
 // stays here, so a press doesn't pan.
 @customElement('sl-scan-page')
@@ -163,15 +183,11 @@ class ScanPageElement extends SignalWatcher(LitElement) {
     }
   }
 
-  private renderShown({ pages, by }: ImagePages) {
+  private renderShown(here: ImagePages) {
+    const { pages, by } = here;
     const locked = this.state.viewer.pages.locked.get();
     if (locked && pages.length === 0) return nothing;
-    const named =
-      pages.length === 0
-        ? 'skipped'
-        : pages.length === 1
-          ? `page ${pages[0]}`
-          : `pages ${pages[0]}–${pages.at(-1)}`;
+    const named = nameOf(here);
     if (locked) {
       return html`<span
         class="bubble locked"
@@ -181,11 +197,7 @@ class ScanPageElement extends SignalWatcher(LitElement) {
     }
     return html`<button
       class=${by === null ? 'bubble counted' : 'bubble'}
-      title=${
-        by === null
-          ? 'Counted, not read here. Click to set the page written on this Image'
-          : `${HOW[by]}. Click to correct it`
-      }
+      title=${titleOf(here)}
       @click=${() => {
         this.editing = true;
       }}
@@ -195,11 +207,17 @@ class ScanPageElement extends SignalWatcher(LitElement) {
     </button>`;
   }
 
-  private renderRemove() {
+  private renderRemove({ skipped }: ImagePages) {
+    const said =
+      skipped === undefined
+        ? 'Take away this page; the Image is then counted'
+        : `Take away this end of the Images ${skipped.from}–${skipped.to} skipped; those between are then counted, unless it joins another skip`;
     return html`<button
       class="bubble remove"
-      title="Take away this page; the Image is then counted"
-      aria-label="Take away this page"
+      title=${said}
+      aria-label=${
+        skipped === undefined ? 'Take away this page' : 'Take away this skip'
+      }
       @click=${() => {
         void this.save(null);
       }}
@@ -222,7 +240,7 @@ class ScanPageElement extends SignalWatcher(LitElement) {
     }
     const locked = this.state.viewer.pages.locked.get();
     return html`${this.renderShown(here)}
-    ${here.by === null || locked ? nothing : this.renderRemove()}
+    ${here.by === null || locked ? nothing : this.renderRemove(here)}
     ${this.refused === null ? nothing : html`<p class="refused">${this.refused}</p>`}`;
   }
 }

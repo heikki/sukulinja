@@ -77,3 +77,29 @@ test("what's known of the numbering: counted, read, then its mark", async () => 
   const pages = await facts.pagesOn(AT.volumeId, AT.volume);
   expect(pages.every((p) => p.pages.length === 0 && p.by === null)).toBe(true);
 });
+
+test("the vision model's page isn't saved in a run skipped by hand", async () => {
+  const facts = openVolumeFacts(dir, { astia: juvaAstia() });
+  await facts.setImagePage({ ...AT, image: 3 }, []);
+  await facts.setImagePage({ ...AT, image: 9 }, []);
+  await facts.survey(
+    AT.volumeId,
+    AT.volume,
+    async () =>
+      await Promise.resolve({
+        readings: [
+          { image: 6, pages: [40] },
+          { image: 12, pages: [45] }
+        ]
+      })
+  );
+  const pages = await facts.pagesOn(AT.volumeId, AT.volume);
+  expect(pages.find((p) => p.image === 6)).toMatchObject({
+    pages: [],
+    skipped: { from: 3, to: 9 }
+  });
+  expect(pages.find((p) => p.image === 12)).toMatchObject({
+    pages: [45],
+    by: 'vision'
+  });
+});

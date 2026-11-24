@@ -9,6 +9,9 @@ export interface ImagePages {
   image: number;
   pages: number[];
   by: Provenance | null;
+  // On an Image without a page, the run of Images skipped with it, both
+  // ends included, where it's more than the one.
+  skipped?: { from: number; to: number };
 }
 
 // A Volume's pages as the Scan viewer and the Volumes tab show them: on

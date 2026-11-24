@@ -29,14 +29,18 @@ import type { PageRun } from './runs';
 import { skipping } from './unnumbered';
 
 export { pageClash, SAME_PAGE_IMAGES } from './runs';
+export { joiningSkips, runOf, skippedRuns, splitSkips } from './unnumbered';
+export type { SkippedRun } from './unnumbered';
 
 // What a Page pin tells the counting: a Page number on an Image, one a
-// spread or a page's two, or none for an Image without one. A missing
-// `by` is by hand.
+// spread or a page's two, or none for an Image without one, which with
+// the next such pin skips the Images between unless one is `alone`
+// (unnumbered.ts). A missing `by` is by hand.
 export interface NumberedPin {
   image: number;
   pages: number[];
   by?: Provenance;
+  alone?: boolean;
 }
 
 // Where a Page run puts a page.
@@ -57,7 +61,7 @@ export interface PageNumbering {
   place: (page: number) => Placing;
   // The pages on each Image, as `place` counts them: a pin's own where
   // one is (by who set it), else counted (by null); [] on an Image set to
-  // have no page.
+  // have no page, or skipped between two such (by null), with the run.
   pages: () => ImagePages[];
   // The pages a new Page pin of `page` gives an Image: the page and the
   // next where the Volume numbers pages, as its pins do or, without any,
@@ -189,11 +193,21 @@ export function pageNumbering(
 ): PageNumbering {
   const s = skipping(pins, images);
   const runs = runsOf(s.pins, s.images).map(countedRun);
-  const skipped: ImagePages[] = s.skipped.map((image) => ({
-    image,
-    pages: [],
-    by: 'hand'
-  }));
+  // An Image skipped between the two ends of a run is counted so, not
+  // set there.
+  const skipped: ImagePages[] = s.runs.flatMap((run) =>
+    Array.from({ length: run.to - run.from + 1 }, (_, i) => {
+      const image = run.from + i;
+      const pin = pins.find((p) => p.image === image && p.pages.length === 0);
+      const end = image === run.from || image === run.to;
+      return {
+        image,
+        pages: [],
+        by: pin === undefined || !end ? null : (pin.by ?? 'hand'),
+        ...(run.to > run.from ? { skipped: { ...run } } : {})
+      };
+    })
+  );
 
   function place(page: number): Placing {
     if (runs.length === 0) {

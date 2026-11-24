@@ -7,6 +7,7 @@ import {
   LOCKED,
   numberingOf,
   pageNumbering,
+  splitSkips,
   unnumbered
 } from '@/common/page-numbering';
 import type { NumberedPin } from '@/common/page-numbering';
@@ -63,8 +64,9 @@ export function memoryPages(
         pagesOf(volume(volumeId), label)
       ),
 
-    // A hand Page pin replaces any pin on the Image: the pages around it
-    // are counted anew, though the estimates aren't.
+    // A hand Page pin replaces any pin on the Image, a page in a run of
+    // skipped Images splitting it: the pages around it are counted anew,
+    // though the estimates aren't.
     setImagePage: async ({ volumeId, volume: label, image }, pages) =>
       await answer(
         `page ${volumeId}/${image} ${pages?.join('-') ?? 'none'}`,
@@ -77,6 +79,10 @@ export function memoryPages(
             shown.images,
             bookKind(label)
           );
+          const ends =
+            pages === null || pages.length === 0
+              ? []
+              : splitSkips(shown.pins ?? [], image);
           const set =
             pages === null
               ? []
@@ -88,7 +94,12 @@ export function memoryPages(
                         ? numbering.pinPages(pages[0]!)
                         : pages,
                     by: 'hand' as const
-                  }
+                  },
+                  ...ends.map((end) => ({
+                    image: end,
+                    pages: [],
+                    by: 'hand' as const
+                  }))
                 ];
           shown.pins = [...others, ...set];
           return pagesOf(shown, label);
