@@ -382,6 +382,34 @@ export function openCache({
     );
   }
 
+  // The Volume's Images here and the bytes they take, read again only
+  // once its folder has changed: every file comes and goes by a rename or
+  // a removal, which changes the folder's time.
+  const here = new Map<
+    string,
+    { mtime: number; files: Set<string>; bytes: number }
+  >();
+  async function imagesHere(volumeId: string) {
+    const at = join(dir, volumeId);
+    const mtime = (await stat(at).catch(() => null))?.mtimeMs;
+    if (mtime === undefined) {
+      here.delete(volumeId);
+      return { files: new Set<string>(), bytes: 0 };
+    }
+    const hit = here.get(volumeId);
+    if (hit?.mtime === mtime) return hit;
+    const names = await readdir(at).catch(() => []);
+    const files = new Set(names.filter((n) => n.endsWith('.jpg')));
+    const sizes = await Promise.all(
+      [...files].map(
+        async (n) => (await stat(join(at, n)).catch(() => null))?.size ?? 0
+      )
+    );
+    const read = { mtime, files, bytes: sizes.reduce((sum, b) => sum + b, 0) };
+    here.set(volumeId, read);
+    return read;
+  }
+
   // Drops from the offload folder whatever of the Volume's Astia's kept
   // list doesn't have, an old filming's Images, and copies left cut off;
   // none while that list isn't kept.
@@ -434,22 +462,15 @@ export function openCache({
     // offload folder while it's attached, and the space its files take
     // here, thumbnails and all. Never asks Astia.
     async onDisk(volumeId: string): Promise<VolumeOnDisk> {
-      const names = await readdir(join(dir, volumeId)).catch(() => []);
-      const files = new Set(names.filter((n) => n.endsWith('.jpg')));
+      const { files, bytes } = await imagesHere(volumeId);
       const away = new Set(await folder.names(volumeId));
       const listed = await astia.cachedImages(volumeId);
-      const sizes = await Promise.all(
-        [...files].map(
-          async (n) =>
-            (await stat(join(dir, volumeId, n)).catch(() => null))?.size ?? 0
-        )
-      );
       return {
         images: listed?.length ?? null,
         cached: (listed ?? []).filter(
           (id) => files.has(`${id}.jpg`) || away.has(`${id}.jpg`)
         ).length,
-        bytes: sizes.reduce((sum, b) => sum + b, 0)
+        bytes
       };
     },
 

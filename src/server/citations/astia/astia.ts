@@ -253,6 +253,9 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
   let refreshes = 0;
   const peeked = new Map<string, Promise<ImageLists>>();
   const volumesByArchive = new Map<string, Promise<Volume[]>>();
+  // Volumes' lists as cachedImages read them from the cache, until one is
+  // kept anew.
+  const readLists = new Map<string, ImageLists>();
 
   function throttled<T>(fn: () => Promise<T>) {
     const run = gate.then(fn);
@@ -353,6 +356,7 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
     const body = await fetchPast(path);
     const json = parseAnswer(body, path);
     await Bun.write(cacheFile(key), body);
+    readLists.delete(key);
     inflight.set(key, Promise.resolve(json));
     refreshes += 1;
   }
@@ -397,9 +401,15 @@ export function openAstia(cacheDir: string, options: AstiaOptions = {}): Astia {
     },
 
     async cachedImages(volumeId) {
-      const cached = cacheFile(cacheKey(imagesPath(volumeId)));
-      if (!(await cached.exists())) return null;
-      return fileIds((await cached.json()) as ImageLists, 'full');
+      const key = cacheKey(imagesPath(volumeId));
+      let json = readLists.get(key);
+      if (json === undefined) {
+        const cached = cacheFile(key);
+        if (!(await cached.exists())) return null;
+        json = (await cached.json()) as ImageLists;
+        readLists.set(key, json);
+      }
+      return fileIds(json, 'full');
     },
 
     async peekImages(volumeId) {
