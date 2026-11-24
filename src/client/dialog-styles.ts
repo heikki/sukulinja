@@ -1,6 +1,6 @@
 import { css } from 'lit';
 
-// The buttons that end a question, a dialog's or a menu's (context-menu):
+// The buttons that end a modal's card:
 // side by side at the end, the step coloured, red with `danger` where it
 // takes away what can't be got back, or the accent with `primary`.
 export const actionStyles = css`
@@ -43,9 +43,9 @@ export const actionStyles = css`
   }
 `;
 
-// A modal asking before an action: a scrim over the window and a card on it
-// drawn as a menu's ask is, its title, what it does, then its buttons. Each
-// component with a dialog takes `dialogStyles`.
+// A modal: a scrim over the window and a card on it, its title, what it
+// says, then its buttons. sl-ask draws its card so; a form in a modal takes
+// `dialogStyles` itself.
 const dialog = css`
   .overlay {
     position: fixed;

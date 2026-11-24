@@ -1,5 +1,5 @@
 // The chooser's dialogs: a failure note, and the dataset actions asked to
-// confirm first: deleting a dataset.
+// confirm first (sl-ask): deleting a dataset.
 
 import { html, nothing } from 'lit';
 import type { TemplateResult } from 'lit';
@@ -7,6 +7,10 @@ import type { TemplateResult } from 'lit';
 import { ApiError } from '@/client/dataset-api';
 import type { LifecycleApi } from '@/client/dataset-api/lifecycle';
 import type { DatasetInfo } from '@/common/types';
+
+import '../ask';
+
+import type { Ask } from '../ask';
 
 // A dialog's failure: what failed, then the server's message, which can be a
 // long raw path or stack line — hence wrapped anywhere and scrollable.
@@ -71,25 +75,17 @@ export function confirmDialog(
   on: { cancel: () => void; confirm: () => void }
 ) {
   const copy = ACTIONS[c.action];
-  return html`
-    <div class="overlay" @click=${on.cancel}>
-      <div
-        class="dialog"
-        role="alertdialog"
-        @click=${(e: Event) => {
-          e.stopPropagation();
-        }}
-      >
-        <h2>${copy.title}</h2>
-        <p>${copy.body(c.dataset)}</p>
-        ${errorNote(copy.failed, c.error)}
-        <div class="actions">
-          <button @click=${on.cancel} ?disabled=${c.busy}>Cancel</button>
-          <button class="danger" @click=${on.confirm} ?disabled=${c.busy}>
-            ${c.busy ? copy.busy : copy.label}
-          </button>
-        </div>
-      </div>
-    </div>
-  `;
+  const ask: Ask = {
+    title: copy.title,
+    text: copy.body(c.dataset),
+    step: copy.label,
+    tone: 'danger'
+  };
+  return html`<sl-ask
+    .ask=${ask}
+    .busy=${c.busy ? copy.busy : null}
+    .refused=${c.error === null ? null : `${copy.failed}: ${c.error}`}
+    @cancel=${on.cancel}
+    @confirm=${on.confirm}
+  ></sl-ask>`;
 }

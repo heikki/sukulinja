@@ -1,6 +1,5 @@
 import { css } from 'lit';
 
-import { actionStyles } from '@/client/dialog-styles';
 import { focusRingStyles } from '@/client/focus-ring';
 
 // Over whatever it opens on: in the Scan viewer, over its Box and under
@@ -73,23 +72,4 @@ const menu = css`
   }
 `;
 
-// An ask: its question wrapped to a dialog's width, drawn as a dialog is
-// (dialog-styles.ts), its buttons the same.
-const ask = css`
-  :host([role='alertdialog']) {
-    max-width: 22rem;
-    padding: 0.9rem 1rem;
-  }
-
-  h2 {
-    margin: 0 0 0.6rem;
-    font-size: 1em;
-  }
-
-  p {
-    margin: 0 0 1.2rem;
-    color: var(--fg);
-  }
-`;
-
-export const contextMenuStyles = [focusRingStyles, menu, actionStyles, ask];
+export const contextMenuStyles = [focusRingStyles, menu];

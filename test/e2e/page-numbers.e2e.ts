@@ -65,6 +65,21 @@ test("a Volume's page numbers are surveyed, corrected and cleared", async () => 
       await bubble.getByRole('button', { name: 'Take away this page' }).click();
       await bubble.getByRole('button', { name: '≈ page 8' }).waitFor();
 
+      // Asked first, nothing under the question is pressed: a press outside
+      // only takes it down.
+      await fromPagesMenu(page, 'Clear page numbers');
+      await page.getByRole('alertdialog').waitFor();
+      const photos = await page
+        .getByRole('tab', { name: 'Photos' })
+        .boundingBox();
+      await page.mouse.click(photos?.x ?? 0, photos?.y ?? 0);
+      await page.getByRole('alertdialog').waitFor({ state: 'detached' });
+      expect(
+        await page
+          .getByRole('tab', { name: 'Volumes' })
+          .getAttribute('aria-selected')
+      ).toBe('true');
+
       // Cleared, the Images are counted from the first again.
       const menuAt = await fromPagesMenu(
         page,
@@ -74,7 +89,7 @@ test("a Volume's page numbers are surveyed, corrected and cleared", async () => 
       await page
         .getByText('Takes away the page numbers read or set on 2 Images')
         .waitFor();
-      const askAt = await page.locator('sl-context-menu').boundingBox();
+      const askAt = await page.getByRole('alertdialog').boundingBox();
       expect(askAt?.y).toBeCloseTo(menuAt?.y ?? -1, 0);
       await shot(page, 'page-numbers-clear-asked');
       await page

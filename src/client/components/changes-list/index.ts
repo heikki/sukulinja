@@ -4,11 +4,13 @@ import { css, html, LitElement, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
 import { ApiError } from '@/client/dataset-api';
-import { dialogStyles } from '@/client/dialog-styles';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { Change, ChangeOn } from '@/common/types';
 
+import '../ask';
+
+import type { Ask } from '../ask';
 import { cornerListStyles } from '../corner-panel/list-styles';
 import { byDay, doneLabel, leadsTo, timeLabel, whereLabel } from './helpers';
 
@@ -22,7 +24,6 @@ export type ChangePickEvent = CustomEvent<ChangeOn>;
 class ChangesListElement extends SignalWatcher(LitElement) {
   static override styles = [
     cornerListStyles,
-    dialogStyles,
     css`
       h3 {
         margin: 0.5rem 0 0.15rem;
@@ -49,10 +50,6 @@ class ChangesListElement extends SignalWatcher(LitElement) {
         overflow: hidden auto;
         margin: 0 -0.75rem 0.75rem;
         padding: 0 0.75rem;
-      }
-
-      .dialog p.refused {
-        color: var(--danger);
       }
 
       .time {
@@ -132,7 +129,10 @@ class ChangesListElement extends SignalWatcher(LitElement) {
       await this.state.changes.clear();
       this.asking = null;
     } catch (err) {
-      if (!(err instanceof ApiError)) throw err;
+      if (!(err instanceof ApiError)) {
+        this.asking = null;
+        throw err;
+      }
       this.asking = { refused: err.message };
     }
   }
@@ -156,46 +156,27 @@ class ChangesListElement extends SignalWatcher(LitElement) {
     const asking = this.asking;
     if (asking === null) return nothing;
     const count = this.state.changes.all.get()?.length ?? 0;
-    const clearing = asking === 'clearing';
-    const close = () => {
-      if (!clearing) this.asking = null;
-    };
-    return html`<div class="overlay" @click=${close}>
-      <div
-        class="dialog"
-        role="alertdialog"
-        aria-labelledby="clear-title"
-        @click=${(e: Event) => {
-          e.stopPropagation();
-        }}
-      >
-        <h2 id="clear-title">Clear the Changes?</h2>
-        <p>
-          ${
+    return html`<sl-ask
+      .ask=${
+        {
+          title: 'Clear the Changes?',
+          text:
             count === 1
               ? 'The one Change will be removed from the list. What it did stays done.'
-              : `All ${count} Changes will be removed from the list. What they did stays done.`
-          }
-        </p>
-        ${
-          typeof asking === 'object'
-            ? html`<p class="refused">${asking.refused}</p>`
-            : nothing
-        }
-        <div class="actions">
-          <button @click=${close} ?disabled=${clearing}>Cancel</button>
-          <button
-            class="danger"
-            @click=${() => {
-              void this.clear();
-            }}
-            ?disabled=${clearing}
-          >
-            ${clearing ? 'Clearing…' : 'Clear'}
-          </button>
-        </div>
-      </div>
-    </div>`;
+              : `All ${count} Changes will be removed from the list. What they did stays done.`,
+          step: 'Clear',
+          tone: 'danger'
+        } satisfies Ask
+      }
+      .busy=${asking === 'clearing' ? 'Clearing…' : null}
+      .refused=${typeof asking === 'object' ? asking.refused : null}
+      @cancel=${() => {
+        this.asking = null;
+      }}
+      @confirm=${() => {
+        void this.clear();
+      }}
+    ></sl-ask>`;
   }
 
   override render() {

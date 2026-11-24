@@ -31,6 +31,7 @@ export const scanLayerStyles = css`
     pointer-events: none;
   }
 
+  sl-ask,
   sl-context-menu,
   sl-volume-picker {
     pointer-events: auto;

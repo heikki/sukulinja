@@ -14,8 +14,8 @@ import { firstGuess } from '@/common/entry-events';
 import type { EntryEvent } from '@/common/entry-events';
 import type { Box, PersonName } from '@/common/types';
 
+import type { Ask } from '../ask';
 import { boxFromStage, boxOnStage } from '../box-stage/geometry';
-import type { MenuAsk } from '../context-menu';
 import { searchable } from '../person-search/choices';
 import { placesHere } from '../reminders-list/places';
 import { entriesOn } from './citations';
@@ -35,6 +35,7 @@ import type { Frame } from './frame';
 import { linkItems } from './menu';
 import { renderVolumeChange } from './volume-change';
 
+import '../ask';
 import '../box-stage/handles';
 import '../context-menu';
 import '../person-search/pick';
@@ -335,17 +336,21 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   // Before Vision Match on a Volume whose page numbers aren't marked
   // checked: locate anyway, or not.
   private renderUncheckedWarning(at: Point, locate: () => void) {
-    const ask: MenuAsk = {
+    const ask: Ask = {
       title: 'Locate anyway?',
-      question:
-        "This Volume's page numbers aren't marked checked; the estimates count from them.",
-      step: { label: 'Locate', tone: 'primary', run: locate }
+      text: "This Volume's page numbers aren't marked checked; the estimates count from them.",
+      step: 'Locate',
+      tone: 'primary'
     };
-    return html`<sl-context-menu
+    return html`<sl-ask
       .ask=${ask}
       .at=${at}
-      @close=${this.onPopupClose}
-    ></sl-context-menu>`;
+      @cancel=${this.onPopupClose}
+      @confirm=${() => {
+        this.onPopupClose();
+        locate();
+      }}
+    ></sl-ask>`;
   }
 
   // The pending Box, to move and resize.

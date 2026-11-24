@@ -9,16 +9,18 @@ import { html, nothing } from 'lit';
 import type { Point } from '@/client/pan-zoom';
 import type { PageMark, VolumesRow } from '@/common/types';
 
+import '../ask';
 import '../context-menu';
 
-import type { MenuAsk, MenuItem } from '../context-menu';
+import type { Ask } from '../ask';
+import type { MenuItem } from '../context-menu';
 
 // An open menu, its Volume and where it drops from in the tab; with
 // `ask`, the question before a step that takes pages away.
 export interface PagesMenu {
   book: VolumesRow;
   at: Point;
-  ask?: MenuAsk;
+  ask?: { ask: Ask; run: () => void };
 }
 
 export interface PagesActions {
@@ -98,11 +100,20 @@ export function renderPagesMenu(
   close: () => void
 ) {
   if (menu === null) return nothing;
-  const items =
-    menu.ask === undefined ? pagesItems(menu.book, menu.at, on) : [];
+  const { ask } = menu;
+  if (ask !== undefined) {
+    return html`<sl-ask
+      .ask=${ask.ask}
+      .at=${menu.at}
+      @cancel=${close}
+      @confirm=${() => {
+        close();
+        ask.run();
+      }}
+    ></sl-ask>`;
+  }
   return html`<sl-context-menu
-    .ask=${menu.ask ?? null}
-    .items=${items.map((i) => ({
+    .items=${pagesItems(menu.book, menu.at, on).map((i) => ({
       ...i,
       run: () => {
         close();

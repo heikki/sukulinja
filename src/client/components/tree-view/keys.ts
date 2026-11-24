@@ -22,7 +22,7 @@ const PRESSES = new Set<ChartKey>(['root', 'dock']);
 
 // These keep their keys while they hold focus.
 const HOLDS_KEYS =
-  '[role="dialog"], [role="menu"], sl-settings, sl-scan-viewer, sl-photo-viewer';
+  '[role="dialog"], [role="alertdialog"], [role="menu"], sl-ask, sl-settings, sl-scan-viewer, sl-photo-viewer';
 
 const MODIFIERS = ['metaKey', 'ctrlKey', 'altKey', 'shiftKey'] as const;
 

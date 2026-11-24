@@ -6,7 +6,6 @@ import { customElement, state } from 'lit/decorators.js';
 import { Asking } from '@/client/asking';
 import { visionModel } from '@/client/assistant-choices';
 import { assistantOn } from '@/client/assistant-flag';
-import { dialogStyles } from '@/client/dialog-styles';
 import type { Point } from '@/client/pan-zoom';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
@@ -63,7 +62,6 @@ const POLL_MS = 2000;
 class VolumesListElement extends SignalWatcher(LitElement) {
   static override styles = [
     bookTableStyles,
-    dialogStyles,
     css`
       :host {
         position: relative;
@@ -263,18 +261,23 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     this.pagesMenu = {
       book,
       at,
-      ask:
-        what === 'survey'
-          ? {
-              title: 'Survey page numbers?',
-              question: surveyAsk(byHand),
-              step: { label: 'Survey', tone: 'danger', run }
-            }
-          : {
-              title: 'Clear page numbers?',
-              question: clearAsk(pinned),
-              step: { label: 'Clear', tone: 'danger', run }
-            }
+      ask: {
+        run,
+        ask:
+          what === 'survey'
+            ? {
+                title: 'Survey page numbers?',
+                text: surveyAsk(byHand),
+                step: 'Survey',
+                tone: 'danger'
+              }
+            : {
+                title: 'Clear page numbers?',
+                text: clearAsk(pinned),
+                step: 'Clear',
+                tone: 'danger'
+              }
+      }
     };
   }
 

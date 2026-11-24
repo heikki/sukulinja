@@ -7,7 +7,6 @@ import type { Appearance } from '@/client/appearance';
 import { assistantOn, setAssistantOn } from '@/client/assistant-flag';
 import { ApiError } from '@/client/dataset-api';
 import type { AppApi } from '@/client/dataset-api/app';
-import { dialogStyles } from '@/client/dialog-styles';
 import { focusRingStyles } from '@/client/focus-ring';
 import {
   MAX_GENERATIONS,
@@ -18,6 +17,9 @@ import { pageNumbersOn, setPageNumbersOn } from '@/client/page-numbers-flag';
 import { appApi } from '@/client/state';
 import type { StorageStatus } from '@/common/types';
 
+import '../ask';
+
+import type { Ask } from '../ask';
 import { CornerPopover, popoverStyles } from '../corner-panel/popover';
 import { capDrop, clearDrop, formatBytes } from './helpers';
 import { OFF_ON, rowStyles, segmented } from './segmented';
@@ -66,7 +68,6 @@ const GEAR_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
 class SettingsElement extends LitElement {
   static override styles = [
     focusRingStyles,
-    dialogStyles,
     popoverStyles,
     rowStyles,
     css`
@@ -173,10 +174,6 @@ class SettingsElement extends LitElement {
       .caption button:hover:not(:disabled) {
         text-decoration: underline;
       }
-      /* The confirming dialog dims the popover too. */
-      .overlay {
-        z-index: 21;
-      }
       .caption button:disabled {
         color: var(--muted);
         opacity: 0.6;
@@ -247,11 +244,14 @@ class SettingsElement extends LitElement {
 
   private async confirmDrop(drop: StorageDrop) {
     this.dropping = true;
-    if (drop.kind === 'clear') {
-      await this.askStorage(this.app.clearStorage);
-    } else await this.setCap(drop.cap);
-    this.dropping = false;
-    this.confirming = null;
+    try {
+      if (drop.kind === 'clear') {
+        await this.askStorage(this.app.clearStorage);
+      } else await this.setCap(drop.cap);
+    } finally {
+      this.dropping = false;
+      this.confirming = null;
+    }
   }
 
   private pickAppearance(appearance: Appearance) {
@@ -284,66 +284,34 @@ class SettingsElement extends LitElement {
 
   private renderDropDialog(drop: StorageDrop) {
     const clear = drop.kind === 'clear';
-    return html`
-      <div
-        class="overlay"
-        @click=${() => {
-          this.cancelDrop();
-        }}
-      >
-        <div
-          class="dialog"
-          role="alertdialog"
-          aria-labelledby="drop-title"
-          @click=${(e: Event) => {
-            e.stopPropagation();
-          }}
-        >
-          <h2 id="drop-title">
-            ${
-              clear
-                ? 'Remove all downloaded scans?'
-                : `Lower the cap to ${formatBytes(drop.cap)}?`
-            }
-          </h2>
-          <p>
-            ${
-              clear
-                ? html`All <strong>${formatBytes(drop.bytes)}</strong> of
-                    downloaded scans will be
-                    removed.${
-                      drop.kept > 0
-                        ? ' The cited images of offloaded volumes stay.'
-                        : ''
-                    }`
-                : html`About <strong>${formatBytes(drop.bytes)}</strong> of
-                    downloaded scans, the least recently viewed, will be removed
-                    to fit.`
-            }
-            They download again from Astia when opened.
-          </p>
-          <div class="actions">
-            <button
-              @click=${() => {
-                this.cancelDrop();
-              }}
-              ?disabled=${this.dropping}
-            >
-              Cancel
-            </button>
-            <button
-              class="danger"
-              @click=${() => {
-                void this.confirmDrop(drop);
-              }}
-              ?disabled=${this.dropping}
-            >
-              ${this.dropping ? 'Removing…' : clear ? 'Remove all' : 'Lower cap'}
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
+    const ask: Ask = clear
+      ? {
+          title: 'Remove all downloaded scans?',
+          text: html`All <strong>${formatBytes(drop.bytes)}</strong> of
+            downloaded scans will be
+            removed.${drop.kept > 0 ? ' The cited images of offloaded volumes stay.' : ''}
+            They download again from Astia when opened.`,
+          step: 'Remove all',
+          tone: 'danger'
+        }
+      : {
+          title: `Lower the cap to ${formatBytes(drop.cap)}?`,
+          text: html`About <strong>${formatBytes(drop.bytes)}</strong> of
+            downloaded scans, the least recently viewed, will be removed to fit.
+            They download again from Astia when opened.`,
+          step: 'Lower cap',
+          tone: 'danger'
+        };
+    return html`<sl-ask
+      .ask=${ask}
+      .busy=${this.dropping ? 'Removing…' : null}
+      @cancel=${() => {
+        this.cancelDrop();
+      }}
+      @confirm=${() => {
+        void this.confirmDrop(drop);
+      }}
+    ></sl-ask>`;
   }
 
   private renderPopover() {
