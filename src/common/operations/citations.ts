@@ -12,6 +12,7 @@ import type {
   CitationLinks,
   CitationRow,
   PageMark,
+  PageNumbering,
   VisionPageTry,
   VisionSurvey,
   VolumeChoices,
@@ -274,10 +275,11 @@ export const CITATION_OPERATIONS = {
   ),
 
   // Marks the Volume's page numbers checked, or as none, locking them, or
-  // with null takes the mark away: its pages then.
+  // with null takes the mark away: what's then known of them. Asks
+  // nothing of Astia.
   markPages: answers<
     { volumeId: string; volume: string; as: PageMark | null },
-    VolumePages
+    PageNumbering
   >('{ volumeId, volume, as }', ({ volumeId, volume, as }) =>
     isName(volumeId) &&
     isName(volume) &&

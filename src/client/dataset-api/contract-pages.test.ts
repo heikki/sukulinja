@@ -62,10 +62,11 @@ test("a Volume's page numbers marked, and locked, as the memory fake marks them"
     volumes: { [VOLUME]: { images: IMAGES, citations: [] } }
   });
   const at = { volumeId: VOLUME, volume: VOLUMES['juva-1'] };
-  const none = await api!.markPages(at, 'none');
-  expect(none.numbering).toBe('none');
+  expect(await api!.markPages(at, 'none')).toBe('none');
+  expect(await fake.markPages(at, 'none')).toBe('none');
+  const none = await api!.volumePages(at);
   expect(none.images[0]).toEqual({ image: 1, pages: [], by: null });
-  expect(await fake.markPages(at, 'none')).toEqual(none);
+  expect(await fake.volumePages(at)).toEqual(none);
   const set = { ...at, image: 5 };
   expect(api!.setImagePage(set, [40])).rejects.toThrow(ApiError);
   expect(fake.setImagePage(set, [40])).rejects.toThrow(ApiError);

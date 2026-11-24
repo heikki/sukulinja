@@ -150,7 +150,7 @@ Something known to be in a Volume, and on which Image: a page, a record, or one 
 _Avoid_: correction, anchor (alone), placement.
 
 **Volume facts**:
-What's kept of a Volume for every dataset: its **Page pins**, their mark (**Pages checked**, or having none), and the Record ranges and villages found on its film. Saved in the data folder, and copied beside its Images in the **Offload folder** while one is set. Every change to its page numbers is refused on a filming Astia has replaced (a **Re-scan** not yet switched to), then while they're marked.
+What's kept of a Volume for every dataset: its **Page pins**, their mark (**Pages checked**, or having none), and the Record ranges and villages found on its film. Saved in the data folder, and copied beside its Images in the **Offload folder** while one is set. Every change to its Page pins is refused on a filming Astia has replaced (a **Re-scan** not yet switched to), then while they're marked; a mark is set or taken away any time.
 _Avoid_: pins file, scan facts.
 
 **Page pin**:

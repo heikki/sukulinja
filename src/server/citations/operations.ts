@@ -95,7 +95,7 @@ export function citationOperations(
   }: Doers
 ): Handlers<typeof CITATION_OPERATIONS> {
   // The Volume's pages, and what's known of its numbering.
-  async function pagesOf(volumeId: string, volume: string) {
+  async function volumePagesOf(volumeId: string, volume: string) {
     const [images, numbering] = await Promise.all([
       askingAstia(pages.pagesOn(volumeId, volume)),
       pages.numbering(volumeId)
@@ -188,23 +188,23 @@ export function citationOperations(
       await askingAstia(citations.inVolume(volumeId)),
 
     volumePages: async ({ volumeId, volume }) =>
-      await pagesOf(volumeId, volume),
+      await volumePagesOf(volumeId, volume),
 
     async setImagePage({ volumeId, volume, image, pages: set }) {
       refused(
         await askingAstia(pages.setImagePage({ volumeId, volume, image }, set))
       );
-      return await pagesOf(volumeId, volume);
+      return await volumePagesOf(volumeId, volume);
     },
 
     async clearVolumePages({ volumeId, volume }) {
       refused(await askingAstia(pages.clearPages(volumeId)));
-      return await pagesOf(volumeId, volume);
+      return await volumePagesOf(volumeId, volume);
     },
 
-    async markPages({ volumeId, volume, as }) {
+    async markPages({ volumeId, as }) {
       await pages.mark(volumeId, as);
-      return await pagesOf(volumeId, volume);
+      return await pages.numbering(volumeId);
     },
 
     archives: async () => await askingAstia(citations.churchBookArchives()),

@@ -32,6 +32,7 @@ import type {
   NewFact,
   NewRelative,
   PageMark,
+  PageNumbering,
   PersonDetails,
   PersonName,
   PersonRow,
@@ -156,11 +157,11 @@ export interface DatasetApi {
     volume: string;
   }) => Promise<VolumePages>;
   // Marks the Volume's page numbers checked, or as none, locking them, or
-  // with null no longer: its pages then.
+  // with null no longer: what's then known of them.
   markPages: (
     at: { volumeId: string; volume: string },
     as: PageMark | null
-  ) => Promise<VolumePages>;
+  ) => Promise<PageNumbering>;
   // The archives the dataset's church books are in, most cited first.
   archives: (signal?: AbortSignal) => Promise<ChurchBookArchive[]>;
   // How many of the dataset's Citations link into each of a parish

@@ -16,7 +16,13 @@
 // one cited page past the end, not how the Volume is numbered, so the
 // pages shown on its Images stay one a spread.
 
-import type { BookKind, ImagePages, Provenance } from '@/common/types';
+import type {
+  BookKind,
+  ImagePages,
+  PageMark,
+  PageNumbering as Known,
+  Provenance
+} from '@/common/types';
 
 import { runsOf } from './runs';
 import type { PageRun } from './runs';
@@ -247,4 +253,36 @@ export function pageCounts(images: ImagePages[]) {
     pinned: images.filter((p) => p.by !== null).length,
     byHand: images.filter((p) => p.by === 'hand').length
   };
+}
+
+// What's known of a Volume's page numbers: its mark, else whether any of
+// its pages are read or set.
+export function numberingOf(
+  mark: PageMark | undefined,
+  pinned: boolean
+): Known {
+  if (mark !== undefined) return mark;
+  return pinned ? 'read' : 'counted';
+}
+
+// Whether the Volume's page numbers are locked: marked checked, or as
+// having none. Nothing changes them then until they're unmarked.
+export function isLocked(numbering: Known) {
+  return numbering === 'checked' || numbering === 'none';
+}
+
+// Why a change to locked page numbers is refused, by their mark.
+export const LOCKED: Record<PageMark, string> = {
+  checked:
+    'The page numbers of this Volume are marked checked. Unmark them to change them.',
+  none: 'This Volume is marked as having no page numbers. Unmark it to change them.'
+};
+
+// The Images of a Volume marked as having no page numbers: none on any.
+export function unnumbered(images: number): ImagePages[] {
+  return Array.from({ length: images }, (_, i) => ({
+    image: i + 1,
+    pages: [],
+    by: null
+  }));
 }

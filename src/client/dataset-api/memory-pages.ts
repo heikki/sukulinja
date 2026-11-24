@@ -3,7 +3,12 @@
 // mark, which locks them as the server's does.
 
 import { bookKind } from '@/common/books';
-import { pageNumbering } from '@/common/page-numbering';
+import {
+  LOCKED,
+  numberingOf,
+  pageNumbering,
+  unnumbered
+} from '@/common/page-numbering';
 import type { NumberedPin } from '@/common/page-numbering';
 import type { PageMark, VolumePages } from '@/common/types';
 
@@ -29,25 +34,19 @@ export interface PagedVolume {
 // The pages the Volume's Page pins put on its Images, `label` by its
 // label, as the server counts them, and what's known of its numbering.
 function pagesOf(v: PagedVolume, label: string): VolumePages {
-  const numbering = v.mark ?? ((v.pins ?? []).length > 0 ? 'read' : 'counted');
-  if (v.mark === 'none') {
-    const images = Array.from({ length: v.images }, (_, i) => ({
-      image: i + 1,
-      pages: [],
-      by: null
-    }));
-    return { images, numbering };
-  }
-  const images = pageNumbering(v.pins ?? [], v.images, bookKind(label)).pages();
+  const pins = v.pins ?? [];
+  const numbering = numberingOf(v.mark, pins.length > 0);
+  const images =
+    v.mark === 'none'
+      ? unnumbered(v.images)
+      : pageNumbering(pins, v.images, bookKind(label)).pages();
   return { images, numbering };
 }
 
 // The Volume, unless its page numbers are locked: then refused, as the
 // server refuses.
 function unlocked<V extends PagedVolume>(v: V) {
-  if (v.mark !== undefined) {
-    throw new ApiError('The page numbers of this Volume are locked.');
-  }
+  if (v.mark !== undefined) throw new ApiError(LOCKED[v.mark]);
   return v;
 }
 
@@ -111,7 +110,7 @@ export function memoryPages(
           const shown = volume(volumeId);
           if (as === null) delete shown.mark;
           else shown.mark = as;
-          return pagesOf(shown, label);
+          return pagesOf(shown, label).numbering;
         }
       )
   };

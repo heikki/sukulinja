@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import type { VolumePages, VolumesView } from '@/common/types';
+import type { VolumesView } from '@/common/types';
 
 import { juvaAstia, memoryAstia } from './citations/testing';
 import type { MemoryAstia } from './citations/testing';
@@ -331,7 +331,7 @@ describe('Church books', () => {
       volume: 'I C:1',
       as: 'checked'
     });
-    expect(((await marked.json()) as VolumePages).numbering).toBe('checked');
+    expect(await marked.json()).toBe('checked');
     expect((await view()).rows).toMatchObject([
       { id: '302', pages: 'checked' }
     ]);

@@ -6,18 +6,23 @@
 //
 // Its page numbers are counted from its Page pins (common/page-numbering).
 // Marked checked, or as none, they're locked: nothing changes them until
-// unmarked. Every change to them is refused on a filming Astia has
-// replaced, then while they're locked.
+// unmarked. Every change to its Page pins is refused on a filming Astia
+// has replaced, then while they're locked; a mark is set or taken away
+// any time.
 
 import { bookKind } from '@/common/books';
-import { pageNumbering } from '@/common/page-numbering';
+import {
+  LOCKED,
+  numberingOf,
+  pageNumbering,
+  unnumbered
+} from '@/common/page-numbering';
 import type { ImagePages, PageMark, PageNumbering } from '@/common/types';
 
 import type { Astia } from '../astia/astia';
 import { OLD_FILMING, onOldFilming } from '../images';
 import type { FolderFacts } from '../storage';
 import { describeVolume, factsArchive } from './archive';
-import type { LocalPins } from './files';
 import { filmingOf, splitVolume } from './filming';
 import type { Filming } from './filming';
 import { openStore } from './store';
@@ -34,20 +39,6 @@ export type {
   ReferencePin,
   VolumePins
 } from './types';
-
-const LOCKED: Record<PageMark, string> = {
-  checked:
-    'The page numbers of this Volume are marked checked. Unmark them to change them.',
-  none: 'This Volume is marked as having no page numbers. Unmark it to change them.'
-};
-
-// What's known of the Volume's page numbers, by its mark, else by whether
-// any of its pages are read or set.
-function numberingOf(volume: LocalPins['volumes'][string] | undefined) {
-  if (volume?.mark !== undefined) return volume.mark;
-  const read = (volume?.pages.length ?? 0) > 0;
-  return read ? ('read' as const) : ('counted' as const);
-}
 
 interface Options {
   astia: Astia;
@@ -113,8 +104,10 @@ export function openVolumeFacts(folder: string, options: Options) {
     },
 
     // What's known of the Volume's page numbers.
-    numbering: async (volumeId: string): Promise<PageNumbering> =>
-      numberingOf(await kept(volumeId)),
+    async numbering(volumeId: string): Promise<PageNumbering> {
+      const volume = await kept(volumeId);
+      return numberingOf(volume?.mark, (volume?.pages.length ?? 0) > 0);
+    },
 
     // The pages its Page pins put on each of the Volume's Images, as its
     // estimates count them; without pins, as its books are numbered; none
@@ -123,11 +116,7 @@ export function openVolumeFacts(folder: string, options: Options) {
       const filming = await filmingOf(astia, volumeId);
       const volumes = await store.volumes();
       if (volumes[volumeId]?.mark === 'none') {
-        return filming.files.map((_, i) => ({
-          image: i + 1,
-          pages: [],
-          by: null
-        }));
+        return unnumbered(filming.files.length);
       }
       const own = splitVolume(filming, { volumes, references: {} }).current;
       return pageNumbering(

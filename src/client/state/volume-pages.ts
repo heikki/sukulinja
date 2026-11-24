@@ -1,7 +1,7 @@
 import { computed, signal } from '@lit-labs/signals';
 
 import type { DatasetApi } from '@/client/dataset-api';
-import { pageCounts } from '@/common/page-numbering';
+import { isLocked, pageCounts } from '@/common/page-numbering';
 import type { ImagePages, VolumePages } from '@/common/types';
 
 import { Latest } from './latest';
@@ -33,7 +33,7 @@ export function volumePagesOf(
   const numbered = computed(() => pinned.get() > 0);
   const locked = computed(() => {
     const numbering = pages.get()?.numbering;
-    return numbering === 'checked' || numbering === 'none';
+    return numbering !== undefined && isLocked(numbering);
   });
 
   return {
