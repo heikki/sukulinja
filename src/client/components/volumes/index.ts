@@ -24,7 +24,6 @@ import { renderActs } from './row-acts';
 import type { RowActions } from './row-acts';
 import {
   bookTableStyles,
-  CHECK_ICON,
   pinUnderHead,
   renderBookTable,
   renderRefused,
@@ -73,24 +72,29 @@ class VolumesListElement extends SignalWatcher(LitElement) {
         flex-direction: column;
       }
 
-      button.only {
+      /* This tree or All books, side by side in one frame. */
+      .modes {
         flex: none;
-        padding: 0.3rem 0.65rem;
+        display: flex;
+        padding: 2px;
         border: 1px solid var(--border);
+        border-radius: 8px;
+      }
+
+      .modes button {
+        padding: 0.2rem 0.65rem;
+        border: 0;
         border-radius: 6px;
         background: none;
         color: var(--muted);
+        font: inherit;
         font-size: 0.85rem;
         cursor: pointer;
       }
 
-      button.only[aria-pressed='true'] {
+      .modes button[aria-pressed='true'] {
         background: var(--border);
         color: var(--fg);
-      }
-
-      button.only svg {
-        vertical-align: -1px;
       }
 
       p.empty {
@@ -354,17 +358,24 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     return this.loaded()?.rows.some((r) => !r.onList) ?? false;
   }
 
-  private renderOnly() {
-    return html`<button
-      class="only"
-      aria-pressed=${this.treeOnly ? 'true' : 'false'}
-      title="Only the volumes of this tree, not every one on this computer"
-      @click=${() => {
-        this.treeOnly = !this.treeOnly;
-      }}
-    >
-      ${this.treeOnly ? CHECK_ICON : nothing} This tree
-    </button>`;
+  private renderModes() {
+    const modes = [
+      { label: 'This tree', treeOnly: true },
+      { label: 'All books', treeOnly: false }
+    ];
+    return html`<div class="modes" role="group" aria-label="Volumes shown">
+      ${modes.map(
+        (m) =>
+          html`<button
+            aria-pressed=${this.treeOnly === m.treeOnly ? 'true' : 'false'}
+            @click=${() => {
+              this.treeOnly = m.treeOnly;
+            }}
+          >
+            ${m.label}
+          </button>`
+      )}
+    </div>`;
   }
 
   private renderCache() {
@@ -430,6 +441,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
         : rows.filter((b) => matches(b, this.filter));
     return html`
       <div class="bar">
+        ${offered ? this.renderModes() : nothing}
         <input
           aria-label="Filter volumes"
           placeholder="Filter by year or name"
@@ -438,7 +450,6 @@ class VolumesListElement extends SignalWatcher(LitElement) {
             this.filter = (e.target as HTMLInputElement).value;
           }}
         />
-        ${offered ? this.renderOnly() : nothing}
         <button
           class="add"
           @click=${() => {

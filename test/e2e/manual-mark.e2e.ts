@@ -86,9 +86,9 @@ test("a reference's entry is placed by hand", async () => {
     await page.keyboard.press('Escape');
     await openList(page, 'Volumes');
     const list = page.locator('sl-volumes-list');
-    // Another Volume was looked at, so the tree is a filter, off for
-    // every book on this computer.
-    await list.getByRole('button', { name: 'This tree' }).click();
+    // Another Volume was looked at, so every book on this computer is
+    // offered beside the tree's.
+    await list.getByRole('button', { name: 'All books' }).click();
     await list.getByRole('row').filter({ hasText: 'I Aa:2' }).waitFor();
     const row = list.getByRole('row').filter({ hasText: 'I Aa:1' });
     // With the folder chosen, its trash button offloads it, unasked, and
