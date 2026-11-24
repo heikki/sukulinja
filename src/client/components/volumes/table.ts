@@ -18,6 +18,14 @@ import type { ArchiveGroup } from './helpers';
 export const DOWNLOAD_ICON = svg`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12" /><path d="m6 11 6 6 6-6" /><path d="M5 20h14" /></svg>`;
 export const STOP_ICON = svg`<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" /></svg>`;
 export const TRASH_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M6 7l1 13h10l1-13" /><path d="M9 7V4h6v3" /></svg>`;
+// Into the archive box: kept in the offload folder.
+export const OFFLOAD_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1" /><path d="M5 8v11h14V8" /><path d="M12 11v5" /><path d="m9.5 13.5 2.5 2.5 2.5-2.5" /></svg>`;
+// Out of the archive box: brought back from the offload folder.
+export const BRING_BACK_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1" /><path d="M5 8v11h14V8" /><path d="M12 16v-5" /><path d="m9.5 13.5 2.5-2.5 2.5 2.5" /></svg>`;
+// The trash crossed out: gone from the offload folder too.
+export const PURGE_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16" /><path d="M6 7l1 13h10l1-13" /><path d="M9 7V4h6v3" /><path d="m10 11 4 5" /><path d="m14 11-4 5" /></svg>`;
+// A line off the list.
+export const UNLIST_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16" /><path d="M4 12h9" /><path d="M4 18h9" /><path d="M16 15h5" /></svg>`;
 
 export interface BookTable {
   books: VolumesRow[];
@@ -228,16 +236,14 @@ export const bookTableStyles = [
       color: var(--accent);
     }
 
-    /* The trash button, by what it would do: kept in the offload folder,
-       gone from this computer, or only off the list. */
+    /* The trash button's icon, by what it would do: kept in the offload
+       folder, gone from this computer, or only off the list. */
     button.act.offload {
-      border-color: color-mix(in srgb, var(--accent) 60%, var(--border));
       color: var(--accent);
     }
 
     button.act.remove,
     button.act.removeForGood {
-      border-color: color-mix(in srgb, var(--danger) 60%, var(--border));
       color: var(--danger);
     }
 

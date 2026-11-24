@@ -4,10 +4,14 @@ import { formatBytes } from '../settings/helpers';
 import type { DownloadAction } from './helpers';
 import {
   actButton,
+  BRING_BACK_ICON,
   DOWNLOAD_ICON,
   EMPTY_SLOT,
+  OFFLOAD_ICON,
+  PURGE_ICON,
   STOP_ICON,
-  TRASH_ICON
+  TRASH_ICON,
+  UNLIST_ICON
 } from './table';
 
 // What a row's buttons do, and whether one is already being done.
@@ -38,6 +42,12 @@ const DOWNLOAD_TITLE = {
   stop: 'Stop'
 } as const;
 
+const DOWNLOAD_ICON_OF = {
+  start: DOWNLOAD_ICON,
+  bringBack: BRING_BACK_ICON,
+  stop: STOP_ICON
+};
+
 // Storage's next step with the download; bringing back is a download too.
 function download(book: VolumesRow, does: RowActions) {
   const step = book.steps.download;
@@ -45,7 +55,7 @@ function download(book: VolumesRow, does: RowActions) {
   const action: DownloadAction = step === 'stop' ? 'stop' : 'start';
   return actButton(
     action === 'start' ? 'Download' : 'Stop',
-    action === 'start' ? DOWNLOAD_ICON : STOP_ICON,
+    DOWNLOAD_ICON_OF[step],
     () => {
       does.download(book, action);
     },
@@ -75,6 +85,13 @@ function trashTitle(book: VolumesRow, does: RowActions, step: TrashStep) {
   }
 }
 
+const ICON = {
+  offload: OFFLOAD_ICON,
+  remove: TRASH_ICON,
+  removeForGood: PURGE_ICON,
+  unlist: UNLIST_ICON
+};
+
 const LABEL: Record<TrashStep, string> = {
   offload: 'Offload',
   remove: 'Remove from disk',
@@ -82,7 +99,7 @@ const LABEL: Record<TrashStep, string> = {
   unlist: 'Remove from the list'
 };
 
-// Coloured by what it would do; dimmed with nothing to.
+// Drawn and coloured by what it would do; dimmed with nothing to.
 function trash(book: VolumesRow, does: RowActions) {
   const step = book.steps.trash;
   if (step === null) {
@@ -94,7 +111,7 @@ function trash(book: VolumesRow, does: RowActions) {
   }
   return actButton(
     LABEL[step],
-    TRASH_ICON,
+    ICON[step],
     () => {
       does[step](book);
     },
