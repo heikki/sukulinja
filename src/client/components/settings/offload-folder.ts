@@ -38,7 +38,7 @@ Offloaded volumes' scans are kept here"
     }`;
 }
 
-// Settings' Offload folder row, under Storage: where an offload
+// Settings' Offload folder row, under Scans on disk: where an offload
 // moves the Images a Volume doesn't keep, an external drive say, and
 // whether its drive is connected; with none, an offload drops them. Chosen
 // with the app's folder picker; once set, Stop using is offered instead,
@@ -113,7 +113,9 @@ class OffloadFolderElement extends LitElement {
     return html`
       ${
         folder === undefined
-          ? html`<span class="muted">Asking the app…</span>`
+          ? this.asking.refused === null
+            ? html`<span class="muted">Asking the app…</span>`
+            : nothing
           : renderFolder(folder)
       }
       ${
@@ -125,7 +127,7 @@ class OffloadFolderElement extends LitElement {
         ${
           folder === null || folder === undefined
             ? html`<button
-                ?disabled=${this.asking.busy || folder === undefined}
+                ?disabled=${this.asking.busy}
                 @click=${() => {
                   void this.ask(async () => await app.chooseOffloadFolder());
                 }}

@@ -57,9 +57,10 @@ const GEAR_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
 // Generation limit: inside a dataset the chart owns the value (`generations`)
 // and hears picks through `generations-change`; on the landing page there is
 // none and the row shows the preferred value. Every pick also becomes the
-// preference a dataset opens with. Storage is the install's, kept by the
-// app: the row asks for it each time the popover opens. Anything that would
-// remove downloaded scans, Clear or a cap below the space used, asks to
+// preference a dataset opens with. Scans on disk is the install's, kept by
+// the app: the row asks for it each time the popover opens. Anything that
+// would remove downloaded scans, Remove all or a cap below the space used,
+// asks to
 // confirm in a dialog first, naming how much goes.
 @customElement('sl-settings')
 class SettingsElement extends LitElement {
@@ -135,8 +136,8 @@ class SettingsElement extends LitElement {
       .dataset a:hover {
         text-decoration: underline;
       }
-      /* Under Storage sizes and as wide: a meter of the space used,
-       then what it says and Clear at either end. */
+      /* Under Scans on disk's sizes and as wide: a meter of the space
+       used, then what it says and Remove all at either end. */
       .usage {
         grid-column: 2;
         display: grid;
@@ -301,7 +302,7 @@ class SettingsElement extends LitElement {
           <h2 id="drop-title">
             ${
               clear
-                ? 'Clear storage?'
+                ? 'Remove all downloaded scans?'
                 : `Lower the cap to ${formatBytes(drop.cap)}?`
             }
           </h2>
@@ -337,7 +338,7 @@ class SettingsElement extends LitElement {
               }}
               ?disabled=${this.dropping}
             >
-              ${this.dropping ? 'Removing…' : clear ? 'Clear' : 'Lower cap'}
+              ${this.dropping ? 'Removing…' : clear ? 'Remove all' : 'Lower cap'}
             </button>
           </div>
         </div>
