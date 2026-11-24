@@ -58,6 +58,9 @@ const POLL_MS = 2000;
 // (`open-volume`); the one the Scan viewer shows is marked. _Add
 // volumes…_ opens the Volume picker, whose Volumes join the Book list.
 // Leaving the tab stops asking.
+// Each dataset's view as its tab last showed it.
+const lastViews = new WeakMap<object, VolumesView>();
+
 @customElement('sl-volumes-list')
 class VolumesListElement extends SignalWatcher(LitElement) {
   static override styles = [
@@ -176,6 +179,9 @@ class VolumesListElement extends SignalWatcher(LitElement) {
   override connectedCallback() {
     super.connectedCallback();
     this.revealed = null;
+    // The tab is made anew each time it opens: what it showed last is
+    // shown at once, and the view asked for behind it.
+    this.view = lastViews.get(this.state.api) ?? this.view;
     void this.load();
   }
 
@@ -207,7 +213,10 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     this.stopPolling();
     const view = await this.state.api.volumesView().catch(() => null);
     if (view === null) this.view ??= 'failed';
-    else this.view = view;
+    else {
+      this.view = view;
+      lastViews.set(this.state.api, view);
+    }
     this.frees = new Map();
     const going = view !== null && busy(view.rows);
     if (going && this.isConnected) {
@@ -369,7 +378,11 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     return this.loaded()?.rows.some((r) => !r.onList) ?? false;
   }
 
+  // The switch shows while the view loads too, so the bar doesn't shift
+  // when it arrives; it goes only once the view says there's nothing more.
   private renderModes() {
+    if (this.view !== null && !this.offered()) return nothing;
+    const waiting = this.view === null;
     const modes = [
       { label: 'This tree', treeOnly: true },
       { label: 'All books', treeOnly: false }
@@ -379,6 +392,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
         (m) =>
           html`<button
             aria-pressed=${this.treeOnly === m.treeOnly ? 'true' : 'false'}
+            ?disabled=${waiting}
             @click=${() => {
               this.treeOnly = m.treeOnly;
             }}
@@ -452,7 +466,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
         : rows.filter((b) => matches(b, this.filter));
     return html`
       <div class="bar">
-        ${offered ? this.renderModes() : nothing}
+        ${this.renderModes()}
         <input
           aria-label="Filter volumes"
           placeholder="Filter by year or name"
