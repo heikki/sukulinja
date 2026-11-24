@@ -194,7 +194,7 @@ export const bookTableStyles = [
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      margin-bottom: 0.5rem;
+      margin: 0.35rem 0 0.85rem;
     }
 
     .bar input {
