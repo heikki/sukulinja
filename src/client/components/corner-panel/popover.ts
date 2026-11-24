@@ -4,9 +4,15 @@ import type { ReactiveController, ReactiveControllerHost } from 'lit';
 // Says which corner popover just opened, so any other closes.
 const OPENED = 'corner-popover-open';
 
+// Every corner popover's host on the page, so a press on another's button
+// is left to that button: its click opens that popover and, through
+// OPENED, closes this one at the same moment, not a press earlier.
+const hosts = new Set<HTMLElement>();
+
 // Whether a popover hanging from a button in the chart's top-right corner,
 // as Settings' does, is open: only one is at a time, and a press outside
-// its host or Esc closes it. `escape` may take Esc for something open
+// its host or Esc closes it, though a press on another corner popover's
+// host waits for that one to open. `escape` may take Esc for something open
 // inside it first.
 export class CornerPopover implements ReactiveController {
   private listening = false;
@@ -36,10 +42,12 @@ export class CornerPopover implements ReactiveController {
   }
 
   hostConnected() {
+    hosts.add(this.host);
     window.addEventListener(OPENED, this.onOpened);
   }
 
   hostDisconnected() {
+    hosts.delete(this.host);
     window.removeEventListener(OPENED, this.onOpened);
     this.shown = false;
     this.listen(false);
@@ -62,7 +70,10 @@ export class CornerPopover implements ReactiveController {
   };
 
   private readonly onPointerDown = (e: PointerEvent) => {
-    if (!e.composedPath().includes(this.host)) this.set(false);
+    const path = e.composedPath();
+    if (path.includes(this.host)) return;
+    if (path.some((target) => hosts.has(target as HTMLElement))) return;
+    this.set(false);
   };
 
   // The popover lies over everything else, the Scan viewer too, so Esc is
