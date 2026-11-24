@@ -123,17 +123,33 @@ function boxThere(
 // A dataset's pins: the data folder's facts about Volumes, and the
 // dataset's Marks.
 export function openPins(facts: VolumeFacts, marks: Marks) {
+  // Changes whenever the local file or the Marks do.
+  async function stamp() {
+    return `${await facts.stamp()}/${marks.stamp()}`;
+  }
+  // The last snapshot, read again only once the stamp has changed.
+  let last: { stamp: string; pins: Promise<Pins> } | null = null;
+
   return {
     // What resolution reads: the facts about Volumes with the Marks read
-    // over them.
+    // over them. Callers share it, so none may change it.
     async snapshot(): Promise<Pins> {
-      return withMarks(await facts.volumes(), marks);
+      const now = await stamp();
+      if (last?.stamp !== now) {
+        const entry = {
+          stamp: now,
+          pins: facts.volumes().then((volumes) => withMarks(volumes, marks))
+        };
+        last = entry;
+        // A failure isn't kept.
+        entry.pins.catch(() => {
+          if (last === entry) last = null;
+        });
+      }
+      return await last.pins;
     },
 
-    // Changes whenever the local file or the Marks do.
-    async stamp() {
-      return `${await facts.stamp()}/${marks.stamp()}`;
-    },
+    stamp,
 
     // The dataset's Marks as the pins they are kept as: Record pins,
     // Reference pins for references with no Record number. Rejections are

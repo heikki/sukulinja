@@ -16,8 +16,11 @@ import { Refusal } from '../operations';
 
 interface Sources {
   // The parish archive's Volumes in Astia's order, with what of each is on
-  // disk.
-  books: (archiveId: string) => Promise<ChurchBookVolume[]>;
+  // disk; with `keep`, only those it keeps.
+  books: (
+    archiveId: string,
+    keep?: (volumeId: string) => boolean
+  ) => Promise<ChurchBookVolume[]>;
   // The archive's title in Astia; null when Astia can't say.
   titleOf: (archiveId: string) => Promise<string | null>;
   // The archives the dataset's church books are in, most cited first.
@@ -62,23 +65,18 @@ export function openBookList(db: Database, sources: Sources) {
     archive: ChurchBookArchive,
     added: Set<string>
   ): Promise<ListedBook[]> {
-    const [volumes, counts] = await Promise.all([
-      sources.books(archive.archiveId),
-      sources.countInArchive(archive.archiveId)
-    ]);
-    return volumes.flatMap((v) => {
-      const cited = counts[v.id] ?? 0;
-      if (cited === 0 && !added.has(v.id)) return [];
-      return [
-        {
-          ...v,
-          archiveId: archive.archiveId,
-          archive: archive.title,
-          cited,
-          added: added.has(v.id)
-        }
-      ];
-    });
+    const counts = await sources.countInArchive(archive.archiveId);
+    const volumes = await sources.books(
+      archive.archiveId,
+      (id) => (counts[id] ?? 0) > 0 || added.has(id)
+    );
+    return volumes.map((v) => ({
+      ...v,
+      archiveId: archive.archiveId,
+      archive: archive.title,
+      cited: counts[v.id] ?? 0,
+      added: added.has(v.id)
+    }));
   }
 
   const list = {

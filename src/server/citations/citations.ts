@@ -32,6 +32,7 @@ import type { Annotation } from './annotations';
 import { openAppCitations } from './app-citations';
 import { viewerUrl, volumeYears } from './astia/astia';
 import { citedArchives } from './cited-archives';
+import { datasetVersion } from './db-version';
 import {
   CITATIONS_READ,
   createEntries,
@@ -317,6 +318,17 @@ export function createCitations<R extends BookRef>(
     });
   }
 
+  // Every person's Citations, read again only once the dataset has
+  // changed. Callers share them, so none may change them.
+  let everyRead: { version: string; rows: Array<Cited<R>> } | null = null;
+  function everyCited() {
+    const version = datasetVersion(db);
+    if (everyRead?.version !== version) {
+      everyRead = { version, rows: cited(everyPerson.all()) };
+    }
+    return everyRead.rows;
+  }
+
   // Kept per Volume until a Mark or a vision save changes the pins.
   const kept = new Map<
     string,
@@ -325,9 +337,7 @@ export function createCitations<R extends BookRef>(
 
   async function resolveVolume(volumeId: string) {
     const church = onePerRecord(
-      cited(everyPerson.all()).filter(
-        (c): c is Cited<R> & { book: R } => c.book !== null
-      )
+      everyCited().filter((c): c is Cited<R> & { book: R } => c.book !== null)
     );
     const links = await references.volumeLinks(
       volumeId,
@@ -342,7 +352,7 @@ export function createCitations<R extends BookRef>(
   }
 
   const { archives, churchBookArchives, citable, volumeArchive, withArchive } =
-    citedArchives(images, () => cited(everyPerson.all()));
+    citedArchives(images, everyCited);
 
   // The Citations of Images in the Volume, with no Church-book reference.
   async function storedIn(volumeId: string) {
@@ -377,8 +387,8 @@ export function createCitations<R extends BookRef>(
   // How many of the dataset's Citations link into each of the parish
   // archive's Volumes, by its id: a Split reference counts in each of its
   // candidates, and a Citation of an Image in its Volume.
-  async function countInArchive(archiveId: string) {
-    const all = cited(everyPerson.all());
+  async function countAnew(archiveId: string) {
+    const all = everyCited();
     const church = all.filter(
       (c): c is Cited<R> & { book: R } => c.book !== null
     );
@@ -394,6 +404,27 @@ export function createCitations<R extends BookRef>(
       for (const id of new Set(volumes)) counts[id] = (counts[id] ?? 0) + 1;
     }
     return counts;
+  }
+
+  // Each archive's counts, counted again only once the dataset or what its
+  // references resolve to has changed.
+  const counted = new Map<
+    string,
+    { stamp: string; counts: Promise<Record<string, number>> }
+  >();
+  async function countInArchive(archiveId: string) {
+    const stamp = `${datasetVersion(db)}/${await references.stamp()}`;
+    let hit = counted.get(archiveId);
+    if (hit?.stamp !== stamp) {
+      const entry = { stamp, counts: countAnew(archiveId) };
+      counted.set(archiveId, entry);
+      // A failure isn't kept: Astia comes back.
+      entry.counts.catch(() => {
+        if (counted.get(archiveId) === entry) counted.delete(archiveId);
+      });
+      hit = entry;
+    }
+    return await hit.counts;
   }
 
   // One of a person's Citations, as the panel shows it, with whose it is;

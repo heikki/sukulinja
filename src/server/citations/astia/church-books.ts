@@ -41,16 +41,18 @@ function bookOf(
   };
 }
 
-// The parish archive's Volumes in Astia's order.
+// The parish archive's Volumes in Astia's order; with `keep`, only those
+// it keeps, so Storage is asked of no others.
 export async function parishBooks(
   sources: Sources,
-  archiveId: string
+  archiveId: string,
+  keep: (volumeId: string) => boolean = () => true
 ): Promise<ChurchBookVolume[]> {
   const volumes = await sources.astia.archiveVolumes(archiveId);
   return await Promise.all(
-    volumes.map(async (v) =>
-      bookOf(v, await sources.storage.of(v.id, v.digitized))
-    )
+    volumes
+      .filter((v) => keep(v.id))
+      .map(async (v) => bookOf(v, await sources.storage.of(v.id, v.digitized)))
   );
 }
 

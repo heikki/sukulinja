@@ -167,8 +167,12 @@ export function openCitations(root: string, options: Options) {
       }
       const citations = citationsOf(db);
       const bookList = openBookList(db, {
-        books: async (archiveId) =>
-          await parishBooks({ astia, storage: storage.volumes }, archiveId),
+        books: async (archiveId, keep) =>
+          await parishBooks(
+            { astia, storage: storage.volumes },
+            archiveId,
+            keep
+          ),
         titleOf: async (archiveId) => await images.titleOf(archiveId),
         archives: async () => await citations.churchBookArchives(),
         countInArchive: async (archiveId) =>

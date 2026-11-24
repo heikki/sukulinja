@@ -192,6 +192,27 @@ describe("A dataset's Citations", () => {
     expect(await elsewhere.json()).toEqual({});
   });
 
+  test('counts again once the dataset has changed', async () => {
+    await seedDataset();
+    async function counted() {
+      const res = await op('juva', 'archiveCitations', {
+        archiveId: '1212295491'
+      });
+      return (await res.json()) as unknown;
+    }
+    expect(await counted()).toEqual({ 'juva-1': 1 });
+    // Written from another connection, as another process would.
+    const rippi = rippiCitation(5002, '1790 - 1796', 13);
+    new DatasetRegistry(join(root, 'data'))
+      .open('juva')
+      .prepare(
+        `INSERT INTO citations (scope_type, scope_id, page, text, sort_order)
+         VALUES ('person', 1, ?, ?, 2)`
+      )
+      .run(rippi.page, rippi.text);
+    expect(await counted()).toEqual({ 'juva-1': 2 });
+  });
+
   test('lists the books cited, and adds and takes off others', async () => {
     await seedDataset();
     async function listed(name: string, body: unknown = {}) {
