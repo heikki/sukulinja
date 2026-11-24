@@ -30,7 +30,9 @@ class PhotosListElement extends SignalWatcher(LitElement) {
         flex: 1;
         min-height: 0;
         overflow-y: auto;
-        margin: 0 -0.25rem 1rem;
+        /* Room for the shown one's ring, the tiles still as far under
+           the tabs as the Volumes tab's bar, and down to the foot's line. */
+        margin: 0.1rem -0.25rem 0;
         padding: 0.25rem;
       }
 
@@ -75,7 +77,7 @@ class PhotosListElement extends SignalWatcher(LitElement) {
       }
 
       p.refused {
-        margin: 0 0 0.5rem;
+        margin: 0.5rem 0;
         color: var(--danger);
         font-size: 0.85rem;
       }
@@ -110,7 +112,7 @@ class PhotosListElement extends SignalWatcher(LitElement) {
     const refused = photos.refused.get();
     return html`
       ${refused.map((why) => html`<p class="refused">${why}</p>`)}
-      <div class="actions">
+      <div class="foot">
         <button
           class="toggle"
           ?disabled=${adding !== null}

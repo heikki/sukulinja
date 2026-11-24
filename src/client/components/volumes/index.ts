@@ -107,16 +107,6 @@ class VolumesListElement extends SignalWatcher(LitElement) {
         font-size: 0.85rem;
       }
 
-      /* Set off from the table by a line, about as far below it as the
-         panel's edge is below the line's words. */
-      .foot {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        padding-top: 0.75rem;
-        border-top: 1px solid var(--border);
-      }
-
       .foot .summary {
         flex: 1;
         margin: 0;

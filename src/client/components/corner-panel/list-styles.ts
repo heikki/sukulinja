@@ -5,7 +5,8 @@ import { focusRingStyles } from '@/client/focus-ring';
 // What a corner panel's tab lists, in the shadow root of the element
 // slotted in: rows that scroll between the panel's tabs and the list's
 // actions, each a button with its text and what it's on, a note when
-// there's nothing to list, and a link-like toggle under the list.
+// there's nothing to list, a link-like toggle under the list, and the
+// foot a tab ends with, the same in each.
 const list = css`
   :host {
     display: flex;
@@ -85,6 +86,18 @@ const list = css`
     display: flex;
     align-items: center;
     gap: 0.5rem;
+  }
+
+  /* Under what scrolls, set off by a line, at the tab's bottom: one line
+     high whatever it holds, so every tab's foot sits alike. */
+  .foot {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+    line-height: 1rem;
   }
 
   /* A toggle under the list, such as showing the done ones. */
