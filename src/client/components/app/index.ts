@@ -18,6 +18,7 @@ import { appApi, appState, openAppState } from '@/client/state';
 import { slugFromFilename, withoutExtension } from '@/common/slug';
 import type { DatasetInfo } from '@/common/types';
 
+import { preloadPhotos } from '../photos-list';
 import { preloadVolumes } from '../volumes';
 import { confirmDialog, errorNote, runAction } from './dialogs';
 import type { Confirming, DatasetAction } from './dialogs';
@@ -59,10 +60,9 @@ function provideDataset(
   if (slug === null) return null;
   const api = openDatasetApi(slug);
   preloadVolumes(api);
-  return new ContextProvider(host, {
-    context: appState,
-    initialValue: openAppState(api, app)
-  });
+  const state = openAppState(api, app);
+  preloadPhotos(state);
+  return new ContextProvider(host, { context: appState, initialValue: state });
 }
 
 function renderLink(d: DatasetInfo) {

@@ -10,6 +10,21 @@ import type { PhotoRow } from '@/common/types';
 import { cornerListStyles } from '../corner-panel/list-styles';
 import { peopleLine } from './helpers';
 
+// Asks for the dataset's Photos as it opens, and has the browser fetch and
+// decode their thumbnails, so even the tab's first opening draws them at
+// once. Each is a few kilobytes, kept by the browser's cache.
+export function preloadPhotos({ photos, api }: AppState) {
+  void photos.loaded().then((rows) => {
+    for (const p of rows ?? []) {
+      const img = new Image();
+      // Behind what the app itself asks for.
+      img.fetchPriority = 'low';
+      img.src = api.photoThumbUrl(p.path);
+      void img.decode().catch(() => undefined);
+    }
+  });
+}
+
 // Every Photo of the dataset as thumbnails, those no one is linked to or
 // tagged in first, each with how many people are on it. Picking one opens
 // it in the Photo viewer with no person, to step through them all there;

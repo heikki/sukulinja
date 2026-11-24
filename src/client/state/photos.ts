@@ -23,6 +23,8 @@ export interface Photos {
   all: Readable<PhotoRow[] | null | 'failed'>;
   // Asks for them, unless they've come or are coming.
   load: () => void;
+  // As load, once they're in: null if they couldn't be had.
+  loaded: () => Promise<PhotoRow[] | null>;
   // Asks for them again, if they were asked for.
   refresh: () => void;
   // Adds the pictures, one after another: the first new Photo, else the
@@ -42,6 +44,7 @@ export function openPhotos(api: DatasetApi): Photos {
   const refused = signal<string[]>([]);
   const req = new Latest();
   let asked = false;
+  let asking: Promise<void> = Promise.resolve();
 
   async function load() {
     asked = true;
@@ -87,7 +90,13 @@ export function openPhotos(api: DatasetApi): Photos {
   return {
     all,
     load() {
-      if (!asked) void load();
+      if (!asked) asking = load();
+    },
+    async loaded() {
+      if (!asked) asking = load();
+      await asking;
+      const rows = all.get();
+      return Array.isArray(rows) ? rows : null;
     },
     refresh,
     add,
