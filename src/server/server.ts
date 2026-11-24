@@ -25,7 +25,13 @@ import { isInside } from './inside';
 import { serveOperations } from './operations';
 import type { Handler } from './operations';
 import { treeOperations } from './persons/operations';
-import { FOREVER, photoOperations, routeAddPhoto, thumbnail } from './photos';
+import {
+  FOREVER,
+  photoOperations,
+  routeAddPhoto,
+  thumbnail,
+  warmThumbnails
+} from './photos';
 import { reminderOperations } from './reminders/operations';
 
 const DATASET_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?<rest>\/.*)?$/u;
@@ -111,7 +117,8 @@ export interface ApiOptions {
   // Where exports are saved; by default the user's Downloads.
   exportDir?: string;
   // Whether each dataset, once opened, asks Astia in the background for
-  // what its references resolve against.
+  // what its references resolve against, and makes its Photos'
+  // thumbnails that aren't made yet.
   warmUp?: boolean;
   // Where the assistant's API key is kept; by default the system's
   // credential store.
@@ -193,11 +200,15 @@ export function createApi(
     let handlers = handlersByDb.get(db);
     if (handlers === undefined) {
       const mediaDir = mediaDirOf(db);
-      handlers = createDatasetHandlers(
-        openServices(db, scans.forDataset(db), mediaDir),
-        mediaDir,
-        { keyStore, model: options.assistantModel ?? claude }
-      );
+      const services = openServices(db, scans.forDataset(db), mediaDir);
+      handlers = createDatasetHandlers(services, mediaDir, {
+        keyStore,
+        model: options.assistantModel ?? claude
+      });
+      if (options.warmUp === true) {
+        const names = services.photos.all().map((p) => p.path);
+        void warmThumbnails(mediaDir, names);
+      }
       handlersByDb.set(db, handlers);
     }
     return handlers;

@@ -21,7 +21,7 @@ export function renderPhotos(
             open(p);
           }}
         >
-          <img src=${url(p.path)} alt="" loading="lazy" draggable="false" />
+          <img src=${url(p.path)} alt="" draggable="false" />
         </button>`
     )}
   </div>`;

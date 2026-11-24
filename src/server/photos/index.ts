@@ -8,4 +8,4 @@ export type { Photos } from './photos';
 export { openTags, photoName } from './tags';
 export type { Tags } from './tags';
 export { photoOperations, routeAddPhoto } from './operations';
-export { FOREVER, removeThumbnail, thumbnail } from './thumbs';
+export { FOREVER, removeThumbnail, thumbnail, warmThumbnails } from './thumbs';

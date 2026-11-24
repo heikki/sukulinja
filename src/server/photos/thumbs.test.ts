@@ -3,7 +3,12 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { removeThumbnail, thumbnail, thumbsDirOf } from './thumbs';
+import {
+  removeThumbnail,
+  thumbnail,
+  thumbsDirOf,
+  warmThumbnails
+} from './thumbs';
 
 let root = '';
 let mediaDir = '';
@@ -76,4 +81,14 @@ test('a thumbnail goes with its file', async () => {
   await removeThumbnail(mediaDir, 'big.bmp');
   expect(await Bun.file(path).exists()).toBe(false);
   await removeThumbnail(mediaDir, 'never.bmp');
+});
+
+test('those not made yet are made ahead, and missing files left be', async () => {
+  await picture('a.bmp', 800, 600);
+  await picture('b.bmp', 600, 800);
+  await warmThumbnails(mediaDir, ['a.bmp', 'gone.bmp', 'b.bmp']);
+  const thumbs = thumbsDirOf(mediaDir);
+  expect(await Bun.file(join(thumbs, 'a.bmp.jpg')).exists()).toBe(true);
+  expect(await Bun.file(join(thumbs, 'b.bmp.jpg')).exists()).toBe(true);
+  expect(await Bun.file(join(thumbs, 'gone.bmp.jpg')).exists()).toBe(false);
 });

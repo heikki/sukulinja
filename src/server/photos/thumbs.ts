@@ -27,34 +27,49 @@ function thumbPath(mediaDir: string, name: string) {
 }
 
 // Being made now, so that tiles asking at once make each only once; and
-// those that couldn't be, which aren't tried again until the app restarts.
-const making = new Map<string, Promise<boolean>>();
+// the pictures that can't be scaled, which aren't tried again until the
+// app restarts.
+const making = new Map<string, Promise<Made>>();
 const unscalable = new Set<string>();
 
-async function make(source: string, target: string) {
+// Made, or the picture can't be scaled, or it couldn't be saved (a full
+// disk, say), which a later ask tries again.
+type Made = 'made' | 'unscalable' | 'unsaved';
+
+async function scaled(source: string) {
   try {
     const { width, height } = await new Bun.Image(source).metadata();
     const scale = Math.min(1, SHORT_EDGE / Math.min(width, height));
-    const bytes = await new Bun.Image(source)
+    return await new Bun.Image(source)
       .resize(
         Math.max(1, Math.round(width * scale)),
         Math.max(1, Math.round(height * scale))
       )
       .jpeg({ quality: JPEG_QUALITY })
       .bytes();
+  } catch {
+    return null;
+  }
+}
+
+async function make(source: string, target: string): Promise<Made> {
+  const bytes = await scaled(source);
+  if (bytes === null) return 'unscalable';
+  // Written aside and moved in, so a thumbnail is never seen half done.
+  const part = `${target}.${process.pid}.part`;
+  try {
     await mkdir(dirname(target), { recursive: true });
-    // Written aside and moved in, so a thumbnail is never seen half done.
-    const part = `${target}.${process.pid}.part`;
     await Bun.write(part, bytes);
     await rename(part, target);
-    return true;
+    return 'made';
   } catch {
-    return false;
+    await rm(part, { force: true }).catch(() => undefined);
+    return 'unsaved';
   }
 }
 
 // The thumbnail of `name`, a file of `mediaDir` known to be there: the
-// path to serve, which is the file itself when it can't be scaled.
+// path to serve, which is the file itself when there's none.
 export async function thumbnail(mediaDir: string, name: string) {
   const source = join(mediaDir, name);
   const target = thumbPath(mediaDir, name);
@@ -68,12 +83,26 @@ export async function thumbnail(mediaDir: string, name: string) {
       making.delete(target);
     });
   }
-  if (await made) return target;
-  unscalable.add(source);
+  const how = await made;
+  if (how === 'made') return target;
+  if (how === 'unscalable') unscalable.add(source);
   return source;
 }
 
 // Removes a file's thumbnail with it; one never made is fine.
 export async function removeThumbnail(mediaDir: string, name: string) {
   await rm(thumbPath(mediaDir, name), { force: true });
+}
+
+// Makes the thumbnails of `names` that aren't made yet, one at a time,
+// so the Photos tab finds them ready the first time it opens. Those
+// made already cost a look on disk each.
+export async function warmThumbnails(mediaDir: string, names: string[]) {
+  for (const name of names) {
+    // eslint-disable-next-line no-await-in-loop -- one at a time, in the background
+    if (await Bun.file(join(mediaDir, name)).exists()) {
+      // eslint-disable-next-line no-await-in-loop -- as above
+      await thumbnail(mediaDir, name);
+    }
+  }
 }
