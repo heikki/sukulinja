@@ -25,6 +25,7 @@ class NewDatasetElement extends LitElement {
       }
 
       .dialog .form {
+        margin-top: 0.3rem;
         border: 0;
         padding: 0;
         background: none;
@@ -36,7 +37,7 @@ class NewDatasetElement extends LitElement {
       }
 
       .dialog .actions {
-        margin-top: 1rem;
+        margin-top: 1.2rem;
       }
 
       .dialog .form p.error {

@@ -35,7 +35,8 @@ const ACTIONS: Record<DatasetAction, ActionCopy> = {
   delete: {
     title: 'Delete dataset?',
     body: (d) => html`
-      <strong>${d.displayName}</strong> (${d.personCount} people) will be
+      <strong>${d.displayName}</strong>
+      (${d.personCount === 1 ? '1 person' : `${d.personCount} people`}) will be
       permanently removed. This can't be undone.
     `,
     label: 'Delete',

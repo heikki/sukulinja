@@ -171,8 +171,11 @@ class ChangesListElement extends SignalWatcher(LitElement) {
       >
         <h2 id="clear-title">Clear the Changes?</h2>
         <p>
-          ${count === 1 ? 'The one Change' : `All ${count} Changes`} will be
-          removed from the list. What they did stays done.
+          ${
+            count === 1
+              ? 'The one Change will be removed from the list. What it did stays done.'
+              : `All ${count} Changes will be removed from the list. What they did stays done.`
+          }
         </p>
         ${
           typeof asking === 'object'

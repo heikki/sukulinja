@@ -140,9 +140,9 @@ class ContextMenuElement extends LitElement {
       <h2>${title}</h2>
       <p>${question}</p>
       <div class="actions">
-        <button class="act" @click=${this.close}>Cancel</button>
+        <button @click=${this.close}>Cancel</button>
         <button
-          class="act ${step.tone}"
+          class=${step.tone}
           @click=${() => {
             this.close();
             step.run();

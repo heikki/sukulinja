@@ -1,5 +1,6 @@
 import { css } from 'lit';
 
+import { actionStyles } from '@/client/dialog-styles';
 import { focusRingStyles } from '@/client/focus-ring';
 
 // Over whatever it opens on: in the Scan viewer, over its Box and under
@@ -72,8 +73,8 @@ const menu = css`
   }
 `;
 
-// An ask: its question wrapped to a dialog's width, its buttons drawn as a
-// dialog's (dialog-styles.ts), side by side at the end.
+// An ask: its question wrapped to a dialog's width, drawn as a dialog is
+// (dialog-styles.ts), its buttons the same.
 const ask = css`
   :host([role='alertdialog']) {
     max-width: 22rem;
@@ -81,47 +82,14 @@ const ask = css`
   }
 
   h2 {
-    margin: 0 0 0.3rem;
+    margin: 0 0 0.6rem;
     font-size: 1em;
   }
 
   p {
-    margin: 0 0 0.9rem;
+    margin: 0 0 1.2rem;
     color: var(--fg);
-  }
-
-  .actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
-  }
-
-  button.act {
-    padding: 0.35rem 0.9rem;
-    border-color: var(--raised-border);
-    text-align: center;
-  }
-
-  button.act:hover,
-  button.act:focus-visible {
-    background: color-mix(in srgb, var(--fg) 8%, transparent);
-  }
-
-  button.danger,
-  button.danger:hover,
-  button.danger:focus-visible {
-    background: var(--danger);
-    border-color: var(--danger);
-    color: var(--on-danger);
-  }
-
-  button.primary,
-  button.primary:hover,
-  button.primary:focus-visible {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--on-accent);
   }
 `;
 
-export const contextMenuStyles = [focusRingStyles, menu, ask];
+export const contextMenuStyles = [focusRingStyles, menu, actionStyles, ask];

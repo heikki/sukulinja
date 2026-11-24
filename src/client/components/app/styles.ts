@@ -200,20 +200,18 @@ export const appStyles = css`
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
-    margin: 0 0 1.25rem;
-    font-size: 0.85rem;
+    margin: 0.3rem 0 1.2rem;
     font-weight: 500;
     color: var(--muted);
   }
   .dialog .field input {
     -webkit-user-select: text;
-    padding: 0.55rem 0.7rem;
+    padding: 0.4rem 0.6rem;
     background: var(--bg);
     color: var(--fg);
     border: 1px solid var(--border);
     border-radius: 6px;
     font: inherit;
-    font-size: 0.95rem;
     font-weight: 400;
   }
   .dialog .field input:focus {
@@ -229,7 +227,6 @@ export const appStyles = css`
   }
   .import-dialog {
     max-width: 32rem;
-    padding: 1.5rem 1.75rem;
   }
   /* Names the picked file, ellipsised so a long one keeps to one line. */
   .import-dialog h2 {

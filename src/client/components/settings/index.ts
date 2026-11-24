@@ -313,7 +313,7 @@ class SettingsElement extends LitElement {
                     downloaded scans will be
                     removed.${
                       drop.kept > 0
-                        ? ' The cited ones offloaded volumes keep stay.'
+                        ? ' The cited images of offloaded volumes stay.'
                         : ''
                     }`
                 : html`About <strong>${formatBytes(drop.bytes)}</strong> of
