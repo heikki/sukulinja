@@ -28,6 +28,7 @@ export function serveInBrowser(
       '/': indexHtml,
       '/d/:slug/api/*': false,
       '/d/:slug/media/*': false,
+      '/d/:slug/thumbs/*': false,
       '/d/:slug': indexHtml,
       '/d/:slug/*': indexHtml
     },

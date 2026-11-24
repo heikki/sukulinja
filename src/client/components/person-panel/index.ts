@@ -136,7 +136,7 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
     const { photoViewer, chart, api } = this.state;
     const shown = photoViewer.opened.get()?.id ?? null;
     return renderPhotos(photos, shown, {
-      url: api.mediaUrl,
+      url: api.photoThumbUrl,
       open: (p) => {
         if (p.id === shown) photoViewer.close();
         else chart.openPhoto(p);

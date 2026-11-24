@@ -375,6 +375,8 @@ export function memoryDatasetApi(
 
     mediaUrl: (storedPath) => `memory:media/${storedPath}`,
 
+    photoThumbUrl: (storedPath) => `memory:media/${storedPath}`,
+
     // Added, whatever the file: which are pictures, and which the dataset
     // has already, are the server's to say (served.ts).
     addPhoto: async (file) =>

@@ -212,6 +212,8 @@ export interface DatasetApi {
   photos: (signal?: AbortSignal) => Promise<PhotoRow[]>;
   // A Photo's file, as the dataset stores it.
   mediaUrl: (storedPath: string) => string;
+  // A Photo's thumbnail, for a tile: a few hundred pixels across.
+  photoThumbUrl: (storedPath: string) => string;
   // Adds a picture from disk as a Photo linked to no one: it, or the one
   // the dataset has of the same file. Refused for what isn't a picture.
   addPhoto: (file: File) => Promise<AddedPhoto>;
@@ -407,6 +409,8 @@ export function openDatasetApi(
     photos: async (signal) => await call('photos', {}, 'Photos', signal),
 
     mediaUrl: (storedPath) => `${dataset}/media/${storedPath}`,
+
+    photoThumbUrl: (storedPath) => `${dataset}/thumbs/${storedPath}`,
 
     // The file goes as a form, not as an operation's JSON.
     async addPhoto(file) {

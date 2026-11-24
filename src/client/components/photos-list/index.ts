@@ -150,7 +150,7 @@ class PhotosListElement extends SignalWatcher(LitElement) {
     >
       <span class="thumb">
         <img
-          src=${this.state.api.mediaUrl(p.path)}
+          src=${this.state.api.photoThumbUrl(p.path)}
           alt=""
           loading="lazy"
           decoding="async"

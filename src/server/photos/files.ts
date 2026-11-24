@@ -15,6 +15,7 @@ import { removeMediaFile, storeMediaFile } from '../datasets/media-files';
 import { mimeOf } from '../gedcom/media-refs';
 import type { Photos } from './photos';
 import { photoName } from './tags';
+import { removeThumbnail } from './thumbs';
 
 // The pictures a Photo can be: what the Photo viewer shows.
 const PICTURES = new Set([
@@ -106,6 +107,7 @@ export function openPhotoFiles(
         });
       })();
       await removeMediaFile(media.file_path, mediaDir);
+      await removeThumbnail(mediaDir, media.file_path);
       return people;
     }
   };

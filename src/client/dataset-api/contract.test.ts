@@ -425,6 +425,7 @@ describe('the answers', () => {
     expect(added).toMatchObject({ already: false, photo: { people: [] } });
     expect(await api.addPhoto(file)).toEqual({ ...added, already: true });
     expect(await status(api.mediaUrl(added.photo.path))).toBe(200);
+    expect(await status(api.photoThumbUrl(added.photo.path))).toBe(200);
     expect(await failure(api.addPhoto(new File(['x'], 'kirje.txt')))).toBe(
       "kirje.txt isn't a picture"
     );

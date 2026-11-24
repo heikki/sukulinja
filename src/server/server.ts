@@ -25,7 +25,7 @@ import { isInside } from './inside';
 import { serveOperations } from './operations';
 import type { Handler } from './operations';
 import { treeOperations } from './persons/operations';
-import { photoOperations, routeAddPhoto } from './photos';
+import { FOREVER, photoOperations, routeAddPhoto, thumbnail } from './photos';
 import { reminderOperations } from './reminders/operations';
 
 const DATASET_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?<rest>\/.*)?$/u;
@@ -41,18 +41,25 @@ interface DatasetHandlers {
   route: (req: Request, rest: string) => Promise<Response | null>;
 }
 
-// A file of the dataset's media folder.
-async function serveMedia(mediaDir: string, rest: string) {
-  const rel = decodeURIComponent(rest.slice('/media/'.length));
+// A file of the dataset's media folder, at `/media/<name>`, or its
+// thumbnail, at `/thumbs/<name>`; cached for good, as each is named by
+// its content, unless the thumbnail couldn't be made.
+async function serveMedia(mediaDir: string, rest: string, thumb: boolean) {
+  const prefix = thumb ? '/thumbs/' : '/media/';
+  const rel = decodeURIComponent(rest.slice(prefix.length));
   const fullPath = resolve(mediaDir, rel);
   if (!isInside(mediaDir, fullPath)) {
     return new Response('forbidden', { status: 403 });
   }
-  const file = Bun.file(fullPath);
-  if (!(await file.exists())) {
+  if (!(await Bun.file(fullPath).exists())) {
     return new Response('not found', { status: 404 });
   }
-  return new Response(file);
+  const served = thumb ? await thumbnail(mediaDir, rel) : fullPath;
+  // A thumbnail that couldn't be made, served whole, may be made later.
+  const kept = !thumb || served !== fullPath;
+  return new Response(Bun.file(served), {
+    headers: { 'Cache-Control': kept ? FOREVER : 'no-cache' }
+  });
 }
 
 function createDatasetHandlers(
@@ -84,7 +91,12 @@ function createDatasetHandlers(
   return {
     changes,
     async route(req, rest) {
-      if (rest.startsWith('/media/')) return await serveMedia(mediaDir, rest);
+      if (rest.startsWith('/media/')) {
+        return await serveMedia(mediaDir, rest, false);
+      }
+      if (rest.startsWith('/thumbs/')) {
+        return await serveMedia(mediaDir, rest, true);
+      }
       return (
         (await routeAddPhoto(req, photoFiles, rest)) ??
         (await operations(req, rest))
