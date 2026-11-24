@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import { capDrop, clearDrop, formatBytes } from './helpers';
+import { capDrop, clearDrop, folderName, formatBytes } from './helpers';
 
 const GB = 1024 ** 3;
 
@@ -36,4 +36,12 @@ test('a cap below the space used drops the difference', () => {
   });
   expect(capDrop(3 * GB, 5 * GB)).toBeNull();
   expect(capDrop(5 * GB, 5 * GB)).toBeNull();
+});
+
+test('names a folder by its drive and its own name', () => {
+  expect(folderName('/Volumes/Crucial X10/Sukupolku/Volumes')).toBe(
+    'Crucial X10 › Volumes'
+  );
+  expect(folderName('/Volumes/Crucial X10')).toBe('Crucial X10');
+  expect(folderName('/Users/heikki/Offload/')).toBe('Offload');
 });

@@ -28,3 +28,14 @@ export function clearDrop({
 export function capDrop(used: number, cap: number): StorageDrop | null {
   return used > cap ? { kind: 'cap', cap, bytes: used - cap } : null;
 }
+
+// A folder as Settings names it: the folder's own name, after its drive's
+// when it's on one mounted under /Volumes; the full path is the title.
+export function folderName(path: string) {
+  const parts = path.split('/').filter((part) => part !== '');
+  const name = parts.at(-1) ?? path;
+  if (parts[0] === 'Volumes' && parts.length > 2) {
+    return `${parts[1]} › ${name}`;
+  }
+  return name;
+}

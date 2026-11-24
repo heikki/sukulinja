@@ -81,7 +81,7 @@ test("a reference's entry is placed by hand", async () => {
     // moved into the offload folder chosen in Settings.
     await page.getByRole('button', { name: 'Settings' }).click();
     await page.getByRole('button', { name: 'Choose…' }).click();
-    await page.getByText(/sukulinja-e2e-.*offload$/).waitFor();
+    await page.getByTitle(/sukulinja-e2e-.*offload$/m).waitFor();
     await shot(page, 'manual-mark-offload-folder');
     await page.keyboard.press('Escape');
     await openList(page, 'Volumes');

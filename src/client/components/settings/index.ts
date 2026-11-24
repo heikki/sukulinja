@@ -114,6 +114,10 @@ class SettingsElement extends LitElement {
         border: 0;
         border-top: 1px solid var(--border);
       }
+      /* Beside a row of lines, level with its first. */
+      .label.top {
+        align-self: start;
+      }
       .dataset {
         display: flex;
         justify-content: space-between;
@@ -345,9 +349,12 @@ class SettingsElement extends LitElement {
     return html`
       <div class="popover" role="group" aria-label="Settings">
         ${this.renderDataset()} ${this.renderAppearance()}
-        ${this.renderGenerations()} ${this.renderStorage()}
-        <span class="label">Offload folder</span>
+        ${this.renderGenerations()}
+        <hr class="rule" />
+        ${this.renderStorage()}
+        <span class="label top">Offload folder</span>
         <sl-offload-folder></sl-offload-folder>
+        <hr class="rule" />
         ${this.renderPageNumbers()} ${this.renderAssistant()}
       </div>
     `;
@@ -412,13 +419,16 @@ class SettingsElement extends LitElement {
     const cache = this.storage;
     if (cache === null || typeof cache === 'string') {
       return html`
-        <span class="label">Storage</span>
+        <span class="label">Scans on disk</span>
         <span class="label">${cache ?? 'Asking the app…'}</span>
       `;
     }
     return html`
-      <span class="label">Storage</span>
-      <div class="segmented">
+      <span class="label">Scans on disk</span>
+      <div
+        class="segmented"
+        title="Kept under this; the least recently viewed go first"
+      >
         ${cache.caps.map(
           (cap) => html`
             <button
@@ -448,7 +458,7 @@ class SettingsElement extends LitElement {
               this.confirming = clearDrop(cache);
             }}
           >
-            Clear
+            Remove all…
           </button>
         </div>
       </div>

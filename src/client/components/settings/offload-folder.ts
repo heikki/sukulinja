@@ -8,26 +8,42 @@ import { focusRingStyles } from '@/client/focus-ring';
 import { appApi } from '@/client/state';
 import type { OffloadFolder } from '@/common/types';
 
-// The folder set, and whether it's attached; or that there's none.
+import { folderName } from './helpers';
+
+// The folder set, by name, and whether its drive is connected; or that
+// there's none. What it's for, the full path and what offloading does
+// without one show on hover.
 function renderFolder(folder: OffloadFolder | null) {
   if (folder === null) {
-    return html`<span class="muted"
-      >None: an offload drops the images it doesn't keep.</span
+    return html`<span
+      class="muted"
+      title="Without one, offloading a volume deletes the scans it doesn't keep"
+      >Not set</span
     >`;
   }
-  return html`<span class="path" title=${folder.path}>${folder.path}</span> ${
+  return html`<span
+      class="path"
+      title="${folder.path}
+Offloaded volumes' scans are kept here"
+      >${folderName(folder.path)}</span
+    >
+    ${
       folder.attached
         ? nothing
-        : html`<span class="away"
-            >Not attached: its images can't be read.</span
+        : html`<span
+            class="away"
+            title="Scans offloaded there can't be opened until it is"
+            >Drive not connected</span
           >`
     }`;
 }
 
 // Settings' Offload folder row, under Storage: where an offload
 // moves the Images a Volume doesn't keep, an external drive say, and
-// whether it's attached; with none, an offload drops them. Chosen with the
-// app's folder picker; Clear sets none. Asked for each time Settings opens.
+// whether its drive is connected; with none, an offload drops them. Chosen
+// with the app's folder picker; once set, Stop using is offered instead,
+// setting none and deleting nothing in it. Asked for each time Settings
+// opens.
 @customElement('sl-offload-folder')
 class OffloadFolderElement extends LitElement {
   static override styles = [
@@ -49,6 +65,7 @@ class OffloadFolderElement extends LitElement {
       }
       .away {
         color: var(--danger);
+        white-space: normal;
       }
       .acts {
         display: flex;
@@ -105,24 +122,24 @@ class OffloadFolderElement extends LitElement {
           : html`<span class="away">${this.asking.refused}</span>`
       }
       <div class="acts">
-        <button
-          ?disabled=${this.asking.busy}
-          @click=${() => {
-            void this.ask(async () => await app.chooseOffloadFolder());
-          }}
-        >
-          Choose…
-        </button>
         ${
           folder === null || folder === undefined
-            ? nothing
+            ? html`<button
+                ?disabled=${this.asking.busy || folder === undefined}
+                @click=${() => {
+                  void this.ask(async () => await app.chooseOffloadFolder());
+                }}
+              >
+                Choose…
+              </button>`
             : html`<button
                 ?disabled=${this.asking.busy}
+                title="Forgets the folder; nothing in it is deleted, but the scans offloaded there can't be opened until it's chosen again"
                 @click=${() => {
                   void this.ask(async () => await app.clearOffloadFolder());
                 }}
               >
-                Clear
+                Stop using
               </button>`
         }
       </div>
