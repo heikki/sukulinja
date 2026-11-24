@@ -131,3 +131,49 @@ test("the picker offers the Volumes the Selected person's Facts fit", async () =
     await shot(page, 'volumes-parish');
   });
 });
+
+test('the This tree / All books choice is kept as the tab closes and opens', async () => {
+  await withApp(async ({ page }) => {
+    // A Volume partly downloaded for one tree is on this computer, off
+    // another's Book list.
+    await newTree(page);
+    await openList(page, 'Volumes');
+    const list = page.locator('sl-volumes-list');
+    await list.getByRole('button', { name: 'Add volumes…' }).click();
+    const picker = page.getByRole('dialog', { name: 'Add volumes' });
+    await picker
+      .getByRole('button', { name: '+ Find a parish in Astia' })
+      .click();
+    await picker.getByLabel('Parish in Astia').fill('Keksitty');
+    await picker
+      .getByRole('button', { name: 'Keksityn seurakunnan arkisto' })
+      .click();
+    await picker
+      .getByRole('button', { name: 'Add I Aa:1 Rippikirja (1800-1810)' })
+      .click();
+    await picker.getByRole('button', { name: 'Added' }).waitFor();
+    await picker.getByRole('button', { name: 'Close' }).click();
+    const book = list.getByRole('row').filter({ hasText: 'I Aa:1' });
+    await book.getByRole('button', { name: 'Download' }).click();
+    await book.getByText(/^Downloading \d+%/).waitFor();
+    await book.getByRole('button', { name: 'Stop' }).click();
+    await book.getByRole('button', { name: 'Download' }).waitFor();
+
+    await page.goto(new URL('/', page.url()).toString());
+    await importTree(page, 'myheritage-export.ged', 'Toinen suku');
+    await openList(page, 'Volumes');
+    await list.getByRole('button', { name: 'All books' }).click();
+    const allPressed = list.locator(
+      'button[aria-pressed="true"]:has-text("All books")'
+    );
+    await allPressed.waitFor();
+
+    // Kept past the Photos tab and past the lists closed.
+    await openList(page, 'Photos');
+    await openList(page, 'Volumes');
+    await allPressed.waitFor();
+    await page.getByRole('button', { name: /^Volumes, Photos/ }).click();
+    await openList(page, 'Volumes');
+    await allPressed.waitFor();
+  });
+});

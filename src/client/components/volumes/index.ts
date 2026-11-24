@@ -58,8 +58,10 @@ const POLL_MS = 2000;
 // (`open-volume`); the one the Scan viewer shows is marked. _Add
 // volumes…_ opens the Volume picker, whose Volumes join the Book list.
 // Leaving the tab stops asking.
-// Each dataset's view as its tab last showed it.
+// Each dataset's view as its tab last showed it, and its This tree / All
+// books choice.
 const lastViews = new WeakMap<object, VolumesView>();
+const lastTreeOnly = new WeakMap<object, boolean>();
 
 @customElement('sl-volumes-list')
 class VolumesListElement extends SignalWatcher(LitElement) {
@@ -182,6 +184,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     // The tab is made anew each time it opens: what it showed last is
     // shown at once, and the view asked for behind it.
     this.view = lastViews.get(this.state.api) ?? this.view;
+    this.treeOnly = lastTreeOnly.get(this.state.api) ?? this.treeOnly;
     void this.load();
   }
 
@@ -395,6 +398,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
             ?disabled=${waiting}
             @click=${() => {
               this.treeOnly = m.treeOnly;
+              lastTreeOnly.set(this.state.api, m.treeOnly);
             }}
           >
             ${m.label}
