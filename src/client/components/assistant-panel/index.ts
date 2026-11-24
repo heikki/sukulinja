@@ -75,6 +75,17 @@ function intro(living: boolean) {
   </p>`;
 }
 
+// The new datasets the applied items made, each to open.
+function opened(items: ProposedItem[]) {
+  return items.map((p) =>
+    p.opens === undefined || p.state !== 'applied'
+      ? nothing
+      : html`<a class="opens" href=${`/d/${p.opens.slug}/`}
+          >Open ${p.opens.name}</a
+        >`
+  );
+}
+
 @customElement('sl-assistant-panel')
 class AssistantPanelElement extends SignalWatcher(LitElement) {
   static override styles = [
@@ -167,6 +178,11 @@ class AssistantPanelElement extends SignalWatcher(LitElement) {
       .items .state {
         display: block;
         font-size: 0.92em;
+      }
+      a.opens {
+        display: block;
+        margin-top: 0.3rem;
+        color: var(--accent);
       }
       .items li.applied .state {
         color: var(--muted);
@@ -321,9 +337,10 @@ class AssistantPanelElement extends SignalWatcher(LitElement) {
     </ol>`;
     if (applying || items.some((p) => p.state === 'open')) return list;
     return html`<details class="settled">
-      <summary>${settledWords(items)}</summary>
-      ${list}
-    </details>`;
+        <summary>${settledWords(items)}</summary>
+        ${list}
+      </details>
+      ${opened(items)}`;
   }
 
   // Applying what's ticked, while anything waits; then what applying

@@ -26,6 +26,7 @@ import type {
   ChurchBookArchive,
   CitationLinks,
   CitationRow,
+  DatasetInfo,
   FactFields,
   FamilyRow,
   ListedBook,
@@ -253,6 +254,9 @@ export interface DatasetApi {
   move: (personId: number, from: number, to: MoveTarget) => Promise<void>;
   // Deletes the person, with all they held.
   deletePerson: (personId: number) => Promise<void>;
+  // Copies the people, with all they hold, as a new dataset under the
+  // name: the new dataset as listed.
+  copyToNewDataset: (name: string, personIds: number[]) => Promise<DatasetInfo>;
   // Changes what one of the person's Facts, or their families', says.
   editFact: (
     personId: number,
@@ -462,6 +466,12 @@ export function openDatasetApi(
     async deletePerson(personId) {
       await call('deletePerson', { personId }, 'Deleting the person');
     },
+    copyToNewDataset: async (name, personIds) =>
+      await call(
+        'copyToNewDataset',
+        { name, personIds },
+        'Making the new dataset'
+      ),
     addRelative: async (personId, relative) =>
       await call('addRelative', { personId, relative }, 'Adding the person'),
     addFact: async (personId, fact) =>

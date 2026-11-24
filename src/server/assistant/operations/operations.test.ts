@@ -197,6 +197,7 @@ test('every operation is a tool with a closed input, strict but for batches', ()
     'rename_person',
     'move_person',
     'remind',
+    'copy_to_new_dataset',
     'add_fact_many',
     'edit_fact_many',
     'support_fact_many',
@@ -231,6 +232,35 @@ test('proposes nothing on someone who may be living, unless on screen', () => {
   expect(asks('remind', input, { personId: 3 })).toMatchObject({
     operation: 'remind',
     body: { text: 'Katso kastekirja.', on: { personId: 3 } }
+  });
+});
+
+test('proposes a new dataset of the chart, the living on it included', () => {
+  const chart = { personId: null, onChart: [1, 2, 3, 3] };
+  const everyone = {
+    name: ' Esimerkit ',
+    everyoneOnChart: true,
+    personIds: []
+  };
+  expect(asks('copy_to_new_dataset', everyone, chart)).toEqual({
+    operation: 'copyToNewDataset',
+    body: { name: 'Esimerkit', personIds: [1, 2, 3] },
+    label: 'New dataset Esimerkit: copy everyone on the chart (3)',
+    opens: { slug: 'esimerkit', name: 'Esimerkit' }
+  });
+  // Named, though, the living are left out as anywhere.
+  const named = { name: 'Osa', everyoneOnChart: false, personIds: [1, 3] };
+  expect(asks('copy_to_new_dataset', named, chart)).toEqual({
+    rejected: `This is ${LEFT_OUT}.`
+  });
+  expect(
+    asks('copy_to_new_dataset', { ...named, personIds: [1, 2] }, chart)
+  ).toMatchObject({ body: { name: 'Osa', personIds: [1, 2] } });
+  expect(
+    asks('copy_to_new_dataset', { ...everyone, name: '?' }, chart)
+  ).toEqual({ rejected: 'The name needs a letter or a digit.' });
+  expect(asks('copy_to_new_dataset', everyone, { personId: null })).toEqual({
+    rejected: 'No one is on the chart.'
   });
 });
 

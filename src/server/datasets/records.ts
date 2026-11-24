@@ -62,7 +62,8 @@ export function deleteHeld(db: Database, owner: { fact: number }) {
   ]);
 }
 
-type Holder = 'person' | 'family' | 'fact' | 'name' | 'citation';
+type Holder =
+  'person' | 'family' | 'fact' | 'name' | 'citation' | 'note' | 'shared_note';
 
 // Removes the notes on the owner, with their Citations.
 function deleteNotes(db: Database, owner: string, id: number) {

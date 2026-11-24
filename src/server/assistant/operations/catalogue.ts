@@ -4,6 +4,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 
 import { supportFact } from './citations';
+import { copyToNewDataset } from './datasets';
 import { addFact, editFact } from './facts';
 import { changes, remind, reminders } from './notes';
 import type {
@@ -31,7 +32,8 @@ export const WRITE_OPERATIONS: readonly AnyWriteOperation[] = [
   supportFact,
   renamePerson,
   movePerson,
-  remind
+  remind,
+  copyToNewDataset
 ];
 
 export const SHOW_OPERATIONS: readonly AnyShowOperation[] = [

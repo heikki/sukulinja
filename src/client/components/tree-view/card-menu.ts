@@ -23,6 +23,7 @@ import '../context-menu';
 import '../person-form/delete';
 import '../person-form/move';
 import '../person-form/relative';
+import './copy-dataset';
 
 import type { Point } from './emit';
 import { formatName } from './renderer';
@@ -63,7 +64,8 @@ export function cardMenuAt(
 // Reminder about them; adding a relative of theirs, as `addableRelations`
 // allows, whose form opens in the menu's place; and taking them out of a
 // family, as `unlinkings` allows; moving them to another, as `movings`
-// offers; and deleting them, asked first. Asks to
+// offers; copying everyone the chart draws as a new dataset, named first;
+// and deleting them, asked first. Asks to
 // `close` once done with.
 @customElement('sl-card-menu')
 class CardMenuElement extends SignalWatcher(LitElement) {
@@ -84,6 +86,8 @@ class CardMenuElement extends SignalWatcher(LitElement) {
   @state() private moving: Moving | null = null;
   // Deleting them, once picked: the dialog asking first.
   @state() private deleting = false;
+  // Copying the chart as a new dataset, once picked: the dialog naming it.
+  @state() private copying = false;
   // Taking them out of a family, once picked; why it was refused, if it
   // was, shown in the menu's place.
   @state() private unlinking: { refused: string | null } | null = null;
@@ -92,6 +96,7 @@ class CardMenuElement extends SignalWatcher(LitElement) {
     if (changed.has('menu')) {
       this.adding = null;
       this.deleting = false;
+      this.copying = false;
       this.moving = null;
       this.unlinking = null;
     }
@@ -157,6 +162,12 @@ class CardMenuElement extends SignalWatcher(LitElement) {
           this.moving = moving;
         }
       })),
+      {
+        label: 'New dataset from the chart…',
+        run: () => {
+          this.copying = true;
+        }
+      },
       ...(deletable(menu.personId, people)
         ? [
             {
@@ -187,6 +198,14 @@ class CardMenuElement extends SignalWatcher(LitElement) {
           this.close();
         }}
       ></sl-move-form>`;
+    }
+    if (this.copying) {
+      return html`<sl-copy-dataset
+        .personIds=${[...new Set(this.state.chart.drawn())]}
+        @closed=${() => {
+          this.close();
+        }}
+      ></sl-copy-dataset>`;
     }
     if (this.deleting) {
       return html`<sl-delete-person
@@ -221,7 +240,8 @@ class CardMenuElement extends SignalWatcher(LitElement) {
               this.adding === null &&
               this.unlinking === null &&
               this.moving === null &&
-              !this.deleting
+              !this.deleting &&
+              !this.copying
             ) {
               this.close();
             }

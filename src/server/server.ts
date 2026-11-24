@@ -2,6 +2,7 @@ import type { Database } from 'bun:sqlite';
 import { resolve } from 'node:path';
 
 import { APP_OPERATIONS, OPERATIONS } from '@/common/operations';
+import type { DATASET_OPERATIONS } from '@/common/operations/datasets';
 
 import { assistantOperations } from './assistant/asking';
 import type { AssistantDeps } from './assistant/asking';
@@ -15,15 +16,16 @@ import type { Astia, DownloadOptions, VisionReaders } from './citations';
 import { systemKeyStore } from './claude/key';
 import type { KeyStore } from './claude/key';
 import { keyOperations, keyStatus } from './claude/key-operations';
+import { copyOperations } from './datasets/copy-operations';
 import { lifecycleRoutes } from './datasets/lifecycle-routes';
-import { mediaDirOf } from './datasets/registry';
+import { mediaDirOf, slugOf } from './datasets/registry';
 import type { DatasetRegistry } from './datasets/registry';
 import { openServices } from './datasets/services';
 import type { DatasetServices } from './datasets/services';
 import { factOperations } from './facts/operations';
 import { isInside } from './inside';
 import { serveOperations } from './operations';
-import type { Handler } from './operations';
+import type { Handler, Handlers } from './operations';
 import { treeOperations } from './persons/operations';
 import {
   FOREVER,
@@ -71,7 +73,8 @@ async function serveMedia(mediaDir: string, rest: string, thumb: boolean) {
 function createDatasetHandlers(
   services: DatasetServices,
   mediaDir: string,
-  assistant: AssistantDeps
+  assistant: AssistantDeps,
+  copies: Handlers<typeof DATASET_OPERATIONS>
 ): DatasetHandlers {
   const { reminders, changes, facts, photoFiles, scans } = services;
   // The dataset's own operations, which the assistant's Proposals are
@@ -83,7 +86,8 @@ function createDatasetHandlers(
     ...bookOperations(services),
     ...photoOperations(services),
     ...reminderOperations(reminders),
-    ...changeOperations(changes)
+    ...changeOperations(changes),
+    ...copies
   };
   async function run(...[name, input]: Parameters<RunOperation>) {
     if (!Object.hasOwn(own, name)) throw new Error(`no operation ${name}`);
@@ -165,13 +169,15 @@ export function createApi(
   });
   const routeLifecycle = lifecycleRoutes(registry, {
     exportDir: options.exportDir,
-    // Not into one an older version built, as undoing its first import
-    // since then puts back.
-    changed: (slug, change) => {
-      const db = tryOpen(slug);
-      if (db !== null) changed(db, change);
-    }
+    changed: changedIn
   });
+
+  // Writes a Change into the dataset under the slug; not into one an older
+  // version built, as undoing its first import since then puts back.
+  function changedIn(slug: string, change: NewChange) {
+    const db = tryOpen(slug);
+    if (db !== null) changed(db, change);
+  }
 
   // Writes a Change into the dataset whose Database it is.
   function changed(db: Database, change: NewChange) {
@@ -201,10 +207,17 @@ export function createApi(
     if (handlers === undefined) {
       const mediaDir = mediaDirOf(db);
       const services = openServices(db, scans.forDataset(db), mediaDir);
-      handlers = createDatasetHandlers(services, mediaDir, {
-        keyStore,
-        model: options.assistantModel ?? claude
-      });
+      handlers = createDatasetHandlers(
+        services,
+        mediaDir,
+        { keyStore, model: options.assistantModel ?? claude },
+        copyOperations({
+          registry,
+          slug: slugOf(db),
+          tree: services.tree,
+          changed: changedIn
+        })
+      );
       if (options.warmUp === true) {
         const names = services.photos.all().map((p) => p.path);
         void warmThumbnails(mediaDir, names);

@@ -522,6 +522,7 @@ export function memoryDatasetApi(
     move: servedOnly('move'),
 
     deletePerson: servedOnly('deletePerson'),
+    copyToNewDataset: servedOnly('copyToNewDataset'),
 
     async editFact(personId, factId, fields) {
       await answer(

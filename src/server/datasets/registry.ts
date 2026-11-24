@@ -5,7 +5,7 @@
 import type { Database } from 'bun:sqlite';
 import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readdir, rename, rm } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 
 import type { DatasetInfo, PersonName } from '@/common/types';
 
@@ -13,6 +13,7 @@ import { saveExport } from '../export/dataset';
 import { buildImport } from '../import/dataset';
 import type { ImportRequest } from '../import/dataset';
 import { createRecords } from '../persons/records';
+import { packPeople } from './copy';
 import { openAnyDb, openDb, OutdatedDatasetError } from './db';
 
 const SLUG_RE = /^[a-z0-9][a-z0-9_-]*$/u;
@@ -156,6 +157,52 @@ export class DatasetRegistry {
     }
   }
 
+  // Copies some of a dataset's people as a new dataset under its slug,
+  // through a GEDZIP of theirs imported as any is (copy.ts); the one they're
+  // from is left as it was. Whether they can be is the caller's to say.
+  async copy(req: {
+    from: string;
+    personIds: readonly number[];
+    slug: string;
+    displayName: string;
+  }) {
+    if (this.has(req.slug)) throw new DatasetExists(req.displayName);
+    const gedzip = await packPeople(
+      this.open(req.from),
+      this.mediaDir(req.from),
+      req.personIds,
+      await mkdtemp(join(this.root, '.staging-'))
+    );
+    const { info } = await this.import({
+      slug: req.slug,
+      displayName: req.displayName,
+      source: { gedzip },
+      sourceFilename: `${req.from}.gdz`
+    });
+    try {
+      this.copyBookList(req.from, req.slug);
+    } catch (err) {
+      // Not left half made, under a name then taken.
+      await this.delete(req.slug);
+      throw err;
+    }
+    return info;
+  }
+
+  // The Volumes listed by hand in one dataset's Book list, listed in the
+  // other's too: no GEDZIP carries them.
+  private copyBookList(from: string, to: string) {
+    const rows = this.open(from)
+      .query<{ volume_id: string; archive_id: string }, []>(
+        'SELECT volume_id, archive_id FROM listed_books'
+      )
+      .all();
+    const add = this.open(to).prepare(
+      'INSERT OR IGNORE INTO listed_books (volume_id, archive_id) VALUES (?, ?)'
+    );
+    for (const r of rows) add.run(r.volume_id, r.archive_id);
+  }
+
   // Saves the dataset as a GEDZIP into `dir` (Downloads by default), and
   // says where.
   async export(slug: string, options: { dir?: string } = {}) {
@@ -290,6 +337,11 @@ export class DatasetRegistry {
 // it by the dataset's slug.
 export function mediaDirOf(db: Database): string {
   return join(dirname(db.filename), 'media');
+}
+
+// The slug of a dataset's open database: its folder's name.
+export function slugOf(db: Database): string {
+  return basename(dirname(db.filename));
 }
 
 // The dataset's meta, by key; a null value isn't written.

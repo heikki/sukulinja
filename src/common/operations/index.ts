@@ -4,6 +4,7 @@ import { ASSISTANT_OPERATIONS } from './assistant';
 import { BOOK_OPERATIONS } from './books';
 import { CHANGE_OPERATIONS } from './changes';
 import { CITATION_OPERATIONS } from './citations';
+import { DATASET_OPERATIONS } from './datasets';
 import { FACT_OPERATIONS } from './facts';
 import { PHOTO_OPERATIONS } from './photos';
 import { REMINDER_OPERATIONS } from './reminders';
@@ -17,6 +18,7 @@ export const OPERATIONS = {
   ...PHOTO_OPERATIONS,
   ...REMINDER_OPERATIONS,
   ...CHANGE_OPERATIONS,
+  ...DATASET_OPERATIONS,
   ...ASSISTANT_OPERATIONS
 };
 

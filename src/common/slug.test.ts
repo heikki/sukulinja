@@ -17,5 +17,6 @@ describe('slugFromFilename', () => {
 
   test('collapses other punctuation to single dashes and trims the ends', () => {
     expect(slugFromFilename('  My Family! ')).toBe('my-family');
+    expect(slugFromFilename('_Suku_')).toBe('suku_');
   });
 });

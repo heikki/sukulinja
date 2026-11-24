@@ -131,7 +131,9 @@ export function doneLabel(what: ChangeWhat) {
     case 'import':
       return `Imported ${what.file}`;
     case 'new-dataset':
-      return 'Started the dataset';
+      return what.copied === undefined
+        ? 'Started the dataset'
+        : `Copied ${count(what.copied.people, 'person', 'people')} from ${what.copied.from}`;
     case 'addresses-to-places':
       return 'Moved addresses to places';
     case 'places-tidied':

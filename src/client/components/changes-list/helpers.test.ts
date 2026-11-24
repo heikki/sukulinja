@@ -75,6 +75,10 @@ test('says what each was', () => {
   expect(doneLabel({ kind: 'import', file: 'tree.ged' })).toBe(
     'Imported tree.ged'
   );
+  expect(doneLabel({ kind: 'new-dataset' })).toBe('Started the dataset');
+  expect(
+    doneLabel({ kind: 'new-dataset', copied: { from: 'Suku', people: 3 } })
+  ).toBe('Copied 3 people from Suku');
   expect(doneLabel({ kind: 'addresses-to-places', facts: 2 })).toBe(
     'Moved addresses to places'
   );

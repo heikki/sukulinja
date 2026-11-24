@@ -104,7 +104,14 @@ export function openProposal() {
     }
     const examples =
       asks.length === 1 ? [] : asks.slice(0, EXAMPLES).map((a) => a.label);
-    const item = { id: items.length + 1, label, reason, examples };
+    const opens = asks.length === 1 ? asks[0]!.opens : undefined;
+    const item: ProposalItem = {
+      id: items.length + 1,
+      label,
+      reason,
+      examples,
+      ...(opens === undefined ? {} : { opens })
+    };
     items.push({ item, parts, done: null });
     return item;
   }

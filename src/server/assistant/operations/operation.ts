@@ -7,7 +7,7 @@
 // from these (catalogue.ts).
 
 import type { OperationName } from '@/common/operations';
-import type { ShowOn } from '@/common/types';
+import type { ProposalItem, ShowOn } from '@/common/types';
 
 import type { TreeView } from '../tree-view';
 
@@ -41,6 +41,8 @@ export interface Asked {
   body: Record<string, unknown>;
   label: string;
   then?: LaterStep[];
+  // The dataset it makes, for the person to open once it's applied.
+  opens?: ProposalItem['opens'];
 }
 
 export interface LaterStep {

@@ -742,8 +742,9 @@ export type ChangeWhat =
   // A person deleted; the Change's `who` names them as they were.
   | { kind: 'person'; did: 'delete' }
   | { kind: 'import'; file: string }
-  // A dataset started with its first person, whom it's on.
-  | { kind: 'new-dataset' }
+  // A dataset started with its first person, on them; or copied from
+  // another's people, on no one.
+  | { kind: 'new-dataset'; copied?: { from: string; people: number } }
   // The Facts whose address stood alone, as MyHeritage wrote residences,
   // given it as their place, by a script since removed (ADR-0023).
   | { kind: 'addresses-to-places'; facts: number }
@@ -832,8 +833,9 @@ export interface ProposalItem {
   id: number;
   label: string;
   reason: string;
-  // A batch's first few changes, in words; none for one change.
+  // A batch's first few changes in words (none for one); a new dataset's, to open.
   examples: string[];
+  opens?: { slug: string; name: string };
 }
 
 // What applying the ticked items did: each one done, or refused with why;

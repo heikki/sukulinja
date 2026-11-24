@@ -140,3 +140,18 @@ export function descendantsOf(
   }
   return found;
 }
+
+// Whether the people, all of them, are one tree through the families among
+// them alone: what a dataset copied from them would be, no one in it cut
+// off from the rest.
+export function together(families: readonly FamilyRow[], ids: number[]) {
+  const within = new Set(ids);
+  const among = families.map((f) => ({
+    ...f,
+    husband_id:
+      f.husband_id !== null && within.has(f.husband_id) ? f.husband_id : null,
+    wife_id: f.wife_id !== null && within.has(f.wife_id) ? f.wife_id : null,
+    child_ids: f.child_ids.filter((id) => within.has(id))
+  }));
+  return joined(among, [...within]);
+}
