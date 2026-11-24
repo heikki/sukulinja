@@ -15,7 +15,7 @@ import type { EntryEvent } from '@/common/entry-events';
 import type { Box, PersonName } from '@/common/types';
 
 import { boxFromStage, boxOnStage } from '../box-stage/geometry';
-import type { MenuItem } from '../context-menu';
+import type { MenuAsk } from '../context-menu';
 import { searchable } from '../person-search/choices';
 import { placesHere } from '../reminders-list/places';
 import { entriesOn } from './citations';
@@ -335,31 +335,14 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   // Before Vision Match on a Volume whose page numbers aren't marked
   // checked: locate anyway, or not.
   private renderUncheckedWarning(at: Point, locate: () => void) {
-    return this.renderAsk(
-      at,
-      "This Volume's page numbers aren't marked checked; the estimates count from them",
-      { label: 'Locate anyway', run: locate }
-    );
-  }
-
-  // A step that can't be undone, under what it does: it, or Cancel.
-  private renderAsk(at: Point, heading: string, step: MenuItem) {
-    const close = () => {
-      this.popup = null;
+    const ask: MenuAsk = {
+      title: 'Locate anyway?',
+      question:
+        "This Volume's page numbers aren't marked checked; the estimates count from them.",
+      step: { label: 'Locate', tone: 'primary', run: locate }
     };
-    const items: MenuItem[] = [
-      {
-        ...step,
-        run: () => {
-          close();
-          step.run();
-        }
-      },
-      { label: 'Cancel', run: close }
-    ];
     return html`<sl-context-menu
-      .heading=${heading}
-      .items=${items}
+      .ask=${ask}
       .at=${at}
       @close=${this.onPopupClose}
     ></sl-context-menu>`;

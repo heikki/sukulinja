@@ -7,6 +7,7 @@ import { Asking } from '@/client/asking';
 import { visionModel } from '@/client/assistant-choices';
 import { assistantOn } from '@/client/assistant-flag';
 import { dialogStyles } from '@/client/dialog-styles';
+import type { Point } from '@/client/pan-zoom';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import { CLAUDE_MODELS } from '@/common/assistant-choices';
@@ -238,8 +239,11 @@ class VolumesListElement extends SignalWatcher(LitElement) {
   };
 
   // Asked first when it takes pages away; a survey taking none isn't.
-  private async askPages(book: VolumesRow, what: 'survey' | 'clear') {
-    const at = this.pagesMenu?.at ?? { x: 0, y: 0 };
+  private async askPages(
+    book: VolumesRow,
+    at: Point,
+    what: 'survey' | 'clear'
+  ) {
     const work = pageWork(this.state);
     const run = () => {
       void this.doing(async () => {
@@ -254,18 +258,22 @@ class VolumesListElement extends SignalWatcher(LitElement) {
       run();
       return;
     }
+    // Another menu opened while counting: that one stays.
+    if (this.pagesMenu !== null) return;
     this.pagesMenu = {
       book,
       at,
       ask:
         what === 'survey'
           ? {
-              heading: surveyAsk(byHand),
-              step: { label: 'Survey and take them away', run }
+              title: 'Survey page numbers?',
+              question: surveyAsk(byHand),
+              step: { label: 'Survey', tone: 'danger', run }
             }
           : {
-              heading: clearAsk(pinned),
-              step: { label: 'Clear page numbers', run }
+              title: 'Clear page numbers?',
+              question: clearAsk(pinned),
+              step: { label: 'Clear', tone: 'danger', run }
             }
     };
   }
@@ -281,11 +289,11 @@ class VolumesListElement extends SignalWatcher(LitElement) {
           await pageWork(this.state).mark(book, as);
         });
       },
-      survey: (book) => {
-        void this.askPages(book, 'survey');
+      survey: (book, at) => {
+        void this.askPages(book, at, 'survey');
       },
-      clear: (book) => {
-        void this.askPages(book, 'clear');
+      clear: (book, at) => {
+        void this.askPages(book, at, 'clear');
       }
     };
   }

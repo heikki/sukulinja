@@ -29,7 +29,9 @@ test('an estimate is located on its Image, and undone', async () => {
         .getByRole('menuitem', { name: /^Locate estimates on this Image/ })
         .click();
       // Its page numbers not checked, it asks first.
-      await page.getByRole('menuitem', { name: 'Locate anyway' }).click();
+      await page.getByRole('alertdialog').waitFor();
+      await shot(page, 'vision-unchecked-asked');
+      await page.getByRole('button', { name: 'Locate', exact: true }).click();
       await page.getByText('Found 1 of 1').waitFor();
       await people.getByText('Match', { exact: true }).waitFor();
       await shot(page, 'vision-found');
@@ -61,7 +63,7 @@ test('a located estimate is confirmed', async () => {
         .getByRole('menuitem', { name: /^Locate estimates on this Image/ })
         .click();
       // Its page numbers not checked, it asks first.
-      await page.getByRole('menuitem', { name: 'Locate anyway' }).click();
+      await page.getByRole('button', { name: 'Locate', exact: true }).click();
       await people.getByRole('button', { name: /Matti Esimerkki/ }).click();
 
       const own = page.locator('[data-own]');

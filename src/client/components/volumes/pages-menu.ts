@@ -11,14 +11,14 @@ import type { PageMark, VolumesRow } from '@/common/types';
 
 import '../context-menu';
 
-import type { MenuItem } from '../context-menu';
+import type { MenuAsk, MenuItem } from '../context-menu';
 
 // An open menu, its Volume and where it drops from in the tab; with
 // `ask`, the question before a step that takes pages away.
 export interface PagesMenu {
   book: VolumesRow;
   at: Point;
-  ask?: { heading: string; step: MenuItem };
+  ask?: MenuAsk;
 }
 
 export interface PagesActions {
@@ -26,11 +26,17 @@ export interface PagesActions {
   // The model a survey asks, by its label; null while the Assistant is
   // off.
   model: string | null;
-  survey: (book: VolumesRow) => void;
-  clear: (book: VolumesRow) => void;
+  // Each from where the menu was, to ask there; the menu's closed by the
+  // time they run.
+  survey: (book: VolumesRow, at: Point) => void;
+  clear: (book: VolumesRow, at: Point) => void;
 }
 
-export function pagesItems(book: VolumesRow, on: PagesActions): MenuItem[] {
+export function pagesItems(
+  book: VolumesRow,
+  at: Point,
+  on: PagesActions
+): MenuItem[] {
   function mark(as: PageMark | null) {
     return () => {
       on.mark(book, as);
@@ -48,7 +54,7 @@ export function pagesItems(book: VolumesRow, on: PagesActions): MenuItem[] {
       label: 'Survey page numbers',
       detail: on.model,
       run: () => {
-        on.survey(book);
+        on.survey(book, at);
       }
     });
   }
@@ -56,7 +62,7 @@ export function pagesItems(book: VolumesRow, on: PagesActions): MenuItem[] {
     items.push({
       label: 'Clear page numbers',
       run: () => {
-        on.clear(book);
+        on.clear(book, at);
       }
     });
   }
@@ -78,27 +84,24 @@ function images(n: number) {
 // The questions before a survey takes away pages set by hand, and before
 // clearing takes away every page read or set.
 export function surveyAsk(byHand: number) {
-  return `The survey takes away ${byHand === 1 ? 'the page' : `${byHand} pages`} set by hand in this Volume`;
+  return `The survey takes away ${byHand === 1 ? 'the page' : `${byHand} pages`} set by hand in this Volume.`;
 }
 
 export function clearAsk(pinned: number) {
-  return `Takes away the page numbers read or set on ${images(pinned)} of this Volume`;
+  return `Takes away the page numbers read or set on ${images(pinned)} of this Volume.`;
 }
 
-// The menu, or its question: the step, or Cancel.
+// The menu, or its question: Cancel, or the step.
 export function renderPagesMenu(
   menu: PagesMenu | null,
   on: PagesActions,
   close: () => void
 ) {
   if (menu === null) return nothing;
-  const { ask } = menu;
   const items =
-    ask === undefined
-      ? pagesItems(menu.book, on)
-      : [ask.step, { label: 'Cancel', run: close }];
+    menu.ask === undefined ? pagesItems(menu.book, menu.at, on) : [];
   return html`<sl-context-menu
-    .heading=${ask?.heading ?? null}
+    .ask=${menu.ask ?? null}
     .items=${items.map((i) => ({
       ...i,
       run: () => {

@@ -15,6 +15,10 @@
   --muted: light-dark(#6b7280, #9ca3af);
   --border: light-dark(#e5e7eb, #2a2a2e);
   --card: light-dark(#fff, #18181b);
+  /* What floats over a card, a menu or its question: a step lighter in the
+     dark, so it doesn't sink into the panel it opens on. */
+  --raised: light-dark(#fff, #26262b);
+  --raised-border: light-dark(#cfd4db, #45454d);
   --accent: light-dark(#1a4f8a, #7aa8d6);
   /* Text on an --accent / --danger fill. */
   --on-accent: light-dark(#fff, #0e0e10);

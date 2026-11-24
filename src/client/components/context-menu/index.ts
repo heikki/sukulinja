@@ -1,4 +1,5 @@
 import { html, LitElement, nothing } from 'lit';
+import type { PropertyValues } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
 import type { Point } from '@/client/pan-zoom';
@@ -20,16 +21,26 @@ export interface MenuItem {
   run: () => void;
 }
 
+// A step asked first where the menu was, as a dialog asks: its title, what
+// it does, then Cancel and the step side by side; `tone` colours the step,
+// red where it takes away what can't be got back.
+export interface MenuAsk {
+  title: string;
+  question: string;
+  step: { label: string; tone: 'danger' | 'primary'; run: () => void };
+}
+
 function stop(e: Event) {
   e.stopPropagation();
 }
 
 // What a right-click offers, drawn in the page in place of WebKit's own
 // menu, at `at` in the element it's positioned in and kept inside it, under
-// its `heading` when it has one; with `alignRight`, `at` is its top-right
+// its `heading` when it has one, or with `ask`, its question in place of
+// the items; with `alignRight`, `at` is its top-right
 // corner, for a menu dropping from a button's right edge. Presses on it stay on it, so they don't pan
 // what's under it. A choice, Esc or a press anywhere else asks to `close`.
-// ↑/↓ move between the items.
+// ↑/↓ move between the items, ←/→ between an ask's buttons.
 @customElement('sl-context-menu')
 class ContextMenuElement extends LitElement {
   static override styles = contextMenuStyles;
@@ -38,10 +49,10 @@ class ContextMenuElement extends LitElement {
   @property({ attribute: false }) heading: string | null = null;
   @property({ attribute: false }) at: Point = { x: 0, y: 0 };
   @property({ attribute: false }) alignRight = false;
+  @property({ attribute: false }) ask: MenuAsk | null = null;
 
   override connectedCallback() {
     super.connectedCallback();
-    this.setAttribute('role', 'menu');
     for (const type of ['mousedown', 'wheel', 'dblclick', 'contextmenu']) {
       this.addEventListener(type, stop);
     }
@@ -57,11 +68,29 @@ class ContextMenuElement extends LitElement {
     window.removeEventListener('blur', this.close);
   }
 
+  // An ask is named by its title and read with its question.
+  override willUpdate() {
+    const { ask } = this;
+    this.setAttribute('role', ask === null ? 'menu' : 'alertdialog');
+    if (ask === null) {
+      this.removeAttribute('aria-label');
+      this.removeAttribute('aria-description');
+    } else {
+      this.setAttribute('aria-label', ask.title);
+      this.setAttribute('aria-description', ask.question);
+    }
+  }
+
+  // The first item focused, or an ask's Cancel, so Enter alone never takes
+  // its step; again when the same menu turns into an ask.
   override firstUpdated() {
     this.buttons()[0]?.focus();
   }
 
-  override updated() {
+  override updated(changed: PropertyValues<this>) {
+    if (changed.has('ask') && changed.get('ask') !== undefined) {
+      this.buttons()[0]?.focus();
+    }
     const left = this.alignRight ? this.at.x - this.offsetWidth : this.at.x;
     const { x, y } = placedInside(this, { x: left, y: this.at.y });
     this.style.left = `${x}px`;
@@ -85,7 +114,10 @@ class ContextMenuElement extends LitElement {
   private readonly onKeyDown = (e: KeyboardEvent) => {
     const buttons = this.buttons();
     const at = buttons.findIndex((b) => b === this.shadowRoot?.activeElement);
-    const moves: Record<string, number> = { ArrowDown: 1, ArrowUp: -1 };
+    const moves: Record<string, number> =
+      this.ask === null
+        ? { ArrowDown: 1, ArrowUp: -1 }
+        : { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 0, ArrowUp: 0 };
     const by = moves[e.key];
     if (e.key !== 'Escape' && by === undefined) return;
     e.preventDefault();
@@ -103,7 +135,27 @@ class ContextMenuElement extends LitElement {
     item.run();
   }
 
+  private renderAsk({ title, question, step }: MenuAsk) {
+    return html`
+      <h2>${title}</h2>
+      <p>${question}</p>
+      <div class="actions">
+        <button class="act" @click=${this.close}>Cancel</button>
+        <button
+          class="act ${step.tone}"
+          @click=${() => {
+            this.close();
+            step.run();
+          }}
+        >
+          ${step.label}
+        </button>
+      </div>
+    `;
+  }
+
   override render() {
+    if (this.ask !== null) return this.renderAsk(this.ask);
     return html`
       ${
         this.heading === null

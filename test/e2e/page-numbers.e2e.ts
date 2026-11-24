@@ -3,7 +3,7 @@
 // marked checked, those from its row's right-click menu in the Volumes
 // tab.
 
-import { afterAll, test } from 'bun:test';
+import { afterAll, expect, test } from 'bun:test';
 
 import type { Page } from 'playwright';
 
@@ -13,8 +13,9 @@ import { findsOn } from './vision';
 
 afterAll(closeBrowser);
 
-// Picks the step from the menu of the shown Volume's page numbers.
-async function fromPagesMenu(page: Page, step: string) {
+// Picks the step from the menu of the shown Volume's page numbers; where
+// the menu was, for its question to be asked in the same place.
+async function fromPagesMenu(page: Page, step: string, shotAs?: string) {
   await openList(page, 'Volumes');
   const list = page.locator('sl-volumes-list');
   const all = list.getByRole('button', { name: 'All books' });
@@ -25,7 +26,11 @@ async function fromPagesMenu(page: Page, step: string) {
     .locator('tr[aria-current="true"] td')
     .nth(4)
     .click({ button: 'right' });
+  const menu = page.locator('sl-context-menu');
+  const at = await menu.boundingBox();
+  if (shotAs !== undefined) await shot(page, shotAs);
   await page.getByRole('menuitem', { name: step }).click();
+  return at;
 }
 
 test("a Volume's page numbers are surveyed, corrected and cleared", async () => {
@@ -61,11 +66,21 @@ test("a Volume's page numbers are surveyed, corrected and cleared", async () => 
       await bubble.getByRole('button', { name: '≈ page 8' }).waitFor();
 
       // Cleared, the Images are counted from the first again.
-      await fromPagesMenu(page, 'Clear page numbers');
+      const menuAt = await fromPagesMenu(
+        page,
+        'Clear page numbers',
+        'page-numbers-menu'
+      );
       await page
         .getByText('Takes away the page numbers read or set on 2 Images')
         .waitFor();
-      await page.getByRole('menuitem', { name: 'Clear page numbers' }).click();
+      const askAt = await page.locator('sl-context-menu').boundingBox();
+      expect(askAt?.y).toBeCloseTo(menuAt?.y ?? -1, 0);
+      await shot(page, 'page-numbers-clear-asked');
+      await page
+        .getByRole('alertdialog')
+        .getByRole('button', { name: 'Clear', exact: true })
+        .click();
       await page.keyboard.press('Escape');
       await bubble.getByRole('button', { name: '≈ page 2' }).waitFor();
 

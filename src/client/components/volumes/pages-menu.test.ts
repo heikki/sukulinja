@@ -35,7 +35,9 @@ function actions(model: string | null): PagesActions {
 }
 
 function labels(pages: VolumesRow['pages'], model: string | null = null) {
-  return pagesItems(row(pages), actions(model)).map((i) => i.label);
+  return pagesItems(row(pages), { x: 0, y: 0 }, actions(model)).map(
+    (i) => i.label
+  );
 }
 
 test('page numbers not marked: surveyed with the Assistant on, cleared once read, or marked', () => {
