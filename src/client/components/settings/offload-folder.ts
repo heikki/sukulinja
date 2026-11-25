@@ -9,6 +9,7 @@ import { appApi } from '@/client/state';
 import type { OffloadFolder } from '@/common/types';
 
 import { folderName } from './helpers';
+import { knownOf } from './known';
 
 // The folder set, by name, and whether its drive is connected; or that
 // there's none. What it's for, the full path and what offloading does
@@ -43,7 +44,7 @@ Offloaded volumes' scans are kept here"
 // whether its drive is connected; with none, an offload drops them. Chosen
 // with the app's folder picker; once set, Stop using is offered instead,
 // setting none and deleting nothing in it. Asked for each time Settings
-// opens.
+// opens, drawn meanwhile as it last stood.
 @customElement('sl-offload-folder')
 class OffloadFolderElement extends LitElement {
   static override styles = [
@@ -98,12 +99,15 @@ class OffloadFolderElement extends LitElement {
 
   override connectedCallback() {
     super.connectedCallback();
+    this.folder = knownOf(this.app).folder;
     void this.ask(async () => await this.app.offloadFolder());
   }
 
   private async ask(asked: () => Promise<OffloadFolder | null>) {
     await this.asking.run(async () => {
-      this.folder = await asked();
+      const folder = await asked();
+      this.folder = folder;
+      knownOf(this.app).folder = folder;
     });
   }
 

@@ -18,12 +18,11 @@ import { appApi, appState, openAppState } from '@/client/state';
 import { slugFromFilename, withoutExtension } from '@/common/slug';
 import type { DatasetInfo } from '@/common/types';
 
-import { preloadPhotos } from '../photos-list';
-import { preloadVolumes } from '../volumes';
 import { confirmDialog, errorNote, runAction } from './dialogs';
 import type { Confirming, DatasetAction } from './dialogs';
 import { EXPORT_FORMAT, exportDataset } from './exports';
 import type { ExportNote } from './exports';
+import { preload } from './preload';
 import { menuButton, renderRowMenu } from './row-menu';
 import type { RowMenu, RowMenuActions } from './row-menu';
 import { appStyles } from './styles';
@@ -58,10 +57,7 @@ function provideDataset(
   app: AppApi
 ) {
   if (slug === null) return null;
-  const api = openDatasetApi(slug);
-  preloadVolumes(api);
-  const state = openAppState(api, app);
-  preloadPhotos(state);
+  const state = openAppState(openDatasetApi(slug), app);
   return new ContextProvider(host, { context: appState, initialValue: state });
 }
 
@@ -133,6 +129,7 @@ class AppElement extends LitElement {
   override connectedCallback() {
     super.connectedCallback();
     reportView();
+    preload(this.app.value, this.provider?.value ?? null);
     void this.loadDatasets();
   }
 

@@ -8,10 +8,12 @@ import { focusRingStyles } from '@/client/focus-ring';
 import { appApi } from '@/client/state';
 import type { AssistantKeyStatus } from '@/common/types';
 
+import { knownOf } from './known';
+
 // Settings' Assistant row: whether the assistant has an Anthropic API key,
 // a field to give one, and Remove for the one kept. The key goes to the
 // system's credential store and is never shown again. Asked for each time
-// the row is drawn, as Settings opens.
+// the row is drawn, as Settings opens, drawn meanwhile as it last stood.
 @customElement('sl-assistant-key')
 class AssistantKeyElement extends LitElement {
   static override styles = [
@@ -73,13 +75,16 @@ class AssistantKeyElement extends LitElement {
 
   override connectedCallback() {
     super.connectedCallback();
+    this.status = knownOf(this.app).key ?? null;
     void this.ask(this.app.assistantKey);
   }
 
   // Every ask answers with the status as it then stands.
   private async ask(asked: () => Promise<AssistantKeyStatus>) {
     await this.asking.run(async () => {
-      this.status = await asked();
+      const status = await asked();
+      this.status = status;
+      knownOf(this.app).key = status;
       this.typed = '';
     });
   }

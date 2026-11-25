@@ -22,6 +22,7 @@ import '../ask';
 import type { Ask } from '../ask';
 import { CornerPopover, popoverStyles } from '../corner-panel/popover';
 import { capDrop, clearDrop, formatBytes } from './helpers';
+import { knownOf } from './known';
 import { OFF_ON, rowStyles, segmented } from './segmented';
 
 import './assistant-choices';
@@ -60,7 +61,8 @@ const GEAR_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
 // and hears picks through `generations-change`; on the landing page there is
 // none and the row shows the preferred value. Every pick also becomes the
 // preference a dataset opens with. Scans on disk is the install's, kept by
-// the app: the row asks for it each time the popover opens. Anything that
+// the app: the row asks for it each time the popover opens, drawn
+// meanwhile as it last stood (known.ts). Anything that
 // would remove downloaded scans, Remove all or a cap below the space used,
 // asks to
 // confirm in a dialog first, naming how much goes.
@@ -219,7 +221,9 @@ class SettingsElement extends LitElement {
   // its place.
   private async askStorage(asked: () => Promise<StorageStatus>) {
     try {
-      this.storage = await asked();
+      const storage = await asked();
+      this.storage = storage;
+      knownOf(this.app).storage = storage;
     } catch (err) {
       if (!(err instanceof ApiError)) throw err;
       this.storage = err.message;
@@ -268,7 +272,9 @@ class SettingsElement extends LitElement {
         aria-expanded=${this.open}
         @click=${() => {
           this.corner.set(!this.open);
-          if (this.open) void this.askStorage(this.app.storage);
+          if (!this.open) return;
+          this.storage ??= knownOf(this.app).storage ?? null;
+          void this.askStorage(this.app.storage);
         }}
       >
         ${GEAR_ICON}
