@@ -440,7 +440,6 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
           }
         : {
             title: 'Delete citation?',
-            text: 'The citation is deleted, with its box.',
             step: 'Delete',
             tone: 'danger'
           };
@@ -477,7 +476,6 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     const refused = confirming === 'saving' ? null : confirming.refused;
     const ask: Ask = {
       title: refused === null ? 'Confirming match' : "Couldn't confirm",
-      text: 'It becomes a citation of this Image.',
       step: 'Try again',
       tone: 'primary'
     };

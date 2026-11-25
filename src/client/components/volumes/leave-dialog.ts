@@ -26,9 +26,9 @@ export function renderLeaveDialog({
     title: forGood ? `Remove ${name} for good?` : `Remove ${name} from disk?`,
     text: forGood
       ? html`All its images will be removed, from disk and from the offload
-        folder. They download again from Astia when opened.`
+        folder.`
       : html`All <strong>${formatBytes(book.onDisk.bytes)}</strong> of its
-          images will be removed. They download again from Astia when opened.`,
+          images will be removed.`,
     step: 'Remove',
     tone: 'danger'
   };

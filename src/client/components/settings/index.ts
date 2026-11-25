@@ -295,16 +295,14 @@ class SettingsElement extends LitElement {
           title: 'Remove all downloaded scans?',
           text: html`All <strong>${formatBytes(drop.bytes)}</strong> of
             downloaded scans will be
-            removed.${drop.kept > 0 ? ' The cited images of offloaded volumes stay.' : ''}
-            They download again from Astia when opened.`,
+            removed.${drop.kept > 0 ? ' The cited images of offloaded volumes stay.' : ''}`,
           step: 'Remove all',
           tone: 'danger'
         }
       : {
           title: `Lower the cap to ${formatBytes(drop.cap)}?`,
           text: html`About <strong>${formatBytes(drop.bytes)}</strong> of
-            downloaded scans, the least recently viewed, will be removed to fit.
-            They download again from Astia when opened.`,
+            downloaded scans, the least recently viewed, will be removed to fit.`,
           step: 'Lower cap',
           tone: 'danger'
         };
