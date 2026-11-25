@@ -10,12 +10,14 @@ import type { EntryEvent, EntryFields } from './entry-events';
 import { factKindLabel } from './facts';
 import type { Years } from './types';
 
-// A Fact as the Entry is held to it.
+// A Fact as the Entry is held to it; `supported` when the Entry being
+// edited is one of its sources already.
 export interface OwnFact {
   id: number;
   tag: string;
   date: string | null;
   place: string | null;
+  supported?: boolean;
 }
 
 // What a Fact says, its date and place.
@@ -79,7 +81,10 @@ function offersFor(
   now: { date: string; place: string | null },
   facts: OwnFact[]
 ): Offer[] {
-  const [fact, ...more] = facts.filter((f) => f.tag === tag);
+  const ofTag = facts.filter((f) => f.tag === tag);
+  // Of two or more, the one it supports already is its own.
+  const own = ofTag.filter((f) => f.supported === true);
+  const [fact, ...more] = own.length === 1 ? own : ofTag;
   if (fact === undefined) return [{ tag, action: 'add', now }];
   if (more.length > 0) return [{ tag, action: 'two' }];
   const date = dateTo(now.date, fact.date);
@@ -125,8 +130,10 @@ function overlaps(date: string | null, years: Years) {
 }
 
 // A household line's Residence: one at the same place in the years agrees,
-// and is supported; else one is added, from the Volume's first year to its
-// last. None without a place or years.
+// and is supported; one it supports already, its place since changed in
+// the tree or on the card, is changed to its place; else one is added,
+// from the Volume's first year to its last. None without a place or
+// years.
 function residenceOffers(
   place: string | null,
   years: Years | null,
@@ -140,8 +147,16 @@ function residenceOffers(
     const was = { date: same.date, place: same.place };
     return [{ tag: 'RESI', action: 'support', factId: same.id, was }];
   }
-  const now = { date: `BET ${years.from} AND ${years.to}`, place };
-  return [{ tag: 'RESI', action: 'add', now }];
+  const span = `BET ${years.from} AND ${years.to}`;
+  const own = facts.find(
+    (f) => f.tag === 'RESI' && f.supported === true && overlaps(f.date, years)
+  );
+  if (own !== undefined) {
+    const was = { date: own.date, place: own.place };
+    const now = { date: own.date ?? span, place };
+    return [{ tag: 'RESI', action: 'change', factId: own.id, was, now }];
+  }
+  return [{ tag: 'RESI', action: 'add', now: { date: span, place } }];
 }
 
 // The Entry's place as a Fact's is written (ADR-0024): as its book writes

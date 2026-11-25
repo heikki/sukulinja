@@ -72,8 +72,10 @@ interface TreeDeps {
 
 // What the Entry would be: in the Volume, of the Event, naming the people,
 // with its fields.
+// `entryId` when it's an Entry being edited.
 export interface EntryShape {
   volumeId: string;
+  entryId?: number;
   event: EntryEvent | null;
   people: InEntry[];
   fields: EntryFields;
@@ -106,9 +108,20 @@ export function entryTree(
   }
 
   // The owner's Facts: a couple not a family yet has none.
-  function ownFacts(owner: Owner) {
-    if (!owner.family) return factsOf.all('person', owner.personId);
-    return owner.familyId === null ? [] : factsOf.all('family', owner.familyId);
+  const supportedBy = db.prepare<{ factId: number }, [number]>(
+    `SELECT fc.fact_id AS factId FROM fact_citations fc
+     JOIN citations c ON c.id = fc.citation_id WHERE c.entry_id = ?`
+  );
+  // The owner's Facts, those the Entry being edited supports marked so.
+  function ownFacts(owner: Owner, entryId?: number): OwnFact[] {
+    const all = owner.family
+      ? owner.familyId === null
+        ? []
+        : factsOf.all('family', owner.familyId)
+      : factsOf.all('person', owner.personId);
+    if (entryId === undefined) return all;
+    const supported = new Set(supportedBy.all(entryId).map((r) => r.factId));
+    return all.map((f) => ({ ...f, supported: supported.has(f.id) }));
   }
   const factRow = db.prepare<
     {
@@ -181,7 +194,7 @@ export function entryTree(
       const offers = entryOffers(
         entry.event,
         { fields: entry.fields, place, years },
-        ownFacts(owner)
+        ownFacts(owner, entry.entryId)
       );
       return { offers };
     },

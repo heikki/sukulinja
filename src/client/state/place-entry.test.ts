@@ -219,3 +219,29 @@ test("Edit of an Entry with no dates starts from its Transcription's, as Place e
   const christening = details.facts.find((f) => f.tag === 'CHR');
   expect(details.citations[0]?.supports).toEqual([christening!.id]);
 });
+
+test("an edited Entry's lines know the Fact it supports from another of its kind", async () => {
+  const { viewer } = await viewing();
+  viewer.placeEntry(BOX, {
+    event: 'CHR',
+    people: BOTH,
+    fields: { ...NO_TYPED, date: '3.3.1795' }
+  });
+  await viewer.save();
+  const entryId = (await citingNow())[0]!.entryId!;
+  // A second Christening, made by hand since.
+  served!.db().run(
+    `INSERT INTO facts (scope_type, scope_id, tag, date_text, sort_order)
+     VALUES ('person', 1, 'CHR', '1796', 9)`
+  );
+  const asked = {
+    volumeId: VOLUME,
+    event: 'CHR' as const,
+    people: BOTH,
+    fields: { date: '3 MAR 1795', lifeDate: null, place: null }
+  };
+  expect(await api!.entryOffers(asked)).toMatchObject([{ action: 'two' }]);
+  expect(await api!.entryOffers({ ...asked, entryId })).toMatchObject([
+    { tag: 'CHR', action: 'support' }
+  ]);
+});

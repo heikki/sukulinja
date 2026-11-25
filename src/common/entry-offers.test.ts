@@ -182,3 +182,34 @@ test("a household line's Residence agrees at the same place in overlapping years
   }
   expect(entryOffers('RESI', { ...said, place: null }, [])).toEqual([]);
 });
+
+test('a Residence the line supports already, its place changed since, is changed back, unticked, not added again', () => {
+  const years = { from: 1790, to: 1796 };
+  const said = { fields: NO_FIELDS, place: PLACE, years };
+  const moved = {
+    ...resi('BET 1790 AND 1796', 'Kylämaa 4, Juva'),
+    supported: true
+  };
+  const offers = entryOffers('RESI', said, [moved]);
+  expect(offers).toEqual([
+    {
+      tag: 'RESI',
+      action: 'change',
+      factId: 5,
+      was: { date: 'BET 1790 AND 1796', place: 'Kylämaa 4, Juva' },
+      now: { date: 'BET 1790 AND 1796', place: PLACE }
+    }
+  ]);
+  expect(offers.every(tickedFirst)).toBe(false);
+});
+
+test('of two Facts of its kind, the one the Entry supports already is its own', () => {
+  const own = { ...birth('3 MAR 1761', PLACE, 1), supported: true };
+  const other = birth('1762', PLACE, 2);
+  expect(
+    entryOffers('CHR', { fields: BAPTISM, place: PLACE }, [own, other])
+  ).toMatchObject([
+    { tag: 'BIRT', action: 'support', factId: 1 },
+    { tag: 'CHR', action: 'add' }
+  ]);
+});

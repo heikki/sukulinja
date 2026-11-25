@@ -87,6 +87,11 @@ function namedNew({ people, newcomers }: PendingCite) {
 }
 type EditedEntry = PendingChange & { kind: 'edit' };
 
+// The Entry being edited, as its lines are asked.
+function editedId(change: PendingChange): { entryId?: number } {
+  return change.kind === 'edit' ? { entryId: change.editing.entryId } : {};
+}
+
 // Throws ApiError for a date on the card that can't be read.
 function refuseDates(cite: PendingCite) {
   const wrong = datesRefusal(cite.event, cite.fields);
@@ -120,7 +125,7 @@ export function pendingEntry(
       lines.clear();
       return;
     }
-    lines.ask({ volumeId: now.volumeId, ...now.cite });
+    lines.ask({ volumeId: now.volumeId, ...editedId(now), ...now.cite });
   }
 
   // The lines asked afresh, as the pending change begins: the tree may
@@ -176,11 +181,14 @@ export function pendingEntry(
 
   // The fields and lines to save with the Entry, as it is now. Throws
   // ApiError for a date that can't be read.
-  async function saying(volumeId: string, cite: PendingCite) {
+  async function saying(volumeId: string, cite: PendingCite, entryId?: number) {
     refuseDates(cite);
     return {
       fields: fieldsOf(cite.event, cite.fields),
-      ticked: await lines.ticked({ volumeId, ...cite }, cite.ticks)
+      ticked: await lines.ticked(
+        { volumeId, ...(entryId === undefined ? {} : { entryId }), ...cite },
+        cite.ticks
+      )
     };
   }
 
@@ -304,7 +312,7 @@ export function pendingEntry(
       text: said === '' ? null : said,
       people,
       newcomers: namedNew(cite),
-      ...(await saying(change.volumeId, cite))
+      ...(await saying(change.volumeId, cite, editing.entryId))
     });
     void selected.refresh();
     treeChanged();

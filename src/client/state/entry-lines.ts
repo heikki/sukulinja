@@ -158,6 +158,8 @@ export function tickedOf(
 // What the lines are asked by: the Entry in its Volume.
 export interface LinesAsked {
   volumeId: string;
+  // The Entry being edited, if it is one.
+  entryId?: number;
   event: EntryEvent | null;
   people: InEntry[];
   fields: TypedFields;
@@ -170,8 +172,14 @@ export function entryLines(api: DatasetApi) {
   const latest = new Latest();
   let last = '';
 
-  function askedOf({ volumeId, event, people, fields }: LinesAsked) {
-    return { volumeId, event, people, fields: fieldsOf(event, fields) };
+  function askedOf({ volumeId, entryId, event, people, fields }: LinesAsked) {
+    return {
+      volumeId,
+      ...(entryId === undefined ? {} : { entryId }),
+      event,
+      people,
+      fields: fieldsOf(event, fields)
+    };
   }
 
   // Asks for the Entry's lines, unless they're asked for it already.

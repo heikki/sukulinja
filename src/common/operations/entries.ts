@@ -69,8 +69,11 @@ export interface EntryEdit {
 
 // What an Entry of the Event in the Volume, naming the people, with the
 // fields, would do to the tree: its card's list (common/entry-offers).
+// An Entry being edited gives its id (`entryId`), so the Facts it
+// supports are known as its own.
 export interface EntryAsked {
   volumeId: string;
+  entryId?: number;
   event: EntryEvent | null;
   people: InEntry[];
   fields: EntryFields;
@@ -212,6 +215,14 @@ export function entryAskedOf(value: unknown): EntryAsked | null {
   const newcomers = newcomersOf(fields.newcomers);
   if (event === undefined || people === null || said === null) return null;
   if (newcomers === null) return null;
-  const { volumeId } = fields;
-  return { volumeId, event, people, fields: said, newcomers };
+  const { volumeId, entryId } = fields;
+  if (entryId !== undefined && !isInteger(entryId)) return null;
+  return {
+    volumeId,
+    ...(entryId === undefined ? {} : { entryId }),
+    event,
+    people,
+    fields: said,
+    newcomers
+  };
 }
