@@ -56,13 +56,13 @@ export class PictureStage implements ReactiveController {
   view: Transform | null = null;
   dragging = false;
 
-  private readonly host: ReactiveControllerHost;
+  private readonly host: ReactiveControllerHost & HTMLElement;
   private readonly parts: StageParts;
   private readonly panning: Panning;
   private readonly pinch: Pinch;
   private readonly edge: EdgeWatch;
 
-  constructor(host: ReactiveControllerHost, parts: StageParts) {
+  constructor(host: ReactiveControllerHost & HTMLElement, parts: StageParts) {
     this.host = host;
     this.parts = parts;
     host.addController(this);
@@ -219,9 +219,12 @@ export class PictureStage implements ReactiveController {
   };
 
   // A Ctrl-click is the Mac's right-click: it opens a menu, not a pan.
+  // Kept from starting a selection, the press would leave focus where it
+  // was, such as in a field; it moves to the viewer, as a click does.
   readonly onMouseDown = (e: MouseEvent) => {
     if (e.button !== 0 || e.ctrlKey || this.view === null) return;
     e.preventDefault();
+    this.host.focus({ preventScroll: true });
     this.stopMomentum();
     this.panning.start({ x: e.clientX, y: e.clientY });
   };

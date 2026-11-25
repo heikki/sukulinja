@@ -54,6 +54,18 @@ test("a Volume's page numbers are surveyed, corrected and cleared", async () => 
       await page.keyboard.press('Escape');
       await bubble.getByRole('button', { name: /^page 7/ }).waitFor();
       await shot(page, 'page-numbers-surveyed');
+
+      // A press on the scan lets go of a field over it.
+      const scan = page.getByRole('img', { name: 'Image 1' });
+      const field = page.getByRole('spinbutton', { name: 'Image' });
+      const typed = bubble.getByRole('textbox', { name: 'Page' });
+      await field.click();
+      await scan.click();
+      expect(await field.evaluate((el) => el.matches(':focus'))).toBe(false);
+      await bubble.getByRole('button', { name: /^page 7/ }).click();
+      await typed.waitFor();
+      await scan.click();
+      await typed.waitFor({ state: 'detached' });
       await page.getByRole('button', { name: 'Close', exact: true }).click();
 
       // Image 2 is counted from those read, then set by hand.
