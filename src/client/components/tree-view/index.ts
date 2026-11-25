@@ -130,24 +130,21 @@ class TreeViewElement extends SignalWatcher(LitElement) {
     camera: () => this.viewport.takeNudgeShift()
   });
 
-  // What the chart store moves: the viewport, the dock and the URL.
+  // What the chart store moves: the viewport and the URL.
   private readonly chartView: ChartView = {
     draws: (id) => this.ring.copiesOf(id).length > 0,
     drawn: () => this.ring.people(),
     show: (id, at) => {
       const copies = this.ring.copiesOf(id);
       const cards = at ?? copies.map((b) => b.pos);
-      const opening = this.details ? 0 : this.detailsWidth - RAIL_PX;
-      const shown = this.viewport.showCard(cards, cardHalf, opening, SLIDE_MS);
+      const shown = this.viewport.showCard(cards, cardHalf, 0, SLIDE_MS);
       // A click has picked its box already.
       if (at === null) this.ring.pick(copies[shown ?? 0]?.key ?? null);
-      this.details = true;
     },
-    rerooting: (pin, open) => {
+    rerooting: (pin) => {
       // No pin from a click puts the new Root at the canvas centre, so it
       // doesn't land at the last one's stale offset.
       this.viewport.beginReroot(pin ?? this.canvasCenter(), { nudge: true });
-      if (open) this.details = true;
     },
     writeUrl: (push) => {
       if (!push) {
@@ -266,15 +263,8 @@ class TreeViewElement extends SignalWatcher(LitElement) {
   }
 
   private press(key: ChartKey) {
-    if (key === 'dock') this.toggleDock();
-    else if (key === 'root') this.makeSelectedRoot();
+    if (key === 'root') this.makeSelectedRoot();
     else this.step(key);
-  }
-
-  // As a click on the selected card does.
-  private toggleDock() {
-    this.ring.flush();
-    this.details = !this.details;
   }
 
   private makeSelectedRoot() {
@@ -285,6 +275,15 @@ class TreeViewElement extends SignalWatcher(LitElement) {
       box.personId,
       this.viewport.chartToScreen(box.pos)
     );
+  }
+
+  // The ringed card glided clear of the dock opening, in step with its
+  // slide, as it would be off-screen under it.
+  private showRingedBeside() {
+    const box = this.ring.box;
+    if (box === undefined) return;
+    const cover = this.detailsWidth - RAIL_PX;
+    this.viewport.showCard([box.pos], cardHalf, cover, SLIDE_MS);
   }
 
   private step(step: Step) {
@@ -382,12 +381,6 @@ class TreeViewElement extends SignalWatcher(LitElement) {
     });
   }
 
-  // A Reminder or Change picked in the corner panel shows the person's
-  // details.
-  private readonly openDock = () => {
-    this.details = true;
-  };
-
   // Search, the lists (Volumes, Photos, Reminders, Changes) and Settings,
   // floating over the chart's top-right corner, and over the Scan viewer's
   // row while it covers the chart.
@@ -400,7 +393,7 @@ class TreeViewElement extends SignalWatcher(LitElement) {
             this.state.chart.select(e.detail.id);
           }}
         ></sl-find-person>
-        <sl-corner-lists @dock-open=${this.openDock}></sl-corner-lists>
+        <sl-corner-lists></sl-corner-lists>
         <sl-settings
           .generations=${this.gen}
           .datasetName=${this.datasetName}
@@ -439,6 +432,7 @@ class TreeViewElement extends SignalWatcher(LitElement) {
         ?open=${this.details}
         .width=${this.detailsWidth}
         @open-change=${(e: OpenChangeEvent) => {
+          if (e.detail) this.showRingedBeside();
           this.details = e.detail;
         }}
         @width-change=${(e: WidthChangeEvent) => {
@@ -538,15 +532,9 @@ class TreeViewElement extends SignalWatcher(LitElement) {
                           click: (e: MouseEvent) => {
                             // A Ctrl-click is the Mac's right-click.
                             if (this.viewport.dragMoved || e.ctrlKey) return;
-                            if (!this.ring.isRinged(b)) {
-                              this.ring.pick(b.key);
-                              this.state.chart.select(b.personId, [b.pos]);
-                            } else if (e.detail <= 1) {
-                              // The selected card shows or hides the dock;
-                              // a quick second click, as a double-click's,
-                              // doesn't.
-                              this.toggleDock();
-                            }
+                            if (this.ring.isRinged(b)) return;
+                            this.ring.pick(b.key);
+                            this.state.chart.select(b.personId, [b.pos]);
                           },
                           contextmenu: (e: MouseEvent) => {
                             this.menu = cardMenuAt(e, b);

@@ -18,11 +18,15 @@ export const SLIDE_MS = 200;
 export type OpenChangeEvent = CustomEvent<boolean>;
 export type WidthChangeEvent = CustomEvent<number>;
 
-// A collapsible column at the chart's left edge. Open, it shows a header (the
-// `header` slot, or the `heading`; clicked to collapse) over its scrolling content, at `width` with a
-// resize edge; collapsed, a slim rail showing the `heading`, clicked to open. The dock animates its own width between the two, so it is
-// controlled: it asks via `open-change` / `width-change` (on drag release) and
-// the host sets `open` / `width` back.
+// A collapsible column at the chart's left edge. Open, it shows a header
+// (the `header` slot, or the `heading`; clicked to collapse) over its
+// scrolling content, at `width` with a resize edge; collapsed, a slim rail
+// showing the `heading`, clicked to open. Only these open and close it. The
+// header holds a button, its chevron, for the keyboard, rather than being
+// one: a field in the slot would press it with every Space typed. The dock
+// animates its own width between the two, so it is controlled: it asks via
+// `open-change` / `width-change` (on drag release) and the host sets
+// `open` / `width` back.
 @customElement('sl-side-dock')
 class SideDockElement extends LitElement {
   static override styles = [focusRingStyles, sideDockStyles];
@@ -108,7 +112,7 @@ class SideDockElement extends LitElement {
     const width = this.dragWidth ?? this.width;
     return html`
       <div class="content" style="width:${width}px" ?inert=${!this.open}>
-        <button
+        <div
           class="header"
           @click=${() => {
             this.request(false);
@@ -117,8 +121,8 @@ class SideDockElement extends LitElement {
           <slot name="header">
             <span class="heading">${this.heading}</span>
           </slot>
-          <span class="chevron" aria-hidden="true">‹</span>
-        </button>
+          <button class="chevron" aria-label="Hide the details">‹</button>
+        </div>
         <slot></slot>
       </div>
       <button

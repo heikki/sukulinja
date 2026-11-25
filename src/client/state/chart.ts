@@ -43,13 +43,12 @@ export interface ChartView {
   draws: (id: number) => boolean;
   // Everyone it draws now, each once.
   drawn: () => number[];
-  // Shows their card whole and clear of the dock, which opens: `at`, the
-  // card clicked, else whichever needs the least travel.
+  // Shows their card whole and clear of the dock: `at`, the card clicked,
+  // else whichever needs the least travel.
   show: (id: number, at: Point[] | null) => void;
   // The chart is about to be built around someone else, the new Root
-  // pinned at `pin` on screen, or the canvas centre for null. `open` opens
-  // the dock.
-  rerooting: (pin: Point | null, open: boolean) => void;
+  // pinned at `pin` on screen, or the canvas centre for null.
+  rerooting: (pin: Point | null) => void;
   // Writes Root and the Selected person into the URL: a new Root pushes
   // an entry, anything else replaces it (ADR-0011).
   writeUrl: (push: boolean) => void;
@@ -181,7 +180,7 @@ export function openChart(
       selectHere(id, null);
       return;
     }
-    view.rerooting(pin, true);
+    view.rerooting(pin);
     root.set(id);
     choose(id);
     view.writeUrl(true);
@@ -322,7 +321,7 @@ export function openChart(
         choose(known(at.selectedId) ? at.selectedId! : id);
         if (id === root.get()) return;
         // With a pan of its own, the chart lands where that puts it.
-        if (!at.panned) view.rerooting(null, false);
+        if (!at.panned) view.rerooting(null);
         root.set(id);
       }, stay);
     }

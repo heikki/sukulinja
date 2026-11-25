@@ -7,7 +7,7 @@ import { assistantOn } from '@/client/assistant-flag';
 import { goTo } from '@/client/on';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
-import type { ChangeOn, On } from '@/common/types';
+import type { On } from '@/common/types';
 
 import type { ChangePickEvent } from '../changes-list';
 import type { TabPickEvent } from '../corner-panel/panel';
@@ -32,7 +32,6 @@ import '../volumes';
 // shown, and a Reminder being drafted, as from the Scan viewer's menu,
 // opens it on the Reminders. Only the open tab's list is drawn. A line of
 // a Reminder goes where it says; picking a Change goes where it was done.
-// Either asks for the dock (`dock-open`) for a person or a Citation.
 // Picking a Volume opens it in the Scan viewer on its first Image, and
 // picking a Photo opens it in the Photo viewer. The popover stays open
 // through all of these, to go on down the list.
@@ -66,17 +65,12 @@ class CornerListsElement extends SignalWatcher(LitElement) {
     if (tab !== undefined) this.tab = tab.id;
   };
 
-  private goTo(on: ChangeOn) {
-    goTo(this.state, on);
-    if (on.kind !== 'image') this.dispatchEvent(new CustomEvent('dock-open'));
-  }
-
   private readonly onReminderGo = (e: CustomEvent<On>) => {
-    this.goTo(e.detail);
+    goTo(this.state, e.detail);
   };
 
   private readonly onChange = (e: ChangePickEvent) => {
-    this.goTo(e.detail);
+    goTo(this.state, e.detail);
   };
 
   private readonly onVolume = (e: VolumeOpenEvent) => {

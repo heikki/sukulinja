@@ -16,21 +16,19 @@ function press(
   };
 }
 
-test('the arrows step, Enter makes Root, Space shows or hides the dock', () => {
+test('the arrows step, Enter makes Root, Space does nothing', () => {
   expect(chartKeyOf(press('ArrowUp'), 'other')).toBe('up');
   expect(chartKeyOf(press('ArrowLeft'), 'other')).toBe('left');
   expect(chartKeyOf(press('Enter'), 'other')).toBe('root');
-  expect(chartKeyOf(press(' '), 'other')).toBe('dock');
+  expect(chartKeyOf(press(' '), 'other')).toBeNull();
   expect(chartKeyOf(press('a'), 'other')).toBeNull();
 });
 
 test('a field keeps every key', () => {
   expect(chartKeyOf(press('ArrowDown'), 'field')).toBeNull();
-  expect(chartKeyOf(press(' '), 'field')).toBeNull();
 });
 
-test('a button or link keeps Space and Enter, not the arrows', () => {
-  expect(chartKeyOf(press(' '), 'control')).toBeNull();
+test('a button or link keeps Enter, not the arrows', () => {
   expect(chartKeyOf(press('Enter'), 'control')).toBeNull();
   expect(chartKeyOf(press('ArrowRight'), 'control')).toBe('right');
 });
@@ -45,5 +43,4 @@ test('only an arrow repeats while held', () => {
     'down'
   );
   expect(chartKeyOf(press('Enter', { repeat: true }), 'other')).toBeNull();
-  expect(chartKeyOf(press(' ', { repeat: true }), 'other')).toBeNull();
 });

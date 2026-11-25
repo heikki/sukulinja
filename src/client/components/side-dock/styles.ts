@@ -29,10 +29,7 @@ export const sideDockStyles = css`
     padding: 0.85rem 1rem 0.85rem 1.1rem;
     background: var(--card);
     color: var(--fg);
-    border: 0;
     border-bottom: 1px solid var(--border);
-    font: inherit;
-    text-align: left;
     cursor: pointer;
   }
 
@@ -92,9 +89,14 @@ export const sideDockStyles = css`
 
   .chevron {
     flex-shrink: 0;
+    padding: 0;
+    background: none;
+    border: 0;
     color: var(--muted);
+    font: inherit;
     font-size: 1rem;
     line-height: 1.6;
+    cursor: pointer;
   }
 
   .header:hover {

@@ -4,8 +4,8 @@ Clicking a card used to make its person **Root**: a **Relayout** rebuilt the **H
 
 Who the chart is built around and who the dock shows are now separate. The **Selected person** is the one the dock shows:
 
-- **A click selects.** The card is ringed, the dock opens on the person, and the chart stays as it is. Clicking the selected card shows or hides the dock. Selecting is only ever for the dock's details, so every selection opens it, whether by a click, making them Root, search or a pick in the dock; only the URL's selection, on arriving or with Back, leaves it as it was.
-- **The selected card is shown whole.** If it's cut off at an edge, off-screen, or about to go under the opening dock, the chart glides just far enough to bring it inside the fit margin, in step with the dock's slide. A card already in view doesn't move, so the view being compared against stays put. Of a person drawn more than once, the card needing the least travel is shown; a click shows the card clicked.
+- **A click selects.** The card is ringed, the dock shows the person, and the chart stays as it is. (Selecting used to open the dock, and clicking the selected card showed or hid it; since ADR-0036 only the dock's own header and rail do.)
+- **The selected card is shown whole.** If it's cut off at an edge or off-screen, the chart glides just far enough to bring it inside the fit margin; when the dock opens over it, in step with the dock's slide (ADR-0036). A card already in view doesn't move, so the view being compared against stays put. Of a person drawn more than once, the card needing the least travel is shown; a click shows the card clicked.
 - **A card's right-click menu makes Root.** Its one item, Build tree from here, under the person's name, also selects them, so the dock and the chart agree again; Root's own card opens no menu. On a row of the dock's Family list, whose people may not be drawn at all, a double-click does the same.
 - **Search selects,** as a pick in the dock does: someone the chart draws is glided into view, keeping the chart being compared against; anyone else becomes Root. Build tree from here on their card rebuilds the chart around them.
 - **The dock's own picks select.** A click on a row in the Family list, or on a person in the Scan viewer's list, selects them.
@@ -25,7 +25,6 @@ Who the chart is built around and who the dock shows are now separate. The **Sel
 
 ## Consequences
 
-- A quick second click, on a card the first has just selected, doesn't hide the dock again; a slower one on the selected card shows or hides it.
 - On the Family list, the click that starts a double-click selects first and writes that into the current history entry, so Back from the new chart returns to the old one with the double-clicked person selected.
 - A Ctrl-click, the Mac's right-click, opens a card's menu: it neither selects nor starts a pan.
 - Only the selected card is marked, with the ring the Root card used to have. Root needs no mark of its own: the layout places them, and every way of making someone Root selects them too. Two marks on different cards, or stacked on one, read as neither.

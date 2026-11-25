@@ -59,9 +59,9 @@ function fakeView(drawn: number[]) {
     show: (id, at) => {
       told.push(at === null ? `show ${id}` : `show ${id} at clicked`);
     },
-    rerooting: (pin, open) => {
+    rerooting: (pin) => {
       const where = pin === null ? 'centre' : `${pin.x},${pin.y}`;
-      told.push(`reroot at ${where}${open ? ', open' : ''}`);
+      told.push(`reroot at ${where}`);
     },
     writeUrl: (push) => {
       told.push(push ? 'push' : 'replace');
@@ -132,7 +132,7 @@ test("selecting someone the chart doesn't draw builds it around them", async () 
   const { state, told, selectedId, root } = await loaded([1, 2, 3]);
   state.chart.select(4);
   expect([root(), selectedId()]).toEqual([4, 4]);
-  expect(told).toEqual(['reroot at centre, open', 'push']);
+  expect(told).toEqual(['reroot at centre', 'push']);
 });
 
 test('makeRoot pins the new chart where asked; on Root, it only selects', async () => {
@@ -140,10 +140,10 @@ test('makeRoot pins the new chart where asked; on Root, it only selects', async 
   state.chart.makeRoot(2, { x: 5, y: 6 });
   expect([root(), selectedId()]).toEqual([2, 2]);
   state.chart.makeRoot(2);
-  expect(told).toEqual(['reroot at 5,6, open', 'push', 'replace', 'show 2']);
+  expect(told).toEqual(['reroot at 5,6', 'push', 'replace', 'show 2']);
 });
 
-test('Back or Forward follows the URL, opening no dock and writing no URL', async () => {
+test('Back or Forward follows the URL, writing no URL', async () => {
   const { state, told, selectedId, root } = await loaded([1, 2, 3]);
   state.chart.follow(url(2, 3), () => undefined);
   expect([root(), selectedId()]).toEqual([2, 3]);
@@ -198,7 +198,7 @@ test('someone added is selected once the chart is drawn with them', async () => 
     'replace',
     'show 4001',
     'redrawn',
-    'reroot at centre, open',
+    'reroot at centre',
     'push'
   ]);
 });

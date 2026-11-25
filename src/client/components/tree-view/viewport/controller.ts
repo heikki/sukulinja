@@ -249,7 +249,7 @@ export class ViewportController implements ReactiveController {
 
   private readonly onCanvasResize = () => {
     const held = this.holdOnOriginMove();
-    // A card gliding into view as the dock opens has the view meanwhile.
+    // A card gliding clear of the opening dock has the view meanwhile.
     const kept =
       this._panReady && this.glide === null && this.panning.keepWithin();
     if (!held && !kept) return;

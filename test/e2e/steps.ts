@@ -68,8 +68,16 @@ export async function openJuvaVolume(page: Page, volume: string) {
   await page.keyboard.press('Escape');
 }
 
-// The person panel's section open, whether or not it was before.
+// The details dock open, by its rail, whether or not it was before.
+export async function openDock(page: Page) {
+  const rail = page.locator('sl-side-dock:not([open]) .rail');
+  if ((await rail.count()) > 0) await rail.click();
+}
+
+// The person panel's section open, whether or not it or the dock was
+// before.
 export async function openSection(page: Page, name: string) {
+  await openDock(page);
   const closed = page
     .locator('sl-person-panel')
     .getByRole('button', { name, expanded: false });
