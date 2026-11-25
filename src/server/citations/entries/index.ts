@@ -174,19 +174,27 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
     return 'rejected' in offered ? offered : { fields, offered, ticked };
   }
 
+  // What an Entry's card offered and had ticked.
+  interface Lines {
+    offered: Offered;
+    ticked: Ticked[];
+    untick?: boolean;
+  }
+
   // Does the lines ticked for the Entry of the Event naming the people as
-  // saved, by the owner's Citation of it.
+  // saved, by the owner's Citation of it. With `untick`, as an edit
+  // sending its lines does, a Fact it supported whose line isn't ticked it
+  // no longer does; an edit sending none leaves its support as it is.
   function doTicked(
     entryId: number,
     saved: { event: EntryEvent | null; people: InEntry[] },
-    offered: Offered,
-    ticked: Ticked[]
+    { offered, ticked, untick = false }: Lines
   ) {
-    tree.doTicked(saved, offered, ticked, (personId) => {
-      const own = stored
-        .citationsOf(entryId)
-        .find((c) => c.personId === personId);
-      return own!.id;
+    const citations = stored.citationsOf(entryId);
+    tree.doTicked(saved, offered, ticked, {
+      citationOf: (personId) =>
+        citations.find((c) => c.personId === personId)!.id,
+      citations: untick ? citations.map((c) => c.id) : []
     });
   }
 
@@ -414,7 +422,7 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
         stored.setFields(entryId, fields);
         const entry = stored.entryOf(entryId)!;
         const named = now.map((p) => name(entryId, p, entry));
-        doTicked(entryId, { event, people: now }, offered, ticked);
+        doTicked(entryId, { event, people: now }, { offered, ticked });
         return named;
       });
       if ('rejected' in ids) return ids;
@@ -450,7 +458,11 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
         const e = { ...entry, was, ...ok, people: now };
         write(entryId, { ...e, text, wasEvent: entry.event });
         const saved = { event: ok.event, people: now };
-        doTicked(entryId, saved, ok.offered, ok.ticked);
+        doTicked(entryId, saved, {
+          offered: ok.offered,
+          ticked: ok.ticked,
+          untick: edit.ticked !== undefined
+        });
         return null;
       });
       if (done !== null) return done;

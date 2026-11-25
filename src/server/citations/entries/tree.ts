@@ -107,12 +107,13 @@ export function entryTree(
     return couple.get(a, b)?.id ?? null;
   }
 
-  // The owner's Facts: a couple not a family yet has none.
+  // The Facts the Entry's Citations support.
   const supportedBy = db.prepare<{ factId: number }, [number]>(
     `SELECT fc.fact_id AS factId FROM fact_citations fc
      JOIN citations c ON c.id = fc.citation_id WHERE c.entry_id = ?`
   );
-  // The owner's Facts, those the Entry being edited supports marked so.
+  // The owner's Facts, those the Entry being edited supports marked so: a
+  // couple not a family yet has none.
   function ownFacts(owner: Owner, entryId?: number): OwnFact[] {
     const all = owner.family
       ? owner.familyId === null
@@ -211,18 +212,26 @@ export function entryTree(
     // Does the lines ticked, in the order listed, each with its Changes,
     // for the Entry of the Event naming the people as saved: the family
     // a marriage made is its owner now. `citationOf` gives the owner's
-    // Citation of the Entry. Run inside the save's transaction.
+    // Citation of the Entry, `citations` those to take support from: a
+    // Fact it supported, its line unticked and none ticked to change it,
+    // they no longer do.
+    // Run inside the save's transaction.
     doTicked(
       saved: { event: EntryEvent | null; people: InEntry[] },
       { offers }: Offered,
       ticked: Ticked[],
-      citationOf: (personId: number) => number
+      cites: { citationOf: (personId: number) => number; citations: number[] }
     ) {
       const owner = ownerOf(saved.event, saved.people, coupleOf);
       if (owner === null) return;
-      const cited = citationOf(owner.personId);
+      const cited = cites.citationOf(owner.personId);
+      const done = offers.filter((o) => ticked.some((t) => sameLine(o, t)));
+      for (const offer of done) doLine(owner, cited, offer);
       for (const offer of offers) {
-        if (ticked.some((t) => sameLine(offer, t))) doLine(owner, cited, offer);
+        if (offer.action !== 'support' || offer.kept !== true) continue;
+        const { factId } = offer;
+        if (done.some((o) => 'factId' in o && o.factId === factId)) continue;
+        for (const id of cites.citations) support.set(id, factId, false);
       }
     }
   };

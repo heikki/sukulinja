@@ -37,7 +37,7 @@ interface Support {
 export const supportFact = writeOperation<Support>({
   name: 'support_fact',
   description:
-    "Proposes that one of a person's sources (a Citation, by its id in `person`) supports one of their facts or their marriage's, as the app's Edit sources does; `supports` false proposes it no longer does. Only for a source that says what the fact says.",
+    "Proposes that one of a person's sources (a Citation, by its id in `person`) supports one of their facts or their marriage's; `supports` false proposes it no longer does. Only for a source that says what the fact says.",
   input: {
     type: 'object',
     properties: {

@@ -92,6 +92,47 @@ test('a child with no Birth or Christening is offered both, and only those ticke
   expect(factsOf(db, 3).map((f) => f.tag)).toEqual(['BIRT', 'CHR']);
 });
 
+test("an edit with a Fact's line unticked takes back the Entry's support; one sending no lines leaves it", async () => {
+  const { db, entries, changes } = entriesDataset(dir);
+  const said = fields('3 MAR 1795', '5 MAR 1795');
+  const [row] = made(
+    await entries.make(
+      ...baptismOf(3, said, [
+        { tag: 'BIRT', action: 'add' },
+        { tag: 'CHR', action: 'add' }
+      ])
+    )
+  );
+  const [birth, christening] = factsOf(db, 3);
+  const entryId = row!.citation.entryId!;
+  const asked = {
+    volumeId: 'juva-3',
+    entryId,
+    event: 'CHR' as const,
+    fields: said,
+    people: [{ personId: 3, role: 'CHIL' }]
+  };
+  expect(await entries.offers(asked)).toMatchObject([
+    { tag: 'BIRT', action: 'support', factId: birth!.id, kept: true },
+    { tag: 'CHR', action: 'support', factId: christening!.id, kept: true }
+  ]);
+
+  // Its text alone changed, no lines sent: both stay supported.
+  const [kept] = made(await entries.edit(entryId, { text: 'Kaste 1795' }));
+  expect(kept!.citation.supports).toEqual([birth!.id, christening!.id]);
+
+  // The Birth's line unticked: no longer its source, with a Change.
+  const before = changes.length;
+  const [edited] = made(
+    await entries.edit(entryId, { ticked: [{ tag: 'CHR', action: 'support' }] })
+  );
+  expect(edited!.citation.supports).toEqual([christening!.id]);
+  expect(changes.slice(before).map((c) => c.what)).toMatchObject([
+    { kind: 'support', did: 'remove', tag: 'BIRT' }
+  ]);
+  expect(factsOf(db, 3).map((f) => f.tag)).toEqual(['BIRT', 'CHR']);
+});
+
 test('nothing ticked saves the Entry with its dates alone', async () => {
   const { db, entries, changes } = entriesDataset(dir);
   const said = fields('3 MAR 1795', '5 MAR 1795');

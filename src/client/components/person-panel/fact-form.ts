@@ -51,8 +51,8 @@ function spouseLabel(m: Marriage) {
 // (picked for a new one, a marriage's spouse too when there's more than
 // one), date, place (and a residence's, or one recorded with it, address),
 // an attribute's value and an Event's type. Save or Enter saves it, and
-// it, Cancel, Esc or a press on the scrim say `closed`. A Fact being
-// changed can be deleted, at once.
+// it, Cancel, Esc or a press on the scrim say `closed`. Deleting is
+// Events' menu's.
 @customElement('sl-fact-form')
 class FactFormElement extends SignalWatcher(LitElement) {
   static override styles = [
@@ -61,13 +61,6 @@ class FactFormElement extends SignalWatcher(LitElement) {
     dialogStyles,
     formDialogStyles,
     css`
-      /* Delete keeps to the far end from Save. */
-      .dialog .actions button.delete {
-        margin-right: auto;
-        border-color: transparent;
-        color: var(--danger);
-      }
-
       /* A place may run to a few lines: its label stays by the first. */
       label.lines {
         align-items: start;
@@ -156,14 +149,6 @@ class FactFormElement extends SignalWatcher(LitElement) {
           ? (this.familyId ?? this.marriages[0]?.familyId ?? null)
           : null;
       await facts.add({ ...fields, tag: this.tag, familyId });
-    });
-  }
-
-  private deleteFact() {
-    const { fact } = this;
-    if (fact === null) return;
-    void this.run(async () => {
-      await this.state.facts.remove(fact.id);
     });
   }
 
@@ -267,20 +252,7 @@ class FactFormElement extends SignalWatcher(LitElement) {
 
   private renderButtons() {
     const { busy } = this.asking;
-    return html`${
-        this.fact === null
-          ? nothing
-          : html`<button
-              class="delete"
-              ?disabled=${busy}
-              @click=${() => {
-                this.deleteFact();
-              }}
-            >
-              Delete
-            </button>`
-      }
-      <button
+    return html`<button
         ?disabled=${busy}
         @click=${() => {
           this.close();

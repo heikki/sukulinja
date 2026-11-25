@@ -1,6 +1,6 @@
 // Entries made, edited and deleted in the Scan viewer (ADR-0026, ADR-0033):
 // a baptism whose date is corrected, the change offered to the tree but
-// taken only when ticked; a marriage naming the couple; and a deletion.
+// taken only when ticked, and a Fact it supported let go when unticked; a marriage naming the couple; and a deletion.
 
 import { afterAll, test } from 'bun:test';
 
@@ -39,9 +39,21 @@ test('a baptism is corrected and a marriage made and deleted', async () => {
     await change.waitFor();
     if (await change.isChecked()) throw new Error('a change starts unticked');
     await change.check();
+    // The Birth it supports is kept as its source unless unticked.
+    const keep = page.getByLabel('Birth 3.3.1795: keep as its source');
+    if (!(await keep.isChecked())) throw new Error('a source starts kept');
+    await keep.uncheck();
     await shot(page, 'entries-edit');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await change.waitFor({ state: 'detached' });
+
+    // Unticked, it no longer is: offered again as a match.
+    await entry.click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Edit', exact: true }).click();
+    await page
+      .getByLabel('Birth 3.3.1795 matches: use as its source')
+      .waitFor();
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
 
     // The couple's marriage on the next page. Matti, a man, starts as its
     // groom; his wife is chosen as the bride.

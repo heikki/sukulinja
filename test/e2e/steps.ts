@@ -90,7 +90,7 @@ export function boxOf(page: Page, name: string) {
 }
 
 // From the menu on the person's box, `item` taken: "Add father…",
-// "Delete person…" and the like.
+// "Delete person" and the like.
 export async function fromBox(page: Page, name: string, item: string) {
   await boxOf(page, name).click({ button: 'right' });
   await page.getByRole('menuitem', { name: item, exact: true }).click();

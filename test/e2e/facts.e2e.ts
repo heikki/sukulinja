@@ -10,12 +10,14 @@ import { newTree, openSection } from './steps';
 
 afterAll(closeBrowser);
 
-// The fact's row opened, if it isn't, and its form.
-async function editFact(page: Page, row: string) {
+// The fact's menu, and one of its items; with `name`, a shot of it open.
+async function factMenu(page: Page, row: string, item: string, name = '') {
   const panel = page.locator('sl-person-panel');
-  const closed = panel.getByRole('button', { name: row, expanded: false });
-  if ((await closed.count()) > 0) await closed.click();
-  await panel.getByRole('button', { name: 'Edit event' }).click();
+  await panel.getByRole('button', { name: row }).click({ button: 'right' });
+  const choice = panel.getByRole('menuitem', { name: item });
+  await choice.waitFor();
+  if (name !== '') await shot(page, name);
+  await choice.click();
 }
 
 test('a fact is added, edited and deleted in Events', async () => {
@@ -56,7 +58,13 @@ test('a fact is added, edited and deleted in Events', async () => {
       .getByRole('button', { name: 'Death 1850 · Esimerkkilä, Juva' })
       .waitFor();
 
-    await editFact(page, 'Birth 3.3.1795 · Esimerkkilä, Juva');
+    await factMenu(
+      page,
+      'Birth 3.3.1795 · Esimerkkilä, Juva',
+      'Edit',
+      'facts-menu'
+    );
+    await shot(page, 'facts-edit');
     await panel.getByLabel('Date').fill('4.3.1795');
     await panel.getByRole('button', { name: 'Save' }).click();
     const edited = panel.getByRole('button', {
@@ -64,8 +72,18 @@ test('a fact is added, edited and deleted in Events', async () => {
     });
     await edited.waitFor();
 
-    await editFact(page, 'Birth 4.3.1795 · Esimerkkilä, Juva');
-    await panel.getByRole('button', { name: 'Delete' }).click();
+    // Delete is the menu's, asked first; Cancel keeps it.
+    await factMenu(page, 'Birth 4.3.1795 · Esimerkkilä, Juva', 'Delete');
+    const ask = panel.getByRole('alertdialog');
+    await ask.getByText('Delete birth?').waitFor();
+    await shot(page, 'facts-delete-asked');
+    await ask.getByRole('button', { name: 'Cancel' }).click();
+    await edited.waitFor();
+    await factMenu(page, 'Birth 4.3.1795 · Esimerkkilä, Juva', 'Delete');
+    await panel
+      .getByRole('alertdialog')
+      .getByRole('button', { name: 'Delete' })
+      .click();
     await edited.waitFor({ state: 'detached' });
     await shot(page, 'facts-done');
   });

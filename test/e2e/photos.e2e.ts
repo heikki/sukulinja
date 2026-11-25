@@ -121,7 +121,7 @@ test('people are tagged in photos, one their portrait', async () => {
       'Juho Esimerkki'
     ]);
     await rightClickPhoto(page, 0.5, 0.9);
-    await page.getByRole('menuitem', { name: 'Delete photo…' }).click();
+    await page.getByRole('menuitem', { name: 'Delete photo' }).click();
     await page
       .getByText('Delete this photo and take it off the 2 people in it?')
       .waitFor();

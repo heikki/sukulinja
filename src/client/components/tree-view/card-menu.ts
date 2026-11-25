@@ -171,7 +171,7 @@ class CardMenuElement extends SignalWatcher(LitElement) {
       ...(deletable(menu.personId, people)
         ? [
             {
-              label: 'Delete person…',
+              label: 'Delete person',
               run: () => {
                 this.deleting = true;
               }

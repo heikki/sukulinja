@@ -1,8 +1,9 @@
 import { css } from 'lit';
 
 // Events: each Fact a row across the panel's width, tinted when pointed at
-// and more when picked, its kind in a column of its own, the picked one's
-// sources under it; and below them a button to add one.
+// and more while its menu is open, its kind in a column of its own; and
+// below them a button to add one. Its menu is fixed in the window, so the
+// panel's scrolling doesn't clip it.
 export const personEventsStyles = css`
   .facts {
     display: grid;
@@ -28,7 +29,7 @@ export const personEventsStyles = css`
     background: color-mix(in srgb, var(--accent) 7%, var(--card));
   }
 
-  button.fact[aria-expanded='true'] {
+  button.fact.menued {
     background: color-mix(in srgb, var(--accent) 14%, var(--card));
   }
 
@@ -49,15 +50,8 @@ export const personEventsStyles = css`
     color: var(--muted);
   }
 
-  /* Under the picked Fact, tinted with it, on the Facts' columns: what it
-     shows goes under the text. */
-  .picked {
-    display: grid;
-    grid-column: 1 / -1;
-    grid-template-columns: subgrid;
-    margin: 0 -1.1rem 0.25rem;
-    padding: 0.15rem 1.1rem 0.4rem;
-    background: color-mix(in srgb, var(--accent) 14%, var(--card));
+  sl-context-menu {
+    position: fixed;
   }
 
   sl-fact-form {

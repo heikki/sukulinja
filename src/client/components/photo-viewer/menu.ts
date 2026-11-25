@@ -54,5 +54,5 @@ export function photoItems(
   const tag: MenuItem[] = where.canTag
     ? [{ label: 'Tag someone here…', run: open.tag }]
     : [];
-  return [...tag, { label: 'Delete photo…', run: viewer.askDelete }];
+  return [...tag, { label: 'Delete photo', run: viewer.askDelete }];
 }

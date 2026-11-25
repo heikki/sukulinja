@@ -40,7 +40,7 @@ test('relatives are added, moved and deleted from their boxes', async () => {
       .waitFor();
     await shot(page, 'family-moved');
 
-    await fromBox(page, 'Anna', 'Delete person…');
+    await fromBox(page, 'Anna', 'Delete person');
     await page.getByRole('button', { name: 'Delete', exact: true }).click();
     await boxOf(page, 'Anna').waitFor({ state: 'detached' });
     expect(await page.locator('[data-box-key]').count()).toBe(5);

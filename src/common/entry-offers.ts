@@ -28,13 +28,21 @@ export interface FactSays {
 
 // One line of the card's list:
 // - 'add': there's no such Fact; one is added, as the Entry says;
-// - 'support': the Fact (`was`) agrees; the Entry's Citation supports it;
+// - 'support': the Fact (`was`) agrees; the Entry's Citation supports it.
+//   `kept` when the Entry being edited supports it already, agreeing or
+//   not: left ticked it still does, unticked it no longer does;
 // - 'change': the Fact says less, or differs; it's made to say what the
 //   Entry does (`now`), and supported;
 // - 'two': there are two or more, to choose between in Sources; no box.
 export type Offer =
   | { tag: string; action: 'add'; now: FactSays }
-  | { tag: string; action: 'support'; factId: number; was: FactSays }
+  | {
+      tag: string;
+      action: 'support';
+      factId: number;
+      was: FactSays;
+      kept?: true;
+    }
   | {
       tag: string;
       action: 'change';
@@ -73,9 +81,18 @@ function placeTo(entry: string | null, fact: string | null) {
   return fact === null ? 'none' : 'other';
 }
 
+// Supporting the Fact: kept where the Entry being edited supports it.
+function supportOf(tag: string, fact: OwnFact): Offer {
+  const was = { date: fact.date, place: fact.place };
+  return fact.supported === true
+    ? { tag, action: 'support', factId: fact.id, was, kept: true }
+    : { tag, action: 'support', factId: fact.id, was };
+}
+
 // The lines for one of the Entry's dates against the Facts of its kind:
-// none, add; two, none to tick; one that differs, change; one that agrees,
-// support, and change too where it says less.
+// none, add; two, none to tick; one that differs, change, kept as a
+// source too if it is one; one that agrees, support, and change too
+// where it says less.
 function offersFor(
   tag: string,
   now: { date: string; place: string | null },
@@ -97,8 +114,10 @@ function offersFor(
     was,
     now: { date: now.date, place: now.place ?? fact.place }
   };
-  if (date === 'other' || place === 'other') return [change];
-  const support: Offer = { tag, action: 'support', factId: fact.id, was };
+  const support = supportOf(tag, fact);
+  if (date === 'other' || place === 'other') {
+    return fact.supported === true ? [support, change] : [change];
+  }
   return date === 'same' && place === 'same' ? [support] : [support, change];
 }
 
@@ -143,10 +162,7 @@ function residenceOffers(
   const same = facts.find(
     (f) => f.tag === 'RESI' && f.place === place && overlaps(f.date, years)
   );
-  if (same !== undefined) {
-    const was = { date: same.date, place: same.place };
-    return [{ tag: 'RESI', action: 'support', factId: same.id, was }];
-  }
+  if (same !== undefined) return [supportOf('RESI', same)];
   const span = `BET ${years.from} AND ${years.to}`;
   const own = facts.find(
     (f) => f.tag === 'RESI' && f.supported === true && overlaps(f.date, years)
@@ -154,7 +170,10 @@ function residenceOffers(
   if (own !== undefined) {
     const was = { date: own.date, place: own.place };
     const now = { date: own.date ?? span, place };
-    return [{ tag: 'RESI', action: 'change', factId: own.id, was, now }];
+    return [
+      supportOf('RESI', own),
+      { tag: 'RESI', action: 'change', factId: own.id, was, now }
+    ];
   }
   return [{ tag: 'RESI', action: 'add', now: { date: span, place } }];
 }
@@ -190,7 +209,8 @@ function changeWords(was: FactSays, now: FactSays) {
 }
 
 // A line as its card writes it: "Add Birth 3.3.1761 at Esimerkkilä 2, …",
-// "Christening 5.3.1761 matches: use as its source", "Change Birth 1761 → 3.3.1761", "Two Births:
+// "Christening 5.3.1761 matches: use as its source", "Birth 1762: keep as
+// its source", "Change Birth 1761 → 3.3.1761", "Two Births:
 // choose in Sources".
 export function offerWords(offer: Offer) {
   const kind = factKindLabel(offer.tag);
@@ -203,7 +223,9 @@ export function offerWords(offer: Offer) {
     case 'support': {
       const date =
         offer.was.date === null ? '' : ` ${dateWords(offer.was.date)}`;
-      return `${kind}${date} matches: use as its source`;
+      return offer.kept === true
+        ? `${kind}${date}: keep as its source`
+        : `${kind}${date} matches: use as its source`;
     }
     case 'change':
       return `Change ${kind} ${changeWords(offer.was, offer.now)}`;
