@@ -30,6 +30,7 @@ export function sourcesOf<S extends { citation: CitationRow }>(
 // changes every launch, and cookies are scoped by host alone.
 const WIDTH_COOKIE = 'sl-details-width';
 const OPEN_COOKIE = 'sl-details-open';
+const SECTIONS_COOKIE = 'sl-details-sections';
 const DEFAULT_WIDTH_PX = 380;
 const YEAR_S = 365 * 24 * 60 * 60;
 
@@ -45,6 +46,28 @@ export function detailsWidth() {
 
 export function setDetailsWidth(px: number) {
   document.cookie = `${WIDTH_COOKIE}=${Math.round(px)}; path=/; max-age=${YEAR_S}; samesite=lax`;
+}
+
+// Which of the panel's sections were left open, so they open as they were
+// left; none at first.
+export function sectionsOpened() {
+  const prefix = `${SECTIONS_COOKIE}=`;
+  const raw = document.cookie
+    .split('; ')
+    .find((c) => c.startsWith(prefix))
+    ?.slice(prefix.length);
+  const on = new Set(raw?.split('.') ?? []);
+  return {
+    events: on.has('events'),
+    family: on.has('family'),
+    photos: on.has('photos'),
+    sources: on.has('sources')
+  };
+}
+
+export function setSectionsOpened(opened: Record<string, boolean>) {
+  const on = Object.keys(opened).filter((k) => opened[k] === true);
+  document.cookie = `${SECTIONS_COOKIE}=${on.join('.')}; path=/; max-age=${YEAR_S}; samesite=lax`;
 }
 
 // Whether the details dock was left open, so it opens as it was left.

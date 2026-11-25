@@ -18,18 +18,21 @@ import './sources';
 
 import { householdsOf, lifeText } from './family';
 import type { Household, Relative } from './family';
+import { sectionsOpened, setSectionsOpened } from './helpers';
 import { renderPhotos } from './photos';
 import { personPanelStyles } from './styles';
 
-// Each section open or not for the rest of the visit, across people; at
-// first only the sources are.
-const opened = {
-  events: false,
-  family: false,
-  photos: false,
-  sources: true
-};
+// Each section open or not across people and launches, as it was left;
+// at first none is.
+const opened = sectionsOpened();
 type Section = keyof typeof opened;
+
+// Opened or closed by its heading, or Sources by a source picked under a
+// Fact, and kept so.
+function setOpened(section: Section, open: boolean) {
+  opened[section] = open;
+  setSectionsOpened(opened);
+}
 
 // Dates as the list writes them, the cross they end with a size up.
 function crossed(life: string) {
@@ -115,22 +118,26 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
     this.scrollTop = 0;
   }
 
-  // Sources, opened if need be and once they've slid open.
-  private async openSources() {
-    const section = () =>
-      this.renderRoot.querySelector('[data-section="sources"]');
-    if (!opened.sources) {
-      opened.sources = true;
-      this.requestUpdate();
-      await this.updateComplete;
-      await section()?.querySelector('sl-fold')?.settled();
-    }
-    return section()?.querySelector('sl-person-sources') ?? null;
+  private sourcesSection() {
+    return this.renderRoot.querySelector('[data-section="sources"]');
   }
 
-  // The source in the Scan viewer, scrolled to.
+  // Sources, opened if need be and once they've slid open.
+  private async openSources() {
+    if (!opened.sources) {
+      setOpened('sources', true);
+      this.requestUpdate();
+      await this.updateComplete;
+      await this.sourcesSection()?.querySelector('sl-fold')?.settled();
+    }
+    return this.sourcesSection()?.querySelector('sl-person-sources') ?? null;
+  }
+
+  // The source in the Scan viewer, scrolled to if Sources is open: the
+  // viewer doesn't open it.
   private async revealSource(id: number) {
-    await (await this.openSources())?.reveal(id);
+    if (!opened.sources) return;
+    await this.sourcesSection()?.querySelector('sl-person-sources')?.reveal(id);
   }
 
   // A source picked under a Fact, unfolded and scrolled to.
@@ -180,7 +187,7 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
             class="toggle"
             aria-expanded=${open ? 'true' : 'false'}
             @click=${() => {
-              opened[section] = !open;
+              setOpened(section, !open);
               this.requestUpdate();
             }}
           >
