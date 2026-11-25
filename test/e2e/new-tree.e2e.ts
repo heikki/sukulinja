@@ -50,7 +50,7 @@ test("a tree grows from its first person's baptism", async () => {
       .first()
       .click();
     await openSection(page, 'Events');
-    await page.getByText('3.3.1795 · Esimerkkilä 2, Juva, Suomi').waitFor();
+    await page.getByText('3.3.1795 · Esimerkkilä 2, Juva').waitFor();
     await shot(page, 'new-tree-done');
   });
 });
