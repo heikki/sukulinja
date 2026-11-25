@@ -4,6 +4,7 @@ import { css, html, LitElement, nothing } from 'lit';
 import { customElement } from 'lit/decorators.js';
 
 import type { InEntry } from '@/client/dataset-api';
+import { selectStyles } from '@/client/form-styles';
 import { appState } from '@/client/state';
 import type { AppState, PendingCite } from '@/client/state';
 import { ENTRY_EVENTS, eventRoles, isEntryEvent } from '@/common/entry-events';
@@ -39,115 +40,121 @@ export interface ChooseDetail {
 // (edit.ts). It can't be hidden while the Box is pending.
 @customElement('sl-scan-entry')
 class ScanEntryElement extends SignalWatcher(LitElement) {
-  static override styles = css`
-    label.parent {
-      display: flex;
-      gap: 0.4rem;
-      align-items: center;
-      min-width: 0;
-    }
+  static override styles = [
+    css`
+      label.parent {
+        display: flex;
+        gap: 0.4rem;
+        align-items: center;
+        min-width: 0;
+      }
 
-    .row.top {
-      align-items: start;
-    }
+      .row.top {
+        align-items: start;
+      }
 
-    .parents {
-      display: grid;
-      grid-column: 2 / span 2;
-      gap: 0.2rem;
-    }
+      .parents {
+        display: grid;
+        grid-column: 2 / span 2;
+        gap: 0.2rem;
+      }
 
-    /* A pane as People here is, wider for its fields: its title, what's
+      /* A pane as People here is, wider for its fields: its title, what's
        asked scrolling under it, and the buttons at its foot. */
-    :host {
-      display: flex;
-      flex-direction: column;
-      flex-shrink: 0;
-      width: 22rem;
-      min-height: 0;
-      background: var(--card);
-      border-left: 1px solid var(--border);
-      font-size: 0.875rem;
-      line-height: 1.4;
-    }
+      :host {
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        width: 22rem;
+        min-height: 0;
+        background: var(--card);
+        border-left: 1px solid var(--border);
+        font-size: 0.875rem;
+        line-height: 1.4;
+      }
 
-    h2 {
-      margin: 0;
-      padding: 0.5rem 0.75rem;
-      border-bottom: 1px solid var(--border);
-      font-size: 0.875rem;
-      font-weight: 600;
-    }
+      h2 {
+        margin: 0;
+        padding: 0.5rem 0.75rem;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.875rem;
+        font-weight: 600;
+      }
 
-    .body {
-      display: grid;
-      flex: 1;
-      align-content: start;
-      gap: 0.6rem;
-      min-height: 0;
-      overflow-y: auto;
-      padding: 0.9rem 1rem;
-    }
+      .body {
+        display: grid;
+        flex: 1;
+        align-content: start;
+        gap: 0.6rem;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 0.9rem 1rem;
+      }
 
-    /* Right under its fields, kept in view at the pane's foot when they
+      /* Right under its fields, kept in view at the pane's foot when they
        run longer than it. */
-    sl-scan-edit {
-      position: sticky;
-      bottom: 0;
-      margin: 0 -1rem -0.9rem;
-      padding: 0.6rem 1rem 0.9rem;
-      background: var(--card);
-    }
+      sl-scan-edit {
+        position: sticky;
+        bottom: 0;
+        margin: 0 -1rem -0.9rem;
+        padding: 0.6rem 1rem 0.9rem;
+        background: var(--card);
+      }
 
-    .row {
-      display: grid;
-      grid-template-columns: 6.5rem 1fr auto;
-      gap: 0.75rem;
-      align-items: center;
-    }
+      .row {
+        display: grid;
+        grid-template-columns: 6.5rem 1fr auto;
+        gap: 0.75rem;
+        align-items: center;
+      }
 
-    .role {
-      color: var(--muted);
-    }
+      .role {
+        color: var(--muted);
+      }
 
-    .name {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+      /* Its text in line with the fields', past their border and padding. */
+      .name {
+        padding-left: calc(0.5rem + 1px);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
 
-    .none {
-      margin: 0;
-      color: var(--muted);
-      font-size: 0.85em;
-    }
+      .none {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.85em;
+      }
 
-    button {
-      padding: 0.25rem 0.6rem;
-      font-size: 0.85rem;
-    }
+      button {
+        padding: 0.25rem 0.6rem;
+        font-size: 0.85rem;
+      }
 
-    button.choose {
-      justify-self: start;
-    }
+      button.choose {
+        justify-self: start;
+      }
 
-    button.drop {
-      border-color: transparent;
-      background: none;
-      color: var(--muted);
-    }
+      button.drop {
+        border-color: transparent;
+        background: none;
+        color: var(--muted);
+      }
 
-    select {
-      grid-column: 2 / span 2;
-      min-width: 0;
-      padding: 0.35rem 0.5rem;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: var(--card);
-      color: var(--fg);
-      font: inherit;
-    }
-  `;
+      select {
+        grid-column: 2 / span 2;
+        min-width: 0;
+        padding: 0.35rem 0.5rem;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--card);
+        color: var(--fg);
+        font: inherit;
+      }
+    `,
+    // After the select's own padding, so the chevron keeps its room.
+    selectStyles
+  ];
 
   @consume({ context: appState }) private readonly state!: AppState;
 

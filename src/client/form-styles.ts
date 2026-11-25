@@ -1,9 +1,27 @@
 import { css } from 'lit';
 
+// A dropdown drawn as a text field is, not as the system's own control,
+// which WebKit draws shorter and in its own colours whatever the padding
+// and border: its own chevron at the end instead, in the muted colour.
+export const selectStyles = css`
+  select {
+    appearance: none;
+    padding-right: 1.6rem;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+      linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position:
+      calc(100% - 0.85rem) 50%,
+      calc(100% - 0.55rem) 50%;
+    background-size: 0.3rem 0.3rem;
+    background-repeat: no-repeat;
+  }
+`;
+
 // A small form, as an Event's in the panel or a new person's on the chart:
 // its fields labelled on the left, the buttons at the end, a refusal in
 // red above them.
-export const formStyles = css`
+const form = css`
   :host {
     display: block;
   }
@@ -96,3 +114,5 @@ export const formStyles = css`
     font-size: 0.85rem;
   }
 `;
+
+export const formStyles = [form, selectStyles];

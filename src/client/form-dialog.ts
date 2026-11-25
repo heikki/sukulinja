@@ -99,6 +99,11 @@ export const formDialogStyles = css`
     padding: 0.35rem 0.5rem;
   }
 
+  /* Room kept for the chevron (selectStyles). */
+  .dialog select {
+    padding-right: 1.6rem;
+  }
+
   .dialog .form p {
     margin: 0.5rem 0 0.1rem;
     color: var(--muted);

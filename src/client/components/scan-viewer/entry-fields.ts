@@ -62,8 +62,8 @@ class EntryFieldsElement extends LitElement {
     ul {
       display: grid;
       gap: 0.2rem;
-      margin: 0.15rem 0 0;
-      padding: 0.35rem 0 0;
+      margin: 0.4rem 0 0;
+      padding: 0.75rem 0 0;
       border-top: 1px solid var(--border);
       list-style: none;
       font-size: 0.85em;
