@@ -143,7 +143,7 @@ test('an item the app refuses says why, and the rest are applied', async () => {
       [
         call('t1', 'add_fact', {
           personId: 1,
-          tag: 'BIRT',
+          tag: 'RESI',
           familyId: null,
           date: 'joskus',
           place: '',

@@ -4,7 +4,12 @@
 
 import type { Database } from 'bun:sqlite';
 
-import { ADDABLE_FACTS, factKindLabel, factWords } from '@/common/facts';
+import {
+  ADDABLE_FACTS,
+  factKindLabel,
+  factWords,
+  onceOnly
+} from '@/common/facts';
 import type { FactFields, NewFact } from '@/common/types';
 
 import type { NewChange } from '../changes/changes';
@@ -66,6 +71,11 @@ export function createFacts(
        (f.scope_type = 'person' AND f.scope_id = ?2)
        OR fam.husband_id = ?2 OR fam.wife_id = ?2
      )`
+  );
+  // Whether the person has a Fact of the kind of their own.
+  const hasOwn = db.prepare<{ id: number }, [number, string]>(
+    `SELECT id FROM facts WHERE scope_type = 'person' AND scope_id = ?
+     AND tag = ? LIMIT 1`
   );
   const lastOrder = db.prepare<{ last: number | null }, [string, number]>(
     'SELECT MAX(sort_order) AS last FROM facts WHERE scope_type = ? AND scope_id = ?'
@@ -155,6 +165,30 @@ export function createFacts(
     }
   }
 
+  // Why the Fact can't be added to the person, before what it says: its
+  // kind isn't offered, or isn't the person's or a marriage's as asked,
+  // or they have their one of it already. Null when it can.
+  function refusal(personId: number, fact: NewFact) {
+    const kind = ADDABLE_FACTS.find((k) => k.tag === fact.tag);
+    if (kind === undefined) return rejected(`A ${fact.tag} can't be added.`);
+    const words = factKindLabel(fact.tag).toLowerCase();
+    if (kind.family !== (fact.familyId !== null)) {
+      return rejected(
+        kind.family ? `A ${words} is a family's.` : `A ${words} is a person's.`
+      );
+    }
+    if (onceOnly(fact.tag) && hasOwn.get(personId, fact.tag) !== null) {
+      return rejected(`They have a ${words} already: change that one.`);
+    }
+    if (
+      fact.familyId !== null &&
+      familyOf.get(fact.familyId, personId) === null
+    ) {
+      return rejected("They aren't a spouse in that family.");
+    }
+    return null;
+  }
+
   function change(
     personId: number,
     what: Omit<Extract<NewChange['what'], { kind: 'fact' }>, 'kind'>
@@ -192,21 +226,8 @@ export function createFacts(
     // Null when there's no such person.
     add(personId: number, fact: NewFact): FactAnswer {
       if (personExists.get(personId) === null) return null;
-      const kind = ADDABLE_FACTS.find((k) => k.tag === fact.tag);
-      if (kind === undefined) return rejected(`A ${fact.tag} can't be added.`);
-      if (kind.family !== (fact.familyId !== null)) {
-        return rejected(
-          kind.family
-            ? `A ${factKindLabel(fact.tag).toLowerCase()} is a family's.`
-            : `A ${factKindLabel(fact.tag).toLowerCase()} is a person's.`
-        );
-      }
-      if (
-        fact.familyId !== null &&
-        familyOf.get(fact.familyId, personId) === null
-      ) {
-        return rejected("They aren't a spouse in that family.");
-      }
+      const refused = refusal(personId, fact);
+      if (refused !== null) return refused;
       const read = readFields(fact.tag, fact, null);
       if ('rejected' in read) return read;
       const s = read.ok;

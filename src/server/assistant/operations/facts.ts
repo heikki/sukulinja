@@ -1,6 +1,11 @@
 // Proposing a Fact added to someone, or what one says changed.
 
-import { ADDABLE_FACTS, factKindLabel, factWords } from '@/common/facts';
+import {
+  ADDABLE_FACTS,
+  factKindLabel,
+  factWords,
+  onceOnly
+} from '@/common/facts';
 import type { FactFields } from '@/common/types';
 
 import type { TreeView } from '../tree-view';
@@ -14,6 +19,12 @@ const FIELDS =
 function factOf(view: TreeView, personId: number, factId: number) {
   const details = view.services.personDetails(personId);
   return details?.facts.find((f) => f.id === factId) ?? null;
+}
+
+// Whether the person has a Fact of the kind of their own.
+function hasOwn(view: TreeView, personId: number, tag: string) {
+  const facts = view.services.personDetails(personId)?.facts ?? [];
+  return facts.some((f) => f.familyId === null && f.tag === tag);
 }
 
 // The fact as the Proposal names it: its kind, and what it says.
@@ -55,7 +66,7 @@ function addWords(name: string, said: string, sources: string[]) {
 
 export const addFact = writeOperation<Add>({
   name: 'add_fact',
-  description: `Proposes adding a fact to a person: one of their own, or, with \`familyId\` (one of the families they're a spouse in), their marriage's (MARR, DIV); with \`citationIds\`, those of their sources (by id in \`person\`) support it once it's added. ${FIELDS} Leave a field empty for none.`,
+  description: `Proposes adding a fact to a person: one of their own, or, with \`familyId\` (one of the families they're a spouse in), their marriage's (MARR, DIV). A person has one birth, christening, death and burial at most: one they have is changed with edit_fact, not added again. With \`citationIds\`, those of their sources (by id in \`person\`) support it once it's added. ${FIELDS} Leave a field empty for none.`,
   input: {
     type: 'object',
     properties: {
@@ -85,6 +96,12 @@ export const addFact = writeOperation<Add>({
   asks(view, { personId, tag, familyId, citationIds, ...fields }) {
     const why = view.unwritable(personId);
     if (why !== null) return { rejected: why };
+    if (familyId === null && onceOnly(tag) && hasOwn(view, personId, tag)) {
+      const kind = factKindLabel(tag).toLowerCase();
+      return {
+        rejected: `They have a ${kind} already: change it with edit_fact.`
+      };
+    }
     const sources = sourcesOf(view, personId, citationIds);
     if (sources === null) return { rejected: 'They have no such source.' };
     const said = words(tag, fields.type, fields);

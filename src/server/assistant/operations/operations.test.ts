@@ -347,3 +347,13 @@ test('adds a fact with its sources supporting it, once it has an id', async () =
     rejected: 'They have no such source.'
   });
 });
+
+test('proposes no second birth: the one they have is changed', () => {
+  const birth = { tag: 'BIRT', familyId: null, value: '', type: '' };
+  const said = { date: '1802', place: '', address: '', citationIds: [] };
+  expect(
+    asks('add_fact', { personId: 1, ...birth, ...said }, { personId: null })
+  ).toEqual({
+    rejected: 'They have a birth already: change it with edit_fact.'
+  });
+});

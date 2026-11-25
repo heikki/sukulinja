@@ -131,7 +131,7 @@ test('a marriage is added to a family the person is a spouse in', () => {
 
 test('refuses what it can’t add', () => {
   function add(fact: Partial<typeof BLANK & { tag: string }>) {
-    return facts.add(1, { ...BLANK, tag: 'BIRT', familyId: null, ...fact });
+    return facts.add(3, { ...BLANK, tag: 'BIRT', familyId: null, ...fact });
   }
   expect(add({ date: 'keväällä' })).toEqual({
     rejected:
@@ -149,6 +149,30 @@ test('refuses what it can’t add', () => {
   });
   expect(facts.add(99, { ...BLANK, tag: 'BIRT', familyId: null })).toBeNull();
   expect(changes).toEqual([]);
+});
+
+test('refuses a second birth, christening, death or burial', () => {
+  expect(facts.add(1, { ...BLANK, tag: 'BIRT', familyId: null })).toEqual({
+    rejected: 'They have a birth already: change that one.'
+  });
+  expect(facts.add(1, { ...BLANK, tag: 'DEAT', familyId: null })).toEqual({
+    id: expect.any(Number) as number
+  });
+  expect(facts.add(1, { ...BLANK, tag: 'DEAT', familyId: null })).toEqual({
+    rejected: 'They have a death already: change that one.'
+  });
+  for (const tag of ['CHR', 'BURI']) {
+    expect(facts.add(3, { ...BLANK, tag, familyId: null })).toMatchObject({
+      id: expect.any(Number) as number
+    });
+    expect(facts.add(3, { ...BLANK, tag, familyId: null })).toHaveProperty(
+      'rejected'
+    );
+  }
+  // Of the kinds a person has many of, one more is added.
+  const residence = { ...BLANK, tag: 'RESI', familyId: null, place: 'Juva' };
+  expect(facts.add(1, residence)).toEqual({ id: expect.any(Number) as number });
+  expect(facts.add(1, residence)).toEqual({ id: expect.any(Number) as number });
 });
 
 test('an edit keeps a date typed as the panel shows it, and the rest of the Fact', () => {

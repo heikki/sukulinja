@@ -67,6 +67,23 @@ export const ADDABLE_FACTS: ReadonlyArray<{ tag: string; family: boolean }> = [
   ...FAMILY_ADDABLE.split(' ').map((tag) => ({ tag, family: true }))
 ];
 
+// The kinds a person has at most one of, as they're born, christened,
+// die and are buried once: one more isn't added, the one they have is
+// changed. Two already there, as an import may bring, stay.
+const ONCE_ONLY = new Set(['BIRT', 'CHR', 'DEAT', 'BURI']);
+
+export function onceOnly(tag: string) {
+  return ONCE_ONLY.has(tag);
+}
+
+// The kinds a Fact can be added to the person as, given their own: none
+// of a kind they have one of already.
+export function addableTo(own: ReadonlyArray<{ tag: string }>) {
+  return ADDABLE_FACTS.filter(
+    (k) => !onceOnly(k.tag) || !own.some((f) => f.tag === k.tag)
+  );
+}
+
 // The kinds whose value is what they say, an attribute's: an occupation's
 // title. An event's value is only GEDCOM's "it happened" flag.
 const ATTRIBUTES = new Set([

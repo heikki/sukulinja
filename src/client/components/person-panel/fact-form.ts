@@ -11,6 +11,7 @@ import type { AppState } from '@/client/state';
 import { gedcomDate } from '@/common/dates';
 import {
   ADDABLE_FACTS,
+  addableTo,
   factKindLabel,
   hasType,
   hasValue
@@ -74,6 +75,8 @@ class FactFormElement extends SignalWatcher(LitElement) {
   @property({ attribute: false }) fact: FactRow | null = null;
   // Where a new marriage's Facts can go.
   @property({ attribute: false }) marriages: Marriage[] = [];
+  // The person's own Facts, so a new one isn't a second birth.
+  @property({ attribute: false }) own: FactRow[] = [];
 
   @state() private tag = ADDABLE_FACTS[0]!.tag;
   @state() private familyId: number | null = null;
@@ -86,10 +89,28 @@ class FactFormElement extends SignalWatcher(LitElement) {
     this.state.facts.loadPlaces();
   }
 
+  // A new Fact's kind is one still offered: the first, when the person's
+  // Facts change and theirs is one they now have.
+  override willUpdate() {
+    if (this.fact !== null) return;
+    const kinds = this.kinds();
+    if (!kinds.some((k) => k.tag === this.tag)) {
+      this.tag = kinds[0]?.tag ?? this.tag;
+    }
+  }
+
   override firstUpdated() {
     this.renderRoot
       .querySelector<HTMLElement>('select, input, sl-line-field')
       ?.focus();
+  }
+
+  // The kinds a Fact can be added as: none the person has their one of
+  // already, and a marriage's only with a family to put it in.
+  private kinds() {
+    return addableTo(this.own).filter(
+      (k) => !k.family || this.marriages.length > 0
+    );
   }
 
   private get kind() {
@@ -150,13 +171,9 @@ class FactFormElement extends SignalWatcher(LitElement) {
     };
   }
 
-  // The kinds a Fact can be added as; a marriage's only with a family to
-  // put it in.
   private renderKind() {
     if (this.fact !== null) return nothing;
-    const kinds = ADDABLE_FACTS.filter(
-      (k) => !k.family || this.marriages.length > 0
-    );
+    const kinds = this.kinds();
     return html`<label>
       <span>Event</span>
       <select

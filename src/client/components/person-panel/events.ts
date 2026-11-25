@@ -67,6 +67,7 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
     return html`<sl-fact-form
       .fact=${fact}
       .marriages=${this.marriages}
+      .own=${this.facts.filter((f) => f.familyId === null)}
       @closed=${this.close}
     ></sl-fact-form>`;
   }
