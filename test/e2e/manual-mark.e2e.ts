@@ -3,6 +3,8 @@
 // at first; Place entry marks the line, making it a Citation of the Image.
 
 import { afterAll, expect, test } from 'bun:test';
+import { rename } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 
 import { closeBrowser, shot, withApp } from './app';
 import { importTree, openJuvaVolume, openList, rightClickLine } from './steps';
@@ -15,7 +17,7 @@ function count(title: string | null) {
 }
 
 test("a reference's entry is placed by hand", async () => {
-  await withApp(async ({ page }) => {
+  await withApp(async ({ page, dataDir }) => {
     await importTree(page, 'myheritage-export.ged');
     await openJuvaVolume(page, 'Pää- ja rippikirjat (1790-1796)');
     await page.getByLabel('Image', { exact: true }).fill('12');
@@ -109,6 +111,22 @@ test("a reference's entry is placed by hand", async () => {
       await row.getByRole('button', { name: 'Download' }).getAttribute('title')
     ).toMatch(/^Download: brought back from the offload folder/);
     await shot(page, 'manual-mark-offloaded');
+
+    // With the folder's drive away, an Image moved there says so, and
+    // shows once the drive is back.
+    const folder = join(dirname(dataDir), 'offload');
+    await rename(folder, `${folder}-away`);
+    await page.getByLabel('Image', { exact: true }).fill('13');
+    await page.keyboard.press('Enter');
+    await page.getByText('Offload folder not connected').waitFor();
+    await page.keyboard.press('Escape');
+    await shot(page, 'manual-mark-folder-away');
+    await rename(`${folder}-away`, folder);
+    await page.getByRole('button', { name: 'Retry' }).click();
+    await page.getByText('Offload folder not connected').waitFor({
+      state: 'detached'
+    });
+    expect(await page.getByText('Offloaded', { exact: true }).count()).toBe(0);
 
     // Off its cited Image and the ones moved away, nothing is fetched until
     // it's downloaded again.

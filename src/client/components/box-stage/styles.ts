@@ -140,6 +140,11 @@ export const viewerStyles = css`
     pointer-events: auto;
   }
 
+  .note .hint {
+    max-width: 24rem;
+    text-align: center;
+  }
+
   .loading {
     display: flex;
     align-items: center;

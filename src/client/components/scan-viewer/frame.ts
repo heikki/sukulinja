@@ -66,7 +66,8 @@ interface Arrival {
 
 // What the stage draws, as CSS transforms; null where it stays hidden. The
 // frame shows empty until something arrives; the thumbnail, blurred, until
-// the full Image has faded in over it. Without a thumbnail the last full
+// the full Image has faded in over it, and not under the note of one that
+// failed, which it would leave hard to read. Without a thumbnail the last full
 // Image stays up while the next loads, so a cached one doesn't flicker.
 export function layers(
   view: Transform | null,
@@ -77,7 +78,7 @@ export function layers(
     return { frame: null, thumb: null, full: null, fade: false };
   }
   const at = `translate(${view.pan.x}px, ${view.pan.y}px) scale(${view.scale})`;
-  const thumbShown = thumb !== null && (loading !== 'shown' || fading);
+  const thumbShown = thumb !== null && (loading === 'loading' || fading);
   const fullShown =
     loading === 'shown' || (loading === 'loading' && thumb === null);
   return {

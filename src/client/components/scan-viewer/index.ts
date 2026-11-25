@@ -17,6 +17,7 @@ import { entriesShown, layers } from './frame';
 import { rowsShown } from './helpers';
 import { imageAfter, stepOf } from './keys';
 import { stageNote } from './note';
+import type { Away } from './note';
 import { Prefetch } from './prefetch';
 import { scanViewerStyles } from './styles';
 
@@ -57,9 +58,9 @@ class ScanViewerElement extends SignalWatcher(LitElement) {
       void this.askOffloaded();
     }
   });
-  // The Volume found offloaded when one of its Images failed: then only
-  // its cited Images load, and the note says so.
-  @state() private offloaded: string | null = null;
+  // The Volume found offloaded when one of its Images failed, and why
+  // the Image can't be had, which the note says.
+  @state() private offloaded: { id: string; away: Away } | null = null;
   // The Image panned and zoomed, fitted once the first of the Volume is.
   private readonly stage = new PictureStage(this, {
     stage: () => this.renderRoot.querySelector('.stage'),
@@ -182,8 +183,18 @@ class ScanViewerElement extends SignalWatcher(LitElement) {
   private async askOffloaded() {
     const id = this.viewer.volume.get()?.id;
     if (id === undefined) return;
-    const is = await this.state.app.isOffloaded(id).catch(() => false);
-    this.offloaded = is ? id : null;
+    const { app } = this.state;
+    const [is, folder] = await Promise.all([
+      app.isOffloaded(id).catch(() => false),
+      app.offloadFolder().catch(() => null)
+    ]);
+    if (!is) {
+      this.offloaded = null;
+      return;
+    }
+    const away: Away =
+      folder !== null && !folder.attached ? 'folder away' : 'offloaded';
+    this.offloaded = { id, away };
   }
 
   // ------------------------------------------------------------ render
@@ -193,10 +204,13 @@ class ScanViewerElement extends SignalWatcher(LitElement) {
       this.arrival.retry();
     };
     const { loading } = this.arrival;
-    const offloaded = this.offloaded === this.viewer.volume.get()?.id;
+    const { offloaded } = this;
+    const shownId = this.viewer.volume.get()?.id;
+    const away =
+      offloaded !== null && offloaded.id === shownId ? offloaded.away : null;
     return stageNote(
       this.viewer,
-      { loading, over: this.stage.view !== null, offloaded },
+      { loading, over: this.stage.view !== null, away },
       retry
     );
   }

@@ -40,7 +40,7 @@ test('a page of another shape is fitted anew', () => {
   expect(frameForFull(frame, { width: 3750, height: 5880 }).fit).toBe(true);
 });
 
-test('shows the thumbnail until the full Image has faded in', () => {
+test('shows the thumbnail until the full Image has faded in, not once it failed', () => {
   const view = { pan: { x: 10, y: 20 }, scale: 0.1 };
   const frame = { size: FULL, provisional: false };
   const at = 'translate(10px, 20px) scale(0.1)';
@@ -74,7 +74,7 @@ test('shows the thumbnail until the full Image has faded in', () => {
   expect(arrived('shown').thumb).toBeNull();
   expect(arrived('failed')).toEqual({
     frame: at,
-    thumb,
+    thumb: null,
     full: null,
     fade: false
   });

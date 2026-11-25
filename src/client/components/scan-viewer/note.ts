@@ -14,18 +14,13 @@ function rescanNote(retry: () => void) {
   return html`<sl-scan-rescan .retry=${retry}></sl-scan-rescan>`;
 }
 
-// Over the stage while the Image loads, or when it can't, with a way to
-// ask again unless `retry` is null: no use in a filming Astia replaced;
-// for an offloaded Volume, saying so.
-// Over an Image already shown (`over`), the last one or the thumbnail, it
-// waits a moment before showing, so a cached Image doesn't flash it.
-function loadingNote(
-  loading: Loading,
-  over: boolean,
-  retry: (() => void) | null,
-  offloaded: boolean
-) {
-  if (loading === 'failed' && offloaded) {
+// Why a failed Image of an offloaded Volume can't be had: the Volume keeps
+// only its cited ones, or the rest are in the offload folder, on a drive
+// not connected.
+export type Away = 'offloaded' | 'folder away';
+
+function awayNote(away: Away, retry: (() => void) | null) {
+  if (away === 'offloaded') {
     return html`
       <div class="note">
         <span>Offloaded</span>
@@ -36,6 +31,26 @@ function loadingNote(
       </div>
     `;
   }
+  return html`
+    <div class="note">
+      <span>Offload folder not connected</span>
+      ${retry === null ? nothing : html`<button @click=${retry}>Retry</button>`}
+    </div>
+  `;
+}
+
+// Over the stage while the Image loads, or when it can't, with a way to
+// ask again unless `retry` is null: no use in a filming Astia replaced;
+// for an offloaded Volume, why (`away`).
+// Over an Image already shown (`over`), the last one or the thumbnail, it
+// waits a moment before showing, so a cached Image doesn't flash it.
+function loadingNote(
+  loading: Loading,
+  over: boolean,
+  retry: (() => void) | null,
+  away: Away | null
+) {
+  if (loading === 'failed' && away !== null) return awayNote(away, retry);
   if (loading === 'failed') {
     return html`
       <div class="note">
@@ -57,7 +72,7 @@ function loadingNote(
 // a failed one can't be asked for again.
 export function stageNote(
   viewer: Viewer,
-  shown: { loading: Loading; over: boolean; offloaded: boolean },
+  shown: { loading: Loading; over: boolean; away: Away | null },
   retry: () => void
 ) {
   const old = viewer.oldFilming.get();
@@ -65,7 +80,7 @@ export function stageNote(
     shown.loading,
     shown.over,
     old ? null : retry,
-    shown.offloaded
+    shown.away
   );
   const vision = html`<sl-scan-vision></sl-scan-vision>`;
   if (viewer.rescan.get() === null) return html`${loading}${vision}`;
