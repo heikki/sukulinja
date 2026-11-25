@@ -293,6 +293,38 @@ test('knows a file gone with a re-scan once it has peeked', async () => {
   expect(await astia.isGone('121', '121-f1')).toBe(false);
 });
 
+test('keeps a re-scan found for the next run, while Astia is down', async () => {
+  await open().volumeImages('121');
+  rescan121();
+  await open().peekImages('121');
+  const next = open();
+  failures = [500, 500, 500];
+  expect(await next.isGone('121', '121-f1')).toBe(true);
+  expect(await next.peekImages('121')).toEqual([
+    '121-2-f1',
+    '121-2-f2',
+    '121-2-f3'
+  ]);
+});
+
+test('forgets a kept re-scan once the list is kept anew', async () => {
+  await open().volumeImages('121');
+  rescan121();
+  await open().peekImages('121');
+  await open().refreshImages('121');
+  const next = open();
+  expect(await next.isGone('121', '121-f1')).toBe(false);
+  failures = [500, 500, 500];
+  expect(await failure(next.peekImages('121'))).toMatch(/^AstiaError/);
+});
+
+test('keeps no re-scan when Astia lists the Volume as cached', async () => {
+  await open().volumeImages('121');
+  await open().peekImages('121');
+  failures = [500, 500, 500];
+  expect(await failure(open().peekImages('121'))).toMatch(/^AstiaError/);
+});
+
 test('peeks once per run, and again once the list is kept anew', async () => {
   const astia = open();
   await astia.peekImages('121');

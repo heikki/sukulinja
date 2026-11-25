@@ -4,7 +4,7 @@
 
 import type { Rescan, StalePin } from '@/common/types';
 
-import { viewerUrls } from '../../astia/astia';
+import { sameIds, viewerUrls } from '../../astia/astia';
 import type { Astia } from '../../astia/astia';
 import type { StorageImages } from '../../storage';
 import { split } from '../../volume-facts';
@@ -102,10 +102,6 @@ function staleIn(entries: Entry[], filming: Filming) {
 
 // ---------------------------------------------------------------- the app
 
-function sameList(a: string[], b: string[]) {
-  return a.length === b.length && a.every((id, i) => id === b[i]);
-}
-
 // Astia's re-scan of the Volume the cached list is of, not yet switched
 // to: null when Astia lists the Volume as cached.
 async function rescanOf(
@@ -117,7 +113,7 @@ async function rescanOf(
     astia.volumeImages(volumeId),
     astia.peekImages(volumeId)
   ]);
-  if (sameList(cached, now)) return null;
+  if (sameIds(cached, now)) return null;
   const entries = entriesOf(await kept()).filter(
     (e) => e.volumeId === volumeId
   );

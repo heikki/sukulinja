@@ -40,7 +40,7 @@ export const OLD_FILMING =
   'Astia has re-scanned this Volume. It can be changed once switched to the new filming.';
 
 // Whether the Volume's cached list is of a filming Astia has replaced, as
-// found this run: it's read-only until switched, as what's saved on it
+// a peek found this run or kept from an earlier one: it's read-only until switched, as what's saved on it
 // would be left out then. A re-scan changes every file id, so its first
 // tells.
 export async function onOldFilming(astia: Astia, volumeId: string) {
