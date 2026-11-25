@@ -4,6 +4,7 @@ Selecting a person opened the details dock, whether by a click on a card, making
 
 - **Only the dock's header and rail open and close it.** Selecting, by any way there is, shows the person in the dock as it is, open or closed. A click on the selected card does nothing more, and Space nothing on the chart.
 - **The header holds a button rather than being one.** A click anywhere on it still closes the dock, and its chevron is the button the keyboard reaches. A field in a button presses the button with every Space typed into it, so the name form in the header closed the dock.
+- **The dock opens as it was left.** Open or closed is kept in a cookie beside its width, so starting the app or entering a dataset finds it as it was.
 - **A card being selected is shown clear of the dock as it is,** not of one about to open. Opening the dock glides the ringed card clear of it, in step with its slide, if it would go under.
 
 ## Considered options

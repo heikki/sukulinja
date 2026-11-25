@@ -14,7 +14,12 @@ import '../person-panel';
 import '../photo-viewer';
 import '../scan-viewer';
 
-import { detailsWidth, setDetailsWidth } from '../person-panel/helpers';
+import {
+  detailsOpen,
+  detailsWidth,
+  setDetailsOpen,
+  setDetailsWidth
+} from '../person-panel/helpers';
 
 import '../find-person';
 import '../corner-lists';
@@ -68,8 +73,8 @@ class TreeViewElement extends SignalWatcher(LitElement) {
   // The dataset's name, for the Settings popover's way back to the chooser.
   @property({ attribute: false }) datasetName: string | null = null;
 
-  // Closed on entering a dataset; selecting someone opens it.
-  @state() private details = false;
+  // Open or closed as it was last left, from its own header or rail.
+  @state() private details = detailsOpen();
   @state() private detailsWidth = detailsWidth();
   @state() private menu: CardMenu | null = null;
 
@@ -434,6 +439,7 @@ class TreeViewElement extends SignalWatcher(LitElement) {
         @open-change=${(e: OpenChangeEvent) => {
           if (e.detail) this.showRingedBeside();
           this.details = e.detail;
+          setDetailsOpen(e.detail);
         }}
         @width-change=${(e: WidthChangeEvent) => {
           this.detailsWidth = e.detail;

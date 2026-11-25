@@ -29,6 +29,7 @@ export function sourcesOf<S extends { citation: CitationRow }>(
 // Kept in a cookie for the reason appearance.ts gives: the app's origin
 // changes every launch, and cookies are scoped by host alone.
 const WIDTH_COOKIE = 'sl-details-width';
+const OPEN_COOKIE = 'sl-details-open';
 const DEFAULT_WIDTH_PX = 380;
 const YEAR_S = 365 * 24 * 60 * 60;
 
@@ -44,6 +45,17 @@ export function detailsWidth() {
 
 export function setDetailsWidth(px: number) {
   document.cookie = `${WIDTH_COOKIE}=${Math.round(px)}; path=/; max-age=${YEAR_S}; samesite=lax`;
+}
+
+// Whether the details dock was left open, so it opens as it was left.
+export function detailsOpen() {
+  return document.cookie.split('; ').includes(`${OPEN_COOKIE}=on`);
+}
+
+export function setDetailsOpen(open: boolean) {
+  document.cookie = open
+    ? `${OPEN_COOKIE}=on; path=/; max-age=${YEAR_S}; samesite=lax`
+    : `${OPEN_COOKIE}=; path=/; max-age=0; samesite=lax`;
 }
 
 // A source citing an Astia Image itself, such as one made in the app: a
