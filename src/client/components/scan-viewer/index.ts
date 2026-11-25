@@ -6,6 +6,7 @@ import { customElement, state } from 'lit/decorators.js';
 import { appState } from '@/client/state';
 import type { AppState, ImageOpen, LinkOpen } from '@/client/state';
 import { foundKeys } from '@/client/state/vision-batch';
+import { ViewerMemory } from '@/client/viewer-memory';
 
 import { PictureStage } from '../box-stage/stage';
 import { controlStyles, viewerStyles } from '../box-stage/styles';
@@ -110,6 +111,8 @@ class ScanViewerElement extends SignalWatcher(LitElement) {
   }
 
   override updated() {
+    // Kept for the next time the dataset is entered.
+    ViewerMemory.viewerMoved(this.state);
     if (this.focusing) {
       this.focusing = false;
       this.focus({ preventScroll: true });

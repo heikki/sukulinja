@@ -9,6 +9,7 @@ import { preferredGenerations } from '@/client/generations';
 import { reportView } from '@/client/last-view';
 import { appState } from '@/client/state';
 import type { AppState, ChartView } from '@/client/state';
+import { ViewerMemory } from '@/client/viewer-memory';
 
 import '../person-panel';
 import '../photo-viewer';
@@ -77,6 +78,7 @@ class TreeViewElement extends SignalWatcher(LitElement) {
   @state() private details = detailsOpen();
   @state() private detailsWidth = detailsWidth();
   @state() private menu: CardMenu | null = null;
+  private readonly viewerMemory = new ViewerMemory();
 
   // Captured during render so the viewport port can resolve chart-local
   // coords to canvas pixels using the same extents the SVG was sized to.
@@ -332,6 +334,7 @@ class TreeViewElement extends SignalWatcher(LitElement) {
 
   override updated(_changed: PropertyValues) {
     if (this.state.chart.loading.get() || this.rootId === null) return;
+    this.viewerMemory.chartDrawn(this.state);
     this.viewport.attachCanvas(this.queryCanvas());
     this.viewport.ensureInitialPan();
     // A pending viewport mutation (the click pin, or a back/forward pan/zoom

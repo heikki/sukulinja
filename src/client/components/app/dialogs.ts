@@ -6,6 +6,7 @@ import type { TemplateResult } from 'lit';
 
 import { ApiError } from '@/client/dataset-api';
 import type { LifecycleApi } from '@/client/dataset-api/lifecycle';
+import { forgetViewer } from '@/client/viewer-memory';
 import type { DatasetInfo } from '@/common/types';
 
 import '../ask';
@@ -48,6 +49,7 @@ const ACTIONS: Record<DatasetAction, ActionCopy> = {
     failed: 'Delete failed',
     run: async (api, d) => {
       await api.remove(d.slug);
+      forgetViewer(d.slug);
     }
   }
 };

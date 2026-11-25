@@ -7,6 +7,7 @@ import '../settings';
 import '../tree-view';
 import './new-dataset';
 
+import { currentSlug } from '@/client/current-slug';
 import { ApiError, openDatasetApi } from '@/client/dataset-api';
 import { openAppApi } from '@/client/dataset-api/app';
 import type { AppApi } from '@/client/dataset-api/app';
@@ -40,13 +41,6 @@ const TRASH_ICON = html`<svg viewBox="0 0 16 16" aria-hidden="true">
     />
   `}
 </svg>`;
-
-const DATASET_RE = /^\/d\/(?<slug>[a-z0-9][a-z0-9_-]*)(?=\/|$)/u;
-
-function currentSlug(): string | null {
-  const m = DATASET_RE.exec(window.location.pathname);
-  return m === null ? null : m.groups!.slug!;
-}
 
 // The dataset's app state, provided by `host` over the install's `app`.
 // Given the slug rather than reading the host's: the app build sets

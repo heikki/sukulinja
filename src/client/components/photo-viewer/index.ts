@@ -6,6 +6,7 @@ import { customElement, state } from 'lit/decorators.js';
 import type { Viewport } from '@/client/pan-zoom';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
+import { ViewerMemory } from '@/client/viewer-memory';
 import type { PhotoRow } from '@/common/types';
 
 import { PictureStage } from '../box-stage/stage';
@@ -104,6 +105,8 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
   }
 
   override updated() {
+    // Kept for the next time the dataset is entered.
+    ViewerMemory.viewerMoved(this.state);
     if (!this.focusing) return;
     this.focusing = false;
     this.focus({ preventScroll: true });
