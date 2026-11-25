@@ -48,13 +48,13 @@ export function addableRelations(personId: number, ix: FamilyIndices) {
 }
 
 // The sex a new person of the relation starts with: a father's and a
-// mother's are known, a spouse's is likely the other's.
+// mother's are known, a spouse's is likely the other's, and anyone else
+// starts as a man until told otherwise.
 export function startingSex(relation: Relation, personSex: string | null): Sex {
   if (relation === 'father') return 'M';
   if (relation === 'mother') return 'F';
   if (relation === 'spouse' && personSex === 'M') return 'F';
-  if (relation === 'spouse' && personSex === 'F') return 'M';
-  return 'U';
+  return 'M';
 }
 
 // The families a child of the person can go into, when there's a choice:

@@ -6,9 +6,10 @@ import type { Sex } from '@/common/types';
 const SEXES: Array<[Sex, string]> = [
   ['M', 'Male'],
   ['F', 'Female'],
-  ['X', 'Other'],
   ['U', 'Unknown']
 ];
+// GEDCOM's X, offered only to one who has it, so it isn't lost unasked.
+const OTHER: [Sex, string] = ['X', 'Other'];
 
 // A name's field, labelled, telling `set` what's typed.
 export function nameField(
@@ -40,7 +41,7 @@ export function sexField(sex: Sex, set: (sex: Sex) => void) {
         set((e.target as HTMLSelectElement).value as Sex);
       }}
     >
-      ${SEXES.map(
+      ${(sex === 'X' ? [...SEXES, OTHER] : SEXES).map(
         ([value, label]) =>
           html`<option value=${value} ?selected=${value === sex}>
             ${label}

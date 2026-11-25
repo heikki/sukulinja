@@ -166,7 +166,7 @@ class PersonPickElement extends SignalWatcher(LitElement) {
   private renderNewOne(newOne: { label: string; sex: Sex | null }) {
     return html`<sl-relative-form
       .heading=${`New ${newOne.label}`}
-      .sex=${newOne.sex ?? 'U'}
+      .sex=${newOne.sex ?? 'M'}
       .askSex=${newOne.sex === null}
       .deferred=${true}
       .persons=${this.state.chart.people.get().persons}

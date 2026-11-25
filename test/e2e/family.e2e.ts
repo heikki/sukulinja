@@ -14,7 +14,13 @@ test('relatives are added, moved and deleted from their boxes', async () => {
     await addRelative(page, 'Matti', 'Add father…', ['Juho', 'Esimerkki']);
     await addRelative(page, 'Matti', 'Add mother…', ['Maria', 'Malli']);
     await addRelative(page, 'Matti', 'Add spouse…', ['Liisa', 'Keksitty']);
-    await addRelative(page, 'Matti', 'Add child…', ['Anna', 'Esimerkki']);
+    // A daughter: a new child starts as a son.
+    await fromBox(page, 'Matti', 'Add child…');
+    await page.getByLabel('Given names').fill('Anna');
+    await page.getByLabel('Surname').fill('Esimerkki');
+    await page.getByLabel('Sex').selectOption('Female');
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await boxOf(page, 'Anna').waitFor();
     await addRelative(page, 'Matti', 'Add sibling…', ['Pekka', 'Esimerkki']);
     expect(await page.locator('[data-box-key]').count()).toBe(6);
 
@@ -27,10 +33,10 @@ test('relatives are added, moved and deleted from their boxes', async () => {
     await openSection(page, 'Family');
     const family = page.locator('sl-person-panel');
     await family
-      .getByRole('button', { name: 'Parent Matti Esimerkki' })
+      .getByRole('button', { name: 'Father Matti Esimerkki' })
       .waitFor();
     await family
-      .getByRole('button', { name: 'Sibling Anna Esimerkki' })
+      .getByRole('button', { name: 'Sister Anna Esimerkki' })
       .waitFor();
     await shot(page, 'family-moved');
 
@@ -39,7 +45,7 @@ test('relatives are added, moved and deleted from their boxes', async () => {
     await boxOf(page, 'Anna').waitFor({ state: 'detached' });
     expect(await page.locator('[data-box-key]').count()).toBe(5);
     await family
-      .getByRole('button', { name: 'Sibling Anna Esimerkki' })
+      .getByRole('button', { name: 'Sister Anna Esimerkki' })
       .waitFor({ state: 'detached' });
   });
 });

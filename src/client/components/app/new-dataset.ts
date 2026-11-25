@@ -27,7 +27,7 @@ class NewDatasetElement extends LitElement {
   @state() private name = '';
   @state() private given = '';
   @state() private surname = '';
-  @state() private sex: Sex = 'U';
+  @state() private sex: Sex = 'M';
   @state() private saving = false;
   @state() private refused: string | null = null;
 

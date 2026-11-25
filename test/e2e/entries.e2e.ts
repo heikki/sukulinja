@@ -43,18 +43,14 @@ test('a baptism is corrected and a marriage made and deleted', async () => {
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await change.waitFor({ state: 'detached' });
 
-    // The couple's marriage on the next page. Matti has a Citation of the
-    // first already, so he can't be named in another Entry there.
+    // The couple's marriage on the next page. Matti, a man, starts as its
+    // groom; his wife is chosen as the bride.
     await page.getByRole('button', { name: 'Next image' }).click();
     await rightClickLine(page, 2, 3);
     await page.getByRole('menuitem', { name: 'New entry' }).click();
     await page.getByLabel('Kind of entry').selectOption({ label: 'Marriage' });
-    await page.getByRole('button', { name: 'Choose…' }).nth(1).click();
-    await page.getByRole('menuitem', { name: /Liisa Keksitty$/ }).click();
     await page.getByRole('button', { name: 'Choose…' }).click();
-    await page.getByRole('menuitem', { name: 'Someone else…' }).click();
-    await page.keyboard.type('Matti');
-    await page.getByRole('option', { name: /Matti Esimerkki/ }).click();
+    await page.getByRole('menuitem', { name: /Liisa Keksitty$/ }).click();
     await page.getByLabel('Married').fill('1.6.1820');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     const people = page.locator('sl-scan-people');

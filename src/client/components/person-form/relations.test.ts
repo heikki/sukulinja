@@ -68,13 +68,14 @@ test('offers a parent only while there is a place, and not one of a sex there is
   ]);
 });
 
-test('a new parent’s sex is known, a spouse’s likely the other’s', () => {
+test('a new parent’s sex is known, a spouse’s likely the other’s, else a man', () => {
   expect(startingSex('father', 'F')).toBe('M');
   expect(startingSex('mother', null)).toBe('F');
   expect(startingSex('spouse', 'M')).toBe('F');
   expect(startingSex('spouse', 'F')).toBe('M');
-  expect(startingSex('spouse', 'U')).toBe('U');
-  expect(startingSex('child', 'M')).toBe('U');
+  expect(startingSex('spouse', 'U')).toBe('M');
+  expect(startingSex('child', 'M')).toBe('M');
+  expect(startingSex('sibling', 'F')).toBe('M');
 });
 
 test('a child’s family is asked only of someone with more than one', () => {
