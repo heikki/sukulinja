@@ -13,6 +13,7 @@ import type { EntryEvent, EntryRole } from '@/common/entry-events';
 import { formatName } from '../tree-view/renderer';
 import { parentRows, withEvent } from './cite';
 import type { ParentRow } from './cite';
+import { scanPaneStyles } from './edit-styles';
 import type { FieldDetail, TickDetail } from './entry-fields';
 
 import './edit';
@@ -37,10 +38,11 @@ export interface ChooseDetail {
 // a burial or a household line its one person; then its fields and what
 // they'd do to the tree (entry-fields.ts). What it says is written in the
 // person's sources (source-text.ts). Cancel and Save under them
-// (edit.ts). It can't be hidden while the Box is pending.
+// (edit.ts), as the source's own Box's pane has (box-pane.ts). It can't be hidden while the Box is pending.
 @customElement('sl-scan-entry')
 class ScanEntryElement extends SignalWatcher(LitElement) {
   static override styles = [
+    scanPaneStyles,
     css`
       label.parent {
         display: flex;
@@ -57,48 +59,6 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
         display: grid;
         grid-column: 2 / span 2;
         gap: 0.2rem;
-      }
-
-      /* A pane as People here is, wider for its fields: its title, what's
-       asked scrolling under it, and the buttons at its foot. */
-      :host {
-        display: flex;
-        flex-direction: column;
-        flex-shrink: 0;
-        width: 22rem;
-        min-height: 0;
-        background: var(--card);
-        border-left: 1px solid var(--border);
-        font-size: 0.875rem;
-        line-height: 1.4;
-      }
-
-      h2 {
-        margin: 0;
-        padding: 0.5rem 0.75rem;
-        border-bottom: 1px solid var(--border);
-        font-size: 0.875rem;
-        font-weight: 600;
-      }
-
-      .body {
-        display: grid;
-        flex: 1;
-        align-content: start;
-        gap: 0.6rem;
-        min-height: 0;
-        overflow-y: auto;
-        padding: 0.9rem 1rem;
-      }
-
-      /* Right under its fields, kept in view at the pane's foot when they
-       run longer than it. */
-      sl-scan-edit {
-        position: sticky;
-        bottom: 0;
-        margin: 0 -1rem -0.9rem;
-        padding: 0.6rem 1rem 0.9rem;
-        background: var(--card);
       }
 
       .row {
@@ -407,7 +367,7 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
               ? html`<p class="none">Name someone in it.</p>`
               : nothing
         }
-        <sl-scan-edit panel></sl-scan-edit>
+        <sl-scan-edit></sl-scan-edit>
       </div>
     `;
   }

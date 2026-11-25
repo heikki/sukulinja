@@ -1,52 +1,31 @@
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { customElement, state } from 'lit/decorators.js';
 
 import { ApiError } from '@/client/dataset-api';
 import { appState } from '@/client/state';
-import type {
-  AppState,
-  Confirming,
-  LeaveAnswer,
-  LinkOpen
-} from '@/client/state';
+import type { AppState, LeaveAnswer } from '@/client/state';
 
 import { controlStyles, editActionsStyles } from '../box-stage/styles';
-import { formatName } from '../tree-view/renderer';
+import { alsoCiting } from './also';
 import { scanEditStyles } from './edit-styles';
 
 function stop(e: Event) {
   e.stopPropagation();
 }
 
-function renderConfirming(confirming: Confirming) {
-  return confirming === 'saving'
-    ? html`<p>Confirming…</p>`
-    : html`<p class="refused">${confirming.refused}</p>`;
-}
-
-// At the end of the nav while a Box is pending, or for a new Entry at the
-// foot of its panel (`panel`, entry-form.ts): Cancel and Save. A way out
-// of the source waiting on the Box asks there instead: Keep editing,
-// Discard or Save. A Box waiting to be discarded, or a Citation made in
-// the app to be deleted, asks to confirm. A Match being confirmed from its
-// Box's menu says so, and why not when it's refused. Pointer and wheel input stays
-// here, so a press doesn't pan. A Mark's Box is on a Record pin shared by
-// everyone citing the record, whom it names from the dataset's people.
+// At the foot of the pane beside the scan while a Box is pending, a new or
+// edited Entry's (entry-form.ts) or the source's own (box-pane.ts): Cancel
+// and Save. A way out of the source waiting on the Box asks there instead:
+// Keep editing, Discard or Save. Pointer and wheel input stays here, so a
+// press doesn't pan. A Mark's Box is on a Record pin shared by everyone
+// citing the record, whom it names.
 @customElement('sl-scan-edit')
 class ScanEditElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, editActionsStyles, scanEditStyles];
 
   @consume({ context: appState }) private readonly state!: AppState;
-
-  // At the foot of a pending Entry's panel, not in the nav.
-  @property({ type: Boolean, reflect: true }) panel = false;
-
-  // The dataset's people, who name the citations.
-  private get persons() {
-    return this.state.chart.people.get().persons;
-  }
 
   @state() private saving = false;
   // The server's words when a save was refused.
@@ -117,70 +96,6 @@ class ScanEditElement extends SignalWatcher(LitElement) {
     `;
   }
 
-  // Asked as the menu item chosen was named.
-  private renderDiscard() {
-    const { entry } = this.state.viewer;
-    if (entry.deletes.get()) return this.renderDelete();
-    const what = entry.kind.get();
-    return html`
-      <p>Discard this ${what === 'match' ? 'match' : 'mark'}?</p>
-      <div class="actions">
-        <button
-          ?disabled=${this.saving}
-          @click=${() => {
-            this.refused = null;
-            this.state.viewer.cancel();
-          }}
-        >
-          Cancel
-        </button>
-        <button
-          class="discard"
-          ?disabled=${this.saving}
-          @click=${() => {
-            void this.run(true, async () => {
-              await this.state.viewer.confirmDiscard();
-            });
-          }}
-        >
-          ${this.saving ? 'Discarding…' : 'Discard'}
-        </button>
-      </div>
-    `;
-  }
-
-  // With others in its Entry, the Entry goes, with everyone's Citation.
-  private renderDelete() {
-    const n = this.state.viewer.entry.people.get().length;
-    return html`
-      <p>
-        ${n > 1 ? `Delete this entry and its ${n} citations?` : 'Delete this citation?'}
-      </p>
-      <div class="actions">
-        <button
-          ?disabled=${this.saving}
-          @click=${() => {
-            this.refused = null;
-            this.state.viewer.cancel();
-          }}
-        >
-          Cancel
-        </button>
-        <button
-          class="discard"
-          ?disabled=${this.saving}
-          @click=${() => {
-            void this.run(true, async () => {
-              await this.state.viewer.confirmDiscard();
-            });
-          }}
-        >
-          ${this.saving ? 'Deleting…' : 'Delete'}
-        </button>
-      </div>
-    `;
-  }
-
   private renderActions() {
     return html`
       <div class="actions">
@@ -200,53 +115,21 @@ class ScanEditElement extends SignalWatcher(LitElement) {
     `;
   }
 
-  // The others in the Volume sharing this one's Mark, whose Box moves or
-  // goes with it.
-  private also(source: LinkOpen, verb: string) {
-    const rows = this.state.viewer.citations.get();
-    const { markKey, id } = source.citation;
-    if (!Array.isArray(rows)) return nothing;
-    const names = rows
-      .filter((r) => r.citation.markKey === markKey && r.citation.id !== id)
-      .map((r) => {
-        const person = this.persons.get(r.personId);
-        return person === undefined ? null : formatName(person);
-      })
-      .filter((n) => n !== null);
-    if (names.length === 0) return nothing;
-    return html`<p class="also">${verb} ${names.join(', ')}.</p>`;
-  }
-
-  // A pending Citation, with a source or none; else what's asked of the
-  // source.
+  // The pending change's: for the source's Box, whom it moves too.
   override render() {
     const { viewer } = this.state;
     const pending = viewer.pending.get();
-    // A new Entry's, at the foot of its panel (entry-form.ts).
-    if (pending !== null && pending.kind !== 'mark') {
-      return this.renderAsking(nothing, this.renderSaving());
-    }
+    if (pending === null) return nothing;
     const source = viewer.source.get();
-    if (source === null) return nothing;
-    const confirming = viewer.confirming.get();
-    if (confirming !== null) return renderConfirming(confirming);
-    return this.renderChange(source);
-  }
-
-  // The source's pending Box, or the Discard asked for.
-  private renderChange(source: LinkOpen) {
-    const { viewer } = this.state;
-    if (viewer.discarding.get()) {
-      return this.renderAsking(
-        this.also(source, 'Also for'),
-        this.renderDiscard()
-      );
-    }
-    if (viewer.pending.get() === null) return nothing;
-    return this.renderAsking(
-      this.also(source, 'Also moves'),
-      this.renderSaving()
-    );
+    const names =
+      pending.kind === 'mark' && source !== null
+        ? alsoCiting(this.state, source)
+        : [];
+    const also =
+      names.length === 0
+        ? nothing
+        : html`<p class="also">Also moves ${names.join(', ')}.</p>`;
+    return this.renderAsking(also, this.renderSaving());
   }
 
   private renderSaving() {

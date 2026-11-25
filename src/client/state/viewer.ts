@@ -173,7 +173,8 @@ export interface Viewer {
   discarding: Readable<boolean>;
   // Asks to take back the Link's Box on the Image shown.
   discard: () => void;
-  // Drops the pending change, back to the Link, or the Discard asked for.
+  // Drops the pending change, back to the Link, or the Discard asked for
+  // and a Confirm refused.
   cancel: () => void;
   // Takes the Box back, throwing ApiError if it's refused, and goes on
   // with the Link it leaves, on the Image shown. For a Citation made in
@@ -471,8 +472,12 @@ export function openViewer(
   }
 
   function cancel() {
-    if (pending.get() === null) discarding.set(false);
-    else changing.cancel();
+    if (pending.get() !== null) {
+      changing.cancel();
+      return;
+    }
+    discarding.set(false);
+    confirmation.forget();
   }
 
   // The citations reload, as after a Mark: a Record pin taken back moves

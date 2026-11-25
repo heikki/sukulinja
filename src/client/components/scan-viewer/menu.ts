@@ -112,7 +112,7 @@ function visionItems(viewer: Viewer, find: VisionFind | undefined): MenuItem[] {
 
 // The source's Citation by its reference, or one made in the app by the
 // Image it's on.
-function sourceName(viewer: Viewer) {
+export function sourceName(viewer: Viewer) {
   const source = viewer.source.get();
   if (source === null) return null;
   const { citation, link } = source;

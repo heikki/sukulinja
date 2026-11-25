@@ -7,11 +7,11 @@ import { markModal } from '@/client/modals';
 import type { Point } from '@/client/pan-zoom';
 
 // A step asked first: its title, what it does (text, or a template for a
-// word in bold), and the step's button, coloured by `tone`: red where it
+// word in bold) unless the title says it all, and the step's button, coloured by `tone`: red where it
 // takes away what can't be got back, else the accent.
 export interface Ask {
   title: string;
-  text: unknown;
+  text?: unknown;
   step: string;
   tone: 'danger' | 'primary';
 }
@@ -206,14 +206,14 @@ class AskElement extends LitElement {
       class=${this.at === null ? 'dialog' : 'dialog placed'}
       role="alertdialog"
       aria-labelledby="title"
-      aria-describedby="text"
+      aria-describedby=${text === undefined ? nothing : 'text'}
       @click=${this.onClick}
       @cancel=${this.onCancel}
       @close=${this.onClose}
     >
       <div class="card" tabindex="-1">
         <h2 id="title">${title}</h2>
-        <p id="text">${text}</p>
+        ${text === undefined ? nothing : html`<p id="text">${text}</p>`}
         ${
           this.refused === null
             ? nothing

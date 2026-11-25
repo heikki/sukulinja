@@ -65,7 +65,9 @@ test('a baptism is corrected and a marriage made and deleted', async () => {
     await entry.click({ button: 'right' });
     await page.getByRole('menuitem', { name: 'Delete entry' }).click();
     // It names others too, so the viewer asks first.
-    await page.getByText('Delete this entry and its 2 citations?').waitFor();
+    await page
+      .getByText('The entry and all 2 citations of it are deleted.')
+      .waitFor();
     await page.getByRole('button', { name: 'Delete', exact: true }).click();
     await people.getByText('Liisa Keksitty').waitFor({ state: 'detached' });
 

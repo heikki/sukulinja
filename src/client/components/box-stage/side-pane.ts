@@ -10,7 +10,7 @@ import { controlStyles, sidePaneStyles } from './styles';
 // show.
 let collapsed = false;
 
-// The open pane's width.
+// The open pane's width, unless it's given one.
 const OPEN_PX = 256;
 
 // A column beside the picture, under its `heading`, holding what's slotted
@@ -21,19 +21,26 @@ class SidePaneElement extends LitElement {
   static override styles = [controlStyles, sidePaneStyles];
 
   @property() heading = '';
+  // Open, in px: as wide as the pane that takes its place, if any, so the
+  // picture beside it keeps its room.
+  @property({ type: Number }) width = OPEN_PX;
 
   // The painted width: trails `collapsed` through the slide, as the person
   // dock's does.
-  @state() private shown = collapsed ? RAIL_PX : OPEN_PX;
+  @state() private shown: number | null = null;
   private slide: number | null = null;
 
   private readonly toggle = () => {
     collapsed = !collapsed;
     this.toggleAttribute('collapsed', collapsed);
-    const to = collapsed ? RAIL_PX : OPEN_PX;
+    const to = collapsed ? RAIL_PX : this.width;
     if (reducedMotion()) this.shown = to;
-    else this.startSlide(this.shown, to);
+    else this.startSlide(this.painted(), to);
   };
+
+  private painted() {
+    return this.shown ?? (collapsed ? RAIL_PX : this.width);
+  }
 
   private startSlide(from: number, to: number) {
     this.stopSlide();
@@ -62,12 +69,12 @@ class SidePaneElement extends LitElement {
   }
 
   protected override updated() {
-    this.style.width = `${this.shown}px`;
+    this.style.width = `${this.painted()}px`;
   }
 
   override render() {
     return html`
-      <div class="content" style="width:${OPEN_PX}px" ?inert=${collapsed}>
+      <div class="content" style="width:${this.width}px" ?inert=${collapsed}>
         <button class="head" @click=${this.toggle}>
           <h2>${this.heading}</h2>
           <span class="chevron" aria-hidden="true">›</span>

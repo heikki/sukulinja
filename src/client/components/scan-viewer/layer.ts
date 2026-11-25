@@ -5,9 +5,10 @@ import { customElement, property, state } from 'lit/decorators.js';
 
 import { visionModel } from '@/client/assistant-choices';
 import { assistantOn } from '@/client/assistant-flag';
+import { ApiError } from '@/client/dataset-api';
 import type { Point, Transform } from '@/client/pan-zoom';
 import { appState, citingImage } from '@/client/state';
-import type { AppState } from '@/client/state';
+import type { AppState, LinkOpen } from '@/client/state';
 import { CLAUDE_MODELS } from '@/common/assistant-choices';
 import { firstGuess } from '@/common/entry-events';
 import type { Box, PersonName } from '@/common/types';
@@ -16,6 +17,7 @@ import type { Ask } from '../ask';
 import { boxFromStage } from '../box-stage/geometry';
 import { searchable } from '../person-search/choices';
 import { placesHere } from '../reminders-list/places';
+import { alsoCiting } from './also';
 import { entriesOn } from './citations';
 import { pickFor, rolePickLabel, startingPeople, withChild } from './cite';
 import { scanLayerStyles } from './edit-styles';
@@ -69,12 +71,22 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   }
 
   @state() private popup: Popup | null = null;
+  // Where the source's Box's menu last opened, where taking the Box back
+  // or confirming it is asked about; null centres it.
+  private boxMenuAt: Point | null = null;
+  // Taking the Box back, and the server's words if it refused.
+  @state() private discardBusy = false;
+  @state() private discardRefused: string | null = null;
 
   // The menu at `at` on the stage; `onBox` when it's on the source's own
   // entry Box, which then has a menu of its own.
   // None over a Volume on a filming Astia replaced: it's read-only.
   openMenu(at: Point, onBox: boolean) {
     if (this.viewer.oldFilming.get()) return;
+    if (onBox) {
+      this.boxMenuAt = at;
+      this.discardRefused = null;
+    }
     this.popup = { at, onBox, show: 'menu' };
   }
 
@@ -334,7 +346,99 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   }
 
   override render() {
-    return html`${this.renderBox()} ${this.renderPopup()}`;
+    return html`${this.renderBox()} ${this.renderPopup()}
+    ${this.renderDiscard()} ${this.renderConfirming()}`;
+  }
+
+  // Taking back the source's Box, asked as its menu's item was named,
+  // where the menu was: a Match or a Mark discarded, with whom the Mark
+  // goes for too, or a Citation made in the app deleted, with its Entry.
+  private renderDiscard() {
+    const { viewer } = this;
+    const source = viewer.source.get();
+    if (!viewer.discarding.get() || source === null) return nothing;
+    const ask = this.discardAsk(source);
+    return html`<sl-ask
+      .ask=${ask}
+      .at=${this.boxMenuAt}
+      .busy=${this.discardBusy ? `${ask.step === 'Delete' ? 'Deleting' : 'Discarding'}…` : null}
+      .refused=${this.discardRefused}
+      @cancel=${() => {
+        this.discardRefused = null;
+        viewer.cancel();
+      }}
+      @confirm=${() => {
+        void this.confirmDiscard();
+      }}
+    ></sl-ask>`;
+  }
+
+  private discardAsk(source: LinkOpen): Ask {
+    const { entry } = this.viewer;
+    if (entry.deletes.get()) {
+      const n = entry.people.get().length;
+      return n > 1
+        ? {
+            title: 'Delete entry?',
+            text: `The entry and all ${n} citations of it are deleted.`,
+            step: 'Delete',
+            tone: 'danger'
+          }
+        : {
+            title: 'Delete citation?',
+            text: 'The citation is deleted, with its box.',
+            step: 'Delete',
+            tone: 'danger'
+          };
+    }
+    const match = entry.kind.get() === 'match';
+    const names = alsoCiting(this.state, source);
+    return {
+      title: match ? 'Discard match?' : 'Discard mark?',
+      // A Mark shared by everyone citing the record goes for them too.
+      text: names.length === 0 ? undefined : `Also for ${names.join(', ')}.`,
+      step: 'Discard',
+      tone: 'danger'
+    };
+  }
+
+  private async confirmDiscard() {
+    this.discardBusy = true;
+    this.discardRefused = null;
+    try {
+      await this.viewer.confirmDiscard();
+    } catch (err) {
+      if (!(err instanceof ApiError)) throw err;
+      this.discardRefused = err.message;
+    } finally {
+      this.discardBusy = false;
+    }
+  }
+
+  // A Match confirmed from its Box's menu, where the menu was, while it's
+  // saved, and why not when it's refused, to try again.
+  private renderConfirming() {
+    const confirming = this.viewer.confirming.get();
+    if (confirming === null) return nothing;
+    const refused = confirming === 'saving' ? null : confirming.refused;
+    const ask: Ask = {
+      title: refused === null ? 'Confirming match' : "Couldn't confirm",
+      text: 'It becomes a citation of this Image.',
+      step: 'Try again',
+      tone: 'primary'
+    };
+    return html`<sl-ask
+      .ask=${ask}
+      .at=${this.boxMenuAt}
+      .busy=${refused === null ? 'Confirming…' : null}
+      .refused=${refused}
+      @cancel=${() => {
+        this.viewer.cancel();
+      }}
+      @confirm=${() => {
+        void this.viewer.confirmSource();
+      }}
+    ></sl-ask>`;
   }
 }
 

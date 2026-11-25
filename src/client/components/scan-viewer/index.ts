@@ -21,6 +21,7 @@ import { Prefetch } from './prefetch';
 import { scanViewerStyles } from './styles';
 
 import '../box-stage/boxes';
+import './box-pane';
 import './empty';
 import './entry-form';
 import './layer';
@@ -311,16 +312,24 @@ class ScanViewerElement extends SignalWatcher(LitElement) {
     `;
   }
 
-  // Beside the scan, a pending Entry's pane, or People here.
+  // A pane's presses stop at it, so what's open over the scan closes
+  // here, as a press elsewhere would.
+  private readonly closeLayerPopup = () => {
+    this.renderRoot.querySelector('sl-scan-layer')?.closePopup();
+  };
+
+  // Beside the scan, a pending Entry's pane, the source's Box's, or People
+  // here.
   private renderPeople() {
     const pending = this.viewer.pending.get();
-    if (pending !== null && pending.kind !== 'mark') {
+    if (pending?.kind === 'mark') {
+      return html`<sl-scan-box
+        @mousedown=${this.closeLayerPopup}
+      ></sl-scan-box>`;
+    }
+    if (pending !== null) {
       return html`<sl-scan-entry
-        @mousedown=${() => {
-          // Its presses stop at it, so close what's open over the scan
-          // here, as a press elsewhere would.
-          this.renderRoot.querySelector('sl-scan-layer')?.closePopup();
-        }}
+        @mousedown=${this.closeLayerPopup}
         @choose=${(e: CustomEvent<ChooseDetail>) => {
           this.renderRoot
             .querySelector('sl-scan-layer')

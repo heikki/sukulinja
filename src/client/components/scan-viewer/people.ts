@@ -15,6 +15,7 @@ import {
   rowDates,
   rowName
 } from './citations';
+import { PANE_PX } from './edit-styles';
 
 import '../box-stage/side-pane';
 
@@ -215,7 +216,7 @@ class ScanPeopleElement extends SignalWatcher(LitElement) {
   }
 
   override render() {
-    return html`<sl-side-pane heading="People here"
+    return html`<sl-side-pane heading="People here" .width=${PANE_PX}
       >${this.renderList()}${this.renderCited()}</sl-side-pane
     >`;
   }

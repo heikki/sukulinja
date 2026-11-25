@@ -12,15 +12,13 @@ import { imageAfter, stepOf } from './keys';
 import type { ImageMove } from './keys';
 import { scanNavStyles } from './styles';
 
-import './edit';
-
 function stop(e: Event) {
   e.stopPropagation();
 }
 
 // Stepping through the Volume, floating over the foot of the scan: the
-// Image shown of how many, once Astia says, and while a Box is pending or
-// waits to be discarded, its Cancel and Save. Pointer and wheel input stays
+// Image shown of how many, once Astia says; a Box is edited in the pane
+// beside the scan, not here. Pointer and wheel input stays
 // here, so using it doesn't pan or zoom the scan beneath. The button a held
 // key stands for (←/→, with Shift or without, Home or End) shows pressed.
 @customElement('sl-scan-nav')
@@ -115,15 +113,6 @@ class ScanNavElement extends SignalWatcher(LitElement) {
     </button>`;
   }
 
-  // Whether a Box is being edited, discarded or confirmed: a new Entry's
-  // Cancel and Save are in its panel (entry-form.ts), not here.
-  private editing() {
-    const { viewer } = this.state;
-    const pending = viewer.pending.get();
-    if (pending !== null) return pending.kind === 'mark';
-    return viewer.discarding.get() || viewer.confirming.get() !== null;
-  }
-
   override render() {
     const count = this.state.viewer.count.get();
     const image = this.state.viewer.image.get();
@@ -179,7 +168,6 @@ class ScanNavElement extends SignalWatcher(LitElement) {
       ${this.renderMove(1, 'Next image', '›')}
       ${this.renderMove(10, 'Forward 10 images', '»')}
       ${this.renderMove('last', 'Last image', '⇥')} ${this.renderOldFilming()}
-      ${this.editing() ? html`<sl-scan-edit></sl-scan-edit>` : nothing}
     `;
   }
 }
