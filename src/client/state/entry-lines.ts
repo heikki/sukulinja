@@ -6,11 +6,18 @@
 import { signal } from '@lit-labs/signals';
 
 import type { DatasetApi, InEntry } from '@/client/dataset-api';
-import { gedcomDate, TYPED_DATE_FORMS, typedDate } from '@/common/dates';
+import {
+  gedcomDate,
+  isoDate,
+  transcribedDate,
+  TYPED_DATE_FORMS,
+  typedDate
+} from '@/common/dates';
 import { eventDates, NO_FIELDS } from '@/common/entry-events';
 import type { EntryEvent, EntryFields } from '@/common/entry-events';
 import { tickedFirst } from '@/common/entry-offers';
 import type { Offer, Ticked } from '@/common/entry-offers';
+import type { RecordView } from '@/common/types';
 
 import { Latest } from './latest';
 
@@ -36,6 +43,74 @@ export function typedOf(fields: EntryFields | null): TypedFields {
     lifeDate: lifeDate === null ? '' : gedcomDate(lifeDate),
     place: place ?? ''
   };
+}
+
+// The labels a MyHeritage record gives each date of an Entry of the
+// Event under ("Ristiäiset: 3. Maalis 1795 - Juva, …").
+const RECORD_DATES: Partial<
+  Record<EntryEvent, Partial<Record<'date' | 'lifeDate', string[]>>>
+> = {
+  CHR: {
+    lifeDate: ['Syntymä', 'Syntymäpäivä', 'Syntymäaika'],
+    date: ['Ristiäiset']
+  },
+  MARR: { date: ['Avioliitto'] },
+  BURI: { lifeDate: ['Kuolema', 'Kuolinpäivä'], date: ['Hautaus'] }
+};
+
+// Where a household line's record says its people lived, as the book
+// writes it: the village and farm number ("Kylämaa", "No. 3" →
+// "Kylämaa 3"). Other records name only the parish, which isn't a place.
+function recordPlace(event: EntryEvent | null, record: RecordView) {
+  if (event !== 'RESI') return '';
+  function value(label: string) {
+    return record.fields.find((f) => f.label === label)?.value.trim() ?? '';
+  }
+  const farm = value('Maatila').replace(/^No\.?\s*/i, '');
+  return [value('Kylä'), farm].filter((v) => v !== '').join(' ');
+}
+
+// The dates a MyHeritage record transcribes of an Entry of the Event, as
+// the card types them ("3.3.1795"), and a household line's place; none it
+// doesn't give.
+export function recordTyped(
+  event: EntryEvent | null,
+  record: RecordView | null
+): TypedFields {
+  if (event === null || record === null) return NO_TYPED;
+  const labels = RECORD_DATES[event] ?? {};
+  const typed = { ...NO_TYPED, place: recordPlace(event, record) };
+  for (const { key } of eventDates(event)) {
+    const named = labels[key] ?? [];
+    const value = record.fields.find((f) => named.includes(f.label))?.value;
+    const iso = value === undefined ? null : transcribedDate(value);
+    if (iso !== null) typed[key] = isoDate(iso);
+  }
+  return typed;
+}
+
+// A Transcription's "Label: value" lines, as a converted reference's
+// record is written into it (ADR-0016), read back as its fields.
+export function textRecord(text: string): RecordView {
+  const fields = text.split('\n').flatMap((line) => {
+    const at = line.indexOf(': ');
+    if (at <= 0) return [];
+    return [{ label: line.slice(0, at).trim(), value: line.slice(at + 2) }];
+  });
+  return { name: '', fields, household: [] };
+}
+
+// An Entry's fields to edit: as saved, or with none saved, those its
+// Transcription gives, so the tree's Facts that agree are offered as
+// theirs.
+export function editedTyped(
+  event: EntryEvent | null,
+  saved: EntryFields | null,
+  text: string
+): TypedFields {
+  const typed = typedOf(saved);
+  if (Object.values(typed).some((v) => v !== '')) return typed;
+  return recordTyped(event, textRecord(text));
 }
 
 function cleaned(text: string) {

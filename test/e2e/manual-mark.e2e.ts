@@ -56,8 +56,10 @@ test("a reference's entry is placed by hand", async () => {
     );
     await rightClickLine(page, 12, 3);
     await page.getByRole('menuitem', { name: /^Place entry/ }).click();
-    // Placed in the pane beside the scan, as an Entry is.
-    await page.locator('sl-scan-box').getByText('Place entry').waitFor();
+    // Placed with an Entry's card beside the scan, as Edit's is.
+    const card = page.locator('sl-scan-entry');
+    await card.getByText('Place entry').waitFor();
+    await card.getByLabel('Kind of entry').waitFor();
     await shot(page, 'manual-mark-placing');
     await page.getByRole('button', { name: 'Save', exact: true }).click();
     await people.getByText('Marked').waitFor();

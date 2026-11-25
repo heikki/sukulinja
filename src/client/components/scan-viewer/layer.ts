@@ -7,8 +7,9 @@ import { visionModel } from '@/client/assistant-choices';
 import { assistantOn } from '@/client/assistant-flag';
 import { ApiError } from '@/client/dataset-api';
 import type { Point, Transform } from '@/client/pan-zoom';
-import { appState, citingImage } from '@/client/state';
+import { appState, citingImage, NO_TYPED } from '@/client/state';
 import type { AppState, LinkOpen } from '@/client/state';
+import { recordTyped } from '@/client/state/entry-lines';
 import { CLAUDE_MODELS } from '@/common/assistant-choices';
 import { firstGuess } from '@/common/entry-events';
 import type { Box, PersonName } from '@/common/types';
@@ -19,7 +20,13 @@ import { searchable } from '../person-search/choices';
 import { placesHere } from '../reminders-list/places';
 import { alsoCiting } from './also';
 import { entriesOn } from './citations';
-import { pickFor, rolePickLabel, startingPeople, withChild } from './cite';
+import {
+  pickFor,
+  placingPeople,
+  rolePickLabel,
+  startingPeople,
+  withChild
+} from './cite';
 import { scanLayerStyles } from './edit-styles';
 import { newEntryBox } from './frame';
 import type { Frame } from './frame';
@@ -136,10 +143,54 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   }
 
   // A new pending Box at `at` for the source's entry, to move and resize
-  // from there.
+  // from there, with its card as a new Entry's starts (placeStart).
   private placeBox(at: Point) {
     const box = this.newBoxAt(at);
-    if (box !== null) this.viewer.setBox(box);
+    if (box !== null) this.viewer.placeEntry(box, this.placeStart(box));
+  }
+
+  // The source's own Box to adjust, a reference's with its card.
+  private editBox() {
+    const box = this.viewer.boxHere.get();
+    if (box !== null) this.viewer.placeEntry(box, this.placeStart(box));
+  }
+
+  // The card a reference's entry starts with at the Box: the Event the
+  // Entry before it or the Book suggests, naming everyone citing its
+  // record in the Roles the tree gives them.
+  private placeStart(box: Box) {
+    const shown = this.viewer.volume.get();
+    const source = this.viewer.source.get();
+    const rows = this.viewer.citations.get();
+    const listed = Array.isArray(rows) ? rows : [];
+    const event =
+      shown === null
+        ? null
+        : firstGuess(shown.label, listed, {
+            image: this.viewer.image.get(),
+            box
+          });
+    if (source === null) return { event, people: [], fields: NO_TYPED };
+    const { id, markKey } = source.citation;
+    // Its own person first: the Selected person's, unless the Volume's
+    // citations list it.
+    const own =
+      listed.find((r) => r.citation.id === id)?.personId ??
+      this.state.selected.id.get();
+    const citers = [
+      ...new Set([
+        ...(own === null ? [] : [own]),
+        ...listed
+          .filter((r) => r.citation.markKey === markKey)
+          .map((r) => r.personId)
+      ])
+    ];
+    const ix = this.state.chart.people.get();
+    const people = placingPeople(event, citers, ix, this.citingHere());
+    // Its dates as the record gives them, so the tree's Facts that agree
+    // are offered as theirs.
+    const fields = recordTyped(event, source.citation.record);
+    return { event, people, fields };
   }
 
   // A pending Box at `at` for a new Entry, of the Event the Entry before
@@ -291,6 +342,9 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
         },
         placeBox: () => {
           this.placeBox(at);
+        },
+        editBox: () => {
+          this.editBox();
         },
         cite: () => {
           this.newEntry(at);

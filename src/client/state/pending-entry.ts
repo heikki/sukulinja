@@ -10,7 +10,7 @@ import type { Offer } from '@/common/entry-offers';
 import type { Newcomer } from '@/common/operations';
 import type { Box, PersonName, VolumeCitation } from '@/common/types';
 
-import { datesRefusal, entryLines, fieldsOf, typedOf } from './entry-lines';
+import { datesRefusal, editedTyped, entryLines, fieldsOf } from './entry-lines';
 import type { TypedFields } from './entry-lines';
 import type { PendingChange } from './pending-change';
 import type { Readable, Selected } from './selected';
@@ -30,13 +30,15 @@ export interface PendingCite {
 }
 
 // The source's Entry as it was when its editing began: who was in it, by
-// their Citation, what it said, and its Box.
+// their Citation, what it said, and its Box, on the Image shown unless
+// `image` says.
 export interface EntryEdit {
   entryId: number;
   event: EntryEvent | null;
   was: Array<InEntry & { citationId: number }>;
   text: string;
   box: Box;
+  image?: number;
 }
 
 // Changing the pending Entry, as the Scan viewer's card does.
@@ -85,6 +87,24 @@ function namedNew({ people, newcomers }: PendingCite) {
 }
 type EditedEntry = PendingChange & { kind: 'edit' };
 
+// Throws ApiError for a date on the card that can't be read.
+function refuseDates(cite: PendingCite) {
+  const wrong = datesRefusal(cite.event, cite.fields);
+  if (wrong !== null) throw new ApiError(wrong);
+}
+
+// Throws ApiError for a card that can't be saved: one naming no one, of
+// no Event where `needsEvent`, or with a date that can't be read.
+function refuse(cite: PendingCite, needsEvent: boolean) {
+  if (cite.people.length === 0) {
+    throw new ApiError('Name someone in the entry.');
+  }
+  if (needsEvent && cite.event === null) {
+    throw new ApiError('Choose what kind of entry it is.');
+  }
+  refuseDates(cite);
+}
+
 // Changing the pending Entry (ADR-0026), new or edited, if there's one:
 // what it says, and who is in it; and saving it.
 export function pendingEntry(
@@ -118,8 +138,13 @@ export function pendingEntry(
     const editing = change.kind === 'edit' ? change.editing.entryId : null;
     const roles = eventRoles(cite.event).length;
     const named = cite.people.filter((p) => p.role !== null || roles === 0);
+    // The record being placed's Citations join its Entry.
+    const joining = change.kind === 'place' ? change.markKey : null;
+    const others = (Array.isArray(rows) ? rows : []).filter(
+      (r) => r.citation.markKey !== joining
+    );
     return new Set([
-      ...citingImage(Array.isArray(rows) ? rows : [], change.image, editing),
+      ...citingImage(others, change.image, editing),
       ...named.map((p) => p.personId)
     ]);
   });
@@ -152,8 +177,7 @@ export function pendingEntry(
   // The fields and lines to save with the Entry, as it is now. Throws
   // ApiError for a date that can't be read.
   async function saying(volumeId: string, cite: PendingCite) {
-    const wrong = datesRefusal(cite.event, cite.fields);
-    if (wrong !== null) throw new ApiError(wrong);
+    refuseDates(cite);
     return {
       fields: fieldsOf(cite.event, cite.fields),
       ticked: await lines.ticked({ volumeId, ...cite }, cite.ticks)
@@ -203,9 +227,7 @@ export function pendingEntry(
     if (fileId === null) {
       throw new ApiError("The Image isn't listed yet; try again.");
     }
-    if (cite.people.length === 0) {
-      throw new ApiError('Name someone in the entry.');
-    }
+    refuse(cite, false);
     const text = cite.text.trim();
     const made = await api.citeEntry(
       {
@@ -229,8 +251,14 @@ export function pendingEntry(
     return made.find((m) => m.personId === id) ?? made[0] ?? null;
   }
 
-  // The pending change for editing the Entry, with its Citations' rows.
-  function editing(entryId: number, box: Box, rows: VolumeCitation[]) {
+  // The pending change for editing the Entry, with its Citations' rows;
+  // `from` where its Box was, if on another Image.
+  function editing(
+    entryId: number,
+    box: Box,
+    rows: VolumeCitation[],
+    from?: { image: number; box: Box }
+  ) {
     const was = rows.map((r) => ({
       personId: r.personId,
       role: r.citation.role,
@@ -238,18 +266,21 @@ export function pendingEntry(
     }));
     const text = rows[0]?.citation.text ?? '';
     const event = rows[0]?.citation.event ?? null;
-    const fields = typedOf(rows[0]?.citation.fields ?? null);
+    const fields = editedTyped(event, rows[0]?.citation.fields ?? null, text);
     const people = was.map(({ personId, role }) => ({ personId, role }));
     return {
       cite: { event, people, text, fields, ticks: {}, newcomers: [] },
-      editing: { entryId, event, was, text, box }
+      editing: { entryId, event, was, text, ...(from ?? { box }) }
     };
   }
 
   // Where the Box is now, if it moved.
   function movedTo(change: EditedEntry) {
     const { volumeId, image, box, editing } = change;
-    if (JSON.stringify(box) === JSON.stringify(editing.box)) return {};
+    const sameImage = editing.image === undefined || editing.image === image;
+    if (sameImage && JSON.stringify(box) === JSON.stringify(editing.box)) {
+      return {};
+    }
     const fileId = fileOf(image);
     if (fileId === null) {
       throw new ApiError("The Image isn't listed yet; try again.");
@@ -264,8 +295,8 @@ export function pendingEntry(
     const { editing } = change;
     const { cite } = change;
     const { event, people, text } = cite;
-    if (people.length === 0) throw new ApiError('Name someone in the entry.');
-    if (event === null) throw new ApiError('Choose what kind of entry it is.');
+    refuse(cite, true);
+    if (event === null) return [];
     const said = text.trim();
     const rows = await api.editEntry(editing.entryId, {
       ...movedTo(change),
@@ -300,5 +331,5 @@ export function pendingEntry(
     setPeople,
     drop
   };
-  return { form, save, editing, saveEdit, begin };
+  return { form, save, editing, saveEdit, begin, refuse };
 }

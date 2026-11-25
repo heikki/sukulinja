@@ -42,6 +42,45 @@ function startingFrom(
   return [{ personId, role: event === 'MARR' ? spouseRole(sex) : null }];
 }
 
+// Whom a Church-book reference's entry names once its Box is placed:
+// everyone citing its record. In a baptism, one whose parent cites it too
+// is its child and those parents its father and mother, as the tree says;
+// else they're placed as for an Event chosen anew (withEvent), with
+// parents it brings in from the tree but in `citing` left out, as for a
+// new entry.
+export function placingPeople(
+  event: EntryEvent | null,
+  citers: number[],
+  ix: FamilyIndices,
+  citing: Set<number>
+): InEntry[] {
+  const named = citers.map((personId) => ({ personId, role: null }));
+  if (event === null) return named;
+  // One with a parent citing it who is no parent of another citing it:
+  // a grandparent standing godparent leaves the child its child.
+  const parents = new Set(
+    citers.flatMap((id) => parentsOf(id, ix)).map((p) => p.personId)
+  );
+  const child = citers.find(
+    (id) =>
+      !parents.has(id) &&
+      parentsOf(id, ix).some((p) => citers.includes(p.personId))
+  );
+  if (event === 'CHR' && child !== undefined) {
+    const placed: InEntry[] = [
+      { personId: child, role: 'CHIL' },
+      ...parentsOf(child, ix).filter((p) => citers.includes(p.personId))
+    ];
+    const others = named.filter(
+      (p) => !placed.some((q) => q.personId === p.personId)
+    );
+    return [...placed, ...others];
+  }
+  return withEvent(named, event, ix).filter(
+    (p) => citers.includes(p.personId) || !citing.has(p.personId)
+  );
+}
+
 // Whom a new entry of the Event names to start with: from the Selected
 // person (startingFrom). Those in `citing` are left out.
 export function startingPeople(

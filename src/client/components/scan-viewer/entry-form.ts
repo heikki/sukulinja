@@ -7,6 +7,7 @@ import type { InEntry } from '@/client/dataset-api';
 import { selectStyles } from '@/client/form-styles';
 import { appState } from '@/client/state';
 import type { AppState, PendingCite } from '@/client/state';
+import { boxOn } from '@/client/state/places';
 import { ENTRY_EVENTS, eventRoles, isEntryEvent } from '@/common/entry-events';
 import type { EntryEvent, EntryRole } from '@/common/entry-events';
 
@@ -15,6 +16,7 @@ import { parentRows, withEvent } from './cite';
 import type { ParentRow } from './cite';
 import { scanPaneStyles } from './edit-styles';
 import type { FieldDetail, TickDetail } from './entry-fields';
+import { sourceName } from './menu';
 
 import './edit';
 import './entry-fields';
@@ -30,9 +32,10 @@ export interface ChooseDetail {
   at: { x: number; y: number };
 }
 
-// A new Entry's kind and people, or the source's being edited, in a pane
-// beside the scan in place of People here while its Box is pending
-// (ADR-0026), so the scan stays in view. First what it records, its
+// A new Entry's kind and people, the source's being edited, or a
+// Church-book reference's being placed, which its Mark makes an Entry
+// (pending-change.ts), in a pane beside the scan in place of People here
+// while its Box is pending (ADR-0026), so the scan stays in view. First what it records, its
 // Event; then in a baptism or a marriage a row for each Role, its person
 // or none, each chosen (`choose`, picked over the scan) or taken out; in
 // a burial or a household line its one person; then its fields and what
@@ -335,15 +338,39 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
     return html`${this.renderRoles(roles)}${this.renderUnplaced(roles)}`;
   }
 
+  // What Save does: a reference placed is edited where its Box is on the
+  // Image already, confirmed where Vision Match's is.
+  private heading(kind: 'place' | 'new' | 'edit') {
+    if (kind === 'new') return 'New entry';
+    if (kind === 'edit') return 'Edit entry';
+    const link = this.viewer.source.get()?.link;
+    const volume = this.viewer.volume.get();
+    if (link?.precision !== 'entry' || volume === null) return 'Place entry';
+    const on = { volumeId: volume.id, image: this.viewer.image.get() };
+    if (boxOn(link, on) === null) return 'Place entry';
+    return link.certainty === 'match' ? 'Confirm match' : 'Edit entry';
+  }
+
+  // What a reference placed cites, as its menu item named it.
+  private renderSource(kind: 'place' | 'new' | 'edit') {
+    const name = kind === 'place' ? sourceName(this.viewer) : null;
+    return name === null
+      ? nothing
+      : html`<div class="row">
+          <span class="role">Source</span><span class="name">${name}</span>
+        </div>`;
+  }
+
   override render() {
     const pending = this.viewer.pending.get();
     if (pending === null || pending.kind === 'mark') return nothing;
     const cite = pending.cite;
     this.shown = cite;
     return html`
-      <h2>${pending.kind === 'edit' ? 'Edit entry' : 'New entry'}</h2>
+      <h2>${this.heading(pending.kind)}</h2>
       <div class="body">
-        ${this.renderEvent()} ${this.renderPeople()}
+        ${this.renderSource(pending.kind)} ${this.renderEvent()}
+        ${this.renderPeople()}
         ${
           cite.event === null
             ? nothing

@@ -1,6 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 
-import { dateOrder, dateSpan, gedcomDate, isoDate, typedDate } from './dates';
+import {
+  dateOrder,
+  dateSpan,
+  gedcomDate,
+  isoDate,
+  transcribedDate,
+  typedDate
+} from './dates';
 
 describe('gedcomDate', () => {
   test('writes a day, month or year the Finnish way', () => {
@@ -113,4 +120,15 @@ test('a date spans the days it can be', () => {
   expect(dateSpan('BEF 1761')).toEqual([-Infinity, 17611231]);
   expect(dateSpan('AFT 1761')).toEqual([17610101, Infinity]);
   expect(dateSpan('@#DJULIAN@ 1761')).toBeNull();
+});
+
+describe('transcribedDate', () => {
+  test('reads a date to the precision written', () => {
+    expect(transcribedDate('29. Marras 1829')).toBe('1829-11-29');
+    expect(transcribedDate('1. Tammi 1801')).toBe('1801-01-01');
+    expect(transcribedDate('Joulu 1799')).toBe('1799-12');
+    expect(transcribedDate('Toukokuu 1799')).toBe('1799-05');
+    expect(transcribedDate('noin 1799')).toBe('1799');
+    expect(transcribedDate('tuntematon')).toBeNull();
+  });
 });

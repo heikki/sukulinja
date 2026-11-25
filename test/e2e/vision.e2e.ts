@@ -66,15 +66,16 @@ test('a located estimate is confirmed', async () => {
       await page.getByRole('button', { name: 'Locate', exact: true }).click();
       await people.getByRole('button', { name: /Matti Esimerkki/ }).click();
 
-      // Its Box is edited in the pane beside the scan, and Discard asks
+      // Confirm opens an Entry's card beside the scan, and Discard asks
       // where the menu was; both backed out of.
       const own = page.locator('[data-own]');
       await own.click({ button: 'right' });
-      await page.getByRole('menuitem', { name: 'Edit' }).click();
-      await page.locator('sl-scan-box').getByText('Edit box').waitFor();
+      await page.getByRole('menuitem', { name: 'Confirm' }).click();
+      const card = page.locator('sl-scan-entry');
+      await card.getByText('Confirm match').waitFor();
       await shot(page, 'vision-edit-box');
       await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-      await page.locator('sl-scan-box').waitFor({ state: 'detached' });
+      await card.waitFor({ state: 'detached' });
       await own.click({ button: 'right' });
       await page.getByRole('menuitem', { name: 'Discard' }).click();
       await page.getByText('Discard match?').waitFor();
@@ -84,6 +85,8 @@ test('a located estimate is confirmed', async () => {
 
       await own.click({ button: 'right' });
       await page.getByRole('menuitem', { name: 'Confirm' }).click();
+      await card.getByText('Confirm match').waitFor();
+      await page.getByRole('button', { name: 'Save', exact: true }).click();
       await people.getByText('Match', { exact: true }).waitFor({
         state: 'detached'
       });

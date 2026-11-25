@@ -13,7 +13,7 @@ import { filmingOf } from './filming';
 import { Latest } from './latest';
 import { viewerOnward } from './onward';
 import { pendingChange } from './pending-change';
-import type { PendingChange } from './pending-change';
+import type { EntryStart, PendingChange } from './pending-change';
 import type { EntryForm } from './pending-entry';
 import { boxOn, clampImage, fileIdOf, imageOf, markedIn } from './places';
 import type { Readable, Selected } from './selected';
@@ -25,7 +25,7 @@ import type { VisionBatch } from './vision-batch';
 import { volumePagesOf } from './volume-pages';
 import type { ShownPages } from './volume-pages';
 
-export type { PendingAt, PendingChange } from './pending-change';
+export type { EntryStart, PendingAt, PendingChange } from './pending-change';
 export type { EntryEdit, PendingCite } from './pending-entry';
 export type { ImageOpen, LinkOpen } from './source-open';
 
@@ -144,6 +144,9 @@ export interface Viewer {
   boxPending: Readable<boolean>;
   // Puts the source's entry at the Box, on the Image shown, pending.
   setBox: (box: Box) => void;
+  // As `setBox`, with the card an Entry's edited has (placeSource); on
+  // the source's own Box, to adjust it as its card does.
+  placeEntry: (box: Box, start: EntryStart) => void;
   // Starts a pending change from the Link's own Box, to adjust it.
   editBox: () => void;
   // Puts a new Entry at the Box, on the Image shown, pending, of the
@@ -653,6 +656,7 @@ export function openViewer(
     boxHere,
     boxPending,
     setBox: changing.moveBox,
+    placeEntry: changing.placeSource,
     editBox,
     newEntry: changing.newEntry,
     entryForm: changing.form,

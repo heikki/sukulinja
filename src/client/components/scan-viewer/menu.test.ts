@@ -98,7 +98,6 @@ test('a Citation made in the app offers Delete on its Box; a Mark or Match, Disc
   });
   expect(labels(vision, { onBox: true, canBox: true })).toEqual([
     'Confirm',
-    'Edit',
     'Discard',
     'Add reminder…'
   ]);

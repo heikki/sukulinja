@@ -5,6 +5,7 @@ import type { FamilyRow, PersonRow } from '@/common/types';
 import {
   parentRows,
   pickFor,
+  placingPeople,
   rolePickLabel,
   startingPeople,
   withChild,
@@ -190,5 +191,45 @@ test("a baptism's parents rows are the child's in the tree, and a new child brin
     { personId: 1, role: 'CHIL' },
     { personId: 2, role: 'FATH' },
     { personId: 3, role: 'MOTH' }
+  ]);
+});
+
+test("a placed reference names everyone citing its record, the tree's child and parents in a baptism", () => {
+  expect(placingPeople(BAPTISMS, [3, 1, 4], IX, new Set())).toEqual([
+    { personId: 1, role: 'CHIL' },
+    { personId: 3, role: 'MOTH' },
+    { personId: 4, role: null }
+  ]);
+  // The child alone brings their parents, but not one citing the Image.
+  expect(placingPeople(BAPTISMS, [1], IX, new Set([2]))).toEqual([
+    { personId: 1, role: 'CHIL' },
+    { personId: 3, role: 'MOTH' }
+  ]);
+  expect(placingPeople(MARRIAGES, [2, 3], IX, new Set())).toEqual([
+    { personId: 2, role: 'HUSB' },
+    { personId: 3, role: 'WIFE' }
+  ]);
+  expect(placingPeople(null, [2, 3], IX, new Set())).toEqual([
+    { personId: 2, role: null },
+    { personId: 3, role: null }
+  ]);
+});
+
+test('a grandparent citing a baptism leaves the child its child', () => {
+  // Liisa (3) is the child of Anna (4).
+  const parents: FamilyRow = {
+    id: 2,
+    husband_id: null,
+    wife_id: 4,
+    child_ids: [3]
+  };
+  const ix = {
+    ...IX,
+    parentFamByPerson: new Map([...IX.parentFamByPerson, [3, parents]])
+  };
+  expect(placingPeople(BAPTISMS, [3, 4, 1], ix, new Set())).toEqual([
+    { personId: 1, role: 'CHIL' },
+    { personId: 3, role: 'MOTH' },
+    { personId: 4, role: null }
   ]);
 });

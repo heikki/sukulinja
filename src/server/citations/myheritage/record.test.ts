@@ -4,8 +4,7 @@ import {
   churchBookRefOf,
   indexRoleOf,
   parseChurchBookRef,
-  readRecord,
-  transcribedDate
+  readRecord
 } from './record';
 
 const URL =
@@ -186,17 +185,6 @@ describe('parseChurchBookRef', () => {
       name: 'Matti Esimerkki ja Liisa Malli',
       date: '1845-07-03'
     });
-  });
-});
-
-describe('transcribedDate', () => {
-  test('reads a date to the precision written', () => {
-    expect(transcribedDate('29. Marras 1829')).toBe('1829-11-29');
-    expect(transcribedDate('1. Tammi 1801')).toBe('1801-01-01');
-    expect(transcribedDate('Joulu 1799')).toBe('1799-12');
-    expect(transcribedDate('Toukokuu 1799')).toBe('1799-05');
-    expect(transcribedDate('noin 1799')).toBe('1799');
-    expect(transcribedDate('tuntematon')).toBeNull();
   });
 });
 

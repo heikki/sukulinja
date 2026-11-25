@@ -6,8 +6,8 @@ import { referenceName } from '@/common/books';
 import type { MenuItem } from '../context-menu';
 
 // What the menu offers for the current source's Link. On its own entry
-// Box (`onBox`), only that Box: a Vision match's to confirm, edit or
-// discard, a Mark's to edit or discard, a Citation made in the app's to
+// Box (`onBox`), only that Box: a Vision match's to confirm, adjusted in
+// its card first (`editBox`), or discard, a Mark's to edit or discard, a Citation made in the app's to
 // edit or delete, and once it's pending, the change to discard. Elsewhere,
 // only over the full Image (`canBox`): a pending Box placing the source's
 // Citation here, named under it as the lists name it, unless its Box is on
@@ -27,6 +27,9 @@ export function linkItems(
   open: {
     chooseVolume: () => void;
     placeBox: () => void;
+    // The source's own Box to adjust, as its card does; the viewer's own
+    // without one.
+    editBox?: () => void;
     cite: () => void;
     remind: () => void;
     // The model Vision Match asks, by its label, and asking it for the
@@ -38,7 +41,9 @@ export function linkItems(
     viewer.pending.get() === null && viewer.fileIdHere() !== null
       ? [{ label: 'Add reminder…', run: open.remind }]
       : [];
-  if (where.onBox) return [...boxItems(viewer), ...remind];
+  if (where.onBox) {
+    return [...boxItems(viewer, open.editBox ?? viewer.editBox), ...remind];
+  }
   const hasSource = viewer.source.get() !== null;
   const items: MenuItem[] = [];
   if (where.canBox) {
@@ -122,7 +127,7 @@ export function sourceName(viewer: Viewer) {
   return imageLabel(link.volume, link.image);
 }
 
-function boxItems(viewer: Viewer): MenuItem[] {
+function boxItems(viewer: Viewer, editBox: () => void): MenuItem[] {
   if (viewer.boxPending.get()) {
     return [{ label: 'Discard changes', run: viewer.cancel }];
   }
@@ -143,23 +148,15 @@ function boxItems(viewer: Viewer): MenuItem[] {
     }
     case 'match':
       return [
-        ...(viewer.oldFilming.get() ? [] : [confirmItem(viewer)]),
-        { label: 'Edit', run: viewer.editBox },
+        ...(viewer.oldFilming.get()
+          ? []
+          : [{ label: 'Confirm', run: editBox }]),
         { label: 'Discard', run: viewer.discard }
       ];
     case 'mark':
       return [
-        { label: 'Edit', run: viewer.editBox },
+        { label: 'Edit', run: editBox },
         { label: 'Discard', run: viewer.discard }
       ];
   }
-}
-
-function confirmItem(viewer: Viewer): MenuItem {
-  return {
-    label: 'Confirm',
-    run: () => {
-      void viewer.confirmSource();
-    }
-  };
 }
