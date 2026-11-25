@@ -15,7 +15,7 @@ import {
 } from '@/common/dates';
 import { eventDates, NO_FIELDS } from '@/common/entry-events';
 import type { EntryEvent, EntryFields } from '@/common/entry-events';
-import { tickedFirst } from '@/common/entry-offers';
+import { tickedFirst, tickedLine } from '@/common/entry-offers';
 import type { Offer, Ticked } from '@/common/entry-offers';
 import type { RecordView } from '@/common/types';
 
@@ -31,8 +31,9 @@ export const NO_TYPED: TypedFields = {
 };
 
 // A line by what it does, as its box is kept: "BIRT add".
-export function lineKey(line: { tag: string; action: string }) {
-  return `${line.tag} ${line.action}`;
+export function lineKey(line: Offer) {
+  const fact = 'factId' in line ? ` ${line.factId}` : '';
+  return `${line.tag} ${line.action}${fact}`;
 }
 
 // Fields saved, as the card shows them to edit.
@@ -150,7 +151,7 @@ export function tickedOf(
 ): Ticked[] {
   return offers.flatMap((o) =>
     o.action !== 'two' && (ticks[lineKey(o)] ?? tickedFirst(o))
-      ? [{ tag: o.tag, action: o.action }]
+      ? [tickedLine(o)]
       : []
   );
 }

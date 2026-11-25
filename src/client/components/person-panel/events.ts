@@ -34,8 +34,8 @@ interface FactMenu {
 // kind, then its date, place and what else it says, dimmed while no source
 // supports it. Clicking one opens its first source in the Scan viewer, or
 // with nothing to open there, asks Sources for it as `show-source` with
-// its Citation's id. A right-click offers _Edit_, opening it in a modal,
-// and _Delete_, asked first. _Add event_ opens a new one's; one at a
+// its Citation's id. A right-click, Shift+F10 or the menu key offers
+// _Edit_, opening it in a modal, and _Delete_, asked first. _Add event_ opens a new one's; one at a
 // time. Which sources support a Fact is set from an Entry's card
 // (ADR-0033).
 @customElement('sl-person-events')
@@ -61,6 +61,29 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
     this.asking.forget();
     this.menu = null;
   };
+
+  // The menu stays where it opened, so the rows scrolling under it close
+  // it; its question stays.
+  private readonly onScroll = () => {
+    if (this.menu !== null && !this.menu.deleting) this.closeMenu();
+  };
+
+  override connectedCallback() {
+    super.connectedCallback();
+    window.addEventListener('scroll', this.onScroll, true);
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    window.removeEventListener('scroll', this.onScroll, true);
+  }
+
+  // The Fact's menu at `at` in the window, a refusal before forgotten.
+  private openMenu(fact: FactRow, at: Point) {
+    if (this.asking.busy) return;
+    this.asking.forget();
+    this.menu = { fact, at, deleting: false };
+  }
 
   // The person's sources, as Sources lists them.
   private sources() {
@@ -108,12 +131,17 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
         }}
         @contextmenu=${(e: MouseEvent) => {
           e.preventDefault();
-          if (this.asking.busy) return;
-          this.menu = {
-            fact: f,
-            at: { x: e.clientX, y: e.clientY },
-            deleting: false
-          };
+          this.openMenu(f, { x: e.clientX, y: e.clientY });
+        }}
+        @keydown=${(e: KeyboardEvent) => {
+          // From the keyboard, as Shift+F10 or the menu key opens it,
+          // under the row's start.
+          if (e.key !== 'ContextMenu' && !(e.key === 'F10' && e.shiftKey)) {
+            return;
+          }
+          e.preventDefault();
+          const row = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          this.openMenu(f, { x: row.left + 16, y: row.bottom });
         }}
       >
         <span class="kind">${factLabel(f)}</span>

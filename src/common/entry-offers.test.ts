@@ -7,6 +7,7 @@ import { NO_FIELDS } from './entry-events';
 import {
   entryOffers,
   entryPlace,
+  isLine,
   offerWords,
   tickedFirst
 } from './entry-offers';
@@ -104,14 +105,37 @@ test('a Fact that differs is offered only its change, unticked', () => {
   ).toMatchObject([{ action: 'change', now: { place: PLACE } }, {}]);
 });
 
-test('two Facts of a kind are left to choose between in Sources', () => {
+test('of two Facts of a kind, the one that agrees is offered support; none agreeing, nothing to tick', () => {
+  const said = { fields: BAPTISM, place: PLACE };
   const two = [birth('1761'), birth('1762', null, 2)];
-  expect(entryOffers('CHR', { fields: BAPTISM, place: PLACE }, two)[0]).toEqual(
-    {
-      tag: 'BIRT',
-      action: 'two'
-    }
-  );
+  expect(entryOffers('CHR', said, two)[0]).toMatchObject({
+    tag: 'BIRT',
+    action: 'support',
+    factId: 1
+  });
+  const neither = [birth('1760'), birth('1762', null, 2)];
+  expect(entryOffers('CHR', said, neither)[0]).toEqual({
+    tag: 'BIRT',
+    action: 'two'
+  });
+});
+
+test('of two Facts of a kind, one the Entry supports is kept and another that agrees offered too, never changed into a twin', () => {
+  const said = { fields: BAPTISM, place: PLACE };
+  const wrong = { ...birth('1762', PLACE, 1), supported: true };
+  const right = birth('3 MAR 1761', PLACE, 2);
+  const offers = entryOffers('CHR', said, [wrong, right]);
+  expect(offers.filter((o) => o.tag === 'BIRT')).toMatchObject([
+    { action: 'support', factId: 1, kept: true },
+    { action: 'support', factId: 2 }
+  ]);
+  // Each its own line, by its Fact.
+  expect(
+    isLine(offers[0]!, { tag: 'BIRT', action: 'support', factId: 2 })
+  ).toBe(false);
+  expect(
+    isLine(offers[1]!, { tag: 'BIRT', action: 'support', factId: 2 })
+  ).toBe(true);
 });
 
 test('the place is as the book writes it, in its parish, in Finland', () => {
@@ -152,7 +176,7 @@ test('a line is written as the card shows it', () => {
     })
   ).toBe('Change Birth place Juva → Esimerkkilä 2, Juva, Suomi');
   expect(offerWords({ tag: 'BIRT', action: 'two' })).toBe(
-    'Two Births: choose in Sources'
+    'Two Births: none matches'
   );
 });
 
@@ -213,6 +237,20 @@ test('a Residence the line supports already, its place changed since, is kept as
   );
 });
 
+test('a Fact the Entry supports that no line names, its date emptied or its kind changed, is kept to untick', () => {
+  const birthOwn = { ...birth('3 MAR 1761', PLACE, 1), supported: true };
+  const fields = { ...BAPTISM, lifeDate: null };
+  expect(
+    entryOffers('CHR', { fields, place: PLACE }, [birthOwn])
+  ).toMatchObject([
+    { tag: 'CHR', action: 'add' },
+    { tag: 'BIRT', action: 'support', factId: 1, kept: true }
+  ]);
+  expect(
+    entryOffers('BURI', { fields: NO_FIELDS, place: PLACE }, [birthOwn])
+  ).toMatchObject([{ tag: 'BIRT', action: 'support', factId: 1, kept: true }]);
+});
+
 test('a Fact the Entry supports already, agreeing or not, is kept as its source', () => {
   const said = { fields: BAPTISM, place: PLACE };
   const same = { ...birth('3 MAR 1761', PLACE, 1), supported: true };
@@ -225,6 +263,42 @@ test('a Fact the Entry supports already, agreeing or not, is kept as its source'
     { tag: 'BIRT', action: 'support', factId: 1, kept: true },
     { tag: 'BIRT', action: 'change', factId: 1 },
     { tag: 'CHR', action: 'add' }
+  ]);
+});
+
+test('a Residence the line supports already is found whatever its years, and another at the place supported rather than it changed into a twin', () => {
+  const years = { from: 1790, to: 1796 };
+  const said = { fields: NO_FIELDS, place: PLACE, years };
+  // Its years and place both changed in the tree: kept, its place offered
+  // back, its date as it is now; none added.
+  const moved = { ...resi('1800', 'Kylämaa 4, Juva'), supported: true };
+  expect(entryOffers('RESI', said, [moved])).toEqual([
+    {
+      tag: 'RESI',
+      action: 'support',
+      factId: 5,
+      was: { date: '1800', place: 'Kylämaa 4, Juva' },
+      kept: true
+    },
+    {
+      tag: 'RESI',
+      action: 'change',
+      factId: 5,
+      was: { date: '1800', place: 'Kylämaa 4, Juva' },
+      now: { date: '1800', place: PLACE }
+    }
+  ]);
+  // With no date, its place offered back gives it none.
+  const undated = { ...resi(null, 'Kylämaa 4, Juva'), supported: true };
+  expect(entryOffers('RESI', said, [undated])[1]).toMatchObject({
+    action: 'change',
+    now: { date: null, place: PLACE }
+  });
+  // Another at the place in the years: that one supported, its own kept.
+  const there = { ...resi('BET 1790 AND 1796', PLACE), id: 6 };
+  expect(entryOffers('RESI', said, [moved, there])).toMatchObject([
+    { action: 'support', factId: 5, kept: true },
+    { action: 'support', factId: 6 }
   ]);
 });
 

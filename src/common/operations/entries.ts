@@ -56,7 +56,9 @@ export interface InEntry {
 }
 
 // An Entry as it should be after an edit; a part left out stays.
-// The lines ticked are done whatever else changes.
+// The lines ticked are done whatever else changes. `ticked` given is all
+// of them: a Fact the Entry supports whose line isn't in it, it no longer
+// does; left out, its support stays as it is.
 export interface EntryEdit {
   at?: EntryAt;
   event?: EntryEvent;
@@ -111,10 +113,12 @@ export function entryFieldsOf(value: unknown): EntryFields | null {
 function tickedOf(value: unknown): Ticked | null {
   const fields = fieldsOf(value);
   if (fields === null || !isName(fields.tag)) return null;
-  const { tag, action } = fields;
-  return action === 'add' || action === 'support' || action === 'change'
-    ? { tag, action }
-    : null;
+  const { tag, action, factId } = fields;
+  if (action !== 'add' && action !== 'support' && action !== 'change') {
+    return null;
+  }
+  if (factId === undefined) return { tag, action };
+  return isInteger(factId) ? { tag, action, factId } : null;
 }
 
 function newcomerOf(value: unknown): Newcomer | null {

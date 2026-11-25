@@ -33,7 +33,9 @@ export interface FactSays {
 //   not: left ticked it still does, unticked it no longer does;
 // - 'change': the Fact says less, or differs; it's made to say what the
 //   Entry does (`now`), and supported;
-// - 'two': there are two or more, to choose between in Sources; no box.
+// - 'two': there are two or more, none the Entry supports or agrees
+//   with; no box. Of two or more, each it supports is kept and each that
+//   agrees offered support, by its `factId`.
 export type Offer =
   | { tag: string; action: 'add'; now: FactSays }
   | {
@@ -52,10 +54,29 @@ export type Offer =
     }
   | { tag: string; action: 'two' };
 
-// A line ticked to be done, as the card sends it.
+// A line ticked to be done, as the card sends it: by its Fact too, where
+// it has one, as two of a kind may each have a line. One without
+// `factId` is any line of its tag and action.
 export interface Ticked {
   tag: string;
   action: 'add' | 'support' | 'change';
+  factId?: number;
+}
+
+// The line as it's ticked.
+export function tickedLine(offer: Exclude<Offer, { action: 'two' }>): Ticked {
+  const { tag, action } = offer;
+  return 'factId' in offer
+    ? { tag, action, factId: offer.factId }
+    : { tag, action };
+}
+
+// Whether the line ticked is this one.
+export function isLine(offer: Offer, t: Ticked) {
+  if (offer.tag !== t.tag || offer.action !== t.action) return false;
+  return (
+    t.factId === undefined || ('factId' in offer && offer.factId === t.factId)
+  );
 }
 
 // Whether a line starts ticked: adding and supporting do, changing doesn't.
@@ -89,21 +110,45 @@ function supportOf(tag: string, fact: OwnFact): Offer {
     : { tag, action: 'support', factId: fact.id, was };
 }
 
+// Whether the Fact may say what the Entry does: neither its date nor its
+// place another.
+function agrees(now: { date: string; place: string | null }, fact: OwnFact) {
+  return (
+    dateTo(now.date, fact.date) !== 'other' &&
+    placeTo(now.place, fact.place) !== 'other'
+  );
+}
+
 // The lines for one of the Entry's dates against the Facts of its kind:
-// none, add; two, none to tick; one that differs, change, kept as a
-// source too if it is one; one that agrees, support, and change too
-// where it says less.
+// none, add; one, or of two or more the one it supports already with no
+// other agreeing, `oneFact`'s; else each it supports kept, each other
+// that agrees supported, and none to tick when there's neither.
 function offersFor(
   tag: string,
   now: { date: string; place: string | null },
   facts: OwnFact[]
 ): Offer[] {
   const ofTag = facts.filter((f) => f.tag === tag);
-  // Of two or more, the one it supports already is its own.
   const own = ofTag.filter((f) => f.supported === true);
-  const [fact, ...more] = own.length === 1 ? own : ofTag;
-  if (fact === undefined) return [{ tag, action: 'add', now }];
-  if (more.length > 0) return [{ tag, action: 'two' }];
+  const others = ofTag.filter((f) => f.supported !== true && agrees(now, f));
+  const [only, ...more] = ofTag;
+  if (only === undefined) return [{ tag, action: 'add', now }];
+  if (more.length === 0) return oneFact(tag, now, only);
+  if (own.length === 1 && others.length === 0) {
+    return oneFact(tag, now, own[0]!);
+  }
+  const lines = [...own, ...others].map((f) => supportOf(tag, f));
+  return lines.length === 0 ? [{ tag, action: 'two' }] : lines;
+}
+
+// The lines for one of the Entry's dates against the one Fact of its kind
+// it's held to: one that differs, change, kept as a source too if it is
+// one; one that agrees, support, and change too where it says less.
+function oneFact(
+  tag: string,
+  now: { date: string; place: string | null },
+  fact: OwnFact
+): Offer[] {
   const date = dateTo(now.date, fact.date);
   const place = placeTo(now.place, fact.place);
   const was = { date: fact.date, place: fact.place };
@@ -123,7 +168,8 @@ function offersFor(
 
 // What the Entry of the Event would do to its owner's Facts: a line for
 // each date of its `fields`, at its place as a Fact's (null for none); a
-// household line's Residence over its Volume's `years`.
+// household line's Residence over its Volume's `years`; and kept, each
+// the Entry being edited supports that none of those name.
 export function entryOffers(
   event: EntryEvent | null,
   {
@@ -133,11 +179,25 @@ export function entryOffers(
   }: { fields: EntryFields; place: string | null; years?: Years | null },
   facts: OwnFact[]
 ): Offer[] {
-  if (event === 'RESI') return residenceOffers(place, years, facts);
-  return eventDates(event).flatMap(({ key, tag }) => {
-    const date = fields[key];
-    return date === null ? [] : offersFor(tag, { date, place }, facts);
-  });
+  const offers =
+    event === 'RESI'
+      ? residenceOffers(place, years, facts)
+      : eventDates(event).flatMap(({ key, tag }) => {
+          const date = fields[key];
+          return date === null ? [] : offersFor(tag, { date, place }, facts);
+        });
+  return [...offers, ...keptBesides(offers, facts)];
+}
+
+// Those the Entry being edited supports that no line names, as when its
+// date was emptied or its kind changed: kept, to untick.
+function keptBesides(offers: Offer[], facts: OwnFact[]): Offer[] {
+  const named = new Set(
+    offers.flatMap((o) => ('factId' in o ? [o.factId] : []))
+  );
+  return facts
+    .filter((f) => f.supported === true && !named.has(f.id))
+    .map((f) => supportOf(f.tag, f));
 }
 
 // Whether a Fact's date may fall in the years: one it doesn't give may.
@@ -148,33 +208,37 @@ function overlaps(date: string | null, years: Years) {
   return span[0] <= years.to * 10000 + 1231 && span[1] >= years.from * 10000;
 }
 
-// A household line's Residence: one at the same place in the years agrees,
-// and is supported; one it supports already, its place since changed in
-// the tree or on the card, is changed to its place; else one is added,
-// from the Volume's first year to its last. None without a place or
-// years.
+// A household line's Residence. One the Entry being edited supports
+// already, whatever its years, is kept as its source, and offered its
+// place back where it was moved in the tree, unless another at the place
+// in the years agrees: that one is offered support instead. With none
+// of its own, one at the same place in the years is supported, else one
+// is added, from the Volume's first year to its last. None without a
+// place or years.
 function residenceOffers(
   place: string | null,
   years: Years | null,
   facts: OwnFact[]
 ): Offer[] {
   if (place === null || years === null) return [];
-  const same = facts.find(
-    (f) => f.tag === 'RESI' && f.place === place && overlaps(f.date, years)
+  const resi = facts.filter((f) => f.tag === 'RESI');
+  const own = resi.filter((f) => f.supported === true);
+  const same = resi.find(
+    (f) => f.supported !== true && f.place === place && overlaps(f.date, years)
   );
-  if (same !== undefined) return [supportOf('RESI', same)];
-  const span = `BET ${years.from} AND ${years.to}`;
-  const own = facts.find(
-    (f) => f.tag === 'RESI' && f.supported === true && overlaps(f.date, years)
-  );
-  if (own !== undefined) {
-    const was = { date: own.date, place: own.place };
-    const now = { date: own.date ?? span, place };
+  const kept = own.map((f) => supportOf('RESI', f));
+  if (same !== undefined) return [...kept, supportOf('RESI', same)];
+  if (own.some((f) => f.place === place)) return kept;
+  const [moved] = own;
+  if (moved !== undefined) {
+    const was = { date: moved.date, place: moved.place };
+    const now = { date: moved.date, place };
     return [
-      supportOf('RESI', own),
-      { tag: 'RESI', action: 'change', factId: own.id, was, now }
+      ...kept,
+      { tag: 'RESI', action: 'change', factId: moved.id, was, now }
     ];
   }
+  const span = `BET ${years.from} AND ${years.to}`;
   return [{ tag: 'RESI', action: 'add', now: { date: span, place } }];
 }
 
@@ -211,7 +275,7 @@ function changeWords(was: FactSays, now: FactSays) {
 // A line as its card writes it: "Add Birth 3.3.1761 at Esimerkkilä 2, …",
 // "Christening 5.3.1761 matches: use as its source", "Birth 1762: keep as
 // its source", "Change Birth 1761 → 3.3.1761", "Two Births:
-// choose in Sources".
+// none matches".
 export function offerWords(offer: Offer) {
   const kind = factKindLabel(offer.tag);
   switch (offer.action) {
@@ -230,6 +294,6 @@ export function offerWords(offer: Offer) {
     case 'change':
       return `Change ${kind} ${changeWords(offer.was, offer.now)}`;
     case 'two':
-      return `Two ${kind}s: choose in Sources`;
+      return `Two ${kind}s: none matches`;
   }
 }

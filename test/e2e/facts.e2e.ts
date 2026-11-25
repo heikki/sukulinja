@@ -72,6 +72,15 @@ test('a fact is added, edited and deleted in Events', async () => {
     });
     await edited.waitFor();
 
+    // The keyboard opens it too, and Esc closes it.
+    await edited.focus();
+    await page.keyboard.press('Shift+F10');
+    await panel.getByRole('menuitem', { name: 'Edit' }).waitFor();
+    await page.keyboard.press('Escape');
+    await panel.getByRole('menuitem', { name: 'Edit' }).waitFor({
+      state: 'detached'
+    });
+
     // Delete is the menu's, asked first; Cancel keeps it.
     await factMenu(page, 'Birth 4.3.1795 · Esimerkkilä, Juva', 'Delete');
     const ask = panel.getByRole('alertdialog');

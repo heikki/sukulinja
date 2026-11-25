@@ -202,18 +202,21 @@ test('a Fact that differs is offered only its change; left, it stays unsupported
   expect(factsOf(db, 1)[1]).toMatchObject({ date: '13 MAR 1795' });
 });
 
-test('two Facts of a kind are offered nothing to tick', async () => {
+test('of two Facts of a kind, the one that agrees is offered support; none agreeing, nothing to tick', async () => {
   const { db, entries } = entriesDataset(dir);
   db.run(
     "INSERT INTO facts (scope_type, scope_id, tag, date_text) VALUES ('person', 1, 'BIRT', '1794')"
   );
+  const asked = {
+    volumeId: 'juva-3',
+    event: 'CHR' as const,
+    people: [{ personId: 1, role: 'CHIL' }]
+  };
   expect(
-    await entries.offers({
-      volumeId: 'juva-3',
-      event: 'CHR',
-      people: [{ personId: 1, role: 'CHIL' }],
-      fields: fields('3 MAR 1795', null)
-    })
+    await entries.offers({ ...asked, fields: fields('3 MAR 1795', null) })
+  ).toMatchObject([{ tag: 'BIRT', action: 'support', factId: 1 }]);
+  expect(
+    await entries.offers({ ...asked, fields: fields('3 MAR 1793', null) })
   ).toEqual([{ tag: 'BIRT', action: 'two' }]);
 });
 

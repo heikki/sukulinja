@@ -240,8 +240,11 @@ test("an edited Entry's lines know the Fact it supports from another of its kind
     people: BOTH,
     fields: { date: '3 MAR 1795', lifeDate: null, place: null }
   };
-  expect(await api!.entryOffers(asked)).toMatchObject([{ action: 'two' }]);
-  expect(await api!.entryOffers({ ...asked, entryId })).toMatchObject([
+  // Asked anew, the one that agrees is offered; edited, it's kept.
+  expect(await api!.entryOffers(asked)).toMatchObject([
     { tag: 'CHR', action: 'support' }
+  ]);
+  expect(await api!.entryOffers({ ...asked, entryId })).toMatchObject([
+    { tag: 'CHR', action: 'support', kept: true }
   ]);
 });

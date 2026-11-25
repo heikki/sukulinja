@@ -328,7 +328,7 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
     const fresh = newcomersRefusal(event, people, edit.newcomers ?? []);
     if (fresh !== null) return { rejected: fresh };
     const said = await saying(
-      { volumeId: entry.volumeId, entryId, event, people },
+      { volumeId: (to ?? entry).volumeId, entryId, event, people },
       edit.fields ?? entry.fields,
       edit.ticked ?? []
     );

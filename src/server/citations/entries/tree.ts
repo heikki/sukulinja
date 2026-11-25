@@ -9,7 +9,7 @@ import type { Database } from 'bun:sqlite';
 
 import { gedcomDate } from '@/common/dates';
 import type { EntryEvent, EntryFields } from '@/common/entry-events';
-import { entryOffers, entryPlace } from '@/common/entry-offers';
+import { entryOffers, entryPlace, isLine } from '@/common/entry-offers';
 import type { Offer, OwnFact, Ticked } from '@/common/entry-offers';
 import type { InEntry } from '@/common/operations';
 import type { Years } from '@/common/types';
@@ -84,10 +84,6 @@ export interface EntryShape {
 // The lines worked out for an Entry.
 export interface Offered {
   offers: Offer[];
-}
-
-function sameLine(o: Offer, t: Ticked) {
-  return o.tag === t.tag && o.action === t.action;
 }
 
 export function entryTree(
@@ -204,7 +200,7 @@ export function entryTree(
     // as the tree or the Entry changed since it was listed. Null when they
     // can.
     tickRefusal({ offers }: Offered, ticked: Ticked[]) {
-      return ticked.every((t) => offers.some((o) => sameLine(o, t)))
+      return ticked.every((t) => offers.some((o) => isLine(o, t)))
         ? null
         : 'The tree has changed since; look at the list again.';
     },
@@ -225,7 +221,7 @@ export function entryTree(
       const owner = ownerOf(saved.event, saved.people, coupleOf);
       if (owner === null) return;
       const cited = cites.citationOf(owner.personId);
-      const done = offers.filter((o) => ticked.some((t) => sameLine(o, t)));
+      const done = offers.filter((o) => ticked.some((t) => isLine(o, t)));
       for (const offer of done) doLine(owner, cited, offer);
       for (const offer of offers) {
         if (offer.action !== 'support' || offer.kept !== true) continue;
