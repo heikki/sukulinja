@@ -70,6 +70,7 @@ function source(id: number, citedPage: number | null, churchBook = true) {
     source: null,
     reference: null,
     entry: null,
+    referenceEntry: null,
     page: null,
     record: null,
     text: null,

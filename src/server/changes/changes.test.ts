@@ -15,6 +15,7 @@ const CITATION: CitationRow = {
   source: 'Juvan seurakunnan arkisto',
   reference: 'I Aa:1, s. 12',
   entry: null,
+  referenceEntry: null,
   page: null,
   record: null,
   text: null,

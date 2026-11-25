@@ -55,6 +55,8 @@ export function referencesOf(
   return {
     refOf: ({ page, text, role, annotation }) =>
       annotation.madeInApp ? null : churchBookRefOf(page, text, role),
+    convertedFrom: ({ page, text, role, annotation }) =>
+      annotation.madeInApp ? churchBookRefOf(page, text, role) : null,
     markKey,
     recordOf: ({ page, text, role, annotation }) =>
       !annotation.madeInApp && isRecordPage(referencePageOf(page, role))

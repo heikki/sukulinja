@@ -18,6 +18,7 @@ function row(
       source: null,
       reference: null,
       entry: null,
+      referenceEntry: null,
       page: null,
       record: null,
       text: null,

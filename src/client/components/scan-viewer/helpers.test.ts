@@ -18,6 +18,7 @@ function row(id: number, markKey: string, entryId: number | null = null) {
       source: null,
       reference: 'Juva · Syntyneet 1790–1796 · p. 12',
       entry: 'p. 12',
+      referenceEntry: 'p. 12',
       page: null,
       record: null,
       text: null,

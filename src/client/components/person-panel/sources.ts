@@ -97,7 +97,7 @@ function isFiled(status: LinkStatus | null) {
 
 // Under its archive (`filed`), where in its Volume the reference points.
 function filedEntry(c: CitationRow, filed: boolean) {
-  return filed ? c.entry : null;
+  return filed ? c.referenceEntry : null;
 }
 
 // Whether a source's Link is to an Image of its Volume, so the viewer

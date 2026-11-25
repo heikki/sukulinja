@@ -69,6 +69,7 @@ const OF_IMAGE: CitationRow = {
   source: VOLUME,
   reference: null,
   entry: 'Image\u00a013',
+  referenceEntry: null,
   page: LINK.url,
   record: null,
   text: 'Baptism 12.3.1795',

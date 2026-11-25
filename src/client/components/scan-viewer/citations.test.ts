@@ -42,6 +42,7 @@ function row(
       source: null,
       reference: 'Juva · Pää- ja rippikirjat 1790–1796 · p. 12',
       entry: 'p. 12',
+      referenceEntry: 'p. 12',
       page: null,
       record: null,
       text: null,

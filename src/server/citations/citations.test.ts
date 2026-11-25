@@ -110,6 +110,7 @@ test("serves a person's Citations, church books first", () => {
       source: 'Suomalaiset rippi- ja lastenkirjat, 1657-1915',
       reference: 'Pää- ja rippikirjat 1794–1808\u00a0· p.\u00a0139',
       entry: 'p.\u00a0139',
+      referenceEntry: 'p.\u00a0139',
       page: RIPPI,
       record: {
         name: 'Matti Esimerkki',
@@ -136,6 +137,7 @@ test("serves a person's Citations, church books first", () => {
       source: null,
       reference: null,
       entry: null,
+      referenceEntry: null,
       page: null,
       record: null,
       text: 'Family bible',

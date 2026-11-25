@@ -121,6 +121,7 @@ test('a hand Mark at the entry converts every citation of the record', async () 
     {
       reference: null,
       entry: 'Image 13',
+      referenceEntry: 'p. 12',
       record: null,
       madeInApp: true
     }

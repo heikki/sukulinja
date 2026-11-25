@@ -9,8 +9,6 @@
 
 import type { Database, SQLQueryBindings } from 'bun:sqlite';
 
-import { bookLabel } from '@/common/books';
-import { isoDate } from '@/common/dates';
 import { isEntryEvent } from '@/common/entry-events';
 import type { EntryFields } from '@/common/entry-events';
 import type {
@@ -32,6 +30,7 @@ import type { Annotation } from './annotations';
 import { openAppCitations } from './app-citations';
 import { viewerUrl, volumeYears } from './astia/astia';
 import { citedArchives } from './cited-archives';
+import { describeRef, entriesOf } from './cited-text';
 import { datasetVersion } from './db-version';
 import {
   CITATIONS_READ,
@@ -86,6 +85,7 @@ interface Cited<R extends BookRef = BookRef> {
 type EntryLink = Link & { precision: 'entry' };
 
 export type { EntryAt, EntryEdit, InEntry } from './entries';
+export { describeRef, entryOf } from './cited-text';
 
 // The Link of a Citation with no Church-book reference: the Mark at the
 // entry stored on it. Null for any other.
@@ -102,28 +102,6 @@ function storedLink(
   const url = viewerUrl(volumeId, fileId);
   const certainty = by === 'hand' ? 'marked' : 'match';
   return { volumeId, volume, url, precision: 'entry', image, box, certainty };
-}
-
-// Parish · book and years · page, of what the reference gives. Lines break
-// only after a dot.
-export function describeRef(ref: BookRef) {
-  const named = [ref.parish, bookLabel(ref, ref.page)].filter(
-    (s) => s !== null
-  );
-  return named.length === 0 ? null : named.join('\u00a0· ');
-}
-
-// Where in its Volume the reference points: the page, else the entry's date.
-export function entryOf(ref: BookRef) {
-  if (ref.page !== null) return `p.\u00a0${ref.page}`;
-  return ref.date === null ? null : isoDate(ref.date);
-}
-
-// Where in its Volume the reference points, or the Image a Citation of
-// one cites.
-function entryText(book: BookRef | null, stored: EntryLink | null) {
-  if (book !== null) return entryOf(book);
-  return stored === null ? null : `Image\u00a0${stored.image}`;
 }
 
 // The Event its Entry records, one the card offers; null for none.
@@ -150,7 +128,7 @@ function citationOf<R extends BookRef>(references: References<R>) {
       id: row.id,
       source: row.source,
       reference: book === null ? null : describeRef(book),
-      entry: entryText(book, stored),
+      ...entriesOf(book, stored, () => references.convertedFrom(row)),
       page: row.page,
       record,
       text:

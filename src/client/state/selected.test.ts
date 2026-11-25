@@ -17,6 +17,7 @@ function churchBook(id: number, citedPage: number | null): CitationRow {
     source: null,
     reference: null,
     entry: null,
+    referenceEntry: null,
     page: null,
     record: null,
     text: null,

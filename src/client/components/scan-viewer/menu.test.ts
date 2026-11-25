@@ -34,6 +34,7 @@ function citation(id: number, madeInApp: boolean): CitationRow {
     source: null,
     reference: null,
     entry: null,
+    referenceEntry: null,
     page: null,
     record: null,
     text: null,
