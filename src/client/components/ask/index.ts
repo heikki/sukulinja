@@ -71,6 +71,12 @@ class AskElement extends LitElement {
         outline: none;
       }
 
+      /* With no text under it, the title keeps the room the text's
+         paragraph leaves above the buttons. */
+      dialog h2.alone {
+        margin-bottom: 1.2rem;
+      }
+
       /* The app's words, which can be a long raw path. */
       dialog p.refused {
         max-height: 6.5rem;
@@ -212,7 +218,7 @@ class AskElement extends LitElement {
       @close=${this.onClose}
     >
       <div class="card" tabindex="-1">
-        <h2 id="title">${title}</h2>
+        <h2 id="title" class=${text === undefined ? 'alone' : ''}>${title}</h2>
         ${text === undefined ? nothing : html`<p id="text">${text}</p>`}
         ${
           this.refused === null
