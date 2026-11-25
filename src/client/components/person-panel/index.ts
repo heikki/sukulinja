@@ -8,6 +8,7 @@ import { appState } from '@/client/state';
 import type { AppState, Chart, LinkOpen } from '@/client/state';
 import type { PhotoRow } from '@/common/types';
 
+import { onAvatarReady } from '../tree-view/avatar-cache';
 import { CROSS, formatName } from '../tree-view/renderer';
 
 import './events';
@@ -77,6 +78,22 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
   // gives it.
   private revealed: LinkOpen | null = null;
 
+  // Drawn again as the faces of the Photos are cropped.
+  private avatarUnsub: (() => void) | null = null;
+
+  override connectedCallback() {
+    super.connectedCallback();
+    this.avatarUnsub = onAvatarReady(() => {
+      this.requestUpdate();
+    });
+  }
+
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.avatarUnsub?.();
+    this.avatarUnsub = null;
+  }
+
   // Whether the sources can be seen: their section is open, and so is the
   // dock holding the panel.
   private sourcesShown() {
@@ -132,16 +149,21 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
   }
 
   // Clicked again while the Photo viewer shows it, it closes the viewer.
-  private renderPhotos(photos: PhotoRow[]) {
+  private renderPhotos(personId: number, photos: PhotoRow[]) {
     const { photoViewer, chart, api } = this.state;
     const shown = photoViewer.opened.get()?.id ?? null;
-    return renderPhotos(photos, shown, {
-      url: api.photoThumbUrl,
-      open: (p) => {
-        if (p.id === shown) photoViewer.close();
-        else chart.openPhoto(p);
+    return renderPhotos(
+      photos,
+      { personId, shown },
+      {
+        thumb: api.photoThumbUrl,
+        media: api.mediaUrl,
+        open: (p) => {
+          if (p.id === shown) photoViewer.close();
+          else chart.openPhoto(p);
+        }
       }
-    });
+    );
   }
 
   // A heading that shows or hides what follows it.
@@ -219,7 +241,7 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
           d.photos.length === 0
             ? nothing
             : this.renderSection('photos', 'Photos', () =>
-                this.renderPhotos(d.photos)
+                this.renderPhotos(d.id, d.photos)
               )
         }
       </div>

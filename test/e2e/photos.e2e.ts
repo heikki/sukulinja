@@ -8,7 +8,7 @@ import { resolve } from 'node:path';
 import type { Page } from 'playwright';
 
 import { closeBrowser, shot, withApp } from './app';
-import { boxOf, newTree, openList } from './steps';
+import { boxOf, newTree, openList, openSection } from './steps';
 
 afterAll(closeBrowser);
 
@@ -135,5 +135,27 @@ test('people are tagged in photos, one their portrait', async () => {
     expect(await page.getByRole('button', { name: /^Photo, / }).count()).toBe(
       1
     );
+  });
+});
+
+test("the person panel's Photos show the person's face", async () => {
+  await withApp(async ({ page }) => {
+    await newTree(page);
+    await openList(page, 'Photos');
+    const chooser = page.waitForEvent('filechooser');
+    await page.getByRole('button', { name: 'Add photos…' }).click();
+    await (await chooser).setFiles(PHOTOS.slice(0, 1));
+    await tag(page, 0.3, 0.3, 'Matti Esimerkki');
+    const viewer = page.getByRole('region', { name: 'Photo viewer' });
+    await viewer.getByRole('button', { name: /Matti Esimerkki/ }).waitFor();
+    await page.keyboard.press('Escape');
+    await viewer.waitFor({ state: 'detached' });
+
+    // Cropped to his tag, as his portrait is.
+    await boxOf(page, 'Matti').click();
+    await openSection(page, 'Photos');
+    const tile = page.locator('sl-person-panel button.photo img');
+    await tile.waitFor();
+    expect(await tile.getAttribute('src')).toStartWith('blob:');
   });
 });

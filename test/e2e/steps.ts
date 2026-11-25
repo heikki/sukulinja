@@ -70,7 +70,9 @@ export async function openJuvaVolume(page: Page, volume: string) {
 
 // The person panel's section open, whether or not it was before.
 export async function openSection(page: Page, name: string) {
-  const closed = page.getByRole('button', { name, expanded: false });
+  const closed = page
+    .locator('sl-person-panel')
+    .getByRole('button', { name, expanded: false });
   if ((await closed.count()) > 0) await closed.click();
 }
 

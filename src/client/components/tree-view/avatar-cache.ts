@@ -60,9 +60,7 @@ function setReady(key: string, url: string) {
 
 // What a person's avatar draws: their marked face once it's cropped, the
 // whole photo when no face is marked, or null for the silhouette. A face
-// still being cropped is null, and so is one that failed: those aren't
-// retried (a reload clears them), so a broken photo can't spin a
-// fetch-and-repaint loop.
+// still being cropped is null, and so is one that failed (see faceHref).
 export function avatarHref(
   person: PersonRow,
   mediaUrl: (storedPath: string) => string
@@ -71,13 +69,31 @@ export function avatarHref(
   const photo = mediaUrl(person.photo_path);
   const { crop } = person;
   if (crop === null) return photo;
+  const face = faceHref(photo, crop);
+  return typeof face === 'object' ? face.cropped : null;
+}
+
+// The face `crop` marks on `photo`: an object URL of it once cropped,
+// 'cropping' until then, and 'failed' for a photo that couldn't be. Those
+// that failed aren't retried (a reload clears them), so a broken photo
+// can't spin a fetch-and-repaint loop. onAvatarReady fires as each lands.
+export type Face = { cropped: string } | 'cropping' | 'failed';
+
+export function faceHref(photo: string, crop: PhotoCrop): Face {
   const { left, top, width, height } = crop;
   const key = `${photo}|${left},${top},${width},${height}`;
   const url = getReady(key);
-  if (url !== undefined) return url;
-  if (failed.has(key) || inflight.has(key)) return null;
-  inflight.set(key, generate(photo, crop, key));
-  return null;
+  if (url !== undefined) return { cropped: url };
+  if (failed.has(key)) return 'failed';
+  if (!inflight.has(key)) inflight.set(key, generate(photo, crop, key));
+  return 'cropping';
+}
+
+// A face that couldn't be cropped: the avatar keeps its silhouette, and a
+// Photo's tile in the person panel turns to the whole photo, so it's told.
+function fail(key: string) {
+  failed.add(key);
+  scheduleNotify();
 }
 
 async function generate(photo: string, crop: PhotoCrop, key: string) {
@@ -95,7 +111,7 @@ async function generate(photo: string, crop: PhotoCrop, key: string) {
     const canvas = new OffscreenCanvas(TARGET_PX, TARGET_PX);
     const ctx = canvas.getContext('2d');
     if (ctx === null) {
-      failed.add(key);
+      fail(key);
       return;
     }
     ctx.drawImage(bitmap, 0, 0);
@@ -107,9 +123,9 @@ async function generate(photo: string, crop: PhotoCrop, key: string) {
     setReady(key, URL.createObjectURL(out));
     scheduleNotify();
   } catch {
-    // A broken or undecodable photo: record it so the silhouette stays and we
-    // don't re-fetch it on every repaint. No notify — nothing changed on screen.
-    failed.add(key);
+    // A broken or undecodable photo: recorded, so it isn't re-fetched on
+    // every repaint.
+    fail(key);
   } finally {
     inflight.delete(key);
   }
