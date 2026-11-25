@@ -31,6 +31,20 @@ test('reads an event\'s text, leaving out GEDCOM\'s "it happened" flag', () => {
   );
 });
 
+test('reads a place in Finland without its country, one elsewhere with it', () => {
+  const birth = { ...DEATH, tag: 'BIRT', value: null };
+  expect(factText({ ...birth, place: 'Laukola, Haukivuori, Suomi' })).toBe(
+    'Laukola, Haukivuori'
+  );
+  expect(factText({ ...birth, place: 'Pieksamaki, Finland' })).toBe(
+    'Pieksamaki'
+  );
+  expect(factText({ ...birth, place: 'Suomi' })).toBe('Suomi');
+  expect(factText({ ...birth, place: 'Stockholm, Sverige' })).toBe(
+    'Stockholm, Sverige'
+  );
+});
+
 const VOLUME = 'I Aa:1 Pää- ja rippikirjat (1790-1796)';
 const LINK: Link = {
   volumeId: 'juva-1',

@@ -9,12 +9,17 @@ export function factLabel(fact: FactRow) {
 }
 
 // The Fact in words; a marriage names the spouse. An event with nothing
-// else reads as a dash.
+// else reads as a dash. A place in Finland is read without its "Suomi",
+// as the app is for Finnish trees; a place elsewhere keeps its country.
 export function factText(fact: FactRow) {
-  const parts = [factWords(fact)];
+  const parts = [factWords({ ...fact, place: placeInFinland(fact.place) })];
   if (fact.spouse !== null) parts.push(`with ${fact.spouse}`);
   const said = parts.filter((x) => x !== null);
   return said.length === 0 ? '—' : said.join(' · ');
+}
+
+function placeInFinland(place: string | null) {
+  return place?.replace(/, (?:Suomi|Finland)$/, '') ?? null;
 }
 
 // The person's Citations supporting the Fact, as their sources list them
