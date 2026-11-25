@@ -45,6 +45,14 @@ class SideDockElement extends LitElement {
     return this.open ? (this.dragWidth ?? this.width) : RAIL_PX;
   }
 
+  // Its width at once, before its first update: the chart beside it
+  // measures where its canvas starts in the same update that adds the
+  // dock, and a dock widening after would push a restored view aside.
+  override connectedCallback() {
+    super.connectedCallback();
+    this.style.width = `${this.target}px`;
+  }
+
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.stopSlide();

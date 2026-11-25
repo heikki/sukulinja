@@ -50,3 +50,26 @@ test('only the dock opens and closes itself', async () => {
     expect(await open.count()).toBe(0);
   });
 });
+
+test('the chart is where it was left beside the open dock', async () => {
+  await withApp(async ({ page }) => {
+    await newTree(page);
+    await openDock(page);
+    // Dragged once the dock has slid open, and let settle.
+    await page.waitForTimeout(500);
+    const canvas = await page.locator('.canvas').boundingBox();
+    if (canvas === null) throw new Error("the chart isn't shown");
+    await page.mouse.move(canvas.x + 300, canvas.y + 300);
+    await page.mouse.down();
+    await page.mouse.move(canvas.x + 400, canvas.y + 350, { steps: 10 });
+    await page.mouse.up();
+    await page.waitForURL(/pan=/);
+    await page.waitForTimeout(500);
+    const left = await boxOf(page, 'Matti').boundingBox();
+
+    await page.reload();
+    await page.locator('sl-side-dock[open]').waitFor();
+    await page.waitForTimeout(500);
+    expect(await boxOf(page, 'Matti').boundingBox()).toEqual(left);
+  });
+});
