@@ -1,9 +1,11 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
+import { modalUp } from '@/client/modals';
 import { reducedMotion } from '@/client/pan-zoom';
 import type { PersonRow } from '@/common/types';
 
+import { closeCornerPopovers } from '../corner-panel/popover';
 import type { PickEvent } from '../person-search';
 import { SEARCH_ICON } from '../person-search/icon';
 
@@ -60,11 +62,14 @@ class FindPersonElement extends LitElement {
   }
 
   // ⌘F opens the search in place of the browser's find-in-page, which can't
-  // see into the chart's SVG anyway.
+  // see into the chart's SVG anyway, closing a corner popover open. Under a
+  // modal it does nothing: that's to be answered first.
   private readonly onDocumentKeydown = (e: KeyboardEvent) => {
     if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return;
     if (e.key.toLowerCase() !== 'f') return;
     e.preventDefault();
+    if (modalUp()) return;
+    closeCornerPopovers();
     void this.show();
   };
 

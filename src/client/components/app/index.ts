@@ -14,6 +14,7 @@ import { openLifecycleApi } from '@/client/dataset-api/lifecycle';
 import { dialogStyles } from '@/client/dialog-styles';
 import { focusRingStyles } from '@/client/focus-ring';
 import { reportView } from '@/client/last-view';
+import { markModal } from '@/client/modals';
 import { appApi, appState, openAppState } from '@/client/state';
 import { slugFromFilename, withoutExtension } from '@/common/slug';
 import type { DatasetInfo } from '@/common/types';
@@ -111,6 +112,13 @@ class AppElement extends LitElement {
     this.app.value
   );
   @state() private pendingImport: File | null = null;
+
+  // The import's dialog, while it's up, is a modal.
+  constructor() {
+    super();
+    markModal(this, () => this.pendingImport !== null);
+  }
+
   // A row's menu: its dataset, and the corner it drops from.
   @state() private menu: RowMenu | null = null;
   // What's being exported, in the note's words.

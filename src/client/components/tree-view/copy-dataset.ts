@@ -5,6 +5,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { Asking } from '@/client/asking';
 import { dialogStyles } from '@/client/dialog-styles';
 import { formStyles } from '@/client/form-styles';
+import { markModal } from '@/client/modals';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 
@@ -49,6 +50,11 @@ class CopyDatasetElement extends LitElement {
   @consume({ context: appState }) private readonly state!: AppState;
 
   private readonly asking = new Asking(this);
+
+  constructor() {
+    super();
+    markModal(this);
+  }
 
   // Everyone the chart draws, by id.
   @property({ attribute: false }) personIds: number[] = [];

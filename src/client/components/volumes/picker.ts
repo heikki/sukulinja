@@ -5,6 +5,7 @@ import { customElement, property, query, state } from 'lit/decorators.js';
 
 import { Asking } from '@/client/asking';
 import { focusRingStyles } from '@/client/focus-ring';
+import { markModal } from '@/client/modals';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type {
@@ -96,6 +97,11 @@ class VolumePickerElement extends SignalWatcher(LitElement) {
   // Adding a Volume to the list, or a parish found in Astia; why that was
   // refused.
   private readonly adding = new Asking(this);
+
+  constructor() {
+    super();
+    markModal(this);
+  }
 
   override connectedCallback() {
     super.connectedCallback();

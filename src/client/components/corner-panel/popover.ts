@@ -9,6 +9,12 @@ const OPENED = 'corner-popover-open';
 // OPENED, closes this one at the same moment, not a press earlier.
 const hosts = new Set<HTMLElement>();
 
+// Closes whichever corner popover is open, as ⌘F's search opening does,
+// dropping what was being written in it as a press outside does.
+export function closeCornerPopovers() {
+  window.dispatchEvent(new CustomEvent(OPENED, { detail: null }));
+}
+
 // Whether a popover hanging from a button in the chart's top-right corner,
 // as Settings' does, is open: only one is at a time, and a press outside
 // its host or Esc closes it, though a press on another corner popover's

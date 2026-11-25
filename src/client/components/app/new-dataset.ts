@@ -5,6 +5,7 @@ import { ApiError } from '@/client/dataset-api';
 import type { LifecycleApi } from '@/client/dataset-api/lifecycle';
 import { dialogStyles } from '@/client/dialog-styles';
 import { formStyles } from '@/client/form-styles';
+import { markModal } from '@/client/modals';
 import { slugFromFilename } from '@/common/slug';
 import type { DatasetInfo, Sex } from '@/common/types';
 
@@ -57,6 +58,11 @@ class NewDatasetElement extends LitElement {
   @state() private sex: Sex = 'U';
   @state() private saving = false;
   @state() private refused: string | null = null;
+
+  constructor() {
+    super();
+    markModal(this);
+  }
 
   override firstUpdated() {
     this.renderRoot.querySelector<HTMLElement>('input')?.focus();

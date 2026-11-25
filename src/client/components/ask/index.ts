@@ -3,6 +3,7 @@ import { customElement, property, query } from 'lit/decorators.js';
 
 import { dialogStyles } from '@/client/dialog-styles';
 import { focusRingStyles } from '@/client/focus-ring';
+import { markModal } from '@/client/modals';
 import type { Point } from '@/client/pan-zoom';
 
 // A step asked first: its title, what it does (text, or a template for a
@@ -87,6 +88,11 @@ class AskElement extends LitElement {
   @property({ attribute: false }) refused: string | null = null;
 
   @query('dialog') private readonly dialog!: HTMLDialogElement | null;
+
+  constructor() {
+    super();
+    markModal(this, () => this.ask !== null);
+  }
 
   override connectedCallback() {
     super.connectedCallback();
