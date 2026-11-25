@@ -1,9 +1,10 @@
-import { css, html, LitElement, nothing } from 'lit';
+import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { ApiError } from '@/client/dataset-api';
 import type { LifecycleApi } from '@/client/dataset-api/lifecycle';
 import { dialogStyles } from '@/client/dialog-styles';
+import { formDialog, formDialogStyles } from '@/client/form-dialog';
 import { formStyles } from '@/client/form-styles';
 import { markModal } from '@/client/modals';
 import { slugFromFilename } from '@/common/slug';
@@ -17,36 +18,7 @@ import { nameField, sexField } from '../person-form/fields';
 // dataset has is refused here already, as by the server.
 @customElement('sl-new-dataset')
 class NewDatasetElement extends LitElement {
-  static override styles = [
-    formStyles,
-    dialogStyles,
-    css`
-      :host {
-        display: contents;
-      }
-
-      .dialog .form {
-        margin-top: 0.3rem;
-        border: 0;
-        padding: 0;
-        background: none;
-      }
-
-      .dialog .form p {
-        margin: 0.5rem 0 0.1rem;
-        color: var(--muted);
-      }
-
-      .dialog .actions {
-        margin-top: 1.2rem;
-      }
-
-      .dialog .form p.error {
-        margin: 0;
-        color: var(--danger);
-      }
-    `
-  ];
+  static override styles = [formStyles, dialogStyles, formDialogStyles];
 
   @property({ attribute: false }) lifecycle!: LifecycleApi;
   // The datasets there are, whose names are taken.
@@ -113,63 +85,52 @@ class NewDatasetElement extends LitElement {
   };
 
   override render() {
-    return html`<div
-      class="overlay"
-      @click=${() => {
+    return formDialog({
+      title: 'New dataset',
+      close: () => {
         this.close();
-      }}
-    >
-      <div
-        class="dialog"
-        role="dialog"
-        aria-labelledby="new-title"
-        @keydown=${this.onKeyDown}
-        @click=${(e: Event) => {
-          e.stopPropagation();
-        }}
-      >
-        <h2 id="new-title">New dataset</h2>
-        <div class="form">
-          ${nameField('Name', 'e.g. Esimerkin suku', this.name, (v) => {
-            this.name = v;
-          })}
-          <p>The first person, who the tree starts from:</p>
-          ${nameField('Given names', 'e.g. Matti', this.given, (v) => {
-            this.given = v;
-          })}
-          ${nameField('Surname', 'e.g. Esimerkki', this.surname, (v) => {
-            this.surname = v;
-          })}
-          ${sexField(this.sex, (sex) => {
-            this.sex = sex;
-          })}
-          ${
-            this.refused === null
-              ? nothing
-              : html`<p class="error">${this.refused}</p>`
-          }
-        </div>
-        <div class="actions">
-          <button
-            ?disabled=${this.saving}
-            @click=${() => {
-              this.close();
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            class="primary"
-            ?disabled=${this.saving}
-            @click=${() => {
-              void this.create();
-            }}
-          >
-            ${this.saving ? 'Creating…' : 'Create'}
-          </button>
-        </div>
-      </div>
-    </div>`;
+      },
+      keydown: this.onKeyDown,
+      fields: html`
+        ${nameField('Name', 'e.g. Esimerkin suku', this.name, (v) => {
+          this.name = v;
+        })}
+        <p>The first person, who the tree starts from:</p>
+        ${nameField('Given names', 'e.g. Matti', this.given, (v) => {
+          this.given = v;
+        })}
+        ${nameField('Surname', 'e.g. Esimerkki', this.surname, (v) => {
+          this.surname = v;
+        })}
+        ${sexField(this.sex, (sex) => {
+          this.sex = sex;
+        })}
+        ${
+          this.refused === null
+            ? nothing
+            : html`<p class="error">${this.refused}</p>`
+        }
+      `,
+      actions: html`
+        <button
+          ?disabled=${this.saving}
+          @click=${() => {
+            this.close();
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          class="primary"
+          ?disabled=${this.saving}
+          @click=${() => {
+            void this.create();
+          }}
+        >
+          ${this.saving ? 'Creating…' : 'Create'}
+        </button>
+      `
+    });
   }
 }
 

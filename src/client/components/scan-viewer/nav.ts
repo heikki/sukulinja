@@ -115,6 +115,15 @@ class ScanNavElement extends SignalWatcher(LitElement) {
     </button>`;
   }
 
+  // Whether a Box is being edited, discarded or confirmed: a new Entry's
+  // Cancel and Save are in its panel (entry-form.ts), not here.
+  private editing() {
+    const { viewer } = this.state;
+    const pending = viewer.pending.get();
+    if (pending !== null) return pending.kind === 'mark';
+    return viewer.discarding.get() || viewer.confirming.get() !== null;
+  }
+
   override render() {
     const count = this.state.viewer.count.get();
     const image = this.state.viewer.image.get();
@@ -170,13 +179,7 @@ class ScanNavElement extends SignalWatcher(LitElement) {
       ${this.renderMove(1, 'Next image', '›')}
       ${this.renderMove(10, 'Forward 10 images', '»')}
       ${this.renderMove('last', 'Last image', '⇥')} ${this.renderOldFilming()}
-      ${
-        this.state.viewer.pending.get() === null &&
-        !this.state.viewer.discarding.get() &&
-        this.state.viewer.confirming.get() === null
-          ? nothing
-          : html`<sl-scan-edit></sl-scan-edit>`
-      }
+      ${this.editing() ? html`<sl-scan-edit></sl-scan-edit>` : nothing}
     `;
   }
 }

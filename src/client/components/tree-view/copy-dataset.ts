@@ -4,6 +4,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 
 import { Asking } from '@/client/asking';
 import { dialogStyles } from '@/client/dialog-styles';
+import { formDialog, formDialogStyles } from '@/client/form-dialog';
 import { formStyles } from '@/client/form-styles';
 import { markModal } from '@/client/modals';
 import { appState } from '@/client/state';
@@ -19,30 +20,10 @@ class CopyDatasetElement extends LitElement {
   static override styles = [
     formStyles,
     dialogStyles,
+    formDialogStyles,
     css`
-      :host {
-        display: contents;
-      }
-
-      .dialog .form {
-        margin-top: 0.3rem;
-        border: 0;
-        padding: 0;
-        background: none;
-      }
-
-      .dialog p {
-        margin: 0.5rem 0 0.1rem;
-        color: var(--muted);
-      }
-
-      .dialog .actions {
-        margin-top: 1.2rem;
-      }
-
-      .dialog p.error {
+      .dialog .form p.error {
         margin: 0.5rem 0 0;
-        color: var(--danger);
       }
     `
   ];
@@ -89,54 +70,43 @@ class CopyDatasetElement extends LitElement {
   override render() {
     const n = this.personIds.length;
     const { busy, refused } = this.asking;
-    return html`<div
-      class="overlay"
-      @click=${() => {
+    return formDialog({
+      title: 'New dataset from the chart',
+      close: () => {
         this.close();
-      }}
-    >
-      <div
-        class="dialog"
-        role="dialog"
-        aria-labelledby="copy-title"
-        @keydown=${this.onKeyDown}
-        @click=${(e: Event) => {
-          e.stopPropagation();
-        }}
-      >
-        <h2 id="copy-title">New dataset from the chart</h2>
-        <div class="form">
-          ${nameField('Name', 'e.g. Esimerkin suku', this.name, (v) => {
-            this.name = v;
-          })}
-          <p>
-            Copies the ${n === 1 ? 'person' : `${n} people`} on the chart, with
-            their Facts, sources and photos. Reminders and Changes stay here,
-            and this dataset stays as it is.
-          </p>
-          ${refused === null ? nothing : html`<p class="error">${refused}</p>`}
-        </div>
-        <div class="actions">
-          <button
-            ?disabled=${busy}
-            @click=${() => {
-              this.close();
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            class="primary"
-            ?disabled=${busy || this.name.trim() === ''}
-            @click=${() => {
-              void this.copy();
-            }}
-          >
-            ${busy ? 'Copying…' : 'Copy'}
-          </button>
-        </div>
-      </div>
-    </div>`;
+      },
+      keydown: this.onKeyDown,
+      fields: html`
+        ${nameField('Name', 'e.g. Esimerkin suku', this.name, (v) => {
+          this.name = v;
+        })}
+        <p>
+          Copies the ${n === 1 ? 'person' : `${n} people`} on the chart, with
+          their Facts, sources and photos. Reminders and Changes stay here, and
+          this dataset stays as it is.
+        </p>
+        ${refused === null ? nothing : html`<p class="error">${refused}</p>`}
+      `,
+      actions: html`
+        <button
+          ?disabled=${busy}
+          @click=${() => {
+            this.close();
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          class="primary"
+          ?disabled=${busy || this.name.trim() === ''}
+          @click=${() => {
+            void this.copy();
+          }}
+        >
+          ${busy ? 'Copying…' : 'Copy'}
+        </button>
+      `
+    });
   }
 }
 

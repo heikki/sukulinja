@@ -12,6 +12,7 @@ import { PictureStage } from '../box-stage/stage';
 import { controlStyles, viewerStyles } from '../box-stage/styles';
 import { ImageArrival } from './arrival';
 import { entryBoxes, entryRow } from './entries';
+import type { ChooseDetail } from './entry-form';
 import { entriesShown, layers } from './frame';
 import { rowsShown } from './helpers';
 import { imageAfter, stepOf } from './keys';
@@ -21,6 +22,7 @@ import { scanViewerStyles } from './styles';
 
 import '../box-stage/boxes';
 import './empty';
+import './entry-form';
 import './layer';
 import './nav';
 import './page-bubble';
@@ -309,7 +311,23 @@ class ScanViewerElement extends SignalWatcher(LitElement) {
     `;
   }
 
+  // Beside the scan, a pending Entry's pane, or People here.
   private renderPeople() {
+    const pending = this.viewer.pending.get();
+    if (pending !== null && pending.kind !== 'mark') {
+      return html`<sl-scan-entry
+        @mousedown=${() => {
+          // Its presses stop at it, so close what's open over the scan
+          // here, as a press elsewhere would.
+          this.renderRoot.querySelector('sl-scan-layer')?.closePopup();
+        }}
+        @choose=${(e: CustomEvent<ChooseDetail>) => {
+          this.renderRoot
+            .querySelector('sl-scan-layer')
+            ?.openPick(e.detail.at, e.detail.role);
+        }}
+      ></sl-scan-entry>`;
+    }
     return html`
       <sl-scan-people
         .hovered=${this.hovered}

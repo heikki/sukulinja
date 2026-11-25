@@ -1,64 +1,45 @@
+import { SignalWatcher } from '@lit-labs/signals';
+import { consume } from '@lit/context';
 import { css, html, LitElement, nothing } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement } from 'lit/decorators.js';
 
 import type { InEntry } from '@/client/dataset-api';
-import type { PendingCite } from '@/client/state';
+import { appState } from '@/client/state';
+import type { AppState, PendingCite } from '@/client/state';
 import { ENTRY_EVENTS, eventRoles, isEntryEvent } from '@/common/entry-events';
-import type { EntryRole } from '@/common/entry-events';
-import type { Offer } from '@/common/entry-offers';
-import type { PersonRow } from '@/common/types';
+import type { EntryEvent, EntryRole } from '@/common/entry-events';
 
 import { formatName } from '../tree-view/renderer';
+import { parentRows, withEvent } from './cite';
 import type { ParentRow } from './cite';
+import type { FieldDetail, TickDetail } from './entry-fields';
+
+import './edit';
 import './entry-fields';
-import { ARROW_AT, placeCard } from './entry-place';
-import type { Rect } from './entry-place';
 
 function stop(e: Event) {
   e.stopPropagation();
 }
 
-// Asked of the layer: someone to name in the Role, or with none in an
-// Entry with no Roles, picked where the press was.
+// Asked of the viewer: someone to name in the Role, or with none in an
+// Entry with no Roles, picked where the press was, in the window.
 export interface ChooseDetail {
   role: string | null;
   at: { x: number; y: number };
 }
 
-// A new Entry's kind and people, or the source's being edited, beside its
-// pending Box (ADR-0026). First what it records, its Event, chosen
-// (`choose-event`, ADR-0033); then in a baptism or a marriage a row for
-// each Role, its person or none, each chosen (`choose`) or taken out
-// (`drop`); in a burial or a household line its one person; then its
-// fields and what they'd do to the tree (entry-fields.ts). What it says
-// is written in the person's sources (source-text.ts). Cancel and Save
-// stay in the foot bar. It places itself beside its Box (`anchor`,
-// on the stage) and inside the stage (entry-place.ts). Presses stay here,
-// so they don't pan the scan.
+// A new Entry's kind and people, or the source's being edited, in a pane
+// beside the scan in place of People here while its Box is pending
+// (ADR-0026), so the scan stays in view. First what it records, its
+// Event; then in a baptism or a marriage a row for each Role, its person
+// or none, each chosen (`choose`, picked over the scan) or taken out; in
+// a burial or a household line its one person; then its fields and what
+// they'd do to the tree (entry-fields.ts). What it says is written in the
+// person's sources (source-text.ts). Cancel and Save under them
+// (edit.ts). It can't be hidden while the Box is pending.
 @customElement('sl-scan-entry')
-class ScanEntryElement extends LitElement {
+class ScanEntryElement extends SignalWatcher(LitElement) {
   static override styles = css`
-    :host::before {
-      content: '';
-      position: absolute;
-      top: calc(var(--arrow, ${ARROW_AT}px) - 6px);
-      left: -7px;
-      width: 12px;
-      height: 12px;
-      border-bottom: 1px solid var(--border);
-      border-left: 1px solid var(--border);
-      background: var(--card);
-      transform: rotate(45deg);
-    }
-
-    :host([side='left'])::before {
-      right: -7px;
-      left: auto;
-      border: none;
-      border-top: 1px solid var(--border);
-      border-right: 1px solid var(--border);
-    }
-
     label.parent {
       display: flex;
       gap: 0.4rem;
@@ -76,32 +57,52 @@ class ScanEntryElement extends LitElement {
       gap: 0.2rem;
     }
 
+    /* A pane as People here is, wider for its fields: its title, what's
+       asked scrolling under it, and the buttons at its foot. */
     :host {
-      position: absolute;
-      z-index: 2;
-      display: grid;
-      gap: 0.35rem;
-      width: 17rem;
-      padding: 0.5rem 0.6rem;
-      border: 1px solid var(--border);
-      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      width: 22rem;
+      min-height: 0;
       background: var(--card);
-      box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
-      pointer-events: auto;
-      font-size: 0.9rem;
+      border-left: 1px solid var(--border);
+      font-size: 0.875rem;
+      line-height: 1.4;
     }
 
-    h3 {
+    h2 {
       margin: 0;
-      color: var(--muted);
-      font-size: 0.8em;
-      font-weight: 500;
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .body {
+      display: grid;
+      flex: 1;
+      align-content: start;
+      gap: 0.6rem;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 0.9rem 1rem;
+    }
+
+    /* Right under its fields, kept in view at the pane's foot when they
+       run longer than it. */
+    sl-scan-edit {
+      position: sticky;
+      bottom: 0;
+      margin: 0 -1rem -0.9rem;
+      padding: 0.6rem 1rem 0.9rem;
+      background: var(--card);
     }
 
     .row {
       display: grid;
-      grid-template-columns: 4.2rem 1fr auto;
-      gap: 0.4rem;
+      grid-template-columns: 6.5rem 1fr auto;
+      gap: 0.75rem;
       align-items: center;
     }
 
@@ -122,7 +123,7 @@ class ScanEntryElement extends LitElement {
     }
 
     button {
-      padding: 0.1rem 0.45rem;
+      padding: 0.25rem 0.6rem;
       font-size: 0.85rem;
     }
 
@@ -139,7 +140,7 @@ class ScanEntryElement extends LitElement {
     select {
       grid-column: 2 / span 2;
       min-width: 0;
-      padding: 0.1rem 0.3rem;
+      padding: 0.35rem 0.5rem;
       border: 1px solid var(--border);
       border-radius: 6px;
       background: var(--card);
@@ -148,21 +149,14 @@ class ScanEntryElement extends LitElement {
     }
   `;
 
-  @property({ attribute: false }) cite!: PendingCite;
-  // The source's Entry changed, not a new one.
-  @property({ type: Boolean }) editing = false;
-  @property({ attribute: false }) persons = new Map<number, PersonRow>();
-  // The pending Box on the stage.
-  @property({ attribute: false }) anchor: Rect = {
-    left: 0,
-    top: 0,
-    width: 0,
-    height: 0
-  };
-  // A baptism's parents, as the tree gives them for its child.
-  @property({ attribute: false }) parents: ParentRow[] = [];
-  // What its fields would do to the tree.
-  @property({ attribute: false }) offers: Offer[] = [];
+  @consume({ context: appState }) private readonly state!: AppState;
+
+  private get viewer() {
+    return this.state.viewer;
+  }
+
+  // The pending Entry as drawn now, set as each render starts.
+  private shown!: PendingCite;
 
   override connectedCallback() {
     super.connectedCallback();
@@ -171,45 +165,37 @@ class ScanEntryElement extends LitElement {
     }
   }
 
-  // Placed once drawn, when its size is known.
-  override updated() {
-    const stage = this.offsetParent;
-    if (stage === null) return;
-    const at = placeCard(
-      this.anchor,
-      { width: this.offsetWidth, height: this.offsetHeight },
-      { width: stage.clientWidth, height: stage.clientHeight }
-    );
-    this.style.left = `${at.left}px`;
-    this.style.top = `${at.top}px`;
-    this.style.setProperty('--arrow', `${at.arrow}px`);
-    this.setAttribute('side', at.side);
-  }
-
   // Their name as the tree writes it; someone new's as typed.
   private nameOf(personId: number) {
-    const fresh = this.cite.newcomers.find((n) => n.personId === personId);
+    const fresh = this.shown.newcomers.find((n) => n.personId === personId);
     if (fresh !== undefined) {
       const { given, surname } = fresh.name;
       const name = `${given.trim()} ${surname.trim()}`.trim();
       return `${name === '' ? 'Someone' : name} (new)`;
     }
-    const person = this.persons.get(personId);
+    const person = this.state.chart.people.get().persons.get(personId);
     return person === undefined ? 'Someone' : formatName(person);
   }
 
   private choose(e: MouseEvent, role: string | null) {
-    const host = this.getBoundingClientRect();
-    const box = this.offsetParent?.getBoundingClientRect() ?? host;
-    const detail: ChooseDetail = {
-      role,
-      at: { x: e.clientX - box.left, y: e.clientY - box.top }
-    };
-    this.dispatchEvent(new CustomEvent('choose', { detail }));
+    const detail: ChooseDetail = { role, at: { x: e.clientX, y: e.clientY } };
+    this.dispatchEvent(
+      new CustomEvent('choose', { detail, bubbles: true, composed: true })
+    );
   }
 
   private drop(personId: number) {
-    this.dispatchEvent(new CustomEvent('drop', { detail: { personId } }));
+    this.viewer.entryForm.drop(personId);
+  }
+
+  private name(entry: InEntry) {
+    this.viewer.entryForm.setInEntry(entry);
+  }
+
+  // Its Event chosen anew, with whom it names then.
+  private chooseEvent(event: EntryEvent, cite: PendingCite) {
+    const ix = this.state.chart.people.get();
+    this.viewer.entryForm.setEvent(event, withEvent(cite.people, event, ix));
   }
 
   private renderPerson(personId: number) {
@@ -227,7 +213,7 @@ class ScanEntryElement extends LitElement {
 
   // What it records, to choose; none chosen yet, the Book couldn't tell.
   private renderEvent() {
-    const { event } = this.cite;
+    const { event } = this.shown;
     return html`<div class="row">
       <span class="role">Kind</span>
       <select
@@ -235,9 +221,7 @@ class ScanEntryElement extends LitElement {
         @change=${(e: Event) => {
           const { value } = e.target as HTMLSelectElement;
           if (!isEntryEvent(value)) return;
-          this.dispatchEvent(
-            new CustomEvent('choose-event', { detail: value })
-          );
+          this.chooseEvent(value, this.shown);
         }}
       >
         ${event === null ? html`<option selected>Choose…</option>` : nothing}
@@ -254,7 +238,7 @@ class ScanEntryElement extends LitElement {
   // A row for each Role, its person or a button to choose one.
   private renderRoles(roles: readonly EntryRole[]) {
     return roles.map(({ role, label }) => {
-      const named = this.cite.people.find((p) => p.role === role);
+      const named = this.shown.people.find((p) => p.role === role);
       return html`<div class="row">
         <span class="role">${label}</span>
         ${
@@ -278,7 +262,7 @@ class ScanEntryElement extends LitElement {
   // the tree, each named in it or not (`name`, `drop`), or with none, one
   // to make (`choose`).
   private renderBaptism() {
-    const child = this.cite.people.find((p) => p.role === 'CHIL');
+    const child = this.shown.people.find((p) => p.role === 'CHIL');
     return html`<div class="row">
         <span class="role">Child</span>
         ${
@@ -301,7 +285,10 @@ class ScanEntryElement extends LitElement {
           ${
             child === undefined
               ? html`<span class="none">Choose the child first.</span>`
-              : this.parents.map((p) => this.renderParent(p))
+              : parentRows(
+                  this.shown.people,
+                  this.state.chart.people.get()
+                ).map((p) => this.renderParent(p))
           }
         </div>
       </div>
@@ -311,7 +298,7 @@ class ScanEntryElement extends LitElement {
   // Those named in it in none of its Roles, as the tree couldn't place.
   private renderUnplaced(roles: readonly EntryRole[]) {
     const known = new Set(roles.map((r) => r.role));
-    return this.cite.people
+    return this.shown.people
       .filter((p) => p.role === null || !known.has(p.role))
       .map(
         (p) =>
@@ -339,7 +326,7 @@ class ScanEntryElement extends LitElement {
         @change=${(e: Event) => {
           if ((e.target as HTMLInputElement).checked) {
             const detail: InEntry = { personId, role };
-            this.dispatchEvent(new CustomEvent('name', { detail }));
+            this.name(detail);
           } else this.drop(personId);
         }}
       />
@@ -350,7 +337,7 @@ class ScanEntryElement extends LitElement {
   // Its one person, or a button to choose them. One made before naming
   // more shows them all.
   private renderOnePerson() {
-    const { people } = this.cite;
+    const { people } = this.shown;
     if (people.length > 0) {
       return people.map(
         (p) =>
@@ -374,7 +361,7 @@ class ScanEntryElement extends LitElement {
   }
 
   private renderPeople() {
-    const { event } = this.cite;
+    const { event } = this.shown;
     if (event === 'CHR') return this.renderBaptism();
     const roles = eventRoles(event);
     if (roles.length === 0) return this.renderOnePerson();
@@ -382,26 +369,39 @@ class ScanEntryElement extends LitElement {
   }
 
   override render() {
+    const pending = this.viewer.pending.get();
+    if (pending === null || pending.kind === 'mark') return nothing;
+    const cite = pending.cite;
+    this.shown = cite;
     return html`
-      <h3>${this.editing ? 'Edit entry' : 'New entry'}</h3>
-      ${this.renderEvent()} ${this.renderPeople()}
-      ${
-        this.cite.event === null
-          ? nothing
-          : html`<sl-entry-fields
-              .event=${this.cite.event}
-              .fields=${this.cite.fields}
-              .ticks=${this.cite.ticks}
-              .offers=${this.offers}
-            ></sl-entry-fields>`
-      }
-      ${
-        this.cite.event === null
-          ? html`<p class="none">Choose what kind of entry it is.</p>`
-          : this.cite.people.length === 0
-            ? html`<p class="none">Name someone in it.</p>`
-            : nothing
-      }
+      <h2>${pending.kind === 'edit' ? 'Edit entry' : 'New entry'}</h2>
+      <div class="body">
+        ${this.renderEvent()} ${this.renderPeople()}
+        ${
+          cite.event === null
+            ? nothing
+            : html`<sl-entry-fields
+                .event=${cite.event}
+                .fields=${cite.fields}
+                .ticks=${cite.ticks}
+                .offers=${this.viewer.entryForm.offers.get()}
+                @set-field=${(e: CustomEvent<FieldDetail>) => {
+                  this.viewer.entryForm.setField(e.detail.key, e.detail.text);
+                }}
+                @tick=${(e: CustomEvent<TickDetail>) => {
+                  this.viewer.entryForm.setTick(e.detail.key, e.detail.on);
+                }}
+              ></sl-entry-fields>`
+        }
+        ${
+          cite.event === null
+            ? html`<p class="none">Choose what kind of entry it is.</p>`
+            : cite.people.length === 0
+              ? html`<p class="none">Name someone in it.</p>`
+              : nothing
+        }
+        <sl-scan-edit panel></sl-scan-edit>
+      </div>
     `;
   }
 }

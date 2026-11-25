@@ -19,6 +19,22 @@ export const scanEditStyles = css`
     color: var(--muted);
     font-size: 0.8rem;
   }
+
+  /* At the foot of an Entry's panel: its buttons at the end, as a
+     modal's are, a refusal or what's asked above them. */
+  :host([panel]) {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    border-left: 0;
+  }
+
+  :host([panel]) p {
+    flex-basis: 100%;
+  }
+
+  :host([panel]) .actions {
+    gap: 0.75rem;
+  }
 `;
 
 // Over the whole stage, letting presses through to the scan except on its

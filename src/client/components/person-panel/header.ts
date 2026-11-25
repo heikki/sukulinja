@@ -83,7 +83,7 @@ function stop(e: Event) {
 // The person the dock is about, in its header: their portrait as the chart
 // draws it, their name, and when they were born and died, once the
 // Selected person's details arrive. Clicking the name changes it, and their
-// sex, in a form in its place.
+// sex, in a modal.
 @customElement('sl-person-header')
 class PersonHeaderElement extends SignalWatcher(LitElement) {
   static override styles = personHeaderStyles;
@@ -102,19 +102,6 @@ class PersonHeaderElement extends SignalWatcher(LitElement) {
     if (p === null) return nothing;
     const details = this.state.selected.details.get();
     const lines = linesOf(p, details).filter((l) => l !== null);
-    if (this.editing === p.id) {
-      return html`
-        ${renderPortrait(p, this.photo)}
-        <sl-name-form
-          class="who"
-          .person=${p}
-          @click=${stop}
-          @closed=${() => {
-            this.editing = null;
-          }}
-        ></sl-name-form>
-      `;
-    }
     return html`
       ${renderPortrait(p, this.photo)}
       <div class="who">
@@ -136,6 +123,17 @@ class PersonHeaderElement extends SignalWatcher(LitElement) {
           )}
         </dl>
       </div>
+      ${
+        this.editing === p.id
+          ? html`<sl-name-form
+              .person=${p}
+              @click=${stop}
+              @closed=${() => {
+                this.editing = null;
+              }}
+            ></sl-name-form>`
+          : nothing
+      }
     `;
   }
 }

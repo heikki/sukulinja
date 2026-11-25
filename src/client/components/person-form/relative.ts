@@ -3,14 +3,15 @@ import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { Asking } from '@/client/asking';
+import { dialogStyles } from '@/client/dialog-styles';
 import { focusRingStyles } from '@/client/focus-ring';
+import { formDialog, formDialogStyles } from '@/client/form-dialog';
 import { formStyles } from '@/client/form-styles';
-import type { Point } from '@/client/pan-zoom';
+import { markModal } from '@/client/modals';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { PersonRow, Relation, RelativeWho, Sex } from '@/common/types';
 
-import { placedInside } from '../context-menu';
 import { alikePersons } from '../person-search/match';
 import { formatDates, formatName } from '../tree-view/renderer';
 import { nameField, sexField } from './fields';
@@ -23,45 +24,30 @@ function stop(e: Event) {
   e.stopPropagation();
 }
 
-// A new person being added as the relation of `personId`, at `at` in the
-// element it's positioned in, where the card's menu was: their given names,
-// surname and sex, and, for a child of someone with several families,
-// which. People already in the tree with a name like the one typed are
+// A new person being added as the relation of `personId`, in a modal
+// titled `heading`: their given names, surname and sex, and, for a child
+// of someone with several families, which. People already in the tree with a name like the one typed are
 // offered first, and picking one links them instead. Add or Enter adds a
 // new person, then says who was put in place with `added`; it, Cancel,
-// Esc or a press elsewhere say `closed`. `deferred`, nothing is added:
+// Esc or a press on the scrim say `closed`. `deferred`, nothing is added:
 // whom it would add or link is said with `named`, for an Entry to make
-// with it (ADR-0033). Presses on it stay on it, so they don't pan the
-// chart.
+// with it (ADR-0033). Presses on it stay on it, so they don't pan what's
+// under it.
 @customElement('sl-relative-form')
 class RelativeFormElement extends LitElement {
   static override styles = [
     focusRingStyles,
     formStyles,
+    dialogStyles,
+    formDialogStyles,
     css`
-      :host {
-        position: absolute;
-        z-index: 3;
-        width: 20rem;
-        box-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
-        border-radius: 8px;
-        font-size: 0.875rem;
-        line-height: 1.4;
-        cursor: auto;
-      }
-
-      .form {
-        background: var(--card);
-      }
-
       .alike {
         display: grid;
         margin: 0.1rem -0.4rem;
       }
 
-      .alike p {
+      .dialog .alike p {
         margin: 0 0.4rem 0.1rem;
-        color: var(--muted);
       }
 
       .alike button {
@@ -82,16 +68,6 @@ class RelativeFormElement extends LitElement {
       .muted {
         color: var(--muted);
       }
-
-      h3 {
-        margin: 0 0 0.2rem;
-        overflow: hidden;
-        color: var(--muted);
-        font-size: 0.8em;
-        font-weight: 500;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
     `
   ];
 
@@ -103,7 +79,6 @@ class RelativeFormElement extends LitElement {
   @property({ attribute: false }) relation: Relation = 'child';
   // Names whose relative they'll be: "Father of Juho Esimerkki".
   @property({ attribute: false }) heading = '';
-  @property({ attribute: false }) at: Point = { x: 0, y: 0 };
   @property({ attribute: false }) sex: Sex = 'U';
   // The families a child can go into; empty when there's no choice.
   @property({ attribute: false }) families: ChildFamily[] = [];
@@ -119,35 +94,25 @@ class RelativeFormElement extends LitElement {
   @state() private chosenSex: Sex | null = null;
   @state() private familyId: number | null = null;
 
+  constructor() {
+    super();
+    markModal(this);
+  }
+
   override connectedCallback() {
     super.connectedCallback();
     for (const type of ['mousedown', 'wheel', 'dblclick', 'contextmenu']) {
       this.addEventListener(type, stop);
     }
-    window.addEventListener('mousedown', this.onOutside);
-  }
-
-  override disconnectedCallback() {
-    super.disconnectedCallback();
-    window.removeEventListener('mousedown', this.onOutside);
   }
 
   override firstUpdated() {
     this.renderRoot.querySelector<HTMLElement>('input')?.focus();
   }
 
-  override updated() {
-    const { x, y } = placedInside(this, this.at);
-    this.style.left = `${x}px`;
-    this.style.top = `${y}px`;
-  }
-
-  private readonly onOutside = (e: MouseEvent) => {
-    if (!e.composedPath().includes(this)) this.close();
-  };
-
+  // Not while saving: a refusal would have nowhere to show.
   private close() {
-    this.dispatchEvent(new Event('closed'));
+    if (!this.asking.busy) this.dispatchEvent(new Event('closed'));
   }
 
   // People already in the tree whose name is like the one typed, to link
@@ -252,30 +217,35 @@ class RelativeFormElement extends LitElement {
 
   override render() {
     const alike = this.alike();
-    return html`<div class="form" role="dialog" @keydown=${this.onKeyDown}>
-      <h3>${this.heading}</h3>
-      ${nameField('Given names', 'e.g. Matti', this.given, (v) => {
-        this.given = v;
-      })}
-      ${nameField('Surname', 'e.g. Esimerkki', this.surname, (v) => {
-        this.surname = v;
-      })}
-      ${this.renderAlike(alike)}
-      ${
-        this.askSex
-          ? sexField(this.chosenSex ?? this.sex, (sex) => {
-              this.chosenSex = sex;
-            })
-          : nothing
-      }
-      ${this.renderFamily()}
-      ${
-        this.asking.refused === null
-          ? nothing
-          : html`<p class="error">${this.asking.refused}</p>`
-      }
-      <div class="buttons">
-        <span class="gap"></span>
+    return formDialog({
+      title: this.heading,
+      close: () => {
+        this.close();
+      },
+      keydown: this.onKeyDown,
+      fields: html`
+        ${nameField('Given names', 'e.g. Matti', this.given, (v) => {
+          this.given = v;
+        })}
+        ${nameField('Surname', 'e.g. Esimerkki', this.surname, (v) => {
+          this.surname = v;
+        })}
+        ${this.renderAlike(alike)}
+        ${
+          this.askSex
+            ? sexField(this.chosenSex ?? this.sex, (sex) => {
+                this.chosenSex = sex;
+              })
+            : nothing
+        }
+        ${this.renderFamily()}
+        ${
+          this.asking.refused === null
+            ? nothing
+            : html`<p class="error">${this.asking.refused}</p>`
+        }
+      `,
+      actions: html`
         <button
           ?disabled=${this.asking.busy}
           @click=${() => {
@@ -293,8 +263,8 @@ class RelativeFormElement extends LitElement {
         >
           ${this.addLabel(alike.length > 0)}
         </button>
-      </div>
-    </div>`;
+      `
+    });
   }
 }
 

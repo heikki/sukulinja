@@ -249,11 +249,6 @@ export const personHeaderStyles = [
       text-decoration: underline;
     }
 
-    sl-name-form {
-      flex: 1;
-      font-size: 0.875rem;
-    }
-
     dl {
       display: grid;
       grid-template-columns: max-content 1fr;

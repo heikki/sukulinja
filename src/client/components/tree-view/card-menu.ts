@@ -62,7 +62,7 @@ export function cardMenuAt(
 // What a card's menu offers, under its person's name: making them Root,
 // unless they are, which it asks the chart for with `make-root`; writing a
 // Reminder about them; adding a relative of theirs, as `addableRelations`
-// allows, whose form opens in the menu's place; and taking them out of a
+// allows, whose form opens in a modal; and taking them out of a
 // family, as `unlinkings` allows; moving them to another, as `movings`
 // offers; copying everyone the chart draws as a new dataset, named first;
 // and deleting them, asked first. Asks to
@@ -193,7 +193,6 @@ class CardMenuElement extends SignalWatcher(LitElement) {
         .personId=${menu.personId}
         .moving=${this.moving}
         .heading=${`${this.moving.label.replace('…', '')}: ${name}`}
-        .at=${menu.at}
         @closed=${() => {
           this.close();
         }}
@@ -254,7 +253,6 @@ class CardMenuElement extends SignalWatcher(LitElement) {
       .personId=${menu.personId}
       .relation=${adding}
       .heading=${form.heading}
-      .at=${menu.at}
       .sex=${form.sex}
       .families=${form.families}
       .persons=${people.persons}

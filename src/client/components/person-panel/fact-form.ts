@@ -4,8 +4,11 @@ import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { Asking } from '@/client/asking';
+import { dialogStyles } from '@/client/dialog-styles';
 import { focusRingStyles } from '@/client/focus-ring';
+import { formDialog, formDialogStyles } from '@/client/form-dialog';
 import { formStyles } from '@/client/form-styles';
+import { markModal } from '@/client/modals';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import { gedcomDate } from '@/common/dates';
@@ -44,18 +47,27 @@ function spouseLabel(m: Marriage) {
   return m.spouse === null ? 'with an unknown spouse' : `with ${m.spouse}`;
 }
 
-// A Fact being added or changed, in place of its row in Events: its kind
+// A Fact being added or changed, in a modal: its kind
 // (picked for a new one, a marriage's spouse too when there's more than
 // one), date, place (and a residence's, or one recorded with it, address),
-// an attribute's value and an Event's type. Save or
-// Enter saves it, and it and Cancel or Esc say `closed`. A Fact being
-// changed can be deleted, asked first.
+// an attribute's value and an Event's type. Save or Enter saves it, and
+// it, Cancel, Esc or a press on the scrim say `closed`. A Fact being
+// changed can be deleted, at once.
 @customElement('sl-fact-form')
 class FactFormElement extends SignalWatcher(LitElement) {
   static override styles = [
     focusRingStyles,
     formStyles,
+    dialogStyles,
+    formDialogStyles,
     css`
+      /* Delete keeps to the far end from Save. */
+      .dialog .actions button.delete {
+        margin-right: auto;
+        border-color: transparent;
+        color: var(--danger);
+      }
+
       /* A place may run to a few lines: its label stays by the first. */
       label.lines {
         align-items: start;
@@ -81,7 +93,11 @@ class FactFormElement extends SignalWatcher(LitElement) {
   @state() private tag = ADDABLE_FACTS[0]!.tag;
   @state() private familyId: number | null = null;
   @state() private fields: FactFields = BLANK;
-  @state() private deleting = false;
+
+  constructor() {
+    super();
+    markModal(this);
+  }
 
   override connectedCallback() {
     super.connectedCallback();
@@ -117,8 +133,9 @@ class FactFormElement extends SignalWatcher(LitElement) {
     return this.fact?.tag ?? this.tag;
   }
 
+  // Not while saving: a refusal would have nowhere to show.
   private close() {
-    this.dispatchEvent(new Event('closed'));
+    if (!this.asking.busy) this.dispatchEvent(new Event('closed'));
   }
 
   private async run(save: () => Promise<void>) {
@@ -159,8 +176,7 @@ class FactFormElement extends SignalWatcher(LitElement) {
       this.close();
     } else if (e.key === 'Enter' && !e.isComposing) {
       e.preventDefault();
-      if (this.deleting) this.deleteFact();
-      else this.save();
+      this.save();
     }
   };
 
@@ -250,46 +266,22 @@ class FactFormElement extends SignalWatcher(LitElement) {
   }
 
   private renderButtons() {
-    if (this.deleting) {
-      const kind = factKindLabel(this.kind).toLowerCase();
-      return html`<p class="ask">Delete the ${kind}?</p>
-        <div class="buttons end">
-          <button
-            ?disabled=${this.asking.busy}
-            @click=${() => {
-              this.deleting = false;
-            }}
-          >
-            Cancel
-          </button>
-          <button
-            class="danger"
-            ?disabled=${this.asking.busy}
-            @click=${() => {
-              this.deleteFact();
-            }}
-          >
-            ${this.asking.busy ? 'Deleting…' : 'Delete'}
-          </button>
-        </div>`;
-    }
-    return html`<div class="buttons">
-      ${
+    const { busy } = this.asking;
+    return html`${
         this.fact === null
           ? nothing
           : html`<button
-              class="danger"
-              ?disabled=${this.asking.busy}
+              class="delete"
+              ?disabled=${busy}
               @click=${() => {
-                this.deleting = true;
+                this.deleteFact();
               }}
             >
               Delete
             </button>`
       }
-      <span class="gap"></span>
       <button
-        ?disabled=${this.asking.busy}
+        ?disabled=${busy}
         @click=${() => {
           this.close();
         }}
@@ -298,43 +290,52 @@ class FactFormElement extends SignalWatcher(LitElement) {
       </button>
       <button
         class="primary"
-        ?disabled=${this.asking.busy}
+        ?disabled=${busy}
         @click=${() => {
           this.save();
         }}
       >
-        ${this.asking.busy ? 'Saving…' : 'Save'}
-      </button>
-    </div>`;
+        ${busy ? 'Saving…' : 'Save'}
+      </button>`;
   }
 
   override render() {
     const tag = this.kind;
     const places = this.state.facts.places.get();
-    return html`<div class="form" @keydown=${this.onKeyDown}>
-      ${this.renderKind()} ${this.renderSpouse()}
-      ${
-        hasType(tag) ? this.renderField('type', 'Type', 'e.g. Muutto') : nothing
-      }
-      ${
-        hasValue(tag)
-          ? this.renderField('value', factKindLabel(tag), 'e.g. torppari')
-          : nothing
-      }
-      ${this.renderField('date', 'Date', 'e.g. 3.3.1761 or n. 1761')}
-      ${this.renderLines('place', 'Place', 'e.g. Tuppurala, Juva', places)}
-      ${
-        tag === 'RESI' || (this.fact?.address ?? null) !== null
-          ? this.renderLines('address', 'Address', 'e.g. Kauppakatu 1')
-          : nothing
-      }
-      ${
-        this.asking.refused === null
-          ? nothing
-          : html`<p class="error">${this.asking.refused}</p>`
-      }
-      ${this.renderButtons()}
-    </div>`;
+    const kind = factKindLabel(tag).toLowerCase();
+    return formDialog({
+      title: this.fact === null ? 'Add event' : `Edit ${kind}`,
+      close: () => {
+        this.close();
+      },
+      keydown: this.onKeyDown,
+      fields: html`
+        ${this.renderKind()} ${this.renderSpouse()}
+        ${
+          hasType(tag)
+            ? this.renderField('type', 'Type', 'e.g. Muutto')
+            : nothing
+        }
+        ${
+          hasValue(tag)
+            ? this.renderField('value', factKindLabel(tag), 'e.g. torppari')
+            : nothing
+        }
+        ${this.renderField('date', 'Date', 'e.g. 3.3.1761 or n. 1761')}
+        ${this.renderLines('place', 'Place', 'e.g. Tuppurala, Juva', places)}
+        ${
+          tag === 'RESI' || (this.fact?.address ?? null) !== null
+            ? this.renderLines('address', 'Address', 'e.g. Kauppakatu 1')
+            : nothing
+        }
+        ${
+          this.asking.refused === null
+            ? nothing
+            : html`<p class="error">${this.asking.refused}</p>`
+        }
+      `,
+      actions: this.renderButtons()
+    });
   }
 }
 

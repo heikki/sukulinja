@@ -1,10 +1,13 @@
 import { consume } from '@lit/context';
-import { css, html, LitElement, nothing } from 'lit';
+import { html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { Asking } from '@/client/asking';
+import { dialogStyles } from '@/client/dialog-styles';
 import { focusRingStyles } from '@/client/focus-ring';
+import { formDialog, formDialogStyles } from '@/client/form-dialog';
 import { formStyles } from '@/client/form-styles';
+import { markModal } from '@/client/modals';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { PersonRow, Sex } from '@/common/types';
@@ -13,19 +16,16 @@ import { nameField, sexField } from './fields';
 
 const SEXES = new Set<string>(['M', 'F', 'X', 'U']);
 
-// A person's name and sex being changed, in place of them in the panel's
-// header: their given names, surname and sex as the chart has them. Save
-// or Enter saves; it, Cancel or Esc say `closed`.
+// A person's name and sex being changed, in a modal: their given names,
+// surname and sex as the chart has them. Save or Enter saves; it, Cancel,
+// Esc or a press on the scrim say `closed`.
 @customElement('sl-name-form')
 class NameFormElement extends LitElement {
   static override styles = [
     focusRingStyles,
     formStyles,
-    css`
-      .form {
-        background: var(--card);
-      }
-    `
+    dialogStyles,
+    formDialogStyles
   ];
 
   @consume({ context: appState }) private readonly state!: AppState;
@@ -37,6 +37,11 @@ class NameFormElement extends LitElement {
   @state() private given = '';
   @state() private surname = '';
   @state() private sex: Sex = 'U';
+
+  constructor() {
+    super();
+    markModal(this);
+  }
 
   override connectedCallback() {
     super.connectedCallback();
@@ -51,8 +56,9 @@ class NameFormElement extends LitElement {
     this.renderRoot.querySelector<HTMLElement>('input')?.focus();
   }
 
+  // Not while saving: a refusal would have nowhere to show.
   private close() {
-    this.dispatchEvent(new Event('closed'));
+    if (!this.asking.busy) this.dispatchEvent(new Event('closed'));
   }
 
   private async save() {
@@ -79,23 +85,29 @@ class NameFormElement extends LitElement {
   };
 
   override render() {
-    return html`<div class="form" @keydown=${this.onKeyDown}>
-      ${nameField('Given names', 'e.g. Matti', this.given, (v) => {
-        this.given = v;
-      })}
-      ${nameField('Surname', 'e.g. Esimerkki', this.surname, (v) => {
-        this.surname = v;
-      })}
-      ${sexField(this.sex, (sex) => {
-        this.sex = sex;
-      })}
-      ${
-        this.asking.refused === null
-          ? nothing
-          : html`<p class="error">${this.asking.refused}</p>`
-      }
-      <div class="buttons">
-        <span class="gap"></span>
+    return formDialog({
+      title: 'Change the name',
+      close: () => {
+        this.close();
+      },
+      keydown: this.onKeyDown,
+      fields: html`
+        ${nameField('Given names', 'e.g. Matti', this.given, (v) => {
+          this.given = v;
+        })}
+        ${nameField('Surname', 'e.g. Esimerkki', this.surname, (v) => {
+          this.surname = v;
+        })}
+        ${sexField(this.sex, (sex) => {
+          this.sex = sex;
+        })}
+        ${
+          this.asking.refused === null
+            ? nothing
+            : html`<p class="error">${this.asking.refused}</p>`
+        }
+      `,
+      actions: html`
         <button
           ?disabled=${this.asking.busy}
           @click=${() => {
@@ -113,8 +125,8 @@ class NameFormElement extends LitElement {
         >
           ${this.asking.busy ? 'Saving…' : 'Save'}
         </button>
-      </div>
-    </div>`;
+      `
+    });
   }
 }
 

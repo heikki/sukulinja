@@ -31,13 +31,13 @@ class EntryFieldsElement extends LitElement {
   static override styles = css`
     :host {
       display: grid;
-      gap: 0.35rem;
+      gap: 0.6rem;
     }
 
     label.field {
       display: grid;
-      grid-template-columns: 4.2rem 1fr;
-      gap: 0.4rem;
+      grid-template-columns: 6.5rem 1fr;
+      gap: 0.75rem;
       align-items: center;
     }
 
@@ -47,7 +47,7 @@ class EntryFieldsElement extends LitElement {
 
     input[type='text'] {
       min-width: 0;
-      padding: 0.1rem 0.3rem;
+      padding: 0.35rem 0.5rem;
       border: 1px solid var(--border);
       border-radius: 6px;
       background: var(--card);

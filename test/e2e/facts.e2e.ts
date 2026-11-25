@@ -39,7 +39,10 @@ test('a fact is added, edited and deleted in Events', async () => {
 
     // A date the form can't read is refused, and the form stays.
     await panel.getByRole('button', { name: 'Add event' }).click();
-    await panel.getByLabel('Event').selectOption({ label: 'Death' });
+    await panel
+      .getByRole('dialog')
+      .getByLabel('Event')
+      .selectOption({ label: 'Death' });
     await panel.getByLabel('Date').fill('31.2.1850x');
     // The place written before is offered, and taken.
     await panel.getByLabel('Place').fill('Esim');
@@ -62,7 +65,6 @@ test('a fact is added, edited and deleted in Events', async () => {
     await edited.waitFor();
 
     await editFact(page, 'Birth 4.3.1795 · Esimerkkilä, Juva');
-    await panel.getByRole('button', { name: 'Delete' }).click();
     await panel.getByRole('button', { name: 'Delete' }).click();
     await edited.waitFor({ state: 'detached' });
     await shot(page, 'facts-done');

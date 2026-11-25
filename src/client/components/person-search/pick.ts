@@ -31,7 +31,7 @@ function stop(e: Event) {
 
 // Picking someone where a viewer's menu opened, for what it makes there: a
 // menu of `choices` under `heading`; then "New father…" and the rest, of
-// `relativesOf`, which open the new-relative form in its place and pick
+// `relativesOf`, which open the new-relative form, a modal, and pick
 // the person it puts in the tree; then "Someone else…", which opens the
 // search of `persons` in its place. Names the person picked with `pick`,
 // and asks to `close` on Esc or a press elsewhere. With `newOne`, its
@@ -150,7 +150,6 @@ class PersonPickElement extends SignalWatcher(LitElement) {
       .personId=${personId}
       .relation=${relation}
       .heading=${form.heading}
-      .at=${this.at}
       .sex=${form.sex}
       .families=${form.families}
       .persons=${people.persons}
@@ -167,7 +166,6 @@ class PersonPickElement extends SignalWatcher(LitElement) {
   private renderNewOne(newOne: { label: string; sex: Sex | null }) {
     return html`<sl-relative-form
       .heading=${`New ${newOne.label}`}
-      .at=${this.at}
       .sex=${newOne.sex ?? 'U'}
       .askSex=${newOne.sex === null}
       .deferred=${true}

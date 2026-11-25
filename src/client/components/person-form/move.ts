@@ -3,13 +3,14 @@ import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { Asking } from '@/client/asking';
+import { dialogStyles } from '@/client/dialog-styles';
 import { focusRingStyles } from '@/client/focus-ring';
+import { formDialog, formDialogStyles } from '@/client/form-dialog';
 import { formStyles } from '@/client/form-styles';
-import type { Point } from '@/client/pan-zoom';
+import { markModal } from '@/client/modals';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 
-import { placedInside } from '../context-menu';
 import { formatName } from '../tree-view/renderer';
 import { moveChoices } from './moves';
 import type { Moving } from './moves';
@@ -20,44 +21,22 @@ function stop(e: Event) {
   e.stopPropagation();
 }
 
-// Moving the person out of a family, `moving` says which and as what, at
-// `at` where the card's menu was: the search picks the new parent or
+// Moving the person out of a family, `moving` says which and as what, in
+// a modal titled `heading`: the search picks the new parent or
 // spouse, then which of their families, or a new one; Move moves them in
-// one go. Cancel, Esc or a press elsewhere say `closed`, as Move does once
-// done. Presses on it stay on it, so they don't pan the chart.
+// one go. Cancel, Esc or a press on the scrim say `closed`, as Move does
+// once done. Presses on it stay on it, so they don't pan the chart.
 @customElement('sl-move-form')
 class MoveFormElement extends LitElement {
   static override styles = [
     focusRingStyles,
     formStyles,
+    dialogStyles,
+    formDialogStyles,
     css`
-      :host {
-        position: absolute;
-        z-index: 3;
-        width: 20rem;
-        box-shadow: 0 4px 16px rgb(0 0 0 / 0.3);
-        border-radius: 8px;
-        font-size: 0.875rem;
-        line-height: 1.4;
-        cursor: auto;
-      }
-
-      .form {
-        background: var(--card);
-      }
-
-      h3 {
-        margin: 0 0 0.2rem;
-        overflow: hidden;
-        color: var(--muted);
-        font-size: 0.8em;
-        font-weight: 500;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-
-      .picked {
+      .dialog .form p.picked {
         margin: 0;
+        color: var(--fg);
       }
     `
   ];
@@ -69,24 +48,22 @@ class MoveFormElement extends LitElement {
   @property({ attribute: false }) personId = 0;
   @property({ attribute: false }) moving: Moving | null = null;
   @property({ attribute: false }) heading = '';
-  @property({ attribute: false }) at: Point = { x: 0, y: 0 };
 
   // The new parent or spouse, once picked, and which of the places with
   // them.
   @state() private otherId: number | null = null;
   @state() private choice = 0;
 
+  constructor() {
+    super();
+    markModal(this);
+  }
+
   override connectedCallback() {
     super.connectedCallback();
     for (const type of ['mousedown', 'wheel', 'dblclick', 'contextmenu']) {
       this.addEventListener(type, stop);
     }
-    window.addEventListener('mousedown', this.onOutside);
-  }
-
-  override disconnectedCallback() {
-    super.disconnectedCallback();
-    window.removeEventListener('mousedown', this.onOutside);
   }
 
   override firstUpdated() {
@@ -96,18 +73,17 @@ class MoveFormElement extends LitElement {
     });
   }
 
-  override updated() {
-    const { x, y } = placedInside(this, this.at);
-    this.style.left = `${x}px`;
-    this.style.top = `${y}px`;
+  // Once picked, the search is gone: its family takes the focus, so the
+  // form's keys stay its own.
+  override updated(changed: Map<string, unknown>) {
+    if (changed.has('otherId') && this.otherId !== null) {
+      this.renderRoot.querySelector('select')?.focus();
+    }
   }
 
-  private readonly onOutside = (e: MouseEvent) => {
-    if (!e.composedPath().includes(this)) this.close();
-  };
-
+  // Not while saving: a refusal would have nowhere to show.
   private close() {
-    this.dispatchEvent(new Event('closed'));
+    if (!this.asking.busy) this.dispatchEvent(new Event('closed'));
   }
 
   private choices() {
@@ -188,16 +164,21 @@ class MoveFormElement extends LitElement {
 
   override render() {
     const { otherId } = this;
-    return html`<div class="form" role="dialog" @keydown=${this.onKeyDown}>
-      <h3>${this.heading}</h3>
-      ${otherId === null ? this.renderSearch() : this.renderPicked(otherId)}
-      ${
-        this.asking.refused === null
-          ? nothing
-          : html`<p class="error">${this.asking.refused}</p>`
-      }
-      <div class="buttons">
-        <span class="gap"></span>
+    return formDialog({
+      title: this.heading,
+      close: () => {
+        this.close();
+      },
+      keydown: this.onKeyDown,
+      fields: html`
+        ${otherId === null ? this.renderSearch() : this.renderPicked(otherId)}
+        ${
+          this.asking.refused === null
+            ? nothing
+            : html`<p class="error">${this.asking.refused}</p>`
+        }
+      `,
+      actions: html`
         <button
           ?disabled=${this.asking.busy}
           @click=${() => {
@@ -215,8 +196,8 @@ class MoveFormElement extends LitElement {
         >
           ${this.asking.busy ? 'Moving…' : 'Move'}
         </button>
-      </div>
-    </div>`;
+      `
+    });
   }
 }
 

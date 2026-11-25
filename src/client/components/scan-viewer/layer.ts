@@ -5,31 +5,20 @@ import { customElement, property, state } from 'lit/decorators.js';
 
 import { visionModel } from '@/client/assistant-choices';
 import { assistantOn } from '@/client/assistant-flag';
-import type { InEntry } from '@/client/dataset-api';
 import type { Point, Transform } from '@/client/pan-zoom';
 import { appState, citingImage } from '@/client/state';
 import type { AppState } from '@/client/state';
 import { CLAUDE_MODELS } from '@/common/assistant-choices';
 import { firstGuess } from '@/common/entry-events';
-import type { EntryEvent } from '@/common/entry-events';
 import type { Box, PersonName } from '@/common/types';
 
 import type { Ask } from '../ask';
-import { boxFromStage, boxOnStage } from '../box-stage/geometry';
+import { boxFromStage } from '../box-stage/geometry';
 import { searchable } from '../person-search/choices';
 import { placesHere } from '../reminders-list/places';
 import { entriesOn } from './citations';
-import {
-  parentRows,
-  pickFor,
-  rolePickLabel,
-  startingPeople,
-  withChild,
-  withEvent
-} from './cite';
+import { pickFor, rolePickLabel, startingPeople, withChild } from './cite';
 import { scanLayerStyles } from './edit-styles';
-import type { FieldDetail, TickDetail } from './entry-fields';
-import type { ChooseDetail } from './entry-form';
 import { newEntryBox } from './frame';
 import type { Frame } from './frame';
 import { linkItems } from './menu';
@@ -39,7 +28,6 @@ import '../ask';
 import '../box-stage/handles';
 import '../context-menu';
 import '../person-search/pick';
-import './entry-form';
 
 // What a right-click opened: the menu, or the Volumes chosen from it; or
 // the people to name in a new entry's Role (or with none), listed or
@@ -53,6 +41,10 @@ type Popup =
       locate?: () => void;
     }
   | { at: Point; show: 'pick'; role: string | null };
+
+// How far in from the stage's right edge a pick opened from the Entry's
+// pane starts: its search's width (person-search/pick.ts) and a margin.
+const PICK_PX = 16 * 16 + 8;
 
 // Editing the current source's Link over the scan: the menu a right-click
 // opens (`openMenu`), the Volumes opened from it, a new entry Box put where
@@ -84,6 +76,22 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   openMenu(at: Point, onBox: boolean) {
     if (this.viewer.oldFilming.get()) return;
     this.popup = { at, onBox, show: 'menu' };
+  }
+
+  // Whom to name in the pending Entry's Role, picked where the press at
+  // `client` in the window was, kept on the stage (entry-form.ts).
+  openPick(client: Point, role: string | null) {
+    const box = this.getBoundingClientRect();
+    const at = {
+      x: Math.max(0, Math.min(client.x - box.left, box.width - PICK_PX)),
+      y: client.y - box.top
+    };
+    this.popup = { at, show: 'pick', role };
+  }
+
+  // Closes a menu or pick open over the scan, as a press elsewhere does.
+  closePopup() {
+    this.popup = null;
   }
 
   // A Volume on a filming Astia replaced is read-only until switched.
@@ -142,15 +150,6 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
       this.citingHere()
     );
     this.viewer.newEntry(box, event, people);
-  }
-
-  // The pending Entry's Event chosen anew, with whom it names then.
-  private chooseEvent(event: EntryEvent) {
-    const ix = this.state.chart.people.get();
-    this.viewer.entryForm.setEvent(
-      event,
-      withEvent(this.namedNow(), event, ix)
-    );
   }
 
   // Whose Citations already link the Image shown: not cited for again.
@@ -215,42 +214,6 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     return pending === null || pending.kind === 'mark'
       ? []
       : pending.cite.people;
-  }
-
-  // The pending Entry's people and words, beside its Box.
-  private renderEntry() {
-    const { view } = this;
-    const pending = this.viewer.pending.get();
-    if (view === null || pending === null || pending.kind === 'mark') {
-      return nothing;
-    }
-    const ix = this.state.chart.people.get();
-    return html`<sl-scan-entry
-      .anchor=${boxOnStage(pending.box, view)}
-      .cite=${pending.cite}
-      .editing=${pending.kind === 'edit'}
-      .persons=${this.persons}
-      .parents=${parentRows(pending.cite.people, ix)}
-      .offers=${this.viewer.entryForm.offers.get()}
-      @set-field=${(e: CustomEvent<FieldDetail>) => {
-        this.viewer.entryForm.setField(e.detail.key, e.detail.text);
-      }}
-      @tick=${(e: CustomEvent<TickDetail>) => {
-        this.viewer.entryForm.setTick(e.detail.key, e.detail.on);
-      }}
-      @choose-event=${(e: CustomEvent<EntryEvent>) => {
-        this.chooseEvent(e.detail);
-      }}
-      @name=${(e: CustomEvent<InEntry>) => {
-        this.viewer.entryForm.setInEntry(e.detail);
-      }}
-      @choose=${(e: CustomEvent<ChooseDetail>) => {
-        this.popup = { at: e.detail.at, show: 'pick', role: e.detail.role };
-      }}
-      @drop=${(e: CustomEvent<{ personId: number }>) => {
-        this.viewer.entryForm.drop(e.detail.personId);
-      }}
-    ></sl-scan-entry>`;
   }
 
   // A Reminder on the Image shown and the Selected person, written in the
@@ -371,7 +334,7 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   }
 
   override render() {
-    return html`${this.renderBox()} ${this.renderEntry()} ${this.renderPopup()}`;
+    return html`${this.renderBox()} ${this.renderPopup()}`;
   }
 }
 

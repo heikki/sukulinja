@@ -14,15 +14,15 @@ import './fact-sources';
 import { personEventsStyles } from './events-styles';
 import { factLabel, factText, sourcesOf } from './helpers';
 
-// A Fact's form open in its place, by its id, or a new one's.
+// A Fact's form open, by its id, or a new one's.
 type Editing = number | 'new' | null;
 
 // The person's Facts, and their marriages', from birth to death: each
 // kind, then its date, place and what else it says, dimmed while no source
 // supports it. Clicking one picks it, opening its first source in the Scan
 // viewer if that's open, and showing under it its sources and
-// _Edit event_, which opens it for editing in its place (fact-sources.ts);
-// clicked again it's let go. _Add event_ opens a new one below; one at a
+// _Edit event_, which opens it for editing in a modal (fact-sources.ts);
+// clicked again it's let go. _Add event_ opens a new one's; one at a
 // time.
 @customElement('sl-person-events')
 class PersonEventsElement extends SignalWatcher(LitElement) {
@@ -75,7 +75,6 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
   // A Fact no source supports is dimmed, so the eye finds those that
   // still need one. Clicking picks it, and again lets it go, as Esc does.
   private renderFact(f: FactRow, sources: Source[]) {
-    if (this.editing === f.id) return this.renderForm(f);
     const supporting = sourcesOf(f, sources);
     const picked = this.picked === f.id;
     return html`<button
@@ -112,7 +111,8 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
               }}
             ></sl-fact-sources>`
           : nothing
-      }`;
+      }
+      ${this.editing === f.id ? this.renderForm(f) : nothing}`;
   }
 
   override render() {
@@ -121,19 +121,16 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
     return html`<div class="facts">
         ${this.facts.map((f) => this.renderFact(f, sources))}
       </div>
-      ${
-        adding
-          ? this.renderForm(null)
-          : html`<button
-              class="add"
-              @click=${() => {
-                this.picked = null;
-                this.editing = 'new';
-              }}
-            >
-              Add event
-            </button>`
-      }`;
+      <button
+        class="add"
+        @click=${() => {
+          this.picked = null;
+          this.editing = 'new';
+        }}
+      >
+        Add event
+      </button>
+      ${adding ? this.renderForm(null) : nothing}`;
   }
 }
 

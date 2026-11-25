@@ -1,7 +1,7 @@
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 
 import { ApiError } from '@/client/dataset-api';
 import { appState } from '@/client/state';
@@ -26,8 +26,8 @@ function renderConfirming(confirming: Confirming) {
     : html`<p class="refused">${confirming.refused}</p>`;
 }
 
-// At the end of the nav while a Box is pending: Cancel and Save; a new
-// Entry's people are beside its Box. A way out
+// At the end of the nav while a Box is pending, or for a new Entry at the
+// foot of its panel (`panel`, entry-form.ts): Cancel and Save. A way out
 // of the source waiting on the Box asks there instead: Keep editing,
 // Discard or Save. A Box waiting to be discarded, or a Citation made in
 // the app to be deleted, asks to confirm. A Match being confirmed from its
@@ -39,6 +39,9 @@ class ScanEditElement extends SignalWatcher(LitElement) {
   static override styles = [controlStyles, editActionsStyles, scanEditStyles];
 
   @consume({ context: appState }) private readonly state!: AppState;
+
+  // At the foot of a pending Entry's panel, not in the nav.
+  @property({ type: Boolean, reflect: true }) panel = false;
 
   // The dataset's people, who name the citations.
   private get persons() {
@@ -219,7 +222,7 @@ class ScanEditElement extends SignalWatcher(LitElement) {
   override render() {
     const { viewer } = this.state;
     const pending = viewer.pending.get();
-    // A new Entry's people and words are beside its Box (entry-form.ts).
+    // A new Entry's, at the foot of its panel (entry-form.ts).
     if (pending !== null && pending.kind !== 'mark') {
       return this.renderAsking(nothing, this.renderSaving());
     }
