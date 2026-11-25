@@ -126,7 +126,7 @@ class ReminderRowElement extends SignalWatcher(LitElement) {
     const { reminder } = this;
     const lines = renderLines(
       onLines(this.state, reminder),
-      isStale(reminder.on)
+      reminder.on !== null && isStale(reminder.on)
     );
     return html`
       ${

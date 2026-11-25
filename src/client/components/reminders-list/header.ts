@@ -21,9 +21,10 @@ export function imageHeader(at: { volume: string; image: number }) {
 }
 
 // What a Reminder is on, as its lines head it: the person's name, then
-// the Volume and Image.
+// the Volume and Image; none for one on nothing.
 export function headerOf(state: AppState, reminder: Reminder) {
   const { on } = reminder;
+  if (on === null) return [];
   if (on.kind === 'person') return personHeader(state, on.personId);
   const image = imageHeader(on);
   if (on.personId === null) return image;

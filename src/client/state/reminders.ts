@@ -7,7 +7,8 @@ import { Latest } from './latest';
 import type { Readable } from './selected';
 
 // What a new Reminder is on, each as it's said where it's written: the
-// Selected person, and the Image the Scan viewer shows; at least one.
+// Selected person, and the Image the Scan viewer shows; neither for one on
+// nothing.
 export interface ReminderPlaces {
   person: { personId: number; header: string } | null;
   image: {
@@ -16,10 +17,15 @@ export interface ReminderPlaces {
   } | null;
 }
 
-// Where a new Reminder is written: on the Image, about the person too; or
-// with no Image, on the person.
-export function targetOf({ person, image }: ReminderPlaces): ReminderTarget {
-  if (image === null) return { personId: person!.personId };
+// Where a new Reminder is written: on the Image, about the person too;
+// with no Image, on the person; with neither, on nothing.
+export function targetOf({
+  person,
+  image
+}: ReminderPlaces): ReminderTarget | null {
+  if (image === null) {
+    return person === null ? null : { personId: person.personId };
+  }
   return person === null
     ? image.at
     : { ...image.at, personId: person.personId };
@@ -36,7 +42,7 @@ export interface Reminders {
   // Asks for them anew once they've been asked for: written elsewhere, by
   // a Proposal applied.
   reload: () => void;
-  remind: (text: string, on: ReminderTarget) => Promise<Reminder>;
+  remind: (text: string, on: ReminderTarget | null) => Promise<Reminder>;
   change: (id: number, change: ReminderChange) => Promise<void>;
   remove: (id: number) => Promise<void>;
   // A new Reminder being written in the list, on what it can be on; null

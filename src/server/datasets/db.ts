@@ -232,8 +232,8 @@ const SCHEMA_SQL = `
     volume_id TEXT PRIMARY KEY,
     archive_id TEXT NOT NULL
   );
-  -- Reminders, on a person or an Image, one on an Image maybe about a
-  -- person too. No export writes them.
+  -- Reminders, on a person, an Image (maybe about a person too) or
+  -- nothing. No export writes them.
   CREATE TABLE IF NOT EXISTS reminders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     text TEXT NOT NULL,
@@ -244,7 +244,6 @@ const SCHEMA_SQL = `
     file_id TEXT,
     created_at TEXT NOT NULL,
     done_at TEXT,
-    CHECK (person_id IS NOT NULL OR volume_id IS NOT NULL),
     CHECK ((volume_id IS NULL) = (volume IS NULL)),
     CHECK ((volume_id IS NULL) = (image IS NULL)),
     CHECK ((volume_id IS NULL) = (file_id IS NULL))

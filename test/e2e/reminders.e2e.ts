@@ -1,5 +1,6 @@
-// Reminders written on a person and worked through, and the Changes list
-// of what was done, which leads back to the person and can be cleared.
+// Reminders written on a person and on nothing, and worked through, and
+// the Changes list of what was done, which leads back to the person and
+// can be cleared.
 
 import { afterAll, expect, test } from 'bun:test';
 
@@ -34,6 +35,14 @@ test('a reminder is written, done and deleted; the Changes cleared', async () =>
     await list.getByRole('button', { name: 'Reopen' }).click();
     await list.getByRole('button', { name: 'Delete', exact: true }).click();
     await list.getByText('Find his birth').waitFor({ state: 'detached' });
+
+    // On nothing, from the list itself.
+    await list.getByRole('button', { name: 'Add reminder…' }).click();
+    await shot(page, 'reminders-add-on-nothing');
+    await page.getByLabel('New reminder').fill('Order the Juva books');
+    await list.getByRole('button', { name: 'Save', exact: true }).click();
+    await list.getByText('Order the Juva books').waitFor();
+    await shot(page, 'reminders-on-nothing');
 
     // What was done, newest first; a Change leads to its person.
     await page.getByRole('tab', { name: 'Changes' }).click();

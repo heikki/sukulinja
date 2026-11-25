@@ -1,5 +1,5 @@
-// A dataset's Reminders: on a person, or an Image of a Volume, maybe
-// about a person too. Only the app keeps them, and no export writes them.
+// A dataset's Reminders: on a person, an Image of a Volume (maybe about a
+// person too), or nothing. Only the app keeps them, and no export writes them.
 
 import type { Database } from 'bun:sqlite';
 
@@ -26,11 +26,20 @@ interface ReminderRow extends Omit<OnRow, 'citation_id'> {
 
 type Binding = string | number | null;
 
+const NOTHING: Omit<OnRow, 'citation_id'> = {
+  person_id: null,
+  volume_id: null,
+  volume: null,
+  image: null,
+  file_id: null
+};
+
 const NO_TEXT = 'A Reminder needs some text.';
 
 // What a Reminder is on, as its row describes it: never a Citation, as a
-// Reminder can't be on one.
-function reminderOn(on: On): ReminderOn {
+// Reminder can't be on one; null for nothing.
+function reminderOn(on: On | null): ReminderOn | null {
+  if (on === null) return null;
   return on.kind === 'citation'
     ? { kind: 'person', personId: on.personId }
     : on;
@@ -62,8 +71,7 @@ export function createReminders(db: Database, sources: OnSources) {
     return {
       id: row.id,
       text: row.text,
-      // A Reminder is always on something.
-      on: reminderOn((await ons.describe({ ...row, citation_id: null }))!),
+      on: reminderOn(await ons.describe({ ...row, citation_id: null })),
       created: row.created_at,
       done: row.done_at
     };
@@ -75,12 +83,12 @@ export function createReminders(db: Database, sources: OnSources) {
       return await Promise.all(all.all().map(reminderOf));
     },
 
-    // Writes a Reminder on the target. Null when its person isn't in the
-    // dataset.
-    async add(text: string, target: ReminderTarget) {
+    // Writes a Reminder on the target, or with null, on nothing. Null when
+    // its person isn't in the dataset.
+    async add(text: string, target: ReminderTarget | null) {
       const kept = textOf(text);
       if (kept === '') return { rejected: NO_TEXT };
-      const on = ons.columnsOf(target);
+      const on = target === null ? NOTHING : ons.columnsOf(target);
       if (on === null) return null;
       const created = new Date().toISOString();
       const values = COLUMNS.map((c) => on[c]);

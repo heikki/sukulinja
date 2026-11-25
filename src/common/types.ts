@@ -626,12 +626,13 @@ export type On =
       personId: number | null;
     };
 
-// Something to come back to, written in the app. `done` is when it was
-// marked done, null while it's open; both times are ISO 8601.
+// Something to come back to, written in the app: on something, or with
+// `on` null, on nothing. `done` is when it was marked done, null while
+// it's open; both times are ISO 8601.
 export interface Reminder {
   id: number;
   text: string;
-  on: ReminderOn;
+  on: ReminderOn | null;
   created: string;
   done: string | null;
 }
@@ -639,7 +640,7 @@ export interface Reminder {
 // What a Reminder is on: a person, or an Image, maybe about a person too.
 export type ReminderOn = Exclude<On, { kind: 'citation' }>;
 
-// What a new Reminder is put on.
+// What a new Reminder is put on; null puts it on nothing.
 export type ReminderTarget = Exclude<OnTarget, { citationId: number }>;
 
 // What a new one is put on.

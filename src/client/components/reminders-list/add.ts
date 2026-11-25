@@ -14,7 +14,7 @@ import { reminderStyles } from './styles';
 
 // Writing a new Reminder, at the top of the list: what it will be on, in
 // muted lines (the Selected person, and while the Scan viewer is open, the
-// Image it shows); then its text. Save writes it, and it and
+// Image it shows), none when it's on nothing; then its text. Save writes it, and it and
 // Cancel stop the draft.
 @customElement('sl-reminder-add')
 class ReminderAddElement extends LitElement {
@@ -47,6 +47,7 @@ class ReminderAddElement extends LitElement {
 
   private renderPlaces() {
     const { person, image } = this.places;
+    if (person === null && image === null) return nothing;
     return html`<div class="lines">
       ${person === null ? nothing : html`<div>${person.header}</div>`}
       ${image === null ? nothing : html`<div>${image.header}</div>`}

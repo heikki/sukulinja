@@ -182,6 +182,26 @@ describe('a database of the oldest schema migrated', () => {
   });
 });
 
+describe('schema 15', () => {
+  test("lets a Reminder be on nothing, and hands out no deleted one's id", () => {
+    const before = oldest();
+    fill(before);
+    before.run(
+      "INSERT INTO reminders (id, text, person_id, created_at) VALUES (7, 'Pois', 1, '2026-11-12')"
+    );
+    before.run('DELETE FROM reminders WHERE id = 7');
+    before.close();
+    const migrated = openDb(path);
+    const { id } = migrated
+      .query<{ id: number }, []>(
+        "INSERT INTO reminders (text, created_at) VALUES ('Muista', '2026-11-25') RETURNING id"
+      )
+      .get()!;
+    expect(id).toBe(8);
+    migrated.close();
+  });
+});
+
 describe('opening a database', () => {
   test('older than the oldest schema migrated, it has to be imported again', () => {
     oldest(OLDEST_MIGRATED - 1).close();

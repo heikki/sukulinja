@@ -7,7 +7,7 @@ import type { PersonRow, Reminder, ReminderOn } from '@/common/types';
 import { headerOf } from './header';
 import { onLines } from './lines';
 
-function reminder(on: ReminderOn): Reminder {
+function reminder(on: ReminderOn | null): Reminder {
   return { id: 1, text: 'R', on, created: '', done: null };
 }
 
@@ -76,4 +76,10 @@ test('an Image about someone goes to them, then to the Image', async () => {
   expect(lines.map((l) => l.to)).toEqual([{ kind: 'person', personId: 1 }, on]);
   expect(lines[0]?.text).toBe('Matti Testinen');
   expect(lines[1]?.text).toBe('Pää- ja rippikirjat (1790-1796) · Image 40');
+});
+
+test('one on nothing has no header and no lines', () => {
+  const state = openAppState(memoryDatasetApi({}));
+  expect(headerOf(state, reminder(null))).toEqual([]);
+  expect(onLines(state, reminder(null))).toEqual([]);
 });

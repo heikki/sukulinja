@@ -24,8 +24,42 @@ export interface Migration {
 // The oldest schema a database is taken from. One older is imported again.
 export const OLDEST_MIGRATED = 14;
 
-// None yet since schema 14 became the oldest; the next is schema 15.
-export const MIGRATIONS: Migration[] = [];
+// Schema 15: a Reminder can be on nothing, so the CHECK that it's on a
+// person or an Image goes.
+function remindersOnNothing(db: Database) {
+  db.run(`
+    CREATE TABLE new_reminders (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      text TEXT NOT NULL,
+      person_id INTEGER REFERENCES persons(id) ON DELETE CASCADE,
+      volume_id TEXT,
+      volume TEXT,
+      image INTEGER,
+      file_id TEXT,
+      created_at TEXT NOT NULL,
+      done_at TEXT,
+      CHECK ((volume_id IS NULL) = (volume IS NULL)),
+      CHECK ((volume_id IS NULL) = (image IS NULL)),
+      CHECK ((volume_id IS NULL) = (file_id IS NULL))
+    )
+  `);
+  const columns =
+    'id, text, person_id, volume_id, volume, image, file_id, created_at, done_at';
+  db.run(
+    `INSERT INTO new_reminders (${columns}) SELECT ${columns} FROM reminders`
+  );
+  // The ids handed out so far, so a deleted Reminder's isn't handed out
+  // again.
+  db.run("DELETE FROM sqlite_sequence WHERE name = 'new_reminders'");
+  db.run(`
+    INSERT INTO sqlite_sequence (name, seq)
+    SELECT 'new_reminders', seq FROM sqlite_sequence WHERE name = 'reminders'
+  `);
+  db.run('DROP TABLE reminders');
+  db.run('ALTER TABLE new_reminders RENAME TO reminders');
+}
+
+export const MIGRATIONS: Migration[] = [{ to: 15, up: remindersOnNothing }];
 
 // The version the steps take a database to.
 export function latestOf(steps: Migration[]) {

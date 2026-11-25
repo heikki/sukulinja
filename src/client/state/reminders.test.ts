@@ -69,11 +69,12 @@ test('a Reminder is drafted on its places, until it stops', () => {
   expect(reminders.drafting.get()).toBe(null);
 });
 
-test('a new Reminder is on the Image about the person, or on the person', () => {
+test('a new Reminder is on the Image about the person, on the person, or on nothing', () => {
   const at = { volumeId: '201', volume: 'I Aa:201', image: 18, fileId: 'f' };
   const person = { personId: 1, header: 'Matti' };
   const image = { at, header: 'I Aa:201 · Image 18' };
   expect(targetOf({ person, image })).toEqual({ ...at, personId: 1 });
   expect(targetOf({ person: null, image })).toEqual(at);
   expect(targetOf({ person, image: null })).toEqual({ personId: 1 });
+  expect(targetOf({ person: null, image: null })).toBeNull();
 });

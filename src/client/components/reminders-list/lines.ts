@@ -14,9 +14,10 @@ export interface OnLine {
 
 // What a Reminder is on, a line each: the person's name, going to them,
 // then an Image, going to it; an Image from an earlier filming goes
-// nowhere.
+// nowhere. None for one on nothing.
 export function onLines(state: AppState, reminder: Reminder): OnLine[] {
   const { on } = reminder;
+  if (on === null) return [];
   const header = headerOf(state, reminder);
   if (on.kind === 'person') return [{ text: header[0] ?? '', to: on }];
   const image = { text: header.at(-1) ?? '', to: on.stale ? null : on };

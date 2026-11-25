@@ -206,7 +206,7 @@ describe('the answers', () => {
       'Later hand',
       'Look for a second wife'
     ]);
-    expect(listed.map((r) => r.on.kind === 'image' && r.on.stale)).toEqual([
+    expect(listed.map((r) => r.on?.kind === 'image' && r.on.stale)).toEqual([
       true,
       false,
       false

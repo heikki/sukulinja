@@ -21,7 +21,7 @@ function about(view: TreeView, on: ChangeOn | null) {
 export const reminders = readOperation<{ includeDone: boolean }>({
   name: 'reminders',
   description:
-    "The Reminders written in the app (things to come back to), newest first: each one's text, whom or which church-book image it's on, and whether it's done.",
+    "The Reminders written in the app (things to come back to), newest first: each one's text, whom or which church-book image it's on (if anything), and whether it's done.",
   input: {
     type: 'object',
     properties: { includeDone: { type: 'boolean' } },

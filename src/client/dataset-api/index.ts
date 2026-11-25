@@ -234,8 +234,9 @@ export interface DatasetApi {
   clearChanges: () => Promise<void>;
   // Every Reminder, newest first, open or done.
   reminders: (signal?: AbortSignal) => Promise<Reminder[]>;
-  // Writes a Reminder on the target: it as stored.
-  remind: (text: string, on: ReminderTarget) => Promise<Reminder>;
+  // Writes a Reminder on the target, or with null, on nothing: it as
+  // stored.
+  remind: (text: string, on: ReminderTarget | null) => Promise<Reminder>;
   // Changes a Reminder's text, or marks it done or open again: it as
   // stored.
   changeReminder: (id: number, change: ReminderChange) => Promise<Reminder>;

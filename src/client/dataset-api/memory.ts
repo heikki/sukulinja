@@ -101,7 +101,7 @@ type MemoryDatasetApi = DatasetApi & {
   // <volume>/<image>", "vision <citation> <model>", "uncite <citation>", "choices <citation>",
   // "citations <volume>", "volume <volume>", "rescan <volume>", "switch
   // <volume>", "changes", "clear changes", "reminders", "remind person
-  // <id>: <text>" (or "<volume>/<image> <file>"), "change reminder <id>",
+  // <id>: <text>" (or "<volume>/<image> <file>", or "nothing"), "change reminder <id>",
   // "delete reminder <id>", "photos", "add photo <file name>", "delete
   // photo <photo>", "tag <photo> <person>", "untag <photo> <person>",
   // "portrait <photo> <person>", "places", "add fact <person> <tag>[ in
@@ -169,7 +169,8 @@ export function memoryDatasetApi(
     return value;
   }
 
-  function onOf(target: ReminderTarget): ReminderOn {
+  function onOf(target: ReminderTarget | null): ReminderOn | null {
+    if (target === null) return null;
     if ('volumeId' in target) {
       return {
         kind: 'image',
@@ -181,7 +182,8 @@ export function memoryDatasetApi(
     return { kind: 'person', personId: target.personId };
   }
 
-  function whereOf(target: ReminderTarget) {
+  function whereOf(target: ReminderTarget | null) {
+    if (target === null) return 'nothing';
     if ('volumeId' in target) {
       const of = target.personId === undefined ? '' : ` of ${target.personId}`;
       return `${target.volumeId}/${target.image} ${target.fileId}${of}`;

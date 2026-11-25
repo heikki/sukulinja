@@ -26,7 +26,7 @@ Every picture in the dataset, with the people tagged in it. Tag someone by drawi
 
 ### Keeping track
 
-_Changes_ lists everything done to the dataset, newest first, each a way back to where it happened. _Reminders_ keep what to come back to, on a person or a scan.
+_Changes_ lists everything done to the dataset, newest first, each a way back to where it happened. _Reminders_ keep what to come back to, on a person, a scan or nothing in particular.
 
 ### In and out
 

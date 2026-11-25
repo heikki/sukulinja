@@ -17,9 +17,9 @@ import './row';
 // The only place Reminders are: every open one, newest first, each with
 // what it's on, a line going to each (`go`, from its row); Show done adds
 // the done ones, dimmed. Each is edited, done or deleted in its row. A new
-// one, started from a card's menu or the Scan viewer's, is written at the
-// top. A tab of the corner panel; leaving it drops
-// the draft.
+// one, started from a card's menu or the Scan viewer's, or on nothing from
+// Add reminder under the list, is written at the top. A tab of the corner
+// panel; leaving it drops the draft.
 @customElement('sl-reminders-list')
 class RemindersListElement extends SignalWatcher(LitElement) {
   static override styles = [
@@ -88,6 +88,19 @@ class RemindersListElement extends SignalWatcher(LitElement) {
     return html`<sl-reminder-add .places=${places}></sl-reminder-add>`;
   }
 
+  // Starts one on nothing; gone while one is being written.
+  private renderAdd() {
+    if (this.state.reminders.drafting.get() !== null) return nothing;
+    return html`<button
+      class="toggle"
+      @click=${() => {
+        this.state.reminders.draft({ person: null, image: null });
+      }}
+    >
+      Add reminder…
+    </button>`;
+  }
+
   private renderShowDone() {
     const all = this.state.reminders.all.get();
     const done = Array.isArray(all)
@@ -107,7 +120,7 @@ class RemindersListElement extends SignalWatcher(LitElement) {
 
   override render() {
     return html`${this.renderDraft()} ${this.renderBody()}
-      <div class="actions">${this.renderShowDone()}</div>`;
+      <div class="actions">${this.renderAdd()} ${this.renderShowDone()}</div>`;
   }
 }
 
