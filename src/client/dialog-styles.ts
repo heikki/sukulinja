@@ -10,7 +10,7 @@ export const actionStyles = css`
     gap: 0.75rem;
   }
   .actions button {
-    padding: 0.35rem 0.9rem;
+    padding: 0.25rem 0.9rem;
     background: none;
     color: var(--fg);
     border: 1px solid var(--raised-border);

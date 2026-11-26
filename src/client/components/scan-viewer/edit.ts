@@ -4,6 +4,7 @@ import { html, LitElement, nothing } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 
 import { ApiError } from '@/client/dataset-api';
+import { actionStyles } from '@/client/dialog-styles';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 
@@ -24,7 +25,12 @@ function stop(e: Event) {
 // citing the record, whom it names.
 @customElement('sl-scan-edit')
 class ScanEditElement extends SignalWatcher(LitElement) {
-  static override styles = [controlStyles, editActionsStyles, scanEditStyles];
+  static override styles = [
+    controlStyles,
+    editActionsStyles,
+    actionStyles,
+    scanEditStyles
+  ];
 
   @consume({ context: appState }) private readonly state!: AppState;
 
@@ -53,7 +59,7 @@ class ScanEditElement extends SignalWatcher(LitElement) {
   }
 
   private renderSave(run: () => void) {
-    return html`<button class="save" ?disabled=${this.saving} @click=${run}>
+    return html`<button class="primary" ?disabled=${this.saving} @click=${run}>
       ${this.saving ? 'Saving…' : 'Save'}
     </button>`;
   }

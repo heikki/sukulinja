@@ -4,6 +4,7 @@ import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { Asking } from '@/client/asking';
+import { actionStyles } from '@/client/dialog-styles';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 
@@ -25,6 +26,7 @@ function stop(e: Event) {
 class ScanRescanElement extends SignalWatcher(LitElement) {
   static override styles = [
     controlStyles,
+    actionStyles,
     css`
       /* Along the top of the stage, leaving the rest to pan. */
       :host {
@@ -52,23 +54,6 @@ class ScanRescanElement extends SignalWatcher(LitElement) {
         margin: 0 0 0.8rem;
         padding-left: 1.2rem;
         color: var(--muted);
-      }
-
-      .actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 0.5rem;
-      }
-
-      button.save {
-        border-color: var(--accent);
-        background: var(--accent);
-        color: var(--bg);
-      }
-
-      button.save:hover:not(:disabled) {
-        color: var(--bg);
-        filter: brightness(1.1);
       }
 
       .refused {
@@ -164,7 +149,7 @@ class ScanRescanElement extends SignalWatcher(LitElement) {
             Not now
           </button>
           <button
-            class="save"
+            class="primary"
             ?disabled=${this.asking.busy}
             @click=${this.onSwitch}
           >

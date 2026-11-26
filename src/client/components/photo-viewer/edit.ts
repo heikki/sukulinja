@@ -4,6 +4,7 @@ import { css, html, LitElement, nothing } from 'lit';
 import { customElement } from 'lit/decorators.js';
 
 import { Asking } from '@/client/asking';
+import { actionStyles } from '@/client/dialog-styles';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 
@@ -28,6 +29,7 @@ class PhotoEditElement extends SignalWatcher(LitElement) {
     controlStyles,
     footBarStyles,
     editActionsStyles,
+    actionStyles,
     css`
       :host {
         gap: 0.75rem;
@@ -65,7 +67,7 @@ class PhotoEditElement extends SignalWatcher(LitElement) {
     this.viewer.cancel();
   }
 
-  private renderActions(go: string, going: string, kind: 'save' | 'discard') {
+  private renderActions(go: string, going: string, kind: 'primary' | 'danger') {
     return html`<div class="actions">
       <button
         ?disabled=${this.asking.busy}
@@ -99,7 +101,7 @@ class PhotoEditElement extends SignalWatcher(LitElement) {
         <p>
           ${pending.moving ? `Editing the box of ${name}` : `Tagging ${name}`}
         </p>
-        ${refused} ${this.renderActions('Save', 'Saving…', 'save')}
+        ${refused} ${this.renderActions('Save', 'Saving…', 'primary')}
       `;
     }
     const portrait = this.viewer.refused.get();

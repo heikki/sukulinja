@@ -74,10 +74,6 @@ export const scanEditStyles = css`
     color: var(--muted);
     font-size: 0.8rem;
   }
-
-  .actions {
-    gap: 0.75rem;
-  }
 `;
 
 // Over the whole stage, letting presses through to the scan except on its

@@ -7,24 +7,10 @@ import { focusRingStyles } from '@/client/focus-ring';
 // picture, the Boxes over it, the bar floating at its foot, and Cancel and
 // Save there while a Box is pending.
 
-// Buttons, fields and links, shared by the viewer and its toolbar.
-const controls = css`
-  .muted {
-    color: var(--muted);
-  }
-
-  input {
-    -webkit-user-select: text;
-    width: 4.5em;
-    padding: 0.15rem 0.35rem;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    background: var(--bg);
-    color: var(--fg);
-    font: inherit;
-    text-align: right;
-  }
-
+// A compact button, outlined on the card: the viewer's toolbar and
+// what's chosen in its panes. A step's own buttons are a modal's
+// (actionStyles).
+export const buttonStyles = css`
   button {
     padding: 0.15rem 0.55rem;
     border: 1px solid var(--border);
@@ -43,6 +29,25 @@ const controls = css`
   button:disabled {
     opacity: 0.4;
     cursor: default;
+  }
+`;
+
+// Fields and links, shared by the viewer and its toolbar.
+const controls = css`
+  .muted {
+    color: var(--muted);
+  }
+
+  input {
+    -webkit-user-select: text;
+    width: 4.5em;
+    padding: 0.15rem 0.35rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+    text-align: right;
   }
 
   button.plain {
@@ -68,7 +73,7 @@ const controls = css`
 
 // What every part of the viewer with controls takes: the shared focus ring,
 // then the controls themselves.
-export const controlStyles = [focusRingStyles, controls];
+export const controlStyles = [focusRingStyles, buttonStyles, controls];
 
 // A viewer: covers the chart, a toolbar over its body, the stage and the
 // pane beside it.
@@ -541,42 +546,19 @@ export const footBarStyles = css`
 `;
 
 // What's asked while a Box is pending, or a removal waits: Cancel beside
-// Save or the removal, and why a save was refused.
+// Save or the removal, as a modal's buttons are (actionStyles, after
+// these), and why a save was refused.
 export const editActionsStyles = css`
   p {
     margin: 0;
   }
 
   .actions {
-    display: flex;
     align-items: center;
-    gap: 0.5rem;
   }
 
   button {
     white-space: nowrap;
-  }
-
-  button.save {
-    border-color: var(--accent);
-    background: var(--accent);
-    color: var(--bg);
-  }
-
-  button.save:hover:not(:disabled) {
-    color: var(--bg);
-    filter: brightness(1.1);
-  }
-
-  button.discard {
-    border-color: var(--danger);
-    background: var(--danger);
-    color: var(--bg);
-  }
-
-  button.discard:hover:not(:disabled) {
-    color: var(--bg);
-    filter: brightness(1.1);
   }
 
   .refused {

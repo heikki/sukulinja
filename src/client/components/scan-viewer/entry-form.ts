@@ -19,6 +19,7 @@ import type { EntryEvent, EntryRole } from '@/common/entry-events';
 import { ownerRoles } from '@/common/entry-lock';
 import { differenceWords, treeDifferences } from '@/common/entry-tree';
 
+import { buttonStyles } from '../box-stage/styles';
 import { formatName } from '../tree-view/renderer';
 import { parentRows, treeOf, withEvent } from './cite';
 import type { ParentRow } from './cite';
@@ -65,6 +66,7 @@ export interface ChooseDetail {
 class ScanEntryElement extends SignalWatcher(LitElement) {
   static override styles = [
     scanPaneStyles,
+    buttonStyles,
     css`
       label.parent {
         display: flex;
@@ -112,11 +114,6 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
         margin: 0;
         color: var(--muted);
         font-size: 0.85em;
-      }
-
-      button {
-        padding: 0.25rem 0.6rem;
-        font-size: 0.85rem;
       }
 
       button.choose {
