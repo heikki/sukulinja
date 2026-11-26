@@ -1,5 +1,7 @@
 # A Volume's source names its archive, and a Citation of an Image reads as one
 
+Amended by ADR-0039: the page number in `PAGE` is the Entry's.
+
 A Citation made in the app cites its Volume's source, titled with the Volume's label alone ("I Aa:5 Pää- ja rippikirjat (1790-1796)"), and its `PAGE` is the Image's address in Astia. Two problems follow:
 
 - **Parishes share labels.** The source is found by the Volume's xref or, failing it, by title and publisher (ADR-0016). So the first Citation in another parish's Volume of the same label cites the first parish's source. Seen 2026-11-11 with two Volumes `juva-5` and `mikkeli-5`; no dataset has such a pair yet.

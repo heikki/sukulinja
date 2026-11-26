@@ -125,36 +125,17 @@ test('a Mark is written into every citation of the record, which then cites the 
   });
   const rows = three
     .query(
-      'SELECT page, original_page, link_image, link_box_left, link_by FROM citations ORDER BY id'
+      'SELECT page, link_image, link_box_left, link_by FROM citations ORDER BY id'
     )
     .all();
-  const astia =
-    'https://astia.narc.fi/uusiastia/viewer/?fileId=a-f11&aineistoId=a';
+  // Each keeps its own page, the reference's (ADR-0039).
+  const marked = { link_image: 11, link_box_left: 100, link_by: 'hand' };
   expect(rows).toEqual([
-    {
-      page: astia,
-      original_page: ref(150).url,
-      link_image: 11,
-      link_box_left: 100,
-      link_by: 'hand'
-    },
-    {
-      page: astia,
-      original_page: `${ref(150).url}&lang=fi`,
-      link_image: 11,
-      link_box_left: 100,
-      link_by: 'hand'
-    },
-    {
-      page: astia,
-      original_page: ref(150).url,
-      link_image: 11,
-      link_box_left: 100,
-      link_by: 'hand'
-    },
+    { page: ref(150).url, ...marked },
+    { page: `${ref(150).url}&lang=fi`, ...marked },
+    { page: ref(150).url, ...marked },
     {
       page: ref(160).url,
-      original_page: null,
       link_image: null,
       link_box_left: null,
       link_by: null
@@ -170,14 +151,12 @@ test('a Mark is written into every citation of the record, which then cites the 
     'resolution.links'
   );
   expect(
-    three
-      .query('SELECT page, original_page, link_by FROM citations ORDER BY id')
-      .all()
+    three.query('SELECT page, link_by FROM citations ORDER BY id').all()
   ).toEqual([
-    { page: ref(150).url, original_page: null, link_by: null },
-    { page: `${ref(150).url}&lang=fi`, original_page: null, link_by: null },
-    { page: ref(150).url, original_page: null, link_by: null },
-    { page: ref(160).url, original_page: null, link_by: null }
+    { page: ref(150).url, link_by: null },
+    { page: `${ref(150).url}&lang=fi`, link_by: null },
+    { page: ref(150).url, link_by: null },
+    { page: ref(160).url, link_by: null }
   ]);
   three.close();
 });
@@ -189,19 +168,17 @@ test('a Match keeps its page, and a Mark of only the Volume too', async () => {
   expect(
     cited
       .query(
-        'SELECT page, original_page, link_volume_id, link_by FROM citations WHERE link_by IS NOT NULL ORDER BY id'
+        'SELECT page, link_volume_id, link_by FROM citations WHERE link_by IS NOT NULL ORDER BY id'
       )
       .all()
   ).toEqual([
     {
       page: ref(150).url,
-      original_page: null,
       link_volume_id: 'a',
       link_by: 'vision'
     },
     {
       page: ref(160).url,
-      original_page: null,
       link_volume_id: 'b',
       link_by: 'hand'
     }
@@ -377,10 +354,10 @@ test('a Discard finds no Box elsewhere, nor on a Mark without one', async () => 
   expect((await scans.snapshot()).volumes.a!.records).toHaveLength(2);
 });
 
-test('a Citation converted from a reference is a Record pin no Mark writes to', async () => {
+test('a Citation converted from a reference is no pin, and no Mark writes to it', async () => {
   const two = citing([ref(150).url, ref(160).url], join(dir, 'two.sqlite'));
   await open(two).markRef(ref(150, 21), { ...at('a', 11), box: BOX });
-  // Converted (ADR-0016): made in the app, its original page kept.
+  // Converted (ADR-0016): it cites an Entry.
   two.run(
     `INSERT INTO entries (id, volume_id, volume, image, file_id, box_left,
        box_top, box_width, box_height)
@@ -393,7 +370,7 @@ test('a Citation converted from a reference is a Record pin no Mark writes to', 
   const scans = open(two);
   const { volumes } = await scans.snapshot();
   const pins = (volumes.a?.records ?? []).map((r) => [r.record, r.image]);
-  expect(pins).toContainEqual([150, 11]);
+  expect(pins).not.toContainEqual([150, 11]);
   await scans.markRef(ref(150, 21), { ...at('a', 12), box: BOX });
   const row = two
     .query(`SELECT link_image FROM ${CITATIONS_READ} WHERE id = 1`)

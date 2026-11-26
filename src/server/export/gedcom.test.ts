@@ -250,7 +250,7 @@ describe('exporting a GEDZIP', () => {
     expect(text).toContain('2 AGE 48y');
   });
 
-  test('carries Marks and Matches, their Boxes and the original pages', async () => {
+  test('carries Marks and Matches and their Boxes, each citation keeping its page', async () => {
     await importFixture();
     const db = registry.open('a');
     const index =
@@ -299,18 +299,14 @@ describe('exporting a GEDZIP', () => {
     const text = gedcomOf(await roundTrip());
     expect(treeSnapshot(registry.open('b'))).toEqual(treeSnapshot(db));
     expect(gedcom7Errors(text)).toEqual([]);
+    // A hand Mark at the Image leaves the page the reference's (ADR-0039).
     expect(text).toContain(
       [
-        '2 PAGE https://astia.narc.fi/uusiastia/viewer/?fileId=5678&aineistoId=1234',
+        '2 PAGE https://www.myheritage.fi/research/collection-10509/x?itemId=1',
         '2 DATA'
       ].join('\r\n')
     );
-    expect(text).toContain(
-      [
-        '2 OBJE @A1@',
-        '2 NOTE Original page: https://www.myheritage.fi/research/collection-10509/x?itemId=1'
-      ].join('\r\n')
-    );
+    expect(text).not.toContain('Original page');
     expect(text).toContain(
       [
         '1 SOUR @S1@',
@@ -360,6 +356,9 @@ describe('exporting a GEDZIP', () => {
       });
     }
 
+    // A converted reference's page number, on the Entry (ADR-0039).
+    db.run('UPDATE entries SET book_page = 12');
+
     const text = gedcomOf(await roundTrip());
     expect(treeSnapshot(registry.open('b'))).toEqual(treeSnapshot(db));
     expect(gedcom7Errors(text)).toEqual([]);
@@ -372,9 +371,10 @@ describe('exporting a GEDZIP', () => {
     );
     expect(text.match(/1 SOUR @ASTIA_1234@/g)).toHaveLength(2);
     // Its PAGE reads as an archive's book is cited, its address last, which
-    // the import reads back as its page (ADR-0019).
+    // the import reads back as its page (ADR-0019), and the page number as
+    // its Entry's (ADR-0039).
     expect(text).toContain(
-      `2 PAGE Juvan seurakunnan arkisto, ${volume}. Kansallisarkisto, Astia, kuva 25. https://astia.narc.fi/uusiastia/viewer/?fileId=5678&aineistoId=1234`
+      `2 PAGE Juvan seurakunnan arkisto, ${volume}, s. 12. Kansallisarkisto, Astia, kuva 25. https://astia.narc.fi/uusiastia/viewer/?fileId=5678&aineistoId=1234`
     );
     expect(text).toContain('3 TEXT Baptism 12.3.1860');
     expect(text).not.toContain('Added in Sukulinja');

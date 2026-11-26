@@ -34,7 +34,6 @@ const OWN = [
   'role',
   'quality',
   'data_date',
-  'original_page',
   'sort_order',
   'entry_id'
 ] as const;

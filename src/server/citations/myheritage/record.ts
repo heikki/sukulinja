@@ -250,6 +250,16 @@ function recordName(text: string) {
   return name === '' ? null : name;
 }
 
+// The date of the event an index's record is of, its baptism or marriage,
+// as transcribedDate reads it; null for a birth's alone, or none.
+export function indexEventDateOf(text: string) {
+  const date =
+    /(?:Ristiäiset|Kaste|Avioliitto)\s*:\s*(?<date>[^\n]*?)\s+-\s+[^,\n]+/.exec(
+      text
+    )?.groups?.date;
+  return date === undefined ? null : transcribedDate(date);
+}
+
 function indexKind(event: string): BookKind {
   return event === 'Avioliitto' ? 'vihityt' : 'kastetut';
 }

@@ -3,12 +3,7 @@
 // notes and media are read without them.
 
 import type { Annotation, CitationLink } from '../citations';
-import {
-  astiaImageOf,
-  noFileLinkOf,
-  originalPageOf,
-  UNCHECKED
-} from '../gedcom/astia-links';
+import { astiaImageOf, noFileLinkOf, UNCHECKED } from '../gedcom/astia-links';
 import { childValue, findChild, findChildren } from '../gedcom/parser';
 import type { GedNode } from '../gedcom/parser';
 import type { LineReader } from './unstored';
@@ -97,10 +92,9 @@ export function annotationReader(roots: GedNode[], lines: LineReader) {
     if (link !== null && noteWith(noteOf(UNCHECKED)) !== null) {
       link.by = 'vision';
     }
-    const originalPage = noteWith(originalPageOf);
     for (let i = sour.children.length - 1; i >= 0; i -= 1) {
       if (taken.has(sour.children[i]!)) sour.children.splice(i, 1);
     }
-    return { link, originalPage };
+    return { link };
   };
 }

@@ -70,7 +70,7 @@ interface AddressRow {
 
 // What a Citation's Entry says, its columns as a CitationRow names them.
 const ENTRY_SAYS = `e.date AS entry_date, e.life_date AS entry_life_date,
-  e.place AS entry_place`;
+  e.place AS entry_place, e.book_page AS entry_book_page`;
 
 export interface CitationRow {
   id: number;
@@ -87,6 +87,7 @@ export interface CitationRow {
   entry_date: string | null;
   entry_life_date: string | null;
   entry_place: string | null;
+  entry_book_page: number | null;
   annotation: Annotation;
 }
 

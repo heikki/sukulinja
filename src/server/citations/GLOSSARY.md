@@ -179,11 +179,11 @@ One Church-book reference known to be in a Volume, and on which Image when known
 _Avoid_: placement.
 
 **Mark**:
-Saying by hand, in the Scan viewer, which Image a Church-book reference's record is on, or only which Volume. It's written into every citation of the record (by its Record number, or by the reference's URL for one without): on an Image, the citation then cites the Image, its original page kept beside. A cited page found in a Volume the reference already links also becomes a Page pin; a reference with neither a Record number nor a Box then needs no Link of its own. A Mark may also say where on the Image the entry is, its **Box**, drawn by hand. Confirming a **Match** is a Mark too, and keeps where the model said the entry is. A Mark at the entry, with its Box, is a **Conversion** of every citation of the record.
+Saying by hand, in the Scan viewer, which Image a Church-book reference's record is on, or only which Volume. It's written into every citation of the record (by its Record number, or by the reference's URL for one without): on an Image, its Link holds the Image, its page staying the reference's. A cited page found in a Volume the reference already links also becomes a Page pin; a reference with neither a Record number nor a Box then needs no Link of its own. A Mark may also say where on the Image the entry is, its **Box**, drawn by hand. Confirming a **Match** is a Mark too, and keeps where the model said the entry is. A Mark at the entry, with its Box, is a **Conversion** of every citation of the record.
 _Avoid_: correction (the link it replaces is often not wrong, only less exact).
 
 **Conversion**:
-Turning a Church-book reference Marked at the entry, with its Box, into a Citation of its Image, as if made in the app: it cites the Volume's source, its text is the record's transcription as plain lines, and its original page keeps the reference's URL. A Citation made in the app is never a Church-book reference. Every citation of the record converts together. A converted Citation still counts as a **Record pin** (ADR-0016), and can be deleted like any Citation (ADR-0021).
+Turning a Church-book reference Marked at the entry, with its Box, into a Citation of its Image, as if made in the app: it cites the Volume's source, its text is the record's transcription as plain lines, its page the Image's address, and its Entry keeps the page number or date the reference gave (ADR-0039). A Citation made in the app is never a Church-book reference. Every citation of the record converts together. A converted Citation is no **Record pin** (ADR-0039), and can be deleted like any Citation (ADR-0021).
 _Avoid_: migration (that's the one-off script).
 
 **Discard**:
@@ -229,7 +229,7 @@ _Avoid_: "same page" alone — it doesn't say which.
 - An **Entry** is evidence and a **Fact** a conclusion: an Entry says what the book says, and a Fact what the tree concludes from Entries. **"Record"** is MyHeritage's: its record of an Entry, with a **Record number**.
 - An **Event** is what an Entry records, a **Fact** what the tree says happened: a father's Citation of his child's baptism records `CHR`, and supports none of his own Facts' births.
 - A **Citation** is not a **Church-book reference**: many Citations aren't to church books, and the reference is only what's read from one.
-- An **Annotation** is not a GEDCOM NOTE, though a GEDZIP writes parts of one as NOTEs (the page a Mark moved aside). Nor is it a **Box** ("annotating an Image" elsewhere means drawing one; here a Box is only one part of an Annotation), or a note written in a church book's margins.
+- An **Annotation** is not a GEDCOM NOTE, though a GEDZIP writes parts of one as NOTEs (a Match unchecked, a link with no file). Nor is it a **Box** ("annotating an Image" elsewhere means drawing one; here a Box is only one part of an Annotation), or a note written in a church book's margins.
 - **"Volume"** is Astia's book; MyHeritage's equivalent is a **Film**, which may hold several Volumes. **"Image"** is Astia's numbering, **"Frame"** MyHeritage's, **"Page number"** what's written in the book.
 - A **Mark** places a Church-book reference; moving the Box of an **Entry** the app holds isn't one, as none cites a reference.
 - **Marked** and **Match** Links both come from a **Record pin** or **Reference pin**; only who saved it differs. A **Page pin** only improves its Volume's **Estimates**.

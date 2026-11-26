@@ -2,7 +2,7 @@
 // viewer show it.
 
 import { bookLabel } from '@/common/books';
-import { isoDate } from '@/common/dates';
+import { gedcomDate, isoDate } from '@/common/dates';
 
 import type { BookRef } from './references';
 
@@ -23,19 +23,30 @@ export function entryOf(ref: BookRef) {
 
 // Where in its Volume the reference points (`book`), or the Image a
 // Citation of one cites (`stored`): its `entry`. Its `referenceEntry` is
-// the reference's alone, also the one a Citation of an Image was
-// converted from (ADR-0016), and null for one made on an Image.
+// where the reference says it is: its page or date, or for a Citation of
+// an Image, its Entry's page number, else its Event's date (ADR-0039).
 export function entriesOf(
   book: BookRef | null,
   stored: { image: number } | null,
-  convertedFrom: () => BookRef | null
+  {
+    entryBookPage,
+    entryDate
+  }: {
+    entryBookPage: number | null;
+    entryDate: string | null;
+  }
 ) {
   if (book !== null) {
     const entry = entryOf(book);
     return { entry, referenceEntry: entry };
   }
   if (stored === null) return { entry: null, referenceEntry: null };
-  const ref = convertedFrom();
   const entry = `Image\u00a0${stored.image}`;
-  return { entry, referenceEntry: ref === null ? null : entryOf(ref) };
+  if (entryBookPage !== null) {
+    return { entry, referenceEntry: `p.\u00a0${entryBookPage}` };
+  }
+  return {
+    entry,
+    referenceEntry: entryDate === null ? null : gedcomDate(entryDate)
+  };
 }

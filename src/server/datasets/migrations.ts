@@ -104,9 +104,106 @@ function noAddedInApp(db: Database) {
   `);
 }
 
+// The page number a converted MyHeritage rippikirja reference's text
+// gives ("Sivu: 12", or "Sivu12" double-escaped), as its parser read it.
+function rippiPageOf(text: string) {
+  const found = /Sivu:?[ \t]*(?<n>\d+)/u.exec(text);
+  return found === null ? null : Number(found.groups!.n);
+}
+
+const MONTHS = 'JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC'.split(' ');
+const FINNISH_MONTHS = [
+  'tammi',
+  'helmi',
+  'maalis',
+  'huhti',
+  'touko',
+  'kesä',
+  'heinä',
+  'elo',
+  'syys',
+  'loka',
+  'marras',
+  'joulu'
+];
+
+// The date of the event a converted MyHeritage index reference's text
+// names, its baptism or marriage ("Ristiäiset: 29. Marras 1829 - Mikkeli,
+// …"), as a GEDCOM date: "29 NOV 1829", "NOV 1829" or "1829", a day the
+// month doesn't have left out.
+function indexDateOf(text: string) {
+  const event =
+    /(?:Ristiäiset|Kaste|Avioliitto)\s*:\s*(?<date>[^\n]*?)\s+-\s+[^,\n]+/u.exec(
+      text
+    )?.groups?.date;
+  const m =
+    event === undefined
+      ? undefined
+      : /(?:(?<day>\d{1,2})\.\s*)?(?:(?<month>\p{L}+)\s+)?(?<year>1[5-9]\d\d)/u.exec(
+          event
+        )?.groups;
+  if (m === undefined) return null;
+  const word = m.month?.toLowerCase();
+  const month = FINNISH_MONTHS.findIndex(
+    (name) => word?.startsWith(name) === true
+  );
+  if (month < 0) return m.year!;
+  return withDay(m.day, month, m.year!);
+}
+
+// "<day> <MON> <year>", the day left out where the month hasn't it.
+function withDay(dayText: string | undefined, month: number, year: string) {
+  const ym = `${MONTHS[month]} ${year}`;
+  if (dayText === undefined) return ym;
+  const days = new Date(Date.UTC(Number(year), month + 1, 0)).getUTCDate();
+  const day = Number(dayText);
+  return day < 1 || day > days ? ym : `${day} ${ym}`;
+}
+
+// Schema 17: what a converted reference said of where in its book it is
+// (ADR-0039) is kept where it belongs, read once here from the text it
+// was converted with, on its Entry: the page number the book writes, from
+// a rippikirja reference, and the date of its Event an index gives, where
+// the Entry says none. Nothing then needs the page a hand Mark
+// moved aside: a reference's page is its own again, and `original_page`
+// goes.
+function convertedSays(db: Database) {
+  db.run('ALTER TABLE entries ADD COLUMN book_page INTEGER');
+  const converted = db
+    .query<{ entryId: number; page: string; text: string | null }, []>(
+      `SELECT c.entry_id AS entryId, c.original_page AS page,
+         COALESCE(c.text, e.text) AS text
+       FROM citations c JOIN entries e ON e.id = c.entry_id
+       WHERE c.original_page LIKE '%/collection-%'
+       ORDER BY c.id`
+    )
+    .all();
+  const putPage = db.prepare(
+    'UPDATE entries SET book_page = ? WHERE id = ? AND book_page IS NULL'
+  );
+  const putDate = db.prepare(
+    'UPDATE entries SET date = ? WHERE id = ? AND date IS NULL'
+  );
+  for (const { entryId, page, text } of converted) {
+    if (page.includes('/collection-10509/')) {
+      const bookPage = rippiPageOf(text ?? '');
+      if (bookPage !== null) putPage.run(bookPage, entryId);
+    } else {
+      const date = indexDateOf(text ?? '');
+      if (date !== null) putDate.run(date, entryId);
+    }
+  }
+  db.run(
+    `UPDATE citations SET page = original_page
+     WHERE entry_id IS NULL AND original_page IS NOT NULL`
+  );
+  db.run('ALTER TABLE citations DROP COLUMN original_page');
+}
+
 export const MIGRATIONS: Migration[] = [
   { to: 15, up: remindersOnNothing },
-  { to: 16, up: noAddedInApp }
+  { to: 16, up: noAddedInApp },
+  { to: 17, up: convertedSays }
 ];
 
 // The version the steps take a database to.

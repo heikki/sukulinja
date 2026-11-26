@@ -48,9 +48,7 @@ async function writeLocal(volumes: unknown) {
 
 // The citation's reference, the dataset citing it.
 function refOf(c: { page: string; text: string }) {
-  const cited = db
-    .query('SELECT 1 FROM citations WHERE page = ? OR original_page = ?')
-    .get(c.page, c.page);
+  const cited = db.query('SELECT 1 FROM citations WHERE page = ?').get(c.page);
   if (cited === null) {
     db.run(
       "INSERT INTO citations (scope_type, scope_id, page, text) VALUES ('person', 1, ?, ?)",

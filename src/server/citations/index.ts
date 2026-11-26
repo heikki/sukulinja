@@ -39,6 +39,7 @@ export {
   CITATIONS_READ,
   dropUncitedEntries,
   gatherEntries,
+  putBookPages,
   putEntryFields
 } from './entries';
 export { viewerUrl } from './astia/astia';

@@ -138,7 +138,8 @@ function gedcomTree(db: Database) {
         citationPage(
           c.page,
           c.annotation.link,
-          c.source_id === null ? undefined : sourceById.get(c.source_id)
+          c.source_id === null ? undefined : sourceById.get(c.source_id),
+          c.entry_book_page
         )
       ),
       ...citationData(c),

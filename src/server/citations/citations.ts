@@ -21,11 +21,7 @@ import type {
 import type { NewChange } from '../changes/changes';
 import { createFacts } from '../facts/facts';
 import { createRelatives } from '../persons/relatives';
-import {
-  annotated,
-  annotationColumnsSql,
-  originalPageSql
-} from './annotations';
+import { annotated, annotationColumnsSql } from './annotations';
 import type { Annotation } from './annotations';
 import { openAppCitations } from './app-citations';
 import { viewerUrl, volumeYears } from './astia/astia';
@@ -62,6 +58,8 @@ interface CitationDbRow {
   entryDate: string | null;
   entryLifeDate: string | null;
   entryPlace: string | null;
+  // The page number the book writes on the Entry, where known.
+  entryBookPage: number | null;
   // As imported.
   role: string | null;
   annotation: Annotation;
@@ -129,7 +127,7 @@ function citationOf<R extends BookRef>(references: References<R>) {
       id: row.id,
       source: row.source,
       reference: book === null ? null : describeRef(book),
-      ...entriesOf(book, stored, () => references.convertedFrom(row)),
+      ...entriesOf(book, stored, row),
       page: row.page,
       record,
       text:
@@ -215,14 +213,12 @@ export function createCitations<R extends BookRef>(
 ) {
   const made = openAppCitations(db);
   const toCitation = citationOf(references);
-  // A Mark makes its citation cite the Astia Image; the panel shows the
-  // original page, which the reference is read from (ADR-0013).
   const SELECT = `SELECT c.id, c.scope_id AS personId, s.title AS source,
-    ${originalPageSql('c')} AS page, c.text, c.entry_id AS entryId,
+    c.page, c.text, c.entry_id AS entryId,
     CASE WHEN c.entry_id IS NULL THEN NULL ELSE c.role END AS entryRole,
     CASE WHEN c.entry_id IS NULL THEN NULL ELSE c.event END AS entryEvent,
     e.date AS entryDate, e.life_date AS entryLifeDate,
-    e.place AS entryPlace,
+    e.place AS entryPlace, e.book_page AS entryBookPage,
     c.role,
     (SELECT group_concat(fact_id) FROM fact_citations
       WHERE citation_id = c.id) AS supports,

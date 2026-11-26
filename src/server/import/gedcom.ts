@@ -4,9 +4,10 @@ import {
   dropUnownedSupport,
   gatherEntries,
   openAnnotations,
+  putBookPages,
   putEntryFields
 } from '../citations';
-import { pageOf } from '../gedcom/astia-links';
+import { bookPageOf, pageOf } from '../gedcom/astia-links';
 import { objectRecords, unlinkedPhotos } from '../gedcom/media-refs';
 import { parseName } from '../gedcom/names';
 import { findChildren } from '../gedcom/parser';
@@ -140,6 +141,8 @@ export function importGedcom(
   const factSours = factCitations(db, lines.use);
   const readAnnotation = annotationReader(roots, lines);
   const entryNotes = entryNotesReader(lines);
+  // The book page each citation's PAGE text named (ADR-0039), by its id.
+  const bookPages = new Map<number, number>();
 
   // A record's UID, or a new one: only a UID says reliably who is who from
   // one file to the next (ADR-0013).
@@ -460,6 +463,8 @@ export function importGedcom(
       annotation
     );
     entryNotes.keep(citationId, said);
+    const bookPage = bookPageOf(c.page, annotation.link);
+    if (bookPage !== null) bookPages.set(citationId, bookPage);
     importNotes(sour, 'citation', citationId);
     importMediaLinks(sour, 'citation', citationId);
     stats.citations += 1;
@@ -496,6 +501,7 @@ export function importGedcom(
     // The app's Citations of one entry, alike, cite one Entry (ADR-0026).
     gatherEntries(db);
     putEntryFields(db, entryNotes.said());
+    putBookPages(db, bookPages);
     // An Entry's Citation supports only its owner's Facts (ADR-0037).
     dropUnownedSupport(db);
   });

@@ -42,7 +42,7 @@ import type { EntryCitation, StoredEntry } from './storage';
 import type { entryTree, Offered } from './tree';
 
 export { CITATIONS_READ, dropUncitedEntries } from './storage';
-export { gatherEntries, putEntryFields } from './gathering';
+export { gatherEntries, putBookPages, putEntryFields } from './gathering';
 export { entryTree } from './tree';
 export { entryNewcomers } from './newcomers';
 

@@ -94,14 +94,31 @@ export function openAppCitations(db: Database) {
      FROM ${CITATIONS_READ} WHERE id = ?`
   );
   const linkedVolume = db.prepare<
-    { volumeId: string; volume: string },
+    { volumeId: string; volume: string; fileId: string | null },
     [number]
   >(
-    `SELECT link_volume_id AS volumeId, link_volume AS volume
+    `SELECT link_volume_id AS volumeId, link_volume AS volume,
+       link_file_id AS fileId
      FROM ${CITATIONS_READ} WHERE id = ? AND link_volume_id IS NOT NULL`
   );
+  // Its page becomes the Image's address in Astia, which it now cites.
   const adopt = db.prepare(
-    'UPDATE citations SET source_id = ?, text = ?, event = ?, role = ? WHERE id = ?'
+    `UPDATE citations SET source_id = ?, page = COALESCE(?, page), text = ?,
+       event = ?, role = ?
+     WHERE id = ?`
+  );
+  // The Entry a converted citation now cites takes where the reference
+  // said it is (ADR-0039), its page number or its Event's date, unless
+  // another's gave it or it was written there.
+  const putBookPage = db.prepare(
+    `UPDATE entries SET book_page = ?
+     WHERE id = (SELECT entry_id FROM citations WHERE id = ?)
+       AND book_page IS NULL`
+  );
+  const putDate = db.prepare(
+    `UPDATE entries SET date = ?
+     WHERE id = (SELECT entry_id FROM citations WHERE id = ?)
+       AND date IS NULL`
   );
   const deleteNotes = db.prepare(
     "DELETE FROM notes WHERE owner_type = 'citation' AND owner_id = ?"
@@ -143,13 +160,19 @@ export function openAppCitations(db: Database) {
         const source = sourceOf(at.volumeId, at.volume, archiveOf(at.volumeId));
         // MyHeritage's EVEN and ROLE, not GEDCOM's, give way (ADR-0016);
         // the Book gives the Event, as it gives a new Entry's first guess.
-        adopt.run(source, text, bookEvent(at.volume), role, id);
+        const page =
+          at.fileId === null ? null : viewerUrl(at.volumeId, at.fileId);
+        adopt.run(source, page, text, bookEvent(at.volume), role, id);
       }
       // Every citation of the record, alike, then cites one Entry.
       gatherEntries(
         db,
         rows.map((r) => r.id)
       );
+      for (const { id, bookPage, date } of rows) {
+        if (bookPage !== null) putBookPage.run(bookPage, id);
+        if (date !== null) putDate.run(date, id);
+      }
     })();
   }
 
@@ -196,7 +219,7 @@ export function openAppCitations(db: Database) {
         text: null,
         entryId
       },
-      { link: null, originalPage: null }
+      { link: null }
     );
   }
 

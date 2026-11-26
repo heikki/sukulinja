@@ -9,10 +9,9 @@
 
 import type { Database } from 'bun:sqlite';
 
-import { openAnnotations, originalPageSql } from '../../annotations';
+import { openAnnotations } from '../../annotations';
 import type { CitationLink } from '../../annotations';
 import { datasetVersion } from '../../db-version';
-import { CITATIONS_READ } from '../../entries';
 import { markedRefOf, markKey } from '../record';
 
 // A citation's Link, with the reference it's in.
@@ -24,16 +23,12 @@ interface MarkedCitation {
 
 export function openMarks(db: Database) {
   const annotations = openAnnotations(db);
-  // Each church-book citation's reference, by its original page, read
-  // again once the dataset has changed: a Conversion takes a reference out.
-  // A Mark or Discard writes only to a reference (`byKey`); a Citation
-  // converted from one (made in the app, ADR-0016) is read with them as a
-  // pin (`byId`), and never written.
+  // Each church-book reference, by its page, read again once the dataset
+  // has changed: a Conversion takes a reference out (ADR-0016), and its
+  // Citation is no pin (ADR-0039).
   let index: {
     version: string;
     byKey: Map<string, number[]>;
-    // The Citations converted from a reference of the key.
-    converted: Map<string, number[]>;
     byId: Map<number, { url: string; recordId: number | null }>;
     urls: Set<string>;
   } | null = null;
@@ -42,37 +37,24 @@ export function openMarks(db: Database) {
     const now = datasetVersion(db);
     if (index?.version === now) return index;
     const rows = db
-      .query<
-        {
-          id: number;
-          page: string | null;
-          role: string | null;
-          madeInApp: number;
-        },
-        []
-      >(
-        `SELECT id, ${originalPageSql()} AS page, role,
-           entry_id IS NOT NULL AS madeInApp
-         FROM ${CITATIONS_READ}
-         WHERE ${originalPageSql()} LIKE 'http%' OR role IS NOT NULL
+      .query<{ id: number; page: string | null; role: string | null }, []>(
+        `SELECT id, page, role FROM citations
+         WHERE entry_id IS NULL AND (page LIKE 'http%' OR role IS NOT NULL)
          ORDER BY id`
       )
       .all();
     const byKey = new Map<string, number[]>();
-    const converted = new Map<string, number[]>();
     const byId = new Map<number, { url: string; recordId: number | null }>();
     for (const row of rows) {
       const ref = markedRefOf(row.page, row.role);
       if (ref === null) continue;
       byId.set(row.id, ref);
       const key = markKey(ref);
-      const into = row.madeInApp === 1 ? converted : byKey;
-      into.set(key, [...(into.get(key) ?? []), row.id]);
+      byKey.set(key, [...(byKey.get(key) ?? []), row.id]);
     }
     index = {
       version: now,
       byKey,
-      converted,
       byId,
       urls: new Set([...byKey.values()].flat().map((id) => byId.get(id)!.url))
     };

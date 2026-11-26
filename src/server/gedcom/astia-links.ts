@@ -2,9 +2,9 @@
 // read back by the import. A link to an Image is an OBJE under the
 // citation, pointing at an OBJE record per Image whose FILE is the Image's
 // JPEG in Astia, titled with its Volume and Image number; the Box is the
-// link's CROP. The original page is a NOTE, and so is a Match
-// nobody has checked, and a link with no file to point at (only a Volume,
-// or an Image whose file id wasn't known).
+// link's CROP. A Match nobody has checked is a NOTE, and so is a link with
+// no file to point at (only a Volume, or an Image whose file id wasn't
+// known).
 
 import { ASTIA_PUBLISHER, viewerUrl } from '../citations';
 import type { Annotation, CitationLink } from '../citations';
@@ -14,7 +14,6 @@ import type { OutLine } from './writer';
 const ASTIA_FILE =
   /^https:\/\/astia\.narc\.fi\/uusiastia\/ws\/getFile\.php\?fileId=(?<fileId>[^&]+)&aineistoId=(?<volumeId>[^&]+)$/u;
 const IMAGE_TITLE = /^(?<volume>.*), Image (?<image>\d+)$/su;
-const ORIGINAL_PAGE = 'Original page: ';
 export const UNCHECKED = 'Found by the vision model, not checked by hand';
 const NO_FILE =
   /^Astia Volume (?<volumeId>\S+?)(?:, Image (?<image>\d+))?: (?<volume>.*)$/su;
@@ -25,10 +24,6 @@ function astiaFile(volumeId: string, fileId: string) {
 
 function imageTitle(volume: string, image: number) {
   return `${volume}, Image ${image}`;
-}
-
-function originalPageNote(page: string) {
-  return `${ORIGINAL_PAGE}${page}`;
 }
 
 // The NOTE for a link no FILE points at.
@@ -49,12 +44,6 @@ export function astiaImageOf(file: string, title: string | null) {
     volume: t.volume!,
     image: Number(t.image)
   };
-}
-
-export function originalPageOf(note: string) {
-  return note.startsWith(ORIGINAL_PAGE)
-    ? note.slice(ORIGINAL_PAGE.length)
-    : null;
 }
 
 export function noFileLinkOf(note: string) {
@@ -84,19 +73,33 @@ export function pageOf(page: string | null, link: CitationLink | null) {
 }
 
 // A citation's PAGE: for a Citation of an Image in its Volume's source,
-// as an archive's book is cited (ADR-0019), "<archive>, <Volume>.
-// Kansallisarkisto, Astia, kuva <Image>. <address>"; else its page.
+// as an archive's book is cited (ADR-0019), "<archive>, <Volume>, s.
+// <book page>. Kansallisarkisto, Astia, kuva <Image>. <address>", the book
+// page where its Entry knows it (ADR-0039); else its page.
 export function citationPage(
   page: string | null,
   link: CitationLink | null,
-  source: { title: string | null; publisher: string | null } | undefined
+  source: { title: string | null; publisher: string | null } | undefined,
+  bookPage: number | null = null
 ) {
   const address = imageAddress(link);
   if (address === null || page !== address) return page;
   if (source?.publisher !== ASTIA_PUBLISHER || source.title === null) {
     return page;
   }
-  return `${source.title}. ${ASTIA_PUBLISHER}, kuva ${link!.image}. ${address}`;
+  const where = bookPage === null ? '' : `, s. ${bookPage}`;
+  return `${source.title}${where}. ${ASTIA_PUBLISHER}, kuva ${link!.image}. ${address}`;
+}
+
+// The book page a PAGE text `citationPage` wrote names, else null.
+export function bookPageOf(page: string | null, link: CitationLink | null) {
+  const address = imageAddress(link);
+  if (address === null || page?.endsWith(` ${address}`) !== true) return null;
+  const found = /, s\. (?<n>\d+)\. (?<publisher>.+), kuva \d+\. \S+$/u.exec(
+    page
+  );
+  if (found?.groups?.publisher !== ASTIA_PUBLISHER) return null;
+  return Number(found.groups.n);
 }
 
 // ---------------------------------------------------------------- writing
@@ -158,12 +161,9 @@ export function astiaLinkExport(taken: Set<string>) {
 
   // The citation's OBJE for its link, and the notes saying what else its
   // Annotation holds.
-  function linesOf({ link, originalPage }: Annotation) {
+  function linesOf({ link }: Annotation) {
     const linked = linkLines(link);
     const notes = [
-      ...(originalPage === null
-        ? []
-        : [line('NOTE', originalPageNote(originalPage))]),
       ...linked.notes,
       ...(link?.by === 'vision' ? [line('NOTE', UNCHECKED)] : [])
     ];

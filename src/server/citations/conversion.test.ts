@@ -63,7 +63,7 @@ interface Row {
   id: number;
   source: string;
   text: string | null;
-  original_page: string | null;
+  page: string | null;
   link_image: number | null;
   in_entry: number;
 }
@@ -71,15 +71,12 @@ interface Row {
 function rows(db: ReturnType<typeof openDb>) {
   return db
     .query<Row, []>(
-      `SELECT c.id, s.title AS source, c.text, c.original_page, c.link_image,
+      `SELECT c.id, s.title AS source, c.text, c.page, c.link_image,
          c.entry_id IS NOT NULL AS in_entry
        FROM ${CITATIONS_READ} c JOIN sources s ON s.id = c.source_id ORDER BY c.id`
     )
     .all();
 }
-
-const RECORD =
-  'https://www.myheritage.fi/research/collection-10509/x?itemId=5001&action=showRecord';
 
 test('a hand Mark at the entry converts every citation of the record', async () => {
   const { db, citations } = dataset();
@@ -90,7 +87,8 @@ test('a hand Mark at the entry converts every citation of the record', async () 
   const converted = {
     source: VOLUMES['juva-1'],
     text: 'Matti Esimerkki\nKirja: Rippikirja, 1790 - 1796\nHallintoalue: Juva\nSivu: 12',
-    original_page: RECORD,
+    // It cites the Image now (ADR-0039).
+    page: 'https://astia.narc.fi/uusiastia/viewer/?fileId=juva-1-f13&aineistoId=juva-1',
     link_image: 13,
     in_entry: 1
   };
@@ -98,13 +96,16 @@ test('a hand Mark at the entry converts every citation of the record', async () 
   expect(
     db.query('SELECT DISTINCT entry_id FROM citations WHERE id IN (1, 2)').all()
   ).toEqual([{ entry_id: 1 }]);
+  // The Entry keeps the page number the reference gave.
+  expect(db.query('SELECT book_page FROM entries').all()).toEqual([
+    { book_page: 12 }
+  ]);
   const [first, second, other] = rows(db);
   expect(first).toEqual({ id: 1, ...converted });
   expect(second).toEqual({ id: 2, ...converted });
   expect(other).toMatchObject({
     id: 3,
     source: 'Suomalaiset rippi- ja lastenkirjat, 1657-1915',
-    original_page: null,
     link_image: null,
     in_entry: 0
   });

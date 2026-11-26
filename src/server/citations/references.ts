@@ -69,9 +69,6 @@ interface Refused {
 export interface References<R extends BookRef = BookRef> {
   // The reference the row makes, or null for a Citation that isn't one.
   refOf: (row: ReferenceRow) => R | null;
-  // The reference a Conversion made the row a Citation of its Image from,
-  // read again from its original page and its text; null for any other.
-  convertedFrom: (row: ReferenceRow) => R | null;
   // What a Mark of the reference is written for: every citation with the
   // same key shares it.
   markKey: (ref: R) => string;
@@ -118,11 +115,15 @@ export interface References<R extends BookRef = BookRef> {
 }
 
 // A citation a Conversion makes a Citation of its Image: its text as plain
-// lines, and the person's Role in the entry, where the reference says it.
+// lines, the person's Role in the entry, where the reference says it, and
+// where in the book it says the entry is (ADR-0039): the page number the
+// book writes there, or its Event's date as a GEDCOM date.
 export interface Converting {
   id: number;
   text: string | null;
   role: string | null;
+  bookPage: number | null;
+  date: string | null;
 }
 
 const NONE = Promise.resolve(null);
@@ -131,7 +132,6 @@ const NO_REFERENCE = 'There is no Church-book reference to change.';
 // A dataset with no references: every Citation is what it says it is.
 export const noReferences: References<never> = {
   refOf: () => null,
-  convertedFrom: () => null,
   markKey: () => '',
   recordOf: () => null,
   resolve: async () => await Promise.resolve({ unlinked: 'unparsed' }),

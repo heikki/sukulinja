@@ -95,6 +95,15 @@ function mergeEntries(db: Database) {
     'UPDATE citations SET entry_id = ? WHERE entry_id = ?'
   );
   const drop = db.prepare('DELETE FROM entries WHERE id = ?');
+  // The keeper takes what the other says where it says nothing.
+  const keepPage = db.prepare(
+    `UPDATE entries AS k SET
+       book_page = COALESCE(k.book_page, o.book_page),
+       date = COALESCE(k.date, o.date),
+       life_date = COALESCE(k.life_date, o.life_date),
+       place = COALESCE(k.place, o.place)
+     FROM entries AS o WHERE o.id = ?1 AND k.id = ?2`
+  );
   for (const { id, key, text, left, top, width, height } of rows) {
     const box = { left, top, width, height };
     const kept = keepers.get(key) ?? [];
@@ -104,6 +113,7 @@ function mergeEntries(db: Database) {
       continue;
     }
     if (text !== keeper.text) ownText.run(text, id);
+    keepPage.run(id, keeper.id);
     move.run(keeper.id, id);
     drop.run(id);
   }
@@ -123,4 +133,15 @@ export function putEntryFields(db: Database, said: Map<number, EntryFields>) {
     done.add(entry.id);
     entries.setFields(entry.id, fields);
   }
+}
+
+// The page number each Entry's book writes on it, as the import read it
+// from a citation of it (ADR-0039).
+export function putBookPages(db: Database, pages: Map<number, number>) {
+  const put = db.prepare(
+    `UPDATE entries SET book_page = ?
+     WHERE id = (SELECT entry_id FROM citations WHERE id = ?)
+       AND book_page IS NULL`
+  );
+  for (const [citationId, page] of pages) put.run(page, citationId);
 }

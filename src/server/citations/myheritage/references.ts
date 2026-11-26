@@ -5,6 +5,7 @@
 
 import type { Database } from 'bun:sqlite';
 
+import { isoDate, typedDate } from '@/common/dates';
 import type { RecordView } from '@/common/types';
 
 import { annotated, annotationColumnsSql } from '../annotations';
@@ -13,6 +14,7 @@ import type { References } from '../references';
 import type { Marks } from './pins/marks';
 import {
   churchBookRefOf,
+  indexEventDateOf,
   indexRoleOf,
   markKey,
   readRecord,
@@ -44,6 +46,14 @@ interface TextRow {
   role: string | null;
 }
 
+// The date of its Event an index reference gives, as a GEDCOM date: its
+// baptism's or marriage's, not a birth's (ADR-0039). Null for a rippikirja's.
+function entryDateOf(ref: ChurchBookRef, plain: string) {
+  if (ref.date === null) return null;
+  const date = indexEventDateOf(plain);
+  return date === null ? null : typedDate(isoDate(date));
+}
+
 export function referencesOf(
   scans: Scans,
   { db, marks }: { db: Database; marks: Marks }
@@ -55,8 +65,6 @@ export function referencesOf(
   return {
     refOf: ({ page, text, role, entryId }) =>
       entryId === null ? churchBookRefOf(page, text, role) : null,
-    convertedFrom: ({ page, text, role, entryId }) =>
-      entryId === null ? null : churchBookRefOf(page, text, role),
     markKey,
     recordOf: ({ page, text, role, entryId }) =>
       entryId === null && isRecordPage(referencePageOf(page, role))
@@ -86,7 +94,16 @@ export function referencesOf(
           link.box !== undefined;
         if (!atEntry) return [];
         const role = indexRoleOf(row.role);
-        return [{ id, text: plainRecord(readRecord(text ?? '')), role }];
+        const plain = plainRecord(readRecord(text ?? ''));
+        return [
+          {
+            id,
+            text: plain,
+            role,
+            bookPage: ref.page,
+            date: entryDateOf(ref, plain ?? '')
+          }
+        ];
       });
     }
   };

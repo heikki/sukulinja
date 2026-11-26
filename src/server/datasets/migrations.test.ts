@@ -241,6 +241,50 @@ describe('schema 16', () => {
   });
 });
 
+describe('schema 17', () => {
+  test('keeps what a converted reference said on its Entry, and gives a reference its page back', () => {
+    const before = oldest();
+    fill(before);
+    const rippi =
+      'https://www.myheritage.fi/research/collection-10509/x?itemId=5&action=showRecord';
+    const index =
+      'https://www.myheritage.fi/research/collection-30233/x?itemId=7&action=showRecord';
+    runAll(
+      before,
+      `
+      INSERT INTO entries (id, volume_id, volume, image, file_id, box_left,
+        box_top, box_width, box_height, text)
+        VALUES
+        (2, 'v1', 'Rippikirja', 13, 'f2', 1, 2, 3, 4,
+          'Liisa Esimerkki\nKirja: Rippikirja\nSivu: 47'),
+        (3, 'v1', 'Rippikirja', 14, 'f3', 1, 2, 3, 4,
+          'Liisa Esimerkki\nSyntymä: 1. Maalis 1850\nRistiäiset: 3. Maalis 1850 - Juva, Mikkeli, Finland');
+      INSERT INTO citations (id, scope_type, scope_id, entry_id, original_page)
+        VALUES (2, 'person', 1, 2, '${rippi}'), (3, 'person', 1, 3, '${index}');
+      INSERT INTO citations (id, scope_type, scope_id, page, original_page,
+        link_volume_id, link_volume, link_image, link_file_id, link_by)
+        VALUES (4, 'person', 2, 'https://astia.narc.fi/uusiastia/viewer/?fileId=f4&aineistoId=v1',
+          '${rippi}', 'v1', 'Rippikirja', 15, 'f4', 'hand');
+    `
+    );
+    before.close();
+    const migrated = openDb(path);
+    expect(
+      migrated
+        .query('SELECT id, book_page, date FROM entries ORDER BY id')
+        .all()
+    ).toEqual([
+      { id: 1, book_page: null, date: '3 MAR 1850' },
+      { id: 2, book_page: 47, date: null },
+      { id: 3, book_page: null, date: '3 MAR 1850' }
+    ]);
+    expect(
+      migrated.query('SELECT page FROM citations WHERE id = 4').get()
+    ).toEqual({ page: rippi });
+    migrated.close();
+  });
+});
+
 describe('opening a database', () => {
   test('older than the oldest schema migrated, it has to be imported again', () => {
     oldest(OLDEST_MIGRATED - 1).close();

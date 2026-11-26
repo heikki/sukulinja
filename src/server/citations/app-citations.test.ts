@@ -157,7 +157,7 @@ test('a Citation made in the app is stored with its Mark, page and source', asyn
   expect(
     db
       .query(
-        `SELECT scope_id, page, original_page, text, event, role, link_image,
+        `SELECT scope_id, page, text, event, role, link_image,
            link_file_id, link_box_left, link_by, entry_id IS NOT NULL AS in_entry
          FROM ${CITATIONS_READ} WHERE id = 2`
       )
@@ -165,7 +165,6 @@ test('a Citation made in the app is stored with its Mark, page and source', asyn
   ).toEqual({
     scope_id: 2,
     page: ENTRY_LINK.url,
-    original_page: null,
     text: 'Baptism 12.3.1795',
     // A rippikirja's entry records a household.
     event: 'RESI',
@@ -210,11 +209,10 @@ test("a Citation made in the app of another source's reference doesn't lend its 
     "INSERT INTO sources (id, xref, title) VALUES (1, '@S1@', 'Suomi, kasteet, 1657-1890')"
   );
   db.run(
-    `INSERT INTO citations (scope_type, scope_id, source_id, page, original_page,
+    `INSERT INTO citations (scope_type, scope_id, source_id, page,
        link_volume_id, link_volume, link_image, link_file_id, link_by)
-     VALUES ('person', 1, 1, ?, ?, 'juva-1', ?, 13, 'juva-1-f13', 'hand')`,
+     VALUES ('person', 1, 1, ?, 'juva-1', ?, 13, 'juva-1-f13', 'hand')`,
     [
-      ENTRY_LINK.url,
       'https://www.myheritage.fi/research/collection-30233/x?itemId=7&action=showRecord',
       JUVA_1
     ]
@@ -361,8 +359,7 @@ test('an imported Citation of an Astia Image, with no reference, is read by its 
         fileId: 'juva-1-f13',
         box: BOX,
         by: 'hand'
-      },
-      originalPage: null
+      }
     }
   );
 
@@ -402,13 +399,12 @@ test('an Entry is moved in its Volume by editing it, and refuses a Mark', async 
   expect(
     db
       .query(
-        `SELECT page, original_page, link_image, entry_id IS NOT NULL AS in_entry FROM ${CITATIONS_READ}
+        `SELECT page, link_image, entry_id IS NOT NULL AS in_entry FROM ${CITATIONS_READ}
          WHERE id = 2`
       )
       .get()
   ).toEqual({
     page: ENTRY_LINK.url.replace('f13', 'f14'),
-    original_page: null,
     link_image: 14,
     in_entry: 1
   });
@@ -436,11 +432,10 @@ test("a Volume's source is found by its record, whatever cites it", async () => 
     [`${ARCHIVE}, ${JUVA_1}`]
   );
   db.run(
-    `INSERT INTO citations (scope_type, scope_id, source_id, page, original_page,
+    `INSERT INTO citations (scope_type, scope_id, source_id, page,
        link_volume_id, link_volume, link_image, link_file_id, link_by)
-     VALUES ('person', 1, 1, ?, ?, 'juva-1', ?, 13, 'juva-1-f13', 'hand')`,
+     VALUES ('person', 1, 1, ?, 'juva-1', ?, 13, 'juva-1-f13', 'hand')`,
     [
-      ENTRY_LINK.url,
       'https://www.myheritage.fi/research/collection-10509/x?itemId=5001&action=showRecord',
       JUVA_1
     ]

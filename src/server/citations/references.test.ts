@@ -62,8 +62,7 @@ test('with no references, a Citation of an Image is listed and linked by its sto
         fileId: file,
         box: BOX,
         by: 'hand'
-      },
-      originalPage: null
+      }
     }
   );
   const images = openImages({ astia: juvaAstia(), parishes: memoryParishes() });

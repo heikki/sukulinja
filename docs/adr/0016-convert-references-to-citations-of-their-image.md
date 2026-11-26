@@ -1,6 +1,6 @@
 # A reference Marked at the entry becomes a Citation of its Image
 
-Amended by ADR-0038: a converted Citation is told by its Entry, not `added_in_app`.
+Amended by ADR-0038: a converted Citation is told by its Entry, not `added_in_app`; and by ADR-0039: no original page, and no Record pin.
 
 _Amended by ADR-0030: `citations/myheritage/` stays for MyHeritage exports imported later; only the `rejections` table goes (schema 10)._
 

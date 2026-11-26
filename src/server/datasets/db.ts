@@ -172,7 +172,10 @@ const SCHEMA_SQL = `
     -- a burial's Died), as GEDCOM dates, and its place as it writes it.
     date TEXT,
     life_date TEXT,
-    place TEXT
+    place TEXT,
+    -- The page number the book writes on it, where a converted reference
+    -- gave it (ADR-0039).
+    book_page INTEGER
   );
 
   CREATE TABLE IF NOT EXISTS citations (
@@ -188,9 +191,6 @@ const SCHEMA_SQL = `
     quality INTEGER,
     data_date TEXT,
     text TEXT,
-    -- A hand Mark's citation cites the Astia Image: page is its address,
-    -- and the page it had before, its original page, is kept here.
-    original_page TEXT,
     -- The Astia Image or Volume a Mark or Match links, with the
     -- entry's Box in pixels of the full-size Image.
     link_volume_id TEXT,

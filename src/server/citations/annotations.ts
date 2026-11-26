@@ -10,7 +10,6 @@ import type { Database, SQLQueryBindings } from 'bun:sqlite';
 
 import type { Box, Provenance } from '@/common/types';
 
-import { viewerUrl } from './astia/astia';
 import { CITATIONS_READ } from './entries';
 
 // Where a Mark or Match says a record is: on an Image of a Volume,
@@ -28,14 +27,9 @@ export interface CitationLink {
 
 export interface Annotation {
   link: CitationLink | null;
-  // The page a hand Mark on an Image moved aside, citing the Image instead.
-  originalPage: string | null;
 }
 
-export const NO_ANNOTATION: Annotation = {
-  link: null,
-  originalPage: null
-};
+export const NO_ANNOTATION: Annotation = { link: null };
 
 // Where a Citation is, and what it says besides its Annotation.
 export interface CitationValues {
@@ -55,7 +49,6 @@ export interface CitationValues {
 }
 
 const COLUMNS = [
-  'original_page',
   'link_volume_id',
   'link_volume',
   'link_image',
@@ -69,14 +62,6 @@ const COLUMNS = [
 
 type Column = (typeof COLUMNS)[number];
 type Row = Partial<Record<string, SQLQueryBindings | undefined>>;
-
-// The page a Citation's reference is read from: its original page, or its
-// page when no Mark moved it aside. For embedding in a query, on the
-// citations table or its `alias`.
-export function originalPageSql(alias?: string) {
-  const at = alias === undefined ? '' : `${alias}.`;
-  return `COALESCE(${at}original_page, ${at}page)`;
-}
 
 // The columns an Annotation is read from, for a query to select beside its
 // own and give to annotationOf.
@@ -120,10 +105,7 @@ function linkOf(row: Row): CitationLink | null {
 // The Annotation a citations row read whole holds. A column an older
 // schema lacked reads as empty.
 export function annotationOf(row: Row): Annotation {
-  return {
-    link: linkOf(row),
-    originalPage: text(row.original_page)
-  };
+  return { link: linkOf(row) };
 }
 
 // A citations row read whole, its Annotation's columns read into one.
@@ -174,13 +156,6 @@ const SET_LINK = `link_volume_id = $volumeId, link_volume = $volume,
 
 const LINK_COLUMNS = COLUMNS.filter((c) => c.startsWith('link_')).join(', ');
 
-// The address a Citation of the link cites: the Image's in Astia, for a
-// hand Mark on one; otherwise it keeps its page.
-function citedAddress(link: CitationLink | null) {
-  if (link?.by !== 'hand' || link.fileId === undefined) return null;
-  return viewerUrl(link.volumeId, link.fileId);
-}
-
 interface LinkRow extends Row {
   id: number;
 }
@@ -188,26 +163,15 @@ interface LinkRow extends Row {
 export function openAnnotations(db: Database) {
   const insertRow = db.prepare(
     `INSERT INTO citations (scope_type, scope_id, source_id, sort_order,
-       page, event, role, quality, data_date, text, original_page,
+       page, event, role, quality, data_date, text,
        ${LINK_COLUMNS}, entry_id)
      VALUES ($scopeType, $scopeId, $sourceId, $sortOrder, $page, $event,
-       $role, $quality, $dataDate, $text, $originalPage, $volumeId, $volume,
+       $role, $quality, $dataDate, $text, $volumeId, $volume,
        $image, $fileId, $left, $top, $width, $height, $by, $entryId)`
   );
-  // The right-hand sides read the row as it was, so the original page is
-  // taken from wherever it is now.
   const swapRows = db.prepare(
-    `UPDATE citations SET
-       page = COALESCE($address, original_page, page),
-       original_page = CASE WHEN $address IS NULL THEN NULL
-         ELSE COALESCE(original_page, page) END,
-       ${SET_LINK}
+    `UPDATE citations SET ${SET_LINK}
      WHERE id IN (SELECT value FROM json_each($ids))`
-  );
-  const carryRow = db.prepare(
-    `UPDATE citations SET page = $page, original_page = $originalPage,
-       ${SET_LINK}
-     WHERE id = $id`
   );
   const firstLinkQuery = db.prepare<LinkRow, [string]>(
     `SELECT id, ${LINK_COLUMNS} FROM ${CITATIONS_READ}
@@ -234,7 +198,6 @@ export function openAnnotations(db: Database) {
         $quality: values.quality,
         $dataDate: values.dataDate,
         $text: values.text,
-        $originalPage: annotation.originalPage,
         ...linkParams(annotation.link),
         $entryId: values.entryId ?? null
       });
@@ -242,27 +205,9 @@ export function openAnnotations(db: Database) {
     },
 
     // Writes a Mark or Match into the Citations, or clears it for a
-    // Discard. A hand Mark on an Image makes them cite it, its page moved
-    // aside as the original page; anything else gives the original page
-    // back.
+    // Discard. Their page stays the reference's (ADR-0039).
     swap(ids: number[], link: CitationLink | null) {
-      swapRows.run({
-        $address: citedAddress(link),
-        ...linkParams(link),
-        $ids: JSON.stringify(ids)
-      });
-    },
-
-    // A stored Citation's link, page and original page, written as they
-    // are into the new import's row `to`. Whether that row was made in the
-    // app is the new import's to say.
-    carry(to: number, from: { page: string | null; annotation: Annotation }) {
-      carryRow.run({
-        $id: to,
-        $page: from.page,
-        $originalPage: from.annotation.originalPage,
-        ...linkParams(from.annotation.link)
-      });
+      swapRows.run({ ...linkParams(link), $ids: JSON.stringify(ids) });
     },
 
     // The link the first linked of the Citations holds, if any.
