@@ -3,16 +3,20 @@ import { consume } from '@lit/context';
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
+import { Asking } from '@/client/asking';
 import type { Point, Transform, Viewport } from '@/client/pan-zoom';
 import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { Box, PhotoRow } from '@/common/types';
 
+import type { Ask } from '../ask';
 import { boxFromStage } from '../box-stage/geometry';
 import { familyChoices, searchable } from '../person-search/choices';
+import { formatName } from '../tree-view/renderer';
 import { photoItems } from './menu';
 import { boxedOn, newTagBox } from './photo-boxes';
 
+import '../ask';
 import '../box-stage/handles';
 import '../context-menu';
 import '../person-search/pick';
@@ -43,6 +47,7 @@ class PhotoLayerElement extends SignalWatcher(LitElement) {
       pointer-events: none;
     }
 
+    sl-ask,
     sl-context-menu {
       pointer-events: auto;
     }
@@ -55,6 +60,10 @@ class PhotoLayerElement extends SignalWatcher(LitElement) {
   @property({ attribute: false }) size: Viewport | null = null;
 
   @state() private popup: Popup | null = null;
+  // Where the menu last opened, where deleting a Tag or the Photo is
+  // asked about, as the Scan viewer asks about its Box.
+  private menuAt: Point | null = null;
+  private readonly asking = new Asking(this);
 
   private get viewer() {
     return this.state.photoViewer;
@@ -74,6 +83,7 @@ class PhotoLayerElement extends SignalWatcher(LitElement) {
       portrait: boxed !== undefined && this.isPortrait(boxed.personId),
       show: 'menu'
     };
+    this.menuAt = at;
     this.popup = this.items(popup).length === 0 ? null : popup;
   }
 
@@ -165,8 +175,42 @@ class PhotoLayerElement extends SignalWatcher(LitElement) {
     ></sl-box-handles>`;
   }
 
+  // Deleting a Tag or the Photo, asked first as every step that takes
+  // something away is.
+  private renderAsk() {
+    const { viewer } = this;
+    const removing = viewer.removing.get();
+    if (removing === null && !viewer.deleting.get()) return nothing;
+    const person =
+      removing === null
+        ? undefined
+        : this.state.chart.people.get().persons.get(removing);
+    const ask: Ask =
+      removing === null
+        ? { title: 'Delete photo?', step: 'Delete', tone: 'danger' }
+        : {
+            title: 'Delete tag?',
+            ...(person === undefined ? {} : { text: formatName(person) }),
+            step: 'Delete',
+            tone: 'danger'
+          };
+    return html`<sl-ask
+      .ask=${ask}
+      .at=${this.menuAt}
+      .busy=${this.asking.busy ? 'Deleting…' : null}
+      .refused=${this.asking.refused}
+      @cancel=${() => {
+        this.asking.forget();
+        viewer.cancel();
+      }}
+      @confirm=${() => {
+        void this.asking.run(() => viewer.save());
+      }}
+    ></sl-ask>`;
+  }
+
   override render() {
-    return html`${this.renderBox()} ${this.renderPopup()}`;
+    return html`${this.renderBox()} ${this.renderPopup()} ${this.renderAsk()}`;
   }
 }
 

@@ -213,7 +213,9 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
   }
 
   private renderEdit() {
-    return this.editing ? html`<sl-photo-edit></sl-photo-edit>` : nothing;
+    const viewer = this.state.photoViewer;
+    const bar = viewer.pending.get() !== null || viewer.refused.get() !== null;
+    return bar ? html`<sl-photo-edit></sl-photo-edit>` : nothing;
   }
 
   private renderStage(photo: PhotoRow) {

@@ -19,8 +19,8 @@ function stop(e: Event) {
 }
 
 // At the foot of the Photo while a Tag is pending: whose it is, Cancel and
-// Save; or, for a Tag taken back or the Photo deleted, asking to confirm. Why a save was
-// refused shows beside, and why choosing a portrait was, with OK. Pointer and wheel input stays here, so a press
+// Save. Why a save was refused shows beside, and why choosing a portrait
+// was, with OK. Pointer and wheel input stays here, so a press
 // doesn't pan.
 @customElement('sl-photo-edit')
 class PhotoEditElement extends SignalWatcher(LitElement) {
@@ -87,22 +87,8 @@ class PhotoEditElement extends SignalWatcher(LitElement) {
     </div>`;
   }
 
-  // Asking to delete the Photo, and whom it's taken off.
-  private renderDeleting(refused: unknown) {
-    const n = this.viewer.opened.get()?.people.length ?? 0;
-    const off =
-      n === 0
-        ? ''
-        : ` and take it off the ${n === 1 ? 'person' : `${n} people`} in it`;
-    return html`
-      <p>Delete this photo${off}?</p>
-      ${refused} ${this.renderActions('Delete', 'Deleting…', 'discard')}
-    `;
-  }
-
   override render() {
     const pending = this.viewer.pending.get();
-    const removing = this.viewer.removing.get();
     const refused =
       this.asking.refused === null
         ? nothing
@@ -116,13 +102,6 @@ class PhotoEditElement extends SignalWatcher(LitElement) {
         ${refused} ${this.renderActions('Save', 'Saving…', 'save')}
       `;
     }
-    if (removing !== null) {
-      return html`
-        <p>Delete the tag of ${this.nameOf(removing)}?</p>
-        ${refused} ${this.renderActions('Delete', 'Deleting…', 'discard')}
-      `;
-    }
-    if (this.viewer.deleting.get()) return this.renderDeleting(refused);
     const portrait = this.viewer.refused.get();
     if (portrait !== null) {
       return html`

@@ -111,8 +111,10 @@ test('people are tagged in photos, one their portrait', async () => {
 
     // His tag taken off it, then the other Photo deleted.
     await page.getByRole('menuitem', { name: 'Delete' }).click();
-    await page.getByText('Delete the tag of Matti Esimerkki?').waitFor();
-    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    const untag = page.getByRole('alertdialog', { name: 'Delete tag?' });
+    await untag.getByText('Matti Esimerkki').waitFor();
+    await shot(page, 'photos-untag-asked');
+    await untag.getByRole('button', { name: 'Delete', exact: true }).click();
     await page.getByText('No one is linked to or tagged here.').waitFor();
 
     await page.keyboard.press('Escape');
@@ -122,10 +124,10 @@ test('people are tagged in photos, one their portrait', async () => {
     ]);
     await rightClickPhoto(page, 0.5, 0.9);
     await page.getByRole('menuitem', { name: 'Delete photo' }).click();
-    await page
-      .getByText('Delete this photo and take it off the 2 people in it?')
-      .waitFor();
-    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    const remove = page.getByRole('alertdialog', { name: 'Delete photo?' });
+    await remove.waitFor();
+    await shot(page, 'photos-delete-asked');
+    await remove.getByRole('button', { name: 'Delete', exact: true }).click();
     await page.keyboard.press('Escape');
     await openList(page, 'Photos');
     await page
