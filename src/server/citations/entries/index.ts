@@ -466,12 +466,7 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
       const { checked, replaced } = ok;
       const { event, volumeId } = at;
       const said = await saying(
-        {
-          volumeId,
-          event,
-          people,
-          ...(replaced === null ? {} : { replacing: replaced.id })
-        },
+        { volumeId, event, people },
         at.fields,
         at.ticked
       );

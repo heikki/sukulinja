@@ -1,7 +1,6 @@
 // A saved Entry's kind and owner stay as saved (ADR-0037): an edit
 // changing them is refused, and a new Entry replacing it takes the old
-// one's Citations and their support with it, listing that support as no
-// longer its source. Names are invented.
+// one's Citations and their support with it. Names are invented.
 
 import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -80,25 +79,6 @@ test('another child saves a new Entry, the old one going with its support', asyn
     { personId: 3, role: 'CHIL' },
     { personId: 2, role: 'MOTH' }
   ];
-  // Its lines as for a new Entry, and Matti's Birth no longer its source.
-  expect(
-    await entries.offers({
-      volumeId: 'juva-3',
-      replacing: entryId,
-      event: 'CHR',
-      people,
-      fields: BORN
-    })
-  ).toEqual([
-    { tag: 'BIRT', action: 'add', now: { date: '3 MAR 1795', place: null } },
-    {
-      tag: 'BIRT',
-      action: 'gone',
-      factId: 1,
-      was: { date: '3 MAR 1795', place: null },
-      personId: 1
-    }
-  ]);
   const rows = made(
     await entries.make(
       { ...baptism(3, BOX, { fields: BORN }), replacing: entryId },

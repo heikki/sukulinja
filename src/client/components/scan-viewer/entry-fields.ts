@@ -6,7 +6,7 @@ import type { TypedFields } from '@/client/state';
 import { typedDate } from '@/common/dates';
 import { eventDates } from '@/common/entry-events';
 import type { EntryEvent } from '@/common/entry-events';
-import { hasBox, offerWords, tickedFirst } from '@/common/entry-offers';
+import { offerWords, tickedFirst } from '@/common/entry-offers';
 import type { Offer } from '@/common/entry-offers';
 
 // What a field is set to, as typed.
@@ -89,8 +89,6 @@ class EntryFieldsElement extends LitElement {
   @property({ attribute: false }) fields!: TypedFields;
   @property({ attribute: false }) ticks: Record<string, boolean> = {};
   @property({ attribute: false }) offers: Offer[] = [];
-  // Whose a Fact a line names is, by their person.
-  @property({ attribute: false }) nameOf?: (personId: number) => string;
 
   private set(key: keyof TypedFields, text: string) {
     const detail: FieldDetail = { key, text };
@@ -117,8 +115,8 @@ class EntryFieldsElement extends LitElement {
   }
 
   private renderLine(offer: Offer) {
-    if (!hasBox(offer)) {
-      return html`<li class="two">${offerWords(offer, this.nameOf)}</li>`;
+    if (offer.action === 'two') {
+      return html`<li class="two">${offerWords(offer)}</li>`;
     }
     const key = lineKey(offer);
     return html`<li>

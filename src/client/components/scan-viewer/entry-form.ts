@@ -468,7 +468,6 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
                 .fields=${cite.fields}
                 .ticks=${cite.ticks}
                 .offers=${this.viewer.entryForm.offers.get()}
-                .nameOf=${(personId: number) => this.nameOf(personId)}
                 @set-field=${(e: CustomEvent<FieldDetail>) => {
                   this.viewer.entryForm.setField(e.detail.key, e.detail.text);
                 }}

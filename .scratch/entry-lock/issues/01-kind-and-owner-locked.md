@@ -10,3 +10,7 @@ ADR-0037. The owner is the Role `ownerOf` gives (`citations/entries/tree.ts`): a
 - The server refuses an edit changing a locked kind or owner by any other way (`entries.edit` with `event` or `people`).
 - `edit` no longer calls `newcomers.make` for a marriage's couple: only `make` makes them a family. New parents named in a baptism's edit are still made.
 - The test "a Role changed keeps the person's Citation" (`entries.test.ts`) keeps its meaning for non-owner Roles only.
+
+## Comments
+
+Heikki, 2026-11-26: no _no longer its source_ lines when a new Entry replaces one, nor a note that it's saved anew: noise, as nothing is asked. A Fact left with no source shows in tree-quality check 1, whose fix may delete it.

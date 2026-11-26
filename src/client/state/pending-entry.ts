@@ -106,15 +106,11 @@ function isAnew(change: PendingChange) {
   return changesLock({ event: editing.event, people: editing.was }, cite);
 }
 
-// The Entry being edited, as its lines are asked; or the one a new Entry
-// replaces.
-function editedId(change: PendingChange): {
-  entryId?: number;
-  replacing?: number;
-} {
-  if (change.kind !== 'edit') return {};
-  const id = change.editing.entryId;
-  return isAnew(change) ? { replacing: id } : { entryId: id };
+// The Entry being edited, as its lines are asked: none for one saved as a
+// new Entry, whose lines are a new one's.
+function editedId(change: PendingChange): { entryId?: number } {
+  if (change.kind !== 'edit' || isAnew(change)) return {};
+  return { entryId: change.editing.entryId };
 }
 
 // Throws ApiError for a date in the Entry pane that can't be read.
@@ -205,12 +201,11 @@ export function pendingEntry(
   }
 
   // The fields and lines to save with the Entry, as it is now, the one
-  // edited or replaced given. Throws ApiError for a date that can't be
-  // read.
+  // edited given. Throws ApiError for a date that can't be read.
   async function saying(
     volumeId: string,
     cite: PendingCite,
-    ids: { entryId?: number; replacing?: number } = {}
+    ids: { entryId?: number } = {}
   ) {
     refuseDates(cite);
     return {
@@ -372,7 +367,7 @@ export function pendingEntry(
         text,
         newcomers: namedNew(cite),
         replacing,
-        ...(await saying(volumeId, cite, { replacing }))
+        ...(await saying(volumeId, cite))
       },
       cite.people
     );

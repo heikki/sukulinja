@@ -74,12 +74,10 @@ export interface EntryEdit {
 // What an Entry of the Event in the Volume, naming the people, with the
 // fields, would do to the tree: its Entry pane's list (common/entry-offers).
 // An Entry being edited gives its id (`entryId`), so the Facts it
-// supports are known as its own; one a new Entry replaces (`replacing`),
-// so those it supports are listed as no longer its source.
+// supports are known as its own.
 export interface EntryAsked {
   volumeId: string;
   entryId?: number;
-  replacing?: number;
   event: EntryEvent | null;
   people: InEntry[];
   fields: EntryFields;
@@ -220,15 +218,6 @@ function said(fields: Fields, edit: EntryEdit): EntryEdit | null {
   };
 }
 
-// The Entry asked of as edited, or as replaced; null if one can't be read.
-function askedIdsOf(fields: Fields) {
-  const { entryId } = fields;
-  if (entryId !== undefined && !isInteger(entryId)) return null;
-  const replacing = optionalId(fields.replacing);
-  if (replacing === null) return null;
-  return { ...(entryId === undefined ? {} : { entryId }), ...replacing };
-}
-
 export function entryAskedOf(value: unknown): EntryAsked | null {
   const fields = fieldsOf(value);
   if (fields === null || !isName(fields.volumeId)) return null;
@@ -238,11 +227,11 @@ export function entryAskedOf(value: unknown): EntryAsked | null {
   const newcomers = newcomersOf(fields.newcomers);
   if (event === undefined || people === null || said === null) return null;
   if (newcomers === null) return null;
-  const ids = askedIdsOf(fields);
-  if (ids === null) return null;
+  const { volumeId, entryId } = fields;
+  if (entryId !== undefined && !isInteger(entryId)) return null;
   return {
-    volumeId: fields.volumeId,
-    ...ids,
+    volumeId,
+    ...(entryId === undefined ? {} : { entryId }),
     event,
     people,
     fields: said,

@@ -15,7 +15,7 @@ import {
 } from '@/common/dates';
 import { eventDates, NO_FIELDS } from '@/common/entry-events';
 import type { EntryEvent, EntryFields } from '@/common/entry-events';
-import { hasBox, tickedFirst, tickedLine } from '@/common/entry-offers';
+import { tickedFirst, tickedLine } from '@/common/entry-offers';
 import type { Offer, Ticked } from '@/common/entry-offers';
 import type { RecordView } from '@/common/types';
 
@@ -150,16 +150,17 @@ export function tickedOf(
   ticks: Record<string, boolean>
 ): Ticked[] {
   return offers.flatMap((o) =>
-    hasBox(o) && (ticks[lineKey(o)] ?? tickedFirst(o)) ? [tickedLine(o)] : []
+    o.action !== 'two' && (ticks[lineKey(o)] ?? tickedFirst(o))
+      ? [tickedLine(o)]
+      : []
   );
 }
 
 // What the lines are asked by: the Entry in its Volume.
 export interface LinesAsked {
   volumeId: string;
-  // The Entry being edited, if it is one, or the one it replaces.
+  // The Entry being edited, if it is one.
   entryId?: number;
-  replacing?: number;
   event: EntryEvent | null;
   people: InEntry[];
   fields: TypedFields;
@@ -172,12 +173,10 @@ export function entryLines(api: DatasetApi) {
   const latest = new Latest();
   let last = '';
 
-  function askedOf(entry: LinesAsked) {
-    const { volumeId, entryId, replacing, event, people, fields } = entry;
+  function askedOf({ volumeId, entryId, event, people, fields }: LinesAsked) {
     return {
       volumeId,
       ...(entryId === undefined ? {} : { entryId }),
-      ...(replacing === undefined ? {} : { replacing }),
       event,
       people,
       fields: fieldsOf(event, fields)
