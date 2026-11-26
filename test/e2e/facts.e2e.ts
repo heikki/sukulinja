@@ -43,7 +43,7 @@ test('a fact is added, edited and deleted in Facts', async () => {
     await panel.getByRole('button', { name: 'Add fact' }).click();
     await panel
       .getByRole('dialog')
-      .getByLabel('Event')
+      .getByLabel('Kind')
       .selectOption({ label: 'Death' });
     await panel.getByLabel('Date').fill('31.2.1850x');
     // The place written before is offered, and taken.

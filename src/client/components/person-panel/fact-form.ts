@@ -176,7 +176,7 @@ class FactFormElement extends SignalWatcher(LitElement) {
     if (this.fact !== null) return nothing;
     const kinds = this.kinds();
     return html`<label>
-      <span>Event</span>
+      <span>Kind</span>
       <select
         @change=${(e: Event) => {
           this.tag = (e.target as HTMLSelectElement).value;
