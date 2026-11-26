@@ -39,7 +39,8 @@ From the Genealogical Proof Standard and citation practice (`.scratch/citation-p
 
 ### Entries
 
-11. **An Entry names the people the tree gives it.** A baptism Entry whose child has a father or mother in the tree not named in it. Only the person can fix it, from its Box's _Edit_; one left out on purpose (the book doesn't name the father) is dismissed with that reason. From `.scratch/source-first/spec.md`, replacing Entries tickets 07 and 08.
+11. **An Entry names the people the tree gives it.** A baptism Entry whose child has a father or mother in the tree not named in it. Only the person can fix it, from its Box's _Edit_; one left out on purpose (the book doesn't name the father) is dismissed with that reason. From `.scratch/source-first/spec.md`, replacing Entries tickets 07 and 08. Widened by ADR-0037 to every way the tree may differ from an Entry once changed: a marriage's couple who aren't a family, a baptism's parent who isn't the child's in the tree. It shares its rule with the Entry pane (`.scratch/entry-lock/issues/03-pane-says-where-tree-differs.md`). The app can't tell which side was taken wrongly; the fix is the person's, in the Entry pane.
+12. **A Fact of a kind once.** Two Births, Christenings, Deaths or Burials of one person, or two Marriages of one family: only an import brings them, as the app adds no second. The Entry pane offers neither support then. Fix: edit or delete one in _Facts_. From ADR-0037.
 
 ### Not checked
 

@@ -2,6 +2,8 @@ Status: accepted (2026-11-17)
 
 # An Entry records what its book says
 
+_Amended by ADR-0037: the kind is chosen once; an Entry's Citation supports only its owner's Facts._
+
 So far a tree came from MyHeritage with its Facts, and the app tied its Citations to them (ADR-0016, ADR-0022). An **Entry** (ADR-0026) holds only its Box, Event, Transcription and who it names; the child's Birth and Christening are added apart, in _Facts_. Heikki (2026-11-17) wants to start a new tree in the app the other way round: research starts in the church books, an Entry is found, and the tree is built from what it says. GEDCOM X and Gramps keep this apart as evidence and conclusion (`.scratch/citation-practices/citation-reuse.md`).
 
 - **An Entry keeps its own dates and place**, as its book writes them: the evidence. A Fact is the tree's conclusion. A baptism has _Born_ and _Baptised_, a marriage _Married_, a burial _Died_ and _Buried_, each with its place; a household line in a rippikirja or lastenkirja has its place, its date the Volume's years. The place is one text as the book writes it ("Esimerkkilä 2"): books seldom give a village and a farm apart (Heikki, 2026-11-17). A Fact gets it with the Volume's archive's parish and Suomi after it. Age, cause of death and the rest stay in the Transcription.
