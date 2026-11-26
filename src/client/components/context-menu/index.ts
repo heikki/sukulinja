@@ -3,10 +3,8 @@ import { customElement, property } from 'lit/decorators.js';
 
 import type { Point } from '@/client/pan-zoom';
 
-import { placedInside } from './helpers';
+import { boxOf, keptInside, positionedIn } from './helpers';
 import { contextMenuStyles } from './styles';
-
-export { placedInside } from './helpers';
 
 // One thing the menu offers, with muted text beside its label when it has
 // some: who someone is to the Selected person before, their years after;
@@ -30,6 +28,8 @@ function stop(e: Event) {
 // corner, for a menu dropping from a button's right edge. Presses on it stay on it, so they don't pan
 // what's under it. A choice, Esc or a press anywhere else asks to `close`.
 // ↑/↓ move between the items; a step it asks first asks with sl-ask.
+// It opens in the top layer, over everything in the window: a menu in the
+// dock isn't left under the Scan or Photo viewer beside it.
 @customElement('sl-context-menu')
 class ContextMenuElement extends LitElement {
   static override styles = contextMenuStyles;
@@ -57,13 +57,25 @@ class ContextMenuElement extends LitElement {
     window.removeEventListener('blur', this.close);
   }
 
+  // What `at` is measured from and the menu is kept inside: the element it's
+  // positioned in, or the window; read before it leaves for the top layer,
+  // where it's positioned in the window.
+  private inside: Element | null = null;
+
   override firstUpdated() {
+    this.inside = positionedIn(this);
+    this.popover = 'manual';
+    this.showPopover();
+    this.style.position = 'fixed';
     this.buttons()[0]?.focus();
   }
 
   override updated() {
     const left = this.alignRight ? this.at.x - this.offsetWidth : this.at.x;
-    const { x, y } = placedInside(this, { x: left, y: this.at.y });
+    const { x, y } = keptInside(this, boxOf(this.inside), {
+      x: left,
+      y: this.at.y
+    });
     this.style.left = `${x}px`;
     this.style.top = `${y}px`;
   }

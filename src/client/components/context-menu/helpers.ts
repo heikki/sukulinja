@@ -1,13 +1,37 @@
 import type { Point } from '@/client/pan-zoom';
 
-// Where a pop-up at `at` in the element it's positioned in goes: moved in
-// from any edge it would cross; one fixed in the window, from the window's.
-export function placedInside(el: HTMLElement, at: Point) {
-  const fixed = getComputedStyle(el).position === 'fixed';
-  const window_ = { width: window.innerWidth, height: window.innerHeight };
-  const box = fixed ? window_ : el.offsetParent?.getBoundingClientRect();
-  if (box === undefined) return at;
+// A rectangle in the window.
+export interface Box {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+export function windowBox(): Box {
+  return {
+    left: 0,
+    top: 0,
+    width: window.innerWidth,
+    height: window.innerHeight
+  };
+}
+
+// The element `el` is positioned in; null for one fixed in the window.
+export function positionedIn(el: HTMLElement): Element | null {
+  if (getComputedStyle(el).position === 'fixed') return null;
+  return el.offsetParent;
+}
+
+// Where `inside` is in the window now: the window itself for null.
+export function boxOf(inside: Element | null): Box {
+  return inside?.getBoundingClientRect() ?? windowBox();
+}
+
+// Where `el`, at `at` in `box`, goes in the window: moved in from any edge
+// of `box` it would cross.
+export function keptInside(el: HTMLElement, box: Box, at: Point): Point {
   const x = Math.min(at.x, box.width - el.offsetWidth - 4);
   const y = Math.min(at.y, box.height - el.offsetHeight - 4);
-  return { x: Math.max(4, x), y: Math.max(4, y) };
+  return { x: box.left + Math.max(4, x), y: box.top + Math.max(4, y) };
 }

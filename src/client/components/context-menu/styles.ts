@@ -2,13 +2,16 @@ import { css } from 'lit';
 
 import { focusRingStyles } from '@/client/focus-ring';
 
-// Over whatever it opens on: in the Scan viewer, over its Box and under
-// nothing else.
+// Over everything: it opens in the top layer. A popover's own margin, inset,
+// overflow and colours are put back to the menu's.
 const menu = css`
   :host {
     position: absolute;
-    z-index: 3;
+    inset: auto;
     display: flex;
+    margin: 0;
+    overflow: visible;
+    color: var(--fg);
     flex-direction: column;
     min-width: 12rem;
     padding: 0.3rem;

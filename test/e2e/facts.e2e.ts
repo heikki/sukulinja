@@ -6,7 +6,7 @@ import { afterAll, test } from 'bun:test';
 import type { Page } from 'playwright';
 
 import { closeBrowser, shot, withApp } from './app';
-import { newTree, openSection } from './steps';
+import { newTree, openJuvaVolume, openSection } from './steps';
 
 afterAll(closeBrowser);
 
@@ -95,5 +95,34 @@ test('a fact is added, edited and deleted in Facts', async () => {
       .click();
     await edited.waitFor({ state: 'detached' });
     await shot(page, 'facts-done');
+  });
+});
+
+// The dock beside the Scan viewer: a fact's menu, dropping over the viewer,
+// is over it and takes the press.
+test("a fact's menu is over the Scan viewer beside the dock", async () => {
+  await withApp(async ({ page }) => {
+    await newTree(page);
+    await openJuvaVolume(page, 'Syntyneiden ja kastettujen luettelot');
+    await openSection(page, 'Facts');
+    const panel = page.locator('sl-person-panel');
+    await panel.getByRole('button', { name: 'Add fact' }).click();
+    await panel.getByLabel('Date').fill('1795');
+    await panel.getByLabel('Place').fill('Esimerkkilä, Juva');
+    await panel.getByRole('button', { name: 'Save' }).click();
+    const birth = panel.getByRole('button', {
+      name: 'Birth 1795 · Esimerkkilä, Juva'
+    });
+    const row = await birth.boundingBox();
+    if (row === null) throw new Error('no fact row');
+    await birth.click({
+      button: 'right',
+      position: { x: row.width - 8, y: row.height / 2 }
+    });
+    const edit = panel.getByRole('menuitem', { name: 'Edit' });
+    await edit.waitFor();
+    await shot(page, 'facts-menu-over-viewer');
+    await edit.click();
+    await panel.getByLabel('Date').waitFor();
   });
 });
