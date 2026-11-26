@@ -247,16 +247,11 @@ export const personSourcesStyles = css`
     text-decoration: underline;
   }
 
-  .asking {
-    margin-top: 0.5rem;
-  }
-
   /* Beside Edit text, in its row. */
   .actions {
     display: contents;
   }
 
-  .actions .asking,
   .actions .finding {
     flex-basis: 100%;
   }

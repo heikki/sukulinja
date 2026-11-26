@@ -23,9 +23,11 @@ import type {
 } from '@/common/types';
 
 import '../archive-search';
+import '../ask';
 import './fold';
 import './source-text';
 
+import type { Ask } from '../ask';
 import { archiveAction, headingOf, titleText } from './helpers';
 import { personSourcesStyles } from './sources-styles';
 import { definitionListStyles } from './styles';
@@ -267,12 +269,17 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
     if (deleted) this.asking = null;
   }
 
-  // Deleting the source's Citation, asked first.
+  // Deleting the source's Citation, asked first as every step that takes
+  // something away is.
   private renderDelete(c: CitationRow) {
-    // Kept from the source's own click, which would find the button gone
-    // once the question replaces it, and fold the source.
-    if (this.asking !== c.id) {
-      return html`<button
+    const ask: Ask = {
+      title: 'Delete citation?',
+      step: 'Delete',
+      tone: 'danger'
+    };
+    // The source's own click would fold it, so neither the button's nor
+    // the question's goes to it.
+    return html`<button
         class="delete"
         @click=${(e: Event) => {
           e.stopPropagation();
@@ -280,40 +287,25 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
         }}
       >
         Delete citation
-      </button>`;
-    }
-    return html`<div
-      class="form asking"
-      @click=${(e: Event) => {
-        e.stopPropagation();
-      }}
-    >
-      <p>Delete this citation?</p>
+      </button>
       ${
-        this.deletion.refused === null
-          ? nothing
-          : html`<p class="error">${this.deletion.refused}</p>`
-      }
-      <div class="buttons end">
-        <button
-          ?disabled=${this.deletion.busy}
-          @click=${() => {
-            this.ask(null);
-          }}
-        >
-          Cancel
-        </button>
-        <button
-          class="danger"
-          ?disabled=${this.deletion.busy}
-          @click=${() => {
-            void this.deleteCitation(c);
-          }}
-        >
-          ${this.deletion.busy ? 'Deleting…' : 'Delete'}
-        </button>
-      </div>
-    </div>`;
+        this.asking === c.id
+          ? html`<sl-ask
+              .ask=${ask}
+              .busy=${this.deletion.busy ? 'Deleting…' : null}
+              .refused=${this.deletion.refused}
+              @click=${(e: Event) => {
+                e.stopPropagation();
+              }}
+              @cancel=${() => {
+                this.ask(null);
+              }}
+              @confirm=${() => {
+                void this.deleteCitation(c);
+              }}
+            ></sl-ask>`
+          : nothing
+      }`;
   }
 
   // Finding the reference's parish's archive in Astia where none is known,
