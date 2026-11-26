@@ -28,7 +28,7 @@ import './fold';
 import './source-text';
 
 import type { Ask } from '../ask';
-import { archiveAction, headingOf, titleText } from './helpers';
+import { findsArchive, headingOf, titleText } from './helpers';
 import { personSourcesStyles } from './sources-styles';
 import { definitionListStyles } from './styles';
 
@@ -309,12 +309,11 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
   }
 
   // Finding the reference's parish's archive in Astia where none is known,
-  // or changing the one it links into: for every source giving the same
-  // spelling.
+  // for every source giving the same spelling. A wrong Volume is changed
+  // in the Scan viewer instead, for the one source.
   private renderArchive(c: CitationRow, status: LinkStatus | null) {
-    const action = archiveAction(c, status);
     const spelling = c.cited?.parish ?? null;
-    if (action === null || spelling === null) return nothing;
+    if (!findsArchive(c, status) || spelling === null) return nothing;
     if (this.finding !== c.id) {
       // Kept from the source's own click, as the search replacing it has
       // already left the source by then.
@@ -325,7 +324,7 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
           this.find(c.id);
         }}
       >
-        ${action === 'find' ? 'Find archive in Astia' : 'Change archive'}
+        Find archive in Astia
       </button>`;
     }
     // A click in the search isn't the source's: Cancel would fold it.

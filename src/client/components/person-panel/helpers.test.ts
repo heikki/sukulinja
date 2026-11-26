@@ -4,8 +4,8 @@ import type { LinkStatus } from '@/client/state';
 import type { CitationRow, FactRow, Link } from '@/common/types';
 
 import {
-  archiveAction,
   factText,
+  findsArchive,
   headingOf,
   sourcesOf,
   titleText
@@ -101,7 +101,7 @@ test('names a linked Church-book reference by its Volume, whatever its text', ()
   expect(titleText(imported, MARKED)).toBe('Pää- ja rippikirjat (1790-1796)');
 });
 
-test("a reference's archive is found where none is known, else changed", () => {
+test("a reference's archive is found only where none is known", () => {
   const imported = {
     ...OF_IMAGE,
     madeInApp: false,
@@ -113,12 +113,12 @@ test("a reference's archive is found where none is known, else changed", () => {
     browse: null,
     unlinked: 'no-archive'
   };
-  expect(archiveAction(imported, none)).toBe('find');
-  expect(archiveAction(imported, MARKED)).toBe('change');
+  expect(findsArchive(imported, none)).toBe(true);
+  expect(findsArchive(imported, MARKED)).toBe(false);
   const failed = { ...none, unlinked: 'astia-error' as const };
-  expect(archiveAction(imported, failed)).toBeNull();
+  expect(findsArchive(imported, failed)).toBe(false);
   // A Citation of an Image has no parish's spelling to link.
-  expect(archiveAction(OF_IMAGE, MARKED)).toBeNull();
+  expect(findsArchive(OF_IMAGE, none)).toBe(false);
 });
 
 test("finds a Fact's sources among the person's, by the Facts each supports", () => {

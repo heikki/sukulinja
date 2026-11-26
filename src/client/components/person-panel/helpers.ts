@@ -100,22 +100,12 @@ export function headingOf(c: CitationRow) {
   return c.reference ?? c.source ?? c.text ?? c.page ?? 'Source';
 }
 
-// The archive a resolved reference's Link or looking through names.
-function archiveNamed(status: LinkStatus) {
-  return status.link?.archive ?? status.browse?.archive ?? null;
-}
-
-// What can be done of a Church-book reference's archive: finding its
-// parish's in Astia where none is known, or changing the one its parish's
-// spelling links into. Nothing for another source, one whose parish can't
-// be read, or one not yet resolved.
-export function archiveAction(
-  c: CitationRow,
-  status: LinkStatus | null
-): 'find' | 'change' | null {
-  if ((c.cited?.parish ?? null) === null || status === null) return null;
-  if (status.unlinked === 'no-archive') return 'find';
-  return archiveNamed(status) === null ? null : 'change';
+// Whether a Church-book reference's parish's archive can be found in
+// Astia: its parish can be read and no archive is known for it. Not for
+// another source, or one not yet resolved.
+export function findsArchive(c: CitationRow, status: LinkStatus | null) {
+  if ((c.cited?.parish ?? null) === null) return false;
+  return status?.unlinked === 'no-archive';
 }
 
 // Under its archive, a Church-book reference goes by the Volume it links,
