@@ -28,11 +28,10 @@ const PLACEHOLDERS = {
 };
 
 // An Entry's fields in its Entry pane (ADR-0033): the dates its Event gives,
-// typed the app's way, then its place and page number (ADR-0039), each set
-// as typed
-// (`set-field`). Under them the lines of what they'd do to the tree,
-// each with its box (`tick`), but two Facts of a kind, to choose between
-// in Sources. Never required: nothing ticked saves the Entry alone.
+// typed the app's way, then its page number and place (ADR-0039), each set
+// as typed (`set-field`), and what's slotted in (its text). Under them
+// the lines of what they'd do to the tree, each with its box (`tick`), but
+// two Facts of a kind, to choose between in Sources. Never required: nothing ticked saves the Entry alone.
 @customElement('sl-entry-fields')
 class EntryFieldsElement extends LitElement {
   static override styles = css`
@@ -43,8 +42,8 @@ class EntryFieldsElement extends LitElement {
 
     label.field {
       display: grid;
-      grid-template-columns: 6.5rem 1fr;
-      gap: 0.75rem;
+      grid-template-columns: 4.75rem 1fr;
+      gap: 0.5rem;
       align-items: center;
     }
 
@@ -68,26 +67,30 @@ class EntryFieldsElement extends LitElement {
 
     ul {
       display: grid;
-      gap: 0.2rem;
+      gap: 0.5rem;
       margin: 0.4rem 0 0;
       padding: 0.75rem 0 0;
       border-top: 1px solid var(--border);
       list-style: none;
-      font-size: 0.85em;
+      line-height: 1.35;
     }
 
+    /* The box in line with its first line, should the words wrap. */
     li label {
       display: flex;
-      gap: 0.4rem;
+      gap: 0.5rem;
       align-items: start;
     }
 
     li input {
-      margin: 0.15rem 0 0;
+      flex: none;
+      width: 1rem;
+      height: 1rem;
+      margin: 0.17rem 0 0;
     }
 
     li.two {
-      padding-left: 1.35rem;
+      padding-left: 1.5rem;
       color: var(--muted);
     }
   `;
@@ -161,8 +164,9 @@ class EntryFieldsElement extends LitElement {
       ${eventDates(this.event).map(({ key, label }) =>
         this.renderField(key, label, 'date')
       )}
-      ${this.renderField('place', 'Place', 'place')}
       ${this.renderField('page', 'Page', 'page')}
+      ${this.renderField('place', 'Place', 'place')}
+      <slot></slot>
       ${
         this.offers.length === 0
           ? nothing

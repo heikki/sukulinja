@@ -155,7 +155,7 @@ test('a line is written as the Entry pane shows it', () => {
   );
   const was = { date: '5 MAR 1761', place: null };
   expect(offerWords({ tag: 'CHR', action: 'support', factId: 1, was })).toBe(
-    'Christening 5.3.1761 matches: use as its source'
+    'Use as source: Christening 5.3.1761'
   );
   expect(
     offerWords({
@@ -232,9 +232,7 @@ test('a Residence the line supports already, its place changed since, is kept as
     }
   ]);
   expect(offers.map(tickedFirst)).toEqual([true, false]);
-  expect(offerWords(offers[0]!)).toBe(
-    'Residence 1790–1796: keep as its source'
-  );
+  expect(offerWords(offers[0]!)).toBe('Keep as source: Residence 1790–1796');
 });
 
 test('a Fact the Entry supports that no line names, its date emptied or its kind changed, is kept to untick', () => {

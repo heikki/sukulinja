@@ -273,8 +273,8 @@ function changeWords(was: FactSays, now: FactSays) {
 }
 
 // A line as its Entry pane writes it: "Add fact: Birth 3.3.1761 at Esimerkkilä 2, …",
-// "Christening 5.3.1761 matches: use as its source", "Birth 1762: keep as
-// its source", "Change fact: Birth 1761 → 3.3.1761", "Two Births:
+// "Use as source: Christening 5.3.1761", "Keep as source: Birth 1762",
+// "Change fact: Birth 1761 → 3.3.1761", "Two Births:
 // none matches".
 export function offerWords(offer: Offer) {
   const kind = factKindLabel(offer.tag);
@@ -288,8 +288,8 @@ export function offerWords(offer: Offer) {
       const date =
         offer.was.date === null ? '' : ` ${dateWords(offer.was.date)}`;
       return offer.kept === true
-        ? `${kind}${date}: keep as its source`
-        : `${kind}${date} matches: use as its source`;
+        ? `Keep as source: ${kind}${date}`
+        : `Use as source: ${kind}${date}`;
     }
     case 'change':
       return `Change fact: ${kind} ${changeWords(offer.was, offer.now)}`;

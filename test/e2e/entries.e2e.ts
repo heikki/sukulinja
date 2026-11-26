@@ -43,7 +43,7 @@ test('a baptism is corrected and a marriage made and deleted', async () => {
     if (await change.isChecked()) throw new Error('a change starts unticked');
     await change.check();
     // The Birth it supports is kept as its source unless unticked.
-    const keep = page.getByLabel('Birth 3.3.1795: keep as its source');
+    const keep = page.getByLabel('Keep as source: Birth 3.3.1795');
     if (!(await keep.isChecked())) throw new Error('a source starts kept');
     await keep.uncheck();
     await shot(page, 'entries-edit');
@@ -53,9 +53,7 @@ test('a baptism is corrected and a marriage made and deleted', async () => {
     // Unticked, it no longer is: offered again as a match.
     await entry.click({ button: 'right' });
     await page.getByRole('menuitem', { name: 'Edit', exact: true }).click();
-    await page
-      .getByLabel('Birth 3.3.1795 matches: use as its source')
-      .waitFor();
+    await page.getByLabel('Use as source: Birth 3.3.1795').waitFor();
     // While it's edited, the arrows don't step off the Image, nor ask to.
     await page.locator('sl-scan-viewer').focus();
     await page.keyboard.press('ArrowRight');

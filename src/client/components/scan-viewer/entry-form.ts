@@ -3,7 +3,6 @@ import { consume } from '@lit/context';
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement } from 'lit/decorators.js';
 
-import type { InEntry } from '@/client/dataset-api';
 import { selectStyles } from '@/client/form-styles';
 import { appState } from '@/client/state';
 import type { AppState, PendingCite } from '@/client/state';
@@ -25,7 +24,6 @@ import { parentRows, treeOf, withEvent } from './cite';
 import type { ParentRow } from './cite';
 import { scanPaneStyles } from './edit-styles';
 import type { FieldDetail, TickDetail } from './entry-fields';
-import { sourceName } from './menu';
 
 import './edit';
 import './entry-fields';
@@ -59,7 +57,7 @@ export interface ChooseDetail {
 // Event; then in a baptism or a marriage a row for each Role, its person
 // or none, each chosen (`choose`, picked over the scan) or taken out; in
 // a burial or a household line its one person; then its fields and what
-// they'd do to the tree (entry-fields.ts), above them what it says, its
+// they'd do to the tree (entry-fields.ts), among them what it says, its
 // text, also changed in the person's sources (source-text.ts). Cancel and
 // Save under them (edit.ts). It can't be hidden while the Box is pending.
 @customElement('sl-scan-entry')
@@ -68,27 +66,27 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
     scanPaneStyles,
     buttonStyles,
     css`
-      label.parent {
-        display: flex;
-        gap: 0.4rem;
-        align-items: center;
-        min-width: 0;
-      }
-
       .row.top {
         align-items: start;
       }
 
+      /* Each parent's name and ×, in line with the child's. */
       .parents {
         display: grid;
+        grid-template-columns: 1fr auto;
         grid-column: 2 / span 2;
-        gap: 0.2rem;
+        gap: 0.2rem 0.5rem;
+        align-items: center;
+      }
+
+      .parents .none {
+        grid-column: 1 / -1;
       }
 
       .row {
         display: grid;
-        grid-template-columns: 6.5rem 1fr auto;
-        gap: 0.75rem;
+        grid-template-columns: 4.75rem 1fr auto;
+        gap: 0.5rem;
         align-items: center;
       }
 
@@ -137,8 +135,13 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
         text-decoration: underline;
       }
 
+      /* Its label over it, the pane's width. */
+      label.text {
+        display: grid;
+        gap: 0.3rem;
+      }
+
       textarea {
-        grid-column: 2 / span 2;
         min-width: 0;
         padding: 0.35rem 0.5rem;
         border: 1px solid var(--border);
@@ -147,7 +150,9 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
         color: var(--fg);
         font: inherit;
         line-height: 1.35;
-        resize: vertical;
+        resize: none;
+        overflow: auto hidden;
+        white-space: pre;
       }
 
       select {
@@ -246,10 +251,6 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
       })}`;
   }
 
-  private name(entry: InEntry) {
-    this.viewer.entryForm.setInEntry(entry);
-  }
-
   // Its Event chosen anew, with whom it names then.
   private chooseEvent(event: EntryEvent, cite: PendingCite) {
     const ix = this.state.chart.people.get();
@@ -332,8 +333,8 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
   }
 
   // A baptism: its child, chosen or taken out, then the child's parents in
-  // the tree, each named in it or not (`name`, `drop`), or with none, one
-  // to make (`choose`).
+  // the tree: each named, to take out (`drop`), or one to add, chosen
+  // over the scan (`choose`).
   private renderBaptism() {
     const child = this.shown.people.find((p) => p.role === 'CHIL');
     return html`<div class="row">
@@ -382,30 +383,18 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
       );
   }
 
+  // A parent named, to take out, or one to add, chosen over the scan.
   private renderParent({ role, personId, named }: ParentRow) {
-    if (personId === null) {
-      return html`<button
+    if (personId !== null && named) return this.renderPerson(personId);
+    return html`<button
         class="choose"
         @click=${(e: MouseEvent) => {
           this.choose(e, role);
         }}
       >
         Add ${role === 'FATH' ? 'father' : 'mother'}…
-      </button>`;
-    }
-    return html`<label class="parent">
-      <input
-        type="checkbox"
-        .checked=${named}
-        @change=${(e: Event) => {
-          if ((e.target as HTMLInputElement).checked) {
-            const detail: InEntry = { personId, role };
-            this.name(detail);
-          } else this.drop(personId);
-        }}
-      />
-      <span class="name">${this.nameOf(personId)}</span>
-    </label>`;
+      </button>
+      <span></span>`;
   }
 
   // Its one person, or a button to choose them. One made before naming
@@ -445,14 +434,11 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
 
   // Where the Entry edited and the tree differ, as the tree changed under
   // it (ADR-0037): said, not put right, as the app can't tell which was
-  // taken wrongly. A parent the tree gives but the Entry doesn't name shows
-  // in its row already, unticked.
+  // taken wrongly.
   private renderDifferences() {
     if (this.saved() === null) return nothing;
     const tree = treeOf(this.state.chart.people.get());
-    const said = treeDifferences(this.shown, tree).filter(
-      (d) => d.kind !== 'unnamed-parent'
-    );
+    const said = treeDifferences(this.shown, tree);
     return said.map(
       (d) =>
         html`<p class="differs">
@@ -474,24 +460,14 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
     return link.certainty === 'match' ? 'Confirm match' : 'Edit entry';
   }
 
-  // What a reference placed cites, as its menu item named it.
-  private renderSource(kind: 'place' | 'new' | 'edit') {
-    const name = kind === 'place' ? sourceName(this.viewer) : null;
-    return name === null
-      ? nothing
-      : html`<div class="row">
-          <span class="role">Source</span><span class="name">${name}</span>
-        </div>`;
-  }
-
-  // What it says, its Transcription, to read and change: as many rows as
-  // its lines, up to eight, then it scrolls.
+  // What it says, its Transcription, to read and change: as tall as what
+  // it says, four rows at least, its lines unwrapped and scrolled across.
   private renderText(text: string) {
-    const rows = Math.min(Math.max(text.split('\n').length, 2), 8);
-    return html`<label class="row top">
+    return html`<label class="text">
       <span class="role">Text</span>
       <textarea
-        rows=${rows}
+        rows="4"
+        wrap="off"
         .value=${text}
         placeholder="What the entry says"
         @input=${(e: Event) => {
@@ -503,6 +479,23 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
     </label>`;
   }
 
+  // The text's field grown or shrunk to what it says, past its border and
+  // any scrollbar, once the fields it's slotted in have rendered.
+  protected override updated() {
+    const fields = this.renderRoot.querySelector('sl-entry-fields');
+    void (fields?.updateComplete ?? Promise.resolve()).then(() => {
+      this.fitText();
+    });
+  }
+
+  private fitText() {
+    const area = this.renderRoot.querySelector('textarea');
+    if (area === null) return;
+    area.style.height = 'auto';
+    const border = area.offsetHeight - area.clientHeight;
+    area.style.height = `${area.scrollHeight + border}px`;
+  }
+
   override render() {
     const pending = this.viewer.pending.get();
     if (pending === null) return nothing;
@@ -511,12 +504,10 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
     return html`
       <h2>${this.heading(pending.kind)}</h2>
       <div class="body">
-        ${this.renderSource(pending.kind)} ${this.renderEvent()}
-        ${this.renderPeople()} ${this.renderDifferences()}
-        ${this.renderText(cite.text)}
+        ${this.renderEvent()} ${this.renderPeople()} ${this.renderDifferences()}
         ${
           cite.event === null
-            ? nothing
+            ? this.renderText(cite.text)
             : html`<sl-entry-fields
                 .event=${cite.event}
                 .fields=${cite.fields}
@@ -528,7 +519,9 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
                 @tick=${(e: CustomEvent<TickDetail>) => {
                   this.viewer.entryForm.setTick(e.detail.key, e.detail.on);
                 }}
-              ></sl-entry-fields>`
+              >
+                ${this.renderText(cite.text)}
+              </sl-entry-fields>`
         }
         ${
           cite.event === null

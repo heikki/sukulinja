@@ -16,7 +16,7 @@ Support is a Citation's (ADR-0022), but the Entry pane lists only the Facts of t
 
 - **The pane lists every support of every Citation of the Entry**, and a Role, kind or owner changed lists the old support to take back (option A of the review). Rejected for now: every change of owner becomes a case to handle. It's the fallback if the lock proves too stiff.
 - **Support on the Entry**, `entry_facts(entry_id, fact_id)`, `fact_citations` kept for other sources (option B). Rejected: a migration, two support tables and the GEDCOM round trip to adapt, for what the lock gives.
-- **Support worked out from the Entry's dates** (option C), none stored. Rejected: a fuzzy match, no _keep as its source_ for a Fact that differs, and Entries with no dates supporting nothing.
+- **Support worked out from the Entry's dates** (option C), none stored. Rejected: a fuzzy match, no _Keep as source_ for a Fact that differs, and Entries with no dates supporting nothing.
 - **Keep the assistant off Entries' Citations.** Rejected (Heikki): it couldn't support a Fact from a baptism; the owner-only rule keeps what it does visible in the pane.
 - **Ask, when the tree changes, whom to take out of the Entry.** Rejected: unlinking a couple doesn't tell which of the two was taken wrongly.
 
