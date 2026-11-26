@@ -11,7 +11,6 @@
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { bookKind } from '@/common/books';
 import {
   pageClash,
   pageNumbering,
@@ -318,11 +317,10 @@ export function openStore(
     },
 
     // A hand Page pin of `pages` on the Image, as the Scan viewer sets it:
-    // a spread's two, or one, its right page following where the Volume
-    // numbers pages; none skips the Image, and with a skip before or
-    // after it, if no pin is between, the Images between; null takes the
-    // Page pins there away, hand or the vision model's, so the Image is
-    // counted again. One write.
+    // a spread's two, or one, as typed; none skips the Image, and with a
+    // skip before or after it, if no pin is between, the Images between;
+    // null takes the Page pins there away, hand or the vision model's, so
+    // the Image is counted again. One write.
     async setImagePage(
       filming: Filming,
       volume: string,
@@ -341,18 +339,12 @@ export function openStore(
             (p) => !(p.image === image && current.includes(p))
           );
         } else {
-          const numbering = pageNumbering(
-            current,
-            filming.files.length,
-            bookKind(volume)
-          );
-          const [page] = pages as [number];
           addPagePin(
             draft,
             volume,
             {
               image,
-              pages: pages.length === 1 ? numbering.pinPages(page) : pages,
+              pages,
               note: 'set in the Scan viewer',
               by: 'hand',
               ...fileOf(filming, image)

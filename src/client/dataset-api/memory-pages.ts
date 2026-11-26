@@ -74,11 +74,6 @@ export function memoryPages(
         () => {
           const shown = unlocked(volume(volumeId));
           const others = (shown.pins ?? []).filter((p) => p.image !== image);
-          const numbering = pageNumbering(
-            others,
-            shown.images,
-            bookKind(label)
-          );
           const ends =
             pages === null || pages.length === 0
               ? []
@@ -89,10 +84,7 @@ export function memoryPages(
               : [
                   {
                     image,
-                    pages:
-                      pages.length === 1
-                        ? numbering.pinPages(pages[0]!)
-                        : pages,
+                    pages,
                     by: 'hand' as const
                   },
                   ...ends.map((end) => ({

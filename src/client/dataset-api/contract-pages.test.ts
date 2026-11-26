@@ -57,6 +57,19 @@ test("a Volume's pages, set by hand and cleared, as the memory fake counts them"
   expect(await fake.clearVolumePages(at)).toEqual(cleared);
 });
 
+test("one page typed stays one, though the Volume's other pins are a spread's two, as the memory fake sets it", async () => {
+  const fake = memoryDatasetApi({
+    volumes: { [VOLUME]: { images: IMAGES, citations: [] } }
+  });
+  const at = { volumeId: VOLUME, volume: VOLUMES['juva-1'] };
+  const spread = { ...at, image: 3 };
+  await api!.setImagePage(spread, [4, 5]);
+  await fake.setImagePage(spread, [4, 5]);
+  const served = await api!.setImagePage({ ...at, image: 10 }, [12]);
+  expect(served.images[9]).toEqual({ image: 10, pages: [12], by: 'hand' });
+  expect(await fake.setImagePage({ ...at, image: 10 }, [12])).toEqual(served);
+});
+
 test("a Volume's page numbers marked, and locked, as the memory fake marks them", async () => {
   const fake = memoryDatasetApi({
     volumes: { [VOLUME]: { images: IMAGES, citations: [] } }

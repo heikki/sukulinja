@@ -251,8 +251,8 @@ export const CITATION_OPERATIONS = {
 
   // Sets the pages on the Image of the Volume, `volume` by its label, by
   // hand: a hand Page pin of `pages` there, a spread's two following each
-  // other or one (its right page following where the Volume numbers
-  // pages), or with null that pin taken away. Its pages then.
+  // other or one, as typed, or with null that pin taken away. Its pages
+  // then.
   setImagePage: answers<
     {
       volumeId: string;
