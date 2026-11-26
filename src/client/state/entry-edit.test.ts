@@ -310,6 +310,17 @@ test('a Citation of the Entry deleted in Sources goes from beside the scan', asy
   expect(viewer.source.get()).not.toBeNull();
 });
 
+test('moving the Box keeps the lines listed while they are asked again', async () => {
+  const { viewer } = await viewing();
+  viewer.editEntry();
+  const form = viewer.entryForm;
+  form.setField('lifeDate', '30.1.1790');
+  await until(() => form.offers.get().length > 0);
+  const listed = form.offers.get();
+  viewer.setBox({ ...BOX, top: 260 });
+  expect(form.offers.get()).toBe(listed);
+});
+
 test("the Entry pane lists what the Entry's dates would do, and Save does those ticked", async () => {
   const { viewer, child, entryId } = await viewing();
   viewer.editEntry();

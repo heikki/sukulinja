@@ -192,7 +192,9 @@ export function pendingChange(deps: PendingDeps): Pending {
   let filled = '';
   let started = { page: '', text: '' };
 
-  function place(box: Box, kind: Kind, fresh = false) {
+  // A Box `moving` keeps its lines while they're asked again, so they
+  // don't blink out as it's let go.
+  function place(box: Box, kind: Kind, fresh = false, moving = false) {
     const at = placeable();
     if (at === null) return;
     if (kind.kind === 'place' && source.get() === null) return;
@@ -200,7 +202,8 @@ export function pendingChange(deps: PendingDeps): Pending {
     const now = withPage(kind, box, fresh);
     if (fresh) started = { page: now.cite.fields.page, text: now.cite.text };
     change.set({ ...at, box, ...now });
-    entry.begin();
+    if (moving) entry.refresh();
+    else entry.begin();
   }
 
   // An Entry pane with no page typed starts from the Image's (ADR-0039),
@@ -221,7 +224,7 @@ export function pendingChange(deps: PendingDeps): Pending {
 
   function moveBox(box: Box) {
     const now = change.get();
-    if (now !== null) place(box, kindOf(now));
+    if (now !== null) place(box, kindOf(now), false, true);
   }
 
   function cancel() {

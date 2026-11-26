@@ -422,6 +422,7 @@ export function pendingEntry(
     editing,
     saveEdit: relisting(saveEdit),
     begin,
+    refresh,
     refuse
   };
 }
