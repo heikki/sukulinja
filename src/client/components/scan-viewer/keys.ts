@@ -26,9 +26,11 @@ const SHIFTED: Record<string, Step> = {
   ArrowRight: { image: 10 }
 };
 
-// What a key press steps, if it steps anything: none while typing, in the
+// What a key press steps, if it steps anything: none while a Box is being
+// edited, so a stray key doesn't ask to save it, nor while typing, in the
 // Image number or anywhere else, or choosing in a list.
-export function stepOf(e: KeyboardEvent) {
+export function stepOf(e: KeyboardEvent, editing: boolean) {
+  if (editing) return null;
   const on = e.composedPath()[0];
   const typing =
     on instanceof HTMLInputElement ||

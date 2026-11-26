@@ -1,6 +1,5 @@
 import { expect, test } from 'bun:test';
 
-import { ApiError } from '@/client/dataset-api';
 import { memoryDatasetApi } from '@/client/dataset-api/memory';
 import type { MemoryOptions } from '@/client/dataset-api/memory';
 import type {
@@ -394,10 +393,10 @@ test('moving off the Image of a pending Box waits on it', async () => {
   viewer.show(19);
   expect(viewer.leaving.get()).toBe(true);
   expect(viewer.image.get()).toBe(18);
-  await viewer.answer('keep');
+  viewer.answer('keep');
   viewer.changeVolume(CHOICE_202);
   expect(viewer.leaving.get()).toBe(true);
-  await viewer.answer('discard');
+  viewer.answer('discard');
   expect(viewer.pending.get()).toBe(null);
   expect(viewer.volume.get()?.id).toBe('202');
   // Nothing pending, the Image shown is no way out.
@@ -406,8 +405,8 @@ test('moving off the Image of a pending Box waits on it', async () => {
   expect(viewer.image.get()).toBe(3);
 });
 
-test('a way out waits on the pending change: kept, discarded or saved', async () => {
-  const { api, viewer } = await selecting(2);
+test('a way out waits on the pending change: kept or discarded', async () => {
+  const { viewer } = await selecting(2);
   const vision = { citation: C21, link: VISION_21 };
   viewer.open(vision);
   await settle();
@@ -416,22 +415,13 @@ test('a way out waits on the pending change: kept, discarded or saved', async ()
   expect(viewer.leaving.get()).toBe(true);
   expect(viewer.source.get()?.citation.id).toBe(21);
 
-  await viewer.answer('keep');
+  viewer.answer('keep');
   expect(viewer.leaving.get()).toBe(false);
   expect(viewer.pending.get()).not.toBe(null);
 
   viewer.close();
-  await viewer.answer('discard');
+  viewer.answer('discard');
   expect(viewer.source.get()).toBe(null);
-
-  viewer.open(vision);
-  await settle();
-  viewer.editBox();
-  viewer.close();
-  await viewer.answer('save');
-  expect(api.asked).toContain('mark 21 201/18 box');
-  expect(viewer.source.get()).toBe(null);
-  expect(viewer.pending.get()).toBe(null);
 });
 
 test('leaving runs at once with nothing pending, and keeping on editing runs `stay`', async () => {
@@ -452,23 +442,8 @@ test('leaving runs at once with nothing pending, and keeping on editing runs `st
     }
   );
   expect(ran).toEqual(['go']);
-  await viewer.answer('keep');
+  viewer.answer('keep');
   expect(ran).toEqual(['go', 'stay']);
-});
-
-test('a refused save leaves the way out waiting', async () => {
-  const { viewer } = await selecting(1);
-  viewer.open(S13);
-  await settle();
-  viewer.setBox(BOX);
-  viewer.open(S11);
-  const refused = await viewer
-    .answer('save')
-    .then(() => null)
-    .catch((err: unknown) => err);
-  expect(refused).toBeInstanceOf(ApiError);
-  expect(viewer.leaving.get()).toBe(true);
-  expect(viewer.source.get()).toEqual(S13);
 });
 
 test('selecting someone else waits on the pending change, then closes', async () => {
@@ -478,10 +453,10 @@ test('selecting someone else waits on the pending change, then closes', async ()
   viewer.setBox(BOX);
   state.chart.select(2);
   expect(viewer.leaving.get()).toBe(true);
-  await viewer.answer('keep');
+  viewer.answer('keep');
   expect(state.selected.id.get()).toBe(1);
   state.chart.select(2);
-  await viewer.answer('discard');
+  viewer.answer('discard');
   expect(state.selected.id.get()).toBe(2);
   expect([viewer.source.get(), viewer.pending.get()]).toEqual([null, null]);
   expect(viewer.leaving.get()).toBe(false);

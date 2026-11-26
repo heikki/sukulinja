@@ -128,7 +128,7 @@ test('an open held by a pending Box, then stayed, leaves the next open revealing
   v.setBox(BOX);
   v.openSource(S12, { reveal: false });
   expect(v.leaving.get()).toBe(true);
-  await v.answer('keep');
+  v.answer('keep');
   expect(v.source.get()?.citation.id).toBe(11);
   v.cancel();
   v.open({ citation: C12, link: onImage(20) });

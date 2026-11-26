@@ -152,20 +152,6 @@ test('a pending Citation without text is saved with none, and Cancel leaves noth
   });
 });
 
-test('a way out of a pending Citation waits to save it', async () => {
-  const { viewer, reference } = await viewing();
-  viewer.newEntry(BOX, 'RESI', [{ personId: 2, role: null }]);
-  viewer.show(19);
-  expect(viewer.leaving.get()).toBe(true);
-  expect(viewer.image.get()).toBe(12);
-  await viewer.answer('save');
-  expect(await madeNow()).toEqual([
-    { personId: 2, text: null, image: 12, box: BOX }
-  ]);
-  expect(viewer.image.get()).toBe(19);
-  expect(viewer.source.get()?.citation.id).toBe(reference.id);
-});
-
 test('opened on an Image with no source, a new Citation is made and opens', async () => {
   const { viewer } = await viewing();
   viewer.openImage({ volumeId: VOLUME, volume: VOLUME_LABEL, image: 16 });

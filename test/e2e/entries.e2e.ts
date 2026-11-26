@@ -56,6 +56,26 @@ test('a baptism is corrected and a marriage made and deleted', async () => {
     await page
       .getByLabel('Birth 3.3.1795 matches: use as its source')
       .waitFor();
+    // While it's edited, the arrows don't step off the Image, nor ask to.
+    await page.locator('sl-scan-viewer').focus();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowDown');
+    const image = page.getByLabel('Image', { exact: true });
+    if ((await image.inputValue()) !== '1') {
+      throw new Error('an arrow stepped while a box was edited');
+    }
+    if (await page.getByText('Discard unsaved changes?').isVisible()) {
+      throw new Error('an arrow asked to save the box');
+    }
+    // A way out asks first, as other steps are asked; Keep editing stays.
+    await page.getByRole('button', { name: 'Next image' }).click();
+    const ask = page.getByRole('alertdialog', {
+      name: 'Discard unsaved changes?'
+    });
+    await ask.waitFor();
+    await shot(page, 'leave-ask');
+    await ask.getByRole('button', { name: 'Cancel' }).click();
+    await ask.waitFor({ state: 'detached' });
     await page.getByRole('button', { name: 'Cancel', exact: true }).click();
 
     // The couple's marriage on the next page. Matti, a man, starts as its

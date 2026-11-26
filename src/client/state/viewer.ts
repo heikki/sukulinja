@@ -35,8 +35,9 @@ export interface VolumeShown {
   label: string;
 }
 
-// What leaving the source with a change pending waits on.
-export type LeaveAnswer = 'save' | 'discard' | 'keep';
+// What leaving the source with a change pending waits on: Discard, or
+// Cancel to keep on editing.
+export type LeaveAnswer = 'discard' | 'keep';
 
 // What the Scan viewer shows. It belongs to the Selected person
 // (ADR-0011): selecting someone else closes it. While a change is pending,
@@ -189,11 +190,10 @@ export interface Viewer {
   // refused. Its person's id when they aren't the Selected person, for the
   // caller to select them, as `pick` gives it.
   save: () => Promise<number | null>;
-  // Runs `go` now, or once the pending change is saved or discarded;
-  // `stay` runs if the person keeps editing instead.
+  // Runs `go` now, or once the pending change is discarded; `stay` runs
+  // if the person keeps editing instead.
   leave: (go: () => void, stay?: () => void) => void;
-  // Saving can throw, as `save` does; the way out then still waits.
-  answer: (answer: LeaveAnswer) => Promise<void>;
+  answer: (answer: LeaveAnswer) => void;
   // Astia's re-scan of the Volume shown, not switched to yet: asked about
   // when the Volume is shown, and again when an Image of it fails if that
   // got no answer.
@@ -515,11 +515,9 @@ export function openViewer(
     return made === null ? null : pick(made);
   }
 
-  // A way out goes where it was going: a new Citation saved on the way
-  // isn't opened.
-  async function answer(given: LeaveAnswer) {
-    if (given === 'save') await changing.save();
-    else if (given === 'discard') changing.drop();
+  // A way out goes where it was going, or waits no longer.
+  function answer(given: LeaveAnswer) {
+    if (given === 'discard') changing.drop();
     const waiting = held;
     held = null;
     leaving.set(false);

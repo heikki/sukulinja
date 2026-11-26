@@ -56,7 +56,11 @@ class ScanNavElement extends SignalWatcher(LitElement) {
   }
 
   private readonly onKey = (e: KeyboardEvent) => {
-    const step = stepOf(e)?.image;
+    const { viewer } = this.state;
+    // A key let go is heard even while a Box is pending, or its button
+    // stays pressed.
+    const editing = e.type === 'keydown' && viewer.pending.get() !== null;
+    const step = stepOf(e, editing)?.image;
     if (step === undefined) return;
     if (e.type === 'keyup') {
       this.pressed = null;
@@ -64,7 +68,6 @@ class ScanNavElement extends SignalWatcher(LitElement) {
     }
     // A key held repeats; once at the end it goes nowhere, still pressed.
     if (e.repeat && this.pressed === step) return;
-    const { viewer } = this.state;
     const to = imageAfter(step, viewer.image.get(), viewer.count.get());
     this.pressed = to === null ? null : step;
   };

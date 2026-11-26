@@ -5,8 +5,9 @@ import { customElement, state } from 'lit/decorators.js';
 
 import { ApiError } from '@/client/dataset-api';
 import { appState } from '@/client/state';
-import type { AppState, LeaveAnswer } from '@/client/state';
+import type { AppState } from '@/client/state';
 
+import { renderLeaveAsk } from '../ask/leave';
 import { controlStyles, editActionsStyles } from '../box-stage/styles';
 import { alsoCiting } from './also';
 import { scanEditStyles } from './edit-styles';
@@ -17,8 +18,8 @@ function stop(e: Event) {
 
 // At the foot of the pane beside the scan while a Box is pending, a new or
 // edited Entry's (entry-form.ts) or the source's own (box-pane.ts): Cancel
-// and Save. A way out of the source waiting on the Box asks there instead:
-// Keep editing, Discard or Save. Pointer and wheel input stays here, so a
+// and Save. A way out of the source waiting on the Box asks first, in a
+// modal, whether to discard it. Pointer and wheel input stays here, so a
 // press doesn't pan. A Mark's Box is on a Record pin shared by everyone
 // citing the record, whom it names.
 @customElement('sl-scan-edit')
@@ -38,29 +39,17 @@ class ScanEditElement extends SignalWatcher(LitElement) {
     }
   }
 
-  private async run(saving: boolean, act: () => Promise<void>) {
-    this.saving = saving;
+  private async save() {
+    this.saving = true;
     this.refused = null;
     try {
-      await act();
+      await this.state.chart.save();
     } catch (err) {
       if (!(err instanceof ApiError)) throw err;
       this.refused = err.message;
     } finally {
       this.saving = false;
     }
-  }
-
-  private async save() {
-    await this.run(true, async () => {
-      await this.state.chart.save();
-    });
-  }
-
-  private answer(given: LeaveAnswer) {
-    void this.run(given === 'save', async () => {
-      await this.state.viewer.answer(given);
-    });
   }
 
   private renderSave(run: () => void) {
@@ -70,30 +59,14 @@ class ScanEditElement extends SignalWatcher(LitElement) {
   }
 
   private renderAsk() {
-    return html`
-      <p class="ask">Save this box first?</p>
-      <div class="actions">
-        <button
-          ?disabled=${this.saving}
-          @click=${() => {
-            this.answer('keep');
-          }}
-        >
-          Keep editing
-        </button>
-        <button
-          ?disabled=${this.saving}
-          @click=${() => {
-            this.answer('discard');
-          }}
-        >
-          Discard
-        </button>
-        ${this.renderSave(() => {
-          this.answer('save');
-        })}
-      </div>
-    `;
+    return renderLeaveAsk({
+      keep: () => {
+        this.state.viewer.answer('keep');
+      },
+      discard: () => {
+        this.state.viewer.answer('discard');
+      }
+    });
   }
 
   private renderActions() {
@@ -132,9 +105,11 @@ class ScanEditElement extends SignalWatcher(LitElement) {
     return this.renderAsking(also, this.renderSaving());
   }
 
+  // The pane's own buttons stay under the ask: Cancel there gets back to
+  // them, to save.
   private renderSaving() {
     return this.state.viewer.leaving.get()
-      ? this.renderAsk()
+      ? html`${this.renderActions()} ${this.renderAsk()}`
       : this.renderActions();
   }
 
