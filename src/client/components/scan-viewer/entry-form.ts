@@ -17,9 +17,10 @@ import {
 } from '@/common/entry-events';
 import type { EntryEvent, EntryRole } from '@/common/entry-events';
 import { ownerRoles } from '@/common/entry-lock';
+import { differenceWords, treeDifferences } from '@/common/entry-tree';
 
 import { formatName } from '../tree-view/renderer';
-import { parentRows, withEvent } from './cite';
+import { parentRows, treeOf, withEvent } from './cite';
 import type { ParentRow } from './cite';
 import { scanPaneStyles } from './edit-styles';
 import type { FieldDetail, TickDetail } from './entry-fields';
@@ -99,6 +100,12 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+
+      .differs {
+        margin: 0;
+        color: var(--caution);
+        font-size: 0.85em;
       }
 
       .none {
@@ -427,6 +434,24 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
     return html`${this.renderRoles(roles)}${this.renderUnplaced(roles)}`;
   }
 
+  // Where the Entry edited and the tree differ, as the tree changed under
+  // it (ADR-0037): said, not put right, as the app can't tell which was
+  // taken wrongly. A parent the tree gives but the Entry doesn't name shows
+  // in its row already, unticked.
+  private renderDifferences() {
+    if (this.saved() === null) return nothing;
+    const tree = treeOf(this.state.chart.people.get());
+    const said = treeDifferences(this.shown, tree).filter(
+      (d) => d.kind !== 'unnamed-parent'
+    );
+    return said.map(
+      (d) =>
+        html`<p class="differs">
+          ${differenceWords(d, (id) => this.nameOf(id))}
+        </p>`
+    );
+  }
+
   // What Save does: a reference placed is edited where its Box is on the
   // Image already, confirmed where Vision Match's is.
   private heading(kind: 'place' | 'new' | 'edit') {
@@ -459,7 +484,7 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
       <h2>${this.heading(pending.kind)}</h2>
       <div class="body">
         ${this.renderSource(pending.kind)} ${this.renderEvent()}
-        ${this.renderPeople()}
+        ${this.renderPeople()} ${this.renderDifferences()}
         ${
           cite.event === null
             ? nothing

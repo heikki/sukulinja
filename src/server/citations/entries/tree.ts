@@ -196,7 +196,14 @@ export function entryTree(
     // What the Entry would do to the tree as it is now.
     async offered(entry: EntryShape): Promise<Offered> {
       const owner = ownerOf(entry.event, entry.people, coupleOf);
-      return { offers: owner === null ? [] : await ownersOffers(entry, owner) };
+      // An edit makes no family (ADR-0037): a couple who aren't one have
+      // no Facts to offer, as the Entry pane says.
+      const none =
+        owner === null ||
+        (owner.family &&
+          owner.familyId === null &&
+          entry.entryId !== undefined);
+      return { offers: none ? [] : await ownersOffers(entry, owner) };
     },
 
     // Why the lines ticked can't be done: one the Entry doesn't offer now,

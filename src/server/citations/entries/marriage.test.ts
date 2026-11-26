@@ -133,6 +133,16 @@ test('editing makes no family of two in the tree, only a new bride with the groo
   const entryId = rows[0]!.citation.entryId!;
   made(await entries.edit(entryId, { people: couple(3, 4), ticked: [] }));
   expect(familyOf(db, 3, 4)).toBeNull();
+  // A couple who aren't a family get no lines in an edit.
+  expect(
+    await entries.offers({
+      volumeId: 'juva-3',
+      entryId,
+      event: 'MARR',
+      people: couple(3, 4),
+      fields: MARRIED
+    })
+  ).toEqual([]);
 
   const groomOnly = made(
     await entries.make(...marriage([{ personId: 4, role: 'HUSB' }], [], [], 6))

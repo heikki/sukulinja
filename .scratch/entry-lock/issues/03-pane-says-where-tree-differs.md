@@ -1,4 +1,4 @@
-Status: needs-triage
+Status: done
 Blocked by: 01
 
 # The Entry pane says where the tree differs from the Entry

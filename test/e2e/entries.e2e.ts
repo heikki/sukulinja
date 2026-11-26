@@ -2,6 +2,7 @@
 // a baptism whose date is corrected, the change offered to the tree but
 // taken only when ticked, and a Fact it supported let go when unticked; a marriage naming the couple; and a deletion.
 
+import { Database } from 'bun:sqlite';
 import { afterAll, test } from 'bun:test';
 
 import { closeBrowser, shot, withApp } from './app';
@@ -117,5 +118,42 @@ test("a baptism's kind and child show as saved, and changing them saves a new en
     await page.getByRole('heading', { name: 'Edit entry' }).waitFor({
       state: 'detached'
     });
+  });
+});
+
+test("a marriage's couple unlinked in the tree is said so, and offered no Marriage", async () => {
+  await withApp(async ({ page, dataDir }) => {
+    await newTree(page);
+    await addRelative(page, 'Matti', 'Add spouse…', ['Liisa', 'Keksitty']);
+    await boxOf(page, 'Matti').click();
+    await openJuvaVolume(page, 'Syntyneiden ja kastettujen luettelot');
+    await page.getByRole('button', { name: 'Next image' }).click();
+    await rightClickLine(page, 2, 3);
+    await page.getByRole('menuitem', { name: 'New entry' }).click();
+    await page.getByLabel('Kind of entry').selectOption({ label: 'Marriage' });
+    await page.getByRole('button', { name: 'Choose…' }).click();
+    await page.getByRole('menuitem', { name: /Liisa Keksitty$/ }).click();
+    await page.getByLabel('Married').fill('1.6.1820');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.locator('sl-scan-people').getByText('Liisa Keksitty').waitFor();
+
+    // The couple unlinked in the tree, as elsewhere in the app (the chart
+    // offers no unlinking that cuts the tree in two).
+    const [dbPath] = await Array.fromAsync(
+      new Bun.Glob('*/db.sqlite').scan({ cwd: dataDir, absolute: true })
+    );
+    const db = new Database(dbPath);
+    db.run('UPDATE families SET wife_id = NULL');
+    db.close();
+    await page.reload();
+
+    await page.locator('[data-own]').click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Edit', exact: true }).click();
+    await page
+      .getByText(
+        "Matti Esimerkki and Liisa Keksitty aren't a couple in the tree"
+      )
+      .waitFor();
+    await shot(page, 'entry-lock-not-couple');
   });
 });

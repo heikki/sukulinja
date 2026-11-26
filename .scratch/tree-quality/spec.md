@@ -20,7 +20,7 @@ From the Genealogical Proof Standard and citation practice (`.scratch/citation-p
 
 ### Sources
 
-1. **A Fact has a source.** A Fact no Citation supports. The commonest gap in a tree from MyHeritage, which keeps sources on the person, not on the Fact. Fix: support it with one of the person's Citations, or a Reminder to look for one.
+1. **A Fact has a source.** A Fact no Citation supports. The commonest gap in a tree from MyHeritage, which keeps sources on the person, not on the Fact. Fix: support it with one of the person's Citations, or a Reminder to look for one. One left so when the Entry supporting it was replaced (its kind or owner changed, ADR-0037) may have been taken from that Entry wrongly: deleting it is a fix too (Heikki, 2026-11-26: the Entry pane offers no deletion until this check says so).
 2. **A source supports something.** A Citation supporting no Fact. Often the source says something the tree hasn't got (a residence in a communion book). Fix: support an existing Fact, or add the Fact with its source (`add_fact` with `citationIds`).
 3. **A source is found on its page.** A church-book Citation whose Link is an estimate or a Match, not Marked. Only the person can fix this, in the Scan viewer (the assistant can't see scans); the list helps them get through it.
 4. **A source and its Fact agree.** A Citation supporting a Fact whose date or place its Entry or transcription contradicts ("born 3.3.1761" against a Fact of 1762). Fix: a Reminder, or editing the Fact when the source is clearly right.

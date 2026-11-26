@@ -1,11 +1,13 @@
 import type { InEntry } from '@/client/dataset-api';
 import { eventRoles } from '@/common/entry-events';
 import type { EntryEvent } from '@/common/entry-events';
+import type { TreeOf } from '@/common/entry-tree';
 import type { Sex } from '@/common/types';
 
 import type { FamilyIndices } from '../person-panel/family';
 import { choiceOf, familyChoices } from '../person-search/choices';
 import type { PersonChoice } from '../person-search/choices';
+import { otherSpouseOf } from '../tree-view/build/indices';
 
 // The person's father and mother in the tree, as a baptism names them.
 function parentsOf(personId: number, ix: FamilyIndices): InEntry[] {
@@ -19,6 +21,24 @@ function parentsOf(personId: number, ix: FamilyIndices): InEntry[] {
     parents.push({ personId: family.wife_id, role: 'MOTH' });
   }
   return parents;
+}
+
+// The tree as the rule of where an Entry differs from it reads it
+// (common/entry-tree).
+export function treeOf(ix: FamilyIndices): TreeOf {
+  return {
+    couple: (a, b) =>
+      (ix.spouseFamsByPerson.get(a) ?? []).some(
+        (f) => otherSpouseOf(f, a) === b
+      ),
+    parents: (child) => {
+      const family = ix.parentFamByPerson.get(child);
+      return {
+        FATH: family?.husband_id ?? null,
+        MOTH: family?.wife_id ?? null
+      };
+    }
+  };
 }
 
 // Who the person is in a marriage, by their sex, if it says.
