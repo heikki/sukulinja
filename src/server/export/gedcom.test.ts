@@ -453,7 +453,8 @@ describe('exporting a GEDZIP', () => {
     const fields = {
       date: '5 MAR 1791',
       lifeDate: '3 MAR 1791',
-      place: 'Esimerkkilä 2'
+      place: 'Esimerkkilä 2',
+      page: null
     };
     putEntryFields(db, new Map([[id, fields]]));
 

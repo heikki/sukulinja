@@ -8,6 +8,7 @@ import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { ApiError } from '@/client/dataset-api';
 import type { DatasetApi } from '@/client/dataset-api';
 import { servedDataset } from '@/client/dataset-api/served';
+import { plainRecord } from '@/common/record-text';
 import {
   baptismCitation,
   juvaAstia,
@@ -123,7 +124,8 @@ test("Place entry's pane names the record's people and tells its kind, as Edit's
     kind: 'place',
     image: 1,
     box: BOX,
-    cite: { event: 'CHR', people: BOTH, fields: NO_TYPED },
+    // The page is the Image's, as its page numbering gives it.
+    cite: { event: 'CHR', people: BOTH, fields: { ...NO_TYPED, page: '1' } },
     named: [1, 2]
   });
   viewer.entryForm.setField('date', '3.3.1795');
@@ -162,6 +164,25 @@ test('an Entry pane left as it starts saves only the Mark', async () => {
   expect(viewer.pending.get()).toBeNull();
 });
 
+test("the record's transcription starts the Entry pane's text, and the text as changed is the Entry's", async () => {
+  const { viewer, citation } = await viewing();
+  const text = plainRecord(citation.record!)!;
+  viewer.placeEntry(BOX, {
+    event: 'CHR',
+    people: BOTH,
+    fields: NO_TYPED,
+    text
+  });
+  expect(viewer.pending.get()?.cite.text).toBe(text);
+  viewer.entryForm.setText(`${text}\nChecked against the scan`);
+  await viewer.save();
+  const rows = await api!.volumeCitations(VOLUME);
+  expect(rows.map((r) => r.citation.text)).toEqual([
+    `${text}\nChecked against the scan`,
+    `${text}\nChecked against the scan`
+  ]);
+});
+
 test('one taken out of the Entry pane goes from the Entry the Mark made', async () => {
   const { viewer } = await viewing();
   viewer.placeEntry(BOX, { event: 'CHR', people: BOTH, fields: NO_TYPED });
@@ -188,7 +209,12 @@ test('an Entry pane that would be refused is refused before the Mark', async () 
 test("the record's dates start the Entry pane, and the tree's Fact that agrees takes it as its source", async () => {
   const { state, viewer, citation } = await viewing();
   const fields = recordTyped('CHR', citation.record);
-  expect(fields).toEqual({ date: '3.3.1795', lifeDate: '', place: '' });
+  expect(fields).toEqual({
+    date: '3.3.1795',
+    lifeDate: '',
+    place: '',
+    page: ''
+  });
   viewer.placeEntry(BOX, { event: 'CHR', people: BOTH, fields });
   await viewer.save();
   expect((await citingNow())[0]).toMatchObject({ date: '3 MAR 1795' });
@@ -238,7 +264,7 @@ test("an edited Entry's lines know the Fact it supports from another of its kind
     volumeId: VOLUME,
     event: 'CHR' as const,
     people: BOTH,
-    fields: { date: '3 MAR 1795', lifeDate: null, place: null }
+    fields: { date: '3 MAR 1795', lifeDate: null, place: null, page: null }
   };
   // Asked anew, the one that agrees is offered; edited, it's kept.
   expect((await api!.entryOffers(asked)).offers).toMatchObject([

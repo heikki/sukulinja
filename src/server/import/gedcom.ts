@@ -501,6 +501,7 @@ export function importGedcom(
     // The app's Citations of one entry, alike, cite one Entry (ADR-0026).
     gatherEntries(db);
     putEntryFields(db, entryNotes.said());
+    // After the fields, which say no page: the PAGE gives it.
     putBookPages(db, bookPages);
     // An Entry's Citation supports only its owner's Facts (ADR-0037).
     dropUnownedSupport(db);

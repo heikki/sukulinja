@@ -19,7 +19,7 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-const BORN = { date: null, lifeDate: '3 MAR 1795', place: null };
+const BORN = { date: null, lifeDate: '3 MAR 1795', place: null, page: null };
 
 // Matti's baptism, his Birth ticked, Liisa his mother.
 async function mattis() {

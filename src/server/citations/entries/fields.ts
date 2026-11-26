@@ -1,5 +1,6 @@
-// An Entry's dates and place as stored (ADR-0033): only the dates its
-// Event gives, each a date the app can read.
+// An Entry's dates, place and page number as stored (ADR-0033, ADR-0039):
+// only the dates its Event gives, each a date the app can read; the page
+// a whole number, as entryFieldsOf reads it.
 
 import { gedcomDate, typedDate } from '@/common/dates';
 import { eventDates } from '@/common/entry-events';
@@ -11,7 +12,8 @@ function said(value: string | null) {
   return kept === '' ? null : kept;
 }
 
-// The fields an Entry of the Event keeps: its own dates, and its place. A date of another Event's, left from a kind chosen before,
+// The fields an Entry of the Event keeps: its own dates, its place and
+// page number. A date of another Event's, left from a kind chosen before,
 // goes.
 export function keptFields(
   event: EntryEvent | null,
@@ -21,7 +23,8 @@ export function keptFields(
   return {
     date: keys.has('date') ? said(fields.date) : null,
     lifeDate: keys.has('lifeDate') ? said(fields.lifeDate) : null,
-    place: said(fields.place)
+    place: said(fields.place),
+    page: fields.page
   };
 }
 

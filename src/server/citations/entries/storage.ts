@@ -127,12 +127,13 @@ export function openEntries(db: Database) {
   >(
     `SELECT volume_id AS volumeId, volume, image, file_id AS fileId, event,
        box_left AS left, box_top AS top, box_width AS width,
-       box_height AS height, date, life_date AS lifeDate, place
+       box_height AS height, date, life_date AS lifeDate, place,
+       book_page AS page
      FROM entries WHERE id = ?`
   );
   const setFields = db.prepare(
     `UPDATE entries SET date = $date, life_date = $lifeDate,
-       place = $place WHERE id = $id`
+       place = $place, book_page = $page WHERE id = $id`
   );
   const ofCitation = db.prepare<{ id: number }, [number]>(
     'SELECT entry_id AS id FROM citations WHERE id = ? AND entry_id IS NOT NULL'
@@ -193,12 +194,12 @@ export function openEntries(db: Database) {
       const row = entryOf.get(id);
       if (row === null) return null;
       const { left, top, width, height, event, ...rest } = row;
-      const { date, lifeDate, place, ...at } = rest;
+      const { date, lifeDate, place, page, ...at } = rest;
       const entry: StoredEntry = {
         ...at,
         event: isEntryEvent(event) ? event : null,
         box: { left, top, width, height },
-        fields: { date, lifeDate, place }
+        fields: { date, lifeDate, place, page }
       };
       return entry;
     },
@@ -225,13 +226,15 @@ export function openEntries(db: Database) {
       setRole.run(role, citationId);
     },
 
-    // Its dates and place, as its book writes them (ADR-0033).
+    // Its dates, place and page number, as its book writes them
+    // (ADR-0033, ADR-0039).
     setFields(id: number, f: EntryFields) {
       setFields.run({
         $id: id,
         $date: f.date,
         $lifeDate: f.lifeDate,
-        $place: f.place
+        $place: f.place,
+        $page: f.page
       });
     },
 

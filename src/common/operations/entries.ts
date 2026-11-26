@@ -109,7 +109,17 @@ function eventOf(value: unknown): EntryEvent | null | undefined {
   return isEntryEvent(value) ? value : undefined;
 }
 
-// Each of the fields a string or null; none left out reads as none said.
+// A page number: a whole number above 0, or null; undefined for anything
+// else.
+function pageOf(value: unknown) {
+  if (value === undefined || value === null) return null;
+  return Number.isSafeInteger(value) && (value as number) > 0
+    ? (value as number)
+    : undefined;
+}
+
+// Each of the fields a string or null, the page a number or null; none
+// left out reads as none said.
 export function entryFieldsOf(value: unknown): EntryFields | null {
   if (value === undefined) return NO_FIELDS;
   const fields = fieldsOf(value);
@@ -117,7 +127,8 @@ export function entryFieldsOf(value: unknown): EntryFields | null {
   const read = {
     date: optionalString(fields.date),
     lifeDate: optionalString(fields.lifeDate),
-    place: optionalString(fields.place)
+    place: optionalString(fields.place),
+    page: pageOf(fields.page)
   };
   return Object.values(read).includes(undefined) ? null : (read as EntryFields);
 }

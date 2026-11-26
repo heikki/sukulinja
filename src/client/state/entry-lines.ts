@@ -18,7 +18,7 @@ import type { EntryEvent, EntryFields } from '@/common/entry-events';
 import { tickedFirst, tickedLine } from '@/common/entry-offers';
 import type { Offer, Ticked } from '@/common/entry-offers';
 import type { EntryLines } from '@/common/operations';
-import type { RecordView } from '@/common/types';
+import type { Box, RecordView } from '@/common/types';
 
 import { Latest } from './latest';
 
@@ -28,7 +28,8 @@ export type TypedFields = Record<keyof EntryFields, string>;
 export const NO_TYPED: TypedFields = {
   date: '',
   lifeDate: '',
-  place: ''
+  place: '',
+  page: ''
 };
 
 // A line by what it does, as its box is kept: "BIRT add".
@@ -39,11 +40,12 @@ export function lineKey(line: Offer) {
 
 // Fields saved, as the Entry pane shows them to edit.
 export function typedOf(fields: EntryFields | null): TypedFields {
-  const { date, lifeDate, place } = fields ?? NO_FIELDS;
+  const { date, lifeDate, place, page } = fields ?? NO_FIELDS;
   return {
     date: date === null ? '' : gedcomDate(date),
     lifeDate: lifeDate === null ? '' : gedcomDate(lifeDate),
-    place: place ?? ''
+    place: place ?? '',
+    page: page === null ? '' : String(page)
   };
 }
 
@@ -62,26 +64,49 @@ const RECORD_DATES: Partial<
 
 // Where a household line's record says its people lived, as the book
 // writes it: the village and farm number ("Kylämaa", "No. 3" →
-// "Kylämaa 3"). Other records name only the parish, which isn't a place.
+// "Kylämaa 3"), or a farm named in full as it is ("No. 15 Haukivuori").
+// Other records name only the parish, which isn't a place.
 function recordPlace(event: EntryEvent | null, record: RecordView) {
   if (event !== 'RESI') return '';
   function value(label: string) {
     return record.fields.find((f) => f.label === label)?.value.trim() ?? '';
   }
-  const farm = value('Maatila').replace(/^No\.?\s*/i, '');
-  return [value('Kylä'), farm].filter((v) => v !== '').join(' ');
+  const village = value('Kylä');
+  const farm = value('Maatila');
+  const number = /^(?:No\.?\s*)?(?<n>\d+(?:\s?[a-z]|[-/]\d+)?)\.?$/i.exec(farm)
+    ?.groups?.n;
+  if (number !== undefined || farm === '') {
+    return [village, number ?? ''].filter((v) => v !== '').join(' ');
+  }
+  const named =
+    village === '' ||
+    farm
+      .toLowerCase()
+      .split(/[\s,]+/)
+      .includes(village.toLowerCase());
+  return named ? farm : `${village} ${farm}`;
+}
+
+// The page number a rippikirja's record gives ("Sivu: 12"), or ''.
+function recordPage(record: RecordView) {
+  const sivu = record.fields.find((f) => f.label === 'Sivu')?.value ?? '';
+  return /^\s*0*(?<n>[1-9]\d{0,5})\s*$/.exec(sivu)?.groups?.n ?? '';
 }
 
 // The dates a MyHeritage record transcribes of an Entry of the Event, as
-// the Entry pane types them ("3.3.1795"), and a household line's place; none it
-// doesn't give.
+// the Entry pane types them ("3.3.1795"), a household line's place, and
+// the page number a rippikirja's gives ("Sivu: 12"); none it doesn't give.
 export function recordTyped(
   event: EntryEvent | null,
   record: RecordView | null
 ): TypedFields {
   if (event === null || record === null) return NO_TYPED;
   const labels = RECORD_DATES[event] ?? {};
-  const typed = { ...NO_TYPED, place: recordPlace(event, record) };
+  const typed = {
+    ...NO_TYPED,
+    place: recordPlace(event, record),
+    page: recordPage(record)
+  };
   for (const { key } of eventDates(event)) {
     const named = labels[key] ?? [];
     const value = record.fields.find((f) => named.includes(f.label))?.value;
@@ -111,8 +136,10 @@ export function editedTyped(
   text: string
 ): TypedFields {
   const typed = typedOf(saved);
-  if (Object.values(typed).some((v) => v !== '')) return typed;
-  return recordTyped(event, textRecord(text));
+  const { page, ...says } = typed;
+  if (Object.values(says).some((v) => v !== '')) return typed;
+  const read = recordTyped(event, textRecord(text));
+  return page === '' ? read : { ...read, page };
 }
 
 function cleaned(text: string) {
@@ -125,7 +152,8 @@ function cleaned(text: string) {
 export function fieldsOf(event: EntryEvent | null, typed: TypedFields) {
   const fields: EntryFields = {
     ...NO_FIELDS,
-    place: cleaned(typed.place)
+    place: cleaned(typed.place),
+    page: pageTyped(typed.page) ?? null
   };
   for (const { key } of eventDates(event)) {
     const text = cleaned(typed[key]);
@@ -134,15 +162,25 @@ export function fieldsOf(event: EntryEvent | null, typed: TypedFields) {
   return fields;
 }
 
-// Why a date typed for the Event can't be saved, by its label; null when
-// they all can.
+// The page number typed: null for none, undefined for what isn't one.
+function pageTyped(text: string) {
+  const page = cleaned(text);
+  if (page === null) return null;
+  return /^[1-9]\d{0,5}$/.test(page) ? Number(page) : undefined;
+}
+
+// Why a date typed for the Event, or the page, can't be saved, by its
+// label; null when they all can.
 export function datesRefusal(event: EntryEvent | null, typed: TypedFields) {
   const wrong = eventDates(event).find(
     ({ key }) => cleaned(typed[key]) !== null && typedDate(typed[key]) === null
   );
-  return wrong === undefined
-    ? null
-    : `${wrong.label}: write the date as ${TYPED_DATE_FORMS}.`;
+  if (wrong !== undefined) {
+    return `${wrong.label}: write the date as ${TYPED_DATE_FORMS}.`;
+  }
+  return pageTyped(typed.page) === undefined
+    ? 'Page: write the page as a number.'
+    : null;
 }
 
 // The lines to do: those ticked, as they start or as their box was set.
@@ -234,4 +272,14 @@ export function entryLines(api: DatasetApi) {
   }
 
   return { offers, ask, clear, ticked };
+}
+
+// The page written where the Box is, of the pages on its Image: a spread's
+// left page or right by which half the Box's middle is in, the left with
+// the Image's width unknown; '' with none.
+export function pageOfBox(pages: number[], box: Box, width: number | null) {
+  if (pages.length === 0) return '';
+  const right =
+    pages.length > 1 && width !== null && box.left + box.width / 2 > width / 2;
+  return String(right ? pages[1] : pages[0]);
 }

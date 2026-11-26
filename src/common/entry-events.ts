@@ -18,17 +18,20 @@ export interface EntryRole {
 // What an Entry says as its book writes it (ADR-0033): the date of its
 // Event, and of the birth or death it follows (a baptism's Born, a
 // burial's Died), as GEDCOM dates, and its place as it writes it
-// ("Pyhäjärvi 2"). Null for what it doesn't say.
+// ("Pyhäjärvi 2"), and the page number it writes there (ADR-0039). Null
+// for what it doesn't say.
 export interface EntryFields {
   date: string | null;
   lifeDate: string | null;
   place: string | null;
+  page: number | null;
 }
 
 export const NO_FIELDS: EntryFields = {
   date: null,
   lifeDate: null,
-  place: null
+  place: null,
+  page: null
 };
 
 // One of an Entry's dates in its Entry pane, and the Fact it gives: "Born", of

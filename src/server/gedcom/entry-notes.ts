@@ -8,7 +8,8 @@
 import { ENTRY_EVENTS } from '@/common/entry-events';
 import type { EntryFields } from '@/common/entry-events';
 
-type Key = keyof EntryFields;
+// The fields a NOTE says; the page number is in the PAGE (ADR-0039).
+type Key = Exclude<keyof EntryFields, 'page'>;
 
 // Each NOTE's label and the field it holds: a date by its label on the
 // card ("Born", "Baptised" …), whichever Event's it is.
@@ -25,7 +26,7 @@ const NOTE = /^(?<label>[A-Z][a-z]+): (?<value>.+)$/su;
 // labels.
 export function entryNotes(
   dates: ReadonlyArray<{ key: Key; label: string }>,
-  fields: EntryFields
+  fields: Pick<EntryFields, Key>
 ) {
   const named = [...dates, { key: 'place' as const, label: 'Place' }];
   return named.flatMap(({ key, label }) => {

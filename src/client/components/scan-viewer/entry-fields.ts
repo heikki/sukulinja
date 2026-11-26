@@ -21,8 +21,15 @@ export interface TickDetail {
   on: boolean;
 }
 
+const PLACEHOLDERS = {
+  date: '3.3.1761',
+  place: 'Esimerkkilä 2',
+  page: '12'
+};
+
 // An Entry's fields in its Entry pane (ADR-0033): the dates its Event gives,
-// typed the app's way, then its place, each set as typed
+// typed the app's way, then its place and page number (ADR-0039), each set
+// as typed
 // (`set-field`). Under them the lines of what they'd do to the tree,
 // each with its box (`tick`), but two Facts of a kind, to choose between
 // in Sources. Never required: nothing ticked saves the Entry alone.
@@ -97,15 +104,25 @@ class EntryFieldsElement extends LitElement {
     );
   }
 
-  private renderField(key: keyof TypedFields, label: string, date: boolean) {
+  private renderField(
+    key: keyof TypedFields,
+    label: string,
+    kind: 'date' | 'place' | 'page'
+  ) {
     const text = this.fields[key];
-    const unread = date && text.trim() !== '' && typedDate(text) === null;
+    const typed = text.trim();
+    const unread =
+      typed !== '' &&
+      (kind === 'date'
+        ? typedDate(text) === null
+        : kind === 'page' && !/^[1-9]\d{0,5}$/.test(typed));
     return html`<label class="field">
       <span>${label}</span>
       <input
         type="text"
         .value=${text}
-        placeholder=${date ? '3.3.1761' : 'Esimerkkilä 2'}
+        inputmode=${kind === 'page' ? 'numeric' : 'text'}
+        placeholder=${PLACEHOLDERS[kind]}
         aria-invalid=${unread ? 'true' : 'false'}
         @input=${(e: Event) => {
           this.set(key, (e.target as HTMLInputElement).value);
@@ -142,9 +159,10 @@ class EntryFieldsElement extends LitElement {
   override render() {
     return html`
       ${eventDates(this.event).map(({ key, label }) =>
-        this.renderField(key, label, true)
+        this.renderField(key, label, 'date')
       )}
-      ${this.renderField('place', 'Place', false)}
+      ${this.renderField('place', 'Place', 'place')}
+      ${this.renderField('page', 'Page', 'page')}
       ${
         this.offers.length === 0
           ? nothing

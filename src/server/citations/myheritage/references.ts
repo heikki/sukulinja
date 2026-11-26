@@ -6,7 +6,7 @@
 import type { Database } from 'bun:sqlite';
 
 import { isoDate, typedDate } from '@/common/dates';
-import type { RecordView } from '@/common/types';
+import { plainRecord } from '@/common/record-text';
 
 import { annotated, annotationColumnsSql } from '../annotations';
 import { CITATIONS_READ } from '../entries';
@@ -27,17 +27,6 @@ import { findAllOnImage } from './vision/find';
 // A MyHeritage record's page: its text is the record's transcription.
 function isRecordPage(page: string | null) {
   return page !== null && /^https?:/.test(page) && page.includes('myheritage.');
-}
-
-// A record's transcription as plain lines: whom it's about, its fields,
-// then its household's rows.
-export function plainRecord({ name, fields, household }: RecordView) {
-  const rows = household.map((m) =>
-    [m.relation, m.name, m.born].filter((x) => x !== null).join('; ')
-  );
-  const lines = [name, ...fields.map((f) => `${f.label}: ${f.value}`), ...rows];
-  const text = lines.filter((l) => l !== '').join('\n');
-  return text === '' ? null : text;
 }
 
 interface TextRow {

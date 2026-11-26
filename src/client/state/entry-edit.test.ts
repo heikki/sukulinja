@@ -333,7 +333,9 @@ test("the Entry pane lists what the Entry's dates would do, and Save does those 
   expect(cited?.fields).toEqual({
     date: '1 FEB 1790',
     lifeDate: '30 JAN 1790',
-    place: 'Esimerkkilä 2'
+    place: 'Esimerkkilä 2',
+    // The Image's page, which the pane started from.
+    page: 12
   });
 
   // Opened again: the Birth agrees now, the Christening is still to add.

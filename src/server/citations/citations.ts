@@ -114,7 +114,8 @@ function fieldsOf(row: CitationDbRow): EntryFields | null {
   return {
     date: row.entryDate,
     lifeDate: row.entryLifeDate,
-    place: row.entryPlace
+    place: row.entryPlace,
+    page: row.entryBookPage
   };
 }
 

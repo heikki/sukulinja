@@ -1,6 +1,7 @@
 import { SignalWatcher } from '@lit-labs/signals';
 import { consume } from '@lit/context';
 import { html, LitElement, nothing } from 'lit';
+import type { PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 import { visionModel } from '@/client/assistant-choices';
@@ -12,6 +13,7 @@ import type { AppState, LinkOpen } from '@/client/state';
 import { recordTyped } from '@/client/state/entry-lines';
 import { CLAUDE_MODELS } from '@/common/assistant-choices';
 import { firstGuess } from '@/common/entry-events';
+import { plainRecord } from '@/common/record-text';
 import type { Box, PersonName } from '@/common/types';
 
 import type { Ask } from '../ask';
@@ -78,6 +80,13 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   }
 
   @state() private popup: Popup | null = null;
+
+  // The Image's width, for the page a Box is on in a spread (ADR-0039).
+  protected override willUpdate(changed: PropertyValues<this>) {
+    if (changed.has('frame')) {
+      this.state.viewer.setImageWidth(this.frame?.size.width ?? null);
+    }
+  }
   // Where the source's Box's menu last opened, where taking the Box back
   // or confirming it is asked about; null centres it.
   private boxMenuAt: Point | null = null;
@@ -189,8 +198,12 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
     const people = placingPeople(event, citers, ix, this.citingHere());
     // Its dates as the record gives them, so the tree's Facts that agree
     // are offered as theirs.
-    const fields = recordTyped(event, source.citation.record);
-    return { event, people, fields };
+    const { record } = source.citation;
+    const fields = recordTyped(event, record);
+    // What the Entry will say: its record's transcription, as converting
+    // it saves it.
+    const said = record === null ? '' : (plainRecord(record) ?? '');
+    return { event, people, fields, text: said };
   }
 
   // A pending Box at `at` for a new Entry, of the Event the Entry before

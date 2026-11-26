@@ -59,9 +59,9 @@ export interface ChooseDetail {
 // Event; then in a baptism or a marriage a row for each Role, its person
 // or none, each chosen (`choose`, picked over the scan) or taken out; in
 // a burial or a household line its one person; then its fields and what
-// they'd do to the tree (entry-fields.ts). What it says is written in the
-// person's sources (source-text.ts). Cancel and Save under them
-// (edit.ts). It can't be hidden while the Box is pending.
+// they'd do to the tree (entry-fields.ts), above them what it says, its
+// text, also changed in the person's sources (source-text.ts). Cancel and
+// Save under them (edit.ts). It can't be hidden while the Box is pending.
 @customElement('sl-scan-entry')
 class ScanEntryElement extends SignalWatcher(LitElement) {
   static override styles = [
@@ -135,6 +135,19 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
 
       button.change:hover {
         text-decoration: underline;
+      }
+
+      textarea {
+        grid-column: 2 / span 2;
+        min-width: 0;
+        padding: 0.35rem 0.5rem;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--card);
+        color: var(--fg);
+        font: inherit;
+        line-height: 1.35;
+        resize: vertical;
       }
 
       select {
@@ -471,6 +484,25 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
         </div>`;
   }
 
+  // What it says, its Transcription, to read and change: as many rows as
+  // its lines, up to eight, then it scrolls.
+  private renderText(text: string) {
+    const rows = Math.min(Math.max(text.split('\n').length, 2), 8);
+    return html`<label class="row top">
+      <span class="role">Text</span>
+      <textarea
+        rows=${rows}
+        .value=${text}
+        placeholder="What the entry says"
+        @input=${(e: Event) => {
+          this.viewer.entryForm.setText(
+            (e.target as HTMLTextAreaElement).value
+          );
+        }}
+      ></textarea>
+    </label>`;
+  }
+
   override render() {
     const pending = this.viewer.pending.get();
     if (pending === null) return nothing;
@@ -481,6 +513,7 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
       <div class="body">
         ${this.renderSource(pending.kind)} ${this.renderEvent()}
         ${this.renderPeople()} ${this.renderDifferences()}
+        ${this.renderText(cite.text)}
         ${
           cite.event === null
             ? nothing

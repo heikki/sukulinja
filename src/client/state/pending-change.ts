@@ -46,6 +46,8 @@ export interface EntryStart {
   people: InEntry[];
   // What its record says of it, typed as the Entry pane types it.
   fields: TypedFields;
+  // Its record's transcription, as the Entry will say it.
+  text?: string;
 }
 
 // What the pending change needs of the viewer it's in.
@@ -68,6 +70,9 @@ export interface PendingDeps {
   // The viewer to the source's Link, or onto an Image with no source.
   openLink: (open: LinkOpen) => void;
   openImage: (at: ImageOpen) => void;
+  // The page number written where the Box is on the Image shown, as its
+  // pages are read or counted (ADR-0032); '' where none is known.
+  pageAt?: (box: Box) => string;
 }
 
 export interface Pending {
@@ -128,29 +133,32 @@ function kindOf(change: PendingChange): Kind {
 function startCite(
   event: EntryEvent | null,
   people: InEntry[],
-  fields: TypedFields = NO_TYPED
+  fields: TypedFields = NO_TYPED,
+  text = ''
 ): PendingCite {
   return {
     event,
     people,
-    text: '',
+    text,
     fields,
     ticks: {},
     newcomers: []
   };
 }
 
-// Nothing typed in the Entry pane, no one new and no box set.
+// Nothing typed in the Entry pane but maybe its page, no one new and no box
+// set. A page alone needs no Event: it goes on the Entry as it is.
 function untold(cite: PendingCite) {
+  const { page: _page, ...said } = cite.fields;
   return (
-    Object.values(cite.fields).every((f) => f.trim() === '') &&
+    Object.values(said).every((f) => f.trim() === '') &&
     cite.newcomers.length === 0 &&
     Object.keys(cite.ticks).length === 0
   );
 }
 
 // Whether the Entry pane says what the Entry does: its Event, and the same
-// people in the same Roles, with nothing more to it.
+// people in the same Roles, its page and its text, with nothing more to it.
 function sameEntry(cite: PendingCite, made: PendingCite) {
   function roles(people: InEntry[]) {
     return people
@@ -161,6 +169,8 @@ function sameEntry(cite: PendingCite, made: PendingCite) {
   return (
     untold(cite) &&
     (cite.event === null || cite.event === made.event) &&
+    [made.fields.page, ''].includes(cite.fields.page.trim()) &&
+    [made.text.trim(), ''].includes(cite.text.trim()) &&
     roles(cite.people) === roles(made.people)
   );
 }
@@ -177,13 +187,36 @@ export function pendingChange(deps: PendingDeps): Pending {
     treeChanged: deps.treeChanged
   });
 
-  function place(box: Box, kind: Kind) {
+  // The page the Image's numbering filled in, and the page and text a
+  // reference placed started with: neither is told by hand.
+  let filled = '';
+  let started = { page: '', text: '' };
+
+  function place(box: Box, kind: Kind, fresh = false) {
     const at = placeable();
     if (at === null) return;
     if (kind.kind === 'place' && source.get() === null) return;
     deps.placing();
-    change.set({ ...at, box, ...kind });
+    const now = withPage(kind, box, fresh);
+    if (fresh) started = { page: now.cite.fields.page, text: now.cite.text };
+    change.set({ ...at, box, ...now });
     entry.begin();
+  }
+
+  // An Entry pane with no page typed starts from the Image's (ADR-0039),
+  // and a `fresh` one, for a new Entry or a reference placed, from the
+  // Image's over its record's. A page the Image's numbering gave follows
+  // the Box, to the other page of a spread.
+  function withPage(kind: Kind, box: Box, fresh: boolean): Kind {
+    const { fields } = kind.cite;
+    if (fresh) filled = '';
+    const given = fields.page !== '' && fields.page !== filled;
+    if (given && !fresh) return kind;
+    const page = deps.pageAt?.(box) ?? '';
+    if (page === '') return kind;
+    if (started.page === filled) started = { ...started, page };
+    filled = page;
+    return { ...kind, cite: { ...kind.cite, fields: { ...fields, page } } };
   }
 
   function moveBox(box: Box) {
@@ -238,6 +271,8 @@ export function pendingChange(deps: PendingDeps): Pending {
     // Left as it started, it needs no Event: the Mark is all it saves.
     const asStarted =
       untold(cite) &&
+      cite.fields.page.trim() === started.page &&
+      cite.text.trim() === started.text.trim() &&
       cite.people.length === was.named.length &&
       cite.people.every((p) => was.named.includes(p.personId));
     if (!asStarted) entry.refuse(cite, true);
@@ -252,7 +287,8 @@ export function pendingChange(deps: PendingDeps): Pending {
 
   // The Entry the Mark made, to change as the Entry pane says: those it named
   // to start with and since taken out go, anyone else the Mark brought
-  // stays, and what it says is the record's. Null when there's no Entry,
+  // stays, and what it says is the pane's text, else the record's. Null
+  // when there's no Entry,
   // or the Entry pane says nothing it doesn't.
   function convertedEdit(
     was: PendingChange & { kind: 'place' },
@@ -270,10 +306,15 @@ export function pendingChange(deps: PendingDeps): Pending {
         !was.named.includes(p.personId) &&
         !asked.some((a) => a.personId === p.personId)
     );
+    const { fields } = was.cite;
+    const page =
+      fields.page.trim() === '' ? made.cite.fields.page : fields.page;
     const cite = {
       ...was.cite,
+      // No page typed keeps the one the Mark gave the Entry.
+      fields: { ...fields, page },
       people: [...asked, ...brought],
-      text: made.cite.text
+      text: was.cite.text.trim() === '' ? made.cite.text : was.cite.text
     };
     if (sameEntry(cite, made.cite)) return null;
     const { volumeId, volume, image, box } = was;
@@ -349,7 +390,7 @@ export function pendingChange(deps: PendingDeps): Pending {
   return {
     change,
     newEntry(box, event, people) {
-      place(box, { kind: 'new', cite: startCite(event, people) });
+      place(box, { kind: 'new', cite: startCite(event, people) }, true);
     },
     placeSource(box, start) {
       const shown = source.get();
@@ -372,9 +413,10 @@ export function pendingChange(deps: PendingDeps): Pending {
         place(box, { kind: 'edit', ...editing });
       } else if (entryId === null) {
         const named = [...new Set(start.people.map((p) => p.personId))];
-        const cite = startCite(start.event, start.people, start.fields);
+        const { event, people, fields, text } = start;
+        const cite = startCite(event, people, fields, text);
         const { markKey } = citation;
-        place(box, { kind: 'place', cite, named, markKey });
+        place(box, { kind: 'place', cite, named, markKey }, true);
       }
     },
     editEntry(entryId, box, rows, from) {

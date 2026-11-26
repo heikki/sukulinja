@@ -9,6 +9,7 @@ import { confirmingSource } from './confirming';
 import type { Confirming } from './confirming';
 import { entryBox } from './entry-box';
 import type { EntryBox } from './entry-box';
+import { pageOfBox } from './entry-lines';
 import { filmingOf } from './filming';
 import { Latest } from './latest';
 import { viewerOnward } from './onward';
@@ -113,6 +114,7 @@ export interface Viewer {
   // The pages the Volume's Page pins put on its Images, and setting the
   // Image shown's by hand.
   pages: ShownPages;
+  setImageWidth: (width: number | null) => void;
   // The estimates on the Image shown that Vision Match would look for,
   // one per record.
   estimatesHere: Readable<VolumeCitation[]>;
@@ -235,6 +237,9 @@ export function openViewer(
   let files: string[] = [];
   const citations = signal<VolumeCitation[] | null | 'failed'>(null);
   const pages = volumePagesOf(api, { volume, image }, loadCitations);
+  // The width of the Image shown, once it's loaded, which tells a
+  // spread's two pages apart.
+  const imageWidth = signal<number | null>(null);
   const archive = signal<string | null>(null);
   const sourcesInView = signal(false);
   const placing = signal(false);
@@ -291,7 +296,9 @@ export function openViewer(
       confirmation.forget();
     },
     openLink: openNow,
-    openImage: openImageNow
+    openImage: openImageNow,
+    pageAt: (box) =>
+      pageOfBox(pages.here.get()?.pages ?? [], box, imageWidth.get())
   });
   const { change: pending } = changing;
 
@@ -632,6 +639,10 @@ export function openViewer(
     confirmSource: confirmation.run,
     confirming: confirmation.status,
     pages,
+    // The Image shown is this wide, as loaded.
+    setImageWidth(width: number | null) {
+      imageWidth.set(width);
+    },
     estimatesHere: batch.estimates,
     findAllByVision: batch.run,
     estimatesInVolume: batch.inVolume,
