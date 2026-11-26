@@ -1,13 +1,14 @@
 import { css } from 'lit';
 
-// Facts: each Fact a row across the panel's width, tinted when pointed at
+// Facts: each Fact one line across the panel's width, what doesn't fit
+// cut with an ellipsis, tinted when pointed at
 // and more while its menu is open, its kind in a column of its own; and
 // below them a button to add one. Its menu is fixed in the window, so the
 // panel's scrolling doesn't clip it.
 export const personFactsStyles = css`
   .facts {
     display: grid;
-    grid-template-columns: max-content 1fr;
+    grid-template-columns: max-content minmax(0, 1fr);
     column-gap: 0.75rem;
   }
 
@@ -37,12 +38,18 @@ export const personFactsStyles = css`
     outline-offset: -2px;
   }
 
+  .kind,
+  .text {
+    white-space: nowrap;
+  }
+
   .kind {
     color: var(--muted);
   }
 
   .text {
-    overflow-wrap: anywhere;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* No source supports it yet. */

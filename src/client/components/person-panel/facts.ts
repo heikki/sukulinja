@@ -145,7 +145,7 @@ class PersonFactsElement extends SignalWatcher(LitElement) {
         }}
       >
         <span class="kind">${factLabel(f)}</span>
-        <span class="text">${factText(f)}</span>
+        <span class="text" title=${factText(f)}>${factText(f)}</span>
       </button>
       ${this.editing === f.id ? this.renderForm(f) : nothing}`;
   }
