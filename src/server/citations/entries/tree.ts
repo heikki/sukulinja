@@ -17,6 +17,11 @@ import type { Years } from '@/common/types';
 import type { Facts } from '../../facts/facts';
 import type { createSupport } from '../support';
 
+// Why a save is refused when the tree changed since its lines were
+// listed.
+export const TREE_CHANGED =
+  'The tree has changed since; look at the list again.';
+
 // Whose Facts an Entry's are: a person's own, or a family's they're a
 // spouse in (`familyId`), null for a couple not a family yet.
 export interface Owner {
@@ -212,7 +217,7 @@ export function entryTree(
     tickRefusal({ offers }: Offered, ticked: Ticked[]) {
       return ticked.every((t) => offers.some((o) => isLine(o, t)))
         ? null
-        : 'The tree has changed since; look at the list again.';
+        : TREE_CHANGED;
     },
 
     // Does the lines ticked, in the order listed, each with its Changes,

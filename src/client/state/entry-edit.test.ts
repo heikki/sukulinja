@@ -379,3 +379,20 @@ test('someone new named in the Entry pane is made with the Entry, and only then'
   const families = await api!.families();
   expect(families).toMatchObject([{ husband_id: father!.id, child_ids: [1] }]);
 });
+
+test('a save after the tree changed under its lines is refused, those shown being what is saved (ADR-0037)', async () => {
+  const { viewer, entryId } = await viewing();
+  viewer.editEntry();
+  viewer.entryForm.setField('lifeDate', '1.2.1790');
+  await until(() => viewer.entryForm.offers.get().length > 0);
+  // Meanwhile the tree changes: the mother's own baptism retyped.
+  const own = (await api!.person(2)).citations.find((c) => c.entryId === null);
+  await api!.retext(own!.id, 'Maria, kastettu');
+  expect(await viewer.save().catch((err: unknown) => err)).toMatchObject({
+    message: 'The tree has changed since; look at the list again.'
+  });
+  expect(await entryNow(entryId)).toMatchObject([
+    { personId: 1, text: 'Kaste 1.2.1790' },
+    { personId: 2, text: 'Kaste 1.2.1790' }
+  ]);
+});

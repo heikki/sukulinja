@@ -17,6 +17,7 @@ import { eventDates, NO_FIELDS } from '@/common/entry-events';
 import type { EntryEvent, EntryFields } from '@/common/entry-events';
 import { tickedFirst, tickedLine } from '@/common/entry-offers';
 import type { Offer, Ticked } from '@/common/entry-offers';
+import type { EntryLines } from '@/common/operations';
 import type { RecordView } from '@/common/types';
 
 import { Latest } from './latest';
@@ -167,11 +168,14 @@ export interface LinesAsked {
 }
 
 // The lines for the pending Entry, asked again as it changes; one
-// request at a time, the last asked winning.
+// request at a time, the last asked winning. What's saved is what's shown:
+// the lines and the last Change when they were worked out (ADR-0037).
 export function entryLines(api: DatasetApi) {
   const offers = signal<Offer[]>([]);
   const latest = new Latest();
   let last = '';
+  // The lines shown, by what they were asked for.
+  let shown: { key: string; lines: EntryLines } | null = null;
 
   function askedOf({ volumeId, entryId, event, people, fields }: LinesAsked) {
     return {
@@ -192,7 +196,9 @@ export function entryLines(api: DatasetApi) {
     void latest
       .run(async (abort) => await api.entryOffers(asked, abort))
       .then((got) => {
-        if (got !== undefined) offers.set(got ?? []);
+        if (got === undefined) return;
+        shown = got === null ? null : { key, lines: got };
+        offers.set(got?.offers ?? []);
       });
   }
 
@@ -200,13 +206,19 @@ export function entryLines(api: DatasetApi) {
   function clear() {
     latest.stop();
     last = '';
+    shown = null;
     offers.set([]);
   }
 
   // The lines to do for the Entry, as it is when saved, by the boxes
-  // pressed.
+  // pressed, and the last Change when they were listed: those shown, or
+  // asked now when what's shown was asked for it as it was before.
   async function ticked(entry: LinesAsked, ticks: Record<string, boolean>) {
-    return tickedOf(await api.entryOffers(askedOf(entry)), ticks);
+    const asked = askedOf(entry);
+    const key = JSON.stringify(asked);
+    const lines =
+      shown?.key === key ? shown.lines : await api.entryOffers(asked);
+    return { ticked: tickedOf(lines.offers, ticks), seen: lines.seen };
   }
 
   return { offers, ask, clear, ticked };

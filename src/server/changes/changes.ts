@@ -48,6 +48,18 @@ const COLUMNS = [
   'via'
 ] as const;
 
+// The newest Change's id, 0 for none: what the tree was as of then
+// (ADR-0037).
+export function lastChange(db: Database) {
+  return (
+    db
+      .query<{ id: number }, []>(
+        'SELECT COALESCE(MAX(id), 0) AS id FROM changes'
+      )
+      .get()?.id ?? 0
+  );
+}
+
 export function openChanges(db: Database, sources: OnSources) {
   const ons = openOn(db, sources);
   const all = db.prepare<ChangeRow, []>(

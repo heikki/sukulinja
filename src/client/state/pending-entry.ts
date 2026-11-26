@@ -210,7 +210,7 @@ export function pendingEntry(
     refuseDates(cite);
     return {
       fields: fieldsOf(cite.event, cite.fields),
-      ticked: await lines.ticked({ volumeId, ...ids, ...cite }, cite.ticks)
+      ...(await lines.ticked({ volumeId, ...ids, ...cite }, cite.ticks))
     };
   }
 

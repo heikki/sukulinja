@@ -135,7 +135,7 @@ export function citationOperations(
     },
 
     entryOffers: async (asked) =>
-      await askingAstia(citations.entries.offers(asked)),
+      await askingAstia(citations.entries.lines(asked)),
 
     async editEntry({ entryId, edit }) {
       if (edit.at !== undefined) await onCitable(citable, edit.at);

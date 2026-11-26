@@ -5,7 +5,7 @@
 
 import { isEntryEvent, NO_FIELDS } from '@/common/entry-events';
 import type { EntryEvent, EntryFields } from '@/common/entry-events';
-import type { Ticked } from '@/common/entry-offers';
+import type { Offer, Ticked } from '@/common/entry-offers';
 import type { Box, PersonName } from '@/common/types';
 
 import {
@@ -40,7 +40,8 @@ export interface Newcomer {
 // (null for none chosen, which is refused), what it says, if said, its
 // dates and place (ADR-0033), the lines of what it would do to the tree
 // that were ticked, and those it makes. `replacing` an Entry whose kind
-// or owner it changes (ADR-0037): that one is removed with it.
+// or owner it changes (ADR-0037): that one is removed with it. `seen`,
+// the lines' `seen`, refuses it if the tree changed since.
 export interface EntryTarget extends EntryAt {
   event: EntryEvent | null;
   text: string | null;
@@ -48,6 +49,14 @@ export interface EntryTarget extends EntryAt {
   ticked: Ticked[];
   newcomers?: Newcomer[];
   replacing?: number;
+  seen?: number;
+}
+
+// An Entry pane's lines (common/entry-offers), and the last Change when
+// they were worked out, which a save sends back as `seen` (ADR-0037).
+export interface EntryLines {
+  offers: Offer[];
+  seen: number;
 }
 
 // Someone named in an entry, and who they are in it: one of its Event's
@@ -60,7 +69,7 @@ export interface InEntry {
 // An Entry as it should be after an edit; a part left out stays.
 // The lines ticked are done whatever else changes. `ticked` given is all
 // of them: a Fact the Entry supports whose line isn't in it, it no longer
-// does; left out, its support stays as it is.
+// does; left out, its support stays as it is. `seen` as a new Entry's.
 export interface EntryEdit {
   at?: EntryAt;
   event?: EntryEvent;
@@ -69,6 +78,7 @@ export interface EntryEdit {
   fields?: EntryFields;
   ticked?: Ticked[];
   newcomers?: Newcomer[];
+  seen?: number;
 }
 
 // What an Entry of the Event in the Volume, naming the people, with the
@@ -151,14 +161,24 @@ function targetSaysOf(fields: Fields): Omit<EntryTarget, keyof EntryAt> | null {
   const newcomers = newcomersOf(fields.newcomers);
   if (text === undefined || event === undefined || said === null) return null;
   const replacing = optionalId(fields.replacing);
-  if (ticked === null || newcomers === null || replacing === null) return null;
-  return { event, text, fields: said, ticked, newcomers, ...replacing };
+  const seen = optionalId(fields.seen);
+  if (ticked === null || newcomers === null) return null;
+  if (replacing === null || seen === null) return null;
+  return {
+    event,
+    text,
+    fields: said,
+    ticked,
+    newcomers,
+    ...(replacing === undefined ? {} : { replacing }),
+    ...(seen === undefined ? {} : { seen })
+  };
 }
 
-// An Entry's id under `replacing`, if given; null for anything else.
-function optionalId(value: unknown): { replacing?: number } | null {
-  if (value === undefined) return {};
-  return isInteger(value) ? { replacing: value } : null;
+// An id, if given; null for anything else.
+function optionalId(value: unknown): number | undefined | null {
+  if (value === undefined) return undefined;
+  return isInteger(value) ? value : null;
 }
 
 export function entryTargetOf(value: unknown): EntryTarget | null {
@@ -209,9 +229,12 @@ function said(fields: Fields, edit: EntryEdit): EntryEdit | null {
     fields.fields === undefined ? undefined : entryFieldsOf(fields.fields);
   const ticked = tickedListOf(fields.ticked);
   const newcomers = newcomersOf(fields.newcomers);
+  const seen = optionalId(fields.seen);
   if (read === null || ticked === null || newcomers === null) return null;
+  if (seen === null) return null;
   return {
     ...edit,
+    ...(seen === undefined ? {} : { seen }),
     ...(read === undefined ? {} : { fields: read }),
     ...(fields.ticked === undefined ? {} : { ticked }),
     ...(newcomers.length === 0 ? {} : { newcomers })

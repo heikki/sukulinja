@@ -4,11 +4,11 @@
 // a test gives.
 
 import type { ClaudeModel } from '@/common/assistant-choices';
-import type { Offer } from '@/common/entry-offers';
 import type {
   BoxAt,
   EntryAsked,
   EntryEdit,
+  EntryLines,
   EntryTarget,
   InEntry,
   MarkTarget,
@@ -111,7 +111,7 @@ export interface DatasetApi {
   citeEntry: (at: EntryTarget, people: InEntry[]) => Promise<VolumeCitation[]>;
   // What an Entry would do to the tree as it is now, as its card lists it
   // (ADR-0033).
-  entryOffers: (asked: EntryAsked, signal?: AbortSignal) => Promise<Offer[]>;
+  entryOffers: (asked: EntryAsked, signal?: AbortSignal) => Promise<EntryLines>;
   // Changes an Entry as a whole, or refuses all of it (ADR-0026): its
   // Citations as the Volume's citations list them.
   editEntry: (entryId: number, edit: EntryEdit) => Promise<VolumeCitation[]>;

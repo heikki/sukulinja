@@ -5,7 +5,6 @@
 
 import { isClaudeModel } from '@/common/assistant-choices';
 import type { ClaudeModel } from '@/common/assistant-choices';
-import type { Offer } from '@/common/entry-offers';
 import type {
   Box,
   ChurchBookArchive,
@@ -23,7 +22,13 @@ import type {
 } from '@/common/types';
 
 import { entryAskedOf, entryEditOf, entryTargetOf, inEntryOf } from './entries';
-import type { EntryAsked, EntryEdit, EntryTarget, InEntry } from './entries';
+import type {
+  EntryAsked,
+  EntryEdit,
+  EntryLines,
+  EntryTarget,
+  InEntry
+} from './entries';
 import { answers, asksNothing, streams } from './operation';
 import {
   boxOf,
@@ -123,7 +128,7 @@ export const CITATION_OPERATIONS = {
   ),
 
   // What an Entry would do to the tree, as its Entry pane lists it (ADR-0033).
-  entryOffers: answers<EntryAsked, Offer[]>(
+  entryOffers: answers<EntryAsked, EntryLines>(
     '{ volumeId, event, people: [{ personId, role? }], fields }',
     entryAskedOf
   ),

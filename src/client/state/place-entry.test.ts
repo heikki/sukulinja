@@ -241,10 +241,10 @@ test("an edited Entry's lines know the Fact it supports from another of its kind
     fields: { date: '3 MAR 1795', lifeDate: null, place: null }
   };
   // Asked anew, the one that agrees is offered; edited, it's kept.
-  expect(await api!.entryOffers(asked)).toMatchObject([
+  expect((await api!.entryOffers(asked)).offers).toMatchObject([
     { tag: 'CHR', action: 'support' }
   ]);
-  expect(await api!.entryOffers({ ...asked, entryId })).toMatchObject([
+  expect((await api!.entryOffers({ ...asked, entryId })).offers).toMatchObject([
     { tag: 'CHR', action: 'support', kept: true }
   ]);
 });

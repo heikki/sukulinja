@@ -20,12 +20,14 @@ import type {
   EntryAsked,
   EntryAt,
   EntryEdit,
+  EntryLines,
   EntryTarget,
   InEntry,
   Newcomer
 } from '@/common/operations';
 import type { VolumeCitation } from '@/common/types';
 
+import { lastChange } from '../../changes/changes';
 import type { NewChange } from '../../changes/changes';
 import type { openAppCitations } from '../app-citations';
 import { viewerUrl } from '../astia/astia';
@@ -37,6 +39,7 @@ import { NewcomerRefused, newcomersRefusal } from './newcomers';
 import type { entryNewcomers } from './newcomers';
 import { openEntries } from './storage';
 import type { EntryCitation, StoredEntry } from './storage';
+import { TREE_CHANGED } from './tree';
 import type { entryTree, Offered } from './tree';
 
 export { CITATIONS_READ, dropUncitedEntries } from './storage';
@@ -241,6 +244,17 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
         return now === undefined || now.role === w.role ? [] : [{ w, now }];
       })
     };
+  }
+
+  async function offersOf(asked: EntryAsked) {
+    const fields = keptFields(asked.event, asked.fields);
+    return (await tree.offered({ ...asked, fields })).offers;
+  }
+
+  // Whether the tree changed since an Entry pane's lines were listed, the
+  // last Change then `seen` (ADR-0037); one saved with none isn't asked.
+  function changedSince(seen: number | undefined) {
+    return seen !== undefined && lastChange(db) > seen;
   }
 
   // The Entry a new one replaces, with its Citations, as the new one's
@@ -473,6 +487,7 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
       if ('rejected' in said) return said;
       const { fields, offered, ticked } = said;
       const archive = await volumeArchive(at.volumeId);
+      if (changedSince(at.seen)) return { rejected: TREE_CHANGED };
       const ids = saved(db, () => {
         const held = hold(replaced?.was ?? []);
         const now = madeNow(event, people, at.newcomers);
@@ -493,11 +508,15 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
       return await Promise.all(ids.map(listed));
     },
 
-    // What an Entry would do to the tree as it is now, the lines its Entry pane
-    // lists (ADR-0033).
-    async offers(asked: EntryAsked) {
-      const fields = keptFields(asked.event, asked.fields);
-      return (await tree.offered({ ...asked, fields })).offers;
+    // What an Entry would do to the tree as it is now, the lines its Entry
+    // pane lists (ADR-0033).
+    offers: offersOf,
+
+    // Its lines with the last Change before they were worked out, for a
+    // save to send back (ADR-0037).
+    async lines(asked: EntryAsked): Promise<EntryLines> {
+      const seen = lastChange(db);
+      return { offers: await offersOf(asked), seen };
     },
 
     // Changes the Entry to be as `edit` says, all of it or none: its Box
@@ -517,6 +536,7 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
       const ok = await checked(entryId, entry, was, edit);
       if (ok === null || 'rejected' in ok) return ok;
       const text = edit.text === undefined ? undefined : plainText(edit.text);
+      if (changedSince(edit.seen)) return { rejected: TREE_CHANGED };
       const done = saved(db, () => {
         const now = madeNow(ok.event, ok.people, edit.newcomers, true);
         const e = { ...entry, was, ...ok, people: now };

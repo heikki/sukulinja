@@ -30,6 +30,7 @@ export type {
   EntryAsked,
   EntryAt,
   EntryEdit,
+  EntryLines,
   EntryTarget,
   InEntry,
   Newcomer
