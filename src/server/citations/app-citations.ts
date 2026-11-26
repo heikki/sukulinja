@@ -35,6 +35,9 @@ export interface NewEntryAt {
   box: Box;
   event: EntryEvent | null;
   text: string | null;
+  // Stored as a new row even when one is alike, as an Entry replacing
+  // another (ADR-0037).
+  fresh?: boolean;
 }
 
 // A Citation of the entry at the Box on an Image, for the person.
@@ -169,7 +172,8 @@ export function openAppCitations(db: Database) {
       volume: e.volume,
       image: e.image,
       fileId: e.fileId,
-      box: e.box
+      box: e.box,
+      fresh: e.fresh === true
     });
   }
 

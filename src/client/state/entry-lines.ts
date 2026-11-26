@@ -176,6 +176,11 @@ export function entryLines(api: DatasetApi) {
   let last = '';
   // The lines shown, by what they were asked for.
   let shown: { key: string; lines: EntryLines } | null = null;
+  // Those asked for and not come yet.
+  let coming: {
+    key: string;
+    lines: Promise<EntryLines | null | undefined>;
+  } | null = null;
 
   function askedOf({ volumeId, entryId, event, people, fields }: LinesAsked) {
     return {
@@ -193,13 +198,16 @@ export function entryLines(api: DatasetApi) {
     const key = JSON.stringify(asked);
     if (key === last) return;
     last = key;
-    void latest
-      .run(async (abort) => await api.entryOffers(asked, abort))
-      .then((got) => {
-        if (got === undefined) return;
-        shown = got === null ? null : { key, lines: got };
-        offers.set(got?.offers ?? []);
-      });
+    const lines = latest.run(
+      async (abort) => await api.entryOffers(asked, abort)
+    );
+    coming = { key, lines };
+    void lines.then((got) => {
+      if (got === undefined) return;
+      if (coming?.lines === lines) coming = null;
+      shown = got === null ? null : { key, lines: got };
+      offers.set(got?.offers ?? []);
+    });
   }
 
   // No Entry pending: no lines.
@@ -207,17 +215,21 @@ export function entryLines(api: DatasetApi) {
     latest.stop();
     last = '';
     shown = null;
+    coming = null;
     offers.set([]);
   }
 
   // The lines to do for the Entry, as it is when saved, by the boxes
   // pressed, and the last Change when they were listed: those shown, or
-  // asked now when what's shown was asked for it as it was before.
+  // coming, or asked now when what's shown was asked for it as it was
+  // before.
   async function ticked(entry: LinesAsked, ticks: Record<string, boolean>) {
     const asked = askedOf(entry);
     const key = JSON.stringify(asked);
     const lines =
-      shown?.key === key ? shown.lines : await api.entryOffers(asked);
+      (shown?.key === key ? shown.lines : null) ??
+      (coming?.key === key ? await coming.lines : null) ??
+      (await api.entryOffers(asked));
     return { ticked: tickedOf(lines.offers, ticks), seen: lines.seen };
   }
 

@@ -3,7 +3,8 @@
 // Entry supports only its owner's (ADR-0037): a baptism's child's, a
 // marriage's couple's family's, by either spouse's Citation, a burial's or
 // household line's one person's. One whose Entry has no kind yet has no
-// owner known, and keeps the person's rule until it's chosen. The rule is
+// owner known, and keeps the person's rule until it's chosen; so does
+// one of a kind the app doesn't make, as MyHeritage's 'Record'. The rule is
 // here once, for the Entry pane, the assistant and the import alike. The
 // Citation stays where it is; support is a row of its own, which goes with
 // the Fact or the Citation.
@@ -52,7 +53,8 @@ function maySupport(t: string, s: string) {
   const alone = `(SELECT COUNT(*) FROM citations o
     WHERE o.entry_id = c.entry_id) = 1`;
   return `(
-    ((c.entry_id IS NULL OR e.event IS NULL) AND (${own} OR ${spouse()}
+    ((c.entry_id IS NULL OR e.event IS NULL
+        OR e.event NOT IN ('CHR', 'MARR', 'BURI', 'RESI')) AND (${own} OR ${spouse()}
       OR (c.scope_type = 'family' AND ${t} = 'family' AND ${s} = c.scope_id)))
     OR (e.event = 'CHR' AND c.role = 'CHIL' AND ${own})
     OR (e.event = 'MARR' AND c.role IN ('HUSB', 'WIFE') AND ${spouse(couple)})
@@ -187,18 +189,24 @@ export function createSupport(
   const isPersons = db.prepare<{ id: number }, [number]>(
     "SELECT id FROM citations WHERE id = ? AND scope_type = 'person'"
   );
+  const isFact = db.prepare<{ id: number }, [number]>(
+    'SELECT id FROM facts WHERE id = ?'
+  );
 
   // The Fact the Citation is to support, or no longer: what it supports
   // is always taken back. False when it isn't a person's, or the Fact
-  // isn't theirs or their marriages'; refused for an Entry's Citation and
-  // a Fact not its owner's.
+  // isn't theirs or their marriages', or there's none; refused for an
+  // Entry's Citation and a Fact not its owner's.
   function factToSet(citationId: number, factId: number, on: boolean) {
     if (isPersons.get(citationId) === null) return false;
     const fact =
       (on ? null : support.supportedFact(citationId, factId)) ??
       support.factFor(citationId, factId);
     if (fact !== null) return fact;
-    return on && support.ofEntry(citationId) ? { rejected: NOT_OWNERS } : false;
+    const owners = on && support.ofEntry(citationId);
+    return owners && isFact.get(factId) !== null
+      ? { rejected: NOT_OWNERS }
+      : false;
   }
 
   // Makes the Citation support the Fact, or no longer: true when it does

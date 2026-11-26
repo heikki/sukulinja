@@ -9,7 +9,7 @@
 import type { Database } from 'bun:sqlite';
 
 import type { EntryEvent, EntryFields } from '@/common/entry-events';
-import { changesLock, LOCKED } from '@/common/entry-lock';
+import { changesLock, LOCKED, TREE_CHANGED } from '@/common/entry-lock';
 import {
   ALREADY_LINKED,
   citingImage,
@@ -39,7 +39,6 @@ import { NewcomerRefused, newcomersRefusal } from './newcomers';
 import type { entryNewcomers } from './newcomers';
 import { openEntries } from './storage';
 import type { EntryCitation, StoredEntry } from './storage';
-import { TREE_CHANGED } from './tree';
 import type { entryTree, Offered } from './tree';
 
 export { CITATIONS_READ, dropUncitedEntries } from './storage';
@@ -275,25 +274,17 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
     return { entry: { id: at.replacing, was } };
   }
 
-  // Removes the Citations of the Entry replaced, holding the notes and
-  // media of each under its person (a negative id) for theirs in the new
-  // one; those no longer named lose theirs, as an edit taking them out.
-  function hold(was: EntryCitation[]) {
+  // Gives each person's notes and media on their Citation of the Entry
+  // replaced to theirs `ids[i]` in the new one, then removes the old
+  // Citations: those no longer named lose theirs, as an edit taking them
+  // out. The new are named first, so the Volume's Source, still cited,
+  // stays with its notes.
+  function replace(was: EntryCitation[], people: InEntry[], ids: number[]) {
     for (const c of was) {
-      stored.passOn(c.id, -c.personId);
+      const i = people.findIndex((p) => p.personId === c.personId);
+      if (i !== -1) stored.passOn(c.id, ids[i]!);
       uncite(c.id);
     }
-    return {
-      // Gives each person's held to their Citation `ids[i]` of the new
-      // Entry, and drops the rest.
-      giveTo(people: InEntry[], ids: number[]) {
-        for (const c of was) {
-          const i = people.findIndex((p) => p.personId === c.personId);
-          if (i !== -1) stored.passOn(-c.personId, ids[i]!);
-        }
-        stored.dropHeld();
-      }
-    };
   }
 
   // Why the Entry can't be made: someone named isn't a person (null), or
@@ -489,18 +480,18 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
       const archive = await volumeArchive(at.volumeId);
       if (changedSince(at.seen)) return { rejected: TREE_CHANGED };
       const ids = saved(db, () => {
-        const held = hold(replaced?.was ?? []);
         const now = madeNow(event, people, at.newcomers);
         const entryId = made.entry({
           ...at,
           ...checked,
           archive,
-          text: plainText(text)
+          text: plainText(text),
+          fresh: replaced !== null
         });
         stored.setFields(entryId, fields);
         const entry = stored.entryOf(entryId)!;
         const named = now.map((p) => name(entryId, p, entry));
-        held.giveTo(now, named);
+        replace(replaced?.was ?? [], now, named);
         doTicked(entryId, { event, people: now }, { offered, ticked });
         return named;
       });

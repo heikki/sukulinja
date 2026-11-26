@@ -220,12 +220,11 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
     return roles.find((r) => r.role === role)?.personId;
   }
 
-  // The owner made to change: the person picker opens for the Role, or
-  // for a one-person entry in place of whom it named.
-  private changeOwner(e: MouseEvent, role: string | null, personId: number) {
+  // The owner made to change: the person picker opens for the Role; a
+  // one-person entry's person shows to take out, kept until they are.
+  private changeOwner(e: MouseEvent, role: string | null) {
     this.viewer.entryForm.unlock('owner');
-    if (role === null) this.drop(personId);
-    this.choose(e, role);
+    if (role !== null) this.choose(e, role);
   }
 
   // Its person in an owner's Role: as saved, with Change…, while locked.
@@ -233,7 +232,7 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
     if (this.lockedOwner(role) !== personId) return this.renderPerson(personId);
     return html`<span class="name">${this.nameOf(personId)}</span>
       ${changeButton(this.nameOf(personId), (e) => {
-        this.changeOwner(e, role, personId);
+        this.changeOwner(e, role);
       })}`;
   }
 

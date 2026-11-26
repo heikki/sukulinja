@@ -74,6 +74,8 @@ export interface NewEntry {
   image: number;
   fileId: string;
   box: Box;
+  // Never the one alike.
+  fresh?: boolean;
 }
 
 // An Entry as stored: where it's written, the Event it records, null for
@@ -148,19 +150,12 @@ export function openEntries(db: Database) {
      WHERE c.entry_id = ? ORDER BY c.id`
   );
   const setRole = db.prepare('UPDATE citations SET role = ? WHERE id = ?');
-  // A Citation's notes and media, held under its person (a negative id,
-  // which no Citation has) while its Entry is replaced, and given to
-  // theirs in the new one.
-  const holdNotes = db.prepare(
+  // A Citation's notes and media, given to another as its Entry is
+  // replaced.
+  const passNotes = db.prepare(
     "UPDATE notes SET owner_id = ?2 WHERE owner_type = 'citation' AND owner_id = ?1"
   );
-  const dropNotes = db.prepare(
-    "DELETE FROM notes WHERE owner_type = 'citation' AND owner_id < 0"
-  );
-  const dropMedia = db.prepare(
-    "DELETE FROM media_links WHERE scope_type = 'citation' AND scope_id < 0"
-  );
-  const holdMedia = db.prepare(
+  const passMedia = db.prepare(
     "UPDATE media_links SET scope_id = ?2 WHERE scope_type = 'citation' AND scope_id = ?1"
   );
   const setEvent = db.prepare('UPDATE entries SET event = ? WHERE id = ?');
@@ -176,7 +171,7 @@ export function openEntries(db: Database) {
 
   return {
     // Stores the Entry, or finds the one alike in all it holds, as
-    // `gatherEntries` makes them one; its id.
+    // `gatherEntries` makes them one, unless it's `fresh`; its id.
     create(e: NewEntry) {
       const params = {
         $sourceId: e.sourceId,
@@ -189,7 +184,7 @@ export function openEntries(db: Database) {
         $fileId: e.fileId,
         ...boxParams(e.box)
       };
-      const known = alike.get(params);
+      const known = e.fresh === true ? null : alike.get(params);
       if (known !== null) return known.id;
       return Number(insert.run(params).lastInsertRowid);
     },
@@ -223,15 +218,8 @@ export function openEntries(db: Database) {
     // Moves what a Citation has of its own, its notes and media, to
     // another Citation, its id `to`.
     passOn(from: number, to: number) {
-      holdNotes.run(from, to);
-      holdMedia.run(from, to);
-    },
-
-    // Drops the notes and media held for no one (`passOn` to a negative
-    // id) once an Entry is replaced.
-    dropHeld() {
-      dropNotes.run();
-      dropMedia.run();
+      passNotes.run(from, to);
+      passMedia.run(from, to);
     },
 
     // The person's Role in the Entry their Citation cites.

@@ -43,3 +43,8 @@ export function changesLock(saved: Named, now: Named) {
 
 export const LOCKED =
   "An entry's kind and whom it's about stay as saved: changing them saves a new entry.";
+
+// Why a save is refused when the tree changed since its lines were
+// listed; the Entry pane lists them again.
+export const TREE_CHANGED =
+  'The tree has changed since; look at the list again.';

@@ -124,6 +124,30 @@ test("the people still named keep their Citations' notes in the new Entry", asyn
   ).toEqual([{ id: rows[1]!.citation.id, text: 'Hers' }]);
 });
 
+test("the Volume's Source the app made, and its notes, stay through a replacing", async () => {
+  const { db, entries, entryId } = await mattis();
+  const { sourceId } = db
+    .query<{ sourceId: number }, [number]>(
+      'SELECT source_id AS sourceId FROM entries WHERE id = ?'
+    )
+    .get(entryId)!;
+  db.run(
+    "INSERT INTO notes (owner_type, owner_id, text) VALUES ('source', ?, 'Juva')",
+    [sourceId]
+  );
+  made(
+    await entries.make({ ...baptism(3), replacing: entryId }, 'Kaste', [
+      { personId: 3, role: 'CHIL' }
+    ])
+  );
+  expect(
+    db.query('SELECT DISTINCT source_id AS sourceId FROM entries').all()
+  ).toEqual([{ sourceId }]);
+  expect(
+    db.query("SELECT text FROM notes WHERE owner_type = 'source'").all()
+  ).toEqual([{ text: 'Juva' }]);
+});
+
 test('a new Entry replacing one in another Volume, or none, is refused', async () => {
   const { entries, entryId } = await mattis();
   const people = [{ personId: 3, role: 'CHIL' }];

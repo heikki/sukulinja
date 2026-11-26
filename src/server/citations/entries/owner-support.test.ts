@@ -116,3 +116,22 @@ test('support made before the rule is found, and taken back with a Change', asyn
     }
   ]);
 });
+
+// MyHeritage's record of no kind the app makes, as the import gathers it:
+// no owner known, so the person's rule.
+test("an Entry of a kind the app doesn't make supports as a person's Citation", async () => {
+  const { db, citations, entries } = dataset();
+  const rows = made(
+    await entries.make(baptism(3), null, [
+      { personId: 1, role: 'FATH' },
+      { personId: 3, role: 'CHIL' }
+    ])
+  );
+  const matti = rows[0]!.citation.id;
+  db.run("UPDATE entries SET event = 'Record'");
+  db.run('INSERT INTO fact_citations (fact_id, citation_id) VALUES (3, ?)', [
+    matti
+  ]);
+  expect(unownedSupport(db)).toEqual([]);
+  expect(citations.support(matti, 1, true)).toMatchObject({ supports: [1, 3] });
+});

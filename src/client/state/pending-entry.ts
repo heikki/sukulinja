@@ -5,7 +5,7 @@ import { ApiError } from '@/client/dataset-api';
 import type { DatasetApi, InEntry } from '@/client/dataset-api';
 import { eventRoles } from '@/common/entry-events';
 import type { EntryEvent } from '@/common/entry-events';
-import { changesLock } from '@/common/entry-lock';
+import { changesLock, TREE_CHANGED } from '@/common/entry-lock';
 import { citingImage } from '@/common/entry-naming';
 import type { Offer } from '@/common/entry-offers';
 import type { Newcomer } from '@/common/operations';
@@ -401,5 +401,27 @@ export function pendingEntry(
     setPeople,
     drop
   };
-  return { form, save, editing, saveEdit, begin, refuse };
+  // Refused as the tree changed since the lines were listed, they're
+  // listed again for the next save (ADR-0037).
+  function relisting<A extends unknown[], T>(
+    saving: (...args: A) => Promise<T>
+  ) {
+    return async (...args: A) => {
+      try {
+        return await saving(...args);
+      } catch (err) {
+        if (err instanceof ApiError && err.message === TREE_CHANGED) begin();
+        throw err;
+      }
+    };
+  }
+
+  return {
+    form,
+    save: relisting(save),
+    editing,
+    saveEdit: relisting(saveEdit),
+    begin,
+    refuse
+  };
 }

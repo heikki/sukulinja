@@ -9,6 +9,7 @@ import type { Database } from 'bun:sqlite';
 
 import { gedcomDate } from '@/common/dates';
 import type { EntryEvent, EntryFields } from '@/common/entry-events';
+import { TREE_CHANGED } from '@/common/entry-lock';
 import { entryOffers, entryPlace, isLine } from '@/common/entry-offers';
 import type { Offer, OwnFact, Ticked } from '@/common/entry-offers';
 import type { InEntry } from '@/common/operations';
@@ -16,11 +17,6 @@ import type { Years } from '@/common/types';
 
 import type { Facts } from '../../facts/facts';
 import type { createSupport } from '../support';
-
-// Why a save is refused when the tree changed since its lines were
-// listed.
-export const TREE_CHANGED =
-  'The tree has changed since; look at the list again.';
 
 // Whose Facts an Entry's are: a person's own, or a family's they're a
 // spouse in (`familyId`), null for a couple not a family yet.

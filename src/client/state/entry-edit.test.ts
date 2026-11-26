@@ -395,4 +395,7 @@ test('a save after the tree changed under its lines is refused, those shown bein
     { personId: 1, text: 'Kaste 1.2.1790' },
     { personId: 2, text: 'Kaste 1.2.1790' }
   ]);
+  // Listed again, the next save is as they say.
+  await viewer.save();
+  expect(viewer.pending.get()).toBeNull();
 });
