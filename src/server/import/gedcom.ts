@@ -1,6 +1,11 @@
 import type { Database } from 'bun:sqlite';
 
-import { gatherEntries, openAnnotations, putEntryFields } from '../citations';
+import {
+  dropUnownedSupport,
+  gatherEntries,
+  openAnnotations,
+  putEntryFields
+} from '../citations';
 import { pageOf } from '../gedcom/astia-links';
 import { objectRecords, unlinkedPhotos } from '../gedcom/media-refs';
 import { parseName } from '../gedcom/names';
@@ -491,6 +496,8 @@ export function importGedcom(
     // The app's Citations of one entry, alike, cite one Entry (ADR-0026).
     gatherEntries(db);
     putEntryFields(db, entryNotes.said());
+    // An Entry's Citation supports only its owner's Facts (ADR-0037).
+    dropUnownedSupport(db);
   });
 
   tx();

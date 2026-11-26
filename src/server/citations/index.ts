@@ -22,6 +22,7 @@ import type { PersonLife } from './person-books';
 import { sharedOperations } from './shared-operations';
 import { openStorage } from './storage';
 import type { DownloadOptions } from './storage';
+import type { FactScope } from './support';
 import { openVision } from './vision';
 import type { VisionReaders } from './vision';
 import { openVolumeFacts } from './volume-facts';
@@ -41,7 +42,8 @@ export {
   putEntryFields
 } from './entries';
 export { viewerUrl } from './astia/astia';
-export { leaveFamilySupport, openSupport } from './support';
+export { dropUnownedSupport, leaveFamilySupport, openSupport } from './support';
+export type { FactScope } from './support';
 export { BAPTISM_COLLECTION, collectionOf } from './myheritage';
 export { askingAstia };
 export type { PersonLife } from './person-books';
@@ -237,6 +239,9 @@ export function openCitations(root: string, options: Options) {
         ofPerson: (personId: number) => citations.ofPerson(personId),
         // A person's Citation by its id, with whose it is.
         citationOf: (citationId: number) => citations.ofId(citationId),
+        // Why the Citation can't support a Fact of the scope (ADR-0037).
+        supportRefusal: (citationId: number, of: FactScope) =>
+          citations.supportRefusal(citationId, of),
         // Whether a Re-scan replaced the Image's file.
         replaced: async (at: {
           volumeId: string;

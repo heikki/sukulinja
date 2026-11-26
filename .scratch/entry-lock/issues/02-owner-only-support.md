@@ -1,4 +1,4 @@
-Status: needs-triage
+Status: done
 
 # An Entry's Citation supports only its owner's Facts
 

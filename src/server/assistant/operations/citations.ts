@@ -4,6 +4,7 @@
 import { gedcomDate } from '@/common/dates';
 import { factKindLabel } from '@/common/facts';
 
+import type { FactScope } from '../../citations';
 import type { TreeView } from '../tree-view';
 import { writeOperation } from './operation';
 
@@ -13,7 +14,7 @@ function sourceAndFact(
   personId: number,
   citationId: number,
   factId: number
-): { source: string; fact: string } | { rejected: string } {
+): { source: string; fact: string; of: FactScope } | { rejected: string } {
   const details = view.services.personDetails(personId);
   const citation = details?.citations.find((c) => c.id === citationId);
   if (citation === undefined) return { rejected: 'They have no such source.' };
@@ -23,7 +24,11 @@ function sourceAndFact(
   const date = fact.date === null ? '' : ` ${gedcomDate(fact.date)}`;
   return {
     source: citation.reference ?? citation.source ?? 'A source',
-    fact: `${kind}${date}`
+    fact: `${kind}${date}`,
+    of:
+      fact.familyId === null
+        ? { scope: 'person', id: personId }
+        : { scope: 'family', id: fact.familyId }
   };
 }
 
@@ -37,7 +42,7 @@ interface Support {
 export const supportFact = writeOperation<Support>({
   name: 'support_fact',
   description:
-    "Proposes that one of a person's sources (a Citation, by its id in `person`) supports one of their facts or their marriage's; `supports` false proposes it no longer does. Only for a source that says what the fact says.",
+    "Proposes that one of a person's sources (a Citation, by its id in `person`) supports one of their facts or their marriage's; `supports` false proposes it no longer does. Only for a source that says what the fact says; a source of a church-book entry supports only the facts of whom it's about (a baptism's child, a marriage's couple, a burial's or household line's one person).",
   input: {
     type: 'object',
     properties: {
@@ -54,6 +59,10 @@ export const supportFact = writeOperation<Support>({
     if (why !== null) return { rejected: why };
     const found = sourceAndFact(view, personId, citationId, factId);
     if ('rejected' in found) return found;
+    const refused = supports
+      ? view.services.scans.supportRefusal(citationId, found.of)
+      : null;
+    if (refused !== null) return { rejected: refused };
     const of = `${view.nameOf(personId)}'s ${found.fact}`;
     return {
       operation: 'support',

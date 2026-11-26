@@ -20,6 +20,11 @@ import { createCitations } from './citations';
 import { openImages } from './images';
 import { referencesFor } from './myheritage/test-pins';
 
+// What the Citation supports once set; null when it couldn't be.
+function supportsOf(c: { supports: number[] } | { rejected: string } | null) {
+  return c === null || 'rejected' in c ? null : c.supports;
+}
+
 let dir = '';
 beforeEach(async () => {
   dir = await mkdtemp(join(tmpdir(), 'support-'));
@@ -62,11 +67,11 @@ function dataset() {
 
 test('a Citation supports Facts of its person, with a Change for each', () => {
   const { citations, changes } = dataset();
-  expect(citations.support(1, 1, true)?.supports).toEqual([1]);
-  expect(citations.support(1, 2, true)?.supports).toEqual([1, 2]);
+  expect(supportsOf(citations.support(1, 1, true))).toEqual([1]);
+  expect(supportsOf(citations.support(1, 2, true))).toEqual([1, 2]);
   // Again changes nothing, and writes no Change.
-  expect(citations.support(1, 2, true)?.supports).toEqual([1, 2]);
-  expect(citations.support(1, 1, false)?.supports).toEqual([2]);
+  expect(supportsOf(citations.support(1, 2, true))).toEqual([1, 2]);
+  expect(supportsOf(citations.support(1, 1, false))).toEqual([2]);
   expect(citations.ofPerson(1).map((c) => c.supports)).toEqual([[2]]);
   expect(changes).toEqual([
     {
@@ -86,8 +91,8 @@ test('a Citation supports Facts of its person, with a Change for each', () => {
 
 test("a spouse's Citation supports their marriage, no one's another's Facts", () => {
   const { citations } = dataset();
-  expect(citations.support(2, 3, true)?.supports).toEqual([3]);
-  expect(citations.support(1, 3, true)?.supports).toEqual([3]);
+  expect(supportsOf(citations.support(2, 3, true))).toEqual([3]);
+  expect(supportsOf(citations.support(1, 3, true))).toEqual([3]);
   expect(citations.support(3, 1, true)).toBeNull();
   expect(citations.support(3, 3, true)).toBeNull();
   expect(citations.support(9, 1, true)).toBeNull();

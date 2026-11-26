@@ -266,19 +266,20 @@ test('an edit with one part refused writes nothing', async () => {
   expect(changes).toEqual([]);
 });
 
-test("a Role changed keeps the person's Citation, with its notes and support", async () => {
+test("a Role changed keeps the person's Citation, with its notes, the owner's support kept", async () => {
   const { db, entries, citations, changes } = dataset();
   const rows = made(
     await entries.make(baptism(3), 'Kaste', [
-      { personId: 1, role: 'FATH' },
-      { personId: 2, role: 'MOTH' }
+      { personId: 1, role: 'CHIL' },
+      { personId: 2, role: null }
     ])
   );
   const entryId = rows[0]!.citation.entryId!;
   const matti = rows[0]!.citation.id;
+  const liisa = rows[1]!.citation.id;
   db.run(
     "INSERT INTO notes (owner_type, owner_id, text) VALUES ('citation', ?, 'Seen')",
-    [matti]
+    [liisa]
   );
   citations.support(matti, 1, true);
   changes.length = 0;
@@ -293,40 +294,26 @@ test("a Role changed keeps the person's Citation, with its notes and support", a
   );
   expect(after.map((r) => [r.citation.id, r.citation.role])).toEqual([
     [matti, 'CHIL'],
-    [rows[1]!.citation.id, 'MOTH']
+    [liisa, 'MOTH']
   ]);
-  // His Birth stays; the new Role adds nothing of itself.
+  // The child's Birth stays; the new Role adds nothing of itself.
   expect(after[0]!.citation.supports).toEqual([1]);
+  expect(after[1]!.citation.supports).toEqual([]);
   expect(
     db.query("SELECT text FROM notes WHERE owner_type = 'citation'").all()
   ).toEqual([{ text: 'Seen' }]);
   expect(changes).toEqual([
     {
-      on: { citationId: matti },
+      on: { citationId: liisa },
       what: {
         kind: 'role',
         volume: BAPTISMS,
         image: 3,
-        from: 'FATH',
-        to: 'CHIL'
+        from: null,
+        to: 'MOTH'
       }
     }
   ]);
-
-  // Back to the father: none is taken back.
-  const back = made(
-    await entries.edit(entryId, {
-      people: [
-        { personId: 1, role: 'FATH' },
-        { personId: 2, role: 'MOTH' }
-      ]
-    })
-  );
-  expect(back[0]!.citation).toMatchObject({
-    id: matti,
-    role: 'FATH',
-    supports: [1]
-  });
 });
 
 test('a move onto an Image someone it names already cites is refused, its own Citations not counting', async () => {

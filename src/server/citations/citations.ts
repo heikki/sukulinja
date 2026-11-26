@@ -43,6 +43,7 @@ import type { Reader } from './myheritage';
 import type { BookRef, BoxAt, MarkTarget, References } from './references';
 import { createRetext } from './retext';
 import { createSupport } from './support';
+import type { FactScope } from './support';
 import { citationText } from './text';
 
 interface CitationDbRow {
@@ -473,11 +474,19 @@ export function createCitations<R extends BookRef>(
 
     // Makes the person's Citation support one of their Facts or their
     // marriages', or no longer, as a Change on it: the Citation as it then
-    // is. Null when it isn't a person's Citation, or the Fact theirs.
+    // is. Null when it isn't a person's Citation, or the Fact theirs;
+    // refused when it's an Entry's and the Fact not its owner's (ADR-0037).
     support(citationId: number, factId: number, on: boolean) {
-      if (!support.set(citationId, factId, on)) return null;
+      const done = support.set(citationId, factId, on);
+      if (done === false) return null;
+      if (done !== true) return done;
       return ofId(citationId)?.citation ?? null;
     },
+
+    // Why the Citation can't support a Fact of the scope once it's added
+    // (ADR-0037); null when it can.
+    supportRefusal: (citationId: number, of: FactScope) =>
+      support.refusal(citationId, of),
 
     // A line for each of the person's Church-book references, as each
     // resolves: Astia is slow, so the first needn't wait for the last.

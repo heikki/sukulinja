@@ -66,7 +66,7 @@ function addWords(name: string, said: string, sources: string[]) {
 
 export const addFact = writeOperation<Add>({
   name: 'add_fact',
-  description: `Proposes adding a fact to a person: one of their own, or, with \`familyId\` (one of the families they're a spouse in), their marriage's (MARR, DIV). A person has one birth, christening, death and burial at most: one they have is changed with edit_fact, not added again. With \`citationIds\`, those of their sources (by id in \`person\`) support it once it's added. ${FIELDS} Leave a field empty for none.`,
+  description: `Proposes adding a fact to a person: one of their own, or, with \`familyId\` (one of the families they're a spouse in), their marriage's (MARR, DIV). A person has one birth, christening, death and burial at most: one they have is changed with edit_fact, not added again. With \`citationIds\`, those of their sources (by id in \`person\`) support it once it's added: a source of a church-book entry only the facts of whom it's about (a baptism's child, a marriage's couple, a burial's or household line's one person). ${FIELDS} Leave a field empty for none.`,
   input: {
     type: 'object',
     properties: {
@@ -104,6 +104,14 @@ export const addFact = writeOperation<Add>({
     }
     const sources = sourcesOf(view, personId, citationIds);
     if (sources === null) return { rejected: 'They have no such source.' };
+    const of =
+      familyId === null
+        ? { scope: 'person' as const, id: personId }
+        : { scope: 'family' as const, id: familyId };
+    for (const id of citationIds) {
+      const refused = view.services.scans.supportRefusal(id, of);
+      if (refused !== null) return { rejected: refused };
+    }
     const said = words(tag, fields.type, fields);
     return {
       operation: 'addFact',
