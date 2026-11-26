@@ -12,7 +12,6 @@ import type { Box, PhotoRow } from '@/common/types';
 import type { Ask } from '../ask';
 import { boxFromStage } from '../box-stage/geometry';
 import { familyChoices, searchable } from '../person-search/choices';
-import { formatName } from '../tree-view/renderer';
 import { photoItems } from './menu';
 import { boxedOn, newTagBox } from './photo-boxes';
 
@@ -181,19 +180,11 @@ class PhotoLayerElement extends SignalWatcher(LitElement) {
     const { viewer } = this;
     const removing = viewer.removing.get();
     if (removing === null && !viewer.deleting.get()) return nothing;
-    const person =
-      removing === null
-        ? undefined
-        : this.state.chart.people.get().persons.get(removing);
-    const ask: Ask =
-      removing === null
-        ? { title: 'Delete photo?', step: 'Delete', tone: 'danger' }
-        : {
-            title: 'Delete tag?',
-            ...(person === undefined ? {} : { text: formatName(person) }),
-            step: 'Delete',
-            tone: 'danger'
-          };
+    const ask: Ask = {
+      title: removing === null ? 'Delete photo?' : 'Delete tag?',
+      step: 'Delete',
+      tone: 'danger'
+    };
     return html`<sl-ask
       .ask=${ask}
       .at=${this.menuAt}

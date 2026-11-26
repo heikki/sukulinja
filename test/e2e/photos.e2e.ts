@@ -112,7 +112,7 @@ test('people are tagged in photos, one their portrait', async () => {
     // His tag taken off it, then the other Photo deleted.
     await page.getByRole('menuitem', { name: 'Delete' }).click();
     const untag = page.getByRole('alertdialog', { name: 'Delete tag?' });
-    await untag.getByText('Matti Esimerkki').waitFor();
+    await untag.waitFor();
     await shot(page, 'photos-untag-asked');
     await untag.getByRole('button', { name: 'Delete', exact: true }).click();
     await page.getByText('No one is linked to or tagged here.').waitFor();
