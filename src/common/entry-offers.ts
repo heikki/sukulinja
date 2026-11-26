@@ -35,7 +35,10 @@ export interface FactSays {
 //   Entry does (`now`), and supported;
 // - 'two': there are two or more, none the Entry supports or agrees
 //   with; no box. Of two or more, each it supports is kept and each that
-//   agrees offered support, by its `factId`.
+//   agrees offered support, by its `factId`;
+// - 'gone': the Entry a new one replaces supports the Fact (`was`), by
+//   the Citation of `personId`, and that goes with it (ADR-0037); no box,
+//   as nothing is asked.
 export type Offer =
   | { tag: string; action: 'add'; now: FactSays }
   | {
@@ -52,7 +55,14 @@ export type Offer =
       was: FactSays;
       now: FactSays;
     }
-  | { tag: string; action: 'two' };
+  | { tag: string; action: 'two' }
+  | {
+      tag: string;
+      action: 'gone';
+      factId: number;
+      was: FactSays;
+      personId: number;
+    };
 
 // A line ticked to be done, as the Entry pane sends it: by its Fact too, where
 // it has one, as two of a kind may each have a line. One without
@@ -63,8 +73,16 @@ export interface Ticked {
   factId?: number;
 }
 
+// A line with a box to tick.
+export type TickedOffer = Exclude<Offer, { action: 'two' | 'gone' }>;
+
+// Whether the line has a box: 'two' and 'gone' only say so.
+export function hasBox(offer: Offer): offer is TickedOffer {
+  return offer.action !== 'two' && offer.action !== 'gone';
+}
+
 // The line as it's ticked.
-export function tickedLine(offer: Exclude<Offer, { action: 'two' }>): Ticked {
+export function tickedLine(offer: TickedOffer): Ticked {
   const { tag, action } = offer;
   return 'factId' in offer
     ? { tag, action, factId: offer.factId }
@@ -275,8 +293,13 @@ function changeWords(was: FactSays, now: FactSays) {
 // A line as its Entry pane writes it: "Add Birth 3.3.1761 at Esimerkkilä 2, …",
 // "Christening 5.3.1761 matches: use as its source", "Birth 1762: keep as
 // its source", "Change Birth 1761 → 3.3.1761", "Two Births:
-// none matches".
-export function offerWords(offer: Offer) {
+// none matches", "Source will be removed from Matti Esimerkki's Birth
+// 3.3.1761",
+// with `nameOf` naming whose.
+export function offerWords(
+  offer: Offer,
+  nameOf?: (personId: number) => string
+) {
   const kind = factKindLabel(offer.tag);
   switch (offer.action) {
     case 'add': {
@@ -295,5 +318,11 @@ export function offerWords(offer: Offer) {
       return `Change ${kind} ${changeWords(offer.was, offer.now)}`;
     case 'two':
       return `Two ${kind}s: none matches`;
+    case 'gone': {
+      const date =
+        offer.was.date === null ? '' : ` ${dateWords(offer.was.date)}`;
+      const whose = nameOf === undefined ? '' : `${nameOf(offer.personId)}'s `;
+      return `Source will be removed from ${whose}${kind}${date}`;
+    }
   }
 }

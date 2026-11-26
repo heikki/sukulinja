@@ -124,3 +124,29 @@ test('a new bride is made into a family with the groom', async () => {
   const family = familyOf(db, 3, brideId)!;
   expect(familyFacts(db)).toMatchObject([{ familyId: family.id, tag: 'MARR' }]);
 });
+
+test('editing makes no family of two in the tree, only a new bride with the groom (ADR-0037)', async () => {
+  const { db, entries } = entriesDataset(dir);
+  const rows = made(
+    await entries.make(...marriage([{ personId: 3, role: 'HUSB' }], []))
+  );
+  const entryId = rows[0]!.citation.entryId!;
+  made(await entries.edit(entryId, { people: couple(3, 4), ticked: [] }));
+  expect(familyOf(db, 3, 4)).toBeNull();
+
+  const groomOnly = made(
+    await entries.make(...marriage([{ personId: 4, role: 'HUSB' }], [], [], 6))
+  );
+  const bride: Newcomer = {
+    personId: -1,
+    name: { given: 'Kaisa', surname: 'Malli', sex: 'U' }
+  };
+  const edited = made(
+    await entries.edit(groomOnly[0]!.citation.entryId!, {
+      people: couple(4, -1),
+      newcomers: [bride],
+      ticked: []
+    })
+  );
+  expect(familyOf(db, 4, edited[1]!.personId)).not.toBeNull();
+});

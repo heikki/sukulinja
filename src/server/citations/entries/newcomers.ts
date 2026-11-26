@@ -61,6 +61,8 @@ interface Placing {
   relatives: Relatives;
   // The family the two people are a couple in, if they are.
   coupleOf: (a: number, b: number) => number | null;
+  // For an Entry edited, not made.
+  editing: boolean;
 }
 
 // The id of the person put in place, or the refusal thrown.
@@ -138,10 +140,11 @@ function placeBaptism(
 }
 
 // Makes a marriage's couple a family: theirs if they're one, else a new
-// one of the two, a new spouse made into it. The ids newcomers are made
+// one of the two, a new spouse made into it. An edit makes a family only
+// with a new spouse: one of two in the tree isn't made again (ADR-0037). The ids newcomers are made
 // with, by the number that stood for them.
 function placeMarriage(
-  { relatives, coupleOf }: Placing,
+  { relatives, coupleOf, editing }: Placing,
   people: InEntry[],
   newcomers: Newcomer[]
 ) {
@@ -150,7 +153,10 @@ function placeMarriage(
   const bride = people.find((p) => p.role === 'WIFE');
   if (groom === undefined || bride === undefined) return ids;
   const [known, other] = groom.personId > 0 ? [groom, bride] : [bride, groom];
-  if (other.personId > 0 && coupleOf(known.personId, other.personId) !== null) {
+  if (
+    other.personId > 0 &&
+    (editing || coupleOf(known.personId, other.personId) !== null)
+  ) {
     return ids;
   }
   const fresh = newcomers.find((n) => n.personId === other.personId);
@@ -182,22 +188,23 @@ export function entryNewcomers(db: Database, relatives: Relatives) {
      WHERE (husband_id = ?1 AND wife_id = ?2) OR (husband_id = ?2 AND wife_id = ?1)
      ORDER BY id LIMIT 1`
   );
-  const placing: Placing = {
-    relatives,
-    coupleOf: (a, b) => couple.get(a, b)?.id ?? null
-  };
+  function coupleOf(a: number, b: number) {
+    return couple.get(a, b)?.id ?? null;
+  }
 
   return {
     // Makes the newcomers the people name in an Entry of the Event, and a
-    // marriage's couple a family; gives the people with the ids they were
-    // made with. Run inside the Entry's transaction; throws
-    // NewcomerRefused.
+    // marriage's couple a family, but in an edit (`placeMarriage`); gives
+    // the people with the ids they were made with. Run inside the Entry's
+    // transaction; throws NewcomerRefused.
     make(
       event: EntryEvent | null,
       people: InEntry[],
-      newcomers: Newcomer[]
+      newcomers: Newcomer[],
+      editing = false
     ): InEntry[] {
       const place = PLACING[event ?? ''];
+      const placing = { relatives, coupleOf, editing };
       const ids =
         place?.(placing, people, newcomers) ?? new Map<number, number>();
       return people.map((p) => ({

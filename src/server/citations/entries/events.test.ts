@@ -1,5 +1,5 @@
 // What an Entry records (ADR-0033): the Event chosen in its Entry pane, whatever
-// its Volume's Book, which gives its Roles.
+// its Volume's Book, which gives its Roles; chosen once (ADR-0037).
 
 import { afterEach, beforeEach, expect, test } from 'bun:test';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { NO_FIELDS } from '@/common/entry-events';
+import { LOCKED } from '@/common/entry-lock';
 
 import { at, baptism, BAPTISMS, entriesDataset, made } from './test-entries';
 
@@ -58,17 +59,21 @@ test('an Entry records the Event chosen in its Entry pane, whatever its Volume',
     })
   ).toEqual({ rejected: 'This kind of entry names one person.' });
 
-  // Chosen anew on Edit, with a Change on each of its Citations.
+  // Its kind stays as saved (ADR-0037): another is a new Entry.
+  const anew = {
+    event: 'CHR' as const,
+    people: [{ personId: 3, role: 'CHIL' }]
+  };
+  expect(await entries.edit(entryId, anew)).toEqual({ rejected: LOCKED });
+
+  // One with none is chosen once on Edit, with a Change on each of its
+  // Citations; then it stays.
+  db.run('UPDATE entries SET event = NULL WHERE id = ?', [entryId]);
   changes.length = 0;
-  const edited = made(
-    await entries.edit(entryId, {
-      event: 'CHR',
-      people: [{ personId: 3, role: 'CHIL' }]
-    })
-  );
+  const edited = made(await entries.edit(entryId, anew));
   expect(edited.map((r) => r.citation.event)).toEqual(['CHR']);
   expect(changes.map((c) => c.what)).toEqual([
-    { kind: 'event', volume: BAPTISMS, image: 3, from: 'BURI', to: 'CHR' },
+    { kind: 'event', volume: BAPTISMS, image: 3, from: null, to: 'CHR' },
     {
       kind: 'role',
       volume: BAPTISMS,
@@ -80,6 +85,12 @@ test('an Entry records the Event chosen in its Entry pane, whatever its Volume',
   expect(
     db.query('SELECT event FROM entries WHERE id = ?').get(entryId)
   ).toEqual({ event: 'CHR' });
+  expect(
+    await entries.edit(entryId, {
+      event: 'BURI',
+      people: [{ personId: 3, role: null }]
+    })
+  ).toEqual({ rejected: LOCKED });
 });
 
 test("an Entry made before its Event was chosen keeps what it says until it's chosen", async () => {

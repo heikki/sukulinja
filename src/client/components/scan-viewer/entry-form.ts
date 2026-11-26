@@ -7,9 +7,16 @@ import type { InEntry } from '@/client/dataset-api';
 import { selectStyles } from '@/client/form-styles';
 import { appState } from '@/client/state';
 import type { AppState, PendingCite } from '@/client/state';
+import type { Lock } from '@/client/state/pending-entry';
 import { boxOn } from '@/client/state/places';
-import { ENTRY_EVENTS, eventRoles, isEntryEvent } from '@/common/entry-events';
+import {
+  ENTRY_EVENTS,
+  eventLabel,
+  eventRoles,
+  isEntryEvent
+} from '@/common/entry-events';
 import type { EntryEvent, EntryRole } from '@/common/entry-events';
+import { ownerRoles } from '@/common/entry-lock';
 
 import { formatName } from '../tree-view/renderer';
 import { parentRows, withEvent } from './cite';
@@ -23,6 +30,17 @@ import './entry-fields';
 
 function stop(e: Event) {
   e.stopPropagation();
+}
+
+// The Change… of a kind or owner shown as saved (ADR-0037).
+function changeButton(what: string, onPress: (e: MouseEvent) => void) {
+  return html`<button
+    class="change"
+    aria-label="Change ${what}"
+    @click=${onPress}
+  >
+    Change…
+  </button>`;
 }
 
 // Asked of the viewer: someone to name in the Role, or with none in an
@@ -104,6 +122,17 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
         color: var(--muted);
       }
 
+      button.change {
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--accent);
+      }
+
+      button.change:hover {
+        text-decoration: underline;
+      }
+
       select {
         grid-column: 2 / span 2;
         min-width: 0;
@@ -158,6 +187,49 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
     this.viewer.entryForm.drop(personId);
   }
 
+  // The Entry edited as saved, if it's one being edited.
+  private saved() {
+    const pending = this.viewer.pending.get();
+    return pending?.kind === 'edit' ? pending.editing : null;
+  }
+
+  // Whether what of the Entry edited stays as saved shows so, its
+  // Change… not pressed (ADR-0037); an empty kind is chosen as an edit.
+  private locked(lock: Lock) {
+    const saved = this.saved();
+    if (saved === null || this.shown.unlocked?.includes(lock) === true) {
+      return false;
+    }
+    return lock === 'owner' || saved.event !== null;
+  }
+
+  // Whom the owner's Role (null: a burial's or household line's one
+  // person) named as saved, shown so while it's locked; undefined for
+  // none.
+  private lockedOwner(role: string | null) {
+    const saved = this.saved();
+    if (saved === null || !this.locked('owner')) return undefined;
+    const roles = ownerRoles({ event: saved.event, people: saved.was });
+    return roles.find((r) => r.role === role)?.personId;
+  }
+
+  // The owner made to change: the person picker opens for the Role, or
+  // for a one-person entry in place of whom it named.
+  private changeOwner(e: MouseEvent, role: string | null, personId: number) {
+    this.viewer.entryForm.unlock('owner');
+    if (role === null) this.drop(personId);
+    this.choose(e, role);
+  }
+
+  // Its person in an owner's Role: as saved, with Change…, while locked.
+  private renderOwner(role: string | null, personId: number) {
+    if (this.lockedOwner(role) !== personId) return this.renderPerson(personId);
+    return html`<span class="name">${this.nameOf(personId)}</span>
+      ${changeButton(this.nameOf(personId), (e) => {
+        this.changeOwner(e, role, personId);
+      })}`;
+  }
+
   private name(entry: InEntry) {
     this.viewer.entryForm.setInEntry(entry);
   }
@@ -182,7 +254,22 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
   }
 
   // What it records, to choose; none chosen yet, the Book couldn't tell.
+  // Saved, it shows as text with Change… (ADR-0037).
   private renderEvent() {
+    const { event } = this.shown;
+    if (event !== null && this.locked('kind')) {
+      return html`<div class="row">
+        <span class="role">Kind</span>
+        <span class="name">${eventLabel(event)}</span>
+        ${changeButton('kind', () => {
+          this.viewer.entryForm.unlock('kind');
+        })}
+      </div>`;
+    }
+    return html`${this.renderEventSelect()}`;
+  }
+
+  private renderEventSelect() {
     const { event } = this.shown;
     return html`<div class="row">
       <span class="role">Kind</span>
@@ -222,7 +309,7 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
                   Choose…
                 </button>
                 <span></span>`
-            : this.renderPerson(named.personId)
+            : this.renderOwner(role, named.personId)
         }
       </div>`;
     });
@@ -246,9 +333,10 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
                   Choose…
                 </button>
                 <span></span>`
-            : this.renderPerson(child.personId)
+            : this.renderOwner('CHIL', child.personId)
         }
       </div>
+
       <div class="row top">
         <span class="role">Parents</span>
         <div class="parents">
@@ -309,12 +397,13 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
   private renderOnePerson() {
     const { people } = this.shown;
     if (people.length > 0) {
-      return people.map(
+      return html`${people.map(
         (p) =>
           html`<div class="row">
-            <span class="role">Person</span>${this.renderPerson(p.personId)}
+            <span class="role">Person</span
+            >${this.renderOwner(null, p.personId)}
           </div>`
-      );
+      )}`;
     }
     return html`<div class="row">
       <span class="role">Person</span>
@@ -379,6 +468,7 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
                 .fields=${cite.fields}
                 .ticks=${cite.ticks}
                 .offers=${this.viewer.entryForm.offers.get()}
+                .nameOf=${(personId: number) => this.nameOf(personId)}
                 @set-field=${(e: CustomEvent<FieldDetail>) => {
                   this.viewer.entryForm.setField(e.detail.key, e.detail.text);
                 }}

@@ -5,6 +5,7 @@ import { ApiError } from '@/client/dataset-api';
 import type { DatasetApi, InEntry } from '@/client/dataset-api';
 import { eventRoles } from '@/common/entry-events';
 import type { EntryEvent } from '@/common/entry-events';
+import { changesLock } from '@/common/entry-lock';
 import { citingImage } from '@/common/entry-naming';
 import type { Offer } from '@/common/entry-offers';
 import type { Newcomer } from '@/common/operations';
@@ -20,6 +21,8 @@ import type { Readable, Selected } from './selected';
 // each in their Role if its Event has Roles, what it says, its fields as
 // typed, the boxes pressed on the lines of what they'd do to the tree, by
 // lineKey, and those it names who aren't in the tree yet, to make with it.
+// Editing one, its kind and owner are shown as saved until their Change…
+// is pressed (`unlocked`, ADR-0037).
 export interface PendingCite {
   event: EntryEvent | null;
   people: InEntry[];
@@ -27,7 +30,11 @@ export interface PendingCite {
   fields: TypedFields;
   ticks: Record<string, boolean>;
   newcomers: Newcomer[];
+  unlocked?: Lock[];
 }
+
+// What of an Entry stays as saved: its kind, and its owner.
+export type Lock = 'kind' | 'owner';
 
 // The source's Entry as it was when its editing began: who was in it, by
 // their Citation, what it said, and its Box, on the Image shown unless
@@ -62,6 +69,10 @@ export interface EntryForm {
   nameNew: (name: PersonName) => number;
   setPeople: (people: InEntry[]) => void;
   drop: (personId: number) => void;
+  // Its kind or owner made to change, its Change… pressed.
+  unlock: (lock: Lock) => void;
+  // Whether it's saved as a new Entry, its kind or owner changed.
+  anew: Readable<boolean>;
 }
 
 // What saving the pending Entry needs of the viewer.
@@ -87,9 +98,23 @@ function namedNew({ people, newcomers }: PendingCite) {
 }
 type EditedEntry = PendingChange & { kind: 'edit' };
 
-// The Entry being edited, as its lines are asked.
-function editedId(change: PendingChange): { entryId?: number } {
-  return change.kind === 'edit' ? { entryId: change.editing.entryId } : {};
+// Whether the Entry edited is saved as a new one: its kind or owner
+// changed (ADR-0037).
+function isAnew(change: PendingChange) {
+  if (change.kind !== 'edit') return false;
+  const { editing, cite } = change;
+  return changesLock({ event: editing.event, people: editing.was }, cite);
+}
+
+// The Entry being edited, as its lines are asked; or the one a new Entry
+// replaces.
+function editedId(change: PendingChange): {
+  entryId?: number;
+  replacing?: number;
+} {
+  if (change.kind !== 'edit') return {};
+  const id = change.editing.entryId;
+  return isAnew(change) ? { replacing: id } : { entryId: id };
 }
 
 // Throws ApiError for a date in the Entry pane that can't be read.
@@ -179,16 +204,18 @@ export function pendingEntry(
     change(({ ticks }) => ({ ticks: { ...ticks, [key]: on } }));
   }
 
-  // The fields and lines to save with the Entry, as it is now. Throws
-  // ApiError for a date that can't be read.
-  async function saying(volumeId: string, cite: PendingCite, entryId?: number) {
+  // The fields and lines to save with the Entry, as it is now, the one
+  // edited or replaced given. Throws ApiError for a date that can't be
+  // read.
+  async function saying(
+    volumeId: string,
+    cite: PendingCite,
+    ids: { entryId?: number; replacing?: number } = {}
+  ) {
     refuseDates(cite);
     return {
       fields: fieldsOf(cite.event, cite.fields),
-      ticked: await lines.ticked(
-        { volumeId, ...(entryId === undefined ? {} : { entryId }), ...cite },
-        cite.ticks
-      )
+      ticked: await lines.ticked({ volumeId, ...ids, ...cite }, cite.ticks)
     };
   }
 
@@ -306,14 +333,18 @@ export function pendingEntry(
     refuse(cite, true);
     if (event === null) return [];
     const said = text.trim();
-    const rows = await api.editEntry(editing.entryId, {
-      ...movedTo(change),
-      ...(event === editing.event ? {} : { event }),
-      text: said === '' ? null : said,
-      people,
-      newcomers: namedNew(cite),
-      ...(await saying(change.volumeId, cite, editing.entryId))
-    });
+    const rows = isAnew(change)
+      ? await saveAnew(change, said === '' ? null : said)
+      : await api.editEntry(editing.entryId, {
+          ...movedTo(change),
+          ...(event === editing.event ? {} : { event }),
+          text: said === '' ? null : said,
+          people,
+          newcomers: namedNew(cite),
+          ...(await saying(change.volumeId, cite, {
+            entryId: editing.entryId
+          }))
+        });
     void selected.refresh();
     treeChanged();
     await reload(change.volumeId);
@@ -322,12 +353,48 @@ export function pendingEntry(
     return editing.was.map((w) => w.citationId).filter((id) => now.has(id));
   }
 
+  // The Entry edited saved as a new one where its Box is now, which
+  // removes it (ADR-0037): the new one's Citations.
+  async function saveAnew(change: EditedEntry, text: string | null) {
+    const { volumeId, image, box, cite, editing } = change;
+    const fileId = fileOf(image);
+    if (fileId === null) {
+      throw new ApiError("The Image isn't listed yet; try again.");
+    }
+    const replacing = editing.entryId;
+    return await api.citeEntry(
+      {
+        volumeId,
+        image,
+        fileId,
+        box,
+        event: cite.event,
+        text,
+        newcomers: namedNew(cite),
+        replacing,
+        ...(await saying(volumeId, cite, { replacing }))
+      },
+      cite.people
+    );
+  }
+
   // Names these people in it, in place of those it named.
   function setPeople(people: InEntry[]) {
     change(() => ({ people }));
   }
 
+  function unlock(lock: Lock) {
+    change(({ unlocked = [] }) => ({ unlocked: [...unlocked, lock] }));
+  }
+
+  const anew = computed(() => {
+    const now = pending.get();
+    return now !== null && isAnew(now);
+  });
+
   const form: EntryForm = {
+    unlock,
+    anew,
     notNamable,
     setEvent,
     setText,

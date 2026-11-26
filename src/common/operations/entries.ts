@@ -39,13 +39,15 @@ export interface Newcomer {
 // An entry made in the app, with the Event it records, chosen in its Entry pane
 // (null for none chosen, which is refused), what it says, if said, its
 // dates and place (ADR-0033), the lines of what it would do to the tree
-// that were ticked, and those it makes.
+// that were ticked, and those it makes. `replacing` an Entry whose kind
+// or owner it changes (ADR-0037): that one is removed with it.
 export interface EntryTarget extends EntryAt {
   event: EntryEvent | null;
   text: string | null;
   fields: EntryFields;
   ticked: Ticked[];
   newcomers?: Newcomer[];
+  replacing?: number;
 }
 
 // Someone named in an entry, and who they are in it: one of its Event's
@@ -72,10 +74,12 @@ export interface EntryEdit {
 // What an Entry of the Event in the Volume, naming the people, with the
 // fields, would do to the tree: its Entry pane's list (common/entry-offers).
 // An Entry being edited gives its id (`entryId`), so the Facts it
-// supports are known as its own.
+// supports are known as its own; one a new Entry replaces (`replacing`),
+// so those it supports are listed as no longer its source.
 export interface EntryAsked {
   volumeId: string;
   entryId?: number;
+  replacing?: number;
   event: EntryEvent | null;
   people: InEntry[];
   fields: EntryFields;
@@ -148,9 +152,15 @@ function targetSaysOf(fields: Fields): Omit<EntryTarget, keyof EntryAt> | null {
   const ticked = tickedListOf(fields.ticked);
   const newcomers = newcomersOf(fields.newcomers);
   if (text === undefined || event === undefined || said === null) return null;
-  return ticked === null || newcomers === null
-    ? null
-    : { event, text, fields: said, ticked, newcomers };
+  const replacing = optionalId(fields.replacing);
+  if (ticked === null || newcomers === null || replacing === null) return null;
+  return { event, text, fields: said, ticked, newcomers, ...replacing };
+}
+
+// An Entry's id under `replacing`, if given; null for anything else.
+function optionalId(value: unknown): { replacing?: number } | null {
+  if (value === undefined) return {};
+  return isInteger(value) ? { replacing: value } : null;
 }
 
 export function entryTargetOf(value: unknown): EntryTarget | null {
@@ -210,6 +220,15 @@ function said(fields: Fields, edit: EntryEdit): EntryEdit | null {
   };
 }
 
+// The Entry asked of as edited, or as replaced; null if one can't be read.
+function askedIdsOf(fields: Fields) {
+  const { entryId } = fields;
+  if (entryId !== undefined && !isInteger(entryId)) return null;
+  const replacing = optionalId(fields.replacing);
+  if (replacing === null) return null;
+  return { ...(entryId === undefined ? {} : { entryId }), ...replacing };
+}
+
 export function entryAskedOf(value: unknown): EntryAsked | null {
   const fields = fieldsOf(value);
   if (fields === null || !isName(fields.volumeId)) return null;
@@ -219,11 +238,11 @@ export function entryAskedOf(value: unknown): EntryAsked | null {
   const newcomers = newcomersOf(fields.newcomers);
   if (event === undefined || people === null || said === null) return null;
   if (newcomers === null) return null;
-  const { volumeId, entryId } = fields;
-  if (entryId !== undefined && !isInteger(entryId)) return null;
+  const ids = askedIdsOf(fields);
+  if (ids === null) return null;
   return {
-    volumeId,
-    ...(entryId === undefined ? {} : { entryId }),
+    volumeId: fields.volumeId,
+    ...ids,
     event,
     people,
     fields: said,

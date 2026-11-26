@@ -110,10 +110,11 @@ export const CITATION_OPERATIONS = {
     }
   ),
 
-  // Makes an Entry with a Citation of it for each person named (ADR-0026):
-  // them as the Volume's citations list them, in the order named.
+  // Makes an Entry with a Citation of it for each person named (ADR-0026),
+  // in place of the one it's `replacing` (ADR-0037): them as the Volume's
+  // citations list them, in the order named.
   citeEntry: answers<{ at: EntryTarget; people: InEntry[] }, VolumeCitation[]>(
-    '{ at: { volumeId, image, fileId, box, event, text?, fields?, ticked? }, people: [{ personId, role? }] }',
+    '{ at: { volumeId, image, fileId, box, event, text?, fields?, ticked?, replacing? }, people: [{ personId, role? }] }',
     (body) => {
       const at = entryTargetOf(body.at);
       const people = listOf(body.people, inEntryOf);

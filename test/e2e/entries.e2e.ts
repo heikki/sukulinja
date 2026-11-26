@@ -88,3 +88,35 @@ test('a baptism is corrected and a marriage made and deleted', async () => {
       .waitFor();
   });
 });
+
+test("a baptism's kind and child show as saved, and changing them saves a new entry", async () => {
+  await withApp(async ({ page }) => {
+    await newTree(page);
+    await boxOf(page, 'Matti').click();
+    await openJuvaVolume(page, 'Syntyneiden ja kastettujen luettelot');
+    await rightClickLine(page, 1, 1);
+    await page.getByRole('menuitem', { name: 'New entry' }).click();
+    await page.getByLabel('Born').fill('3.3.1795');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+    const entry = page.locator('[data-own]');
+    await entry.click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Edit', exact: true }).click();
+    // Its kind and child as saved, each with Change….
+    await page.getByRole('button', { name: 'Change kind' }).waitFor();
+    await page.getByRole('button', { name: /^Change Matti/ }).waitFor();
+    await shot(page, 'entry-lock-locked');
+
+    // Another kind saves a new entry: the Birth goes with the old one.
+    await page.getByRole('button', { name: 'Change kind' }).click();
+    await page.getByLabel('Kind of entry').selectOption({ label: 'Burial' });
+    await page
+      .getByText("Source will be removed from Matti Esimerkki's Birth 3.3.1795")
+      .waitFor();
+    await shot(page, 'entry-lock-kind');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByRole('heading', { name: 'Edit entry' }).waitFor({
+      state: 'detached'
+    });
+  });
+});

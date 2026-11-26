@@ -1,4 +1,4 @@
-Status: needs-triage
+Status: done
 
 # Kind and owner locked, a change saving a new Entry
 

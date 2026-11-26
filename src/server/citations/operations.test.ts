@@ -281,8 +281,8 @@ describe("A dataset's Citations", () => {
   test('makes an Entry with its people, edits it as a whole, and deletes it', async () => {
     await seedPeople();
     const made = await op('juva', 'citeEntry', {
-      at: { ...at, event: 'RESI', text: 'Rippikirja' },
-      people: [{ personId: 2 }]
+      at: { ...at, event: 'CHR', text: 'Rippikirja' },
+      people: [{ personId: 2, role: 'CHIL' }]
     });
     expect(made.status).toBe(200);
     const [first] = (await made.json()) as Array<{

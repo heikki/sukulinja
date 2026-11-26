@@ -163,9 +163,10 @@ test("a Role changed keeps the person's Citation, and the viewer on it", async (
   const { viewer, child, entryId } = await viewing();
   viewer.editEntry();
   viewer.entryForm.setPeople([
-    { personId: 1, role: 'FATH' },
-    { personId: 2, role: 'MOTH' }
+    { personId: 1, role: 'CHIL' },
+    { personId: 2, role: 'FATH' }
   ]);
+  expect(viewer.entryForm.anew.get()).toBe(false);
   await viewer.save();
   const rows: VolumeCitation[] = await api!.volumeCitations(VOLUME);
   expect(
@@ -173,18 +174,29 @@ test("a Role changed keeps the person's Citation, and the viewer on it", async (
       .filter((r) => r.citation.entryId === entryId)
       .map((r) => [r.citation.id, r.citation.role])
   ).toEqual([
-    [child.citation.id, 'FATH'],
-    [child.citation.id + 1, 'MOTH']
+    [child.citation.id, 'CHIL'],
+    [child.citation.id + 1, 'FATH']
   ]);
   expect(viewer.source.get()?.citation.id).toBe(child.citation.id);
 });
 
-test("taking the source's own person out leaves the viewer on the Image", async () => {
+test('another child saves a new Entry in place of it, the viewer on the Image (ADR-0037)', async () => {
   const { viewer, entryId } = await viewing();
   viewer.editEntry();
-  viewer.entryForm.drop(1);
+  viewer.entryForm.unlock('owner');
+  viewer.entryForm.setInEntry({ personId: 3, role: 'CHIL' });
+  expect(viewer.entryForm.anew.get()).toBe(true);
   await viewer.save();
-  expect(await entryNow(entryId)).toMatchObject([{ personId: 2, box: BOX }]);
+  expect(await entryNow(entryId)).toEqual([]);
+  const rows = await api!.volumeCitations(VOLUME);
+  expect(
+    rows
+      .filter((r) => r.citation.entryId !== null)
+      .map((r) => [r.personId, r.citation.role, r.citation.text])
+  ).toEqual([
+    [2, 'MOTH', 'Kaste 1.2.1790'],
+    [3, 'CHIL', 'Kaste 1.2.1790']
+  ]);
   expect(viewer.source.get()).toBeNull();
   expect(viewer.opened.get()).toEqual({
     volumeId: VOLUME,

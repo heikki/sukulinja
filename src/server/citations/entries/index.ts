@@ -9,6 +9,7 @@
 import type { Database } from 'bun:sqlite';
 
 import type { EntryEvent, EntryFields } from '@/common/entry-events';
+import { changesLock, LOCKED } from '@/common/entry-lock';
 import {
   ALREADY_LINKED,
   citingImage,
@@ -198,13 +199,15 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
     });
   }
 
-  // The people with the newcomers made, and a marriage's couple a family.
+  // The people with the newcomers made, and a marriage's couple a family
+  // but `editing` it (ADR-0037).
   function madeNow(
     event: EntryEvent | null,
     people: InEntry[],
-    those: Newcomer[] | undefined
+    those: Newcomer[] | undefined,
+    editing = false
   ) {
-    return newcomers.make(event, people, those ?? []);
+    return newcomers.make(event, people, those ?? [], editing);
   }
 
   async function listedOf(entryId: number) {
@@ -238,6 +241,63 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
         return now === undefined || now.role === w.role ? [] : [{ w, now }];
       })
     };
+  }
+
+  // The Entry a new one replaces, with its Citations, as the new one's
+  // naming is checked: its people's own links of the Image don't count.
+  // `entry` null when it replaces none; null when there's no such Entry,
+  // refused when it's in another Volume.
+  function replacedBy(at: {
+    volumeId: string;
+    replacing?: number;
+  }): { entry: { id: number; was: EntryCitation[] } | null } | Refused | null {
+    if (at.replacing === undefined) return { entry: null };
+    const entry = stored.entryOf(at.replacing);
+    if (entry === null) return null;
+    if (entry.volumeId !== at.volumeId) {
+      return { rejected: 'An entry stays in its Volume.' };
+    }
+    const was = stored.citationsOf(at.replacing);
+    return { entry: { id: at.replacing, was } };
+  }
+
+  // Removes the Citations of the Entry replaced, holding the notes and
+  // media of each under its person (a negative id) for theirs in the new
+  // one; those no longer named lose theirs, as an edit taking them out.
+  function hold(was: EntryCitation[]) {
+    for (const c of was) {
+      stored.passOn(c.id, -c.personId);
+      uncite(c.id);
+    }
+    return {
+      // Gives each person's held to their Citation `ids[i]` of the new
+      // Entry, and drops the rest.
+      giveTo(people: InEntry[], ids: number[]) {
+        for (const c of was) {
+          const i = people.findIndex((p) => p.personId === c.personId);
+          if (i !== -1) stored.passOn(-c.personId, ids[i]!);
+        }
+        stored.dropHeld();
+      }
+    };
+  }
+
+  // Why the Entry can't be made: someone named isn't a person (null), or
+  // it can't be cited there, they can't be named in it, or the one it
+  // replaces isn't (refused). Else where it's cited, and the Entry it
+  // replaces, if any.
+  async function makeChecked(at: Omit<EntryTarget, 'text'>, people: InEntry[]) {
+    if (unknown(people, personExists)) return null;
+    if (people.length === 0) return { rejected: 'Name someone in it.' };
+    const replacing = replacedBy(at);
+    if (replacing === null || 'rejected' in replacing) return replacing;
+    const fresh = newcomersRefusal(at.event, people, at.newcomers ?? []);
+    if (fresh !== null) return { rejected: fresh };
+    const checked = await images.imageToCite(at, await citable());
+    if ('rejected' in checked) return checked;
+    const replaced = replacing.entry;
+    const refused = await refusal(at, at.event, people, replaced);
+    return refused === null ? { checked, replaced } : { rejected: refused };
   }
 
   // Moves the Entry and puts what it says, with a Change on each of its
@@ -303,13 +363,17 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
   ) {
     const people = edit.people ?? was;
     if (unknown(people, personExists)) return null;
+    const event = edit.event ?? entry.event;
     const to = await movedTo(entry, edit.at);
     if (to !== null && 'rejected' in to) return to;
-    const event = edit.event ?? entry.event;
     if (renames(edit, to !== null)) {
       const at = to ?? entry;
       const refused = await refusal(at, event, people, { id: entryId, was });
       if (refused !== null) return { rejected: refused };
+    }
+    // Its kind and owner stay as saved (ADR-0037): another is a new Entry.
+    if (changesLock({ event: entry.event, people: was }, { event, people })) {
+      return { rejected: LOCKED };
     }
     return { people, to, event };
   }
@@ -387,24 +451,27 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
   return {
     // Makes an Entry of the Event at the Box with a Citation of it for
     // each person named, in their Role, and gives them as the Scan viewer
-    // lists them. Null when one of them isn't a person; rejected where
-    // the entry can't be cited there, or they can't be named in it.
+    // lists them; one `replacing` another (ADR-0037) removes that one with
+    // its Citations and their support in the same transaction, in its
+    // Volume. Null when one of them isn't a person, or there's no Entry
+    // to replace; rejected where the entry can't be cited there, or they
+    // can't be named in it.
     async make(
       at: Omit<EntryTarget, 'text'>,
       text: string | null,
       people: InEntry[]
     ): Promise<VolumeCitation[] | Refused | null> {
-      if (unknown(people, personExists)) return null;
-      if (people.length === 0) return { rejected: 'Name someone in it.' };
-      const fresh = newcomersRefusal(at.event, people, at.newcomers ?? []);
-      if (fresh !== null) return { rejected: fresh };
-      const checked = await images.imageToCite(at, await citable());
-      if ('rejected' in checked) return checked;
-      const refused = await refusal(at, at.event, people, null);
-      if (refused !== null) return { rejected: refused };
+      const ok = await makeChecked(at, people);
+      if (ok === null || 'rejected' in ok) return ok;
+      const { checked, replaced } = ok;
       const { event, volumeId } = at;
       const said = await saying(
-        { volumeId, event, people },
+        {
+          volumeId,
+          event,
+          people,
+          ...(replaced === null ? {} : { replacing: replaced.id })
+        },
         at.fields,
         at.ticked
       );
@@ -412,6 +479,7 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
       const { fields, offered, ticked } = said;
       const archive = await volumeArchive(at.volumeId);
       const ids = saved(db, () => {
+        const held = hold(replaced?.was ?? []);
         const now = madeNow(event, people, at.newcomers);
         const entryId = made.entry({
           ...at,
@@ -422,6 +490,7 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
         stored.setFields(entryId, fields);
         const entry = stored.entryOf(entryId)!;
         const named = now.map((p) => name(entryId, p, entry));
+        held.giveTo(now, named);
         doTicked(entryId, { event, people: now }, { offered, ticked });
         return named;
       });
@@ -454,7 +523,7 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
       if (ok === null || 'rejected' in ok) return ok;
       const text = edit.text === undefined ? undefined : plainText(edit.text);
       const done = saved(db, () => {
-        const now = madeNow(ok.event, ok.people, edit.newcomers);
+        const now = madeNow(ok.event, ok.people, edit.newcomers, true);
         const e = { ...entry, was, ...ok, people: now };
         write(entryId, { ...e, text, wasEvent: entry.event });
         const saved = { event: ok.event, people: now };

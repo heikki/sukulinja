@@ -72,10 +72,12 @@ interface TreeDeps {
 
 // What the Entry would be: in the Volume, of the Event, naming the people,
 // with its fields.
-// `entryId` when it's an Entry being edited.
+// `entryId` when it's an Entry being edited, `replacing` the one a new
+// Entry replaces (ADR-0037).
 export interface EntryShape {
   volumeId: string;
   entryId?: number;
+  replacing?: number;
   event: EntryEvent | null;
   people: InEntry[];
   fields: EntryFields;
@@ -119,6 +121,41 @@ export function entryTree(
     if (entryId === undefined) return all;
     const supported = new Set(supportedBy.all(entryId).map((r) => r.factId));
     return all.map((f) => ({ ...f, supported: supported.has(f.id) }));
+  }
+  // The Facts the Entry's Citations support, as a line says them.
+  const supportedFacts = db.prepare<
+    {
+      factId: number;
+      tag: string;
+      date: string | null;
+      place: string | null;
+      personId: number;
+    },
+    [number]
+  >(
+    `SELECT f.id AS factId, f.tag, f.date_text AS date, f.place,
+       MIN(c.scope_id) AS personId
+     FROM fact_citations fc JOIN citations c ON c.id = fc.citation_id
+     JOIN facts f ON f.id = fc.fact_id WHERE c.entry_id = ?
+     GROUP BY f.id ORDER BY f.id`
+  );
+  // What the Entry replaced supports, but for those the new one's lines
+  // name: each no longer its source, as it goes.
+  function gone(replacing: number | undefined, offers: Offer[]): Offer[] {
+    if (replacing === undefined) return [];
+    const named = new Set(
+      offers.flatMap((o) => ('factId' in o ? [o.factId] : []))
+    );
+    return supportedFacts
+      .all(replacing)
+      .filter((f) => !named.has(f.factId))
+      .map(({ factId, tag, date, place, personId }) => ({
+        tag,
+        action: 'gone',
+        factId,
+        was: { date, place },
+        personId
+      }));
   }
   const factRow = db.prepare<
     {
@@ -181,19 +218,24 @@ export function entryTree(
     if (factId !== null) support.set(cited, factId, true);
   }
 
+  // What the Entry would do to its owner's Facts.
+  async function ownersOffers(entry: EntryShape, owner: Owner) {
+    const { parish, years } = await volumeWhere(entry.volumeId);
+    const place = entryPlace(entry.fields, parish);
+    return entryOffers(
+      entry.event,
+      { fields: entry.fields, place, years },
+      ownFacts(owner, entry.entryId)
+    );
+  }
+
   return {
-    // What the Entry would do to the tree as it is now.
+    // What the Entry would do to the tree as it is now; a new one
+    // replacing another, what goes with that one too.
     async offered(entry: EntryShape): Promise<Offered> {
       const owner = ownerOf(entry.event, entry.people, coupleOf);
-      if (owner === null) return { offers: [] };
-      const { parish, years } = await volumeWhere(entry.volumeId);
-      const place = entryPlace(entry.fields, parish);
-      const offers = entryOffers(
-        entry.event,
-        { fields: entry.fields, place, years },
-        ownFacts(owner, entry.entryId)
-      );
-      return { offers };
+      const offers = owner === null ? [] : await ownersOffers(entry, owner);
+      return { offers: [...offers, ...gone(entry.replacing, offers)] };
     },
 
     // Why the lines ticked can't be done: one the Entry doesn't offer now,
