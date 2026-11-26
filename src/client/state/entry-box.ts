@@ -10,11 +10,9 @@ import type { LinkOpen } from './source-open';
 // taking it back does:
 // - 'match': Vision's guess at the entry, to confirm, edit or discard;
 // - 'mark': the person's Mark, to edit or discard;
-// - 'citation': a Citation made in the app with no Entry, to edit or
-//   delete, Box and all;
 // - 'entry': an Entry made in the app (ADR-0026), edited in the Entry pane it
 //   was made in; deleting it deletes everyone's Citation of it.
-export type SourceBox = 'match' | 'mark' | 'citation' | 'entry';
+export type SourceBox = 'match' | 'mark' | 'entry';
 
 // The source's Box, as its menu sees it.
 export interface EntryBox {
@@ -40,16 +38,11 @@ export function entryBox(
     const shown = source.get();
     if (shown?.link?.precision !== 'entry') return null;
     const { citation, link } = shown;
-    if (citation.madeInApp) {
-      return citation.entryId === null ? 'citation' : 'entry';
-    }
+    if (citation.madeInApp) return citation.entryId === null ? null : 'entry';
     return link.certainty === 'match' ? 'match' : 'mark';
   });
 
-  const deletes = computed(() => {
-    const what = kind.get();
-    return what === 'citation' || what === 'entry';
-  });
+  const deletes = computed(() => kind.get() === 'entry');
 
   const people = computed(() => {
     const id = source.get()?.citation.entryId ?? null;

@@ -18,8 +18,7 @@ function replacedBy(
   pending: PendingChange | null,
   source: LinkOpen | null
 ): (row: VolumeCitation) => boolean {
-  const marks = pending?.kind === 'mark' || pending?.kind === 'place';
-  if (marks && source !== null) {
+  if (pending?.kind === 'place' && source !== null) {
     const { markKey } = source.citation;
     return (r) => r.citation.markKey === markKey;
   }

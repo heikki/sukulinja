@@ -61,7 +61,7 @@ export interface ChooseDetail {
 // a burial or a household line its one person; then its fields and what
 // they'd do to the tree (entry-fields.ts). What it says is written in the
 // person's sources (source-text.ts). Cancel and Save under them
-// (edit.ts), as the source's own Box's pane has (box-pane.ts). It can't be hidden while the Box is pending.
+// (edit.ts). It can't be hidden while the Box is pending.
 @customElement('sl-scan-entry')
 class ScanEntryElement extends SignalWatcher(LitElement) {
   static override styles = [
@@ -473,7 +473,7 @@ class ScanEntryElement extends SignalWatcher(LitElement) {
 
   override render() {
     const pending = this.viewer.pending.get();
-    if (pending === null || pending.kind === 'mark') return nothing;
+    if (pending === null) return nothing;
     const cite = pending.cite;
     this.shown = cite;
     return html`

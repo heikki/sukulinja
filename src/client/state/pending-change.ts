@@ -20,9 +20,7 @@ export interface PendingAt {
   box: Box;
 }
 
-// A change in the Scan viewer not saved yet, of one of four kinds:
-// - 'mark': the source's entry is at the Box, its Link moved there once
-//   saved (a Mark);
+// A change in the Scan viewer not saved yet, of one of three kinds:
 // - 'place': a Church-book reference's entry is at the Box, its Mark
 //   making it an Entry (ADR-0016), which is then named and told as an
 //   edited one is; `named` are those it started with, everyone citing
@@ -32,7 +30,6 @@ export interface PendingAt {
 // - 'edit': the source's Entry as it should be, its Box, people and words
 //   changed at once (ADR-0026).
 export type PendingChange =
-  | (PendingAt & { kind: 'mark' })
   | (PendingAt & {
       kind: 'place';
       cite: PendingCite;
@@ -75,8 +72,6 @@ export interface PendingDeps {
 
 export interface Pending {
   change: Readable<PendingChange | null>;
-  // A Box for the source's entry, to move it there.
-  mark: (box: Box) => void;
   // A new Entry at the Box, of the Event guessed, with the people in it
   // so far.
   newEntry: (box: Box, event: EntryEvent | null, people: InEntry[]) => void;
@@ -113,16 +108,13 @@ export interface Pending {
   ) => Promise<void>;
 }
 
-// What a pending change is, wherever it is; nothing pending moves the
-// source's entry.
+// What a pending change is, wherever it is.
 type Kind =
-  | { kind: 'mark' }
   | { kind: 'place'; cite: PendingCite; named: number[]; markKey: string }
   | { kind: 'new'; cite: PendingCite }
   | { kind: 'edit'; cite: PendingCite; editing: EntryEdit };
 
-function kindOf(change: PendingChange | null): Kind {
-  if (change === null || change.kind === 'mark') return { kind: 'mark' };
+function kindOf(change: PendingChange): Kind {
   if (change.kind === 'place') {
     const { cite, named, markKey } = change;
     return { kind: 'place', cite, named, markKey };
@@ -188,23 +180,22 @@ export function pendingChange(deps: PendingDeps): Pending {
   function place(box: Box, kind: Kind) {
     const at = placeable();
     if (at === null) return;
-    const marks = kind.kind === 'mark' || kind.kind === 'place';
-    if (marks && source.get() === null) return;
+    if (kind.kind === 'place' && source.get() === null) return;
     deps.placing();
     change.set({ ...at, box, ...kind });
     entry.begin();
   }
 
   function moveBox(box: Box) {
-    place(box, kindOf(change.get()));
+    const now = change.get();
+    if (now !== null) place(box, kindOf(now));
   }
 
   function cancel() {
     const was = change.get();
     if (was === null) return;
     const shown = source.get();
-    const marks = was.kind === 'mark' || was.kind === 'place';
-    if (marks && shown !== null && shown.link !== null) {
+    if (was.kind === 'place' && shown !== null && shown.link !== null) {
       deps.openLink(shown);
     } else {
       change.set(null);
@@ -344,9 +335,6 @@ export function pendingChange(deps: PendingDeps): Pending {
     const was = change.get();
     if (was === null) return null;
     switch (was.kind) {
-      case 'mark':
-        await saveMark(was);
-        return null;
       case 'place':
         await savePlace(was);
         return null;
@@ -360,9 +348,6 @@ export function pendingChange(deps: PendingDeps): Pending {
 
   return {
     change,
-    mark(box) {
-      place(box, { kind: 'mark' });
-    },
     newEntry(box, event, people) {
       place(box, { kind: 'new', cite: startCite(event, people) });
     },
@@ -385,8 +370,7 @@ export function pendingChange(deps: PendingDeps): Pending {
         const from = { image: link.image, box: link.box };
         const editing = entry.editing(entryId, box, rows, from);
         place(box, { kind: 'edit', ...editing });
-      } else if (citation.madeInApp) place(box, { kind: 'mark' });
-      else {
+      } else if (!citation.madeInApp) {
         const named = [...new Set(start.people.map((p) => p.personId))];
         const cite = startCite(start.event, start.people, start.fields);
         const { markKey } = citation;

@@ -148,8 +148,6 @@ export interface Viewer {
   // As `setBox`, with the Entry pane an Entry's edited has (placeSource); on
   // the source's own Box, to adjust it as its Entry pane does.
   placeEntry: (box: Box, start: EntryStart) => void;
-  // Starts a pending change from the Link's own Box, to adjust it.
-  editBox: () => void;
   // Puts a new Entry at the Box, on the Image shown, pending, of the
   // Event guessed and with the people in it so far.
   newEntry: (box: Box, event: EntryEvent | null, people: InEntry[]) => void;
@@ -463,11 +461,6 @@ export function openViewer(
     changing.editEntry(entryId, box, cited.people.get());
   }
 
-  function editBox() {
-    const box = boxHere.get();
-    if (box !== null && pending.get() === null) changing.mark(box);
-  }
-
   function discard() {
     if (oldFilming.get()) return;
     confirmation.forget();
@@ -655,7 +648,6 @@ export function openViewer(
     boxPending,
     setBox: changing.moveBox,
     placeEntry: changing.placeSource,
-    editBox,
     newEntry: changing.newEntry,
     entryForm: changing.form,
     editEntry,

@@ -266,17 +266,13 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   // What the pending Entry records, if chosen.
   private eventNow() {
     const pending = this.viewer.pending.get();
-    return pending === null || pending.kind === 'mark'
-      ? null
-      : pending.cite.event;
+    return pending === null ? null : pending.cite.event;
   }
 
   // Who the pending Entry names so far.
   private namedNow() {
     const pending = this.viewer.pending.get();
-    return pending === null || pending.kind === 'mark'
-      ? []
-      : pending.cite.people;
+    return pending === null ? [] : pending.cite.people;
   }
 
   // A Reminder on the Image shown and the Selected person, written in the

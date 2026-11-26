@@ -52,9 +52,22 @@ function ids(rows: VolumeCitation[]) {
   return rows.map((r) => r.citation.id);
 }
 
-test("a Mark hides the Box of everyone sharing the source's Mark", () => {
+test("a placed reference hides the Box of everyone sharing the source's Mark", () => {
   const rows = [row(1, 'a'), row(2, 'a'), row(3, 'b')];
-  const pending: PendingChange = { ...AT, kind: 'mark' };
+  const pending: PendingChange = {
+    ...AT,
+    kind: 'place',
+    cite: {
+      event: null,
+      people: [],
+      text: '',
+      fields: NO_TYPED,
+      ticks: {},
+      newcomers: []
+    },
+    named: [],
+    markKey: 'a'
+  };
   expect(ids(rowsShown(rows, rows[0] ?? null, pending))).toEqual([3]);
 });
 

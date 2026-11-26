@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 
 import { memoryDatasetApi } from '@/client/dataset-api/memory';
-import { openAppState } from '@/client/state';
+import { NO_TYPED, openAppState } from '@/client/state';
 import { openSelected } from '@/client/state/selected';
 import { openViewer } from '@/client/state/viewer';
 import type { CitationRow, Link } from '@/common/types';
@@ -69,6 +69,7 @@ function unasked() {
 const NONE = {
   chooseVolume: unasked,
   placeBox: unasked,
+  editBox: unasked,
   cite: unasked,
   remind: unasked
 };
@@ -80,11 +81,9 @@ function labels(
   return linkItems(viewer, where, NONE).map((i) => i.label);
 }
 
-test('a Citation made in the app offers Delete on its Box; a Mark or Match, Discard; a Match, Confirm', async () => {
+test('a Mark or Match offers Discard on its Box, a Match Confirm; one made in the app with no Entry, nothing of its own', async () => {
   const made = await viewing(citation(1, true));
   expect(labels(made, { onBox: true, canBox: true })).toEqual([
-    'Edit',
-    'Delete',
     'Add reminder…'
   ]);
   const marked = await viewing(citation(2, false));
@@ -116,7 +115,7 @@ test('New entry shows over the full Image, with nothing pending', async () => {
     'Add reminder…',
     'Change Volume…'
   ]);
-  viewer.setBox(BOX);
+  viewer.placeEntry(BOX, { event: null, people: [], fields: NO_TYPED });
   expect(labels(viewer, { onBox: false, canBox: true })).toEqual([
     'Change Volume…'
   ]);
@@ -133,7 +132,7 @@ test("Place entry isn't offered with the source's Box on the Image", async () =>
 
 test('Add reminder… waits for the pending Box, and for Astia to list the Image', async () => {
   const viewer = await viewing(citation(1, false));
-  viewer.editBox();
+  viewer.placeEntry(BOX, { event: null, people: [], fields: NO_TYPED });
   expect(labels(viewer, { onBox: true, canBox: true })).toEqual([
     'Discard changes'
   ]);
@@ -166,10 +165,11 @@ test('Place entry names the source by its reference, under the label', async () 
   });
 });
 
-test('Place entry names one made in the app by its Image', async () => {
+test("Place entry isn't offered for one made in the app with no Entry", async () => {
   const viewer = await viewing(citation(1, true), ON_IMAGE);
-  const where = { onBox: false, canBox: true };
-  expect(linkItems(viewer, where, NONE)[0]?.detail).toBe('I Aa:201, Image 18');
+  expect(labels(viewer, { onBox: false, canBox: true })).not.toContain(
+    'Place entry'
+  );
 });
 
 test('Change Volume… is offered whatever the source', async () => {

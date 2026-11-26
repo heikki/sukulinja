@@ -69,11 +69,6 @@ export const scanEditStyles = css`
   p {
     flex-basis: 100%;
   }
-
-  .also {
-    color: var(--muted);
-    font-size: 0.8rem;
-  }
 `;
 
 // Over the whole stage, letting presses through to the scan except on its

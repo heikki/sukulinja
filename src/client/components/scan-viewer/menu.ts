@@ -7,8 +7,8 @@ import type { MenuItem } from '../context-menu';
 
 // What the menu offers for the current source's Link. On its own entry
 // Box (`onBox`), only that Box: a Vision match's to confirm, adjusted in
-// its Entry pane first (`editBox`), or discard, a Mark's to edit or discard, a Citation made in the app's to
-// edit or delete, and once it's pending, the change to discard. Elsewhere,
+// its Entry pane first (`editBox`), or discard, a Mark's to edit or
+// discard, and once it's pending, the change to discard. Elsewhere,
 // only over the full Image (`canBox`): a pending Box placing the source's
 // Citation here, named under it as the lists name it, unless its Box is on
 // the Image already, and with nothing pending, one for a new Citation of
@@ -27,9 +27,8 @@ export function linkItems(
   open: {
     chooseVolume: () => void;
     placeBox: () => void;
-    // The source's own Box to adjust, as its Entry pane does; the viewer's own
-    // without one.
-    editBox?: () => void;
+    // The source's own Box to adjust, as its Entry pane does.
+    editBox: () => void;
     cite: () => void;
     remind: () => void;
     // The model Vision Match asks, by its label, and asking it for the
@@ -42,12 +41,11 @@ export function linkItems(
       ? [{ label: 'Add reminder…', run: open.remind }]
       : [];
   if (where.onBox) {
-    return [...boxItems(viewer, open.editBox ?? viewer.editBox), ...remind];
+    return [...boxItems(viewer, open.editBox), ...remind];
   }
-  const hasSource = viewer.source.get() !== null;
   const items: MenuItem[] = [];
   if (where.canBox) {
-    if (hasSource && viewer.boxHere.get() === null) {
+    if (placeable(viewer)) {
       items.push({
         label: 'Place entry',
         detail: sourceName(viewer) ?? undefined,
@@ -65,6 +63,15 @@ export function linkItems(
     ...volumeItems(viewer, open.chooseVolume)
   );
   return items;
+}
+
+// Whether the source's entry can be placed on the Image: not when its Box
+// is here already, nor for a Citation made in the app with no Entry, which
+// has no entry to place.
+function placeable(viewer: Viewer) {
+  const cited = viewer.source.get()?.citation;
+  if (cited === undefined || viewer.boxHere.get() !== null) return false;
+  return !(cited.madeInApp && cited.entryId === null);
 }
 
 // Another Volume to show, from the Volume picker, whatever the source: it
@@ -134,11 +141,6 @@ function boxItems(viewer: Viewer, editBox: () => void): MenuItem[] {
   switch (viewer.entry.kind.get()) {
     case null:
       return [];
-    case 'citation':
-      return [
-        { label: 'Edit', run: viewer.editBox },
-        { label: 'Delete', run: viewer.discard }
-      ];
     case 'entry': {
       const others = viewer.entry.people.get().length > 1;
       return [

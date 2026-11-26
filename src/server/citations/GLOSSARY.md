@@ -71,7 +71,7 @@ What an **Entry** says, written out: today a Citation's text, as MyHeritage's vo
 _Avoid_: text (alone), abstract.
 
 **Entry pane**:
-Where an **Entry** is made, placed, confirmed and edited: the pane beside the scan in the Scan viewer, headed _New entry_, _Place entry_, _Confirm match_ or _Edit entry_. It holds the Entry's **Event**, who it names in which **Role**, its dates and place, and under them the lines of what it would do to the tree, each to tick: the one place **Support** is set by hand (ADR-0033). A reference's own Box is adjusted in the Box pane beside it.
+Where an **Entry** is made, placed, confirmed and edited: the pane beside the scan in the Scan viewer, headed _New entry_, _Place entry_, _Confirm match_ or _Edit entry_. It holds the Entry's **Event**, who it names in which **Role**, its dates and place, and under them the lines of what it would do to the tree, each to tick: the one place **Support** is set by hand (ADR-0033).
 _Avoid_: card (a person's box in the chart), panel (the person panel in the dock), form (an edit modal).
 
 **Box**:

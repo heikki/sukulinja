@@ -99,7 +99,9 @@ export function annotationReader(roots: GedNode[], lines: LineReader) {
       link.by = 'vision';
     }
     const originalPage = noteWith(originalPageOf);
-    const madeInApp = noteWith(noteOf(ADDED_IN_APP)) !== null;
+    // What the app makes is at an Astia Image or Volume: the note without
+    // the link was carried over, and the citation is the reference it says.
+    const madeInApp = noteWith(noteOf(ADDED_IN_APP)) !== null && link !== null;
     for (let i = sour.children.length - 1; i >= 0; i -= 1) {
       if (taken.has(sour.children[i]!)) sour.children.splice(i, 1);
     }

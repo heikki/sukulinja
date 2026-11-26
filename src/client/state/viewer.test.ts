@@ -10,7 +10,7 @@ import type {
   VolumeCitation
 } from '@/common/types';
 
-import { openAppState } from './';
+import { NO_TYPED, openAppState } from './';
 import { clampImage } from './places';
 
 const ARCHIVE = { url: '', archive: 'Juvan seurakunnan arkisto' };
@@ -76,9 +76,12 @@ const L11 = onImage('201', 18);
 const L12 = inVolume('201');
 const L13 = onImage('202', 5);
 // The source's entry put at BOX on Image `image` of Volume 201, pending.
-function marking(image: number) {
+// The source's entry placed at the Box, its Entry pane as it starts.
+const START = { event: null, people: [], fields: NO_TYPED };
+
+function placing(image: number) {
   return {
-    kind: 'mark' as const,
+    kind: 'place' as const,
     volumeId: '201',
     volume: 'I Aa:201',
     image,
@@ -365,7 +368,7 @@ test('a source with no Link opens on no Volume, and Cancel stays where the Box w
   expect([viewer.volume.get()?.id, viewer.image.get()]).toEqual(['202', 1]);
   await settle();
   viewer.show(7);
-  viewer.setBox(BOX);
+  viewer.placeEntry(BOX, START);
   expect(viewer.pending.get()).toMatchObject({ volumeId: '202', image: 7 });
   viewer.cancel();
   expect(viewer.pending.get()).toBe(null);
@@ -377,8 +380,8 @@ test('placing a Box puts the source there, pending, and Cancel goes back to the 
   const { viewer } = await selecting(1);
   viewer.open(S11);
   await settle();
-  viewer.setBox(BOX);
-  expect(viewer.pending.get()).toEqual(marking(18));
+  viewer.placeEntry(BOX, START);
+  expect(viewer.pending.get()).toMatchObject(placing(18));
   expect(viewer.boxPending.get()).toBe(true);
   viewer.cancel();
   expect(viewer.pending.get()).toBe(null);
@@ -389,7 +392,7 @@ test('moving off the Image of a pending Box waits on it', async () => {
   const { viewer } = await selecting(1);
   viewer.open(S11);
   await settle();
-  viewer.setBox(BOX);
+  viewer.placeEntry(BOX, START);
   viewer.show(19);
   expect(viewer.leaving.get()).toBe(true);
   expect(viewer.image.get()).toBe(18);
@@ -410,7 +413,7 @@ test('a way out waits on the pending change: kept or discarded', async () => {
   const vision = { citation: C21, link: VISION_21 };
   viewer.open(vision);
   await settle();
-  viewer.editBox();
+  viewer.placeEntry(viewer.boxHere.get()!, START);
   viewer.close();
   expect(viewer.leaving.get()).toBe(true);
   expect(viewer.source.get()?.citation.id).toBe(21);
@@ -432,7 +435,7 @@ test('leaving runs at once with nothing pending, and keeping on editing runs `st
   viewer.leave(() => {
     ran.push('go');
   });
-  viewer.setBox(BOX);
+  viewer.placeEntry(BOX, START);
   viewer.leave(
     () => {
       ran.push('go');
@@ -450,7 +453,7 @@ test('selecting someone else waits on the pending change, then closes', async ()
   const { state, viewer } = await selecting(1);
   viewer.open(S11);
   await settle();
-  viewer.setBox(BOX);
+  viewer.placeEntry(BOX, START);
   state.chart.select(2);
   expect(viewer.leaving.get()).toBe(true);
   viewer.answer('keep');
@@ -468,8 +471,8 @@ test("editing a Match's Box starts from it, and Save sends the Box", async () =>
   await settle();
   expect(viewer.boxHere.get()).toEqual(BOX);
   expect(viewer.boxPending.get()).toBe(false);
-  viewer.editBox();
-  expect(viewer.pending.get()).toEqual(marking(18));
+  viewer.placeEntry(viewer.boxHere.get()!, START);
+  expect(viewer.pending.get()).toMatchObject(placing(18));
   expect(viewer.boxPending.get()).toBe(true);
   const moved = { ...BOX, top: 0.6 };
   viewer.setBox(moved);
@@ -520,7 +523,7 @@ test('a Discard needs a Box, and moving off its Image drops it', async () => {
   viewer.show(18);
   viewer.discard();
   // Editing the Box instead drops it too.
-  viewer.editBox();
+  viewer.placeEntry(viewer.boxHere.get()!, START);
   expect(viewer.discarding.get()).toBe(false);
   expect(viewer.boxPending.get()).toBe(true);
 });
@@ -530,6 +533,6 @@ test('a Box drawn on another Image moves the source there', async () => {
   viewer.open(S11);
   await settle();
   viewer.show(22);
-  viewer.setBox(BOX);
-  expect(viewer.pending.get()).toEqual(marking(22));
+  viewer.placeEntry(BOX, START);
+  expect(viewer.pending.get()).toMatchObject(placing(22));
 });

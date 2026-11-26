@@ -6,7 +6,7 @@ import { expect, test } from 'bun:test';
 import { memoryDatasetApi } from '@/client/dataset-api/memory';
 import type { CitationRow, Link, PersonDetails } from '@/common/types';
 
-import { openAppState } from './';
+import { NO_TYPED, openAppState } from './';
 import type { LinkStatus } from './sources';
 
 function churchBook(id: number): CitationRow {
@@ -125,7 +125,7 @@ test('an open held by a pending Box, then stayed, leaves the next open revealing
   const v = await viewer();
   v.openSource(S11, { reveal: true });
   await settle();
-  v.setBox(BOX);
+  v.placeEntry(BOX, { event: null, people: [], fields: NO_TYPED });
   v.openSource(S12, { reveal: false });
   expect(v.leaving.get()).toBe(true);
   v.answer('keep');

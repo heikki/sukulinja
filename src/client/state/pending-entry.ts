@@ -142,7 +142,7 @@ export function pendingEntry(
   // The lines asked for the pending Entry as it is now.
   function refresh() {
     const now = pending.get();
-    if (now === null || now.kind === 'mark') {
+    if (now === null) {
       lines.clear();
       return;
     }
@@ -158,7 +158,7 @@ export function pendingEntry(
 
   const notNamable = computed(() => {
     const change = pending.get();
-    if (change === null || change.kind === 'mark') return new Set<number>();
+    if (change === null) return new Set<number>();
     const { cite } = change;
     const rows = citations.get();
     const editing = change.kind === 'edit' ? change.editing.entryId : null;
@@ -177,7 +177,7 @@ export function pendingEntry(
 
   function change(to: (cite: PendingCite) => Partial<PendingCite>) {
     const now = pending.get();
-    if (now !== null && now.kind !== 'mark') {
+    if (now !== null) {
       pending.set({ ...now, cite: { ...now.cite, ...to(now.cite) } });
     }
     refresh();
@@ -239,7 +239,7 @@ export function pendingEntry(
 
   function nameNew(name: PersonName) {
     const now = pending.get();
-    const was = now === null || now.kind === 'mark' ? [] : now.cite.newcomers;
+    const was = now === null ? [] : now.cite.newcomers;
     const personId = Math.min(0, ...was.map((n) => n.personId)) - 1;
     change(({ newcomers }) => ({
       newcomers: [...newcomers, { personId, name }]

@@ -22,7 +22,6 @@ import { Prefetch } from './prefetch';
 import { scanViewerStyles } from './styles';
 
 import '../box-stage/boxes';
-import './box-pane';
 import './empty';
 import './entry-form';
 import './layer';
@@ -332,15 +331,9 @@ class ScanViewerElement extends SignalWatcher(LitElement) {
     this.renderRoot.querySelector('sl-scan-layer')?.closePopup();
   };
 
-  // Beside the scan, a pending Entry's pane, the source's Box's, or People
-  // here.
+  // Beside the scan, a pending Entry's pane or People here.
   private renderPeople() {
     const pending = this.viewer.pending.get();
-    if (pending?.kind === 'mark') {
-      return html`<sl-scan-box
-        @mousedown=${this.closeLayerPopup}
-      ></sl-scan-box>`;
-    }
     if (pending !== null) {
       return html`<sl-scan-entry
         @mousedown=${this.closeLayerPopup}

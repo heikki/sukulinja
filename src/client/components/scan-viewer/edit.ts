@@ -10,7 +10,6 @@ import type { AppState } from '@/client/state';
 
 import { renderLeaveAsk } from '../ask/leave';
 import { controlStyles, editActionsStyles } from '../box-stage/styles';
-import { alsoCiting } from './also';
 import { scanEditStyles } from './edit-styles';
 
 function stop(e: Event) {
@@ -18,11 +17,9 @@ function stop(e: Event) {
 }
 
 // At the foot of the pane beside the scan while a Box is pending, a new or
-// edited Entry's (entry-form.ts) or the source's own (box-pane.ts): Cancel
-// and Save. A way out of the source waiting on the Box asks first, in a
-// modal, whether to discard it. Pointer and wheel input stays here, so a
-// press doesn't pan. A Mark's Box is on a Record pin shared by everyone
-// citing the record, whom it names.
+// edited Entry's (entry-form.ts): Cancel and Save. A way out of the source
+// waiting on the Box asks first, in a modal, whether to discard it. Pointer
+// and wheel input stays here, so a press doesn't pan.
 @customElement('sl-scan-edit')
 class ScanEditElement extends SignalWatcher(LitElement) {
   static override styles = [
@@ -94,21 +91,9 @@ class ScanEditElement extends SignalWatcher(LitElement) {
     `;
   }
 
-  // The pending change's: for the source's Box, whom it moves too.
   override render() {
-    const { viewer } = this.state;
-    const pending = viewer.pending.get();
-    if (pending === null) return nothing;
-    const source = viewer.source.get();
-    const names =
-      pending.kind === 'mark' && source !== null
-        ? alsoCiting(this.state, source)
-        : [];
-    const also =
-      names.length === 0
-        ? nothing
-        : html`<p class="also">Also moves ${names.join(', ')}.</p>`;
-    return this.renderAsking(also, this.renderSaving());
+    if (this.state.viewer.pending.get() === null) return nothing;
+    return this.renderAsking(this.renderSaving());
   }
 
   // The pane's own buttons stay under the ask: Cancel there gets back to
@@ -119,10 +104,9 @@ class ScanEditElement extends SignalWatcher(LitElement) {
       : this.renderActions();
   }
 
-  // What the change is about, why a save was refused, and what's asked.
-  private renderAsking(about: unknown, asking: unknown) {
+  // Why a save was refused, and what's asked.
+  private renderAsking(asking: unknown) {
     return html`
-      ${about}
       ${
         this.refused === null
           ? nothing
