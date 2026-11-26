@@ -64,7 +64,7 @@ export function createTree(db: Database) {
     LEFT JOIN media m ON m.id = ml.media_id
     LEFT JOIN media_links cr ON cr.media_id = ml.media_id
       AND cr.scope_type = 'person' AND cr.scope_id = p.id
-      AND cr.added_in_app = 1
+      AND cr.crop_top IS NOT NULL
     ORDER BY n.surname COLLATE NOCASE, n.given COLLATE NOCASE
   `);
   const listFamilies = db.prepare<Omit<FamilyRow, 'child_ids'>, []>(

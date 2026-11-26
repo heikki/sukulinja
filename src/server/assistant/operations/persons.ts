@@ -93,8 +93,8 @@ function sourceOf(c: CitationRow) {
     entry: c.entry ?? c.page,
     text: text === null ? null : text.slice(0, MAX_TEXT),
     supportsFacts: c.supports,
-    // Placed on its church-book page in the app, as a Mark or an Entry.
-    markedInApp: c.madeInApp || c.entryId !== null
+    // Placed on its church-book page in the app, as an Entry.
+    markedInApp: c.entryId !== null
   };
 }
 

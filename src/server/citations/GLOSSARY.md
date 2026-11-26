@@ -229,7 +229,7 @@ _Avoid_: "same page" alone — it doesn't say which.
 - An **Entry** is evidence and a **Fact** a conclusion: an Entry says what the book says, and a Fact what the tree concludes from Entries. **"Record"** is MyHeritage's: its record of an Entry, with a **Record number**.
 - An **Event** is what an Entry records, a **Fact** what the tree says happened: a father's Citation of his child's baptism records `CHR`, and supports none of his own Facts' births.
 - A **Citation** is not a **Church-book reference**: many Citations aren't to church books, and the reference is only what's read from one.
-- An **Annotation** is not a GEDCOM NOTE, though a GEDZIP writes parts of one as NOTEs (the page a Mark moved aside, "Added in Sukulinja"). Nor is it a **Box** ("annotating an Image" elsewhere means drawing one; here a Box is only one part of an Annotation), or a note written in a church book's margins.
+- An **Annotation** is not a GEDCOM NOTE, though a GEDZIP writes parts of one as NOTEs (the page a Mark moved aside). Nor is it a **Box** ("annotating an Image" elsewhere means drawing one; here a Box is only one part of an Annotation), or a note written in a church book's margins.
 - **"Volume"** is Astia's book; MyHeritage's equivalent is a **Film**, which may hold several Volumes. **"Image"** is Astia's numbering, **"Frame"** MyHeritage's, **"Page number"** what's written in the book.
 - A **Mark** places a Church-book reference; moving the Box of an **Entry** the app holds isn't one, as none cites a reference.
 - **Marked** and **Match** Links both come from a **Record pin** or **Reference pin**; only who saved it differs. A **Page pin** only improves its Volume's **Estimates**.

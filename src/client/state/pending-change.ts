@@ -370,7 +370,7 @@ export function pendingChange(deps: PendingDeps): Pending {
         const from = { image: link.image, box: link.box };
         const editing = entry.editing(entryId, box, rows, from);
         place(box, { kind: 'edit', ...editing });
-      } else if (!citation.madeInApp) {
+      } else if (entryId === null) {
         const named = [...new Set(start.people.map((p) => p.personId))];
         const cite = startCite(start.event, start.people, start.fields);
         const { markKey } = citation;

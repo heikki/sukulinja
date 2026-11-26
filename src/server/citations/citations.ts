@@ -137,7 +137,6 @@ function citationOf<R extends BookRef>(references: References<R>) {
           ? null
           : citationText(row.text).trim(),
       churchBook: book !== null || stored !== null,
-      madeInApp: row.annotation.madeInApp,
       // Those citing one Entry share its Box.
       markKey:
         row.entryId === null

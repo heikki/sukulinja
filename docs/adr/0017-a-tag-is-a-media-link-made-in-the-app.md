@@ -1,6 +1,6 @@
 # A Tag is a person's media link made in the app
 
-Amended by ADR-0020: every Box is a Tag, the import's crops too.
+Amended by ADR-0020: every Box is a Tag, the import's crops too; and by ADR-0038: `added_in_app` is gone.
 
 A **Tag** says who is where in a Photo: the Photo, the person and their **Box**. It's made in the Photo viewer, moved and taken back there, and a re-import has to keep it (ticket photos/02). An import already stores the same shape: a person's `OBJE` link with a `CROP` is a `media_links` row, as MyHeritage's face crops come in, and the GEDZIP export writes one back the same way.
 

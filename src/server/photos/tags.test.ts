@@ -19,11 +19,11 @@ function dataset() {
     (10, 'abc.jpg', 'image/jpeg', 'photos/Kes%C3%A4%20talo.jpg'),
     (12, 'letter.pdf', 'application/pdf', 'letter.pdf')`);
   db.run(`INSERT INTO media_links
-    (media_id, scope_type, scope_id, sort_order, crop_top, crop_left, crop_width, crop_height, added_in_app)
+    (media_id, scope_type, scope_id, sort_order, crop_top, crop_left, crop_width, crop_height)
     VALUES
-    (10, 'person', 1, 0, NULL, NULL, NULL, NULL, 0),
-    (10, 'person', 2, 0, NULL, NULL, NULL, NULL, 0),
-    (10, 'person', 2, 0, 5, 40, 30, 35, 1)`);
+    (10, 'person', 1, 0, NULL, NULL, NULL, NULL),
+    (10, 'person', 2, 0, NULL, NULL, NULL, NULL),
+    (10, 'person', 2, 0, 5, 40, 30, 35)`);
   const changes: NewChange[] = [];
   const photos = createPhotos(db);
   const tags = openTags(db, photos, (c) => {

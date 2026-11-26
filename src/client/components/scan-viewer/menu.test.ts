@@ -28,7 +28,7 @@ const ON_IMAGE: Link = {
   certainty: 'estimated'
 };
 
-function citation(id: number, madeInApp: boolean): CitationRow {
+function citation(id: number, entryId: number | null): CitationRow {
   return {
     id,
     source: null,
@@ -39,12 +39,11 @@ function citation(id: number, madeInApp: boolean): CitationRow {
     record: null,
     text: null,
     churchBook: true,
-    madeInApp,
     markKey: `citation ${id}`,
     citedPage: null,
     cited: null,
     supports: [],
-    entryId: null,
+    entryId,
     event: null,
     fields: null,
     role: null
@@ -81,18 +80,20 @@ function labels(
   return linkItems(viewer, where, NONE).map((i) => i.label);
 }
 
-test('a Mark or Match offers Discard on its Box, a Match Confirm; one made in the app with no Entry, nothing of its own', async () => {
-  const made = await viewing(citation(1, true));
+test('an Entry offers Delete on its Box; a Mark or Match, Discard; a Match, Confirm', async () => {
+  const made = await viewing(citation(1, 1));
   expect(labels(made, { onBox: true, canBox: true })).toEqual([
+    'Edit',
+    'Delete',
     'Add reminder…'
   ]);
-  const marked = await viewing(citation(2, false));
+  const marked = await viewing(citation(2, null));
   expect(labels(marked, { onBox: true, canBox: true })).toEqual([
     'Edit',
     'Discard',
     'Add reminder…'
   ]);
-  const vision = await viewing(citation(3, false), {
+  const vision = await viewing(citation(3, null), {
     ...AT_ENTRY,
     certainty: 'match'
   });
@@ -104,7 +105,7 @@ test('a Mark or Match offers Discard on its Box, a Match Confirm; one made in th
 });
 
 test('New entry shows over the full Image, with nothing pending', async () => {
-  const viewer = await viewing(citation(1, false), ON_IMAGE);
+  const viewer = await viewing(citation(1, null), ON_IMAGE);
   expect(labels(viewer, { onBox: false, canBox: true })).toEqual([
     'Place entry',
     'New entry',
@@ -122,7 +123,7 @@ test('New entry shows over the full Image, with nothing pending', async () => {
 });
 
 test("Place entry isn't offered with the source's Box on the Image", async () => {
-  const viewer = await viewing(citation(1, false));
+  const viewer = await viewing(citation(1, null));
   expect(labels(viewer, { onBox: false, canBox: true })).toEqual([
     'New entry',
     'Add reminder…',
@@ -131,7 +132,7 @@ test("Place entry isn't offered with the source's Box on the Image", async () =>
 });
 
 test('Add reminder… waits for the pending Box, and for Astia to list the Image', async () => {
-  const viewer = await viewing(citation(1, false));
+  const viewer = await viewing(citation(1, null));
   viewer.placeEntry(BOX, { event: null, people: [], fields: NO_TYPED });
   expect(labels(viewer, { onBox: true, canBox: true })).toEqual([
     'Discard changes'
@@ -141,7 +142,7 @@ test('Add reminder… waits for the pending Box, and for Astia to list the Image
     volumes: { '201': { images: 40, citations: [] } }
   });
   const listing = openAppState(api).viewer;
-  listing.open({ citation: citation(1, false), link: AT_ENTRY });
+  listing.open({ citation: citation(1, null), link: AT_ENTRY });
   expect(labels(listing, { onBox: false, canBox: true })).not.toContain(
     'Add reminder…'
   );
@@ -149,7 +150,7 @@ test('Add reminder… waits for the pending Box, and for Astia to list the Image
 
 test('Place entry names the source by its reference, under the label', async () => {
   const cited = {
-    ...citation(1, false),
+    ...citation(1, null),
     cited: {
       parish: null,
       kind: 'rippi' as const,
@@ -165,15 +166,14 @@ test('Place entry names the source by its reference, under the label', async () 
   });
 });
 
-test("Place entry isn't offered for one made in the app with no Entry", async () => {
-  const viewer = await viewing(citation(1, true), ON_IMAGE);
-  expect(labels(viewer, { onBox: false, canBox: true })).not.toContain(
-    'Place entry'
-  );
+test('Place entry names one made in the app by its Image', async () => {
+  const viewer = await viewing(citation(1, 1), ON_IMAGE);
+  const where = { onBox: false, canBox: true };
+  expect(linkItems(viewer, where, NONE)[0]?.detail).toBe('I Aa:201, Image 18');
 });
 
 test('Change Volume… is offered whatever the source', async () => {
-  const made = await viewing(citation(1, true));
+  const made = await viewing(citation(1, 1));
   expect(labels(made, { onBox: false, canBox: false })).toEqual([
     'Add reminder…',
     'Change Volume…'
@@ -203,7 +203,7 @@ test('opened on an Image with no source, a new Citation and a Reminder are offer
 });
 
 test('pointing at Place entry says so, for the panel to mark it', async () => {
-  const viewer = await viewing(citation(1, false), ON_IMAGE);
+  const viewer = await viewing(citation(1, null), ON_IMAGE);
   const [place] = linkItems(viewer, { onBox: false, canBox: true }, NONE);
   place?.hover?.(true);
   expect(viewer.placing.get()).toBe(true);
@@ -215,7 +215,7 @@ test("an Entry's Box offers Edit, and with others in it, Delete entry", async ()
   const volume = 'I C:1 Syntyneiden ja kastettujen luettelot';
   const link = { ...AT_ENTRY, volume };
   function row(id: number, personId: number) {
-    const c = { ...citation(id, true), markKey: 'entry 7', entryId: 7 };
+    const c = { ...citation(id, id), markKey: 'entry 7', entryId: 7 };
     return { personId, citation: c, link };
   }
   const api = memoryDatasetApi({
@@ -243,14 +243,14 @@ test('Locating the estimates is offered where there are any on the Image', async
         images: 40,
         citations: [1, 2].map((id) => ({
           personId: id,
-          citation: citation(id, false),
+          citation: citation(id, null),
           link: ON_IMAGE
         }))
       }
     }
   });
   const { viewer } = openAppState(api);
-  viewer.open({ citation: citation(1, false), link: ON_IMAGE });
+  viewer.open({ citation: citation(1, null), link: ON_IMAGE });
   await Bun.sleep(0);
   const find = {
     model: 'Haiku 5.5',

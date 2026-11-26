@@ -38,7 +38,7 @@ export function entryBox(
     const shown = source.get();
     if (shown?.link?.precision !== 'entry') return null;
     const { citation, link } = shown;
-    if (citation.madeInApp) return citation.entryId === null ? null : 'entry';
+    if (citation.entryId !== null) return 'entry';
     return link.certainty === 'match' ? 'match' : 'mark';
   });
 

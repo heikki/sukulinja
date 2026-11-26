@@ -353,7 +353,11 @@ describe("A dataset's Citations", () => {
     expect(await made.json()).toMatchObject([
       {
         personId: 2,
-        citation: { id: 3, text: 'Baptism', madeInApp: true },
+        citation: {
+          id: 3,
+          text: 'Baptism',
+          entryId: expect.any(Number) as unknown
+        },
         link: { image: 13, precision: 'entry', certainty: 'marked' }
       }
     ]);

@@ -53,13 +53,13 @@ export function referencesOf(
   );
 
   return {
-    refOf: ({ page, text, role, annotation }) =>
-      annotation.madeInApp ? null : churchBookRefOf(page, text, role),
-    convertedFrom: ({ page, text, role, annotation }) =>
-      annotation.madeInApp ? churchBookRefOf(page, text, role) : null,
+    refOf: ({ page, text, role, entryId }) =>
+      entryId === null ? churchBookRefOf(page, text, role) : null,
+    convertedFrom: ({ page, text, role, entryId }) =>
+      entryId === null ? null : churchBookRefOf(page, text, role),
     markKey,
-    recordOf: ({ page, text, role, annotation }) =>
-      !annotation.madeInApp && isRecordPage(referencePageOf(page, role))
+    recordOf: ({ page, text, role, entryId }) =>
+      entryId === null && isRecordPage(referencePageOf(page, role))
         ? readRecord(text ?? '')
         : null,
     resolve: scans.resolveRef,

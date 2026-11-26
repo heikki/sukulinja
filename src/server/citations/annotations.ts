@@ -30,13 +30,11 @@ export interface Annotation {
   link: CitationLink | null;
   // The page a hand Mark on an Image moved aside, citing the Image instead.
   originalPage: string | null;
-  madeInApp: boolean;
 }
 
 export const NO_ANNOTATION: Annotation = {
   link: null,
-  originalPage: null,
-  madeInApp: false
+  originalPage: null
 };
 
 // Where a Citation is, and what it says besides its Annotation.
@@ -66,8 +64,7 @@ const COLUMNS = [
   'link_box_top',
   'link_box_width',
   'link_box_height',
-  'link_by',
-  'added_in_app'
+  'link_by'
 ] as const;
 
 type Column = (typeof COLUMNS)[number];
@@ -125,8 +122,7 @@ function linkOf(row: Row): CitationLink | null {
 export function annotationOf(row: Row): Annotation {
   return {
     link: linkOf(row),
-    originalPage: text(row.original_page),
-    madeInApp: row.added_in_app === 1
+    originalPage: text(row.original_page)
   };
 }
 
@@ -193,11 +189,10 @@ export function openAnnotations(db: Database) {
   const insertRow = db.prepare(
     `INSERT INTO citations (scope_type, scope_id, source_id, sort_order,
        page, event, role, quality, data_date, text, original_page,
-       ${LINK_COLUMNS}, added_in_app, entry_id)
+       ${LINK_COLUMNS}, entry_id)
      VALUES ($scopeType, $scopeId, $sourceId, $sortOrder, $page, $event,
        $role, $quality, $dataDate, $text, $originalPage, $volumeId, $volume,
-       $image, $fileId, $left, $top, $width, $height, $by, $madeInApp,
-       $entryId)`
+       $image, $fileId, $left, $top, $width, $height, $by, $entryId)`
   );
   // The right-hand sides read the row as it was, so the original page is
   // taken from wherever it is now.
@@ -241,7 +236,6 @@ export function openAnnotations(db: Database) {
         $text: values.text,
         $originalPage: annotation.originalPage,
         ...linkParams(annotation.link),
-        $madeInApp: annotation.madeInApp ? 1 : 0,
         $entryId: values.entryId ?? null
       });
       return Number(res.lastInsertRowid);

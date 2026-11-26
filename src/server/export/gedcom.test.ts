@@ -168,9 +168,7 @@ describe('exporting a GEDZIP', () => {
     const zip = await roundTrip();
     expect(treeSnapshot(registry.open('b'))).toEqual(treeSnapshot(db));
     const text = gedcomOf(zip);
-    expect(text).toContain(
-      '1 FILE photos/Unknown%20family.jpg\r\n2 FORM image/jpeg\r\n1 NOTE Added in Sukulinja'
-    );
+    expect(text).not.toContain('Added in Sukulinja');
     expect(text).toContain(
       '2 CROP\r\n3 TOP 6\r\n3 LEFT 5\r\n3 HEIGHT 8\r\n3 WIDTH 7'
     );
@@ -252,7 +250,7 @@ describe('exporting a GEDZIP', () => {
     expect(text).toContain('2 AGE 48y');
   });
 
-  test('carries Marks and Matches, their Boxes, the original pages and the citations made in the app', async () => {
+  test('carries Marks and Matches, their Boxes and the original pages', async () => {
     await importFixture();
     const db = registry.open('a');
     const index =
@@ -261,25 +259,26 @@ describe('exporting a GEDZIP', () => {
       'https://www.myheritage.fi/research/collection-10509/x?itemId=2';
     const ids = (
       [
-        [2, index, 0],
-        [3, other, 1]
+        [2, index],
+        [3, other]
       ] as const
     ).map(
-      ([person, page, added]) =>
+      ([person, page]) =>
         db.run(
-          "INSERT INTO citations (scope_type, scope_id, source_id, page, added_in_app, sort_order) VALUES ('person', ?, 1, ?, ?, 0)",
-          [person, page, added]
+          "INSERT INTO citations (scope_type, scope_id, source_id, page, sort_order) VALUES ('person', ?, 1, ?, 0)",
+          [person, page]
         ).lastInsertRowid
     );
     const marks = openMarks(db);
     const volume =
       'I Aa:5 Pää- ja rippikirjat, I Haapakoski - Längelmäki (1859-1868)';
+    // A hand Mark with a Box makes an Entry (ADR-0026); at the Image only,
+    // it stays a reference.
     marks.write('record 1', {
       volumeId: '1234',
       volume,
       image: 25,
       fileId: '5678',
-      box: { left: 10, top: 20, width: 300, height: 40 },
       by: 'hand'
     });
     marks.write(`url ${index}`, {
@@ -290,8 +289,7 @@ describe('exporting a GEDZIP', () => {
       box: { left: 10, top: 80, width: 300, height: 40 },
       by: 'vision'
     });
-    // A Mark writes only to references; a Citation made in the app holds
-    // its Link as it was written (ADR-0016).
+    // A reference Marked at a Volume only.
     openAnnotations(db).swap([Number(ids[1])], {
       volumeId: '999',
       volume: 'I Ab:1',
@@ -310,23 +308,25 @@ describe('exporting a GEDZIP', () => {
     expect(text).toContain(
       [
         '2 OBJE @A1@',
-        '3 CROP',
-        '4 TOP 20',
-        '4 LEFT 10',
-        '4 HEIGHT 40',
-        '4 WIDTH 300',
         '2 NOTE Original page: https://www.myheritage.fi/research/collection-10509/x?itemId=1'
       ].join('\r\n')
     );
     expect(text).toContain(
-      '1 SOUR @S1@\r\n2 PAGE https://www.myheritage.fi/research/collection-30233/x?itemId=7\r\n2 OBJE @A1@'
+      [
+        '1 SOUR @S1@',
+        '2 PAGE https://www.myheritage.fi/research/collection-30233/x?itemId=7',
+        '2 OBJE @A1@',
+        '3 CROP',
+        '4 TOP 80',
+        '4 LEFT 10',
+        '4 HEIGHT 40',
+        '4 WIDTH 300'
+      ].join('\r\n')
     );
     expect(text).toContain(
       '2 NOTE Found by the vision model, not checked by hand'
     );
-    expect(text).toContain(
-      '2 NOTE Astia Volume 999: I Ab:1\r\n2 NOTE Added in Sukulinja'
-    );
+    expect(text).toContain('2 NOTE Astia Volume 999: I Ab:1');
     expect(text).toContain(
       [
         '0 @A1@ OBJE',
@@ -377,17 +377,17 @@ describe('exporting a GEDZIP', () => {
       `2 PAGE Juvan seurakunnan arkisto, ${volume}. Kansallisarkisto, Astia, kuva 25. https://astia.narc.fi/uusiastia/viewer/?fileId=5678&aineistoId=1234`
     );
     expect(text).toContain('3 TEXT Baptism 12.3.1860');
-    expect(text).toContain('2 NOTE Added in Sukulinja');
+    expect(text).not.toContain('Added in Sukulinja');
     const b = registry.open('b');
     expect(
       b
         .query(
-          `SELECT link_image, link_box_top, added_in_app FROM ${CITATIONS_READ} WHERE added_in_app = 1`
+          `SELECT link_image, link_box_top FROM ${CITATIONS_READ} WHERE entry_id IS NOT NULL`
         )
         .all()
     ).toEqual([
-      { link_image: 25, link_box_top: 20, added_in_app: 1 },
-      { link_image: 25, link_box_top: 20, added_in_app: 1 }
+      { link_image: 25, link_box_top: 20 },
+      { link_image: 25, link_box_top: 20 }
     ]);
   });
 
@@ -430,7 +430,7 @@ describe('exporting a GEDZIP', () => {
     expect(treeSnapshot(b)).toEqual(treeSnapshot(db));
     expect(
       b
-        .query('SELECT COUNT(*) AS n FROM citations WHERE added_in_app = 1')
+        .query('SELECT COUNT(*) AS n FROM citations WHERE entry_id IS NOT NULL')
         .get()
     ).toEqual({ n: 1 });
   });

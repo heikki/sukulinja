@@ -63,8 +63,7 @@ test('with no references, a Citation of an Image is listed and linked by its sto
         box: BOX,
         by: 'hand'
       },
-      originalPage: null,
-      madeInApp: true
+      originalPage: null
     }
   );
   const images = openImages({ astia: juvaAstia(), parishes: memoryParishes() });

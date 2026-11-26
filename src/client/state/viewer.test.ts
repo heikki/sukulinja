@@ -48,7 +48,6 @@ function churchBook(id: number, citedPage: number | null): CitationRow {
     record: null,
     text: null,
     churchBook: true,
-    madeInApp: false,
     markKey: `citation ${id}`,
     citedPage,
     cited: null,
@@ -114,7 +113,7 @@ const C15 = churchBook(15, null);
 const L15 = inVolume('201');
 
 // Person 4's 41, made in the app at the entry on Image 30 of Volume 201.
-const C41 = { ...churchBook(41, null), madeInApp: true };
+const C41 = { ...churchBook(41, null), entryId: 41 };
 const MADE_41: Link = { ...VISION_21, image: 30, certainty: 'marked' };
 
 const S11 = { citation: C11, link: L11 };

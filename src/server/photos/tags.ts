@@ -60,7 +60,7 @@ export function openTags(
   const tagOf = db.prepare<{ id: number }, [number, number]>(
     `SELECT id FROM media_links
      WHERE media_id = ? AND scope_type = 'person' AND scope_id = ?
-       AND added_in_app = 1`
+       AND crop_top IS NOT NULL`
   );
   // After the person's other photos, in an OBJE of its own.
   const next = db.prepare<{ sort: number; object: number }, [number]>(
@@ -73,8 +73,8 @@ export function openTags(
     [number, number, number, number, number, number, number, number]
   >(
     `INSERT INTO media_links (media_id, scope_type, scope_id, object_order,
-       crop_left, crop_top, crop_width, crop_height, sort_order, added_in_app)
-     VALUES (?, 'person', ?, ?, ?, ?, ?, ?, ?, 1)`
+       crop_left, crop_top, crop_width, crop_height, sort_order)
+     VALUES (?, 'person', ?, ?, ?, ?, ?, ?, ?)`
   );
   const move = db.prepare<null, [number, number, number, number, number]>(
     `UPDATE media_links

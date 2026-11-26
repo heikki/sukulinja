@@ -149,7 +149,6 @@ test('a Citation made in the app is stored with its Mark, page and source', asyn
       page: ENTRY_LINK.url,
       text: 'Baptism 12.3.1795',
       churchBook: true,
-      madeInApp: true,
       // Its Entry's Box, shared with whoever else cites it (ADR-0026).
       markKey: 'entry 1',
       entryId: 1
@@ -159,7 +158,7 @@ test('a Citation made in the app is stored with its Mark, page and source', asyn
     db
       .query(
         `SELECT scope_id, page, original_page, text, event, role, link_image,
-           link_file_id, link_box_left, link_by, added_in_app
+           link_file_id, link_box_left, link_by, entry_id IS NOT NULL AS in_entry
          FROM ${CITATIONS_READ} WHERE id = 2`
       )
       .get()
@@ -175,7 +174,7 @@ test('a Citation made in the app is stored with its Mark, page and source', asyn
     link_file_id: 'juva-1-f13',
     link_box_left: BOX.left,
     link_by: 'hand',
-    added_in_app: 1
+    in_entry: 1
   });
   expect(sources(db)).toEqual([
     {
@@ -195,7 +194,7 @@ test('a Citation made in the app is stored with its Mark, page and source', asyn
   });
   const sourceIds = db
     .query<{ source_id: number }, []>(
-      `SELECT source_id FROM ${CITATIONS_READ} WHERE added_in_app = 1 ORDER BY id`
+      `SELECT source_id FROM ${CITATIONS_READ} WHERE entry_id IS NOT NULL ORDER BY id`
     )
     .all()
     .map((r) => r.source_id);
@@ -212,8 +211,8 @@ test("a Citation made in the app of another source's reference doesn't lend its 
   );
   db.run(
     `INSERT INTO citations (scope_type, scope_id, source_id, page, original_page,
-       link_volume_id, link_volume, link_image, link_file_id, link_by, added_in_app)
-     VALUES ('person', 1, 1, ?, ?, 'juva-1', ?, 13, 'juva-1-f13', 'hand', 1)`,
+       link_volume_id, link_volume, link_image, link_file_id, link_by)
+     VALUES ('person', 1, 1, ?, ?, 'juva-1', ?, 13, 'juva-1-f13', 'hand')`,
     [
       ENTRY_LINK.url,
       'https://www.myheritage.fi/research/collection-30233/x?itemId=7&action=showRecord',
@@ -279,7 +278,7 @@ test('a Citation is deleted with its notes, and the source the app made with the
   expect(citations.uncite(99)).toBeNull();
   expect(citations.uncite(2)).toMatchObject({
     personId: 2,
-    citation: { id: 2, madeInApp: true }
+    citation: { id: 2, entryId: expect.any(Number) as unknown }
   });
   expect(db.query('SELECT id FROM citations ORDER BY id').all()).toEqual([
     { id: 1 },
@@ -294,7 +293,7 @@ test('a Citation is deleted with its notes, and the source the app made with the
     "INSERT INTO sources (id, xref, title) VALUES (9, '@S9@', 'Rippikirja')"
   );
   db.run('UPDATE citations SET source_id = 9 WHERE id = 1');
-  expect(citations.uncite(1)).toMatchObject({ citation: { madeInApp: false } });
+  expect(citations.uncite(1)).toMatchObject({ citation: { entryId: null } });
   expect(db.query('SELECT id FROM citations').all()).toEqual([]);
   // Its Entry goes with the last Citation of it (ADR-0026).
   expect(db.query('SELECT id FROM entries').all()).toEqual([]);
@@ -319,7 +318,7 @@ test('a Citation made in the app is read back with its Link Marked at the entry'
   const asked = astia.asked.length;
 
   // Among the church books by its Volume's years.
-  expect(citations.ofPerson(1).map((c) => [c.id, c.madeInApp])).toEqual([
+  expect(citations.ofPerson(1).map((c) => [c.id, c.entryId !== null])).toEqual([
     [4, true],
     [2, false],
     [1, false]
@@ -363,13 +362,12 @@ test('an imported Citation of an Astia Image, with no reference, is read by its 
         box: BOX,
         by: 'hand'
       },
-      originalPage: null,
-      madeInApp: false
+      originalPage: null
     }
   );
 
   expect(citations.ofPerson(1)).toMatchObject([
-    { churchBook: true, madeInApp: false }
+    { churchBook: true, entryId: null }
   ]);
   expect(await linesOf(citations.linksOf(1))).toEqual([
     { citationId: 1, links: [ENTRY_LINK] }
@@ -404,7 +402,7 @@ test('an Entry is moved in its Volume by editing it, and refuses a Mark', async 
   expect(
     db
       .query(
-        `SELECT page, original_page, link_image, added_in_app FROM ${CITATIONS_READ}
+        `SELECT page, original_page, link_image, entry_id IS NOT NULL AS in_entry FROM ${CITATIONS_READ}
          WHERE id = 2`
       )
       .get()
@@ -412,7 +410,7 @@ test('an Entry is moved in its Volume by editing it, and refuses a Mark', async 
     page: ENTRY_LINK.url.replace('f13', 'f14'),
     original_page: null,
     link_image: 14,
-    added_in_app: 1
+    in_entry: 1
   });
 
   expect(
@@ -439,8 +437,8 @@ test("a Volume's source is found by its record, whatever cites it", async () => 
   );
   db.run(
     `INSERT INTO citations (scope_type, scope_id, source_id, page, original_page,
-       link_volume_id, link_volume, link_image, link_file_id, link_by, added_in_app)
-     VALUES ('person', 1, 1, ?, ?, 'juva-1', ?, 13, 'juva-1-f13', 'hand', 1)`,
+       link_volume_id, link_volume, link_image, link_file_id, link_by)
+     VALUES ('person', 1, 1, ?, ?, 'juva-1', ?, 13, 'juva-1-f13', 'hand')`,
     [
       ENTRY_LINK.url,
       'https://www.myheritage.fi/research/collection-10509/x?itemId=5001&action=showRecord',
@@ -453,7 +451,7 @@ test("a Volume's source is found by its record, whatever cites it", async () => 
   expect(sources(db)).toHaveLength(1);
   const cited = db
     .query(
-      `SELECT DISTINCT source_id AS id FROM ${CITATIONS_READ} WHERE added_in_app = 1`
+      `SELECT DISTINCT source_id AS id FROM ${CITATIONS_READ} WHERE entry_id IS NOT NULL`
     )
     .all();
   expect(cited).toEqual([{ id: 1 }]);
@@ -466,7 +464,7 @@ test("with no references, the Volumes cited give the dataset's parishes", async 
   ]);
   await citeFor(citations, 1, entry(13));
   // As if every reference were converted: nothing but Citations of Images.
-  db.run('DELETE FROM citations WHERE added_in_app = 0');
+  db.run('DELETE FROM citations WHERE entry_id IS NULL');
   expect(await linesOf(citations.linksOf(1))).toEqual([
     { citationId: 2, links: [{ ...ENTRY_LINK, archive: ARCHIVE }] }
   ]);

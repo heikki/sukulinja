@@ -7,6 +7,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { CITATIONS_READ } from '../entries/storage';
 import type { Pins } from '../volume-facts';
 import type { BoxAt, MarkTarget } from './pins/pins';
 import {
@@ -380,7 +381,14 @@ test('a Citation converted from a reference is a Record pin no Mark writes to', 
   const two = citing([ref(150).url, ref(160).url], join(dir, 'two.sqlite'));
   await open(two).markRef(ref(150, 21), { ...at('a', 11), box: BOX });
   // Converted (ADR-0016): made in the app, its original page kept.
-  two.run('UPDATE citations SET added_in_app = 1 WHERE id = 1');
+  two.run(
+    `INSERT INTO entries (id, volume_id, volume, image, file_id, box_left,
+       box_top, box_width, box_height)
+     SELECT 1, link_volume_id, link_volume, link_image, link_file_id,
+       link_box_left, link_box_top, link_box_width, link_box_height
+     FROM citations WHERE id = 1`
+  );
+  two.run('UPDATE citations SET entry_id = 1 WHERE id = 1');
 
   const scans = open(two);
   const { volumes } = await scans.snapshot();
@@ -388,8 +396,8 @@ test('a Citation converted from a reference is a Record pin no Mark writes to', 
   expect(pins).toContainEqual([150, 11]);
   await scans.markRef(ref(150, 21), { ...at('a', 12), box: BOX });
   const row = two
-    .query('SELECT link_image, added_in_app FROM citations WHERE id = 1')
+    .query(`SELECT link_image FROM ${CITATIONS_READ} WHERE id = 1`)
     .get();
-  expect(row).toEqual({ link_image: 11, added_in_app: 1 });
+  expect(row).toEqual({ link_image: 11 });
   two.close();
 });

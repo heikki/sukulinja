@@ -59,7 +59,55 @@ function remindersOnNothing(db: Database) {
   db.run('ALTER TABLE new_reminders RENAME TO reminders');
 }
 
-export const MIGRATIONS: Migration[] = [{ to: 15, up: remindersOnNothing }];
+// Schema 16: what the app made is told by what it holds, not a flag. A
+// Citation made in the app is one of an Entry (ADR-0026), and a person's
+// media link with a Box is their Tag (ADR-0020), so `added_in_app` goes
+// from both. Nothing reads it for anything else, and nothing re-imports.
+function noAddedInApp(db: Database) {
+  db.run('ALTER TABLE citations DROP COLUMN added_in_app');
+  db.run(`
+    CREATE TABLE new_media_links (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      media_id INTEGER NOT NULL REFERENCES media(id) ON DELETE CASCADE,
+      scope_type TEXT NOT NULL
+        CHECK (scope_type IN ('person','family','fact','citation')),
+      scope_id INTEGER NOT NULL,
+      object_order INTEGER NOT NULL DEFAULT 0,
+      title TEXT,
+      crop_top INTEGER,
+      crop_left INTEGER,
+      crop_width INTEGER,
+      crop_height INTEGER,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    )
+  `);
+  const columns = `id, media_id, scope_type, scope_id, object_order, title,
+    crop_top, crop_left, crop_width, crop_height, sort_order`;
+  db.run(
+    `INSERT INTO new_media_links (${columns})
+     SELECT ${columns} FROM media_links`
+  );
+  db.run("DELETE FROM sqlite_sequence WHERE name = 'new_media_links'");
+  db.run(`
+    INSERT INTO sqlite_sequence (name, seq)
+    SELECT 'new_media_links', seq FROM sqlite_sequence
+    WHERE name = 'media_links'
+  `);
+  db.run('DROP TABLE media_links');
+  db.run('ALTER TABLE new_media_links RENAME TO media_links');
+  db.run(
+    'CREATE INDEX media_links_scope_idx ON media_links(scope_type, scope_id)'
+  );
+  db.run(`
+    CREATE UNIQUE INDEX media_links_tag_idx ON media_links(media_id, scope_id)
+    WHERE scope_type = 'person' AND crop_top IS NOT NULL
+  `);
+}
+
+export const MIGRATIONS: Migration[] = [
+  { to: 15, up: remindersOnNothing },
+  { to: 16, up: noAddedInApp }
+];
 
 // The version the steps take a database to.
 export function latestOf(steps: Migration[]) {

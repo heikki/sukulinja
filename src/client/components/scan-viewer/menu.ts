@@ -45,7 +45,7 @@ export function linkItems(
   }
   const items: MenuItem[] = [];
   if (where.canBox) {
-    if (placeable(viewer)) {
+    if (viewer.source.get() !== null && viewer.boxHere.get() === null) {
       items.push({
         label: 'Place entry',
         detail: sourceName(viewer) ?? undefined,
@@ -63,15 +63,6 @@ export function linkItems(
     ...volumeItems(viewer, open.chooseVolume)
   );
   return items;
-}
-
-// Whether the source's entry can be placed on the Image: not when its Box
-// is here already, nor for a Citation made in the app with no Entry, which
-// has no entry to place.
-function placeable(viewer: Viewer) {
-  const cited = viewer.source.get()?.citation;
-  if (cited === undefined || viewer.boxHere.get() !== null) return false;
-  return !(cited.madeInApp && cited.entryId === null);
 }
 
 // Another Volume to show, from the Volume picker, whatever the source: it

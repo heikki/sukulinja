@@ -65,14 +65,14 @@ interface Row {
   text: string | null;
   original_page: string | null;
   link_image: number | null;
-  added_in_app: number;
+  in_entry: number;
 }
 
 function rows(db: ReturnType<typeof openDb>) {
   return db
     .query<Row, []>(
       `SELECT c.id, s.title AS source, c.text, c.original_page, c.link_image,
-         c.added_in_app
+         c.entry_id IS NOT NULL AS in_entry
        FROM ${CITATIONS_READ} c JOIN sources s ON s.id = c.source_id ORDER BY c.id`
     )
     .all();
@@ -92,7 +92,7 @@ test('a hand Mark at the entry converts every citation of the record', async () 
     text: 'Matti Esimerkki\nKirja: Rippikirja, 1790 - 1796\nHallintoalue: Juva\nSivu: 12',
     original_page: RECORD,
     link_image: 13,
-    added_in_app: 1
+    in_entry: 1
   };
   // Both cite one Entry, which holds the Box (ADR-0026).
   expect(
@@ -106,7 +106,7 @@ test('a hand Mark at the entry converts every citation of the record', async () 
     source: 'Suomalaiset rippi- ja lastenkirjat, 1657-1915',
     original_page: null,
     link_image: null,
-    added_in_app: 0
+    in_entry: 0
   });
   // A rippikirja's entry records a household: RESI, with no Role.
   expect(
@@ -122,8 +122,7 @@ test('a hand Mark at the entry converts every citation of the record', async () 
       reference: null,
       entry: 'Image 13',
       referenceEntry: 'p. 12',
-      record: null,
-      madeInApp: true
+      record: null
     }
   ]);
   expect(await citations.volumeChoices(1)).toBeNull();
@@ -144,12 +143,12 @@ test('a hand Mark at the entry converts every citation of the record', async () 
 test('a Mark at the Image only leaves the reference as it is', async () => {
   const { db, citations } = dataset();
   await citations.mark(1, { volumeId: 'juva-1', image: 13, box: null });
-  expect(rows(db).map((r) => [r.link_image, r.added_in_app])).toEqual([
+  expect(rows(db).map((r) => [r.link_image, r.in_entry])).toEqual([
     [13, 0],
     [13, 0],
     [null, 0]
   ]);
-  expect(citations.ofPerson(1)).toMatchObject([{ madeInApp: false }]);
+  expect(citations.ofPerson(1)).toMatchObject([{ entryId: null }]);
 });
 
 test('confirming a Match converts it', async () => {
@@ -166,6 +165,6 @@ test('confirming a Match converts it', async () => {
   expect(rows(db).at(-1)).toMatchObject({
     source: VOLUMES['juva-1'],
     link_image: 13,
-    added_in_app: 1
+    in_entry: 1
   });
 });

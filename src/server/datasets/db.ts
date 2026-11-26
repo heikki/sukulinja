@@ -117,19 +117,14 @@ const SCHEMA_SQL = `
     crop_left INTEGER,
     crop_width INTEGER,
     crop_height INTEGER,
-    sort_order INTEGER NOT NULL DEFAULT 0,
-    -- A Tag: a person in a Photo with their Box, made in the app, not by
-    -- the import (ADR-0017).
-    added_in_app INTEGER NOT NULL DEFAULT 0,
-    CHECK (added_in_app = 0 OR (
-      scope_type = 'person' AND crop_top IS NOT NULL AND crop_left IS NOT NULL
-      AND crop_width IS NOT NULL AND crop_height IS NOT NULL
-    ))
+    -- A person's link with a Box is their Tag in the Photo (ADR-0020).
+    sort_order INTEGER NOT NULL DEFAULT 0
   );
   CREATE INDEX IF NOT EXISTS media_links_scope_idx ON media_links(scope_type, scope_id);
   -- A person is tagged once in a Photo.
   CREATE UNIQUE INDEX IF NOT EXISTS media_links_tag_idx
-    ON media_links(media_id, scope_id) WHERE added_in_app = 1;
+    ON media_links(media_id, scope_id)
+    WHERE scope_type = 'person' AND crop_top IS NOT NULL;
 
   CREATE TABLE IF NOT EXISTS repositories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -207,8 +202,6 @@ const SCHEMA_SQL = `
     link_box_width INTEGER,
     link_box_height INTEGER,
     link_by TEXT CHECK (link_by IN ('hand','vision')),
-    -- Made in the app, not by the import.
-    added_in_app INTEGER NOT NULL DEFAULT 0,
     sort_order INTEGER NOT NULL DEFAULT 0,
     -- The Entry a Citation of an Entry cites, which holds its source,
     -- page, Event, text and link (ADR-0026), left empty here.

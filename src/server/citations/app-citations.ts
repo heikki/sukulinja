@@ -87,10 +87,10 @@ export function openAppCitations(db: Database) {
      WHERE scope_type = 'person' AND scope_id = ?`
   );
   const rowOf = db.prepare<
-    { madeInApp: number; sourceId: number | null },
+    { entryId: number | null; sourceId: number | null },
     [number]
   >(
-    `SELECT added_in_app AS madeInApp, source_id AS sourceId
+    `SELECT entry_id AS entryId, source_id AS sourceId
      FROM ${CITATIONS_READ} WHERE id = ?`
   );
   const linkedVolume = db.prepare<
@@ -101,8 +101,7 @@ export function openAppCitations(db: Database) {
      FROM ${CITATIONS_READ} WHERE id = ? AND link_volume_id IS NOT NULL`
   );
   const adopt = db.prepare(
-    `UPDATE citations SET source_id = ?, text = ?, event = ?, role = ?,
-       added_in_app = 1 WHERE id = ?`
+    'UPDATE citations SET source_id = ?, text = ?, event = ?, role = ? WHERE id = ?'
   );
   const deleteNotes = db.prepare(
     "DELETE FROM notes WHERE owner_type = 'citation' AND owner_id = ?"
@@ -147,7 +146,10 @@ export function openAppCitations(db: Database) {
         adopt.run(source, text, bookEvent(at.volume), role, id);
       }
       // Every citation of the record, alike, then cites one Entry.
-      gatherEntries(db);
+      gatherEntries(
+        db,
+        rows.map((r) => r.id)
+      );
     })();
   }
 
@@ -194,7 +196,7 @@ export function openAppCitations(db: Database) {
         text: null,
         entryId
       },
-      { link: null, originalPage: null, madeInApp: true }
+      { link: null, originalPage: null }
     );
   }
 
@@ -244,7 +246,7 @@ export function openAppCitations(db: Database) {
         dropUncitedEntries(db);
         const { sourceId } = row;
         if (
-          row.madeInApp === 1 &&
+          row.entryId !== null &&
           sourceId !== null &&
           citedBy.get(sourceId) === null
         ) {

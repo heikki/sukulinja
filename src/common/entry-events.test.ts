@@ -27,7 +27,6 @@ function entry(
       record: null,
       text: null,
       churchBook: true,
-      madeInApp: true,
       markKey: 'entry 1',
       citedPage: null,
       cited: null,

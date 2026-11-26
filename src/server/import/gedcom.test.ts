@@ -478,36 +478,3 @@ test('reads every line of the demo GEDZIP', async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
-
-// The note says the app made the citation, but what the app makes is at an
-// Astia Image or Volume: without its link, the note was carried over from
-// somewhere else, and the citation is read as the reference it is.
-test('reads a citation said to be made in the app, with no Astia link, as a reference', () => {
-  const { db } = importText([
-    '0 HEAD',
-    '0 @S1@ SOUR',
-    '1 TITL Suomi, kasteet, 1657-1890',
-    '0 @I1@ INDI',
-    '1 NAME Jane /Doe/',
-    '1 SOUR @S1@',
-    '2 PAGE https://www.myheritage.fi/research/collection-30233/x?itemId=1',
-    '2 NOTE Added in Sukulinja',
-    '1 SOUR @S1@',
-    '2 PAGE Astia',
-    '2 NOTE Astia Volume 999: I Ab:1',
-    '2 NOTE Added in Sukulinja',
-    ''
-  ]);
-  const rows = db
-    .query<{ added_in_app: number; notes: number }, []>(
-      `SELECT c.added_in_app,
-         (SELECT COUNT(*) FROM notes n
-          WHERE n.owner_type = 'citation' AND n.owner_id = c.id) AS notes
-       FROM citations c ORDER BY c.sort_order`
-    )
-    .all();
-  expect(rows).toEqual([
-    { added_in_app: 0, notes: 0 },
-    { added_in_app: 1, notes: 0 }
-  ]);
-});

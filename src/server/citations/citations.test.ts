@@ -122,7 +122,6 @@ test("serves a person's Citations, church books first", () => {
       },
       text: null,
       churchBook: true,
-      madeInApp: false,
       markKey: 'record 1',
       citedPage: 139,
       cited: { parish: null, kind: 'rippi', years: { from: 1794, to: 1808 } },
@@ -142,7 +141,6 @@ test("serves a person's Citations, church books first", () => {
       record: null,
       text: 'Family bible',
       churchBook: false,
-      madeInApp: false,
       markKey: 'citation 1',
       citedPage: null,
       cited: null,
@@ -336,7 +334,6 @@ test("lists the Volume's Matches and its Estimates, of an Image or only the Volu
   expect(first[1]!.link).toMatchObject({ from: 'pins' });
   expect(first[0]!.citation).toMatchObject({
     churchBook: true,
-    madeInApp: false,
     citedPage: 12
   });
   expect(placesOf(await citations.inVolume('juva-2'))).toEqual([
@@ -475,7 +472,7 @@ test("a Church-book reference can be deleted; the record's Mark stays with the o
 
   expect(citations.uncite(1)).toMatchObject({
     personId: 1,
-    citation: { id: 1, madeInApp: false }
+    citation: { id: 1, entryId: null }
   });
   expect(citations.ofPerson(1)).toEqual([]);
   expect(placesOf(await citations.inVolume('juva-1'))).toEqual(

@@ -52,7 +52,7 @@ export function openMarks(db: Database) {
         []
       >(
         `SELECT id, ${originalPageSql()} AS page, role,
-           added_in_app AS madeInApp
+           entry_id IS NOT NULL AS madeInApp
          FROM ${CITATIONS_READ}
          WHERE ${originalPageSql()} LIKE 'http%' OR role IS NOT NULL
          ORDER BY id`

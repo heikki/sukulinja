@@ -74,7 +74,6 @@ const OF_IMAGE: CitationRow = {
   record: null,
   text: 'Baptism 12.3.1795',
   churchBook: true,
-  madeInApp: true,
   markKey: 'citation 4',
   citedPage: null,
   cited: null,
@@ -95,7 +94,6 @@ test('names a linked Church-book reference by its Volume, whatever its text', ()
   const imported = {
     ...OF_IMAGE,
     reference: 'Juva · Pää- ja rippikirjat 1790–1796 · p. 12',
-    madeInApp: false,
     cited: { parish: 'Juva', kind: 'rippi' as const, years: null }
   };
   expect(titleText(imported, MARKED)).toBe('Pää- ja rippikirjat (1790-1796)');
@@ -104,7 +102,6 @@ test('names a linked Church-book reference by its Volume, whatever its text', ()
 test("a reference's archive is found only where none is known", () => {
   const imported = {
     ...OF_IMAGE,
-    madeInApp: false,
     cited: { parish: 'Puumala', kind: 'rippi' as const, years: null }
   };
   const none: LinkStatus = {

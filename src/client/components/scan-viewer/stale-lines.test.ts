@@ -30,7 +30,6 @@ function row(personId: number, markKey: string, entry: string): VolumeCitation {
     record: null,
     text: null,
     churchBook: true,
-    madeInApp: false,
     markKey,
     citedPage: null,
     cited: null,

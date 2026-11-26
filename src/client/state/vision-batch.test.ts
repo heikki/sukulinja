@@ -39,7 +39,6 @@ const CITATION: CitationRow = {
   record: null,
   text: null,
   churchBook: true,
-  madeInApp: false,
   markKey: 'citation 7',
   citedPage: null,
   cited: null,

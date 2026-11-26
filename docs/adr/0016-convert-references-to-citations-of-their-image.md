@@ -1,5 +1,7 @@
 # A reference Marked at the entry becomes a Citation of its Image
 
+Amended by ADR-0038: a converted Citation is told by its Entry, not `added_in_app`.
+
 _Amended by ADR-0030: `citations/myheritage/` stays for MyHeritage exports imported later; only the `rejections` table goes (schema 10)._
 
 A **Church-book reference** from MyHeritage reaches its scan through everything in `src/server/citations/myheritage/`: Record ranges, Page pins, Record and Reference pins and the vision pass. The MyHeritage import is to be given up step by step, and the folder with it. A reference Marked by hand at the entry already cites its Image (ADR-0013); it differs from a Citation made in the Scan viewer only by its source, its text, `added_in_app` and `original_page`.

@@ -30,12 +30,12 @@ async function dataset() {
     (10, 'group.jpg', 'image/jpeg', 'Ryhm%C3%A4.jpg'),
     (11, 'portrait.jpg', 'image/jpeg', 'portrait.jpg')`);
   db.run(`INSERT INTO media_links
-    (id, media_id, scope_type, scope_id, sort_order, crop_top, crop_left, crop_width, crop_height, added_in_app)
+    (id, media_id, scope_type, scope_id, sort_order, crop_top, crop_left, crop_width, crop_height)
     VALUES
-    (1, 10, 'person', 1, 0, NULL, NULL, NULL, NULL, 0),
-    (2, 10, 'person', 2, 0, 5, 40, 30, 35, 1),
-    (3, 10, 'family', 1, 0, NULL, NULL, NULL, NULL, 0),
-    (4, 11, 'person', 1, 1, NULL, NULL, NULL, NULL, 0)`);
+    (1, 10, 'person', 1, 0, NULL, NULL, NULL, NULL),
+    (2, 10, 'person', 2, 0, 5, 40, 30, 35),
+    (3, 10, 'family', 1, 0, NULL, NULL, NULL, NULL),
+    (4, 11, 'person', 1, 1, NULL, NULL, NULL, NULL)`);
   db.run(
     `INSERT INTO notes (owner_type, owner_id, text) VALUES ('media_link', 1, 'Kesä 1920')`
   );

@@ -3,8 +3,8 @@
 // citation, pointing at an OBJE record per Image whose FILE is the Image's
 // JPEG in Astia, titled with its Volume and Image number; the Box is the
 // link's CROP. The original page is a NOTE, and so is a Match
-// nobody has checked, a link with no file to point at (only a Volume, or
-// an Image whose file id wasn't known), and a citation made in the app.
+// nobody has checked, and a link with no file to point at (only a Volume,
+// or an Image whose file id wasn't known).
 
 import { ASTIA_PUBLISHER, viewerUrl } from '../citations';
 import type { Annotation, CitationLink } from '../citations';
@@ -16,7 +16,6 @@ const ASTIA_FILE =
 const IMAGE_TITLE = /^(?<volume>.*), Image (?<image>\d+)$/su;
 const ORIGINAL_PAGE = 'Original page: ';
 export const UNCHECKED = 'Found by the vision model, not checked by hand';
-export const ADDED_IN_APP = 'Added in Sukulinja';
 const NO_FILE =
   /^Astia Volume (?<volumeId>\S+?)(?:, Image (?<image>\d+))?: (?<volume>.*)$/su;
 
@@ -159,15 +158,14 @@ export function astiaLinkExport(taken: Set<string>) {
 
   // The citation's OBJE for its link, and the notes saying what else its
   // Annotation holds.
-  function linesOf({ link, originalPage, madeInApp }: Annotation) {
+  function linesOf({ link, originalPage }: Annotation) {
     const linked = linkLines(link);
     const notes = [
       ...(originalPage === null
         ? []
         : [line('NOTE', originalPageNote(originalPage))]),
       ...linked.notes,
-      ...(link?.by === 'vision' ? [line('NOTE', UNCHECKED)] : []),
-      ...(madeInApp ? [line('NOTE', ADDED_IN_APP)] : [])
+      ...(link?.by === 'vision' ? [line('NOTE', UNCHECKED)] : [])
     ];
     return { objects: linked.objects, notes };
   }

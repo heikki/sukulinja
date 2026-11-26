@@ -1,5 +1,7 @@
 # The import's crops become Tags
 
+Amended by ADR-0038: `added_in_app` is gone, a Tag being any person's link with a Box.
+
 ADR-0017 made a Tag a person's media link made in the app, beside the links an import makes. A MyHeritage export marks people's faces with a `CROP` on their link, so a Photo had two kinds of Box: the import's, which couldn't be edited, and the Tags. Editing an import's Box made a Tag that stood in for it. Heikki (2026-11-11): the MyHeritage crops should be replaced with Tags, so there aren't two systems side by side.
 
 So every Box is a Tag:

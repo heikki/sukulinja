@@ -1,10 +1,8 @@
 // A GEDCOM's media in the database: each linked to what holds it (a
 // person, a family, an event or a citation), and the Photos linked to no
-// one kept on their own. A person's Box is their Tag (ADR-0020): a
-// record noting it was added in the app holds a Tag (ADR-0017), and
-// another's CROP becomes one beside its link.
+// one kept on their own. A person's CROP makes their link their Tag
+// (ADR-0020, ADR-0038).
 
-import { ADDED_IN_APP } from '../gedcom/astia-links';
 import { mediaRefsOf, objectsOf } from '../gedcom/media-refs';
 import type {
   MediaRef,
@@ -78,7 +76,6 @@ export function mediaLinker({
       objectOrder: number;
       title: string | null;
       order: number;
-      tag: boolean;
     },
     crop: MediaRef['crop'] | null
   ) {
@@ -92,24 +89,20 @@ export function mediaLinker({
       $crop_left: crop?.left ?? null,
       $crop_width: crop?.width ?? null,
       $crop_height: crop?.height ?? null,
-      $sort_order: link.order,
-      $added_in_app: link.tag ? 1 : 0
+      $sort_order: link.order
     });
     count('mediaLinks');
     return Number(res.lastInsertRowid);
   }
 
   // A media row for the stored file, which files with the same content
-  // share, and a link to it from what holds it. A person's Box is their
-  // Tag (ADR-0020): on a Tag's record the link is the Tag, else the link
-  // stays without it and the Tag is `extra`, made once the holder's own
-  // OBJEs are in. Null when the file couldn't be stored, which the media
-  // ingest reports.
+  // share, and a link to it from what holds it. A person's Box makes the
+  // link their Tag (ADR-0020), the first in the Photo only, as a person is
+  // tagged once in it. Null when the file couldn't be stored, which the
+  // media ingest reports.
   function importMediaLink(
     ref: MediaRef & { objectOrder: number },
-    { scope, scopeId }: { scope: MediaScope; scopeId: number },
-    tagRecord: boolean,
-    extra: (tag: (objectOrder: number) => void) => void
+    { scope, scopeId }: { scope: MediaScope; scopeId: number }
   ) {
     const storedPath = resolve(ref.path);
     if (storedPath === null) return null;
@@ -121,19 +114,12 @@ export function mediaLinker({
       scopeId,
       objectOrder: ref.objectOrder,
       title: ref.title,
-      order: ref.order,
-      tag: false
+      order: ref.order
     };
     if (scope !== 'person') return insertLink(link, crop);
     const boxed = Object.values(crop).every((side) => side !== null);
     const tag = boxed && takeTag(mediaId, scopeId);
-    if (tagRecord) return insertLink({ ...link, tag }, tag ? crop : null);
-    if (tag) {
-      extra((objectOrder) => {
-        insertLink({ ...link, objectOrder, title: null, tag: true }, crop);
-      });
-    }
-    return insertLink(link, null);
+    return insertLink(link, tag ? crop : null);
   }
 
   function markCrop(holder: GedNode) {
@@ -157,8 +143,6 @@ export function mediaLinker({
 
   // An OBJE record's notes are kept once, with the first link to it.
   const noted = new Set<GedNode>();
-  // The records noting they're a Tag's, that note taken off them.
-  const tagRecords = new Set<GedNode>();
   // A person is tagged once in a Photo, by "<media>:<person>".
   const tags = new Set<string>();
 
@@ -169,20 +153,6 @@ export function mediaLinker({
     return true;
   }
 
-  // Whether the record is a Tag's: its note saying so is used, and taken
-  // off it so it's not kept as a note.
-  function isTagRecord(files: GedNode) {
-    const at = files.children.findIndex(
-      (c) => c.tag === 'NOTE' && c.value === ADDED_IN_APP
-    );
-    if (at >= 0) {
-      use(files.children[at]!);
-      files.children.splice(at, 1);
-      tagRecords.add(files);
-    }
-    return tagRecords.has(files);
-  }
-
   // An OBJE's notes go with the first of its files that was stored.
   function importMediaLinks(
     holder: GedNode,
@@ -191,22 +161,13 @@ export function mediaLinker({
   ) {
     const objects = objectsOf(holder, records);
     for (const { link, files } of objects) markMediaLines(link, files);
-    const tagged = objects.map(({ files }) => isTagRecord(files));
     const firstLink = new Map<number, number>();
-    const extras: Array<(objectOrder: number) => void> = [];
     for (const ref of primaryFirst(mediaRefsOf(holder, records))) {
-      const tag = tagged[ref.object] ?? false;
-      const holderOf = { scope, scopeId };
-      const linkId = importMediaLink(ref, holderOf, tag, (t) => {
-        extras.push(t);
-      });
+      const linkId = importMediaLink(ref, { scope, scopeId });
       if (linkId !== null && !firstLink.has(ref.object)) {
         firstLink.set(ref.object, linkId);
       }
     }
-    extras.forEach((made, i) => {
-      made(objects.length + i);
-    });
     objects.forEach(({ files }, object) => {
       const linkId = firstLink.get(object);
       if (linkId === undefined || noted.has(files)) return;

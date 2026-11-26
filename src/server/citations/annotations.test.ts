@@ -80,8 +80,7 @@ test('inserts a Citation with no Annotation, and reads it back', () => {
 test('inserts a Citation with an Annotation as given, and reads it back', () => {
   const annotation = {
     link: { ...ON_IMAGE, by: 'vision' as const },
-    originalPage: MYHERITAGE,
-    madeInApp: true
+    originalPage: MYHERITAGE
   };
   const id = cite(ASTIA, annotation);
   expect(stored(id)).toEqual({ page: ASTIA, annotation });
@@ -95,7 +94,7 @@ test('a hand Mark on an Image cites it, keeping the page as the original page', 
   annotations.swap([id], ON_IMAGE);
   expect(stored(id)).toEqual({
     page: ASTIA,
-    annotation: { link: ON_IMAGE, originalPage: MYHERITAGE, madeInApp: false }
+    annotation: { link: ON_IMAGE, originalPage: MYHERITAGE }
   });
   // The reference is still read from the original page.
   expect(
@@ -116,7 +115,7 @@ test('a Match keeps the page', () => {
   annotations.swap([id], match);
   expect(stored(id)).toEqual({
     page: MYHERITAGE,
-    annotation: { link: match, originalPage: null, madeInApp: false }
+    annotation: { link: match, originalPage: null }
   });
 });
 
@@ -133,7 +132,7 @@ test('a Mark of only a Volume leaves the page alone', () => {
   annotations.swap([id], volume);
   expect(stored(id)).toEqual({
     page: MYHERITAGE,
-    annotation: { link: volume, originalPage: null, madeInApp: false }
+    annotation: { link: volume, originalPage: null }
   });
 });
 
@@ -148,14 +147,14 @@ test('reads the first link of some Citations, and every linked one', () => {
   ]);
 });
 
-test('carries a stored Annotation verbatim, keeping the new row made in the app or not', () => {
+test('carries a stored Annotation verbatim', () => {
   const was = cite(MYHERITAGE);
   annotations.swap([was], ON_IMAGE);
-  const fresh = cite(MYHERITAGE, { ...NO_ANNOTATION, madeInApp: true });
+  const fresh = cite(MYHERITAGE);
   annotations.carry(fresh, stored(was));
   expect(stored(fresh)).toEqual({
     page: ASTIA,
-    annotation: { link: ON_IMAGE, originalPage: MYHERITAGE, madeInApp: true }
+    annotation: { link: ON_IMAGE, originalPage: MYHERITAGE }
   });
 });
 
@@ -168,6 +167,6 @@ test('carries a Mark through a round trip via MyHeritage, whose export gives the
   annotations.carry(fresh, stored(was));
   expect(stored(fresh)).toEqual({
     page: ASTIA,
-    annotation: { link: ON_IMAGE, originalPage: MYHERITAGE, madeInApp: false }
+    annotation: { link: ON_IMAGE, originalPage: MYHERITAGE }
   });
 });

@@ -65,7 +65,7 @@ async function until(done: () => boolean) {
 async function madeNow() {
   const rows = await api!.volumeCitations(VOLUME).catch(() => []);
   return rows
-    .filter((r) => r.citation.madeInApp)
+    .filter((r) => r.citation.entryId !== null)
     .map((r) => ({
       personId: r.personId,
       text: r.citation.text,
@@ -110,7 +110,7 @@ test('a pending Citation is saved for its person, with its text, and opens', asy
   expect(viewer.pending.get()).toBeNull();
   // Made for Juho, who's selected, the viewer on it.
   expect(state.selected.id.get()).toBe(2);
-  expect(viewer.source.get()?.citation.madeInApp).toBe(true);
+  expect(viewer.source.get()?.citation.entryId).not.toBeNull();
   expect(viewer.image.get()).toBe(12);
 });
 
@@ -147,8 +147,7 @@ test('a pending Citation without text is saved with none, and Cancel leaves noth
   ]);
   // Matti's own: the viewer opens on it, him still selected.
   expect(viewer.source.get()?.citation).toMatchObject({
-    text: null,
-    madeInApp: true
+    text: null
   });
 });
 

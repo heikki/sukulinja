@@ -35,7 +35,6 @@ const OWN = [
   'quality',
   'data_date',
   'original_page',
-  'added_in_app',
   'sort_order',
   'entry_id'
 ] as const;

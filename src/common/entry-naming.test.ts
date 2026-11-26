@@ -23,7 +23,6 @@ function row(
       record: null,
       text: null,
       churchBook: true,
-      madeInApp: false,
       markKey: `citation ${personId}`,
       citedPage: null,
       cited: null,

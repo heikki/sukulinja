@@ -13,7 +13,6 @@ interface LinkRow {
   crop_left: number | null;
   crop_width: number | null;
   crop_height: number | null;
-  added_in_app: number;
 }
 
 function boxOf(r: LinkRow): Box | null {
@@ -28,7 +27,7 @@ function boxOf(r: LinkRow): Box | null {
 function peopleOf(links: LinkRow[]): PhotoPerson[] {
   const people = new Map<number, PhotoPerson>();
   for (const link of links) {
-    const box = link.added_in_app === 1 ? boxOf(link) : null;
+    const box = boxOf(link);
     const had = people.get(link.person_id);
     if (had === undefined || (had.box === null && box !== null)) {
       people.set(link.person_id, { personId: link.person_id, box });
@@ -52,7 +51,7 @@ export function createPhotos(db: Database) {
   );
   const linksOf = db.prepare<LinkRow, [number]>(
     `SELECT media_id, scope_id AS person_id, crop_top, crop_left,
-       crop_width, crop_height, added_in_app
+       crop_width, crop_height
      FROM media_links
      WHERE media_id = ? AND scope_type = 'person'
      ORDER BY id`
@@ -65,7 +64,7 @@ export function createPhotos(db: Database) {
   );
   const allLinks = db.prepare<LinkRow, []>(
     `SELECT media_id, scope_id AS person_id, crop_top, crop_left,
-       crop_width, crop_height, added_in_app
+       crop_width, crop_height
      FROM media_links
      WHERE scope_type = 'person'
      ORDER BY id`

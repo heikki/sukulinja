@@ -57,6 +57,8 @@ export interface ReferenceRow {
   page: string | null;
   text: string | null;
   role: string | null;
+  // The Entry it cites: the app's own, and so no reference (ADR-0016).
+  entryId: number | null;
   annotation: Annotation;
 }
 

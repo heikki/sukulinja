@@ -150,8 +150,7 @@ export function importStatements(db: Database) {
       'crop_left',
       'crop_width',
       'crop_height',
-      'sort_order',
-      'added_in_app'
+      'sort_order'
     ])
   };
 }

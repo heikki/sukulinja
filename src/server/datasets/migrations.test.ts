@@ -149,6 +149,11 @@ function rowsOf(db: Database, table: string) {
   return db.query(`SELECT * FROM ${table} ORDER BY rowid`).all();
 }
 
+// A row with only the columns still there.
+function only(row: object, kept: Set<string>) {
+  return Object.fromEntries(Object.entries(row).filter(([n]) => kept.has(n)));
+}
+
 describe('a database of the oldest schema migrated', () => {
   test('has the tables a new one has', () => {
     oldest().close();
@@ -168,14 +173,22 @@ describe('a database of the oldest schema migrated', () => {
     }));
     before.close();
     const migrated = openDb(path);
-    // Only the columns it had: a step may add some.
+    // Only the columns both have: a step may add some, or drop one that
+    // says what the others do.
     for (const { table, rows } of had) {
-      const names = Object.keys(rows[0] ?? {});
+      const kept = new Set(
+        migrated
+          .query<{ name: string }, []>(`PRAGMA table_info(${table})`)
+          .all()
+          .map((c) => c.name)
+      );
+      const names = Object.keys(rows[0] ?? {}).filter((n) => kept.has(n));
       const columns = names.length === 0 ? '*' : names.join(', ');
       const now = migrated
         .query(`SELECT ${columns} FROM ${table} ORDER BY rowid`)
         .all();
-      expect({ table, rows: now }).toEqual({ table, rows });
+      const was = rows.map((row) => only(row as object, kept));
+      expect({ table, rows: now }).toEqual({ table, rows: was });
     }
     expect(versionOf(migrated)).toBe(SCHEMA_VERSION);
     migrated.close();
@@ -198,6 +211,32 @@ describe('schema 15', () => {
       )
       .get()!;
     expect(id).toBe(8);
+    migrated.close();
+  });
+});
+
+describe('schema 16', () => {
+  test("keeps a Tag a Tag by its Box, and hands out no deleted link's id", () => {
+    const before = oldest();
+    fill(before);
+    before.run(
+      "INSERT INTO media_links (id, media_id, scope_type, scope_id) VALUES (9, 1, 'person', 1)"
+    );
+    before.run('DELETE FROM media_links WHERE id = 9');
+    before.close();
+    const migrated = openDb(path);
+    // Person 2's Box is still their one Tag in the Photo.
+    expect(() =>
+      migrated.run(
+        "INSERT INTO media_links (media_id, scope_type, scope_id, crop_top, crop_left, crop_width, crop_height) VALUES (1, 'person', 2, 5, 6, 7, 8)"
+      )
+    ).toThrow(/UNIQUE/u);
+    const { id } = migrated
+      .query<{ id: number }, []>(
+        "INSERT INTO media_links (media_id, scope_type, scope_id) VALUES (1, 'person', 2) RETURNING id"
+      )
+      .get()!;
+    expect(id).toBe(10);
     migrated.close();
   });
 });

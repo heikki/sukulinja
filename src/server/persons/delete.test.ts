@@ -85,8 +85,8 @@ test('one at the end goes, with everything they held', () => {
   db.run("INSERT INTO media (file_path) VALUES ('kuva.jpg'), ('muu.jpg')");
   db.run(
     `INSERT INTO media_links (media_id, scope_type, scope_id, crop_top,
-       crop_left, crop_width, crop_height, added_in_app)
-     VALUES (1, 'person', ${KALLE}, 0, 0, 10, 10, 1), (2, 'person', 1, 0, 0, 10, 10, 1)`
+       crop_left, crop_width, crop_height)
+     VALUES (1, 'person', ${KALLE}, 0, 0, 10, 10), (2, 'person', 1, 0, 0, 10, 10)`
   );
   const kept = new Map(tables.map((t) => [t, rows(t).length]));
   expect(deletion.remove(KALLE)).toEqual({ id: KALLE });

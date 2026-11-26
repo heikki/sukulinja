@@ -187,9 +187,6 @@ export interface CitationRow {
   text: string | null;
   // Cites a Finnish church book, so it may get a Link.
   churchBook: boolean;
-  // Made in the app, on an Astia Image: it has no Church-book reference,
-  // and its Link is the Mark it was made with.
-  madeInApp: boolean;
   // Citations with the same markKey share one Mark and its Box: those of
   // one record. A Citation with no Church-book reference has its own.
   markKey: string;

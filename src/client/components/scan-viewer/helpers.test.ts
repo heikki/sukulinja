@@ -23,7 +23,6 @@ function row(id: number, markKey: string, entryId: number | null = null) {
       record: null,
       text: null,
       churchBook: true,
-      madeInApp: true,
       markKey,
       citedPage: 12,
       cited: null,

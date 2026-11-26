@@ -14,14 +14,14 @@ function dataset() {
     (11, 'portrait.png', 'image/png'),
     (12, 'letter.pdf', 'application/pdf')`);
   db.run(`INSERT INTO media_links
-    (media_id, scope_type, scope_id, sort_order, crop_top, crop_left, crop_width, crop_height, added_in_app)
+    (media_id, scope_type, scope_id, sort_order, crop_top, crop_left, crop_width, crop_height)
     VALUES
-    (11, 'person', 1, 0, NULL, NULL, NULL, NULL, 0),
-    (10, 'person', 1, 1, NULL, NULL, NULL, NULL, 0),
-    (10, 'person', 2, 0, 5, 40, 30, 35, 1),
-    (10, 'person', 1, 2, 10, 100, 30, 40, 1),
-    (12, 'person', 1, 3, NULL, NULL, NULL, NULL, 0),
-    (10, 'family', 1, 0, NULL, NULL, NULL, NULL, 0)`);
+    (11, 'person', 1, 0, NULL, NULL, NULL, NULL),
+    (10, 'person', 1, 1, NULL, NULL, NULL, NULL),
+    (10, 'person', 2, 0, 5, 40, 30, 35),
+    (10, 'person', 1, 2, 10, 100, 30, 40),
+    (12, 'person', 1, 3, NULL, NULL, NULL, NULL),
+    (10, 'family', 1, 0, NULL, NULL, NULL, NULL)`);
   return db;
 }
 

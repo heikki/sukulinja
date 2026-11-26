@@ -20,7 +20,6 @@ const CITATION: CitationRow = {
   record: null,
   text: null,
   churchBook: true,
-  madeInApp: false,
   markKey: 'citation 11',
   citedPage: null,
   cited: null,

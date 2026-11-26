@@ -7,7 +7,6 @@
 
 import { extname } from 'node:path';
 
-import { ADDED_IN_APP } from '../gedcom/astia-links';
 import { mimeOf } from '../gedcom/media-refs';
 import { line, optional, pointer } from '../gedcom/writer';
 import type { OutLine } from '../gedcom/writer';
@@ -126,15 +125,10 @@ export function mediaExport(
     return [...groups.values()].map((group) => {
       const xref = newXref();
       const first = group.reduce((a, b) => (a.id < b.id ? a : b));
-      const tagged = group.some((r) => r.added_in_app === 1);
       records.push({
         tag: 'OBJE',
         xref,
-        children: [
-          ...group.map(fileOf),
-          ...notes('media_link', first.id),
-          ...(tagged ? [line('NOTE', ADDED_IN_APP)] : [])
-        ]
+        children: [...group.map(fileOf), ...notes('media_link', first.id)]
       });
       return pointer('OBJE', xref, [
         ...cropOf(group),

@@ -75,7 +75,6 @@ function source(id: number, citedPage: number | null, churchBook = true) {
     record: null,
     text: null,
     churchBook,
-    madeInApp: false,
     markKey: `citation ${id}`,
     citedPage,
     cited: null,
@@ -157,7 +156,7 @@ const CITED = {
 test('files a Citation of an Image under its archive, with the references there', () => {
   const archive = 'Juvan seurakunnan arkisto';
   const here = { ...link, archive };
-  const ofImage = { ...source(2, null), madeInApp: true, text: 'Baptism' };
+  const ofImage = { ...source(2, null), entryId: 2, text: 'Baptism' };
   const rows = [{ ...source(1, 12), cited: CITED }, ofImage];
   const scans = new Map<number, LinkResolution>([
     [1, { links: [here] }],
