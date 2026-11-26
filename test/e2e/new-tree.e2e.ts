@@ -34,7 +34,7 @@ test("a tree grows from its first person's baptism", async () => {
     await page.getByLabel('Baptised').fill('5.3.1795');
     await page.getByLabel('Place').fill('Esimerkkilä 2');
     // What the Entry offers the tree, ticked to be taken.
-    const birth = page.getByLabel('Add Birth 3.3.1795 at Esimerkkilä 2');
+    const birth = page.getByLabel('Add fact: Birth 3.3.1795 at Esimerkkilä 2');
     expect(await birth.isChecked()).toBe(true);
     await shot(page, 'new-tree-entry');
     await page.getByRole('button', { name: 'Save', exact: true }).click();

@@ -151,7 +151,7 @@ test('the place is as the book writes it, in its parish, in Finland', () => {
 test('a line is written as the Entry pane shows it', () => {
   const now = { date: '3 MAR 1761', place: 'Esimerkkilä 2, Juva, Suomi' };
   expect(offerWords({ tag: 'BIRT', action: 'add', now })).toBe(
-    'Add Birth 3.3.1761 at Esimerkkilä 2, Juva, Suomi'
+    'Add fact: Birth 3.3.1761 at Esimerkkilä 2, Juva, Suomi'
   );
   const was = { date: '5 MAR 1761', place: null };
   expect(offerWords({ tag: 'CHR', action: 'support', factId: 1, was })).toBe(
@@ -165,7 +165,7 @@ test('a line is written as the Entry pane shows it', () => {
       was: { date: '1761', place: null },
       now
     })
-  ).toBe('Change Birth 1761 → 3.3.1761, at Esimerkkilä 2, Juva, Suomi');
+  ).toBe('Change fact: Birth 1761 → 3.3.1761, at Esimerkkilä 2, Juva, Suomi');
   expect(
     offerWords({
       tag: 'BIRT',
@@ -174,7 +174,7 @@ test('a line is written as the Entry pane shows it', () => {
       was: { date: '3 MAR 1761', place: 'Juva' },
       now
     })
-  ).toBe('Change Birth place Juva → Esimerkkilä 2, Juva, Suomi');
+  ).toBe('Change fact: Birth place Juva → Esimerkkilä 2, Juva, Suomi');
   expect(offerWords({ tag: 'BIRT', action: 'two' })).toBe(
     'Two Births: none matches'
   );

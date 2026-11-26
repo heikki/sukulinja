@@ -290,9 +290,9 @@ function changeWords(was: FactSays, now: FactSays) {
   return parts.join(', ');
 }
 
-// A line as its Entry pane writes it: "Add Birth 3.3.1761 at Esimerkkilä 2, …",
+// A line as its Entry pane writes it: "Add fact: Birth 3.3.1761 at Esimerkkilä 2, …",
 // "Christening 5.3.1761 matches: use as its source", "Birth 1762: keep as
-// its source", "Change Birth 1761 → 3.3.1761", "Two Births:
+// its source", "Change fact: Birth 1761 → 3.3.1761", "Two Births:
 // none matches", "Source will be removed from Matti Esimerkki's Birth
 // 3.3.1761",
 // with `nameOf` naming whose.
@@ -305,7 +305,7 @@ export function offerWords(
     case 'add': {
       const { date, place } = offer.now;
       const at = place === null ? '' : ` at ${place}`;
-      return `Add ${kind} ${dateWords(date)}${at}`;
+      return `Add fact: ${kind} ${dateWords(date)}${at}`;
     }
     case 'support': {
       const date =
@@ -315,7 +315,7 @@ export function offerWords(
         : `${kind}${date} matches: use as its source`;
     }
     case 'change':
-      return `Change ${kind} ${changeWords(offer.was, offer.now)}`;
+      return `Change fact: ${kind} ${changeWords(offer.was, offer.now)}`;
     case 'two':
       return `Two ${kind}s: none matches`;
     case 'gone': {

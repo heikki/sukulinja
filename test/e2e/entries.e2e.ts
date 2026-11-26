@@ -35,7 +35,9 @@ test('a baptism is corrected and a marriage made and deleted', async () => {
     await entry.click({ button: 'right' });
     await page.getByRole('menuitem', { name: 'Edit', exact: true }).click();
     await page.getByLabel('Baptised').fill('6.3.1795');
-    const change = page.getByLabel('Change Christening 5.3.1795 → 6.3.1795');
+    const change = page.getByLabel(
+      'Change fact: Christening 5.3.1795 → 6.3.1795'
+    );
     await change.waitFor();
     if (await change.isChecked()) throw new Error('a change starts unticked');
     await change.check();
