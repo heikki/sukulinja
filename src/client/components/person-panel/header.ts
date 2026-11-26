@@ -31,7 +31,7 @@ function unknownLine(label: string): Line {
 }
 
 // The date of the first of `tags` that has one; the places are left to
-// Events. One recorded without a date, as a death often is ("DEAT Y"),
+// Facts. One recorded without a date, as a death often is ("DEAT Y"),
 // still says it happened, its date unknown.
 function lineOf(facts: FactRow[], tags: string[]): Line | null {
   let bare: Line | null = null;

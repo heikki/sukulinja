@@ -1,5 +1,5 @@
 // Opening a source in the Scan viewer, and Sources brought to it or not:
-// from Sources it is, from Events it isn't.
+// from Sources it is, from Facts it isn't.
 
 import { expect, test } from 'bun:test';
 
@@ -99,7 +99,7 @@ async function viewer() {
   return state.viewer;
 }
 
-test('a source opened from Events leaves Sources where it is', async () => {
+test('a source opened from Facts leaves Sources where it is', async () => {
   const v = await viewer();
   expect(v.openSource(S11, { reveal: false })).toBe(true);
   expect(v.source.get()?.citation.id).toBe(11);

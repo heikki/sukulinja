@@ -1,10 +1,10 @@
 import { css } from 'lit';
 
-// Events: each Fact a row across the panel's width, tinted when pointed at
+// Facts: each Fact a row across the panel's width, tinted when pointed at
 // and more while its menu is open, its kind in a column of its own; and
 // below them a button to add one. Its menu is fixed in the window, so the
 // panel's scrolling doesn't clip it.
-export const personEventsStyles = css`
+export const personFactsStyles = css`
   .facts {
     display: grid;
     grid-template-columns: max-content 1fr;

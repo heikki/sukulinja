@@ -16,7 +16,7 @@ import '../context-menu';
 import './fact-form';
 
 import type { Ask } from '../ask';
-import { personEventsStyles } from './events-styles';
+import { personFactsStyles } from './facts-styles';
 import { factLabel, factText, sourcesOf } from './helpers';
 
 // A Fact's form open, by its id, or a new one's.
@@ -35,12 +35,12 @@ interface FactMenu {
 // supports it. Clicking one opens its first source in the Scan viewer, or
 // with nothing to open there, asks Sources for it as `show-source` with
 // its Citation's id. A right-click, Shift+F10 or the menu key offers
-// _Edit_, opening it in a modal, and _Delete_, asked first. _Add event_ opens a new one's; one at a
-// time. Which sources support a Fact is set from an Entry's card
+// _Edit_, opening it in a modal, and _Delete_, asked first. _Add fact_ opens a new one's; one at a
+// time. Which sources support a Fact is set in the Entry pane
 // (ADR-0033).
-@customElement('sl-person-events')
-class PersonEventsElement extends SignalWatcher(LitElement) {
-  static override styles = [focusRingStyles, personEventsStyles];
+@customElement('sl-person-facts')
+class PersonFactsElement extends SignalWatcher(LitElement) {
+  static override styles = [focusRingStyles, personFactsStyles];
 
   @consume({ context: appState }) private readonly state!: AppState;
 
@@ -210,7 +210,7 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
           this.editing = 'new';
         }}
       >
-        Add event
+        Add fact
       </button>
       ${adding ? this.renderForm(null) : nothing} ${this.renderMenu()}`;
   }
@@ -218,6 +218,6 @@ class PersonEventsElement extends SignalWatcher(LitElement) {
 
 declare global {
   interface HTMLElementTagNameMap {
-    'sl-person-events': PersonEventsElement;
+    'sl-person-facts': PersonFactsElement;
   }
 }

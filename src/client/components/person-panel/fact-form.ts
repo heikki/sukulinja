@@ -52,7 +52,7 @@ function spouseLabel(m: Marriage) {
 // one), date, place (and a residence's, or one recorded with it, address),
 // an attribute's value and an Event's type. Save or Enter saves it, and
 // it, Cancel, Esc or a press on the scrim say `closed`. Deleting is
-// Events' menu's.
+// Facts' menu's.
 @customElement('sl-fact-form')
 class FactFormElement extends SignalWatcher(LitElement) {
   static override styles = [
@@ -276,7 +276,7 @@ class FactFormElement extends SignalWatcher(LitElement) {
     const places = this.state.facts.places.get();
     const kind = factKindLabel(tag).toLowerCase();
     return formDialog({
-      title: this.fact === null ? 'Add event' : `Edit ${kind}`,
+      title: this.fact === null ? 'Add fact' : `Edit ${kind}`,
       close: () => {
         this.close();
       },

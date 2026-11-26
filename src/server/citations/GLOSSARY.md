@@ -8,11 +8,11 @@ A person's **Citations**, as the panel lists them, and linking each **Church-boo
 A reference in the tree to where something comes from, from any source: a person's (or family's) one says they are in that source, a church-book one which **Event** its **Entry** records and their **Role** in it. It may **Support** their Facts. None is on a Fact itself: an import makes a Fact's citation its owner's, supporting the Fact (ADR-0022).
 
 **Support**:
-A Citation's backing of one of its person's Facts, or their marriages': _this source says so_. One Citation may support several Facts (a rippikirja line gives the birth, the residence and the marriage), and a Fact may rest on several. Set from the **Entry pane**, which offers to add, support or change the Facts its dates and place record, each to tick or not; editing an Entry, a Fact it supports already is listed ticked (_keep as its source_), and unticked it no longer does (ADR-0033). A click on a Fact in _Events_ opens its first supporting source. Each added or taken back is a **Change**. GEDCOM writes it as the citation repeated under the Fact.
+A Citation's backing of one of its person's Facts, or their marriages': _this source says so_. One Citation may support several Facts (a rippikirja line gives the birth, the residence and the marriage), and a Fact may rest on several. Set from the **Entry pane**, which offers to add, support or change the Facts its dates and place record, each to tick or not; editing an Entry, a Fact it supports already is listed ticked (_keep as its source_), and unticked it no longer does (ADR-0033). A click on a Fact in the panel's _Facts_ opens its first supporting source. Each added or taken back is a **Change**. GEDCOM writes it as the citation repeated under the Fact.
 _Avoid_: evidence (the Entry is that), link (a church-book Citation's place in Astia).
 
 **Fact**:
-What the tree says about a person or family: an event (birth, baptism, marriage, residence) or an attribute (occupation), with its date and place. A conclusion, which Citations **Support**, shown under it in _Events_. An import brought most; one is added, changed or deleted in the panel's _Events_ (ADR-0021), and deleting one takes its support, its Citations staying with its person or family.
+What the tree says about a person or family: an event (birth, baptism, marriage, residence) or an attribute (occupation), with its date and place. A conclusion, which Citations **Support**, shown under it in _Facts_. An import brought most; one is added, changed or deleted in the panel's _Facts_ (ADR-0021), and deleting one takes its support, its Citations staying with its person or family.
 _Avoid_: event (alone; that's what an Entry records), claim.
 
 **Event**:

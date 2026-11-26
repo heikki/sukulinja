@@ -11,7 +11,7 @@ import type { PhotoRow } from '@/common/types';
 import { onAvatarReady } from '../tree-view/avatar-cache';
 import { CROSS, formatName } from '../tree-view/renderer';
 
-import './events';
+import './facts';
 import './fold';
 import './header';
 import './sources';
@@ -63,7 +63,7 @@ function renderRelative(r: Relative, chart: Chart) {
   </button>`;
 }
 
-// The Selected person's family, events, sources and Photos, beside the
+// The Selected person's family, facts, sources and Photos, beside the
 // chart. A Photo opens in the Photo viewer; the source the Scan viewer
 // shows is brought into view.
 @customElement('sl-person-panel')
@@ -221,16 +221,16 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
               )
         }
         ${this.renderSection(
-          'events',
-          'Events',
+          'facts',
+          'Facts',
           () =>
-            html`<sl-person-events
+            html`<sl-person-facts
               .facts=${d.facts}
               .marriages=${d.marriages}
               @show-source=${(e: CustomEvent<number>) => {
                 void this.showSource(e.detail);
               }}
-            ></sl-person-events>`
+            ></sl-person-facts>`
         )}
         ${
           d.citations.length === 0

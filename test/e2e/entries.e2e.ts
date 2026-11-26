@@ -81,7 +81,7 @@ test('a baptism is corrected and a marriage made and deleted', async () => {
 
     // The tree took the corrected Christening.
     await page.keyboard.press('Escape');
-    await openSection(page, 'Events');
+    await openSection(page, 'Facts');
     const events = page.locator('sl-person-panel');
     await events
       .getByRole('button', { name: /^Christening 6\.3\.1795/ })

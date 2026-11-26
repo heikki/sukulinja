@@ -379,7 +379,7 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
   // hides its details, as its chevron does for both: what it records, its
   // links and what can be done of it. Its details show only when selected,
   // and opening it in the Scan viewer leaves them as they are. One that
-  // supports none of the Facts is dimmed, as Events dims a Fact no source
+  // supports none of the Facts is dimmed, as Facts dims a Fact no source
   // supports.
 
   private renderCitation({ citation: c, status }: Source) {

@@ -76,7 +76,7 @@ export interface Viewer {
   // none, to no Volume until one is chosen. Sources is brought to it.
   open: (source: LinkOpen) => void;
   // A source of the panel's opened as `open` does: at its Link, or failing
-  // one looking through its parish's Volumes. Without `reveal`, as Events
+  // one looking through its parish's Volumes. Without `reveal`, as Facts
   // opens one, Sources isn't brought to it. False when it has nothing to
   // open there, and nothing opens.
   openSource: (source: Source, options: { reveal: boolean }) => boolean;

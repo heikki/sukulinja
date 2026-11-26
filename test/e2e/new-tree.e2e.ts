@@ -49,7 +49,7 @@ test("a tree grows from its first person's baptism", async () => {
       .getByRole('button', { name: /Matti Esimerkki$/ })
       .first()
       .click();
-    await openSection(page, 'Events');
+    await openSection(page, 'Facts');
     await page.getByText('3.3.1795 · Esimerkkilä 2, Juva').waitFor();
     await shot(page, 'new-tree-done');
   });

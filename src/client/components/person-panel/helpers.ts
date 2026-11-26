@@ -63,8 +63,8 @@ export function sectionsOpened() {
     ?.slice(prefix.length);
   const on = new Set(raw?.split('.') ?? []);
   return {
-    events: on.has('events'),
     family: on.has('family'),
+    facts: on.has('facts'),
     photos: on.has('photos'),
     sources: on.has('sources')
   };

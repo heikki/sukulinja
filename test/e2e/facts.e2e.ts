@@ -1,4 +1,4 @@
-// Facts in the person panel's Events: added, refused when the date can't
+// Facts in the person panel's Facts: added, refused when the date can't
 // be read, offered a place already written, edited and deleted.
 
 import { afterAll, test } from 'bun:test';
@@ -20,17 +20,17 @@ async function factMenu(page: Page, row: string, item: string, name = '') {
   await choice.click();
 }
 
-test('a fact is added, edited and deleted in Events', async () => {
+test('a fact is added, edited and deleted in Facts', async () => {
   await withApp(async ({ page }) => {
     await newTree(page);
     await page
       .getByRole('button', { name: /Matti Esimerkki$/ })
       .first()
       .click();
-    await openSection(page, 'Events');
+    await openSection(page, 'Facts');
     const panel = page.locator('sl-person-panel');
 
-    await panel.getByRole('button', { name: 'Add event' }).click();
+    await panel.getByRole('button', { name: 'Add fact' }).click();
     await panel.getByLabel('Date').fill('3.3.1795');
     await panel.getByLabel('Place').fill('Esimerkkilä, Juva');
     await panel.getByRole('button', { name: 'Save' }).click();
@@ -40,7 +40,7 @@ test('a fact is added, edited and deleted in Events', async () => {
     await birth.waitFor();
 
     // A date the form can't read is refused, and the form stays.
-    await panel.getByRole('button', { name: 'Add event' }).click();
+    await panel.getByRole('button', { name: 'Add fact' }).click();
     await panel
       .getByRole('dialog')
       .getByLabel('Event')

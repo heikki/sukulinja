@@ -31,15 +31,13 @@ test('only the dock opens and closes itself', async () => {
     await page.keyboard.press('Escape');
 
     // It's open again after a reload, as it was left, and so are its
-    // sections, as Events once opened.
+    // sections, as Facts once opened.
     const panel = page.locator('sl-person-panel');
-    await panel
-      .getByRole('button', { name: 'Events', expanded: false })
-      .click();
+    await panel.getByRole('button', { name: 'Facts', expanded: false }).click();
     await page.reload();
     await open.waitFor();
     await panel
-      .getByRole('button', { name: 'Events', expanded: true })
+      .getByRole('button', { name: 'Facts', expanded: true })
       .waitFor();
 
     // Its header's button closes it, and it stays closed after a reload.
