@@ -41,7 +41,7 @@ export interface EntryEdit {
   image?: number;
 }
 
-// Changing the pending Entry, as the Scan viewer's card does.
+// Changing the pending Entry, as the Entry pane does.
 export interface EntryForm {
   // Who can't be named in it: those with a Citation linking its Image
   // that isn't of the Entry being edited, as the server refuses them, and
@@ -54,7 +54,7 @@ export interface EntryForm {
   setField: (key: keyof TypedFields, text: string) => void;
   // A line's box set, by lineKey.
   setTick: (key: string, on: boolean) => void;
-  // What its fields would do to the tree as it is, for its card to list.
+  // What its fields would do to the tree as it is, for its Entry pane to list.
   offers: Readable<Offer[]>;
   setInEntry: (person: InEntry) => void;
   // Someone not in the tree, by their name, to name in it and make with
@@ -92,13 +92,13 @@ function editedId(change: PendingChange): { entryId?: number } {
   return change.kind === 'edit' ? { entryId: change.editing.entryId } : {};
 }
 
-// Throws ApiError for a date on the card that can't be read.
+// Throws ApiError for a date in the Entry pane that can't be read.
 function refuseDates(cite: PendingCite) {
   const wrong = datesRefusal(cite.event, cite.fields);
   if (wrong !== null) throw new ApiError(wrong);
 }
 
-// Throws ApiError for a card that can't be saved: one naming no one, of
+// Throws ApiError for an Entry pane that can't be saved: one naming no one, of
 // no Event where `needsEvent`, or with a date that can't be read.
 function refuse(cite: PendingCite, needsEvent: boolean) {
   if (cite.people.length === 0) {

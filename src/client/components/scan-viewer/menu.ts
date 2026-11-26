@@ -7,7 +7,7 @@ import type { MenuItem } from '../context-menu';
 
 // What the menu offers for the current source's Link. On its own entry
 // Box (`onBox`), only that Box: a Vision match's to confirm, adjusted in
-// its card first (`editBox`), or discard, a Mark's to edit or discard, a Citation made in the app's to
+// its Entry pane first (`editBox`), or discard, a Mark's to edit or discard, a Citation made in the app's to
 // edit or delete, and once it's pending, the change to discard. Elsewhere,
 // only over the full Image (`canBox`): a pending Box placing the source's
 // Citation here, named under it as the lists name it, unless its Box is on
@@ -17,7 +17,7 @@ import type { MenuItem } from '../context-menu';
 // there are estimates on the Image, a search for them all (ADR-0029); then
 // Change Volume…, which only shows another Volume.
 // A Box's menu offers a Reminder too. An Entry made in the app is edited
-// in the card it was made in, people, words and Box at once (ADR-0026),
+// in the Entry pane it was made in, people, words and Box at once (ADR-0026),
 // and deleting it deletes everyone's Citation of it. Opened on an Image with no source,
 // the same but for what's the source's: a new Citation and a Reminder, and
 // a pending new Citation's Box to discard.
@@ -27,7 +27,7 @@ export function linkItems(
   open: {
     chooseVolume: () => void;
     placeBox: () => void;
-    // The source's own Box to adjust, as its card does; the viewer's own
+    // The source's own Box to adjust, as its Entry pane does; the viewer's own
     // without one.
     editBox?: () => void;
     cite: () => void;

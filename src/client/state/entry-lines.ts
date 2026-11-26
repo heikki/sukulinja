@@ -1,4 +1,4 @@
-// A pending Entry's fields as typed on its card, and the lines listing
+// A pending Entry's fields as typed in its Entry pane, and the lines listing
 // what they'd do to the tree (ADR-0033): asked of the server as the
 // Entry changes, each line ticked as it starts unless its box was
 // pressed.
@@ -36,7 +36,7 @@ export function lineKey(line: Offer) {
   return `${line.tag} ${line.action}${fact}`;
 }
 
-// Fields saved, as the card shows them to edit.
+// Fields saved, as the Entry pane shows them to edit.
 export function typedOf(fields: EntryFields | null): TypedFields {
   const { date, lifeDate, place } = fields ?? NO_FIELDS;
   return {
@@ -72,7 +72,7 @@ function recordPlace(event: EntryEvent | null, record: RecordView) {
 }
 
 // The dates a MyHeritage record transcribes of an Entry of the Event, as
-// the card types them ("3.3.1795"), and a household line's place; none it
+// the Entry pane types them ("3.3.1795"), and a household line's place; none it
 // doesn't give.
 export function recordTyped(
   event: EntryEvent | null,

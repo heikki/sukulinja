@@ -1,5 +1,5 @@
 // Editing an Entry from its Box in the Scan viewer (ADR-0026): its people,
-// what it says and its Box changed at once in the card it was made in, and
+// what it says and its Box changed at once in the Entry pane it was made in, and
 // the whole Entry deleted. Over the app's own server, so what's checked is
 // the Entry as it is after.
 
@@ -298,7 +298,7 @@ test('a Citation of the Entry deleted in Sources goes from beside the scan', asy
   expect(viewer.source.get()).not.toBeNull();
 });
 
-test("the card lists what the Entry's dates would do, and Save does those ticked", async () => {
+test("the Entry pane lists what the Entry's dates would do, and Save does those ticked", async () => {
   const { viewer, child, entryId } = await viewing();
   viewer.editEntry();
   const form = viewer.entryForm;
@@ -337,14 +337,14 @@ test("the card lists what the Entry's dates would do, and Save does those ticked
   ]);
 });
 
-test("a date the card can't read is refused on Save, saying how to write it", async () => {
+test("a date the Entry pane can't read is refused on Save, saying how to write it", async () => {
   const { viewer } = await viewing();
   viewer.editEntry();
   viewer.entryForm.setField('lifeDate', 'maaliskuussa');
   expect(viewer.save()).rejects.toThrow(/^Born: write the date as 3\.3\.1761/);
 });
 
-test('someone new named on the card is made with the Entry, and only then', async () => {
+test('someone new named in the Entry pane is made with the Entry, and only then', async () => {
   const { viewer, entryId } = await viewing();
   viewer.editEntry();
   const form = viewer.entryForm;

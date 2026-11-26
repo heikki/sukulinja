@@ -148,7 +148,7 @@ test('the place is as the book writes it, in its parish, in Finland', () => {
   expect(entryPlace(NO_FIELDS, 'Juva')).toBeNull();
 });
 
-test('a line is written as the card shows it', () => {
+test('a line is written as the Entry pane shows it', () => {
   const now = { date: '3 MAR 1761', place: 'Esimerkkilä 2, Juva, Suomi' };
   expect(offerWords({ tag: 'BIRT', action: 'add', now })).toBe(
     'Add Birth 3.3.1761 at Esimerkkilä 2, Juva, Suomi'

@@ -43,11 +43,11 @@ export type PendingChange =
   | (PendingAt & { kind: 'edit'; cite: PendingCite; editing: EntryEdit });
 
 // Whom a Church-book reference's entry names, and of what Event, as its
-// Box is placed: the card's first guess, as for a new Entry.
+// Box is placed: the Entry pane's first guess, as for a new Entry.
 export interface EntryStart {
   event: EntryEvent | null;
   people: InEntry[];
-  // What its record says of it, typed as the card types it.
+  // What its record says of it, typed as the Entry pane types it.
   fields: TypedFields;
 }
 
@@ -80,7 +80,7 @@ export interface Pending {
   // A new Entry at the Box, of the Event guessed, with the people in it
   // so far.
   newEntry: (box: Box, event: EntryEvent | null, people: InEntry[]) => void;
-  // The source's entry at the Box, on the Image shown, as its card says:
+  // The source's entry at the Box, on the Image shown, as its Entry pane says:
   // its Entry's edited, with its Box moved here; a Church-book
   // reference's placed, its Mark making it an Entry of `start`'s; a
   // Citation made in the app with no Entry only moved, as `mark` does.
@@ -131,7 +131,7 @@ function kindOf(change: PendingChange | null): Kind {
   return { kind: 'edit', cite: change.cite, editing: change.editing };
 }
 
-// A card to start with: of the Event, naming the people, with the fields
+// An Entry pane to start with: of the Event, naming the people, with the fields
 // given, else nothing typed.
 function startCite(
   event: EntryEvent | null,
@@ -148,7 +148,7 @@ function startCite(
   };
 }
 
-// Nothing typed on the card, no one new and no box set.
+// Nothing typed in the Entry pane, no one new and no box set.
 function untold(cite: PendingCite) {
   return (
     Object.values(cite.fields).every((f) => f.trim() === '') &&
@@ -157,7 +157,7 @@ function untold(cite: PendingCite) {
   );
 }
 
-// Whether the card says what the Entry does: its Event, and the same
+// Whether the Entry pane says what the Entry does: its Event, and the same
 // people in the same Roles, with nothing more to it.
 function sameEntry(cite: PendingCite, made: PendingCite) {
   function roles(people: InEntry[]) {
@@ -239,8 +239,8 @@ export function pendingChange(deps: PendingDeps): Pending {
 
   // The reference's entry placed: its Mark first, which makes it an Entry
   // with everyone citing the record (ADR-0016); then that Entry as the
-  // card says, as an edit, unless it says what the Mark made already. A
-  // card that can't be saved is refused before the Mark, and an edit
+  // Entry pane says, as an edit, unless it says what the Mark made already. A
+  // Entry pane that can't be saved is refused before the Mark, and an edit
   // refused stays open on the Entry, its Box saved.
   async function savePlace(was: PendingChange & { kind: 'place' }) {
     const { cite } = was;
@@ -259,10 +259,10 @@ export function pendingChange(deps: PendingDeps): Pending {
     await saveEdit(edit);
   }
 
-  // The Entry the Mark made, to change as the card says: those it named
+  // The Entry the Mark made, to change as the Entry pane says: those it named
   // to start with and since taken out go, anyone else the Mark brought
   // stays, and what it says is the record's. Null when there's no Entry,
-  // or the card says nothing it doesn't.
+  // or the Entry pane says nothing it doesn't.
   function convertedEdit(
     was: PendingChange & { kind: 'place' },
     citation: CitationRow

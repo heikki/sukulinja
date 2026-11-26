@@ -220,7 +220,7 @@ export function openEntries(db: Database) {
       });
     },
 
-    // The Event the Entry records, as chosen on its card (ADR-0033).
+    // The Event the Entry records, as chosen in its Entry pane (ADR-0033).
     setEvent(id: number, event: EntryEvent) {
       setEvent.run(event, id);
     },

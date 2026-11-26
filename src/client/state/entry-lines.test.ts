@@ -10,7 +10,7 @@ function record(fields: Array<[string, string]>) {
   };
 }
 
-test("a record's dates start a baptism's, a marriage's or a burial's card", () => {
+test("a record's dates start a baptism's, a marriage's or a burial's Entry pane", () => {
   const baptism = record([
     ['Syntymä', '1. Maalis 1795 - Juva, Mikkeli, Finland'],
     ['Ristiäiset', '3. Maalis 1795 - Juva, Mikkeli, Finland']

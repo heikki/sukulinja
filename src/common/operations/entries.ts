@@ -36,7 +36,7 @@ export interface Newcomer {
   name: PersonName;
 }
 
-// An entry made in the app, with the Event it records, chosen on its card
+// An entry made in the app, with the Event it records, chosen in its Entry pane
 // (null for none chosen, which is refused), what it says, if said, its
 // dates and place (ADR-0033), the lines of what it would do to the tree
 // that were ticked, and those it makes.
@@ -70,7 +70,7 @@ export interface EntryEdit {
 }
 
 // What an Entry of the Event in the Volume, naming the people, with the
-// fields, would do to the tree: its card's list (common/entry-offers).
+// fields, would do to the tree: its Entry pane's list (common/entry-offers).
 // An Entry being edited gives its id (`entryId`), so the Facts it
 // supports are known as its own.
 export interface EntryAsked {

@@ -1,5 +1,5 @@
-// Who can be named in an Entry: the rule the server and the Scan viewer's
-// card share.
+// Who can be named in an Entry: the rule the server and the Entry pane
+// share.
 
 import { expect, test } from 'bun:test';
 

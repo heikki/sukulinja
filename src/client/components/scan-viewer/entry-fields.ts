@@ -21,7 +21,7 @@ export interface TickDetail {
   on: boolean;
 }
 
-// An Entry's fields on its card (ADR-0033): the dates its Event gives,
+// An Entry's fields in its Entry pane (ADR-0033): the dates its Event gives,
 // typed the app's way, then its place, each set as typed
 // (`set-field`). Under them the lines of what they'd do to the tree,
 // each with its box (`tick`), but two Facts of a kind, to choose between

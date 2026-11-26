@@ -12,7 +12,7 @@ import type { LinkOpen } from './source-open';
 // - 'mark': the person's Mark, to edit or discard;
 // - 'citation': a Citation made in the app with no Entry, to edit or
 //   delete, Box and all;
-// - 'entry': an Entry made in the app (ADR-0026), edited in the card it
+// - 'entry': an Entry made in the app (ADR-0026), edited in the Entry pane it
 //   was made in; deleting it deletes everyone's Citation of it.
 export type SourceBox = 'match' | 'mark' | 'citation' | 'entry';
 

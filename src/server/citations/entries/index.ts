@@ -133,7 +133,7 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
   }
 
   // Stores the person's Citation of the Entry, with its Change; its id.
-  // It supports nothing of itself: only the lines ticked on the card do
+  // It supports nothing of itself: only the lines ticked in the Entry pane do
   // (ADR-0033).
   function name(
     entryId: number,
@@ -174,7 +174,7 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
     return 'rejected' in offered ? offered : { fields, offered, ticked };
   }
 
-  // What an Entry's card offered and had ticked.
+  // What an Entry pane offered and had ticked.
   interface Lines {
     offered: Offered;
     ticked: Ticked[];
@@ -429,7 +429,7 @@ export function createEntries<R>(db: Database, deps: EntryDeps<R>) {
       return await Promise.all(ids.map(listed));
     },
 
-    // What an Entry would do to the tree as it is now, the lines its card
+    // What an Entry would do to the tree as it is now, the lines its Entry pane
     // lists (ADR-0033).
     async offers(asked: EntryAsked) {
       const fields = keptFields(asked.event, asked.fields);

@@ -1,7 +1,7 @@
-// Placing a Church-book reference's entry in the Scan viewer: its card is
+// Placing a Church-book reference's entry in the Scan viewer: its Entry pane is
 // an Entry's, as Edit's is (ADR-0026, ADR-0033). Its Mark makes it an
 // Entry of everyone citing the record (ADR-0016), then the Entry is as the
-// card says. Over the app's own server.
+// Entry pane says. Over the app's own server.
 
 import { afterEach, beforeEach, expect, test } from 'bun:test';
 
@@ -116,7 +116,7 @@ const BOTH = [
   { personId: 2, role: 'MOTH' }
 ];
 
-test("Place entry's card names the record's people and tells its kind, as Edit's does", async () => {
+test("Place entry's pane names the record's people and tells its kind, as Edit's does", async () => {
   const { viewer, citation } = await viewing();
   viewer.placeEntry(BOX, { event: 'CHR', people: BOTH, fields: NO_TYPED });
   expect(viewer.pending.get()).toMatchObject({
@@ -148,7 +148,7 @@ test("Place entry's card names the record's people and tells its kind, as Edit's
   });
 });
 
-test('a card left as it starts saves only the Mark', async () => {
+test('an Entry pane left as it starts saves only the Mark', async () => {
   const { viewer } = await viewing();
   viewer.placeEntry(BOX, { event: null, people: BOTH, fields: NO_TYPED });
   await viewer.save();
@@ -162,7 +162,7 @@ test('a card left as it starts saves only the Mark', async () => {
   expect(viewer.pending.get()).toBeNull();
 });
 
-test('one taken out of the card goes from the Entry the Mark made', async () => {
+test('one taken out of the Entry pane goes from the Entry the Mark made', async () => {
   const { viewer } = await viewing();
   viewer.placeEntry(BOX, { event: 'CHR', people: BOTH, fields: NO_TYPED });
   viewer.entryForm.drop(2);
@@ -172,7 +172,7 @@ test('one taken out of the card goes from the Entry the Mark made', async () => 
   ]);
 });
 
-test('a card that would be refused is refused before the Mark', async () => {
+test('an Entry pane that would be refused is refused before the Mark', async () => {
   const { viewer } = await viewing();
   viewer.placeEntry(BOX, { event: 'CHR', people: BOTH, fields: NO_TYPED });
   viewer.entryForm.setField('date', 'sometime');
@@ -185,7 +185,7 @@ test('a card that would be refused is refused before the Mark', async () => {
   expect(viewer.pending.get()).toMatchObject({ kind: 'place' });
 });
 
-test("the record's dates start the card, and the tree's Fact that agrees takes it as its source", async () => {
+test("the record's dates start the Entry pane, and the tree's Fact that agrees takes it as its source", async () => {
   const { state, viewer, citation } = await viewing();
   const fields = recordTyped('CHR', citation.record);
   expect(fields).toEqual({ date: '3.3.1795', lifeDate: '', place: '' });

@@ -1,4 +1,4 @@
-// The Event an Entry records (ADR-0033), chosen on its card: a baptism, a
+// The Event an Entry records (ADR-0033), chosen in its Entry pane: a baptism, a
 // marriage, a burial or a household line. It gives the Roles the Entry
 // names its people in. A Volume may hold several Registers and its label
 // doesn't say so, so the Book only gives the first guess, after the Entry
@@ -31,7 +31,7 @@ export const NO_FIELDS: EntryFields = {
   place: null
 };
 
-// One of an Entry's dates on its card, and the Fact it gives: "Born", of
+// One of an Entry's dates in its Entry pane, and the Fact it gives: "Born", of
 // a Birth.
 export interface EntryDate {
   key: 'date' | 'lifeDate';
@@ -41,7 +41,7 @@ export interface EntryDate {
 
 // A burial or a household line names one person, in no Role: isäntä or
 // piika is who they are in the household, which its Transcription says.
-// Each Event as the card names it, with its Roles, GEDCOM's citation ROLE,
+// Each Event as the Entry pane names it, with its Roles, GEDCOM's citation ROLE,
 // and its dates, in the order the book writes them. A household line's
 // date is its Volume's years.
 export const ENTRY_EVENTS: ReadonlyArray<{
@@ -88,7 +88,7 @@ export function isEntryEvent(value: unknown): value is EntryEvent {
   return ENTRY_EVENTS.some((e) => e.event === value);
 }
 
-// The Event as the card names it: "Baptism".
+// The Event as the Entry pane names it: "Baptism".
 export function eventLabel(event: EntryEvent) {
   return ENTRY_EVENTS.find((e) => e.event === event)!.label;
 }

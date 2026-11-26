@@ -31,7 +31,7 @@ export function at(image: number, box = BOX) {
   };
 }
 
-// A baptism there, its Event chosen on the card, its fields empty and
+// A baptism there, its Event chosen in the Entry pane, its fields empty and
 // nothing ticked unless given.
 export function baptism(
   image: number,

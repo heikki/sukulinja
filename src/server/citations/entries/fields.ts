@@ -30,7 +30,7 @@ export function keptFields(
 export function fieldsRefusal(fields: EntryFields) {
   for (const date of [fields.date, fields.lifeDate]) {
     if (date !== null && typedDate(gedcomDate(date)) !== date) {
-      return `"${date}" isn't a date the card can write.`;
+      return `"${date}" isn't a date the Entry pane can write.`;
     }
   }
   return null;

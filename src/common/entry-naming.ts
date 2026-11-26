@@ -1,6 +1,6 @@
 // Who can be named in an Entry (ADR-0026): the rule the server refuses an
-// Entry by, and the Scan viewer's card offers people by, so the two can't
-// drift apart.
+// Entry by, and the Entry pane offers people by, so the two can't drift
+// apart.
 
 import { eventRoles } from '@/common/entry-events';
 import type { EntryEvent } from '@/common/entry-events';

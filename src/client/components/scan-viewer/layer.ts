@@ -143,19 +143,19 @@ class ScanLayerElement extends SignalWatcher(LitElement) {
   }
 
   // A new pending Box at `at` for the source's entry, to move and resize
-  // from there, with its card as a new Entry's starts (placeStart).
+  // from there, with its Entry pane as a new Entry's starts (placeStart).
   private placeBox(at: Point) {
     const box = this.newBoxAt(at);
     if (box !== null) this.viewer.placeEntry(box, this.placeStart(box));
   }
 
-  // The source's own Box to adjust, a reference's with its card.
+  // The source's own Box to adjust, a reference's with its Entry pane.
   private editBox() {
     const box = this.viewer.boxHere.get();
     if (box !== null) this.viewer.placeEntry(box, this.placeStart(box));
   }
 
-  // The card a reference's entry starts with at the Box: the Event the
+  // The Entry pane a reference's entry starts with at the Box: the Event the
   // Entry before it or the Book suggests, naming everyone citing its
   // record in the Roles the tree gives them.
   private placeStart(box: Box) {

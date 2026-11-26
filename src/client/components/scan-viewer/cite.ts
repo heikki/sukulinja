@@ -228,7 +228,7 @@ export function pickFor(
   };
 }
 
-// A parent's row in a baptism's card (ADR-0026): the child's father or
+// A parent's row in a baptism's Entry pane (ADR-0026): the child's father or
 // mother in the tree, and whether the entry names them. A parent the
 // entry names who isn't the tree's shows too, named. `personId` null when
 // the tree has none, to make one.

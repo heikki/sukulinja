@@ -104,7 +104,7 @@ function storedLink(
   return { volumeId, volume, url, precision: 'entry', image, box, certainty };
 }
 
-// The Event its Entry records, one the card offers; null for none.
+// The Event its Entry records, one the Entry pane offers; null for none.
 function eventOf(row: CitationDbRow) {
   return isEntryEvent(row.entryEvent) ? row.entryEvent : null;
 }

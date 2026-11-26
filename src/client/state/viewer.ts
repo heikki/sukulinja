@@ -144,8 +144,8 @@ export interface Viewer {
   boxPending: Readable<boolean>;
   // Puts the source's entry at the Box, on the Image shown, pending.
   setBox: (box: Box) => void;
-  // As `setBox`, with the card an Entry's edited has (placeSource); on
-  // the source's own Box, to adjust it as its card does.
+  // As `setBox`, with the Entry pane an Entry's edited has (placeSource); on
+  // the source's own Box, to adjust it as its Entry pane does.
   placeEntry: (box: Box, start: EntryStart) => void;
   // Starts a pending change from the Link's own Box, to adjust it.
   editBox: () => void;

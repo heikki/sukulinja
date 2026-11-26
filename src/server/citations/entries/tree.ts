@@ -1,5 +1,5 @@
 // An Entry against the tree (ADR-0033): what its dates and place would do
-// to its owner's Facts, as its card lists it (common/entry-offers), and
+// to its owner's Facts, as its Entry pane lists it (common/entry-offers), and
 // doing the lines ticked when it's saved. Its owner is whom the Facts are
 // of: a baptism's child, a burial's or a household line's one person, a
 // marriage's couple's family, through its groom (a couple not one yet has

@@ -231,7 +231,7 @@ test('a line ticked that is no longer offered, or a date it cannot read, refuses
     rejected: 'The tree has changed since; look at the list again.'
   });
   expect(await entries.make(...baptismOf(3, fields('3.3.1795', null)))).toEqual(
-    { rejected: '"3.3.1795" isn\'t a date the card can write.' }
+    { rejected: '"3.3.1795" isn\'t a date the Entry pane can write.' }
   );
   expect(db.query('SELECT COUNT(*) AS n FROM entries').get()).toEqual({ n: 0 });
 });

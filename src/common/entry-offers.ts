@@ -1,6 +1,6 @@
 // What an Entry would do to the tree (ADR-0033): for each of its dates,
 // against the Fact of that kind of its owner (a baptism's child), a line
-// on its card with its own box. Never required: adding and supporting
+// in its Entry pane with its own box. Never required: adding and supporting
 // start ticked, changing unticked. Worked out anew from the Entry and the
 // tree as they are, so nothing of it is kept.
 
@@ -26,7 +26,7 @@ export interface FactSays {
   place: string | null;
 }
 
-// One line of the card's list:
+// One line of the Entry pane's list:
 // - 'add': there's no such Fact; one is added, as the Entry says;
 // - 'support': the Fact (`was`) agrees; the Entry's Citation supports it.
 //   `kept` when the Entry being edited supports it already, agreeing or
@@ -54,7 +54,7 @@ export type Offer =
     }
   | { tag: string; action: 'two' };
 
-// A line ticked to be done, as the card sends it: by its Fact too, where
+// A line ticked to be done, as the Entry pane sends it: by its Fact too, where
 // it has one, as two of a kind may each have a line. One without
 // `factId` is any line of its tag and action.
 export interface Ticked {
@@ -272,7 +272,7 @@ function changeWords(was: FactSays, now: FactSays) {
   return parts.join(', ');
 }
 
-// A line as its card writes it: "Add Birth 3.3.1761 at Esimerkkilä 2, …",
+// A line as its Entry pane writes it: "Add Birth 3.3.1761 at Esimerkkilä 2, …",
 // "Christening 5.3.1761 matches: use as its source", "Birth 1762: keep as
 // its source", "Change Birth 1761 → 3.3.1761", "Two Births:
 // none matches".

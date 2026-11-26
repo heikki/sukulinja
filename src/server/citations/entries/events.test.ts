@@ -1,4 +1,4 @@
-// What an Entry records (ADR-0033): the Event chosen on its card, whatever
+// What an Entry records (ADR-0033): the Event chosen in its Entry pane, whatever
 // its Volume's Book, which gives its Roles.
 
 import { afterEach, beforeEach, expect, test } from 'bun:test';
@@ -22,7 +22,7 @@ function dataset() {
   return entriesDataset(dir);
 }
 
-test('an Entry records the Event chosen on its card, whatever its Volume', async () => {
+test('an Entry records the Event chosen in its Entry pane, whatever its Volume', async () => {
   const { db, entries, changes } = dataset();
   // A burial in the baptisms' Volume: books mix their Registers.
   const rows = made(

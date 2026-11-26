@@ -2,7 +2,7 @@ Status: accepted (2026-11-14)
 
 # An Entry is one Box, cited by everyone it names
 
-_Amended by ADR-0033: an Entry keeps its own dates and place, its kind chosen on its card, not told by its Book._
+_Amended by ADR-0033: an Entry keeps its own dates and place, its kind chosen in its Entry pane, not told by its Book._
 
 A baptism names the child, the parents and the godparents, but the app keeps no **Entry** of its own: each person's Citation holds the Image, the Box and the text. A Mark writes the same Box into every citation of the record, and the Scan viewer's _New citation for…_ makes each person draw the entry again, with its Role picked from a row of buttons in the foot bar. Heikki (2026-11-13) found both wrong: one entry should be one Box. This is the plan of `.scratch/citation-practices/entries.md`, taken now for the app's own Citations only, with the GEDCOM findings of `.scratch/citation-practices/citation-reuse.md`.
 

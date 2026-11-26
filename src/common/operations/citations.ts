@@ -121,7 +121,7 @@ export const CITATION_OPERATIONS = {
     }
   ),
 
-  // What an Entry would do to the tree, as its card lists it (ADR-0033).
+  // What an Entry would do to the tree, as its Entry pane lists it (ADR-0033).
   entryOffers: answers<EntryAsked, Offer[]>(
     '{ volumeId, event, people: [{ personId, role? }], fields }',
     entryAskedOf

@@ -8,7 +8,7 @@ A person's **Citations**, as the panel lists them, and linking each **Church-boo
 A reference in the tree to where something comes from, from any source: a person's (or family's) one says they are in that source, a church-book one which **Event** its **Entry** records and their **Role** in it. It may **Support** their Facts. None is on a Fact itself: an import makes a Fact's citation its owner's, supporting the Fact (ADR-0022).
 
 **Support**:
-A Citation's backing of one of its person's Facts, or their marriages': _this source says so_. One Citation may support several Facts (a rippikirja line gives the birth, the residence and the marriage), and a Fact may rest on several. Set from an Entry's card, which offers to add, support or change the Facts its dates and place record, each to tick or not; editing an Entry, a Fact it supports already is listed ticked (_keep as its source_), and unticked it no longer does (ADR-0033). A click on a Fact in _Events_ opens its first supporting source. Each added or taken back is a **Change**. GEDCOM writes it as the citation repeated under the Fact.
+A Citation's backing of one of its person's Facts, or their marriages': _this source says so_. One Citation may support several Facts (a rippikirja line gives the birth, the residence and the marriage), and a Fact may rest on several. Set from the **Entry pane**, which offers to add, support or change the Facts its dates and place record, each to tick or not; editing an Entry, a Fact it supports already is listed ticked (_keep as its source_), and unticked it no longer does (ADR-0033). A click on a Fact in _Events_ opens its first supporting source. Each added or taken back is a **Change**. GEDCOM writes it as the citation repeated under the Fact.
 _Avoid_: evidence (the Entry is that), link (a church-book Citation's place in Astia).
 
 **Fact**:
@@ -16,7 +16,7 @@ What the tree says about a person or family: an event (birth, baptism, marriage,
 _Avoid_: event (alone; that's what an Entry records), claim.
 
 **Event**:
-What an **Entry** records, as GEDCOM's citation `EVEN` names it: a baptism (`CHR`), a marriage (`MARR`), a burial (`BURI`), or a household in a rippikirja or lastenkirja (`RESI`). Chosen on the Entry's card, as a Volume may hold several **Registers**; its **Book** gives the first guess (ADR-0033). MyHeritage's `EVEN Record` isn't one.
+What an **Entry** records, as GEDCOM's citation `EVEN` names it: a baptism (`CHR`), a marriage (`MARR`), a burial (`BURI`), or a household in a rippikirja or lastenkirja (`RESI`). Chosen in the **Entry pane**, as a Volume may hold several **Registers**; its **Book** gives the first guess (ADR-0033). MyHeritage's `EVEN Record` isn't one.
 _Avoid_: fact (that's the tree's conclusion).
 
 **Role**:
@@ -69,6 +69,10 @@ _Avoid_: record (MyHeritage's record of an Entry, with its **Record number**), c
 **Transcription**:
 What an **Entry** says, written out: today a Citation's text, as MyHeritage's volunteers transcribed it or as a **Conversion** read it into plain lines.
 _Avoid_: text (alone), abstract.
+
+**Entry pane**:
+Where an **Entry** is made, placed, confirmed and edited: the pane beside the scan in the Scan viewer, headed _New entry_, _Place entry_, _Confirm match_ or _Edit entry_. It holds the Entry's **Event**, who it names in which **Role**, its dates and place, and under them the lines of what it would do to the tree, each to tick: the one place **Support** is set by hand (ADR-0033). A reference's own Box is adjusted in the Box pane beside it.
+_Avoid_: card (a person's box in the chart), panel (the person panel in the dock), form (an edit modal).
 
 **Box**:
 Where an entry is written on its Image, as a rectangle in whole pixels of the full-size Image, as GEDCOM's `CROP` holds it. The Scan viewer and Vision Match scale it by the Image they have open. People citing the same **Entry** share one.
