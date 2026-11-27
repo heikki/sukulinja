@@ -21,14 +21,7 @@ import type { SkippedRun } from '@/common/page-numbering';
 import type { BookKind, PageMark } from '@/common/types';
 
 import type { Astia } from '../astia/astia';
-import {
-  fileStamp,
-  fillFileIds,
-  migrate,
-  readLocalFile,
-  withLock,
-  writeLocalFile
-} from './files';
+import { fileStamp, readLocalFile, withLock, writeLocalFile } from './files';
 import type { LocalPins } from './files';
 import { fileOf, filmingOf, split } from './filming';
 import type { Filming } from './filming';
@@ -190,31 +183,10 @@ export function openStore(
   const { astia } = options;
   const localFile = join(folder, 'pins.local.json');
   const lockFile = join(folder, 'pins.lock');
-  let migration: Promise<void> | null = null;
   let merged: { stamp: string; volumes: Promise<Pins['volumes']> } | null =
     null;
 
-  // Once a run, before the pins are first read: a folder saved before pins
-  // has its files migrated, and pins saved before pins kept file ids get
-  // them. Filling them is upkeep: one that fails is logged, and the pins
-  // read as they are.
-  async function migrated() {
-    migration ??= (async () => {
-      if (!(await Bun.file(localFile).exists())) {
-        await mkdir(folder, { recursive: true });
-        await withLock(lockFile, async () => {
-          await migrate(folder, localFile);
-        });
-      }
-      await fillFileIds(folder, astia).catch((err: unknown) => {
-        console.error('Filling in pins’ file ids failed:', err);
-      });
-    })();
-    await migration;
-  }
-
   async function readLocal() {
-    await migrated();
     return await readLocalFile(localFile);
   }
 
@@ -239,7 +211,6 @@ export function openStore(
 
   // One write of the local file, as `edit` changes it.
   async function saving(edit: (local: LocalPins) => void) {
-    await migrated();
     await mkdir(folder, { recursive: true });
     await withLock(lockFile, async () => {
       const local = await readLocal();
@@ -293,7 +264,6 @@ export function openStore(
       readings: Array<{ image: number; pages: number[] }>,
       { replace = false } = {}
     ) {
-      await migrated();
       await mkdir(folder, { recursive: true });
       await withLock(lockFile, async () => {
         const draft = { local: await readLocal(), filming };
@@ -327,7 +297,6 @@ export function openStore(
       image: number,
       pages: number[] | null
     ) {
-      await migrated();
       await mkdir(folder, { recursive: true });
       await withLock(lockFile, async () => {
         const draft = { local: await readLocal(), filming };

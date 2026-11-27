@@ -2,21 +2,11 @@
 // one folder at once, as the dev server beside the app. Each save takes pins.lock,
 // re-reads pins.local.json, applies all its changes, and renames a whole new
 // file over it; reads take no lock, as the rename means they never see half
-// a file. A folder saved before pins has its files migrated, and pins saved
-// before pins kept file ids can have them filled in.
+// a file.
 
 import { rename, rm, stat, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
 
-import type { Astia } from '../astia/astia';
-import type {
-  PagePin,
-  Pins,
-  RecordPin,
-  RecordRange,
-  ReferencePin,
-  VolumePins
-} from './types';
+import type { Pins } from './types';
 
 const LOCK_RETRY_MS = 10;
 const LOCK_WAIT_MS = 5000;
@@ -40,30 +30,10 @@ async function readIfThere<T>(path: string) {
   return (await file.exists()) ? ((await file.json()) as T) : null;
 }
 
-// A Volume's facts as saved before its page numbers' mark was one field:
-// `checked` or `unnumbered`.
-interface OldMarks {
-  checked?: boolean;
-  unnumbered?: boolean;
-}
-
-// A Volume's facts as read, whenever saved: an older one's mark read into
-// one field.
-export function readVolume(saved: VolumePins & OldMarks): VolumePins {
-  const { checked, unnumbered, ...volume } = saved;
-  if (volume.mark !== undefined) return volume;
-  if (unnumbered === true) return { ...volume, mark: 'none' };
-  if (checked === true) return { ...volume, mark: 'checked' };
-  return volume;
-}
-
 // The local pins, none where the file isn't there yet.
 export async function readLocalFile(path: string): Promise<LocalPins> {
   const local = await readIfThere<Partial<LocalPins>>(path);
-  return {
-    volumes: mapValues(local?.volumes ?? {}, (v) => readVolume(v)),
-    references: local?.references ?? {}
-  };
+  return { volumes: local?.volumes ?? {}, references: local?.references ?? {} };
 }
 
 export async function writeLocalFile(path: string, local: LocalPins) {
@@ -129,133 +99,4 @@ export async function withLock<T>(
   } finally {
     await rm(lock, { force: true });
   }
-}
-
-// ---------------------------------------------------------------- migration
-
-// The local files before pins: Anchors, Seen records and Record ranges per
-// volume in one, Placements in another.
-interface OldVolume {
-  title?: string;
-  anchors?: PagePin[];
-  villages?: string[];
-  records?: RecordRange[];
-  seen?: RecordPin[];
-}
-
-function fromOldVolume(old: OldVolume) {
-  const { title, anchors, villages, records, seen } = old;
-  const volume: VolumePins = { pages: anchors ?? [] };
-  if (title !== undefined) volume.title = title;
-  if (villages !== undefined) volume.villages = villages;
-  if (records !== undefined) volume.ranges = records;
-  if (seen !== undefined) volume.records = seen;
-  return volume;
-}
-
-// A folder saved before pins has its two local files turned into
-// pins.local.json, keeping them as *.migrated.
-export async function migrate(folder: string, localFile: string) {
-  if (await Bun.file(localFile).exists()) return;
-  const anchorsFile = join(folder, 'anchors.local.json');
-  const placementsFile = join(folder, 'placements.local.json');
-  const anchors = await readIfThere<Record<string, OldVolume>>(anchorsFile);
-  const placements =
-    await readIfThere<Record<string, ReferencePin>>(placementsFile);
-  if (anchors === null && placements === null) return;
-  const volumes = Object.fromEntries(
-    Object.entries(anchors ?? {}).map(([id, v]) => [id, fromOldVolume(v)])
-  );
-  await writeJson(localFile, { volumes, references: placements ?? {} });
-  for (const old of [anchorsFile, placementsFile]) {
-    // eslint-disable-next-line no-await-in-loop -- two files
-    if (await Bun.file(old).exists()) await rename(old, `${old}.migrated`);
-  }
-}
-
-// ---------------------------------------------------------------- file ids
-
-// A pin saved before pins kept file ids gets the one at its Image in its
-// Volume's list, which must be of the filming it was made on: the data
-// folder's cached lists.
-function filled<T extends { image?: number; fileId?: string }>(
-  pin: T,
-  files: string[]
-) {
-  const fileId = pin.image === undefined ? undefined : files[pin.image - 1];
-  return pin.fileId !== undefined || fileId === undefined
-    ? pin
-    : { ...pin, fileId };
-}
-
-// The Volume's Page pins and Record pins with file ids.
-function volumeWithFileIds(volume: VolumePins, files: string[]) {
-  const out = { ...volume, pages: volume.pages.map((p) => filled(p, files)) };
-  if (volume.records !== undefined) {
-    out.records = volume.records.map((p) => filled(p, files));
-  }
-  return out;
-}
-
-// The Volumes the local pins put on an Image.
-function volumesOnImages(local: LocalPins) {
-  const ids = new Set<string>();
-  for (const [id, v] of Object.entries(local.volumes)) {
-    if (v.pages.length > 0 || (v.records?.length ?? 0) > 0) ids.add(id);
-  }
-  for (const p of Object.values(local.references)) {
-    if (p.image !== undefined) ids.add(p.volumeId);
-  }
-  return [...ids];
-}
-
-function mapValues<T>(o: Record<string, T>, fn: (v: T, key: string) => T) {
-  return Object.fromEntries(Object.entries(o).map(([k, v]) => [k, fn(v, k)]));
-}
-
-function localWithFileIds(
-  local: LocalPins,
-  lists: Map<string, string[]>
-): LocalPins {
-  function listOf(volumeId: string) {
-    const files = lists.get(volumeId);
-    if (files === undefined) throw new Error(`no list for ${volumeId}`);
-    return files;
-  }
-  return {
-    volumes: mapValues(local.volumes, (v, id) =>
-      volumeWithFileIds(v, listOf(id))
-    ),
-    references: mapValues(local.references, (p) =>
-      p.image === undefined ? p : filled(p, listOf(p.volumeId))
-    )
-  };
-}
-
-// Fills in the file ids of the data folder's local pins saved before pins
-// kept them, from the lists `astia` has cached: the ones its pins were made
-// on. A list from Astia now might be of a newer filming, so a Volume whose
-// list isn't cached keeps its pins as they are, for a later run. Under the
-// lock, like a save; the file is written only when a pin gained an id.
-export async function fillFileIds(folder: string, astia: Astia) {
-  const localFile = join(folder, 'pins.local.json');
-  const ids = volumesOnImages(await readLocalFile(localFile));
-  const lists = new Map(
-    await Promise.all(
-      ids.map(async (id) => [id, (await astia.cachedImages(id)) ?? []] as const)
-    )
-  );
-  await withLock(join(folder, 'pins.lock'), async () => {
-    const local = await readLocalFile(localFile);
-    // A save since the lists were read may have put pins on more Volumes.
-    for (const id of [
-      ...volumesOnImages(local),
-      ...Object.keys(local.volumes)
-    ]) {
-      if (!lists.has(id)) lists.set(id, []);
-    }
-    const filledIn = localWithFileIds(local, lists);
-    if (JSON.stringify(filledIn) === JSON.stringify(local)) return;
-    await writeLocalFile(localFile, filledIn);
-  });
 }

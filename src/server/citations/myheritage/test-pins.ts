@@ -166,7 +166,7 @@ export const CITED = [150, 160, 12, 50, 250, 450, 650, 800, 5000, null].map(
 export const BASE: Pins['volumes'] = {
   a: {
     title: 'I Aa:1',
-    pages: [{ image: 10, pages: [20] }],
+    pages: [{ image: 10, pages: [20], fileId: 'a-f10' }],
     ranges: [{ from: 100, to: 200 }]
   }
 };

@@ -11,7 +11,6 @@ import { archiveAmong } from '../astia/archives';
 import { viewerUrl } from '../astia/astia';
 import type { Astia } from '../astia/astia';
 import type { FolderFacts } from '../storage';
-import { readVolume } from './files';
 import { isLater, sameFacts } from './stamps';
 import type { Pins } from './types';
 
@@ -45,7 +44,7 @@ function parsed(text: string | null): Archived {
     const { archive, astia, images, ...facts } = JSON.parse(text) as Volume &
       About;
     return {
-      facts: readVolume(facts),
+      facts,
       about: {
         ...(archive === undefined ? {} : { archive }),
         ...(astia === undefined ? {} : { astia }),

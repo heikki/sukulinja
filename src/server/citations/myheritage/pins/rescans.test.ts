@@ -43,8 +43,7 @@ const LOCAL = {
       pages: [{ ...on('v1', 2), pages: [3, 4] }],
       records: [
         { record: 7, by: 'vision' as const, ...on('v1', 6) },
-        // Saved before pins kept file ids.
-        { record: 8, image: 7 }
+        { record: 8, ...on('v1', 7) }
       ]
     },
     v2: { title: 'I Ab:2', pages: [{ ...on('v2', 5), pages: [9, 10] }] }
@@ -125,9 +124,8 @@ test('tells of a re-scan, and what switching leaves out, without switching', asy
   const { rescan } = (await (await ask('GET', 'v1')).json()) as {
     rescan: Rescan;
   };
-  // The app gave the pin saved before file ids the id of its Image in the
-  // cached list, so it's known to be of the filming replaced.
-  const filled: StalePin = {
+  // A pin saved without a `by` counts as by hand.
+  const byHand: StalePin = {
     kind: 'record',
     by: 'hand',
     image: 7,
@@ -137,7 +135,7 @@ test('tells of a re-scan, and what switching leaves out, without switching', asy
   expect(rescan).toEqual({
     cached: 10,
     images: 8,
-    stale: [...STALE.slice(0, 2), filled, ...STALE.slice(2)]
+    stale: [...STALE.slice(0, 2), byHand, ...STALE.slice(2)]
   });
   expect(await listed.volumeImages('v1')).toHaveLength(10);
   expect(await readdir(join(dir, '.astia-images', 'v1'))).toEqual([

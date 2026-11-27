@@ -63,16 +63,15 @@ test('reads the local pins, but no Record pins left there', async () => {
     volumes: {
       a: {
         title: 'I Aa:1',
-        pages: [{ image: 10, pages: [99] }],
+        pages: [{ image: 10, pages: [99], fileId: 'a-f10' }],
         villages: ['Kylä'],
         ranges: [{ from: 300, to: 310 }],
-        records: [{ record: 150, image: 10 }]
+        records: [{ record: 150, image: 10, fileId: 'a-f10' }]
       },
-      b: { title: 'I Aa:2', pages: [{ image: 2, pages: [3] }] }
+      b: { title: 'I Aa:2', pages: [{ image: 2, pages: [3], fileId: 'b-f2' }] }
     }
   });
   const { volumes, references } = await open().snapshot();
-  // Filled in with file ids from the Volumes' lists, once read.
   expect(volumes.a).toEqual({
     title: 'I Aa:1',
     pages: [{ image: 10, pages: [99], fileId: 'a-f10' }],
