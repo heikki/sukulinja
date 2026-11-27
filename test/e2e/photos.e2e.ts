@@ -161,3 +161,31 @@ test("the person panel's Photos show the person's face", async () => {
     expect(await tile.getAttribute('src')).toStartWith('blob:');
   });
 });
+
+test("a person's Photo clicked again leaves the Photo viewer open, its × closes it", async () => {
+  await withApp(async ({ page }) => {
+    await newTree(page);
+    await openList(page, 'Photos');
+    const chooser = page.waitForEvent('filechooser');
+    await page.getByRole('button', { name: 'Add photos…' }).click();
+    await (await chooser).setFiles(PHOTOS.slice(0, 1));
+    await tag(page, 0.3, 0.3, 'Matti Esimerkki');
+    const viewer = page.getByRole('region', { name: 'Photo viewer' });
+    await viewer.getByRole('button', { name: /Matti Esimerkki/ }).waitFor();
+    await page.keyboard.press('Escape');
+    await viewer.waitFor({ state: 'detached' });
+
+    await boxOf(page, 'Matti').click();
+    await openSection(page, 'Photos');
+    const tile = page.locator('sl-person-panel button.photo');
+    await tile.click();
+    await viewer.waitFor();
+    await tile.click();
+    await page.waitForTimeout(300);
+    expect(await viewer.isVisible()).toBe(true);
+    await shot(page, 'photo-viewer-close');
+
+    await viewer.getByRole('button', { name: 'Close the viewer' }).click();
+    await viewer.waitFor({ state: 'detached' });
+  });
+});

@@ -155,7 +155,7 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
     );
   }
 
-  // Clicked again while the Photo viewer shows it, it closes the viewer.
+  // Clicked again while the Photo viewer shows it, nothing happens.
   private renderPhotos(personId: number, photos: PhotoRow[]) {
     const { photoViewer, chart, api } = this.state;
     const shown = photoViewer.opened.get()?.id ?? null;
@@ -166,8 +166,7 @@ class PersonPanelElement extends SignalWatcher(LitElement) {
         thumb: api.photoThumbUrl,
         media: api.mediaUrl,
         open: (p) => {
-          if (p.id === shown) photoViewer.close();
-          else chart.openPhoto(p);
+          if (p.id !== shown) chart.openPhoto(p);
         }
       }
     );

@@ -14,6 +14,7 @@ import { controlStyles, viewerStyles } from '../box-stage/styles';
 import { photoBoxes } from './photo-boxes';
 
 import '../box-stage/boxes';
+import '../box-stage/close';
 import '../box-stage/toolbar';
 import './edit';
 import './layer';
@@ -38,7 +39,7 @@ function typing(e: KeyboardEvent) {
 // Photo can be looked at and zoomed bare, the Selected person's also
 // while a Tag is edited; each Box and row leads to its person. A right-click tags someone
 // there, or moves or removes a Tag (ADR-0017), or deletes the Photo. Esc backs out of a Tag
-// pending, else closes it, as the Photo clicked again in the panel does.
+// pending, else closes it, as its × does.
 @customElement('sl-photo-viewer')
 class PhotoViewerElement extends SignalWatcher(LitElement) {
   static override styles = [
@@ -257,6 +258,11 @@ class PhotoViewerElement extends SignalWatcher(LitElement) {
               ></sl-stage-boxes>`
         }
         ${this.renderNote()}
+        <sl-viewer-close
+          @close=${() => {
+            this.state.photoViewer.close();
+          }}
+        ></sl-viewer-close>
         <sl-photo-layer
           .photo=${photo}
           .view=${view}

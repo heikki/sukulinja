@@ -22,8 +22,8 @@ function tileSrc(p: PhotoRow, personId: number, urls: Urls) {
 }
 
 // The person's Photos, as thumbnails in the order linked. Clicking one
-// opens it in the Photo viewer, and clicking the one it shows closes it;
-// that one is marked.
+// opens it in the Photo viewer; the one it shows is marked, and clicking
+// it again does nothing.
 export function renderPhotos(
   photos: PhotoRow[],
   { personId, shown }: { personId: number; shown: number | null },

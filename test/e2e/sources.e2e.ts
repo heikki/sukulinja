@@ -1,6 +1,7 @@
 // A source in the person panel's Sources: its Citation deleted, asked
 // first as every step that takes something away is, and clicked again
-// while the Scan viewer shows it, nothing changes.
+// while the Scan viewer shows it, nothing changes: the viewer's × closes
+// it.
 
 import { afterAll, expect, test } from 'bun:test';
 
@@ -39,7 +40,7 @@ test("a source's citation is deleted after asking", async () => {
   });
 });
 
-test('a source clicked again leaves the Scan viewer open on it', async () => {
+test('a source clicked again leaves the Scan viewer open, its × closes it', async () => {
   await withApp(async ({ page }) => {
     await importTree(page, 'myheritage-export.ged');
     await openSection(page, 'Sources');
@@ -54,5 +55,9 @@ test('a source clicked again leaves the Scan viewer open on it', async () => {
     await page.waitForTimeout(300);
     expect(await scan.isVisible()).toBe(true);
     expect(await scan.getAttribute('alt')).toBe(name);
+    await shot(page, 'scan-viewer-close');
+
+    await viewer.getByRole('button', { name: 'Close the viewer' }).click();
+    await scan.waitFor({ state: 'detached' });
   });
 });

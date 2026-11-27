@@ -9,8 +9,7 @@ import type { AppState } from '@/client/state';
 
 import '../box-stage/toolbar';
 
-// The Scan viewer's one row: the archive and the Volume shown. Escape
-// closes the viewer.
+// The Scan viewer's one row: the archive and the Volume shown.
 @customElement('sl-scan-toolbar')
 class ScanToolbarElement extends SignalWatcher(LitElement) {
   static override styles = css`

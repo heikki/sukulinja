@@ -61,6 +61,8 @@ class ScanPageElement extends SignalWatcher(LitElement) {
       top: 0.75rem;
       left: 0.75rem;
       z-index: 2;
+      /* The bubble and its × stay on one line, however narrow the scan. */
+      white-space: nowrap;
     }
 
     .bubble {
@@ -115,6 +117,7 @@ class ScanPageElement extends SignalWatcher(LitElement) {
 
     .refused {
       margin: 0.35rem 0 0;
+      white-space: normal;
       color: var(--danger);
       font-size: 0.8rem;
     }

@@ -22,6 +22,7 @@ import { Prefetch } from './prefetch';
 import { scanViewerStyles } from './styles';
 
 import '../box-stage/boxes';
+import '../box-stage/close';
 import './empty';
 import './entry-form';
 import './layer';
@@ -315,6 +316,11 @@ class ScanViewerElement extends SignalWatcher(LitElement) {
         ${this.renderImages()} ${this.renderEntries(source)}
         ${this.renderNote()}
         <sl-scan-page></sl-scan-page>
+        <sl-viewer-close
+          @close=${() => {
+            this.viewer.close();
+          }}
+        ></sl-viewer-close>
         <sl-scan-nav></sl-scan-nav>
         <sl-scan-layer
           .view=${this.stage.view}
