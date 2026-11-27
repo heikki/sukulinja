@@ -22,24 +22,15 @@ export interface RowActions {
   download: (book: VolumesRow, action: DownloadAction) => void;
   offload: (book: VolumesRow) => void;
   remove: (book: VolumesRow) => void;
-  removeForGood: (book: VolumesRow) => void;
   unlist: (book: VolumesRow) => void;
 }
 
 // What the trash button does next, as the view says.
 type TrashStep = NonNullable<VolumesRow['steps']['trash']>;
 
-// Its download, and the trash button, each in its place. Downloading,
-// bringing back and offloading never go together, as only a whole Volume
-// not yet offloaded is offloaded, so offloading takes the download's place.
+// Storage's move, and the trash button, each in its place.
 export function renderActs(book: VolumesRow, does: RowActions) {
-  if (book.steps.download === null && book.steps.trash === 'offload') {
-    return [
-      trashButton(book, does, 'offload'),
-      disabledTrash('Nothing to remove: offloaded instead')
-    ];
-  }
-  return [download(book, does), trash(book, does)];
+  return [move(book, does), trash(book, does)];
 }
 
 const DOWNLOAD_TITLE = {
@@ -55,10 +46,12 @@ const DOWNLOAD_ICON_OF = {
   stop: STOP_ICON
 };
 
-// Storage's next step with the download; bringing back is a download too.
-function download(book: VolumesRow, does: RowActions) {
-  const step = book.steps.download;
+// Storage's next move: the download, bringing back being one too, or
+// offloading.
+function move(book: VolumesRow, does: RowActions) {
+  const step = book.steps.move;
   if (step === null) return EMPTY_SLOT;
+  if (step === 'offload') return offload(book, does);
   const action: DownloadAction = step === 'stop' ? 'stop' : 'start';
   return actButton(
     action === 'start' ? 'Download' : 'Stop',
@@ -70,76 +63,64 @@ function download(book: VolumesRow, does: RowActions) {
   );
 }
 
-function offloadTitle(book: VolumesRow, does: RowActions) {
+// Unasked, as nothing leaves for good; says first what it frees.
+function offload(book: VolumesRow, does: RowActions) {
   const freed = does.frees.get(book.id);
   const frees =
     freed === undefined || freed === null
       ? ''
       : `frees ${formatBytes(freed)}, `;
-  return `Offload: ${frees}keeping the cited images on disk and the rest in the offload folder`;
+  return actButton(
+    'Offload',
+    OFFLOAD_ICON,
+    () => {
+      does.offload(book);
+    },
+    {
+      title: `Offload: ${frees}keeping the cited images on disk and the rest in the offload folder`,
+      disabled: does.busy,
+      kind: 'offload',
+      onHint: () => {
+        does.askFrees(book);
+      }
+    }
+  );
 }
 
-function trashTitle(book: VolumesRow, does: RowActions, step: TrashStep) {
-  switch (step) {
-    case 'offload':
-      return offloadTitle(book, does);
-    case 'remove':
-      return `Remove from disk: all ${formatBytes(book.onDisk.bytes)}, downloaded again from Astia when opened`;
-    case 'removeForGood':
-      return 'Remove for good: from disk and from the offload folder, downloaded again from Astia when opened';
-    case 'unlist':
-      return 'Remove from the list';
+const TRASH: Record<
+  TrashStep,
+  { label: string; title: string; icon: unknown }
+> = {
+  remove: {
+    label: 'Remove',
+    title:
+      'Remove: from disk and from the offload folder, downloaded again from Astia when opened',
+    icon: TRASH_ICON
+  },
+  unlist: {
+    label: 'Remove from the list',
+    title: 'Remove from the list',
+    icon: UNLIST_ICON
   }
-}
-
-const ICON = {
-  offload: OFFLOAD_ICON,
-  remove: TRASH_ICON,
-  removeForGood: TRASH_ICON,
-  unlist: UNLIST_ICON
 };
-
-const LABEL: Record<TrashStep, string> = {
-  offload: 'Offload',
-  remove: 'Remove from disk',
-  removeForGood: 'Remove for good',
-  unlist: 'Remove from the list'
-};
-
-function disabledTrash(title: string) {
-  return actButton('Remove', TRASH_ICON, () => undefined, {
-    title,
-    disabled: true
-  });
-}
 
 // Drawn and coloured by what it would do; dimmed with nothing to.
 function trash(book: VolumesRow, does: RowActions) {
   const step = book.steps.trash;
-  return step === null
-    ? disabledTrash(
-        "Nothing to remove: not on disk, or the offload folder's drive away; and cited or not added by hand"
-      )
-    : trashButton(book, does, step);
-}
-
-function trashButton(book: VolumesRow, does: RowActions, step: TrashStep) {
+  if (step === null) {
+    return actButton('Remove', TRASH_ICON, () => undefined, {
+      title:
+        "Nothing to remove: not on this computer, or the offload folder's drive away; and cited or not added by hand",
+      disabled: true
+    });
+  }
+  const { label, title, icon } = TRASH[step];
   return actButton(
-    LABEL[step],
-    ICON[step],
+    label,
+    icon,
     () => {
       does[step](book);
     },
-    {
-      title: trashTitle(book, does, step),
-      disabled: does.busy,
-      kind: step,
-      onHint:
-        step === 'offload'
-          ? () => {
-              does.askFrees(book);
-            }
-          : undefined
-    }
+    { title, disabled: does.busy, kind: step }
   );
 }

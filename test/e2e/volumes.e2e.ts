@@ -85,10 +85,8 @@ test('a Volume of another parish is added, downloaded, removed and taken off', a
       .click();
     await book.getByText('Checked').waitFor();
     await shot(page, 'volumes-checked');
-    await book.getByRole('button', { name: 'Remove from disk' }).click();
-    const ask = page.getByRole('alertdialog', {
-      name: 'Remove I Aa:1 from disk?'
-    });
+    await book.getByRole('button', { name: 'Remove', exact: true }).click();
+    const ask = page.getByRole('alertdialog', { name: 'Remove I Aa:1?' });
     await ask.getByRole('button', { name: 'Remove' }).click();
 
     // Cited by nothing, the same button then takes it off the list.

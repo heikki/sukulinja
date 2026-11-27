@@ -41,57 +41,59 @@ function steps(
 
 describe('the download', () => {
   test('is started until the Volume is whole here', () => {
-    expect(steps(NONE, 'none').download).toBe('start');
-    expect(steps(PART, 'none', { download: {} }).download).toBe('start');
-    expect(steps(WHOLE, 'none').download).toBeNull();
-    expect(steps(IN_FOLDER, 'attached').download).toBeNull();
+    expect(steps(NONE, 'none').move).toBe('start');
+    expect(steps(PART, 'none', { download: {} }).move).toBe('start');
+    expect(steps(WHOLE, 'none').move).toBeNull();
+    expect(steps(IN_FOLDER, 'attached').move).toBeNull();
   });
 
   test('is stopped while it downloads or waits to', () => {
-    expect(
-      steps(PART, 'none', { download: { state: 'queued' } }).download
-    ).toBe('stop');
+    expect(steps(PART, 'none', { download: { state: 'queued' } }).move).toBe(
+      'stop'
+    );
     const downloading = { download: { state: 'downloading' as const } };
-    expect(steps(PART, 'away', downloading).download).toBe('stop');
+    expect(steps(PART, 'away', downloading).move).toBe('stop');
   });
 
   test("isn't offered for a Volume with no scans", () => {
-    expect(steps(NONE, 'none', { digitized: false }).download).toBeNull();
+    expect(steps(NONE, 'none', { digitized: false }).move).toBeNull();
   });
 
   test("isn't offered for a Volume Astia has re-scanned", () => {
     const rescanned = { download: { error: 'rescanned' as const } };
-    expect(steps(PART, 'none', rescanned).download).toBeNull();
+    expect(steps(PART, 'none', rescanned).move).toBeNull();
   });
 
   test('brings an Offloaded one back first, which waits for the folder', () => {
-    expect(
-      steps(IN_FOLDER, 'attached', { offloaded: OFFLOADED }).download
-    ).toBe('bringBack');
-    expect(steps(PART, 'away', { offloaded: OFFLOADED }).download).toBeNull();
-    // The folder since cleared, the rest is fetched from Astia.
-    expect(steps(PART, 'none', { offloaded: OFFLOADED }).download).toBe(
-      'start'
+    expect(steps(IN_FOLDER, 'attached', { offloaded: OFFLOADED }).move).toBe(
+      'bringBack'
     );
+    expect(steps(PART, 'away', { offloaded: OFFLOADED }).move).toBeNull();
+    // The folder since cleared, the rest is fetched from Astia.
+    expect(steps(PART, 'none', { offloaded: OFFLOADED }).move).toBe('start');
+  });
+});
+
+describe('offloading', () => {
+  test("takes the download's place once a Volume is whole, with the folder attached", () => {
+    expect(steps(WHOLE, 'attached').move).toBe('offload');
+    expect(steps(WHOLE, 'none').move).toBeNull();
+    expect(steps(WHOLE, 'away').move).toBeNull();
+    expect(steps(PART, 'attached').move).toBe('start');
+    expect(steps(IN_FOLDER, 'attached').move).toBeNull();
   });
 });
 
 describe('the trash step', () => {
-  test('offloads a whole one into the Offload folder, else removes from disk', () => {
-    expect(steps(WHOLE, 'attached').trash).toBe('offload');
+  test('removes whatever of it is here, Offloaded, whole or not', () => {
+    expect(steps(WHOLE, 'attached').trash).toBe('remove');
     expect(steps(WHOLE, 'none').trash).toBe('remove');
-  });
-
-  test("removes one that isn't whole from disk, the folder set or not", () => {
     expect(steps(PART, 'attached').trash).toBe('remove');
     expect(steps(PART, 'none').trash).toBe('remove');
-  });
-
-  test('removes an Offloaded one, or one only in the folder, for good', () => {
     expect(steps(PART, 'attached', { offloaded: OFFLOADED }).trash).toBe(
-      'removeForGood'
+      'remove'
     );
-    expect(steps(IN_FOLDER, 'attached').trash).toBe('removeForGood');
+    expect(steps(IN_FOLDER, 'attached').trash).toBe('remove');
     // With the folder since cleared, what it kept is removed from disk.
     expect(steps(PART, 'none', { offloaded: OFFLOADED }).trash).toBe('remove');
   });

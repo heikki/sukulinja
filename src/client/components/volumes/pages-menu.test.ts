@@ -21,7 +21,7 @@ function row(pages: VolumesRow['pages']): VolumesRow {
     added: true,
     pages,
     offloaded: null,
-    steps: { download: null, trash: null }
+    steps: { move: null, trash: null }
   };
 }
 

@@ -50,11 +50,10 @@ const POLL_MS = 2000;
 // way each Volume says how many of the dataset's Citations link into it,
 // its page numbers and how much of it is downloaded. A right-click on
 // its row opens the menu of its page numbers; its buttons start or stop its
-// download (an offloaded one brought back first), and a trash button
-// takes the next step off this computer: offloaded with an offload folder
-// chosen, else removed from disk (asked first); then, kept in the folder,
-// removed from it too (asked first); and with nothing left, one added by
-// hand and cited nowhere taken off the list. Typing filters
+// download (an offloaded one brought back first), or offload one
+// downloaded whole with an offload folder attached, and a trash button
+// removes all of it, from disk and from the folder (asked first); with
+// nothing left, one added by hand and cited nowhere is taken off the list. Typing filters
 // it, by a year a Volume covers or words in it. Clicking a row opens it
 // (`open-volume`); the one the Scan viewer shows is marked. _Add
 // volumes…_ opens the Volume picker, whose Volumes join the Book list.
@@ -164,9 +163,8 @@ class VolumesListElement extends SignalWatcher(LitElement) {
   // The menu of a Volume's page numbers, or its question, while open.
   @state() private pagesMenu: PagesMenu | null = null;
 
-  // The Volume whose removal, from disk or for good, waits to be confirmed.
-  @state() private confirming: { book: VolumesRow; forGood: boolean } | null =
-    null;
+  // The Volume whose removal waits to be confirmed.
+  @state() private confirming: VolumesRow | null = null;
 
   // What offloading a Volume would free, by its id, asked as its Offload
   // is pointed at; null when that can't be known.
@@ -333,10 +331,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
       });
     },
     remove: (book) => {
-      this.confirming = { book, forGood: false };
-    },
-    removeForGood: (book) => {
-      this.confirming = { book, forGood: true };
+      this.confirming = book;
     },
     unlist: (book) => {
       void this.doing(async () => await this.state.api.unlistBook(book.id));
@@ -351,14 +346,11 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     this.frees = new Map(this.frees).set(volumeId, freed);
   }
 
-  // All of it off the disk, or out of the offload folder too.
-  private async removeFromDisk(book: VolumesRow, forGood: boolean) {
+  // All of it off the disk and out of the offload folder.
+  private async removeVolume(book: VolumesRow) {
     this.confirming = null;
-    const { app } = this.state;
     await this.doing(async () => {
-      await (forGood
-        ? app.removeForGood(book.id)
-        : app.removeFromDisk(book.id));
+      await this.state.app.removeVolume(book.id);
     });
   }
 
@@ -499,14 +491,14 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     `;
   }
 
-  // Asked before a Volume's Images leave the disk.
+  // Asked before a Volume's Images leave this computer.
   private renderConfirm() {
     const { confirming } = this;
     if (confirming === null) return nothing;
     return renderLeaveDialog({
-      ...confirming,
+      book: confirming,
       confirm: () => {
-        void this.removeFromDisk(confirming.book, confirming.forGood);
+        void this.removeVolume(confirming);
       },
       cancel: () => {
         this.confirming = null;

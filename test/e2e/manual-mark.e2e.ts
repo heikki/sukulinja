@@ -94,10 +94,10 @@ test("a reference's entry is placed by hand", async () => {
       await list.getByRole('button', { name: 'All books' }).click();
       await list.getByRole('row').filter({ hasText: 'I Aa:2' }).waitFor();
       const row = list.getByRole('row').filter({ hasText: 'I Aa:1' });
-      // Only partly downloaded, its trash button only removes it from disk;
-      // downloaded whole, it offloads it, unasked, and says first what that
-      // frees.
-      await row.getByRole('button', { name: 'Remove from disk' }).waitFor();
+      // Only partly downloaded, it can only be removed; downloaded whole,
+      // it's offloaded in the download's place, unasked, saying first what
+      // that frees.
+      await row.getByRole('button', { name: 'Remove', exact: true }).waitFor();
       await shot(page, 'manual-mark-partly-downloaded');
       await row.getByRole('button', { name: 'Download' }).click();
       const offload = row.getByRole('button', { name: 'Offload' });
@@ -143,15 +143,15 @@ test("a reference's entry is placed by hand", async () => {
       expect(await downloaded.getAttribute('title')).toBe(had);
       await shot(page, 'manual-mark-brought-back');
 
-      // Offloaded, the other Volume's trash button then removes it from the
+      // Offloaded, the other Volume's trash button removes it from the
       // folder too, asked first, and it's gone from this computer.
       const other = list.getByRole('row').filter({ hasText: 'I Aa:2' });
       await other.getByRole('button', { name: 'Download' }).click();
       await other.getByRole('button', { name: 'Offload' }).click();
-      await other.getByRole('button', { name: 'Remove for good' }).click();
-      await shot(page, 'manual-mark-for-good');
+      await other.getByRole('button', { name: 'Remove', exact: true }).click();
+      await shot(page, 'manual-mark-remove');
       await page
-        .getByRole('alertdialog', { name: 'Remove I Aa:2 for good?' })
+        .getByRole('alertdialog', { name: 'Remove I Aa:2?' })
         .getByRole('button', { name: 'Remove' })
         .click();
       await other.waitFor({ state: 'detached' });

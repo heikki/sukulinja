@@ -37,10 +37,9 @@ export interface AppApi {
   // Starts or carries on with the Volume's download, or stops it.
   startDownload: (volumeId: string) => Promise<void>;
   stopDownload: (volumeId: string) => Promise<void>;
-  // Takes the Volume off the disk, out of the offload folder too for
-  // good, or offloads it.
-  removeFromDisk: (volumeId: string) => Promise<void>;
-  removeForGood: (volumeId: string) => Promise<void>;
+  // Takes the Volume off the disk and out of the offload folder, or
+  // offloads it.
+  removeVolume: (volumeId: string) => Promise<void>;
   offload: (volumeId: string) => Promise<void>;
   // Marks the Volume's page numbers checked or as none, locking them, or
   // with null no longer; whether either mark locks them.
@@ -90,11 +89,8 @@ export function openAppApi({
     async stopDownload(volumeId) {
       await call('stopDownload', { volumeId }, 'Stopping the download');
     },
-    async removeFromDisk(volumeId) {
-      await call('removeFromDisk', { volumeId }, 'Removing from disk');
-    },
-    async removeForGood(volumeId) {
-      await call('removeForGood', { volumeId }, 'Removing for good');
+    async removeVolume(volumeId) {
+      await call('removeVolume', { volumeId }, 'Removing');
     },
     async offload(volumeId) {
       await call('offload', { volumeId }, 'Offloading');

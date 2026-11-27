@@ -483,13 +483,13 @@ export interface ChurchBookVolume {
 
 // What Storage would do next with a Volume, as its row's buttons offer
 // it: its download started, its Images brought back from the Offload
-// folder and the rest downloaded, or its download stopped; and the trash
-// button's step, offloading it, removing its Images from disk, or removing
-// them for good, from the Offload folder too. Null for none, as for one
-// the Offload folder being away would refuse.
+// folder and the rest downloaded, its download stopped, or it offloaded;
+// and the trash button's, all its Images removed, from disk and from the
+// Offload folder. Null for none, as for one the Offload folder being away
+// would refuse.
 export interface StorageSteps {
-  download: 'start' | 'bringBack' | 'stop' | null;
-  trash: 'offload' | 'remove' | 'removeForGood' | null;
+  move: 'start' | 'bringBack' | 'stop' | 'offload' | null;
+  trash: 'remove' | null;
 }
 
 // The `bookList` operation: a Volume on the dataset's Book list, with the
@@ -519,7 +519,7 @@ export interface VolumesRow extends Omit<ChurchBookVolume, 'next'> {
   added: boolean;
   pages: PageNumbering;
   steps: {
-    download: StorageSteps['download'];
+    move: StorageSteps['move'];
     trash: StorageSteps['trash'] | 'unlist';
   };
 }

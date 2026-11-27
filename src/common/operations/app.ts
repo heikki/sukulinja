@@ -90,13 +90,9 @@ export const APP_OPERATIONS = {
     volumeOf
   ),
 
-  // Taking a Volume off the disk stops its download.
-  removeFromDisk: answers<{ volumeId: string }, undefined>(
-    '{ volumeId }',
-    volumeOf
-  ),
-  // Off the disk and out of the offload folder too, for good.
-  removeForGood: answers<{ volumeId: string }, undefined>(
+  // A Volume off the disk and out of the offload folder, its download
+  // stopped.
+  removeVolume: answers<{ volumeId: string }, undefined>(
     '{ volumeId }',
     volumeOf
   ),

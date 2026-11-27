@@ -41,8 +41,7 @@ export type SharedOperations = Pick<
   | 'downloads'
   | 'startDownload'
   | 'stopDownload'
-  | 'removeFromDisk'
-  | 'removeForGood'
+  | 'removeVolume'
   | 'offload'
   | 'isOffloaded'
   | 'offloadFrees'
@@ -119,11 +118,8 @@ export function sharedOperations({
       storage.stop(volumeId);
       return storage.downloads();
     },
-    async removeFromDisk({ volumeId }) {
+    async removeVolume({ volumeId }) {
       await storage.remove(volumeId).catch(folderAway);
-    },
-    async removeForGood({ volumeId }) {
-      await storage.removeForGood(volumeId).catch(folderAway);
     },
     // Only a whole Volume: one partly here is removed from disk instead.
     async offload({ volumeId }) {

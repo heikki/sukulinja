@@ -253,36 +253,32 @@ test('downloading an offloaded Volume brings it back from the Offload folder fir
   expect(storage.volumes.downloads()).toEqual([]);
 });
 
-test('a Volume removed for good leaves the Offload folder, only while attached', async () => {
+test('a Volume removed leaves the Offload folder, only while attached', async () => {
   const away = await attachFolder();
   await Promise.all([1, 2].map(async (n) => await open('103', n)));
   await offload('103', []);
   await copiesSettled(away, '103');
   await rename(away, `${away}-off`);
-  const refused = await storage.volumes
-    .removeForGood('103')
-    .catch((err: unknown) => err);
-  expect(refused).toBeInstanceOf(FolderAwayError);
   // Nor is it removed from disk, losing what it keeps.
-  const notRemoved = await storage.volumes
+  const refused = await storage.volumes
     .remove('103')
     .catch((err: unknown) => err);
-  expect(notRemoved).toBeInstanceOf(FolderAwayError);
+  expect(refused).toBeInstanceOf(FolderAwayError);
   expect(await offloaded('103')).toBe(true);
   await rename(`${away}-off`, away);
   expect(await kept(away, '103', 2)).toHaveLength(2);
-  await storage.volumes.removeForGood('103');
+  await storage.volumes.remove('103');
   expect(await readdir(away)).toEqual([]);
   expect(await storage.volumes.here()).not.toContain('103');
 });
 
-test('a Volume removed for good keeps its facts in the Offload folder', async () => {
+test('a Volume removed keeps its facts in the Offload folder', async () => {
   const away = await attachFolder();
   await open('103', 1);
   await storage.folderFacts.keepFacts('103', '{"pages":[]}');
   expect(await kept(away, '103', 1)).toHaveLength(1);
   await copiesSettled(away, '103');
-  await storage.volumes.removeForGood('103');
+  await storage.volumes.remove('103');
   expect(await readdir(join(away, '103'))).toEqual(['facts.json']);
   expect(await storage.folderFacts.facts('103')).toBe('{"pages":[]}');
 });
@@ -341,26 +337,26 @@ test('what the Offload folder has counts as here, and a cut-off copy is made who
 test("a Volume's next steps wait for the Offload folder while it's away", async () => {
   const away = await attachFolder();
   await Promise.all([1, 2].map(async (n) => await open('103', n)));
-  // Not whole yet, it's only removed from disk.
+  // Not whole yet, it's downloaded on, or removed.
   expect((await storage.volumes.of('103')).next).toEqual({
-    download: 'start',
+    move: 'start',
     trash: 'remove'
   });
   const rest = Array.from({ length: IMAGES - 2 }, (_, i) => i + 3);
   await Promise.all(rest.map(async (n) => await open('103', n)));
   expect((await storage.volumes.of('103')).next).toEqual({
-    download: null,
-    trash: 'offload'
+    move: 'offload',
+    trash: 'remove'
   });
   await offload('103', [1]);
   expect((await storage.volumes.of('103')).next).toEqual({
-    download: 'bringBack',
-    trash: 'removeForGood'
+    move: 'bringBack',
+    trash: 'remove'
   });
   await copiesSettled(away, '103');
   await rename(away, `${away}-off`);
   expect((await storage.volumes.of('103')).next).toEqual({
-    download: null,
+    move: null,
     trash: null
   });
 });

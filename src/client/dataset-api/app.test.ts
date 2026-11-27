@@ -43,8 +43,8 @@ test("a parish's church books are listed", async () => {
   expect(books.map((b) => b.id)).toEqual(['juva-1', 'juva-2', 'juva-3']);
 });
 
-test('a Volume is taken off the disk', async () => {
-  await api.removeFromDisk('1');
+test('a Volume is removed', async () => {
+  await api.removeVolume('1');
 });
 
 test("a refusal is the server's words", async () => {

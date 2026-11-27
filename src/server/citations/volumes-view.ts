@@ -33,7 +33,7 @@ function stepsOf(
 ): VolumesRow['steps'] {
   const unlist = onList && added && cited === 0 && onDisk.bytes === 0;
   return {
-    download: next.download,
+    move: next.move,
     trash: next.trash ?? (unlist ? 'unlist' : null)
   };
 }

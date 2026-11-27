@@ -152,18 +152,9 @@ export function openStorage({
       return cited === null ? null : await cache.freedBy(volumeId, cited);
     },
 
-    // Its Images off the disk; what the Offload folder has stays. With
-    // the folder set and away, nothing goes, as an Offloaded Volume would
-    // lose what it keeps.
+    // Its Images off the disk and out of the Offload folder, its facts
+    // kept; out of the folder first, so with the folder away nothing goes.
     async remove(volumeId: string) {
-      await folder.ready();
-      await downloads.drop(volumeId);
-      await cache.remove(volumeId);
-    },
-
-    // Its Images out of the Offload folder too, its facts kept; out of the
-    // folder first, so with the folder away nothing goes.
-    async removeForGood(volumeId: string) {
       await downloads.drop(volumeId);
       await folder.forget(volumeId);
       await cache.remove(volumeId);

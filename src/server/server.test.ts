@@ -256,7 +256,7 @@ describe('Church books', () => {
         onDisk: { images: 2, cached: 0, bytes: 0 },
         download: null,
         offloaded: null,
-        next: { download: 'start', trash: null }
+        next: { move: 'start', trash: null }
       },
       expect.objectContaining({ id: '302', download: null })
     ]);
@@ -272,7 +272,7 @@ describe('Church books', () => {
     expect((after.body as unknown[])[1]).toMatchObject({
       onDisk: { images: 3, cached: 3 },
       download: null,
-      next: { download: null, trash: 'remove' }
+      next: { move: null, trash: 'remove' }
     });
     expect((await appOp('stopDownload', { volumeId: 'x' })).status).toBe(400);
   });
@@ -310,7 +310,7 @@ describe('Church books', () => {
         onList: false,
         onDisk: { images: 3, cached: 3, bytes: 12 },
         pages: 'counted',
-        steps: { download: null, trash: 'remove' }
+        steps: { move: null, trash: 'remove' }
       }
     ]);
     // One of no parish the install has is known by its id alone.
@@ -324,7 +324,7 @@ describe('Church books', () => {
         archive: null
       }
     ]);
-    await appOp('removeFromDisk', { volumeId: '999' });
+    await appOp('removeVolume', { volumeId: '999' });
     // Its page numbers marked checked, for every dataset.
     const marked = await op('tree', 'markPages', {
       volumeId: '302',
@@ -348,7 +348,7 @@ describe('Church books', () => {
       200
     );
     expect((await view()).rows).toMatchObject([{ id: '302', offloaded: null }]);
-    await appOp('removeFromDisk', { volumeId: '302' });
+    await appOp('removeVolume', { volumeId: '302' });
     expect((await view()).rows).toEqual([]);
     expect((await view()).storage).toMatchObject({ used: 0 });
   });

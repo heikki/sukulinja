@@ -23,7 +23,7 @@ interface Has {
 // An Offloaded Volume's download brings it back from the Offload folder
 // first, which waits for the folder; with none set since, it's only
 // downloaded.
-function bringingBack(folder: FolderState): StorageSteps['download'] {
+function bringingBack(folder: FolderState): StorageSteps['move'] {
   if (folder === 'away') return null;
   return folder === 'attached' ? 'bringBack' : 'start';
 }
@@ -34,7 +34,7 @@ function bringingBack(folder: FolderState): StorageSteps['download'] {
 function downloadStep(
   { digitized, onDisk, download, offloaded }: Has,
   folder: FolderState
-): StorageSteps['download'] {
+): StorageSteps['move'] {
   if (download?.state === 'queued' || download?.state === 'downloading') {
     return 'stop';
   }
@@ -44,24 +44,36 @@ function downloadStep(
   return 'start';
 }
 
-// Its Images off the disk, into the Offload folder when one is set and the
-// Volume is whole, else gone; then, kept in the folder, removed from it
-// too, for good. With the folder away, neither.
+// The download's step; with none, a whole Volume on disk is offloaded into
+// the Offload folder, attached. Downloading, bringing back and offloading
+// never go together, so they're one button.
+function moveStep(has: Has, folder: FolderState): StorageSteps['move'] {
+  const download = downloadStep(has, folder);
+  if (download !== null) return download;
+  const { onDisk, offloaded } = has;
+  const offloads =
+    folder === 'attached' &&
+    offloaded === null &&
+    onDisk.bytes > 0 &&
+    isWhole(onDisk);
+  return offloads ? 'offload' : null;
+}
+
+// All of it removed, from disk and from the Offload folder, whether it's
+// Offloaded or not; nothing while the folder's away, as what it keeps there
+// can't go.
 function trashStep(
-  { onDisk, offloaded }: Has,
+  { onDisk }: Has,
   folder: FolderState
 ): StorageSteps['trash'] {
-  if (folder === 'none') return onDisk.bytes > 0 ? 'remove' : null;
   if (folder === 'away') return null;
-  if (offloaded === null && onDisk.bytes > 0) {
-    return isWhole(onDisk) ? 'offload' : 'remove';
-  }
-  return onDisk.cached > 0 ? 'removeForGood' : null;
+  const here = folder === 'none' ? onDisk.bytes : onDisk.cached;
+  return here > 0 ? 'remove' : null;
 }
 
 export function stepsOf(has: Has, folder: FolderState): StorageSteps {
   return {
-    download: downloadStep(has, folder),
+    move: moveStep(has, folder),
     trash: trashStep(has, folder)
   };
 }

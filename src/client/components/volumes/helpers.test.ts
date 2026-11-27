@@ -38,7 +38,7 @@ function volume(
         ? null
         : { volumeId: '1', state: 'stopped', error: null, ...download },
     offloaded: null,
-    next: { download: null, trash: null }
+    next: { move: null, trash: null }
   };
 }
 

@@ -241,13 +241,13 @@ export const bookTableStyles = [
     }
 
     /* Coloured by what it would do only once pointed at or focused:
-       offloading takes the accent, as every button does, removing from
-       disk or for good the danger colour. Only off the list, it's muted. */
+       offloading takes the accent, as every button does, removing the
+       danger colour. Only off the list, it's muted. */
     button.act.unlist {
       color: var(--muted);
     }
 
-    button.act:is(.remove, .removeForGood):is(:hover, :focus-visible) {
+    button.act.remove:is(:hover, :focus-visible) {
       border-color: var(--danger);
       color: var(--danger);
     }

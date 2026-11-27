@@ -18,7 +18,7 @@ const STORAGE = { cap: 100, used: 20, kept: 0, caps: [100] };
 function volume(
   id: string,
   onDisk: VolumeOnDisk,
-  next: StorageSteps = { download: 'start', trash: null }
+  next: StorageSteps = { move: 'start', trash: null }
 ): ChurchBookVolume {
   return {
     id,
@@ -79,7 +79,7 @@ test('every row has its page numbers, one with nothing on disk too', async () =>
 });
 
 test("the trash step is Storage's, else taking one added and cited nowhere off the list", async () => {
-  const removable = volume('1', SOME, { download: null, trash: 'remove' });
+  const removable = volume('1', SOME, { move: null, trash: 'remove' });
   const gone = volume('2', NOTHING);
   const { rows } = await view(
     [
@@ -96,7 +96,7 @@ test("the trash step is Storage's, else taking one added and cited nowhere off t
     null,
     null
   ]);
-  expect(rows[1]?.steps.download).toBe('start');
+  expect(rows[1]?.steps.move).toBe('start');
 });
 
 test('with something of it here, one added is not taken off the list, as with the folder away', async () => {
