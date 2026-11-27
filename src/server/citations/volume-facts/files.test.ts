@@ -192,9 +192,7 @@ test('fills in the file ids of pins saved before pins kept them', async () => {
     references: {
       [url]: { volumeId: 'c', volume: 'I C:1', image: 1 },
       other: { volumeId: 'd', volume: 'I C:2' }
-    },
-    // An older file's Rejections, no longer read, go when it's written.
-    rejected: { [url]: [{ volumeId: 'a', image: 3 }] }
+    }
   };
   await Bun.write(localFile(), JSON.stringify(saved));
   lists = { a: ['a1', 'a2', 'a3', 'a4'], c: ['c1'] };

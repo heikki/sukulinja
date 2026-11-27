@@ -152,8 +152,7 @@ export function openPins(facts: VolumeFacts, marks: Marks) {
     stamp,
 
     // The dataset's Marks as the pins they are kept as: Record pins,
-    // Reference pins for references with no Record number. Rejections are
-    // no longer kept (ADR-0029).
+    // Reference pins for references with no Record number.
     marked(): LocalPins {
       const linked = marks.linked();
       const volumes: Pins['volumes'] = {};

@@ -25,8 +25,6 @@ const LOCK_STALE_MS = 30_000;
 
 // The local file's pins. Record pins and Reference pins are now kept in
 // the datasets (marks.ts); the ones left here are those no dataset cites.
-// An older file's Rejections (`rejected`) aren't read, and go when it's
-// written.
 export type LocalPins = Pins;
 
 // Written whole under another name, then renamed over the file, so a
