@@ -121,9 +121,15 @@ export function sharedOperations({
     async removeVolume({ volumeId }) {
       await storage.remove(volumeId).catch(folderAway);
     },
-    // Only a whole Volume: one partly here is removed from disk instead.
+    // Only a whole Volume: one partly here is removed instead. With the
+    // folder's drive away, that's why it's refused; one Offloaded already
+    // is offloaded again, as an offload can be re-run.
     async offload({ volumeId }) {
-      if (!isWhole((await storage.of(volumeId)).onDisk)) {
+      if ((await storage.folder())?.attached === false) {
+        folderAway(new FolderAwayError('offload folder away'));
+      }
+      const { onDisk, offloaded } = await storage.of(volumeId);
+      if (offloaded === null && !isWhole(onDisk)) {
         throw new Refusal(409, "The volume isn't fully downloaded.");
       }
       await askingAstia(storage.offload(volumeId)).catch(folderAway);

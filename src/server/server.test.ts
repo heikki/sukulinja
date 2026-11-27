@@ -343,6 +343,8 @@ describe('Church books', () => {
     expect((await view()).rows).toMatchObject([
       { id: '302', offloaded: { images: 3 }, onDisk: { images: 3, cached: 0 } }
     ]);
+    // Offloaded already, it may be offloaded again, whole or not.
+    expect((await appOp('offload', { volumeId: '302' })).status).toBe(204);
     // Downloaded again, it's brought back first.
     expect((await appOp('startDownload', { volumeId: '302' })).status).toBe(
       200
