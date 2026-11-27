@@ -6,6 +6,7 @@
 // Images; and Storage, which keeps them.
 
 import type { AppOperations } from '@/common/operations';
+import { isWhole } from '@/common/storage';
 import type { ChurchBookArchive } from '@/common/types';
 
 import { Refusal } from '../operations';
@@ -124,7 +125,11 @@ export function sharedOperations({
     async removeForGood({ volumeId }) {
       await storage.removeForGood(volumeId).catch(folderAway);
     },
+    // Only a whole Volume: one partly here is removed from disk instead.
     async offload({ volumeId }) {
+      if (!isWhole((await storage.of(volumeId)).onDisk)) {
+        throw new Refusal(409, "The volume isn't fully downloaded.");
+      }
       await askingAstia(storage.offload(volumeId)).catch(folderAway);
     },
     isOffloaded: async ({ volumeId }) =>

@@ -15,7 +15,7 @@ import type { Browser, Page } from 'playwright';
 import type { ModelAnswer } from '@/server/assistant/model';
 import { scripted } from '@/server/assistant/testing';
 import { serveInBrowser } from '@/server/browser';
-import type { VisionReaders } from '@/server/citations';
+import type { DownloadOptions, VisionReaders } from '@/server/citations';
 import { memoryKeyStore } from '@/server/claude/key';
 import { DatasetRegistry } from '@/server/datasets/registry';
 
@@ -46,6 +46,8 @@ export interface AppOptions {
   assistant?: ModelAnswer[];
   // What reads the scans for Vision Match; with it, a key is set.
   vision?: VisionReaders;
+  // Downloads paced as given; an Image a second by default.
+  downloads?: DownloadOptions;
 }
 
 async function noVision(): ReturnType<VisionReaders> {
@@ -54,7 +56,8 @@ async function noVision(): ReturnType<VisionReaders> {
 
 export async function openApp({
   assistant,
-  vision
+  vision,
+  downloads
 }: AppOptions = {}): Promise<App> {
   const root = await mkdtemp(join(tmpdir(), 'sukulinja-e2e-'));
   const dataDir = join(root, 'data');
@@ -72,6 +75,7 @@ export async function openApp({
     assistantModel: () => model,
     vision: vision ?? noVision,
     exportDir,
+    downloads,
     chooseFolder: async () => await Promise.resolve(offloadDir)
   });
   const context = await (

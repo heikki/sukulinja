@@ -341,8 +341,15 @@ test('what the Offload folder has counts as here, and a cut-off copy is made who
 test("a Volume's next steps wait for the Offload folder while it's away", async () => {
   const away = await attachFolder();
   await Promise.all([1, 2].map(async (n) => await open('103', n)));
+  // Not whole yet, it's only removed from disk.
   expect((await storage.volumes.of('103')).next).toEqual({
     download: 'start',
+    trash: 'remove'
+  });
+  const rest = Array.from({ length: IMAGES - 2 }, (_, i) => i + 3);
+  await Promise.all(rest.map(async (n) => await open('103', n)));
+  expect((await storage.volumes.of('103')).next).toEqual({
+    download: null,
     trash: 'offload'
   });
   await offload('103', [1]);

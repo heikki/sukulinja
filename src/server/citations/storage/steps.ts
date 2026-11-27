@@ -44,16 +44,18 @@ function downloadStep(
   return 'start';
 }
 
-// Its Images off the disk, into the Offload folder when one is set, else
-// gone; then, kept in the folder, removed from it too, for good. With the
-// folder away, neither.
+// Its Images off the disk, into the Offload folder when one is set and the
+// Volume is whole, else gone; then, kept in the folder, removed from it
+// too, for good. With the folder away, neither.
 function trashStep(
   { onDisk, offloaded }: Has,
   folder: FolderState
 ): StorageSteps['trash'] {
   if (folder === 'none') return onDisk.bytes > 0 ? 'remove' : null;
   if (folder === 'away') return null;
-  if (offloaded === null && onDisk.bytes > 0) return 'offload';
+  if (offloaded === null && onDisk.bytes > 0) {
+    return isWhole(onDisk) ? 'offload' : 'remove';
+  }
   return onDisk.cached > 0 ? 'removeForGood' : null;
 }
 

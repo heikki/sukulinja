@@ -77,8 +77,13 @@ describe('the download', () => {
 });
 
 describe('the trash step', () => {
-  test('offloads into the Offload folder, else removes from disk', () => {
-    expect(steps(PART, 'attached').trash).toBe('offload');
+  test('offloads a whole one into the Offload folder, else removes from disk', () => {
+    expect(steps(WHOLE, 'attached').trash).toBe('offload');
+    expect(steps(WHOLE, 'none').trash).toBe('remove');
+  });
+
+  test("removes one that isn't whole from disk, the folder set or not", () => {
+    expect(steps(PART, 'attached').trash).toBe('remove');
     expect(steps(PART, 'none').trash).toBe('remove');
   });
 

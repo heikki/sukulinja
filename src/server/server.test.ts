@@ -335,6 +335,8 @@ describe('Church books', () => {
     expect((await view()).rows).toMatchObject([
       { id: '302', pages: 'checked' }
     ]);
+    // One not fully downloaded isn't offloaded.
+    expect((await appOp('offload', { volumeId: '999' })).status).toBe(409);
     // Offloaded, with nothing cited in it: no full Image of it stays, only
     // the thumbnails.
     await appOp('offload', { volumeId: '302' });
