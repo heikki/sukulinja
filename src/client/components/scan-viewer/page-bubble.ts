@@ -232,10 +232,8 @@ class ScanPageElement extends SignalWatcher(LitElement) {
       : null;
     if (here === null) return nothing;
     if (this.editing) {
-      // A counted Image may have more pages placed on it than are written
-      // there: its first is typed, the Volume's pace giving the rest.
-      const typed = here.by === null ? here.pages.slice(0, 1) : here.pages;
-      return html`${this.renderEditing(typed)}
+      // The pages it shows, counted or not, so Enter keeps a spread's two.
+      return html`${this.renderEditing(here.pages)}
       ${this.refused === null ? nothing : html`<p class="refused">${this.refused}</p>`}`;
     }
     const locked = this.state.viewer.pages.locked.get();

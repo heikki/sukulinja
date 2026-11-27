@@ -204,3 +204,26 @@ test('two Images set to have no page number skip those between', async () => {
       .waitFor();
   });
 });
+
+test("a counted spread's two pages are typed as they're shown", async () => {
+  await withApp(async ({ page }) => {
+    await newTree(page);
+    await page.getByRole('button', { name: 'Settings' }).click();
+    await page
+      .getByRole('group', { name: 'Page numbers' })
+      .getByRole('button', { name: 'On' })
+      .click();
+    await page.keyboard.press('Escape');
+    await openJuvaVolume(page, 'Pää- ja rippikirjat (1790-1796)');
+    const bubble = page.locator('sl-scan-page');
+    await page.getByRole('img', { name: 'Image 1' }).waitFor();
+    await setPage(page, '4-5');
+    await bubble.getByRole('button', { name: 'pages 4–5' }).waitFor();
+
+    await page.getByRole('button', { name: 'Next image' }).click();
+    await bubble.getByRole('button', { name: '≈ pages 6–7' }).click();
+    expect(await bubble.getByLabel('Page').inputValue()).toBe('6-7');
+    await page.keyboard.press('Enter');
+    await bubble.getByRole('button', { name: 'pages 6–7' }).waitFor();
+  });
+});
