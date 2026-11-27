@@ -9,6 +9,7 @@ import { appState } from '@/client/state';
 import type { AppState } from '@/client/state';
 import type { ImagePages } from '@/common/types';
 
+import { cross, crossStyles } from '../box-stage/close';
 import { typedPages } from './typed-pages';
 
 function stop(e: Event) {
@@ -55,78 +56,77 @@ function titleOf({ by, skipped }: ImagePages) {
 // stays here, so a press doesn't pan.
 @customElement('sl-scan-page')
 class ScanPageElement extends SignalWatcher(LitElement) {
-  static override styles = css`
-    :host {
-      position: absolute;
-      top: 0.75rem;
-      left: 0.75rem;
-      z-index: 2;
-      /* The bubble and its × stay on one line, however narrow the scan. */
-      white-space: nowrap;
-    }
+  static override styles = [
+    crossStyles,
+    css`
+      :host {
+        position: absolute;
+        top: 0.75rem;
+        left: 0.75rem;
+        z-index: 2;
+        /* The bubble and its × stay on one line, however narrow the scan. */
+        white-space: nowrap;
+      }
 
-    /* A block of its own, as a button is, whether a button or the
+      /* A block of its own, as a button is, whether a button or the
        locked span. */
-    .bubble {
-      display: inline-block;
-      padding: 0.3rem 0.7rem;
-      border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
-      border-radius: 999px;
-      background: color-mix(in srgb, var(--card) 55%, transparent);
-      backdrop-filter: blur(6px);
-      color: var(--fg);
-      font: inherit;
-      /* Set, not the font's own, so the viewers' × matches its height. */
-      line-height: 1.2;
-      font-variant-numeric: tabular-nums;
-      cursor: text;
-    }
+      .bubble {
+        display: inline-block;
+        padding: 0.3rem 0.7rem;
+        border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--card) 55%, transparent);
+        backdrop-filter: blur(6px);
+        color: var(--fg);
+        font: inherit;
+        /* Set, not the font's own, so the viewers' × matches its height. */
+        line-height: 1.2;
+        font-variant-numeric: tabular-nums;
+        cursor: text;
+      }
 
-    /* Counted from the pins around it, not read here: dimmer. */
-    .bubble.counted {
-      color: color-mix(in srgb, var(--muted) 75%, transparent);
-    }
+      /* Counted from the pins around it, not read here: dimmer. */
+      .bubble.counted {
+        color: color-mix(in srgb, var(--muted) 75%, transparent);
+      }
 
-    /* Marked checked: shown, not changed. */
-    .bubble.locked {
-      cursor: default;
-    }
+      /* Marked checked: shown, not changed. */
+      .bubble.locked {
+        cursor: default;
+      }
 
-    input.bubble {
-      width: 9ch;
-      outline: none;
-    }
+      input.bubble {
+        width: 9ch;
+        outline: none;
+      }
 
-    /* Read by the vision model: a small tag, set apart from a page set by
+      /* Read by the vision model: a small tag, set apart from a page set by
        hand. */
-    .ai {
-      margin-left: 0.35rem;
-      padding: 0 0.3rem;
-      border-radius: 4px;
-      background: color-mix(in srgb, var(--accent) 30%, transparent);
-      font-size: 0.7em;
-      font-weight: 600;
-      vertical-align: 0.1em;
-    }
+      .ai {
+        margin-left: 0.35rem;
+        padding: 0 0.3rem;
+        border-radius: 4px;
+        background: color-mix(in srgb, var(--accent) 30%, transparent);
+        font-size: 0.7em;
+        font-weight: 600;
+        vertical-align: 0.1em;
+      }
 
-    .remove {
-      margin-left: 0.25rem;
-      padding: 0.3rem 0.55rem;
-      color: var(--muted);
-      cursor: pointer;
-    }
+      /* Square around its ×, as the viewers' × is. */
+      .remove {
+        margin-left: 0.25rem;
+        padding: 0.3rem;
+        cursor: pointer;
+      }
 
-    .remove:hover {
-      color: var(--fg);
-    }
-
-    .refused {
-      margin: 0.35rem 0 0;
-      white-space: normal;
-      color: var(--danger);
-      font-size: 0.8rem;
-    }
-  `;
+      .refused {
+        margin: 0.35rem 0 0;
+        white-space: normal;
+        color: var(--danger);
+        font-size: 0.8rem;
+      }
+    `
+  ];
 
   @consume({ context: appState }) private readonly state!: AppState;
 
@@ -230,7 +230,7 @@ class ScanPageElement extends SignalWatcher(LitElement) {
         void this.save(null);
       }}
     >
-      ×
+      ${cross}
     </button>`;
   }
 

@@ -3,6 +3,28 @@ import { customElement } from 'lit/decorators.js';
 
 import { focusRingStyles } from '@/client/focus-ring';
 
+// A × as wide as a line of 1.2 is tall, drawn at its centre, as a glyph
+// sits low in its line; with `crossStyles`.
+export const cross = html`<span class="x"
+  ><svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true">
+    <path
+      d="M1 1 9 9M9 1 1 9"
+      stroke="currentColor"
+      stroke-width="1.4"
+      stroke-linecap="round"
+    /></svg
+></span>`;
+
+export const crossStyles = css`
+  .x {
+    display: inline-grid;
+    place-items: center;
+    width: 1.2em;
+    height: 1.2em;
+    vertical-align: top;
+  }
+`;
+
 function stop(e: Event) {
   e.stopPropagation();
 }
@@ -14,6 +36,7 @@ function stop(e: Event) {
 class ViewerCloseElement extends LitElement {
   static override styles = [
     focusRingStyles,
+    crossStyles,
     css`
       :host {
         position: absolute;
@@ -24,8 +47,7 @@ class ViewerCloseElement extends LitElement {
 
       /* Laid out as the page's bubble is, an inline button on one line
          of the same height, so the two line up in any engine: square
-         around a box as wide as the line is tall, the × drawn at its
-         centre, as a glyph sits low in its line. */
+         around its ×. */
       button {
         padding: 0.3rem;
         font: inherit;
@@ -34,20 +56,8 @@ class ViewerCloseElement extends LitElement {
         border-radius: 999px;
         background: color-mix(in srgb, var(--card) 55%, transparent);
         backdrop-filter: blur(6px);
-        color: var(--muted);
-        cursor: pointer;
-      }
-
-      .x {
-        display: inline-grid;
-        place-items: center;
-        width: 1.2em;
-        height: 1.2em;
-        vertical-align: top;
-      }
-
-      button:hover {
         color: var(--fg);
+        cursor: pointer;
       }
     `
   ];
@@ -67,15 +77,7 @@ class ViewerCloseElement extends LitElement {
         this.dispatchEvent(new CustomEvent('close'));
       }}
     >
-      <span class="x"
-        ><svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true">
-          <path
-            d="M1 1 9 9M9 1 1 9"
-            stroke="currentColor"
-            stroke-width="1.4"
-            stroke-linecap="round"
-          /></svg
-      ></span>
+      ${cross}
     </button>`;
   }
 }
