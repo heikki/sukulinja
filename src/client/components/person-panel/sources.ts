@@ -127,7 +127,7 @@ function renderBody(c: CitationRow, heading: string, actions: unknown) {
 
 // The Selected person's sources, in their groups. A church-book source
 // opens its scan in the Scan viewer, which marks the source it shows;
-// another shows or hides what it records. Record links open outside the
+// another unfolds what it records. Record links open outside the
 // app (the desktop shell hands target=_blank to the browser).
 @customElement('sl-person-sources')
 class PersonSourcesElement extends SignalWatcher(LitElement) {
@@ -225,14 +225,15 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
 
   // What clicking the source does: open its scan if it is a church book
   // that has one, or the viewer to look through its parish's Volumes if it
-  // can; else show or hide its record. Clicked again while the viewer
-  // shows its Link, it closes the viewer; away from the Link, it goes back.
+  // can; else unfold its record. Clicked again while the viewer shows its
+  // Link, nothing happens; away from the Link, it goes back. Only the
+  // chevron folds a record.
   private actionOf(c: CitationRow, status: LinkStatus | null) {
     const { viewer } = this.state;
     return () => {
-      if (this.showing(c)) viewer.close();
-      else if (!viewer.openSource({ citation: c, status }, { reveal: true })) {
-        this.fold(c.id);
+      if (this.showing(c)) return;
+      if (!viewer.openSource({ citation: c, status }, { reveal: true })) {
+        this.unfolded = c.id;
       }
     };
   }
@@ -366,9 +367,9 @@ class PersonSourcesElement extends SignalWatcher(LitElement) {
     return { viewing, elsewhere: open && !viewing };
   }
 
-  // Clicking a church-book source opens its scan; clicking another shows or
-  // hides its details, as its chevron does for both: what it records, its
-  // links and what can be done of it. Its details show only when selected,
+  // Clicking a church-book source opens its scan; clicking another unfolds
+  // its details, which its chevron shows or hides for both: what it
+  // records, its links and what can be done of it. Its details show only when selected,
   // and opening it in the Scan viewer leaves them as they are. One that
   // supports none of the Facts is dimmed, as Facts dims a Fact no source
   // supports.
