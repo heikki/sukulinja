@@ -22,23 +22,28 @@ class ViewerCloseElement extends LitElement {
         z-index: 2;
       }
 
-      /* A circle, the × drawn at its centre: a glyph sits low in its
-         line. */
+      /* Laid out as the page's bubble is, an inline button on one line
+         of the same height, so the two line up in any engine: square
+         around a box as wide as the line is tall, the × drawn at its
+         centre, as a glyph sits low in its line. */
       button {
-        display: grid;
-        place-items: center;
-        /* As tall as the page's bubble: its line and padding. */
-        box-sizing: border-box;
-        width: calc(1lh + 0.6rem + 2px);
-        height: calc(1lh + 0.6rem + 2px);
-        padding: 0;
+        padding: 0.3rem;
         font: inherit;
+        line-height: 1.2;
         border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
         border-radius: 999px;
         background: color-mix(in srgb, var(--card) 55%, transparent);
         backdrop-filter: blur(6px);
         color: var(--muted);
         cursor: pointer;
+      }
+
+      .x {
+        display: inline-grid;
+        place-items: center;
+        width: 1.2em;
+        height: 1.2em;
+        vertical-align: top;
       }
 
       button:hover {
@@ -62,14 +67,15 @@ class ViewerCloseElement extends LitElement {
         this.dispatchEvent(new CustomEvent('close'));
       }}
     >
-      <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true">
-        <path
-          d="M1 1 9 9M9 1 1 9"
-          stroke="currentColor"
-          stroke-width="1.4"
-          stroke-linecap="round"
-        />
-      </svg>
+      <span class="x"
+        ><svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true">
+          <path
+            d="M1 1 9 9M9 1 1 9"
+            stroke="currentColor"
+            stroke-width="1.4"
+            stroke-linecap="round"
+          /></svg
+      ></span>
     </button>`;
   }
 }

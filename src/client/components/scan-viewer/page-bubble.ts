@@ -65,7 +65,10 @@ class ScanPageElement extends SignalWatcher(LitElement) {
       white-space: nowrap;
     }
 
+    /* A block of its own, as a button is, whether a button or the
+       locked span. */
     .bubble {
+      display: inline-block;
       padding: 0.3rem 0.7rem;
       border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
       border-radius: 999px;
@@ -73,6 +76,8 @@ class ScanPageElement extends SignalWatcher(LitElement) {
       backdrop-filter: blur(6px);
       color: var(--fg);
       font: inherit;
+      /* Set, not the font's own, so the viewers' × matches its height. */
+      line-height: 1.2;
       font-variant-numeric: tabular-nums;
       cursor: text;
     }
