@@ -104,6 +104,8 @@ test("a reference's entry is placed by hand", async () => {
       await offload.waitFor();
       const downloaded = row.locator('td').nth(5);
       const had = await downloaded.getAttribute('title');
+      // It took the Download button's place, under the pointer already.
+      await page.mouse.move(0, 0);
       await offload.hover();
       await row.locator('button[title^="Offload: frees "]').waitFor();
       await offload.click();

@@ -18,12 +18,16 @@ import type { ArchiveGroup } from './helpers';
 export const DOWNLOAD_ICON = svg`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12" /><path d="m6 11 6 6 6-6" /><path d="M5 20h14" /></svg>`;
 export const STOP_ICON = svg`<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" /></svg>`;
 export const TRASH_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M6 7l1 13h10l1-13" /><path d="M9 7V4h6v3" /></svg>`;
-// Into the archive box: kept in the offload folder.
-export const OFFLOAD_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1" /><path d="M5 8v11h14V8" /><path d="M12 11v5" /><path d="m9.5 13.5 2.5 2.5 2.5-2.5" /></svg>`;
-// Out of the archive box: brought back from the offload folder.
-export const BRING_BACK_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4" rx="1" /><path d="M5 8v11h14V8" /><path d="M12 16v-5" /><path d="m9.5 13.5 2.5-2.5 2.5 2.5" /></svg>`;
-// The trash crossed out: gone from the offload folder too.
-export const PURGE_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16" /><path d="M6 7l1 13h10l1-13" /><path d="M9 7V4h6v3" /><path d="m10 11 4 5" /><path d="m14 11-4 5" /></svg>`;
+// A full circle: whole on this computer.
+const WHOLE_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="7" /></svg>`;
+// A dashed circle: away in the offload folder.
+const AWAY_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="7" stroke-dasharray="3 3.3" /></svg>`;
+// Where the Volume is now, and, pointed at or focused, where it would be.
+function swapIcon(now: unknown, next: unknown) {
+  return html`<span class="now">${now}</span><span class="next">${next}</span>`;
+}
+export const OFFLOAD_ICON = swapIcon(WHOLE_ICON, AWAY_ICON);
+export const BRING_BACK_ICON = swapIcon(AWAY_ICON, WHOLE_ICON);
 // A line off the list.
 export const UNLIST_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16" /><path d="M4 12h9" /><path d="M4 18h9" /><path d="M16 15h5" /></svg>`;
 
@@ -236,25 +240,30 @@ export const bookTableStyles = [
       color: var(--accent);
     }
 
-    /* The trash button's icon, by what it would do: kept in the offload
-       folder, gone from this computer, or only off the list. */
-    button.act.offload {
-      color: var(--accent);
-    }
-
-    button.act.remove,
-    button.act.removeForGood {
-      color: var(--danger);
-    }
-
+    /* Coloured by what it would do only once pointed at or focused:
+       offloading takes the accent, as every button does, removing from
+       disk or for good the danger colour. Only off the list, it's muted. */
     button.act.unlist {
       color: var(--muted);
     }
 
-    button.act.remove:hover,
-    button.act.removeForGood:hover {
+    button.act:is(.remove, .removeForGood):is(:hover, :focus-visible) {
       border-color: var(--danger);
       color: var(--danger);
+    }
+
+    button.act .now,
+    button.act .next {
+      display: inline-flex;
+    }
+
+    button.act .next,
+    button.act:is(:hover, :focus-visible):not(:disabled) .now {
+      display: none;
+    }
+
+    button.act:is(:hover, :focus-visible):not(:disabled) .next {
+      display: inline-flex;
     }
 
     button.act:disabled {

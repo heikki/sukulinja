@@ -8,7 +8,6 @@ import {
   DOWNLOAD_ICON,
   EMPTY_SLOT,
   OFFLOAD_ICON,
-  PURGE_ICON,
   STOP_ICON,
   TRASH_ICON,
   UNLIST_ICON
@@ -30,8 +29,16 @@ export interface RowActions {
 // What the trash button does next, as the view says.
 type TrashStep = NonNullable<VolumesRow['steps']['trash']>;
 
-// Its download, and the trash button, each in its place.
+// Its download, and the trash button, each in its place. Downloading,
+// bringing back and offloading never go together, as only a whole Volume
+// not yet offloaded is offloaded, so offloading takes the download's place.
 export function renderActs(book: VolumesRow, does: RowActions) {
+  if (book.steps.download === null && book.steps.trash === 'offload') {
+    return [
+      trashButton(book, does, 'offload'),
+      disabledTrash('Nothing to remove: offloaded instead')
+    ];
+  }
   return [download(book, does), trash(book, does)];
 }
 
@@ -88,7 +95,7 @@ function trashTitle(book: VolumesRow, does: RowActions, step: TrashStep) {
 const ICON = {
   offload: OFFLOAD_ICON,
   remove: TRASH_ICON,
-  removeForGood: PURGE_ICON,
+  removeForGood: TRASH_ICON,
   unlist: UNLIST_ICON
 };
 
@@ -99,16 +106,24 @@ const LABEL: Record<TrashStep, string> = {
   unlist: 'Remove from the list'
 };
 
+function disabledTrash(title: string) {
+  return actButton('Remove', TRASH_ICON, () => undefined, {
+    title,
+    disabled: true
+  });
+}
+
 // Drawn and coloured by what it would do; dimmed with nothing to.
 function trash(book: VolumesRow, does: RowActions) {
   const step = book.steps.trash;
-  if (step === null) {
-    return actButton('Remove', TRASH_ICON, () => undefined, {
-      title:
-        "Nothing to remove: not on disk, or the offload folder's drive away; and cited or not added by hand",
-      disabled: true
-    });
-  }
+  return step === null
+    ? disabledTrash(
+        "Nothing to remove: not on disk, or the offload folder's drive away; and cited or not added by hand"
+      )
+    : trashButton(book, does, step);
+}
+
+function trashButton(book: VolumesRow, does: RowActions, step: TrashStep) {
   return actButton(
     LABEL[step],
     ICON[step],
