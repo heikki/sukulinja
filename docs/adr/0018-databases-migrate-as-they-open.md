@@ -1,5 +1,7 @@
 # A dataset's database migrates to the new schema as it opens
 
+_Amended by ADR-0030: the `rejections` table is gone (schema 10)._
+
 Every schema change so far (Reminders, the Changes, Tags) meant importing every dataset again, in dev and in the installed app, because a database built by another schema wouldn't open (ADR-0013). The reason given was that the source file isn't kept, so there's nothing to upgrade from. That holds only for a change that stores something of the GEDCOM the import used to drop. Most changes are to what the app itself keeps, and the database already holds all of that. The entries model (`.scratch/citation-practices/entries.md`) is a change of this kind: it moves the Box and the transcription from citations onto a table of their own.
 
 So a database is now taken to the app's schema as it's opened:

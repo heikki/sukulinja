@@ -66,12 +66,11 @@ function pinsAt(at: { image?: number; fileId?: string }) {
     'Page pin': { pages: [7], by: 'hand' as const, ...at },
     'Record pin': { record: 70, by: 'hand' as const, ...at },
     'Reference pin': { volumeId: 'v', volume: 'V', ...at },
-    'Rejection': { volumeId: 'v', ...at },
     'Link': { volumeId: 'v', volume: 'V', by: 'vision' as const, ...at }
   };
 }
 
-const ON_IMAGE_ONLY = new Set(['Page pin', 'Record pin', 'Rejection']);
+const ON_IMAGE_ONLY = new Set(['Page pin', 'Record pin']);
 
 const cases = PLACES.flatMap(({ where, at, kept }) =>
   Object.entries(pinsAt(at))

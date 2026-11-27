@@ -1,5 +1,7 @@
 # The database holds the whole tree, and a GEDZIP carries it out and back
 
+_Amended by ADR-0030: the `rejections` table is gone (schema 10)._
+
 Amended by ADR-0039: `original_page` is gone; a Mark leaves a reference's page alone.
 
 A dataset's SQLite database stored only what the chart and person panel render: notes, causes of death, the rest of each source and any fact tag outside the import's allow-lists were dropped. The GEDCOM an import read was then discarded, so nothing faithful was left to export from. Links to Astia lived outside the tree in `data/pins.local.json`. And the app is about to write genealogical data of its own: **Citations** made in the **Scan viewer**.

@@ -2,6 +2,8 @@ Status: accepted (2026-11-14)
 
 # An Entry is one Box, cited by everyone it names
 
+_Amended by ADR-0030: the `rejections` table is gone (schema 10)._
+
 _Amended by ADR-0033: an Entry keeps its own dates and place, its kind chosen in its Entry pane, not told by its Book._
 
 _Amended by ADR-0037: the owner's Role and the Entry's kind stay as saved; changing them saves a new Entry._

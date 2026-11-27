@@ -155,8 +155,7 @@ function openScans({
     // dataset's Marks and Matches read over them.
     snapshot: async () => await pins.snapshot(),
 
-    // The dataset's Marks and Matches as the pins they're kept as, and its
-    // Rejections.
+    // The dataset's Marks and Matches as the pins they're kept as.
     marked: () => pins.marked(),
 
     // Changes when a save, a Volume's list kept anew, or a spelling given

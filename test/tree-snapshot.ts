@@ -10,8 +10,6 @@ type Row = Record<string, unknown> & { id?: number };
 const LEFT_OUT: Record<string, string[]> = {
   media: ['original_path']
 };
-// Tables the GEDZIP doesn't carry: Rejections have no GEDCOM form.
-const NOT_CARRIED = new Set(['rejections']);
 const META_KEPT = new Set([
   'header_note',
   'copyright',
@@ -26,8 +24,7 @@ export function treeSnapshot(db: Database) {
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
     )
     .all()
-    .map((t) => t.name)
-    .filter((t) => !NOT_CARRIED.has(t));
+    .map((t) => t.name);
   const rows = new Map(
     tables.map((t) => [t, db.query<Row, []>(`SELECT * FROM ${t}`).all()])
   );
