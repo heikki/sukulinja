@@ -6,12 +6,13 @@ import { join } from 'node:path';
 
 import type { NewChange } from '../changes/changes';
 import { routeShared } from './astia-routes';
-import { openAstia } from './astia/astia';
+import { AstiaError, openAstia } from './astia/astia';
 import type { Astia, ImageRef } from './astia/astia';
-import { installBooks, parishBooks } from './astia/church-books';
+import { installBooks, parishBooks, storedNow } from './astia/church-books';
 import { openParishes } from './astia/parishes';
 import type { Parishes } from './astia/parishes';
 import { openBookList } from './book-list';
+import type { BookList } from './book-list';
 import { createCitations } from './citations';
 import type { Citations } from './citations';
 import { openImages } from './images';
@@ -144,6 +145,49 @@ export function openCitations(root: string, options: Options) {
     return [...new Set(cited)];
   }
 
+  // Each dataset's Book list, made once for its Database.
+  const lists = new WeakMap<Database, BookList>();
+  function bookListOf(db: Database) {
+    let list = lists.get(db);
+    if (list === undefined) {
+      const citations = citationsOf(db);
+      list = openBookList(db, {
+        books: async (archiveId, keep) =>
+          await parishBooks(
+            { astia, storage: storage.volumes },
+            archiveId,
+            keep
+          ),
+        titleOf: async (archiveId) => await images.titleOf(archiveId),
+        archives: async () => await citations.churchBookArchives(),
+        countInArchive: async (archiveId) =>
+          await citations.countInArchive(archiveId),
+        stamp: async () => await citations.stamp(),
+        storedNow: async (volume) =>
+          await storedNow({ storage: storage.volumes }, volume)
+      });
+      lists.set(db, list);
+    }
+    return list;
+  }
+
+  // Every dataset's Book list but the one of `db`; one Astia can't say is
+  // left out.
+  async function listsBesides(db: Database) {
+    const others = (await options.datasets()).filter((d) => d !== db);
+    const all = await Promise.all(
+      others.map(async (d) => {
+        try {
+          return await bookListOf(d).all();
+        } catch (err) {
+          if (err instanceof AstiaError) return null;
+          throw err;
+        }
+      })
+    );
+    return all.filter((l) => l !== null);
+  }
+
   return {
     // The parishes, the church books and their downloads, and Storage,
     // shared by every dataset.
@@ -169,18 +213,7 @@ export function openCitations(root: string, options: Options) {
         options.changed?.(db, change);
       }
       const citations = citationsOf(db);
-      const bookList = openBookList(db, {
-        books: async (archiveId, keep) =>
-          await parishBooks(
-            { astia, storage: storage.volumes },
-            archiveId,
-            keep
-          ),
-        titleOf: async (archiveId) => await images.titleOf(archiveId),
-        archives: async () => await citations.churchBookArchives(),
-        countInArchive: async (archiveId) =>
-          await citations.countInArchive(archiveId)
-      });
+      const bookList = bookListOf(db);
       if (options.warmUp === true) void citations.warmUp();
       // Switches the Volume, `volume` by its label, to Astia's new filming,
       // which every dataset then sees, and says so in this one's Changes.
@@ -220,11 +253,12 @@ export function openCitations(root: string, options: Options) {
         }),
         // The dataset's Book list, and adding and taking off Volumes.
         bookList,
-        // The Volumes view: the Book list, then every other Volume on this
-        // computer, with Storage's fill.
+        // The Volumes view: the Book list, then every other dataset's and
+        // every other Volume on this computer, with Storage's fill.
         volumesView: async () =>
           await volumesView({
             listed: async () => await bookList.all(),
+            elsewhere: async () => await listsBesides(db),
             here: async () =>
               await installBooks(
                 { astia, storage: storage.volumes },

@@ -16,5 +16,5 @@ The Church books view listed a dataset's archives, and an archive's Volumes in A
 
 ## Consequences
 
-- A view of every Volume with anything on this computer, shared by every dataset (downloads, page numbers checked, and later offloading), is the tab's second mode, _All books_.
+- A view of every Volume with anything on this computer, shared by every dataset (downloads, page numbers checked, and later offloading), is the tab's second mode, _All trees_. It shows every dataset's Book list too, and counts every dataset's Citations: a Volume another tree cites vanished from it once its Images were removed (Heikki, 2026-11-27). Taking a Volume off the list there still takes it off only this dataset's.
 - The Scan viewer's _Change Volume…_ opens the same picker.

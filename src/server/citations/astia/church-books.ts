@@ -41,6 +41,14 @@ function bookOf(
   };
 }
 
+// The Volume with what Storage has of it now.
+export async function storedNow(
+  sources: Pick<Sources, 'storage'>,
+  book: ChurchBookVolume
+): Promise<ChurchBookVolume> {
+  return bookOf(book, await sources.storage.of(book.id, book.digitized));
+}
+
 // The parish archive's Volumes in Astia's order; with `keep`, only those
 // it keeps, so Storage is asked of no others.
 export async function parishBooks(

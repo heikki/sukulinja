@@ -18,7 +18,7 @@ afterAll(closeBrowser);
 async function fromPagesMenu(page: Page, step: string, shotAs?: string) {
   await openList(page, 'Volumes');
   const list = page.locator('sl-volumes-list');
-  const all = list.getByRole('button', { name: 'All books' });
+  const all = list.getByRole('button', { name: 'All trees' });
   if ((await all.getAttribute('aria-pressed').catch(() => null)) === 'false') {
     await all.click();
   }

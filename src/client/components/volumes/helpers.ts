@@ -234,6 +234,15 @@ function downloadCell(download: DownloadStatus, onDisk: VolumeOnDisk) {
   return `Stopped at ${share(onDisk)}`;
 }
 
+// How many of the dataset's Citations link into the Volume, or with
+// `everyTree` of every dataset's.
+export function citedOf(
+  book: { cited: number; citedAll: number },
+  everyTree: boolean
+) {
+  return everyTree ? book.citedAll : book.cited;
+}
+
 // The Book list in a line: how many, how many cited, and how many whole
 // on disk.
 function counted(k: number, one: string, many: string) {

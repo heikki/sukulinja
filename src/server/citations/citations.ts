@@ -381,6 +381,11 @@ export function createCitations<R extends BookRef>(
     return counts;
   }
 
+  // Changes with the dataset or what its references resolve to.
+  async function stamp() {
+    return `${datasetVersion(db)}/${await references.stamp()}`;
+  }
+
   // Each archive's counts, counted again only once the dataset or what its
   // references resolve to has changed.
   const counted = new Map<
@@ -388,10 +393,10 @@ export function createCitations<R extends BookRef>(
     { stamp: string; counts: Promise<Record<string, number>> }
   >();
   async function countInArchive(archiveId: string) {
-    const stamp = `${datasetVersion(db)}/${await references.stamp()}`;
+    const now = await stamp();
     let hit = counted.get(archiveId);
-    if (hit?.stamp !== stamp) {
-      const entry = { stamp, counts: countAnew(archiveId) };
+    if (hit?.stamp !== now) {
+      const entry = { stamp: now, counts: countAnew(archiveId) };
       counted.set(archiveId, entry);
       // A failure isn't kept: Astia comes back.
       entry.counts.catch(() => {
@@ -593,6 +598,9 @@ export function createCitations<R extends BookRef>(
     // How many Citations link into each of the parish archive's Volumes.
     // Throws when Astia can't be reached.
     countInArchive,
+
+    // Changes with the dataset or what its references resolve to.
+    stamp,
 
     // The archives the dataset's church books are in, most cited first.
     churchBookArchives,

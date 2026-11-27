@@ -504,10 +504,11 @@ export interface ListedBook extends ChurchBookVolume {
 }
 
 // A row of the Volumes view: a Volume on the dataset's Book list, or one
-// with something on this computer whatever dataset it's of (`onList`
+// on another dataset's or with something on this computer (`onList`
 // false); the archive holding it, by its id and title, null for one in
 // none of the install's parishes; how many of the dataset's Citations
-// link into it, and whether it was added to the list by hand; its page
+// link into it, and of every dataset's (`citedAll`), and whether it was
+// added to the list by hand; its page
 // numbers; and its buttons' steps: Storage's download step, and the trash
 // button's, Storage's or, with nothing of it here, taking one added by
 // hand and cited nowhere off the list.
@@ -516,6 +517,7 @@ export interface VolumesRow extends Omit<ChurchBookVolume, 'next'> {
   archive: string | null;
   onList: boolean;
   cited: number;
+  citedAll: number;
   added: boolean;
   pages: PageNumbering;
   steps: {
@@ -525,9 +527,9 @@ export interface VolumesRow extends Omit<ChurchBookVolume, 'next'> {
 }
 
 // The `volumesView` operation: the Volumes view's rows, the Book list's
-// first, by archive, then every other one on this computer; whether the
-// Book list could be told (not while Astia can't be reached), and
-// Storage's fill.
+// first, by archive, then every other dataset's and every other one on
+// this computer; whether the Book list could be told (not while Astia
+// can't be reached), and Storage's fill.
 export interface VolumesView {
   rows: VolumesRow[];
   listed: boolean;

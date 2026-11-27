@@ -18,6 +18,7 @@ function row(pages: VolumesRow['pages']): VolumesRow {
     archive: 'Juva',
     onList: true,
     cited: 0,
+    citedAll: 0,
     added: true,
     pages,
     offloaded: null,

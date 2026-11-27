@@ -14,7 +14,7 @@ import { CLAUDE_MODELS } from '@/common/assistant-choices';
 import type { VolumesRow, VolumesView } from '@/common/types';
 
 import { formatBytes } from '../settings/helpers';
-import { busy, listSummary, matches } from './helpers';
+import { busy, citedOf, listSummary, matches } from './helpers';
 import type { DownloadAction } from './helpers';
 import { renderLeaveDialog } from './leave-dialog';
 import { pageWork } from './page-work';
@@ -44,11 +44,11 @@ function renderEmpty(why: string) {
 const POLL_MS = 2000;
 
 // The Volumes tab of the corner panel: one table by archive, of the
-// dataset's Book list (_This tree_) or of every Volume with something on
-// this computer, whatever tree it's of (_All books_), the choice offered
-// only when this computer has Volumes the Book list leaves out. Either
-// way each Volume says how many of the dataset's Citations link into it,
-// its page numbers and how much of it is downloaded. A right-click on
+// dataset's Book list (_This tree_) or of every dataset's with every
+// other Volume on this computer (_All trees_), the choice offered only
+// when the two differ. Each Volume says how many of the dataset's
+// Citations link into it, or under _All trees_ of every dataset's, its
+// page numbers and how much of it is downloaded. A right-click on
 // its row opens the menu of its page numbers; its buttons start or stop its
 // download (an offloaded one brought back first), or offload one
 // downloaded whole with an offload folder attached, and a trash button
@@ -87,7 +87,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
         flex-direction: column;
       }
 
-      /* This tree or All books, side by side in one frame. */
+      /* This tree or All trees, side by side in one frame. */
       .modes {
         flex: none;
         display: flex;
@@ -370,9 +370,13 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     return typeof this.view === 'object' ? this.view : null;
   }
 
-  // The filter to the Book list, when this computer has more.
+  // The filter to the Book list, when the other datasets or this
+  // computer have more, or cite its Volumes too.
   private offered() {
-    return this.loaded()?.rows.some((r) => !r.onList) ?? false;
+    return (
+      this.loaded()?.rows.some((r) => !r.onList || r.citedAll !== r.cited) ??
+      false
+    );
   }
 
   // The switch shows while the view loads too, so the bar doesn't shift
@@ -382,7 +386,7 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     const waiting = this.view === null;
     const modes = [
       { label: 'This tree', treeOnly: true },
-      { label: 'All books', treeOnly: false }
+      { label: 'All trees', treeOnly: false }
     ];
     return html`<div class="modes" role="group" aria-label="Volumes shown">
       ${modes.map(
@@ -411,8 +415,8 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     </span>`;
   }
 
-  // The Book list's Volumes, with every other one on this computer unless
-  // `treeOnly`; or why there are none.
+  // The Book list's Volumes, with every other dataset's and every other
+  // one on this computer unless `treeOnly`; or why there are none.
   private rows(treeOnly: boolean): VolumesRow[] | string {
     const { view } = this;
     if (view === null) return 'Loading…';
@@ -425,13 +429,18 @@ class VolumesListElement extends SignalWatcher(LitElement) {
     return 'No sources here cite a Volume yet. Add volumes to look through.';
   }
 
-  private renderBody(rows: VolumesRow[] | string, shown: VolumesRow[]) {
+  private renderBody(
+    rows: VolumesRow[] | string,
+    shown: VolumesRow[],
+    everyTree: boolean
+  ) {
     if (typeof rows === 'string') return renderEmpty(rows);
     if (shown.length === 0) {
       return renderEmpty(`No volume matches “${this.filter.trim()}”.`);
     }
     return renderBookTable({
       books: shown,
+      everyTree,
       shown: this.shownId(),
       acts: (b) =>
         renderActs(b, {
@@ -447,17 +456,19 @@ class VolumesListElement extends SignalWatcher(LitElement) {
   }
 
   // What the table shows, and Storage's fill.
-  private renderFoot(shown: VolumesRow[]) {
+  private renderFoot(shown: VolumesRow[], everyTree: boolean) {
     if (shown.length === 0) return nothing;
+    const books = shown.map((b) => ({ ...b, cited: citedOf(b, everyTree) }));
     return html`<div class="foot">
-      <p class="summary">${listSummary(shown)}</p>
+      <p class="summary">${listSummary(books)}</p>
       ${this.renderCache()}
     </div>`;
   }
 
   override render() {
     const offered = this.offered();
-    const rows = this.rows(!offered || this.treeOnly);
+    const treeOnly = !offered || this.treeOnly;
+    const rows = this.rows(treeOnly);
     const shown =
       typeof rows === 'string'
         ? []
@@ -482,8 +493,9 @@ class VolumesListElement extends SignalWatcher(LitElement) {
           Add volumes…
         </button>
       </div>
-      ${this.renderBody(rows, shown)} ${this.renderFoot(shown)}
-      ${renderRefused(this.asking.refused)} ${this.renderConfirm()}
+      ${this.renderBody(rows, shown, !treeOnly)}
+      ${this.renderFoot(shown, !treeOnly)} ${renderRefused(this.asking.refused)}
+      ${this.renderConfirm()}
       ${renderPagesMenu(this.pagesMenu, this.pagesActions(), () => {
         this.pagesMenu = null;
       })}

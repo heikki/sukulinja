@@ -29,6 +29,7 @@ export function memoryBookList(
         rows: list.map(({ next, ...b }) => ({
           ...b,
           onList: true,
+          citedAll: b.cited,
           pages: 'counted',
           steps: next
         })),

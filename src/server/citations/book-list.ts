@@ -28,6 +28,10 @@ interface Sources {
   // How many of the dataset's Citations link into each of the archive's
   // Volumes, by Volume id; one with none left out.
   countInArchive: (archiveId: string) => Promise<Record<string, number>>;
+  // Changes with the dataset or what its references resolve to.
+  stamp: () => Promise<string>;
+  // The Volume with what Storage has of it now.
+  storedNow: (volume: ChurchBookVolume) => Promise<ChurchBookVolume>;
 }
 
 export function openBookList(db: Database, sources: Sources) {
@@ -79,15 +83,36 @@ export function openBookList(db: Database, sources: Sources) {
     }));
   }
 
+  async function listAnew() {
+    const added = addedRows.all();
+    const ids = new Set(added.map((a) => a.volumeId));
+    const archives = await archivesOfList(added);
+    const lists = await Promise.all(archives.map((a) => listIn(a, ids)));
+    return lists.flat();
+  }
+
+  // The list as last made, made again only once the dataset or what its
+  // references resolve to has changed; what Storage has of each Volume is
+  // read anew each time.
+  let kept: { stamp: string; list: Promise<ListedBook[]> } | null = null;
+
   const list = {
     // The Book list: its archives in order, each one's Volumes in Astia's
     // order. Throws AstiaError when Astia can't say.
     async all(): Promise<ListedBook[]> {
-      const added = addedRows.all();
-      const ids = new Set(added.map((a) => a.volumeId));
-      const archives = await archivesOfList(added);
-      const lists = await Promise.all(archives.map((a) => listIn(a, ids)));
-      return lists.flat();
+      const stamp = await sources.stamp();
+      if (kept?.stamp !== stamp) {
+        const entry = { stamp, list: listAnew() };
+        kept = entry;
+        // A failure isn't kept: Astia comes back.
+        entry.list.catch(() => {
+          if (kept === entry) kept = null;
+        });
+      }
+      const books = await kept.list;
+      return await Promise.all(
+        books.map(async (b) => ({ ...b, ...(await sources.storedNow(b)) }))
+      );
     },
 
     // Adds the archive's Volume to the list; refused (400) when the archive

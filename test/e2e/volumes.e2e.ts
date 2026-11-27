@@ -1,7 +1,8 @@
 // The Volumes: a parish no source cites found in Astia from the Volume
 // picker, one of its Volumes added to the Book list, downloaded and
-// stopped there, removed from disk among all the books, and taken off; and the picker offering first the Volumes
-// the Selected person's Facts fit.
+// stopped there, removed from disk among all the books, and taken off;
+// another tree's books under All trees; and the picker offering first the
+// Volumes the Selected person's Facts fit.
 
 import { afterAll, expect, test } from 'bun:test';
 
@@ -130,7 +131,7 @@ test("the picker offers the Volumes the Selected person's Facts fit", async () =
   });
 });
 
-test('the This tree / All books choice is kept as the tab closes and opens', async () => {
+test('the This tree / All trees choice is kept as the tab closes and opens', async () => {
   await withApp(async ({ page }) => {
     // A Volume partly downloaded for one tree is on this computer, off
     // another's Book list.
@@ -160,9 +161,9 @@ test('the This tree / All books choice is kept as the tab closes and opens', asy
     await page.goto(new URL('/', page.url()).toString());
     await importTree(page, 'myheritage-export.ged', 'Toinen suku');
     await openList(page, 'Volumes');
-    await list.getByRole('button', { name: 'All books' }).click();
+    await list.getByRole('button', { name: 'All trees' }).click();
     const allPressed = list.locator(
-      'button[aria-pressed="true"]:has-text("All books")'
+      'button[aria-pressed="true"]:has-text("All trees")'
     );
     await allPressed.waitFor();
 
@@ -173,5 +174,29 @@ test('the This tree / All books choice is kept as the tab closes and opens', asy
     await page.getByRole('button', { name: /^Volumes, Photos/ }).click();
     await openList(page, 'Volumes');
     await allPressed.waitFor();
+  });
+});
+
+test("All trees shows every tree's books, cited by every tree", async () => {
+  await withApp(async ({ page }) => {
+    // One tree cites Juva's Volumes; another, made after it, cites none.
+    await importTree(page, 'myheritage-export.ged', 'Toinen suku');
+    await page.goto(new URL('/', page.url()).toString());
+    await newTree(page);
+    await openList(page, 'Volumes');
+    const list = page.locator('sl-volumes-list');
+    await list.getByText('No sources here cite a Volume yet.').waitFor();
+
+    // Under All trees, the other tree's Volumes, with its Citations.
+    await list.getByRole('button', { name: 'All trees' }).click();
+    const rows = list.locator('tr.book');
+    await rows.first().waitFor();
+    const cited = await list.locator('tr.book td:nth-child(4)').allInnerTexts();
+    expect(cited.some((c) => Number(c) > 0)).toBe(true);
+    // None of them is this tree's to take off.
+    expect(
+      await list.getByRole('button', { name: 'Remove from the list' }).count()
+    ).toBe(0);
+    await shot(page, 'volumes-all-trees');
   });
 });

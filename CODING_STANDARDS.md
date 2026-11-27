@@ -12,4 +12,4 @@ Read at review (`/code-review`), not while implementing. These are the judgement
 - What a list or table asks for per row stays cheap: its cost grows with the rows shown, never with rows × references, images or datasets. Work that has to walk a volume's references or images is fetched for one row on demand (hover, focus, open), or computed once for the whole list.
 - The same holds for anything a panel loads on open or on a tab switch: a person waits for it every time.
 
-**Why:** the All books tab once took about 10 s to open, because every row resolved its volume's cited images to show what offloading would free (fixed in d043ef3).
+**Why:** the All trees tab once took about 10 s to open, because every row resolved its volume's cited images to show what offloading would free (fixed in d043ef3).

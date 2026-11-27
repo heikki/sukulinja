@@ -5,6 +5,7 @@ import type { VolumesRow } from '@/common/types';
 
 import { cornerListStyles } from '../corner-panel/list-styles';
 import {
+  citedOf,
   diskCell,
   diskLine,
   groupByArchive,
@@ -33,6 +34,8 @@ export const UNLIST_ICON = svg`<svg width="12" height="12" viewBox="0 0 24 24" f
 
 export interface BookTable {
   books: VolumesRow[];
+  // Whether its Cited counts every dataset's Citations, or this one's.
+  everyTree: boolean;
   // The Volume the Scan viewer shows, marked, if any.
   shown: string | null;
   // The buttons at the end of each Volume's row.
@@ -42,11 +45,11 @@ export interface BookTable {
   menu: (book: VolumesRow, e: MouseEvent) => void;
 }
 
-// How many of the dataset's Citations link into it; nothing for one off
-// the Book list.
-function citedCell(book: VolumesRow) {
-  if (!book.onList) return nothing;
-  return book.cited === 0 ? html`<span class="count">–</span>` : book.cited;
+// How many of the dataset's Citations link into it, or of every
+// dataset's.
+function citedCell(book: VolumesRow, everyTree: boolean) {
+  const cited = citedOf(book, everyTree);
+  return cited === 0 ? html`<span class="count">–</span>` : cited;
 }
 
 function pagesOf(book: VolumesRow) {
@@ -68,7 +71,7 @@ function renderBook(table: BookTable, book: VolumesRow) {
     <td class="code" title=${book.label}>${volumeCode(book.label)}</td>
     <td class="muted">${seriesName(book.kind)}</td>
     <td class="muted">${yearsText(book.years)}</td>
-    <td class="num">${citedCell(book)}</td>
+    <td class="num">${citedCell(book, table.everyTree)}</td>
     <td class="num">${pagesOf(book)}</td>
     <td class="muted disk" title=${diskLine(book)}>${diskCell(book)}</td>
     <td
